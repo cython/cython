@@ -1122,7 +1122,8 @@ class ModuleScope(Scope):
     # parent_module        Scope              Parent in the import namespace
     # module_entries       {string : Entry}   For cimport statements
     # type_names           {string : 1}       Set of type names (used during parsing)
-    # included_files       [string]           Cython sources included with 'include'
+    # included_files       [string]           Name of cython source files included with 'include' or 'include_once'
+    # included_file_paths  {string}           Path of cython source files included with 'include' or 'include_once'
     # pxd_file_loaded      boolean            Corresponding .pxd file has been processed
     # cimported_modules    [ModuleScope]      Modules imported with cimport
     # types_imported       {PyrexType}        Set of types for which import code generated
@@ -1164,6 +1165,7 @@ class ModuleScope(Scope):
         self.cimported_modules = []
         self.types_imported = set()
         self.included_files = []
+        self.included_file_paths = set()
         self.has_extern_class = 0
         self.cached_builtins = []
         self.undeclared_cached_builtins = []

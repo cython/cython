@@ -63,7 +63,7 @@ def handle_includes(source, path):
             return include_line.group(0) + ' # no such path: ' + included
         return handle_includes(open(included).read(), path)
     # TODO: Proper string tokenizing.
-    return re.sub(r'^include\s+([^\n]+[\'"])\s*(#.*)?$', include_here, source, flags=re.M)
+    return re.sub(r'^include(?:_once)?\s+([^\n]+[\'"])\s*(#.*)?$', include_here, source, flags=re.M)
 
 def p_module(path):
     cdef perrdetail err

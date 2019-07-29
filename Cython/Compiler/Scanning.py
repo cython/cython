@@ -46,7 +46,7 @@ py_reserved_words = [
 ]
 
 pyx_reserved_words = py_reserved_words + [
-    "include", "ctypedef", "cdef", "cpdef",
+    "include", "include_once", "ctypedef", "cdef", "cpdef",
     "cimport", "DEF", "IF", "ELIF", "ELSE"
 ]
 
@@ -294,11 +294,12 @@ class StringSourceDescriptor(SourceDescriptor):
 #------------------------------------------------------------------
 
 class PyrexScanner(Scanner):
-    #  context            Context  Compilation context
-    #  included_files     [string] Files included with 'include' statement
-    #  compile_time_env   dict     Environment for conditional compilation
-    #  compile_time_eval  boolean  In a true conditional compilation context
-    #  compile_time_expr  boolean  In a compile-time expression context
+    #  context             Context  Compilation context
+    #  included_files      [string] Name of files included with 'include' statement
+    #  included_file_paths {string} Absolute path of files included with 'include' statement
+    #  compile_time_env    dict     Environment for conditional compilation
+    #  compile_time_eval   boolean  In a true conditional compilation context
+    #  compile_time_expr   boolean  In a compile-time expression context
 
     def __init__(self, file, filename, parent_scanner=None,
                  scope=None, context=None, source_encoding=None, parse_comments=True, initial_pos=None):
@@ -306,12 +307,14 @@ class PyrexScanner(Scanner):
         if parent_scanner:
             self.context = parent_scanner.context
             self.included_files = parent_scanner.included_files
+            self.included_file_paths = parent_scanner.included_file_paths
             self.compile_time_env = parent_scanner.compile_time_env
             self.compile_time_eval = parent_scanner.compile_time_eval
             self.compile_time_expr = parent_scanner.compile_time_expr
         else:
             self.context = context
             self.included_files = scope.included_files
+            self.included_file_paths = scope.included_file_paths
             self.compile_time_env = initial_compile_time_env()
             self.compile_time_eval = 1
             self.compile_time_expr = 0

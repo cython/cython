@@ -403,7 +403,7 @@ def strip_string_literals(code, prefix='__Pyx_L'):
 dependency_regex = re.compile(r"(?:^\s*from +([0-9a-zA-Z_.]+) +cimport)|"
                               r"(?:^\s*cimport +([0-9a-zA-Z_.]+(?: *, *[0-9a-zA-Z_.]+)*))|"
                               r"(?:^\s*cdef +extern +from +['\"]([^'\"]+)['\"])|"
-                              r"(?:^\s*include +['\"]([^'\"]+)['\"])", re.M)
+                              r"(?:^\s*include(?:_once)? +['\"]([^'\"]+)['\"])", re.M)
 dependency_after_from_regex = re.compile(
     r"(?:^\s+\(([0-9a-zA-Z_., ]*)\)[#\n])|"
     r"(?:^\s+([0-9a-zA-Z_., ]*)[#\n])",

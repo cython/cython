@@ -19,6 +19,7 @@ cython.declare(Nodes=object, ExprNodes=object, EncodedString=object,
 from io import StringIO
 import re
 import sys
+import os
 from unicodedata import lookup as lookup_unicodechar, category as unicode_category
 from functools import partial, reduce
 
@@ -2015,7 +2016,7 @@ def p_except_clause(s):
         pattern = exc_type, target = exc_value,
         body = body, is_except_as=is_except_as)
 
-def p_include_statement(s, ctx):
+def p_include_statement(s, ctx, is_include_once):
     pos = s.position()
     s.next() # 'include'
     unicode_include_file_name = p_string_literal(s, 'u')[2]
@@ -2024,7 +2025,11 @@ def p_include_statement(s, ctx):
         include_file_name = unicode_include_file_name
         include_file_path = s.context.find_include_file(include_file_name, pos)
         if include_file_path:
+            include_file_path = os.path.abspath(include_file_path)
+            if is_include_once and include_file_path in s.included_file_paths:
+                return Nodes.PassStatNode(pos)
             s.included_files.append(include_file_name)
+            s.included_file_paths.add(include_file_path)
             with Utils.open_source_file(include_file_path) as f:
                 source_desc = FileSourceDescriptor(include_file_path)
                 s2 = PyrexScanner(f, source_desc, s, source_encoding=f.encoding, parse_comments=s.parse_comments)
@@ -2283,10 +2288,10 @@ def p_statement(s, ctx, first_statement = 0):
             if ctx.level not in ('module', 'function', 'class', 'other'):
                 s.error("class definition not allowed here")
             return p_class_statement(s, decorators)
-        elif s.sy == 'include':
+        elif s.sy == 'include' or s.sy == 'include_once':
             if ctx.level not in ('module', 'module_pxd'):
-                s.error("include statement not allowed here")
-            return p_include_statement(s, ctx)
+                s.error("%s statement not allowed here" % s.sy)
+            return p_include_statement(s, ctx, s.sy == 'include_once')
         elif ctx.level == 'c_class' and s.sy == 'IDENT' and s.systring == 'property':
             return p_property_decl(s)
         elif s.sy == 'pass' and ctx.level != 'property':

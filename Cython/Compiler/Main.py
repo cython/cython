@@ -274,7 +274,7 @@ class Context(object):
         for kind, name in self.read_dependency_file(source_path):
             if kind == "cimport":
                 dep_path = self.find_pxd_file(name, pos)
-            elif kind == "include":
+            elif kind == "include" or kind == "include_once":
                 dep_path = self.search_include_directories(name, pos)
             else:
                 continue

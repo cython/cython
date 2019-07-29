@@ -96,6 +96,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     L1.append(x)
 
         extend_if_not_in(self.scope.included_files, scope.included_files)
+        self.scope.included_file_paths.update(scope.included_file_paths)
 
         if merge_scope:
             # Ensure that we don't generate import code for these entries!
