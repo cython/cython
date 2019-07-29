@@ -846,19 +846,27 @@ The include statement and include files
     Historically the ``include`` statement was used for sharing declarations.
     Use :ref:`sharing-declarations` instead.
 
-A Cython source file can include material from other files using the include
+A Cython source file can include material from other files using the ``include``
 statement, for example,::
 
     include "spamstuff.pxi"
 
 The contents of the named file are textually included at that point.  The
 included file can contain any complete statements or declarations that are
-valid in the context where the include statement appears, including other
-include statements.  The contents of the included file should begin at an
+valid in the context where the ``include`` statement appears, including other
+``include`` statements.  The contents of the included file should begin at an
 indentation level of zero, and will be treated as though they were indented to
-the level of the include statement that is including the file.  The include
-statement cannot, however, be used outside of the module scope, such as inside
-of functions or class bodies.
+the level of the ``include`` statement that is including the file.  The
+``include`` statement cannot, however, be used outside of the module scope,
+such as inside of functions or class bodies.
+
+It is also possible to use the ``include_once`` statement. It behaves like the
+``include`` statement, with the only difference being that if the file has
+already been included in the module, it will not be included again.
+
+For example::
+
+    include_once "spamstuff.pxi"
 
 .. note::
 
