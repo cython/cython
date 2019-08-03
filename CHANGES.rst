@@ -72,6 +72,10 @@ Bugs fixed
   the first character if multiple characters should have been returned.
   They now use the original Python methods again.
 
+* Diverging from the usual behaviour, ``len(memoryview)``, ``len(char*)``
+  and ``len(Py_UNICODE*)`` returned an unsigned ``size_t`` value.  They now
+  return a signed ``Py_ssize_t``, like other usages of ``len()``.
+
 * Nested dict literals in function call kwargs could incorrectly raise an
   error about duplicate keyword arguments, which are allowed when passing
   them from dict literals.
