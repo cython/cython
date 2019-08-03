@@ -1,5 +1,6 @@
 
 import sys
+import copy
 from unittest import TestCase
 try:
     from StringIO import StringIO
@@ -14,6 +15,9 @@ class CmdLineParserTest(TestCase):
     def setUp(self):
         backup = {}
         for name, value in vars(Options).items():
+            # we need a deep copy of _directive_defaults, because they can be changed
+            if name == '_directive_defaults':
+               value = copy.deepcopy(value)
             backup[name] = value
         self._options_backup = backup
 
@@ -22,6 +26,10 @@ class CmdLineParserTest(TestCase):
         for name, orig_value in self._options_backup.items():
             if getattr(Options, name, no_value) != orig_value:
                 setattr(Options, name, orig_value)
+        # strip Options from new keys that might have been added:
+        for name in vars(Options).keys():
+            if name not in self._options_backup:
+                delattr(Options, name)
 
     def test_short_options(self):
         options, sources = parse_command_line([
