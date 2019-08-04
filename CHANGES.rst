@@ -149,7 +149,7 @@ Other changes
   Patch by Matti Picus.  (Github issue #2905)
 
 * The command line parser was rewritten and modernised using ``argparse``.
-  Patch by Egor Dranischnikow.  (Github issue #2952)
+  Patch by Egor Dranischnikow.  (Github issue #2952, #3001)
 
 * Support for Python 2.6 was removed.
 
