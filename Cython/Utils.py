@@ -474,7 +474,7 @@ def raise_error_if_module_name_forbidden(full_module_name):
 
 def build_hex_version(version_string):
     """
-    Parse and translate '4.3a1' into the readable hex representation '0x040300A1' (like PY_HEX_VERSION).
+    Parse and translate '4.3a1' into the readable hex representation '0x040300A1' (like PY_VERSION_HEX).
     """
     # First, parse '4.12a1' into [4, 12, 0, 0xA01].
     digits = []
