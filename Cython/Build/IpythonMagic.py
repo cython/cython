@@ -193,11 +193,11 @@ class CythonMagics(Magics):
     )
     @magic_arguments.argument(
         '-3', dest='language_level', action='store_const', const=3, default=None,
-        help="Select Python 3 syntax."
+        help="Select Python 3 syntax. Default is language_level=3str."
     )
     @magic_arguments.argument(
         '-2', dest='language_level', action='store_const', const=2, default=None,
-        help="Select Python 2 syntax."
+        help="Select Python 2 syntax. Default is language_level=3str."
     )
     @magic_arguments.argument(
         '-f', '--force', action='store_true', default=False,

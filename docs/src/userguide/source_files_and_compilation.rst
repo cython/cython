@@ -629,9 +629,9 @@ You can see them also by typing ```%%cython?`` in IPython or a Jupyter notebook.
 
 -f, --force                                   Force the compilation of a new module, even if the source has been previously compiled.
 
--3                                            Select Python 3 syntax
+-3                                            Select Python 3 syntax. Default language_level is 3str.
 
--2                                            Select Python 2 syntax
+-2                                            Select Python 2 syntax. Default language_level is 3str.
 
 -c=COMPILE_ARGS, --compile-args=COMPILE_ARGS  Extra flags to pass to compiler via the extra_compile_args.
 
