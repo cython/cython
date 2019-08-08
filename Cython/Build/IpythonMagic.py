@@ -424,7 +424,7 @@ class CythonMagics(Magics):
                 quiet=quiet,
                 annotate=args.annotate,
                 force=True,
-                language_level=min(3, sys.version_info[0]),
+                language_level='3str',
             )
             if args.language_level is not None:
                 assert args.language_level in (2, 3)

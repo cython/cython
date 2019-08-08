@@ -49,6 +49,14 @@ def call(x):
     return f(*(x,))
 """)
 
+cython3str_code = py3compat.str_to_unicode("""\
+def div():
+    return 5/2
+
+def literal():
+    return "aaa"
+""")
+
 pgo_cython3_code = cython3_code + py3compat.str_to_unicode("""\
 def main():
     for _ in range(100): call(5)
@@ -123,16 +131,14 @@ class TestIPythonMagic(CythonTest):
         self.assertEqual(ip.user_ns['g'], 20.0)
 
     def test_cython_language_level(self):
-        # The Cython cell defines the functions f() and call().
+        # The Cython cell defines the functions div() and literal().
         ip = self._ip
-        ip.run_cell_magic('cython', '', cython3_code)
-        ip.ex('g = f(10); h = call(10)')
-        if sys.version_info[0] < 3:
-            self.assertEqual(ip.user_ns['g'], 2 // 10)
-            self.assertEqual(ip.user_ns['h'], 2 // 10)
-        else:
-            self.assertEqual(ip.user_ns['g'], 2.0 / 10.0)
-            self.assertEqual(ip.user_ns['h'], 2.0 / 10.0)
+        ip.run_cell_magic('cython', '', cython3str_code)
+        ip.ex('d = div(); s = literal()')
+        # differentiate between 2 and (3 or 3str):
+        self.assertEqual(type(ip.user_ns['d']), float)
+        # differentiate between 3 and 3str (for Py2):
+        self.assertEqual(type(ip.user_ns['s']), str)
 
     def test_cython3(self):
         # The Cython cell defines the functions f() and call().
