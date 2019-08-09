@@ -360,7 +360,7 @@ Features added
   In this case, it is also automatically mapped to ``%r`` in Python 2.x.
 
 * New C macro ``CYTHON_HEX_VERSION`` to access Cython's version in the same style as
-  ``PY_HEX_VERSION``.
+  ``PY_VERSION_HEX``.
 
 * Constants in ``libc.math`` are now declared as ``const`` to simplify their handling.
 
