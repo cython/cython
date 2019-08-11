@@ -69,6 +69,15 @@ class SetAnnotateCoverageAction(Action):
         namespace.annotate_coverage_xml = values
 
 
+def StoreConstToSubargument(subargument_name, const_value=True):
+    class StoreConstToSubargumentClass(Action):
+        def __call__(self, parser, namespace, values, option_string=None):
+            subarguments = getattr(namespace, subargument_name, {})
+            subarguments[self.dest] = const_value
+            setattr(namespace, subargument_name, subarguments)
+    return StoreConstToSubargumentClass
+
+
 def create_cython_argparser():
     description = "Cython (https://cython.org/) is a compiler for code written in the "\
                   "Cython language.  Cython is based on Pyrex by Greg Ewing."
@@ -159,7 +168,7 @@ def create_cython_argparser():
     for name in vars(DebugFlags):
         if name.startswith("debug"):
             option_name = name.replace('_', '-')
-            parser.add_argument("--" + option_name, action='store_true', help=SUPPRESS)
+            parser.add_argument("--" + option_name, action=StoreConstToSubargument('debug_flags', True), nargs=0, help=SUPPRESS)
 
     return parser
 
@@ -206,16 +215,18 @@ def parse_command_line(args):
 
     options = Options.CompilationOptions(Options.default_options)
     for name, value in vars(arguments).items():
-        if name.startswith('debug'):
-            from . import DebugFlags
-            if name in dir(DebugFlags):
-                setattr(DebugFlags, name, value)
-            else:
-                parser.error("Unknown debug flag: %s\n" % name)
+        if name == 'debug_flags':
+            continue
         elif hasattr(Options, name):
             setattr(Options, name, value)
         else:
             setattr(options, name, value)
+
+    # handle debug flags
+    debug_flags = getattr(arguments, 'debug_flags', {})
+    for name, value in debug_flags.items():
+        from . import DebugFlags
+        setattr(DebugFlags, name, value)
 
     if options.use_listing_file and len(sources) > 1:
         parser.error("cython: Only one source file allowed when using -o\n")
