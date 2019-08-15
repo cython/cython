@@ -9,6 +9,13 @@ from argparse import ArgumentParser, Action, SUPPRESS
 from . import Options
 
 
+def set_values_to_subargument(namespace, subargument_name, value_map):
+        subarguments = getattr(namespace, subargument_name, {})
+        for key, val in value_map.items():
+            subarguments[key] = val
+        setattr(namespace, subargument_name, subarguments)
+
+
 class ParseDirectivesAction(Action):
     def __call__(self, parser, namespace, values, option_string=None):
         old_directives = dict(getattr(namespace, self.dest,
@@ -47,8 +54,9 @@ class ActivateAllWarningsAction(Action):
 
 class SetLenientAction(Action):
     def __call__(self, parser, namespace, values, option_string=None):
-        namespace.error_on_unknown_names = False
-        namespace.error_on_uninitialized = False
+        value_map = {'error_on_unknown_names': False,
+                     'error_on_uninitialized': False}
+        set_values_to_subargument(namespace, 'global_options', value_map)
 
 
 class SetGDBDebugAction(Action):
@@ -72,9 +80,7 @@ class SetAnnotateCoverageAction(Action):
 def StoreConstToSubargument(subargument_name, const_value=True):
     class StoreConstToSubargumentClass(Action):
         def __call__(self, parser, namespace, values, option_string=None):
-            subarguments = getattr(namespace, subargument_name, {})
-            subarguments[self.dest] = const_value
-            setattr(namespace, subargument_name, subarguments)
+            set_values_to_subargument(namespace, subargument_name, {self.dest: const_value})
     return StoreConstToSubargumentClass
 
 
@@ -215,12 +221,17 @@ def parse_command_line(args):
 
     options = Options.CompilationOptions(Options.default_options)
     for name, value in vars(arguments).items():
-        if name == 'debug_flags':
+        if name in ('debug_flags', 'global_options'):
             continue
         elif hasattr(Options, name):
             setattr(Options, name, value)
         else:
             setattr(options, name, value)
+
+    # handle global_options:
+    global_options = getattr(arguments, 'global_options', {})
+    for name, value in global_options.items():
+        setattr(Options, name, value)
 
     # handle debug flags
     debug_flags = getattr(arguments, 'debug_flags', {})
