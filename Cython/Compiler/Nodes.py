@@ -22,7 +22,8 @@ from . import PyrexTypes
 from . import TypeSlots
 from .PyrexTypes import py_object_type, error_type
 from .Symtab import (ModuleScope, LocalScope, ClosureScope,
-                     StructOrUnionScope, PyClassScope, CppClassScope, TemplateScope)
+                     StructOrUnionScope, PyClassScope, CppClassScope, TemplateScope,
+                     punycodify_name)
 from .Code import UtilityCode
 from .StringEncoding import EncodedString
 from . import Future
@@ -862,6 +863,9 @@ class CArgDeclNode(Node):
     # kw_only        boolean            Is a keyword-only argument
     # is_dynamic     boolean            Non-literal arg stored inside CyFunction
     # pos_only       boolean            Is a positional-only argument
+    #
+    # name_cstring                         property that converts the name to a cstring taking care of unicode
+    #                                      and quoting it
 
     child_attrs = ["base_type", "declarator", "default", "annotation"]
     outer_attrs = ["default", "annotation"]
@@ -878,6 +882,13 @@ class CArgDeclNode(Node):
     default_value = None
     annotation = None
     is_dynamic = 0
+
+    @property
+    def name_cstring(self):
+        try:
+            return self.name.as_encoded_c_string_literal()
+        except AttributeError:
+            return '"%s"' % self.name
 
     def analyse(self, env, nonempty=0, is_self_arg=False):
         if is_self_arg:
@@ -1895,7 +1906,8 @@ class FuncDefNode(StatNode, BlockNode):
         if use_refnanny:
             tempvardecl_code.put_declare_refcount_context()
             code.put_setup_refcount_context(
-                self.entry.name, acquire_gil=acquire_gil_for_refnanny_only)
+                self.entry.name,
+                acquire_gil=acquire_gil_for_refnanny_only)
 
         # ----- Automatic lead-ins for certain special functions
         if is_getbuffer_slot:
@@ -2206,11 +2218,11 @@ class FuncDefNode(StatNode, BlockNode):
             typeptr_cname = arg.type.typeptr_cname
             arg_code = "((PyObject *)%s)" % arg.entry.cname
             code.putln(
-                'if (unlikely(!__Pyx_ArgTypeTest(%s, %s, %d, "%s", %s))) %s' % (
+                'if (unlikely(!__Pyx_ArgTypeTest(%s, %s, %d, %s, %s))) %s' % (
                     arg_code,
                     typeptr_cname,
                     arg.accept_none,
-                    arg.name,
+                    arg.name_cstring,
                     arg.type.is_builtin_type and arg.type.require_exact,
                     code.error_goto(arg.pos)))
         else:
@@ -2224,8 +2236,8 @@ class FuncDefNode(StatNode, BlockNode):
             cname = arg.entry.cname
 
         code.putln('if (unlikely(((PyObject *)%s) == Py_None)) {' % cname)
-        code.putln('''PyErr_Format(PyExc_TypeError, "Argument '%%.%ds' must not be None", "%s"); %s''' % (
-            max(200, len(arg.name)), arg.name,
+        code.putln('''PyErr_Format(PyExc_TypeError, "Argument '%%.%ds' must not be None", %s); %s''' % (
+            max(200, len(arg.name_cstring)), arg.name_cstring,
             code.error_goto(arg.pos)))
         code.putln('}')
 
@@ -3079,9 +3091,9 @@ class DefNode(FuncDefNode):
                     else:
                         arg.needs_conversion = 1
             if arg.needs_conversion:
-                arg.hdr_cname = Naming.arg_prefix + arg.name
+                arg.hdr_cname = punycodify_name(Naming.arg_prefix + arg.name)
             else:
-                arg.hdr_cname = Naming.var_prefix + arg.name
+                arg.hdr_cname = punycodify_name(Naming.var_prefix + arg.name)
 
         if nfixed > len(self.args):
             self.bad_signature()
@@ -3118,16 +3130,16 @@ class DefNode(FuncDefNode):
         entry = env.declare_pyfunction(name, self.pos, allow_redefine=not self.is_wrapper)
         self.entry = entry
         prefix = env.next_id(env.scope_prefix)
-        self.entry.pyfunc_cname = Naming.pyfunc_prefix + prefix + name
+        self.entry.pyfunc_cname = punycodify_name(Naming.pyfunc_prefix + prefix + name)
         if Options.docstrings:
             entry.doc = embed_position(self.pos, self.doc)
-            entry.doc_cname = Naming.funcdoc_prefix + prefix + name
+            entry.doc_cname = punycodify_name(Naming.funcdoc_prefix + prefix + name)
             if entry.is_special:
                 if entry.name in TypeSlots.invisible or not entry.doc or (
                         entry.name in '__getattr__' and env.directives['fast_getattr']):
                     entry.wrapperbase_cname = None
                 else:
-                    entry.wrapperbase_cname = Naming.wrapperbase_prefix + prefix + name
+                    entry.wrapperbase_cname = punycodify_name(Naming.wrapperbase_prefix + prefix + name)
         else:
             entry.doc = None
 
@@ -3304,8 +3316,8 @@ class DefNodeWrapper(FuncDefNode):
         target_entry = self.target.entry
         name = self.name
         prefix = env.next_id(env.scope_prefix)
-        target_entry.func_cname = Naming.pywrap_prefix + prefix + name
-        target_entry.pymethdef_cname = Naming.pymethdef_prefix + prefix + name
+        target_entry.func_cname = punycodify_name(Naming.pywrap_prefix + prefix + name)
+        target_entry.pymethdef_cname = punycodify_name(Naming.pymethdef_prefix + prefix + name)
 
         self.signature = target_entry.signature
 
@@ -3393,7 +3405,7 @@ class DefNodeWrapper(FuncDefNode):
                 self.return_type.declaration_code(Naming.retval_cname),
                 retval_init))
         code.put_declare_refcount_context()
-        code.put_setup_refcount_context('%s (wrapper)' % self.name)
+        code.put_setup_refcount_context(EncodedString('%s (wrapper)' % self.name))
 
         self.generate_argument_parsing_code(lenv, code)
         self.generate_argument_type_tests(code)
@@ -3660,6 +3672,11 @@ class DefNodeWrapper(FuncDefNode):
             self.star_arg.entry.xdecref_cleanup = 0
 
     def generate_tuple_and_keyword_parsing_code(self, args, success_label, code):
+        try:
+            self_name_csafe = self.name.as_encoded_c_string_literal()
+        except AttributeError:
+            self_name_csafe = '"%s"' % self.name
+
         argtuple_error_label = code.new_label("argtuple_error")
 
         positional_args = []
@@ -3741,13 +3758,13 @@ class DefNodeWrapper(FuncDefNode):
             # the kw-args dict passed is non-empty (which it will be, since kw_unpacking_condition is true)
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("ParseKeywords", "FunctionArguments.c"))
-            code.putln('if (likely(__Pyx_ParseOptionalKeywords(%s, %s, %s, %s, %s, "%s") < 0)) %s' % (
+            code.putln('if (likely(__Pyx_ParseOptionalKeywords(%s, %s, %s, %s, %s, %s) < 0)) %s' % (
                 Naming.kwds_cname,
                 Naming.pykwdlist_cname,
                 self.starstar_arg and self.starstar_arg.entry.cname or '0',
                 'values',
                 0,
-                self.name,
+                self_name_csafe,
                 code.error_goto(self.pos)))
 
         # --- optimised code when we do not receive any keyword arguments
@@ -3831,8 +3848,8 @@ class DefNodeWrapper(FuncDefNode):
             code.put_label(argtuple_error_label)
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("RaiseArgTupleInvalid", "FunctionArguments.c"))
-            code.put('__Pyx_RaiseArgtupleInvalid("%s", %d, %d, %d, %s); ' % (
-                self.name, has_fixed_positional_count,
+            code.put('__Pyx_RaiseArgtupleInvalid(%s, %d, %d, %d, %s); ' % (
+                self_name_csafe, has_fixed_positional_count,
                 min_positional_args, max_positional_args,
                 Naming.nargs_cname))
             code.putln(code.error_goto(self.pos))
@@ -3962,6 +3979,11 @@ class DefNodeWrapper(FuncDefNode):
 
         # If we received kwargs, fill up the positional/required
         # arguments with values from the kw dict
+        try:
+            self_name_csafe = self.name.as_encoded_c_string_literal()
+        except AttributeError:
+            self_name_csafe = '"%s"' % self.name
+
         code.putln('kw_args = PyDict_Size(%s);' % Naming.kwds_cname)
         if self.num_required_args or max_positional_args > 0:
             last_required_arg = -1
@@ -4006,8 +4028,8 @@ class DefNodeWrapper(FuncDefNode):
                             code.putln('else {')
                             code.globalstate.use_utility_code(
                                 UtilityCode.load_cached("RaiseArgTupleInvalid", "FunctionArguments.c"))
-                            code.put('__Pyx_RaiseArgtupleInvalid("%s", %d, %d, %d, %d); ' % (
-                                self.name, has_fixed_positional_count,
+                            code.put('__Pyx_RaiseArgtupleInvalid(%s, %d, %d, %d, %d); ' % (
+                                self_name_csafe, has_fixed_positional_count,
                                 min_positional_args, max_positional_args, i))
                             code.putln(code.error_goto(self.pos))
                             code.putln('}')
@@ -4015,8 +4037,8 @@ class DefNodeWrapper(FuncDefNode):
                         code.putln('else {')
                         code.globalstate.use_utility_code(
                             UtilityCode.load_cached("RaiseKeywordRequired", "FunctionArguments.c"))
-                        code.put('__Pyx_RaiseKeywordRequired("%s", %s); ' % (
-                            self.name, pystring_cname))
+                        code.put('__Pyx_RaiseKeywordRequired(%s, %s); ' % (
+                            self_name_csafe, pystring_cname))
                         code.putln(code.error_goto(self.pos))
                         code.putln('}')
             if max_positional_args > num_pos_only_args:
@@ -4071,13 +4093,13 @@ class DefNodeWrapper(FuncDefNode):
             values_array = 'values'
         code.globalstate.use_utility_code(
             UtilityCode.load_cached("ParseKeywords", "FunctionArguments.c"))
-        code.putln('if (unlikely(__Pyx_ParseOptionalKeywords(%s, %s, %s, %s, %s, "%s") < 0)) %s' % (
+        code.putln('if (unlikely(__Pyx_ParseOptionalKeywords(%s, %s, %s, %s, %s, %s) < 0)) %s' % (
             Naming.kwds_cname,
             Naming.pykwdlist_cname,
             self.starstar_arg and self.starstar_arg.entry.cname or '0',
             values_array,
             pos_arg_count,
-            self.name,
+            self_name_csafe,
             code.error_goto(self.pos)))
         code.putln('}')
 
@@ -4789,6 +4811,10 @@ class CClassDefNode(ClassDefNode):
     check_size = None
     decorators = None
     shadow = False
+
+    @property
+    def punycode_class_name(self):
+        return punycodify_name(self.class_name)
 
     def buffer_defaults(self, env):
         if not hasattr(self, '_buffer_defaults'):

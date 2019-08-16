@@ -2205,9 +2205,13 @@ class CCodeWriter(object):
         cast = entry.signature.method_function_type()
         if cast != 'PyCFunction':
             func_ptr = '(void*)(%s)%s' % (cast, func_ptr)
+        try:
+            entry_name = entry.name.as_utf8_string().as_c_string_literal()
+        except AttributeError:
+            entry_name = '"%s"' % entry.name
         self.putln(
-            '{"%s", (PyCFunction)%s, %s, %s}%s' % (
-                entry.name,
+            '{%s, (PyCFunction)%s, %s, %s}%s' % (
+                entry_name,
                 func_ptr,
                 "|".join(method_flags),
                 entry.doc_cname if entry.doc else '0',
@@ -2365,10 +2369,14 @@ class CCodeWriter(object):
         self.putln('__Pyx_RefNannyDeclarations')
 
     def put_setup_refcount_context(self, name, acquire_gil=False):
+        try:
+            name = name.as_encoded_c_string_literal() # handle unicode names
+        except AttributeError:
+            name = '"%s"' % name
         if acquire_gil:
             self.globalstate.use_utility_code(
                 UtilityCode.load_cached("ForceInitThreads", "ModuleSetupCode.c"))
-        self.putln('__Pyx_RefNannySetupContext("%s", %d);' % (name, acquire_gil and 1 or 0))
+        self.putln('__Pyx_RefNannySetupContext(%s, %d);' % (name, acquire_gil and 1 or 0))
 
     def put_finish_refcount_context(self):
         self.putln("__Pyx_RefNannyFinishContext();")
@@ -2379,14 +2387,19 @@ class CCodeWriter(object):
 
         qualified_name should be the qualified name of the function.
         """
+        try:
+            qualified_name = qualified_name.as_encoded_c_string_literal() # handle unicode names
+        except AttributeError:
+            qualified_name = '"%s"' % qualified_name
         format_tuple = (
             qualified_name,
             Naming.clineno_cname if include_cline else 0,
             Naming.lineno_cname,
             Naming.filename_cname,
         )
+
         self.funcstate.uses_error_indicator = True
-        self.putln('__Pyx_AddTraceback("%s", %s, %s, %s);' % format_tuple)
+        self.putln('__Pyx_AddTraceback(%s, %s, %s, %s);' % format_tuple)
 
     def put_unraisable(self, qualified_name, nogil=False):
         """

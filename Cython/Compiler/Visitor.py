@@ -18,6 +18,7 @@ from . import ExprNodes
 from . import Errors
 from . import DebugFlags
 from . import Future
+from .Symtab import punycodify_name
 
 import cython
 
@@ -659,6 +660,7 @@ class MethodDispatcherTransform(EnvTransform):
     def _dispatch_to_method_handler(self, attr_name, self_arg,
                                     is_unbound_method, type_name,
                                     node, function, arg_list, kwargs):
+        type_name = punycodify_name(type_name) # FIXME: this seems like it should be handled much earlier
         method_handler = self._find_handler(
             "method_%s_%s" % (type_name, attr_name), kwargs)
         if method_handler is None:

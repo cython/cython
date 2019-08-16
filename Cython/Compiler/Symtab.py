@@ -42,6 +42,22 @@ def c_safe_identifier(cname):
         cname = Naming.pyrex_prefix + cname
     return cname
 
+def punycodify_name(cname):
+    # modified from  PEP489
+    try:
+        cname = cname.encode('ascii')
+    except UnicodeEncodeError:
+        cname = cname.encode('punycode').replace(b'-', b'_')
+        if cname.startswith(Naming.pyrex_prefix.encode('ascii')):
+            # a punycode name could also be a valid ascii variable name so we should
+            # add something to distinguish
+            cname = cname[:len(Naming.pyrex_prefix)] + b'U' + cname[len(Naming.pyrex_prefix):]
+    if not isinstance(cname,str):
+        cname = cname.decode("ascii") # should do nothing but convert the type
+    return cname
+
+
+
 
 class BufferAux(object):
     writable_needed = False
@@ -391,7 +407,7 @@ class Scope(object):
 
     def mangle(self, prefix, name = None):
         if name:
-            return "%s%s%s" % (prefix, self.scope_prefix, name)
+            return punycodify_name("%s%s%s" % (prefix, self.scope_prefix, name))
         else:
             return self.parent_scope.mangle(prefix, self.name)
 
@@ -1740,7 +1756,7 @@ class LocalScope(Scope):
         Scope.__init__(self, name, outer_scope, parent_scope)
 
     def mangle(self, prefix, name):
-        return prefix + name
+        return punycodify_name(prefix + name)
 
     def declare_arg(self, name, type, pos):
         # Add an entry for an argument of a function.
@@ -2189,6 +2205,7 @@ class CClassScope(ClassScope):
                                   # I keep it in for now. is_member should be enough
                                   # later on
             self.namespace_cname = "(PyObject *)%s" % self.parent_type.typeptr_cname
+
             return entry
 
     def declare_pyfunction(self, name, pos, allow_redefine=False):
@@ -2247,7 +2264,7 @@ class CClassScope(ClassScope):
                       (args[0].type, name, self.parent_type))
         entry = self.lookup_here(name)
         if cname is None:
-            cname = c_safe_identifier(name)
+            cname = punycodify_name(c_safe_identifier(name))
         if entry:
             if not entry.is_cfunction:
                 warning(pos, "'%s' redeclared  " % name, 0)

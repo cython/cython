@@ -292,14 +292,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 cname = env.mangle(Naming.func_prefix_api, entry.name)
                 sig = entry.type.signature_string()
                 h_code.putln(
-                    'if (__Pyx_ImportFunction(module, "%s", (void (**)(void))&%s, "%s") < 0) goto bad;'
-                    % (entry.name, cname, sig))
+                    'if (__Pyx_ImportFunction(module, %s, (void (**)(void))&%s, "%s") < 0) goto bad;'
+                    % (entry.name.as_encoded_c_string_literal(), cname, sig))
             for entry in api_vars:
                 cname = env.mangle(Naming.varptr_prefix_api, entry.name)
                 sig = entry.type.empty_declaration_code()
                 h_code.putln(
-                    'if (__Pyx_ImportVoidPtr(module, "%s", (void **)&%s, "%s") < 0) goto bad;'
-                    % (entry.name, cname, sig))
+                    'if (__Pyx_ImportVoidPtr(module, %s, (void **)&%s, "%s") < 0) goto bad;'
+                    % (entry.name.as_encoded_c_string_literal(), cname, sig))
             with ModuleImportGenerator(h_code, imported_modules={env.qualified_name: 'module'}) as import_generator:
                 for entry in api_extension_types:
                     self.generate_type_import_call(entry.type, h_code, import_generator, error_code="goto bad;")
@@ -2155,9 +2155,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(header % type.typeobj_cname)
         code.putln(
             "PyVarObject_HEAD_INIT(0, 0)")
+        try:
+            classname = scope.class_name.as_encoded_c_string_literal()
+        except AttributeError:
+            classname = '"%s"' % scope.class_name
         code.putln(
-            '"%s.%s", /*tp_name*/' % (
-                self.full_module_name, scope.class_name))
+            '"%s."%s, /*tp_name*/' % (
+                self.full_module_name,
+                classname))
         if type.typedef_flag:
             objstruct = type.objstruct_cname
         else:
@@ -2925,8 +2930,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             # investigation shows that the resulting binary is smaller with repeated functions calls.
             for entry in entries:
                 signature = entry.type.signature_string()
-                code.putln('if (__Pyx_ExportFunction("%s", (void (*)(void))%s, "%s") < 0) %s' % (
-                    entry.name,
+                code.putln('if (__Pyx_ExportFunction(%s, (void (*)(void))%s, "%s") < 0) %s' % (
+                    entry.name.as_encoded_c_string_literal(),
                     entry.cname,
                     signature,
                     code.error_goto(self.pos)))
@@ -2998,9 +3003,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     code.error_goto(self.pos)))
             for entry in entries:
                 code.putln(
-                    'if (__Pyx_ImportFunction(%s, "%s", (void (**)(void))&%s, "%s") < 0) %s' % (
+                    'if (__Pyx_ImportFunction(%s, %s, (void (**)(void))&%s, "%s") < 0) %s' % (
                         temp,
-                        entry.name,
+                        entry.name.as_encoded_c_string_literal(),
                         entry.cname,
                         entry.type.signature_string(),
                         code.error_goto(self.pos)))
@@ -3079,15 +3084,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             module,
             module_name))
 
+        type_name = type.name.as_encoded_c_string_literal()
+
         if condition and replacement:
             code.putln("")  # start in new line
             code.putln("#if %s" % condition)
             code.putln('"%s",' % replacement)
             code.putln("#else")
-            code.putln('"%s",' % type.name)
+            code.putln('%s,' % type_name)
             code.putln("#endif")
         else:
-            code.put(' "%s", ' % type.name)
+            code.put(' %s, ' % type_name)
 
         if sizeof_objstruct != objstruct:
             if not condition:
