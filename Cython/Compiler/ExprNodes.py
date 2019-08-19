@@ -9614,8 +9614,8 @@ class LambdaNode(InnerFunctionNode):
         self.lambda_name = self.def_node.lambda_name = env.next_id('lambda')
         self.def_node.no_assignment_synthesis = True
         self.def_node.pymethdef_required = True
-        self.def_node.analyse_declarations(env)
         self.def_node.is_cyfunction = True
+        self.def_node.analyse_declarations(env)
         self.pymethdef_cname = self.def_node.entry.pymethdef_cname
         env.add_lambda_def(self.def_node)
 

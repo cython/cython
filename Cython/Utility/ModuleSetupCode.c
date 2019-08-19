@@ -73,6 +73,8 @@
   #define CYTHON_FAST_THREAD_STATE 0
   #undef CYTHON_FAST_GIL
   #define CYTHON_FAST_GIL 0
+  #undef CYTHON_METH_FASTCALL
+  #define CYTHON_METH_FASTCALL 0
   #undef CYTHON_FAST_PYCALL
   #define CYTHON_FAST_PYCALL 0
   #undef CYTHON_PEP489_MULTI_PHASE_INIT
@@ -118,6 +120,8 @@
   #define CYTHON_FAST_THREAD_STATE 0
   #undef CYTHON_FAST_GIL
   #define CYTHON_FAST_GIL 0
+  #undef CYTHON_METH_FASTCALL
+  #define CYTHON_METH_FASTCALL 0
   #undef CYTHON_FAST_PYCALL
   #define CYTHON_FAST_PYCALL 0
   #undef CYTHON_PEP489_MULTI_PHASE_INIT
@@ -176,6 +180,11 @@
   #ifndef CYTHON_FAST_GIL
     // Py3<3.5.2 does not support _PyThreadState_UncheckedGet().
     #define CYTHON_FAST_GIL (PY_MAJOR_VERSION < 3 || PY_VERSION_HEX >= 0x03060000)
+  #endif
+  #ifndef CYTHON_METH_FASTCALL
+    /* CPython 3.6 introduced METH_FASTCALL but with slightly different
+     * semantics. It became stable starting from CPython 3.7 */
+    #define CYTHON_METH_FASTCALL (PY_VERSION_HEX >= 0x030700A1)
   #endif
   #ifndef CYTHON_FAST_PYCALL
     #define CYTHON_FAST_PYCALL 1
@@ -450,6 +459,16 @@ class __Pyx_FakeReference {
   #define __Pyx_PyCFunctionFastWithKeywords _PyCFunctionFastWithKeywords
 #endif
 
+#if CYTHON_METH_FASTCALL
+  #define __Pyx_METH_FASTCALL METH_FASTCALL
+  #define __Pyx_PyCFunction_FastCall __Pyx_PyCFunctionFast
+  #define __Pyx_PyCFunction_FastCallWithKeywords __Pyx_PyCFunctionFastWithKeywords
+#else
+  #define __Pyx_METH_FASTCALL METH_VARARGS
+  #define __Pyx_PyCFunction_FastCall PyCFunction
+  #define __Pyx_PyCFunction_FastCallWithKeywords PyCFunctionWithKeywords
+#endif
+
 #if CYTHON_COMPILING_IN_PYPY && !defined(PyObject_Malloc)
   #define PyObject_Malloc(s)   PyMem_Malloc(s)
   #define PyObject_Free(p)     PyMem_Free(p)
@@ -531,10 +550,26 @@ static CYTHON_INLINE void * PyThread_tss_get(Py_tss_t *key) {
   #define __Pyx_PyNumber_InPlaceDivide(x,y)  PyNumber_InPlaceDivide(x,y)
 #endif
 
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030500A1 && CYTHON_USE_UNICODE_INTERNALS
-#define __Pyx_PyDict_GetItemStr(dict, name)  _PyDict_GetItem_KnownHash(dict, name, ((PyASCIIObject *) name)->hash)
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX > 0x030600B4 && CYTHON_USE_UNICODE_INTERNALS
+// _PyDict_GetItem_KnownHash() exists since CPython 3.5, but it was
+// dropping exceptions. Since 3.6, exceptions are kept.
+#define __Pyx_PyDict_GetItemStrWithError(dict, name)  _PyDict_GetItem_KnownHash(dict, name, ((PyASCIIObject *) name)->hash)
+static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStr(PyObject *dict, PyObject *name) {
+    PyObject *res = __Pyx_PyDict_GetItemStrWithError(dict, name);
+    if (res == NULL) PyErr_Clear();
+    return res;
+}
+#elif PY_MAJOR_VERSION >= 3
+#define __Pyx_PyDict_GetItemStrWithError  PyDict_GetItemWithError
+#define __Pyx_PyDict_GetItemStr           PyDict_GetItem
 #else
-#define __Pyx_PyDict_GetItemStr(dict, name)  PyDict_GetItem(dict, name)
+static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict, PyObject *name) {
+    PyObject *res = PyObject_GetItem(dict, name);
+    if (res == NULL && PyErr_ExceptionMatches(PyExc_KeyError))
+        PyErr_Clear();
+    return res;
+}
+#define __Pyx_PyDict_GetItemStr           PyDict_GetItem
 #endif
 
 /* new Py3.3 unicode type (PEP 393) */
