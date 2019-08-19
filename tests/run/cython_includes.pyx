@@ -27,6 +27,7 @@ cimport cpython.long
 cimport cpython.longintrepr
 cimport cpython.mapping
 cimport cpython.mem
+cimport cpython.memoryview
 cimport cpython.method
 cimport cpython.module
 cimport cpython.number
