@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
+# cython: language_level = 3
 # mode: compile
 # tag: pep3131
 
-# this test only really looks at [c]importing unicode stuff
+# this test looks at [c]importing unicode stuff
 from unicode_identifiers cimport Fα1, Γναμε2
 cimport unicode_identifiers
 from unicode_identifiers cimport Γναμε2 as Γναμε3

@@ -49,9 +49,10 @@ def punycodify_name(cname):
     except UnicodeEncodeError:
         cname = cname.encode('punycode').replace(b'-', b'_')
         if cname.startswith(Naming.pyrex_prefix.encode('ascii')):
-            # a punycode name could also be a valid ascii variable name so we should
-            # add something to distinguish
-            cname = cname[:len(Naming.pyrex_prefix)] + b'U' + cname[len(Naming.pyrex_prefix):]
+            # a punycode name could also be a valid ascii variable name so
+            # change the prefix to distinguish
+            cname = cname.replace(Naming.pyrex_prefix.encode('ascii'),
+                                  Naming.pyunicode_identifier_prefix.encode('ascii'), 1)
     if not isinstance(cname,str):
         cname = cname.decode("ascii") # should do nothing but convert the type
     return cname
@@ -462,6 +463,19 @@ class Scope(object):
         if not self.in_cinclude and cname and re.match("^_[_A-Z]+$", cname):
             # See https://www.gnu.org/software/libc/manual/html_node/Reserved-Names.html#Reserved-Names
             warning(pos, "'%s' is a reserved name in C." % cname, -1)
+
+        try:
+            ll2 = self.context.language_level == 2
+        except AttributeError:
+            # some scopes, for example the builtin scope, don't
+            # seem to have a context - don't worry about these ones
+            ll2 = False
+        if ll2 and name:
+            try:
+                name.encode('ascii')
+            except UnicodeEncodeError:
+                error(pos, "Unicode identifiers are only supported at language_level>=3")
+
         entries = self.entries
         if name and name in entries and not shadow:
             old_entry = entries[name]
@@ -753,7 +767,7 @@ class Scope(object):
         qualified_name = self.qualify_name(lambda_name)
 
         entry = self.declare(None, func_cname, py_object_type, pos, 'private')
-        entry.name = lambda_name
+        entry.name = EncodedString(lambda_name)
         entry.qualified_name = qualified_name
         entry.pymethdef_cname = pymethdef_cname
         entry.func_cname = func_cname
@@ -2445,7 +2459,7 @@ class CppClassScope(Scope):
         class_name = self.name.split('::')[-1]
         if name in (class_name, '__init__') and cname is None:
             cname = "%s__init__%s" % (Naming.func_prefix, class_name)
-            name = '<init>'
+            name = EncodedString('<init>')
             type.return_type = PyrexTypes.CVoidType()
             # This is called by the actual constructor, but need to support
             # arguments that cannot by called by value.
@@ -2459,7 +2473,7 @@ class CppClassScope(Scope):
             type.args = [maybe_ref(arg) for arg in type.args]
         elif name == '__dealloc__' and cname is None:
             cname = "%s__dealloc__%s" % (Naming.func_prefix, class_name)
-            name = '<del>'
+            name = EncodedString('<del>')
             type.return_type = PyrexTypes.CVoidType()
         if name in ('<init>', '<del>') and type.nogil:
             for base in self.type.base_classes:
@@ -2555,7 +2569,7 @@ class PropertyScope(Scope):
         # Add an entry for a method.
         signature = get_property_accessor_signature(name)
         if signature:
-            entry = self.declare(name, name, py_object_type, pos, 'private')
+            entry = self.declare(EncodedString(name), name, py_object_type, pos, 'private')
             entry.is_special = 1
             entry.signature = signature
             return entry

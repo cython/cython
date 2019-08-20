@@ -885,10 +885,7 @@ class CArgDeclNode(Node):
 
     @property
     def name_cstring(self):
-        try:
-            return self.name.as_encoded_c_string_literal()
-        except AttributeError:
-            return '"%s"' % self.name
+        return self.name.as_c_string_literal()
 
     def analyse(self, env, nonempty=0, is_self_arg=False):
         if is_self_arg:
@@ -1906,8 +1903,7 @@ class FuncDefNode(StatNode, BlockNode):
         if use_refnanny:
             tempvardecl_code.put_declare_refcount_context()
             code.put_setup_refcount_context(
-                self.entry.name,
-                acquire_gil=acquire_gil_for_refnanny_only)
+                self.entry.name, acquire_gil=acquire_gil_for_refnanny_only)
 
         # ----- Automatic lead-ins for certain special functions
         if is_getbuffer_slot:
@@ -3672,10 +3668,7 @@ class DefNodeWrapper(FuncDefNode):
             self.star_arg.entry.xdecref_cleanup = 0
 
     def generate_tuple_and_keyword_parsing_code(self, args, success_label, code):
-        try:
-            self_name_csafe = self.name.as_encoded_c_string_literal()
-        except AttributeError:
-            self_name_csafe = '"%s"' % self.name
+        self_name_csafe = self.name.as_c_string_literal()
 
         argtuple_error_label = code.new_label("argtuple_error")
 
@@ -3979,10 +3972,7 @@ class DefNodeWrapper(FuncDefNode):
 
         # If we received kwargs, fill up the positional/required
         # arguments with values from the kw dict
-        try:
-            self_name_csafe = self.name.as_encoded_c_string_literal()
-        except AttributeError:
-            self_name_csafe = '"%s"' % self.name
+        self_name_csafe = self.name.as_c_string_literal()
 
         code.putln('kw_args = PyDict_Size(%s);' % Naming.kwds_cname)
         if self.num_required_args or max_positional_args > 0:

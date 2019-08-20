@@ -179,11 +179,11 @@ def error(position, message):
 
 LEVEL = 1 # warn about all errors level 1 or higher
 
-def _write_file_encode(file,line):
+def _write_file_encode(file, line):
     try:
         file.write(line)
     except UnicodeEncodeError:
-        file.write(line.encode('ascii','replace'))
+        file.write(line.encode('ascii', 'replace'))
 
 
 def message(position, message, level=1):
@@ -192,9 +192,9 @@ def message(position, message, level=1):
     warn = CompileWarning(position, message)
     line = u"note: %s\n" % warn
     if listing_file:
-        _write_file_encode(listing_file,line)
+        _write_file_encode(listing_file, line)
     if echo_file:
-        _write_file_encode(echo_file,line)
+        _write_file_encode(echo_file, line)
     return warn
 
 
@@ -206,9 +206,9 @@ def warning(position, message, level=0):
     warn = CompileWarning(position, message)
     line = u"warning: %s\n" % warn
     if listing_file:
-        _write_file_encode(listing_file,line)
+        _write_file_encode(listing_file, line)
     if echo_file:
-        _write_file_encode(echo_file,line)
+        _write_file_encode(echo_file, line)
     return warn
 
 
@@ -219,9 +219,9 @@ def warn_once(position, message, level=0):
     warn = CompileWarning(position, message)
     line = u"warning: %s\n" % warn
     if listing_file:
-        _write_file_encode(listing_file,line)
+        _write_file_encode(listing_file, line)
     if echo_file:
-        _write_file_encode(echo_file,line)
+        _write_file_encode(echo_file, line)
     _warn_once_seen[message] = True
     return warn
 

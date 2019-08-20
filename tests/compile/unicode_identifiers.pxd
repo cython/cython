@@ -1,3 +1,6 @@
+# -*- coding: utf-8 -*-
+# cython: language_level=3
+
 cdef Fα1()
 cdef class Γναμε2:
     cdef boring_cdef(self)

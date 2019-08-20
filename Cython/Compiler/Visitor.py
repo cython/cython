@@ -18,7 +18,6 @@ from . import ExprNodes
 from . import Errors
 from . import DebugFlags
 from . import Future
-from .Symtab import punycodify_name
 
 import cython
 
@@ -570,6 +569,17 @@ class MethodDispatcherTransform(EnvTransform):
     ### dispatch to specific handlers
 
     def _find_handler(self, match_name, has_kwargs):
+        try:
+            match_name.encode('ascii')
+        except UnicodeEncodeError:
+            # specifically when running the Cython compiler under Python 2
+            #  getattr can't take a unicode string.
+            #  Classes with unicode names won't have specific handlers and thus it
+            #  should be OK to return None.
+            # Doing the test here ensures that the same code gets run on
+            # Python 2 and 3
+            return None
+
         call_type = has_kwargs and 'general' or 'simple'
         handler = getattr(self, '_handle_%s_%s' % (call_type, match_name), None)
         if handler is None:
@@ -660,7 +670,6 @@ class MethodDispatcherTransform(EnvTransform):
     def _dispatch_to_method_handler(self, attr_name, self_arg,
                                     is_unbound_method, type_name,
                                     node, function, arg_list, kwargs):
-        type_name = punycodify_name(type_name) # FIXME: this seems like it should be handled much earlier
         method_handler = self._find_handler(
             "method_%s_%s" % (type_name, attr_name), kwargs)
         if method_handler is None:

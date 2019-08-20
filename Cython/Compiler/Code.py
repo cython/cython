@@ -1152,7 +1152,7 @@ class GlobalState(object):
         w.putln("")
         w.putln("static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {")
         w.put_declare_refcount_context()
-        w.put_setup_refcount_context("__Pyx_InitCachedConstants")
+        w.put_setup_refcount_context(StringEncoding.EncodedString("__Pyx_InitCachedConstants"))
 
         w = self.parts['init_globals']
         w.enter_cfunc_scope()
@@ -2205,10 +2205,7 @@ class CCodeWriter(object):
         cast = entry.signature.method_function_type()
         if cast != 'PyCFunction':
             func_ptr = '(void*)(%s)%s' % (cast, func_ptr)
-        try:
-            entry_name = entry.name.as_utf8_string().as_c_string_literal()
-        except AttributeError:
-            entry_name = '"%s"' % entry.name
+        entry_name = entry.name.as_c_string_literal()
         self.putln(
             '{%s, (PyCFunction)%s, %s, %s}%s' % (
                 entry_name,
@@ -2369,10 +2366,7 @@ class CCodeWriter(object):
         self.putln('__Pyx_RefNannyDeclarations')
 
     def put_setup_refcount_context(self, name, acquire_gil=False):
-        try:
-            name = name.as_encoded_c_string_literal() # handle unicode names
-        except AttributeError:
-            name = '"%s"' % name
+        name = name.as_c_string_literal() # handle unicode names
         if acquire_gil:
             self.globalstate.use_utility_code(
                 UtilityCode.load_cached("ForceInitThreads", "ModuleSetupCode.c"))
@@ -2387,10 +2381,7 @@ class CCodeWriter(object):
 
         qualified_name should be the qualified name of the function.
         """
-        try:
-            qualified_name = qualified_name.as_encoded_c_string_literal() # handle unicode names
-        except AttributeError:
-            qualified_name = '"%s"' % qualified_name
+        qualified_name = qualified_name.as_c_string_literal() # handle unicode names
         format_tuple = (
             qualified_name,
             Naming.clineno_cname if include_cline else 0,
