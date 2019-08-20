@@ -118,7 +118,8 @@ def create_cython_argparser():
                       action=StoreToSubargument(GLOBAL_OPTIONS, 1), nargs=0,
                       help='If specified, the positions in Cython files of each '
                            'function definition is embedded in its docstring.')
-    parser.add_argument("--cleanup", dest='generate_cleanup_code', action='store', type=int,
+    parser.add_argument("--cleanup", dest='generate_cleanup_code',
+                      action=StoreToSubargument(GLOBAL_OPTIONS), nargs=1, type=int,
                       help='Release interned objects on python exit, for memory debugging. '
                            'Level indicates aggressiveness, default 0 releases nothing.')
     parser.add_argument("-w", "--working", dest='working_path', action='store', type=str,
@@ -127,7 +128,8 @@ def create_cython_argparser():
                       help='Output debug information for cygdb')
     parser.add_argument("--gdb-outdir", action=SetGDBDebugOutputAction, type=str,
                       help='Specify gdb debug information output directory. Implies --gdb.')
-    parser.add_argument("-D", "--no-docstrings", dest='docstrings', action='store_false',
+    parser.add_argument("-D", "--no-docstrings", dest='docstrings',
+                      action=StoreToSubargument(GLOBAL_OPTIONS, False), nargs=0,
                       help='Strip docstrings from the compiled module.')
     parser.add_argument('-a', '--annotate', action=StoreToSubargument(GLOBAL_OPTIONS, 'default'), nargs=0, dest='annotate',
                       help='Produce a colorized HTML version of the source.')
@@ -155,9 +157,11 @@ def create_cython_argparser():
                            'improve Python compatibility')
     parser.add_argument("--capi-reexport-cincludes", dest='capi_reexport_cincludes', action='store_true',
                       help='Add cincluded headers to any auto-generated header files.')
-    parser.add_argument("--fast-fail", dest='fast_fail', action='store_true',
+    parser.add_argument("--fast-fail", dest='fast_fail',
+                      action=StoreToSubargument(GLOBAL_OPTIONS, True), nargs=0,
                       help='Abort the compilation on the first error')
-    parser.add_argument("-Werror", "--warning-errors", dest='warning_errors', action='store_true',
+    parser.add_argument("-Werror", "--warning-errors", dest='warning_errors',
+                      action=StoreToSubargument(GLOBAL_OPTIONS, True), nargs=0,
                       help='Make all warnings into errors')
     parser.add_argument("-Wextra", "--warning-extra", action=ActivateAllWarningsAction, nargs=0,
                       help='Enable extra warnings')
@@ -173,11 +177,11 @@ def create_cython_argparser():
     parser.add_argument('sources', nargs='*', default=[])
 
     # TODO: add help
-    parser.add_argument("-z", "--pre-import", dest='pre_import', action='store', type=str, help=SUPPRESS)
-    parser.add_argument("--convert-range", dest='convert_range', action='store_true', help=SUPPRESS)
+    parser.add_argument("-z", "--pre-import", dest='pre_import', action=StoreToSubargument(GLOBAL_OPTIONS), nargs=1, help=SUPPRESS)
+    parser.add_argument("--convert-range", dest='convert_range', action=StoreToSubargument(GLOBAL_OPTIONS, True), nargs=0, help=SUPPRESS)
     parser.add_argument("--no-c-in-traceback", dest='c_line_in_traceback', action='store_false', help=SUPPRESS)
-    parser.add_argument("--cimport-from-pyx", dest='cimport_from_pyx', action='store_true', help=SUPPRESS)
-    parser.add_argument("--old-style-globals", dest='old_style_globals', action='store_true', help=SUPPRESS)
+    parser.add_argument("--cimport-from-pyx", dest='cimport_from_pyx', action=StoreToSubargument(GLOBAL_OPTIONS, True), nargs=0, help=SUPPRESS)
+    parser.add_argument("--old-style-globals", dest='old_style_globals', action=StoreToSubargument(GLOBAL_OPTIONS, True), nargs=0, help=SUPPRESS)
 
     # debug stuff:
     from . import DebugFlags
@@ -220,7 +224,7 @@ def parse_command_line_raw(parser, args):
             name = 'main'  # default value
         else:
             name = x[len('--embed='):]
-        setattr(arguments, 'embed', name)
+        set_values_to_subargument(arguments, GLOBAL_OPTIONS, {'embed': name})
 
     return arguments, sources
 
@@ -233,8 +237,6 @@ def parse_command_line(args):
     for name, value in vars(arguments).items():
         if name in (DEBUG_FLAGS, GLOBAL_OPTIONS):
             continue
-        elif hasattr(Options, name):
-            setattr(Options, name, value)
         else:
             setattr(options, name, value)
 
