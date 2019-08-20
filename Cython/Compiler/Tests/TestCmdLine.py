@@ -183,6 +183,16 @@ class CmdLineParserTest(TestCase):
        self.check_default_global_options(['pre_import'])
        self.check_default_options(options)
 
+    def test_short_z2(self):
+       options, sources = parse_command_line([
+                '-z', 'my_preimport',
+                '-z', 'my_preimport2',
+                'source.pyx'
+       ])
+       self.assertEqual(Options.pre_import, 'my_preimport2')
+       self.check_default_global_options(['pre_import'])
+       self.check_default_options(options)
+
     def test_convert_range(self):
        options, sources = parse_command_line([
                 '--convert-range',
