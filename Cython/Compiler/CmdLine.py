@@ -66,14 +66,16 @@ class SetLenientAction(Action):
 
 class SetGDBDebugAction(Action):
     def __call__(self, parser, namespace, values, option_string=None):
-        namespace.gdb_debug = True
-        namespace.output_dir = os.curdir
+        value_map = {'gdb_debug': True,
+                     'output_dir': os.curdir}
+        set_values_to_subargument(namespace, LOCAL_OPTIONS, value_map)
 
 
 class SetGDBDebugOutputAction(Action):
     def __call__(self, parser, namespace, values, option_string=None):
-        namespace.gdb_debug = True
-        namespace.output_dir = values
+        value_map = {'gdb_debug': True,
+                     'output_dir': values}
+        set_values_to_subargument(namespace, LOCAL_OPTIONS, value_map)
 
 
 class SetAnnotateCoverageAction(Action):
