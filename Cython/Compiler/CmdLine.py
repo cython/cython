@@ -9,6 +9,9 @@ from argparse import ArgumentParser, Action, SUPPRESS
 from . import Options
 
 
+GLOBAL_OPTIONS = 'global_options'
+
+
 def set_values_to_subargument(namespace, subargument_name, value_map):
         subarguments = getattr(namespace, subargument_name, {})
         for key, val in value_map.items():
@@ -56,7 +59,7 @@ class SetLenientAction(Action):
     def __call__(self, parser, namespace, values, option_string=None):
         value_map = {'error_on_unknown_names': False,
                      'error_on_uninitialized': False}
-        set_values_to_subargument(namespace, 'global_options', value_map)
+        set_values_to_subargument(namespace, GLOBAL_OPTIONS, value_map)
 
 
 class SetGDBDebugAction(Action):
@@ -73,15 +76,20 @@ class SetGDBDebugOutputAction(Action):
 
 class SetAnnotateCoverageAction(Action):
     def __call__(self, parser, namespace, values, option_string=None):
-        namespace.annotate = True
-        namespace.annotate_coverage_xml = values
+        value_map = {'annotate': True,
+                     'annotate_coverage_xml': values}
+        set_values_to_subargument(namespace, GLOBAL_OPTIONS, value_map)
 
 
-def StoreConstToSubargument(subargument_name, const_value=True):
-    class StoreConstToSubargumentClass(Action):
+def StoreToSubargument(subargument_name, default_value=None):
+    class StoreToSubargumentClass(Action):
         def __call__(self, parser, namespace, values, option_string=None):
-            set_values_to_subargument(namespace, subargument_name, {self.dest: const_value})
-    return StoreConstToSubargumentClass
+            if default_value is None:
+                opt_value = values[0]
+            else:
+                opt_value = default_value
+            set_values_to_subargument(namespace, subargument_name, {self.dest: opt_value})
+    return StoreToSubargumentClass
 
 
 def create_cython_argparser():
@@ -105,7 +113,8 @@ def create_cython_argparser():
                       help='Compile all source files (overrides implied -t)')
     parser.add_argument("-v", "--verbose", dest='verbose', action='count',
                       help='Be verbose, print file names on multiple compilation')
-    parser.add_argument("-p", "--embed-positions", dest='embed_pos_in_docstring', action='store_const', const=1,
+    parser.add_argument("-p", "--embed-positions", dest='embed_pos_in_docstring',
+                      action=StoreToSubargument(GLOBAL_OPTIONS, 1), nargs=0,
                       help='If specified, the positions in Cython files of each '
                            'function definition is embedded in its docstring.')
     parser.add_argument("--cleanup", dest='generate_cleanup_code', action='store', type=int,
@@ -119,9 +128,9 @@ def create_cython_argparser():
                       help='Specify gdb debug information output directory. Implies --gdb.')
     parser.add_argument("-D", "--no-docstrings", dest='docstrings', action='store_false',
                       help='Strip docstrings from the compiled module.')
-    parser.add_argument('-a', '--annotate', action='store_const', const='default', dest='annotate',
+    parser.add_argument('-a', '--annotate', action=StoreToSubargument(GLOBAL_OPTIONS, 'default'), nargs=0, dest='annotate',
                       help='Produce a colorized HTML version of the source.')
-    parser.add_argument('--annotate-fullc', action='store_const', const='fullc', dest='annotate',
+    parser.add_argument('--annotate-fullc', action=StoreToSubargument(GLOBAL_OPTIONS, 'fullc'), nargs=0, dest='annotate',
                       help='Produce a colorized HTML version of the source '
                            'which includes entire generated C/C++-code.')
     parser.add_argument("--annotate-coverage", dest='annotate_coverage_xml', action=SetAnnotateCoverageAction, type=str,
@@ -174,7 +183,7 @@ def create_cython_argparser():
     for name in vars(DebugFlags):
         if name.startswith("debug"):
             option_name = name.replace('_', '-')
-            parser.add_argument("--" + option_name, action=StoreConstToSubargument('debug_flags', True), nargs=0, help=SUPPRESS)
+            parser.add_argument("--" + option_name, action=StoreToSubargument('debug_flags', True), nargs=0, help=SUPPRESS)
 
     return parser
 
@@ -221,7 +230,7 @@ def parse_command_line(args):
 
     options = Options.CompilationOptions(Options.default_options)
     for name, value in vars(arguments).items():
-        if name in ('debug_flags', 'global_options'):
+        if name in ('debug_flags', GLOBAL_OPTIONS):
             continue
         elif hasattr(Options, name):
             setattr(Options, name, value)
@@ -229,7 +238,7 @@ def parse_command_line(args):
             setattr(options, name, value)
 
     # handle global_options:
-    global_options = getattr(arguments, 'global_options', {})
+    global_options = getattr(arguments, GLOBAL_OPTIONS, {})
     for name, value in global_options.items():
         setattr(Options, name, value)
 
