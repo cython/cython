@@ -17,7 +17,7 @@ IDENT = 'IDENT'
 def make_lexicon():
     from ..Plex import \
         Str, Any, AnyBut, AnyChar, Rep, Rep1, Opt, Bol, Eol, Eof, \
-        TEXT, IGNORE, Method, State, Lexicon,Range
+        TEXT, IGNORE, Method, State, Lexicon, Range
 
     letter = Any("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_")
     nonzero_digit = Any("123456789")
@@ -155,7 +155,7 @@ def make_lexicon():
 
 # BEGIN GENERATED CODE
 # generated with:
- # namespace(_multiarch='x86_64-linux-gnu', cache_tag='cpython-37', hexversion=50791408, name='cpython', version=sys.version_info(major=3, minor=7, micro=3, releaselevel='final', serial=0))
+ # cpython 3.7.3 (default, Apr 09 2019, 05:18:21) [GCC]
 
 unicode_start_ch_any = (
     u"_ªµºˬˮͿΆΌՙەۿܐޱߺࠚࠤࠨऽॐলঽৎৼਫ਼ઽૐૹଽୱஃஜௐఽಀಽೞഽൎලาຄຊຍລວາຽໆༀဿၡႎჇჍቘዀៗៜᢪ"

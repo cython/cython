@@ -35,7 +35,7 @@ def main():
         return
 
     generated_code = StringIO()
-    print("# generated with:\n #",sys.implementation, file=generated_code)
+    print("# generated with:\n #", sys.implementation.name, sys.version, file=generated_code)
     print(file=generated_code)
     print(start_expression(), file=generated_code)
     print(file=generated_code)
