@@ -523,4 +523,5 @@ class CmdLineParserTest(TestCase):
         error('--verbose=1')
         error('--verbose=1')
         error('--cleanup')
+        error('--cleanup=3s', 'file.pyx')
         error('--debug-disposal-code-wrong-name', 'file3.pyx')
