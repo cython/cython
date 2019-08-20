@@ -10,6 +10,7 @@ from . import Options
 
 
 GLOBAL_OPTIONS = 'global_options'
+DEBUG_FLAGS = 'debug_flags'
 
 
 def set_values_to_subargument(namespace, subargument_name, value_map):
@@ -183,7 +184,7 @@ def create_cython_argparser():
     for name in vars(DebugFlags):
         if name.startswith("debug"):
             option_name = name.replace('_', '-')
-            parser.add_argument("--" + option_name, action=StoreToSubargument('debug_flags', True), nargs=0, help=SUPPRESS)
+            parser.add_argument("--" + option_name, action=StoreToSubargument(DEBUG_FLAGS, True), nargs=0, help=SUPPRESS)
 
     return parser
 
@@ -230,7 +231,7 @@ def parse_command_line(args):
 
     options = Options.CompilationOptions(Options.default_options)
     for name, value in vars(arguments).items():
-        if name in ('debug_flags', GLOBAL_OPTIONS):
+        if name in (DEBUG_FLAGS, GLOBAL_OPTIONS):
             continue
         elif hasattr(Options, name):
             setattr(Options, name, value)
@@ -243,7 +244,7 @@ def parse_command_line(args):
         setattr(Options, name, value)
 
     # handle debug flags
-    debug_flags = getattr(arguments, 'debug_flags', {})
+    debug_flags = getattr(arguments, DEBUG_FLAGS, {})
     for name, value in debug_flags.items():
         from . import DebugFlags
         setattr(DebugFlags, name, value)
