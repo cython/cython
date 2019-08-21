@@ -1325,9 +1325,9 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
     _properties = None
 
     _map_property_attribute = {
-        'getter': '__get__',
-        'setter': '__set__',
-        'deleter': '__del__',
+        'getter': EncodedString('__get__'),
+        'setter': EncodedString('__set__'),
+        'deleter': EncodedString('__del__'),
     }.get
 
     def visit_CClassDefNode(self, node):
@@ -2744,6 +2744,7 @@ class CreateClosureClasses(CythonTransform):
         as_name = '%s_%s' % (
             target_module_scope.next_id(Naming.closure_class_prefix),
             node.entry.cname.replace('.','__'))
+        as_name = EncodedString(as_name)
 
         entry = target_module_scope.declare_c_class(
             name=as_name, pos=node.pos, defining=True,

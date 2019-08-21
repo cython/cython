@@ -14,6 +14,7 @@
 import sys
 from io import StringIO
 import os
+import functools
 
 # Make sure we import the right Cython
 cythonpath, _ = os.path.split(os.path.realpath(__file__)) # bin directory
@@ -26,10 +27,12 @@ if os.path.exists(os.path.join(cythonpath,"Cython")):
 from Cython.Compiler import Lexicon
 
 def main():
-    if (len(sys.argv) != 2 or
-        (sys.argv[1] not in ['--overwrite','--here'])):
+    arg = '--overwrite'
+    if len(sys.argv) == 2:
+        arg = sys.argv[1]
+    if arg not in ['--overwrite','--here']:
         print("""Call the script with either:
-  --overwrite    to update the existing Lexicon.py file
+  --overwrite    to update the existing Lexicon.py file (default)
   --here         to create an version of Lexicon.py in the current directory
 """)
         return
@@ -39,7 +42,7 @@ def main():
     print(file=generated_code)
     print(start_expression(), file=generated_code)
     print(file=generated_code)
-    print(cont_expression(),file=generated_code)
+    print(cont_expression(), file=generated_code)
     print(file=generated_code)
     generated_code = generated_code.getvalue()
 
@@ -63,12 +66,12 @@ def main():
         print("Warning: generated code section not found - code not inserted")
         return
 
-    if sys.argv[1] == "--here":
+    if arg == "--here":
         outfile = "Lexicon.py"
-    elif sys.argv[1] == "--overwrite":
+    elif arg == "--overwrite":
         outfile = Lexicon.__file__
     else:
-        raise ValueError('argv: "{0}" not recognised', sys.argv[1])
+        raise ValueError('argument "{0}" not recognised', arg)
 
     print("Writing to file", outfile)
     with open(outfile,'w') as f:
@@ -77,6 +80,7 @@ def main():
 
 # The easiest way to generate an appropriate character set is just to use the str.isidentifier method
 # An alternative approach for getting character sets is at https://stackoverflow.com/a/49332214/4657412
+@functools.lru_cache(None)
 def get_start_characters_as_number():
     return [ i for i in range(sys.maxunicode) if str.isidentifier(chr(i)) ]
 
@@ -97,10 +101,10 @@ def to_ranges(char_num_list):
 
     single_chars = []
     ranges = []
-    for n in range(1,len(char_num_list)):
+    for n in range(1, len(char_num_list)):
         if char_num_list[n]-1 != char_num_list[n-1]:
             # discontinuous
-            if first_good_val==char_num_list[n-1]:
+            if first_good_val == char_num_list[n-1]:
                 single_chars.append(chr(char_num_list[n-1]))
             else:
                 ranges.append(chr(first_good_val)+chr(char_num_list[n-1]))
@@ -109,7 +113,7 @@ def to_ranges(char_num_list):
 
 def make_split_strings(chars, splitby=60):
     out = []
-    for i in range(0,len(chars), splitby):
+    for i in range(0, len(chars), splitby):
         out.append('u"{}"'.format("".join(chars[i:i+splitby])))
     return "\n    ".join(out)
 

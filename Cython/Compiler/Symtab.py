@@ -53,7 +53,7 @@ def punycodify_name(cname):
             # change the prefix to distinguish
             cname = cname.replace(Naming.pyrex_prefix.encode('ascii'),
                                   Naming.pyunicode_identifier_prefix.encode('ascii'), 1)
-    if not isinstance(cname,str):
+    if not isinstance(cname, str):
         cname = cname.decode("ascii") # should do nothing but convert the type
     return cname
 
@@ -463,18 +463,6 @@ class Scope(object):
         if not self.in_cinclude and cname and re.match("^_[_A-Z]+$", cname):
             # See https://www.gnu.org/software/libc/manual/html_node/Reserved-Names.html#Reserved-Names
             warning(pos, "'%s' is a reserved name in C." % cname, -1)
-
-        try:
-            ll2 = self.context.language_level == 2
-        except AttributeError:
-            # some scopes, for example the builtin scope, don't
-            # seem to have a context - don't worry about these ones
-            ll2 = False
-        if ll2 and name:
-            try:
-                name.encode('ascii')
-            except UnicodeEncodeError:
-                error(pos, "Unicode identifiers are only supported at language_level>=3")
 
         entries = self.entries
         if name and name in entries and not shadow:
@@ -2569,7 +2557,7 @@ class PropertyScope(Scope):
         # Add an entry for a method.
         signature = get_property_accessor_signature(name)
         if signature:
-            entry = self.declare(EncodedString(name), name, py_object_type, pos, 'private')
+            entry = self.declare(name, name, py_object_type, pos, 'private')
             entry.is_special = 1
             entry.signature = signature
             return entry

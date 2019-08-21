@@ -143,7 +143,7 @@ class EncodedString(_unicode):
         if self.encoding is None:
             s = self.as_utf8_string()
         else:
-            s = bytes_literal(self.byteencode(),self.encoding)
+            s = bytes_literal(self.byteencode(), self.encoding)
         return s.as_c_string_literal()
 
 

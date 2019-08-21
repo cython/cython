@@ -2155,10 +2155,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(header % type.typeobj_cname)
         code.putln(
             "PyVarObject_HEAD_INIT(0, 0)")
-        try:
-            classname = scope.class_name.as_c_string_literal()
-        except AttributeError:
-            classname = '"%s"' % scope.class_name
+        classname = scope.class_name.as_c_string_literal()
         code.putln(
             '"%s."%s, /*tp_name*/' % (
                 self.full_module_name,
