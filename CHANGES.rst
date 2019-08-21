@@ -154,6 +154,22 @@ Other changes
 * Support for Python 2.6 was removed.
 
 
+0.29.14 (2019-??-??)
+====================
+
+Bugs fixed
+----------
+
+* ``await`` was not allows inside of f-strings.
+  Patch by Dmitro Getz.  (Github issue #2877)
+
+Other changes
+-------------
+
+* The ``PyMemoryView_*()`` C-API is available in ``cpython.memoryview``.
+  Patch by Nathan Manville.  (Github issue #2541)
+
+
 0.29.13 (2019-07-26)
 ====================
 
@@ -330,6 +346,9 @@ Bugs fixed
 
 0.29.4 (2019-02-01)
 ===================
+
+Bugs fixed
+----------
 
 * Division of numeric constants by a runtime value of 0 could fail to raise a
   ``ZeroDivisionError``.  (Github issue #2820)
