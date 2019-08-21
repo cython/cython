@@ -2,6 +2,22 @@
 Cython Changelog
 ================
 
+0.29.14 (2019-??-??)
+====================
+
+Bugs fixed
+----------
+
+* ``await`` was not allows inside of f-strings.
+  Patch by Dmitro Getz.  (Github issue #2877)
+
+Other changes
+-------------
+
+* The ``PyMemoryView_*()`` C-API is available in ``cpython.memoryview``.
+  Patch by Nathan Manville.  (Github issue #2541)
+
+
 0.29.13 (2019-07-26)
 ====================
 
