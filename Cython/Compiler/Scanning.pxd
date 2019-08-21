@@ -38,7 +38,7 @@ cdef class PyrexScanner(Scanner):
     cdef public list indentation_stack
     cdef public indentation_char
     cdef public int bracket_nesting_level
-    cdef bint async_enabled
+    cdef readonly bint async_enabled
     cdef public sy
     cdef public systring
 
