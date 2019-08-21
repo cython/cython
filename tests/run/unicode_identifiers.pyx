@@ -67,7 +67,8 @@ def call_cdef_test():
         Fα1()
     except RuntimeError as e:
         import traceback
-        print(traceback.extract_tb(e.__traceback__,2)[1].name)
+        # get the name of one level up in the traceback
+        print(traceback.extract_tb(e.__traceback__,2)[1][2])
 
 
 def Fα2():
