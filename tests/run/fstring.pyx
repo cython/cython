@@ -513,3 +513,21 @@ def percent_s_unicode(u, int i):
     x\u0194z-12
     """
     return u"%s-%d" % (u, i)
+
+
+########################################
+# await inside f-string
+
+def test_await_inside_f_string():
+    """
+    >>> test_await_inside_f_string()
+    PARSED_SUCCESSFULLY
+    """
+
+    async def f():
+        return "some value"
+
+    async def main():
+        print(f"{await f()}")
+
+    print("PARSED_SUCCESSFULLY")
