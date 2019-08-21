@@ -35,11 +35,11 @@ def _find_c_source(base_path):
 
 def _find_dep_file_path(main_file, file_path):
     abs_path = os.path.abspath(file_path)
-    if file_path.endswith('.pxi') and not os.path.exists(abs_path):
-        # include files are looked up relative to the main source file
-        pxi_file_path = os.path.join(os.path.dirname(main_file), file_path)
-        if os.path.exists(pxi_file_path):
-            abs_path = os.path.abspath(pxi_file_path)
+    if not os.path.exists(abs_path):
+        # files are looked up relative to the main source file
+        rel_file_path = os.path.join(os.path.dirname(main_file), file_path)
+        if os.path.exists(rel_file_path):
+            abs_path = os.path.abspath(rel_file_path)
     # search sys.path for external locations if a valid file hasn't been found
     if not os.path.exists(abs_path):
         for sys_path in sys.path:
