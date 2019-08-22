@@ -46,23 +46,22 @@ def punycodify_name(cname, mangle_with=None):
     # if passed the mangle_with should be a byte string
     # modified from  PEP489
     try:
-        cname = cname.encode('ascii')
+        cname.encode('ascii')
     except UnicodeEncodeError:
-        pyrex_prefix = Naming.pyrex_prefix.encode('ascii')
         cname = cname.encode('punycode').replace(b'-', b'_')
+        if not isinstance(cname,str):
+            cname = cname.decode('ascii') # for Python
         if mangle_with:
             # sometimes it necessary to mangle unicode names alone where
             # they'll be inserted directly into C, because the punycode
             # transformation can turn them into invalid identifiers
-            cname = b"%s_%s" % (mangle_with, cname)
-        elif cname.startswith(pyrex_prefix):
+            cname = "%s_%s" % (mangle_with, cname)
+        elif cname.startswith(Naming.pyrex_prefix):
             # a punycode name could also be a valid ascii variable name so
             # change the prefix to distinguish
-            cname = cname.replace(pyrex_prefix,
+            cname = cname.replace(Naming.pyrex_prefix,
                                   Naming.pyunicode_identifier_prefix, 1)
-        
-    if not isinstance(cname, str):
-        cname = cname.decode("ascii") # should do nothing but convert the type
+
     return cname
 
 
