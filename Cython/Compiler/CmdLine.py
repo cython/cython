@@ -54,13 +54,6 @@ class ParseOptionsAction(Action):
         setattr(namespace, self.dest, options)
 
 
-class ParseCompileTimeEnvAction(Action):
-    def __call__(self, parser, namespace, values, option_string=None):
-        old_env = dict(getattr(namespace, self.dest, {}))
-        new_env = Options.parse_compile_time_env(values, current_settings=old_env)
-        setattr(namespace, self.dest, new_env)
-
-
 class ParseCompileTimeEnvActionToLocal(Action):
     def __call__(self, parser, namespace, values, option_string=None):
         subarguments = getattr(namespace, LOCAL_OPTIONS, {})

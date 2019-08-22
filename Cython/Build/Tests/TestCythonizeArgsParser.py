@@ -19,22 +19,21 @@ class TestCythonizeArgsParser(TestCase):
 
     def setUp(self):
         TestCase.setUp(self)
-        self.parse_args = lambda x, parser=create_args_parser() : parse_args_raw(parser, x)
-
+        self.parse_args = lambda x, parser=create_args_parser(): parse_args_raw(parser, x)
 
     def are_default(self, options, skip):
         # empty containers
-        empty_containers = ['directives', 'compile_time_env', 'options', 'excludes']
+        empty_containers = ['directives', 'options', 'excludes']
         are_none = ['language_level', 'annotate', 'build', 'build_inplace', 'force', 'quiet', 'lenient', 'keep_going', 'no_docstrings']
         for opt_name in empty_containers:
-            if len(getattr(options, opt_name))!=0 and (not opt_name in skip):
-                self.assertEqual(opt_name,"", msg="For option "+opt_name)
+            if len(getattr(options, opt_name)) != 0 and (opt_name not in skip):
+                self.assertEqual(opt_name, "", msg="For option " + opt_name)
                 return False
         for opt_name in are_none:
-            if (getattr(options, opt_name) is not None) and (not opt_name in skip):
-                self.assertEqual(opt_name,"", msg="For option "+opt_name)
+            if (getattr(options, opt_name) is not None) and (opt_name not in skip):
+                self.assertEqual(opt_name, "", msg="For option " + opt_name)
                 return False
-        if options.parallel!=parallel_compiles and (not 'parallel' in skip):
+        if options.parallel != parallel_compiles and ('parallel' not in skip):
             return False
         return True
 
@@ -120,38 +119,38 @@ class TestCythonizeArgsParser(TestCase):
         }
         for key, value in directives.items():
             cmd = '{key}={value}'.format(key=key, value=str(value))
-            with self.assertRaises(ValueError, msg = "Error for option: "+cmd) as context:
-                options, args =  self.parse_args(['-X', cmd])
+            with self.assertRaises(ValueError, msg="Error for option: " + cmd):
+                options, args = self.parse_args(['-X', cmd])
 
     def test_compile_time_env_short(self):
-        options, args =  self.parse_args(['-E', 'MYSIZE=10'])
+        options, args = self.parse_args(['-E', 'MYSIZE=10'])
         self.assertFalse(args)
-        self.assertTrue(self.are_default(options, ['compile_time_env']))
-        self.assertEqual(options.compile_time_env['MYSIZE'], 10)
+        self.assertTrue(self.are_default(options, ['options']))
+        self.assertEqual(options.options['compile_time_env']['MYSIZE'], 10)
 
     def test_compile_time_env_long(self):
-        options, args =  self.parse_args(['--compile-time-env', 'MYSIZE=10'])
+        options, args = self.parse_args(['--compile-time-env', 'MYSIZE=10'])
         self.assertFalse(args)
-        self.assertTrue(self.are_default(options, ['compile_time_env']))
-        self.assertEqual(options.compile_time_env['MYSIZE'], 10)
+        self.assertTrue(self.are_default(options, ['options']))
+        self.assertEqual(options.options['compile_time_env']['MYSIZE'], 10)
 
     def test_compile_time_env_multiple(self):
-        options, args =  self.parse_args(['-E', 'MYSIZE=10', '-E', 'ARRSIZE=11'])
+        options, args = self.parse_args(['-E', 'MYSIZE=10', '-E', 'ARRSIZE=11'])
         self.assertFalse(args)
-        self.assertTrue(self.are_default(options, ['compile_time_env']))
-        self.assertEqual(options.compile_time_env['MYSIZE'], 10)
-        self.assertEqual(options.compile_time_env['ARRSIZE'], 11)
+        self.assertTrue(self.are_default(options, ['options']))
+        self.assertEqual(options.options['compile_time_env']['MYSIZE'], 10)
+        self.assertEqual(options.options['compile_time_env']['ARRSIZE'], 11)
 
     def test_compile_time_env_multiple_v2(self):
-        options, args =  self.parse_args(['-E', 'MYSIZE=10,ARRSIZE=11'])
+        options, args = self.parse_args(['-E', 'MYSIZE=10,ARRSIZE=11'])
         self.assertFalse(args)
-        self.assertTrue(self.are_default(options, ['compile_time_env']))
-        self.assertEqual(options.compile_time_env['MYSIZE'], 10)
-        self.assertEqual(options.compile_time_env['ARRSIZE'], 11)
+        self.assertTrue(self.are_default(options, ['options']))
+        self.assertEqual(options.options['compile_time_env']['MYSIZE'], 10)
+        self.assertEqual(options.options['compile_time_env']['ARRSIZE'], 11)
 
-    #testing options
+    # testing options
     def test_option_short(self):
-        options, args =  self.parse_args(['-s', 'docstrings=True'])
+        options, args = self.parse_args(['-s', 'docstrings=True'])
         self.assertFalse(args)
         self.assertTrue(self.are_default(options, ['options']))
         self.assertEqual(options.options['docstrings'], True)
