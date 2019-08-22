@@ -33,9 +33,10 @@ def _find_c_source(base_path):
     return None
 
 
-def _find_dep_file_path(main_file, file_path):
+def _find_dep_file_path(main_file, file_path, relative_path_search=False):
     abs_path = os.path.abspath(file_path)
-    if not os.path.exists(abs_path):
+    if not os.path.exists(abs_path) and (file_path.endswith('.pxi') or
+                                         relative_path_search):
         # files are looked up relative to the main source file
         rel_file_path = os.path.join(os.path.dirname(main_file), file_path)
         if os.path.exists(rel_file_path):
@@ -195,7 +196,8 @@ class Plugin(CoveragePlugin):
             self._c_files_map = {}
 
         for filename, code in code_lines.items():
-            abs_path = _find_dep_file_path(c_file, filename)
+            abs_path = _find_dep_file_path(c_file, filename,
+                                           relative_path_search=True)
             self._c_files_map[abs_path] = (c_file, filename, code)
 
         if sourcefile not in self._c_files_map:
