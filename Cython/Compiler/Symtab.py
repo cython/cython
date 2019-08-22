@@ -42,17 +42,25 @@ def c_safe_identifier(cname):
         cname = Naming.pyrex_prefix + cname
     return cname
 
-def punycodify_name(cname):
+def punycodify_name(cname, mangle_with=None):
+    # if passed the mangle_with should be a byte string
     # modified from  PEP489
     try:
         cname = cname.encode('ascii')
     except UnicodeEncodeError:
+        pyrex_prefix = Naming.pyrex_prefix.encode('ascii')
         cname = cname.encode('punycode').replace(b'-', b'_')
-        if cname.startswith(Naming.pyrex_prefix.encode('ascii')):
+        if mangle_with:
+            # sometimes it necessary to mangle unicode names alone where
+            # they'll be inserted directly into C, because the punycode
+            # transformation can turn them into invalid identifiers
+            cname = b"%s_%s" % (mangle_with, cname)
+        elif cname.startswith(pyrex_prefix):
             # a punycode name could also be a valid ascii variable name so
             # change the prefix to distinguish
-            cname = cname.replace(Naming.pyrex_prefix.encode('ascii'),
-                                  Naming.pyunicode_identifier_prefix.encode('ascii'), 1)
+            cname = cname.replace(pyrex_prefix,
+                                  Naming.pyunicode_identifier_prefix, 1)
+        
     if not isinstance(cname, str):
         cname = cname.decode("ascii") # should do nothing but convert the type
     return cname
@@ -2164,6 +2172,7 @@ class CClassScope(ClassScope):
                 cname = name
                 if visibility == 'private':
                     cname = c_safe_identifier(cname)
+                cname = punycodify_name(cname, Naming.unicode_structmember_prefix)
             if type.is_cpp_class and visibility != 'extern':
                 type.check_nullary_constructor(pos)
                 self.use_utility_code(Code.UtilityCode("#include <new>"))
@@ -2266,7 +2275,7 @@ class CClassScope(ClassScope):
                       (args[0].type, name, self.parent_type))
         entry = self.lookup_here(name)
         if cname is None:
-            cname = punycodify_name(c_safe_identifier(name))
+            cname = punycodify_name(c_safe_identifier(name), Naming.unicode_vtabentry_prefix)
         if entry:
             if not entry.is_cfunction:
                 warning(pos, "'%s' redeclared  " % name, 0)

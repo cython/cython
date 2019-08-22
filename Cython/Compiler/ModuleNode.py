@@ -2226,8 +2226,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 else:
                     doc_code = "0"
                 code.putln(
-                    '{(char *)"%s", %s, %s, (char *)%s, 0},' % (
-                        entry.name,
+                    '{(char *)%s, %s, %s, (char *)%s, 0},' % (
+                        entry.name.as_c_string_literal(),
                         entry.getter_cname or "0",
                         entry.setter_cname or "0",
                         doc_code))

@@ -30,7 +30,7 @@ def main():
     arg = '--overwrite'
     if len(sys.argv) == 2:
         arg = sys.argv[1]
-    if arg not in ['--overwrite','--here']:
+    if len(sys.argv) > 2 or arg not in ['--overwrite','--here']:
         print("""Call the script with either:
   --overwrite    to update the existing Lexicon.py file (default)
   --here         to create an version of Lexicon.py in the current directory
@@ -68,10 +68,9 @@ def main():
 
     if arg == "--here":
         outfile = "Lexicon.py"
-    elif arg == "--overwrite":
-        outfile = Lexicon.__file__
     else:
-        raise ValueError('argument "{0}" not recognised', arg)
+        assert arg == "--overwrite"
+        outfile = Lexicon.__file__
 
     print("Writing to file", outfile)
     with open(outfile,'w') as f:

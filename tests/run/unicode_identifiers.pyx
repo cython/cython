@@ -3,10 +3,13 @@
 # mode: run
 # tag: pep3131
 
-# Code with unicode_identifiers can be compiled with Cython running either Python 2 or 3.
-# However it can only be run in Python 2. Therefore no doctests are run in Python2.
-# This is controlled by putting them all in the module __doc__ attribute
-# Individual function and class docstrings are only present as a compile test
+# Code with unicode identifiers can be compiled with Cython running either Python 2 or 3.
+# However Python access to unicode identifiers is only possible in Python 3. In Python 2
+# it's only really safe to use the unicode identifiers for purely Cython interfaces
+# (although this isn't enforced...). Therefore the majority of the doctests are
+# Python3 only and only a limited set are run in Python2.
+# This is controlled by putting the Python3 only tests in the module __doc__ attribute
+# Most of the individual function and class docstrings are only present as a compile test
 
 import sys
 
@@ -18,7 +21,7 @@ if sys.version_info[0]>2:
     'nεsted'
 
     The test is mainly to see if the traceback is generated correctly
-    >>> call_cdef_test()
+    >>> print_traceback_name()
     unicode_identifiers.Fα1
 
     Just check that a cpdef function is callable
@@ -27,6 +30,12 @@ if sys.version_info[0]>2:
 
     >>> Γναμε2.ναμε3
     1
+    >>> x = Γναμε2()
+    >>> print(x.α)
+    100
+    >>> x.α = 200
+    >>> print(x.α)
+    200
 
     Test generation of locals()
     >>> sorted(Γναμε2().boring_function(1,2).keys())
@@ -54,15 +63,46 @@ def f():
         return ναμε2
     return nεsted
 
-cdef class Normal:
-    pass
+# Ƒ is notably awkward because its punycode starts with "2" causing
+# C compile errors. Therefore try a few different variations...
+cdef class A:
+    cdef int ναμε
+    def __init__(self):
+        self.ναμε = 1
+    cdef Ƒ(self):
+        return self.ναμε==1
+    def regular_function(self):
+        """
+        Can use unicode cdef functions and (private) attributes iternally
+        >>> A().regular_function()
+        True
+        """
+        return self.Ƒ()
+cdef class B:
+    cpdef Ƒ(self):
+        pass
+cdef class C:
+    def Ƒ(self):
+        pass
+cdef class D:
+    cdef int Ƒ
+
+def regular_function():
+    """
+    Unicode names can be used internally on python2
+    >>> regular_function()
+    10
+    """
+    cdef int variableƑ = 5
+    ναμε2 = 2
+    return variableƑ*ναμε2
 
 cdef Fα1():
     """docstring"""
     ναμε2 = 2
     raise RuntimeError() # forces generation of a traceback
 
-def call_cdef_test():
+def print_traceback_name():
     try:
         Fα1()
     except RuntimeError as e:
@@ -90,6 +130,9 @@ cdef class Γναμε2:
     docstring
     """
     ναμε3 = 1
+
+    def __init__(self):
+        self.α = 100
     def boring_function(self,x,ναμε5):
         """docstring"""
         ναμε6 = ναμε5
@@ -141,3 +184,7 @@ class NormalClassΓΓ(Γναμε2):
             pass
         return nestεd
 
+if sys.version_info[0]<=2:
+    # These symbols are causing problems for doctest
+    del NormalClassΓΓ
+    del globals()[u'Γναμε2'.encode('utf-8')]
