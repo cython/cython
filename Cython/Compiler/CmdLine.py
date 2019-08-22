@@ -21,6 +21,17 @@ def set_values_to_subargument(namespace, subargument_name, value_map):
         setattr(namespace, subargument_name, subarguments)
 
 
+class ParseDirectivesActionToLocal(Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        subarguments = getattr(namespace, LOCAL_OPTIONS, {})
+        old_directives = dict(subarguments.get(self.dest,
+                                      Options.get_directive_defaults()))
+        directives = Options.parse_directive_list(
+            values, relaxed_bool=True, current_settings=old_directives)
+        subarguments[self.dest] = directives
+        setattr(namespace, LOCAL_OPTIONS, subarguments)
+
+
 class ParseDirectivesAction(Action):
     def __call__(self, parser, namespace, values, option_string=None):
         old_directives = dict(getattr(namespace, self.dest,
@@ -52,9 +63,11 @@ class ParseCompileTimeEnvAction(Action):
 
 class ActivateAllWarningsAction(Action):
     def __call__(self, parser, namespace, values, option_string=None):
-        directives = getattr(namespace, 'compiler_directives', {})
+        subarguments = getattr(namespace, LOCAL_OPTIONS, {})
+        directives = subarguments.get('compiler_directives', {})
         directives.update(Options.extra_warnings)
-        namespace.compiler_directives = directives
+        subarguments['compiler_directives'] = directives
+        setattr(namespace, LOCAL_OPTIONS, subarguments)
 
 
 class SetLenientAction(Action):
@@ -183,7 +196,7 @@ def create_cython_argparser():
 
     parser.add_argument('-X', '--directive', metavar='NAME=VALUE,...',
                       dest='compiler_directives', type=str,
-                      action=ParseDirectivesAction,
+                      action=ParseDirectivesActionToLocal,
                       help='Overrides a compiler directive')
     parser.add_argument('-E', '--compile-time-env', metavar='NAME=VALUE,...',
                       dest='compile_time_env', type=str,
