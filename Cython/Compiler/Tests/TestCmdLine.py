@@ -501,7 +501,10 @@ class CmdLineParserTest(TestCase):
                 '-X', 'c_string_type=bytes',
                 'source.pyx'
        ])
-       self.assertTrue(len(options.compiler_directives), len(Options.extra_warnings) + 1)
+       for key in Options.extra_warnings.keys():
+           self.assertEqual(options.compiler_directives[key], True)
+       self.assertEqual(options.compiler_directives['cdivision'], True)
+       self.assertEqual(options.compiler_directives['c_string_type'], 'bytes')
        self.check_default_global_options()
        self.check_default_options(options, ['compiler_directives'])
 
