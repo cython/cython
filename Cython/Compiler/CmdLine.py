@@ -118,6 +118,14 @@ def StoreToSubargument(subargument_name, default_value=None):
     return StoreToSubargumentClass
 
 
+def AppendToSubargument(subargument_name):
+    class AppendToSubargumentClass(Action):
+        def __call__(self, parser, namespace, values, option_string=None):
+            current_list = getattr(namespace, subargument_name, {}).get(self.dest, [])
+            set_values_to_subargument(namespace, subargument_name, {self.dest: current_list + values})
+    return AppendToSubargumentClass
+
+
 def create_cython_argparser():
     description = "Cython (https://cython.org/) is a compiler for code written in the "\
                   "Cython language.  Cython is based on Pyrex by Greg Ewing."
@@ -130,7 +138,8 @@ def create_cython_argparser():
     parser.add_argument("-l", "--create-listing", dest='use_listing_file',
                       action=StoreToSubargument(LOCAL_OPTIONS, 1), nargs=0,
                       help='Write error messages to a listing file')
-    parser.add_argument("-I", "--include-dir", dest='include_path', action='append',
+    parser.add_argument("-I", "--include-dir", dest='include_path',
+                      action=AppendToSubargument(LOCAL_OPTIONS), nargs=1,
                       help='Search for include files in named directory '
                            '(multiple include directories are allowed).')
     parser.add_argument("-o", "--output-file", dest='output_file',
