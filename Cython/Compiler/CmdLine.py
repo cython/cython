@@ -288,14 +288,8 @@ def parse_command_line(args):
     parser = create_cython_argparser()
     arguments, sources = parse_command_line_raw(parser, args)
 
-    options = Options.CompilationOptions(Options.default_options)
-    for name, value in vars(arguments).items():
-        if name in (DEBUG_FLAGS, GLOBAL_OPTIONS, LOCAL_OPTIONS):
-            continue
-        else:
-            setattr(options, name, value)
-
     # handle local_options:
+    options = Options.CompilationOptions(Options.default_options)
     local_options = getattr(arguments, LOCAL_OPTIONS, {})
     for name, value in local_options.items():
         setattr(options, name, value)
@@ -311,6 +305,7 @@ def parse_command_line(args):
         from . import DebugFlags
         setattr(DebugFlags, name, value)
 
+    # additinal checks
     if options.use_listing_file and len(sources) > 1:
         parser.error("cython: Only one source file allowed when using -o\n")
     if len(sources) == 0 and not options.show_version:
