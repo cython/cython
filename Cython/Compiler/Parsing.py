@@ -3782,6 +3782,7 @@ def p_cpp_class_definition(s, pos,  ctx):
         s.next()
         s.expect('NEWLINE')
         s.expect_indent()
+        doc = p_doc_string(s)
         attributes = []
         body_ctx = Ctx(visibility = ctx.visibility, level='cpp_class', nogil=nogil or ctx.nogil)
         body_ctx.templates = template_names

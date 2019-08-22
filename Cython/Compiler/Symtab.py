@@ -447,16 +447,21 @@ class Scope(object):
             # See https://www.gnu.org/software/libc/manual/html_node/Reserved-Names.html#Reserved-Names
             warning(pos, "'%s' is a reserved name in C." % cname, -1)
         entries = self.entries
+        old_index = -1
         if name and name in entries and not shadow:
             old_entry = entries[name]
 
             # Reject redeclared C++ functions only if they have the same type signature.
             cpp_override_allowed = False
-            if type.is_cfunction and old_entry.type.is_cfunction and self.is_cpp():
-                for alt_entry in old_entry.all_alternatives():
-                    if type == alt_entry.type:
+            if type.is_cfunction and old_entry.type.is_cfunction and self.is_cpp_class_scope:
+                for index, alt_entry in enumerate(old_entry.all_alternatives()):
+                    if type.compatible_signature_with(alt_entry.type):
                         if name == '<init>' and not type.args:
                             # Cython pre-declares the no-args constructor - allow later user definitions.
+                            old_index = index
+                            cpp_override_allowed = True
+                        elif alt_entry.is_inherited:
+                            old_index = index
                             cpp_override_allowed = True
                         break
                 else:
@@ -480,12 +485,18 @@ class Scope(object):
         entry.create_wrapper = create_wrapper
         if name:
             entry.qualified_name = self.qualify_name(name)
-#            if name in entries and self.is_cpp():
-#                entries[name].overloaded_alternatives.append(entry)
-#            else:
-#                entries[name] = entry
             if not shadow:
-                entries[name] = entry
+                if name in entries and self.is_cpp_class_scope and type.is_cfunction:
+                    if old_index > -1:
+                        if old_index > 0:
+                            entries[name].overloaded_alternatives[old_index-1] = entry
+                        else:
+                            entry.overloaded_alternatives = entries[name].overloaded_alternatives
+                            entries[name] = entry
+                    else:
+                        entries[name].overloaded_alternatives.append(entry)
+                else:
+                    entries[name] = entry
 
         if type.is_memoryviewslice:
             from . import MemoryView
@@ -612,7 +623,7 @@ class Scope(object):
                 warning(pos, "'%s' already defined  (ignoring second definition)" % name, 0)
             else:
                 if scope:
-                    entry.type.scope = scope
+                    entry.type.set_scope(scope)
                     self.type_entries.append(entry)
             if base_classes:
                 if entry.type.base_classes and entry.type.base_classes != base_classes:
@@ -635,6 +646,7 @@ class Scope(object):
                     declare_inherited_attributes(entry, base_class.base_classes)
                     entry.type.scope.declare_inherited_cpp_attributes(base_class)
         if scope:
+            entry.type.set_scope(scope)
             declare_inherited_attributes(entry, base_classes)
             scope.declare_var(name="this", cname="this", type=PyrexTypes.CPtrType(entry.type), pos=entry.pos)
         if self.is_cpp_class_scope:
@@ -2391,6 +2403,7 @@ class CppClassScope(Scope):
         Scope.__init__(self, name, outer_scope, None)
         self.directives = outer_scope.directives
         self.inherited_var_entries = []
+        self.inherited_type_entries = []
         if templates is not None:
             for T in templates:
                 template_entry = self.declare(
@@ -2405,16 +2418,19 @@ class CppClassScope(Scope):
             cname = name
         entry = self.lookup_here(name)
         if defining and entry is not None:
-            if entry.type.same_as(type):
+            if type.is_cfunction:
+                entry = self.declare(name, cname, type, pos, visibility)
+            elif entry.type.same_as(type):
                 # Fix with_gil vs nogil.
                 entry.type = entry.type.with_with_gil(type.with_gil)
-            elif type.is_cfunction and type.compatible_signature_with(entry.type):
-                entry.type = type
             else:
                 error(pos, "Function signature does not match previous declaration")
         else:
             entry = self.declare(name, cname, type, pos, visibility)
+            if type.is_cfunction and not defining:
+                entry.is_inherited = 1
         entry.is_variable = 1
+        entry.is_cfunction = type.is_cfunction
         if type.is_cfunction and self.type:
             if not self.type.get_fused_types():
                 entry.func_cname = "%s::%s" % (self.type.empty_declaration_code(), cname)
@@ -2429,7 +2445,7 @@ class CppClassScope(Scope):
         if name in (class_name, '__init__') and cname is None:
             cname = "%s__init__%s" % (Naming.func_prefix, class_name)
             name = '<init>'
-            type.return_type = PyrexTypes.CVoidType()
+            type.return_type = PyrexTypes.c_void_type
             # This is called by the actual constructor, but need to support
             # arguments that cannot by called by value.
             type.original_args = type.args
@@ -2443,19 +2459,20 @@ class CppClassScope(Scope):
         elif name == '__dealloc__' and cname is None:
             cname = "%s__dealloc__%s" % (Naming.func_prefix, class_name)
             name = '<del>'
-            type.return_type = PyrexTypes.CVoidType()
+            type.return_type = PyrexTypes.c_void_type
         if name in ('<init>', '<del>') and type.nogil:
             for base in self.type.base_classes:
                 base_entry = base.scope.lookup(name)
                 if base_entry and not base_entry.type.nogil:
                     error(pos, "Constructor cannot be called without GIL unless all base constructors can also be called without GIL")
                     error(base_entry.pos, "Base constructor defined here.")
-        prev_entry = self.lookup_here(name)
+        # The previous entries management is now done directly in Scope.declare
+        #prev_entry = self.lookup_here(name)
         entry = self.declare_var(name, type, pos,
                                  defining=defining,
                                  cname=cname, visibility=visibility)
-        if prev_entry and not defining:
-            entry.overloaded_alternatives = prev_entry.all_alternatives()
+        #if prev_entry and not defining:
+        #    entry.overloaded_alternatives = prev_entry.all_alternatives()
         entry.utility_code = utility_code
         type.entry = entry
         return entry
@@ -2484,6 +2501,9 @@ class CppClassScope(Scope):
                     base_entry.type, None, 'extern')
                 entry.is_variable = 1
                 entry.is_inherited = 1
+                entry.is_cfunction = base_entry.is_cfunction
+                if entry.is_cfunction:
+                    entry.func_cname = base_entry.func_cname
                 self.inherited_var_entries.append(entry)
         for base_entry in base_scope.cfunc_entries:
             entry = self.declare_cfunction(base_entry.name, base_entry.type,
@@ -2492,12 +2512,13 @@ class CppClassScope(Scope):
                                            modifiers=base_entry.func_modifiers,
                                            utility_code=base_entry.utility_code)
             entry.is_inherited = 1
-        for base_entry in base_scope.type_entries:
+        for base_entry in base_scope.type_entries + base_scope.inherited_type_entries:
             if base_entry.name not in base_templates:
                 entry = self.declare_type(base_entry.name, base_entry.type,
                                           base_entry.pos, base_entry.cname,
-                                          base_entry.visibility)
+                                          base_entry.visibility, defining=0)
                 entry.is_inherited = 1
+                self.inherited_type_entries.append(entry)
 
     def specialize(self, values, type_entry):
         scope = CppClassScope(self.name, self.outer_scope)
@@ -2524,6 +2545,13 @@ class CppClassScope(Scope):
                                   entry.visibility)
 
         return scope
+
+    def lookup_here(self, name):
+        if name == "__init__":
+            name = "<init>"
+        elif name == "__dealloc__":
+            name = "<del>"
+        return super(CppClassScope, self).lookup_here(name)
 
 
 class PropertyScope(Scope):

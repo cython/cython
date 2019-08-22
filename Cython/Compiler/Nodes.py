@@ -1509,6 +1509,9 @@ class CppClassNode(CStructOrUnionDefNode, BlockNode):
                 elif isinstance(attr, CompilerDirectivesNode):
                     for sub_attr in func_attributes(attr.body.stats):
                         yield sub_attr
+                elif isinstance(attr, CppClassNode):
+                    for sub_attr in func_attributes(attr.attributes):
+                        yield sub_attr
         if self.attributes is not None:
             if self.in_pxd and not env.in_cinclude:
                 self.entry.defined_in_pxd = 1
@@ -5832,7 +5835,7 @@ class InPlaceAssignmentNode(AssignmentNode):
 
     def create_binop_node(self):
         from . import ExprNodes
-        return ExprNodes.binop_node(self.pos, self.operator, self.lhs, self.rhs)
+        return ExprNodes.binop_node(self.pos, self.operator, self.lhs, self.rhs, inplace=True)
 
 
 class PrintStatNode(StatNode):
