@@ -126,6 +126,14 @@ def AppendToSubargument(subargument_name):
     return AppendToSubargumentClass
 
 
+def CountToSubargument(subargument_name):
+    class CountToSubargumentClass(Action):
+        def __call__(self, parser, namespace, values, option_string=None):
+            current_value = getattr(namespace, subargument_name, {}).get(self.dest, 0)
+            set_values_to_subargument(namespace, subargument_name, {self.dest: current_value + 1})
+    return CountToSubargumentClass
+
+
 def create_cython_argparser():
     description = "Cython (https://cython.org/) is a compiler for code written in the "\
                   "Cython language.  Cython is based on Pyrex by Greg Ewing."
@@ -151,7 +159,8 @@ def create_cython_argparser():
     parser.add_argument("-f", "--force", dest='timestamps',
                       action=StoreToSubargument(LOCAL_OPTIONS, 0), nargs=0,
                       help='Compile all source files (overrides implied -t)')
-    parser.add_argument("-v", "--verbose", dest='verbose', action='count',
+    parser.add_argument("-v", "--verbose", dest='verbose',
+                      action=CountToSubargument(LOCAL_OPTIONS), nargs=0,
                       help='Be verbose, print file names on multiple compilation')
     parser.add_argument("-p", "--embed-positions", dest='embed_pos_in_docstring',
                       action=StoreToSubargument(GLOBAL_OPTIONS, 1), nargs=0,
