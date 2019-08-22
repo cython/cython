@@ -61,6 +61,15 @@ class ParseCompileTimeEnvAction(Action):
         setattr(namespace, self.dest, new_env)
 
 
+class ParseCompileTimeEnvActionToLocal(Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        subarguments = getattr(namespace, LOCAL_OPTIONS, {})
+        old_env = dict(subarguments.get(self.dest, {}))
+        new_env = Options.parse_compile_time_env(values, current_settings=old_env)
+        subarguments[self.dest] = new_env
+        setattr(namespace, LOCAL_OPTIONS, subarguments)
+
+
 class ActivateAllWarningsAction(Action):
     def __call__(self, parser, namespace, values, option_string=None):
         subarguments = getattr(namespace, LOCAL_OPTIONS, {})
@@ -200,7 +209,7 @@ def create_cython_argparser():
                       help='Overrides a compiler directive')
     parser.add_argument('-E', '--compile-time-env', metavar='NAME=VALUE,...',
                       dest='compile_time_env', type=str,
-                      action=ParseCompileTimeEnvAction,
+                      action=ParseCompileTimeEnvActionToLocal,
                       help='Provides compile time env like DEF would do.')
     parser.add_argument('sources', nargs='*', default=[])
 
