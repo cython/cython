@@ -48,9 +48,7 @@ def punycodify_name(cname, mangle_with=None):
     try:
         cname.encode('ascii')
     except UnicodeEncodeError:
-        cname = cname.encode('punycode').replace(b'-', b'_')
-        if not isinstance(cname,str):
-            cname = cname.decode('ascii') # for Python
+        cname = cname.encode('punycode').replace(b'-', b'_').decode('ascii')
         if mangle_with:
             # sometimes it necessary to mangle unicode names alone where
             # they'll be inserted directly into C, because the punycode
