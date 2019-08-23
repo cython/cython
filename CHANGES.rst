@@ -163,6 +163,10 @@ Bugs fixed
 * ``await`` was not allows inside of f-strings.
   Patch by Dmitro Getz.  (Github issue #2877)
 
+* Coverage analysis failed for projects where the code resides in separate
+  source sub-directories.
+  Patch by Antonio Valentino.  (Github issue #1985)
+
 Other changes
 -------------
 
