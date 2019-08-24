@@ -138,6 +138,14 @@ class EncodedString(_unicode):
     def as_utf8_string(self):
         return bytes_literal(self.utf8encode(), 'utf8')
 
+    def as_c_string_literal(self):
+        # first encodes the string then produces a c string literal
+        if self.encoding is None:
+            s = self.as_utf8_string()
+        else:
+            s = bytes_literal(self.byteencode(), self.encoding)
+        return s.as_c_string_literal()
+
 
 def string_contains_surrogates(ustring):
     """

@@ -1325,9 +1325,9 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
     _properties = None
 
     _map_property_attribute = {
-        'getter': '__get__',
-        'setter': '__set__',
-        'deleter': '__del__',
+        'getter': EncodedString('__get__'),
+        'setter': EncodedString('__set__'),
+        'deleter': EncodedString('__del__'),
     }.get
 
     def visit_CClassDefNode(self, node):
@@ -1701,7 +1701,7 @@ if VALUE is not None:
                     e.type.create_from_py_utility_code(env)
             all_members_names = sorted([e.name for e in all_members])
             checksum = '0x%s' % hashlib.sha1(' '.join(all_members_names).encode('utf-8')).hexdigest()[:7]
-            unpickle_func_name = '__pyx_unpickle_%s' % node.class_name
+            unpickle_func_name = '__pyx_unpickle_%s' % node.punycode_class_name
 
             # TODO(robertwb): Move the state into the third argument
             # so it can be pickled *after* self is memoized.
@@ -2744,6 +2744,7 @@ class CreateClosureClasses(CythonTransform):
         as_name = '%s_%s' % (
             target_module_scope.next_id(Naming.closure_class_prefix),
             node.entry.cname.replace('.','__'))
+        as_name = EncodedString(as_name)
 
         entry = target_module_scope.declare_c_class(
             name=as_name, pos=node.pos, defining=True,

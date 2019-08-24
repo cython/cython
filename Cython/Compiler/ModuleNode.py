@@ -292,14 +292,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 cname = env.mangle(Naming.func_prefix_api, entry.name)
                 sig = entry.type.signature_string()
                 h_code.putln(
-                    'if (__Pyx_ImportFunction(module, "%s", (void (**)(void))&%s, "%s") < 0) goto bad;'
-                    % (entry.name, cname, sig))
+                    'if (__Pyx_ImportFunction(module, %s, (void (**)(void))&%s, "%s") < 0) goto bad;'
+                    % (entry.name.as_c_string_literal(), cname, sig))
             for entry in api_vars:
                 cname = env.mangle(Naming.varptr_prefix_api, entry.name)
                 sig = entry.type.empty_declaration_code()
                 h_code.putln(
-                    'if (__Pyx_ImportVoidPtr(module, "%s", (void **)&%s, "%s") < 0) goto bad;'
-                    % (entry.name, cname, sig))
+                    'if (__Pyx_ImportVoidPtr(module, %s, (void **)&%s, "%s") < 0) goto bad;'
+                    % (entry.name.as_c_string_literal(), cname, sig))
             with ModuleImportGenerator(h_code, imported_modules={env.qualified_name: 'module'}) as import_generator:
                 for entry in api_extension_types:
                     self.generate_type_import_call(entry.type, h_code, import_generator, error_code="goto bad;")
@@ -2155,9 +2155,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(header % type.typeobj_cname)
         code.putln(
             "PyVarObject_HEAD_INIT(0, 0)")
+        classname = scope.class_name.as_c_string_literal()
         code.putln(
-            '"%s.%s", /*tp_name*/' % (
-                self.full_module_name, scope.class_name))
+            '"%s."%s, /*tp_name*/' % (
+                self.full_module_name,
+                classname))
         if type.typedef_flag:
             objstruct = type.objstruct_cname
         else:
@@ -2224,8 +2226,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 else:
                     doc_code = "0"
                 code.putln(
-                    '{(char *)"%s", %s, %s, (char *)%s, 0},' % (
-                        entry.name,
+                    '{(char *)%s, %s, %s, (char *)%s, 0},' % (
+                        entry.name.as_c_string_literal(),
                         entry.getter_cname or "0",
                         entry.setter_cname or "0",
                         doc_code))
@@ -2301,7 +2303,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if code.label_used(code.error_label):
             code.put_label(code.error_label)
             # This helps locate the offending name.
-            code.put_add_traceback(self.full_module_name)
+            code.put_add_traceback(EncodedString(self.full_module_name))
         code.error_label = old_error_label
         code.putln("bad:")
         code.putln("return -1;")
@@ -2318,6 +2320,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(UtilityCode.load_as_string("PyModInitFuncType", "ModuleSetupCode.c")[0])
         header2 = "__Pyx_PyMODINIT_FUNC init%s(void)" % env.module_name
         header3 = "__Pyx_PyMODINIT_FUNC %s(void)" % self.mod_init_func_cname('PyInit', env)
+        header3 = EncodedString(header3)
         code.putln("#if PY_MAJOR_VERSION < 3")
         # Optimise for small code size as the module init function is only executed once.
         code.putln("%s CYTHON_SMALL_CODE; /*proto*/" % header2)
@@ -2513,7 +2516,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.put_xdecref(cname, type)
         code.putln('if (%s) {' % env.module_cname)
         code.putln('if (%s) {' % env.module_dict_cname)
-        code.put_add_traceback("init %s" % env.qualified_name)
+        code.put_add_traceback(EncodedString("init %s" % env.qualified_name))
         code.globalstate.use_utility_code(Nodes.traceback_utility_code)
         # Module reference and module dict are in global variables which might still be needed
         # for cleanup, atexit code, etc., so leaking is better than crashing.
@@ -2573,7 +2576,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("static int %s(void) {" % self.cfunc_name)
                 code.put_declare_refcount_context()
                 self.tempdecl_code = code.insertion_point()
-                code.put_setup_refcount_context(self.cfunc_name)
+                code.put_setup_refcount_context(EncodedString(self.cfunc_name))
                 # Leave a grepable marker that makes it easy to find the generator source.
                 code.putln("/*--- %s ---*/" % self.description)
                 return code
@@ -2925,8 +2928,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             # investigation shows that the resulting binary is smaller with repeated functions calls.
             for entry in entries:
                 signature = entry.type.signature_string()
-                code.putln('if (__Pyx_ExportFunction("%s", (void (*)(void))%s, "%s") < 0) %s' % (
-                    entry.name,
+                code.putln('if (__Pyx_ExportFunction(%s, (void (*)(void))%s, "%s") < 0) %s' % (
+                    entry.name.as_c_string_literal(),
                     entry.cname,
                     signature,
                     code.error_goto(self.pos)))
@@ -2998,9 +3001,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     code.error_goto(self.pos)))
             for entry in entries:
                 code.putln(
-                    'if (__Pyx_ImportFunction(%s, "%s", (void (**)(void))&%s, "%s") < 0) %s' % (
+                    'if (__Pyx_ImportFunction(%s, %s, (void (**)(void))&%s, "%s") < 0) %s' % (
                         temp,
-                        entry.name,
+                        entry.name.as_c_string_literal(),
                         entry.cname,
                         entry.type.signature_string(),
                         code.error_goto(self.pos)))
@@ -3079,15 +3082,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             module,
             module_name))
 
+        type_name = type.name.as_c_string_literal()
+
         if condition and replacement:
             code.putln("")  # start in new line
             code.putln("#if %s" % condition)
             code.putln('"%s",' % replacement)
             code.putln("#else")
-            code.putln('"%s",' % type.name)
+            code.putln('%s,' % type_name)
             code.putln("#endif")
         else:
-            code.put(' "%s", ' % type.name)
+            code.put(' %s, ' % type_name)
 
         if sizeof_objstruct != objstruct:
             if not condition:

@@ -13,6 +13,8 @@ codewriter_temp_prefix = pyrex_prefix + "t_"
 
 temp_prefix       = u"__cyt_"
 
+pyunicode_identifier_prefix = pyrex_prefix + 'U'
+
 builtin_prefix    = pyrex_prefix + "builtin_"
 arg_prefix        = pyrex_prefix + "arg_"
 funcdoc_prefix    = pyrex_prefix + "doc_"
@@ -45,6 +47,13 @@ pybufferstruct_prefix  = pyrex_prefix + "pybuffer_"
 vtable_prefix     = pyrex_prefix + "vtable_"
 vtabptr_prefix    = pyrex_prefix + "vtabptr_"
 vtabstruct_prefix = pyrex_prefix + "vtabstruct_"
+unicode_vtabentry_prefix  = pyrex_prefix + "Uvtabentry_"
+ # vtab entries aren't  normally manged,
+ # but punycode names sometimes start with numbers leading
+ # to a C syntax error
+unicode_structmember_prefix = pyrex_prefix + "Umember_"
+ # as above -
+ # not normally manged but punycode names cause specific problems
 opt_arg_prefix    = pyrex_prefix + "opt_args_"
 convert_func_prefix = pyrex_prefix + "convert_"
 closure_scope_prefix = pyrex_prefix + "scope_"

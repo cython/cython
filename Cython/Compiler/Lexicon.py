@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # cython: language_level=3, py2_import=True
 #
 #   Cython Scanner - Lexical Definitions
@@ -16,7 +17,7 @@ IDENT = 'IDENT'
 def make_lexicon():
     from ..Plex import \
         Str, Any, AnyBut, AnyChar, Rep, Rep1, Opt, Bol, Eol, Eof, \
-        TEXT, IGNORE, Method, State, Lexicon
+        TEXT, IGNORE, Method, State, Lexicon, Range
 
     letter = Any("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_")
     nonzero_digit = Any("123456789")
@@ -25,6 +26,14 @@ def make_lexicon():
     octdigit = Any("01234567")
     hexdigit = Any("0123456789ABCDEFabcdef")
     indentation = Bol + Rep(Any(" \t"))
+
+    # The list of valid unicode identifier characters are pretty slow to generate at runtime,
+    # and require Python3, so are just included directly here
+    # (via the generated code block at the bottom of the file)
+    unicode_start_character = (Any(unicode_start_ch_any) | Range(unicode_start_ch_range))
+    unicode_continuation_character = (
+        unicode_start_character |
+        Any(unicode_continuation_ch_any) | Range(unicode_continuation_ch_range))
 
     def underscore_digits(d):
         return Rep1(d) + Rep(Str("_") + Rep1(d))
@@ -37,7 +46,8 @@ def make_lexicon():
     exponent = Any("Ee") + Opt(Any("+-")) + decimal
     decimal_fract = (decimal + dot + Opt(decimal)) | (dot + decimal)
 
-    name = letter + Rep(letter | digit)
+    #name = letter + Rep(letter | digit)
+    name = unicode_start_character + Rep(unicode_continuation_character)
     intconst = (prefixed_digits(nonzero_digit, digit) |  # decimal literals with underscores must not start with '0'
                 (Str("0") + (prefixed_digits(Any("Xx"), hexdigit) |
                              prefixed_digits(Any("Oo"), octdigit) |
@@ -143,3 +153,46 @@ def make_lexicon():
         #debug_file = scanner_dump_file
         )
 
+# BEGIN GENERATED CODE
+# generated with:
+ # cpython 3.7.3 (default, Apr 09 2019, 05:18:21) [GCC]
+
+unicode_start_ch_any = (
+    u"_ªµºˬˮͿΆΌՙەۿܐޱߺࠚࠤࠨऽॐলঽৎৼਫ਼ઽૐૹଽୱஃஜௐఽಀಽೞഽൎලาຄຊຍລວາຽໆༀဿၡႎჇჍቘዀៗៜᢪ"
+    u"ᪧὙὛὝιⁱⁿℂℇℕℤΩℨⅎⴧⴭⵯꣻꧏꩺꪱꫀꫂיִמּﹱﹳﹷﹹﹻﹽ𐠈𐠼𐨀𐼧𑅄𑅶𑇚𑇜𑊈𑌽𑍐𑓇𑙄𑣿𑨀𑨺𑩐𑪝𑱀𑵆𑶘𖽐𝒢𝒻𝕆𞸤𞸧𞸹𞸻"
+    u"𞹂𞹇𞹉𞹋𞹔𞹗𞹙𞹛𞹝𞹟𞹤𞹾")
+unicode_start_ch_range = (
+    u"AZazÀÖØöøˁˆˑˠˤͰʹͶͷͻͽΈΊΎΡΣϵϷҁҊԯԱՖՠֈאתׯײؠيٮٯٱۓۥۦۮۯۺۼܒܯݍޥߊߪߴߵࠀࠕ"
+    u"ࡀࡘࡠࡪࢠࢴࢶࢽऄहक़ॡॱঀঅঌএঐওনপরশহড়ঢ়য়ৡৰৱਅਊਏਐਓਨਪਰਲਲ਼ਵਸ਼ਸਹਖ਼ੜੲੴઅઍએઑઓનપરલળવહ"
+    u"ૠૡଅଌଏଐଓନପରଲଳଵହଡ଼ଢ଼ୟୡஅஊஎஐஒகஙசஞடணதநபமஹఅఌఎఐఒనపహౘౚౠౡಅಌಎಐಒನಪಳವಹೠೡೱೲ"
+    u"അഌഎഐഒഺൔൖൟൡൺൿඅඖකනඳරවෆกะเๆກຂງຈດທນຟມຣສຫອະເໄໜໟཀཇཉཬྈྌကဪၐၕၚၝၥၦၮၰၵႁ"
+    u"ႠჅაჺჼቈቊቍቐቖቚቝበኈኊኍነኰኲኵኸኾዂዅወዖዘጐጒጕጘፚᎀᎏᎠᏵᏸᏽᐁᙬᙯᙿᚁᚚᚠᛪᛮᛸᜀᜌᜎᜑᜠᜱᝀᝑᝠᝬᝮᝰ"
+    u"កឳᠠᡸᢀᢨᢰᣵᤀᤞᥐᥭᥰᥴᦀᦫᦰᧉᨀᨖᨠᩔᬅᬳᭅᭋᮃᮠᮮᮯᮺᯥᰀᰣᱍᱏᱚᱽᲀᲈᲐᲺᲽᲿᳩᳬᳮᳱᳵᳶᴀᶿḀἕἘἝἠὅὈὍ"
+    u"ὐὗὟώᾀᾴᾶᾼῂῄῆῌῐΐῖΊῠῬῲῴῶῼₐₜℊℓ℘ℝKℹℼℿⅅⅉⅠↈⰀⰮⰰⱞⱠⳤⳫⳮⳲⳳⴀⴥⴰⵧⶀⶖⶠⶦⶨⶮⶰⶶⶸⶾ"
+    u"ⷀⷆⷈⷎⷐⷖⷘⷞ々〇〡〩〱〵〸〼ぁゖゝゟァヺーヿㄅㄯㄱㆎㆠㆺㇰㇿ㐀䶵一鿯ꀀꒌꓐꓽꔀꘌꘐꘟꘪꘫꙀꙮꙿꚝꚠꛯꜗꜟꜢꞈꞋꞹꟷꠁ"
+    u"ꠃꠅꠇꠊꠌꠢꡀꡳꢂꢳꣲꣷꣽꣾꤊꤥꤰꥆꥠꥼꦄꦲꧠꧤꧦꧯꧺꧾꨀꨨꩀꩂꩄꩋꩠꩶꩾꪯꪵꪶꪹꪽꫛꫝꫠꫪꫲꫴꬁꬆꬉꬎꬑꬖꬠꬦꬨꬮꬰꭚ"
+    u"ꭜꭥꭰꯢ가힣ힰퟆퟋퟻ豈舘並龎ﬀﬆﬓﬗײַﬨשׁזּטּלּנּסּףּפּצּﮱﯓﱝﱤﴽﵐﶏﶒﷇﷰﷹﹿﻼＡＺａｚｦﾝﾠﾾￂￇￊￏￒￗￚￜ𐀀𐀋"
+    u"𐀍𐀦𐀨𐀺𐀼𐀽𐀿𐁍𐁐𐁝𐂀𐃺𐅀𐅴𐊀𐊜𐊠𐋐𐌀𐌟𐌭𐍊𐍐𐍵𐎀𐎝𐎠𐏃𐏈𐏏𐏑𐏕𐐀𐒝𐒰𐓓𐓘𐓻𐔀𐔧𐔰𐕣𐘀𐜶𐝀𐝕𐝠𐝧𐠀𐠅𐠊𐠵𐠷𐠸𐠿𐡕𐡠𐡶𐢀𐢞"
+    u"𐣠𐣲𐣴𐣵𐤀𐤕𐤠𐤹𐦀𐦷𐦾𐦿𐨐𐨓𐨕𐨗𐨙𐨵𐩠𐩼𐪀𐪜𐫀𐫇𐫉𐫤𐬀𐬵𐭀𐭕𐭠𐭲𐮀𐮑𐰀𐱈𐲀𐲲𐳀𐳲𐴀𐴣𐼀𐼜𐼰𐽅𑀃𑀷𑂃𑂯𑃐𑃨𑄃𑄦𑅐𑅲𑆃𑆲𑇁𑇄"
+    u"𑈀𑈑𑈓𑈫𑊀𑊆𑊊𑊍𑊏𑊝𑊟𑊨𑊰𑋞𑌅𑌌𑌏𑌐𑌓𑌨𑌪𑌰𑌲𑌳𑌵𑌹𑍝𑍡𑐀𑐴𑑇𑑊𑒀𑒯𑓄𑓅𑖀𑖮𑗘𑗛𑘀𑘯𑚀𑚪𑜀𑜚𑠀𑠫𑢠𑣟𑨋𑨲𑩜𑪃𑪆𑪉𑫀𑫸𑰀𑰈"
+    u"𑰊𑰮𑱲𑲏𑴀𑴆𑴈𑴉𑴋𑴰𑵠𑵥𑵧𑵨𑵪𑶉𑻠𑻲𒀀𒎙𒐀𒑮𒒀𒕃𓀀𓐮𔐀𔙆𖠀𖨸𖩀𖩞𖫐𖫭𖬀𖬯𖭀𖭃𖭣𖭷𖭽𖮏𖹀𖹿𖼀𖽄𖾓𖾟𖿠𖿡𗀀𘟱𘠀𘫲𛀀𛄞𛅰𛋻𛰀𛱪"
+    u"𛱰𛱼𛲀𛲈𛲐𛲙𝐀𝑔𝑖𝒜𝒞𝒟𝒥𝒦𝒩𝒬𝒮𝒹𝒽𝓃𝓅𝔅𝔇𝔊𝔍𝔔𝔖𝔜𝔞𝔹𝔻𝔾𝕀𝕄𝕊𝕐𝕒𝚥𝚨𝛀𝛂𝛚𝛜𝛺𝛼𝜔𝜖𝜴𝜶𝝎𝝐𝝮𝝰𝞈𝞊𝞨𝞪𝟂𝟄𝟋"
+    u"𞠀𞣄𞤀𞥃𞸀𞸃𞸅𞸟𞸡𞸢𞸩𞸲𞸴𞸷𞹍𞹏𞹑𞹒𞹡𞹢𞹧𞹪𞹬𞹲𞹴𞹷𞹹𞹼𞺀𞺉𞺋𞺛𞺡𞺣𞺥𞺩𞺫𞺻𠀀𪛖𪜀𫜴𫝀𫠝𫠠𬺡𬺰𮯠")
+
+
+unicode_continuation_ch_any = (
+    u"··়ׇֿٰܑ߽ৗ਼৾ੑੵ઼଼ஂௗ಼ൗ්ූัັ༹༵༷࿆᳭ᢩ៝⁔⵿⃡꙯ꠂ꠆ꠋꧥꩃﬞꪰ꫁＿𑅳𐨿𐇽𐋠𑈾𑍗𑩇𑑞𑴺𑵇𝩵𝪄")
+unicode_continuation_ch_range = (
+    u"09ֽׁׂًؚ֑ׅ̀ͯ҃҇ׄؐ٩۪ۭۖۜ۟ۤۧۨ۰۹ܰ݊ަް߀߉࡙࡛࣓ࣣ߫߳ࠖ࠙ࠛࠣࠥࠧࠩ࠭࣡ःऺ़ाॏ॑ॗॢॣ०९ঁঃ"
+    u"াৄেৈো্ৢৣ০৯ਁਃਾੂੇੈੋ੍੦ੱઁઃાૅેૉો્ૢૣ૦૯ૺ૿ଁଃାୄେୈୋ୍ୖୗୢୣ୦୯ாூெைொ்௦௯ఀఄాౄ"
+    u"ెైొ్ౕౖౢౣ౦౯ಁಃಾೄೆೈೊ್ೕೖೢೣ೦೯ഀഃ഻഼ാൄെൈൊ്ൢൣ൦൯ංඃාුෘෟ෦෯ෲෳำฺ็๎๐๙ຳູົຼ່ໍ"
+    u"໐໙༘༙༠༩༾༿྄ཱ྆྇ྍྗྙྼါှ၀၉ၖၙၞၠၢၤၧၭၱၴႂႍႏႝ፝፟፩፱ᜒ᜔ᜲ᜴ᝒᝓᝲᝳ឴៓០៩᠋᠍᠐᠙ᤠᤫᤰ᤻᥆᥏"
+    u"᧐᧚ᨗᨛᩕᩞ᩠᩿᩼᪉᪐᪙᪽᪰ᬀᬄ᬴᭄᭐᭙᭫᭳ᮀᮂᮡᮭ᮰᮹᯦᯳ᰤ᰷᱀᱉᱐᱙᳔᳨᳐᳒ᳲ᳴᳷᷹᷿᳹᷀᷻‿⁀⃥〪〯⃐⃜⃰⳯⳱ⷠⷿ"
+    u"゙゚꘠꘩ꙴ꙽ꚞꚟ꛰꛱ꠣꠧꢀꢁꢴꣅ꣐꣙꣠꣱ꣿ꤉ꤦ꤭ꥇ꥓ꦀꦃ꦳꧀꧐꧙꧰꧹ꨩꨶꩌꩍ꩐꩙ꩻꩽꪴꪲꪷꪸꪾ꪿ꫫꫯꫵ꫶ꯣꯪ꯬꯭꯰꯹︀️"
+    u"︠︯︳︴﹍﹏０９ﾞﾟ𐍶𐍺𐒠𐒩𐨁𐨃𐨅𐨆𐨌𐨺𐫦𐨏𐨸𐫥𐴤𐴧𐴰𐴹𐽆𐽐𑀀𑀂𑀸𑁆𑁦𑁯𑁿𑂂𑂰𑂺𑃰𑃹𑄀𑄂𑄧𑄴𑄶𑄿𑅅𑅆𑆀𑆂𑆳𑇀𑇉𑇌𑇐𑇙𑈬𑈷"
+    u"𑋟𑋪𑋰𑋹𑌀𑌃𑌻𑌼𑌾𑍄𑍇𑍈𑍋𑍍𑍢𑍣𑍦𑍬𑍰𑍴𑐵𑑆𑑐𑑙𑒰𑓃𑓐𑓙𑖯𑖵𑖸𑗀𑗜𑗝𑘰𑙀𑙐𑙙𑚫𑚷𑛀𑛉𑜝𑜫𑜰𑜹𑠬𑠺𑣠𑣩𑨁𑨊𑨳𑨹𑨻𑨾𑩑𑩛𑪊𑪙"
+    u"𑰯𑰶𑰸𑰿𑱐𑱙𑲒𑲧𑲩𑲶𑴱𑴶𑴼𑴽𑴿𑵅𑵐𑵙𑶊𑶎𑶐𑶑𑶓𑶗𑶠𑶩𑻳𑻶𖩠𖩩𖫰𖫴𖬰𖬶𖭐𖭙𖽑𖽾𖾏𖾒𛲝𛲞𝅩𝅥𝅲𝅻𝆂𝆋𝅭𝆅𝆪𝆭𝉂𝉄𝟎𝟿𝨀𝨶𝨻𝩬"
+    u"𝪛𝪟𝪡𝪯𞥊𞣐𞣖𞀀𞀆𞀈𞀘𞀛𞀡𞀣𞀤𞀦𞀪𞥄𞥐𞥙")
+
+
+# END GENERATED CODE
