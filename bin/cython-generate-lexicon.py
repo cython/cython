@@ -15,7 +15,6 @@ import functools
 import re
 import os
 import sys
-from io import StringIO
 
 # Make sure we import the right Cython
 cythonpath, _ = os.path.split(os.path.realpath(__file__)) # bin directory
