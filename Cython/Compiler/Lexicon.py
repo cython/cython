@@ -19,7 +19,6 @@ def make_lexicon():
         Str, Any, AnyBut, AnyChar, Rep, Rep1, Opt, Bol, Eol, Eof, \
         TEXT, IGNORE, Method, State, Lexicon, Range
 
-    letter = Any("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_")
     nonzero_digit = Any("123456789")
     digit = Any("0123456789")
     bindigit = Any("01")
