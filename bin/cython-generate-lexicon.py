@@ -81,7 +81,9 @@ def get_continue_characters_as_number():
 def get_continue_not_start_as_number():
     start = get_start_characters_as_number()
     cont = get_continue_characters_as_number()
-    return sorted(set(cont) - set(start))
+    assert set(start) <= set(cont), \
+        "We assume that all identifier start characters are also continuation characters."
+    return sorted(set(cont).difference(start))
 
 
 def to_ranges(char_num_list):
