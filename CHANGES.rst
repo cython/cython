@@ -8,6 +8,9 @@ Cython Changelog
 Features added
 --------------
 
+* Unicode identifiers are supported in Cython code (PEP 3131).
+  Patch by da-woods.  (Github issue #2601)
+
 * ``with gil/nogil`` statements can be conditional based on compile-time
   constants, e.g. fused type checks.
   Patch by Noam Hershtig.  (Github issue #2579)
