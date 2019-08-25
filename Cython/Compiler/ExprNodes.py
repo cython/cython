@@ -875,6 +875,8 @@ class ExprNode(Node):
         #
         src = self
         src_type = self.type
+        if src_type.is_cfunction and src_type.entry.is_cgetter:
+            src_type = src_type.return_type
 
         if self.check_for_coercion_error(dst_type, env):
             return self
@@ -12221,6 +12223,10 @@ class CmpNode(object):
         operand2 = self.operand2
         type1 = operand1.type
         type2 = operand2.type
+        if type1.is_cfunction and type1.entry.is_cgetter:
+            type1 = type1.return_type
+        if type2.is_cfunction and type2.entry.is_cgetter:
+            type2 = type2.return_type
 
         new_common_type = None
 

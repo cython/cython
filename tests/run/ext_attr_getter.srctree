@@ -171,6 +171,9 @@ def sum(getter.Foo f):
     # notices the getter and replaces the __getattr__ in c by PyFoo_GET anyway
     return f.fieldM0 + f.fieldF1 + f.fieldM2
 
+def check_10(getter.Foo f):
+    return f.fieldF1 != 10
+
 def vec0(getter.Foo f):
         return f.vector[0]
 
