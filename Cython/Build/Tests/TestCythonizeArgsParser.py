@@ -23,7 +23,7 @@ class TestCythonizeArgsParser(TestCase):
 
     def are_default(self, options, skip):
         # empty containers
-        empty_containers = ['directives', 'options', 'excludes']
+        empty_containers = ['options', 'excludes']
         are_none = ['language_level', 'build', 'build_inplace', 'force', 'quiet', 'keep_going']
         for opt_name in empty_containers:
             if len(getattr(options, opt_name)) != 0 and (opt_name not in skip):
@@ -41,54 +41,54 @@ class TestCythonizeArgsParser(TestCase):
 
     # testing directives:
     def test_directive_short(self):
-        options, args =  self.parse_args(['-X', 'cdivision=True'])
+        options, args = self.parse_args(['-X', 'cdivision=True'])
         self.assertFalse(args)
-        self.assertTrue(self.are_default(options, ['directives']))
-        self.assertEqual(options.directives['cdivision'], True)
+        self.assertTrue(self.are_default(options, ['options']))
+        self.assertEqual(options.options['compiler_directives']['cdivision'], True)
 
     def test_directive_long(self):
-        options, args =  self.parse_args(['--directive', 'cdivision=True'])
+        options, args = self.parse_args(['--directive', 'cdivision=True'])
         self.assertFalse(args)
-        self.assertTrue(self.are_default(options, ['directives']))
-        self.assertEqual(options.directives['cdivision'], True)
+        self.assertTrue(self.are_default(options, ['options']))
+        self.assertEqual(options.options['compiler_directives']['cdivision'], True)
 
     def test_directive_multiple(self):
-        options, args =  self.parse_args(['-X', 'cdivision=True', '-X', 'c_string_type=bytes'])
+        options, args = self.parse_args(['-X', 'cdivision=True', '-X', 'c_string_type=bytes'])
         self.assertFalse(args)
-        self.assertTrue(self.are_default(options, ['directives']))
-        self.assertEqual(options.directives['cdivision'], True)
-        self.assertEqual(options.directives['c_string_type'], 'bytes')
+        self.assertTrue(self.are_default(options, ['options']))
+        self.assertEqual(options.options['compiler_directives']['cdivision'], True)
+        self.assertEqual(options.options['compiler_directives']['c_string_type'], 'bytes')
 
     def test_directive_multiple_v2(self):
-        options, args =  self.parse_args(['-X', 'cdivision=True,c_string_type=bytes'])
+        options, args = self.parse_args(['-X', 'cdivision=True,c_string_type=bytes'])
         self.assertFalse(args)
-        self.assertTrue(self.are_default(options, ['directives']))
-        self.assertEqual(options.directives['cdivision'], True)
-        self.assertEqual(options.directives['c_string_type'], 'bytes')
+        self.assertTrue(self.are_default(options, ['options']))
+        self.assertEqual(options.options['compiler_directives']['cdivision'], True)
+        self.assertEqual(options.options['compiler_directives']['c_string_type'], 'bytes')
 
     def test_directive_value_yes(self):
-        options, args =  self.parse_args(['-X', 'cdivision=YeS'])
+        options, args = self.parse_args(['-X', 'cdivision=YeS'])
         self.assertFalse(args)
-        self.assertTrue(self.are_default(options, ['directives']))
-        self.assertEqual(options.directives['cdivision'], True)
+        self.assertTrue(self.are_default(options, ['options']))
+        self.assertEqual(options.options['compiler_directives']['cdivision'], True)
 
     def test_directive_value_no(self):
-        options, args =  self.parse_args(['-X', 'cdivision=no'])
+        options, args = self.parse_args(['-X', 'cdivision=no'])
         self.assertFalse(args)
-        self.assertTrue(self.are_default(options, ['directives']))
-        self.assertEqual(options.directives['cdivision'], False)
+        self.assertTrue(self.are_default(options, ['options']))
+        self.assertEqual(options.options['compiler_directives']['cdivision'], False)
 
     def test_directive_value_invalid(self):
-        with self.assertRaises(ValueError) as context:
-            options, args =  self.parse_args(['-X', 'cdivision=sadfasd'])
+        with self.assertRaises(ValueError):
+            options, args = self.parse_args(['-X', 'cdivision=sadfasd'])
 
     def test_directive_key_invalid(self):
-        with self.assertRaises(ValueError) as context:
-            options, args =  self.parse_args(['-X', 'abracadabra'])
+        with self.assertRaises(ValueError):
+            options, args = self.parse_args(['-X', 'abracadabra'])
 
     def test_directive_no_value(self):
-        with self.assertRaises(ValueError) as context:
-            options, args =  self.parse_args(['-X', 'cdivision'])
+        with self.assertRaises(ValueError):
+            options, args = self.parse_args(['-X', 'cdivision'])
 
     def test_directives_types(self):
         directives = {
@@ -106,10 +106,10 @@ class TestCythonizeArgsParser(TestCase):
         }
         for key, value in directives.items():
             cmd = '{key}={value}'.format(key=key, value=str(value))
-            options, args =  self.parse_args(['-X', cmd])
+            options, args = self.parse_args(['-X', cmd])
             self.assertFalse(args)
-            self.assertTrue(self.are_default(options, ['directives']), msg = "Error for option: "+cmd)
-            self.assertEqual(options.directives[key], value, msg = "Error for option: "+cmd)
+            self.assertTrue(self.are_default(options, ['options']), msg="Error for option: " + cmd)
+            self.assertEqual(options.options['compiler_directives'][key], value, msg="Error for option: " + cmd)
 
     def test_directives_wrong(self):
         directives = {

@@ -70,7 +70,6 @@ def cython_compile(path_pattern, options):
                 nthreads=options.parallel,
                 exclude_failures=options.keep_going,
                 exclude=options.excludes,
-                compiler_directives=options.directives,
                 force=options.force,
                 quiet=options.quiet,
                 **options.options)
@@ -120,15 +119,15 @@ def run_distutils(args):
 
 def create_args_parser():
     from argparse import ArgumentParser
-    from ..Compiler.CmdLine import (ParseDirectivesAction, ParseOptionsAction,
+    from ..Compiler.CmdLine import (ParseDirectivesActionToLocal, ParseOptionsAction,
           ParseCompileTimeEnvActionToLocal, SetLenientAction, StoreToSubargument,
           GLOBAL_OPTIONS)
 
     parser = ArgumentParser()
 
     parser.add_argument('-X', '--directive', metavar='NAME=VALUE,...',
-                      dest='directives', default={}, type=str,
-                      action=ParseDirectivesAction,
+                      dest='compiler_directives', type=str,
+                      action=ParseDirectivesActionToLocal,
                       help='set a compiler directive')
     parser.add_argument('-E', '--compile-time-env', metavar='NAME=VALUE,...',
                       dest='compile_time_env', type=str,
