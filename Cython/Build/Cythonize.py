@@ -120,7 +120,9 @@ def run_distutils(args):
 
 def create_args_parser():
     from argparse import ArgumentParser
-    from ..Compiler.CmdLine import ParseDirectivesAction, ParseOptionsAction, ParseCompileTimeEnvActionToLocal
+    from ..Compiler.CmdLine import (ParseDirectivesAction, ParseOptionsAction,
+          ParseCompileTimeEnvActionToLocal, SetLenientAction, StoreToSubargument,
+          GLOBAL_OPTIONS)
 
     parser = ArgumentParser()
 
@@ -142,9 +144,9 @@ def create_args_parser():
                       help='use Python 3 syntax mode by default')
     parser.add_argument('--3str', dest='language_level', action='store_const', const='3str',
                       help='use Python 3 syntax mode by default')
-    parser.add_argument('-a', '--annotate', action='store_const', const='default', dest='annotate',
+    parser.add_argument('-a', '--annotate', action=StoreToSubargument(GLOBAL_OPTIONS, 'default'), nargs=0, dest='annotate',
                       help='Produce a colorized HTML version of the source.')
-    parser.add_argument('--annotate-fullc', action='store_const', const='fullc', dest='annotate',
+    parser.add_argument('--annotate-fullc', action=StoreToSubargument(GLOBAL_OPTIONS, 'fullc'), nargs=0, dest='annotate',
                       help='Produce a colorized HTML version of the source '
                            'which includes entire generated C/C++-code.')
     parser.add_argument('-x', '--exclude', metavar='PATTERN', dest='excludes',
@@ -164,11 +166,11 @@ def create_args_parser():
     parser.add_argument('-q', '--quiet', dest='quiet', action='store_true', default=None,
                       help='be less verbose during compilation')
 
-    parser.add_argument('--lenient', dest='lenient', action='store_true', default=None,
+    parser.add_argument('--lenient', dest='lenient', action=SetLenientAction, nargs=0,
                       help='increase Python compatibility by ignoring some compile time errors')
     parser.add_argument('-k', '--keep-going', dest='keep_going', action='store_true', default=None,
                       help='compile as much as possible, ignore compilation failures')
-    parser.add_argument('--no-docstrings', dest='no_docstrings', action='store_true', default=None,
+    parser.add_argument('--no-docstrings', dest='docstrings', action=StoreToSubargument(GLOBAL_OPTIONS, False), nargs=0, default=None,
                       help='strip docstrings')
     parser.add_argument('sources', nargs='*')
     return parser
@@ -202,16 +204,12 @@ def parse_args(args):
         assert options.language_level in (2, 3, '3str')
         options.options['language_level'] = options.language_level
 
-    if options.lenient:
-        # increase Python compatibility by ignoring compile time errors
-        Options.error_on_unknown_names = False
-        Options.error_on_uninitialized = False
-
-    if options.annotate:
-        Options.annotate = options.annotate
-
-    if options.no_docstrings:
-        Options.docstrings = False
+    # handle global_options:
+    from ..Compiler.CmdLine import GLOBAL_OPTIONS
+    global_options = getattr(options, GLOBAL_OPTIONS, {})
+    for name, value in global_options.items():
+        if value is not None:
+            setattr(Options, name, value)
 
     return options, args
 

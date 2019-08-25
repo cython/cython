@@ -24,7 +24,7 @@ class TestCythonizeArgsParser(TestCase):
     def are_default(self, options, skip):
         # empty containers
         empty_containers = ['directives', 'options', 'excludes']
-        are_none = ['language_level', 'annotate', 'build', 'build_inplace', 'force', 'quiet', 'lenient', 'keep_going', 'no_docstrings']
+        are_none = ['language_level', 'build', 'build_inplace', 'force', 'quiet', 'keep_going']
         for opt_name in empty_containers:
             if len(getattr(options, opt_name)) != 0 and (opt_name not in skip):
                 self.assertEqual(opt_name, "", msg="For option " + opt_name)
@@ -34,6 +34,8 @@ class TestCythonizeArgsParser(TestCase):
                 self.assertEqual(opt_name, "", msg="For option " + opt_name)
                 return False
         if options.parallel != parallel_compiles and ('parallel' not in skip):
+            return False
+        if ('global_options' not in skip) and hasattr(options, 'global_options'):
             return False
         return True
 
@@ -242,34 +244,34 @@ class TestCythonizeArgsParser(TestCase):
         self.assertEqual(options.language_level, '3str')
 
     def test_annotate_short(self):
-        options, args =  self.parse_args(['-a'])
+        options, args = self.parse_args(['-a'])
         self.assertFalse(args)
-        self.assertTrue(self.are_default(options, ['annotate']))
-        self.assertEqual(options.annotate, 'default')
+        self.assertTrue(self.are_default(options, ['global_options']))
+        self.assertEqual(options.global_options['annotate'], 'default')
 
     def test_annotate_long(self):
-        options, args =  self.parse_args(['--annotate'])
+        options, args = self.parse_args(['--annotate'])
         self.assertFalse(args)
-        self.assertTrue(self.are_default(options, ['annotate']))
-        self.assertEqual(options.annotate, 'default')
+        self.assertTrue(self.are_default(options, ['global_options']))
+        self.assertEqual(options.global_options['annotate'], 'default')
 
     def test_annotate_fullc(self):
-        options, args =  self.parse_args(['--annotate-fullc'])
+        options, args = self.parse_args(['--annotate-fullc'])
         self.assertFalse(args)
-        self.assertTrue(self.are_default(options, ['annotate']))
-        self.assertEqual(options.annotate, 'fullc')
+        self.assertTrue(self.are_default(options, ['global_options']))
+        self.assertEqual(options.global_options['annotate'], 'fullc')
 
     def test_annotate_and_positional(self):
-        options, args =  self.parse_args(['-a', 'foo.pyx'])
+        options, args = self.parse_args(['-a', 'foo.pyx'])
         self.assertEqual(args, ['foo.pyx'])
-        self.assertTrue(self.are_default(options, ['annotate']))
-        self.assertEqual(options.annotate, 'default')
+        self.assertTrue(self.are_default(options, ['global_options']))
+        self.assertEqual(options.global_options['annotate'], 'default')
 
     def test_annotate_and_optional(self):
-        options, args =  self.parse_args(['-a', '--3str'])
+        options, args = self.parse_args(['-a', '--3str'])
         self.assertFalse(args)
-        self.assertTrue(self.are_default(options, ['annotate', 'language_level']))
-        self.assertEqual(options.annotate, 'default')
+        self.assertTrue(self.are_default(options, ['global_options', 'language_level']))
+        self.assertEqual(options.global_options['annotate'], 'default')
         self.assertEqual(options.language_level, '3str')
 
     def test_exclude_short(self):
@@ -351,13 +353,14 @@ class TestCythonizeArgsParser(TestCase):
         self.assertEqual(options.quiet, True)
 
     def test_lenient_long(self):
-        options, args =  self.parse_args(['--lenient'])
-        self.assertTrue(self.are_default(options, ['lenient']))
+        options, args = self.parse_args(['--lenient'])
+        self.assertTrue(self.are_default(options, ['global_options']))
         self.assertFalse(args)
-        self.assertEqual(options.lenient, True)
+        self.assertEqual(options.global_options['error_on_unknown_names'], False)
+        self.assertEqual(options.global_options['error_on_uninitialized'], False)
 
     def test_keep_going_short(self):
-        options, args =  self.parse_args(['-k'])
+        options, args = self.parse_args(['-k'])
         self.assertFalse(args)
         self.assertTrue(self.are_default(options, ['keep_going']))
         self.assertEqual(options.keep_going, True)
@@ -369,33 +372,33 @@ class TestCythonizeArgsParser(TestCase):
         self.assertEqual(options.keep_going, True)
 
     def test_no_docstrings_long(self):
-        options, args =  self.parse_args(['--no-docstrings'])
+        options, args = self.parse_args(['--no-docstrings'])
         self.assertFalse(args)
-        self.assertTrue(self.are_default(options, ['no_docstrings']))
-        self.assertEqual(options.no_docstrings, True)
+        self.assertTrue(self.are_default(options, ['global_options']))
+        self.assertEqual(options.global_options['docstrings'], False)
 
     def test_file_name(self):
-        options, args =  self.parse_args(['file1.pyx', 'file2.pyx'])
+        options, args = self.parse_args(['file1.pyx', 'file2.pyx'])
         self.assertEqual(len(args), 2)
         self.assertEqual(args[0], 'file1.pyx')
         self.assertEqual(args[1], 'file2.pyx')
         self.assertTrue(self.are_default(options, []))
 
     def test_option_first(self):
-        options, args =  self.parse_args(['-i', 'file.pyx'])
+        options, args = self.parse_args(['-i', 'file.pyx'])
         self.assertEqual(args, ['file.pyx'])
         self.assertEqual(options.build_inplace, True)
         self.assertTrue(self.are_default(options, ['build_inplace']))
 
     def test_file_inbetween(self):
-        options, args =  self.parse_args(['-i', 'file.pyx', '-a'])
+        options, args = self.parse_args(['-i', 'file.pyx', '-a'])
         self.assertEqual(args, ['file.pyx'])
         self.assertEqual(options.build_inplace, True)
-        self.assertEqual(options.annotate, 'default')
-        self.assertTrue(self.are_default(options, ['build_inplace', 'annotate']))
+        self.assertEqual(options.global_options['annotate'], 'default')
+        self.assertTrue(self.are_default(options, ['build_inplace', 'global_options']))
 
     def test_option_trailing(self):
-        options, args =  self.parse_args(['file.pyx', '-i'])
+        options, args = self.parse_args(['file.pyx', '-i'])
         self.assertEqual(args, ['file.pyx'])
         self.assertEqual(options.build_inplace, True)
         self.assertTrue(self.are_default(options, ['build_inplace']))
@@ -406,8 +409,8 @@ class TestCythonizeArgsParser(TestCase):
              'file2.pyx'
         ])
         self.assertEqual(sources, ['file1.pyx', 'file2.pyx'])
-        self.assertEqual(options.annotate, 'default')
-        self.assertTrue(self.are_default(options, ['annotate']))
+        self.assertEqual(options.global_options['annotate'], 'default')
+        self.assertTrue(self.are_default(options, ['global_options']))
 
     def test_interspersed_positional2(self):
         options, sources = self.parse_args([
@@ -415,8 +418,8 @@ class TestCythonizeArgsParser(TestCase):
              'file2.pyx', '-a', 'file3.pyx'
         ])
         self.assertEqual(sources, ['file1.pyx', 'file2.pyx', 'file3.pyx'])
-        self.assertEqual(options.annotate, 'default')
-        self.assertTrue(self.are_default(options, ['annotate']))
+        self.assertEqual(options.global_options['annotate'], 'default')
+        self.assertTrue(self.are_default(options, ['global_options']))
 
     def test_interspersed_positional3(self):
         options, sources = self.parse_args([
@@ -424,9 +427,9 @@ class TestCythonizeArgsParser(TestCase):
              'f3', 'f4', '-a', 'f5'
         ])
         self.assertEqual(sources, ['f1', 'f2', 'f3', 'f4', 'f5'])
-        self.assertEqual(options.annotate, 'default')
+        self.assertEqual(options.global_options['annotate'], 'default')
         self.assertEqual(options.force, True)
-        self.assertTrue(self.are_default(options, ['annotate', 'force']))
+        self.assertTrue(self.are_default(options, ['global_options', 'force']))
 
     def test_wrong_option(self):
         old_stderr = sys.stderr
