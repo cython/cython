@@ -85,7 +85,7 @@ def make_lexicon():
     comment = Str("#") + Rep(AnyBut("\n"))
 
     return Lexicon([
-        (name, IDENT),
+        (name, Method('normalize_ident')),
         (intliteral, Method('strip_underscores', symbol='INT')),
         (fltconst, Method('strip_underscores', symbol='FLOAT')),
         (imagconst, Method('strip_underscores', symbol='IMAG')),

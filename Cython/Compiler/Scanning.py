@@ -12,6 +12,7 @@ cython.declare(make_lexicon=object, lexicon=object,
 
 import os
 import platform
+from unicodedata import normalize
 
 from .. import Utils
 from ..Plex.Scanners import Scanner
@@ -340,6 +341,13 @@ class PyrexScanner(Scanner):
         self.begin('INDENT')
         self.sy = ''
         self.next()
+
+    def normalize_ident(self, text):
+        try:
+            text.encode('ascii') # really just name.isascii but supports Python 2 and 3
+        except UnicodeEncodeError:
+            text = normalize('NFKC', text)
+        self.produce(IDENT, text)
 
     def commentline(self, text):
         if self.parse_comments:

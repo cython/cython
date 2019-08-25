@@ -49,6 +49,17 @@ if sys.version_info[0]>2:
     10
     >>> NormalClassΓΓ().εxciting_function(None).__qualname__
     'NormalClassΓΓ.εxciting_function.<locals>.nestεd'
+
+    Do kwargs work?
+    >>> unicode_kwarg(αrg=5)
+    5
+    >>> unicode_kwarg_from_cy()
+    1
+
+    Normalization of attributes
+    (The cdef class version is testable in Python 2 too)
+    >>> NormalizeAttrPy().get()
+    5
     """
 else:
     __doc__ = ""
@@ -183,6 +194,32 @@ class NormalClassΓΓ(Γναμε2):
         def nestεd():
             pass
         return nestεd
+
+def unicode_kwarg(*,αrg):
+    return αrg
+
+def unicode_kwarg_from_cy():
+    return unicode_kwarg(αrg=1)
+
+class NormalizeAttrPy:
+    """Python normalizes identifier names before they are used;
+    therefore ﬁ and fi should access the same attribute"""
+    def __init__(self):
+        self.ﬁ = 5 # note unicode ligature symbol
+    def get(self):
+        return self.fi
+
+cdef class NormalizeAttrCdef:
+    """Python normalizes identifier names before they are used;
+    therefore ﬁ and fi should access the same attribute
+    >>> NormalizeAttrCdef().get()
+    5
+    """
+    cdef int ﬁ # note unicode ligature symbol
+    def __init__(self):
+        self.fi = 5
+    def get(self):
+        return self.ﬁ
 
 if sys.version_info[0]<=2:
     # These symbols are causing problems for doctest
