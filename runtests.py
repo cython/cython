@@ -1114,6 +1114,11 @@ class CythonCompileTestCase(unittest.TestCase):
                 from Cython.Build.Dependencies import update_pythran_extension
                 update_pythran_extension(extension)
 
+            # Compile with -DCYTHON_CLINE_IN_TRACEBACK=1 unless we have
+            # the "traceback" tag
+            if 'traceback' not in self.tags['tag']:
+                extension.define_macros.append(("CYTHON_CLINE_IN_TRACEBACK", 1))
+
             for matcher, fixer in list(EXT_EXTRAS.items()):
                 if isinstance(matcher, str):
                     # lazy init

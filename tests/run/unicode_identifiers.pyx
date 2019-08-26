@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # cython: language_level=3
 # mode: run
-# tag: pep3131
+# tag: pep3131, traceback
 
 # Code with unicode identifiers can be compiled with Cython running either Python 2 or 3.
 # However Python access to unicode identifiers is only possible in Python 3. In Python 2
