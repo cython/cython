@@ -1180,18 +1180,27 @@ static PyObject *__Pyx_GetBuiltinName(PyObject *name) {
 static PyObject *__Pyx__GetNameInClass(PyObject *nmspace, PyObject *name); /*proto*/
 
 /////////////// GetNameInClass ///////////////
-//@requires: PyObjectGetAttrStrNoError
 //@requires: GetModuleGlobalName
 
 static PyObject *__Pyx__GetNameInClass(PyObject *nmspace, PyObject *name) {
     PyObject *result;
-    result = __Pyx_PyObject_GetAttrStrNoError(nmspace, name);
-    if (!result) {
-        if (unlikely(PyErr_Occurred()))
-            return NULL;
-        __Pyx_GetModuleGlobalNameUncached(result, name);
-        return result;
+    PyObject *dict;
+    assert(PyType_Check(nmspace));
+#if CYTHON_USE_TYPE_SLOTS
+    dict = ((PyTypeObject*)nmspace)->tp_dict;
+    Py_XINCREF(dict);
+#else
+    dict = PyObject_GetAttr(nmspace, PYIDENT("__dict__"));
+#endif
+    if (likely(dict)) {
+        result = PyObject_GetItem(dict, name);
+        Py_DECREF(dict);
+        if (result) {
+            return result;
+        }
     }
+    PyErr_Clear();
+    __Pyx_GetModuleGlobalNameUncached(result, name);
     return result;
 }
 
