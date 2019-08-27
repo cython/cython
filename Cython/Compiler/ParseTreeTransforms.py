@@ -1800,6 +1800,8 @@ if VALUE is not None:
         node.stats.insert(0, node.py_func)
         node.py_func = self.visit(node.py_func)
         node.update_fused_defnode_entry(env)
+        # For the moment, fused functions do not support METH_FASTCALL
+        node.py_func.entry.signature.use_fastcall = False
         pycfunc = ExprNodes.PyCFunctionNode.from_defnode(node.py_func, binding=True)
         pycfunc = ExprNodes.ProxyNode(pycfunc.coerce_to_temp(env))
         node.resulting_fused_function = pycfunc
@@ -1937,6 +1939,9 @@ if VALUE is not None:
             rhs.binding = True
 
         node.is_cyfunction = rhs.binding
+        if rhs.binding:
+            # For the moment, CyFunctions do not support METH_FASTCALL
+            node.entry.signature.use_fastcall = False
         return self._create_assignment(node, rhs, env)
 
     def _create_assignment(self, def_node, rhs, env):

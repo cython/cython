@@ -117,16 +117,19 @@ static void __Pyx_RaiseMappingExpectedError(PyObject* arg) {
 
 //////////////////// KeywordStringCheck.proto ////////////////////
 
-static int __Pyx_CheckKeywordStrings(PyObject *kwdict, const char* function_name, int kw_allowed); /*proto*/
+static int __Pyx_CheckKeywordStrings(PyObject *kw, const char* function_name, int kw_allowed); /*proto*/
 
 //////////////////// KeywordStringCheck ////////////////////
 
-//  __Pyx_CheckKeywordStrings raises an error if non-string keywords
-//  were passed to a function, or if any keywords were passed to a
-//  function that does not accept them.
+// __Pyx_CheckKeywordStrings raises an error if non-string keywords
+// were passed to a function, or if any keywords were passed to a
+// function that does not accept them.
+//
+// The "kw" argument is either a dict (for METH_VARARGS) or a tuple
+// (for METH_FASTCALL).
 
 static int __Pyx_CheckKeywordStrings(
-    PyObject *kwdict,
+    PyObject *kw,
     const char* function_name,
     int kw_allowed)
 {
@@ -134,18 +137,35 @@ static int __Pyx_CheckKeywordStrings(
     Py_ssize_t pos = 0;
 #if CYTHON_COMPILING_IN_PYPY
     /* PyPy appears to check keywords at call time, not at unpacking time => not much to do here */
-    if (!kw_allowed && PyDict_Next(kwdict, &pos, &key, 0))
+    if (!kw_allowed && PyDict_Next(kw, &pos, &key, 0))
         goto invalid_keyword;
     return 1;
 #else
-    while (PyDict_Next(kwdict, &pos, &key, 0)) {
+    if (CYTHON_METH_FASTCALL && likely(PyTuple_Check(kw))) {
+        if (unlikely(PyTuple_GET_SIZE(kw) == 0))
+            return 1;
+        if (!kw_allowed)
+            goto invalid_keyword;
+#if PY_VERSION_HEX < 0x03090000
+        // On CPython >= 3.9, the FASTCALL protocol guarantees that keyword
+        // names are strings (see https://bugs.python.org/issue37540)
+        for (pos = 0; pos < PyTuple_GET_SIZE(kw); pos++) {
+            key = PyTuple_GET_ITEM(kw, pos);
+            if (unlikely(!PyUnicode_Check(key)))
+                goto invalid_keyword_type;
+        }
+#endif
+        return 1;
+    }
+
+    while (PyDict_Next(kw, &pos, &key, 0)) {
         #if PY_MAJOR_VERSION < 3
         if (unlikely(!PyString_Check(key)))
         #endif
             if (unlikely(!PyUnicode_Check(key)))
                 goto invalid_keyword_type;
     }
-    if ((!kw_allowed) && unlikely(key))
+    if (!kw_allowed && unlikely(key))
         goto invalid_keyword;
     return 1;
 invalid_keyword_type:
@@ -154,11 +174,12 @@ invalid_keyword_type:
     return 0;
 #endif
 invalid_keyword:
-    PyErr_Format(PyExc_TypeError,
     #if PY_MAJOR_VERSION < 3
+    PyErr_Format(PyExc_TypeError,
         "%.200s() got an unexpected keyword argument '%.200s'",
         function_name, PyString_AsString(key));
     #else
+    PyErr_Format(PyExc_TypeError,
         "%s() got an unexpected keyword argument '%U'",
         function_name, key);
     #endif
@@ -168,16 +189,21 @@ invalid_keyword:
 
 //////////////////// ParseKeywords.proto ////////////////////
 
-static int __Pyx_ParseOptionalKeywords(PyObject *kwds, PyObject **argnames[], \
-    PyObject *kwds2, PyObject *values[], Py_ssize_t num_pos_args, \
+static int __Pyx_ParseOptionalKeywords(PyObject *kwds, PyObject *const *kwvalues,
+    PyObject **argnames[],
+    PyObject *kwds2, PyObject *values[], Py_ssize_t num_pos_args,
     const char* function_name); /*proto*/
 
 //////////////////// ParseKeywords ////////////////////
 //@requires: RaiseDoubleKeywords
 
 //  __Pyx_ParseOptionalKeywords copies the optional/unknown keyword
-//  arguments from the kwds dict into kwds2.  If kwds2 is NULL, unknown
+//  arguments from kwds into the dict kwds2.  If kwds2 is NULL, unknown
 //  keywords will raise an invalid keyword error.
+//
+//  When not using METH_FASTCALL, kwds is a dict and kwvalues is NULL.
+//  Otherwise, kwds is a tuple with keyword names and kwvalues is a C
+//  array with the corresponding values.
 //
 //  Three kinds of errors are checked: 1) non-string keywords, 2)
 //  unexpected keywords and 3) overlap with positional arguments.
@@ -190,6 +216,7 @@ static int __Pyx_ParseOptionalKeywords(PyObject *kwds, PyObject **argnames[], \
 
 static int __Pyx_ParseOptionalKeywords(
     PyObject *kwds,
+    PyObject *const *kwvalues,
     PyObject **argnames[],
     PyObject *kwds2,
     PyObject *values[],
@@ -200,8 +227,20 @@ static int __Pyx_ParseOptionalKeywords(
     Py_ssize_t pos = 0;
     PyObject*** name;
     PyObject*** first_kw_arg = argnames + num_pos_args;
+    int kwds_is_tuple = CYTHON_METH_FASTCALL && likely(PyTuple_Check(kwds));
 
-    while (PyDict_Next(kwds, &pos, &key, &value)) {
+    while (1) {
+        if (kwds_is_tuple) {
+            if (pos >= PyTuple_GET_SIZE(kwds)) break;
+            key = PyTuple_GET_ITEM(kwds, pos);
+            value = kwvalues[pos];
+            pos++;
+        }
+        else
+        {
+            if (!PyDict_Next(kwds, &pos, &key, &value)) break;
+        }
+
         name = first_kw_arg;
         while (*name && (**name != key)) name++;
         if (*name) {
@@ -284,11 +323,12 @@ invalid_keyword_type:
         "%.200s() keywords must be strings", function_name);
     goto bad;
 invalid_keyword:
-    PyErr_Format(PyExc_TypeError,
     #if PY_MAJOR_VERSION < 3
+    PyErr_Format(PyExc_TypeError,
         "%.200s() got an unexpected keyword argument '%.200s'",
         function_name, PyString_AsString(key));
     #else
+    PyErr_Format(PyExc_TypeError,
         "%s() got an unexpected keyword argument '%U'",
         function_name, key);
     #endif
@@ -350,3 +390,74 @@ bad:
     Py_XDECREF(iter);
     return -1;
 }
+
+
+/////////////// fastcall.proto ///////////////
+
+// We define various functions and macros with two variants:
+//..._FASTCALL and ..._VARARGS
+
+// The first is used when METH_FASTCALL is enabled and the second is used
+// otherwise. If the Python implementation does not support METH_FASTCALL
+// (because it's an old version of CPython or it's not CPython at all),
+// then the ..._FASTCALL macros simply alias ..._VARARGS
+
+#define __Pyx_Arg_VARARGS(args, i) PyTuple_GET_ITEM(args, i)
+#define __Pyx_NumKwargs_VARARGS(kwds) PyDict_Size(kwds)
+#define __Pyx_KwValues_VARARGS(args, nargs) NULL
+#define __Pyx_GetKwValue_VARARGS(kw, kwvalues, s) __Pyx_PyDict_GetItemStrWithError(kw, s)
+#define __Pyx_KwargsAsDict_VARARGS(kw, kwvalues) PyDict_Copy(kw)
+#if CYTHON_METH_FASTCALL
+    #define __Pyx_Arg_FASTCALL(args, i) args[i]
+    #define __Pyx_NumKwargs_FASTCALL(kwds) PyTuple_GET_SIZE(kwds)
+    #define __Pyx_KwValues_FASTCALL(args, nargs) (&args[nargs])
+    static CYTHON_INLINE PyObject * __Pyx_GetKwValue_FASTCALL(PyObject *kwnames, PyObject *const *kwvalues, PyObject *s);
+    #define __Pyx_KwargsAsDict_FASTCALL(kw, kwvalues) _PyStack_AsDict(kwvalues, kw)
+#else
+    #define __Pyx_Arg_FASTCALL __Pyx_Arg_VARARGS
+    #define __Pyx_NumKwargs_FASTCALL __Pyx_NumKwargs_VARARGS
+    #define __Pyx_KwValues_FASTCALL __Pyx_KwValues_VARARGS
+    #define __Pyx_GetKwValue_FASTCALL __Pyx_GetKwValue_VARARGS
+    #define __Pyx_KwargsAsDict_FASTCALL __Pyx_KwargsAsDict_VARARGS
+#endif
+
+#if CYTHON_COMPILING_IN_CPYTHON
+#define __Pyx_ArgsSlice_VARARGS(args, start, stop) __Pyx_PyTuple_FromArray(&__Pyx_Arg_VARARGS(args, start), stop - start)
+#define __Pyx_ArgsSlice_FASTCALL(args, start, stop) __Pyx_PyTuple_FromArray(&__Pyx_Arg_FASTCALL(args, start), stop - start)
+#else
+/* Not CPython, so certainly no METH_FASTCALL support */
+#define __Pyx_ArgsSlice_VARARGS(args, start, stop) PyTuple_GetSlice(args, start, stop)
+#define __Pyx_ArgsSlice_FASTCALL(args, start, stop) PyTuple_GetSlice(args, start, stop)
+#endif
+
+
+/////////////// fastcall ///////////////
+//@requires: ObjectHandling.c::TupleAndListFromArray
+//@requires: StringTools.c::UnicodeEquals
+
+#if CYTHON_METH_FASTCALL
+// kwnames: tuple with names of keyword arguments
+// kwvalues: C array with values of keyword arguments
+// s: str with the keyword name to look for
+static CYTHON_INLINE PyObject * __Pyx_GetKwValue_FASTCALL(PyObject *kwnames, PyObject *const *kwvalues, PyObject *s)
+{
+    // Search the kwnames array for s and return the corresponding value.
+    // We do two loops: a first one to compare pointers (which will find a
+    // match if the name in kwnames is interned, given that s is interned
+    // by Cython). A second loop compares the actual strings.
+    Py_ssize_t i, n = PyTuple_GET_SIZE(kwnames);
+    for (i = 0; i < n; i++)
+    {
+        if (s == PyTuple_GET_ITEM(kwnames, i)) return kwvalues[i];
+    }
+    for (i = 0; i < n; i++)
+    {
+        int eq = __Pyx_PyUnicode_Equals(s, PyTuple_GET_ITEM(kwnames, i), Py_EQ);
+        if (unlikely(eq != 0)) {
+            if (unlikely(eq < 0)) return NULL;  // error
+            return kwvalues[i];
+        }
+    }
+    return NULL;  // not found (no exception set)
+}
+#endif

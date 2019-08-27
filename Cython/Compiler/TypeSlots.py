@@ -9,6 +9,8 @@ from . import Naming
 from . import PyrexTypes
 from .Errors import error
 
+import copy
+
 invisible = ['__cinit__', '__dealloc__', '__richcmp__',
              '__nonzero__', '__bool__']
 
@@ -23,6 +25,7 @@ class Signature(object):
     #  fixed_arg_format   string
     #  ret_format         string
     #  error_value        string
+    #  use_fastcall       boolean
     #
     #  The formats are strings made up of the following
     #  characters:
@@ -85,6 +88,9 @@ class Signature(object):
         'h': "-1",
         'z': "-1",
     }
+
+    # Use METH_FASTCALL instead of METH_VARARGS
+    use_fastcall = False
 
     def __init__(self, arg_format, ret_format, nogil=False):
         self.has_dummy_arg = False
@@ -159,15 +165,20 @@ class Signature(object):
             if self.has_dummy_arg:
                 full_args = "O" + full_args
             if full_args in ["O", "T"]:
-                if self.has_generic_args:
-                    return [method_varargs, method_keywords]
-                else:
+                if not self.has_generic_args:
                     return [method_noargs]
+                elif self.use_fastcall:
+                    return [method_fastcall, method_keywords]
+                else:
+                    return [method_varargs, method_keywords]
             elif full_args in ["OO", "TO"] and not self.has_generic_args:
                 return [method_onearg]
 
             if self.is_staticmethod:
-                return [method_varargs, method_keywords]
+                if self.use_fastcall:
+                    return [method_fastcall, method_keywords]
+                else:
+                    return [method_varargs, method_keywords]
         return None
 
     def method_function_type(self):
@@ -179,7 +190,24 @@ class Signature(object):
                 return "PyCFunction"
             if m == method_varargs:
                 return "PyCFunction" + kw
+            if m == method_fastcall:
+                return "__Pyx_PyCFunction_FastCall" + kw
         return None
+
+    def with_fastcall(self):
+        # Return a copy of this Signature with use_fastcall=True
+        sig = copy.copy(self)
+        sig.use_fastcall = True
+        return sig
+
+    @property
+    def fastvar(self):
+        # Used to select variants of functions, one dealing with METH_VARARGS
+        # and one dealing with __Pyx_METH_FASTCALL
+        if self.use_fastcall:
+            return "FASTCALL"
+        else:
+            return "VARARGS"
 
 
 class SlotDescriptor(object):
@@ -958,5 +986,6 @@ MethodSlot(descrdelfunc, "", "__delete__")
 method_noargs   = "METH_NOARGS"
 method_onearg   = "METH_O"
 method_varargs  = "METH_VARARGS"
+method_fastcall = "__Pyx_METH_FASTCALL"  # Actually VARARGS on versions < 3.7
 method_keywords = "METH_KEYWORDS"
 method_coexist  = "METH_COEXIST"

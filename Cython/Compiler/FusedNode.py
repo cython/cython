@@ -827,6 +827,10 @@ class FusedCFuncDefNode(StatListNode):
         else:
             nodes = self.nodes
 
+        # For the moment, fused functions do not support METH_FASTCALL
+        for node in nodes:
+            node.entry.signature.use_fastcall = False
+
         signatures = [StringEncoding.EncodedString(node.specialized_signature_string)
                       for node in nodes]
         keys = [ExprNodes.StringNode(node.pos, value=sig)
