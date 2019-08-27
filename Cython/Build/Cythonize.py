@@ -209,7 +209,7 @@ def parse_args(args):
         Options.error_on_uninitialized = False
 
     if options.annotate:
-        Options.annotate = True
+        Options.annotate = options.annotate
 
     if options.no_docstrings:
         Options.docstrings = False
