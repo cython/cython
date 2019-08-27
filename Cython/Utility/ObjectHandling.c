@@ -1209,6 +1209,30 @@ static PyObject *__Pyx__GetNameInClass(PyObject *nmspace, PyObject *name) {
 #define __Pyx_SetNameInClass(ns, name, value)  PyObject_SetItem(ns, name, value)
 #endif
 
+/////////////// SetNewInClass.proto ///////////////
+
+static int __Pyx_SetNewInClass(PyObject *ns, PyObject *name, PyObject *value);
+
+/////////////// SetNewInClass ///////////////
+//@requires: SetNameInClass
+
+// Special-case setting __new__: if it's a Cython function, wrap it in a
+// staticmethod. This is similar to what Python does for a Python function
+// called __new__.
+static int __Pyx_SetNewInClass(PyObject *ns, PyObject *name, PyObject *value) {
+#ifdef __Pyx_CyFunction_USED
+    int ret;
+    if (__Pyx_CyFunction_Check(value)) {
+        PyObject *staticnew = PyStaticMethod_New(value);
+        if (unlikely(!staticnew)) return -1;
+        ret = __Pyx_SetNameInClass(ns, name, staticnew);
+        Py_DECREF(staticnew);
+        return ret;
+    }
+#endif
+    return __Pyx_SetNameInClass(ns, name, value);
+}
+
 
 /////////////// GetModuleGlobalName.proto ///////////////
 //@requires: PyDictVersioning
