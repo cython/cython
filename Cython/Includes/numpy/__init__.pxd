@@ -244,13 +244,26 @@ cdef extern from "numpy/arrayobject.h":
 
         cdef:
             # Only taking a few of the most commonly used and stable fields.
-            # One should use PyArray_* macros instead to access the C fields.
             char *data
-            int ndim "nd"
-            npy_intp *shape "dimensions"
-            npy_intp *strides
-            dtype descr  # deprecated since NumPy 1.7 !
+            dtype descr
             PyObject* base
+
+            @property
+            cdef int ndim(self):
+                return PyArray_NDIM(self)
+
+            @property
+            cdef npy_intp *shape(self):
+                return PyArray_DIMS(self)
+
+            @property
+            cdef npy_intp *strides(self):
+                return PyArray_STRIDES(self)
+
+            @property
+            cdef npy_intp size(self):
+                return PyArray_SIZE(ndarray)
+
 
         # Note: This syntax (function definition in pxd files) is an
         # experimental exception made for __getbuffer__ and __releasebuffer__

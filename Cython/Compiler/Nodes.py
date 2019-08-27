@@ -1767,6 +1767,11 @@ class FuncDefNode(StatNode, BlockNode):
 
     def generate_function_definitions(self, env, code):
         from . import Buffer
+
+        if self.entry.is_cgetter:
+            # no code to generate
+            return
+
         if self.return_type.is_memoryviewslice:
             from . import MemoryView
 
