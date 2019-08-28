@@ -9146,7 +9146,6 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
     #  from a PyMethodDef struct.
     #
     #  pymethdef_cname   string             PyMethodDef structure
-    #  self_object       ExprNode or None
     #  binding           bool
     #  def_node          DefNode            the Python function node
     #  module_name       EncodedString      Name of defining module
@@ -9155,7 +9154,6 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
     subexprs = ['code_object', 'defaults_tuple', 'defaults_kwdict',
                 'annotations_dict']
 
-    self_object = None
     code_object = None
     binding = False
     def_node = None
@@ -9326,12 +9324,8 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
 
     gil_message = "Constructing Python function"
 
-    def self_result_code(self):
-        if self.self_object is None:
-            self_result = "NULL"
-        else:
-            self_result = self.self_object.py_result()
-        return self_result
+    def closure_result_code(self):
+        return "NULL"
 
     def generate_result_code(self, code):
         if self.binding:
@@ -9345,7 +9339,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
             '%s = PyCFunction_NewEx(&%s, %s, %s); %s' % (
                 self.result(),
                 self.pymethdef_cname,
-                self.self_result_code(),
+                self.closure_result_code(),
                 py_mod_name,
                 code.error_goto_if_null(self.result(), self.pos)))
 
@@ -9392,7 +9386,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                 self.pymethdef_cname,
                 flags,
                 self.get_py_qualified_name(code),
-                self.self_result_code(),
+                self.closure_result_code(),
                 self.get_py_mod_name(code),
                 Naming.moddict_cname,
                 code_object_result,
@@ -9438,13 +9432,12 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
 
 class InnerFunctionNode(PyCFunctionNode):
     # Special PyCFunctionNode that depends on a closure class
-    #
 
     binding = True
-    needs_self_code = True
+    needs_closure_code = True
 
-    def self_result_code(self):
-        if self.needs_self_code:
+    def closure_result_code(self):
+        if self.needs_closure_code:
             return "((PyObject*)%s)" % Naming.cur_scope_cname
         return "NULL"
 
@@ -9667,7 +9660,7 @@ class GeneratorExpressionNode(LambdaNode):
             '%s = %s(%s); %s' % (
                 self.result(),
                 self.def_node.entry.pyfunc_cname,
-                self.self_result_code(),
+                self.closure_result_code(),
                 code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
 

@@ -2732,7 +2732,7 @@ class CreateClosureClasses(CythonTransform):
                 if not node.py_cfunc_node:
                     raise InternalError("DefNode does not have assignment node")
                 inner_node = node.py_cfunc_node
-            inner_node.needs_self_code = False
+            inner_node.needs_closure_code = False
             node.needs_outer_scope = False
 
         if node.is_generator:
