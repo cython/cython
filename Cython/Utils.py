@@ -216,7 +216,7 @@ def decode_filename(filename):
 _match_file_encoding = re.compile(br"(\w*coding)[:=]\s*([-\w.]+)").search
 
 
-def detect_opened_file_encoding(f):
+def detect_opened_file_encoding(f, default='UTF-8'):
     # PEPs 263 and 3120
     # Most of the time the first two lines fall in the first couple of hundred chars,
     # and this bulk read/split is much faster.
@@ -236,7 +236,7 @@ def detect_opened_file_encoding(f):
         m = _match_file_encoding(lines[1])
         if m:
             return m.group(2).decode('iso8859-1')
-    return "UTF-8"
+    return default
 
 
 def skip_bom(f):
