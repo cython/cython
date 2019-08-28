@@ -376,6 +376,18 @@ class TestUnboundMethod:
     def meth(self): pass
 
 
+class TestStaticmethod(object):
+    """
+    >>> x = TestStaticmethod()
+    >>> x.staticmeth(42)
+    42
+    >>> x.staticmeth.__get__(42)()
+    42
+    """
+    @staticmethod
+    def staticmeth(arg): return arg
+
+
 cdef class TestOptimisedBuiltinMethod:
     """
     >>> obj = TestOptimisedBuiltinMethod()
