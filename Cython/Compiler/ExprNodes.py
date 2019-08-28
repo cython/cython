@@ -2297,8 +2297,10 @@ class NameNode(AtomicExprNode):
                 setter = 'PyDict_SetItem'
                 namespace = Naming.moddict_cname
             elif entry.is_pyclass_attr:
-                code.globalstate.use_utility_code(UtilityCode.load_cached("SetNameInClass", "ObjectHandling.c"))
-                setter = '__Pyx_SetNameInClass'
+                # Special-case setting __new__
+                n = "SetNewInClass" if self.name == "__new__" else "SetNameInClass"
+                code.globalstate.use_utility_code(UtilityCode.load_cached(n, "ObjectHandling.c"))
+                setter = '__Pyx_' + n
             else:
                 assert False, repr(entry)
             code.put_error_if_neg(
