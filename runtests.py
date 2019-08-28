@@ -154,7 +154,7 @@ def patch_inspect_isfunction():
     import inspect
     orig_isfunction = inspect.isfunction
     def isfunction(obj):
-        return orig_isfunction(obj) or type(obj).__name__ == 'cython_function_or_method'
+        return orig_isfunction(obj) or type(obj).__name__ == 'cyfunction'
     isfunction._orig_isfunction = orig_isfunction
     inspect.isfunction = isfunction
 

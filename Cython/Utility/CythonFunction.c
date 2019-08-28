@@ -574,10 +574,10 @@ static PyObject*
 __Pyx_CyFunction_repr(__pyx_CyFunctionObject *op)
 {
 #if PY_MAJOR_VERSION >= 3
-    return PyUnicode_FromFormat("<cyfunction %U at %p>",
+    return PyUnicode_FromFormat("<%s %U at %p>", Py_TYPE(op)->tp_name,
                                 op->func_qualname, (void *)op);
 #else
-    return PyString_FromFormat("<cyfunction %s at %p>",
+    return PyString_FromFormat("<%s %s at %p>", Py_TYPE(op)->tp_name,
                                PyString_AsString(op->func_qualname), (void *)op);
 #endif
 }
@@ -674,7 +674,7 @@ static PyObject *__Pyx_CyFunction_CallAsMethod(PyObject *func, PyObject *args, P
 
 static PyTypeObject __pyx_CyFunctionType_type = {
     PyVarObject_HEAD_INIT(0, 0)
-    "cython_function_or_method",      /*tp_name*/
+    "cyfunction",                     /*tp_name*/
     sizeof(__pyx_CyFunctionObject),   /*tp_basicsize*/
     0,                                  /*tp_itemsize*/
     (destructor) __Pyx_CyFunction_dealloc, /*tp_dealloc*/
@@ -1155,7 +1155,7 @@ static PyMappingMethods __pyx_FusedFunction_mapping_methods = {
 
 static PyTypeObject __pyx_FusedFunctionType_type = {
     PyVarObject_HEAD_INIT(0, 0)
-    "fused_cython_function",           /*tp_name*/
+    "fused_cyfunction",                /*tp_name*/
     sizeof(__pyx_FusedFunctionObject), /*tp_basicsize*/
     0,                                  /*tp_itemsize*/
     (destructor) __pyx_FusedFunction_dealloc, /*tp_dealloc*/
