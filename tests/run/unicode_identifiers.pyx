@@ -55,11 +55,6 @@ if sys.version_info[0]>2:
     5
     >>> unicode_kwarg_from_cy()
     1
-
-    Normalization of attributes
-    (The cdef class version is testable in Python 2 too)
-    >>> NormalizeAttrPy().get()
-    5
     """
 else:
     __doc__ = ""
@@ -201,17 +196,13 @@ def unicode_kwarg(*,αrg):
 def unicode_kwarg_from_cy():
     return unicode_kwarg(αrg=1)
 
-class NormalizeAttrPy:
-    """Python normalizes identifier names before they are used;
-    therefore ﬁ and fi should access the same attribute"""
-    def __init__(self):
-        self.ﬁ = 5 # note unicode ligature symbol
-    def get(self):
-        return self.fi
-
 cdef class NormalizeAttrCdef:
     """Python normalizes identifier names before they are used;
-    therefore ﬁ and fi should access the same attribute
+    therefore ﬁ and fi should access the same attribute.
+    A more comprehensive version of this is in "unicode_identifiers_normalize.py"
+    comparing the behaviour to Python. The version here shows it
+    behaves the same in a cdef class and is tested with Python 2
+
     >>> NormalizeAttrCdef().get()
     5
     """
