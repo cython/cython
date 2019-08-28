@@ -49,12 +49,12 @@ static PyTypeObject *__pyx_CyFunctionType = 0;
 
 #define __Pyx_CyFunction_Check(obj)  (__Pyx_TypeCheck(obj, __pyx_CyFunctionType))
 
-#define __Pyx_CyFunction_NewEx(ml, flags, qualname, self, module, globals, code) \
-    __Pyx_CyFunction_New(__pyx_CyFunctionType, ml, flags, qualname, self, module, globals, code)
+#define __Pyx_CyFunction_NewEx(ml, flags, qualname, closure, module, globals, code) \
+    __Pyx_CyFunction_New(__pyx_CyFunctionType, ml, flags, qualname, closure, module, globals, code)
 
-static PyObject *__Pyx_CyFunction_New(PyTypeObject *, PyMethodDef *ml,
+static PyObject *__Pyx_CyFunction_New(PyTypeObject *type, PyMethodDef *ml,
                                       int flags, PyObject* qualname,
-                                      PyObject *self,
+                                      PyObject *closure,
                                       PyObject *module, PyObject *globals,
                                       PyObject* code);
 
@@ -797,11 +797,11 @@ typedef struct {
     PyObject *self;
 } __pyx_FusedFunctionObject;
 
-#define __pyx_FusedFunction_NewEx(ml, flags, qualname, self, module, globals, code)         \
-        __pyx_FusedFunction_New(__pyx_FusedFunctionType, ml, flags, qualname, self, module, globals, code)
+#define __pyx_FusedFunction_NewEx(ml, flags, qualname, closure, module, globals, code)         \
+        __pyx_FusedFunction_New(__pyx_FusedFunctionType, ml, flags, qualname, closure, module, globals, code)
 static PyObject *__pyx_FusedFunction_New(PyTypeObject *type,
                                          PyMethodDef *ml, int flags,
-                                         PyObject *qualname, PyObject *self,
+                                         PyObject *qualname, PyObject *closure,
                                          PyObject *module, PyObject *globals,
                                          PyObject *code);
 
@@ -816,13 +816,13 @@ static int __pyx_FusedFunction_init(void);
 
 static PyObject *
 __pyx_FusedFunction_New(PyTypeObject *type, PyMethodDef *ml, int flags,
-                        PyObject *qualname, PyObject *self,
+                        PyObject *qualname, PyObject *closure,
                         PyObject *module, PyObject *globals,
                         PyObject *code)
 {
     __pyx_FusedFunctionObject *fusedfunc =
         (__pyx_FusedFunctionObject *) __Pyx_CyFunction_New(type, ml, flags, qualname,
-                                                           self, module, globals, code);
+                                                           closure, module, globals, code);
     if (!fusedfunc)
         return NULL;
 
