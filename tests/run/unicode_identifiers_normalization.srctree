@@ -6,7 +6,7 @@ PYTHON build_tests.py
 # show behaviour in Python mode
 PYTHON -m doctest test0.py
 PYTHON -m doctest test1.py
-#PYTHON -m doctest test2.py
+PYTHON -m doctest test2.py
 
 PYTHON setup.py build_ext --inplace
 # test in Cython mode
