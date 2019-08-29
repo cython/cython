@@ -74,7 +74,7 @@ static int __pyx_CyFunction_init(void);
 //////////////////// CythonFunction ////////////////////
 //@substitute: naming
 //@requires: CommonStructures.c::FetchCommonType
-////@requires: ObjectHandling.c::PyObjectGetAttrStr
+//@requires: ObjectHandling.c::PyMethodNew
 
 #include <structmember.h>
 
@@ -550,11 +550,6 @@ static int __Pyx_CyFunction_traverse(__pyx_CyFunctionObject *m, visitproc visit,
     return 0;
 }
 
-static PyObject *__Pyx_CyFunction_descr_get(PyObject *func, PyObject *obj, PyObject *type)
-{
-    return __Pyx_PyMethod_New(func, obj, type);
-}
-
 static PyObject*
 __Pyx_CyFunction_repr(__pyx_CyFunctionObject *op)
 {
@@ -701,7 +696,7 @@ static PyTypeObject __pyx_CyFunctionType_type = {
     __pyx_CyFunction_getsets,           /*tp_getset*/
     0,                                  /*tp_base*/
     0,                                  /*tp_dict*/
-    __Pyx_CyFunction_descr_get,         /*tp_descr_get*/
+    __Pyx_PyMethod_New,                 /*tp_descr_get*/
     0,                                  /*tp_descr_set*/
     offsetof(__pyx_CyFunctionObject, func_dict),/*tp_dictoffset*/
     0,                                  /*tp_init*/

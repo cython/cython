@@ -2446,3 +2446,20 @@ static CYTHON_INLINE int __Pyx_object_dict_version_matches(PyObject* obj, PY_UIN
     return obj_dict_version == __Pyx_get_object_dict_version(obj);
 }
 #endif
+
+
+/////////////// PyMethodNew.proto ///////////////
+
+#if PY_MAJOR_VERSION >= 3
+// This should be an actual function (not a macro), such that we can put it
+// directly in a tp_descr_get slot.
+static PyObject *__Pyx_PyMethod_New(PyObject *func, PyObject *self, CYTHON_UNUSED PyObject *typ) {
+    if (!self) {
+        Py_INCREF(func);
+        return func;
+    }
+    return PyMethod_New(func, self);
+}
+#else
+    #define __Pyx_PyMethod_New PyMethod_New
+#endif

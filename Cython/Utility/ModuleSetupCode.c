@@ -705,12 +705,6 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define __Pyx_PyInt_AsHash_t   __Pyx_PyIndex_AsSsize_t
 #endif
 
-#if PY_MAJOR_VERSION >= 3
-  #define __Pyx_PyMethod_New(func, self, klass) ((self) ? PyMethod_New(func, self) : (Py_INCREF(func), func))
-#else
-  #define __Pyx_PyMethod_New(func, self, klass) PyMethod_New(func, self, klass)
-#endif
-
 // backport of PyAsyncMethods from Py3.5 to older Py3.x versions
 // (mis-)using the "tp_reserved" type slot which is re-activated as "tp_as_async" in Py3.5
 #if CYTHON_USE_ASYNC_SLOTS
