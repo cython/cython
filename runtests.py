@@ -545,9 +545,14 @@ class build_ext(_build_ext):
 class ErrorWriter(object):
     match_error = re.compile(r'(warning:)?(?:.*:)?\s*([-0-9]+)\s*:\s*([-0-9]+)\s*:\s*(.*)').match
 
-    def __init__(self):
+    def __init__(self, encoding=None):
         self.output = []
-        self.write = self.output.append
+        self.encoding = encoding
+
+    def write(self, value):
+        if self.encoding:
+            value = value.encode('ISO-8859-1').decode(self.encoding)
+        self.output.append(value)
 
     def _collect(self):
         s = ''.join(self.output)
@@ -1005,23 +1010,22 @@ class CythonCompileTestCase(unittest.TestCase):
 
         from Cython.Utils import detect_opened_file_encoding
         with io_open(source_file, 'rb') as f:
-            encoding = detect_opened_file_encoding(f, default='ISO-8859-1')
-        if encoding.lower() == 'ascii':
-            encoding = 'ISO-8859-1' # at least one test is based around a file tagged with ascii
-            # but with a character that can't be read with ascii. Therefore use different default
+            # encoding is passed to ErrorWriter but not used on the source
+            # since it is sometimes deliberately wrong
+            encoding = detect_opened_file_encoding(f, default=None)
 
-        with io_open(source_file, 'r', encoding=encoding) as source_and_output:
+        with io_open(source_file, 'r', encoding='ISO-8859-1') as source_and_output:
             error_writer = warnings_writer = None
             out = io_open(os.path.join(workdir, module + os.path.splitext(source_file)[1]),
-                          'w', encoding=encoding)
+                          'w', encoding='ISO-8859-1')
             try:
                 for line in source_and_output:
                     if line.startswith("_ERRORS"):
                         out.close()
-                        out = error_writer = ErrorWriter()
+                        out = error_writer = ErrorWriter(encoding=encoding)
                     elif line.startswith("_WARNINGS"):
                         out.close()
-                        out = warnings_writer = ErrorWriter()
+                        out = warnings_writer = ErrorWriter(encoding=encoding)
                     else:
                         out.write(line)
             finally:
