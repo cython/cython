@@ -175,7 +175,20 @@ def check_10(getter.Foo f):
     return f.fieldF1 != 10
 
 def vec0(getter.Foo f):
-        return f.vector[0]
+    return f.vector[0]
+
+def check_binop(getter.Foo f):
+    return f.fieldF1 / 10
+
+######## getter2.pyx ########
+
+cimport getter
+
+def check_pyobj(getter.Foo f):
+    return bool(f.fieldF1)
+ 
+def check_unary(getter.Foo f):
+    return -f.fieldF1
 
 ######## getter_fail0.pyx ########
 

@@ -11185,6 +11185,10 @@ class NumBinopNode(BinopNode):
     def analyse_c_operation(self, env):
         type1 = self.operand1.type
         type2 = self.operand2.type
+        if type1.is_cfunction and type1.entry.is_cgetter:
+            type1 = type1.return_type
+        if type2.is_cfunction and type2.entry.is_cgetter:
+            type2 = type2.return_type
         self.type = self.compute_c_result_type(type1, type2)
         if not self.type:
             self.type_error()
@@ -11210,10 +11214,6 @@ class NumBinopNode(BinopNode):
             self.operand2 = self.operand2.coerce_to(self.type, env)
 
     def compute_c_result_type(self, type1, type2):
-        if type1.is_cfunction and type1.entry.is_cgetter:
-            type1 = type1.return_type
-        if type2.is_cfunction and type2.entry.is_cgetter:
-            type2 = type2.return_type
         if self.c_types_okay(type1, type2):
             widest_type = PyrexTypes.widest_numeric_type(type1, type2)
             if widest_type is PyrexTypes.c_bint_type:
