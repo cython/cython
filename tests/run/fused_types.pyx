@@ -1,4 +1,5 @@
 # mode: run
+# ticket: 1772
 
 cimport cython
 from cython.view cimport array
@@ -360,6 +361,22 @@ def test_fused_memslice_dtype_repeated_2(cython.floating[:] array1, cython.float
     float[:] float[:] int[:]
     """
     print cython.typeof(array1), cython.typeof(array2), cython.typeof(array3)
+
+def test_fused_const_memslice_dtype_repeated(const cython.floating[:] array1, cython.floating[:] array2):
+    """Test fused types memory view with one being const
+
+    >>> sorted(test_fused_const_memslice_dtype_repeated.__signatures__)
+    ['const double|double', 'const float|float']
+
+    >>> test_fused_const_memslice_dtype_repeated(get_array(8, 'd'), get_array(8, 'd'))
+    const double[:] double[:]
+    >>> test_fused_const_memslice_dtype_repeated(get_array(4, 'f'), get_array(4, 'f'))
+    const float[:] float[:]
+    >>> test_fused_const_memslice_dtype_repeated(get_array(8, 'd'), get_array(4, 'f'))
+    Traceback (most recent call last):
+    TypeError: No matching signature found
+    """
+    print cython.typeof(array1), cython.typeof(array2)
 
 def test_cython_numeric(cython.numeric arg):
     """
