@@ -134,6 +134,10 @@ def sum(Foo f):
     # notices the alias and replaces the __getattr__ in c by f->f0 anyway
     return f.field0 + f.field1 + f.field2
 
+def check_pyobj(Foo f):
+    # compare the c code to the check_pyobj in getter2.pyx
+    return bool(f.field1)
+
 ######## getter.pxd ########
 
 # Access base Foo fields from C via getter functions
