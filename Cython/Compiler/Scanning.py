@@ -20,6 +20,7 @@ from ..Plex.Errors import UnrecognizedInput
 from .Errors import error, warning
 from .Lexicon import any_string_prefix, make_lexicon, IDENT
 from .Future import print_function
+from .StringEncoding import EncodedString
 
 debug_scanner = 0
 trace_scanner = 0
@@ -346,7 +347,13 @@ class PyrexScanner(Scanner):
         try:
             text.encode('ascii') # really just name.isascii but supports Python 2 and 3
         except UnicodeEncodeError:
+            old_text = text
             text = normalize('NFKC', text)
+            if text != old_text:
+                text = EncodedString(text) # most strings haven't been wrapped at this stage, 
+                    # so need to do so to add an attribute
+                text.unnormalized = old_text
+                
         self.produce(IDENT, text)
 
     def commentline(self, text):
