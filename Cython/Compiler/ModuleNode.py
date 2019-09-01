@@ -209,9 +209,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             h_code.putln("")
             h_code.putln("#if PY_MAJOR_VERSION < 3")
             try:
-                h_code.putln("PyMODINIT_FUNC init%s(void);" % env.module_name.encode("ascii"))
+                env.module_name.encode("ascii")
             except UnicodeEncodeError:
-                h_code.putln('#error("Unicode module names are not supported in Python 2");')
+                h_code.putln('#error "Unicode module names are not supported in Python 2";')
+            else:
+                h_code.putln("PyMODINIT_FUNC init%s(void);" % env.module_name)
             h_code.putln("#else")
             h_code.putln("PyMODINIT_FUNC %s(void);" % self.mod_init_func_cname('PyInit', env))
             h_code.putln("#endif")
@@ -2326,11 +2328,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("")
         code.putln(UtilityCode.load_as_string("PyModInitFuncType", "ModuleSetupCode.c")[0])
         try:
-            py2_mod_name = env.module_name.encode('ascii')
-            no_py2 = False
+            env.module_name.encode('ascii')
         except UnicodeEncodeError:
             py2_mod_name = "PYTHON2_DOES_NOT_SUPPORT_UNICODE_MODULE_NAMES"
             no_py2 = True
+        else:
+            py2_mod_name = env.module_name
+            no_py2 = False
         header2 = "__Pyx_PyMODINIT_FUNC init%s(void)" % py2_mod_name
         header3 = "__Pyx_PyMODINIT_FUNC %s(void)" % self.mod_init_func_cname('PyInit', env)
         header3 = EncodedString(header3)
@@ -2338,7 +2342,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # Optimise for small code size as the module init function is only executed once.
         code.putln("%s CYTHON_SMALL_CODE; /*proto*/" % header2)
         if no_py2:
-            code.putln('#error("Unicode module names are not supported in Python 2");')
+            code.putln('#error "Unicode module names are not supported in Python 2";')
         if self.scope.is_package:
             code.putln("#if !defined(CYTHON_NO_PYINIT_EXPORT) && (defined(WIN32) || defined(MS_WINDOWS))")
             code.putln("__Pyx_PyMODINIT_FUNC init__init__(void) { init%s(); }" % env.module_name)
@@ -2813,11 +2817,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("{0, NULL}")
         code.putln("};")
         try:
-            env.module.name.encode("ascii") # py2 compatible isascii
-        except:
+            env.module_name.encode("ascii") # py2 compatible isascii
+        except UnicodeEncodeError:
             code.putln("#else /* CYTHON_PEP489_MULTI_PHASE_INIT */")
-            code.putln('#error("Unicode module names are only supported with multi-phase init'
-                       ' as per PEP489")')
+            code.putln('#error "Unicode module names are only supported with multi-phase init'
+                       ' as per PEP489"')
         code.putln("#endif")
 
         code.putln("")
