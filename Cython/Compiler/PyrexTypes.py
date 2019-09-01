@@ -3869,7 +3869,8 @@ class CppClassType(CType):
                 break
 
         func_type = CFuncType(self, [], exception_check='+', nogil=nogil)
-        return self.scope.declare_cfunction(u'<init>', func_type, pos)
+        return self.scope.declare_cfunction(
+                StringEncoding.EncodedString(u'<init>'), func_type, pos)
 
     def check_nullary_constructor(self, pos, msg="stack allocated"):
         constructor = self.scope.lookup(u'<init>')

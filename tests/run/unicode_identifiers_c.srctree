@@ -1,0 +1,127 @@
+# -*- coding: utf-8 -*-
+# tag: pep3131
+
+# Two modules:
+#  one contains public declarations 
+#  one uses those declarations
+
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import doctest; import decl; exit(doctest.testmod(decl)[0])"
+PYTHON -c "import doctest; import use_external; exit(doctest.testmod(use_external)[0])"
+
+
+########## setup.py #########
+
+from distutils.core import setup
+from Cython.Build import cythonize
+
+setup(
+    ext_modules = cythonize(["decl.pyx", "use_external.pyx"])
+)
+
+######### decl.pyx #############
+# -*- coding: utf-8 -*-
+
+cpdef public enum Eνm:
+    α1 = 10
+    β2 = 20
+
+cdef public struct ΣtructnamePublic:
+    int α
+    double β
+
+cdef public class CDefClaσσPublic [object CDCΕχτ_Obj, type CDCΕχτ_Type]:
+    cdef int α
+
+cdef public int α = 5
+
+cdef public φunction(CDefClaσσPublic x):
+    x.α += 1
+    return x
+
+import sys
+
+if sys.version_info[0] > 2:
+    __doc__ = u"""
+    >>> Eνm.α1 * Eνm.β2
+    200
+    """
+else:
+    __doc__ = ""
+    __test__ = {}
+
+
+def test_enum():
+    """
+    >>> test_enum()
+    30
+
+    Test to check cpdef wrapper works is in module docstring (Py3 only)
+    """
+    return Eνm.α1 + Eνm.β2
+
+    
+########### use_external.pyx ###########
+# -*- coding: utf-8 -*-
+
+cdef extern from "decl.h":
+    cdef struct ΣtructnamePublic:
+        int α
+        double β
+
+    cdef class decl.CDefClaσσPublic [ object CDCΕχτ_Obj ]:
+        cdef int α
+
+    cdef enum Eνm:
+        α1
+        β2
+
+    cdef struct ΣtructnamePublic:
+        int α
+        double β
+
+
+cdef extern from *:
+    r"""
+    int C\u03c6unction (int x) {
+        return x;
+    }
+    """
+    int Cφunction(int)
+
+import decl
+
+def test_class():
+    """
+    >>> test_class()
+    1
+    """
+    cdef CDefClaσσPublic x = CDefClaσσPublic()
+    x.α = 1
+    return x.α
+
+def test_enum():
+    """
+    >>> test_enum()
+    200
+    """
+    return Eνm.α1 * Eνm.β2
+
+def test_cfunction():
+    """
+    >>> test_cfunction()
+    10
+    """
+    return Cφunction(10)
+
+def test_struct():
+    """
+    >>> test_struct()
+    True
+    """
+    cdef ΣtructnamePublic s
+    s.α = 2
+    s.β = 2.0
+    return s.α*s.β > 3
+
+

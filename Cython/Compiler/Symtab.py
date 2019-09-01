@@ -62,9 +62,6 @@ def punycodify_name(cname, mangle_with=None):
 
     return cname
 
-
-
-
 class BufferAux(object):
     writable_needed = False
 
@@ -428,6 +425,26 @@ class Scope(object):
         if self.parent_scope:
             return self.parent_scope.mangle_class_private_name(name)
         return name
+    
+    def nomangle(self, name):
+        r"""
+        Allows unicode names to be translated to valid C/C++ code
+        
+        Unicode identifiers are allowed in C/C__, but most compilers only
+        accept escaped (\u or \U) characters rather than the raw characters.
+        Additionally, we should use the unnormalized name and trust the
+        user that they have used the right character sequence since C/C++
+        does not define a normalization scheme"""
+        # given the opportunities to mess up the normalization it seems
+        # worth issuing a warning
+        if name != name.unnormalized:
+            warning("Name '{0}' differs with unicode normalization. "
+                    "Since it is comes from C it is used as-is. "
+                    "If your generated C code fails to compile then check "
+                    "that you are using the name consistently."
+                    )
+        
+        return name.unnormalized.as_cu_string()
 
     def next_id(self, name=None):
         # Return a cname fragment that is unique for this module
@@ -525,7 +542,7 @@ class Scope(object):
         # Add an entry for a named constant.
         if not cname:
             if self.in_cinclude or (visibility == 'public' or api):
-                cname = name
+                cname = self.nomangle(name)
             else:
                 cname = self.mangle(Naming.enum_prefix, name)
         entry = self.declare(name, cname, type, pos, visibility, create_wrapper = create_wrapper)
@@ -556,7 +573,7 @@ class Scope(object):
                         visibility = 'private', api = 0):
         if not cname:
             if self.in_cinclude or (visibility != 'private' or api):
-                cname = name
+                cname = self.nomangle(name)
             else:
                 cname = self.mangle(Naming.type_prefix, name)
         try:
@@ -582,7 +599,7 @@ class Scope(object):
         # Add an entry for a struct or union definition.
         if not cname:
             if self.in_cinclude or (visibility == 'public' or api):
-                cname = name
+                cname = self.nomangle(name)
             else:
                 cname = self.mangle(Naming.type_prefix, name)
         entry = self.lookup_here(name)
@@ -615,7 +632,7 @@ class Scope(object):
             visibility = 'extern', templates = None):
         if cname is None:
             if self.in_cinclude or (visibility != 'private'):
-                cname = name
+                cname = self.nomangle(name)
             else:
                 cname = self.mangle(Naming.type_prefix, name)
         base_classes = list(base_classes)
@@ -680,7 +697,7 @@ class Scope(object):
             if not cname:
                 if (self.in_cinclude or visibility == 'public'
                     or visibility == 'extern' or api):
-                    cname = name
+                    cname = self.nomangle(name)
                 else:
                     cname = self.mangle(Naming.type_prefix, name)
             if self.is_cpp_class_scope:
@@ -706,9 +723,10 @@ class Scope(object):
         # Add an entry for a variable.
         if not cname:
             if visibility != 'private' or api:
-                cname = name
+                cname = self.nomangle(name)
             else:
                 cname = self.mangle(Naming.var_prefix, name)
+            
         if type.is_cpp_class and visibility != 'extern':
             type.check_nullary_constructor(pos)
         entry = self.declare(name, cname, type, pos, visibility)
@@ -780,7 +798,7 @@ class Scope(object):
         # Add an entry for a C function.
         if not cname:
             if visibility != 'private' or api:
-                cname = name
+                cname = self.nomangle(name)
             else:
                 cname = self.mangle(Naming.func_prefix, name)
         entry = self.lookup_here(name)
@@ -1423,7 +1441,7 @@ class ModuleScope(Scope):
         if not cname:
             defining = not in_pxd
             if visibility == 'extern' or (visibility == 'public' and defining):
-                cname = name
+                cname = self.nomangle(name)
             else:
                 cname = self.mangle(Naming.var_prefix, name)
 
@@ -1469,7 +1487,7 @@ class ModuleScope(Scope):
         # Add an entry for a C function.
         if not cname:
             if visibility == 'extern' or (visibility == 'public' and defining):
-                cname = name
+                cname = self.nomangle(name)
             else:
                 cname = self.mangle(Naming.func_prefix, name)
         if visibility == 'extern' and type.optional_arg_count:
@@ -1511,6 +1529,7 @@ class ModuleScope(Scope):
             typeobj_cname=None, typeptr_cname=None, visibility='private',
             typedef_flag=0, api=0, check_size=None,
             buffer_defaults=None, shadow=0):
+        
         # If this is a non-extern typedef class, expose the typedef, but use
         # the non-typedef struct internally to avoid needing forward
         # declarations for anonymous structs.
@@ -1538,6 +1557,18 @@ class ModuleScope(Scope):
                         error(pos, "Base type does not match previous declaration")
                 if base_type and not type.base_type:
                     type.base_type = base_type
+        
+        # ensure that if any unicode names are supplied they are converted
+        # into a form suitable for C
+        if objstruct_cname:
+            objstruct_cname = self.nomangle(objstruct_cname)
+        if typeobj_cname:
+            typeobj_cname = self.nomangle(typeobj_cname)
+        if typeptr_cname:
+            typeptr_cname = self.nomangle(typeptr_cname)
+        if objtypedef_cname:
+            objtypedef_cname = self.nomangle(objtypedef_cname)
+                    
         #
         #  Make a new entry if needed
         #
@@ -1933,8 +1964,9 @@ class ClosureScope(LocalScope):
 class StructOrUnionScope(Scope):
     #  Namespace of a C struct or union.
 
-    def __init__(self, name="?"):
+    def __init__(self, name="?", visibility="private"):
         Scope.__init__(self, name, None, None)
+        self.visibility = visibility
 
     def declare_var(self, name, type, pos,
                     cname = None, visibility = 'private',
@@ -1942,7 +1974,13 @@ class StructOrUnionScope(Scope):
                     allow_pyobject=False, allow_memoryview=False):
         # Add an entry for an attribute.
         if not cname:
-            cname = name
+            #  - always interpret struct names literally
+            if self.visibility != "private":
+                # where the struct is public, don't mangle the name because
+                # C users will expect to find it as-is
+                cname = self.nomangle(name)
+            else:
+                cname = punycodify_name(name, Naming.unicode_structmember_prefix)
             if visibility == 'private':
                 cname = c_safe_identifier(cname)
         if type.is_cfunction:
@@ -2079,6 +2117,7 @@ class CClassScope(ClassScope):
     #  defined               boolean  Defined in .pxd file
     #  implemented           boolean  Defined in .pyx file
     #  inherited_var_entries [Entry]  Adapted var entries from base class
+    #  visibility            string
 
     is_c_class_scope = 1
     is_closure_class_scope = False
@@ -2097,6 +2136,7 @@ class CClassScope(ClassScope):
             self.getset_table_cname = outer_scope.mangle(Naming.gstab_prefix, name)
         self.property_entries = []
         self.inherited_var_entries = []
+        self.visibility = visibility
 
     def needs_gc(self):
         # If the type or any of its base types have Python-valued
@@ -2169,7 +2209,12 @@ class CClassScope(ClassScope):
                 cname = name
                 if visibility == 'private':
                     cname = c_safe_identifier(cname)
-                cname = punycodify_name(cname, Naming.unicode_structmember_prefix)
+                if self.visibility in ['public', 'extern']:
+                    # class is to be exported as is - don't mangle the names
+                    # but just convert them to valid C code
+                    cname = self.nomangle(name)
+                else:
+                    cname = punycodify_name(cname, Naming.unicode_structmember_prefix)
             if type.is_cpp_class and visibility != 'extern':
                 type.check_nullary_constructor(pos)
                 self.use_utility_code(Code.UtilityCode("#include <new>"))
@@ -2427,7 +2472,7 @@ class CppClassScope(Scope):
                     api = 0, in_pxd = 0, is_cdef = 0, defining = 0):
         # Add an entry for an attribute.
         if not cname:
-            cname = name
+            cname = self.nomangle(name)
         entry = self.lookup_here(name)
         if defining and entry is not None:
             if entry.type.same_as(type):
