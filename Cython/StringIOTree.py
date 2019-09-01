@@ -66,7 +66,13 @@ class StringIOTree(object):
             child.copyto(target)
         stream_content = self.stream.getvalue()
         if stream_content:
-            target.write(stream_content)
+            try:
+                target.write(stream_content)
+            except UnicodeEncodeError as e:
+                start = e.start-100
+                if start<0: start = 0
+                print(stream_content[start:e.end+100])
+                raise
 
     def commit(self):
         # Save what we have written until now so that the buffer

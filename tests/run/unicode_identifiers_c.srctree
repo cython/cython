@@ -59,6 +59,28 @@ def test_enum():
     Test to check cpdef wrapper works is in module docstring (Py3 only)
     """
     return Eνm.α1 + Eνm.β2
+    
+def test_to_dict():
+    """
+    >>> d = test_to_dict()
+    >>> for k,v in sorted(d.items()):
+    ...    print("{0} {1}".format(k, v))
+    α 1
+    β 2.0
+    """
+    cdef ΣtructnamePublic s
+    s.α = 1
+    s.β = 2.0
+    return s
+    
+def test_from_dict(ΣtructnamePublic s):
+    """
+    >>> test_from_dict({ u"α": 1, u"β": 2.0 })
+    1
+    2.0
+    """
+    print(s.α)
+    print(s.β)
 
     
 ########### use_external.pyx ###########

@@ -350,7 +350,7 @@ class PyrexScanner(Scanner):
             old_text = text
             text = normalize('NFKC', text)
             if text != old_text:
-                text = EncodedString(text) # most strings haven't been wrapped at this stage, 
+                text = EncodedString(text) # most strings haven't been wrapped at this stage,
                     # so need to do so to add an attribute
                 text.unnormalized = old_text
                 

@@ -208,7 +208,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             h_code.putln("/* It now returns a PyModuleDef instance instead of a PyModule instance. */")
             h_code.putln("")
             h_code.putln("#if PY_MAJOR_VERSION < 3")
-            h_code.putln("PyMODINIT_FUNC init%s(void);" % env.module_name)
+            try:
+                h_code.putln("PyMODINIT_FUNC init%s(void);" % env.module_name.encode("ascii"))
+            except UnicodeEncodeError:
+                h_code.putln('#error("Unicode module names are not supported in Python 2");')
             h_code.putln("#else")
             h_code.putln("PyMODINIT_FUNC %s(void);" % self.mod_init_func_cname('PyInit', env))
             h_code.putln("#endif")
@@ -230,7 +233,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 entry.type.declaration_code(entry.cname, pyrex=1)))
 
     def api_name(self, env):
-        return env.qualified_name.replace(".", "__")
+        api_name = self.punycode_module_name(env.qualified_name)
+        if api_name.startswith('_'):
+            api_name = api_name[1:]
+        return api_name.replace(".", "__")
 
     def generate_api_code(self, env, options, result):
         def api_entries(entries, pxd=0):
@@ -365,12 +371,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         globalstate.use_utility_code(refnanny_utility_code)
 
         code = globalstate['before_global_var']
-        code.putln('#define __Pyx_MODULE_NAME "%s"' % self.full_module_name)
-        module_is_main = "%s%s" % (Naming.module_is_main, self.full_module_name.replace('.', '__'))
+        code.putln('#define __Pyx_MODULE_NAME %s' %
+                   EncodedString(self.full_module_name).as_c_string_literal())
+        module_is_main = self.module_is_main_name()
         code.putln("extern int %s;" % module_is_main)
         code.putln("int %s = 0;" % module_is_main)
         code.putln("")
-        code.putln("/* Implementation of '%s' */" % env.qualified_name)
+        code.putln("/* Implementation of %s */" % env.qualified_name.as_c_string_literal())
 
         code = globalstate['late_includes']
         code.putln("/* Late includes */")
@@ -614,7 +621,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for module in modules:
             defined_here = module is env
             modulecode.putln("")
-            modulecode.putln("/* Module declarations from '%s' */" % module.qualified_name)
+            modulecode.putln("/* Module declarations from %s */" % module.qualified_name.as_c_string_literal())
             self.generate_c_class_declarations(module, modulecode, defined_here)
             self.generate_cvariable_declarations(module, modulecode, defined_here)
             self.generate_cfunction_declarations(module, modulecode, defined_here)
@@ -773,7 +780,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 if isabs(file_path):
                     file_path = basename(file_path)  # never include absolute paths
                 escaped_filename = file_path.replace("\\", "\\\\").replace('"', r'\"')
-                code.putln('"%s",' % escaped_filename)
+                code.putln('%s,' % EncodedString(escaped_filename).as_c_string_literal())
         else:
             # Some C compilers don't like an empty array
             code.putln("0")
@@ -2318,12 +2325,20 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.enter_cfunc_scope(self.scope)
         code.putln("")
         code.putln(UtilityCode.load_as_string("PyModInitFuncType", "ModuleSetupCode.c")[0])
-        header2 = "__Pyx_PyMODINIT_FUNC init%s(void)" % env.module_name
+        try:
+            py2_mod_name = env.module_name.encode('ascii')
+            no_py2 = False
+        except UnicodeEncodeError:
+            py2_mod_name = "PYTHON2_DOES_NOT_SUPPORT_UNICODE_MODULE_NAMES"
+            no_py2 = True
+        header2 = "__Pyx_PyMODINIT_FUNC init%s(void)" % py2_mod_name
         header3 = "__Pyx_PyMODINIT_FUNC %s(void)" % self.mod_init_func_cname('PyInit', env)
         header3 = EncodedString(header3)
         code.putln("#if PY_MAJOR_VERSION < 3")
         # Optimise for small code size as the module init function is only executed once.
         code.putln("%s CYTHON_SMALL_CODE; /*proto*/" % header2)
+        if no_py2:
+            code.putln('#error("Unicode module names are not supported in Python 2");')
         if self.scope.is_package:
             code.putln("#if !defined(CYTHON_NO_PYINIT_EXPORT) && (defined(WIN32) || defined(MS_WINDOWS))")
             code.putln("__Pyx_PyMODINIT_FUNC init__init__(void) { init%s(); }" % env.module_name)
@@ -2380,7 +2395,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         ))
         code.putln('PyErr_SetString(PyExc_RuntimeError,'
                    ' "Module \'%s\' has already been imported. Re-initialisation is not supported.");' %
-                   env.module_name)
+                   env.module_name.as_c_string_literal()[1:-1])
         code.putln("return -1;")
         code.putln("}")
         code.putln("#elif PY_MAJOR_VERSION >= 3")
@@ -2439,7 +2454,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put_error_if_neg(self.pos, "__Pyx_init_sys_getdefaultencoding_params()")
         code.putln("#endif")
 
-        code.putln("if (%s%s) {" % (Naming.module_is_main, self.full_module_name.replace('.', '__')))
+        code.putln("if (%s) {" % self.module_is_main_name())
         code.put_error_if_neg(self.pos, 'PyObject_SetAttr(%s, %s, %s)' % (
             env.module_cname,
             code.intern_identifier(EncodedString("__name__")),
@@ -2526,7 +2541,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('}')
         code.put_decref_clear(env.module_cname, py_object_type, nanny=False, clear_before_decref=True)
         code.putln('} else if (!PyErr_Occurred()) {')
-        code.putln('PyErr_SetString(PyExc_ImportError, "init %s");' % env.qualified_name)
+        code.putln('PyErr_SetString(PyExc_ImportError, "init %s");' %
+                   env.qualified_name.as_c_string_literal()[1:-1])
         code.putln('}')
         code.put_label(code.return_label)
 
@@ -2665,12 +2681,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         fq_module_name = self.full_module_name
         if fq_module_name.endswith('.__init__'):
             fq_module_name = fq_module_name[:-len('.__init__')]
+        fq_module_name = EncodedString(fq_module_name).as_c_string_literal()
         code.putln("#if PY_MAJOR_VERSION >= 3")
         code.putln("{")
         code.putln("PyObject *modules = PyImport_GetModuleDict(); %s" %
                    code.error_goto_if_null("modules", self.pos))
-        code.putln('if (!PyDict_GetItemString(modules, "%s")) {' % fq_module_name)
-        code.putln(code.error_goto_if_neg('PyDict_SetItemString(modules, "%s", %s)' % (
+        code.putln('if (!PyDict_GetItemString(modules, %s)) {' % fq_module_name)
+        code.putln(code.error_goto_if_neg('PyDict_SetItemString(modules, %s, %s)' % (
             fq_module_name, env.module_cname), self.pos))
         code.putln("}")
         code.putln("}")
@@ -2746,7 +2763,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.put_decref_clear(cname, py_object_type, nanny=False, clear_before_decref=True)
 
     def generate_main_method(self, env, code):
-        module_is_main = "%s%s" % (Naming.module_is_main, self.full_module_name.replace('.', '__'))
+        module_is_main = self.module_is_main_name()
         if Options.embed == "main":
             wmain = "wmain"
         else:
@@ -2759,8 +2776,18 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 main_method=Options.embed,
                 wmain_method=wmain))
 
+    def punycode_module_name(self, name):
+        # from PEP483
+        try:
+            name = b'_' + name.encode('ascii')
+        except UnicodeEncodeError:
+            name = b'U_' + name.encode('punycode').replace(b'-', b'_')
+        return name.decode('utf-8')
+
     def mod_init_func_cname(self, prefix, env):
-        return '%s_%s' % (prefix, env.module_name)
+        # from PEP483
+        suffix = self.punycode_module_name(env.module_name)
+        return '%s%s' % (prefix, suffix)
 
     def generate_pymoduledef_struct(self, env, code):
         if env.doc:
@@ -2785,12 +2812,18 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("{Py_mod_exec, (void*)%s}," % exec_func_cname)
         code.putln("{0, NULL}")
         code.putln("};")
+        try:
+            env.module.name.encode("ascii") # py2 compatible isascii
+        except:
+            code.putln("#else /* CYTHON_PEP489_MULTI_PHASE_INIT */")
+            code.putln('#error("Unicode module names are only supported with multi-phase init'
+                       ' as per PEP489")')
         code.putln("#endif")
 
         code.putln("")
         code.putln("static struct PyModuleDef %s = {" % Naming.pymoduledef_cname)
         code.putln("  PyModuleDef_HEAD_INIT,")
-        code.putln('  "%s",' % env.module_name)
+        code.putln('  %s,' % env.module_name.as_c_string_literal())
         code.putln("  %s, /* m_doc */" % doc)
         code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
         code.putln("  0, /* m_size */")
@@ -2825,9 +2858,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#else")
         code.putln("#if PY_MAJOR_VERSION < 3")
         code.putln(
-            '%s = Py_InitModule4("%s", %s, %s, 0, PYTHON_API_VERSION); Py_XINCREF(%s);' % (
+            '%s = Py_InitModule4(%s, %s, %s, 0, PYTHON_API_VERSION); Py_XINCREF(%s);' % (
                 env.module_cname,
-                env.module_name,
+                env.module_name.as_c_string_literal(),
                 env.method_table_cname,
                 doc,
                 env.module_cname))
@@ -3119,6 +3152,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_type_ready_code(self, entry, code):
         Nodes.CClassDefNode.generate_type_ready_code(entry, code)
+
+    def module_is_main_name(self):
+        full_module_name = self.full_module_name.replace('.', '__')
+        full_module_name = self.punycode_module_name(full_module_name)
+        return "%s%s" % (Naming.module_is_main, full_module_name)
 
     def generate_exttype_vtable_init_code(self, entry, code):
         # Generate code to initialise the C method table of an

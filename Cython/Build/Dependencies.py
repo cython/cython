@@ -783,6 +783,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
     create_extension = ctx.options.create_extension or default_create_extension
 
     for pattern in patterns:
+        pattern = encode_filename_in_py2(pattern)
         if isinstance(pattern, str):
             filepattern = pattern
             template = Extension(pattern, [])  # Fake Extension without sources
