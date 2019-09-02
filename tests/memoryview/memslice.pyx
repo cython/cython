@@ -2141,8 +2141,8 @@ def test_object_dtype_copying():
     7
     8
     9
+    3 5
     2 5
-    1 5
     """
     cdef int i
 
