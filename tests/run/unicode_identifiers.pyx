@@ -49,6 +49,12 @@ if sys.version_info[0]>2:
     10
     >>> NormalClassΓΓ().εxciting_function(None).__qualname__
     'NormalClassΓΓ.εxciting_function.<locals>.nestεd'
+
+    Do kwargs work?
+    >>> unicode_kwarg(αrg=5)
+    5
+    >>> unicode_kwarg_from_cy()
+    1
     """
 else:
     __doc__ = ""
@@ -183,6 +189,28 @@ class NormalClassΓΓ(Γναμε2):
         def nestεd():
             pass
         return nestεd
+
+def unicode_kwarg(*,αrg):
+    return αrg
+
+def unicode_kwarg_from_cy():
+    return unicode_kwarg(αrg=1)
+
+cdef class NormalizeAttrCdef:
+    """Python normalizes identifier names before they are used;
+    therefore ﬁ and fi should access the same attribute.
+    A more comprehensive version of this is in "unicode_identifiers_normalize.py"
+    comparing the behaviour to Python. The version here shows it
+    behaves the same in a cdef class and is tested with Python 2
+
+    >>> NormalizeAttrCdef().get()
+    5
+    """
+    cdef int ﬁ # note unicode ligature symbol
+    def __init__(self):
+        self.fi = 5
+    def get(self):
+        return self.ﬁ
 
 if sys.version_info[0]<=2:
     # These symbols are causing problems for doctest
