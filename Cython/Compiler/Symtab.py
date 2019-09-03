@@ -1813,9 +1813,17 @@ class LocalScope(Scope):
             if entry is None or not entry.from_closure:
                 error(pos, "no binding for nonlocal '%s' found" % name)
 
-    def lookup(self, name):
+    def lookup(self, name, lookup_dunder=True):
         # Look up name in this scope or an enclosing one.
         # Return None if not found.
+        if lookup_dunder:
+            defined_in_class = self.parent_scope.is_py_class_scope or self.parent_scope.is_c_class_scope
+            if defined_in_class and name.startswith('__'):
+                entry = self.lookup("_{0}{1}".format(self.parent_scope.class_name, name),
+                                    lookup_dunder=False)
+                if entry is not None:
+                    return entry
+
         entry = Scope.lookup(self, name)
         if entry is not None:
             entry_scope = entry.scope
