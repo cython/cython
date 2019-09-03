@@ -1819,7 +1819,7 @@ class LocalScope(Scope):
         if lookup_dunder:
             defined_in_class = self.parent_scope.is_py_class_scope or self.parent_scope.is_c_class_scope
             if defined_in_class and name.startswith('__'):
-                entry = self.lookup("_{0}{1}".format(self.parent_scope.class_name, name),
+                entry = self.lookup(u"_{0}{1}".format(self.parent_scope.class_name, name),
                                     lookup_dunder=False)
                 if entry is not None:
                     return entry

@@ -2989,7 +2989,7 @@ class DefNode(FuncDefNode):
                     # Python mangles function argument names that start with
                     # '__' in functions defined in classes
                     arg.name = EncodedString(
-                            "_{0}{1}".format(env.class_name, name_declarator.name))
+                            u"_{0}{1}".format(env.class_name, name_declarator.name))
                 else:
                     arg.name = name_declarator.name
                 arg.type = type
