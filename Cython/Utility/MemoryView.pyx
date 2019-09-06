@@ -1050,7 +1050,7 @@ cdef memoryview_fromslice({{memviewslice_name}} memviewslice,
 
 @cname('__pyx_memoryview_get_slice_from_memoryview')
 cdef {{memviewslice_name}} *get_slice_from_memview(memoryview memview,
-                                                   {{memviewslice_name}} *mslice):
+                                                   {{memviewslice_name}} *mslice) except NULL:
     cdef _memoryviewslice obj
     if isinstance(memview, _memoryviewslice):
         obj = memview
