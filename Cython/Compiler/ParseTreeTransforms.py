@@ -2235,7 +2235,7 @@ class MangleDunderNamesTransform(EnvTransform):
             node = self.visit_NameNode(node)
         else:
             pass # I think all nodes have a name set at the point this is called
-        self._process_children(node)
+        self.visitchildren(node)
         return node
 
     def visit_ClassDefNode(self, node):
@@ -2243,13 +2243,13 @@ class MangleDunderNamesTransform(EnvTransform):
         # with this classes name.
         # metaclass is incorrectly excluded for the Python2 __metaclass__
         # style
-        exclude = ['bases','metaclass']
-        attrs = self._select_attrs(node.child_attrs, exclude)
+        exclude_at_first = ['bases','metaclass']
+
         self.enter_scope(node, node.scope)
-        self._process_children(node, attrs)
+        self.visitchildren(node, exclude=exclude_at_first)
         self.exit_scope()
 
-        self._process_children(node, exclude)
+        self.visitchildren(node, attrs=exclude_at_first)
         return node
 
     def enter_scope(self, node, scope):
