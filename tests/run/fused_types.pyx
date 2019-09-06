@@ -366,7 +366,7 @@ def test_fused_const_memslice_dtype_repeated(const cython.floating[:] array1, cy
     """Test fused types memory view with one being const
 
     >>> sorted(test_fused_const_memslice_dtype_repeated.__signatures__)
-    ['const double|double', 'const float|float']
+    ['double', 'float']
 
     >>> test_fused_const_memslice_dtype_repeated(get_array(8, 'd'), get_array(8, 'd'))
     const double[:] double[:]
@@ -374,7 +374,7 @@ def test_fused_const_memslice_dtype_repeated(const cython.floating[:] array1, cy
     const float[:] float[:]
     >>> test_fused_const_memslice_dtype_repeated(get_array(8, 'd'), get_array(4, 'f'))
     Traceback (most recent call last):
-    TypeError: No matching signature found
+    ValueError: Buffer dtype mismatch, expected 'double' but got 'float'
     """
     print cython.typeof(array1), cython.typeof(array2)
 
