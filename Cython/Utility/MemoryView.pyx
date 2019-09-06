@@ -1176,11 +1176,10 @@ cdef void copy_strided_to_strided({{memviewslice_name}} *src,
 @cname('__pyx_memoryview_slice_get_size')
 cdef Py_ssize_t slice_get_size({{memviewslice_name}} *src, int ndim) nogil:
     "Return the size of the memory occupied by the slice in number of bytes"
-    cdef int i
-    cdef Py_ssize_t size = src.memview.view.itemsize
+    cdef Py_ssize_t shape, size = src.memview.view.itemsize
 
-    for i in range(ndim):
-        size *= src.shape[i]
+    for shape in src.shape[:ndim]:
+        size *= shape
 
     return size
 
@@ -1197,11 +1196,11 @@ cdef Py_ssize_t fill_contig_strides_array(
     if order == 'F':
         for idx in range(ndim):
             strides[idx] = stride
-            stride = stride * shape[idx]
+            stride *= shape[idx]
     else:
         for idx in range(ndim - 1, -1, -1):
             strides[idx] = stride
-            stride = stride * shape[idx]
+            stride *= shape[idx]
 
     return stride
 
