@@ -752,7 +752,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#endif")
 
     def generate_includes(self, env, cimported_modules, code, early=True, late=True):
-        includes = []
         for inc in sorted(env.c_includes.values(), key=IncludeCode.sortkey):
             if inc.location == inc.EARLY:
                 if early:
