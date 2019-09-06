@@ -6739,7 +6739,10 @@ class AttributeNode(ExprNode):
 
     @type.setter
     def type(self, value):
-        # XXX review this use
+        # XXX review where the attribute is set
+        # make sure it is not already a cgetter
+        if self._type.is_cfunction and hasattr(self._type, 'entry') and self._type.entry.is_cgetter:
+            error(self.pos, "%s.type already set" % self.__name__)
         self._type = value
 
     def as_cython_attribute(self):
