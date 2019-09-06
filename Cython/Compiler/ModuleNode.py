@@ -176,6 +176,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             h_guard = Naming.h_guard_prefix + self.api_name(env)
             h_code.put_h_guard(h_guard)
             h_code.putln("")
+            h_code.putln('#include "Python.h"')
             self.generate_type_header_code(h_types, h_code)
             if options.capi_reexport_cincludes:
                 self.generate_includes(env, [], h_code)
