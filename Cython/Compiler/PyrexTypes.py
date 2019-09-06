@@ -1573,6 +1573,8 @@ class PythranExpr(CType):
 class CConstOrVolatileType(BaseType):
     "A C const or volatile type"
 
+    subtypes = ['cv_base_type']
+
     is_cv_qualified = 1
 
     def __init__(self, base_type, is_const=0, is_volatile=0):
