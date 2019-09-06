@@ -2208,6 +2208,60 @@ class CalculateQualifiedNamesTransform(EnvTransform):
         self.qualified_name = orig_qualified_name
         return node
 
+class MangleDunderNamesTransform(EnvTransform):
+    """Arranges mangling to __name to _classname__name"""
+    def current_class_scope(self):
+        scope = self.current_env()
+        while scope:
+            if scope.is_py_class_scope:
+                return scope
+            scope = scope.parent_scope
+        return None
+
+    def visit_NameNode(self, node):
+        classscope = self.current_class_scope()
+        if classscope is not None:
+            node.name = classscope.mangle_special_name(node.name)
+        return node
+
+    def visit_CNameDeclaratorNode(self, node):
+        ret = self.visit_NameNode(node)
+        return ret
+
+    def visit_CArgDeclNode(self, node):
+        # override the base class behaviour; don't set scope for CArgDeclNode
+        # (because self.outer_scope skips the class scope)
+        if hasattr(node, "name"):
+            node = self.visit_NameNode(node)
+        else:
+            pass # I think all nodes have a name set at the point this is called
+        self._process_children(node)
+        return node
+
+    def visit_ClassDefNode(self, node):
+        # exclude the bases tuple - their names should not be mangled
+        # with this classes name.
+        # metaclass is incorrectly excluded for the Python2 __metaclass__
+        # style
+        exclude = ['bases','metaclass']
+        attrs = self._select_attrs(node.child_attrs, exclude)
+        self.enter_scope(node, node.scope)
+        self._process_children(node, attrs)
+        self.exit_scope()
+
+        self._process_children(node, exclude)
+        return node
+
+    def enter_scope(self, node, scope):
+        EnvTransform.enter_scope(self, node, scope)
+        classscope = self.current_class_scope()
+        if classscope is not None:
+            new_entries = {}
+            for name, entry in scope.entries.items():
+                entry.name = classscope.mangle_special_name(entry.name)
+                name = classscope.mangle_special_name(name)
+                new_entries[name] = entry
+            scope.entries = new_entries
 
 class AnalyseExpressionsTransform(CythonTransform):
 

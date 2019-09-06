@@ -1813,16 +1813,9 @@ class LocalScope(Scope):
             if entry is None or not entry.from_closure:
                 error(pos, "no binding for nonlocal '%s' found" % name)
 
-    def lookup(self, name, lookup_dunder=True):
+    def lookup(self, name):
         # Look up name in this scope or an enclosing one.
         # Return None if not found.
-        if lookup_dunder:
-            defined_in_class = self.parent_scope.is_py_class_scope or self.parent_scope.is_c_class_scope
-            if defined_in_class and name.startswith('__'):
-                entry = self.lookup(u"_{0}{1}".format(self.parent_scope.class_name, name),
-                                    lookup_dunder=False)
-                if entry is not None:
-                    return entry
 
         entry = Scope.lookup(self, name)
         if entry is not None:
@@ -2022,18 +2015,25 @@ class PyClassScope(ClassScope):
         return self.mangle_special_name(name)
 
     def mangle_special_name(self, name):
-        if name and name.startswith('__') and not name.endswith('__'):
-            name = EncodedString('_%s%s' % (self.class_name.lstrip('_'), name))
+        # used from a ParseTreeTransform rather than applied initially
+        if (name and name.startswith('__') and not name.endswith('__')
+            and not name.lower().startswith('__pyx')):
+            # enough implementation details start with __pyx that it's worth
+            # excluding
+            class_name = self.class_name.lstrip('_')
+            if class_name:
+                # According to
+                # https://docs.python.org/3.5/reference/expressions.html?highlight=mangling#index-5,
+                # no mangling is done if the class name is only underscores
+                name = EncodedString('_%s%s' % (class_name, name))
         return name
 
     def lookup_here(self, name):
-        name = self.mangle_special_name(name)
         return ClassScope.lookup_here(self, name)
 
     def declare_var(self, name, type, pos,
                     cname = None, visibility = 'private',
                     api = 0, in_pxd = 0, is_cdef = 0):
-        name = self.mangle_special_name(name)
         if type is unspecified_type:
             type = py_object_type
         # Add an entry for a class attribute.

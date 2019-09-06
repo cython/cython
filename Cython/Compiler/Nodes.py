@@ -2984,14 +2984,7 @@ class DefNode(FuncDefNode):
                         base_type.org_buffer])
                 name_declarator, type = \
                     arg.declarator.analyse(base_type, env)
-                if ((env.is_py_class_scope or env.is_c_class_scope) and
-                    name_declarator.name.startswith('__')):
-                    # Python mangles function argument names that start with
-                    # '__' in functions defined in classes
-                    arg.name = EncodedString(
-                            u"_{0}{1}".format(env.class_name, name_declarator.name))
-                else:
-                    arg.name = name_declarator.name
+                arg.name = name_declarator.name
                 arg.type = type
 
                 if type.is_fused:
