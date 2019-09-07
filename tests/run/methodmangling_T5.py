@@ -1,6 +1,8 @@
 # mode: run
 # ticket: 5
 
+# Some more tests for the same sort of thing are in "methodmangling_T1382"
+
 class CyTest(object):
     """
     >>> cy = CyTest()
@@ -15,8 +17,14 @@ class CyTest(object):
 
     >>> '__x' in dir(cy)
     False
+    >>> cy._CyTest__y
+    2
     """
     __x = 1
+
+    def __init__(self):
+        self.__y = 2
+
     def __private(self): return 8
 
     def get(self):
@@ -88,8 +96,22 @@ class _UnderscoreTest(object):
     1
     >>> ut.get()
     1
+    >>> ut._UnderscoreTest__UnderscoreNested().ret1()
+    1
+    >>> ut._UnderscoreTest__UnderscoreNested.__name__
+    '__UnderscoreNested'
+    >>> ut._UnderscoreTest__prop
+    1
     """
     __x = 1
 
     def get(self):
+        return self.__x
+
+    class __UnderscoreNested(object):
+        def ret1(self):
+            return 1
+
+    @property
+    def __prop(self):
         return self.__x

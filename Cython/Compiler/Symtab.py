@@ -2011,23 +2011,6 @@ class PyClassScope(ClassScope):
 
     is_py_class_scope = 1
 
-    def mangle_class_private_name(self, name):
-        return self.mangle_special_name(name)
-
-    def mangle_special_name(self, name):
-        # used from a ParseTreeTransform rather than applied initially
-        if (name and name.startswith('__') and not name.endswith('__')
-            and not name.lower().startswith('__pyx')):
-            # enough implementation details start with __pyx that it's worth
-            # excluding
-            class_name = self.class_name.lstrip('_')
-            if class_name:
-                # According to
-                # https://docs.python.org/3.5/reference/expressions.html?highlight=mangling#index-5,
-                # no mangling is done if the class name is only underscores
-                name = EncodedString('_%s%s' % (class_name, name))
-        return name
-
     def lookup_here(self, name):
         return ClassScope.lookup_here(self, name)
 

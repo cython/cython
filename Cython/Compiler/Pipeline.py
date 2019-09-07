@@ -147,10 +147,9 @@ def create_pipeline(context, mode, exclude_classes=()):
     from .ParseTreeTransforms import TrackNumpyAttributes, InterpretCompilerDirectives, TransformBuiltinMethods
     from .ParseTreeTransforms import ExpandInplaceOperators, ParallelRangeTransform
     from .ParseTreeTransforms import CalculateQualifiedNamesTransform, ReplacePropertyNode
-    from .ParseTreeTransforms import MangleDunderNamesTransform
     from .TypeInference import MarkParallelAssignments, MarkOverflowingArithmetic
     from .ParseTreeTransforms import AdjustDefByDirectives, AlignFunctionDefinitions
-    from .ParseTreeTransforms import RemoveUnreachableCode, GilCheck
+    from .ParseTreeTransforms import RemoveUnreachableCode, GilCheck, MangleDunderNamesTransform
     from .FlowControl import ControlFlowAnalysis
     from .AnalysedTreeTransforms import AutoTestDictTransform
     from .AutoDocTransforms import EmbedSignature
@@ -187,6 +186,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         InterpretCompilerDirectives(context, context.compiler_directives),
         ParallelRangeTransform(context),
         AdjustDefByDirectives(context),
+        MangleDunderNamesTransform(context),
         WithTransform(context),
         MarkClosureVisitor(context),
         _align_function_definitions,
@@ -197,7 +197,6 @@ def create_pipeline(context, mode, exclude_classes=()):
         ForwardDeclareTypes(context),
         InjectGilHandling(),
         AnalyseDeclarationsTransform(context),
-        MangleDunderNamesTransform(context), # after AnalyseDeclarations is the earliest place that scopes are set up
         AutoTestDictTransform(context),
         EmbedSignature(context),
         ReplacePropertyNode(context),

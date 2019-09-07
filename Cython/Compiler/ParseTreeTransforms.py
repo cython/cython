@@ -169,7 +169,6 @@ class PostParse(ScopeTrackingTransform):
     reorganization that can be refactored into this transform
     if a more pure Abstract Syntax Tree is wanted.
     """
-
     def __init__(self, context):
         super(PostParse, self).__init__(context)
         self.specialattribute_handlers = {
@@ -2202,66 +2201,79 @@ class CalculateQualifiedNamesTransform(EnvTransform):
     def visit_ClassDefNode(self, node):
         orig_qualified_name = self.qualified_name[:]
         entry = (getattr(node, 'entry', None) or             # PyClass
-                 self.current_env().lookup_here(node.name))  # CClass
+                 self.current_env().lookup_here(node.target.name))  # CClass
         self._append_entry(entry)
         self._super_visit_ClassDefNode(node)
         self.qualified_name = orig_qualified_name
         return node
 
-class MangleDunderNamesTransform(EnvTransform):
-    """Arranges mangling to __name to _classname__name"""
-    def current_class_scope(self):
-        scope = self.current_env()
-        while scope:
-            if scope.is_py_class_scope:
-                return scope
-            scope = scope.parent_scope
-        return None
+class MangleDunderNamesTransform(ScopeTrackingTransform):
+    """__names appearing inside classes are mangled to their _classname__names form
 
-    def visit_NameNode(self, node):
-        classscope = self.current_class_scope()
-        if classscope is not None:
-            node.name = classscope.mangle_special_name(node.name)
-        return node
+    This should be called after the pure Python @cython directives have all been
+    applied"""
+    def visit_PyClassDefNode(self, node):
+        # The class name (target), list of bases and metaclass name should be
+        # processed without being mangled by the class itself.
+        # Note that for Python 2 the exclusion of the metaclass is incorrect
+        # since it is defined inside the class as __metaclass__
+        exclude_at_first = ['bases', 'metaclass', 'target']
+        attrs = [ attr for attr in node.child_attrs if attr not in exclude_at_first ]
 
-    def visit_CNameDeclaratorNode(self, node):
-        ret = self.visit_NameNode(node)
-        return ret
-
-    def visit_CArgDeclNode(self, node):
-        # override the base class behaviour; don't set scope for CArgDeclNode
-        # (because self.outer_scope skips the class scope)
-        if hasattr(node, "name"):
-            node = self.visit_NameNode(node)
-        else:
-            pass # I think all nodes have a name set at the point this is called
-        self.visitchildren(node)
-        return node
-
-    def visit_ClassDefNode(self, node):
-        # exclude the bases tuple - their names should not be mangled
-        # with this classes name.
-        # metaclass is incorrectly excluded for the Python2 __metaclass__
-        # style
-        exclude_at_first = ['bases','metaclass']
-
-        self.enter_scope(node, node.scope)
-        self.visitchildren(node, exclude=exclude_at_first)
-        self.exit_scope()
+        node = super(MangleDunderNamesTransform, self).visit_PyClassDefNode(node, attrs=attrs)
 
         self.visitchildren(node, attrs=exclude_at_first)
         return node
 
-    def enter_scope(self, node, scope):
-        EnvTransform.enter_scope(self, node, scope)
-        classscope = self.current_class_scope()
-        if classscope is not None:
-            new_entries = {}
-            for name, entry in scope.entries.items():
-                entry.name = classscope.mangle_special_name(entry.name)
-                name = classscope.mangle_special_name(name)
-                new_entries[name] = entry
-            scope.entries = new_entries
+    def visit_NameNode(self, node):
+        node.name = self.mangle_special_name(node.name)
+        self.visitchildren(node)
+        return node
+
+    def visit_CNameDeclaratorNode(self, node):
+        return self.visit_NameNode(node)
+
+    def visit_DefNode(self, node):
+        return self.visit_NameNode(node)
+
+    def visit_AttributeNode(self, node):
+        node.attribute = self.mangle_special_name(node.attribute)
+        self.visitchildren(node)
+        return node
+
+    def visit_CompilerDirectivesNode(self, node):
+        # It probably isn't desirable to wait until ForwardDeclareTypes to
+        # mangle the names (the earlier the better as far as possible).
+        # Therefore, attempt to change the relevant compiler directives
+        directives = node.directives
+        locals_ = directives.get('locals', None)
+        if locals_:
+            new_locals = { self.mangle_special_name(k): v for k, v in locals_.items() }
+            directives['locals'] = new_locals
+        self.visitchildren(node)
+        return node
+
+    def visit_CallNode(self, node):
+        # Attempt to catch "declare"
+        name = node.function.as_cython_attribute()
+        if name=="declare":
+            _, kwds = node.explicit_args_kwds()
+            if kwds:
+                for var, _ in kwds.key_value_pairs:
+                    var.value = self.mangle_special_name(var.value)
+        self.visitchildren(node)
+        return node
+
+    def mangle_special_name(self, name):
+        if (self.last_class_name and
+            name and name.startswith('__') and not name.endswith('__')):
+            class_name = self.last_class_name.lstrip('_')
+            if class_name:
+                # According to
+                # https://docs.python.org/3.5/reference/expressions.html?highlight=mangling#index-5,
+                # no mangling is done if the class name is only underscores
+                name = EncodedString('_%s%s' % (class_name, name))
+        return name
 
 class AnalyseExpressionsTransform(CythonTransform):
 

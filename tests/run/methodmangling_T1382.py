@@ -7,6 +7,10 @@
 #  def method4(self, *, __arg=None)
 # aren't supported)
 
+# The basic original tests for mangling class attributes are in
+# "methodmangling_T5"
+# Also "methodmangling_pure_T1382" for a test of @cython decorators
+
 import cython
 
 error = """Traceback (most recent call last):
@@ -265,6 +269,10 @@ class CMultiplyNested:
         return (__arg for x in range(1))
 
 class __NameWithDunder:
+    """
+    >>> __NameWithDunder.__name__
+    '__NameWithDunder'
+    """
     pass
 
 class Inherits(__NameWithDunder):
@@ -273,3 +281,15 @@ class Inherits(__NameWithDunder):
     >>> x = Inherits()
     """
     pass
+
+def regular_function(__x, dummy=None):
+    # as before, dummy stops Cython creating a 1 arg, non-keyword call
+    return __x
+
+class CallsRegularFunction:
+    def call(self):
+        """
+        >>> CallsRegularFunction().call()
+        1
+        """
+        return regular_function(__x=1) # __x shouldn't be mangled as an argument elsewhere

@@ -318,25 +318,33 @@ class ScopeTrackingTransform(CythonTransform):
     #scope_type: can be either of 'module', 'function', 'cclass', 'pyclass', 'struct'
     #scope_node: the node that owns the current scope
 
+    def __init__(self, *args, **kwargs):
+        super(ScopeTrackingTransform, self).__init__(*args, **kwargs)
+        self.last_class_name = None
+
     def visit_ModuleNode(self, node):
         self.scope_type = 'module'
         self.scope_node = node
         self._process_children(node)
         return node
 
-    def visit_scope(self, node, scope_type):
+    def visit_scope(self, node, scope_type, attrs=None):
         prev = self.scope_type, self.scope_node
         self.scope_type = scope_type
         self.scope_node = node
-        self._process_children(node)
+        self._process_children(node, attrs)
         self.scope_type, self.scope_node = prev
         return node
 
     def visit_CClassDefNode(self, node):
         return self.visit_scope(node, 'cclass')
 
-    def visit_PyClassDefNode(self, node):
-        return self.visit_scope(node, 'pyclass')
+    def visit_PyClassDefNode(self, node, attrs=None):
+        prev = self.last_class_name
+        self.last_class_name = node.name
+        ret = self.visit_scope(node, 'pyclass', attrs)
+        self.last_class_name = prev
+        return ret
 
     def visit_FuncDefNode(self, node):
         return self.visit_scope(node, 'function')
