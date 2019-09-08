@@ -27,8 +27,7 @@ cdef class CythonTransform(VisitorTransform):
 cdef class ScopeTrackingTransform(CythonTransform):
     cdef public scope_type
     cdef public scope_node
-    cdef readonly last_class_name
-    cdef visit_scope(self, node, scope_type, attrs=*)
+    cdef visit_scope(self, node, scope_type)
 
 cdef class EnvTransform(CythonTransform):
     cdef public list env_stack

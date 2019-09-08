@@ -2207,12 +2207,16 @@ class CalculateQualifiedNamesTransform(EnvTransform):
         self.qualified_name = orig_qualified_name
         return node
 
-class MangleDunderNamesTransform(ScopeTrackingTransform):
+class MangleDunderNamesTransform(CythonTransform):
     """__names appearing inside classes are mangled to their _classname__names form
 
     This should be called after the pure Python @cython directives have all been
     applied"""
-    def visit_PyClassDefNode(self, node):
+    def __init__(self, *args, **kwargs):
+        super(MangleDunderNamesTransform, self).__init__(*args, **kwargs)
+        self.last_class_name = None
+
+    def _visit_class_common(self, node, name):
         # The class name (target), list of bases and metaclass name should be
         # processed without being mangled by the class itself.
         # Note that for Python 2 the exclusion of the metaclass is incorrect
@@ -2220,10 +2224,25 @@ class MangleDunderNamesTransform(ScopeTrackingTransform):
         exclude_at_first = ['bases', 'metaclass', 'target']
         attrs = [ attr for attr in node.child_attrs if attr not in exclude_at_first ]
 
-        node = super(MangleDunderNamesTransform, self).visit_PyClassDefNode(node, attrs=attrs)
+        prev = self.last_class_name
+        self.last_class_name = name
+        self.visitchildren(node, attrs=attrs)
+        self.last_class_name = prev
 
         self.visitchildren(node, attrs=exclude_at_first)
         return node
+
+    def visit_PyClassDefNode(self, node):
+        return self._visit_class_common(node, node.name)
+
+    def visit_CClassDefNode(self, node):
+        # although neither metaclass or target exist for CClassDefNode this
+        # does not prevent them being treated in the same way
+        if node.visibility == "extern": # "public" too?
+            # it's being imported from elsewhere so names are already set
+            return node
+        else:
+            return self._visit_class_common(node, node.class_name)
 
     def visit_NameNode(self, node):
         node.name = self.mangle_special_name(node.name)
@@ -2256,7 +2275,7 @@ class MangleDunderNamesTransform(ScopeTrackingTransform):
     def visit_CallNode(self, node):
         # Attempt to catch "declare"
         name = node.function.as_cython_attribute()
-        if name=="declare":
+        if name == "declare":
             _, kwds = node.explicit_args_kwds()
             if kwds:
                 for var, _ in kwds.key_value_pairs:
@@ -2266,7 +2285,8 @@ class MangleDunderNamesTransform(ScopeTrackingTransform):
 
     def mangle_special_name(self, name):
         if (self.last_class_name and
-            name and name.startswith('__') and not name.endswith('__')):
+            name and name.startswith('__') and not name.endswith('__') and
+            not name.lower().startswith(Naming.pyrex_prefix)):
             class_name = self.last_class_name.lstrip('_')
             if class_name:
                 # According to
