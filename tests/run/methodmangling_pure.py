@@ -69,3 +69,8 @@ if cython.compiled:
             1
             """
             return declare(__x=x)
+else:
+    __doc__ = """
+    >>> True
+    True
+    """ # stops Python2 from failing
