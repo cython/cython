@@ -403,6 +403,18 @@ def test_index_fused_args(cython.floating f, ints_t i):
     """
     _test_index_fused_args[cython.floating, ints_t](f, i)
 
+cdef _test_index_const_fused_args(const cython.floating f, const ints_t i):
+    print(cython.typeof(f), cython.typeof(i))
+
+def test_index_const_fused_args(const cython.floating f, const ints_t i):
+    """Test indexing function implementation with const fused type args
+
+    >>> import cython
+    >>> test_index_const_fused_args[cython.double, cython.int](2.0, 3)
+    ('const double', 'const int')
+    """
+    _test_index_const_fused_args[cython.floating, ints_t](f, i)
+
 
 def test_composite(fused_composite x):
     """
