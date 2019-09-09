@@ -417,3 +417,27 @@ def test_composite(fused_composite x):
         return x
     else:
         return 2 * x
+
+
+cdef cdef_func_const_fused_arg(const cython.floating val,
+                               const fused_type1 * ptr_to_const,
+                               const (cython.floating *) const_ptr):
+    print(val, cython.typeof(val))
+    print(ptr_to_const[0], cython.typeof(ptr_to_const[0]))
+    print(const_ptr[0], cython.typeof(const_ptr[0]))
+
+    ptr_to_const = NULL  # pointer is not const, value is const
+    const_ptr[0] = 0.0  # pointer is const, value is not const
+
+def test_cdef_func_with_const_fused_arg():
+    """Test cdef function with const fused type argument
+
+    >>> test_cdef_func_with_const_fused_arg()
+    (0.0, 'const float')
+    (1, 'const int')
+    (2.0, 'float')
+    """
+    cdef float arg0 = 0.0
+    cdef int arg1 = 1
+    cdef float arg2 = 2.0
+    cdef_func_const_fused_arg(arg0, &arg1, &arg2)
