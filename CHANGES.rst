@@ -28,9 +28,6 @@ Features added
   CPython trashcan. This allows deallocating deeply recursive objects without
   overflowing the stack.  Patch by Jeroen Demeyer.  (Github issue #2842)
 
-* ``?`` is supported as NumPy dtype for ``bool``.
-  Patch by Max Klein.  (Github issue #2675)
-
 * Properties can be defined for external extension types.
   Patch by Matti Picus.  (Github issue #2640)
 
