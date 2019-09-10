@@ -1939,9 +1939,6 @@ if VALUE is not None:
             rhs.binding = True
 
         node.is_cyfunction = rhs.binding
-        if rhs.binding:
-            # For the moment, CyFunctions do not support METH_FASTCALL
-            node.entry.signature.use_fastcall = False
         return self._create_assignment(node, rhs, env)
 
     def _create_assignment(self, def_node, rhs, env):

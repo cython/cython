@@ -68,17 +68,14 @@ cdef class SelfCast:
 
 
 cdef extern from *:
-    int PyCFunction_Check(op)
     int PyCFunction_GET_FLAGS(op)
 
 
 def has_fastcall(meth):
     """
-    Given a builtin_function_or_method ``meth``, return whether it uses
-    ``METH_FASTCALL``.
+    Given a builtin_function_or_method or cyfunction ``meth``,
+    return whether it uses ``METH_FASTCALL``.
     """
-    if not PyCFunction_Check(meth):
-        raise TypeError("not a builtin_function_or_method")
     # Hardcode METH_FASTCALL constant equal to 0x80 for simplicity
     return bool(PyCFunction_GET_FLAGS(meth) & 0x80)
 
@@ -100,10 +97,32 @@ def fastcall_function(**kw):
     """
     return kw
 
+@cython.binding(True)
+def fastcall_cyfunction(**kw):
+    """
+    >>> assert_fastcall(fastcall_cyfunction)
+    """
+    return kw
+
 cdef class Dummy:
     @cython.binding(False)
     def fastcall_method(self, x, *args, **kw):
         """
         >>> assert_fastcall(Dummy().fastcall_method)
+        """
+        return tuple(args) + tuple(kw)
+
+cdef class CyDummy:
+    @cython.binding(True)
+    def fastcall_method(self, x, *args, **kw):
+        """
+        >>> assert_fastcall(CyDummy.fastcall_method)
+        """
+        return tuple(args) + tuple(kw)
+
+class PyDummy:
+    def fastcall_method(self, x, *args, **kw):
+        """
+        >>> assert_fastcall(PyDummy.fastcall_method)
         """
         return tuple(args) + tuple(kw)
