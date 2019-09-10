@@ -8,12 +8,18 @@ Cython Changelog
 Features added
 --------------
 
+* Cython functions now use the PEP-590 vectorcall protocol in Py3.7+.
+  Patch by Jeroen Demeyer.  (Github issue #2263)
+
 * Unicode identifiers are supported in Cython code (PEP 3131).
   Patch by da-woods.  (Github issue #2601)
 
 * ``with gil/nogil`` statements can be conditional based on compile-time
   constants, e.g. fused type checks.
   Patch by Noam Hershtig.  (Github issue #2579)
+
+* ``const`` can be used together with fused types.
+  Patch by Thomas Vincent.  (Github issue #1772)
 
 * Reimports of already imported modules are substantially faster.
   (Github issue #2854)
@@ -120,6 +126,9 @@ Bugs fixed
 
 * A C compiler cast warning was resolved.
   Patch by Michael Buesch.  (Github issue #2775)
+
+* Binding staticmethods of Cython functions were not behaving like Python methods.
+  Patch by Jeroen Demeyer.  (Github issue #3106)
 
 Other changes
 -------------
