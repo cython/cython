@@ -92,6 +92,9 @@ Bugs fixed
   semantics.  It now passes through the Mapping protocol first when supported.
   (Github issue #1807)
 
+* Name lookups in class bodies no longer go through an attribute lookup.
+  Patch by Jeroen Demeyer.  (Github issue #3100)
+
 * Broadcast assignments to a multi-dimensional memory view slice could end
   up in the wrong places when the underlying memory view is known to be
   contiguous but the slice is not.
@@ -128,7 +131,7 @@ Bugs fixed
   Patch by Michael Buesch.  (Github issue #2775)
 
 * Binding staticmethods of Cython functions were not behaving like Python methods.
-  Patch by Jeroen Demeyer.  (Github issue #3106)
+  Patch by Jeroen Demeyer.  (Github issue #3106, #3102)
 
 Other changes
 -------------
