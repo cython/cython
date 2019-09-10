@@ -182,8 +182,8 @@
     #define CYTHON_FAST_GIL (PY_MAJOR_VERSION < 3 || PY_VERSION_HEX >= 0x03060000)
   #endif
   #ifndef CYTHON_METH_FASTCALL
-    /* CPython 3.6 introduced METH_FASTCALL but with slightly different
-     * semantics. It became stable starting from CPython 3.7 */
+    // CPython 3.6 introduced METH_FASTCALL but with slightly different
+    // semantics. It became stable starting from CPython 3.7.
     #define CYTHON_METH_FASTCALL (PY_VERSION_HEX >= 0x030700A1)
   #endif
   #ifndef CYTHON_FAST_PYCALL
