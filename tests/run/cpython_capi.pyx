@@ -21,13 +21,13 @@ def test_pymalloc():
     3
     """
     cdef short i
-    cdef short* s = <short*> mem.PyMem_Calloc(10, sizeof(*s))
+    cdef short* s = <short*> mem.PyMem_Calloc(10, sizeof(short))
     if not s:
         raise MemoryError()
     try:
         i = _assert_calloc(s, 10)
     finally:
-        mem.PyMem_Free(m)
+        mem.PyMem_Free(s)
     cdef char* m2
     cdef char* m = <char*> mem.PyMem_Malloc(20)
     assert m
@@ -53,13 +53,13 @@ def test_pymalloc_raw():
     cdef char* m
     cdef char* m2 = NULL
     with nogil:
-        s = <short*> mem.PyMem_RawCalloc(10, sizeof(*s))
+        s = <short*> mem.PyMem_RawCalloc(10, sizeof(short))
         if not s:
             raise MemoryError()
         try:
             i = _assert_calloc(s, 10)
         finally:
-            mem.PyMem_Free(m)
+            mem.PyMem_Free(s)
         m = <char*> mem.PyMem_RawMalloc(20)
         if not m:
             raise MemoryError()
