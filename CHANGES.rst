@@ -182,6 +182,9 @@ Bugs fixed
   source sub-directories.
   Patch by Antonio Valentino.  (Github issue #1985)
 
+* An incorrect compiler warning was fixed in automatic C++ string conversions.
+  Patch by Gerion Entrup.  (Github issue #3108)
+
 Other changes
 -------------
 
