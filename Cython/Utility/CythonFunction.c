@@ -662,8 +662,8 @@ static PyObject *__Pyx_CyFunction_CallAsMethod(PyObject *func, PyObject *args, P
     __pyx_CyFunctionObject *cyfunc = (__pyx_CyFunctionObject *) func;
 
 #if CYTHON_METH_FASTCALL
-    /* Prefer vectorcall if available. This is not the typical case, as
-     * CPython would normally use vectorcall directly instead of tp_call. */
+    // Prefer vectorcall if available. This is not the typical case, as
+    // CPython would normally use vectorcall directly instead of tp_call.
      __pyx_vectorcallfunc vc = __Pyx_CyFunction_func_vectorcall(cyfunc);
     if (vc) {
         return __Pyx_PyVectorcall_FastCallDict(func, vc, &PyTuple_GET_ITEM(args, 0), PyTuple_GET_SIZE(args), kw);
