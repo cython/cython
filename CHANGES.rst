@@ -5,6 +5,12 @@ Cython Changelog
 0.29.14 (2019-??-??)
 ====================
 
+Features added
+--------------
+
+* ``?`` is supported as NumPy dtype for ``bool``.
+  Patch by Max Klein.  (Github issue #2675)
+
 Bugs fixed
 ----------
 
