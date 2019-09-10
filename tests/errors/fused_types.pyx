@@ -1,4 +1,5 @@
 # mode: error
+# ticket: 1772
 
 cimport cython
 from cython import fused_type
@@ -64,17 +65,30 @@ ctypedef fused fused2:
 func(x, y)
 
 
+cdef fused mix_const_t:
+    int
+    const int
+
+cdef cdef_func_with_mix_const_type(mix_const_t val):
+    print(val)
+
+# Mixing const and non-const type makes fused type ambiguous
+cdef_func_with_mix_const_type(1)
+
+
 _ERRORS = u"""
-10:15: fused_type does not take keyword arguments
-15:33: Type specified multiple times
-26:0: Invalid use of fused types, type cannot be specialized
-26:4: Not enough types specified to specialize the function, int2_t is still fused
+11:15: fused_type does not take keyword arguments
+16:33: Type specified multiple times
 27:0: Invalid use of fused types, type cannot be specialized
 27:4: Not enough types specified to specialize the function, int2_t is still fused
-28:16: Call with wrong number of arguments (expected 2, got 1)
-29:16: Call with wrong number of arguments (expected 2, got 3)
-36:6: Invalid base type for memoryview slice: int *
-39:0: Fused lambdas not allowed
-42:5: Fused types not allowed here
-45:9: Fused types not allowed here
+28:0: Invalid use of fused types, type cannot be specialized
+28:4: Not enough types specified to specialize the function, int2_t is still fused
+29:16: Call with wrong number of arguments (expected 2, got 1)
+30:16: Call with wrong number of arguments (expected 2, got 3)
+37:6: Invalid base type for memoryview slice: int *
+40:0: Fused lambdas not allowed
+43:5: Fused types not allowed here
+46:9: Fused types not allowed here
+76:0: Invalid use of fused types, type cannot be specialized
+76:29: ambiguous overloaded method
 """

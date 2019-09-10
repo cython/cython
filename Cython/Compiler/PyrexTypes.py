@@ -1561,6 +1561,7 @@ class PythranExpr(CType):
 class CConstType(BaseType):
 
     is_const = 1
+    subtypes = ['const_base_type']
 
     def __init__(self, const_base_type):
         self.const_base_type = const_base_type
