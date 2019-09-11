@@ -5,7 +5,7 @@ from cpython cimport mem
 from cpython.pystate cimport PyGILState_Ensure, PyGILState_Release, PyGILState_STATE
 
 
-cdef short _assert_calloc(short * s, int n):
+cdef short _assert_calloc(short* s, int n) except -1 with gil:
     """Assert array ``s`` of length ``n`` is zero and return 3."""
     s[0] += 1
     s[n - 1] += 3
