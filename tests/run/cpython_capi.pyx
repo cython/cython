@@ -59,7 +59,7 @@ def test_pymalloc_raw():
         try:
             i = _assert_calloc(s, 10)
         finally:
-            mem.PyMem_Free(s)
+            mem.PyMem_RawFree(s)
         m = <char*> mem.PyMem_RawMalloc(20)
         if not m:
             raise MemoryError()
