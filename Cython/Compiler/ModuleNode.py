@@ -1277,7 +1277,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     self.generate_property_accessors(scope, code)
                     self.generate_method_table(scope, code)
                     self.generate_getset_table(scope, code)
+                    code.putln("#if CYTHON_USE_HEAPTYPES")
+                    self.generate_heaptypeobj_definition(entry, code)
+                    code.putln("#else")
                     self.generate_typeobj_definition(full_module_name, entry, code)
+                    code.putln("#endif")
 
     def generate_exttype_vtable(self, scope, code):
         # Generate the definition of an extension type's vtable.
@@ -2166,8 +2170,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "}")
 
     def generate_typeobj_definition(self, modname, entry, code):
-        type = entry.type
-        scope = type.scope
+        ext_type = entry.type
+        scope = ext_type.scope
         for suite in TypeSlots.substructures:
             suite.generate_substructure(scope, code)
         code.putln("")
@@ -2176,7 +2180,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             header = "static PyTypeObject %s = {"
         #code.putln(header % scope.parent_type.typeobj_cname)
-        code.putln(header % type.typeobj_cname)
+        code.putln(header % ext_type.typeobj_cname)
         code.putln(
             "PyVarObject_HEAD_INIT(0, 0)")
         classname = scope.class_name.as_c_string_literal()
@@ -2184,16 +2188,53 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             '"%s."%s, /*tp_name*/' % (
                 self.full_module_name,
                 classname))
-        if type.typedef_flag:
-            objstruct = type.objstruct_cname
+        if ext_type.typedef_flag:
+            objstruct = ext_type.objstruct_cname
         else:
-            objstruct = "struct %s" % type.objstruct_cname
+            objstruct = "struct %s" % ext_type.objstruct_cname
         code.putln(
             "sizeof(%s), /*tp_basicsize*/" % objstruct)
         code.putln(
             "0, /*tp_itemsize*/")
         for slot in TypeSlots.slot_table:
             slot.generate(scope, code)
+        code.putln(
+            "};")
+
+    def generate_heaptypeobj_definition(self, entry, code):
+        """
+        Map the 'PyTypeObject' slots to a 'PyType_Spec' struct.
+        """
+        ext_type = entry.type
+        scope = ext_type.scope
+        slot_array_cname = scope.mangle(Naming.typeslots_prefix, ext_type.name)
+        code.putln("")
+        code.putln("static PyType_Slot %s[] = {" % slot_array_cname)
+        for slot in TypeSlots.slot_table:
+            slot.generate(scope, code, as_heap_type=True)
+        code.putln(
+            "};")
+        code.putln("")
+        code.putln("static PyType_Spec %s = {" % ext_type.typespec_cname)
+        classname = scope.class_name.as_c_string_literal()
+        code.putln('"%s."%s, /*tp_name*/' % (
+            self.full_module_name,
+            classname,
+        ))
+        flags_slot = [
+            slot for slot in TypeSlots.slot_table
+            if slot.slot_name == 'tp_flags'
+        ][0]
+        if ext_type.typedef_flag:
+            objstruct = ext_type.objstruct_cname
+        else:
+            objstruct = "struct %s" % ext_type.objstruct_cname
+        code.putln(
+            "sizeof(%s), /*tp_basicsize*/" % objstruct)
+        code.putln(
+            "0, /*tp_itemsize*/")
+        code.putln('%s, /*tp_flags*/' % flags_slot.slot_code(scope))
+        code.putln('%s /*slots*/' % slot_array_cname)
         code.putln(
             "};")
 

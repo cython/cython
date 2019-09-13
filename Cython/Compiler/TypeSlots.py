@@ -220,6 +220,8 @@ class SlotDescriptor(object):
     #  py2                           Indicates presence of slot in Python 2
     #  ifdef                         Full #ifdef string that slot is wrapped in. Using this causes py3, py2 and flags to be ignored.)
 
+    not_in_heap_type = False  # Not a slot in heap type declarations.
+
     def __init__(self, slot_name, dynamic=False, inherited=False,
                  py3=True, py2=True, ifdef=None):
         self.slot_name = slot_name
@@ -242,7 +244,14 @@ class SlotDescriptor(object):
             guard = ("#if PY_MAJOR_VERSION >= 3")
         return guard
 
-    def generate(self, scope, code):
+    def _generate(self, code, value, as_heap_type, slot_name=None):
+        if as_heap_type:
+            if value != "0" and not self.not_in_heap_type:
+                code.putln("{Py_%s, (void*)%s}," % (slot_name or self.slot_name, value))
+        else:
+            code.putln("%s, /*%s*/" % (value, slot_name or self.slot_name))
+
+    def generate(self, scope, code, as_heap_type=False):
         preprocessor_guard = self.preprocessor_guard_code()
         if preprocessor_guard:
             code.putln(preprocessor_guard)
@@ -267,18 +276,18 @@ class SlotDescriptor(object):
                     inherited_value = self.slot_code(current_scope)
                 if inherited_value != "0":
                     code.putln("#if CYTHON_COMPILING_IN_PYPY")
-                    code.putln("%s, /*%s*/" % (inherited_value, self.slot_name))
+                    self._generate(code, inherited_value, as_heap_type)
                     code.putln("#else")
                     end_pypy_guard = True
 
-        code.putln("%s, /*%s*/" % (value, self.slot_name))
+        self._generate(code, value, as_heap_type)
 
         if end_pypy_guard:
             code.putln("#endif")
 
         if self.py3 == '<RESERVED>':
             code.putln("#else")
-            code.putln("0, /*reserved*/")
+            self._generate(code, "0", as_heap_type, slot_name="reserved")
         if preprocessor_guard:
             code.putln("#endif")
 
@@ -487,6 +496,8 @@ class RichcmpSlot(MethodSlot):
 class TypeFlagsSlot(SlotDescriptor):
     #  Descriptor for the type flags slot.
 
+    not_in_heap_type = True
+
     def slot_code(self, scope):
         value = "Py_TPFLAGS_DEFAULT"
         if scope.directives['type_version_tag']:
@@ -505,6 +516,8 @@ class TypeFlagsSlot(SlotDescriptor):
 
 class DocStringSlot(SlotDescriptor):
     #  Descriptor for the docstring slot.
+
+    not_in_heap_type = True
 
     def slot_code(self, scope):
         doc = scope.doc
@@ -540,20 +553,29 @@ class SuiteSlot(SlotDescriptor):
             return "&%s" % self.substructure_cname(scope)
         return "0"
 
-    def generate_substructure(self, scope, code):
-        if not self.is_empty(scope):
-            code.putln("")
-            if self.ifdef:
-                code.putln("#if %s" % self.ifdef)
+    def generate(self, scope, code, as_heap_type=False):
+        if as_heap_type:
+            self.generate_substructure(scope, code, as_heap_type)
+        else:
+            super(SuiteSlot, self).generate(scope, code, as_heap_type)
+
+    def generate_substructure(self, scope, code, as_heap_type=False):
+        if self.is_empty(scope):
+            return
+        code.putln("")
+        if self.ifdef:
+            code.putln("#if %s" % self.ifdef)
+        if not as_heap_type:
             code.putln(
                 "static %s %s = {" % (
                     self.slot_type,
                     self.substructure_cname(scope)))
-            for slot in self.sub_slots:
-                slot.generate(scope, code)
+        for slot in self.sub_slots:
+            slot.generate(scope, code, as_heap_type)
+        if not as_heap_type:
             code.putln("};")
-            if self.ifdef:
-                code.putln("#endif")
+        if self.ifdef:
+            code.putln("#endif")
 
 substructures = []   # List of all SuiteSlot instances
 

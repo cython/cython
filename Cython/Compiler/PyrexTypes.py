@@ -1351,6 +1351,7 @@ class PyExtensionType(PyObjectType):
     #  objstruct_cname  string           Name of PyObject struct
     #  objtypedef_cname string           Name of PyObject struct typedef
     #  typeobj_cname    string or None   C code fragment referring to type object
+    #  typespec_cname   string or None   C code fragment referring to type spec
     #  typeptr_cname    string or None   Name of pointer to external type object
     #  vtabslot_cname   string           Name of C method table member
     #  vtabstruct_cname string           Name of C method table struct
@@ -1364,7 +1365,13 @@ class PyExtensionType(PyObjectType):
     has_attributes = 1
     early_init = 1
 
+    # Some object attributes that are not always set, e.g. for external types.
     objtypedef_cname = None
+    typespec_cname = None
+    vtabslot_cname = None
+    vtabstruct_cname = None
+    vtabptr_cname = None
+    vtable_cname = None
 
     def __init__(self, name, typedef_flag, base_type, is_external=0, check_size=None):
         self.name = name
@@ -1377,10 +1384,6 @@ class PyExtensionType(PyObjectType):
         self.objstruct_cname = None
         self.typeobj_cname = None
         self.typeptr_cname = None
-        self.vtabslot_cname = None
-        self.vtabstruct_cname = None
-        self.vtabptr_cname = None
-        self.vtable_cname = None
         self.is_external = is_external
         self.check_size = check_size or 'warn'
         self.defered_declarations = []

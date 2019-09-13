@@ -1664,27 +1664,30 @@ class ModuleScope(Scope):
                 error(entry.pos, "C class '%s' is declared but not defined" % entry.name)
 
     def check_c_class(self, entry):
-        type = entry.type
+        ext_type = entry.type
         name = entry.name
         visibility = entry.visibility
         # Check defined
-        if not type.scope:
+        if not ext_type.scope:
             error(entry.pos, "C class '%s' is declared but not defined" % name)
         # Generate typeobj_cname
-        if visibility != 'extern' and not type.typeobj_cname:
-            type.typeobj_cname = self.mangle(Naming.typeobj_prefix, name)
+        if visibility != 'extern':
+            if not ext_type.typeobj_cname:
+                ext_type.typeobj_cname = self.mangle(Naming.typeobj_prefix, name)
+            if not ext_type.typespec_cname:
+                ext_type.typespec_cname = self.mangle(Naming.typespec_prefix, name)
         ## Generate typeptr_cname
         #type.typeptr_cname = self.mangle(Naming.typeptr_prefix, name)
         # Check C methods defined
-        if type.scope:
-            for method_entry in type.scope.cfunc_entries:
+        if ext_type.scope:
+            for method_entry in ext_type.scope.cfunc_entries:
                 if not method_entry.is_inherited and not method_entry.func_cname:
                     error(method_entry.pos, "C method '%s' is declared but not defined" %
                         method_entry.name)
         # Allocate vtable name if necessary
-        if type.vtabslot_cname:
+        if ext_type.vtabslot_cname:
             #print "ModuleScope.check_c_classes: allocating vtable cname for", self ###
-            type.vtable_cname = self.mangle(Naming.vtable_prefix, entry.name)
+            ext_type.vtable_cname = self.mangle(Naming.vtable_prefix, entry.name)
 
     def check_c_classes(self):
         # Performs post-analysis checking and finishing up of extension types
