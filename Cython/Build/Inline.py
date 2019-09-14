@@ -9,14 +9,14 @@ from distutils.command.build_ext import build_ext
 
 import Cython
 from ..Compiler.Main import Context
-from ..Compiler.Options import CompilationOptions, default_options
+from ..Compiler.Options import default_options
 
 from ..Compiler.ParseTreeTransforms import (CythonTransform,
-        SkipDeclarations, AnalyseDeclarationsTransform, EnvTransform)
+        SkipDeclarations, EnvTransform)
 from ..Compiler.TreeFragment import parse_from_strings
 from ..Compiler.StringEncoding import _unicode
 from .Dependencies import strip_string_literals, cythonize, cached_function
-from ..Compiler import Pipeline, Nodes
+from ..Compiler import Pipeline
 from ..Utils import get_cython_cache_dir
 import cython as cython_module
 
@@ -109,73 +109,175 @@ def _get_build_extension():
     return build_extension
 
 
+def cython_inline_raw(
+        code,
+        preprocessing_fn=None,
+        transform_code_fn=None,
+        module_cache_dir=os.path.join(get_cython_cache_dir(), 'inline'),
+        c_include_dirs=None,
+        distutils_extra_compile_args=None,
+        cythonize_include_dirs=None,
+        cythonize_compiler_directives=None,
+        cythonize_kwargs=None,
+        force=False,
+        module_name_base="_cython_inline_raw_",
+        cache_key=None):
+    """Compiles code to a python extension and returns the imported module.
+
+    A preprocessing function to be run on the code may be supplied in the form:
+
+        preprocessed_code, module_name, transform_code_args = \
+            preprocessing_fn(code)
+
+    A code transformation function to be run before compilation may also be
+    supplied in the form:
+
+        transformed_code, c_include_dirs, distutils_extra_compile_args = \
+            transform_code(code, c_include_dirs, distutils_extra_compile_args)
+    """
+
+    # set reasonable default values for undefined arguments
+    c_include_dirs = c_include_dirs if c_include_dirs is not None else []
+    distutils_extra_compile_args = distutils_extra_compile_args \
+        if distutils_extra_compile_args is not None else []
+    cythonize_include_dirs = cythonize_include_dirs \
+        if cythonize_include_dirs is not None else ['.']
+    cythonize_compiler_directives = cythonize_compiler_directives \
+        if cythonize_compiler_directives is not None else {}
+    cythonize_kwargs = cythonize_kwargs if cythonize_kwargs is not None else {}
+
+    # Fast path if this has been called in this session with the same parameters
+    preprocessing_code = preprocessing_fn.__code__ if preprocessing_fn else None
+    transform_code_code = transform_code_fn.__code__ if transform_code_fn else None
+    cache_key = (code, sys.version_info, sys.executable, Cython.__version__,
+        preprocessing_code, transform_code_code, tuple(c_include_dirs),
+        tuple(distutils_extra_compile_args), tuple(cythonize_include_dirs),
+        tuple(cythonize_compiler_directives), tuple(cythonize_kwargs.items()),
+        cache_key)
+    module = cython_inline_raw.cache.get(cache_key)
+    if module and not force:
+        return module
+
+    if preprocessing_fn:
+        code, module_name, transform_code_args = preprocessing_fn(code)
+    if module_name is None:
+        module_name = module_name_base + \
+            hashlib.sha1(_unicode(cache_key).encode('utf-8')).hexdigest()
+
+    if module_name in sys.modules:
+        # fast-path: extension was previously compiled and imported
+        #            return reference to existing module
+        module = sys.modules[module_name]
+        cython_inline_raw.cache[cache_key] = module
+        return module
+
+    # extension was not yet imported in this session
+    # construct the file-path for the python extension to load
+    build_extension = None
+    if cython_inline_raw.so_ext is None:
+        # Figure out and cache current extension suffix
+        build_extension = _get_build_extension()
+        cython_inline_raw.so_ext = build_extension.get_ext_filename('')
+    module_path = os.path.join(
+        module_cache_dir, module_name + cython_inline_raw.so_ext)
+    if not os.path.exists(module_cache_dir):
+        os.makedirs(module_cache_dir)
+
+    # check if a python extension still needs to be compiled
+    if force or not os.path.isfile(module_path):
+        if transform_code_fn:
+            # perform any code transformations if required
+            code, c_include_dirs, distutils_extra_compile_args = transform_code_fn(
+                    code, transform_code_args, c_include_dirs.copy(),
+                    distutils_extra_compile_args.copy())
+        pyx_file = os.path.join(module_cache_dir, module_name + '.pyx')
+        fh = open(pyx_file, 'w')
+        try:
+            fh.write(code)
+        finally:
+            fh.close()
+        extension = Extension(
+            name=module_name,
+            sources=[pyx_file],
+            include_dirs=c_include_dirs,
+            extra_compile_args=distutils_extra_compile_args)
+        if build_extension is None:
+            build_extension = _get_build_extension()
+        build_extension.extensions = cythonize(
+            [extension],
+            include_path=cythonize_include_dirs,
+            compiler_directives=cythonize_compiler_directives,
+            **cythonize_kwargs)
+        build_extension.build_temp = os.path.dirname(pyx_file)
+        build_extension.build_lib = module_cache_dir
+        build_extension.run()
+
+    # load compiled python module
+    module = imp.load_dynamic(module_name, module_path)
+    cython_inline_raw.cache[cache_key] = module
+    return module
+
+# Cached values used by cython_inline_raw above.
+cython_inline_raw.so_ext = None
+cython_inline_raw.cache = {}
+
+
+def cython_inline_module(
+        code,
+        module_cache_dir=os.path.join(get_cython_cache_dir(), 'inline'),
+        c_include_dirs=None,
+        distutils_extra_compile_args=None,
+        cythonize_include_dirs=None,
+        cythonize_compiler_directives=None,
+        cythonize_kwargs=None,
+        language_level=None,
+        quiet=False,
+        force=False):
+
+    def preprocessing(code):
+        code = to_unicode(code)
+        code, literals = strip_string_literals(code)
+        code = strip_common_indent(code)
+        transform_code_args = literals
+        module_name = None
+        return code, module_name, transform_code_args
+
+    def transform_code(code, code_transform_args, c_include_dirs, distutils_extra_compile_args):
+        literals = code_transform_args
+        for key, value in literals.items():
+            code = code.replace(key, value)
+        return code, c_include_dirs, distutils_extra_compile_args
+
+    cythonize_kwargs = cythonize_kwargs if cythonize_kwargs is not None else {}
+    cythonize_kwargs['quiet'] = quiet
+    if language_level is not None:
+        cythonize_compiler_directives = cythonize_compiler_directives \
+            if cythonize_compiler_directives is not None else {}
+        cythonize_compiler_directives['language_level'] = language_level
+    module = cython_inline_raw(
+        code=code,
+        preprocessing_fn=preprocessing,
+        transform_code_fn=transform_code,
+        module_cache_dir=module_cache_dir,
+        c_include_dirs=c_include_dirs,
+        distutils_extra_compile_args=distutils_extra_compile_args,
+        cythonize_include_dirs=cythonize_include_dirs,
+        cythonize_compiler_directives=cythonize_compiler_directives,
+        cythonize_kwargs=cythonize_kwargs,
+        force=force,
+    )
+    return module
+
+
 @cached_function
 def _create_context(cython_include_dirs):
     return Context(list(cython_include_dirs), default_options)
-
-def cython_inline_module(code, lib_dir=os.path.join(get_cython_cache_dir(), 'inline'),
-                  cython_include_dirs=None, c_include_dirs=[], cflags = None, force=False, include_numpy = True, **kwds):
-    if cython_include_dirs is None:
-        cython_include_dirs = ['.']
-    code = to_unicode(code)
-    orig_code = code
-    code, literals = strip_string_literals(code)
-    code = strip_common_indent(code)
-    ctx = _create_context(tuple(cython_include_dirs))
-    key = orig_code, cflags, sys.version_info, sys.executable, Cython.__version__
-    module_name = "_cython_inline_module_" + hashlib.md5(_unicode(key).encode('utf-8')).hexdigest()
-
-    if module_name in sys.modules:
-        module = sys.modules[module_name]
-    else:
-        build_extension = None
-        #little weird to access/set so_ext from here, but nothing technically wrong with it
-        if cython_inline.so_ext is None:
-            # Figure out and cache current extension suffix
-            build_extension = _get_build_extension()
-            cython_inline.so_ext = build_extension.get_ext_filename('')
-
-        module_path = os.path.join(lib_dir, module_name + cython_inline.so_ext)
-
-        if not os.path.exists(lib_dir):
-            os.makedirs(lib_dir)
-        if force or not os.path.isfile(module_path):
-            qualified = re.compile(r'([.\w]+)[.]')
-            #assume everybody wants numpy
-            if include_numpy:
-                try:
-                    import numpy as np
-                    c_include_dirs = c_include_dirs + [np.get_include()]
-                except ImportError:
-                    pass
-            pyx_file = os.path.join(lib_dir, module_name + '.pyx')
-            fh = open(pyx_file, 'w')
-            try:
-                fh.write(code)
-            finally:
-                fh.close()
-            extension = Extension(
-                name = module_name,
-                sources = [pyx_file],
-                include_dirs = c_include_dirs,
-                extra_compile_args = cflags)
-            if build_extension is None:
-                build_extension = _get_build_extension()
-            build_extension.extensions = cythonize([extension], include_path=cython_include_dirs, **kwds)
-            build_extension.build_temp = os.path.dirname(pyx_file)
-            build_extension.build_lib  = lib_dir
-            build_extension.run()
-        module = imp.load_dynamic(module_name, module_path)
-    return module
-
-_cython_inline_cache = {}
-_cython_inline_default_context = _create_context(('.',))
 
 def _populate_unbound(kwds, unbound_symbols, locals=None, globals=None):
     for symbol in unbound_symbols:
         if symbol not in kwds:
             if locals is None or globals is None:
-                calling_frame = inspect.currentframe().f_back.f_back.f_back
+                calling_frame = inspect.currentframe().f_back.f_back.f_back.f_back.f_back
                 if locals is None:
                     locals = calling_frame.f_locals
                 if globals is None:
@@ -187,128 +289,123 @@ def _populate_unbound(kwds, unbound_symbols, locals=None, globals=None):
             else:
                 print("Couldn't find %r" % symbol)
 
-def cython_inline(code, get_type=unsafe_type,
-                  lib_dir=os.path.join(get_cython_cache_dir(), 'inline'),
-                  cython_include_dirs=None, cython_compiler_directives=None,
-                  force=False, quiet=False, locals=None, globals=None, language_level=None, **kwds):
+def cython_inline(
+        code,
+        get_type=unsafe_type,
+        lib_dir=os.path.join(get_cython_cache_dir(), 'inline'),
+        cython_include_dirs=None,
+        cython_compiler_directives=None,
+        force=False,
+        quiet=False,
+        locals=None,
+        globals=None,
+        language_level=None,
+        **kwds):
 
     if get_type is None:
-        get_type = lambda x: 'object'
-    ctx = _create_context(tuple(cython_include_dirs)) if cython_include_dirs else _cython_inline_default_context
+        get_type = lambda x, ctx: 'object'
+    ctx = _create_context(tuple(cython_include_dirs)) \
+        if cython_include_dirs else cython_inline.default_context
 
     # Fast path if this has been called in this session.
-    _unbound_symbols = _cython_inline_cache.get(code)
-    if _unbound_symbols is not None:
+    _unbound_symbols = cython_inline.cache.get(code)
+    if _unbound_symbols is not None and not force:
         _populate_unbound(kwds, _unbound_symbols, locals, globals)
         args = sorted(kwds.items())
         arg_sigs = tuple([(get_type(value, ctx), arg) for arg, value in args])
-        invoke = _cython_inline_cache.get((code, arg_sigs))
+        invoke = cython_inline.cache.get((code, arg_sigs))
         if invoke is not None:
             arg_list = [arg[1] for arg in args]
             return invoke(*arg_list)
 
-    orig_code = code
-    code = to_unicode(code)
-    code, literals = strip_string_literals(code)
-    code = strip_common_indent(code)
-    if locals is None:
-        locals = inspect.currentframe().f_back.f_back.f_locals
-    if globals is None:
-        globals = inspect.currentframe().f_back.f_back.f_globals
-    try:
-        _cython_inline_cache[orig_code] = _unbound_symbols = unbound_symbols(code)
-        _populate_unbound(kwds, _unbound_symbols, locals, globals)
-    except AssertionError:
-        if not quiet:
-            # Parsing from strings not fully supported (e.g. cimports).
-            print("Could not parse code as a string (to extract unbound symbols).")
+    def preprocessing(code):
+        (locals, globals) = preprocessing_args
+        orig_code = code
+        code = to_unicode(code)
+        code, literals = strip_string_literals(code)
+        code = strip_common_indent(code)
+        if locals is None:
+            locals = inspect.currentframe().f_back.f_back.f_back.f_back.f_locals
+        if globals is None:
+            globals = inspect.currentframe().f_back.f_back.f_back.f_back.f_globals
+        try:
+            cython_inline.cache[orig_code] = _unbound_symbols = unbound_symbols(code)
+            _populate_unbound(kwds, _unbound_symbols, locals, globals)
+        except AssertionError:
+            if not quiet:
+                # Parsing from strings not fully supported (e.g. cimports).
+                print("Could not parse code as a string (to extract unbound symbols).")
 
-    cython_compiler_directives = dict(cython_compiler_directives or {})
-    if language_level is not None:
-        cython_compiler_directives['language_level'] = language_level
+        cimports = []
+        for name, arg in list(kwds.items()):
+            if arg is cython_module:
+                cimports.append('\ncimport cython as %s' % name)
+                del kwds[name]
+        arg_names = sorted(kwds)
+        arg_sigs = tuple([(get_type(kwds[arg], ctx), arg) for arg in arg_names])
+        key = (orig_code, arg_sigs, sys.version_info, sys.executable,
+            language_level, Cython.__version__)
+        module_name = "_cython_inline_" + \
+            hashlib.sha1(_unicode(key).encode('utf-8')).hexdigest()
+        transform_code_args = [literals, cimports, arg_sigs]
+        return_values.extend([orig_code, arg_names, arg_sigs, kwds])
+        return code, module_name, transform_code_args
 
-    cimports = []
-    for name, arg in list(kwds.items()):
-        if arg is cython_module:
-            cimports.append('\ncimport cython as %s' % name)
-            del kwds[name]
-    arg_names = sorted(kwds)
-    arg_sigs = tuple([(get_type(kwds[arg], ctx), arg) for arg in arg_names])
-    key = orig_code, arg_sigs, sys.version_info, sys.executable, language_level, Cython.__version__
-    module_name = "_cython_inline_" + hashlib.sha1(_unicode(key).encode('utf-8')).hexdigest()
-
-    if module_name in sys.modules:
-        module = sys.modules[module_name]
-
-    else:
-        build_extension = None
-        if cython_inline.so_ext is None:
-            # Figure out and cache current extension suffix
-            build_extension = _get_build_extension()
-            cython_inline.so_ext = build_extension.get_ext_filename('')
-
-        module_path = os.path.join(lib_dir, module_name + cython_inline.so_ext)
-
-        if not os.path.exists(lib_dir):
-            os.makedirs(lib_dir)
-        if force or not os.path.isfile(module_path):
-            cflags = []
-            c_include_dirs = []
-            qualified = re.compile(r'([.\w]+)[.]')
-            for type, _ in arg_sigs:
-                m = qualified.match(type)
-                if m:
-                    cimports.append('\ncimport %s' % m.groups()[0])
-                    # one special case
-                    if m.groups()[0] == 'numpy':
-                        import numpy
-                        c_include_dirs.append(numpy.get_include())
-                        # cflags.append('-Wno-unused')
-            module_body, func_body = extract_func_code(code)
-            params = ', '.join(['%s %s' % a for a in arg_sigs])
-            module_code = """
+    def transform_code(code, code_transform_args, c_include_dirs, cflags):
+        (literals, cimports, arg_sigs) = code_transform_args
+        qualified = re.compile(r'([.\w]+)[.]')
+        for type, _ in arg_sigs:
+            m = qualified.match(type)
+            if m:
+                cimports.append('\ncimport %s' % m.groups()[0])
+                # one special case
+                if m.groups()[0] == 'numpy':
+                    import numpy
+                    c_include_dirs.append(numpy.get_include())
+                    # cflags.append('-Wno-unused')
+        module_body, func_body = extract_func_code(code)
+        params = ', '.join(['%s %s' % a for a in arg_sigs])
+        module_code = """
 %(module_body)s
 %(cimports)s
 def __invoke(%(params)s):
 %(func_body)s
     return locals()
             """ % {'cimports': '\n'.join(cimports),
-                   'module_body': module_body,
-                   'params': params,
-                   'func_body': func_body }
-            for key, value in literals.items():
-                module_code = module_code.replace(key, value)
-            pyx_file = os.path.join(lib_dir, module_name + '.pyx')
-            fh = open(pyx_file, 'w')
-            try:
-                fh.write(module_code)
-            finally:
-                fh.close()
-            extension = Extension(
-                name = module_name,
-                sources = [pyx_file],
-                include_dirs = c_include_dirs,
-                extra_compile_args = cflags)
-            if build_extension is None:
-                build_extension = _get_build_extension()
-            build_extension.extensions = cythonize(
-                [extension],
-                include_path=cython_include_dirs or ['.'],
-                compiler_directives=cython_compiler_directives,
-                quiet=quiet)
-            build_extension.build_temp = os.path.dirname(pyx_file)
-            build_extension.build_lib  = lib_dir
-            build_extension.run()
+            'module_body': module_body,
+            'params': params,
+            'func_body': func_body}
+        for key, value in literals.items():
+            module_code = module_code.replace(key, value)
+        return module_code, c_include_dirs, cflags
 
-        module = imp.load_dynamic(module_name, module_path)
+    # python 2.7 compatibility: missing nonlocal keyword
+    preprocessing_args = [locals, globals]
 
-    _cython_inline_cache[orig_code, arg_sigs] = module.__invoke
+    return_values = []
+    if language_level is not None:
+        cython_compiler_directives = cython_compiler_directives \
+            if cython_compiler_directives is not None else {}
+        cython_compiler_directives['language_level'] = language_level
+    module = cython_inline_raw(
+        code=code,
+        preprocessing_fn=preprocessing,
+        transform_code_fn=transform_code,
+        module_cache_dir=lib_dir,
+        cythonize_include_dirs=cython_include_dirs,
+        cythonize_compiler_directives=cython_compiler_directives,
+        cythonize_kwargs={'quiet': quiet},
+        force=force,
+    )
+    (orig_code, arg_names, arg_sigs, kwds) = return_values
+    cython_inline.cache[orig_code, arg_sigs] = module.__invoke
     arg_list = [kwds[arg] for arg in arg_names]
     return module.__invoke(*arg_list)
 
-# Cached suffix used by cython_inline above.  None should get
-# overridden with actual value upon the first cython_inline invocation
-cython_inline.so_ext = None
+# cached values for _cython_inline above
+cython_inline.cache = {}
+cython_inline.default_context = _create_context(('.',))
+
 
 _find_non_space = re.compile('[^ ]').search
 
