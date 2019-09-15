@@ -188,8 +188,8 @@ def cython_inline_raw(
         if transform_code_fn:
             # perform any code transformations if required
             code, c_include_dirs, distutils_extra_compile_args = transform_code_fn(
-                    code, transform_code_args, c_include_dirs.copy(),
-                    distutils_extra_compile_args.copy())
+                    code, transform_code_args, list(c_include_dirs),
+                    list(distutils_extra_compile_args))
         pyx_file = os.path.join(module_cache_dir, module_name + '.pyx')
         fh = open(pyx_file, 'w')
         try:
