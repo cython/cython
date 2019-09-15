@@ -3141,7 +3141,7 @@ class TransformBuiltinMethods(EnvTransform):
             for node, scope in self.env_stack[::-1]
             if isinstance(node, Nodes.ClassDefNode)
         )
-    
+
     def _inject_class(self, node):
         # bare __class__ reference inside function
         def_node = self.current_scope_node()
@@ -3153,7 +3153,8 @@ class TransformBuiltinMethods(EnvTransform):
 
         if class_scope.is_py_class_scope:
             def_node.has_class_reference = True
-            return ExprNodes.NameNode(node.pos, name=class_node.target.name)
+            self_node = ExprNodes.NameNode(pos=node.pos, name=u'self')
+            return ExprNodes.AttributeNode(pos=node.pos, obj=self_node, attribute=EncodedString(u'__class__'))
 
         return node
 

@@ -117,3 +117,31 @@ __test__ = {
     'K'
     """
 }
+
+class L:
+    """
+    >>> OldL().method().__name__
+    'L'
+    """
+    def method(self): return self.__class__
+
+OldL = L
+L = None
+
+class M:
+    """
+    >>> M().method()
+    u'overwritten'
+    """
+    def method(self):
+        __class__ = 'overwritten'
+        return __class__
+
+class N:
+    """
+    >>> N().method().__name__
+    'N'
+    """
+    __class__ = 'N'
+    def method(self):
+        return __class__
