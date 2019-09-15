@@ -141,7 +141,7 @@ _cython_inline_module = None
 def inline_module(code, *args, **kwds):
     """Compiles code to a python extension and returns the imported module.
 
-    To use numpy within the code, please to not forget to set its:
+    To use numpy within the code, please do not forget to set its:
 
         c_include_dirs=[np.get_include()]
 
