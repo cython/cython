@@ -1760,6 +1760,7 @@ class EndToEndTest(unittest.TestCase):
     def runTest(self):
         self.success = False
         commands = (self.commands
+            .replace("CYTHONIZE", "PYTHON %s" % os.path.join(self.cython_root, 'cythonize.py'))
             .replace("CYTHON", "PYTHON %s" % os.path.join(self.cython_root, 'cython.py'))
             .replace("PYTHON", sys.executable))
         old_path = os.environ.get('PYTHONPATH')
