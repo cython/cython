@@ -3097,11 +3097,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if sizeof_objstruct != objstruct:
             if not condition:
                 code.putln("")  # start in new line
-            code.putln("#if defined(PYPY_VERSION_NUM) && PYPY_VERSION_NUM < 0x050B0000")
-            code.putln('sizeof(%s),' % objstruct)
-            code.putln("#else")
             code.putln('sizeof(%s),' % sizeof_objstruct)
-            code.putln("#endif")
         else:
             code.put('sizeof(%s), ' % objstruct)
 
