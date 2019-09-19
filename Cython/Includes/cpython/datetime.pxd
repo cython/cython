@@ -6,16 +6,16 @@ cdef extern from "Python.h":
 
 cdef extern from "datetime.h":
 
-    ctypedef extern class datetime.date[object PyDateTime_Date]:
+    ctypedef extern class datetime.date[object PyDateTime_Date, check_size ignore]:
         pass
 
-    ctypedef extern class datetime.time[object PyDateTime_Time]:
+    ctypedef extern class datetime.time[object PyDateTime_Time, check_size ignore]:
         pass
 
-    ctypedef extern class datetime.datetime[object PyDateTime_DateTime]:
+    ctypedef extern class datetime.datetime[object PyDateTime_DateTime, check_size ignore]:
         pass
 
-    ctypedef extern class datetime.timedelta[object PyDateTime_Delta]:
+    ctypedef extern class datetime.timedelta[object PyDateTime_Delta, check_size ignore]:
         pass
 
     ctypedef extern class datetime.tzinfo[object PyDateTime_TZInfo]:
