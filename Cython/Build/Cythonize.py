@@ -121,7 +121,7 @@ def create_args_parser():
     from argparse import ArgumentParser
     from ..Compiler.CmdLine import (ParseDirectivesActionToLocal, ParseOptionsAction,
           ParseCompileTimeEnvActionToLocal, SetLenientAction, StoreToSubargument,
-          GLOBAL_OPTIONS)
+          GLOBAL_OPTIONS, LOCAL_OPTIONS)
 
     parser = ArgumentParser()
 
@@ -137,11 +137,14 @@ def create_args_parser():
                       dest='options', default={}, type=str,
                       action=ParseOptionsAction,
                       help='set a cythonize option')
-    parser.add_argument('-2', dest='language_level', action='store_const', const=2, default=None,
+    parser.add_argument('-2', dest='language_level',
+                      action=StoreToSubargument(LOCAL_OPTIONS, 2), nargs=0,
                       help='use Python 2 syntax mode by default')
-    parser.add_argument('-3', dest='language_level', action='store_const', const=3,
+    parser.add_argument('-3', dest='language_level',
+                      action=StoreToSubargument(LOCAL_OPTIONS, 3), nargs=0,
                       help='use Python 3 syntax mode by default')
-    parser.add_argument('--3str', dest='language_level', action='store_const', const='3str',
+    parser.add_argument('--3str', dest='language_level',
+                      action=StoreToSubargument(LOCAL_OPTIONS, '3str'), nargs=0,
                       help='use Python 3 syntax mode by default')
     parser.add_argument('-a', '--annotate', action=StoreToSubargument(GLOBAL_OPTIONS, 'default'), nargs=0, dest='annotate',
                       help='Produce a colorized HTML version of the source.')
@@ -199,9 +202,6 @@ def parse_args(args):
         options.build = True
     if multiprocessing is None:
         options.parallel = 0
-    if options.language_level:
-        assert options.language_level in (2, 3, '3str')
-        options.options['language_level'] = options.language_level
 
     # handle global_options:
     from ..Compiler.CmdLine import GLOBAL_OPTIONS

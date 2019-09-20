@@ -226,22 +226,22 @@ class TestCythonizeArgsParser(TestCase):
         self.assertEqual(options.options['abracadabra'], True)
 
     def test_language_level_2(self):
-        options, args =  self.parse_args(['-2'])
+        options, args = self.parse_args(['-2'])
         self.assertFalse(args)
-        self.assertTrue(self.are_default(options, ['language_level']))
-        self.assertEqual(options.language_level, 2)
+        self.assertTrue(self.are_default(options, ['options']))
+        self.assertEqual(options.options['language_level'], 2)
 
     def test_language_level_3(self):
-        options, args =  self.parse_args(['-3'])
+        options, args = self.parse_args(['-3'])
         self.assertFalse(args)
-        self.assertTrue(self.are_default(options, ['language_level']))
-        self.assertEqual(options.language_level, 3)
+        self.assertTrue(self.are_default(options, ['options']))
+        self.assertEqual(options.options['language_level'], 3)
 
     def test_language_level_3str(self):
-        options, args =  self.parse_args(['--3str'])
+        options, args = self.parse_args(['--3str'])
         self.assertFalse(args)
-        self.assertTrue(self.are_default(options, ['language_level']))
-        self.assertEqual(options.language_level, '3str')
+        self.assertTrue(self.are_default(options, ['options']))
+        self.assertEqual(options.options['language_level'], '3str')
 
     def test_annotate_short(self):
         options, args = self.parse_args(['-a'])
@@ -270,12 +270,12 @@ class TestCythonizeArgsParser(TestCase):
     def test_annotate_and_optional(self):
         options, args = self.parse_args(['-a', '--3str'])
         self.assertFalse(args)
-        self.assertTrue(self.are_default(options, ['global_options', 'language_level']))
+        self.assertTrue(self.are_default(options, ['global_options', 'options']))
         self.assertEqual(options.global_options['annotate'], 'default')
-        self.assertEqual(options.language_level, '3str')
+        self.assertEqual(options.options['language_level'], '3str')
 
     def test_exclude_short(self):
-        options, args =  self.parse_args(['-x', '*.pyx'])
+        options, args = self.parse_args(['-x', '*.pyx'])
         self.assertFalse(args)
         self.assertTrue(self.are_default(options, ['excludes']))
         self.assertTrue('*.pyx' in options.excludes)
