@@ -6,7 +6,7 @@ from __future__ import absolute_import
 
 import os
 from argparse import ArgumentParser, Action, SUPPRESS
-from . import Options
+from . import Options, DebugFlags
 
 try:
     import multiprocessing
@@ -279,7 +279,6 @@ def create_cython_argparser():
     parser.add_argument("--old-style-globals", dest='old_style_globals', action=StoreToSubargument(GLOBAL_OPTIONS, True), nargs=0, help=SUPPRESS)
 
     # debug stuff:
-    from . import DebugFlags
     for name in vars(DebugFlags):
         if name.startswith("debug"):
             option_name = name.replace('_', '-')
@@ -328,26 +327,25 @@ def parse_command_line_raw(parser, args):
     return arguments, sources
 
 
+def apply_options(target, options):
+    for name, value in options.items():
+        if value is not None:
+            setattr(target, name, value)
+
+
 def parse_command_line(args):
     parser = create_cython_argparser()
     arguments, sources = parse_command_line_raw(parser, args)
 
     # handle local_options:
     options = Options.CompilationOptions(Options.default_options)
-    local_options = getattr(arguments, LOCAL_OPTIONS, {})
-    for name, value in local_options.items():
-        setattr(options, name, value)
+    apply_options(options, getattr(arguments, LOCAL_OPTIONS, {}))
 
     # handle global_options:
-    global_options = getattr(arguments, GLOBAL_OPTIONS, {})
-    for name, value in global_options.items():
-        setattr(Options, name, value)
+    apply_options(Options, getattr(arguments, GLOBAL_OPTIONS, {}))
 
     # handle debug flags
-    debug_flags = getattr(arguments, DEBUG_FLAGS, {})
-    for name, value in debug_flags.items():
-        from . import DebugFlags
-        setattr(DebugFlags, name, value)
+    apply_options(DebugFlags, getattr(arguments, DEBUG_FLAGS, {}))
 
     # additinal checks
     if options.use_listing_file and len(sources) > 1:

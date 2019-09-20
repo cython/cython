@@ -12,7 +12,8 @@ from ..Utils import is_package_dir
 from ..Compiler import Options
 
 from ..Compiler.CmdLine import (
-    create_cythonize_argparser, parse_args_raw, multiprocessing
+    create_cythonize_argparser, parse_args_raw,
+    multiprocessing, apply_options
 )
 
 
@@ -125,10 +126,12 @@ def parse_args(args):
 
     # handle global_options:
     from ..Compiler.CmdLine import GLOBAL_OPTIONS
-    global_options = getattr(options, GLOBAL_OPTIONS, {})
-    for name, value in global_options.items():
-        if value is not None:
-            setattr(Options, name, value)
+    apply_options(Options, getattr(options, GLOBAL_OPTIONS, {}))
+    # no longer needed:
+    try:
+        delattr(options, GLOBAL_OPTIONS)
+    except AttributeError:
+        pass
 
     return options, args
 
