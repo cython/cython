@@ -121,7 +121,7 @@ def create_args_parser():
     from argparse import ArgumentParser
     from ..Compiler.CmdLine import (ParseDirectivesActionToLocal, ParseOptionsAction,
           ParseCompileTimeEnvActionToLocal, SetLenientAction, StoreToSubargument,
-          GLOBAL_OPTIONS, LOCAL_OPTIONS)
+          SetBuildInplace, GLOBAL_OPTIONS, LOCAL_OPTIONS)
 
     parser = ArgumentParser()
 
@@ -157,7 +157,7 @@ def create_args_parser():
 
     parser.add_argument('-b', '--build', dest='build', action='store_true', default=None,
                       help='build extension modules using distutils')
-    parser.add_argument('-i', '--inplace', dest='build_inplace', action='store_true', default=None,
+    parser.add_argument('-i', '--inplace', dest='build_inplace', action=SetBuildInplace, nargs=0,
                       help='build extension modules in place using distutils (implies -b)')
     parser.add_argument('-j', '--parallel', dest='parallel', metavar='N',
                       type=int, default=parallel_compiles,
@@ -198,8 +198,6 @@ def parse_args(args):
 
     if not args:
         parser.error("no source files provided")
-    if options.build_inplace:
-        options.build = True
     if multiprocessing is None:
         options.parallel = 0
 

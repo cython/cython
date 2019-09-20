@@ -305,19 +305,21 @@ class TestCythonizeArgsParser(TestCase):
         self.assertEqual(options.build, True)
 
     def test_inplace_short(self):
-        options, args =  self.parse_args(['-i'])
+        options, args = self.parse_args(['-i'])
         self.assertFalse(args)
-        self.assertTrue(self.are_default(options, ['build_inplace']))
+        self.assertTrue(self.are_default(options, ['build_inplace', 'build']))
         self.assertEqual(options.build_inplace, True)
+        self.assertEqual(options.build, True)
 
     def test_inplace_long(self):
-        options, args =  self.parse_args(['--inplace'])
+        options, args = self.parse_args(['--inplace'])
         self.assertFalse(args)
-        self.assertTrue(self.are_default(options, ['build_inplace']))
+        self.assertTrue(self.are_default(options, ['build_inplace', 'build']))
         self.assertEqual(options.build_inplace, True)
+        self.assertEqual(options.build, True)
 
     def test_parallel_short(self):
-        options, args =  self.parse_args(['-j', '42'])
+        options, args = self.parse_args(['-j', '42'])
         self.assertFalse(args)
         self.assertTrue(self.are_default(options, ['parallel']))
         self.assertEqual(options.parallel, 42)
@@ -388,20 +390,23 @@ class TestCythonizeArgsParser(TestCase):
         options, args = self.parse_args(['-i', 'file.pyx'])
         self.assertEqual(args, ['file.pyx'])
         self.assertEqual(options.build_inplace, True)
-        self.assertTrue(self.are_default(options, ['build_inplace']))
+        self.assertEqual(options.build, True)
+        self.assertTrue(self.are_default(options, ['build_inplace', 'build']))
 
     def test_file_inbetween(self):
         options, args = self.parse_args(['-i', 'file.pyx', '-a'])
         self.assertEqual(args, ['file.pyx'])
         self.assertEqual(options.build_inplace, True)
+        self.assertEqual(options.build, True)
         self.assertEqual(options.global_options['annotate'], 'default')
-        self.assertTrue(self.are_default(options, ['build_inplace', 'global_options']))
+        self.assertTrue(self.are_default(options, ['build_inplace', 'build', 'global_options']))
 
     def test_option_trailing(self):
         options, args = self.parse_args(['file.pyx', '-i'])
         self.assertEqual(args, ['file.pyx'])
         self.assertEqual(options.build_inplace, True)
-        self.assertTrue(self.are_default(options, ['build_inplace']))
+        self.assertEqual(options.build, True)
+        self.assertTrue(self.are_default(options, ['build_inplace', 'build']))
 
     def test_interspersed_positional(self):
         options, sources = self.parse_args([

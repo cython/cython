@@ -86,6 +86,12 @@ class SetGDBDebugAction(Action):
         set_values_to_subargument(namespace, LOCAL_OPTIONS, value_map)
 
 
+class SetBuildInplace(Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        setattr(namespace, 'build', True)
+        setattr(namespace, 'build_inplace', True)
+
+
 class SetGDBDebugOutputAction(Action):
     def __call__(self, parser, namespace, values, option_string=None):
         value_map = {'gdb_debug': True,
