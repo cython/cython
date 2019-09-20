@@ -482,3 +482,21 @@ class TestParseArgs(TestCase):
         self.assertEqual(sources, ['foo.pyx'])
         self.assertEqual(Options.docstrings, False)
         self.check_default_global_options(['docstrings'])
+
+    def test_language_level2(self):
+        options, sources = parse_args(['foo.pyx', '-2'])
+        self.assertEqual(sources, ['foo.pyx'])
+        self.assertEqual(options.options['language_level'], 2)
+        self.check_default_global_options()
+
+    def test_language_level3(self):
+        options, sources = parse_args(['foo.pyx', '-3'])
+        self.assertEqual(sources, ['foo.pyx'])
+        self.assertEqual(options.options['language_level'], 3)
+        self.check_default_global_options()
+
+    def test_language_level3str(self):
+        options, sources = parse_args(['foo.pyx', '--3str'])
+        self.assertEqual(sources, ['foo.pyx'])
+        self.assertEqual(options.options['language_level'], '3str')
+        self.check_default_global_options()
