@@ -99,8 +99,10 @@ class TestCythonizeArgsParser(TestCase):
                 ('c_string_type', 'bytearray'),
                 ('c_string_type', 'unicode'),
                 ('c_string_encoding', 'ascii'),
-                ('language_level', 2),
-                ('language_level', 3),
+                # ('language_level', 2),
+                ('language_level', '2'),
+                # ('language_level', 3),
+                ('language_level', '3'),
                 ('language_level', '3str'),
                 ('set_initial_path', 'my_initial_path'),
         ]
@@ -113,11 +115,11 @@ class TestCythonizeArgsParser(TestCase):
 
     def test_directives_wrong(self):
         directives = [
-                ('auto_pickle', 42),       # for bool type
-                ('auto_pickle', 'NONONO'), # for bool type
+                ('auto_pickle', 42),        # for bool type
+                ('auto_pickle', 'NONONO'),  # for bool type
                 ('c_string_type', 'bites'),
-                #('c_string_encoding', 'a'),
-                #('language_level', 4),
+                # ('c_string_encoding', 'a'),
+                # ('language_level', 4),
         ]
         for key, value in directives:
             cmd = '{key}={value}'.format(key=key, value=str(value))
