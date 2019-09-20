@@ -1,9 +1,9 @@
-from Cython.Build.Cythonize import (
-    parse_args_raw, parse_args
-)
-
 from Cython.Compiler import Options
-from Cython.Compiler.CmdLine import create_cythonize_argparser, parallel_compiles
+from Cython.Compiler.CmdLine import (
+    create_cythonize_argparser, parallel_compiles,
+    parse_args_raw
+)
+from Cython.Compiler.CmdLine import parse_command_line_cythonize as parse_args
 from Cython.Compiler.Tests.Utils import backup_Options, restore_Options, check_global_options
 
 from unittest import TestCase
@@ -91,20 +91,20 @@ class TestCythonizeArgsParser(TestCase):
             options, args = self.parse_args(['-X', 'cdivision'])
 
     def test_directives_types(self):
-        directives = {
-                'auto_pickle': True,
-                'c_string_type': 'bytearray',
-                'c_string_type': 'bytes',
-                'c_string_type': 'str',
-                'c_string_type': 'bytearray',
-                'c_string_type': 'unicode',
-                'c_string_encoding' : 'ascii',
-                'language_level' : 2,
-                'language_level' : 3,
-                'language_level' : '3str',
-                'set_initial_path' : 'my_initial_path',
-        }
-        for key, value in directives.items():
+        directives = [
+                ('auto_pickle', True),
+                ('c_string_type', 'bytearray'),
+                ('c_string_type', 'bytes'),
+                ('c_string_type', 'str'),
+                ('c_string_type', 'bytearray'),
+                ('c_string_type', 'unicode'),
+                ('c_string_encoding', 'ascii'),
+                ('language_level', 2),
+                ('language_level', 3),
+                ('language_level', '3str'),
+                ('set_initial_path', 'my_initial_path'),
+        ]
+        for key, value in directives:
             cmd = '{key}={value}'.format(key=key, value=str(value))
             options, args = self.parse_args(['-X', cmd])
             self.assertFalse(args)
@@ -112,14 +112,14 @@ class TestCythonizeArgsParser(TestCase):
             self.assertEqual(options.options['compiler_directives'][key], value, msg="Error for option: " + cmd)
 
     def test_directives_wrong(self):
-        directives = {
-                'auto_pickle': 42,       # for bool type
-                'auto_pickle': 'NONONO', # for bool type
-                'c_string_type': 'bites',
-                #'c_string_encoding' : 'a',
-                #'language_level' : 4,
-        }
-        for key, value in directives.items():
+        directives = [
+                ('auto_pickle', 42),       # for bool type
+                ('auto_pickle', 'NONONO'), # for bool type
+                ('c_string_type', 'bites'),
+                #('c_string_encoding', 'a'),
+                #('language_level', 4),
+        ]
+        for key, value in directives:
             cmd = '{key}={value}'.format(key=key, value=str(value))
             with self.assertRaises(ValueError, msg="Error for option: " + cmd):
                 options, args = self.parse_args(['-X', cmd])

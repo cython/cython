@@ -9,12 +9,8 @@ from distutils.core import setup
 
 from .Dependencies import cythonize, extended_iglob
 from ..Utils import is_package_dir
-from ..Compiler import Options
 
-from ..Compiler.CmdLine import (
-    create_cythonize_argparser, parse_args_raw,
-    multiprocessing, apply_options
-)
+from ..Compiler.CmdLine import parse_command_line_cythonize
 
 
 class _FakePool(object):
@@ -115,29 +111,8 @@ def run_distutils(args):
                 shutil.rmtree(temp_dir)
 
 
-def parse_args(args):
-    parser = create_cythonize_argparser()
-    options, args = parse_args_raw(parser, args)
-
-    if not args:
-        parser.error("no source files provided")
-    if multiprocessing is None:
-        options.parallel = 0
-
-    # handle global_options:
-    from ..Compiler.CmdLine import GLOBAL_OPTIONS
-    apply_options(Options, getattr(options, GLOBAL_OPTIONS, {}))
-    # no longer needed:
-    try:
-        delattr(options, GLOBAL_OPTIONS)
-    except AttributeError:
-        pass
-
-    return options, args
-
-
 def main(args=None):
-    options, paths = parse_args(args)
+    options, paths = parse_command_line_cythonize(args)
 
     for path in paths:
         cython_compile(path, options)

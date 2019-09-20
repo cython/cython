@@ -301,7 +301,7 @@ def parse_args_raw(parser, args):
     return (options, sources)
 
 
-def parse_command_line_raw(parser, args):
+def parse_args_raw_cython(parser, args):
     # special handling for --embed and --embed=xxxx as they aren't correctly parsed
     def filter_out_embed_options(args):
         with_embed, without_embed = [], []
@@ -335,7 +335,7 @@ def apply_options(target, options):
 
 def parse_command_line(args):
     parser = create_cython_argparser()
-    arguments, sources = parse_command_line_raw(parser, args)
+    arguments, sources = parse_args_raw_cython(parser, args)
 
     # handle local_options:
     options = Options.CompilationOptions(Options.default_options)
@@ -355,3 +355,23 @@ def parse_command_line(args):
     if Options.embed and len(sources) > 1:
         parser.error("cython: Only one source file allowed when using -embed\n")
     return options, sources
+
+
+def parse_command_line_cythonize(args):
+    parser = create_cythonize_argparser()
+    options, args = parse_args_raw(parser, args)
+
+    if not args:
+        parser.error("no source files provided")
+    if multiprocessing is None:
+        options.parallel = 0
+
+    # handle global_options:
+    apply_options(Options, getattr(options, GLOBAL_OPTIONS, {}))
+    # no longer needed:
+    try:
+        delattr(options, GLOBAL_OPTIONS)
+    except AttributeError:
+        pass
+
+    return options, args
