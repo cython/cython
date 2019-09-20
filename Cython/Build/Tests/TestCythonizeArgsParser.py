@@ -1,9 +1,9 @@
 from Cython.Build.Cythonize import (
-    create_args_parser, parse_args_raw, parse_args,
-    parallel_compiles
+    parse_args_raw, parse_args
 )
 
 from Cython.Compiler import Options
+from Cython.Compiler.CmdLine import create_cythonize_argparser, parallel_compiles
 from Cython.Compiler.Tests.Utils import backup_Options, restore_Options, check_global_options
 
 from unittest import TestCase
@@ -19,7 +19,7 @@ class TestCythonizeArgsParser(TestCase):
 
     def setUp(self):
         TestCase.setUp(self)
-        self.parse_args = lambda x, parser=create_args_parser(): parse_args_raw(parser, x)
+        self.parse_args = lambda x, parser=create_cythonize_argparser(): parse_args_raw(parser, x)
 
     def are_default(self, options, skip):
         # empty containers

@@ -11,12 +11,7 @@ from .Dependencies import cythonize, extended_iglob
 from ..Utils import is_package_dir
 from ..Compiler import Options
 
-try:
-    import multiprocessing
-    parallel_compiles = int(multiprocessing.cpu_count() * 1.5)
-except ImportError:
-    multiprocessing = None
-    parallel_compiles = 0
+from ..Compiler.CmdLine import create_cythonize_argparser, multiprocessing
 
 
 class _FakePool(object):
@@ -117,67 +112,6 @@ def run_distutils(args):
                 shutil.rmtree(temp_dir)
 
 
-def create_args_parser():
-    from argparse import ArgumentParser
-    from ..Compiler.CmdLine import (ParseDirectivesActionToLocal, ParseOptionsAction,
-          ParseCompileTimeEnvActionToLocal, SetLenientAction, StoreToSubargument,
-          SetBuildInplace, GLOBAL_OPTIONS, LOCAL_OPTIONS)
-
-    parser = ArgumentParser()
-
-    parser.add_argument('-X', '--directive', metavar='NAME=VALUE,...',
-                      dest='compiler_directives', type=str,
-                      action=ParseDirectivesActionToLocal,
-                      help='set a compiler directive')
-    parser.add_argument('-E', '--compile-time-env', metavar='NAME=VALUE,...',
-                      dest='compile_time_env', type=str,
-                      action=ParseCompileTimeEnvActionToLocal,
-                      help='set a compile time environment variable')
-    parser.add_argument('-s', '--option', metavar='NAME=VALUE',
-                      dest='options', default={}, type=str,
-                      action=ParseOptionsAction,
-                      help='set a cythonize option')
-    parser.add_argument('-2', dest='language_level',
-                      action=StoreToSubargument(LOCAL_OPTIONS, 2), nargs=0,
-                      help='use Python 2 syntax mode by default')
-    parser.add_argument('-3', dest='language_level',
-                      action=StoreToSubargument(LOCAL_OPTIONS, 3), nargs=0,
-                      help='use Python 3 syntax mode by default')
-    parser.add_argument('--3str', dest='language_level',
-                      action=StoreToSubargument(LOCAL_OPTIONS, '3str'), nargs=0,
-                      help='use Python 3 syntax mode by default')
-    parser.add_argument('-a', '--annotate', action=StoreToSubargument(GLOBAL_OPTIONS, 'default'), nargs=0, dest='annotate',
-                      help='Produce a colorized HTML version of the source.')
-    parser.add_argument('--annotate-fullc', action=StoreToSubargument(GLOBAL_OPTIONS, 'fullc'), nargs=0, dest='annotate',
-                      help='Produce a colorized HTML version of the source '
-                           'which includes entire generated C/C++-code.')
-    parser.add_argument('-x', '--exclude', metavar='PATTERN', dest='excludes',
-                      action='append', default=[],
-                      help='exclude certain file patterns from the compilation')
-
-    parser.add_argument('-b', '--build', dest='build', action='store_true', default=None,
-                      help='build extension modules using distutils')
-    parser.add_argument('-i', '--inplace', dest='build_inplace', action=SetBuildInplace, nargs=0,
-                      help='build extension modules in place using distutils (implies -b)')
-    parser.add_argument('-j', '--parallel', dest='parallel', metavar='N',
-                      type=int, default=parallel_compiles,
-                      help=('run builds in N parallel jobs (default: %d)' %
-                            parallel_compiles or 1))
-    parser.add_argument('-f', '--force', dest='force', action='store_true', default=None,
-                      help='force recompilation')
-    parser.add_argument('-q', '--quiet', dest='quiet', action='store_true', default=None,
-                      help='be less verbose during compilation')
-
-    parser.add_argument('--lenient', dest='lenient', action=SetLenientAction, nargs=0,
-                      help='increase Python compatibility by ignoring some compile time errors')
-    parser.add_argument('-k', '--keep-going', dest='keep_going', action='store_true', default=None,
-                      help='compile as much as possible, ignore compilation failures')
-    parser.add_argument('--no-docstrings', dest='docstrings', action=StoreToSubargument(GLOBAL_OPTIONS, False), nargs=0, default=None,
-                      help='strip docstrings')
-    parser.add_argument('sources', nargs='*')
-    return parser
-
-
 def parse_args_raw(parser, args):
     options, unknown = parser.parse_known_args(args)
     sources = options.sources
@@ -193,7 +127,7 @@ def parse_args_raw(parser, args):
 
 
 def parse_args(args):
-    parser = create_args_parser()
+    parser = create_cythonize_argparser()
     options, args = parse_args_raw(parser, args)
 
     if not args:
