@@ -11,7 +11,9 @@ from .Dependencies import cythonize, extended_iglob
 from ..Utils import is_package_dir
 from ..Compiler import Options
 
-from ..Compiler.CmdLine import create_cythonize_argparser, multiprocessing
+from ..Compiler.CmdLine import (
+    create_cythonize_argparser, parse_args_raw, multiprocessing
+)
 
 
 class _FakePool(object):
@@ -110,20 +112,6 @@ def run_distutils(args):
             os.chdir(cwd)
             if temp_dir and os.path.isdir(temp_dir):
                 shutil.rmtree(temp_dir)
-
-
-def parse_args_raw(parser, args):
-    options, unknown = parser.parse_known_args(args)
-    sources = options.sources
-    # if positional arguments were interspersed
-    # some of them are in unknown
-    for option in unknown:
-        if option.startswith('-'):
-            parser.error("unknown option "+option)
-        else:
-            sources.append(option)
-    del options.sources
-    return (options, sources)
 
 
 def parse_args(args):

@@ -140,35 +140,48 @@ def CountToSubargument(subargument_name):
     return CountToSubargumentClass
 
 
-def create_cythonize_argparser():
-    parser = ArgumentParser()
-
+def fill_common_arguments(parser):
     parser.add_argument('-X', '--directive', metavar='NAME=VALUE,...',
                       dest='compiler_directives', type=str,
                       action=ParseDirectivesActionToLocal,
-                      help='set a compiler directive')
+                      help='Overrides a compiler directive')
     parser.add_argument('-E', '--compile-time-env', metavar='NAME=VALUE,...',
                       dest='compile_time_env', type=str,
                       action=ParseCompileTimeEnvActionToLocal,
-                      help='set a compile time environment variable')
-    parser.add_argument('-s', '--option', metavar='NAME=VALUE',
-                      dest='options', default={}, type=str,
-                      action=ParseOptionsAction,
-                      help='set a cythonize option')
+                      help='Provides compile time env like DEF would do.')
     parser.add_argument('-2', dest='language_level',
                       action=StoreToSubargument(LOCAL_OPTIONS, 2), nargs=0,
-                      help='use Python 2 syntax mode by default')
+                      help='Compile based on Python-2 syntax and code semantics.')
     parser.add_argument('-3', dest='language_level',
                       action=StoreToSubargument(LOCAL_OPTIONS, 3), nargs=0,
-                      help='use Python 3 syntax mode by default')
+                      help='Compile based on Python-3 syntax and code semantics.')
     parser.add_argument('--3str', dest='language_level',
                       action=StoreToSubargument(LOCAL_OPTIONS, '3str'), nargs=0,
-                      help='use Python 3 syntax mode by default')
+                      help='Compile based on Python-3 syntax and code semantics without '
+                           'assuming unicode by default for string literals under Python 2.')
     parser.add_argument('-a', '--annotate', action=StoreToSubargument(GLOBAL_OPTIONS, 'default'), nargs=0, dest='annotate',
                       help='Produce a colorized HTML version of the source.')
     parser.add_argument('--annotate-fullc', action=StoreToSubargument(GLOBAL_OPTIONS, 'fullc'), nargs=0, dest='annotate',
                       help='Produce a colorized HTML version of the source '
                            'which includes entire generated C/C++-code.')
+    parser.add_argument("--lenient", action=SetLenientAction, nargs=0,
+                      help='Change some compile time errors to runtime errors to '
+                           'improve Python compatibility')
+    parser.add_argument("-D", "--no-docstrings", dest='docstrings',
+                      action=StoreToSubargument(GLOBAL_OPTIONS, False), nargs=0,
+                      help='Strip docstrings from the compiled module.')
+    parser.add_argument('sources', nargs='*', default=[])
+
+
+def create_cythonize_argparser():
+    parser = ArgumentParser()
+
+    fill_common_arguments(parser)
+
+    parser.add_argument('-s', '--option', metavar='NAME=VALUE',
+                      dest='options', default={}, type=str,
+                      action=ParseOptionsAction,
+                      help='set a cythonize option')
     parser.add_argument('-x', '--exclude', metavar='PATTERN', dest='excludes',
                       action='append', default=[],
                       help='exclude certain file patterns from the compilation')
@@ -185,14 +198,8 @@ def create_cythonize_argparser():
                       help='force recompilation')
     parser.add_argument('-q', '--quiet', dest='quiet', action='store_true', default=None,
                       help='be less verbose during compilation')
-
-    parser.add_argument('--lenient', dest='lenient', action=SetLenientAction, nargs=0,
-                      help='increase Python compatibility by ignoring some compile time errors')
     parser.add_argument('-k', '--keep-going', dest='keep_going', action='store_true', default=None,
                       help='compile as much as possible, ignore compilation failures')
-    parser.add_argument('--no-docstrings', dest='docstrings', action=StoreToSubargument(GLOBAL_OPTIONS, False), nargs=0, default=None,
-                      help='strip docstrings')
-    parser.add_argument('sources', nargs='*')
     return parser
 
 
@@ -201,6 +208,8 @@ def create_cython_argparser():
                   "Cython language.  Cython is based on Pyrex by Greg Ewing."
 
     parser = ArgumentParser(description=description, argument_default=SUPPRESS)
+
+    fill_common_arguments(parser)
 
     parser.add_argument("-V", "--version", dest='show_version',
                       action=StoreToSubargument(LOCAL_OPTIONS, 1), nargs=0,
@@ -239,14 +248,6 @@ def create_cython_argparser():
                       help='Output debug information for cygdb')
     parser.add_argument("--gdb-outdir", action=SetGDBDebugOutputAction, type=str,
                       help='Specify gdb debug information output directory. Implies --gdb.')
-    parser.add_argument("-D", "--no-docstrings", dest='docstrings',
-                      action=StoreToSubargument(GLOBAL_OPTIONS, False), nargs=0,
-                      help='Strip docstrings from the compiled module.')
-    parser.add_argument('-a', '--annotate', action=StoreToSubargument(GLOBAL_OPTIONS, 'default'), nargs=0, dest='annotate',
-                      help='Produce a colorized HTML version of the source.')
-    parser.add_argument('--annotate-fullc', action=StoreToSubargument(GLOBAL_OPTIONS, 'fullc'), nargs=0, dest='annotate',
-                      help='Produce a colorized HTML version of the source '
-                           'which includes entire generated C/C++-code.')
     parser.add_argument("--annotate-coverage", dest='annotate_coverage_xml', action=SetAnnotateCoverageAction, type=str,
                       help='Annotate and include coverage information from cov.xml.')
     parser.add_argument("--line-directives", dest='emit_linenums',
@@ -258,19 +259,6 @@ def create_cython_argparser():
     parser.add_argument('--embed', action='store_const', const='main',
                       help='Generate a main() function that embeds the Python interpreter. '
                            'Pass --embed=<method_name> for a name other than main().')
-    parser.add_argument('-2', dest='language_level',
-                      action=StoreToSubargument(LOCAL_OPTIONS, 2), nargs=0,
-                      help='Compile based on Python-2 syntax and code semantics.')
-    parser.add_argument('-3', dest='language_level',
-                      action=StoreToSubargument(LOCAL_OPTIONS, 3), nargs=0,
-                      help='Compile based on Python-3 syntax and code semantics.')
-    parser.add_argument('--3str', dest='language_level',
-                      action=StoreToSubargument(LOCAL_OPTIONS, '3str'), nargs=0,
-                      help='Compile based on Python-3 syntax and code semantics without '
-                           'assuming unicode by default for string literals under Python 2.')
-    parser.add_argument("--lenient", action=SetLenientAction, nargs=0,
-                      help='Change some compile time errors to runtime errors to '
-                           'improve Python compatibility')
     parser.add_argument("--capi-reexport-cincludes", dest='capi_reexport_cincludes',
                       action=StoreToSubargument(LOCAL_OPTIONS, True), nargs=0,
                       help='Add cincluded headers to any auto-generated header files.')
@@ -282,16 +270,6 @@ def create_cython_argparser():
                       help='Make all warnings into errors')
     parser.add_argument("-Wextra", "--warning-extra", action=ActivateAllWarningsAction, nargs=0,
                       help='Enable extra warnings')
-
-    parser.add_argument('-X', '--directive', metavar='NAME=VALUE,...',
-                      dest='compiler_directives', type=str,
-                      action=ParseDirectivesActionToLocal,
-                      help='Overrides a compiler directive')
-    parser.add_argument('-E', '--compile-time-env', metavar='NAME=VALUE,...',
-                      dest='compile_time_env', type=str,
-                      action=ParseCompileTimeEnvActionToLocal,
-                      help='Provides compile time env like DEF would do.')
-    parser.add_argument('sources', nargs='*', default=[])
 
     # TODO: add help
     parser.add_argument("-z", "--pre-import", dest='pre_import', action=StoreToSubargument(GLOBAL_OPTIONS), nargs=1, help=SUPPRESS)
@@ -310,6 +288,20 @@ def create_cython_argparser():
     return parser
 
 
+def parse_args_raw(parser, args):
+    options, unknown = parser.parse_known_args(args)
+    sources = options.sources
+    # if positional arguments were interspersed
+    # some of them are in unknown
+    for option in unknown:
+        if option.startswith('-'):
+            parser.error("unknown option " + option)
+        else:
+            sources.append(option)
+    del options.sources
+    return (options, sources)
+
+
 def parse_command_line_raw(parser, args):
     # special handling for --embed and --embed=xxxx as they aren't correctly parsed
     def filter_out_embed_options(args):
@@ -323,17 +315,7 @@ def parse_command_line_raw(parser, args):
 
     with_embed, args_without_embed = filter_out_embed_options(args)
 
-    arguments, unknown = parser.parse_known_args(args_without_embed)
-
-    sources = arguments.sources
-    del arguments.sources
-
-    # unknown can be either debug, embed or input files or really unknown
-    for option in unknown:
-        if option.startswith('-'):
-            parser.error("unknown option " + option)
-        else:
-            sources.append(option)
+    arguments, sources = parse_args_raw(parser, args_without_embed)
 
     # embed-stuff must be handled extra:
     for x in with_embed:
