@@ -14,7 +14,7 @@ import copy
 #import types
 import pickle
 import os.path
-#import inspect
+import inspect
 import unittest
 import warnings
 import contextlib
@@ -754,7 +754,7 @@ class AsyncBadSyntaxTest(unittest.TestCase):
             async def g(): pass
             await z
         await = 1
-        #self.assertTrue(inspect.iscoroutinefunction(f))
+        self.assertTrue(inspect.iscoroutinefunction(f))
 
 
 class TokenizerRegrTest(unittest.TestCase):
@@ -777,7 +777,7 @@ class TokenizerRegrTest(unittest.TestCase):
         exec(buf, ns, ns)
         self.assertEqual(ns['i499'](), 499)
         self.assertEqual(type(ns['foo']()).__name__, 'coroutine')
-        #self.assertTrue(inspect.iscoroutinefunction(ns['foo']))
+        self.assertTrue(inspect.iscoroutinefunction(ns['foo']))
 
 
 class CoroutineTest(unittest.TestCase):
