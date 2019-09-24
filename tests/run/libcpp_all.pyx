@@ -14,6 +14,7 @@ cimport libcpp.stack
 cimport libcpp.vector
 cimport libcpp.complex
 cimport libcpp.limits
+cimport libcpp.unordered_map
 
 from libcpp.deque  cimport *
 from libcpp.list   cimport *
@@ -25,6 +26,8 @@ from libcpp.stack  cimport *
 from libcpp.vector cimport *
 from libcpp.complex cimport *
 from libcpp.limits cimport *
+from libcpp.unordered_map cimport *
+from libcpp_all_helper cimport *
 
 cdef libcpp.deque.deque[int]   d1 = deque[int]()
 cdef libcpp.list.list[int]     l1 = list[int]()
@@ -117,6 +120,9 @@ assert vec_alloc_int.size() == 10
 
 cdef libcpp.list.list[int,allocator[int]] list_alloc_int = libcpp.list.list[int,allocator[int]](10,1)
 assert list_alloc_int.size() == 10
+
+cdef libcpp.unordered_map.unordered_map[MyStruct, int, Hasher].iterator start = map_with_specific_hasher.begin()
+assert start == map_with_specific_hasher.end()
 
 ##Something about the default params breaks the auto-conversion...
 def convert_to_vector(I):
