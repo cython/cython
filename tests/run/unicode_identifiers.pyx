@@ -51,7 +51,7 @@ if sys.version_info[0]>2:
     'NormalClassΓΓ.εxciting_function.<locals>.nestεd'
 
     Do kwargs work?
-    >>> unicode_kwarg(αrg=5)
+    >>> unicode_kwarg(αrγ=5)
     5
     >>> unicode_kwarg_from_cy()
     1
@@ -174,8 +174,8 @@ cdef class Derived(Γναμε2):
 
 cdef Γναμε2 global_ναμε3 = Γναμε2()
 
-def function_taking_fancy_argument(Γναμε2 αrg):
-    return αrg
+def function_taking_fancy_argument(Γναμε2 αrγ):
+    return αrγ
 
 class NormalClassΓΓ(Γναμε2):
     """
@@ -195,11 +195,11 @@ class NormalClassΓΓ(Γναμε2):
             pass
         return nestεd
 
-def unicode_kwarg(*,αrg):
-    return αrg
+def unicode_kwarg(*, αrγ):
+    return αrγ
 
 def unicode_kwarg_from_cy():
-    return unicode_kwarg(αrg=1)
+    return unicode_kwarg(αrγ=1)
 
 class NormalizeAttrPy:
     """Python normalizes identifier names before they are used;

@@ -9,7 +9,9 @@ PYTHON -m mydoctest
 import sys
 if (sys.version_info[0] < 3 or
     (sys.version_info[0] == 3 and sys.version_info[1] < 5)):
-    exit() # I'm struggling to restrict srctree tests to a single Python version
+    # The module is only Cythonized and not build for these versions
+    # so don't run the tests
+    exit()
     
 import doctest
 import from_py
@@ -35,7 +37,7 @@ files = ["mymoδ.pyx", "from_cy.pyx"]
 # don't compile the C file
 modules = cythonize(files)
 
-if sys.version_info[0] >= 3 and sys.version_info[1] >= 5:
+if sys.version_info >= (3, 5):
     from distutils.core import setup
 
     setup(
@@ -46,11 +48,16 @@ if sys.version_info[0] >= 3 and sys.version_info[1] >= 5:
 
 def f():
     return True
-    
+
+cdef public api void cdef_func():
+    pass
+
 ############ pxd_moδ.pxd ##########
 
 cdef struct S:
     int x
+    
+cdef public api void cdef_func() # just to test generation of headers
     
 ############ from_py.py #########
 

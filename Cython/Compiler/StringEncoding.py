@@ -206,6 +206,12 @@ def encoded_string(s, encoding):
         s.encoding = encoding
     return s
 
+def encoded_string_or_bytes_literal(s, encoding):
+    if isinstance(s, bytes):
+        return bytes_literal(s, encoding)
+    else:
+        return encoded_string(s, encoding)
+
 
 char_from_escape_sequence = {
     r'\a' : u'\a',
