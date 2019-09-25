@@ -425,11 +425,11 @@ class Scope(object):
         if self.parent_scope:
             return self.parent_scope.mangle_class_private_name(name)
         return name
-    
+
     def nomangle(self, name):
         r"""
         Allows unicode names to be translated to valid C/C++ code
-        
+
         Unicode identifiers are allowed in C/C__, but most compilers only
         accept escaped (\u or \U) characters rather than the raw characters.
         Additionally, we should use the unnormalized name and trust the
@@ -443,7 +443,7 @@ class Scope(object):
                     "If your generated C code fails to compile then check "
                     "that you are using the name consistently."
                     )
-        
+
         return name.unnormalized.as_cu_string()
 
     def next_id(self, name=None):
@@ -726,7 +726,7 @@ class Scope(object):
                 cname = self.nomangle(name)
             else:
                 cname = self.mangle(Naming.var_prefix, name)
-            
+
         if type.is_cpp_class and visibility != 'extern':
             type.check_nullary_constructor(pos)
         entry = self.declare(name, cname, type, pos, visibility)
@@ -1529,7 +1529,7 @@ class ModuleScope(Scope):
             typeobj_cname=None, typeptr_cname=None, visibility='private',
             typedef_flag=0, api=0, check_size=None,
             buffer_defaults=None, shadow=0):
-        
+
         # If this is a non-extern typedef class, expose the typedef, but use
         # the non-typedef struct internally to avoid needing forward
         # declarations for anonymous structs.
@@ -1557,7 +1557,7 @@ class ModuleScope(Scope):
                         error(pos, "Base type does not match previous declaration")
                 if base_type and not type.base_type:
                     type.base_type = base_type
-        
+
         # ensure that if any unicode names are supplied they are converted
         # into a form suitable for C
         if objstruct_cname:
@@ -1568,7 +1568,7 @@ class ModuleScope(Scope):
             typeptr_cname = self.nomangle(typeptr_cname)
         if objtypedef_cname:
             objtypedef_cname = self.nomangle(objtypedef_cname)
-                    
+
         #
         #  Make a new entry if needed
         #
