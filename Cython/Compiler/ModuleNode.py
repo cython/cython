@@ -29,16 +29,21 @@ from . import Pythran
 
 from .Errors import error, warning
 from .PyrexTypes import py_object_type
-from ..Utils import open_new_file, decode_filename, build_hex_version
-from ..Utils import replace_suffix as utils_replace_suffix
+from ..Utils import open_new_file, replace_suffix, decode_filename, build_hex_version
 from .Code import UtilityCode, IncludeCode
 from .StringEncoding import EncodedString, encoded_string_or_bytes_literal
 from .Pythran import has_np_pythran
 
 
-def replace_suffix(path, newsuf):
-    x = utils_replace_suffix(path, newsuf)
-    return encoded_string_or_bytes_literal(x, sys.getfilesystemencoding())
+def replace_suffix_encoded(path, newsuf):
+    # calls replace suffix and returns a EncodedString or BytesLiteral with the encoding set
+    newpath = replace_suffix(path, newsuf)
+    return as_encoded_filename(newpath)
+
+def as_encoded_filename(path):
+    # wraps the path with either EncodedString or BytesLiteral (depending on its input type)
+    # and sets the encoding to the file system encoding
+    return encoded_string_or_bytes_literal(path, sys.getfilesystemencoding())
 
 
 def check_c_declarations_pxd(module_node):
@@ -77,6 +82,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     child_attrs = ["body"]
     directives = None
+
 
     def merge_in(self, tree, scope, merge_scope=False):
         # Merges in the contents of another tree, and possibly scope. With the
@@ -170,18 +176,18 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         h_funcs = h_entries(env.cfunc_entries)
         h_extension_types = h_entries(env.c_class_entries)
         if h_types or  h_vars or h_funcs or h_extension_types:
-            result.h_file = replace_suffix(result.c_file, ".h")
+            result.h_file = replace_suffix_encoded(result.c_file, ".h")
             h_code = Code.CCodeWriter()
             c_code_config = generate_c_code_config(env, options)
             Code.GlobalState(h_code, self, c_code_config)
             if options.generate_pxi:
-                result.i_file = replace_suffix(result.c_file, ".pxi")
+                result.i_file = replace_suffix_encoded(result.c_file, ".pxi")
                 i_code = Code.PyrexCodeWriter(result.i_file)
             else:
                 i_code = None
 
             h_code.put_generated_by()
-            h_guard = Naming.h_guard_prefix + self.api_name(env)
+            h_guard = self.api_name(Naming.h_guard_prefix, env)
             h_code.put_h_guard(h_guard)
             h_code.putln("")
             h_code.putln('#include "Python.h"')
@@ -189,7 +195,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if options.capi_reexport_cincludes:
                 self.generate_includes(env, [], h_code)
             h_code.putln("")
-            api_guard = Naming.api_guard_prefix + self.api_name(env)
+            api_guard = self.api_name(Naming.api_guard_prefix, env)
             h_code.putln("#ifndef %s" % api_guard)
             h_code.putln("")
             self.generate_extern_c_macro_definition(h_code)
@@ -216,13 +222,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             h_code.putln("/* It now returns a PyModuleDef instance instead of a PyModule instance. */")
             h_code.putln("")
             h_code.putln("#if PY_MAJOR_VERSION < 3")
-            try:
-                env.module_name.encode("ascii")
-            except UnicodeEncodeError:
+            if env.module_name.isascii():
+                py2_mod_name = env.module_name
+            else:
                 py2_mod_name = env.module_name.encode("ascii", errors="ignore").decode("utf-8")
                 h_code.putln('#error "Unicode module names are not supported in Python 2";')
-            else:
-                py2_mod_name = env.module_name
             h_code.putln("PyMODINIT_FUNC init%s(void);" % py2_mod_name)
             h_code.putln("#else")
             h_code.putln("PyMODINIT_FUNC %s(void);" % self.mod_init_func_cname('PyInit', env))
@@ -244,9 +248,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             i_code.putln("cdef extern %s" % (
                 entry.type.declaration_code(entry.cname, pyrex=1)))
 
-    def api_name(self, env):
-        # the returned name with either start with "_" or "U_"
-        api_name = self.punycode_module_name("", env.qualified_name)
+    def api_name(self, prefix, env):
+        api_name = self.punycode_module_name(prefix, env.qualified_name)
         return api_name.replace(".", "__")
 
     def generate_api_code(self, env, options, result):
@@ -257,12 +260,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         api_funcs = api_entries(env.cfunc_entries)
         api_extension_types = api_entries(env.c_class_entries)
         if api_vars or api_funcs or api_extension_types:
-            result.api_file = replace_suffix(result.c_file, "_api.h")
+            result.api_file = replace_suffix_encoded(result.c_file, "_api.h")
             h_code = Code.CCodeWriter()
             c_code_config = generate_c_code_config(env, options)
             Code.GlobalState(h_code, self, c_code_config)
             h_code.put_generated_by()
-            api_guard = Naming.api_guard_prefix + self.api_name(env)
+            api_guard = self.api_name(Naming.api_guard_prefix, env)
             h_code.put_h_guard(api_guard)
             # Work around https://bugs.python.org/issue4709
             h_code.putln('#ifdef __MINGW64__')
@@ -272,7 +275,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             h_code.putln('#include "Python.h"')
             if result.h_file:
                 h_filename = os.path.basename(result.h_file)
-                h_filename = encoded_string_or_bytes_literal(h_filename, sys.getfilesystemencoding())
+                h_filename = as_encoded_filename(h_filename)
                 h_code.putln('#include %s' % h_filename.as_c_string_literal())
             if api_extension_types:
                 h_code.putln("")
@@ -304,7 +307,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 h_code.put(UtilityCode.load_as_string("TypeImport", "ImportExport.c")[0])
                 h_code.put(UtilityCode.load_as_string("TypeImport", "ImportExport.c")[1])
             h_code.putln("")
-            h_code.putln("static int import%s(void) {" % self.api_name(env))
+            h_code.putln("static int %s(void) {" % self.api_name("import", env))
             h_code.putln("PyObject *module = 0;")
             h_code.putln('module = PyImport_ImportModule(%s);' % env.qualified_name.as_c_string_literal())
             h_code.putln("if (!module) goto bad;")
@@ -385,7 +388,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code = globalstate['before_global_var']
         code.putln('#define __Pyx_MODULE_NAME %s' %
-                   EncodedString(self.full_module_name).as_c_string_literal())
+                   self.full_module_name.as_c_string_literal())
         module_is_main = self.is_main_module_flag_cname()
         code.putln("extern int %s;" % module_is_main)
         code.putln("int %s = 0;" % module_is_main)
@@ -692,8 +695,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_extern_c_macro_definition(code)
         code.putln("")
 
-        code.putln("#define %s" % Naming.h_guard_prefix + self.api_name(env))
-        code.putln("#define %s" % Naming.api_guard_prefix + self.api_name(env))
+        code.putln("#define %s" % self.api_name(Naming.h_guard_prefix, env))
+        code.putln("#define %s" % self.api_name(Naming.api_guard_prefix, env))
         code.putln("/* Early includes */")
         self.generate_includes(env, cimported_modules, code, late=False)
         code.putln("")
@@ -793,8 +796,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 if isabs(file_path):
                     file_path = basename(file_path)  # never include absolute paths
                 escaped_filename = file_path.replace("\\", "\\\\").replace('"', r'\"')
-                escaped_filename = encoded_string_or_bytes_literal(escaped_filename,
-                                                                   sys.getfilesystemencoding())
+                escaped_filename = as_encoded_filename(escaped_filename)
                 code.putln('%s,' % escaped_filename.as_c_string_literal())
         else:
             # Some C compilers don't like an empty array
@@ -2340,14 +2342,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.enter_cfunc_scope(self.scope)
         code.putln("")
         code.putln(UtilityCode.load_as_string("PyModInitFuncType", "ModuleSetupCode.c")[0])
-        try:
-            env.module_name.encode('ascii')
-        except UnicodeEncodeError:
-            py2_mod_name = env.module_name.encode("ascii", errors="ignore").decode("utf8")
-            no_py2 = True
-        else:
+        if env.module_name.isascii():
             py2_mod_name = env.module_name
-            no_py2 = False
+            fail_compilation_in_py2 = False
+        else:
+            fail_compilation_in_py2 = True
+            # at this point py2_mod_name is largely a placeholder and the value doesn't matter
+            py2_mod_name = env.module_name.encode("ascii", errors="ignore").decode("utf8")
 
         header2 = "__Pyx_PyMODINIT_FUNC init%s(void)" % py2_mod_name
         header3 = "__Pyx_PyMODINIT_FUNC %s(void)" % self.mod_init_func_cname('PyInit', env)
@@ -2355,7 +2356,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#if PY_MAJOR_VERSION < 3")
         # Optimise for small code size as the module init function is only executed once.
         code.putln("%s CYTHON_SMALL_CODE; /*proto*/" % header2)
-        if no_py2:
+        if fail_compilation_in_py2:
             code.putln('#error "Unicode module names are not supported in Python 2";')
         if self.scope.is_package:
             code.putln("#if !defined(CYTHON_NO_PYINIT_EXPORT) && (defined(WIN32) || defined(MS_WINDOWS))")
@@ -2698,8 +2699,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # CPython may not have put us into sys.modules yet, but relative imports and reimports require it
         fq_module_name = self.full_module_name
         if fq_module_name.endswith('.__init__'):
-            fq_module_name = fq_module_name[:-len('.__init__')]
-        fq_module_name_cstring = EncodedString(fq_module_name).as_c_string_literal()
+            fq_module_name = EncodedString(fq_module_name[:-len('.__init__')])
+        fq_module_name_cstring = fq_module_name.as_c_string_literal()
         code.putln("#if PY_MAJOR_VERSION >= 3")
         code.putln("{")
         code.putln("PyObject *modules = PyImport_GetModuleDict(); %s" %
@@ -2795,12 +2796,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 wmain_method=wmain))
 
     def punycode_module_name(self, prefix, name):
-        # from PEP483
+        # adapted from PEP483
         try:
-            name = b'_' + name.encode('ascii')
+            name = '_' + name.encode('ascii').decode('ascii')
         except UnicodeEncodeError:
-            name = b'U_' + name.encode('punycode').replace(b'-', b'_')
-        return "%s%s" % (prefix, name.decode('utf-8'))
+            name = 'U_' + name.encode('punycode').replace(b'-', b'_').decode('ascii')
+        return "%s%s" % (prefix, name)
 
     def mod_init_func_cname(self, prefix, env):
         # from PEP483
@@ -2829,9 +2830,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("{Py_mod_exec, (void*)%s}," % exec_func_cname)
         code.putln("{0, NULL}")
         code.putln("};")
-        try:
-            env.module_name.encode("ascii") # py2 compatible isascii
-        except UnicodeEncodeError:
+        if not env.module_name.isascii():
             code.putln("#else /* CYTHON_PEP489_MULTI_PHASE_INIT */")
             code.putln('#error "Unicode module names are only supported with multi-phase init'
                        ' as per PEP489"')

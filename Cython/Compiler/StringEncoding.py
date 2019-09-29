@@ -146,6 +146,16 @@ class EncodedString(_unicode):
             s = bytes_literal(self.byteencode(), self.encoding)
         return s.as_c_string_literal()
 
+    if sys.version_info[0] == 2:
+        def isascii(self):
+            # not defined for Python3 since the class already has it
+            try:
+                self.encode("ascii")
+            except UnicodeEncodeError:
+                return False
+            else:
+                return True
+
 
 def string_contains_surrogates(ustring):
     """
@@ -190,6 +200,11 @@ class BytesLiteral(_bytes):
     def as_c_string_literal(self):
         value = split_string_literal(escape_byte_string(self))
         return '"%s"' % value
+
+    if sys.version_info[0] == 2:
+        def isascii(self):
+            # already defined for Python3
+            return True
 
 
 def bytes_literal(s, encoding):

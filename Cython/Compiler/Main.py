@@ -450,7 +450,7 @@ def run_pipeline(source, options, full_module_name=None, context=None):
 
     # ensure that the inputs are unicode (for Python 2)
     if sys.version_info[0] == 2:
-        source = source.decode("utf-8")
+        source = source.decode(sys.getfilesystemencoding())
         if full_module_name:
             full_module_name = full_module_name.decode("utf-8")
 
@@ -463,6 +463,7 @@ def run_pipeline(source, options, full_module_name=None, context=None):
     cwd = os.getcwd()
     abs_path = os.path.abspath(source)
     full_module_name = full_module_name or context.extract_module_name(source, options)
+    full_module_name = EncodedString(full_module_name)
 
     Utils.raise_error_if_module_name_forbidden(full_module_name)
 
