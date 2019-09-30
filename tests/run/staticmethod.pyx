@@ -1,10 +1,6 @@
+import sys
+
 __doc__ = u"""
->>> class1.plus1(1)
-2
->>> class2.plus1(1)
-2
->>> class3.plus1(1)
-2
 >>> class4.plus1(1)
 2
 >>> class4().plus1(1)
@@ -14,17 +10,24 @@ __doc__ = u"""
 >>> class4().bplus1(1)
 2
 """
+# for class3 follow Python behaviour tested in staticmethod_pure
+if sys.version_info[0] == 2:
+    __doc__ += """>>> class3.plus1(1) #doctest: +IGNORE_EXCEPTION_DETAIL
+Traceback (most recent call last):
+    ...
+TypeError: unbound
+"""
+else:
+    __doc__ += """>>> class3.plus1(1)
+2
+"""
 
 cimport cython
 
 def f_plus(a):
     return a + 1
 
-class class1:
-    plus1 = f_plus
-
-class class2(object):
-    plus1 = f_plus
+# class1 and class2 have been moved to "staticmethod_pure"
 
 cdef class class3:
     plus1 = f_plus
