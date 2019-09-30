@@ -10,7 +10,8 @@ __doc__ = u"""
 >>> class4().bplus1(1)
 2
 """
-# for class3 follow Python behaviour tested in staticmethod_pure
+# for class3, follow Python behaviour tested in method_assignment.py
+# (This class hasn't been moved since it isn't pure Python)
 if sys.version_info[0] == 2:
     __doc__ += """>>> class3.plus1(1) #doctest: +IGNORE_EXCEPTION_DETAIL
 Traceback (most recent call last):
@@ -27,7 +28,7 @@ cimport cython
 def f_plus(a):
     return a + 1
 
-# class1 and class2 have been moved to "staticmethod_pure"
+# The tests formerly in class1 and class2 have been moved to "method_assignment.py"
 
 cdef class class3:
     plus1 = f_plus
