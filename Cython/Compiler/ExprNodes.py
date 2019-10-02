@@ -655,6 +655,20 @@ class ExprNode(Node):
         # type, return that type, else None.
         return None
 
+    def analyse_as_possible_annotation_type(self, pos, env):
+        # if this node can be converted to a C only type, returns a string
+        # version of that, or returns self.
+        # Does not fail for tuples that can't be converted to cstructs
+        #  (unlike analyse_as_type)
+
+        type_ = self.analyse_as_type(env) # should be overriden where analyse_as_type can cause errors
+        if not type_:
+            return self
+        # it's possible that a little more could be done here to identify types
+        # that can be returned as a PyObject rather than a string
+        return UnicodeNode(pos,
+                  value=StringEncoding.EncodedString(type_.declaration_code('', for_display=True)))
+
     def analyse_as_extension_type(self, env):
         # If this node can be interpreted as a reference to an
         # extension type or builtin type, return its type, else None.
@@ -1964,6 +1978,20 @@ class NameNode(AtomicExprNode):
             return entry.type
         else:
             return None
+
+    def analyse_as_possible_annotation_type(self, pos, env):
+        entry = self.entry
+        if not entry:
+            entry = env.lookup(self.name)
+        if entry:
+            if entry.type.is_pyobject:
+                return self # can be converted into a valid PyObject in some way
+        type_ = self.analyse_as_type(env)
+        if type_ is None:
+            return self # not a type, but don't know what to do here
+        else:
+            return UnicodeNode(pos,
+                  value=StringEncoding.EncodedString(type_.declaration_code('', for_display=True)))
 
     def analyse_as_extension_type(self, env):
         # Try to interpret this as a reference to an extension type.
@@ -7377,6 +7405,13 @@ class SequenceNode(ExprNode):
         # not setting self.type here, subtypes do this
         return self
 
+    def analyse_as_possible_annotation_type(self, pos, env):
+        # work on a copy of self
+        self = copy.copy(self)
+        for i, arg in enumerate(self.args):
+            self.args[i] = arg.analyse_as_possible_annotation_type(pos, env)
+        return self
+
     def coerce_to_ctuple(self, dst_type, env):
         if self.type == dst_type:
             return self
@@ -9301,19 +9336,14 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
             annotations_dict = DictNode(self.pos, key_value_pairs=[
                 DictItemNode(
                     pos, key=IdentifierStringNode(pos, value=name),
-                    value=value)
+                    value=AlreadyAnalysedNode(pos, subexprs=[value]))
                 for pos, name, value in annotations])
-            self.annotations_dict = annotations_dict.analyse_types(env)
+            self.annotations_dict = annotations_dict
 
     def analyse_annotation(self, env, annotation):
         if annotation is None:
             return None
-        atype = annotation.analyse_as_type(env)
-        if atype is not None:
-            # Keep parsed types as strings as they might not be Python representable.
-            annotation = UnicodeNode(
-                annotation.pos,
-                value=StringEncoding.EncodedString(atype.declaration_code('', for_display=True)))
+        annotation = annotation.analyse_as_possible_annotation_type(annotation.pos, env)
         annotation = annotation.analyse_types(env)
         if not annotation.type.is_pyobject:
             annotation = annotation.coerce_to_pyobject(env)
@@ -13564,6 +13594,12 @@ class DocstringRefNode(ExprNode):
         code.put_gotref(self.result())
 
 
+class AlreadyAnalysedNode(ExprNode):
+    # Holds some already-analysed subexprs, which are not reanalysed but
+    # are just popped out. Built for "annotations_dict", which is constructed
+    # with its expressions having already been through analyse_types and thus
+    # couldn't be put through again
+    pass
 
 #------------------------------------------------------------------------------------
 #

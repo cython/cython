@@ -3207,9 +3207,11 @@ class DefNode(FuncDefNode):
     def analyse_expressions(self, env):
         self.local_scope.directives = env.directives
         self.analyse_default_values(env)
-        self.analyse_annotations(env)
-        if self.return_type_annotation:
-            self.return_type_annotation = self.analyse_annotation(env, self.return_type_annotation)
+        if env.directives['binding'] == False:
+            # when binding == True delegate this to the wrapper class
+            self.analyse_annotations(env)
+            if self.return_type_annotation:
+                self.return_type_annotation = self.analyse_annotation(env, self.return_type_annotation)
 
         if not self.needs_assignment_synthesis(env) and self.decorators:
             for decorator in self.decorators[::-1]:

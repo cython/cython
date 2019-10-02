@@ -4,7 +4,7 @@ import sys
 
 if sys.version_info >= (3, 4):
     def funcdoc(f):
-        if not f.__text_signature__:
+        if not getattr(f, "__text_signature__", None):
             return f.__doc__
         doc = '%s%s' % (f.__name__, f.__text_signature__)
         if f.__doc__:
@@ -401,6 +401,8 @@ cpdef (char*) f_charptr_null(char* s=NULL):
 lambda_foo = lambda x: 10
 lambda_bar = lambda x: 20
 
+cdef struct S:
+    int a
 
 cdef class Foo:
     def m00(self, a: None) ->  None: pass
@@ -421,7 +423,7 @@ cdef class Foo:
     def m15(self, a: {str(i) for i in range(3) if bool(i)}): pass
     def m16(self, a: {str(i): id(i) for i in range(3)}): pass
     def m17(self, a: {str(i): id(i) for i in range(3) if bool(i)}): pass
-    def m18(self, a: dict.update(x=42, **dict(), **{})): pass
+   # m18 removed
     def m19(self, a: sys is None, b: sys is not None): pass
     def m20(self, a: sys in [], b: sys not in []): pass
     def m21(self, a: (sys or sys) and sys, b: not (sys or sys)): pass
@@ -433,9 +435,13 @@ cdef class Foo:
     def m27(self, a: list(range(3))[:1]): pass
     def m28(self, a: list(range(3))[::1]): pass
     def m29(self, a: list(range(3))[0:1:1]): pass
-    def m30(self, a: list(range(3))[7, 3:2:1, ...]): pass
+   # m30 removed
     def m31(self, double[::1] a): pass
+    def m32(self, a: S): pass # Cython specific syntax, should become string
+    def m33(self, *args: 1): pass
+    def m34(self, **kwargs: 2): pass
 
+# Print from __annotations__ for a few of these: __annotations__ is evaluated while the signature is not
 __doc__ += ur"""
 >>> print(Foo.m00.__doc__)
 Foo.m00(self, a: None) -> None
@@ -484,6 +490,8 @@ Foo.m14(self, a: {str(i) for i in range(3)})
 
 >>> print(Foo.m15.__doc__)
 Foo.m15(self, a: {str(i) for i in range(3) if bool(i)})
+>>> print(sorted(Foo.m15.__annotations__['a']))
+['1', '2']
 
 >>> print(Foo.m16.__doc__)
 Foo.m16(self, a: {str(i): id(i) for i in range(3)})
@@ -491,11 +499,12 @@ Foo.m16(self, a: {str(i): id(i) for i in range(3)})
 >>> print(Foo.m17.__doc__)
 Foo.m17(self, a: {str(i): id(i) for i in range(3) if bool(i)})
 
->>> print(Foo.m18.__doc__)
-Foo.m18(self, a: dict.update(x=42, **dict()))
-
 >>> print(Foo.m19.__doc__)
 Foo.m19(self, a: sys is None, b: sys is not None)
+>>> Foo.m19.__annotations__['a']
+False
+>>> Foo.m19.__annotations__['b']
+True
 
 >>> print(Foo.m20.__doc__)
 Foo.m20(self, a: sys in [], b: sys not in [])
@@ -517,6 +526,8 @@ Foo.m25(self, a: list(range(3))[:])
 
 >>> print(Foo.m26.__doc__)
 Foo.m26(self, a: list(range(3))[1:])
+>>> print(Foo.m26.__annotations__['a'])
+[1, 2]
 
 >>> print(Foo.m27.__doc__)
 Foo.m27(self, a: list(range(3))[:1])
@@ -527,9 +538,17 @@ Foo.m28(self, a: list(range(3))[::1])
 >>> print(Foo.m29.__doc__)
 Foo.m29(self, a: list(range(3))[0:1:1])
 
->>> print(Foo.m30.__doc__)
-Foo.m30(self, a: list(range(3))[7, 3:2:1, ...])
-
 >>> print(Foo.m31.__doc__)
 Foo.m31(self, double[::1] a)
+
+>>> print(Foo.m32.__doc__)
+Foo.m32(self, a: S)
+>>> print(Foo.m32.__annotations__['a']) # non-pyobject annotation is converted to string
+S
+
+>>> print(Foo.m33.__doc__)
+Foo.m33(self, *args: 1)
+
+>>> print(Foo.m34.__doc__)
+Foo.m34(self, **kwargs: 2)
 """

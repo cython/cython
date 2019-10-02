@@ -2242,6 +2242,14 @@ class AnalyseExpressionsTransform(CythonTransform):
         if node.is_fused_index and not node.type.is_error:
             node = node.base
         return node
+    
+    def visit_AlreadyAnalysedNode(self, node):
+        """Avoid going any further in analysing"""
+        subexprs = node.subexprs
+        if len(subexprs)==1:
+            return subexprs[0]
+        else:
+            return subexprs
 
 class ReplacePropertyNode(CythonTransform):
     def visit_CFuncDefNode(self, node):
