@@ -9250,7 +9250,10 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
             scope = Symtab.StructOrUnionScope(cname)
             self.defaults = []
             for arg in nonliteral_objects:
-                entry = scope.declare_var(arg.name, arg.type, None,
+                type_ = arg.type
+                if type_.is_buffer:
+                    type_ = PyrexTypes.PyObjectType()
+                entry = scope.declare_var(arg.name, type_, None,
                                           Naming.arg_prefix + arg.name,
                                           allow_pyobject=True)
                 self.defaults.append((arg, entry))
