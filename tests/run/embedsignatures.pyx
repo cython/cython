@@ -438,7 +438,7 @@ cdef class Foo:
    # m30 removed
     def m31(self, double[::1] a): pass
     def m32(self, a: S): pass # Cython specific syntax, should become string
-    def m33(self, *args: 1): pass
+    def m33(self, *args: 1) -> {str(i): i for i in range(3)}: pass
     def m34(self, **kwargs: 2): pass
 
 # Print from __annotations__ for a few of these: __annotations__ is evaluated while the signature is not
@@ -451,6 +451,8 @@ Foo.m01(self, a: ...) -> Ellipsis
 
 >>> print(Foo.m02.__doc__)
 Foo.m02(self, a: True, b: False) -> bool
+>>> Foo.m02.__annotations__['return'] == bool # Python type, not string
+True
 
 >>> print(Foo.m03.__doc__)
 Foo.m03(self, a: 42, b: 42, c: -42) -> int
@@ -547,7 +549,9 @@ Foo.m32(self, a: S)
 S
 
 >>> print(Foo.m33.__doc__)
-Foo.m33(self, *args: 1)
+Foo.m33(self, *args: 1) -> {str(i): i for i in range(3)}
+>>> print(len(Foo.m33.__annotations__['return']))
+3
 
 >>> print(Foo.m34.__doc__)
 Foo.m34(self, **kwargs: 2)

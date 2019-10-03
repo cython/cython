@@ -370,9 +370,14 @@ class EnvTransform(CythonTransform):
         self.env_stack.pop()
 
     def visit_FuncDefNode(self, node):
+        # note that "return_type_annotation" is only on subclasses
+        # FIXME just "return_type_annotation" or all outer_attrs?
+        attrs = [attr for attr in node.child_attrs if attr != "return_type_annotation"]
         self.enter_scope(node, node.local_scope)
-        self._process_children(node)
+        self._process_children(node, attrs)
         self.exit_scope()
+        if getattr(node, "return_type_annotation", None) is not None:
+            self._process_children(node, ("return_type_annotation",))
         return node
 
     def visit_GeneratorBodyDefNode(self, node):
@@ -406,7 +411,7 @@ class EnvTransform(CythonTransform):
             attrs = [attr for attr in node.child_attrs if attr not in node.outer_attrs]
             self._process_children(node, attrs)
             self.enter_scope(node, self.current_env().outer_scope)
-            self.visitchildren(node, node.outer_attrs)
+            self._process_children(node, node.outer_attrs)
             self.exit_scope()
         else:
             self._process_children(node)
