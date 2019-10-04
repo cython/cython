@@ -5070,8 +5070,6 @@ class CClassDefNode(ClassDefNode):
         # This is needed to generate evaluation code for
         # default values of method arguments.
         code.mark_pos(self.pos)
-        if self.body:
-            self.body.generate_execution_code(code)
         if not self.entry.type.early_init:
             if self.type_init_args:
                 self.type_init_args.generate_evaluation_code(code)
@@ -5099,6 +5097,8 @@ class CClassDefNode(ClassDefNode):
                 self.type_init_args.free_temps(code)
 
             self.generate_type_ready_code(self.entry, code, True)
+        if self.body:
+            self.body.generate_execution_code(code)
 
     # Also called from ModuleNode for early init types.
     @staticmethod
