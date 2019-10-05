@@ -375,9 +375,13 @@ class EnvTransform(CythonTransform):
         attrs = [attr for attr in node.child_attrs if attr != "return_type_annotation"]
         self.enter_scope(node, node.local_scope)
         self._process_children(node, attrs)
+        outer_scope = self.current_env().outer_scope
         self.exit_scope()
+
         if getattr(node, "return_type_annotation", None) is not None:
+            self.enter_scope(node, outer_scope)
             self._process_children(node, ("return_type_annotation",))
+            self.exit_scope()
         return node
 
     def visit_GeneratorBodyDefNode(self, node):
