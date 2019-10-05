@@ -6,14 +6,15 @@ Script to run Cython with a Python command line.
 Executes Python code by compiling it in Cython and running the compiled code.
 """
 
-
 import sys
 import subprocess
 
 
 def parse_args(args=None):
-    import optparse  # tried argparse, but it doesn't stop at the first (interspersed) positional argument
-    parser = optparse.OptionParser(description='Run a Python command line with Cython')
+    # tried argparse, but it doesn't stop at the first (interspersed) positional argument
+    import optparse
+    parser = optparse.OptionParser(
+        description='Run a Python command line with Cython')
     parser.disable_interspersed_args()
     parser.add_option('-c', metavar='CODE', dest='command',
                       help='program passed in as string')

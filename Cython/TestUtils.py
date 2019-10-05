@@ -177,7 +177,7 @@ class TreeAssertVisitor(VisitorTransform):
                 if TreePath.find_first(node, path) is not None:
                     Errors.error(
                         node.pos,
-                        "Unexpected path '%s' found in result tree" %  path)
+                        "Unexpected path '%s' found in result tree" % path)
         self.visitchildren(node)
         return node
 

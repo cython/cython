@@ -6,7 +6,7 @@ out_fname = pyx_to_dll("foo.pyx")
 import os
 import sys
 
-from distutils.errors import DistutilsArgError, DistutilsError, CCompilerError
+from distutils.errors import DistutilsArgError
 from distutils.extension import Extension
 from distutils.util import grok_environment_error
 try:
@@ -17,14 +17,15 @@ except ImportError:
 
 DEBUG = 0
 
-_reloads={}
+_reloads = {}
 
 
 def pyx_to_dll(filename, ext=None, force_rebuild=0, build_in_temp=False, pyxbuild_dir=None,
                setup_args=None, reload_support=False, inplace=False):
     """Compile a PYX file to a DLL and return the name of the generated .so
        or .dll ."""
-    assert os.path.exists(filename), "Could not find %s" % os.path.abspath(filename)
+    assert os.path.exists(
+        filename), "Could not find %s" % os.path.abspath(filename)
 
     path, name = os.path.split(os.path.abspath(filename))
 
@@ -48,7 +49,7 @@ def pyx_to_dll(filename, ext=None, force_rebuild=0, build_in_temp=False, pyxbuil
             package_base_dir = None
             break
 
-    script_args=setup_args.get("script_args",[])
+    script_args = setup_args.get("script_args", [])
     if DEBUG or "--verbose" in script_args:
         quiet = "--verbose"
     else:
@@ -61,7 +62,7 @@ def pyx_to_dll(filename, ext=None, force_rebuild=0, build_in_temp=False, pyxbuil
         if ext.name == '__init__' or ext.name.endswith('.__init__'):
             # package => provide __path__ early
             if not hasattr(ext, 'cython_directives'):
-                ext.cython_directives = {'set_initial_path' : 'SOURCEFILE'}
+                ext.cython_directives = {'set_initial_path': 'SOURCEFILE'}
             elif 'set_initial_path' not in ext.cython_directives:
                 ext.cython_directives['set_initial_path'] = 'SOURCEFILE'
 
@@ -96,7 +97,6 @@ def pyx_to_dll(filename, ext=None, force_rebuild=0, build_in_temp=False, pyxbuil
         dist.dump_option_dicts()
     assert ok
 
-
     try:
         obj_build_ext = dist.get_command_obj("build_ext")
         dist.run_commands()
@@ -111,7 +111,8 @@ def pyx_to_dll(filename, ext=None, force_rebuild=0, build_in_temp=False, pyxbuil
             org_path = so_path
             timestamp = os.path.getmtime(org_path)
             global _reloads
-            last_timestamp, last_path, count = _reloads.get(org_path, (None,None,0) )
+            last_timestamp, last_path, count = _reloads.get(
+                org_path, (None, None, 0))
             if last_timestamp == timestamp:
                 so_path = last_path
             else:
@@ -119,9 +120,9 @@ def pyx_to_dll(filename, ext=None, force_rebuild=0, build_in_temp=False, pyxbuil
                 while count < 100:
                     count += 1
                     r_path = os.path.join(obj_build_ext.build_lib,
-                                          basename + '.reload%s'%count)
+                                          basename + '.reload%s' % count)
                     try:
-                        import shutil # late import / reload_support is: debugging
+                        import shutil  # late import / reload_support is: debugging
                         try:
                             # Try to unlink first --- if the .so file
                             # is mmapped by another process,
@@ -140,8 +141,9 @@ def pyx_to_dll(filename, ext=None, force_rebuild=0, build_in_temp=False, pyxbuil
                     break
                 else:
                     # used up all 100 slots
-                    raise ImportError("reload count for %s reached maximum"%org_path)
-                _reloads[org_path]=(timestamp, so_path, count)
+                    raise ImportError(
+                        "reload count for %s reached maximum" % org_path)
+                _reloads[org_path] = (timestamp, so_path, count)
         return so_path
     except KeyboardInterrupt:
         sys.exit(1)
@@ -154,7 +156,6 @@ def pyx_to_dll(filename, ext=None, force_rebuild=0, build_in_temp=False, pyxbuil
         raise
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     pyx_to_dll("dummy.pyx")
     from . import test
-
