@@ -825,7 +825,8 @@ PyAsyncMethods = (
 
 slot_table = (
     ConstructorSlot("tp_dealloc", '__dealloc__'),
-    EmptySlot("tp_print"), #MethodSlot(printfunc, "tp_print", "__print__"),
+    EmptySlot("tp_print", ifdef="PY_VERSION_HEX < 0x030800b4"),
+    EmptySlot("tp_vectorcall_offset", ifdef="PY_VERSION_HEX >= 0x030800b4"),
     EmptySlot("tp_getattr"),
     EmptySlot("tp_setattr"),
 
@@ -888,6 +889,7 @@ slot_table = (
     EmptySlot("tp_version_tag"),
     EmptySlot("tp_finalize", ifdef="PY_VERSION_HEX >= 0x030400a1"),
     EmptySlot("tp_vectorcall", ifdef="PY_VERSION_HEX >= 0x030800b1"),
+    EmptySlot("tp_print", ifdef="PY_VERSION_HEX >= 0x030800b4"),
 )
 
 #------------------------------------------------------------------------------------------
