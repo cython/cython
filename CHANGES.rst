@@ -169,16 +169,13 @@ Other changes
 0.29.14 (2019-??-??)
 ====================
 
-Features added
---------------
-
-* ``?`` is supported as NumPy dtype for ``bool``.
-  Patch by Max Klein.  (Github issue #2675)
-
 Bugs fixed
 ----------
 
-* ``await`` was not allows inside of f-strings.
+* ``?`` for ``bool`` was missing from the supported NumPy dtypes.
+  Patch by Max Klein.  (Github issue #2675)
+
+* ``await`` was not allowed inside of f-strings.
   Patch by Dmitro Getz.  (Github issue #2877)
 
 * Coverage analysis failed for projects where the code resides in separate
