@@ -9252,7 +9252,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
             for arg in nonliteral_objects:
                 type_ = arg.type
                 if type_.is_buffer:
-                    type_ = PyrexTypes.PyObjectType()
+                    type_ = type_.base
                 entry = scope.declare_var(arg.name, type_, None,
                                           Naming.arg_prefix + arg.name,
                                           allow_pyobject=True)
