@@ -765,5 +765,5 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
     if (c_line) {
         c_line = __Pyx_CLineForTraceback(tstate, c_line);
     }
-    _PyTraceback_Add(funcname, filename, -c_line : py_line);
+    _PyTraceback_Add(funcname, filename, c_line ? -c_line : py_line);
 }
