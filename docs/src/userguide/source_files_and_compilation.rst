@@ -714,7 +714,11 @@ Cython code.  Here is the list of currently supported directives:
     class attribute (hence the name) and will emulate the attributes
     of Python functions, including introspections like argument names and
     annotations.
-    Default is False.
+
+    Default is True.
+
+    .. versionchanged:: 3.0.0
+        Default changed from False to True 
 
 ``boundscheck``  (True / False)
     If set to False, Cython is free to assume that indexing operations
