@@ -1,4 +1,5 @@
 from libcpp cimport bool
+from libc.stddef import ptrdiff_t
 
 
 cdef extern from "<algorithm>" namespace "std" nogil:
@@ -6,6 +7,9 @@ cdef extern from "<algorithm>" namespace "std" nogil:
     bool all_of[Iter, Pred](Iter first, Iter last, Pred pred)
     bool any_of[Iter, Pred](Iter first, Iter last, Pred pred)
     bool none_of[Iter, Pred](Iter first, Iter last, Pred pred)
+
+    ptrdiff_t count[Iter, T](Iter first, Iter last, const T& value)
+    ptrdiff_t count_if[Iter, Pred](Iter first, Iter last, Pred pred)
 
     # Modifying sequence operations
     OutputIter copy[InputIter, OutputIter](InputIter, InputIter, OutputIter)

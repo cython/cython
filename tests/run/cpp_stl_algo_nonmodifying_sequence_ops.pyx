@@ -2,7 +2,7 @@
 # tag: cpp, werror, cpp11
 
 from libcpp cimport bool
-from libcpp.algorithm cimport all_of, any_of, none_of
+from libcpp.algorithm cimport all_of, any_of, none_of, count, count_if
 from libcpp.vector cimport vector
 
 
@@ -45,3 +45,24 @@ def none_odd(vector[int] values):
     """
     return none_of(values.begin(), values.end(), is_odd)
 
+
+def count_ones(vector[int] values):
+    """
+    Test count.
+
+    >>> count_ones([1, 2, 1, 2])
+    2
+    """
+    return count(values.begin(), values.end(), 1)
+
+
+def count_odd(vector[int]  values):
+    """
+    Test count_if with is_odd predicate.
+
+    >>> count_odd([1, 2, 3, 4])
+    2
+    >>> count_odd([2, 4, 6, 8])
+    0
+    """
+    return count_if(values.begin(), values.end(), is_odd)
