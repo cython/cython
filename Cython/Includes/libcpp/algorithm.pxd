@@ -23,6 +23,9 @@ cdef extern from "<algorithm>" namespace "std" nogil:
     Iter1 find_first_of[Iter1, Iter2](Iter1 first1, Iter1 last1, Iter2 first2, Iter2 last2)
     Iter1 find_first_of[Iter1, Iter2, BinaryPred](Iter1 first1, Iter1 last1, Iter2 first2, Iter2 last2, BinaryPred pred)
 
+    Iter adjacent_find[Iter](Iter first, Iter last)
+    Iter adjacent_find[Iter, BinaryPred](Iter first, Iter last, BinaryPred pred)
+
     # Modifying sequence operations
     OutputIter copy[InputIter, OutputIter](InputIter, InputIter, OutputIter)
 

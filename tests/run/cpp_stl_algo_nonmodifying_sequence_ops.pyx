@@ -5,7 +5,7 @@ from cython.operator cimport dereference as deref
 
 from libcpp cimport bool
 from libcpp.algorithm cimport all_of, any_of, none_of, count, count_if, mismatch, find, find_if, find_if_not, find_end
-from libcpp.algorithm cimport find_first_of
+from libcpp.algorithm cimport find_first_of, adjacent_find
 from libcpp.iterator cimport distance
 from libcpp.string cimport string
 from libcpp.vector cimport vector
@@ -192,6 +192,36 @@ def find_first_int_in_set2(vector[int] values, vector[int] target):
     >>> find_first_int_in_set2([1, 2, 3], [4, 5])
     """
     result = find_first_of(values.begin(), values.end(), target.begin(), target.end(), is_equal)
+    if result != values.end():
+        return distance(values.begin(), result)
+    else:
+        return None
+
+
+def find_adjacent_int(vector[int] values):
+    """
+    Test adjacent_find.
+
+    >>> find_adjacent_int([0, 1, 2, 3, 40, 40, 41, 41, 5])
+    4
+    >>> find_adjacent_int(range(5))
+    """
+    result = adjacent_find(values.begin(), values.end())
+    if result != values.end():
+        return distance(values.begin(), result)
+    else:
+        return None
+
+
+def find_adjacent_int2(vector[int] values):
+    """
+    Test find_adjacent with is_equal predicate.
+
+    >>> find_adjacent_int2([0, 1, 2, 3, 40, 40, 41, 41, 5])
+    4
+    >>> find_adjacent_int2(range(5))
+    """
+    result = adjacent_find(values.begin(), values.end(), is_equal)
     if result != values.end():
         return distance(values.begin(), result)
     else:
