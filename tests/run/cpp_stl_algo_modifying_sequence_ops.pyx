@@ -1,8 +1,10 @@
 # mode: run
 # tag: cpp, werror, cpp11
 
+from cython.operator cimport postincrement
 from libcpp cimport bool
 from libcpp.algorithm cimport copy, copy_if, copy_n, copy_backward, move, move_backward, fill, fill_n, transform
+from libcpp.algorithm cimport generate, generate_n
 from libcpp.iterator cimport back_inserter
 from libcpp.string cimport string
 from libcpp.vector cimport vector
@@ -135,3 +137,38 @@ def add_int_vectors(vector[int] lhs, vector[int] rhs):
     """
     transform(lhs.begin(), lhs.end(), rhs.begin(), lhs.begin(), add_ints)
     return lhs
+
+
+cdef int i = 0
+cdef int generator():
+    return postincrement(i)
+
+
+def generate_ints(int count):
+    """
+    Test generate.
+
+    >> generate_ints(5)
+    [0, 1, 2, 3, 4]
+    """
+    out = vector[int](count)
+    generate(out.begin(), out.end(), generator)
+    return out
+
+
+cdef int j = 0
+cdef int generator2():
+    return postincrement(j)
+
+
+def generate_n_ints(int count):
+    """
+    Test generate_n.
+
+    >> generate_n_ints(5)
+    [0, 1, 2, 3, 4, 0, 0, 0]
+    """
+    out = vector[int](count + 3)
+    generate_n(out.begin(), count, generator2)
+    return out
+

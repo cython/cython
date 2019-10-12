@@ -53,6 +53,9 @@ cdef extern from "<algorithm>" namespace "std" nogil:
     OutputIt transform[InputIt1, InputIt2, OutputIt, BinaryOp](
         InputIt1 first1, InputIt1 last1, InputIt2 first2, OutputIt d_first, BinaryOp binary_op) except +
 
+    void generate[Iter, Generator](Iter first, Iter last, Generator g) except +
+    void generate_n[Iter, Size, Generator](Iter first, Size count, Generator g) except +
+
     Iter unique[Iter](Iter first, Iter last)
     Iter unique[Iter, BinaryPredicate](Iter first, Iter last, BinaryPredicate p) except +
 
