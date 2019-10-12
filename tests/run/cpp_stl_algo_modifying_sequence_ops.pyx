@@ -2,8 +2,9 @@
 # tag: cpp, werror, cpp11
 
 from libcpp cimport bool
-from libcpp.algorithm cimport copy, copy_if, copy_n, copy_backward, move, move_backward, fill, fill_n
+from libcpp.algorithm cimport copy, copy_if, copy_n, copy_backward, move, move_backward, fill, fill_n, transform
 from libcpp.iterator cimport back_inserter
+from libcpp.string cimport string
 from libcpp.vector cimport vector
 
 
@@ -103,3 +104,34 @@ def fill_int_n(vector[int] array, int count, int value):
     """
     fill_n(array.begin(), count, value)
     return array
+
+
+cdef int to_ord(unsigned char c):
+    return c
+
+
+def string_to_ord(string s):
+    """
+    Test transform (unary version).
+
+    >> string_to_ord(b"HELLO")
+    [72, 69, 76, 76, 79]
+    """
+    cdef vector[int] ordinals
+    transform(s.begin(), s.end(), back_inserter(ordinals), to_ord)
+    return ordinals
+
+
+cdef int add_ints(int lhs, int rhs):
+    return lhs + rhs
+
+
+def add_int_vectors(vector[int] lhs, vector[int] rhs):
+    """
+    Test transform (binary version).
+
+    >>> add_int_vectors([1, 2, 3], [4, 5, 6])
+    [5, 7, 9]
+    """
+    transform(lhs.begin(), lhs.end(), rhs.begin(), lhs.begin(), add_ints)
+    return lhs

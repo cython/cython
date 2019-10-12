@@ -48,6 +48,11 @@ cdef extern from "<algorithm>" namespace "std" nogil:
     void fill[Iter, T](Iter first, Iter last, const T& value)
     Iter fill_n[Iter, Size, T](Iter first, Size count, const T& value)
 
+    OutputIt transform[InputIt, OutputIt, UnaryOp](
+        InputIt first1, InputIt last1, OutputIt d_first, UnaryOp unary_op) except +
+    OutputIt transform[InputIt1, InputIt2, OutputIt, BinaryOp](
+        InputIt1 first1, InputIt1 last1, InputIt2 first2, OutputIt d_first, BinaryOp binary_op) except +
+
     Iter unique[Iter](Iter first, Iter last)
     Iter unique[Iter, BinaryPredicate](Iter first, Iter last, BinaryPredicate p) except +
 
