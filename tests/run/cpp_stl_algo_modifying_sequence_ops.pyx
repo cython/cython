@@ -4,7 +4,7 @@
 from cython.operator cimport postincrement
 from libcpp cimport bool
 from libcpp.algorithm cimport copy, copy_if, copy_n, copy_backward, move, move_backward, fill, fill_n, transform
-from libcpp.algorithm cimport generate, generate_n
+from libcpp.algorithm cimport generate, generate_n, remove, remove_if, remove_copy, remove_copy_if
 from libcpp.iterator cimport back_inserter
 from libcpp.string cimport string
 from libcpp.vector cimport vector
@@ -170,5 +170,55 @@ def generate_n_ints(int count):
     """
     out = vector[int](count + 3)
     generate_n(out.begin(), count, generator2)
+    return out
+
+
+def remove_spaces(string s):
+    """
+    Test remove.
+
+    >>> print(remove_spaces(b"Text with some   spaces").decode("ascii"))
+    Textwithsomespaces
+    """
+    s.erase(remove(s.begin(), s.end(), ord(" ")), s.end())
+    return s
+
+
+cdef bool is_whitespace(unsigned char c) except -1:
+    return chr(c) in " \f\n\r\t\v"
+
+
+def remove_whitespace(string s):
+    r"""
+    Test remove_if.
+
+    >>> print(remove_whitespace(b"Text\n with\tsome \t  whitespaces\n\n").decode("ascii"))
+    Textwithsomewhitespaces
+    """
+    s.erase(remove_if(s.begin(), s.end(), <bool (*)(unsigned char)>is_whitespace), s.end())
+    return s
+
+
+def remove_spaces2(string s):
+    """
+    Test remove_copy.
+
+    >>> print(remove_spaces2(b"Text with some   spaces").decode("ascii"))
+    Textwithsomespaces
+    """
+    cdef string out
+    remove_copy(s.begin(), s.end(), back_inserter(out), ord(" "))
+    return out
+
+
+def remove_whitespace2(string s):
+    r"""
+    Test remove_copy_if.
+
+    >>> print(remove_whitespace2(b"Text\n with\tsome \t  whitespaces\n\n").decode("ascii"))
+    Textwithsomewhitespaces
+    """
+    cdef string out
+    remove_copy_if(s.begin(), s.end(), back_inserter(out), <bool (*)(unsigned char)>is_whitespace)
     return out
 

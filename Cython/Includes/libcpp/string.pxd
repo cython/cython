@@ -62,6 +62,10 @@ cdef extern from "<string>" namespace "std" nogil:
         void reserve(size_t)
         void clear()
         bint empty()
+        iterator erase(iterator position)
+        iterator erase(const_iterator position)
+        iterator erase(iterator first, iterator last)
+        iterator erase(const_iterator first, const_iterator last)
 
         char& at(size_t)
         char& operator[](size_t)

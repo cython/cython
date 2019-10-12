@@ -56,6 +56,12 @@ cdef extern from "<algorithm>" namespace "std" nogil:
     void generate[Iter, Generator](Iter first, Iter last, Generator g) except +
     void generate_n[Iter, Size, Generator](Iter first, Size count, Generator g) except +
 
+    Iter remove[Iter, T](Iter first, Iter last, const T& value)
+    Iter remove_if[Iter, UnaryPred](Iter first, Iter last, UnaryPred pred)
+    OutputIt remove_copy[InputIt, OutputIt, T](InputIt first, InputIt last, OutputIt d_first, const T& value)
+    OutputIt remove_copy_if[InputIt, OutputIt, UnaryPred](
+        InputIt first, InputIt last, OutputIt d_first, UnaryPred pred) except +
+
     Iter unique[Iter](Iter first, Iter last)
     Iter unique[Iter, BinaryPredicate](Iter first, Iter last, BinaryPredicate p) except +
 
