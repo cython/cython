@@ -80,12 +80,12 @@ def mirror_ends(string data):
     This program determines the longest substring that is simultaneously found at the very beginning of the given string
     and at the very end of it, in reverse order (possibly overlapping).
 
-    >>> mirror_ends(b'abXYZba')
-    b'ab'
-    >>> mirror_ends(b'abca')
-    b'a'
-    >>> mirror_ends(b'aba')
-    b'aba'
+    >>> print(mirror_ends(b'abXYZba').decode('ascii'))
+    ab
+    >>> print(mirror_ends(b'abca').decode('ascii'))
+    a
+    >>> print(mirror_ends(b'aba').decode('ascii'))
+    aba
     """
     return string(data.begin(), mismatch(data.begin(), data.end(), data.rbegin()).first)
 
