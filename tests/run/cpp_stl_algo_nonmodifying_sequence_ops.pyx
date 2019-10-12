@@ -1,8 +1,11 @@
 # mode: run
 # tag: cpp, werror, cpp11
 
+from cython.operator cimport dereference as deref
+
 from libcpp cimport bool
-from libcpp.algorithm cimport all_of, any_of, none_of, count, count_if
+from libcpp.algorithm cimport all_of, any_of, none_of, count, count_if, mismatch
+from libcpp.string cimport string
 from libcpp.vector cimport vector
 
 
@@ -66,3 +69,35 @@ def count_odd(vector[int]  values):
     0
     """
     return count_if(values.begin(), values.end(), is_odd)
+
+
+def mirror_ends(string data):
+    """
+    Test mismatch using cppreference example.
+
+    This program determines the longest substring that is simultaneously found at the very beginning of the given string
+    and at the very end of it, in reverse order (possibly overlapping).
+
+    >>> mirror_ends(b'abXYZba')
+    b'ab'
+    >>> mirror_ends(b'abca')
+    b'a'
+    >>> mirror_ends(b'aba')
+    b'aba'
+    """
+    return string(data.begin(), mismatch(data.begin(), data.end(), data.rbegin()).first)
+
+
+def mismatch_ints(vector[int] values1, vector[int] values2):
+    """
+    Test mismatch(first1, last1, first2).
+
+    >>> mismatch_ints([1, 2, 3], [1, 2, 3])
+    >>> mismatch_ints([1, 2], [1, 2, 3])
+    >>> mismatch_ints([1, 3], [1, 2, 3])
+    (3, 2)
+    """
+    result = mismatch(values1.begin(), values1.end(), values2.begin())
+    if result.first == values1.end():
+        return
+    return deref(result.first), deref(result.second)

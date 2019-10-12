@@ -1,4 +1,5 @@
 from libcpp cimport bool
+from libcpp.utility cimport pair
 from libc.stddef import ptrdiff_t
 
 
@@ -10,6 +11,8 @@ cdef extern from "<algorithm>" namespace "std" nogil:
 
     ptrdiff_t count[Iter, T](Iter first, Iter last, const T& value)
     ptrdiff_t count_if[Iter, Pred](Iter first, Iter last, Pred pred)
+
+    pair[Iter1, Iter2] mismatch[Iter1, Iter2](Iter1 first1, Iter1 last1, Iter2 first2)  # other overloads are tricky
 
     # Modifying sequence operations
     OutputIter copy[InputIter, OutputIter](InputIter, InputIter, OutputIter)
