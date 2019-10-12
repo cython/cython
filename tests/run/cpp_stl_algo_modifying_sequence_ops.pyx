@@ -2,7 +2,7 @@
 # tag: cpp, werror, cpp11
 
 from libcpp cimport bool
-from libcpp.algorithm cimport copy, copy_if, copy_n, copy_backward
+from libcpp.algorithm cimport copy, copy_if, copy_n, copy_backward, move, move_backward
 from libcpp.iterator cimport back_inserter
 from libcpp.vector cimport vector
 
@@ -56,4 +56,28 @@ def copy_int_backward(vector[int] values):
     """
     out = vector[int](values.size() + 3)
     copy_backward(values.begin(), values.end(), out.end())
+    return out
+
+
+def move_int(vector[int] values):
+    """
+    Test move.
+
+    >>> move_int(range(5))
+    [0, 1, 2, 3, 4]
+    """
+    cdef vector[int] out
+    move(values.begin(), values.end(), back_inserter(out))
+    return out
+
+
+def move_int_backward(vector[int] values):
+    """
+    Test move_backward.
+
+    >>> move_int_backward(range(5))
+    [0, 0, 0, 0, 1, 2, 3, 4]
+    """
+    out = vector[int](values.size() + 3)
+    move_backward(values.begin(), values.end(), out.end())
     return out

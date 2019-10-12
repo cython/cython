@@ -42,6 +42,9 @@ cdef extern from "<algorithm>" namespace "std" nogil:
     OutputIt copy_n[InputIt, Size, OutputIt](InputIt first, Size count, OutputIt result)
     Iter2 copy_backward[Iter1, Iter2](Iter1 first, Iter1 last, Iter2 d_last)
 
+    OutputIt move[InputIt, OutputIt](InputIt first, InputIt last, OutputIt d_first)
+    Iter2 move_backward[Iter1, Iter2](Iter1 first, Iter1 last, Iter2 d_last)
+
     Iter unique[Iter](Iter first, Iter last)
     Iter unique[Iter, BinaryPredicate](Iter first, Iter last, BinaryPredicate p) except +
 
