@@ -45,6 +45,9 @@ cdef extern from "<algorithm>" namespace "std" nogil:
     OutputIt move[InputIt, OutputIt](InputIt first, InputIt last, OutputIt d_first)
     Iter2 move_backward[Iter1, Iter2](Iter1 first, Iter1 last, Iter2 d_last)
 
+    void fill[Iter, T](Iter first, Iter last, const T& value)
+    Iter fill_n[Iter, Size, T](Iter first, Size count, const T& value)
+
     Iter unique[Iter](Iter first, Iter last)
     Iter unique[Iter, BinaryPredicate](Iter first, Iter last, BinaryPredicate p) except +
 
