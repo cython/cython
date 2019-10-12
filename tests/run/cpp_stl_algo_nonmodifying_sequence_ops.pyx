@@ -4,7 +4,7 @@
 from cython.operator cimport dereference as deref
 
 from libcpp cimport bool
-from libcpp.algorithm cimport all_of, any_of, none_of, count, count_if, mismatch
+from libcpp.algorithm cimport all_of, any_of, none_of, count, count_if, mismatch, find, find_if, find_if_not
 from libcpp.string cimport string
 from libcpp.vector cimport vector
 
@@ -101,3 +101,46 @@ def mismatch_ints(vector[int] values1, vector[int] values2):
     if result.first == values1.end():
         return
     return deref(result.first), deref(result.second)
+
+
+def is_int_in(vector[int] values, int target):
+    """
+    Test find.
+
+    >>> is_int_in(range(5), 3)
+    True
+    >>> is_int_in(range(5), 10)
+    False
+    """
+    return find(values.begin(), values.end(), target) != values.end()
+
+
+def find_odd(vector[int] values):
+    """
+    Test find_if using is_odd predicate.
+
+    >>> find_odd([2, 3, 4])
+    3
+    >>> find_odd([2, 4, 6])
+    """
+    result = find_if(values.begin(), values.end(), is_odd)
+    if result != values.end():
+        return deref(result)
+    else:
+        return None
+
+
+def find_even(vector[int] values):
+    """
+    Test find_if_not using is_odd predicate.
+
+    >>> find_even([3, 4, 5])
+    4
+    >>> find_even([1, 3, 5])
+    """
+    result = find_if_not(values.begin(), values.end(), is_odd)
+    if result != values.end():
+        return deref(result)
+    else:
+        return None
+

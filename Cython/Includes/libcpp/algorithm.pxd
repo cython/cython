@@ -14,6 +14,10 @@ cdef extern from "<algorithm>" namespace "std" nogil:
 
     pair[Iter1, Iter2] mismatch[Iter1, Iter2](Iter1 first1, Iter1 last1, Iter2 first2)  # other overloads are tricky
 
+    Iter find[Iter, T](Iter first, Iter last, const T& value)
+    Iter find_if[Iter, Pred](Iter first, Iter last, Pred pred)
+    Iter find_if_not[Iter, Pred](Iter first, Iter last, Pred pred)
+
     # Modifying sequence operations
     OutputIter copy[InputIter, OutputIter](InputIter, InputIter, OutputIter)
 
