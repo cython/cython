@@ -27,6 +27,7 @@ cdef extern from "<algorithm>" namespace "std" nogil:
     Iter adjacent_find[Iter, BinaryPred](Iter first, Iter last, BinaryPred pred)
 
     Iter1 search[Iter1, Iter2](Iter1 first1, Iter1 last1, Iter2 first2, Iter2 last2)  # can't get pred version to work
+    Iter search_n[Iter, Size, T](Iter first1, Iter last1, Size count, const T& value)  # can't get pred version to work
 
     # Modifying sequence operations
     OutputIter copy[InputIter, OutputIter](InputIter, InputIter, OutputIter)

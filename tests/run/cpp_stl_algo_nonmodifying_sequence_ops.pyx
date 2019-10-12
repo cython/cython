@@ -5,7 +5,7 @@ from cython.operator cimport dereference as deref
 
 from libcpp cimport bool
 from libcpp.algorithm cimport all_of, any_of, none_of, count, count_if, mismatch, find, find_if, find_if_not, find_end
-from libcpp.algorithm cimport find_first_of, adjacent_find, search
+from libcpp.algorithm cimport find_first_of, adjacent_find, search, search_n
 from libcpp.iterator cimport distance
 from libcpp.string cimport string
 from libcpp.vector cimport vector
@@ -238,3 +238,15 @@ def in_quote(string cont, string s):
     False
     """
     return search(cont.begin(), cont.end(), s.begin(), s.end()) != cont.end()
+
+
+def consecutive_values(string c, int count, char v):
+    """
+    Test search_n using cppreference example (without std::begin and std::end).
+
+    >>> consecutive_values(b"1001010100010101001010101", 4, ord("0"))
+    False
+    >>> consecutive_values(b"1001010100010101001010101", 3, ord("0"))
+    True
+    """
+    return search_n(c.begin(), c.end(), count, v) != c.end()
