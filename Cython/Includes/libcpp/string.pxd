@@ -8,13 +8,6 @@ cdef extern from "<string>" namespace "std" nogil:
     size_t npos = -1
 
     cdef cppclass string:
-        string() except +
-        string(const char *) except +
-        string(const char *, size_t) except +
-        string(const string&) except +
-        # as a string formed by a repetition of character c, n times.
-        string(size_t, char) except +
-
         cppclass iterator:
             iterator()
             char& operator*()
@@ -39,6 +32,15 @@ cdef extern from "<string>" namespace "std" nogil:
             pass
         cppclass const_reverse_iterator(reverse_iterator):
             pass
+
+        string() except +
+        string(const char *) except +
+        string(const char *, size_t) except +
+        string(const string&) except +
+        # as a string formed by a repetition of character c, n times.
+        string(size_t, char) except +
+        # from a pair of iterators
+        string(iterator first, iterator last) except +
 
         iterator begin()
         const_iterator const_begin "begin"()
