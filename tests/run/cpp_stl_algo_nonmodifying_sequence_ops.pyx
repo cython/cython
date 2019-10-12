@@ -162,6 +162,25 @@ def find_last_int_sequence(vector[int] values, vector[int] target):
         return None
 
 
+cdef bool is_equal(int lhs, int rhs):
+    return lhs == rhs
+
+
+def find_last_int_sequence2(vector[int] values, vector[int] target):
+    """
+    Test find_end (using is_equal predicate).
+
+    >>> find_last_int_sequence2([1, 2, 3, 1, 2, 3], [2, 3])
+    4
+    >>> find_last_int_sequence2([1, 2, 3], [4, 5])
+    """
+    result = find_end(values.begin(), values.end(), target.begin(), target.end(), <bool (*)(int, int)>is_equal)
+    if result != values.end():
+        return distance(values.begin(), result)
+    else:
+        return None
+
+
 def find_first_int_in_set(values, target):
     """
     Test find_first_of.
@@ -177,10 +196,6 @@ def find_first_int_in_set(values, target):
         return distance(v.begin(), result)
     else:
         return None
-
-
-cdef bool is_equal(const int &lhs, const int& rhs):
-    return lhs == rhs
 
 
 def find_first_int_in_set2(vector[int] values, vector[int] target):
@@ -228,7 +243,7 @@ def find_adjacent_int2(vector[int] values):
         return None
 
 
-def in_quote(string cont, string s):
+def in_quote(string quote, string word):
     """
     Test search using cppreference example.
 
@@ -237,7 +252,19 @@ def in_quote(string cont, string s):
     >>> in_quote(b"why waste time learning, when ignorance is instantaneous?", b"lemming")
     False
     """
-    return search(cont.begin(), cont.end(), s.begin(), s.end()) != cont.end()
+    return search(quote.begin(), quote.end(), word.begin(), word.end()) != quote.end()
+
+
+def in_quote2(string quote, string word):
+    """
+    Test search using cppreference example (with is_equal predicate).
+
+    >>> in_quote2(b"why waste time learning, when ignorance is instantaneous?", b"learning")
+    True
+    >>> in_quote2(b"why waste time learning, when ignorance is instantaneous?", b"lemming")
+    False
+    """
+    return search(quote.begin(), quote.end(), word.begin(), word.end(), <bool (*)(int, int)>is_equal) != quote.end()
 
 
 def consecutive_values(string c, int count, char v):
@@ -250,3 +277,15 @@ def consecutive_values(string c, int count, char v):
     True
     """
     return search_n(c.begin(), c.end(), count, v) != c.end()
+
+
+def consecutive_values2(string c, int count, char v):
+    """
+    Test search_n using cppreference example (with is_equal predicate).
+
+    >>> consecutive_values2(b"1001010100010101001010101", 4, ord("0"))
+    False
+    >>> consecutive_values2(b"1001010100010101001010101", 3, ord("0"))
+    True
+    """
+    return search_n(c.begin(), c.end(), count, v, <bool (*)(int, int)>is_equal) != c.end()

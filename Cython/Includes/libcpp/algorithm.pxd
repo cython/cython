@@ -18,7 +18,9 @@ cdef extern from "<algorithm>" namespace "std" nogil:
     Iter find_if[Iter, Pred](Iter first, Iter last, Pred pred) except +
     Iter find_if_not[Iter, Pred](Iter first, Iter last, Pred pred) except +
 
-    Iter1 find_end[Iter1, Iter2](Iter1 first1, Iter1 last1, Iter2 first2, Iter2 last2)  # can't get pred version to work
+    Iter1 find_end[Iter1, Iter2](Iter1 first1, Iter1 last1, Iter2 first2, Iter2 last2)
+    Iter1 find_end[Iter1, Iter2, BinaryPred](
+        Iter1 first1, Iter1 last1, Iter2 first2, Iter2 last2, BinaryPred pred) except +
 
     Iter1 find_first_of[Iter1, Iter2](Iter1 first1, Iter1 last1, Iter2 first2, Iter2 last2)
     Iter1 find_first_of[Iter1, Iter2, BinaryPred](
@@ -27,8 +29,12 @@ cdef extern from "<algorithm>" namespace "std" nogil:
     Iter adjacent_find[Iter](Iter first, Iter last)
     Iter adjacent_find[Iter, BinaryPred](Iter first, Iter last, BinaryPred pred) except +
 
-    Iter1 search[Iter1, Iter2](Iter1 first1, Iter1 last1, Iter2 first2, Iter2 last2)  # can't get pred version to work
-    Iter search_n[Iter, Size, T](Iter first1, Iter last1, Size count, const T& value)  # can't get pred version to work
+    Iter1 search[Iter1, Iter2](Iter1 first1, Iter1 last1, Iter2 first2, Iter2 last2)
+    Iter1 search[Iter1, Iter2, BinaryPred](
+        Iter1 first1, Iter1 last1, Iter2 first2, Iter2 last2, BinaryPred pred) except +
+    Iter search_n[Iter, Size, T](Iter first1, Iter last1, Size count, const T& value)
+    Iter search_n[Iter, Size, T, BinaryPred](
+        Iter first1, Iter last1, Size count, const T& value, BinaryPred pred) except +
 
     # Modifying sequence operations
     OutputIter copy[InputIter, OutputIter](InputIter, InputIter, OutputIter)
