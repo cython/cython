@@ -3,6 +3,9 @@ from libcpp cimport bool
 
 cdef extern from "<algorithm>" namespace "std" nogil:
     # Non-modifying sequence operations
+    bool all_of[Iter, Pred](Iter first, Iter last, Pred pred)
+    bool any_of[Iter, Pred](Iter first, Iter last, Pred pred)
+    bool none_of[Iter, Pred](Iter first, Iter last, Pred pred)
 
     # Modifying sequence operations
     OutputIter copy[InputIter, OutputIter](InputIter, InputIter, OutputIter)
