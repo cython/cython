@@ -4,7 +4,8 @@
 from cython.operator cimport dereference as deref
 
 from libcpp cimport bool
-from libcpp.algorithm cimport all_of, any_of, none_of, count, count_if, mismatch, find, find_if, find_if_not
+from libcpp.algorithm cimport all_of, any_of, none_of, count, count_if, mismatch, find, find_if, find_if_not, find_end
+from libcpp.iterator cimport distance
 from libcpp.string cimport string
 from libcpp.vector cimport vector
 
@@ -144,3 +145,17 @@ def find_even(vector[int] values):
     else:
         return None
 
+
+def find_last_int_sequence(vector[int] values, vector[int] target):
+    """
+    Test find_end.
+
+    >>> find_last_int_sequence([1, 2, 3, 1, 2, 3], [2, 3])
+    4
+    >>> find_last_int_sequence([1, 2, 3], [4, 5])
+    """
+    result = find_end(values.begin(), values.end(), target.begin(), target.end())
+    if result != values.end():
+        return distance(values.begin(), result)
+    else:
+        return None

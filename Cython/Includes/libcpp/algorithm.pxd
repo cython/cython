@@ -18,6 +18,8 @@ cdef extern from "<algorithm>" namespace "std" nogil:
     Iter find_if[Iter, Pred](Iter first, Iter last, Pred pred)
     Iter find_if_not[Iter, Pred](Iter first, Iter last, Pred pred)
 
+    Iter1 find_end[Iter1, Iter2](Iter1 first1, Iter1 last1, Iter2 first2, Iter2 last2)  # can't get pred version to work
+
     # Modifying sequence operations
     OutputIter copy[InputIter, OutputIter](InputIter, InputIter, OutputIter)
 
