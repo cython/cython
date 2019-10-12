@@ -5,7 +5,7 @@ from cython.operator cimport dereference as deref
 
 from libcpp cimport bool
 from libcpp.algorithm cimport all_of, any_of, none_of, count, count_if, mismatch, find, find_if, find_if_not, find_end
-from libcpp.algorithm cimport find_first_of, adjacent_find
+from libcpp.algorithm cimport find_first_of, adjacent_find, search
 from libcpp.iterator cimport distance
 from libcpp.string cimport string
 from libcpp.vector cimport vector
@@ -226,3 +226,15 @@ def find_adjacent_int2(vector[int] values):
         return distance(values.begin(), result)
     else:
         return None
+
+
+def in_quote(string cont, string s):
+    """
+    Test search using cppreference example.
+
+    >>> in_quote(b"why waste time learning, when ignorance is instantaneous?", b"learning")
+    True
+    >>> in_quote(b"why waste time learning, when ignorance is instantaneous?", b"lemming")
+    False
+    """
+    return search(cont.begin(), cont.end(), s.begin(), s.end()) != cont.end()
