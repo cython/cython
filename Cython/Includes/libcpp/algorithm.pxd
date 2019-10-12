@@ -37,7 +37,10 @@ cdef extern from "<algorithm>" namespace "std" nogil:
         Iter first1, Iter last1, Size count, const T& value, BinaryPred pred) except +
 
     # Modifying sequence operations
-    OutputIter copy[InputIter, OutputIter](InputIter, InputIter, OutputIter)
+    OutputIt copy[InputIt, OutputIt](InputIt first, InputIt last, OutputIt d_first)
+    OutputIt copy_if[InputIt, OutputIt, Pred](InputIt first, InputIt last, OutputIt d_first, Pred pred) except +
+    OutputIt copy_n[InputIt, Size, OutputIt](InputIt first, Size count, OutputIt result)
+    Iter2 copy_backward[Iter1, Iter2](Iter1 first, Iter1 last, Iter2 d_last)
 
     Iter unique[Iter](Iter first, Iter last)
     Iter unique[Iter, BinaryPredicate](Iter first, Iter last, BinaryPredicate p) except +
