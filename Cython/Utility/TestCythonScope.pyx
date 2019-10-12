@@ -14,7 +14,7 @@ cdef class TestClass(object):
         self.value = value
 
     def __str__(self):
-        return 'TestClass(%d)' % self.value
+        return f'TestClass({self.value})'
 
     cdef cdef_method(self, int value):
         print('Hello from cdef_method', value)
