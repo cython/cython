@@ -5,6 +5,7 @@ from cython.operator cimport dereference as deref
 
 from libcpp cimport bool
 from libcpp.algorithm cimport all_of, any_of, none_of, count, count_if, mismatch, find, find_if, find_if_not, find_end
+from libcpp.algorithm cimport find_first_of
 from libcpp.iterator cimport distance
 from libcpp.string cimport string
 from libcpp.vector cimport vector
@@ -155,6 +156,42 @@ def find_last_int_sequence(vector[int] values, vector[int] target):
     >>> find_last_int_sequence([1, 2, 3], [4, 5])
     """
     result = find_end(values.begin(), values.end(), target.begin(), target.end())
+    if result != values.end():
+        return distance(values.begin(), result)
+    else:
+        return None
+
+
+def find_first_int_in_set(values, target):
+    """
+    Test find_first_of.
+
+    >>> find_first_int_in_set([1, 2, 3, 4, 5], [3, 5])
+    2
+    >>> find_first_int_in_set([1, 2, 3], [4, 5])
+    """
+    cdef vector[int] v = values
+    cdef vector[int] t = target
+    result = find_first_of(v.begin(), v.end(), t.begin(), t.end())
+    if result != v.end():
+        return distance(v.begin(), result)
+    else:
+        return None
+
+
+cdef bool is_equal(const int &lhs, const int& rhs):
+    return lhs == rhs
+
+
+def find_first_int_in_set2(vector[int] values, vector[int] target):
+    """
+    Test find_first_of with is_equal predicate.
+
+    >>> find_first_int_in_set2([1, 2, 3, 4, 5], [3, 5])
+    2
+    >>> find_first_int_in_set2([1, 2, 3], [4, 5])
+    """
+    result = find_first_of(values.begin(), values.end(), target.begin(), target.end(), is_equal)
     if result != values.end():
         return distance(values.begin(), result)
     else:

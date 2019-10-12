@@ -20,6 +20,9 @@ cdef extern from "<algorithm>" namespace "std" nogil:
 
     Iter1 find_end[Iter1, Iter2](Iter1 first1, Iter1 last1, Iter2 first2, Iter2 last2)  # can't get pred version to work
 
+    Iter1 find_first_of[Iter1, Iter2](Iter1 first1, Iter1 last1, Iter2 first2, Iter2 last2)
+    Iter1 find_first_of[Iter1, Iter2, BinaryPred](Iter1 first1, Iter1 last1, Iter2 first2, Iter2 last2, BinaryPred pred)
+
     # Modifying sequence operations
     OutputIter copy[InputIter, OutputIter](InputIter, InputIter, OutputIter)
 
