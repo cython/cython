@@ -7,7 +7,7 @@ from cython.operator cimport postincrement
 from libcpp cimport bool
 from libcpp.algorithm cimport copy, copy_if, copy_n, copy_backward, move, move_backward, fill, fill_n, transform
 from libcpp.algorithm cimport generate, generate_n, remove, remove_if, remove_copy, remove_copy_if, replace, replace_if
-from libcpp.algorithm cimport replace_copy, replace_copy_if, swap, swap_ranges, iter_swap
+from libcpp.algorithm cimport replace_copy, replace_copy_if, swap, swap_ranges, iter_swap, reverse, reverse_copy
 from libcpp.algorithm cimport min_element
 from libcpp.iterator cimport back_inserter
 from libcpp.string cimport string
@@ -327,3 +327,26 @@ def selection_sort(vector[int] values):
         iter_swap(i, min_element(i, end))
         i += 1
     return values
+
+
+def reverse_ints(vector[int] values):
+    """
+    Test reverse.
+
+    >>> reverse_ints([1, 2, 3])
+    [3, 2, 1]
+    """
+    reverse(values.begin(), values.end())
+    return values
+
+
+def reverse_ints2(vector[int] values):
+    """
+    Test reverse_copy.
+
+    >>> reverse_ints2([1, 2, 3])
+    [3, 2, 1]
+    """
+    cdef vector[int] out
+    reverse_copy(values.begin(), values.end(), back_inserter(out))
+    return out

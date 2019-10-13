@@ -73,6 +73,9 @@ cdef extern from "<algorithm>" namespace "std" nogil:
     Iter2 swap_ranges[Iter1, Iter2](Iter1 first1, Iter1 last1, Iter2 first2)
     void iter_swap[Iter](Iter a, Iter b)
 
+    void reverse[Iter](Iter first, Iter last)
+    OutputIt reverse_copy[InputIt, OutputIt](InputIt first, InputIt last, OutputIt d_first)
+
     Iter unique[Iter](Iter first, Iter last)
     Iter unique[Iter, BinaryPredicate](Iter first, Iter last, BinaryPredicate p) except +
 
