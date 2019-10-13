@@ -202,7 +202,7 @@ def remove_whitespace(string s):
     >>> print(remove_whitespace(b"Text\n with\tsome \t  whitespaces\n\n").decode("ascii"))
     Textwithsomewhitespaces
     """
-    s.erase(remove_if(s.begin(), s.end(), <bool (*)(unsigned char)>is_whitespace), s.end())
+    s.erase(remove_if(s.begin(), s.end(), &is_whitespace), s.end())
     return s
 
 
@@ -226,7 +226,7 @@ def remove_whitespace2(string s):
     Textwithsomewhitespaces
     """
     cdef string out
-    remove_copy_if(s.begin(), s.end(), back_inserter(out), <bool (*)(unsigned char)>is_whitespace)
+    remove_copy_if(s.begin(), s.end(), back_inserter(out), &is_whitespace)
     return out
 
 
@@ -404,7 +404,7 @@ def collapse_spaces(string text):
     >>> print(collapse_spaces(b"The      string    with many       spaces!").decode("ascii"))
     The string with many spaces!
     """
-    last = unique(text.begin(), text.end(), <bool (*)(unsigned char, unsigned char)>both_space)
+    last = unique(text.begin(), text.end(), &both_space)
     text.erase(last, text.end())
     return text
 
@@ -430,5 +430,5 @@ def collapse_spaces2(string text):
     The string with many spaces!
     """
     cdef string out
-    unique_copy(text.begin(), text.end(), back_inserter(out), <bool (*)(unsigned char, unsigned char)>both_space)
+    unique_copy(text.begin(), text.end(), back_inserter(out), &both_space)
     return out
