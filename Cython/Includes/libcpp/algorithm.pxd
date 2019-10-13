@@ -80,7 +80,11 @@ cdef extern from "<algorithm>" namespace "std" nogil:
     OutputIt rotate_copy[InputIt, OutputIt](InputIt first, InputIt n_first, InputIt last, OutputIt d_first)
 
     Iter unique[Iter](Iter first, Iter last)
-    Iter unique[Iter, BinaryPredicate](Iter first, Iter last, BinaryPredicate p) except +
+    Iter unique[Iter, BinaryPred](Iter first, Iter last, BinaryPred p) except +
+    OutputIt unique_copy[InputIt, OutputIt](InputIt first, InputIt last, OutputIt d_first)
+    OutputIt unique_copy[InputIt, OutputIt, BinaryPred](
+        InputIt first, InputIt last, OutputIt d_first, BinaryPred pred) except +
+
 
     # Partitioning operations
 

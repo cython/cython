@@ -9,8 +9,8 @@ from libcpp cimport bool
 from libcpp.algorithm cimport copy, copy_if, copy_n, copy_backward, move, move_backward, fill, fill_n, transform
 from libcpp.algorithm cimport generate, generate_n, remove, remove_if, remove_copy, remove_copy_if, replace, replace_if
 from libcpp.algorithm cimport replace_copy, replace_copy_if, swap, swap_ranges, iter_swap, reverse, reverse_copy
-from libcpp.algorithm cimport rotate, rotate_copy
-from libcpp.algorithm cimport upper_bound, min_element
+from libcpp.algorithm cimport rotate, rotate_copy, unique, unique_copy
+from libcpp.algorithm cimport sort, upper_bound, min_element
 from libcpp.iterator cimport back_inserter
 from libcpp.string cimport string
 from libcpp.vector cimport vector
@@ -380,3 +380,55 @@ def rotate_ints_about_middle(vector[int] values):
     rotate_copy(values.begin(), pivot, values.end(), back_inserter(out))
     return out
 
+
+def unique_ints(vector[int] values):
+    """
+    Test unique.
+
+    >>> unique_ints([1, 2, 3, 1, 2, 3, 3, 4, 5, 4, 5, 6, 7])
+    [1, 2, 3, 4, 5, 6, 7]
+    """
+    sort(values.begin(), values.end())
+    values.erase(unique(values.begin(), values.end()), values.end())
+    return values
+
+
+cdef bool both_space(unsigned char lhs, unsigned char rhs):
+    return lhs == rhs == ord(' ')
+
+
+def collapse_spaces(string text):
+    """
+    Test unique (predicate version) using cppreference example for unique_copy.
+
+    >>> print(collapse_spaces(b"The      string    with many       spaces!").decode("ascii"))
+    The string with many spaces!
+    """
+    last = unique(text.begin(), text.end(), <bool (*)(unsigned char, unsigned char)>both_space)
+    text.erase(last, text.end())
+    return text
+
+
+def unique_ints2(vector[int] values):
+    """
+    Test unique_copy.
+
+    >>> unique_ints2([1, 2, 3, 1, 2, 3, 3, 4, 5, 4, 5, 6, 7])
+    [1, 2, 3, 4, 5, 6, 7]
+    """
+    cdef vector[int] out
+    sort(values.begin(), values.end())
+    unique_copy(values.begin(), values.end(), back_inserter(out))
+    return out
+
+
+def collapse_spaces2(string text):
+    """
+    Test unique_copy (predicate version) using cppreference example.
+
+    >>> print(collapse_spaces2(b"The      string    with many       spaces!").decode("ascii"))
+    The string with many spaces!
+    """
+    cdef string out
+    unique_copy(text.begin(), text.end(), back_inserter(out), <bool (*)(unsigned char, unsigned char)>both_space)
+    return out
