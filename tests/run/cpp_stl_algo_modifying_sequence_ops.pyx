@@ -1,11 +1,13 @@
 # mode: run
 # tag: cpp, werror, cpp11
 
+from __future__ import print_function
+
 from cython.operator cimport postincrement
 from libcpp cimport bool
 from libcpp.algorithm cimport copy, copy_if, copy_n, copy_backward, move, move_backward, fill, fill_n, transform
 from libcpp.algorithm cimport generate, generate_n, remove, remove_if, remove_copy, remove_copy_if, replace, replace_if
-from libcpp.algorithm cimport replace_copy, replace_copy_if
+from libcpp.algorithm cimport replace_copy, replace_copy_if, swap, swap_ranges
 from libcpp.iterator cimport back_inserter
 from libcpp.string cimport string
 from libcpp.vector cimport vector
@@ -273,3 +275,39 @@ def replace_ints_less_than_five2(vector[int] values, int new):
     cdef vector[int] out
     replace_copy_if(values.begin(), values.end(), back_inserter(out), less_than_five, new)
     return out
+
+
+def test_swap_ints():
+    """
+    >>> test_swap_ints()
+    5 3
+    3 5
+    """
+    cdef int a = 5, b = 3
+    print(a, b)
+    swap(a, b)
+    print(a, b)
+
+
+def test_swap_vectors():
+    """
+    >>> test_swap_vectors()
+    [1, 2, 3] [4, 5, 6]
+    [4, 5, 6] [1, 2, 3]
+    """
+    cdef vector[int] a = [1, 2, 3], b = [4, 5, 6]
+    print(a, b)
+    swap(a, b)
+    print(a, b)
+
+
+def test_swap_ranges():
+    """
+    >>> test_swap_ranges()
+    [1, 2, 3] [4, 5, 6]
+    [4, 5, 6] [1, 2, 3]
+    """
+    cdef vector[int] a = [1, 2, 3], b = [4, 5, 6]
+    print(a, b)
+    swap_ranges(a.begin(), a.end(), b.begin())
+    print(a, b)

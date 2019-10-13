@@ -69,6 +69,9 @@ cdef extern from "<algorithm>" namespace "std" nogil:
     OutputIt replace_copy_if[InputIt, OutputIt, UnaryPred, T](
         InputIt first, InputIt last, OutputIt d_first, UnaryPred pred, const T& new_value) except +
 
+    void swap[T](T& a, T& b)  # array overload also works
+    Iter2 swap_ranges[Iter1, Iter2](Iter1 first1, Iter1 last1, Iter2 first2)
+
     Iter unique[Iter](Iter first, Iter last)
     Iter unique[Iter, BinaryPredicate](Iter first, Iter last, BinaryPredicate p) except +
 
