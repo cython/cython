@@ -4,7 +4,8 @@
 from cython.operator cimport postincrement
 from libcpp cimport bool
 from libcpp.algorithm cimport copy, copy_if, copy_n, copy_backward, move, move_backward, fill, fill_n, transform
-from libcpp.algorithm cimport generate, generate_n, remove, remove_if, remove_copy, remove_copy_if
+from libcpp.algorithm cimport generate, generate_n, remove, remove_if, remove_copy, remove_copy_if, replace, replace_if
+from libcpp.algorithm cimport replace_copy, replace_copy_if
 from libcpp.iterator cimport back_inserter
 from libcpp.string cimport string
 from libcpp.vector cimport vector
@@ -185,6 +186,7 @@ def remove_spaces(string s):
 
 
 cdef bool is_whitespace(unsigned char c) except -1:
+    # std::isspace from <cctype>
     return chr(c) in " \f\n\r\t\v"
 
 
@@ -222,3 +224,52 @@ def remove_whitespace2(string s):
     remove_copy_if(s.begin(), s.end(), back_inserter(out), <bool (*)(unsigned char)>is_whitespace)
     return out
 
+
+def replace_ints(vector[int] values, int old, int new):
+    """
+    Test replace.
+
+    >>> replace_ints([5, 7, 4, 2, 8, 6, 1, 9, 0, 3], 8, 88)
+    [5, 7, 4, 2, 88, 6, 1, 9, 0, 3]
+    """
+    replace(values.begin(), values.end(), old, new)
+    return values
+
+
+cdef bool less_than_five(int i):
+    return i < 5
+
+
+def replace_ints_less_than_five(vector[int] values, int new):
+    """
+    Test replace_if (using cppreference example that doesn't translate well).
+
+    >>> replace_ints_less_than_five([5, 7, 4, 2, 88, 6, 1, 9, 0, 3], 55)
+    [5, 7, 55, 55, 88, 6, 55, 9, 55, 55]
+    """
+    replace_if(values.begin(), values.end(), less_than_five, new)
+    return values
+
+
+def replace_ints2(vector[int] values, int old, int new):
+    """
+    Test replace_copy.
+
+    >>> replace_ints2([5, 7, 4, 2, 8, 6, 1, 9, 0, 3], 8, 88)
+    [5, 7, 4, 2, 88, 6, 1, 9, 0, 3]
+    """
+    cdef vector[int] out
+    replace_copy(values.begin(), values.end(), back_inserter(out), old, new)
+    return out
+
+
+def replace_ints_less_than_five2(vector[int] values, int new):
+    """
+    Test replace_copy_if (using cppreference example that doesn't translate well).
+
+    >>> replace_ints_less_than_five2([5, 7, 4, 2, 88, 6, 1, 9, 0, 3], 55)
+    [5, 7, 55, 55, 88, 6, 55, 9, 55, 55]
+    """
+    cdef vector[int] out
+    replace_copy_if(values.begin(), values.end(), back_inserter(out), less_than_five, new)
+    return out

@@ -62,6 +62,13 @@ cdef extern from "<algorithm>" namespace "std" nogil:
     OutputIt remove_copy_if[InputIt, OutputIt, UnaryPred](
         InputIt first, InputIt last, OutputIt d_first, UnaryPred pred) except +
 
+    void replace[Iter, T](Iter first, Iter last, const T& old_value, const T& new_value)
+    void replace_if[Iter, UnaryPred, T](Iter first, Iter last, UnaryPred pred, const T& new_value) except +
+    OutputIt replace_copy[InputIt, OutputIt, T](
+        InputIt first, InputIt last, OutputIt d_first, const T& old_value, const T& new_value)
+    OutputIt replace_copy_if[InputIt, OutputIt, UnaryPred, T](
+        InputIt first, InputIt last, OutputIt d_first, UnaryPred pred, const T& new_value) except +
+
     Iter unique[Iter](Iter first, Iter last)
     Iter unique[Iter, BinaryPredicate](Iter first, Iter last, BinaryPredicate p) except +
 
