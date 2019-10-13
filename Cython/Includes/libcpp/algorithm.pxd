@@ -76,6 +76,9 @@ cdef extern from "<algorithm>" namespace "std" nogil:
     void reverse[Iter](Iter first, Iter last)
     OutputIt reverse_copy[InputIt, OutputIt](InputIt first, InputIt last, OutputIt d_first)
 
+    Iter rotate[Iter](Iter first, Iter n_first, Iter last)
+    OutputIt rotate_copy[InputIt, OutputIt](InputIt first, InputIt n_first, InputIt last, OutputIt d_first)
+
     Iter unique[Iter](Iter first, Iter last)
     Iter unique[Iter, BinaryPredicate](Iter first, Iter last, BinaryPredicate p) except +
 

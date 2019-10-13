@@ -3,12 +3,14 @@
 
 from __future__ import print_function
 
+from cython.operator cimport dereference as deref
 from cython.operator cimport postincrement
 from libcpp cimport bool
 from libcpp.algorithm cimport copy, copy_if, copy_n, copy_backward, move, move_backward, fill, fill_n, transform
 from libcpp.algorithm cimport generate, generate_n, remove, remove_if, remove_copy, remove_copy_if, replace, replace_if
 from libcpp.algorithm cimport replace_copy, replace_copy_if, swap, swap_ranges, iter_swap, reverse, reverse_copy
-from libcpp.algorithm cimport min_element
+from libcpp.algorithm cimport rotate, rotate_copy
+from libcpp.algorithm cimport upper_bound, min_element
 from libcpp.iterator cimport back_inserter
 from libcpp.string cimport string
 from libcpp.vector cimport vector
@@ -350,3 +352,31 @@ def reverse_ints2(vector[int] values):
     cdef vector[int] out
     reverse_copy(values.begin(), values.end(), back_inserter(out))
     return out
+
+
+def insertion_sort(vector[int] values):
+    """
+    Test rotate using cppreference example.
+
+    >>> insertion_sort([2, 4, 2, 0, 5, 10, 7, 3, 7, 1])
+    [0, 1, 2, 2, 3, 4, 5, 7, 7, 10]
+    """
+    i = values.begin()
+    while i < values.end():
+        rotate(upper_bound(values.begin(), i, deref(i)), i, i + 1)
+        i += 1
+    return values
+
+
+def rotate_ints_about_middle(vector[int] values):
+    """
+    Test rotate_copy.
+
+    >>> rotate_ints_about_middle([1, 2, 3, 4, 5])
+    [3, 4, 5, 1, 2]
+    """
+    cdef vector[int] out
+    cdef vector[int].iterator pivot = values.begin() + values.size()/2
+    rotate_copy(values.begin(), pivot, values.end(), back_inserter(out))
+    return out
+
