@@ -9,6 +9,8 @@ cdef extern from "<algorithm>" namespace "std" nogil:
     bool any_of[Iter, Pred](Iter first, Iter last, Pred pred) except +
     bool none_of[Iter, Pred](Iter first, Iter last, Pred pred) except +
 
+    void for_each[Iter, UnaryFunction](Iter first, Iter last, UnaryFunction f) except +  # actually returns f
+
     ptrdiff_t count[Iter, T](Iter first, Iter last, const T& value)
     ptrdiff_t count_if[Iter, Pred](Iter first, Iter last, Pred pred) except +
 
