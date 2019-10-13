@@ -7,7 +7,8 @@ from cython.operator cimport postincrement
 from libcpp cimport bool
 from libcpp.algorithm cimport copy, copy_if, copy_n, copy_backward, move, move_backward, fill, fill_n, transform
 from libcpp.algorithm cimport generate, generate_n, remove, remove_if, remove_copy, remove_copy_if, replace, replace_if
-from libcpp.algorithm cimport replace_copy, replace_copy_if, swap, swap_ranges
+from libcpp.algorithm cimport replace_copy, replace_copy_if, swap, swap_ranges, iter_swap
+from libcpp.algorithm cimport min_element
 from libcpp.iterator cimport back_inserter
 from libcpp.string cimport string
 from libcpp.vector cimport vector
@@ -311,3 +312,18 @@ def test_swap_ranges():
     print(a, b)
     swap_ranges(a.begin(), a.end(), b.begin())
     print(a, b)
+
+
+def selection_sort(vector[int] values):
+    """
+    Test iter_swap using cppreference example.
+
+    >>> selection_sort([-7, 6, 2, 4, -1, 6, -9, -1, 2, -5, 10, -9, -5, -3, -5, -3, 6, 6, 1, 8])
+    [-9, -9, -7, -5, -5, -5, -3, -3, -1, -1, 1, 2, 2, 4, 6, 6, 6, 6, 8, 10]
+    """
+    i = values.begin()
+    end = values.end()
+    while i < end:
+        iter_swap(i, min_element(i, end))
+        i += 1
+    return values

@@ -71,6 +71,7 @@ cdef extern from "<algorithm>" namespace "std" nogil:
 
     void swap[T](T& a, T& b)  # array overload also works
     Iter2 swap_ranges[Iter1, Iter2](Iter1 first1, Iter1 last1, Iter2 first2)
+    void iter_swap[Iter](Iter a, Iter b)
 
     Iter unique[Iter](Iter first, Iter last)
     Iter unique[Iter, BinaryPredicate](Iter first, Iter last, BinaryPredicate p) except +
@@ -112,6 +113,7 @@ cdef extern from "<algorithm>" namespace "std" nogil:
     void sort_heap[Iter, Compare](Iter first, Iter last, Compare comp) except +
 
     # Minimum/maximum operations
+    Iter min_element[Iter](Iter first, Iter last)
 
     # Comparison operations
 
