@@ -87,8 +87,9 @@ cdef extern from "<algorithm>" namespace "std" nogil:
     OutputIt unique_copy[InputIt, OutputIt, BinaryPred](
         InputIt first, InputIt last, OutputIt d_first, BinaryPred pred) except +
 
-
     # Partitioning operations
+    bool is_partitioned[Iter, Pred](Iter first, Iter last, Pred p) except +
+    Iter partition[Iter, Pred](Iter first, Iter last, Pred p) except +
 
     # Sorting operations
     void sort[Iter](Iter first, Iter last)
