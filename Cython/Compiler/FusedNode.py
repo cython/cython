@@ -507,20 +507,22 @@ class FusedCFuncDefNode(StatListNode):
                 ndarray = __Pyx_ImportNumPyArrayTypeIfAvailable()
             """)
 
+        seen_typedefs = set()
         seen_int_dtypes = set()
         for buffer_type in all_buffer_types:
             dtype = buffer_type.dtype
+            dtype_name = self._dtype_name(dtype)
             if dtype.is_typedef:
-                 #decl_code.putln("ctypedef %s %s" % (dtype.resolve(),
-                 #                                    self._dtype_name(dtype)))
-                decl_code.putln('ctypedef %s %s "%s"' % (dtype.resolve(),
-                                                         self._dtype_name(dtype),
-                                                         dtype.empty_declaration_code()))
+                if dtype_name not in seen_typedefs:
+                    seen_typedefs.add(dtype_name)
+                    decl_code.putln(
+                        'ctypedef %s %s "%s"' % (dtype.resolve(), dtype_name,
+                                                 dtype.empty_declaration_code()))
 
             if buffer_type.dtype.is_int:
                 if str(dtype) not in seen_int_dtypes:
                     seen_int_dtypes.add(str(dtype))
-                    pyx_code.context.update(dtype_name=self._dtype_name(dtype),
+                    pyx_code.context.update(dtype_name=dtype_name,
                                             dtype_type=self._dtype_type(dtype))
                     pyx_code.local_variable_declarations.put_chunk(
                         u"""
