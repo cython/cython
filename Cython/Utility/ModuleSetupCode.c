@@ -182,8 +182,8 @@
     #define CYTHON_FAST_GIL (PY_MAJOR_VERSION < 3 || PY_VERSION_HEX >= 0x03060000)
   #endif
   #ifndef CYTHON_METH_FASTCALL
-    /* CPython 3.6 introduced METH_FASTCALL but with slightly different
-     * semantics. It became stable starting from CPython 3.7 */
+    // CPython 3.6 introduced METH_FASTCALL but with slightly different
+    // semantics. It became stable starting from CPython 3.7.
     #define CYTHON_METH_FASTCALL (PY_VERSION_HEX >= 0x030700A1)
   #endif
   #ifndef CYTHON_FAST_PYCALL
@@ -210,6 +210,9 @@
 #if !defined(CYTHON_VECTORCALL)
 #define CYTHON_VECTORCALL  (CYTHON_FAST_PYCCALL && PY_VERSION_HEX >= 0x030800B1)
 #endif
+
+/* Whether to use METH_FASTCALL with a fake backported implementation of vectorcall */
+#define CYTHON_BACKPORT_VECTORCALL (CYTHON_METH_FASTCALL && PY_VERSION_HEX < 0x030800B1)
 
 #if CYTHON_USE_PYLONG_INTERNALS
   #include "longintrepr.h"
@@ -469,6 +472,13 @@ class __Pyx_FakeReference {
   #define __Pyx_PyCFunction_FastCallWithKeywords PyCFunctionWithKeywords
 #endif
 
+#if CYTHON_VECTORCALL
+  #define __pyx_vectorcallfunc vectorcallfunc
+#elif CYTHON_BACKPORT_VECTORCALL
+  typedef PyObject *(*__pyx_vectorcallfunc)(PyObject *callable, PyObject *const *args,
+                                            size_t nargsf, PyObject *kwnames);
+#endif
+
 #if CYTHON_COMPILING_IN_PYPY && !defined(PyObject_Malloc)
   #define PyObject_Malloc(s)   PyMem_Malloc(s)
   #define PyObject_Free(p)     PyMem_Free(p)
@@ -703,12 +713,6 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 #else
   #define __Pyx_PyInt_FromHash_t PyInt_FromSsize_t
   #define __Pyx_PyInt_AsHash_t   __Pyx_PyIndex_AsSsize_t
-#endif
-
-#if PY_MAJOR_VERSION >= 3
-  #define __Pyx_PyMethod_New(func, self, klass) ((self) ? PyMethod_New(func, self) : (Py_INCREF(func), func))
-#else
-  #define __Pyx_PyMethod_New(func, self, klass) PyMethod_New(func, self, klass)
 #endif
 
 // backport of PyAsyncMethods from Py3.5 to older Py3.x versions

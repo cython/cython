@@ -545,9 +545,14 @@ class build_ext(_build_ext):
 class ErrorWriter(object):
     match_error = re.compile(r'(warning:)?(?:.*:)?\s*([-0-9]+)\s*:\s*([-0-9]+)\s*:\s*(.*)').match
 
-    def __init__(self):
+    def __init__(self, encoding=None):
         self.output = []
-        self.write = self.output.append
+        self.encoding = encoding
+
+    def write(self, value):
+        if self.encoding:
+            value = value.encode('ISO-8859-1').decode(self.encoding)
+        self.output.append(value)
 
     def _collect(self):
         s = ''.join(self.output)
@@ -1002,6 +1007,13 @@ class CythonCompileTestCase(unittest.TestCase):
 
     def split_source_and_output(self, test_directory, module, workdir):
         source_file = self.find_module_source_file(os.path.join(test_directory, module) + '.pyx')
+
+        from Cython.Utils import detect_opened_file_encoding
+        with io_open(source_file, 'rb') as f:
+            # encoding is passed to ErrorWriter but not used on the source
+            # since it is sometimes deliberately wrong
+            encoding = detect_opened_file_encoding(f, default=None)
+
         with io_open(source_file, 'r', encoding='ISO-8859-1') as source_and_output:
             error_writer = warnings_writer = None
             out = io_open(os.path.join(workdir, module + os.path.splitext(source_file)[1]),
@@ -1010,10 +1022,10 @@ class CythonCompileTestCase(unittest.TestCase):
                 for line in source_and_output:
                     if line.startswith("_ERRORS"):
                         out.close()
-                        out = error_writer = ErrorWriter()
+                        out = error_writer = ErrorWriter(encoding=encoding)
                     elif line.startswith("_WARNINGS"):
                         out.close()
-                        out = warnings_writer = ErrorWriter()
+                        out = warnings_writer = ErrorWriter(encoding=encoding)
                     else:
                         out.write(line)
             finally:
@@ -1748,6 +1760,7 @@ class EndToEndTest(unittest.TestCase):
     def runTest(self):
         self.success = False
         commands = (self.commands
+            .replace("CYTHONIZE", "PYTHON %s" % os.path.join(self.cython_root, 'cythonize.py'))
             .replace("CYTHON", "PYTHON %s" % os.path.join(self.cython_root, 'cython.py'))
             .replace("PYTHON", sys.executable))
         old_path = os.environ.get('PYTHONPATH')

@@ -8,12 +8,18 @@ Cython Changelog
 Features added
 --------------
 
+* Cython functions now use the PEP-590 vectorcall protocol in Py3.7+.
+  Patch by Jeroen Demeyer.  (Github issue #2263)
+
 * Unicode identifiers are supported in Cython code (PEP 3131).
   Patch by da-woods.  (Github issue #2601)
 
 * ``with gil/nogil`` statements can be conditional based on compile-time
   constants, e.g. fused type checks.
   Patch by Noam Hershtig.  (Github issue #2579)
+
+* ``const`` can be used together with fused types.
+  Patch by Thomas Vincent.  (Github issue #1772)
 
 * Reimports of already imported modules are substantially faster.
   (Github issue #2854)
@@ -27,9 +33,6 @@ Features added
 * ``@cython.trashcan(True)`` can be used on an extension type to enable the
   CPython trashcan. This allows deallocating deeply recursive objects without
   overflowing the stack.  Patch by Jeroen Demeyer.  (Github issue #2842)
-
-* ``?`` is supported as NumPy dtype for ``bool``.
-  Patch by Max Klein.  (Github issue #2675)
 
 * Properties can be defined for external extension types.
   Patch by Matti Picus.  (Github issue #2640)
@@ -89,6 +92,9 @@ Bugs fixed
   semantics.  It now passes through the Mapping protocol first when supported.
   (Github issue #1807)
 
+* Name lookups in class bodies no longer go through an attribute lookup.
+  Patch by Jeroen Demeyer.  (Github issue #3100)
+
 * Broadcast assignments to a multi-dimensional memory view slice could end
   up in the wrong places when the underlying memory view is known to be
   contiguous but the slice is not.
@@ -123,6 +129,9 @@ Bugs fixed
 
 * A C compiler cast warning was resolved.
   Patch by Michael Buesch.  (Github issue #2775)
+
+* Binding staticmethods of Cython functions were not behaving like Python methods.
+  Patch by Jeroen Demeyer.  (Github issue #3106, #3102)
 
 Other changes
 -------------
@@ -163,12 +172,18 @@ Other changes
 Bugs fixed
 ----------
 
-* ``await`` was not allows inside of f-strings.
+* ``?`` for ``bool`` was missing from the supported NumPy dtypes.
+  Patch by Max Klein.  (Github issue #2675)
+
+* ``await`` was not allowed inside of f-strings.
   Patch by Dmitro Getz.  (Github issue #2877)
 
 * Coverage analysis failed for projects where the code resides in separate
   source sub-directories.
   Patch by Antonio Valentino.  (Github issue #1985)
+
+* An incorrect compiler warning was fixed in automatic C++ string conversions.
+  Patch by Gerion Entrup.  (Github issue #3108)
 
 Other changes
 -------------

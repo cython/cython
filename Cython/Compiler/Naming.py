@@ -59,7 +59,7 @@ convert_func_prefix = pyrex_prefix + "convert_"
 closure_scope_prefix = pyrex_prefix + "scope_"
 closure_class_prefix = pyrex_prefix + "scope_struct_"
 lambda_func_prefix = pyrex_prefix + "lambda_"
-module_is_main   = pyrex_prefix + "module_is_main_"
+module_is_main   = pyrex_prefix + "module_is_main"
 defaults_struct_prefix = pyrex_prefix + "defaults"
 dynamic_args_cname = pyrex_prefix + "dynamic_args"
 
@@ -163,8 +163,11 @@ exc_vars = (exc_type_name, exc_value_name, exc_tb_name)
 
 api_name        = pyrex_prefix + "capi__"
 
-h_guard_prefix   = "__PYX_HAVE__"
-api_guard_prefix = "__PYX_HAVE_API__"
+# the h and api guards get changed to:
+#  __PYX_HAVE__FILENAME (for ascii filenames)
+#  __PYX_HAVE_U_PUNYCODEFILENAME (for non-ascii filenames)
+h_guard_prefix   = "__PYX_HAVE_"
+api_guard_prefix = "__PYX_HAVE_API_"
 api_func_guard   = "__PYX_HAVE_API_FUNC_"
 
 PYX_NAN          = "__PYX_NAN()"

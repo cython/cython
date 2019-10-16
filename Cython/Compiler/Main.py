@@ -32,8 +32,23 @@ from .. import Utils
 from . import Options
 from .Options import CompilationOptions, default_options
 from .CmdLine import parse_command_line
+from .Lexicon import (unicode_start_ch_any, unicode_continuation_ch_any,
+                      unicode_start_ch_range, unicode_continuation_ch_range)
 
-module_name_pattern = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$")
+
+def _make_range_re(chrs):
+    out = []
+    for i in range(0, len(chrs), 2):
+        out.append(u"{0}-{1}".format(chrs[i], chrs[i+1]))
+    return u"".join(out)
+
+# py2 version looked like r"[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$"
+module_name_pattern = u"[{0}{1}][{0}{2}{1}{3}]*".format(
+    unicode_start_ch_any, _make_range_re(unicode_start_ch_range),
+    unicode_continuation_ch_any,
+    _make_range_re(unicode_continuation_ch_range))
+module_name_pattern = re.compile(u"{0}(\\.{0})*$".format(module_name_pattern))
+
 
 standard_include_path = os.path.abspath(
     os.path.join(os.path.dirname(os.path.dirname(__file__)), 'Includes'))
@@ -158,7 +173,7 @@ class Context(object):
 
         if not module_name_pattern.match(qualified_name):
             raise CompileError(pos or (module_name, 0, 0),
-                               "'%s' is not a valid module name" % module_name)
+                               u"'%s' is not a valid module name" % module_name)
 
         if relative_to:
             if debug_find_module:
@@ -433,6 +448,12 @@ def create_default_resultobj(compilation_source, options):
 def run_pipeline(source, options, full_module_name=None, context=None):
     from . import Pipeline
 
+    # ensure that the inputs are unicode (for Python 2)
+    if sys.version_info[0] == 2:
+        source = source.decode(sys.getfilesystemencoding())
+        if full_module_name:
+            full_module_name = full_module_name.decode("utf-8")
+
     source_ext = os.path.splitext(source)[1]
     options.configure_language_defaults(source_ext[1:]) # py/pyx
     if context is None:
@@ -442,6 +463,7 @@ def run_pipeline(source, options, full_module_name=None, context=None):
     cwd = os.getcwd()
     abs_path = os.path.abspath(source)
     full_module_name = full_module_name or context.extract_module_name(source, options)
+    full_module_name = EncodedString(full_module_name)
 
     Utils.raise_error_if_module_name_forbidden(full_module_name)
 
@@ -611,7 +633,6 @@ def search_include_directories(dirs, qualified_name, suffix, pos, include=False)
 
     The 'include' option will disable package dereferencing.
     """
-
     if pos:
         file_desc = pos[0]
         if not isinstance(file_desc, FileSourceDescriptor):
@@ -662,7 +683,6 @@ def search_include_directories(dirs, qualified_name, suffix, pos, include=False)
 
         # search for namespaces second - PEP420
         for package_dir in namespace_dirs:
-
             # matches modules of the form: <dir>/foo/bar.pxd
             path = os.path.join(package_dir, module_filename)
             if os.path.exists(path):

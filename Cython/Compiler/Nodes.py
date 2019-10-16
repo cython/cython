@@ -3111,11 +3111,9 @@ class DefNode(FuncDefNode):
         #    METH_VARARGS to METH_FASTCALL
         # 2. Special methods like __call__ always use the METH_VARGARGS
         #    calling convention
-        # 3. For the moment, CyFunctions do not support METH_FASTCALL
         mf = sig.method_flags()
-        if (mf and TypeSlots.method_varargs in mf and
-                not self.entry.is_special and not self.is_cyfunction):
-            # 4. If the function uses the full args tuple, it's more
+        if mf and TypeSlots.method_varargs in mf and not self.entry.is_special:
+            # 3. If the function uses the full args tuple, it's more
             #    efficient to use METH_VARARGS. This happens when the function
             #    takes *args but no other positional arguments (apart from
             #    possibly self). We don't do the analogous check for keyword
