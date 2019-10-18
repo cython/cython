@@ -3,7 +3,8 @@
 
 from __future__ import print_function
 
-from libcpp.algorithm cimport is_sorted, is_sorted_until
+from libcpp.algorithm cimport is_sorted, is_sorted_until, sort, partial_sort
+from libcpp.functional cimport greater
 from libcpp.iterator cimport distance
 from libcpp.vector cimport vector
 
@@ -41,3 +42,45 @@ def initial_sorted_elements(vector[int] values):
     """
     sorted_end = is_sorted_until(values.begin(), values.end())
     return distance(values.begin(), sorted_end)
+
+
+def sort_ints(vector[int] values):
+    """Test sort using the default operator<.
+
+    >>> sort_ints([5, 7, 4, 2, 8, 6, 1, 9, 0, 3])
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    """
+    sort(values.begin(), values.end())
+    return values
+
+
+def sort_ints_reverse(vector[int] values):
+    """Test sort using a standard library comparison function object.
+
+    >>> sort_ints_reverse([5, 7, 4, 2, 8, 6, 1, 9, 0, 3])
+    [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
+    """
+    sort(values.begin(), values.end(), greater[int]())
+    return values
+
+
+def partial_sort_ints(vector[int] values, int k):
+    """
+    Test partial_sort using the default operator<.
+
+    >>> partial_sort_ints([4, 2, 3, 1, 5], 2)[:2]
+    [1, 2]
+    """
+    partial_sort(values.begin(), values.begin() + k, values.end())
+    return values
+
+
+def partial_sort_ints_reverse(vector[int] values, int k):
+    """
+    Test partial_sort using a standard library comparison function object.
+
+    >>> partial_sort_ints_reverse([4, 2, 3, 1, 5], 2)[:2]
+    [5, 4]
+    """
+    partial_sort(values.begin(), values.begin() + k, values.end(), greater[int]())
+    return values
