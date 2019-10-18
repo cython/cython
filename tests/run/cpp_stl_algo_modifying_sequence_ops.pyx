@@ -4,7 +4,7 @@
 from __future__ import print_function
 
 from cython.operator cimport dereference as deref
-from cython.operator cimport postincrement
+from cython.operator cimport preincrement, postincrement
 from libcpp cimport bool
 from libcpp.algorithm cimport copy, copy_if, copy_n, copy_backward, move, move_backward, fill, fill_n, transform
 from libcpp.algorithm cimport generate, generate_n, remove, remove_if, remove_copy, remove_copy_if, replace, replace_if
@@ -327,7 +327,7 @@ def selection_sort(vector[int] values):
     end = values.end()
     while i < end:
         iter_swap(i, min_element(i, end))
-        i += 1
+        preincrement(i)
     return values
 
 
@@ -364,7 +364,7 @@ def insertion_sort(vector[int] values):
     i = values.begin()
     while i < values.end():
         rotate(upper_bound(values.begin(), i, deref(i)), i, i + 1)
-        i += 1
+        preincrement(i)
     return values
 
 
