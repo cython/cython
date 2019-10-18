@@ -191,7 +191,8 @@ class old_build_ext(_build_ext.build_ext):
 
         for ext in self.extensions:
             ext.sources = self.cython_sources(ext.sources, ext)
-            self.build_extension(ext)
+        # Call original build_extensions
+        _build_ext.build_ext.build_extensions(self)
 
     def cython_sources(self, sources, extension):
         """
