@@ -3,6 +3,7 @@ from __future__ import absolute_import
 import os
 import unittest
 import tempfile
+from io import open
 
 from .Compiler import Errors
 from .CodeWriter import CodeWriter
@@ -189,28 +190,24 @@ def unpack_source_tree(tree_file, dir=None):
         dir = tempfile.mkdtemp()
     header = []
     cur_file = None
-    f = open(tree_file)
-    try:
+    with open(tree_file, mode='rb') as f:
         lines = f.readlines()
-    finally:
-        f.close()
-    del f
     try:
         for line in lines:
-            if line[:5] == '#####':
-                filename = line.strip().strip('#').strip().replace('/', os.path.sep)
+            if line[:5] == b'#####':
+                filename = line.strip().strip(b'#').strip().decode('utf8').replace('/', os.path.sep)
                 path = os.path.join(dir, filename)
                 if not os.path.exists(os.path.dirname(path)):
                     os.makedirs(os.path.dirname(path))
                 if cur_file is not None:
                     f, cur_file = cur_file, None
                     f.close()
-                cur_file = open(path, 'w')
+                cur_file = open(path, 'wb')
             elif cur_file is not None:
                 cur_file.write(line)
-            elif line.strip() and not line.lstrip().startswith('#'):
-                if line.strip() not in ('"""', "'''"):
-                    header.append(line)
+            elif line.strip() and not line.lstrip().startswith(b'#'):
+                if line.strip() not in (b'"""', b"'''"):
+                    header.append(line.decode('utf8'))
     finally:
         if cur_file is not None:
             cur_file.close()
