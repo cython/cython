@@ -1,3 +1,4 @@
+# mode: run
 # tag: cpp
 
 from libcpp cimport bool
@@ -6,7 +7,7 @@ from libcpp.vector cimport vector
 
 
 # XXX should use std::greater, but I don't know how to wrap that.
-cdef inline bool greater(int x, int y):
+cdef inline bool greater(const int &x, const int &y):
     return x > y
 
 
