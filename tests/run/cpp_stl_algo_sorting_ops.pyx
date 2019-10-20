@@ -3,9 +3,11 @@
 
 from __future__ import print_function
 
-from libcpp.algorithm cimport is_sorted, is_sorted_until, sort, partial_sort, partial_sort_copy
+from libcpp cimport bool
+from libcpp.algorithm cimport is_sorted, is_sorted_until, sort, partial_sort, partial_sort_copy, stable_sort
 from libcpp.functional cimport greater
 from libcpp.iterator cimport distance
+from libcpp.string cimport string
 from libcpp.vector cimport vector
 
 
@@ -108,3 +110,55 @@ def partial_sort_ints_reverse2(vector[int] values, int k):
     output = vector[int](2)
     partial_sort_copy(values.begin(), values.end(), output.begin(), output.end(), greater[int]())
     return output
+
+
+cdef extern from *:
+    """
+    struct Employee
+    {
+        Employee() = default;
+        Employee(int age, std::string name): age(age), name(name) {}
+        int age;
+        std::string name;  // Does not participate in comparisons
+    };
+
+    bool operator<(const Employee& lhs, const Employee& rhs)
+    {
+        return lhs.age < rhs.age;
+    }
+    """
+    cppclass Employee:
+        Employee()
+        Employee(int, string)
+        int age
+        string name
+
+cdef bool Employee_greater(const Employee& lhs, const Employee& rhs):
+    return lhs.age > rhs.age
+
+def test_stable_sort():
+    """
+    Test stable_sort using cppreference example.
+
+    >>> test_stable_sort()
+    32, Arthur
+    108, Zaphod
+    108, Ford
+    108, Zaphod
+    108, Ford
+    32, Arthur
+    """
+    cdef vector[Employee] employees
+    employees.push_back(Employee(108, <string>b"Zaphod"))
+    employees.push_back(Employee(32, <string>b"Arthur"))
+    employees.push_back(Employee(108, <string>b"Ford"))
+
+    stable_sort(employees.begin(), employees.end())
+
+    for e in employees:
+        print("%s, %s" % (e.age, <str>(e.name).decode("ascii")))
+
+    stable_sort(employees.begin(), employees.end(), &Employee_greater)
+
+    for e in employees:
+        print("%s, %s" % (e.age, <str>(e.name).decode("ascii")))
