@@ -115,6 +115,9 @@ cdef extern from "<algorithm>" namespace "std" nogil:
     void stable_sort[Iter](Iter first, Iter last)
     void stable_sort[Iter, Compare](Iter first, Iter last, Compare comp) except +
 
+    void nth_element[Iter](Iter first, Iter nth, Iter last)
+    void nth_element[Iter, Compare](Iter first, Iter nth, Iter last, Compare comp) except +
+
     # Binary search operations (on sorted ranges)
     Iter lower_bound[Iter, T](Iter first, Iter last, const T& value)
     Iter lower_bound[Iter, T, Compare](Iter first, Iter last, const T& value, Compare comp) except +

@@ -5,6 +5,7 @@ from __future__ import print_function
 
 from libcpp cimport bool
 from libcpp.algorithm cimport is_sorted, is_sorted_until, sort, partial_sort, partial_sort_copy, stable_sort
+from libcpp.algorithm cimport nth_element
 from libcpp.functional cimport greater
 from libcpp.iterator cimport distance
 from libcpp.string cimport string
@@ -162,3 +163,25 @@ def test_stable_sort():
 
     for e in employees:
         print("%s, %s" % (e.age, <str>(e.name).decode("ascii")))
+
+
+def second_smallest(vector[int] values):
+    """
+    Test nth_element using the default operator<.
+
+    >>> second_smallest([5, 6, 4, 3, 2, 6, 7, 9, 3])
+    3
+    """
+    nth_element(values.begin(), values.begin() + 1, values.end())
+    return values[1]
+
+
+def second_largest(vector[int] values):
+    """
+    Test nth_element using a standard library comparison function object.
+
+    >>> second_largest([5, 6, 4, 3, 2, 6, 7, 9, 3])
+    7
+    """
+    nth_element(values.begin(), values.begin() + 1, values.end(), greater[int]())
+    return values[1]
