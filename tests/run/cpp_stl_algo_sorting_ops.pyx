@@ -3,7 +3,7 @@
 
 from __future__ import print_function
 
-from libcpp.algorithm cimport is_sorted, is_sorted_until, sort, partial_sort
+from libcpp.algorithm cimport is_sorted, is_sorted_until, sort, partial_sort, partial_sort_copy
 from libcpp.functional cimport greater
 from libcpp.iterator cimport distance
 from libcpp.vector cimport vector
@@ -84,3 +84,27 @@ def partial_sort_ints_reverse(vector[int] values, int k):
     """
     partial_sort(values.begin(), values.begin() + k, values.end(), greater[int]())
     return values
+
+
+def partial_sort_ints2(vector[int] values, int k):
+    """
+    Test partial_sort_copy using the default operator<.
+
+    >>> partial_sort_ints2([4, 2, 3, 1, 5], 2)
+    [1, 2]
+    """
+    output = vector[int](2)
+    partial_sort_copy(values.begin(), values.end(), output.begin(), output.end())
+    return output
+
+
+def partial_sort_ints_reverse2(vector[int] values, int k):
+    """
+    Test partial_sort_copy using a standard library comparison function object.
+
+    >>> partial_sort_ints_reverse2([4, 2, 3, 1, 5], 2)
+    [5, 4]
+    """
+    output = vector[int](2)
+    partial_sort_copy(values.begin(), values.end(), output.begin(), output.end(), greater[int]())
+    return output

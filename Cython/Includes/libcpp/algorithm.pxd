@@ -108,6 +108,10 @@ cdef extern from "<algorithm>" namespace "std" nogil:
     void partial_sort[Iter](Iter first, Iter middle, Iter last)
     void partial_sort[Iter, Compare](Iter first, Iter middle, Iter last, Compare comp) except +
 
+    OutputIt partial_sort_copy[InputIt, OutputIt](InputIt first, InputIt last, OutputIt d_first, OutputIt d_last)
+    OutputIt partial_sort_copy[InputIt, OutputIt, Compare](
+        InputIt first, InputIt last, OutputIt d_first, OutputIt d_last, Compare comp) except +
+
     # Binary search operations (on sorted ranges)
     Iter lower_bound[Iter, T](Iter first, Iter last, const T& value)
     Iter lower_bound[Iter, T, Compare](Iter first, Iter last, const T& value, Compare comp) except +
