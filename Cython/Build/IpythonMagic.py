@@ -323,6 +323,9 @@ class CythonMagics(Magics):
         extension = None
         if need_cythonize:
             extensions = self._cythonize(module_name, code, lib_dir, args, quiet=args.quiet)
+            if extensions is None:
+                # Compilation failed and printed error message
+                return None
             assert len(extensions) == 1
             extension = extensions[0]
             self._code_cache[key] = module_name
@@ -330,8 +333,12 @@ class CythonMagics(Magics):
             if args.pgo:
                 self._profile_pgo_wrapper(extension, lib_dir)
 
-        self._build_extension(extension, lib_dir, pgo_step_name='use' if args.pgo else None,
-                              quiet=args.quiet)
+        try:
+            self._build_extension(extension, lib_dir, pgo_step_name='use' if args.pgo else None,
+                                  quiet=args.quiet)
+        except distutils.errors.CompileError:
+            # Build failed and printed error message
+            return None
 
         module = imp.load_dynamic(module_name, module_path)
         self._import_all(module)
