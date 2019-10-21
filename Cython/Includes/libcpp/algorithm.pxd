@@ -90,6 +90,10 @@ cdef extern from "<algorithm>" namespace "std" nogil:
     # Partitioning operations
     bool is_partitioned[Iter, Pred](Iter first, Iter last, Pred p) except +
     Iter partition[Iter, Pred](Iter first, Iter last, Pred p) except +
+    pair[OutputIt1, OutputIt2] partition_copy[InputIt, OutputIt1, OutputIt2, Pred](
+        InputIt first, InputIt last, OutputIt1 d_first_true, OutputIt2 d_first_false, Pred p) except +
+    Iter stable_partition[Iter, Pred](Iter first, Iter last, Pred p) except +
+    Iter partition_point[Iter, Pred](Iter first, Iter last, Pred p) except +
 
     # Sorting operations
     void sort[Iter](Iter first, Iter last)
