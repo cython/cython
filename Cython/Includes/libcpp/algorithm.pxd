@@ -96,6 +96,12 @@ cdef extern from "<algorithm>" namespace "std" nogil:
     Iter partition_point[Iter, Pred](Iter first, Iter last, Pred p) except +
 
     # Sorting operations
+    bool is_sorted[Iter](Iter first, Iter last)
+    bool is_sorted[Iter, Compare](Iter first, Iter last, Compare comp) except +
+
+    Iter is_sorted_until[Iter](Iter first, Iter last)
+    Iter is_sorted_until[Iter, Compare](Iter first, Iter last, Compare comp) except +
+
     void sort[Iter](Iter first, Iter last)
     void sort[Iter, Compare](Iter first, Iter last, Compare comp) except +
 
