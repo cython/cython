@@ -9,6 +9,8 @@ cdef extern from "<algorithm>" namespace "std" nogil:
     bool any_of[Iter, Pred](Iter first, Iter last, Pred pred) except +
     bool none_of[Iter, Pred](Iter first, Iter last, Pred pred) except +
 
+    void for_each[Iter, UnaryFunction](Iter first, Iter last, UnaryFunction f) except +  # actually returns f
+
     ptrdiff_t count[Iter, T](Iter first, Iter last, const T& value)
     ptrdiff_t count_if[Iter, Pred](Iter first, Iter last, Pred pred) except +
 
@@ -37,10 +39,54 @@ cdef extern from "<algorithm>" namespace "std" nogil:
         Iter first1, Iter last1, Size count, const T& value, BinaryPred pred) except +
 
     # Modifying sequence operations
-    OutputIter copy[InputIter, OutputIter](InputIter, InputIter, OutputIter)
+    OutputIt copy[InputIt, OutputIt](InputIt first, InputIt last, OutputIt d_first)
+    OutputIt copy_if[InputIt, OutputIt, Pred](InputIt first, InputIt last, OutputIt d_first, Pred pred) except +
+    OutputIt copy_n[InputIt, Size, OutputIt](InputIt first, Size count, OutputIt result)
+    Iter2 copy_backward[Iter1, Iter2](Iter1 first, Iter1 last, Iter2 d_last)
+
+    OutputIt move[InputIt, OutputIt](InputIt first, InputIt last, OutputIt d_first)
+    Iter2 move_backward[Iter1, Iter2](Iter1 first, Iter1 last, Iter2 d_last)
+
+    void fill[Iter, T](Iter first, Iter last, const T& value)
+    Iter fill_n[Iter, Size, T](Iter first, Size count, const T& value)
+
+    OutputIt transform[InputIt, OutputIt, UnaryOp](
+        InputIt first1, InputIt last1, OutputIt d_first, UnaryOp unary_op) except +
+    OutputIt transform[InputIt1, InputIt2, OutputIt, BinaryOp](
+        InputIt1 first1, InputIt1 last1, InputIt2 first2, OutputIt d_first, BinaryOp binary_op) except +
+
+    void generate[Iter, Generator](Iter first, Iter last, Generator g) except +
+    void generate_n[Iter, Size, Generator](Iter first, Size count, Generator g) except +
+
+    Iter remove[Iter, T](Iter first, Iter last, const T& value)
+    Iter remove_if[Iter, UnaryPred](Iter first, Iter last, UnaryPred pred)
+    OutputIt remove_copy[InputIt, OutputIt, T](InputIt first, InputIt last, OutputIt d_first, const T& value)
+    OutputIt remove_copy_if[InputIt, OutputIt, UnaryPred](
+        InputIt first, InputIt last, OutputIt d_first, UnaryPred pred) except +
+
+    void replace[Iter, T](Iter first, Iter last, const T& old_value, const T& new_value)
+    void replace_if[Iter, UnaryPred, T](Iter first, Iter last, UnaryPred pred, const T& new_value) except +
+    OutputIt replace_copy[InputIt, OutputIt, T](
+        InputIt first, InputIt last, OutputIt d_first, const T& old_value, const T& new_value)
+    OutputIt replace_copy_if[InputIt, OutputIt, UnaryPred, T](
+        InputIt first, InputIt last, OutputIt d_first, UnaryPred pred, const T& new_value) except +
+
+    void swap[T](T& a, T& b)  # array overload also works
+    Iter2 swap_ranges[Iter1, Iter2](Iter1 first1, Iter1 last1, Iter2 first2)
+    void iter_swap[Iter](Iter a, Iter b)
+
+    void reverse[Iter](Iter first, Iter last)
+    OutputIt reverse_copy[InputIt, OutputIt](InputIt first, InputIt last, OutputIt d_first)
+
+    Iter rotate[Iter](Iter first, Iter n_first, Iter last)
+    OutputIt rotate_copy[InputIt, OutputIt](InputIt first, InputIt n_first, InputIt last, OutputIt d_first)
 
     Iter unique[Iter](Iter first, Iter last)
-    Iter unique[Iter, BinaryPredicate](Iter first, Iter last, BinaryPredicate p) except +
+    Iter unique[Iter, BinaryPred](Iter first, Iter last, BinaryPred p) except +
+    OutputIt unique_copy[InputIt, OutputIt](InputIt first, InputIt last, OutputIt d_first)
+    OutputIt unique_copy[InputIt, OutputIt, BinaryPred](
+        InputIt first, InputIt last, OutputIt d_first, BinaryPred pred) except +
+
 
     # Partitioning operations
 
@@ -79,6 +125,7 @@ cdef extern from "<algorithm>" namespace "std" nogil:
     void sort_heap[Iter, Compare](Iter first, Iter last, Compare comp) except +
 
     # Minimum/maximum operations
+    Iter min_element[Iter](Iter first, Iter last)
 
     # Comparison operations
 

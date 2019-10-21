@@ -21,8 +21,8 @@ def heapsort(l, bool reverse=False):
     cdef vector[int] v = l
 
     if reverse:
-        make_heap(v.begin(), v.end(), greater)
-        sort_heap(v.begin(), v.end(), greater)
+        make_heap(v.begin(), v.end(), &greater)
+        sort_heap(v.begin(), v.end(), &greater)
     else:
         make_heap(v.begin(), v.end())
         sort_heap(v.begin(), v.end())
@@ -39,7 +39,7 @@ def partialsort(l, int k, reverse=False):
     """
     cdef vector[int] v = l
     if reverse:
-        partial_sort(v.begin(), v.begin() + k, v.end(), greater)
+        partial_sort(v.begin(), v.begin() + k, v.end(), &greater)
     else:
         partial_sort(v.begin(), v.begin() + k, v.end())
     return v
@@ -54,7 +54,7 @@ def stdsort(l, reverse=False):
     """
     cdef vector[int] v = l
     if reverse:
-        sort(v.begin(), v.end(), greater)
+        sort(v.begin(), v.end(), &greater)
     else:
         sort(v.begin(), v.end())
     return v
