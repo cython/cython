@@ -539,7 +539,7 @@ class DependencyTree(object):
                 all.add(include_path)
                 all.update(self.included_files(include_path))
             elif not self.quiet:
-                print("Unable to locate '%s' referenced from '%s'" % (filename, include))
+                print(u"Unable to locate '%s' referenced from '%s'" % (filename, include))
         return all
 
     @cached_method
@@ -797,9 +797,9 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
             if cython_sources:
                 filepattern = cython_sources[0]
                 if len(cython_sources) > 1:
-                    print("Warning: Multiple cython sources found for extension '%s': %s\n"
-                          "See https://cython.readthedocs.io/en/latest/src/userguide/sharing_declarations.html "
-                          "for sharing declarations among Cython files." % (pattern.name, cython_sources))
+                    print(u"Warning: Multiple cython sources found for extension '%s': %s\n"
+                          u"See https://cython.readthedocs.io/en/latest/src/userguide/sharing_declarations.html "
+                          u"for sharing declarations among Cython files." % (pattern.name, cython_sources))
             else:
                 # ignore non-cython modules
                 module_list.append(pattern)
@@ -873,7 +873,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
                         m.sources.remove(target_file)
                     except ValueError:
                         # never seen this in the wild, but probably better to warn about this unexpected case
-                        print("Warning: Cython source file not found in sources list, adding %s" % file)
+                        print(u"Warning: Cython source file not found in sources list, adding %s" % file)
                     m.sources.insert(0, file)
                 seen.add(name)
     return module_list, module_metadata
@@ -1040,9 +1040,9 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                 if force or c_timestamp < dep_timestamp:
                     if not quiet and not force:
                         if source == dep:
-                            print("Compiling %s because it changed." % source)
+                            print(u"Compiling %s because it changed." % source)
                         else:
-                            print("Compiling %s because it depends on %s." % (source, dep))
+                            print(u"Compiling %s because it depends on %s." % (source, dep))
                     if not force and options.cache:
                         fingerprint = deps.transitive_fingerprint(source, m, options)
                     else:
@@ -1113,7 +1113,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
         if failed_modules:
             for module in failed_modules:
                 module_list.remove(module)
-            print("Failed compilations: %s" % ', '.join(sorted([
+            print(u"Failed compilations: %s" % ', '.join(sorted([
                 module.name for module in failed_modules])))
 
     if options.cache:
@@ -1179,7 +1179,7 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None,
         zip_fingerprint_file = fingerprint_file_base + '.zip'
         if os.path.exists(gz_fingerprint_file) or os.path.exists(zip_fingerprint_file):
             if not quiet:
-                print("%sFound compiled %s in cache" % (progress, pyx_file))
+                print(u"%sFound compiled %s in cache" % (progress, pyx_file))
             if os.path.exists(gz_fingerprint_file):
                 os.utime(gz_fingerprint_file, None)
                 with contextlib.closing(gzip_open(gz_fingerprint_file, 'rb')) as g:
@@ -1193,7 +1193,7 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None,
                         z.extract(artifact, os.path.join(dirname, artifact))
             return
     if not quiet:
-        print("%sCythonizing %s" % (progress, pyx_file))
+        print(u"%sCythonizing %s" % (progress, pyx_file))
     if options is None:
         options = CompilationOptions(default_options)
     options.output_file = c_file
