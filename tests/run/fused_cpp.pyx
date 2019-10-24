@@ -30,3 +30,14 @@ def typeid_call(C x):
     """
     cdef const type_info* a = &typeid(C)
     return a[0] == tidint[0]
+
+cimport cython
+
+def typeid_call2(cython.integral x):
+    """
+    For GH issue 3203
+    >>> typeid_call2[int](1)
+    True
+    """
+    cdef const type_info* a = &typeid(cython.integral)
+    return a[0] == tidint[0]

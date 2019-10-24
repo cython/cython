@@ -6907,14 +6907,20 @@ class AttributeNode(ExprNode):
         return None
 
     def analyse_as_type(self, env):
+        tp = None
         module_scope = self.obj.analyse_as_module(env)
         if module_scope:
-            return module_scope.lookup_type(self.attribute)
-        if not self.obj.is_string_literal:
+            tp = module_scope.lookup_type(self.attribute)
+        elif not self.obj.is_string_literal:
             base_type = self.obj.analyse_as_type(env)
             if base_type and hasattr(base_type, 'scope') and base_type.scope is not None:
-                return base_type.scope.lookup_type(self.attribute)
-        return None
+                tp = base_type.scope.lookup_type(self.attribute)
+        if tp and tp.is_fused and env.fused_to_specific:
+            try:
+                tp = tp.specialize(env.fused_to_specific)
+            except KeyError:
+                pass # just use unspecialized type
+        return tp
 
     def analyse_as_extension_type(self, env):
         # Try to interpret this as a reference to an extension type
