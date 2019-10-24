@@ -1961,6 +1961,12 @@ class NameNode(AtomicExprNode):
         if not entry:
             entry = env.lookup(self.name)
         if entry and entry.is_type:
+            if entry.type.is_fused and env.fused_to_specific:
+                try:
+                    return entry.type.specialize(env.fused_to_specific)
+                except KeyError:
+                    pass # lots of valid reasons why we may not be able to get a specific type
+                    # so don't fail
             return entry.type
         else:
             return None
