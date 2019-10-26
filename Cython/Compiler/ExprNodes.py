@@ -1962,11 +1962,10 @@ class NameNode(AtomicExprNode):
             entry = env.lookup(self.name)
         if entry and entry.is_type:
             if entry.type.is_fused and env.fused_to_specific:
-                try:
+                if entry.type in env.fused_to_specific:
                     return entry.type.specialize(env.fused_to_specific)
-                except KeyError:
-                    pass # lots of valid reasons why we may not be able to get a specific type
-                    # so don't fail
+                # else lots of valid reasons why we may not be able to get a specific type
+                # so don't fail
             return entry.type
         else:
             return None
@@ -6916,10 +6915,9 @@ class AttributeNode(ExprNode):
             if base_type and hasattr(base_type, 'scope') and base_type.scope is not None:
                 tp = base_type.scope.lookup_type(self.attribute)
         if tp and tp.is_fused and env.fused_to_specific:
-            try:
+            if tp in env.fused_to_specific:
                 tp = tp.specialize(env.fused_to_specific)
-            except KeyError:
-                pass # just use unspecialized type
+            # else just use unspecialized type
         return tp
 
     def analyse_as_extension_type(self, env):
