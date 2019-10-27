@@ -1,0 +1,26 @@
+# tag: cpp
+
+PYTHON -c "import cpp_test; cpp_test.test()"
+
+######## cpp_test.py ########
+
+import os.path
+import pyximport
+
+pyximport.install(build_dir=os.path.join(os.path.dirname(__file__), "TEST_TMP"))
+
+def test():
+    import mymodule
+    assert mymodule.test(3) == [0, 1, 2]
+
+######## mymodule.pyx ########
+
+# distutils: language = c++
+from libcpp.vector cimport vector
+
+def test(int n):
+    cdef vector[int] vec
+    cdef int i
+    for i in range(n):
+        vec.push_back(i)
+    return vec
