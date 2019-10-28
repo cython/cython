@@ -461,10 +461,16 @@ static PyMethodDef __pyx_CyFunction_methods[] = {
 #define __Pyx_CyFunction_weakreflist(cyfunc) ((cyfunc)->func.m_weakreflist)
 #endif
 
+static PyObject *__Pyx_CyFunction_NewAllocate(PyTypeObject* type) {
+   __pyx_CyFunctionObject *op = PyObject_GC_New(__pyx_CyFunctionObject, type);
+    if (op == NULL)
+        return NULL;
+    return (PyObject *)op;
+}
 
-static PyObject *__Pyx_CyFunction_New(PyTypeObject *type, PyMethodDef *ml, int flags, PyObject* qualname,
+static int __Pyx_CyFunction_NewInit(PyObject *op_raw, PyMethodDef *ml, int flags, PyObject* qualname,
                                       PyObject *closure, PyObject *module, PyObject* globals, PyObject* code) {
-    __pyx_CyFunctionObject *op = PyObject_GC_New(__pyx_CyFunctionObject, type);
+    __pyx_CyFunctionObject *op = (__pyx_CyFunctionObject *)op_raw;
     if (op == NULL)
         return NULL;
     op->flags = flags;
@@ -514,7 +520,16 @@ static PyObject *__Pyx_CyFunction_New(PyTypeObject *type, PyMethodDef *ml, int f
     }
 #endif
     PyObject_GC_Track(op);
-    return (PyObject *) op;
+    return 0;
+}
+
+static PyObject *__Pyx_CyFunction_New(PyTypeObject *type, PyMethodDef *ml, int flags, PyObject* qualname,
+                                      PyObject *closure, PyObject *module, PyObject* globals, PyObject* code) {
+    PyObject* op = __Pyx_CyFunction_NewAllocate(type);
+    if (op == NULL)
+        return NULL;
+    __Pyx_CyFunction_NewInit(op, ml, flags, qualname, closure, module, globals, code);
+    return op;
 }
 
 static int
@@ -985,14 +1000,17 @@ __pyx_FusedFunction_New(PyTypeObject *type, PyMethodDef *ml, int flags,
                         PyObject *code)
 {
     __pyx_FusedFunctionObject *fusedfunc =
-        (__pyx_FusedFunctionObject *) __Pyx_CyFunction_New(type, ml, flags, qualname,
-                                                           closure, module, globals, code);
-    if (!fusedfunc)
+        (__pyx_FusedFunctionObject *) __Pyx_CyFunction_NewAllocate(type);
+   if (!fusedfunc)
         return NULL;
 
     fusedfunc->__signatures__ = NULL;
     fusedfunc->type = NULL;
     fusedfunc->self = NULL;
+
+    __Pyx_CyFunction_NewInit((PyObject *)fusedfunc, ml, flags, qualname,
+                                                           closure, module, globals, code);
+
     return (PyObject *) fusedfunc;
 }
 
