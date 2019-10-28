@@ -472,7 +472,7 @@ static int __Pyx_CyFunction_NewInit(PyObject *op_raw, PyMethodDef *ml, int flags
                                       PyObject *closure, PyObject *module, PyObject* globals, PyObject* code) {
     __pyx_CyFunctionObject *op = (__pyx_CyFunctionObject *)op_raw;
     if (op == NULL)
-        return NULL;
+        return -1;
     op->flags = flags;
     __Pyx_CyFunction_weakreflist(op) = NULL;
     op->func.m_ml = ml;
