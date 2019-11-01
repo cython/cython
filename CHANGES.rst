@@ -2,11 +2,14 @@
 Cython Changelog
 ================
 
-0.29.14 (2019-??-??)
+0.29.14 (2019-11-01)
 ====================
 
 Bugs fixed
 ----------
+
+* The generated code failed to initialise the ``tp_print`` slot in CPython 3.8.
+  Patches by Pablo Galindo and Orivej Desh (Github issues #3171, #3201).
 
 * ``?`` for ``bool`` was missing from the supported NumPy dtypes.
   Patch by Max Klein.  (Github issue #2675)
@@ -20,6 +23,16 @@ Bugs fixed
 
 * An incorrect compiler warning was fixed in automatic C++ string conversions.
   Patch by Gerion Entrup.  (Github issue #3108)
+
+* Error reports in the Jupyter notebook showed unhelpful stack traces.
+  Patch by Matthew Edwards (Github issue #3196).
+
+* ``Python.h`` is now also included explicitly from ``public`` header files.
+  (Github issue #3133).
+
+* Distutils builds with ``--parallel`` did not work when using Cython's
+  deprecated ``build_ext`` command.
+  Patch by Alphadelta14 (Github issue #3187).
 
 Other changes
 -------------
