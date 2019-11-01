@@ -1133,6 +1133,8 @@ const_counter = 1 # As a temporary solution for compiling code in pxds
 class ModuleScope(Scope):
     # module_name          string             Python name of the module
     # module_cname         string             C name of Python module object
+    # modulestate_cname    string             C name of the module state object
+    # modulestateglobal_cname string          C name of the global module state
     # #module_dict_cname   string             C name of module dict object
     # method_table_cname   string             C name of method table
     # doc                  string             Module doc string
@@ -1175,6 +1177,8 @@ class ModuleScope(Scope):
         self.module_name = EncodedString(self.module_name)
         self.context = context
         self.module_cname = Naming.module_cname
+        self.modulestate_cname = Naming.modulestate_cname
+        self.modulestateglobal_cname = Naming.modulestateglobal_cname
         self.module_dict_cname = Naming.moddict_cname
         self.method_table_cname = Naming.methtable_cname
         self.doc = ""

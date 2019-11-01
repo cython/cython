@@ -1309,7 +1309,7 @@ class BuiltinObjectType(PyObjectType):
             name = '"%s"' % self.name
             # avoid wasting too much space but limit number of different format strings
             space_for_name = (len(self.name) // 16 + 1) * 16
-        error = '(PyErr_Format(PyExc_TypeError, "Expected %%.%ds, got %%.200s", %s, Py_TYPE(%s)->tp_name), 0)' % (
+        error = '(PyErr_Format(PyExc_TypeError, "Expected %%.%ds, got %%.200s", %s, __Pyx_PyType_Name(Py_TYPE(%s))), 0)' % (
             space_for_name, name, arg)
         return check + '||' + error
 

@@ -628,7 +628,7 @@ static double __Pyx__PyObject_AsDouble(PyObject* obj) {
     }
 #endif
     if (likely(float_value)) {
-        double value = PyFloat_AS_DOUBLE(float_value);
+        double value = __pyx_PyFloat_AsDouble(float_value);
         Py_DECREF(float_value);
         return value;
     }
@@ -776,7 +776,7 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject els
 
     if (PyFloat_CheckExact({{pyval}})) {
         const long {{'a' if order == 'CObj' else 'b'}} = intval;
-        double {{ival}} = PyFloat_AS_DOUBLE({{pyval}});
+        double {{ival}} = __pyx_PyFloat_AsDouble({{pyval}});
         {{return_compare('(double)a', '(double)b', c_op)}}
     }
 
@@ -1064,7 +1064,7 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, CYTHON_UNUSED
     {{if c_op in '+-*' or op in ('TrueDivide', 'Eq', 'Ne')}}
     if (PyFloat_CheckExact({{pyval}})) {
         const long {{'a' if order == 'CObj' else 'b'}} = intval;
-        double {{ival}} = PyFloat_AS_DOUBLE({{pyval}});
+        double {{ival}} = __pyx_PyFloat_AsDouble({{pyval}});
         {{if op in ('Eq', 'Ne')}}
             if ((double)a {{c_op}} (double)b) {
                 {{return_true}};
@@ -1143,7 +1143,7 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, double floatv
     {{endif}}
 
     if (likely(PyFloat_CheckExact({{pyval}}))) {
-        {{fval}} = PyFloat_AS_DOUBLE({{pyval}});
+        {{fval}} = __pyx_PyFloat_AsDouble({{pyval}});
         {{zerodiv_check(fval)}}
     } else
 

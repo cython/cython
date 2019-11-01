@@ -1120,6 +1120,9 @@ class GlobalState(object):
         self.code_config = code_config
         self.common_utility_include_dir = common_utility_include_dir
         self.parts = {}
+        self.impl_h_modulestate = []
+        self.impl_h_defines = []
+        self.impl_h_clear = []
         self.module_node = module_node # because some utility code generation needs it
                                        # (generating backwards-compatible Get/ReleaseBuffer
 
@@ -1425,9 +1428,14 @@ class GlobalState(object):
                   for c in self.py_constants]
         consts.sort()
         decls_writer = self.parts['decls']
+        decls_writer.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
         for _, cname, c in consts:
+            self.impl_h_modulestate.append("%s;" % c.type.declaration_code(cname))
+            self.impl_h_defines.append("#define %s %s->%s" % (cname, Naming.modulestateglobal_cname, cname))
+            self.impl_h_clear.append("%s" % cname)
             decls_writer.putln(
                 "static %s;" % c.type.declaration_code(cname))
+        decls_writer.putln("#endif")
 
     def generate_cached_methods_decls(self):
         if not self.cached_cmethods:
@@ -1485,8 +1493,12 @@ class GlobalState(object):
             self.use_utility_code(UtilityCode.load_cached("InitStrings", "StringTools.c"))
             py_strings.sort()
             w = self.parts['pystring_table']
+            init_globals = self.parts['init_globals']
             w.putln("")
             w.putln("static __Pyx_StringTabEntry %s[] = {" % Naming.stringtab_cname)
+            init_globals.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+            init_globals.putln("Py_ssize_t i = 0;")
+            decls_writer.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
             for c_cname, _, py_string in py_strings:
                 if not py_string.is_str or not py_string.encoding or \
                         py_string.encoding in ('ASCII', 'USASCII', 'US-ASCII',
@@ -1495,6 +1507,9 @@ class GlobalState(object):
                 else:
                     encoding = '"%s"' % py_string.encoding.lower()
 
+                self.impl_h_modulestate.append("PyObject *%s;" % py_string.cname)
+                self.impl_h_defines.append("#define %s %s->%s" % (py_string.cname, Naming.modulestateglobal_cname, py_string.cname))
+                self.impl_h_clear.append("%s" % py_string.cname)
                 decls_writer.putln(
                     "static PyObject *%s;" % py_string.cname)
                 if py_string.py3str_cstring:
@@ -1507,6 +1522,17 @@ class GlobalState(object):
                         py_string.intern
                         ))
                     w.putln("#else")
+
+                w.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+                w.putln("{0, %s, sizeof(%s), %s, %d, %d, %d}," % (
+                    c_cname,
+                    c_cname,
+                    encoding,
+                    py_string.is_unicode,
+                    py_string.is_str,
+                    py_string.intern
+                    ))
+                w.putln("#else")
                 w.putln("{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
                     py_string.cname,
                     c_cname,
@@ -1516,25 +1542,38 @@ class GlobalState(object):
                     py_string.is_str,
                     py_string.intern
                     ))
+                w.putln("#endif")
+                init_globals.putln(
+                    "if (__Pyx_InitString(%s[i], &%s) < 0) %s;" % (
+                        Naming.stringtab_cname,
+                        py_string.cname,
+                        init_globals.error_goto(self.module_pos)))
+                init_globals.putln("i++;")
                 if py_string.py3str_cstring:
                     w.putln("#endif")
+            decls_writer.putln("#endif")
             w.putln("{0, 0, 0, 0, 0, 0, 0}")
             w.putln("};")
 
-            init_globals = self.parts['init_globals']
+            init_globals.putln("#else")
             init_globals.putln(
                 "if (__Pyx_InitStrings(%s) < 0) %s;" % (
                     Naming.stringtab_cname,
                     init_globals.error_goto(self.module_pos)))
+            init_globals.putln("#endif")
 
     def generate_num_constants(self):
         consts = [(c.py_type, c.value[0] == '-', len(c.value), c.value, c.value_code, c)
                   for c in self.num_const_index.values()]
         consts.sort()
         decls_writer = self.parts['decls']
+        decls_writer.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
         init_globals = self.parts['init_globals']
         for py_type, _, _, value, value_code, c in consts:
             cname = c.cname
+            self.impl_h_modulestate.append("PyObject *%s;" % cname)
+            self.impl_h_defines.append("#define %s %s->%s" % (cname, Naming.modulestateglobal_cname, cname))
+            self.impl_h_clear.append("%s" % cname)
             decls_writer.putln("static PyObject *%s;" % cname)
             if py_type == 'float':
                 function = 'PyFloat_FromDouble(%s)'
@@ -1549,6 +1588,7 @@ class GlobalState(object):
             init_globals.putln('%s = %s; %s' % (
                 cname, function % value_code,
                 init_globals.error_goto_if_null(cname, self.module_pos)))
+        decls_writer.putln("#endif")
 
     # The functions below are there in a transition phase only
     # and will be deprecated. They are called from Nodes.BlockNode.

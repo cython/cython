@@ -3764,10 +3764,17 @@ class DefNodeWrapper(FuncDefNode):
         code.putln('{')
         all_args = tuple(positional_args) + tuple(kw_only_args)
         non_posonly_args = [arg for arg in all_args if not arg.pos_only]
+        code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+        code.putln("PyObject **%s[] = {%s};" % (
+            Naming.pykwdlist_cname,
+            ','.join(['&%s' % code.intern_identifier(arg.name)
+                      for arg in non_posonly_args] + ['0'])))
+        code.putln("#else")
         code.putln("static PyObject **%s[] = {%s};" % (
             Naming.pykwdlist_cname,
             ','.join(['&%s' % code.intern_identifier(arg.name)
                       for arg in non_posonly_args] + ['0'])))
+        code.putln("#endif")
 
         # Before being converted and assigned to the target variables,
         # borrowed references to all unpacked argument values are
@@ -5109,6 +5116,16 @@ class CClassDefNode(ClassDefNode):
         if not scope:  # could be None if there was an error
             return
         if entry.visibility != 'extern':
+            # code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+            # code.putln("#else")
+            code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+            code.putln("PyObject *%s = PyState_FindModule(&%s);" % (Naming.module_cname, Naming.pymoduledef_cname))
+            code.putln(
+                "%s = PyType_FromSpec(&%s_spec); %s" % (
+                    typeobj_cname,
+                    typeobj_cname,
+                    code.error_goto_if_null(typeobj_cname, entry.pos)))
+            code.putln("#else")
             for slot in TypeSlots.slot_table:
                 slot.generate_dynamic_init_code(scope, code)
             if heap_type_bases:
@@ -5147,6 +5164,7 @@ class CClassDefNode(ClassDefNode):
                 code.putln("%s.tp_getattro = %s;" % (
                     typeobj_cname, py_cfunc))
                 code.putln("}")
+            code.putln("#endif")
 
             # Fix special method docstrings. This is a bit of a hack, but
             # unless we let PyType_Ready create the slot wrappers we have
@@ -5199,12 +5217,21 @@ class CClassDefNode(ClassDefNode):
                 # scope.is_internal is set for types defined by
                 # Cython (such as closures), the 'internal'
                 # directive is set by users
+                code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+                code.putln(
+                    'if (PyObject_SetAttr(%s, %s, %s) < 0) %s' % (
+                        Naming.module_cname,
+                        code.intern_identifier(scope.class_name),
+                        typeobj_cname,
+                        code.error_goto(entry.pos)))
+                code.putln("#else")
                 code.putln(
                     'if (PyObject_SetAttr(%s, %s, (PyObject *)&%s) < 0) %s' % (
                         Naming.module_cname,
                         code.intern_identifier(scope.class_name),
                         typeobj_cname,
                         code.error_goto(entry.pos)))
+                code.putln("#endif")
             weakref_entry = scope.lookup_here("__weakref__") if not scope.is_closure_class_scope else None
             if weakref_entry:
                 if weakref_entry.type is py_object_type:
@@ -5226,15 +5253,19 @@ class CClassDefNode(ClassDefNode):
                 # do so at runtime.
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached('SetupReduce', 'ExtensionTypes.c'))
+                code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
                 code.putln('if (__Pyx_setup_reduce((PyObject*)&%s) < 0) %s' % (
                               typeobj_cname,
                               code.error_goto(entry.pos)))
+                code.putln("#endif")
         # Generate code to initialise the typeptr of an extension
         # type defined in this module to point to its type object.
         if type.typeobj_cname:
+            code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
             code.putln(
                 "%s = &%s;" % (
                     type.typeptr_cname, type.typeobj_cname))
+            code.putln("#endif")
 
     def annotate(self, code):
         if self.type_init_args:

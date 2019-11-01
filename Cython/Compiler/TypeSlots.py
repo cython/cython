@@ -242,6 +242,14 @@ class SlotDescriptor(object):
             guard = ("#if PY_MAJOR_VERSION >= 3")
         return guard
 
+    def spec_slot_value(self, scope):
+        if self.is_initialised_dynamically:
+            return None
+        result = self.slot_code(scope)
+        if result == "0":
+            return None
+        return result
+
     def generate(self, scope, code):
         preprocessor_guard = self.preprocessor_guard_code()
         if preprocessor_guard:

@@ -2303,6 +2303,16 @@ class NameNode(AtomicExprNode):
                 setter = '__Pyx_' + n
             else:
                 assert False, repr(entry)
+            code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+            code.putln("__Pyx_INCREF(%s);" % rhs.py_result())
+            code.put_error_if_neg(
+                self.pos,
+                '%s(%s, %s, %s)' % (
+                    "PyModule_AddObject",
+                    Naming.module_cname,
+                    code.get_string_const(self.entry.name),
+                    rhs.py_result()))
+            code.putln("#else")
             code.put_error_if_neg(
                 self.pos,
                 '%s(%s, %s, %s)' % (
@@ -2310,6 +2320,7 @@ class NameNode(AtomicExprNode):
                     namespace,
                     interned_cname,
                     rhs.py_result()))
+            code.putln("#endif")
             if debug_disposal_code:
                 print("NameNode.generate_assignment_code:")
                 print("...generating disposal code for %s" % rhs)

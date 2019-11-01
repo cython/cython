@@ -172,13 +172,16 @@ static void __Pyx_call_next_tp_clear(PyObject* obj, inquiry current_tp_clear) {
 
 /////////////// SetupReduce.proto ///////////////
 
+#if !CYTHON_COMPILING_IN_LIMITED_API
 static int __Pyx_setup_reduce(PyObject* type_obj);
+#endif
 
 /////////////// SetupReduce ///////////////
 //@requires: ObjectHandling.c::PyObjectGetAttrStrNoError
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
 //@substitute: naming
 
+#if !CYTHON_COMPILING_IN_LIMITED_API
 static int __Pyx_setup_reduce_is_named(PyObject* meth, PyObject* name) {
   int ret;
   PyObject *name_attr;
@@ -250,7 +253,7 @@ static int __Pyx_setup_reduce(PyObject* type_obj) {
 
 BAD:
     if (!PyErr_Occurred())
-        PyErr_Format(PyExc_RuntimeError, "Unable to initialize pickling for %s", ((PyTypeObject*)type_obj)->tp_name);
+        PyErr_Format(PyExc_RuntimeError, "Unable to initialize pickling for %s", __Pyx_PyType_Name(type_obj));
     ret = -1;
 GOOD:
 #if !CYTHON_USE_PYTYPE_LOOKUP
@@ -264,3 +267,4 @@ GOOD:
     Py_XDECREF(setstate_cython);
     return ret;
 }
+#endif

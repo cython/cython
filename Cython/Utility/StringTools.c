@@ -43,10 +43,35 @@ static CYTHON_INLINE Py_ssize_t __Pyx_Py_UNICODE_ssize_strlen(const Py_UNICODE *
 
 //////////////////// InitStrings.proto ////////////////////
 
+#if CYTHON_COMPILING_IN_LIMITED_API
+static int __Pyx_InitString(__Pyx_StringTabEntry t, PyObject **str); /*proto*/
+#else
 static int __Pyx_InitStrings(__Pyx_StringTabEntry *t); /*proto*/
+#endif
 
 //////////////////// InitStrings ////////////////////
 
+#if CYTHON_COMPILING_IN_LIMITED_API
+static int __Pyx_InitString(__Pyx_StringTabEntry t, PyObject **str) {
+    if (t.is_unicode | t.is_str) {
+        if (t.intern) {
+            *str = PyUnicode_InternFromString(t.s);
+        } else if (t.encoding) {
+            *str = PyUnicode_Decode(t.s, t.n - 1, t.encoding, NULL);
+        } else {
+            *str = PyUnicode_FromStringAndSize(t.s, t.n - 1);
+        }
+    } else {
+        *str = PyBytes_FromStringAndSize(t.s, t.n - 1);
+    }
+    if (!*str)
+        return -1;
+    // initialise cached hash value
+    if (PyObject_Hash(*str) == -1)
+        return -1;
+    return 0;
+}
+#else
 static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
     while (t->p) {
         #if PY_MAJOR_VERSION < 3
@@ -79,6 +104,7 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
     }
     return 0;
 }
+#endif
 
 //////////////////// BytesContains.proto ////////////////////
 
@@ -189,7 +215,7 @@ static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int 
 //@requires: BytesEquals
 
 static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int equals) {
-#if CYTHON_COMPILING_IN_PYPY
+#if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_LIMITED_API
     return PyObject_RichCompareBool(s1, s2, equals);
 #else
 #if PY_MAJOR_VERSION < 3
@@ -300,7 +326,7 @@ static CYTHON_INLINE int __Pyx_PyBytes_Equals(PyObject* s1, PyObject* s2, int eq
 //@requires: IncludeStringH
 
 static CYTHON_INLINE int __Pyx_PyBytes_Equals(PyObject* s1, PyObject* s2, int equals) {
-#if CYTHON_COMPILING_IN_PYPY
+#if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_LIMITED_API
     return PyObject_RichCompareBool(s1, s2, equals);
 #else
     if (s1 == s2) {
