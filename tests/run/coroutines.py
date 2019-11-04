@@ -1,6 +1,6 @@
 # cython: language_level=3
 # mode: run
-# tag: pep492, pure3.5
+# tag: pep492, pure3.5, gh1462, async, await
 
 
 async def test_coroutine_frame(awaitable):
@@ -28,3 +28,33 @@ async def test_coroutine_frame(awaitable):
     """
     b = await awaitable
     return b
+
+
+# gh1462: Using decorators on coroutines.
+
+def pass_through(func):
+    return func
+
+
+@pass_through
+async def test_pass_through():
+    """
+    >>> t = test_pass_through()
+    >>> try: t.send(None)
+    ... except StopIteration as ex:
+    ...     print(ex.args[0] if ex.args else None)
+    ... else: print("NOT STOPPED!")
+    None
+    """
+
+
+@pass_through(pass_through)
+async def test_pass_through_with_args():
+    """
+    >>> t = test_pass_through_with_args()
+    >>> try: t.send(None)
+    ... except StopIteration as ex:
+    ...     print(ex.args[0] if ex.args else None)
+    ... else: print("NOT STOPPED!")
+    None
+    """
