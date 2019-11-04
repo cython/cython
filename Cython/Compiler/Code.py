@@ -1083,6 +1083,10 @@ class GlobalState(object):
 
     code_layout = [
         'h_code',
+        'module_state',
+        'module_state_defines',
+        'module_state_clear',
+        'module_state_traverse',
         'filename_table',
         'utility_code_proto_before_types',
         'numeric_typedefs',          # Let these detailed individual parts stay!,
@@ -1120,9 +1124,6 @@ class GlobalState(object):
         self.code_config = code_config
         self.common_utility_include_dir = common_utility_include_dir
         self.parts = {}
-        self.impl_h_modulestate = []
-        self.impl_h_defines = []
-        self.impl_h_clear = []
         self.module_node = module_node # because some utility code generation needs it
                                        # (generating backwards-compatible Get/ReleaseBuffer
 
@@ -1430,9 +1431,13 @@ class GlobalState(object):
         decls_writer = self.parts['decls']
         decls_writer.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
         for _, cname, c in consts:
-            self.impl_h_modulestate.append("%s;" % c.type.declaration_code(cname))
-            self.impl_h_defines.append("#define %s %s->%s" % (cname, Naming.modulestateglobal_cname, cname))
-            self.impl_h_clear.append("%s" % cname)
+            self.parts['module_state'].putln("%s;" % c.type.declaration_code(cname))
+            self.parts['module_state_defines'].putln(
+                "#define %s %s->%s" % (cname, Naming.modulestateglobal_cname, cname))
+            self.parts['module_state_clear'].putln(
+                "  Py_CLEAR(%s(m)->%s);" % (Naming.modulestate_cname, cname))
+            self.parts['module_state_traverse'].putln(
+                "  Py_VISIT(%s(m)->%s);" % (Naming.modulestate_cname, cname))
             decls_writer.putln(
                 "static %s;" % c.type.declaration_code(cname))
         decls_writer.putln("#endif")
@@ -1507,9 +1512,13 @@ class GlobalState(object):
                 else:
                     encoding = '"%s"' % py_string.encoding.lower()
 
-                self.impl_h_modulestate.append("PyObject *%s;" % py_string.cname)
-                self.impl_h_defines.append("#define %s %s->%s" % (py_string.cname, Naming.modulestateglobal_cname, py_string.cname))
-                self.impl_h_clear.append("%s" % py_string.cname)
+                self.parts['module_state'].putln("PyObject *%s;" % py_string.cname)
+                self.parts['module_state_defines'].putln(
+                    "#define %s %s->%s" % (py_string.cname, Naming.modulestateglobal_cname, py_string.cname))
+                self.parts['module_state_clear'].putln(
+                    "  Py_CLEAR(%s(m)->%s);" % (Naming.modulestate_cname, py_string.cname))
+                self.parts['module_state_traverse'].putln(
+                    "  Py_VISIT(%s(m)->%s);" % (Naming.modulestate_cname, py_string.cname))
                 decls_writer.putln(
                     "static PyObject *%s;" % py_string.cname)
                 if py_string.py3str_cstring:
@@ -1571,9 +1580,13 @@ class GlobalState(object):
         init_globals = self.parts['init_globals']
         for py_type, _, _, value, value_code, c in consts:
             cname = c.cname
-            self.impl_h_modulestate.append("PyObject *%s;" % cname)
-            self.impl_h_defines.append("#define %s %s->%s" % (cname, Naming.modulestateglobal_cname, cname))
-            self.impl_h_clear.append("%s" % cname)
+            self.parts['module_state'].putln("PyObject *%s;" % cname)
+            self.parts['module_state_defines'].putln(
+                "#define %s %s->%s" % (cname, Naming.modulestateglobal_cname, cname))
+            self.parts['module_state_clear'].putln(
+                "  Py_CLEAR(%s(m)->%s);" % (Naming.modulestate_cname, cname))
+            self.parts['module_state_traverse'].putln(
+                "  Py_VISIT(%s(m)->%s);" % (Naming.modulestate_cname, cname))
             decls_writer.putln("static PyObject *%s;" % cname)
             if py_type == 'float':
                 function = 'PyFloat_FromDouble(%s)'
