@@ -692,9 +692,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             cinfo = ""
 
-        code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-        code.putln("#include \"%s_impl.h\"" % env.module_name)
-        code.putln("#else")
+        code.putln('#if !CYTHON_COMPILING_IN_LIMITED_API')
         code.putln('static PyObject *%s = NULL;' % env.module_cname)
         code.putln('static PyObject *%s;' % env.module_dict_cname)
         code.putln('static PyObject *%s;' % Naming.builtins_cname)
@@ -708,7 +706,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('static int %s = 0;' % Naming.clineno_cname)
         code.putln('static const char * %s= %s;' % (Naming.cfilenm_cname, Naming.file_c_macro))
         code.putln('static const char *%s;' % Naming.filename_cname)
-        code.putln("#endif")
+        code.putln('#endif')
 
         code.put("""
 #define __PYX_ERR(f_index, lineno, Ln_error) \\
