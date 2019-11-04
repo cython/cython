@@ -2434,10 +2434,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             for entry in env.c_class_entries:
                 if definition or entry.defined_in_pxd:
                     module_state.putln("PyObject *%s;" % entry.type.typeobj_cname)
-                    module_state_defines.impl_h_defines.append("#define %s %s->%s" % (entry.type.typeobj_cname, Naming.modulestateglobal_cname, entry.type.typeobj_cname))
-                    module_state_defines.impl_h_defines.append("#define %s %s" % (entry.type.typeptr_cname, entry.type.typeobj_cname))
-                    module_state_clear.append("%s" % entry.type.typeobj_cname)
-                    module_state_traverse.append("%s" % entry.type.typeobj_cname)
+                    module_state_defines.putln("#define %s %s->%s" % (entry.type.typeobj_cname, Naming.modulestateglobal_cname, entry.type.typeobj_cname))
+                    module_state_defines.putln("#define %s %s" % (entry.type.typeptr_cname, entry.type.typeobj_cname))
+                    module_state_clear.putln("%s" % entry.type.typeobj_cname)
+                    module_state_traverse.putln("%s" % entry.type.typeobj_cname)
         module_state.putln('} %s;' % env.modulestate_cname)
         module_state.putln("#endif")
         module_state_defines.putln("#endif")
