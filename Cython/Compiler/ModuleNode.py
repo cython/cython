@@ -1489,7 +1489,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("} else {")
                 code.putln("o = (PyObject *) PyBaseObject_Type.tp_new(t, %s, 0);" % Naming.empty_tuple)
                 code.putln("}")
-        code.putln("#endif")
+            code.putln("#endif")
         code.putln("if (unlikely(!o)) return 0;")
         if freelist_size and not base_type:
             code.putln('}')
@@ -3064,7 +3064,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 Naming.pymoduledef_cname))
         code.putln("#endif")
         code.putln(code.error_goto_if_null(env.module_cname, self.pos))
+        code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
         code.putln("PyState_AddModule(%s, &%s);" % (env.module_cname, Naming.pymoduledef_cname))
+        code.putln("#endif")  # CYTHON_COMPILING_IN_LIMITED_API
         code.putln("#endif")  # CYTHON_PEP489_MULTI_PHASE_INIT
 
         code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
