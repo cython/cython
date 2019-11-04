@@ -1088,6 +1088,9 @@ static CYTHON_SMALL_CODE int __Pyx_copy_spec_to_module(PyObject *spec, PyObject 
 
 static CYTHON_SMALL_CODE PyObject* ${pymodule_create_func_cname}(PyObject *spec, CYTHON_UNUSED PyModuleDef *def) {
     PyObject *module = NULL, *modname;
+#if !CYTHON_COMPILING_IN_LIMITED_API
+    PyObject *moddict;
+#endif
 
     // For now, we only have exactly one module instance.
     if (__Pyx_check_single_interpreter())
@@ -1108,7 +1111,7 @@ static CYTHON_SMALL_CODE PyObject* ${pymodule_create_func_cname}(PyObject *spec,
     if (unlikely(PyModule_AddStringConstant(module, "parent", "__package__") < 0)) goto bad;
     if (unlikely(PyModule_AddStringConstant(module, "submodule_search_locations", "__path__") < 0)) goto bad;
 #else
-    PyObject *moddict = PyModule_GetDict(module);
+    moddict = PyModule_GetDict(module);
     if (unlikely(!moddict)) goto bad;
     // moddict is a borrowed reference
 
