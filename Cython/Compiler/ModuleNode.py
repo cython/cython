@@ -2215,12 +2215,23 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for slot in TypeSlots.slot_table:
             if slot.slot_name == "tp_flags":
                 continue
-            if slot.slot_name == "tp_new" and scope.lookup_here("__dealloc__") is None:
+            if slot.slot_name == "tp_new" and scope.lookup_here("__cinit__") is None:
                 continue
             if slot.slot_name == "tp_dealloc" and scope.lookup_here("__dealloc__") is None:
                 continue
             if slot.slot_name == "tp_getattro":
                 has_tp_getattro
+            if slot.slot_name == "tp_as_number":
+                slot.generate_substructure_spec(scope, code)
+                continue
+            if slot.slot_name == "tp_as_sequence":
+                slot.generate_substructure_spec(scope, code)
+                continue
+            if slot.slot_name == "tp_as_mapping":
+                slot.generate_substructure_spec(scope, code)
+                continue
+            if slot.slot_name == "tp_as_buffer":  # Can't support tp_as_buffer
+                continue
             v = TypeSlots.get_slot_by_name(slot.slot_name).spec_slot_value(scope)
             if v is not None:
                 code.putln("    {Py_%s, %s}," % (slot.slot_name, v))
@@ -2763,6 +2774,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.enter_cfunc_scope(scope)
                 prototypes.putln("static CYTHON_SMALL_CODE int %s(void); /*proto*/" % self.cfunc_name)
                 code.putln("static int %s(void) {" % self.cfunc_name)
+                code.putln("  #if CYTHON_COMPILING_IN_LIMITED_API")
+                code.putln("  PyObject *%s = PyState_FindModule(&%s);" % (Naming.module_cname, Naming.pymoduledef_cname))
+                code.putln("  #endif")
                 code.put_declare_refcount_context()
                 self.tempdecl_code = code.insertion_point()
                 code.put_setup_refcount_context(EncodedString(self.cfunc_name))

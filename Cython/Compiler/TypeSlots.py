@@ -250,7 +250,7 @@ class SlotDescriptor(object):
             return None
         return result
 
-    def generate(self, scope, code):
+    def generate(self, scope, code, spec=False):
         preprocessor_guard = self.preprocessor_guard_code()
         if preprocessor_guard:
             code.putln(preprocessor_guard)
@@ -279,7 +279,11 @@ class SlotDescriptor(object):
                     code.putln("#else")
                     end_pypy_guard = True
 
-        code.putln("%s, /*%s*/" % (value, self.slot_name))
+        if spec:
+            if value != "0":
+                code.putln("    {Py_%s, %s}," % (self.slot_name, value))
+        else:
+            code.putln("%s, /*%s*/" % (value, self.slot_name))
 
         if end_pypy_guard:
             code.putln("#endif")
@@ -562,6 +566,11 @@ class SuiteSlot(SlotDescriptor):
             code.putln("};")
             if self.ifdef:
                 code.putln("#endif")
+
+    def generate_substructure_spec(self, scope, code):
+        if not self.is_empty(scope):
+            for slot in self.sub_slots:
+                slot.generate(scope, code, spec=True)
 
 substructures = []   # List of all SuiteSlot instances
 

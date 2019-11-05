@@ -1162,6 +1162,9 @@ class GlobalState(object):
         w.enter_cfunc_scope()
         w.putln("")
         w.putln("static CYTHON_SMALL_CODE int __Pyx_InitGlobals(void) {")
+        w.putln("  #if CYTHON_COMPILING_IN_LIMITED_API")
+        w.putln("  PyObject *%s = PyState_FindModule(&%s);" % (Naming.module_cname, Naming.pymoduledef_cname))
+        w.putln("  #endif")
 
         if not Options.generate_cleanup_code:
             del self.parts['cleanup_globals']

@@ -5119,7 +5119,6 @@ class CClassDefNode(ClassDefNode):
             # code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
             # code.putln("#else")
             code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-            code.putln("PyObject *%s = PyState_FindModule(&%s);" % (Naming.module_cname, Naming.pymoduledef_cname))
             code.putln(
                 "%s = PyType_FromSpec(&%s_spec); %s" % (
                     typeobj_cname,
