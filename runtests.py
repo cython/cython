@@ -2145,6 +2145,8 @@ def main():
                       help="specify Pythran include directory. This will run the C++ tests using Pythran backend for Numpy")
     parser.add_option("--no-capture", dest="capture", default=True, action="store_false",
                       help="do not capture stdout, stderr in srctree tests. Makes pdb.set_trace interactive")
+    parser.add_option("--limited-api", dest="limited_api", default=False, action="store_false",
+                      help="Compiles Cython using CPython's LIMITED_API")
 
     options, cmd_args = parser.parse_args(args)
 
@@ -2363,6 +2365,10 @@ def runtests(options, cmd_args, coverage=None):
                              pyxbuild_dir=os.path.join(WORKDIR, "support"))
         sys.path.insert(0, os.path.split(libpath)[0])
         CFLAGS.append("-DCYTHON_REFNANNY=1")
+
+    if options.limited_api:
+        CFLAGS.append("-DCYTHON_LIMITED_API=1")
+
 
     if xml_output_dir and options.fork:
         # doesn't currently work together

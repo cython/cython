@@ -1084,9 +1084,9 @@ class GlobalState(object):
     code_layout = [
         'h_code',
         'module_state',
-        'module_state_defines',
         'module_state_clear',
         'module_state_traverse',
+        'module_state_defines',
         'filename_table',
         'utility_code_proto_before_types',
         'numeric_typedefs',          # Let these detailed individual parts stay!,
