@@ -19,6 +19,10 @@ for fast C modules that speed up the execution of Python code.
 * Github repository: https://github.com/cython/cython
 * Wiki: https://github.com/cython/cython/wiki
 
+You can **support the Cython project** via
+`Github Sponsors <https://github.com/users/scoder/sponsorship>`_ or
+`Tidelift <https://tidelift.com/subscription/pkg/pypi-cython>`_.
+
 
 Installation:
 -------------
