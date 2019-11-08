@@ -8,14 +8,11 @@ PYTHON -c "import runner"
 from Cython.Build.Dependencies import cythonize
 from distutils.core import setup
 import os
-import pprint
 
-CYTHON_PROJECT_DIR = os.environ['CYTHON_PROJECT_DIR']
-example_dir = os.path.abspath(os.path.join(CYTHON_PROJECT_DIR,
+example_dir = os.path.abspath(os.path.join(os.environ['CYTHON_PROJECT_DIR'],
                               'docs/examples/userguide/wrapping_CPlusPlus'))
 
 ext_modules= cythonize("rect.pyx", include_path=[example_dir])
-ext_modules[0].include_dirs.append(example_dir)
 setup(ext_modules=ext_modules)
 
 ######## rect.pyx ########

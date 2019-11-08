@@ -2013,8 +2013,7 @@ def main():
     global DISTDIR, WITH_CYTHON
 
     # Set an environment variable to the top directory
-    CYTHON_PROJECT_DIR = os.path.abspath(os.path.dirname(__file__))
-    os.environ['CYTHON_PROJECT_DIR'] = CYTHON_PROJECT_DIR
+    os.environ['CYTHON_PROJECT_DIR'] = os.path.abspath(os.path.dirname(__file__))
 
     DISTDIR = os.path.join(os.getcwd(), os.path.dirname(sys.argv[0]))
 
