@@ -2172,7 +2172,6 @@ class CClassScope(ClassScope):
                 cname = punycodify_name(cname, Naming.unicode_structmember_prefix)
             if type.is_cpp_class and visibility != 'extern':
                 type.check_nullary_constructor(pos)
-                self.use_utility_code(Code.UtilityCode("#include <new>"))
             entry = self.declare(name, cname, type, pos, visibility)
             entry.is_variable = 1
             self.var_entries.append(entry)
