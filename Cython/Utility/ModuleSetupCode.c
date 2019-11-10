@@ -355,18 +355,12 @@
   #endif
 #endif
 
-/* structs don't need constructing or destructing in C */
-#define __Pyx_call_struct_constructor(instance, empty_declaration)
-#define __Pyx_call_struct_destructor(x)
-
 
 /////////////// CppInitCode ///////////////
 
 #ifndef __cplusplus
   #error "Cython files generated with the C++ option must be compiled with a C++ compiler."
 #endif
-
-#include <new>
 
 // inline attribute
 #ifndef CYTHON_INLINE
@@ -382,8 +376,6 @@ template<typename T>
 void __Pyx_call_destructor(T& x) {
     x.~T();
 }
-#define __Pyx_call_struct_constructor(instance, empty_declaration) new((void*)&(instance)) empty_declaration()
-#define __Pyx_call_struct_destructor(x) __Pyx_call_destructor(x)
 
 // Used for temporary variables of "reference" type.
 template<typename T>

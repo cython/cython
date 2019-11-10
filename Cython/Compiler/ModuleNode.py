@@ -1309,10 +1309,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if scope.is_internal:
             # internal classes (should) never need None inits, normal zeroing will do
             py_attrs = []
-        cpp_class_attrs = [entry for entry in scope.var_entries
-                           if entry.type.is_cpp_class]
-        c_struct_attrs = [entry for entry in scope.var_entries
-                           if entry.type.is_struct]
+        cpp_constructable_attrs = [entry for entry in scope.var_entries
+                                   if entry.type.needs_cpp_construction]
 
         cinit_func_entry = scope.lookup_here("__cinit__")
         if cinit_func_entry and not cinit_func_entry.is_special:
@@ -1346,7 +1344,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         need_self_cast = (type.vtabslot_cname or
                           (py_buffers or memoryview_slices or py_attrs) or
-                          cpp_class_attrs or c_struct_attrs)
+                          cpp_constructable_attrs)
         if need_self_cast:
             code.putln("%s;" % scope.parent_type.declaration_code("p"))
         if base_type:
@@ -1404,13 +1402,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 type.vtabslot_cname,
                 struct_type_cast, type.vtabptr_cname))
 
-        for entry in cpp_class_attrs:
+        for entry in cpp_constructable_attrs:
             code.putln("new((void*)&(p->%s)) %s();" % (
-                entry.cname, entry.type.empty_declaration_code()))
-
-        for entry in c_struct_attrs:
-            # translates to a no-op in C where it's irrelevant
-            code.putln("__Pyx_call_struct_constructor(p->%s, %s);" % (
                 entry.cname, entry.type.empty_declaration_code()))
 
         for entry in py_attrs:
@@ -1474,12 +1467,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             dict_slot = None
 
         _, (py_attrs, _, memoryview_slices) = scope.get_refcounted_entries()
-        cpp_class_attrs = [entry for entry in scope.var_entries
-                           if entry.type.is_cpp_class]
-        c_struct_attrs = [entry for entry in scope.var_entries
-                           if entry.type.is_struct]
+        cpp_destructable_attrs = [entry for entry in scope.var_entries
+                           if entry.type.needs_cpp_construction]
 
-        if py_attrs or cpp_class_attrs or c_struct_attrs or memoryview_slices or weakref_slot or dict_slot:
+        if py_attrs or cpp_destructable_attrs or memoryview_slices or weakref_slot or dict_slot:
             self.generate_self_cast(scope, code)
 
         if not is_final_type:
@@ -1523,12 +1514,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if dict_slot:
             code.putln("if (p->__dict__) PyDict_Clear(p->__dict__);")
 
-        for entry in cpp_class_attrs:
+        for entry in cpp_destructable_attrs:
             code.putln("__Pyx_call_destructor(p->%s);" % entry.cname)
-
-        for entry in c_struct_attrs:
-            # no-op in C, calls destructor in C++
-            code.putln("__Pyx_call_struct_destructor(p->%s);" % entry.cname)
 
         for entry in py_attrs:
             code.put_xdecref_clear("p->%s" % entry.cname, entry.type, nanny=False,
