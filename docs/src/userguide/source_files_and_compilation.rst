@@ -859,6 +859,12 @@ Cython code.  Here is the list of currently supported directives:
     asyncio before Python 3.5.  This directive can be applied in modules or
     selectively as decorator on an async-def coroutine to make the affected
     coroutine(s) iterable and thus directly interoperable with yield-from.
+  
+  ``annotation_typing`` (True / False)
+    Uses function argument annotations to determine the type of variables. Default
+    is True, but can be disabled. Since Python does not enforce types given in
+    annotations, setting to False gives greater compatibility with Python code.
+    Must be set globally.
 
 
 .. _configurable_optimisations:
