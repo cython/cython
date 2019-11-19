@@ -63,7 +63,7 @@ def generate_c_code_config(env, options):
     else:
         emit_linenums = options.emit_linenums
 
-    if "emit_code_comments" in options:
+    if hasattr(options, "emit_code_comments"):
         print('Warning: option emit_code_comments is deprecated. '
               'Instead, use compiler directive emit_code_comments.')
 
