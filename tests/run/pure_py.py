@@ -36,10 +36,6 @@ def test_declare(n):
     (100, 100)
     >>> test_declare(100.5)
     (100, 100)
-    >>> test_declare(None) #doctest: +ELLIPSIS
-    Traceback (most recent call last):
-    ...
-    TypeError: ...
     """
     x = cython.declare(cython.int)
     y = cython.declare(cython.int, n)
@@ -422,3 +418,90 @@ class TestUnboundMethod:
     True
     """
     def meth(self): pass
+
+@cython.cclass
+class Foo:
+    a = cython.declare(cython.double)
+    b = cython.declare(cython.double)
+    c = cython.declare(cython.double)
+
+    @cython.locals(a=cython.double, b=cython.double, c=cython.double)
+    def __init__(self, a, b, c):
+        self.a = a
+        self.b = b
+        self.c = c
+
+@cython.cclass
+class EmptyClass:
+    def __init__(self, *args):
+        pass
+
+def same_type_cast():
+    """
+    >>> same_type_cast()
+    True
+    """
+
+    f = EmptyClass()
+    return f is cython.cast(EmptyClass, f)
+
+def multi_args_init_cast():
+    """
+    >>> multi_args_init_cast()
+    True
+    """
+    f = Foo(10, 20, 30)
+    return cython.cast(Foo, f) is f
+
+def multi_args_init_declare():
+    """
+    >>> multi_args_init_declare() is None
+    True
+    """
+    f = cython.declare(Foo)
+
+    if cython.compiled:
+        f = None
+
+    return f
+
+def empty_declare():
+    """
+    >>> empty_declare() is None
+    True
+    """
+    f = cython.declare(EmptyClass)
+
+    if cython.compiled:
+        f = None
+
+    return f
+
+def same_declare():
+    """
+    >>> same_declare()
+    True
+    """
+
+    f = EmptyClass()
+    f2 = cython.declare(EmptyClass, f)
+    return f2 is f
+
+def none_cast():
+    """
+    >>> none_cast() is None
+    True
+    """
+
+    f = None
+    return cython.cast(EmptyClass, f)
+
+def none_declare():
+    """
+    >>> none_declare() is None
+    True
+    """
+
+    f = None
+    f2 = cython.declare(Foo, f)
+    return f2

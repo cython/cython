@@ -162,13 +162,16 @@ def cmod(a, b):
 
 # Emulated language constructs
 
-def cast(type_, *args, **kwargs):
+def cast(t, *args, **kwargs):
     kwargs.pop('typecheck', None)
     assert not kwargs
-    if callable(type_):
-        if not isinstance(type_, type) or not (args and isinstance(args[0], type_)):
-            return type_(*args)
-    return args[0]
+    if hasattr(t, '__call__') and (
+        not isinstance(t, type) or len(args) != 1 or (
+            args[0] is not None and not isinstance(args[0], t)
+    )):
+        return t(*args)
+    else:
+        return args[0]
 
 def sizeof(arg):
     return 1
@@ -180,14 +183,13 @@ def typeof(arg):
 def address(arg):
     return pointer(type(arg))([arg])
 
-def declare(type=None, value=_Unspecified, **kwds):
-    if type not in (None, object) and hasattr(type, '__call__'):
-        if value is not _Unspecified:
-            return type(value)
-        else:
-            return type()
+def declare(t=None, value=_Unspecified, **kwds):
+    if value is not _Unspecified:
+        return cast(t, value)
+    elif (isinstance(t, type) and issubclass(t, (StructType, UnionType))) or isinstance(t, typedef):
+        return t()
     else:
-        return value
+        return None
 
 class _nogil(object):
     """Support for 'with nogil' statement and @nogil decorator.
