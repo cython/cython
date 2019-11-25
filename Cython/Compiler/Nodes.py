@@ -5116,8 +5116,6 @@ class CClassDefNode(ClassDefNode):
         if not scope:  # could be None if there was an error
             return
         if entry.visibility != 'extern':
-            # code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-            # code.putln("#else")
             code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
             code.putln(
                 "%s = PyType_FromSpec(&%s_spec); %s" % (

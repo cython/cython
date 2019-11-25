@@ -1106,6 +1106,7 @@ static CYTHON_SMALL_CODE PyObject* ${pymodule_create_func_cname}(PyObject *spec,
     if (unlikely(!module)) goto bad;
 
 #if CYTHON_COMPILING_IN_LIMITED_API
+    // TODO(eelizondo): Pull the attribute from module spec into the module
     if (unlikely(PyModule_AddStringConstant(module, "loader", "__loader__") < 0)) goto bad;
     if (unlikely(PyModule_AddStringConstant(module, "origin", "__file__") < 0)) goto bad;
     if (unlikely(PyModule_AddStringConstant(module, "parent", "__package__") < 0)) goto bad;
