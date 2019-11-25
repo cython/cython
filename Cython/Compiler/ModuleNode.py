@@ -2886,6 +2886,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln('static void %s(CYTHON_UNUSED PyObject *self) {' %
                    Naming.cleanup_cname)
+        code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
         if Options.generate_cleanup_code >= 2:
             code.putln("/*--- Global cleanup code ---*/")
             rev_entries = list(env.var_entries)
@@ -2948,6 +2949,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                                   nanny=False, clear_before_decref=True)
         for cname in [env.module_dict_cname, Naming.cython_runtime_cname, Naming.builtins_cname]:
             code.put_decref_clear(cname, py_object_type, nanny=False, clear_before_decref=True)
+        code.putln("#endif")
 
     def generate_main_method(self, env, code):
         module_is_main = self.is_main_module_flag_cname()
@@ -3314,6 +3316,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             error_code = code.error_goto(error_pos)
 
         module = import_generator.imported_module(module_name, error_code)
+        code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
         code.put('%s = __Pyx_ImportType(%s, %s,' % (
             type.typeptr_cname,
             module,
@@ -3353,6 +3356,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('__Pyx_ImportType_CheckSize_%s);' % check_size.title())
 
         code.putln(' if (!%s) %s' % (type.typeptr_cname, error_code))
+        code.putln("#endif")
 
     def generate_type_ready_code(self, entry, code):
         Nodes.CClassDefNode.generate_type_ready_code(entry, code)

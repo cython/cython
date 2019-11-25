@@ -1240,6 +1240,7 @@ static void __pyx_insert_code_object(int code_line, PyCodeObject* code_object) {
 
 /////////////// CodeObjectCache.cleanup ///////////////
 
+  #if !CYTHON_COMPILING_IN_LIMITED_API
   if (__pyx_code_cache.entries) {
       __Pyx_CodeObjectCacheEntry* entries = __pyx_code_cache.entries;
       int i, count = __pyx_code_cache.count;
@@ -1251,6 +1252,7 @@ static void __pyx_insert_code_object(int code_line, PyCodeObject* code_object) {
       }
       PyMem_Free(entries);
   }
+  #endif
 
 /////////////// CheckBinaryVersion.proto ///////////////
 
