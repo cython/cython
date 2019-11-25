@@ -82,14 +82,19 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromString(const char*);
 // There used to be a Py_UNICODE_strlen() in CPython 3.x, but it is deprecated since Py3.3.
 #if CYTHON_COMPILING_IN_LIMITED_API
 static CYTHON_INLINE size_t __Pyx_Py_UNICODE_strlen(const wchar_t *u)
+{
+    const wchar_t *u_end = u;
+    while (*u_end++) ;
+    return (size_t)(u_end - u - 1);
+}
 #else
 static CYTHON_INLINE size_t __Pyx_Py_UNICODE_strlen(const Py_UNICODE *u)
-#endif
 {
     const Py_UNICODE *u_end = u;
     while (*u_end++) ;
     return (size_t)(u_end - u - 1);
 }
+#endif
 
 #define __Pyx_PyUnicode_FromUnicode(u)       PyUnicode_FromUnicode(u, __Pyx_Py_UNICODE_strlen(u))
 #define __Pyx_PyUnicode_FromUnicodeAndLength PyUnicode_FromUnicode
