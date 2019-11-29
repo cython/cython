@@ -9390,6 +9390,19 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         else:
             flags = '0'
 
+        code.putln('#if CYTHON_COMPILING_IN_LIMITED_API')
+        code.putln(
+            '%s = %s(&%s, %s, %s, %s, %s, PyDict_New(), %s); %s' % (
+                self.result(),
+                constructor,
+                self.pymethdef_cname,
+                flags,
+                self.get_py_qualified_name(code),
+                self.closure_result_code(),
+                self.get_py_mod_name(code),
+                code_object_result,
+                code.error_goto_if_null(self.result(), self.pos)))
+        code.putln('#else')
         code.putln(
             '%s = %s(&%s, %s, %s, %s, %s, %s, %s); %s' % (
                 self.result(),
@@ -9402,6 +9415,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                 Naming.moddict_cname,
                 code_object_result,
                 code.error_goto_if_null(self.result(), self.pos)))
+        code.putln('#endif')
 
         code.put_gotref(self.py_result())
 

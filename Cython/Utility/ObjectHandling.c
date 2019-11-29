@@ -1290,7 +1290,6 @@ static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name)
         return NULL;
     }
 #elif CYTHON_COMPILING_IN_LIMITED_API
-    PyObject *$module_cname = PyState_FindModule(&$pymoduledef_cname);
     if (unlikely($module_cname == NULL)) {
         return NULL;
     }

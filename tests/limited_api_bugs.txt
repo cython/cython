@@ -1,0 +1,24 @@
+# This file contains tests corresponding to unresolved bugs using CPython's
+# Limited API which will be skipped in the normal testing run.
+
+mymodule
+profile_2
+integrate
+calc_pi_2
+wave_function
+calc_pi_3
+queue3
+unsafe_usage
+dict_animal
+clone
+profile
+not_none
+shrubbery_2
+landscaping
+test_queue
+overhead
+safe_usage
+calc_pi_4
+cpdef_sin
+resize
+sin_of_square

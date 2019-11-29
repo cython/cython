@@ -2453,7 +2453,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state.putln('} %s;' % env.modulestate_cname)
         module_state.putln('static struct PyModuleDef %s;' % Naming.pymoduledef_cname)
         module_state.putln('#define %s(o) ((%s *)PyModule_GetState(o))' % (env.modulestate_cname, env.modulestate_cname))
-        module_state.putln('#define %s %s(PyState_FindModule(&%s))' % (env.modulestateglobal_cname, env.modulestate_cname, Naming.pymoduledef_cname))
+        module_state.putln('#define %s (%s(PyState_FindModule(&%s)))' % (env.modulestateglobal_cname, env.modulestate_cname, Naming.pymoduledef_cname))
+        module_state.putln('#define %s (PyState_FindModule(&%s))' % (env.module_cname, Naming.pymoduledef_cname))
         module_state.putln("#endif")
         module_state_defines.putln("#endif")
         module_state_clear.putln("  return 0;")
@@ -2561,9 +2562,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.globalstate.use_utility_code(UtilityCode.load_cached("Profile", "Profile.c"))
 
         code.put_declare_refcount_context()
-        code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-        code.putln("PyObject *%s = NULL;" % Naming.module_cname)
-        code.putln("#endif")
         code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
         # Most extension modules simply can't deal with it, and Cython isn't ready either.
         # See issues listed here: https://docs.python.org/3/c-api/init.html#sub-interpreter-support
@@ -2722,8 +2720,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         ##code.put_decref_clear(env.module_dict_cname, py_object_type, nanny=False)
         code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
         code.putln('}')
-        code.putln("#endif")
         code.put_decref_clear(env.module_cname, py_object_type, nanny=False, clear_before_decref=True)
+        code.putln("#endif")
         code.putln('} else if (!PyErr_Occurred()) {')
         code.putln('PyErr_SetString(PyExc_ImportError, "init %s");' %
                    env.qualified_name.as_c_string_literal()[1:-1])
@@ -2774,9 +2772,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.enter_cfunc_scope(scope)
                 prototypes.putln("static CYTHON_SMALL_CODE int %s(void); /*proto*/" % self.cfunc_name)
                 code.putln("static int %s(void) {" % self.cfunc_name)
-                code.putln("  #if CYTHON_COMPILING_IN_LIMITED_API")
-                code.putln("  PyObject *%s = PyState_FindModule(&%s);" % (Naming.module_cname, Naming.pymoduledef_cname))
-                code.putln("  #endif")
                 code.put_declare_refcount_context()
                 self.tempdecl_code = code.insertion_point()
                 code.put_setup_refcount_context(EncodedString(self.cfunc_name))
@@ -3065,16 +3060,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 env.method_table_cname,
                 doc,
                 env.module_cname))
-        code.putln("#else")
+        code.putln("#elif CYTHON_COMPILING_IN_LIMITED_API")
+        code.putln("PyState_AddModule(PyModule_Create(&%s), &%s);" % (Naming.pymoduledef_cname, Naming.pymoduledef_cname))
+        code.putln('#else')
         code.putln(
             "%s = PyModule_Create(&%s);" % (
                 env.module_cname,
                 Naming.pymoduledef_cname))
         code.putln("#endif")
         code.putln(code.error_goto_if_null(env.module_cname, self.pos))
-        code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-        code.putln("PyState_AddModule(%s, &%s);" % (env.module_cname, Naming.pymoduledef_cname))
-        code.putln("#endif")  # CYTHON_COMPILING_IN_LIMITED_API
         code.putln("#endif")  # CYTHON_PEP489_MULTI_PHASE_INIT
 
         code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
