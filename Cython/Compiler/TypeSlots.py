@@ -281,7 +281,7 @@ class SlotDescriptor(object):
 
         if spec:
             if value != "0":
-                code.putln("    {Py_%s, %s}," % (self.slot_name, value))
+                code.putln("    {Py_%s, (void *)%s}," % (self.slot_name, value))
         else:
             code.putln("%s, /*%s*/" % (value, self.slot_name))
 

@@ -1162,6 +1162,9 @@ class GlobalState(object):
         w.enter_cfunc_scope()
         w.putln("")
         w.putln("static CYTHON_SMALL_CODE int __Pyx_InitGlobals(void) {")
+        w.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+        w.putln("  Py_ssize_t i = 0;")
+        w.putln("#endif")
 
         if not Options.generate_cleanup_code:
             del self.parts['cleanup_globals']
@@ -1502,7 +1505,6 @@ class GlobalState(object):
             w.putln("")
             w.putln("static __Pyx_StringTabEntry %s[] = {" % Naming.stringtab_cname)
             init_globals.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-            init_globals.putln("Py_ssize_t i = 0;")
             decls_writer.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
             for c_cname, _, py_string in py_strings:
                 if not py_string.is_str or not py_string.encoding or \

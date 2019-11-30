@@ -765,7 +765,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('static const char *%s;' % Naming.filename_cname)
         code.putln('#endif')
 
-
         env.use_utility_code(UtilityCode.load_cached("FastTypeChecks", "ModuleSetupCode.c"))
         if has_np_pythran(env):
             env.use_utility_code(UtilityCode.load_cached("PythranConversion", "CppSupport.cpp"))
@@ -1187,7 +1186,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if definition or entry.defined_in_pxd:
                 code.putln("static PyTypeObject *%s = 0;" % (
                     entry.type.typeptr_cname))
-                module_state.putln("PyObject *%s;" % entry.type.typeptr_cname)
+                module_state.putln("PyTypeObject *%s;" % entry.type.typeptr_cname)
                 module_state_defines.putln("#define %s %s->%s" % (
                     entry.type.typeptr_cname,
                     Naming.modulestateglobal_cname,
@@ -2469,7 +2468,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         entry.type.typeobj_cname))
         module_state.putln('} %s;' % Naming.modulestate_cname)
         module_state.putln('')
+        module_state.putln('#ifdef __cplusplus')
+        module_state.putln('namespace {')
         module_state.putln('extern struct PyModuleDef %s;' % Naming.pymoduledef_cname)
+        module_state.putln('} /* anonymous namespace */')
+        module_state.putln('#else')
+        module_state.putln('static struct PyModuleDef %s;' % Naming.pymoduledef_cname)
+        module_state.putln('#endif')
         module_state.putln('')
         module_state.putln('#define %s(o) ((%s *)PyModule_GetState(o))' % (
             Naming.modulestate_cname,
@@ -3078,7 +3083,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#endif")
 
         code.putln("")
+        code.putln('#ifdef __cplusplus')
+        code.putln('namespace {')
         code.putln("struct PyModuleDef %s = {" % Naming.pymoduledef_cname)
+        code.putln('#else')
+        code.putln("static struct PyModuleDef %s = {" % Naming.pymoduledef_cname)
+        code.putln('#endif')
         code.putln("  PyModuleDef_HEAD_INIT,")
         code.putln('  %s,' % env.module_name.as_c_string_literal())
         code.putln("  %s, /* m_doc */" % doc)
@@ -3105,6 +3115,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("  %s /* m_free */" % cleanup_func)
         code.putln("#endif")
         code.putln("};")
+        code.putln('#ifdef __cplusplus')
+        code.putln('} /* anonymous namespace */')
+        code.putln('#endif')
         code.putln("#endif")
 
     def generate_module_creation_code(self, env, code):
