@@ -691,23 +691,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             cinfo = "%s = %s; " % (Naming.clineno_cname, Naming.line_c_macro)
         else:
             cinfo = ""
-
-        code.putln('#if !CYTHON_COMPILING_IN_LIMITED_API')
-        code.putln('static PyObject *%s = NULL;' % env.module_cname)
-        code.putln('static PyObject *%s;' % env.module_dict_cname)
-        code.putln('static PyObject *%s;' % Naming.builtins_cname)
-        code.putln('static PyObject *%s = NULL;' % Naming.cython_runtime_cname)
-        code.putln('static PyObject *%s;' % Naming.empty_tuple)
-        code.putln('static PyObject *%s;' % Naming.empty_bytes)
-        code.putln('static PyObject *%s;' % Naming.empty_unicode)
-        if Options.pre_import is not None:
-            code.putln('static PyObject *%s;' % Naming.preimport_cname)
-        code.putln('static int %s;' % Naming.lineno_cname)
-        code.putln('static int %s = 0;' % Naming.clineno_cname)
-        code.putln('static const char * %s= %s;' % (Naming.cfilenm_cname, Naming.file_c_macro))
-        code.putln('static const char *%s;' % Naming.filename_cname)
-        code.putln('#endif')
-
         code.put("""
 #define __PYX_ERR(f_index, lineno, Ln_error) \\
 { \\
@@ -766,6 +749,22 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put(Nodes.branch_prediction_macros)
         code.putln('static CYTHON_INLINE void __Pyx_pretend_to_initialize(void* ptr) { (void)ptr; }')
         code.putln('')
+        code.putln('#if !CYTHON_COMPILING_IN_LIMITED_API')
+        code.putln('static PyObject *%s = NULL;' % env.module_cname)
+        code.putln('static PyObject *%s;' % env.module_dict_cname)
+        code.putln('static PyObject *%s;' % Naming.builtins_cname)
+        code.putln('static PyObject *%s = NULL;' % Naming.cython_runtime_cname)
+        code.putln('static PyObject *%s;' % Naming.empty_tuple)
+        code.putln('static PyObject *%s;' % Naming.empty_bytes)
+        code.putln('static PyObject *%s;' % Naming.empty_unicode)
+        if Options.pre_import is not None:
+            code.putln('static PyObject *%s;' % Naming.preimport_cname)
+        code.putln('static int %s;' % Naming.lineno_cname)
+        code.putln('static int %s = 0;' % Naming.clineno_cname)
+        code.putln('static const char * %s= %s;' % (Naming.cfilenm_cname, Naming.file_c_macro))
+        code.putln('static const char *%s;' % Naming.filename_cname)
+        code.putln('#endif')
+
 
         env.use_utility_code(UtilityCode.load_cached("FastTypeChecks", "ModuleSetupCode.c"))
         if has_np_pythran(env):
@@ -3082,8 +3081,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#endif")
 
         code.putln("")
-
-        code.putln("")
         code.putln("static struct PyModuleDef %s = {" % Naming.pymoduledef_cname)
         code.putln("  PyModuleDef_HEAD_INIT,")
         code.putln('  %s,' % env.module_name.as_c_string_literal())
@@ -3136,7 +3133,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 doc,
                 env.module_cname))
         code.putln("#elif CYTHON_COMPILING_IN_LIMITED_API")
-        code.putln("PyState_AddModule(PyModule_Create(&%s), &%s);" % (Naming.pymoduledef_cname, Naming.pymoduledef_cname))
+        code.putln("PyState_AddModule(PyModule_Create(&%s), &%s);" % (
+            Naming.pymoduledef_cname, Naming.pymoduledef_cname))
         code.putln('#else')
         code.putln(
             "%s = PyModule_Create(&%s);" % (

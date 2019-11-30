@@ -2305,13 +2305,11 @@ class NameNode(AtomicExprNode):
                 assert False, repr(entry)
             code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
             code.putln("__Pyx_INCREF(%s);" % rhs.py_result())
-            code.put_error_if_neg(
-                self.pos,
-                '%s(%s, %s, %s)' % (
-                    "PyModule_AddObject",
-                    Naming.module_cname,
-                    code.get_string_const(self.entry.name),
-                    rhs.py_result()))
+            code.put_error_if_neg(self.pos, '%s(%s, %s, %s)' % (
+              "PyModule_AddObject",
+              Naming.module_cname,
+              code.get_string_const(self.entry.name),
+              rhs.py_result()))
             code.putln("#else")
             code.put_error_if_neg(
                 self.pos,

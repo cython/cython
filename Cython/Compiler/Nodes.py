@@ -3764,16 +3764,16 @@ class DefNodeWrapper(FuncDefNode):
         code.putln('{')
         all_args = tuple(positional_args) + tuple(kw_only_args)
         non_posonly_args = [arg for arg in all_args if not arg.pos_only]
+        non_pos_args_id = ','.join(
+            ['&%s' % code.intern_identifier(arg.name) for arg in non_posonly_args] + ['0'])
         code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
         code.putln("PyObject **%s[] = {%s};" % (
             Naming.pykwdlist_cname,
-            ','.join(['&%s' % code.intern_identifier(arg.name)
-                      for arg in non_posonly_args] + ['0'])))
+            non_pos_args_id))
         code.putln("#else")
         code.putln("static PyObject **%s[] = {%s};" % (
             Naming.pykwdlist_cname,
-            ','.join(['&%s' % code.intern_identifier(arg.name)
-                      for arg in non_posonly_args] + ['0'])))
+            non_pos_args_id))
         code.putln("#endif")
 
         # Before being converted and assigned to the target variables,
