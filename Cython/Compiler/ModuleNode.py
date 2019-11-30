@@ -2453,7 +2453,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state.putln('} %s;' % env.modulestate_cname)
         module_state.putln('static struct PyModuleDef %s;' % Naming.pymoduledef_cname)
         module_state.putln('#define %s(o) ((%s *)PyModule_GetState(o))' % (env.modulestate_cname, env.modulestate_cname))
-        module_state.putln('#define %s (%s(PyState_FindModule(&%s)))' % (env.modulestateglobal_cname, env.modulestate_cname, Naming.pymoduledef_cname))
+        module_state.putln('#define %s (%s(PyState_FindModule(&%s)))' % (
+          env.modulestateglobal_cname, env.modulestate_cname, Naming.pymoduledef_cname))
         module_state.putln('#define %s (PyState_FindModule(&%s))' % (env.module_cname, Naming.pymoduledef_cname))
         module_state.putln("#endif")
         module_state_defines.putln("#endif")
