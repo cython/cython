@@ -1392,7 +1392,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             code.putln("PyObject *o;")
             code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-            code.putln("allocfunc alloc_func = PyType_GetSlot(t, Py_tp_alloc);")
+            code.putln("allocfunc alloc_func = (allocfunc)PyType_GetSlot(t, Py_tp_alloc);")
             code.putln("o = alloc_func(t, 0);")
             code.putln("#else")
             if freelist_size:
@@ -2248,7 +2248,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 continue
             v = TypeSlots.get_slot_by_name(slot.slot_name).spec_slot_value(scope)
             if v is not None:
-                code.putln("    {Py_%s, %s}," % (slot.slot_name, v))
+                code.putln("    {Py_%s, (void *)%s}," % (slot.slot_name, v))
         if not has_tp_getattro:
             code.putln("    {Py_tp_getattro, __Pyx_PyObject_GenericGetAttr},")
         code.putln("    {0, 0},")
@@ -2461,9 +2461,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         entry.type.typeobj_cname,
                         Naming.modulestateglobal_cname,
                         entry.type.typeobj_cname))
-                    module_state_defines.putln("#define %s (PyTypeObject *)%s" % (
-                        entry.type.typeptr_cname,
-                        entry.type.typeobj_cname))
                     module_state_clear.putln("  Py_CLEAR(%s(m)->%s);" % (
                         Naming.modulestate_cname,
                         entry.type.typeobj_cname))
@@ -2472,7 +2469,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         entry.type.typeobj_cname))
         module_state.putln('} %s;' % Naming.modulestate_cname)
         module_state.putln('')
-        module_state.putln('static struct PyModuleDef %s;' % Naming.pymoduledef_cname)
+        module_state.putln('extern struct PyModuleDef %s;' % Naming.pymoduledef_cname)
         module_state.putln('')
         module_state.putln('#define %s(o) ((%s *)PyModule_GetState(o))' % (
             Naming.modulestate_cname,
@@ -3081,7 +3078,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#endif")
 
         code.putln("")
-        code.putln("static struct PyModuleDef %s = {" % Naming.pymoduledef_cname)
+        code.putln("struct PyModuleDef %s = {" % Naming.pymoduledef_cname)
         code.putln("  PyModuleDef_HEAD_INIT,")
         code.putln('  %s,' % env.module_name.as_c_string_literal())
         code.putln("  %s, /* m_doc */" % doc)

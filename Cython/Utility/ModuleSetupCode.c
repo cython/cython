@@ -649,7 +649,7 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #if !defined(PyUnicode_GET_SIZE)
     #define PyUnicode_GET_SIZE(u)          PyUnicode_GetSize(u)
   #endif
-  #define CYTHON_PEP393_ENABLED 0
+  #define CYTHON_PEP393_ENABLED 1
   #define PyUnicode_1BYTE_KIND  1
   #define PyUnicode_2BYTE_KIND  2
   #define PyUnicode_4BYTE_KIND  4
