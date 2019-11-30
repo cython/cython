@@ -418,7 +418,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # initialise the macro to reduce the code size of one-time functionality
         code.putln(UtilityCode.load_as_string("SmallCodeConfig", "ModuleSetupCode.c")[0].strip())
 
-        self.generate_module_state(env, globalstate['module_state'])
+        self.generate_module_state_start(env, globalstate['module_state'])
         self.generate_module_state_defines(env, globalstate['module_state_defines'])
         self.generate_module_state_clear(env, globalstate['module_state_clear'])
         self.generate_module_state_traverse(env, globalstate['module_state_traverse'])
@@ -437,7 +437,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             globalstate.use_utility_code(utilcode)
         globalstate.finalize_main_c_code()
 
-        self.generate_module_state_finalize(env, modules, globalstate)
+        self.generate_module_state_end(env, modules, globalstate)
 
         f = open_new_file(result.c_file)
         try:
@@ -645,7 +645,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             defined_here = module is env
             modulecode.putln("")
             modulecode.putln("/* Module declarations from %s */" % module.qualified_name.as_c_string_literal())
-            self.generate_c_class_declarations(module, modulecode, defined_here)
+            self.generate_c_class_declarations(module, modulecode, defined_here, globalstate)
             self.generate_cvariable_declarations(module, modulecode, defined_here)
             self.generate_cfunction_declarations(module, modulecode, defined_here)
 
@@ -1178,11 +1178,26 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             # Only for exposing public typedef name.
             code.putln("typedef struct %s %s;" % (type.objstruct_cname, type.objtypedef_cname))
 
-    def generate_c_class_declarations(self, env, code, definition):
+    def generate_c_class_declarations(self, env, code, definition, globalstate):
+        module_state = globalstate['module_state']
+        module_state_defines = globalstate['module_state_defines']
+        module_state_clear = globalstate['module_state_clear']
+        module_state_traverse = globalstate['module_state_traverse']
         code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
         for entry in env.c_class_entries:
             if definition or entry.defined_in_pxd:
                 code.putln("static PyTypeObject *%s = 0;" % (
+                    entry.type.typeptr_cname))
+                module_state.putln("PyObject *%s;" % entry.type.typeptr_cname)
+                module_state_defines.putln("#define %s %s->%s" % (
+                    entry.type.typeptr_cname,
+                    Naming.modulestateglobal_cname,
+                    entry.type.typeptr_cname))
+                module_state_clear.putln("  Py_CLEAR(%s(m)->%s);" % (
+                    Naming.modulestate_cname,
+                    entry.type.typeptr_cname))
+                module_state_traverse.putln("  Py_VISIT(%s(m)->%s);" % (
+                    Naming.modulestate_cname,
                     entry.type.typeptr_cname))
         code.putln("#endif")
 
@@ -2220,7 +2235,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if slot.slot_name == "tp_dealloc" and scope.lookup_here("__dealloc__") is None:
                 continue
             if slot.slot_name == "tp_getattro":
-                has_tp_getattro
+                has_tp_getattro = True
             if slot.slot_name == "tp_as_number":
                 slot.generate_substructure_spec(scope, code)
                 continue
@@ -2419,7 +2434,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(UtilityCode.load_as_string("ImportStar", "ImportExport.c")[1])
         code.exit_cfunc_scope()  # done with labels
 
-    def generate_module_state(self, env, code):
+    def generate_module_state_start(self, env, code):
         code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
         code.putln('typedef struct {')
         code.putln('PyObject *%s;' % Naming.builtins_cname)
@@ -2433,7 +2448,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('int %s;' % Naming.clineno_cname)
         code.putln('const char *%s;' % Naming.filename_cname)
 
-    def generate_module_state_finalize(self, env, modules, globalstate):
+    def generate_module_state_end(self, env, modules, globalstate):
         module_state = globalstate['module_state']
         module_state_defines = globalstate['module_state_defines']
         module_state_clear = globalstate['module_state_clear']
@@ -2443,19 +2458,35 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             for entry in env.c_class_entries:
                 if definition or entry.defined_in_pxd:
                     module_state.putln("PyObject *%s;" % entry.type.typeobj_cname)
-                    module_state_defines.putln(
-                        "#define %s %s->%s" % (entry.type.typeobj_cname, Naming.modulestateglobal_cname, entry.type.typeobj_cname))
-                    module_state_defines.putln("#define %s (PyTypeObject *)%s" % (entry.type.typeptr_cname, entry.type.typeobj_cname))
-                    module_state_clear.putln(
-                         "  Py_CLEAR(%s(m)->%s);" % (Naming.modulestate_cname, entry.type.typeobj_cname))
-                    module_state_traverse.putln(
-                         "  Py_VISIT(%s(m)->%s);" % (Naming.modulestate_cname, entry.type.typeobj_cname))
-        module_state.putln('} %s;' % env.modulestate_cname)
+                    module_state_defines.putln("#define %s %s->%s" % (
+                        entry.type.typeobj_cname,
+                        Naming.modulestateglobal_cname,
+                        entry.type.typeobj_cname))
+                    module_state_defines.putln("#define %s (PyTypeObject *)%s" % (
+                        entry.type.typeptr_cname,
+                        entry.type.typeobj_cname))
+                    module_state_clear.putln("  Py_CLEAR(%s(m)->%s);" % (
+                        Naming.modulestate_cname,
+                        entry.type.typeobj_cname))
+                    module_state_traverse.putln("  Py_VISIT(%s(m)->%s);" % (
+                        Naming.modulestate_cname,
+                        entry.type.typeobj_cname))
+        module_state.putln('} %s;' % Naming.modulestate_cname)
+        module_state.putln('')
         module_state.putln('static struct PyModuleDef %s;' % Naming.pymoduledef_cname)
-        module_state.putln('#define %s(o) ((%s *)PyModule_GetState(o))' % (env.modulestate_cname, env.modulestate_cname))
+        module_state.putln('')
+        module_state.putln('#define %s(o) ((%s *)PyModule_GetState(o))' % (
+            Naming.modulestate_cname,
+            Naming.modulestate_cname))
+        module_state.putln('')
         module_state.putln('#define %s (%s(PyState_FindModule(&%s)))' % (
-          env.modulestateglobal_cname, env.modulestate_cname, Naming.pymoduledef_cname))
-        module_state.putln('#define %s (PyState_FindModule(&%s))' % (env.module_cname, Naming.pymoduledef_cname))
+            Naming.modulestateglobal_cname,
+            Naming.modulestate_cname,
+            Naming.pymoduledef_cname))
+        module_state.putln('')
+        module_state.putln('#define %s (PyState_FindModule(&%s))' % (
+            env.module_cname,
+            Naming.pymoduledef_cname))
         module_state.putln("#endif")
         module_state_defines.putln("#endif")
         module_state_clear.putln("  return 0;")
@@ -2467,34 +2498,81 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_module_state_defines(self, env, code):
         code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-        code.putln('#define %s %s->%s' % (Naming.builtins_cname, env.modulestateglobal_cname, Naming.builtins_cname))
-        code.putln('#define %s %s->%s' % (Naming.cython_runtime_cname, env.modulestateglobal_cname, Naming.cython_runtime_cname))
-        code.putln('#define %s %s->%s' % (Naming.empty_tuple, env.modulestateglobal_cname, Naming.empty_tuple))
-        code.putln('#define %s %s->%s' % (Naming.empty_bytes, env.modulestateglobal_cname, Naming.empty_bytes))
-        code.putln('#define %s %s->%s' % (Naming.empty_unicode, env.modulestateglobal_cname, Naming.empty_unicode))
+        code.putln('#define %s %s->%s' % (
+            Naming.builtins_cname,
+            Naming.modulestateglobal_cname,
+            Naming.builtins_cname))
+        code.putln('#define %s %s->%s' % (
+            Naming.cython_runtime_cname,
+            Naming.modulestateglobal_cname,
+            Naming.cython_runtime_cname))
+        code.putln('#define %s %s->%s' % (
+            Naming.empty_tuple,
+            Naming.modulestateglobal_cname,
+            Naming.empty_tuple))
+        code.putln('#define %s %s->%s' % (
+            Naming.empty_bytes,
+            Naming.modulestateglobal_cname,
+            Naming.empty_bytes))
+        code.putln('#define %s %s->%s' % (
+            Naming.empty_unicode,
+            Naming.modulestateglobal_cname,
+            Naming.empty_unicode))
         if Options.pre_import is not None:
-            code.putln('#define %s %s->%s' % (Naming.preimport_cname, env.modulestateglobal_cname, Naming.preimport_cname))
-        code.putln('#define %s %s->%s' % (Naming.lineno_cname, env.modulestateglobal_cname, Naming.lineno_cname))
-        code.putln('#define %s %s->%s' % (Naming.clineno_cname, env.modulestateglobal_cname, Naming.clineno_cname))
-        code.putln('#define %s %s->%s' % (Naming.filename_cname, env.modulestateglobal_cname, Naming.filename_cname))
+            code.putln('#define %s %s->%s' % (
+                Naming.preimport_cname,
+                Naming.modulestateglobal_cname,
+                Naming.preimport_cname))
+        code.putln('#define %s %s->%s' % (
+            Naming.lineno_cname,
+            Naming.modulestateglobal_cname,
+            Naming.lineno_cname))
+        code.putln('#define %s %s->%s' % (
+            Naming.clineno_cname,
+            Naming.modulestateglobal_cname,
+            Naming.clineno_cname))
+        code.putln('#define %s %s->%s' % (
+            Naming.filename_cname,
+            Naming.modulestateglobal_cname,
+            Naming.filename_cname))
 
     def generate_module_state_clear(self, env, code):
         code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
         code.putln("static int %s_clear(PyObject *m) {" % Naming.module_cname)
-        code.putln('  Py_CLEAR(%s(m)->%s);' % (Naming.modulestate_cname, Naming.builtins_cname))
-        code.putln('  Py_CLEAR(%s(m)->%s);' % (Naming.modulestate_cname, Naming.cython_runtime_cname))
-        code.putln('  Py_CLEAR(%s(m)->%s);' % (Naming.modulestate_cname, Naming.empty_tuple))
-        code.putln('  Py_CLEAR(%s(m)->%s);' % (Naming.modulestate_cname, Naming.empty_bytes))
-        code.putln('  Py_CLEAR(%s(m)->%s);' % (Naming.modulestate_cname, Naming.empty_unicode))
+        code.putln('  Py_CLEAR(%s(m)->%s);' % (
+            Naming.modulestate_cname,
+            Naming.builtins_cname))
+        code.putln('  Py_CLEAR(%s(m)->%s);' % (
+            Naming.modulestate_cname,
+            Naming.cython_runtime_cname))
+        code.putln('  Py_CLEAR(%s(m)->%s);' % (
+            Naming.modulestate_cname,
+            Naming.empty_tuple))
+        code.putln('  Py_CLEAR(%s(m)->%s);' % (
+            Naming.modulestate_cname,
+            Naming.empty_bytes))
+        code.putln('  Py_CLEAR(%s(m)->%s);' % (
+            Naming.modulestate_cname,
+            Naming.empty_unicode))
 
     def generate_module_state_traverse(self, env, code):
         code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
         code.putln("static int %s_traverse(PyObject *m, visitproc visit, void *arg) {" % Naming.module_cname)
-        code.putln('  Py_VISIT(%s(m)->%s);' % (Naming.modulestate_cname, Naming.builtins_cname))
-        code.putln('  Py_VISIT(%s(m)->%s);' % (Naming.modulestate_cname, Naming.cython_runtime_cname))
-        code.putln('  Py_VISIT(%s(m)->%s);' % (Naming.modulestate_cname, Naming.empty_tuple))
-        code.putln('  Py_VISIT(%s(m)->%s);' % (Naming.modulestate_cname, Naming.empty_bytes))
-        code.putln('  Py_VISIT(%s(m)->%s);' % (Naming.modulestate_cname, Naming.empty_unicode))
+        code.putln('  Py_VISIT(%s(m)->%s);' % (
+            Naming.modulestate_cname,
+            Naming.builtins_cname))
+        code.putln('  Py_VISIT(%s(m)->%s);' % (
+            Naming.modulestate_cname,
+            Naming.cython_runtime_cname))
+        code.putln('  Py_VISIT(%s(m)->%s);' % (
+            Naming.modulestate_cname,
+            Naming.empty_tuple))
+        code.putln('  Py_VISIT(%s(m)->%s);' % (
+            Naming.modulestate_cname,
+            Naming.empty_bytes))
+        code.putln('  Py_VISIT(%s(m)->%s);' % (
+            Naming.modulestate_cname,
+            Naming.empty_unicode))
 
     def generate_module_init_func(self, imported_modules, env, code):
         subfunction = self.mod_init_subfunction(self.scope, code)
@@ -2882,7 +2960,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln('static void %s(CYTHON_UNUSED PyObject *self) {' %
                    Naming.cleanup_cname)
-        code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
         if Options.generate_cleanup_code >= 2:
             code.putln("/*--- Global cleanup code ---*/")
             rev_entries = list(env.var_entries)
@@ -2943,8 +3020,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if Options.pre_import is not None:
             code.put_decref_clear(Naming.preimport_cname, py_object_type,
                                   nanny=False, clear_before_decref=True)
-        for cname in [env.module_dict_cname, Naming.cython_runtime_cname, Naming.builtins_cname]:
+        for cname in [Naming.cython_runtime_cname, Naming.builtins_cname]:
             code.put_decref_clear(cname, py_object_type, nanny=False, clear_before_decref=True)
+        code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
+        code.put_decref_clear(env.module_dict_cname, py_object_type, nanny=False, clear_before_decref=True)
         code.putln("#endif")
 
     def generate_main_method(self, env, code):
@@ -3003,11 +3082,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#endif")
 
         code.putln("")
-        code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-        code.putln("static void %s_free(void *m) {" % Naming.module_cname)
-        code.putln("  %s_clear(m);" % Naming.module_cname)
-        code.putln("}")
-        code.putln("#endif")
 
         code.putln("")
         code.putln("static struct PyModuleDef %s = {" % Naming.pymoduledef_cname)
@@ -3017,7 +3091,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
         code.putln("  0, /* m_size */")
         code.putln("#elif CYTHON_COMPILING_IN_LIMITED_API")
-        code.putln("  sizeof(%s), /* m_size */" % env.modulestate_cname)
+        code.putln("  sizeof(%s), /* m_size */" % Naming.modulestate_cname)
         code.putln("#else")
         code.putln("  -1, /* m_size */")
         code.putln("#endif")
@@ -3030,7 +3104,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
         code.putln("  %s_traverse, /* m_traverse */" % Naming.module_cname)
         code.putln("  %s_clear, /* m_traverse */" % Naming.module_cname)
-        code.putln("  %s_free /* m_free */" % Naming.module_cname)
+        code.putln("  %s /* m_free */" % cleanup_func)
         code.putln("#else")
         code.putln("  NULL, /* m_traverse */")
         code.putln("  NULL, /* m_clear */")
@@ -3311,7 +3385,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             error_code = code.error_goto(error_pos)
 
         module = import_generator.imported_module(module_name, error_code)
-        code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
         code.put('%s = __Pyx_ImportType(%s, %s,' % (
             type.typeptr_cname,
             module,
@@ -3334,6 +3407,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("")  # start in new line
             code.putln("#if defined(PYPY_VERSION_NUM) && PYPY_VERSION_NUM < 0x050B0000")
             code.putln('sizeof(%s),' % objstruct)
+            code.putln("#elif CYTHON_COMPILING_IN_LIMITED_API")
+            code.putln('sizeof(%s),' % objstruct)
             code.putln("#else")
             code.putln('sizeof(%s),' % sizeof_objstruct)
             code.putln("#endif")
@@ -3351,7 +3426,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('__Pyx_ImportType_CheckSize_%s);' % check_size.title())
 
         code.putln(' if (!%s) %s' % (type.typeptr_cname, error_code))
-        code.putln("#endif")
 
     def generate_type_ready_code(self, entry, code):
         Nodes.CClassDefNode.generate_type_ready_code(entry, code)

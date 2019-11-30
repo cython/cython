@@ -51,7 +51,6 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t); /*proto*/
 
 //////////////////// InitStrings ////////////////////
 
-#if CYTHON_COMPILING_IN_LIMITED_API
 static int __Pyx_InitString(__Pyx_StringTabEntry t, PyObject **str) {
     if (t.is_unicode | t.is_str) {
         if (t.intern) {
@@ -71,7 +70,8 @@ static int __Pyx_InitString(__Pyx_StringTabEntry t, PyObject **str) {
         return -1;
     return 0;
 }
-#else
+
+#if !CYTHON_COMPILING_IN_LIMITED_API
 static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
     while (t->p) {
         #if PY_MAJOR_VERSION < 3
@@ -82,24 +82,14 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
         } else {
             *t->p = PyString_FromStringAndSize(t->s, t->n - 1);
         }
-        #else  /* Python 3+ has unicode identifiers */
-        if (t->is_unicode | t->is_str) {
-            if (t->intern) {
-                *t->p = PyUnicode_InternFromString(t->s);
-            } else if (t->encoding) {
-                *t->p = PyUnicode_Decode(t->s, t->n - 1, t->encoding, NULL);
-            } else {
-                *t->p = PyUnicode_FromStringAndSize(t->s, t->n - 1);
-            }
-        } else {
-            *t->p = PyBytes_FromStringAndSize(t->s, t->n - 1);
-        }
-        #endif
         if (!*t->p)
             return -1;
         // initialise cached hash value
         if (PyObject_Hash(*t->p) == -1)
             return -1;
+        #else  /* Python 3+ has unicode identifiers */
+        __Pyx_InitString(*t, t->p);
+        #endif
         ++t;
     }
     return 0;

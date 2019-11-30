@@ -645,20 +645,7 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define __Pyx_PyType_GetFlags(tp)   (((PyTypeObject *)tp)->tp_flags)
 #endif
 
-/* new Py3.3 unicode type (PEP 393) */
-#if PY_VERSION_HEX > 0x03030000 && defined(PyUnicode_KIND)
-  #define CYTHON_PEP393_ENABLED 1
-  #define __Pyx_PyUnicode_READY(op)       (likely(PyUnicode_IS_READY(op)) ? \
-                                              0 : _PyUnicode_Ready((PyObject *)(op)))
-  #define __Pyx_PyUnicode_GET_LENGTH(u)   PyUnicode_GET_LENGTH(u)
-  #define __Pyx_PyUnicode_READ_CHAR(u, i) PyUnicode_READ_CHAR(u, i)
-  #define __Pyx_PyUnicode_MAX_CHAR_VALUE(u)   PyUnicode_MAX_CHAR_VALUE(u)
-  #define __Pyx_PyUnicode_KIND(u)         PyUnicode_KIND(u)
-  #define __Pyx_PyUnicode_DATA(u)         PyUnicode_DATA(u)
-  #define __Pyx_PyUnicode_READ(k, d, i)   PyUnicode_READ(k, d, i)
-  #define __Pyx_PyUnicode_WRITE(k, d, i, ch)  PyUnicode_WRITE(k, d, i, ch)
-  #define __Pyx_PyUnicode_IS_TRUE(u)      (0 != (likely(PyUnicode_IS_READY(u)) ? PyUnicode_GET_LENGTH(u) : PyUnicode_GET_SIZE(u)))
-#elif CYTHON_COMPILING_IN_LIMITED_API
+#if CYTHON_COMPILING_IN_LIMITED_API
   #if !defined(PyUnicode_GET_SIZE)
     #define PyUnicode_GET_SIZE(u)          PyUnicode_GetSize(u)
   #endif
@@ -676,6 +663,19 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define __Pyx_PyUnicode_READ(k, d, i)   ((void)(k), (Py_UCS4)(((wchar_t*)d)[i]))
   #define __Pyx_PyUnicode_WRITE(k, d, i, ch)  (((void)(k)), ((wchar_t*)d)[i] = ch)
   #define __Pyx_PyUnicode_IS_TRUE(u)      (0 != PyUnicode_GetSize(u))
+#elif PY_VERSION_HEX > 0x03030000 && defined(PyUnicode_KIND)
+  /* new Py3.3 unicode type (PEP 393) */
+  #define CYTHON_PEP393_ENABLED 1
+  #define __Pyx_PyUnicode_READY(op)       (likely(PyUnicode_IS_READY(op)) ? \
+                                              0 : _PyUnicode_Ready((PyObject *)(op)))
+  #define __Pyx_PyUnicode_GET_LENGTH(u)   PyUnicode_GET_LENGTH(u)
+  #define __Pyx_PyUnicode_READ_CHAR(u, i) PyUnicode_READ_CHAR(u, i)
+  #define __Pyx_PyUnicode_MAX_CHAR_VALUE(u)   PyUnicode_MAX_CHAR_VALUE(u)
+  #define __Pyx_PyUnicode_KIND(u)         PyUnicode_KIND(u)
+  #define __Pyx_PyUnicode_DATA(u)         PyUnicode_DATA(u)
+  #define __Pyx_PyUnicode_READ(k, d, i)   PyUnicode_READ(k, d, i)
+  #define __Pyx_PyUnicode_WRITE(k, d, i, ch)  PyUnicode_WRITE(k, d, i, ch)
+  #define __Pyx_PyUnicode_IS_TRUE(u)      (0 != (likely(PyUnicode_IS_READY(u)) ? PyUnicode_GET_LENGTH(u) : PyUnicode_GET_SIZE(u)))
 #else
   #define CYTHON_PEP393_ENABLED 0
   #define PyUnicode_1BYTE_KIND  1
@@ -1068,13 +1068,20 @@ static CYTHON_SMALL_CODE int __Pyx_check_single_interpreter(void) {
     return 0;
 }
 
-#if !CYTHON_COMPILING_IN_LIMITED_API
+#if CYTHON_COMPILING_IN_LIMITED_API
+static CYTHON_SMALL_CODE int __Pyx_copy_spec_to_module(PyObject *spec, PyObject *module, const char* from_name, const char* to_name, int allow_none) {
+#else
 static CYTHON_SMALL_CODE int __Pyx_copy_spec_to_module(PyObject *spec, PyObject *moddict, const char* from_name, const char* to_name, int allow_none) {
+#endif
     PyObject *value = PyObject_GetAttrString(spec, from_name);
     int result = 0;
     if (likely(value)) {
         if (allow_none || value != Py_None) {
+#if CYTHON_COMPILING_IN_LIMITED_API
+            result = PyModule_AddObject(module, to_name, value);
+#else
             result = PyDict_SetItemString(moddict, to_name, value);
+#endif
         }
         Py_DECREF(value);
     } else if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
@@ -1084,7 +1091,6 @@ static CYTHON_SMALL_CODE int __Pyx_copy_spec_to_module(PyObject *spec, PyObject 
     }
     return result;
 }
-#endif
 
 static CYTHON_SMALL_CODE PyObject* ${pymodule_create_func_cname}(PyObject *spec, CYTHON_UNUSED PyModuleDef *def) {
     PyObject *module = NULL, *modname;
@@ -1106,11 +1112,10 @@ static CYTHON_SMALL_CODE PyObject* ${pymodule_create_func_cname}(PyObject *spec,
     if (unlikely(!module)) goto bad;
 
 #if CYTHON_COMPILING_IN_LIMITED_API
-    // TODO(eelizondo): Pull the attribute from module spec into the module
-    if (unlikely(PyModule_AddStringConstant(module, "loader", "__loader__") < 0)) goto bad;
-    if (unlikely(PyModule_AddStringConstant(module, "origin", "__file__") < 0)) goto bad;
-    if (unlikely(PyModule_AddStringConstant(module, "parent", "__package__") < 0)) goto bad;
-    if (unlikely(PyModule_AddStringConstant(module, "submodule_search_locations", "__path__") < 0)) goto bad;
+    if (unlikely(__Pyx_copy_spec_to_module(spec, module, "loader", "__loader__") < 0)) goto bad;
+    if (unlikely(__Pyx_copy_spec_to_module(spec, module, "origin", "__file__") < 0)) goto bad;
+    if (unlikely(__Pyx_copy_spec_to_module(spec, module, "parent", "__package__") < 0)) goto bad;
+    if (unlikely(__Pyx_copy_spec_to_module(spec, module, "submodule_search_locations", "__path__") < 0)) goto bad;
 #else
     moddict = PyModule_GetDict(module);
     if (unlikely(!moddict)) goto bad;

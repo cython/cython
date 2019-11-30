@@ -696,11 +696,19 @@ static int __Pyx_SetVtable(PyObject *dict, void *vtable); /*proto*/
 
 /////////////// SetVTable ///////////////
 
+#if CYTHON_COMPILING_IN_LIMITED_API
+static int __Pyx_SetVtable(PyObject *type, void *vtable) {
+#else
 static int __Pyx_SetVtable(PyObject *dict, void *vtable) {
+#endif
     PyObject *ob = PyCapsule_New(vtable, 0, 0);
     if (!ob)
         goto bad;
+#if CYTHON_COMPILING_IN_LIMITED_API
+    if (PyObject_SetAttr(type, PYIDENT("__pyx_vtable__"), ob) < 0)
+#else
     if (PyDict_SetItem(dict, PYIDENT("__pyx_vtable__"), ob) < 0)
+#endif
         goto bad;
     Py_DECREF(ob);
     return 0;

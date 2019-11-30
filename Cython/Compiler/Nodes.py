@@ -5199,8 +5199,13 @@ class CClassDefNode(ClassDefNode):
             if type.vtable_cname:
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached('SetVTable', 'ImportExport.c'))
-                # TODO(eelizondo): Write version for limited api
-                code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
+                code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+                code.putln(
+                    "if (__Pyx_SetVtable(%s, %s) < 0) %s" % (
+                        typeobj_cname,
+                        type.vtabptr_cname,
+                        code.error_goto(entry.pos)))
+                code.putln("#else")
                 code.putln(
                     "if (__Pyx_SetVtable(%s.tp_dict, %s) < 0) %s" % (
                         typeobj_cname,
