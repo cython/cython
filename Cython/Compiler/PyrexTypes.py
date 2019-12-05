@@ -594,7 +594,7 @@ class MemoryViewSliceType(PyrexType):
         'ptr' -- Pointer stored in this dimension.
         'full' -- Check along this dimension, don't assume either.
 
-        the packing specifiers specify how the array elements are layed-out
+        the packing specifiers specify how the array elements are laid-out
         in memory.
 
         'contig' -- The data is contiguous in memory along this dimension.
