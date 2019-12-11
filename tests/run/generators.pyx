@@ -522,3 +522,37 @@ def test_generator_frame(a=1):
     """
     b = a + 1
     yield b
+
+# GH Issue 3265 - **kwds could cause a crash in some cases due to not
+# handling NULL pointers (in testing it shows as a REFNANNY error).
+# This was on creation of the generator and
+# doesn't really require it to be iterated through:
+def some_function():
+    return 0
+
+def test_generator_kwds1(**kwargs):
+    """
+    >>> for a in test_generator_kwds1():
+    ...     print(a)
+    0
+    """
+    yield some_function(**kwargs)
+
+def test_generator_kwds2(**kwargs):
+    """
+    >>> for a in test_generator_kwds2():
+    ...     print(a)
+    0
+    """
+    yield 0
+
+def test_generator_kwds3(**kwargs):
+    """
+    This didn't actually crash before but is still worth a try
+    >>> len(list(test_generator_kwds3()))
+    0
+    >>> for a in test_generator_kwds3(a=1):
+    ...    print(a)
+    a
+    """
+    yield from kwargs.keys()
