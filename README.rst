@@ -86,7 +86,7 @@ versions.
 
 The latest version of Pyrex can be found `here <http://www.cosc.canterbury.ac.nz/~greg/python/Pyrex/>`_.
 
-| Greg Ewing, Computer Science Dept
+| Greg Ewing, Computer Science Depth
 | University of Canterbury
 | Christchurch, New Zealand
 

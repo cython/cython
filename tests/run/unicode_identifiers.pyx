@@ -84,7 +84,7 @@ cdef class A:
         return self.ναμε==1
     def regular_function(self):
         """
-        Can use unicode cdef functions and (private) attributes iternally
+        Can use unicode cdef functions and (private) attributes internally
         >>> A().regular_function()
         True
         """

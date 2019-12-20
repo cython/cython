@@ -92,7 +92,7 @@ cdef class RecurseList(list):
 
 
 # Some tests where the trashcan is NOT used. When the trashcan is not used
-# in a big recursive deallocation, the __dealloc__s of the base classs are
+# in a big recursive deallocation, the __dealloc__s of the base classes are
 # only run after the __dealloc__s of the subclasses.
 # We use this to detect trashcan usage.
 cdef int base_deallocated = 0

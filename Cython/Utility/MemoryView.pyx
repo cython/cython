@@ -885,7 +885,7 @@ cdef int slice_memviewslice(
         dst.shape[new_ndim] = new_shape
         dst.suboffsets[new_ndim] = suboffset
 
-    # Add the slicing or idexing offsets to the right suboffset or base data *
+    # Add the slicing or indexing offsets to the right suboffset or base data *
     if suboffset_dim[0] < 0:
         dst.data += start * stride
     else:
