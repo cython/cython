@@ -252,7 +252,7 @@ class old_build_ext(_build_ext.build_ext):
         #    2.    Add in any (unique) paths from the extension
         #        cython_include_dirs (if Cython.Distutils.extension is used).
         #    3.    Add in any (unique) paths from the extension include_dirs
-        includes = self.cython_include_dirs
+        includes = list(self.cython_include_dirs)
         try:
             for i in extension.cython_include_dirs:
                 if not i in includes:
