@@ -13583,8 +13583,8 @@ class AnnotationNode(ExprNode):
         ExprNode.__init__(self, pos)
         if string is None:
             # import doesn't work at top of file?
-            from ..CodeWriter import ExpressionWriter
-            string = StringEncoding.EncodedString(ExpressionWriter().write(expr))
+            from .AutoDocTransforms import AnnotationWriter
+            string = StringEncoding.EncodedString(AnnotationWriter().write(expr))
             string = UnicodeNode(pos, value=string)
         self.string = string
         self.body_as_type = expr
@@ -13604,7 +13604,9 @@ class AnnotationNode(ExprNode):
             tp = None
             if not isinstance(self.body_as_obj, TupleNode):
                 tp = self.body_as_obj.analyse_as_type(env)
-            if tp and tp.py_type_name() is None:
+            if (tp and not tp.is_pyobject and
+                self.string not in ["float", "int"] # special cases these as also being Python objects
+                ):
                 # specified a C type, no equivalent Python type
                 tp_decl = tp.declaration_code('', for_display=1)
                 self.body_as_obj = UnicodeNode(self.pos,
@@ -13622,9 +13624,9 @@ class AnnotationNode(ExprNode):
         else:
             return self.body_as_obj.coerce_to_pyobject(env)
 
-    def analyse_as_type__(self, env): # FIXME
-        return self.analyse_type_annotation(env)[1] # I'm a little unclear why sometimes this is called
-            # and sometimes "analyse_type_annotation"
+    def analyse_as_type(self, env):
+        # for compatibility when used as a return_type_node, have this interface too
+        return self.analyse_type_annotation(env)[1]
 
     def analyse_type_annotation(self, env, assigned_value=None):
         annotation = self.body_as_type

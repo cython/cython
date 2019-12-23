@@ -2339,7 +2339,7 @@ class CFuncDefNode(FuncDefNode):
             self.directive_locals = {}
         self.directive_locals.update(env.directives.get('locals', {}))
         if self.directive_returns is not None:
-            base_type = self.directive_returns.analyse_type_annotation(env)[1]
+            base_type = self.directive_returns.analyse_as_type(env)
             if base_type is None:
                 error(self.directive_returns.pos, "Not a type")
                 base_type = PyrexTypes.error_type
