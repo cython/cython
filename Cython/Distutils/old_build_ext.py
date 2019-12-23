@@ -275,8 +275,7 @@ class old_build_ext(_build_ext.build_ext):
         if hasattr(extension, "cython_directives"):
             directives.update(extension.cython_directives)
 
-        # Set the target_ext to '.c'.  Cython will change this to '.cpp' if
-        # needed.
+        # Set the target file extension for C/C++ mode.
         if cplus:
             target_ext = '.cpp'
         else:
