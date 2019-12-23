@@ -134,6 +134,10 @@ def sum(Foo f):
     # notices the alias and replaces the __getattr__ in c by f->f0 anyway
     return f.field0 + f.field1 + f.field2
 
+def check_pyobj(Foo f):
+    # compare the c code to the check_pyobj in getter2.pyx
+    return bool(f.field1)
+
 ######## getter.pxd ########
 
 # Access base Foo fields from C via getter functions
@@ -175,7 +179,20 @@ def check_10(getter.Foo f):
     return f.fieldF1 != 10
 
 def vec0(getter.Foo f):
-        return f.vector[0]
+    return f.vector[0]
+
+def check_binop(getter.Foo f):
+    return f.fieldF1 / 10
+
+######## getter2.pyx ########
+
+cimport getter
+
+def check_pyobj(getter.Foo f):
+    return bool(f.fieldF1)
+ 
+def check_unary(getter.Foo f):
+    return -f.fieldF1
 
 ######## getter_fail0.pyx ########
 
@@ -201,7 +218,7 @@ cdef extern from "foo.h":
 ######## runner.py ########
 
 import warnings
-import foo_extension, getter0, getter1
+import foo_extension, getter0, getter1, getter2
 
 def sum(f):
     # pure python field access, but code is identical to cython cdef sum
@@ -225,6 +242,12 @@ opaque_foo = foo_extension.OpaqueFoo(23, 123, 1023)
 
 opaque_ret = getter0.sum(opaque_foo)
 assert opaque_ret == ret
+
+val = getter2.check_pyobj(opaque_foo)
+assert val is True
+val = getter2.check_unary(opaque_foo)
+assert val == -123
+
 try:
     f0 = opaque_ret.field0
     assert False

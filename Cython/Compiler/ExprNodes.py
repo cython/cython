@@ -875,8 +875,6 @@ class ExprNode(Node):
         #
         src = self
         src_type = self.type
-        if src_type.is_cfunction and src_type.entry.is_cgetter:
-            src_type = src_type.return_type
 
         if self.check_for_coercion_error(dst_type, env):
             return self
@@ -3637,10 +3635,7 @@ class IndexNode(_IndexingBaseNode):
         self.nogil = env.nogil
         base_type = self.base.type
 
-        if base_type.is_cfunction:
-            if self.base.entry.is_cgetter:
-                base_type = base_type.return_type
-        else:
+        if not base_type.is_cfunction:
             self.index = self.index.analyse_types(env)
             self.original_index_type = self.index.type
 
@@ -3727,10 +3722,7 @@ class IndexNode(_IndexingBaseNode):
 
     def analyse_as_c_array(self, env, is_slice):
         base_type = self.base.type
-        if hasattr(self.base, 'entry') and self.base.entry.is_cgetter:
-            self.type = base_type.return_type.base_type
-        else:
-            self.type = base_type.base_type
+        self.type = base_type.base_type
         if is_slice:
             self.type = base_type
         elif self.index.type.is_pyobject:
@@ -6731,13 +6723,27 @@ class AttributeNode(ExprNode):
     is_attribute = 1
     subexprs = ['obj']
 
-    type = PyrexTypes.error_type
+    _type = PyrexTypes.error_type
     entry = None
     is_called = 0
     needs_none_check = True
     is_memslice_transpose = False
     is_special_lookup = False
     is_py_attr = 0
+
+    @property
+    def type(self):
+        if self._type.is_cfunction and hasattr(self._type, 'entry') and self._type.entry.is_cgetter:
+            return self._type.return_type
+        return self._type
+
+    @type.setter
+    def type(self, value):
+        # XXX review where the attribute is set
+        # make sure it is not already a cgetter
+        if self._type.is_cfunction and hasattr(self._type, 'entry') and self._type.entry.is_cgetter:
+            error(self.pos, "%s.type already set" % self.__name__)
+        self._type = value
 
     def as_cython_attribute(self):
         if (isinstance(self.obj, NameNode) and
@@ -7014,7 +7020,7 @@ class AttributeNode(ExprNode):
                 # (foo = pycfunction(foo_func_obj)) and need to go through
                 # regular Python lookup as well
                 if (entry.is_variable and not entry.fused_cfunction) or entry.is_cmethod:
-                    self.type = entry.type
+                    self._type = entry.type
                     self.member = entry.cname
                     return
                 else:
@@ -7034,7 +7040,7 @@ class AttributeNode(ExprNode):
         # mangle private '__*' Python attributes used inside of a class
         self.attribute = env.mangle_class_private_name(self.attribute)
         self.member = self.attribute
-        self.type = py_object_type
+        self._type = py_object_type
         self.is_py_attr = 1
 
         if not obj_type.is_pyobject and not obj_type.is_error:
@@ -11210,10 +11216,6 @@ class NumBinopNode(BinopNode):
             self.operand2 = self.operand2.coerce_to(self.type, env)
 
     def compute_c_result_type(self, type1, type2):
-        if type1.is_cfunction and type1.entry.is_cgetter:
-            type1 = type1.return_type
-        if type2.is_cfunction and type2.entry.is_cgetter:
-            type2 = type2.return_type
         if self.c_types_okay(type1, type2):
             widest_type = PyrexTypes.widest_numeric_type(type1, type2)
             if widest_type is PyrexTypes.c_bint_type:
@@ -12218,10 +12220,6 @@ class CmpNode(object):
         operand2 = self.operand2
         type1 = operand1.type
         type2 = operand2.type
-        if type1.is_cfunction and type1.entry.is_cgetter:
-            type1 = type1.return_type
-        if type2.is_cfunction and type2.entry.is_cgetter:
-            type2 = type2.return_type
 
         new_common_type = None
 
