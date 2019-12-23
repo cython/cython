@@ -201,17 +201,6 @@ class old_build_ext(_build_ext.build_ext):
         found, and return a modified 'sources' list with Cython source
         files replaced by the generated C (or C++) files.
         """
-        try:
-            from Cython.Compiler.Main \
-                import CompilationOptions, \
-                       default_options as cython_default_options, \
-                       compile as cython_compile
-            from Cython.Compiler.Errors import PyrexError
-        except ImportError:
-            e = sys.exc_info()[1]
-            print("failed to import Cython: %s" % e)
-            raise DistutilsPlatformError("Cython does not appear to be installed")
-
         new_sources = []
         cython_sources = []
         cython_targets = {}
@@ -312,6 +301,17 @@ class old_build_ext(_build_ext.build_ext):
 
         if not cython_sources:
             return new_sources
+
+        try:
+            from Cython.Compiler.Main \
+                import CompilationOptions, \
+                       default_options as cython_default_options, \
+                       compile as cython_compile
+            from Cython.Compiler.Errors import PyrexError
+        except ImportError:
+            e = sys.exc_info()[1]
+            print("failed to import Cython: %s" % e)
+            raise DistutilsPlatformError("Cython does not appear to be installed")
 
         module_name = extension.name
 
