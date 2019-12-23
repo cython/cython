@@ -204,6 +204,8 @@ def set_read_utilities_hook(hook):
 
     The hook functions takes the path of the utilities file, and returns a list
     of strings, one per line.
+
+    The default behavior is to open a file relative to get_utility_dir().
     """
     global _read_utilities_hook
     old_hook = _read_utilities_hook
@@ -212,12 +214,11 @@ def set_read_utilities_hook(hook):
 
 def read_utilities_from_utility_dir(path):
     """
-    Read all lines of the file at the provided path.
+    Read all lines of the file at the provided path from a path relative
+    to get_utility_dir().
 
     The vendor can override this function to use their own file handling hook.
     via `set_read_utilities_hook`.
-
-    The default behavior is to open a file relative to get_utility_dir().
     """
     filename = os.path.join(get_utility_dir(), path)
     with closing(Utils.open_source_file(filename, encoding='UTF-8')) as f:
