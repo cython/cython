@@ -185,14 +185,11 @@ class old_build_ext(_build_ext.build_ext):
 
         _build_ext.build_ext.run(self)
 
-    def build_extensions(self):
-        # First, sanity-check the 'extensions' list
-        self.check_extensions_list(self.extensions)
-
+    def check_extensions_list(self, extensions):
+        # Note: might get called multiple times.
+        _build_ext.build_ext.check_extensions_list(self, extensions)
         for ext in self.extensions:
             ext.sources = self.cython_sources(ext.sources, ext)
-        # Call original build_extensions
-        _build_ext.build_ext.build_extensions(self)
 
     def cython_sources(self, sources, extension):
         """
