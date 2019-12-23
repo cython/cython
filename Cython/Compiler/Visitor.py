@@ -370,9 +370,18 @@ class EnvTransform(CythonTransform):
         self.env_stack.pop()
 
     def visit_FuncDefNode(self, node):
+        # note that "return_type_annotation" is only on subclasses
+        # FIXME just "return_type_annotation" or all outer_attrs?
+        attrs = [attr for attr in node.child_attrs if attr != "return_type_annotation"]
         self.enter_scope(node, node.local_scope)
-        self._process_children(node)
+        self._process_children(node, attrs)
+        outer_scope = self.current_env().outer_scope
         self.exit_scope()
+
+        if node.return_type_annotation is not None:
+            self.enter_scope(node, outer_scope)
+            self._process_children(node, ("return_type_annotation",))
+            self.exit_scope()
         return node
 
     def visit_GeneratorBodyDefNode(self, node):
@@ -401,12 +410,12 @@ class EnvTransform(CythonTransform):
         return node
 
     def visit_CArgDeclNode(self, node):
-        # default arguments are evaluated in the outer scope
-        if node.default:
-            attrs = [attr for attr in node.child_attrs if attr != 'default']
+        # default/annotation arguments are evaluated in the outer scope
+        if any(getattr(node,attr) for attr in node.outer_attrs):
+            attrs = [attr for attr in node.child_attrs if attr not in node.outer_attrs]
             self._process_children(node, attrs)
             self.enter_scope(node, self.current_env().outer_scope)
-            self.visitchildren(node, ('default',))
+            self._process_children(node, node.outer_attrs)
             self.exit_scope()
         else:
             self._process_children(node)
