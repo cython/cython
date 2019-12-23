@@ -206,6 +206,8 @@ def set_read_utilities_hook(hook):
     of strings, one per line.
 
     The default behavior is to open a file relative to get_utility_dir().
+
+    Returns the old hook.
     """
     global _read_utilities_hook
     old_hook = _read_utilities_hook
