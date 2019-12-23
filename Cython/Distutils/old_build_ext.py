@@ -271,7 +271,7 @@ class old_build_ext(_build_ext.build_ext):
         #    1. Start with the command line option.
         #    2. Add in any (unique) entries from the extension
         #         cython_directives (if Cython.Distutils.extension is used).
-        directives = self.cython_directives
+        directives = dict(self.cython_directives)
         if hasattr(extension, "cython_directives"):
             directives.update(extension.cython_directives)
 
