@@ -3286,4 +3286,4 @@ packed_struct_utility_code = UtilityCode(proto="""
 #endif
 """, impl="", proto_block='utility_code_proto_before_types')
 
-capsule_utility_code = UtilityCode.load("Capsule")
+capsule_utility_code = UtilityCode.load("Capsule", "Capsule.c")
