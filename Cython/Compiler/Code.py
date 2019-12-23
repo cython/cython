@@ -291,7 +291,6 @@ class UtilityCodeBase(object):
             for name, values in tags.items():
                 all_tags.setdefault(name, set()).update(values)
 
-
     @classmethod
     def load_utilities_from_file(cls, path):
         utilities = cls._utility_cache.get(path)
