@@ -196,38 +196,28 @@ def get_utility_dir():
     Cython_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(Cython_dir, "Utility")
 
-_read_utilities_hook = None
-def set_read_utilities_hook(hook):
-    """
-    Sets the hook for reading a utilities file that contains code fragments used
-    by the codegen.
+read_utilities_hook = None
+"""
+Override the hook for reading a utilities file that contains code fragments used
+by the codegen.
 
-    The hook functions takes the path of the utilities file, and returns a list
-    of strings, one per line.
+The hook functions takes the path of the utilities file, and returns a list
+of strings, one per line.
 
-    The default behavior is to open a file relative to get_utility_dir().
-
-    Returns the old hook.
-    """
-    global _read_utilities_hook
-    old_hook = _read_utilities_hook
-    _read_utilities_hook = hook
-    return old_hook
+The default behavior is to open a file relative to get_utility_dir().
+"""
 
 def read_utilities_from_utility_dir(path):
     """
     Read all lines of the file at the provided path from a path relative
     to get_utility_dir().
-
-    The vendor can override this function to use their own file handling hook.
-    via `set_read_utilities_hook`.
     """
     filename = os.path.join(get_utility_dir(), path)
     with closing(Utils.open_source_file(filename, encoding='UTF-8')) as f:
         return f.readlines()
 
 # by default, read utilities from the utility directory.
-set_read_utilities_hook(read_utilities_from_utility_dir)
+read_utilities_hook = read_utilities_from_utility_dir
 
 class UtilityCodeBase(object):
     """
@@ -312,7 +302,7 @@ class UtilityCodeBase(object):
             {'C': comment}).match
         match_type = re.compile(r'(.+)[.](proto(?:[.]\S+)?|impl|init|cleanup)$').match
 
-        all_lines = _read_utilities_hook(path)
+        all_lines = read_utilities_hook(path)
 
         utilities = defaultdict(lambda: [None, None, {}])
         lines = []
