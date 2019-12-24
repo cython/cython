@@ -13573,7 +13573,7 @@ class AnnotationNode(ExprNode):
             # import doesn't work at top of file?
             from .AutoDocTransforms import AnnotationWriter
             string = StringEncoding.EncodedString(AnnotationWriter().write(expr))
-            string = UnicodeNode(pos, value=string)
+            string = StringNode(pos, unicode_value=string, value=string.as_utf8_string())
         self.string = string
         self.expr = expr
 
