@@ -17,7 +17,7 @@ class AnnotationWriter(ExpressionWriter):
         self.put("<lambda>")
 
     def visit_AnnotationNode(self, node):
-        self.put(node.string.value)
+        self.put(node.string.unicode_value)
 
 
 class EmbedSignature(CythonTransform):
