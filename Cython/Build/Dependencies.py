@@ -1040,9 +1040,12 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                 if force or c_timestamp < dep_timestamp:
                     if not quiet and not force:
                         if source == dep:
-                            print(u"Compiling %s because it changed." % source)
+                            print(u"Compiling %s because it changed." % Utils.decode_filename(source))
                         else:
-                            print(u"Compiling %s because it depends on %s." % (source, dep))
+                            print(u"Compiling %s because it depends on %s." % (
+                                Utils.decode_filename(source),
+                                Utils.decode_filename(dep),
+                            ))
                     if not force and options.cache:
                         fingerprint = deps.transitive_fingerprint(source, m, options)
                     else:
