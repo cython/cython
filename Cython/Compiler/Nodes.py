@@ -4596,12 +4596,22 @@ class PyClassDefNode(ClassDefNode):
             self.metaclass.generate_evaluation_code(code)
         self.dict.generate_evaluation_code(code)
         cenv.namespace_cname = cenv.class_obj_cname = self.dict.result()
-        self.class_cell.generate_evaluation_code(code)
+
+        class_cell = self.class_cell
+        if class_cell is not None and not class_cell.is_active:
+            class_cell = None
+
+        if class_cell is not None:
+            class_cell.generate_evaluation_code(code)
         self.body.generate_execution_code(code)
         self.class_result.generate_evaluation_code(code)
-        self.class_cell.generate_injection_code(
-            code, self.class_result.result())
-        self.class_cell.generate_disposal_code(code)
+        if class_cell is not None:
+            class_cell.generate_injection_code(
+                code, self.class_result.result())
+        if class_cell is not None:
+            class_cell.generate_disposal_code(code)
+            class_cell.free_temps(code)
+
         cenv.namespace_cname = cenv.class_obj_cname = self.classobj.result()
         self.target.generate_assignment_code(self.class_result, code)
         self.dict.generate_disposal_code(code)
