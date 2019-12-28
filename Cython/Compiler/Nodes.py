@@ -1655,6 +1655,13 @@ class FuncDefNode(StatNode, BlockNode):
             elif default_seen:
                 error(arg.pos, "Non-default argument following default argument")
 
+    def analyse_annotations(self, env):
+        for arg in self.args:
+            if arg.annotation:
+                arg.annotation = arg.annotation.analyse_types(env)
+        if self.return_type_annotation:
+            self.return_type_annotation = self.return_type_annotation.analyse_types(env)
+
     def align_argument_type(self, env, arg):
         # @cython.locals()
         directive_locals = self.directive_locals
@@ -2529,6 +2536,7 @@ class CFuncDefNode(FuncDefNode):
             self.py_func = self.py_func.analyse_expressions(env)
         else:
             self.analyse_default_values(env)
+            self.analyse_annotations(env)
         self.acquire_gil = self.need_gil_acquisition(self.local_scope)
         return self
 
@@ -3146,6 +3154,7 @@ class DefNode(FuncDefNode):
     def analyse_expressions(self, env):
         self.local_scope.directives = env.directives
         self.analyse_default_values(env)
+        self.analyse_annotations(env)
 
         if not self.needs_assignment_synthesis(env) and self.decorators:
             for decorator in self.decorators[::-1]:

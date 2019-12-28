@@ -144,7 +144,7 @@ def strip_wrapped_string(s):
     # PEP 563 translates an annotation of "test new test" to '"test new test"'
     # but choice of string delimiters is a bit arbitrary
     #  this function handles that
-    assert s[0]==s[-1] # delimiters on either end are the same
+    assert s[0] == s[-1] # delimiters on either end are the same
     return s[1:-1] # strip them
 
 def annotation_syntax(a: "test new test", b : "other" = 2, *args: "ARGS", **kwargs: "KWARGS") -> "ret":

@@ -1,8 +1,10 @@
 #cython: embedsignature=True, annotation_typing=False
 
-# signatures here are a little fragile - exactly when
-# during the build process they generated gives slightly
-# different (but equivalent) forms
+# signatures here are a little fragile - when they are
+# generated during the build process gives slightly
+# different (but equivalent) forms - therefore tests
+# may need changing occasionally to reflect behaviour
+# and this isn't necessarily a bug
 
 import sys
 

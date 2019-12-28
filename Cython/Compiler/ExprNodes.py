@@ -9216,16 +9216,19 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                 else:
                     default_args.append(arg)
             if arg.annotation:
-                annotations.append((arg.pos, arg.name, arg.annotation.coerce_to_pyobject(env)))
+                arg.annotation = arg.annotation.analyse_types(env)
+                annotations.append((arg.pos, arg.name, arg.annotation.string))
 
         for arg in (self.def_node.star_arg, self.def_node.starstar_arg):
             if arg and arg.annotation:
-                annotations.append((arg.pos, arg.name, arg.annotation.coerce_to_pyobject(env)))
+                arg.annotation = arg.annotation.analyse_types(env)
+                annotations.append((arg.pos, arg.name, arg.annotation.string))
 
         annotation = self.def_node.return_type_annotation
         if annotation:
+            self.def_node.return_type_annotation = annotation.analyse_types(env)
             annotations.append((annotation.pos, StringEncoding.EncodedString("return"),
-                                annotation.coerce_to_pyobject(env)))
+                                annotation.string))
 
         if nonliteral_objects or nonliteral_other:
             module_scope = env.global_scope()
@@ -13577,10 +13580,8 @@ class AnnotationNode(ExprNode):
         self.string = string
         self.expr = expr
 
-    # def analyse_types doesn't exist because nothing needs doing
-
-    def coerce_to_pyobject(self, env):
-        return self.string
+    def analyse_types(self, env):
+        return self # nothing needs doing
 
     def analyse_as_type(self, env):
         # for compatibility when used as a return_type_node, have this interface too

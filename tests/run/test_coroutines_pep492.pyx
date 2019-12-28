@@ -384,13 +384,13 @@ class AsyncBadSyntaxTest(unittest.TestCase):
                        await
             """,
 
-            #"""async def foo():
-            #       return lambda async: await
-            #""",
+            """async def foo():
+                   return lambda async: await
+            """,
 
-            #"""async def foo():
-            #       return lambda a: await
-            #""",
+            """async def foo():
+                   return lambda a: await
+            """,
 
             """await a()""",
 
@@ -599,13 +599,13 @@ class AsyncBadSyntaxTest(unittest.TestCase):
                        await
             """,
 
-            #"""async def foo():
-            #       return lambda async: await
-            #""",
+            """async def foo():
+                   return lambda async: await
+            """,
 
-            #"""async def foo():
-            #       return lambda a: await
-            #""",
+            """async def foo():
+                   return lambda a: await
+            """,
 
             """await a()""",
 
