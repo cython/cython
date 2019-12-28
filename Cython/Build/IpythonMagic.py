@@ -69,7 +69,13 @@ from distutils.command.build_ext import build_ext
 from IPython.core import display
 from IPython.core import magic_arguments
 from IPython.core.magic import Magics, magics_class, cell_magic
-from IPython.utils import py3compat
+try:
+    from IPython.utils.py3compat import unicode_to_str, cast_bytes_py2
+except ImportError:
+    # IPython >= 7.11
+    def no_code(x, encoding=None):
+        return x
+    unicode_to_str = cast_bytes_py2 = no_code
 try:
     from IPython.paths import get_ipython_cache_dir
 except ImportError:
@@ -307,7 +313,7 @@ class CythonMagics(Magics):
             key += (time.time(),)
 
         if args.name:
-            module_name = py3compat.unicode_to_str(args.name)
+            module_name = unicode_to_str(args.name)
         else:
             module_name = "_cython_magic_" + hashlib.sha1(str(key).encode('utf-8')).hexdigest()
         html_file = os.path.join(lib_dir, module_name + '.html')
@@ -407,7 +413,7 @@ class CythonMagics(Magics):
 
     def _cythonize(self, module_name, code, lib_dir, args, quiet=True):
         pyx_file = os.path.join(lib_dir, module_name + '.pyx')
-        pyx_file = py3compat.cast_bytes_py2(pyx_file, encoding=sys.getfilesystemencoding())
+        pyx_file = cast_bytes_py2(pyx_file, encoding=sys.getfilesystemencoding())
 
         c_include_dirs = args.include
         c_src_files = list(map(str, args.src))
@@ -526,10 +532,10 @@ class CythonMagics(Magics):
         build_extension = _build_ext(dist)
         build_extension.finalize_options()
         if temp_dir:
-            temp_dir = py3compat.cast_bytes_py2(temp_dir, encoding=sys.getfilesystemencoding())
+            temp_dir = cast_bytes_py2(temp_dir, encoding=sys.getfilesystemencoding())
             build_extension.build_temp = temp_dir
         if lib_dir:
-            lib_dir = py3compat.cast_bytes_py2(lib_dir, encoding=sys.getfilesystemencoding())
+            lib_dir = cast_bytes_py2(lib_dir, encoding=sys.getfilesystemencoding())
             build_extension.build_lib = lib_dir
         if extension is not None:
             build_extension.extensions = [extension]
