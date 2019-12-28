@@ -2,6 +2,16 @@
 Cython Changelog
 ================
 
+0.29.15 (20??-??-??)
+====================
+
+* Double reference free in ``__class__`` cell handling for ``super()`` calls.
+  (Github issue #3246)
+
+* Deprecated import failed in Python 3.9.
+  (Github issue #3266)
+
+
 0.29.14 (2019-11-01)
 ====================
 
