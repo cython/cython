@@ -13575,7 +13575,8 @@ class AnnotationNode(ExprNode):
         if string is None:
             # import doesn't work at top of file?
             from .AutoDocTransforms import AnnotationWriter
-            string = StringEncoding.EncodedString(AnnotationWriter().write(expr))
+            string = StringEncoding.EncodedString(
+                AnnotationWriter(description="annotation").write(expr))
             string = StringNode(pos, unicode_value=string, value=string.as_utf8_string())
         self.string = string
         self.expr = expr
@@ -13621,7 +13622,8 @@ class AnnotationNode(ExprNode):
                 arg_type = PyrexTypes.c_double_type if annotation.name == 'float' else py_object_type
         elif arg_type is not None and annotation.is_string_literal:
             warning(annotation.pos,
-                    "Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.")
+                    "Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.",
+                    level=1)
         if arg_type is not None:
             if explicit_pytype and not explicit_ctype and not arg_type.is_pyobject:
                 warning(annotation.pos,
