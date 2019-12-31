@@ -2180,6 +2180,9 @@ def main():
     else:
         keep_alive_interval = None
     if options.shard_count > 1 and options.shard_num == -1:
+        if "PYTHONIOENCODING" not in os.environ:
+            # Make sure subprocesses can print() Unicode text.
+            os.environ["PYTHONIOENCODING"] = sys.stdout.encoding
         import multiprocessing
         pool = multiprocessing.Pool(options.shard_count)
         tasks = [(options, cmd_args, shard_num) for shard_num in range(options.shard_count)]
