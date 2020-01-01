@@ -58,9 +58,9 @@ import textwrap
 
 
 try:
-    reload
-except NameError:   # Python 3
-    from imp import reload
+    from importlib import reload
+except ImportError:   # Python 2 had a builtin function
+    pass
 
 import hashlib
 from distutils.core import Distribution, Extension
