@@ -1,8 +1,5 @@
 os: linux
-dist: trusty
 language: python
-# 'sudo' is enabled automatically by the 'apt' addon below.
-#sudo: false
 
 addons:
   apt:
@@ -19,6 +16,14 @@ cache:
   directories:
     - $HOME/.ccache
 
+python:
+  - 3.8
+  - 2.7
+  - 3.7
+  - 3.6
+  - 3.5
+  - 3.4
+
 env:
   global:
     - USE_CCACHE=1
@@ -27,60 +32,22 @@ env:
     - CCACHE_MAXSIZE=250M
     - PATH="/usr/lib/ccache:$HOME/miniconda/bin:$PATH"
     - BACKEND=c,cpp
+  matrix:
+    - BACKEND=c
+    - BACKEND=cpp
 
 matrix:
   include:
-    - python: 2.7
-      env: BACKEND=c
-    - python: 2.7
-      env: BACKEND=cpp
-    - python: 3.7
-      dist: xenial    # Required for Python 3.7
-      sudo: required  # travis-ci/travis-ci#9069
-      env: BACKEND=c
-    - python: 3.7
-      dist: xenial    # Required for Python 3.7
-      sudo: required  # travis-ci/travis-ci#9069
-      env: BACKEND=cpp
 # Disabled: coverage analysis takes excessively long, several times longer than without.
 #    - python: 3.7
-#      dist: xenial    # Required for Python 3.7
-#      sudo: required  # travis-ci/travis-ci#9069
 #      env: COVERAGE=1
     - python: 3.7
-      dist: xenial    # Required for Python 3.7
-      sudo: required  # travis-ci/travis-ci#9069
       env: TEST_CODE_STYLE=1
+    - python: 3.8
+      env: LIMITED_API=--limited-api EXCLUDE=--no-file
     - python: 3.7
-      dist: xenial    # Required for Python 3.7
-      sudo: required  # travis-ci/travis-ci#9069
       env: LIMITED_API=--limited-api EXCLUDE=--no-file
-    - python: 3.4
-      env: BACKEND=c
-    - python: 3.4
-      env: BACKEND=cpp
-    - python: 3.5
-      env: BACKEND=c
-    - python: 3.5
-      env: BACKEND=cpp
     - python: 3.6
-      env: BACKEND=c
-    - python: 3.6
-      env: BACKEND=cpp
-    - python: 3.6
-      sudo: required  # travis-ci/travis-ci#9069
-      env: LIMITED_API=--limited-api EXCLUDE=--no-file
-    - python: 3.8
-      dist: xenial    # Required for Python 3.7
-      sudo: required  # travis-ci/travis-ci#9069
-      env: BACKEND=c
-    - python: 3.8
-      dist: xenial    # Required for Python 3.7
-      sudo: required  # travis-ci/travis-ci#9069
-      env: BACKEND=cpp
-    - python: 3.8-dev
-      dist: xenial    # Required for Python 3.8
-      sudo: required  # travis-ci/travis-ci#9069
       env: LIMITED_API=--limited-api EXCLUDE=--no-file
     - os: osx
       osx_image: xcode6.4
