@@ -6,6 +6,7 @@
 from cython.operator cimport dereference as deref
 from libcpp.optional cimport optional, nullopt, make_optional
 from libcpp.string cimport string
+from libcpp.pair cimport pair
 
 def simple_test():
     """
@@ -62,3 +63,11 @@ def misc_methods_test():
     # swap
     o.swap(optional[int](6))
     assert(o == 6)
+
+    # emplace
+    cdef optional[pair[int,int]] op
+    cdef pair[int,int]* val_ptr = &op.emplace(1,2)
+    assert(op.has_value())
+    assert(op.value() == pair[int,int](1,2))
+    assert(&op.value() == val_ptr) # check returned reference
+    

@@ -17,6 +17,7 @@ cdef extern from "<optional>" namespace "std" nogil:
         T& value_or[U](U& default_value)
         void swap(optional&)
         void reset()
+        T& emplace(...)
         T& operator*()
         #T* operator->() # Not Supported
         optional& operator=(optional&)
