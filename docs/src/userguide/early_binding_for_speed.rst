@@ -20,7 +20,7 @@ slowness compared to 'early binding' languages such as C++.
 However with Cython it is possible to gain significant speed-ups through the
 use of 'early binding' programming techniques.
 
-For example, consider the following (silly) code example:
+For example, consider the following code example:
 
 .. literalinclude:: ../../examples/userguide/early_binding_for_speed/rectangle.pyx
 
