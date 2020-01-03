@@ -9103,21 +9103,20 @@ class ClassCellInjectorNode(ExprNode):
     def analyse_expressions(self, env):
         return self
 
-    def generate_evaluation_code(self, code):
-        if self.is_active:
-            self.allocate_temp_result(code)
-            code.putln(
-                '%s = PyList_New(0); %s' % (
-                    self.result(),
-                    code.error_goto_if_null(self.result(), self.pos)))
-            code.put_gotref(self.result())
+    def generate_result_code(self, code):
+        assert self.is_active
+        code.putln(
+            '%s = PyList_New(0); %s' % (
+                self.result(),
+                code.error_goto_if_null(self.result(), self.pos)))
+        code.put_gotref(self.result())
 
     def generate_injection_code(self, code, classobj_cname):
-        if self.is_active:
-            code.globalstate.use_utility_code(
-                UtilityCode.load_cached("CyFunctionClassCell", "CythonFunction.c"))
-            code.put_error_if_neg(self.pos, '__Pyx_CyFunction_InitClassCell(%s, %s)' % (
-                self.result(), classobj_cname))
+        assert self.is_active
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("CyFunctionClassCell", "CythonFunction.c"))
+        code.put_error_if_neg(self.pos, '__Pyx_CyFunction_InitClassCell(%s, %s)' % (
+            self.result(), classobj_cname))
 
 
 class ClassCellNode(ExprNode):
