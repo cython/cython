@@ -85,7 +85,6 @@ test: off
 test_script:
   - "%PYTHON%\\Scripts\\pip.exe install -r test-requirements.txt"
   - "set CFLAGS=/Od /W3"
-  - "set PYTHONIOENCODING=utf_8"
   - "%WITH_ENV% %PYTHON%\\python.exe runtests.py -vv --backend=%BACKEND% --no-code-style -j5"
 
 artifacts:
