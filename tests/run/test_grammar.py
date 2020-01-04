@@ -907,7 +907,7 @@ class GrammarTests(unittest.TestCase):
         check_syntax_error(self, "class foo:yield 1")
         check_syntax_error(self, "class foo:yield from ()")
         # Check annotation refleak on SyntaxError
-        check_syntax_error(self, "def g(a:(yield)): pass")
+        #check_syntax_error(self, "def g(a:(yield)): pass") # no longer a syntax error with PEP563
 
     @skip("DeprecationWarning not implemented")
     def test_yield_in_comprehensions(self):

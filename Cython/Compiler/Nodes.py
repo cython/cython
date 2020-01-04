@@ -67,54 +67,6 @@ def embed_position(pos, docstring):
     doc.encoding = encoding
     return doc
 
-
-def analyse_type_annotation(annotation, env, assigned_value=None):
-    base_type = None
-    is_ambiguous = False
-    explicit_pytype = explicit_ctype = False
-    if annotation.is_dict_literal:
-        warning(annotation.pos,
-                "Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.")
-        for name, value in annotation.key_value_pairs:
-            if not name.is_string_literal:
-                continue
-            if name.value in ('type', b'type'):
-                explicit_pytype = True
-                if not explicit_ctype:
-                    annotation = value
-            elif name.value in ('ctype', b'ctype'):
-                explicit_ctype = True
-                annotation = value
-        if explicit_pytype and explicit_ctype:
-            warning(annotation.pos, "Duplicate type declarations found in signature annotation")
-    arg_type = annotation.analyse_as_type(env)
-    if annotation.is_name and not annotation.cython_attribute and annotation.name in ('int', 'long', 'float'):
-        # Map builtin numeric Python types to C types in safe cases.
-        if assigned_value is not None and arg_type is not None and not arg_type.is_pyobject:
-            assigned_type = assigned_value.infer_type(env)
-            if assigned_type and assigned_type.is_pyobject:
-                # C type seems unsafe, e.g. due to 'None' default value  => ignore annotation type
-                is_ambiguous = True
-                arg_type = None
-        # ignore 'int' and require 'cython.int' to avoid unsafe integer declarations
-        if arg_type in (PyrexTypes.c_long_type, PyrexTypes.c_int_type, PyrexTypes.c_float_type):
-            arg_type = PyrexTypes.c_double_type if annotation.name == 'float' else py_object_type
-    elif arg_type is not None and annotation.is_string_literal:
-        warning(annotation.pos,
-                "Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.")
-    if arg_type is not None:
-        if explicit_pytype and not explicit_ctype and not arg_type.is_pyobject:
-            warning(annotation.pos,
-                    "Python type declaration in signature annotation does not refer to a Python type")
-        base_type = CAnalysedBaseTypeNode(
-            annotation.pos, type=arg_type, is_arg=True)
-    elif is_ambiguous:
-        warning(annotation.pos, "Ambiguous types in annotation, ignoring")
-    else:
-        warning(annotation.pos, "Unknown type declaration in annotation, ignoring")
-    return base_type, arg_type
-
-
 def write_func_call(func, codewriter_class):
     def f(*args, **kwds):
         if len(args) > 1 and isinstance(args[1], codewriter_class):
@@ -918,7 +870,7 @@ class CArgDeclNode(Node):
         annotation = self.annotation
         if not annotation:
             return None
-        base_type, arg_type = analyse_type_annotation(annotation, env, assigned_value=self.default)
+        base_type, arg_type = annotation.analyse_type_annotation(env, assigned_value=self.default)
         if base_type is not None:
             self.base_type = base_type
         return arg_type
@@ -1667,6 +1619,7 @@ class FuncDefNode(StatNode, BlockNode):
     starstar_arg = None
     is_cyfunction = False
     code_object = None
+    return_type_annotation = None
 
     def analyse_default_values(self, env):
         default_seen = 0
@@ -1684,18 +1637,12 @@ class FuncDefNode(StatNode, BlockNode):
             elif default_seen:
                 error(arg.pos, "Non-default argument following default argument")
 
-    def analyse_annotation(self, env, annotation):
-        # Annotations can not only contain valid Python expressions but arbitrary type references.
-        if annotation is None:
-            return None
-        if not env.directives['annotation_typing'] or annotation.analyse_as_type(env) is None:
-            annotation = annotation.analyse_types(env)
-        return annotation
-
     def analyse_annotations(self, env):
         for arg in self.args:
             if arg.annotation:
-                arg.annotation = self.analyse_annotation(env, arg.annotation)
+                arg.annotation = arg.annotation.analyse_types(env)
+        if self.return_type_annotation:
+            self.return_type_annotation = self.return_type_annotation.analyse_types(env)
 
     def align_argument_type(self, env, arg):
         # @cython.locals()
@@ -2183,7 +2130,7 @@ class FuncDefNode(StatNode, BlockNode):
             error(arg.pos, "Argument type '%s' is incomplete" % arg.type)
         entry = env.declare_arg(arg.name, arg.type, arg.pos)
         if arg.annotation:
-            entry.annotation = arg.annotation
+            entry.annotation = arg.annotation.expr
         return entry
 
     def generate_arg_type_test(self, arg, code):
@@ -2901,7 +2848,7 @@ class DefNode(FuncDefNode):
         # if a signature annotation provides a more specific return object type, use it
         if self.return_type is py_object_type and self.return_type_annotation:
             if env.directives['annotation_typing'] and not self.entry.is_special:
-                _, return_type = analyse_type_annotation(self.return_type_annotation, env)
+                _, return_type = self.return_type_annotation.analyse_type_annotation(env)
                 if return_type and return_type.is_pyobject:
                     self.return_type = return_type
 
@@ -3135,8 +3082,6 @@ class DefNode(FuncDefNode):
         self.local_scope.directives = env.directives
         self.analyse_default_values(env)
         self.analyse_annotations(env)
-        if self.return_type_annotation:
-            self.return_type_annotation = self.analyse_annotation(env, self.return_type_annotation)
 
         if not self.needs_assignment_synthesis(env) and self.decorators:
             for decorator in self.decorators[::-1]:

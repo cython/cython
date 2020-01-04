@@ -5,16 +5,35 @@ from .StringEncoding import EncodedString
 from . import Options
 from . import PyrexTypes, ExprNodes
 from ..CodeWriter import ExpressionWriter
+from .Errors import warning
 
 
 class AnnotationWriter(ExpressionWriter):
+    def __init__(self, description=None):
+        """description is optional. If specified it is used in
+        warning messages for the nodes that don't convert to string properly.
+        If not specified then no messages are generated.
+        """
+        ExpressionWriter.__init__(self)
+        self.description = description
 
     def visit_Node(self, node):
         self.put(u"<???>")
+        if self.description:
+            warning(node.pos,
+                    "Failed to convert code to string representation in {0}".format(
+                        self.description), level=1)
 
     def visit_LambdaNode(self, node):
         # XXX Should we do better?
         self.put("<lambda>")
+        if self.description:
+            warning(node.pos,
+                    "Failed to convert lambda to string representation in {0}".format(
+                        self.description), level=1)
+
+    def visit_AnnotationNode(self, node):
+        self.put(node.string.unicode_value)
 
 
 class EmbedSignature(CythonTransform):

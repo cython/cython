@@ -213,9 +213,10 @@ class AsyncBadSyntaxTest(unittest.TestCase):
                 pass
             """,
 
-            """async def foo(a:await something()):
-                pass
-            """,
+            #"""async def foo(a:await something()):
+            #    pass
+            #""", # No longer an error with pep-563 (although still nonsense)
+            # Some other similar tests have also been commented out
 
             """async def foo():
                 def bar():
@@ -413,9 +414,9 @@ class AsyncBadSyntaxTest(unittest.TestCase):
                    pass
             """,
 
-            """async def foo(a:await b):
-                   pass
-            """,
+            #"""async def foo(a:await b):
+            #       pass
+            #""",
 
             """def baz():
                    async def foo(a=await b):
@@ -628,9 +629,9 @@ class AsyncBadSyntaxTest(unittest.TestCase):
                    pass
             """,
 
-            """async def foo(a:await b):
-                   pass
-            """,
+            #"""async def foo(a:await b):
+            #       pass
+            #""",
 
             """def baz():
                    async def foo(a=await b):
