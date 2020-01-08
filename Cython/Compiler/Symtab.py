@@ -855,6 +855,25 @@ class Scope(object):
         type.entry = entry
         return entry
 
+
+    def declare_cgetter(self, name, return_type, pos=None, cname=None,
+                        visibility="private", modifiers=(), defining=False, **cfunc_type_config):
+        assert all(
+            k in ('exception_value', 'exception_check', 'nogil', 'with_gil', 'is_const_method', 'is_static_method')
+            for k in cfunc_type_config
+        )
+        cfunc_type = PyrexTypes.CFuncType(
+            return_type,
+            [PyrexTypes.CFuncTypeArg("self", self.parent_type, None)],
+            **cfunc_type_config)
+        entry = self.declare_cfunction(
+            name, cfunc_type, pos, cname=None, visibility=visibility, modifiers=modifiers, defining=defining)
+        entry.is_cgetter = True
+        if cname is not None:
+            entry.func_cname = cname
+        return entry
+
+
     def add_cfunction(self, name, type, pos, cname, visibility, modifiers,
                       inherited=False):
         # Add a C function entry without giving it a func_cname.

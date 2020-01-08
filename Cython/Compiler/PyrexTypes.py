@@ -1556,7 +1556,13 @@ class PythranExpr(CType):
             self.scope = scope = Symtab.CClassScope('', None, visibility="extern")
             scope.parent_type = self
             scope.directives = {}
-            scope.declare_var("shape", CPtrType(c_long_type), None, cname="_shape", is_cdef=True)
+            shape = scope.declare_cgetter(
+                "shape",
+                CPtrType(c_long_type),
+                pos=None,
+                cname="__Pyx_PythranShapeAccessor",
+                visibility="extern",
+                nogil=True)
             scope.declare_var("ndim", c_long_type, None, cname="value", is_cdef=True)
 
         return True
