@@ -1,5 +1,5 @@
 # mode: run
-# tag: generators
+# tag: generators, gh3265
 
 try:
     import backports_abc
@@ -508,8 +508,10 @@ def test_generator_abc():
 # handling NULL pointers (in testing it shows as a REFNANNY error).
 # This was on creation of the generator and
 # doesn't really require it to be iterated through:
+
 def some_function():
     return 0
+
 
 def test_generator_kwds1(**kwargs):
     """
@@ -519,6 +521,7 @@ def test_generator_kwds1(**kwargs):
     """
     yield some_function(**kwargs)
 
+
 def test_generator_kwds2(**kwargs):
     """
     >>> for a in test_generator_kwds2():
@@ -526,6 +529,7 @@ def test_generator_kwds2(**kwargs):
     0
     """
     yield 0
+
 
 def test_generator_kwds3(**kwargs):
     """
