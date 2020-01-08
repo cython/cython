@@ -67,9 +67,14 @@ matrix:
       env: BACKEND=c
     - python: 3.6
       env: BACKEND=cpp
-    - python: 3.8-dev
+    - python: 3.8
       dist: xenial    # Required for Python 3.7
       sudo: required  # travis-ci/travis-ci#9069
+      env: BACKEND=c
+    - python: 3.8
+      dist: xenial    # Required for Python 3.7
+      sudo: required  # travis-ci/travis-ci#9069
+      env: BACKEND=cpp
     - os: osx
       osx_image: xcode6.4
       env: PY=2
@@ -95,9 +100,6 @@ matrix:
   allow_failures:
     - python: pypy
     - python: pypy3
-    - python: 3.8-dev
-    - env: STACKLESS=true BACKEND=c PY=2
-    #- env: STACKLESS=true BACKEND=c PY=3
 
 branches:
   only:
@@ -138,7 +140,7 @@ before_install:
 
 install:
   - python -c 'import sys; print("Python %s" % (sys.version,))'
-  - if [ -n "${TRAVIS_PYTHON_VERSION##*-dev}" -a -n "${TRAVIS_PYTHON_VERSION##2.6*}" ]; then pip install -r test-requirements.txt $( [ -z "${TRAVIS_PYTHON_VERSION##pypy*}" -o -z "${TRAVIS_PYTHON_VERSION##3.7*}" ] || echo " -r test-requirements-cpython.txt" ) ; fi
+  - if [ -n "${TRAVIS_PYTHON_VERSION##*-dev}" -a -n "${TRAVIS_PYTHON_VERSION##2.6*}" ]; then pip install -r test-requirements.txt $( [ -z "${TRAVIS_PYTHON_VERSION##pypy*}" -o -z "${TRAVIS_PYTHON_VERSION##3.[478]*}" ] || echo " -r test-requirements-cpython.txt" ) ; fi
 #  - CFLAGS="-O2 -ggdb -Wall -Wextra $(python -c 'import sys; print("-fno-strict-aliasing" if sys.version_info[0] == 2 else "")')" python setup.py build
 
 before_script: ccache -s || true
