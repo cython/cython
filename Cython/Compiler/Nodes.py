@@ -3232,8 +3232,14 @@ class DefNode(FuncDefNode):
         def put_into_closure(entry):
             if entry.in_closure:
                 code.putln('%s = %s;' % (entry.cname, entry.original_cname))
-                code.put_var_incref(entry)
-                code.put_var_giveref(entry)
+                if entry.xdecref_cleanup:
+                    # mostly applies to the starstar arg - this can sometimes be NULL
+                    # so must be xincrefed instead
+                    code.put_var_xincref(entry)
+                    code.put_var_xgiveref(entry)
+                else:
+                    code.put_var_incref(entry)
+                    code.put_var_giveref(entry)
         for arg in self.args:
             put_into_closure(arg.entry)
         for arg in self.star_arg, self.starstar_arg:
