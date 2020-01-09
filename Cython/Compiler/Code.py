@@ -1537,7 +1537,6 @@ class GlobalState(object):
                     idx,
                     py_string.cname,
                     init_globals.error_goto(self.module_pos)))
-                init_globals.putln("i++;")
                 init_globals.putln("#endif")
                 if py_string.py3str_cstring:
                     w.putln("#endif")
