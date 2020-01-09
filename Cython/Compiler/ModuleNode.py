@@ -1191,10 +1191,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     entry.type.typeptr_cname,
                     Naming.modulestateglobal_cname,
                     entry.type.typeptr_cname))
-                module_state_clear.putln("  Py_CLEAR(%s(m)->%s);" % (
+                module_state_clear.putln("Py_CLEAR(%s(m)->%s);" % (
                     Naming.modulestate_cname,
                     entry.type.typeptr_cname))
-                module_state_traverse.putln("  Py_VISIT(%s(m)->%s);" % (
+                module_state_traverse.putln("Py_VISIT(%s(m)->%s);" % (
                     Naming.modulestate_cname,
                     entry.type.typeptr_cname))
         code.putln("#endif")
@@ -2460,10 +2460,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         entry.type.typeobj_cname,
                         Naming.modulestateglobal_cname,
                         entry.type.typeobj_cname))
-                    module_state_clear.putln("  Py_CLEAR(%s(m)->%s);" % (
+                    module_state_clear.putln("Py_CLEAR(%s(m)->%s);" % (
                         Naming.modulestate_cname,
                         entry.type.typeobj_cname))
-                    module_state_traverse.putln("  Py_VISIT(%s(m)->%s);" % (
+                    module_state_traverse.putln("Py_VISIT(%s(m)->%s);" % (
                         Naming.modulestate_cname,
                         entry.type.typeobj_cname))
         module_state.putln('} %s;' % Naming.modulestate_cname)
@@ -3107,7 +3107,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#endif")
         code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
         code.putln("  %s_traverse, /* m_traverse */" % Naming.module_cname)
-        code.putln("  %s_clear, /* m_traverse */" % Naming.module_cname)
+        code.putln("  %s_clear, /* m_clear */" % Naming.module_cname)
         code.putln("  %s /* m_free */" % cleanup_func)
         code.putln("#else")
         code.putln("  NULL, /* m_traverse */")

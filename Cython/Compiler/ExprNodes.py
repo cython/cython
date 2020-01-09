@@ -9389,8 +9389,10 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
             flags = '0'
 
         code.putln('#if CYTHON_COMPILING_IN_LIMITED_API')
+        code.putln('PyObject *temporary_dict = PyDict_New() %s' %
+            code.error_goto_if_null("temporary_dict", self.pos))
         code.putln(
-            '%s = %s(&%s, %s, %s, %s, %s, PyDict_New(), %s); %s' % (
+            '%s = %s(&%s, %s, %s, %s, %s, temporary_dict, %s); %s' % (
                 self.result(),
                 constructor,
                 self.pymethdef_cname,
@@ -9400,6 +9402,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                 self.get_py_mod_name(code),
                 code_object_result,
                 code.error_goto_if_null(self.result(), self.pos)))
+        code.putln('Py_DECREF(temporary_dict);')
         code.putln('#else')
         code.putln(
             '%s = %s(&%s, %s, %s, %s, %s, %s, %s); %s' % (

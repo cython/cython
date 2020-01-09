@@ -628,11 +628,7 @@ static double __Pyx__PyObject_AsDouble(PyObject* obj) {
     }
 #endif
     if (likely(float_value)) {
-#if CYTHON_COMPILING_IN_LIMITED_API
         double value = PyFloat_AS_DOUBLE(float_value);
-#else
-        double value = PyFloat_AS_DOUBLE(float_value);
-#endif
         Py_DECREF(float_value);
         return value;
     }

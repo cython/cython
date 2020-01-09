@@ -1093,10 +1093,7 @@ static CYTHON_SMALL_CODE int __Pyx_copy_spec_to_module(PyObject *spec, PyObject 
 }
 
 static CYTHON_SMALL_CODE PyObject* ${pymodule_create_func_cname}(PyObject *spec, CYTHON_UNUSED PyModuleDef *def) {
-    PyObject *module = NULL, *modname;
-#if !CYTHON_COMPILING_IN_LIMITED_API
-    PyObject *moddict;
-#endif
+    PyObject *module = NULL, *moddict, *modname;
 
     // For now, we only have exactly one module instance.
     if (__Pyx_check_single_interpreter())
@@ -1112,20 +1109,17 @@ static CYTHON_SMALL_CODE PyObject* ${pymodule_create_func_cname}(PyObject *spec,
     if (unlikely(!module)) goto bad;
 
 #if CYTHON_COMPILING_IN_LIMITED_API
-    if (unlikely(__Pyx_copy_spec_to_module(spec, module, "loader", "__loader__") < 0)) goto bad;
-    if (unlikely(__Pyx_copy_spec_to_module(spec, module, "origin", "__file__") < 0)) goto bad;
-    if (unlikely(__Pyx_copy_spec_to_module(spec, module, "parent", "__package__") < 0)) goto bad;
-    if (unlikely(__Pyx_copy_spec_to_module(spec, module, "submodule_search_locations", "__path__") < 0)) goto bad;
+    moddict = module;
 #else
     moddict = PyModule_GetDict(module);
     if (unlikely(!moddict)) goto bad;
     // moddict is a borrowed reference
+#endif
 
     if (unlikely(__Pyx_copy_spec_to_module(spec, moddict, "loader", "__loader__", 1) < 0)) goto bad;
     if (unlikely(__Pyx_copy_spec_to_module(spec, moddict, "origin", "__file__", 1) < 0)) goto bad;
     if (unlikely(__Pyx_copy_spec_to_module(spec, moddict, "parent", "__package__", 1) < 0)) goto bad;
     if (unlikely(__Pyx_copy_spec_to_module(spec, moddict, "submodule_search_locations", "__path__", 0) < 0)) goto bad;
-#endif
 
     return module;
 bad:

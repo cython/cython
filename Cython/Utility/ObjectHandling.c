@@ -1295,7 +1295,7 @@ static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name)
     }
     result = PyObject_GetItem($module_cname, name);
     if (likely(result)) {
-        return __Pyx_NewRef(result);
+        return result;
     }
 #else
     result = PyDict_GetItem($moddict_cname, name);
