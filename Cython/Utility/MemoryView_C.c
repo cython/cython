@@ -927,7 +927,7 @@ __pyx_fill_slice_{{dtype_name}}({{type_decl}} *p, Py_ssize_t extent, Py_ssize_t 
 ////////// FillStrided1DScalar //////////
 
 /* Fill a slice with a scalar value. The dimension is direct and strided or contiguous */
-/* This can be used as a callback for the memoryview object to efficienty assign a scalar */
+/* This can be used as a callback for the memoryview object to efficiently assign a scalar */
 /* Currently unused */
 static void
 __pyx_fill_slice_{{dtype_name}}({{type_decl}} *p, Py_ssize_t extent, Py_ssize_t stride,

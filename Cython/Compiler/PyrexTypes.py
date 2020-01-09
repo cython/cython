@@ -594,7 +594,7 @@ class MemoryViewSliceType(PyrexType):
         'ptr' -- Pointer stored in this dimension.
         'full' -- Check along this dimension, don't assume either.
 
-        the packing specifiers specify how the array elements are layed-out
+        the packing specifiers specify how the array elements are laid-out
         in memory.
 
         'contig' -- The data is contiguous in memory along this dimension.
@@ -656,7 +656,8 @@ class MemoryViewSliceType(PyrexType):
         assert not pyrex
         assert not dll_linkage
         from . import MemoryView
-        base_code = str(self) if for_display else MemoryView.memviewslice_cname
+        base_code = StringEncoding.EncodedString(
+                        (str(self)) if for_display else MemoryView.memviewslice_cname)
         return self.base_declaration_code(
                 base_code,
                 entity_code)
@@ -1767,6 +1768,7 @@ class CNumericType(CType):
             base_code = type_name.replace('PY_LONG_LONG', 'long long')
         else:
             base_code = public_decl(type_name, dll_linkage)
+        base_code = StringEncoding.EncodedString(base_code)
         return self.base_declaration_code(base_code, entity_code)
 
     def attributes_known(self):

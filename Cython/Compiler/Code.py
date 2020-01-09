@@ -324,39 +324,14 @@ class UtilityCodeBase(object):
         return utilities
 
     @classmethod
-    def load(cls, util_code_name, from_file=None, **kwargs):
+    def load(cls, util_code_name, from_file, **kwargs):
         """
         Load utility code from a file specified by from_file (relative to
-        Cython/Utility) and name util_code_name.  If from_file is not given,
-        load it from the file util_code_name.*.  There should be only one
-        file matched by this pattern.
+        Cython/Utility) and name util_code_name.
         """
         if '::' in util_code_name:
             from_file, util_code_name = util_code_name.rsplit('::', 1)
-        if not from_file:
-            utility_dir = get_utility_dir()
-            prefix = util_code_name + '.'
-            try:
-                listing = os.listdir(utility_dir)
-            except OSError:
-                # XXX the code below assumes as 'zipimport.zipimporter' instance
-                # XXX should be easy to generalize, but too lazy right now to write it
-                import zipfile
-                global __loader__
-                loader = __loader__
-                archive = loader.archive
-                with closing(zipfile.ZipFile(archive)) as fileobj:
-                    listing = [os.path.basename(name)
-                               for name in fileobj.namelist()
-                               if os.path.join(archive, name).startswith(utility_dir)]
-            files = [filename for filename in listing
-                     if filename.startswith(prefix)]
-            if not files:
-                raise ValueError("No match found for utility code " + util_code_name)
-            if len(files) > 1:
-                raise ValueError("More than one filename match found for utility code " + util_code_name)
-            from_file = files[0]
-
+        assert from_file
         utilities = cls.load_utilities_from_file(from_file)
         proto, impl, tags = utilities[util_code_name]
 
@@ -393,7 +368,7 @@ class UtilityCodeBase(object):
         return cls(**kwargs)
 
     @classmethod
-    def load_cached(cls, utility_code_name, from_file=None, __cache={}):
+    def load_cached(cls, utility_code_name, from_file, __cache={}):
         """
         Calls .load(), but using a per-type cache based on utility name and file name.
         """
@@ -406,7 +381,7 @@ class UtilityCodeBase(object):
         return code
 
     @classmethod
-    def load_as_string(cls, util_code_name, from_file=None, **kwargs):
+    def load_as_string(cls, util_code_name, from_file, **kwargs):
         """
         Load a utility code as a string. Returns (proto, implementation)
         """

@@ -2,7 +2,7 @@
 Cython Changelog
 ================
 
-3.0.0 (2019-??-??)
+3.0.0 (2020-??-??)
 ==================
 
 Features added
@@ -164,6 +164,16 @@ Other changes
   Patch by Egor Dranischnikow.  (Github issue #2952, #3001)
 
 * Support for Python 2.6 was removed.
+
+
+0.29.15 (20??-??-??)
+====================
+
+* Double reference free in ``__class__`` cell handling for ``super()`` calls.
+  (Github issue #3246)
+
+* Deprecated import failed in Python 3.9.
+  (Github issue #3266)
 
 
 0.29.14 (2019-11-01)
@@ -1261,7 +1271,7 @@ Features added
 * "cdef extern" include files are now also searched relative to the current file.
   Patch by Jeroen Demeyer (Github issue #1654).
 
-* Optional optimization for re-aquiring the GIL, controlled by the
+* Optional optimization for re-acquiring the GIL, controlled by the
   `fast_gil` directive.
 
 Bugs fixed

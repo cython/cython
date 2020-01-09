@@ -1,0 +1,26 @@
+# tag: cpp
+
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import runner"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+from distutils.core import setup
+import os
+
+example_dir = os.path.abspath(os.path.join(os.environ['CYTHON_PROJECT_DIR'],
+                              'docs/examples/userguide/wrapping_CPlusPlus'))
+
+ext_modules= cythonize(os.path.join(example_dir, "rect_with_attributes.pyx"),
+                       include_path=[example_dir])
+setup(ext_modules=ext_modules)
+
+######## runner.py ########
+
+import rect_with_attributes
+
+x0, y0, x1, y1 = 1, 2, 3, 4
+rect_obj = rect_with_attributes.PyRectangle(x0, y0, x1, y1)
+
+assert rect_obj.x0 == x0
