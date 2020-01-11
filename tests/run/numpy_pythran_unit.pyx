@@ -23,3 +23,12 @@ def power(np.ndarray[double, ndim=1] values):
     (0.0, 1.0, 8.0)
     """
     return values ** 3
+
+def shape(np.ndarray[int, ndim=1] values):
+
+    """
+    >>> a = np.array([3, 4, 5])
+    >>> shape(a)
+    array([ 0, 1, 2])
+    """
+    return values - values.shape[0]

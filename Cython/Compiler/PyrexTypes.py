@@ -1556,7 +1556,11 @@ class PythranExpr(CType):
             self.scope = scope = Symtab.CClassScope('', None, visibility="extern")
             scope.parent_type = self
             scope.directives = {}
-            scope.declare_var("shape", CPtrType(c_long_type), None, cname="_shape", is_cdef=True)
+            # HACK: pythran pshape type is basically a std::tuple, that does not support operator[].
+            # The "array" method exists, which will convert the various types
+            # in this tuple into an array of long, that can be used with
+            # operator[]. This hach is done waiting for a proper fix.
+            scope.declare_var("shape", CPtrType(c_long_type), None, cname="_shape.array()", is_cdef=True)
             scope.declare_var("ndim", c_long_type, None, cname="value", is_cdef=True)
 
         return True
