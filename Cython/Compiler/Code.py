@@ -1410,9 +1410,9 @@ class GlobalState(object):
             self.parts['module_state_defines'].putln(
                 "#define %s %s->%s" % (cname, Naming.modulestateglobal_cname, cname))
             self.parts['module_state_clear'].putln(
-                "Py_CLEAR(%s(m)->%s);" % (Naming.modulestate_cname, cname))
+                "Py_CLEAR(clear_module_state->%s);" % cname)
             self.parts['module_state_traverse'].putln(
-                "Py_VISIT(%s(m)->%s);" % (Naming.modulestate_cname, cname))
+                "Py_VISIT(traverse_module_state->%s);" % cname)
             decls_writer.putln(
                 "static %s;" % c.type.declaration_code(cname))
         decls_writer.putln("#endif")
@@ -1490,12 +1490,10 @@ class GlobalState(object):
                     py_string.cname,
                     Naming.modulestateglobal_cname,
                     py_string.cname))
-                self.parts['module_state_clear'].putln("Py_CLEAR(%s(m)->%s);" % (
-                    Naming.modulestate_cname,
-                    py_string.cname))
-                self.parts['module_state_traverse'].putln("Py_VISIT(%s(m)->%s);" % (
-                    Naming.modulestate_cname,
-                    py_string.cname))
+                self.parts['module_state_clear'].putln("Py_CLEAR(clear_module_state->%s);" %
+                    py_string.cname)
+                self.parts['module_state_traverse'].putln("Py_VISIT(traverse_module_state->%s);" %
+                    py_string.cname)
                 decls_writer.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
                 decls_writer.putln(
                     "static PyObject *%s;" % py_string.cname)
@@ -1562,10 +1560,10 @@ class GlobalState(object):
             self.parts['module_state'].putln("PyObject *%s;" % cname)
             self.parts['module_state_defines'].putln("#define %s %s->%s" % (
                 cname, Naming.modulestateglobal_cname, cname))
-            self.parts['module_state_clear'].putln("Py_CLEAR(%s(m)->%s);" % (
-                Naming.modulestate_cname, cname))
-            self.parts['module_state_traverse'].putln("Py_VISIT(%s(m)->%s);" % (
-                Naming.modulestate_cname, cname))
+            self.parts['module_state_clear'].putln(
+                "Py_CLEAR(clear_module_state->%s);" % cname)
+            self.parts['module_state_traverse'].putln(
+                "Py_VISIT(traverse_module_state->%s);" % cname)
             decls_writer.putln("static PyObject *%s;" % cname)
             if py_type == 'float':
                 function = 'PyFloat_FromDouble(%s)'

@@ -1191,12 +1191,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     entry.type.typeptr_cname,
                     Naming.modulestateglobal_cname,
                     entry.type.typeptr_cname))
-                module_state_clear.putln("Py_CLEAR(%s(m)->%s);" % (
-                    Naming.modulestate_cname,
-                    entry.type.typeptr_cname))
-                module_state_traverse.putln("Py_VISIT(%s(m)->%s);" % (
-                    Naming.modulestate_cname,
-                    entry.type.typeptr_cname))
+                module_state_clear.putln(
+                    "Py_CLEAR(clear_module_state->%s);" %
+                    entry.type.typeptr_cname)
+                module_state_traverse.putln(
+                    "Py_VISIT(traverse_module_state->%s);" %
+                    entry.type.typeptr_cname)
         code.putln("#endif")
 
     def generate_cvariable_declarations(self, env, code, definition):
@@ -2460,12 +2460,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         entry.type.typeobj_cname,
                         Naming.modulestateglobal_cname,
                         entry.type.typeobj_cname))
-                    module_state_clear.putln("Py_CLEAR(%s(m)->%s);" % (
-                        Naming.modulestate_cname,
-                        entry.type.typeobj_cname))
-                    module_state_traverse.putln("Py_VISIT(%s(m)->%s);" % (
-                        Naming.modulestate_cname,
-                        entry.type.typeobj_cname))
+                    module_state_clear.putln("Py_CLEAR(clear_module_state->%s);" %
+                        entry.type.typeobj_cname)
+                    module_state_traverse.putln(
+                        "Py_VISIT(traverse_module_state->%s);" %
+                        entry.type.typeobj_cname)
         module_state.putln('} %s;' % Naming.modulestate_cname)
         module_state.putln('')
         module_state.putln('#ifdef __cplusplus')
@@ -2476,7 +2475,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state.putln('static struct PyModuleDef %s;' % Naming.pymoduledef_cname)
         module_state.putln('#endif')
         module_state.putln('')
-        module_state.putln('#define %s(o) ((%s *)PyModule_GetState(o))' % (
+        module_state.putln('#define %s(o) ((%s *)__Pyx_PyModule_GetState(o))' % (
             Naming.modulestate_cname,
             Naming.modulestate_cname))
         module_state.putln('')
@@ -2490,10 +2489,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             Naming.pymoduledef_cname))
         module_state.putln("#endif")
         module_state_defines.putln("#endif")
-        module_state_clear.putln("  return 0;")
+        module_state_clear.putln("return 0;")
         module_state_clear.putln("};")
         module_state_clear.putln("#endif")
-        module_state_traverse.putln("  return 0;")
+        module_state_traverse.putln("return 0;")
         module_state_traverse.putln("};")
         module_state_traverse.putln("#endif")
 
@@ -2540,40 +2539,36 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_module_state_clear(self, env, code):
         code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
         code.putln("static int %s_clear(PyObject *m) {" % Naming.module_cname)
-        code.putln('  Py_CLEAR(%s(m)->%s);' % (
+        code.putln("%s *clear_module_state = %s(m);" % (
             Naming.modulestate_cname,
-            Naming.builtins_cname))
-        code.putln('  Py_CLEAR(%s(m)->%s);' % (
-            Naming.modulestate_cname,
-            Naming.cython_runtime_cname))
-        code.putln('  Py_CLEAR(%s(m)->%s);' % (
-            Naming.modulestate_cname,
-            Naming.empty_tuple))
-        code.putln('  Py_CLEAR(%s(m)->%s);' % (
-            Naming.modulestate_cname,
-            Naming.empty_bytes))
-        code.putln('  Py_CLEAR(%s(m)->%s);' % (
-            Naming.modulestate_cname,
-            Naming.empty_unicode))
+            Naming.modulestate_cname))
+        code.putln('Py_CLEAR(clear_module_state->%s);' %
+            Naming.builtins_cname)
+        code.putln('Py_CLEAR(clear_module_state->%s);' %
+            Naming.cython_runtime_cname)
+        code.putln('Py_CLEAR(clear_module_state->%s);' %
+            Naming.empty_tuple)
+        code.putln('Py_CLEAR(clear_module_state->%s);' %
+            Naming.empty_bytes)
+        code.putln('Py_CLEAR(clear_module_state->%s);' %
+            Naming.empty_unicode)
 
     def generate_module_state_traverse(self, env, code):
         code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
         code.putln("static int %s_traverse(PyObject *m, visitproc visit, void *arg) {" % Naming.module_cname)
-        code.putln('  Py_VISIT(%s(m)->%s);' % (
+        code.putln("%s *traverse_module_state = %s(m);" % (
             Naming.modulestate_cname,
-            Naming.builtins_cname))
-        code.putln('  Py_VISIT(%s(m)->%s);' % (
-            Naming.modulestate_cname,
-            Naming.cython_runtime_cname))
-        code.putln('  Py_VISIT(%s(m)->%s);' % (
-            Naming.modulestate_cname,
-            Naming.empty_tuple))
-        code.putln('  Py_VISIT(%s(m)->%s);' % (
-            Naming.modulestate_cname,
-            Naming.empty_bytes))
-        code.putln('  Py_VISIT(%s(m)->%s);' % (
-            Naming.modulestate_cname,
-            Naming.empty_unicode))
+            Naming.modulestate_cname))
+        code.putln('Py_VISIT(traverse_module_state->%s);' %
+            Naming.builtins_cname)
+        code.putln('Py_VISIT(traverse_module_state->%s);' %
+            Naming.cython_runtime_cname)
+        code.putln('Py_VISIT(traverse_module_state->%s);' %
+            Naming.empty_tuple)
+        code.putln('Py_VISIT(traverse_module_state->%s);' %
+            Naming.empty_bytes)
+        code.putln('Py_VISIT(traverse_module_state->%s);' %
+            Naming.empty_unicode)
 
     def generate_module_init_func(self, imported_modules, env, code):
         subfunction = self.mod_init_subfunction(self.scope, code)
@@ -3143,8 +3138,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 doc,
                 env.module_cname))
         code.putln("#elif CYTHON_COMPILING_IN_LIMITED_API")
-        code.putln("PyState_AddModule(PyModule_Create(&%s), &%s);" % (
-            Naming.pymoduledef_cname, Naming.pymoduledef_cname))
+        module_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+        code.putln(
+            "%s = PyModule_Create(&%s); %s" % (
+                module_temp,
+                Naming.pymoduledef_cname,
+                code.error_goto_if_null(module_temp, self.pos)))
+        code.put_gotref(module_temp)
+        code.putln("PyState_AddModule(%s, &%s);" % (
+            module_temp, Naming.pymoduledef_cname))
+        code.put_decref_clear(module_temp, type=py_object_type)
+        code.funcstate.release_temp(module_temp)
         code.putln('#else')
         code.putln(
             "%s = PyModule_Create(&%s);" % (

@@ -562,6 +562,18 @@ class __Pyx_FakeReference {
   #define __Pyx_PyThreadState_Current _PyThreadState_Current
 #endif
 
+#if CYTHON_COMPILING_IN_LIMITED_API
+static inline void *__Pyx_PyModule_GetState(PyObject *op)
+{
+    void *result;
+
+    result = PyModule_GetState(op);
+    if (!result)
+        Py_FatalError("Couldn't find the module state");
+    return result;
+}
+#endif
+
 // TSS (Thread Specific Storage) API
 #if PY_VERSION_HEX < 0x030700A2 && !defined(PyThread_tss_create) && !defined(Py_tss_NEEDS_INIT)
 #include "pythread.h"
