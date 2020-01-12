@@ -1080,6 +1080,10 @@ class GlobalState(object):
         'h_code',
         'filename_table',
         'utility_code_proto_before_types',
+        'module_state',
+        'module_state_clear',
+        'module_state_traverse',
+        'module_state_defines',
         'numeric_typedefs',          # Let these detailed individual parts stay!,
         'complex_type_declarations', # as the proper solution is to make a full DAG...
         'type_declarations',         # More coarse-grained blocks would simply hide
@@ -1420,9 +1424,18 @@ class GlobalState(object):
                   for c in self.py_constants]
         consts.sort()
         decls_writer = self.parts['decls']
+        decls_writer.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
         for _, cname, c in consts:
+            self.parts['module_state'].putln("%s;" % c.type.declaration_code(cname))
+            self.parts['module_state_defines'].putln(
+                "#define %s %s->%s" % (cname, Naming.modulestateglobal_cname, cname))
+            self.parts['module_state_clear'].putln(
+                "Py_CLEAR(clear_module_state->%s);" % cname)
+            self.parts['module_state_traverse'].putln(
+                "Py_VISIT(traverse_module_state->%s);" % cname)
             decls_writer.putln(
                 "static %s;" % c.type.declaration_code(cname))
+        decls_writer.putln("#endif")
 
     def generate_cached_methods_decls(self):
         if not self.cached_cmethods:
@@ -1476,13 +1489,15 @@ class GlobalState(object):
                 decls_writer.putln("static Py_UNICODE %s[] = { %s };" % (cname, utf16_array))
                 decls_writer.putln("#endif")
 
+        init_globals = self.parts['init_globals']
         if py_strings:
             self.use_utility_code(UtilityCode.load_cached("InitStrings", "StringTools.c"))
             py_strings.sort()
             w = self.parts['pystring_table']
             w.putln("")
             w.putln("static __Pyx_StringTabEntry %s[] = {" % Naming.stringtab_cname)
-            for c_cname, _, py_string in py_strings:
+            for idx, py_string_args in enumerate(py_strings):
+                c_cname, _, py_string = py_string_args
                 if not py_string.is_str or not py_string.encoding or \
                         py_string.encoding in ('ASCII', 'USASCII', 'US-ASCII',
                                                'UTF8', 'UTF-8'):
@@ -1490,8 +1505,19 @@ class GlobalState(object):
                 else:
                     encoding = '"%s"' % py_string.encoding.lower()
 
+                self.parts['module_state'].putln("PyObject *%s;" % py_string.cname)
+                self.parts['module_state_defines'].putln("#define %s %s->%s" % (
+                    py_string.cname,
+                    Naming.modulestateglobal_cname,
+                    py_string.cname))
+                self.parts['module_state_clear'].putln("Py_CLEAR(clear_module_state->%s);" %
+                    py_string.cname)
+                self.parts['module_state_traverse'].putln("Py_VISIT(traverse_module_state->%s);" %
+                    py_string.cname)
+                decls_writer.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
                 decls_writer.putln(
                     "static PyObject *%s;" % py_string.cname)
+                decls_writer.putln("#endif")
                 if py_string.py3str_cstring:
                     w.putln("#if PY_MAJOR_VERSION >= 3")
                     w.putln("{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
@@ -1502,6 +1528,17 @@ class GlobalState(object):
                         py_string.intern
                         ))
                     w.putln("#else")
+
+                w.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+                w.putln("{0, %s, sizeof(%s), %s, %d, %d, %d}," % (
+                    c_cname,
+                    c_cname,
+                    encoding,
+                    py_string.is_unicode,
+                    py_string.is_str,
+                    py_string.intern
+                    ))
+                w.putln("#else")
                 w.putln("{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
                     py_string.cname,
                     c_cname,
@@ -1511,25 +1548,42 @@ class GlobalState(object):
                     py_string.is_str,
                     py_string.intern
                     ))
+                w.putln("#endif")
+                init_globals.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+                init_globals.putln("if (__Pyx_InitString(%s[%d], &%s) < 0) %s;" % (
+                    Naming.stringtab_cname,
+                    idx,
+                    py_string.cname,
+                    init_globals.error_goto(self.module_pos)))
+                init_globals.putln("#endif")
                 if py_string.py3str_cstring:
                     w.putln("#endif")
             w.putln("{0, 0, 0, 0, 0, 0, 0}")
             w.putln("};")
 
-            init_globals = self.parts['init_globals']
+            init_globals.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
             init_globals.putln(
                 "if (__Pyx_InitStrings(%s) < 0) %s;" % (
                     Naming.stringtab_cname,
                     init_globals.error_goto(self.module_pos)))
+            init_globals.putln("#endif")
 
     def generate_num_constants(self):
         consts = [(c.py_type, c.value[0] == '-', len(c.value), c.value, c.value_code, c)
                   for c in self.num_const_index.values()]
         consts.sort()
         decls_writer = self.parts['decls']
+        decls_writer.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
         init_globals = self.parts['init_globals']
         for py_type, _, _, value, value_code, c in consts:
             cname = c.cname
+            self.parts['module_state'].putln("PyObject *%s;" % cname)
+            self.parts['module_state_defines'].putln("#define %s %s->%s" % (
+                cname, Naming.modulestateglobal_cname, cname))
+            self.parts['module_state_clear'].putln(
+                "Py_CLEAR(clear_module_state->%s);" % cname)
+            self.parts['module_state_traverse'].putln(
+                "Py_VISIT(traverse_module_state->%s);" % cname)
             decls_writer.putln("static PyObject *%s;" % cname)
             if py_type == 'float':
                 function = 'PyFloat_FromDouble(%s)'
@@ -1544,6 +1598,7 @@ class GlobalState(object):
             init_globals.putln('%s = %s; %s' % (
                 cname, function % value_code,
                 init_globals.error_goto_if_null(cname, self.module_pos)))
+        decls_writer.putln("#endif")
 
     # The functions below are there in a transition phase only
     # and will be deprecated. They are called from Nodes.BlockNode.

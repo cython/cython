@@ -182,8 +182,13 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
         if (level == -1) {
             if (strchr(__Pyx_MODULE_NAME, '.')) {
                 /* try package relative import first */
+                #if CYTHON_COMPILING_IN_LIMITED_API
+                module = PyImport_ImportModuleLevelObject(
+                    name, empty_dict, empty_dict, from_list, 1);
+                #else
                 module = PyImport_ImportModuleLevelObject(
                     name, $moddict_cname, empty_dict, from_list, 1);
+                #endif
                 if (unlikely(!module)) {
                     if (unlikely(!PyErr_ExceptionMatches(PyExc_ImportError)))
                         goto bad;
@@ -202,8 +207,13 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
                 name, $moddict_cname, empty_dict, from_list, py_level, (PyObject *)NULL);
             Py_DECREF(py_level);
             #else
+            #if CYTHON_COMPILING_IN_LIMITED_API
+            module = PyImport_ImportModuleLevelObject(
+                name, empty_dict, empty_dict, from_list, level);
+            #else
             module = PyImport_ImportModuleLevelObject(
                 name, $moddict_cname, empty_dict, from_list, level);
+            #endif
             #endif
         }
     }
@@ -686,11 +696,19 @@ static int __Pyx_SetVtable(PyObject *dict, void *vtable); /*proto*/
 
 /////////////// SetVTable ///////////////
 
+#if CYTHON_COMPILING_IN_LIMITED_API
+static int __Pyx_SetVtable(PyObject *type, void *vtable) {
+#else
 static int __Pyx_SetVtable(PyObject *dict, void *vtable) {
+#endif
     PyObject *ob = PyCapsule_New(vtable, 0, 0);
     if (!ob)
         goto bad;
+#if CYTHON_COMPILING_IN_LIMITED_API
+    if (PyObject_SetAttr(type, PYIDENT("__pyx_vtable__"), ob) < 0)
+#else
     if (PyDict_SetItem(dict, PYIDENT("__pyx_vtable__"), ob) < 0)
+#endif
         goto bad;
     Py_DECREF(ob);
     return 0;

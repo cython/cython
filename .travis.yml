@@ -51,6 +51,10 @@ matrix:
       dist: xenial    # Required for Python 3.7
       sudo: required  # travis-ci/travis-ci#9069
       env: TEST_CODE_STYLE=1
+    - python: 3.7
+      dist: xenial    # Required for Python 3.7
+      sudo: required  # travis-ci/travis-ci#9069
+      env: LIMITED_API=--limited-api EXCLUDE=--no-file
     - python: 3.4
       env: BACKEND=c
     - python: 3.4
@@ -63,6 +67,9 @@ matrix:
       env: BACKEND=c
     - python: 3.6
       env: BACKEND=cpp
+    - python: 3.6
+      sudo: required  # travis-ci/travis-ci#9069
+      env: LIMITED_API=--limited-api EXCLUDE=--no-file
     - python: 3.8
       dist: xenial    # Required for Python 3.7
       sudo: required  # travis-ci/travis-ci#9069
@@ -71,6 +78,10 @@ matrix:
       dist: xenial    # Required for Python 3.7
       sudo: required  # travis-ci/travis-ci#9069
       env: BACKEND=cpp
+    - python: 3.8-dev
+      dist: xenial    # Required for Python 3.8
+      sudo: required  # travis-ci/travis-ci#9069
+      env: LIMITED_API=--limited-api EXCLUDE=--no-file
     - os: osx
       osx_image: xcode6.4
       env: PY=2
@@ -154,5 +165,5 @@ script:
 # Need to clear the ccache? Try something like this:
 #  - if [ -n "${BACKEND##*cpp*}" -a -z "${TRAVIS_PYTHON_VERSION##*3.4}" ]; then ccache -C || true; fi
   - if [ "$COVERAGE" != "1" ]; then CFLAGS="-O2 -ggdb -Wall -Wextra $(python -c 'import sys; print("-fno-strict-aliasing" if sys.version_info[0] == 2 else "")')" python setup.py build_ext -i; fi
-  - CFLAGS="-O0 -ggdb -Wall -Wextra" python runtests.py -vv $STYLE_ARGS -x Debugger --backends=$BACKEND $(if [ "$COVERAGE" == "1" ]; then echo " --coverage"; fi) $(if [ -z "$TEST_CODE_STYLE" ]; then echo " -j7 "; fi)
+  - CFLAGS="-O0 -ggdb -Wall -Wextra" python runtests.py -vv $STYLE_ARGS -x Debugger --backends=$BACKEND $LIMITED_API $EXCLUDE $(if [ "$COVERAGE" == "1" ]; then echo " --coverage"; fi) $(if [ -z "$TEST_CODE_STYLE" ]; then echo " -j7 "; fi)
   - ccache -s || true

@@ -1289,6 +1289,14 @@ static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name)
     } else if (unlikely(PyErr_Occurred())) {
         return NULL;
     }
+#elif CYTHON_COMPILING_IN_LIMITED_API
+    if (unlikely(!$module_cname)) {
+        return NULL;
+    }
+    result = PyObject_GetItem($module_cname, name);
+    if (likely(result)) {
+        return result;
+    }
 #else
     result = PyDict_GetItem($moddict_cname, name);
     __PYX_UPDATE_DICT_CACHE($moddict_cname, result, *dict_cached_value, *dict_version)

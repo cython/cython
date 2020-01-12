@@ -2301,6 +2301,14 @@ class NameNode(AtomicExprNode):
                 setter = '__Pyx_' + n
             else:
                 assert False, repr(entry)
+            code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+            code.put_incref(rhs.py_result(), py_object_type)
+            code.put_error_if_neg(self.pos, '%s(%s, %s, %s)' % (
+              "PyModule_AddObject",
+              Naming.module_cname,
+              code.get_string_const(self.entry.name),
+              rhs.py_result()))
+            code.putln("#else")
             code.put_error_if_neg(
                 self.pos,
                 '%s(%s, %s, %s)' % (
@@ -2308,6 +2316,7 @@ class NameNode(AtomicExprNode):
                     namespace,
                     interned_cname,
                     rhs.py_result()))
+            code.putln("#endif")
             if debug_disposal_code:
                 print("NameNode.generate_assignment_code:")
                 print("...generating disposal code for %s" % rhs)
@@ -9370,6 +9379,27 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         else:
             flags = '0'
 
+        code.putln('#if CYTHON_COMPILING_IN_LIMITED_API')
+        dict_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+        code.putln('%s = PyDict_New(); %s' % (
+            dict_temp,
+            code.error_goto_if_null(dict_temp, self.pos)))
+        code.put_gotref(dict_temp)
+        code.putln(
+            '%s = %s(&%s, %s, %s, %s, %s, %s, %s); %s' % (
+                self.result(),
+                constructor,
+                self.pymethdef_cname,
+                flags,
+                self.get_py_qualified_name(code),
+                self.closure_result_code(),
+                self.get_py_mod_name(code),
+                dict_temp,
+                code_object_result,
+                code.error_goto_if_null(self.result(), self.pos)))
+        code.put_decref_clear(dict_temp, type=py_object_type)
+        code.funcstate.release_temp(dict_temp)
+        code.putln('#else')
         code.putln(
             '%s = %s(&%s, %s, %s, %s, %s, %s, %s); %s' % (
                 self.result(),
@@ -9382,6 +9412,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                 Naming.moddict_cname,
                 code_object_result,
                 code.error_goto_if_null(self.result(), self.pos)))
+        code.putln('#endif')
 
         code.put_gotref(self.py_result())
 
