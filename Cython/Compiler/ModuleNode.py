@@ -2433,6 +2433,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.exit_cfunc_scope()  # done with labels
 
     def generate_module_state_start(self, env, code):
+        # TODO: Reactor LIMITED_API struct decl closer to the static decl
         code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
         code.putln('typedef struct {')
         code.putln('PyObject *%s;' % Naming.builtins_cname)
@@ -2542,6 +2543,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("%s *clear_module_state = %s(m);" % (
             Naming.modulestate_cname,
             Naming.modulestate_cname))
+        code.putln("if (!clear_module_state) return 0;")
         code.putln('Py_CLEAR(clear_module_state->%s);' %
             Naming.builtins_cname)
         code.putln('Py_CLEAR(clear_module_state->%s);' %
@@ -2559,6 +2561,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("%s *traverse_module_state = %s(m);" % (
             Naming.modulestate_cname,
             Naming.modulestate_cname))
+        code.putln("if (!traverse_module_state) return 0;")
         code.putln('Py_VISIT(traverse_module_state->%s);' %
             Naming.builtins_cname)
         code.putln('Py_VISIT(traverse_module_state->%s);' %
@@ -3145,8 +3148,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 Naming.pymoduledef_cname,
                 code.error_goto_if_null(module_temp, self.pos)))
         code.put_gotref(module_temp)
-        code.putln("PyState_AddModule(%s, &%s);" % (
-            module_temp, Naming.pymoduledef_cname))
+        code.putln(code.error_goto_if_neg("PyState_AddModule(%s, &%s)" % (
+            module_temp, Naming.pymoduledef_cname), self.pos))
         code.put_decref_clear(module_temp, type=py_object_type)
         code.funcstate.release_temp(module_temp)
         code.putln('#else')
