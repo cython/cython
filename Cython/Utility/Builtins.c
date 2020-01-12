@@ -22,8 +22,12 @@ static PyObject* __Pyx_Globals(void); /*proto*/
 static PyObject* __Pyx_Globals(void) {
     Py_ssize_t i;
     PyObject *names;
+#if CYTHON_COMPILING_IN_LIMITED_API
+    PyObject *globals = PyDict_New();
+#else
     PyObject *globals = $moddict_cname;
     Py_INCREF(globals);
+#endif
     names = PyObject_Dir($module_cname);
     if (!names)
         goto bad;

@@ -48,7 +48,9 @@ typedef struct {
     PyObject *func_annotations; /* function annotations dict */
 } __pyx_CyFunctionObject;
 
+#if !CYTHON_COMPILING_IN_LIMITED_API
 static PyTypeObject *__pyx_CyFunctionType = 0;
+#endif
 
 #define __Pyx_CyFunction_Check(obj)  (__Pyx_TypeCheck(obj, __pyx_CyFunctionType))
 
@@ -435,6 +437,14 @@ static PyGetSetDef __pyx_CyFunction_getsets[] = {
 
 static PyMemberDef __pyx_CyFunction_members[] = {
     {(char *) "__module__", T_OBJECT, offsetof(PyCFunctionObject, m_module), PY_WRITE_RESTRICTED, 0},
+#if CYTHON_COMPILING_IN_LIMITED_API
+    {(char *) "__dictoffset__", T_PYSSIZET, offsetof(__pyx_CyFunctionObject, func_dict), READONLY, 0},
+#if PY_VERSION_HEX < 0x030500A0
+    {(char *) "__weaklistoffset__", T_PYSSIZET, offsetof(__pyx_CyFunctionObject, func_weakreflist), READONLY, 0},
+#else
+    {(char *) "__weaklistoffset__", T_PYSSIZET, offsetof(PyCFunctionObject, m_weakreflist), READONLY, 0},
+#endif
+#endif
     {0, 0, 0,  0, 0}
 };
 
@@ -812,6 +822,36 @@ static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS(PyObject *func, 
 }
 #endif
 
+#if CYTHON_COMPILING_IN_LIMITED_API
+static PyType_Slot __pyx_CyFunctionType_slots[] = {
+    {Py_tp_dealloc, __Pyx_CyFunction_dealloc},
+    {Py_tp_repr, __Pyx_CyFunction_repr},
+    {Py_tp_call, __Pyx_CyFunction_CallAsMethod},
+    {Py_tp_traverse, __Pyx_CyFunction_traverse},
+    {Py_tp_clear, __Pyx_CyFunction_clear},
+    {Py_tp_methods, __pyx_CyFunction_methods},
+    {Py_tp_members, __pyx_CyFunction_members},
+    {Py_tp_getset, __pyx_CyFunction_getsets},
+    {Py_tp_descr_get, __Pyx_PyMethod_New},
+    {0, 0},
+};
+
+static PyType_Spec __pyx_CyFunctionType_spec = {
+    "cython_function_or_method",
+    sizeof(__pyx_CyFunctionObject),
+    0,
+#ifdef Py_TPFLAGS_METHOD_DESCRIPTOR
+    Py_TPFLAGS_METHOD_DESCRIPTOR |
+#endif
+#ifdef _Py_TPFLAGS_HAVE_VECTORCALL
+    _Py_TPFLAGS_HAVE_VECTORCALL |
+#endif
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC, /*tp_flags*/
+    __pyx_CyFunctionType_slots
+};
+
+#else
+
 static PyTypeObject __pyx_CyFunctionType_type = {
     PyVarObject_HEAD_INIT(0, 0)
     "cython_function_or_method",      /*tp_name*/
@@ -890,10 +930,16 @@ static PyTypeObject __pyx_CyFunctionType_type = {
     0,                                  /*tp_print*/
 #endif
 };
+#endif  /* CYTHON_COMPILING_IN_LIMITED_API */
 
 
 static int __pyx_CyFunction_init(void) {
+#if CYTHON_COMPILING_IN_LIMITED_API
+    // TODO(eelizondo): Use __Pyx_FetchCommonType
+    __pyx_CyFunctionType = PyType_FromSpec(&__pyx_CyFunctionType_spec);
+#else
     __pyx_CyFunctionType = __Pyx_FetchCommonType(&__pyx_CyFunctionType_type);
+#endif
     if (unlikely(__pyx_CyFunctionType == NULL)) {
         return -1;
     }

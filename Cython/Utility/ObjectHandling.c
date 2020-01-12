@@ -1293,7 +1293,7 @@ static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name)
     if (unlikely(!$module_cname)) {
         return NULL;
     }
-    result = PyObject_GetItem($module_cname, name);
+    result = PyObject_GetAttr($module_cname, name);
     if (likely(result)) {
         return result;
     }

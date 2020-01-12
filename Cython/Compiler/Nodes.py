@@ -5078,11 +5078,20 @@ class CClassDefNode(ClassDefNode):
             return
         if entry.visibility != 'extern':
             code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+            code.putln("{")
+            code.putln("PyObject* base = NULL;")
+            base_type = scope.parent_type.base_type
+            if base_type:
+                for slot in TypeSlots.slot_table:
+                    if slot.slot_name == "tp_base":
+                        code.putln("base = PyTuple_Pack(1, (PyObject *)%s);" % base_type.typeptr_cname)
             code.putln(
-                "%s = PyType_FromSpec(&%s_spec); %s" % (
+                "%s = PyType_FromSpecWithBases(&%s_spec, base); %s" % (
                     typeobj_cname,
                     typeobj_cname,
                     code.error_goto_if_null(typeobj_cname, entry.pos)))
+            code.putln("Py_XDECREF(base);")
+            code.putln("}")
             code.putln("#else")
             for slot in TypeSlots.slot_table:
                 slot.generate_dynamic_init_code(scope, code)
@@ -5227,7 +5236,11 @@ class CClassDefNode(ClassDefNode):
         # Generate code to initialise the typeptr of an extension
         # type defined in this module to point to its type object.
         if type.typeobj_cname:
-            code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
+            code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+            code.putln(
+                "%s = (PyTypeObject *)%s;" % (
+                    type.typeptr_cname, type.typeobj_cname))
+            code.putln("#else")
             code.putln(
                 "%s = &%s;" % (
                     type.typeptr_cname, type.typeobj_cname))
