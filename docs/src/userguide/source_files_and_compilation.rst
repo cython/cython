@@ -678,7 +678,6 @@ Here are the options that are available:
 
 .. autodata:: Cython.Compiler.Options.docstrings
 .. autodata:: Cython.Compiler.Options.embed_pos_in_docstring
-.. autodata:: Cython.Compiler.Options.emit_code_comments
 .. pre_import
 .. autodata:: Cython.Compiler.Options.generate_cleanup_code
 .. autodata:: Cython.Compiler.Options.clear_to_none
@@ -866,6 +865,10 @@ Cython code.  Here is the list of currently supported directives:
     annotations, setting to False gives greater compatibility with Python code.
     Must be set globally.
 
+``emit_code_comments`` (True / False)
+    Copy the original source code line by line into C code comments in the generated
+    code file to help with understanding the output.
+    This is also required for coverage analysis.
 
 .. _configurable_optimisations:
 
