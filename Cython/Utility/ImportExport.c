@@ -738,7 +738,7 @@ static void* __Pyx_GetVtable(PyObject *dict) {
 #endif
     void* ptr;
 #if CYTHON_COMPILING_IN_LIMITED_API
-    PyObject *ob = PyObject_GetAttr(type, PYIDENT("__pyx_vtable__"));
+    PyObject *ob = PyObject_GetAttr((PyObject *)type, PYIDENT("__pyx_vtable__"));
 #else
     PyObject *ob = PyObject_GetItem(dict, PYIDENT("__pyx_vtable__"));
 #endif

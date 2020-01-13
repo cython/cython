@@ -1443,7 +1443,7 @@ static int __pyx_FusedFunction_init(void) {
     if (unlikely(!bases)) {
         return -1;
     }
-    __pyx_CyFunctionType = __Pyx_FetchCommonTypeFromSpec(&__pyx_CyFunctionType_spec, bases);
+    __pyx_CyFunctionType = __Pyx_FetchCommonTypeFromSpec(&__pyx_FusedFunctionType_spec, bases);
     Py_DECREF(bases);
 #else
     __pyx_FusedFunctionType = __Pyx_FetchCommonType(&__pyx_FusedFunctionType_type);

@@ -2372,6 +2372,7 @@ def runtests(options, cmd_args, coverage=None):
 
     if options.limited_api:
         CFLAGS.append("-DCYTHON_LIMITED_API=1")
+        CFLAGS.append('-Wno-unused-function')
 
 
     if xml_output_dir and options.fork:
