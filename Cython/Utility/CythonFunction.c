@@ -55,7 +55,7 @@ static PyTypeObject *__pyx_CyFunctionType = 0;
 #define __Pyx_CyFunction_Check(obj)  (__Pyx_TypeCheck(obj, __pyx_CyFunctionType))
 
 #define __Pyx_CyFunction_NewEx(ml, flags, qualname, closure, module, globals, code) \
-    __Pyx_CyFunction_New(__pyx_CyFunctionType, ml, flags, qualname, closure, module, globals, code)
+    __Pyx_CyFunction_New((PyTypeObject *)__pyx_CyFunctionType, ml, flags, qualname, closure, module, globals, code)
 
 static PyObject *__Pyx_CyFunction_New(PyTypeObject *type, PyMethodDef *ml,
                                       int flags, PyObject* qualname,
@@ -824,15 +824,15 @@ static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS(PyObject *func, 
 
 #if CYTHON_COMPILING_IN_LIMITED_API
 static PyType_Slot __pyx_CyFunctionType_slots[] = {
-    {Py_tp_dealloc, __Pyx_CyFunction_dealloc},
-    {Py_tp_repr, __Pyx_CyFunction_repr},
-    {Py_tp_call, __Pyx_CyFunction_CallAsMethod},
-    {Py_tp_traverse, __Pyx_CyFunction_traverse},
-    {Py_tp_clear, __Pyx_CyFunction_clear},
-    {Py_tp_methods, __pyx_CyFunction_methods},
-    {Py_tp_members, __pyx_CyFunction_members},
-    {Py_tp_getset, __pyx_CyFunction_getsets},
-    {Py_tp_descr_get, __Pyx_PyMethod_New},
+    {Py_tp_dealloc, (void *)__Pyx_CyFunction_dealloc},
+    {Py_tp_repr, (void *)__Pyx_CyFunction_repr},
+    {Py_tp_call, (void *)__Pyx_CyFunction_CallAsMethod},
+    {Py_tp_traverse, (void *)__Pyx_CyFunction_traverse},
+    {Py_tp_clear, (void *)__Pyx_CyFunction_clear},
+    {Py_tp_methods, (void *)__pyx_CyFunction_methods},
+    {Py_tp_members, (void *)__pyx_CyFunction_members},
+    {Py_tp_getset, (void *)__pyx_CyFunction_getsets},
+    {Py_tp_descr_get, (void *)__Pyx_PyMethod_New},
     {0, 0},
 };
 
@@ -849,9 +849,7 @@ static PyType_Spec __pyx_CyFunctionType_spec = {
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC, /*tp_flags*/
     __pyx_CyFunctionType_slots
 };
-
 #else
-
 static PyTypeObject __pyx_CyFunctionType_type = {
     PyVarObject_HEAD_INIT(0, 0)
     "cython_function_or_method",      /*tp_name*/
@@ -935,8 +933,7 @@ static PyTypeObject __pyx_CyFunctionType_type = {
 
 static int __pyx_CyFunction_init(void) {
 #if CYTHON_COMPILING_IN_LIMITED_API
-    // TODO(eelizondo): Use __Pyx_FetchCommonType
-    __pyx_CyFunctionType = PyType_FromSpec(&__pyx_CyFunctionType_spec);
+    __pyx_CyFunctionType = __Pyx_FetchCommonTypeFromSpec(&__pyx_CyFunctionType_spec, NULL);
 #else
     __pyx_CyFunctionType = __Pyx_FetchCommonType(&__pyx_CyFunctionType_type);
 #endif
@@ -1011,7 +1008,7 @@ typedef struct {
 } __pyx_FusedFunctionObject;
 
 #define __pyx_FusedFunction_NewEx(ml, flags, qualname, closure, module, globals, code)         \
-        __pyx_FusedFunction_New(__pyx_FusedFunctionType, ml, flags, qualname, closure, module, globals, code)
+        __pyx_FusedFunction_New((PyTypeObject *)__pyx_FusedFunctionType, ml, flags, qualname, closure, module, globals, code)
 static PyObject *__pyx_FusedFunction_New(PyTypeObject *type,
                                          PyMethodDef *ml, int flags,
                                          PyObject *qualname, PyObject *closure,
@@ -1019,7 +1016,9 @@ static PyObject *__pyx_FusedFunction_New(PyTypeObject *type,
                                          PyObject *code);
 
 static int __pyx_FusedFunction_clear(__pyx_FusedFunctionObject *self);
+#if !CYTHON_COMPILING_IN_LIMITED_API
 static PyTypeObject *__pyx_FusedFunctionType = NULL;
+#endif
 static int __pyx_FusedFunction_init(void);
 
 #define __Pyx_FusedFunction_USED
@@ -1351,6 +1350,27 @@ static PyMappingMethods __pyx_FusedFunction_mapping_methods = {
     0,
 };
 
+#if CYTHON_COMPILING_IN_LIMITED_API
+static PyType_Slot __pyx_FusedFunctionType_slots[] = {
+    {Py_tp_dealloc, (void *)__pyx_FusedFunction_dealloc},
+    {Py_tp_call, (void *)__pyx_FusedFunction_call},
+    {Py_tp_traverse, (void *)__pyx_FusedFunction_traverse},
+    {Py_tp_clear, (void *)__pyx_FusedFunction_clear},
+    {Py_tp_members, (void *)__pyx_FusedFunction_members},
+    {Py_tp_getset, (void *)__pyx_CyFunction_getsets},
+    {Py_tp_descr_get, (void *)__pyx_FusedFunction_descr_get},
+    {Py_mp_ass_subscript, (void *)__pyx_FusedFunction_getitem},
+    {0, 0},
+};
+
+static PyType_Spec __pyx_FusedFunctionType_spec = {
+    "fused_cython_function",
+    sizeof(__pyx_FusedFunctionObject),
+    0,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE, /*tp_flags*/
+    __pyx_FusedFunctionType_slots
+};
+#else
 static PyTypeObject __pyx_FusedFunctionType_type = {
     PyVarObject_HEAD_INIT(0, 0)
     "fused_cython_function",           /*tp_name*/
@@ -1415,9 +1435,19 @@ static PyTypeObject __pyx_FusedFunctionType_type = {
     0,                                  /*tp_print*/
 #endif
 };
+#endif
 
 static int __pyx_FusedFunction_init(void) {
+#if CYTHON_COMPILING_IN_LIMITED_API
+    PyObject *bases = PyTuple_Pack(1, __pyx_CyFunctionType);
+    if (unlikely(!bases)) {
+        return -1;
+    }
+    __pyx_CyFunctionType = __Pyx_FetchCommonTypeFromSpec(&__pyx_CyFunctionType_spec, bases);
+    Py_DECREF(bases);
+#else
     __pyx_FusedFunctionType = __Pyx_FetchCommonType(&__pyx_FusedFunctionType_type);
+#endif
     if (__pyx_FusedFunctionType == NULL) {
         return -1;
     }

@@ -2446,6 +2446,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
         code.putln('typedef struct {')
         code.putln('PyObject *__pyx_CyFunctionType;')
+        code.putln('PyObject *__pyx_FusedFunctionType;')
         code.putln('PyObject *%s;' % Naming.builtins_cname)
         code.putln('PyObject *%s;' % Naming.cython_runtime_cname)
         code.putln('PyObject *%s;' % Naming.empty_tuple)
@@ -2501,6 +2502,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             Naming.builtins_cname))
         code.putln('#define __pyx_CyFunctionType %s->__pyx_CyFunctionType' %
             Naming.modulestateglobal_cname)
+        code.putln('#define __pyx_FusedFunctionType %s->__pyx_FusedFunctionType' %
+            Naming.modulestateglobal_cname)
         code.putln('#define %s %s->%s' % (
             Naming.cython_runtime_cname,
             Naming.modulestateglobal_cname,
@@ -2553,6 +2556,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('Py_CLEAR(clear_module_state->%s);' %
             Naming.empty_unicode)
         code.putln('Py_CLEAR(clear_module_state->__pyx_CyFunctionType);')
+        code.putln('Py_CLEAR(clear_module_state->__pyx_FusedFunctionType);')
 
     def generate_module_state_traverse(self, env, code):
         code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
@@ -2572,6 +2576,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('Py_VISIT(traverse_module_state->%s);' %
             Naming.empty_unicode)
         code.putln('Py_VISIT(traverse_module_state->__pyx_CyFunctionType);')
+        code.putln('Py_VISIT(traverse_module_state->__pyx_FusedFunctionType);')
 
     def generate_module_init_func(self, imported_modules, env, code):
         subfunction = self.mod_init_subfunction(self.scope, code)

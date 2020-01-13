@@ -1,6 +1,9 @@
 /////////////// FetchCommonType.proto ///////////////
 
 static PyTypeObject* __Pyx_FetchCommonType(PyTypeObject* type);
+#if CYTHON_COMPILING_IN_LIMITED_API
+static PyObject* __Pyx_FetchCommonTypeFromSpec(PyType_Spec *spec, PyObject *bases);
+#endif
 
 /////////////// FetchCommonType ///////////////
 
@@ -46,6 +49,43 @@ bad:
     cached_type = NULL;
     goto done;
 }
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+static PyObject *__Pyx_FetchCommonTypeFromSpec(PyType_Spec *spec, PyObject *bases) {
+    PyObject *fake_module, *cached_type = NULL;
+
+    fake_module = PyImport_AddModule((char *) "_cython_" CYTHON_ABI);
+    if (!fake_module) return NULL;
+    Py_INCREF(fake_module);
+
+    cached_type = PyObject_GetAttrString(fake_module, spec->name);
+    if (cached_type) {
+        if (!PyType_Check(cached_type)) {
+            PyErr_Format(PyExc_TypeError,
+                "Shared Cython type %.200s is not a type object",
+                spec->name);
+            goto bad;
+        }
+    } else {
+        if (!PyErr_ExceptionMatches(PyExc_AttributeError)) goto bad;
+        PyErr_Clear();
+        cached_type = PyType_FromSpecWithBases(spec, bases);
+        if (unlikely(!cached_type)) goto bad;
+        if (PyObject_SetAttrString(fake_module, spec->name, cached_type) < 0)
+            goto bad;
+    }
+
+done:
+    Py_DECREF(fake_module);
+    // NOTE: always returns owned reference, or NULL on error
+    return cached_type;
+
+bad:
+    Py_XDECREF(cached_type);
+    cached_type = NULL;
+    goto done;
+}
+#endif
 
 
 /////////////// FetchCommonPointer.proto ///////////////
