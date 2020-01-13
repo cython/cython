@@ -52,7 +52,8 @@ bad:
 
 #if CYTHON_COMPILING_IN_LIMITED_API
 static PyObject *__Pyx_FetchCommonTypeFromSpec(PyType_Spec *spec, PyObject *bases) {
-    PyObject *fake_module, *cached_type = NULL;
+    PyObject *fake_module, *py_basicsize, *cached_type = NULL;
+    Py_ssize_t basicsize;
 
     fake_module = PyImport_AddModule((char *) "_cython_" CYTHON_ABI);
     if (!fake_module) return NULL;
@@ -63,6 +64,20 @@ static PyObject *__Pyx_FetchCommonTypeFromSpec(PyType_Spec *spec, PyObject *base
         if (!PyType_Check(cached_type)) {
             PyErr_Format(PyExc_TypeError,
                 "Shared Cython type %.200s is not a type object",
+                spec->name);
+            goto bad;
+        }
+        py_basicsize = PyObject_GetAttrString(cached_type, "__basicsize__");
+        if (!py_basicsize)
+            goto bad;
+        basicsize = PyLong_AsSsize_t(py_basicsize);
+        Py_DECREF(py_basicsize);
+        py_basicsize = 0;
+        if (basicsize == (Py_ssize_t)-1 && PyErr_Occurred())
+            goto bad;
+        if (basicsize != spec->basicsize) {
+            PyErr_Format(PyExc_TypeError,
+                "Shared Cython type %.200s has the wrong size, try recompiling",
                 spec->name);
             goto bad;
         }

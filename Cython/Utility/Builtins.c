@@ -24,6 +24,7 @@ static PyObject* __Pyx_Globals(void) {
     PyObject *names;
 #if CYTHON_COMPILING_IN_LIMITED_API
     PyObject *globals = PyDict_New();
+    if (unlikely(!globals)) goto bad;
 #else
     PyObject *globals = $moddict_cname;
     Py_INCREF(globals);

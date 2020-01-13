@@ -707,7 +707,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("/* Early includes */")
         self.generate_includes(env, cimported_modules, code, late=False)
         code.putln("")
-        code.putln("#if defined(CYTHON_COMPILING_IN_LIMITED_API) || defined(PYREX_WITHOUT_ASSERTIONS) && !defined(CYTHON_WITHOUT_ASSERTIONS)")
+        code.putln("#if defined(PYREX_WITHOUT_ASSERTIONS) && !defined(CYTHON_WITHOUT_ASSERTIONS)")
         code.putln("#define CYTHON_WITHOUT_ASSERTIONS")
         code.putln("#endif")
         code.putln("")

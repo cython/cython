@@ -86,7 +86,6 @@ class CompileTimeScope(object):
 def initial_compile_time_env():
     benv = CompileTimeScope()
     names = ('UNAME_SYSNAME', 'UNAME_NODENAME', 'UNAME_RELEASE', 'UNAME_VERSION', 'UNAME_MACHINE')
-    uname = ('Linux', 'devbig545.prn2.facebook.com', '4.16.18-196_fbk21_5305_g20f611be3d50', '#196 SMP Mon Aug 26 08:18:46 PDT 2019', 'x86_64', 'x86_64')
     for name, value in zip(names, platform.uname()):
         benv.declare(name, value)
     try:
