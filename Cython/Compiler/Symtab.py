@@ -855,7 +855,6 @@ class Scope(object):
         type.entry = entry
         return entry
 
-
     def declare_cgetter(self, name, return_type, pos=None, cname=None,
                         visibility="private", modifiers=(), defining=False, **cfunc_type_config):
         assert all(
@@ -872,7 +871,6 @@ class Scope(object):
         if cname is not None:
             entry.func_cname = cname
         return entry
-
 
     def add_cfunction(self, name, type, pos, cname, visibility, modifiers,
                       inherited=False):
