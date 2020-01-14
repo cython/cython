@@ -919,7 +919,11 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, CYTHON_UNUSED
         {{if c_op == '&'}}
         // special case for &-ing arbitrarily large numbers with known single digit operands
         if ((intval & PyLong_MASK) == intval) {
-            return PyLong_FromLong(likely(size) ? digits[0] & intval : 0);
+            long result = 0;
+            if(likely(size)) {
+                result = intval & (likely(size>0) ? digits[0] : (PyLong_MASK - digits[0] + 1));
+            }
+            return PyLong_FromLong(result);
         }
         {{endif}}
         // special cases for 0: + - * % / // | ^ & >> <<
