@@ -79,6 +79,8 @@ def and_int(obj2):
     0
     >>> and_int(18)
     16
+    >>> and_int(-1)
+    16
     """
     obj1 = obj2 & 0x10
     return obj1
