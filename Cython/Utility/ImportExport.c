@@ -475,7 +475,7 @@ static PyTypeObject *__Pyx_ImportType(PyObject *module, const char *module_name,
     PyObject *result = 0;
     char warning[200];
     Py_ssize_t basicsize;
-#if defined(Py_LIMITED_API) || defined(CYTHON_COMPILING_IN_LIMITED_API)
+#if CYTHON_COMPILING_IN_LIMITED_API
     PyObject *py_basicsize;
 #endif
 
@@ -488,7 +488,7 @@ static PyTypeObject *__Pyx_ImportType(PyObject *module, const char *module_name,
             module_name, class_name);
         goto bad;
     }
-#if !defined(Py_LIMITED_API) && !defined(CYTHON_COMPILING_IN_LIMITED_API)
+#if !CYTHON_COMPILING_IN_LIMITED_API
     basicsize = ((PyTypeObject *)result)->tp_basicsize;
 #else
     py_basicsize = PyObject_GetAttrString(result, "__basicsize__");
