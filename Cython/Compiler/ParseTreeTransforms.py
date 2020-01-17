@@ -19,7 +19,8 @@ from . import Errors
 
 from .Visitor import VisitorTransform, TreeVisitor
 from .Visitor import CythonTransform, EnvTransform, ScopeTrackingTransform
-from .UtilNodes import LetNode, LetRefNode
+from .UtilNodes import (LetNode, LetRefNode, ResultRefNode, EvalWithTempExprNode,
+                        ComprehensionEvalWithTempExprNode, ComprehensionResultRefNode)
 from .TreeFragment import TreeFragment
 from .StringEncoding import EncodedString, _unicode
 from .Errors import error, warning, CompileError, InternalError
@@ -1315,6 +1316,54 @@ class WithTransform(CythonTransform, SkipDeclarations):
         # With statements are never inside expressions.
         return node
 
+class ComprehensionScopeTransform(CythonTransform, SkipDeclarations):
+    """
+    Moves expressions out of list/set/etc comprehensions so they have the correct scope
+
+    Effectively
+        cmp = [ a for a in some_expression ]
+    is changed to
+        tmp = some_expression
+        cmp = [ a for a in tmp ]
+
+    (with some complications to keep optimizations (e.g. if "some_expression" is a range
+    where possible)
+    """
+    def visit_ComprehensionNode(self, node):
+        itseq = node.loop.iterator.sequence
+        original_node = node
+
+        new_itseq = ComprehensionResultRefNode(itseq)
+        node.loop.iterator.sequence = new_itseq
+        node = ComprehensionEvalWithTempExprNode(new_itseq, node)
+
+        if (isinstance(itseq, ExprNodes.SimpleCallNode) and
+            len(itseq.args) <= 3 # range with 3 arguments is the
+                  # most complicated expression that may be optimizable
+            ):
+            # to facilitate optimization also create a version that looks like:
+            #     cmp = [ a for a in range(0, 10) ]
+            # to:
+            #     tmp0 = 0
+            #     tmp1 = 10
+            #     cmp = [ a for a in range(tmp0, tmp1) ]
+            # e.g. for dict.keys
+            if isinstance(itseq.function, ExprNodes.AttributeNode):
+                obj = ResultRefNode(itseq.function.obj)
+                itseq.function.obj = obj
+                node = EvalWithTempExprNode(obj, node)
+
+            for n, a in enumerate(itseq.args):
+                a = ResultRefNode(a)
+                itseq.args[n] = a
+                node = EvalWithTempExprNode(a, node)
+
+            maybe_optimizable = True
+
+        return node
+
+#    def visit_GeneratorExpressionNode(self, node):
+#        return self.visit_ComprehensionNode(node) # implementation is the same
 
 class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
     """

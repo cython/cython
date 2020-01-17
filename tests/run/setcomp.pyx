@@ -1,14 +1,11 @@
 
 cimport cython
 
-# Py2.3 doesn't have the set type, but Cython does :)
-_set = set
-
 def setcomp():
     """
     >>> type(setcomp()) is not list
     True
-    >>> type(setcomp()) is _set
+    >>> type(setcomp()) is set
     True
     >>> sorted(setcomp())
     [0, 4, 8]
@@ -25,7 +22,7 @@ def setcomp():
     "//ComprehensionAppendNode")
 def genexp_set():
     """
-    >>> type(genexp_set()) is _set
+    >>> type(genexp_set()) is set
     True
     >>> sorted(genexp_set())
     [0, 4, 8]
@@ -62,3 +59,12 @@ def sorted(it):
     l = list(it)
     l.sort()
     return l
+
+def set_comp_scope():
+    """
+    locals should be evaluated in the outer scope
+    >>> set_comp_scope()
+    {'something'}
+    """
+    something = 1
+    return { b for b in locals().keys() }

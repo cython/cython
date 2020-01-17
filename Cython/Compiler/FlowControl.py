@@ -12,6 +12,7 @@ from . import ExprNodes
 from . import Nodes
 from . import Options
 from . import PyrexTypes
+from . import UtilNodes
 
 from .Visitor import TreeVisitor, CythonTransform
 from .Errors import error, warning, InternalError
@@ -943,6 +944,10 @@ class ControlFlowAnalysis(CythonTransform):
         is_special = False
         sequence = node.iterator.sequence
         target = node.target
+        if isinstance(sequence, UtilNodes.ComprehensionResultRefNode):
+            # handle the case where a temporary variable has been moved out
+            # of the iterator to get the scope right
+            sequence = sequence.expression
         if isinstance(sequence, ExprNodes.SimpleCallNode):
             function = sequence.function
             if sequence.self is None and function.is_name:

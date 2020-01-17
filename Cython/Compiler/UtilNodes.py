@@ -291,6 +291,12 @@ class EvalWithTempExprNode(ExprNodes.ExprNode, LetNodeMixin):
         self.subexpression.generate_evaluation_code(code)
         self.teardown_temp_expr(code)
 
+# distinguish the comprehension classes just so they can be
+# identified separately
+class ComprehensionEvalWithTempExprNode(EvalWithTempExprNode):
+    pass
+class ComprehensionResultRefNode(ResultRefNode):
+    pass
 
 LetRefNode = ResultRefNode
 

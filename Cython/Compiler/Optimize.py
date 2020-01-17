@@ -189,7 +189,18 @@ class IterationTransform(Visitor.EnvTransform):
         self.visitchildren(node)
         return self._optimise_for_loop(node, node.iterator.sequence)
 
+    def visit_ComprehensionEvalWithTempExprNode(self, node):
+        # there a good chance this gets optimized out
+        temp_ref = node.lazy_temp
+        self.visitchildren(node)
+        if not Visitor.tree_contains(node.subexpression, temp_ref):
+            return node.subexpression
+        return node
+
     def _optimise_for_loop(self, node, iterable, reversed=False):
+        if isinstance(iterable, UtilNodes.ComprehensionResultRefNode):
+            iterable = iterable.expression
+
         annotation_type = None
         if (iterable.is_name or iterable.is_attribute) and iterable.entry and iterable.entry.annotation:
             annotation = iterable.entry.annotation
