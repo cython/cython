@@ -32,7 +32,6 @@ from . import DebugFlags
 from .Pythran import has_np_pythran, pythran_type, is_pythran_buffer
 from ..Utils import add_metaclass
 
-
 if sys.version_info[0] >= 3:
     _py_int_types = int
 else:
@@ -8380,6 +8379,9 @@ class ParallelStatNode(StatNode, ParallelNode):
     assignments     { Entry(var) : (var.pos, inplace_operator_or_None) }
                     assignments to variables in this parallel section
 
+    names           list of names/vars used in parallel block
+                    relevant only for device with blocks, set to False for others
+
     parent          parent ParallelStatNode or None
     is_parallel     indicates whether this node is OpenMP parallel
                     (true for #pragma omp parallel for and
@@ -8449,6 +8451,10 @@ class ParallelStatNode(StatNode, ParallelNode):
         # reduction { Entry: (op, lastprivate) }.
         # If op is not None, it's a reduction.
         self.privates = {}
+
+        # List of variables which need to be map(to:)'ed from host to device
+        # Notice: privates get map(tofrom:)'ed
+        self.reads = []
 
         # [NameNode]
         self.assigned_nodes = []
@@ -8595,23 +8601,24 @@ class ParallelStatNode(StatNode, ParallelNode):
 
             # sum and j are undefined here
         """
-        self.privates[entry] = (op, lastprivate)
+        # Only device with blocks require propagated privates
+        # Own privates, propagated reductions and propagated lastprivates are always required
+        if op or lastprivate or entry in self.assignments:  # or not (self.is_parallel or self.is_prange):
+            self.privates[entry] = (op, lastprivate)
 
         if entry.type.is_memoryviewslice:
             error(pos, "Memoryview slices can only be shared in parallel sections")
             return
 
-        if self.is_prange:
-            if not self.is_parallel and entry not in self.parent.assignments:
-                # Parent is a parallel with block
-                parent = self.parent.parent
-            else:
-                parent = self.parent
+        if self.is_prange and not self.is_parallel and entry not in self.parent.assignments:
+            # Parent is a parallel with block
+            parent = self.parent.parent
+        else:
+            # parent is a device with block or prange
+            parent = self.parent
 
-            # We don't need to propagate privates, only reductions and
-            # lastprivates
-            if parent and (op or lastprivate):
-                parent.propagate_var_privatization(entry, pos, op, lastprivate)
+        if parent and (op or lastprivate):
+            parent.propagate_var_privatization(entry, pos, op, lastprivate)
 
     def _allocate_closure_temp(self, code, entry):
         """
@@ -8793,7 +8800,6 @@ class ParallelStatNode(StatNode, ParallelNode):
         If compiled without OpenMP support (at the C level), then we still have
         to acquire the GIL to decref any object temporaries.
         """
-        begin_code = self.begin_of_parallel_block
         self.begin_of_parallel_block = None
 
         if self.error_label_used:
@@ -8838,6 +8844,9 @@ class ParallelStatNode(StatNode, ParallelNode):
         self.error_label_used = False
 
         self.parallel_private_temps = []
+
+        if self.on_device:
+            return
 
         all_labels = code.get_all_labels()
 
@@ -9085,6 +9094,88 @@ class ParallelStatNode(StatNode, ParallelNode):
             code.redef_builtin_expect(self.redef_condition)
 
 
+class DeviceWithBlockNode(ParallelStatNode):
+    """
+    This node represents a 'with cython.parallel.device():' block
+    """
+
+    valid_keyword_arguments = []
+    is_parallel = False
+    names = []
+    _count_sfx = "__count"
+
+    def analyse_declarations(self, env):
+        super(DeviceWithBlockNode, self).analyse_declarations(env)
+        if self.args:
+            error(self.pos, "cython.parallel.device() does not take "
+                            "positional arguments")
+
+    def _generate_var_map(self, entry):
+        """
+        for a given variable, return list of names to be mapped to/device device.
+        The openmp map clauses require range-clauses for arrays to move the data to the device.
+        Hence we cannot simply map entire memview structs but instead need to map all members explicitly.
+        """
+        if entry.type.is_memoryviewslice:
+            members = (', %s.' % entry.cname).join(['memview', 'shape', 'strides', 'suboffsets'])
+            return "%(name)s.data[0:%(name)s%(sfx)s], %(name)s.%(members)s" % {'name': entry.cname,
+                                                                               'sfx': self._count_sfx,
+                                                                               'members': members}
+        else:
+            return entry.cname
+
+    def generate_execution_code(self, code):
+        """
+        Create an OpenMP target block.
+
+        We start by creating vars to store computed memview sizes.
+        We need them to properly move array data because just mapping a pointer will not move the data.
+        The new variables live in an extra scope around the omp target.
+
+        Then we add a "#pragma omp target" with appropriate map clauses.
+        Notice that we map(tofrom:) variables that we write to (including targets/iterators)
+        but we only map(to:) read-only variables.
+
+        TODO: identify map(from:), e.g. write-only variables
+        """
+        # Let's separate write and read-only vars used anywhere in the device scope
+        writes = [e for e in self.privates]
+        for e in self.assignments:
+            if hasattr(e[0], 'base'):
+                entry = e[0].base.entry
+            else:
+                entry = entry = e[0].entry
+            if entry and entry not in writes:
+                writes.append(entry)
+        # self.names holds all variables, extract read-only vars by excluding write-vars
+        reads = [e for e in self.names if e not in writes]
+
+        # Now we can create the extra scope
+        code.begin_block()
+        # and compute/store array/memview sizes
+        for e in reads + writes:
+            if e.type.is_memoryviewslice:
+                code.putln("size_t %s%s = %s;" % (e.cname,
+                                                  self._count_sfx,
+                                                  '*'.join(['%s.shape[%d]' % (e.cname, i) for i in range(e.type.ndim)])))
+
+        # The rest is relatively easy, we add the openmp pragma including map clauses and generate the body
+        code.putln("#ifdef _OPENMP")
+        code.put("#pragma omp target")
+
+        if reads:
+            code.put(" map(to: %s)" % ', '.join([self._generate_var_map(e) for e in reads]))
+        if writes:
+            code.put(" map(tofrom: %s)" % ', '.join([self._generate_var_map(e) for e in writes]))
+        code.putln('')
+        code.putln("#endif /* _OPENMP */")
+
+        code.begin_block()  # device block
+        self.body.generate_execution_code(code)
+        code.end_block()  # device block
+        code.end_block()  # device block scope
+
+
 class ParallelWithBlockNode(ParallelStatNode):
     """
     This node represents a 'with cython.parallel.parallel():' block
@@ -9093,6 +9184,8 @@ class ParallelWithBlockNode(ParallelStatNode):
     valid_keyword_arguments = ['num_threads']
 
     num_threads = None
+    is_parallel = True
+    names = False
 
     def analyse_declarations(self, env):
         super(ParallelWithBlockNode, self).analyse_declarations(env)
@@ -9155,6 +9248,7 @@ class ParallelRangeNode(ParallelStatNode):
     start = stop = step = None
 
     is_prange = True
+    names = False
 
     nogil = None
     schedule = None

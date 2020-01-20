@@ -4275,6 +4275,7 @@ class BufferIndexNode(_IndexingBaseNode):
         Called by IndexNode when this node is assigned to,
         with the rhs of the assignment
         """
+        pass
 
     def wrap_in_nonecheck_node(self, env):
         if not env.directives['nonecheck'] or not self.base.may_be_none():

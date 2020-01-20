@@ -452,7 +452,7 @@ class CythonDotParallel(object):
     The cython.parallel module.
     """
 
-    __all__ = ['parallel', 'prange', 'threadid']
+    __all__ = ['parallel', 'prange', 'threadid', 'device']
 
     def parallel(self, num_threads=None):
         return nogil
@@ -465,6 +465,9 @@ class CythonDotParallel(object):
 
     def threadid(self):
         return 0
+
+    def device(self):
+        return nogil
 
     # def threadsavailable(self):
         # return 1

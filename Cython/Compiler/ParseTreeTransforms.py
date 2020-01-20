@@ -677,6 +677,7 @@ class InterpretCompilerDirectives(CythonTransform):
         "parallel",
         "prange",
         "threadid",
+        "device",
         #"threadsavailable",
     ])
 
@@ -1088,7 +1089,7 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
     """
 
     # a list of names, maps 'cython.parallel.prange' in the code to
-    # ['cython', 'parallel', 'prange']
+    # ['cython', 'parallel', 'prange', 'device']
     parallel_directive = None
 
     # Indicates whether a namenode in an expression is the cython module
@@ -1097,8 +1098,8 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
     # Keep track of whether we are the context manager of a 'with' statement
     in_context_manager_section = False
 
-    # One of 'prange' or 'with parallel'. This is used to disallow closely
-    # nested 'with parallel:' blocks
+    # One of 'prange' or 'with parallel' or 'with device'. This is used to disallow
+    # closely-nested 'with parallel:' and generally-nested 'with device:' blocks
     state = None
 
     directive_to_node = {
@@ -1106,6 +1107,7 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
         # u"cython.parallel.threadsavailable": ExprNodes.ParallelThreadsAvailableNode,
         u"cython.parallel.threadid": ExprNodes.ParallelThreadIdNode,
         u"cython.parallel.prange": Nodes.ParallelRangeNode,
+        u"cython.parallel.device": Nodes.DeviceWithBlockNode,
     }
 
     def node_is_parallel_directive(self, node):
@@ -1198,6 +1200,18 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
 
             newnode.body = body
             return newnode
+        elif isinstance(newnode, Nodes.DeviceWithBlockNode):
+            if self.state != None:
+                error(node.manager.pos,
+                      "device with blocks nested within device/parallel/prange blocks are disallowed")
+
+            self.state = 'device with'
+            body = self.visit(node.body)
+            self.state = None
+
+            newnode.body = body
+            return newnode
+
         elif self.parallel_directive:
             parallel_directive_class = self.get_directive_class_node(node)
 
@@ -2210,6 +2224,33 @@ class CalculateQualifiedNamesTransform(EnvTransform):
 
 class AnalyseExpressionsTransform(CythonTransform):
 
+    def __init__(self, context):
+        super(AnalyseExpressionsTransform, self).__init__(context)
+        self.device_with_block = None
+
+    def visit_SingleAssignmentNode(self, node):
+        if self.device_with_block != None:
+            self.device_with_block.assignments.append((node.lhs, node.rhs))
+        self.visitchildren(node)
+        return node
+
+    def visit_CascadedAssignmentNode(self, node):
+        if self.device_with_block != None:
+            for lhs in node.lhs_list:
+                self.device_with_block.assignments.append((lhs, node.rhs))
+        self.visitchildren(node)
+        return node
+
+    def visit_NameNode(self, node):
+        """
+        Collect all names/vars in parallel blocks so we can emit proper map(to:) clauses for device with blocks.
+        """
+        if self.device_with_block != None:
+            entry = node.entry
+            if entry not in self.device_with_block.names:
+                self.device_with_block.names.append(entry)
+        return node
+
     def visit_ModuleNode(self, node):
         node.scope.infer_types()
         node.body = node.body.analyse_expressions(node.scope)
@@ -2244,6 +2285,17 @@ class AnalyseExpressionsTransform(CythonTransform):
         if node.is_fused_index and not node.type.is_error:
             node = node.base
         return node
+
+    def visit_DeviceWithBlockNode(self, node):
+        if self.device_with_block != None:
+            error(node.pos, "Nested parallel.device() not allowed")
+        node.assignments = []
+        node.names = []
+        self.device_with_block = node
+        self.visitchildren(node)
+        self.device_with_block = None
+        return node
+
 
 class ReplacePropertyNode(CythonTransform):
     def visit_CFuncDefNode(self, node):
@@ -2972,6 +3024,20 @@ class GilCheck(VisitorTransform):
     def visit_ParallelWithBlockNode(self, node):
         if not self.nogil:
             error(node.pos, "The parallel section may only be used without "
+                            "the GIL")
+            return None
+
+        if node.nogil_check:
+            # It does not currently implement this, but test for it anyway to
+            # avoid potential future surprises
+            node.nogil_check(self.env_stack[-1])
+
+        self.visitchildren(node)
+        return node
+
+    def visit_DeviceWithBlockNode(self, node):
+        if not self.nogil:
+            error(node.pos, "The device section may only be used without "
                             "the GIL")
             return None
 
