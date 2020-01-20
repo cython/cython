@@ -1069,6 +1069,14 @@ class ControlFlowAnalysis(CythonTransform):
 
         return node
 
+    def visit_DeviceWithBlockNode(self, node):
+        for private_node in node.assigned_nodes:
+            private_node.entry.error_on_uninitialized = True
+
+        self._delete_privates(node)
+        self.visitchildren(node)
+        self._delete_privates(node)
+
     def visit_ForFromStatNode(self, node):
         condition_block = self.flow.nextblock()
         next_block = self.flow.newblock()
