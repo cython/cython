@@ -8824,6 +8824,7 @@ class ParallelStatNode(StatNode, ParallelNode):
         self.parallel_private_temps = []
 
         if self.on_device:
+            code.put_label(code.error_label)
             return
 
         all_labels = code.get_all_labels()
