@@ -294,9 +294,36 @@ class EvalWithTempExprNode(ExprNodes.ExprNode, LetNodeMixin):
 # distinguish the comprehension classes just so they can be
 # identified separately
 class ComprehensionEvalWithTempExprNode(EvalWithTempExprNode):
-    pass
+    def setup_temp_expr(self, code):
+        from . import Naming
+        if not self.lazy_temp.crosses_closure:
+            return super(ComprehensionEvalWithTempExprNode, self).setup_temp_expr(code)
+
+        self.temp_expression.generate_evaluation_code(code)
+        self.temp_type = self.temp_expression.type
+        if self.temp_type.is_array:
+            self.temp_type = c_ptr_type(self.temp_type.base_type)
+
+        self._result_in_temp = False # unlike parent, never use this
+
+        self.temp_expression.make_owned_reference(code)
+        self.temp = "%s->%s" % (Naming.cur_scope_cname, self.lazy_temp.crosses_closure)
+        code.putln("%s = %s;" % (self.temp, self.temp_expression.result()))
+        if self.temp_type.is_pyobject:
+            code.put_incref(self.temp, self.temp_type) # FIXME giveref maybe instead?
+        self.temp_expression.generate_disposal_code(code)
+        self.temp_expression.free_temps(code)
+        #self.lazy_temp.result_code = self.temp
+
+    def teardown_temp_expr(self, code):
+        if not self.lazy_temp.crosses_closure:
+            return super(ComprehensionEvalWithTempExprNode, self).teardown_temp_expr(code)
+        # otherwise nothing to do... it's handled by the closure class
+
 class ComprehensionResultRefNode(ResultRefNode):
-    pass
+    is_main_result = False # only true for first
+     # ComprehensionResultRefNode created for an comprehension/genexpr
+    crosses_closure = False # or the cname
 
 LetRefNode = ResultRefNode
 

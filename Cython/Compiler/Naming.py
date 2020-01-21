@@ -10,6 +10,7 @@ pyrex_prefix    = "__pyx_"
 
 
 codewriter_temp_prefix = pyrex_prefix + "t_"
+codewriter_genexpr_input_prefix = pyrex_prefix + "input_"
 
 temp_prefix       = u"__cyt_"
 

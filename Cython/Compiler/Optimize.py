@@ -198,7 +198,8 @@ class IterationTransform(Visitor.EnvTransform):
         return node
 
     def _optimise_for_loop(self, node, iterable, reversed=False):
-        if isinstance(iterable, UtilNodes.ComprehensionResultRefNode):
+        if (isinstance(iterable, UtilNodes.ComprehensionResultRefNode)
+            and iterable.is_main_result):
             iterable = iterable.expression
 
         annotation_type = None

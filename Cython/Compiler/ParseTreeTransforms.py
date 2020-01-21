@@ -19,6 +19,7 @@ from . import Errors
 
 from .Visitor import VisitorTransform, TreeVisitor
 from .Visitor import CythonTransform, EnvTransform, ScopeTrackingTransform
+from .Visitor import tree_contains
 from .UtilNodes import (LetNode, LetRefNode, ResultRefNode, EvalWithTempExprNode,
                         ComprehensionEvalWithTempExprNode, ComprehensionResultRefNode)
 from .TreeFragment import TreeFragment
@@ -1340,6 +1341,7 @@ class ComprehensionScopeTransform(CythonTransform, SkipDeclarations):
         original_node = node
 
         new_itseq = ComprehensionResultRefNode(itseq)
+        new_itseq.is_main_result = True
         node.loop.iterator.sequence = new_itseq
         node = ComprehensionEvalWithTempExprNode(new_itseq, node)
 
@@ -1357,21 +1359,21 @@ class ComprehensionScopeTransform(CythonTransform, SkipDeclarations):
             if (isinstance(itseq.function, ExprNodes.AttributeNode) and
                 not isinstance(itseq.function.obj, uninteresting)):
 
-                obj = ResultRefNode(itseq.function.obj)
+                obj = ComprehensionResultRefNode(itseq.function.obj)
                 itseq.function.obj = obj
-                node = EvalWithTempExprNode(obj, node)
+                node = ComprehensionEvalWithTempExprNode(obj, node)
 
             for n, a in enumerate(itseq.args):
                 if isinstance(a, uninteresting):
                     continue
-                a = ResultRefNode(a)
+                a = ComprehensionResultRefNode(a)
                 itseq.args[n] = a
-                node = EvalWithTempExprNode(a, node)
+                node = ComprehensionEvalWithTempExprNode(a, node)
 
         return node
 
-#    def visit_GeneratorExpressionNode(self, node):
-#        return self.visit_ComprehensionNode(node) # implementation is the same
+    def visit_GeneratorExpressionNode(self, node):
+        return self.visit_ComprehensionNode(node) # implementation is the same
 
 class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
     """
@@ -2733,6 +2735,28 @@ class MarkClosureVisitor(CythonTransform):
         self.needs_closure = True
         return node
 
+class _FindComprehensionEvalWithTempExprNode(TreeVisitor):
+    def __init__(self):
+        super(_FindComprehensionEvalWithTempExprNode, self).__init__()
+        self.found = []
+
+    def visit_ComprehensionEvalWithTempExprNode(self, node):
+        self.found.append(node.lazy_temp)
+
+    def visit_LambdaNode(self, node):
+        return # don't go any deeper
+        # we're really only interested in seeing if the current scope has this
+        #  - may generate some false positives, but not many, and they're largely
+        #    harmless
+
+    def visit_Node(self, node):
+        self._visitchildren(node, None) # necessary
+
+    @staticmethod
+    def tree_contains(tree):
+        finder = _FindComprehensionEvalWithTempExprNode()
+        finder.visit(tree)
+        return finder.found
 
 class CreateClosureClasses(CythonTransform):
     # Output closure classes in module scope for all functions
@@ -2742,6 +2766,7 @@ class CreateClosureClasses(CythonTransform):
         super(CreateClosureClasses, self).__init__(context)
         self.path = []
         self.in_lambda = False
+        self.comp_input_variables = []
 
     def visit_ModuleNode(self, node):
         self.module_scope = node.scope
@@ -2770,6 +2795,9 @@ class CreateClosureClasses(CythonTransform):
                         entry.in_closure = True
 
         from_closure, in_closure = self.find_entries_used_in_closures(node)
+        inputs_from_closure = [ var for var in self.comp_input_variables if tree_contains(node, var) ]
+        inputs_in_closure = _FindComprehensionEvalWithTempExprNode.tree_contains(node)
+
         in_closure.sort()
 
         # Now from the beginning
@@ -2781,7 +2809,7 @@ class CreateClosureClasses(CythonTransform):
         while cscope.is_py_class_scope or cscope.is_c_class_scope:
             cscope = cscope.outer_scope
 
-        if not from_closure and (self.path or inner_node):
+        if not from_closure and not inputs_from_closure and (self.path or inner_node):
             if not inner_node:
                 if not node.py_cfunc_node:
                     raise InternalError("DefNode does not have assignment node")
@@ -2791,9 +2819,10 @@ class CreateClosureClasses(CythonTransform):
 
         if node.is_generator:
             pass
-        elif not in_closure and not from_closure:
+        elif (not in_closure and not from_closure and
+              not inputs_in_closure and not inputs_from_closure):
             return
-        elif not in_closure:
+        elif not in_closure and not inputs_in_closure:
             func_scope.is_passthrough = True
             func_scope.scope_class = cscope.scope_class
             node.needs_outer_scope = True
@@ -2822,7 +2851,7 @@ class CreateClosureClasses(CythonTransform):
         if Options.closure_freelist_size:
             class_scope.directives['freelist'] = Options.closure_freelist_size
 
-        if from_closure:
+        if from_closure or inputs_from_closure:
             assert cscope.is_closure_scope
             class_scope.declare_var(pos=node.pos,
                                     name=Naming.outer_scope_cname,
@@ -2840,6 +2869,22 @@ class CreateClosureClasses(CythonTransform):
             if entry.is_declared_generic:
                 closure_entry.is_declared_generic = 1
         node.needs_closure = True
+
+        ninputs = 0
+        for var in inputs_in_closure:
+            if tree_contains(node, var):
+                cname = '%s%d' % (Naming.codewriter_genexpr_input_prefix, ninputs)
+                closure_entry = class_scope.declare_var(
+                    pos = None,
+                    name = cname,
+                    cname = cname,
+                    type = var.type,
+                    is_cdef = True)
+                var.crosses_closure = cname
+                var.result_code = "%s->%s->%s" % (Naming.cur_scope_cname,
+                                                  Naming.outer_scope_cname,
+                                                  cname)
+
         # Do it here because other classes are already checked
         target_module_scope.check_c_class(func_scope.scope_class)
 
@@ -2877,6 +2922,14 @@ class CreateClosureClasses(CythonTransform):
             self.visitchildren(node)
             return node
 
+    def visit_ComprehensionEvalWithTempExprNode(self, node):
+        # keep track of temporary variables that may appear in
+        # the comprehension
+        self.comp_input_variables.append(node.lazy_temp)
+        assert isinstance(node.lazy_temp, ComprehensionResultRefNode)
+        self.visitchildren(node)
+        self.comp_input_variables.pop()
+        return node
 
 class InjectGilHandling(VisitorTransform, SkipDeclarations):
     """
