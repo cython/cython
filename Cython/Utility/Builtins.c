@@ -21,7 +21,7 @@ static PyObject* __Pyx_Globals(void); /*proto*/
 
 static PyObject* __Pyx_Globals(void) {
     Py_ssize_t i;
-    PyObject *names;
+    PyObject *names = NULL;
 #if CYTHON_COMPILING_IN_LIMITED_API
     PyObject *globals = PyDict_New();
     if (unlikely(!globals)) goto bad;

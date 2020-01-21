@@ -720,24 +720,16 @@ bad:
 
 /////////////// GetVTable.proto ///////////////
 
-#if CYTHON_COMPILING_IN_LIMITED_API
 static void* __Pyx_GetVtable(PyTypeObject *type); /*proto*/
-#else
-static void* __Pyx_GetVtable(PyObject *dict); /*proto*/
-#endif
 
 /////////////// GetVTable ///////////////
 
-#if CYTHON_COMPILING_IN_LIMITED_API
 static void* __Pyx_GetVtable(PyTypeObject *type) {
-#else
-static void* __Pyx_GetVtable(PyObject *dict) {
-#endif
     void* ptr;
 #if CYTHON_COMPILING_IN_LIMITED_API
     PyObject *ob = PyObject_GetAttr((PyObject *)type, PYIDENT("__pyx_vtable__"));
 #else
-    PyObject *ob = PyObject_GetItem(dict, PYIDENT("__pyx_vtable__"));
+    PyObject *ob = PyObject_GetItem(type->tp_dict, PYIDENT("__pyx_vtable__"));
 #endif
     if (!ob)
         goto bad;
@@ -781,21 +773,13 @@ static int __Pyx_MergeVtables(PyTypeObject *type) {
     // instance struct is so extended.  (It would be good to also do this
     // check when a multiple-base class is created in pure Python as well.)
     for (i = 1; i < PyTuple_GET_SIZE(bases); i++) {
-#if CYTHON_COMPILING_IN_LIMITED_API
         void* base_vtable = __Pyx_GetVtable(((PyTypeObject*)PyTuple_GET_ITEM(bases, i)));
-#else
-        void* base_vtable = __Pyx_GetVtable(((PyTypeObject*)PyTuple_GET_ITEM(bases, i))->tp_dict);
-#endif
         if (base_vtable != NULL) {
             int j;
             PyTypeObject* base = type->tp_base;
             for (j = 0; j < base_depth; j++) {
                 if (base_vtables[j] == unknown) {
-#if CYTHON_COMPILING_IN_LIMITED_API
                     base_vtables[j] = __Pyx_GetVtable(base);
-#else
-                    base_vtables[j] = __Pyx_GetVtable(base->tp_dict);
-#endif
                     base_vtables[j + 1] = unknown;
                 }
                 if (base_vtables[j] == base_vtable) {

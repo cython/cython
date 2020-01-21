@@ -2445,8 +2445,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # TODO: Reactor LIMITED_API struct decl closer to the static decl
         code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
         code.putln('typedef struct {')
-        code.putln('PyObject *__pyx_CyFunctionType;')
-        code.putln('PyObject *__pyx_FusedFunctionType;')
         code.putln('PyObject *%s;' % Naming.builtins_cname)
         code.putln('PyObject *%s;' % Naming.cython_runtime_cname)
         code.putln('PyObject *%s;' % Naming.empty_tuple)
@@ -2457,6 +2455,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('int %s;' % Naming.lineno_cname)
         code.putln('int %s;' % Naming.clineno_cname)
         code.putln('const char *%s;' % Naming.filename_cname)
+        code.putln('PyObject *%s;' % Naming.cyfunction_type_cname)
+        code.putln('PyObject *%s;' % Naming.fusedfunction_type_cname)
 
     def generate_module_state_end(self, env, modules, globalstate):
         module_state = globalstate['module_state']
@@ -2500,10 +2500,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             Naming.builtins_cname,
             Naming.modulestateglobal_cname,
             Naming.builtins_cname))
-        code.putln('#define __pyx_CyFunctionType %s->__pyx_CyFunctionType' %
-            Naming.modulestateglobal_cname)
-        code.putln('#define __pyx_FusedFunctionType %s->__pyx_FusedFunctionType' %
-            Naming.modulestateglobal_cname)
         code.putln('#define %s %s->%s' % (
             Naming.cython_runtime_cname,
             Naming.modulestateglobal_cname,
@@ -2537,6 +2533,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             Naming.filename_cname,
             Naming.modulestateglobal_cname,
             Naming.filename_cname))
+        code.putln('#define %s %s->%s' % (
+            Naming.cyfunction_type_cname,
+            Naming.modulestateglobal_cname,
+            Naming.cyfunction_type_cname))
+        code.putln('#define %s %s->%s' %
+            (Naming.fusedfunction_type_cname,
+            Naming.modulestateglobal_cname,
+            Naming.fusedfunction_type_cname))
 
     def generate_module_state_clear(self, env, code):
         code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
@@ -2555,8 +2559,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             Naming.empty_bytes)
         code.putln('Py_CLEAR(clear_module_state->%s);' %
             Naming.empty_unicode)
-        code.putln('Py_CLEAR(clear_module_state->__pyx_CyFunctionType);')
-        code.putln('Py_CLEAR(clear_module_state->__pyx_FusedFunctionType);')
+        code.putln('Py_CLEAR(clear_module_state->%s);' %
+            Naming.cyfunction_type_cname)
+        code.putln('Py_CLEAR(clear_module_state->%s);' %
+            Naming.fusedfunction_type_cname)
 
     def generate_module_state_traverse(self, env, code):
         code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
@@ -2575,8 +2581,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             Naming.empty_bytes)
         code.putln('Py_VISIT(traverse_module_state->%s);' %
             Naming.empty_unicode)
-        code.putln('Py_VISIT(traverse_module_state->__pyx_CyFunctionType);')
-        code.putln('Py_VISIT(traverse_module_state->__pyx_FusedFunctionType);')
+        code.putln('Py_VISIT(traverse_module_state->%s);' %
+            Naming.cyfunction_type_cname)
+        code.putln('Py_VISIT(traverse_module_state->%s);' %
+            Naming.fusedfunction_type_cname)
 
     def generate_module_init_func(self, imported_modules, env, code):
         subfunction = self.mod_init_subfunction(self.scope, code)
@@ -3370,19 +3378,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if type.vtabptr_cname:
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached('GetVTable', 'ImportExport.c'))
-            code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
             code.putln("%s = (struct %s*)__Pyx_GetVtable(%s); %s" % (
                 type.vtabptr_cname,
                 type.vtabstruct_cname,
                 type.typeptr_cname,
                 code.error_goto_if_null(type.vtabptr_cname, pos)))
-            code.putln("#else")
-            code.putln("%s = (struct %s*)__Pyx_GetVtable(%s->tp_dict); %s" % (
-                type.vtabptr_cname,
-                type.vtabstruct_cname,
-                type.typeptr_cname,
-                code.error_goto_if_null(type.vtabptr_cname, pos)))
-            code.putln("#endif")
         env.types_imported.add(type)
 
     def generate_type_import_call(self, type, code, import_generator, error_code=None, error_pos=None):
