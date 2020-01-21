@@ -1330,7 +1330,13 @@ class ComprehensionScopeTransform(CythonTransform, SkipDeclarations):
     where possible)
     """
     def visit_ComprehensionNode(self, node):
+        # there's no real value in substituting these very simple expressions
+        # with a temp
+        uninteresting = (ExprNodes.NameNode, ExprNodes.ConstNode)
+
         itseq = node.loop.iterator.sequence
+        if isinstance(itseq, uninteresting):
+            return node
         original_node = node
 
         new_itseq = ComprehensionResultRefNode(itseq)
@@ -1348,17 +1354,19 @@ class ComprehensionScopeTransform(CythonTransform, SkipDeclarations):
             #     tmp1 = 10
             #     cmp = [ a for a in range(tmp0, tmp1) ]
             # e.g. for dict.keys
-            if isinstance(itseq.function, ExprNodes.AttributeNode):
+            if (isinstance(itseq.function, ExprNodes.AttributeNode) and
+                not isinstance(itseq.function.obj, uninteresting)):
+
                 obj = ResultRefNode(itseq.function.obj)
                 itseq.function.obj = obj
                 node = EvalWithTempExprNode(obj, node)
 
             for n, a in enumerate(itseq.args):
+                if isinstance(a, uninteresting):
+                    continue
                 a = ResultRefNode(a)
                 itseq.args[n] = a
                 node = EvalWithTempExprNode(a, node)
-
-            maybe_optimizable = True
 
         return node
 
