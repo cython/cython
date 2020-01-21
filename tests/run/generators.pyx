@@ -561,3 +561,19 @@ def test_generator_kwds3(**kwargs):
     a
     """
     yield from kwargs.keys()
+
+def test_generator_scope():
+    """
+    Tests that the function is run at the correct time
+    (i.e. when the generator is created, not when it's run)
+    >>> list(test_generator_scope())
+    inner running
+    generator created
+    [0, 10]
+    """
+    def inner(val):
+        print("inner running")
+        return [0, val]
+    gen = (a for a in inner(10))
+    print("generator created")
+    return gen

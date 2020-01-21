@@ -1357,14 +1357,20 @@ class ComprehensionScopeTransform(CythonTransform, SkipDeclarations):
             #     cmp = [ a for a in range(tmp0, tmp1) ]
             # e.g. for dict.keys
             if (isinstance(itseq.function, ExprNodes.AttributeNode) and
-                not isinstance(itseq.function.obj, uninteresting)):
+                not isinstance(itseq.function.obj, ExprNodes.ConstNode)):
+                # it'd be nice to skip NameNode too however it looks
+                # like they likely won't be picked up correctly as closure
+                # variables (like arguments)
 
                 obj = ComprehensionResultRefNode(itseq.function.obj)
                 itseq.function.obj = obj
                 node = ComprehensionEvalWithTempExprNode(obj, node)
 
             for n, a in enumerate(itseq.args):
-                if isinstance(a, uninteresting):
+                # Although it'd be nice to skip NameNode too,
+                # they are not picked up into the closure if in some
+                # cases if they are
+                if isinstance(a, ExprNodes.ConstNode):
                     continue
                 a = ComprehensionResultRefNode(a)
                 itseq.args[n] = a
@@ -2738,19 +2744,31 @@ class MarkClosureVisitor(CythonTransform):
 class _FindComprehensionEvalWithTempExprNode(TreeVisitor):
     def __init__(self):
         super(_FindComprehensionEvalWithTempExprNode, self).__init__()
-        self.found = []
+        self.found_above_lambdas = []
+        self.lambdas = []
 
     def visit_ComprehensionEvalWithTempExprNode(self, node):
-        self.found.append(node.lazy_temp)
+        if node.lazy_temp not in self.found_above_lambdas:
+            self.found_above_lambdas.append(node.lazy_temp)
+        self._visitchildren(node, None)
 
     def visit_LambdaNode(self, node):
+        self.lambdas.append(node)
         return # don't go any deeper
-        # we're really only interested in seeing if the current scope has this
-        #  - may generate some false positives, but not many, and they're largely
-        #    harmless
 
     def visit_Node(self, node):
-        self._visitchildren(node, None) # necessary
+        self._visitchildren(node, None) # necessary ?
+
+    @property
+    def found(self):
+        # this feels like duplicating the tracking done in
+        # "comp_input_variables" but I can't find a better way of doing it
+        found = []
+        for l in self.lambdas:
+            for f in self.found_above_lambdas:
+                if tree_contains(l, f) and f not in found:
+                    found.append(f)
+        return found
 
     @staticmethod
     def tree_contains(tree):
@@ -2884,6 +2902,7 @@ class CreateClosureClasses(CythonTransform):
                 var.result_code = "%s->%s->%s" % (Naming.cur_scope_cname,
                                                   Naming.outer_scope_cname,
                                                   cname)
+                ninputs += 1
 
         # Do it here because other classes are already checked
         target_module_scope.check_c_class(func_scope.scope_class)

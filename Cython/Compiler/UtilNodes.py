@@ -308,12 +308,15 @@ class ComprehensionEvalWithTempExprNode(EvalWithTempExprNode):
 
         self.temp_expression.make_owned_reference(code)
         self.temp = "%s->%s" % (Naming.cur_scope_cname, self.lazy_temp.crosses_closure)
-        code.putln("%s = %s;" % (self.temp, self.temp_expression.result()))
         if self.temp_type.is_pyobject:
+            code.put_xgotref(self.temp)
+            code.put_giveref(self.temp_expression.result())
+            code.put_xdecref_set(self.temp, self.temp_expression.result())
             code.put_incref(self.temp, self.temp_type) # FIXME giveref maybe instead?
+        else:
+            code.putln("%s = %s;" % (self.temp, self.temp_expression.result()))
         self.temp_expression.generate_disposal_code(code)
         self.temp_expression.free_temps(code)
-        #self.lazy_temp.result_code = self.temp
 
     def teardown_temp_expr(self, code):
         if not self.lazy_temp.crosses_closure:
