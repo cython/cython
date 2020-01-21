@@ -1,5 +1,4 @@
 os: linux
-dist: trusty
 language: python
 # 'sudo' is enabled automatically by the 'apt' addon below.
 #sudo: false
@@ -35,20 +34,15 @@ matrix:
     - python: 2.7
       env: BACKEND=cpp
     - python: 3.7
-      dist: xenial    # Required for Python 3.7
       env: BACKEND=c
     - python: 3.7
-      dist: xenial    # Required for Python 3.7
       env: BACKEND=cpp
 # Disabled: coverage analysis takes excessively long, several times longer than without.
 #    - python: 3.7
-#      dist: xenial    # Required for Python 3.7
 #      env: COVERAGE=1
     - python: 3.7
-      dist: xenial    # Required for Python 3.7
       env: TEST_CODE_STYLE=1
     - python: 3.7
-      dist: xenial    # Required for Python 3.7
       env: LIMITED_API=--limited-api EXCLUDE=--no-file
     - python: 3.4
       env: BACKEND=c
@@ -65,13 +59,10 @@ matrix:
     - python: 3.6
       env: LIMITED_API=--limited-api EXCLUDE=--no-file
     - python: 3.8
-      dist: xenial    # Required for Python 3.7
       env: BACKEND=c
     - python: 3.8
-      dist: xenial    # Required for Python 3.7
       env: BACKEND=cpp
     - python: 3.8-dev
-      dist: xenial    # Required for Python 3.8
       env: LIMITED_API=--limited-api EXCLUDE=--no-file
     - os: osx
       osx_image: xcode6.4
