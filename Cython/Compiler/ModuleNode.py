@@ -610,15 +610,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for entry in vtabslot_list:
             self.generate_objstruct_predeclaration(entry.type, code)
         vtabslot_entries = set(vtabslot_list)
+        ctuple_names = set()
         for module in modules:
             definition = module is env
-            if definition:
-                type_entries = module.type_entries
-            else:
-                type_entries = []
-                for entry in module.type_entries:
-                    if entry.defined_in_pxd:
+            type_entries = []
+            for entry in module.type_entries:
+                if entry.type.is_ctuple:
+                    if entry.name not in ctuple_names:
+                        ctuple_names.add(entry.name)
                         type_entries.append(entry)
+                elif definition or entry.defined_in_pxd:
+                    type_entries.append(entry)
             type_entries = [t for t in type_entries if t not in vtabslot_entries]
             self.generate_type_header_code(type_entries, code)
         for entry in vtabslot_list:
