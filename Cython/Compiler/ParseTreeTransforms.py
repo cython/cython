@@ -1331,17 +1331,15 @@ class ComprehensionScopeTransform(CythonTransform, SkipDeclarations):
     where possible)
     """
     def visit_ComprehensionNode(self, node):
-        # there's no real value in substituting these very simple expressions
-        # with a temp
-        uninteresting = (ExprNodes.NameNode, ExprNodes.ConstNode)
-
         itseq = node.loop.iterator.sequence
-        if isinstance(itseq, uninteresting):
+        # there's no value in substituting these very simple expressions
+        # with a temp (but NameNode must be so that it's evaluated in
+        # the right scope)
+        if isinstance(itseq, ExprNodes.ConstNode):
             return node
         original_node = node
 
         new_itseq = ComprehensionResultRefNode(itseq)
-        new_itseq.is_main_result = True
         node.loop.iterator.sequence = new_itseq
         node = ComprehensionEvalWithTempExprNode(new_itseq, node)
 
@@ -1356,20 +1354,17 @@ class ComprehensionScopeTransform(CythonTransform, SkipDeclarations):
             #     tmp1 = 10
             #     cmp = [ a for a in range(tmp0, tmp1) ]
             # e.g. for dict.keys
+            new_itseq.is_main_result = True # only try this substitution
+               # for these known cases
+
             if (isinstance(itseq.function, ExprNodes.AttributeNode) and
                 not isinstance(itseq.function.obj, ExprNodes.ConstNode)):
-                # it'd be nice to skip NameNode too however it looks
-                # like they likely won't be picked up correctly as closure
-                # variables (like arguments)
 
                 obj = ComprehensionResultRefNode(itseq.function.obj)
                 itseq.function.obj = obj
                 node = ComprehensionEvalWithTempExprNode(obj, node)
 
             for n, a in enumerate(itseq.args):
-                # Although it'd be nice to skip NameNode too,
-                # they are not picked up into the closure if in some
-                # cases if they are
                 if isinstance(a, ExprNodes.ConstNode):
                     continue
                 a = ComprehensionResultRefNode(a)

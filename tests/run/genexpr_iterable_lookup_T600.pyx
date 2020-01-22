@@ -51,6 +51,7 @@ def genexpr_over_complex_arg(func, L):
 def listcomp():
     """
     >>> listcomp()
+    [0, 1, 5, 8]
     """
     data = [('red', 5), ('blue', 1), ('yellow', 8), ('black', 0)]
     data.sort(key=lambda r: r[1])
