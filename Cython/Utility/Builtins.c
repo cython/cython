@@ -20,52 +20,15 @@ static PyObject* __Pyx_Globals(void); /*proto*/
 // access requires a rewrite as a dedicated class.
 
 static PyObject* __Pyx_Globals(void) {
-    Py_ssize_t i;
-    PyObject *names = NULL;
+    PyObject *globals;
 #if CYTHON_COMPILING_IN_LIMITED_API
-    PyObject *globals = PyModule_GetDict();
-    if (unlikely(!globals)) goto bad;
+    globals = PyModule_GetDict($module_cname);
+    if (unlikely(!globals)) return NULL;
 #else
-    PyObject *globals = $moddict_cname;
+    globals = $moddict_cname;
 #endif
     Py_INCREF(globals);
-    names = PyObject_Dir($module_cname);
-    if (!names)
-        goto bad;
-    for (i = PyList_GET_SIZE(names)-1; i >= 0; i--) {
-#if CYTHON_COMPILING_IN_PYPY
-        PyObject* name = PySequence_ITEM(names, i);
-        if (!name)
-            goto bad;
-#else
-        PyObject* name = PyList_GET_ITEM(names, i);
-#endif
-        if (!PyDict_Contains(globals, name)) {
-            PyObject* value = __Pyx_GetAttr($module_cname, name);
-            if (!value) {
-#if CYTHON_COMPILING_IN_PYPY
-                Py_DECREF(name);
-#endif
-                goto bad;
-            }
-            if (PyDict_SetItem(globals, name, value) < 0) {
-#if CYTHON_COMPILING_IN_PYPY
-                Py_DECREF(name);
-#endif
-                Py_DECREF(value);
-                goto bad;
-            }
-        }
-#if CYTHON_COMPILING_IN_PYPY
-        Py_DECREF(name);
-#endif
-    }
-    Py_DECREF(names);
     return globals;
-bad:
-    Py_XDECREF(names);
-    Py_XDECREF(globals);
-    return NULL;
 }
 
 //////////////////// PyExecGlobals.proto ////////////////////
