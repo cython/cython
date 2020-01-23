@@ -59,12 +59,3 @@ def sorted(it):
     l = list(it)
     l.sort()
     return l
-
-def set_comp_scope():
-    """
-    locals should be evaluated in the outer scope
-    >>> set_comp_scope()
-    {'something'}
-    """
-    something = 1
-    return { b for b in locals().keys() }

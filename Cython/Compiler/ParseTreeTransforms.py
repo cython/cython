@@ -1343,10 +1343,7 @@ class ComprehensionScopeTransform(CythonTransform, SkipDeclarations):
         node.loop.iterator.sequence = new_itseq
         node = ComprehensionEvalWithTempExprNode(new_itseq, node)
 
-        if (isinstance(itseq, ExprNodes.SimpleCallNode) and
-            len(itseq.args) <= 3 # range with 3 arguments is the
-                  # most complicated expression that may be optimizable
-            ):
+        if isinstance(itseq, ExprNodes.SimpleCallNode):
             # to facilitate optimization also create a version that looks like:
             #     cmp = [ a for a in range(0, 10) ]
             # to:
@@ -1354,9 +1351,6 @@ class ComprehensionScopeTransform(CythonTransform, SkipDeclarations):
             #     tmp1 = 10
             #     cmp = [ a for a in range(tmp0, tmp1) ]
             # e.g. for dict.keys
-            new_itseq.is_main_result = True # only try this substitution
-               # for these known cases
-
             if (isinstance(itseq.function, ExprNodes.AttributeNode) and
                 not isinstance(itseq.function.obj, ExprNodes.ConstNode)):
 

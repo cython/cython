@@ -944,8 +944,7 @@ class ControlFlowAnalysis(CythonTransform):
         is_special = False
         sequence = node.iterator.sequence
         target = node.target
-        if (isinstance(sequence, UtilNodes.ComprehensionResultRefNode) and
-            sequence.is_main_result):
+        if isinstance(sequence, UtilNodes.ComprehensionResultRefNode):
             # handle the case where a temporary variable has been moved out
             # of the iterator to get the scope right
             sequence = sequence.expression
