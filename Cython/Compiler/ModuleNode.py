@@ -2497,10 +2497,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state.putln("#endif")
         module_state_defines.putln("#endif")
         module_state_clear.putln("return 0;")
-        module_state_clear.putln("};")
+        module_state_clear.putln("}")
         module_state_clear.putln("#endif")
         module_state_traverse.putln("return 0;")
-        module_state_traverse.putln("};")
+        module_state_traverse.putln("}")
         module_state_traverse.putln("#endif")
 
     def generate_module_state_defines(self, env, code):
