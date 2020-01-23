@@ -94,8 +94,6 @@ uncachable_builtins = [
     '__build_class__',
     'ascii',  # might deserve an implementation in Cython
     #'exec',  # implemented in Cython
-    ## - Py2.7+
-    'memoryview',
     ## - platform specific
     'WindowsError',
     ## - others
