@@ -2247,7 +2247,7 @@ class AnalyseExpressionsTransform(CythonTransform):
         """
         if self.device_with_block != None:
             entry = node.entry
-            if entry not in self.device_with_block.names:
+            if entry.is_variable and entry not in self.device_with_block.names:
                 self.device_with_block.names.append(entry)
         return node
 
