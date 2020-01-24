@@ -3255,7 +3255,11 @@ class DefNode(FuncDefNode):
         # Move arguments into closure if required
         def put_into_closure(entry):
             if entry.in_closure:
-                code.putln('%s = %s;' % (entry.cname, entry.original_cname))
+                if entry.type.is_array:
+                    assert entry.type.size is not None
+                    code.putln("memcpy({0},{1},sizeof({0}));".format(entry.cname, entry.original_cname))
+                else:
+                    code.putln('%s = %s;' % (entry.cname, entry.original_cname))
                 if entry.xdecref_cleanup:
                     # mostly applies to the starstar arg - this can sometimes be NULL
                     # so must be xincrefed instead

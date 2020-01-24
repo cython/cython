@@ -146,15 +146,15 @@ class _ReplaceResultRefNodes(Visitor.EnvTransform):
         self.orig_node = orig_node
         assert isinstance(orig_node, UtilNodes.ResultRefNode)
         self.gen_node = gen_node
-        self.args = []
-        self.call_parameters = []
+        self.args = self.gen_node.def_node.args
+        self.call_parameters = self.gen_node.call_parameters
 
     def make_replacement(self, node):
+        pos = self.orig_node.pos
         if self.replacements_made == 0:
             # on the first go append an argument to the generator's def_func
             # Since most of the types are known by now this is fairly basic
             self.call_parameters.append(self.orig_node)
-            pos = self.orig_node.pos
             name_decl = Nodes.CNameDeclaratorNode(pos=pos, name=self.name)
             name_decl.type = self.orig_node.type
             new_arg = Nodes.CArgDeclNode(pos=pos, declarator=name_decl,
@@ -196,11 +196,16 @@ class _ReplaceResultRefNodes(Visitor.EnvTransform):
             return super(_ReplaceResultRefNodes, self).__call__(root)
 
     def visit_ResultRefNode(self, node):
-        self._process_children(node)
+        self.visitchildren(node)
         if node is self.orig_node:
             return self.make_replacement(node)
         else:
             return node
+
+    def visit_CloneNode(self, node):
+        if node.arg is self.orig_node:
+            node.arg = self.make_replacement(node.arg)
+        return node
 
 
 class IterationTransform(Visitor.EnvTransform):
@@ -338,7 +343,7 @@ class IterationTransform(Visitor.EnvTransform):
 
         # the rest is based on function calls
         if isinstance(iterable, UtilNodes.ResultRefNode):
-            iterable = iterable.expression # pop the call out of the expression
+            iterable = iterable.expression  # pop the call out of the expression
         if not isinstance(iterable, ExprNodes.SimpleCallNode):
             return node
 
@@ -590,6 +595,12 @@ class IterationTransform(Visitor.EnvTransform):
 
     def _transform_carray_iteration(self, node, slice_node, reversed=False):
         neg_step = False
+        if (isinstance(slice_node, UtilNodes.ResultRefNode) and
+            isinstance(slice_node.expression, (ExprNodes.SliceIndexNode, ExprNodes.SliceNode))):
+            # it's worth being careful about what types we pop out of the expression
+            #  - popping arbitrary types out leads to things being evaluated in the
+            #    wrong scope, while not doing so mostly just leads to missed optimizations
+            slice_node = slice_node.expression
         if isinstance(slice_node, ExprNodes.SliceIndexNode):
             slice_base = slice_node.base
             start = filter_none_node(slice_node.start)

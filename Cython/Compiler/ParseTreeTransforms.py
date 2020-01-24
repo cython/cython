@@ -1365,6 +1365,14 @@ class ComprehensionScopeTransform(CythonTransform, SkipDeclarations):
                 a = ResultRefNode(a)
                 itseq.args[n] = a
                 node = EvalWithTempExprNode(a, node)
+        elif isinstance(itseq, (ExprNodes.SliceIndexNode, ExprNodes.IndexNode)):
+            for attr in itseq.subexprs:
+                obj = getattr(itseq, attr)
+                if obj is None or isinstance(obj, ExprNodes.ConstNode):
+                    continue
+                obj = ResultRefNode(obj)
+                setattr(itseq, attr, obj)
+                node = EvalWithTempExprNode(obj, node)
 
         return node
 
