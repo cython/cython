@@ -9078,16 +9078,23 @@ class DeviceWithBlockNode(ParallelStatNode):
     This node represents a 'with cython.parallel.device():' block
     """
 
-    valid_keyword_arguments = []
+    valid_keyword_arguments = ['map']
     is_parallel = False
     names = []
     _count_sfx = "__count"
+    map = {}
 
     def analyse_declarations(self, env):
         super(DeviceWithBlockNode, self).analyse_declarations(env)
         if self.args:
             error(self.pos, "cython.parallel.device() does not take "
                             "positional arguments")
+        _valid_mappings = ['to', 'from', 'tofrom', 'alloc']
+        _keys = list(self.map.keys())
+        for e in _keys:
+            if self.map[e] not in _valid_mappings:
+                error(self.pos, "device mapping must be one of %s (not '%s')" % (_valid_mappings, self.map[e]))
+                del self.map[e]
 
     def _generate_var_map(self, entry):
         """
@@ -9124,24 +9131,29 @@ class DeviceWithBlockNode(ParallelStatNode):
                 entry = e[0].base.entry
             else:
                 entry = entry = e[0].entry
-            if entry and entry not in writes:
+            if entry and entry not in writes and entry not in self.map:
                 writes.append(entry)
         # self.names holds all variables, extract read-only vars by excluding write-vars
-        reads = [e for e in self.names if e not in writes]
+        reads = [e for e in self.names if e not in writes and e not in self.map]
 
         # Now we can create the extra scope
         code.begin_block()
         # and compute/store array/memview sizes
         for e in reads + writes:
             if e.type.is_memoryviewslice:
-                code.putln("size_t %s%s = %s;" % (e.cname,
-                                                  self._count_sfx,
-                                                  '*'.join(['%s.shape[%d]' % (e.cname, i) for i in range(e.type.ndim)])))
+                if e.type.is_c_contig:
+                    code.putln("size_t %s%s = %s;" % (e.cname,
+                                                      self._count_sfx,
+                                                      '*'.join(['%s.shape[%d]' % (e.cname, i) for i in range(e.type.ndim)])))
+                else:
+                    error(e.pos, "Memoryviews must be C-contiguous when used in device with blocks")
 
         # The rest is relatively easy, we add the openmp pragma including map clauses and generate the body
         code.putln("#ifdef _OPENMP")
         code.put("#pragma omp target")
 
+        for e in self.map:
+            code.put(" map(%s: %s)" % (self.map[e], self._generate_var_map(e)))
         if reads:
             code.put(" map(to: %s)" % ', '.join([self._generate_var_map(e) for e in reads]))
         if writes:
