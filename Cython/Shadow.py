@@ -127,15 +127,31 @@ binding = lambda _: _empty_decorator
 
 
 _cython_inline = None
-def inline(f, *args, **kwds):
-    if isinstance(f, basestring):
-        global _cython_inline
-        if _cython_inline is None:
-            from Cython.Build.Inline import cython_inline as _cython_inline
-        return _cython_inline(f, *args, **kwds)
-    else:
+def inline(code, *args, **kwds):
+    if not isinstance(code, basestring):
         assert len(args) == len(kwds) == 0
-        return f
+        return code
+    global _cython_inline
+    if _cython_inline is None:
+        from Cython.Build.Inline import cython_inline as _cython_inline
+    return _cython_inline(code, *args, **kwds)
+
+
+_cython_inline_module = None
+def inline_module(code, *args, **kwds):
+    """Compiles code to a python extension and returns the imported module.
+
+    To use numpy within the code, please do not forget to set its:
+
+        c_include_dirs=[np.get_include()]
+
+    IMPORTANT: The code is compiled as a independent module.
+               Names within the enclosing scope are not available.
+    """
+    global _cython_inline_module
+    if _cython_inline_module is None:
+        from Cython.Build.Inline import cython_inline_module as _cython_inline_module
+    return _cython_inline_module(code, *args, **kwds)
 
 
 def compile(f):
