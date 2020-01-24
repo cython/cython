@@ -1676,11 +1676,34 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         else:
             handler_name = '_handle_general_function_%s' % function.name
         handle_call = getattr(self, handler_name, None)
+        new_node = self._push_node_into_temp_expr(node, args, kwargs)
+        if new_node is not node:
+            return new_node
+
         if handle_call is not None:
             if kwargs is None:
                 return handle_call(node, args)
             else:
                 return handle_call(node, args, kwargs)
+        return node
+
+    def _push_node_into_temp_expr(self, node, args, kwargs):
+        # generators/comprehensions get wrapped in EvalWithTempExprNode
+        # for scope reasons. In order for these optimizations to work
+        # the tree needs to look like:
+        # - EvalWithTempExprNode
+        #   - EvalWithTempExprNode
+        #     ...
+        #      Call(arg)
+        # instead of:
+        # - Call(EvalWithTempExprNode(EvalWithTempExprNode(arg)))
+        if kwargs:
+            return node
+        for n in range(len(args)):
+            while isinstance(args[n], UtilNodes.EvalWithTempExprNode):
+                node = UtilNodes.EvalWithTempExprNode(args[n].lazy_temp, node)
+                args[n] = args[n].subexpression
+        self.visitchildren(node)
         return node
 
     def _inject_capi_function(self, node, cname, func_type, utility_code=None):

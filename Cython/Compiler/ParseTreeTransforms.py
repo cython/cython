@@ -1332,6 +1332,13 @@ class ComprehensionScopeTransform(CythonTransform, SkipDeclarations):
     def visit_ComprehensionNode(self, node):
         self.visitchildren(node)
 
+        if not isinstance(node.loop, Nodes.ForInStatNode):
+            # FIXME?
+            # For example ForFromStatNode (but possibly others)
+            #  - should probably do something intelligent with them
+            #    but for the moment fall back to the old behaviour
+            return node
+
         itseq = node.loop.iterator.sequence
         # there's no value in substituting these very simple expressions
         # with a temp (but NameNode must be so that it's evaluated in
