@@ -9663,9 +9663,17 @@ class GeneratorExpressionNode(LambdaNode):
     #
     # loop      ForStatNode   the for-loop, containing a YieldExprNode
     # def_node  DefNode       the underlying generator 'def' node
+    # call_parameters [ExprNode]   (Internal) parameters passed to the DefNode call
 
     name = StringEncoding.EncodedString('genexpr')
     binding = False
+
+    child_attrs = LambdaNode.child_attrs + ["call_parameters"]
+    subexprs = LambdaNode.subexprs + ["call_parameters"]
+
+    def __init__(self, pos, *args, **kwds):
+        super(GeneratorExpressionNode, self).__init__(pos, *args, **kwds)
+        self.call_parameters = []
 
     def analyse_declarations(self, env):
         self.genexpr_name = env.next_id('genexpr')
@@ -9678,11 +9686,14 @@ class GeneratorExpressionNode(LambdaNode):
         self.def_node.entry.signature = TypeSlots.pyfunction_noargs
 
     def generate_result_code(self, code):
+        args_to_call = [""] + [ cp.result() for cp in self.call_parameters ]
+        args_to_call = ", ".join(args_to_call)
         code.putln(
-            '%s = %s(%s); %s' % (
+            '%s = %s(%s%s); %s' % (
                 self.result(),
                 self.def_node.entry.pyfunc_cname,
                 self.closure_result_code(),
+                args_to_call,
                 code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
 

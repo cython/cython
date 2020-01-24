@@ -27,6 +27,7 @@ from . import Visitor
 from . import Builtin
 from . import UtilNodes
 from . import Options
+from . import Naming
 
 from .Code import UtilityCode, TempitaUtilityCode
 from .StringEncoding import EncodedString, bytes_literal, encoded_string
@@ -128,6 +129,79 @@ def _find_yield_statements(node):
         yield_statements = []
     return yield_statements
 
+class _ReplaceResultRefNodes(Visitor.EnvTransform):
+    # This is the implementation to handle ResultRefNodes and EvalWithTempExprNode
+    # that are defined outside a generator expression but used inside. It replaces
+    # them with arguments to the "genexpr" function instead
+    def __init__(self, context, number, orig_node, gen_node):
+        # The reason for using ".x" as the name is that this is how CPython
+        # tracks internal variables in loops (e.g.
+        #  { locals() for v in range(10) }
+        # will produce "v" and ",0"). We don't replicate this behaviour completely
+        # but use it as a starting point
+        super(_ReplaceResultRefNodes, self).__init__(context)
+        self.name = EncodedString(".{0}".format(number))
+        self.cname = EncodedString(Naming.genexpr_arg_prefix + str(number))
+        self.replacements_made = 0
+        self.orig_node = orig_node
+        assert isinstance(orig_node, UtilNodes.ResultRefNode)
+        self.gen_node = gen_node
+        self.args = []
+        self.call_parameters = []
+
+    def make_replacement(self, node):
+        if self.replacements_made == 0:
+            # on the first go append an argument to the generator's def_func
+            # Since most of the types are known by now this is fairly basic
+            self.call_parameters.append(self.orig_node)
+            pos = self.orig_node.pos
+            name_decl = Nodes.CNameDeclaratorNode(pos=pos, name=self.name)
+            name_decl.type = self.orig_node.type
+            new_arg = Nodes.CArgDeclNode(pos=pos, declarator=name_decl,
+                                            base_type=None, default=None, annotation=None)
+            new_arg.name = name_decl.name
+            new_arg.type = name_decl.type
+
+            def_node = self.gen_node.def_node
+
+            self.args.append(new_arg) # don't add args to def_node right now,
+                # otherwise they can get replaced automatically by mistake.
+                # use "finalize_args" at the end
+
+            new_arg.entry = def_node.declare_argument(def_node.local_scope, new_arg)
+            new_arg.entry.cname = self.cname
+            new_arg.entry.in_closure = True
+
+        name_node = ExprNodes.NameNode(pos=pos, name=self.name)
+        name_node.entry = self.current_env().lookup(name_node.name)
+        name_node.type = name_node.entry.type
+
+        self.replacements_made += 1
+
+        return name_node
+
+    def finalize_args(self):
+        if self.replacements_made:
+            self.gen_node.def_node.args = self.args
+            self.gen_node.call_parameters = self.call_parameters
+
+    def __call__(self, root):
+        # This is usually called with a GeneratorExpressionNode which
+        # doesn't have a scope. Therefore force it to work with a dummy value
+        if not hasattr(root, "scope"):
+            root.scope = None
+            return super(_ReplaceResultRefNodes, self).__call__(root)
+            del root.scope
+        else:
+            return super(_ReplaceResultRefNodes, self).__call__(root)
+
+    def visit_ResultRefNode(self, node):
+        self._process_children(node)
+        if node is self.orig_node:
+            return self.make_replacement(node)
+        else:
+            return node
+
 
 class IterationTransform(Visitor.EnvTransform):
     """Transform some common for-in loop patterns into efficient C loops:
@@ -136,6 +210,10 @@ class IterationTransform(Visitor.EnvTransform):
     - for-in-enumerate is replaced by an external counter variable
     - for-in-range loop becomes a plain C for loop
     """
+    def __init__(self, *args, **kwargs):
+        super(IterationTransform, self).__init__(*args, **kwargs)
+        self.temp_expr_stack = []
+
     def visit_PrimaryCmpNode(self, node):
         if node.is_ptr_contains():
 
@@ -189,18 +267,36 @@ class IterationTransform(Visitor.EnvTransform):
         self.visitchildren(node)
         return self._optimise_for_loop(node, node.iterator.sequence)
 
-    def visit_ComprehensionEvalWithTempExprNode(self, node):
-        # there a good chance this gets optimized out
+    def visit_EvalWithTempExprNode(self, node):
+        # there a good chance that the subexpression of these nodes gets optimized out
+        #  - remove them if that happens
         temp_ref = node.lazy_temp
+        self.temp_expr_stack.append(temp_ref)
         self.visitchildren(node)
         if not Visitor.tree_contains(node.subexpression, temp_ref):
             return node.subexpression
+        self.temp_expr_stack.pop()
+        return node
+
+    def visit_GeneratorExpressionNode(self, node):
+        """Generator expressions are often inside EvalWithTempExprNode
+        with the temporary variable defined above them but used inside them.
+        This function transforms it into an argument to the genexpr function
+        so it can be captured correctly by the closure. In principle it could
+        happen later but it needs to happen after the for loop has been optimized
+        (hence here...)
+        """
+        self.visitchildren(node)
+        count_replaced = 0
+        for te in reversed(self.temp_expr_stack):
+            replacer = _ReplaceResultRefNodes(self.context, count_replaced, te, node)
+            replacer(node.def_node)
+            replacer.finalize_args()
+            if replacer.replacements_made:
+                count_replaced += 1
         return node
 
     def _optimise_for_loop(self, node, iterable, reversed=False):
-        if isinstance(iterable, UtilNodes.ComprehensionResultRefNode):
-            iterable = iterable.expression
-
         annotation_type = None
         if (iterable.is_name or iterable.is_attribute) and iterable.entry and iterable.entry.annotation:
             annotation = iterable.entry.annotation
@@ -241,6 +337,8 @@ class IterationTransform(Visitor.EnvTransform):
             return self._transform_unicode_iteration(node, iterable, reversed=reversed)
 
         # the rest is based on function calls
+        if isinstance(iterable, UtilNodes.ResultRefNode):
+            iterable = iterable.expression # pop the call out of the expression
         if not isinstance(iterable, ExprNodes.SimpleCallNode):
             return node
 

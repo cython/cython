@@ -10,7 +10,6 @@ pyrex_prefix    = "__pyx_"
 
 
 codewriter_temp_prefix = pyrex_prefix + "t_"
-codewriter_genexpr_input_prefix = pyrex_prefix + "input_"
 
 temp_prefix       = u"__cyt_"
 
@@ -18,6 +17,7 @@ pyunicode_identifier_prefix = pyrex_prefix + 'U'
 
 builtin_prefix    = pyrex_prefix + "builtin_"
 arg_prefix        = pyrex_prefix + "arg_"
+genexpr_arg_prefix = pyrex_prefix + "genexpr_arg_"
 funcdoc_prefix    = pyrex_prefix + "doc_"
 enum_prefix       = pyrex_prefix + "e_"
 func_prefix       = pyrex_prefix + "f_"
