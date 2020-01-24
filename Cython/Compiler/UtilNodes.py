@@ -146,6 +146,9 @@ class ResultRefNode(AtomicExprNode):
         self.expression = expression
         if hasattr(expression, "type"):
             self.type = expression.type
+        else:
+            if hasattr(self, "type"):
+                del self.type
 
     def analyse_types(self, env):
         if self.expression is not None:

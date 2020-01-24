@@ -163,6 +163,9 @@ def check_negative_indices(*nodes):
 
 
 def infer_sequence_item_type(env, seq_node, index_node=None, seq_type=None):
+    from .UtilNodes import ResultRefNode
+    if isinstance(seq_node, ResultRefNode):
+        seq_node = seq_node.expression
     if not seq_node.is_sequence_constructor:
         if seq_type is None:
             seq_type = seq_node.infer_type(env)
@@ -7864,6 +7867,7 @@ class TupleNode(SequenceNode):
     is_partly_literal = False
 
     gil_message = "Constructing Python tuple"
+
 
     def infer_type(self, env):
         if self.mult_factor or not self.args:
