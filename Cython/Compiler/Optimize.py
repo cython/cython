@@ -146,8 +146,8 @@ class _ReplaceResultRefNodes(Visitor.EnvTransform):
         self.orig_node = orig_node
         assert isinstance(orig_node, UtilNodes.ResultRefNode)
         self.gen_node = gen_node
-        self.args = self.gen_node.def_node.args
-        self.call_parameters = self.gen_node.call_parameters
+        self.args = list(self.gen_node.def_node.args)
+        self.call_parameters = list(self.gen_node.call_parameters)
 
     def make_replacement(self, node):
         pos = self.orig_node.pos
@@ -1676,11 +1676,11 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         else:
             handler_name = '_handle_general_function_%s' % function.name
         handle_call = getattr(self, handler_name, None)
-        new_node = self._push_node_into_temp_expr(node, args, kwargs)
-        if new_node is not node:
-            return new_node
 
         if handle_call is not None:
+            new_node = self._push_node_into_temp_expr(node, args, kwargs)
+            if new_node is not node:
+                return new_node
             if kwargs is None:
                 return handle_call(node, args)
             else:
@@ -1699,10 +1699,47 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         # - Call(EvalWithTempExprNode(EvalWithTempExprNode(arg)))
         if kwargs:
             return node
-        for n in range(len(args)):
-            while isinstance(args[n], UtilNodes.EvalWithTempExprNode):
-                node = UtilNodes.EvalWithTempExprNode(args[n].lazy_temp, node)
-                args[n] = args[n].subexpression
+        for n in reversed(range(len(args))):
+            # reversed (hopefully) preserves evaluation order
+            EWTNs = []
+            current_EWTN = args[n]
+            # call
+            # arg[n]
+            # EWTN
+            #  SE LT1
+            #   |
+            #   EWTN
+            #    SE LT2
+            #     |
+            #     EWTN
+            #      SE LT3
+            #       |
+            #       GE
+            #
+            #
+            # Needs to go to
+            # EWTN
+            #  SE LT1
+            #   |
+            #   EWTN
+            #    SE LT2
+            #     |
+            #     EWTN
+            #      SE LT3
+            #       |
+            #       call
+            #       arg[n]
+            #       |
+            #       GE
+            while isinstance(current_EWTN, UtilNodes.EvalWithTempExprNode):
+                EWTNs.append(current_EWTN)
+                current_EWTN = current_EWTN.subexpression
+            args[n] = current_EWTN # actually the generator expression
+            for current_EWTN in reversed(EWTNs):
+                # going through nodes backwards is necessary to preserve
+                # evaluation order
+                node = UtilNodes.EvalWithTempExprNode(current_EWTN.lazy_temp, node)
+
         self.visitchildren(node)
         return node
 

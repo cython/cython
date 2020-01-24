@@ -1366,14 +1366,19 @@ class ComprehensionScopeTransform(CythonTransform, SkipDeclarations):
                 itseq.function.obj = obj
                 node = EvalWithTempExprNode(obj, node)
 
-            for n, a in enumerate(itseq.args):
+            for n, a in reversed(list(enumerate(itseq.args))):
+                # "reversed" preserved the order the arguments are evaluated
                 if isinstance(a, ExprNodes.ConstNode):
                     continue
                 a = ResultRefNode(a)
                 itseq.args[n] = a
                 node = EvalWithTempExprNode(a, node)
         elif isinstance(itseq, (ExprNodes.SliceIndexNode, ExprNodes.IndexNode)):
-            for attr in itseq.subexprs:
+            for attr in reversed(('base', 'start', 'stop', 'slice', 'index')):
+                # specify the attrs explicitly to control evaluation order
+                if attr not in itseq.subexprs:
+                    continue
+
                 obj = getattr(itseq, attr)
                 if obj is None or isinstance(obj, ExprNodes.ConstNode):
                     continue
