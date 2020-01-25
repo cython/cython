@@ -1341,9 +1341,8 @@ class ComprehensionScopeTransform(CythonTransform, SkipDeclarations):
 
         itseq = node.loop.iterator.sequence
         # there's no value in substituting these very simple expressions
-        # with a temp (but NameNode must be so that it's evaluated in
-        # the right scope)
-        if isinstance(itseq, ExprNodes.ConstNode):
+        # with a temp. Mainly catches "ConstNode"
+        if itseq.is_literal:
             return node
         original_node = node
 
@@ -1359,37 +1358,114 @@ class ComprehensionScopeTransform(CythonTransform, SkipDeclarations):
             #     tmp1 = 10
             #     cmp = [ a for a in range(tmp0, tmp1) ]
             # e.g. for dict.keys
-            if (isinstance(itseq.function, ExprNodes.AttributeNode) and
-                not isinstance(itseq.function.obj, ExprNodes.ConstNode)):
-
-                obj = ResultRefNode(itseq.function.obj)
-                itseq.function.obj = obj
-                node = EvalWithTempExprNode(obj, node)
-
             for n, a in reversed(list(enumerate(itseq.args))):
                 # "reversed" preserved the order the arguments are evaluated
-                if isinstance(a, ExprNodes.ConstNode):
+                if a.is_literal:
                     continue
                 a = ResultRefNode(a)
                 itseq.args[n] = a
                 node = EvalWithTempExprNode(a, node)
-        elif isinstance(itseq, (ExprNodes.SliceIndexNode, ExprNodes.IndexNode)):
-            for attr in reversed(('base', 'start', 'stop', 'slice', 'index')):
-                # specify the attrs explicitly to control evaluation order
-                if attr not in itseq.subexprs:
-                    continue
 
-                obj = getattr(itseq, attr)
-                if obj is None or isinstance(obj, ExprNodes.ConstNode):
-                    continue
-                obj = ResultRefNode(obj)
-                setattr(itseq, attr, obj)
-                node = EvalWithTempExprNode(obj, node)
+            if (isinstance(itseq.function, ExprNodes.AttributeNode) and
+                not itseq.function.obj.is_literal):
 
+                function = ResultRefNode(itseq.function)
+                itseq.function = function
+                node = EvalWithTempExprNode(function, node)
+
+        elif isinstance(itseq, ExprNodes.SliceIndexNode):
+            node = self._process_slices(node, itseq, ('base', 'start', 'stop', 'slice'))
+        elif isinstance(itseq, ExprNodes.IndexNode):
+            node = self._process_slices(node, itseq, ('base', 'index'))
+
+        return node
+
+    def _process_slices(self, node, slicelike_subnode, attrs):
+        for attr in reversed(attrs):
+            obj = getattr(slicelike_subnode, attr)
+            if obj is None or obj.is_literal:
+                continue
+            elif isinstance(obj, ExprNodes.SliceNode):
+                # slice nodes need not be wrapped, but should have their arguments wrapped
+                node = self._process_slices(node, obj, ("start", "stop", "step"))
+                continue
+            obj = ResultRefNode(obj)
+            setattr(slicelike_subnode, attr, obj)
+            node = EvalWithTempExprNode(obj, node)
         return node
 
     def visit_GeneratorExpressionNode(self, node):
         return self.visit_ComprehensionNode(node) # implementation is the same
+
+    def visit_SimpleCallNode(self, node):
+        """A lot of optimizations rely transforming:
+            func_call(generator_expression)
+
+        They therefore don't work if they get:
+            func_call(EvalWithTempExprNode)
+        To make the later optimizations work we push the func_call into
+        the stack of EvalWithTempExprNode so that its argument is a generator
+        expression again
+        """
+        self.visitchildren(node)
+
+        return self._push_node_into_temp_expr(node, node.args)
+
+    def _push_node_into_temp_expr(self, node, args):
+        # generators/comprehensions get wrapped in EvalWithTempExprNode
+        # for scope reasons. In order for some optimizations to work
+        # the tree needs to look like:
+        # - EvalWithTempExprNode
+        #   - EvalWithTempExprNode
+        #     ...
+        #      Call(arg)
+        # instead of:
+        # - Call(EvalWithTempExprNode(EvalWithTempExprNode(arg)))
+
+        # TODO Do we need a version which can handle kwargs too?
+
+        for n in reversed(range(len(args))):
+            # reversed (hopefully) preserves evaluation order
+            EWTNs = []
+            current_EWTN = args[n]
+            # call
+            # arg[n]
+            # EWTN
+            #  SE LT1
+            #   |
+            #   EWTN
+            #    SE LT2
+            #     |
+            #     EWTN
+            #      SE LT3
+            #       |
+            #       GE
+            #
+            #
+            # Needs to go to
+            # EWTN
+            #  SE LT1
+            #   |
+            #   EWTN
+            #    SE LT2
+            #     |
+            #     EWTN
+            #      SE LT3
+            #       |
+            #       call
+            #       arg[n]
+            #       |
+            #       GE
+            while isinstance(current_EWTN, EvalWithTempExprNode):
+                EWTNs.append(current_EWTN)
+                current_EWTN = current_EWTN.subexpression
+            args[n] = current_EWTN # actually the generator expression
+            for current_EWTN in reversed(EWTNs):
+                # going through nodes backwards is necessary to preserve
+                # evaluation order
+                node = EvalWithTempExprNode(current_EWTN.lazy_temp, node)
+
+        return node
 
 class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
     """

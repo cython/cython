@@ -355,6 +355,8 @@ class IterationTransform(Visitor.EnvTransform):
                 arg_count -= 1
 
         function = iterable.function
+        if isinstance(function, UtilNodes.ResultRefNode):
+            function = function.expression
         # dict iteration?
         if function.is_attribute and not reversed and not arg_count:
             base_obj = iterable.self or function.obj
@@ -596,7 +598,8 @@ class IterationTransform(Visitor.EnvTransform):
     def _transform_carray_iteration(self, node, slice_node, reversed=False):
         neg_step = False
         if (isinstance(slice_node, UtilNodes.ResultRefNode) and
-            isinstance(slice_node.expression, (ExprNodes.SliceIndexNode, ExprNodes.SliceNode))):
+            isinstance(slice_node.expression,
+                       (ExprNodes.SliceIndexNode, ExprNodes.SliceNode, ExprNodes.IndexNode))):
             # it's worth being careful about what types we pop out of the expression
             #  - popping arbitrary types out leads to things being evaluated in the
             #    wrong scope, while not doing so mostly just leads to missed optimizations
@@ -1678,70 +1681,13 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         handle_call = getattr(self, handler_name, None)
 
         if handle_call is not None:
-            new_node = self._push_node_into_temp_expr(node, args, kwargs)
-            if new_node is not node:
-                return new_node
             if kwargs is None:
                 return handle_call(node, args)
             else:
                 return handle_call(node, args, kwargs)
         return node
 
-    def _push_node_into_temp_expr(self, node, args, kwargs):
-        # generators/comprehensions get wrapped in EvalWithTempExprNode
-        # for scope reasons. In order for these optimizations to work
-        # the tree needs to look like:
-        # - EvalWithTempExprNode
-        #   - EvalWithTempExprNode
-        #     ...
-        #      Call(arg)
-        # instead of:
-        # - Call(EvalWithTempExprNode(EvalWithTempExprNode(arg)))
-        if kwargs:
-            return node
-        for n in reversed(range(len(args))):
-            # reversed (hopefully) preserves evaluation order
-            EWTNs = []
-            current_EWTN = args[n]
-            # call
-            # arg[n]
-            # EWTN
-            #  SE LT1
-            #   |
-            #   EWTN
-            #    SE LT2
-            #     |
-            #     EWTN
-            #      SE LT3
-            #       |
-            #       GE
-            #
-            #
-            # Needs to go to
-            # EWTN
-            #  SE LT1
-            #   |
-            #   EWTN
-            #    SE LT2
-            #     |
-            #     EWTN
-            #      SE LT3
-            #       |
-            #       call
-            #       arg[n]
-            #       |
-            #       GE
-            while isinstance(current_EWTN, UtilNodes.EvalWithTempExprNode):
-                EWTNs.append(current_EWTN)
-                current_EWTN = current_EWTN.subexpression
-            args[n] = current_EWTN # actually the generator expression
-            for current_EWTN in reversed(EWTNs):
-                # going through nodes backwards is necessary to preserve
-                # evaluation order
-                node = UtilNodes.EvalWithTempExprNode(current_EWTN.lazy_temp, node)
 
-        self.visitchildren(node)
-        return node
 
     def _inject_capi_function(self, node, cname, func_type, utility_code=None):
         node.function = ExprNodes.PythonCapiFunctionNode(

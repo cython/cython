@@ -478,7 +478,6 @@ find_special_method_for_unary_operator = {
     '+':   '__pos__',
 }.get
 
-
 class MethodDispatcherTransform(EnvTransform):
     """
     Base class for transformations that want to intercept on specific

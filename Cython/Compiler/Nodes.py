@@ -3257,7 +3257,7 @@ class DefNode(FuncDefNode):
             if entry.in_closure:
                 if entry.type.is_array:
                     assert entry.type.size is not None
-                    code.putln("memcpy({0},{1},sizeof({0}));".format(entry.cname, entry.original_cname))
+                    code.putln("memcpy({0}, {1}, sizeof({0}));".format(entry.cname, entry.original_cname))
                 else:
                     code.putln('%s = %s;' % (entry.cname, entry.original_cname))
                 if entry.xdecref_cleanup:
