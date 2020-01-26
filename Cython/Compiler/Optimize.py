@@ -4196,6 +4196,23 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         self._calculate_const(node)
         return node
 
+    def visit_EvalWithTempExprNode(self, node):
+        # need to evaluate (and assign) the temp_expression first
+        # before the subexpression, so that the update propagates
+        # to the subexpression (visitchildren does the assignment
+        # after all children are visited)
+        self.visitchildren(node, attrs="temp_expression")
+        self.visitchildren(node, exclude="temp_expression")
+        return node
+
+    def visit_GenCompEvalWithTempExprNode(self, node):
+        # explicitly substitute these out with literals if possible
+        node = self.visit_EvalWithTempExprNode(node)
+        if node.temp_expression.is_literal:
+            Visitor.recursively_replace_node(node.subexpression,
+                                             node.lazy_temp, node.temp_expression)
+        return node
+
     def visit_UnopNode(self, node):
         self._calculate_const(node)
         if not node.has_constant_result():
@@ -4362,7 +4379,8 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
     def visit_MulNode(self, node):
         self._calculate_const(node)
         if node.operand1.is_sequence_constructor:
-            return self._calculate_constant_seq(node, node.operand1, node.operand2)
+            ret = self._calculate_constant_seq(node, node.operand1, node.operand2)
+            return ret
         if isinstance(node.operand1, ExprNodes.IntNode) and \
                 node.operand2.is_sequence_constructor:
             return self._calculate_constant_seq(node, node.operand2, node.operand1)
@@ -4371,6 +4389,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         elif node.operand2.is_string_literal:
             return self._multiply_string(node, node.operand2, node.operand1)
         return self.visit_BinopNode(node)
+
 
     def _multiply_string(self, node, string_node, multiplier_node):
         multiplier = multiplier_node.constant_result

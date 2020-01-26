@@ -20,7 +20,8 @@ from . import Errors
 from .Visitor import VisitorTransform, TreeVisitor
 from .Visitor import CythonTransform, EnvTransform, ScopeTrackingTransform
 from .Visitor import tree_contains
-from .UtilNodes import LetNode, LetRefNode, ResultRefNode, EvalWithTempExprNode
+from .UtilNodes import (LetNode, LetRefNode, ResultRefNode, EvalWithTempExprNode,
+                         GenCompEvalWithTempExprNode, GenCompResultRefNode)
 from .TreeFragment import TreeFragment
 from .StringEncoding import EncodedString, _unicode
 from .Errors import error, warning, CompileError, InternalError
@@ -1346,9 +1347,9 @@ class ComprehensionScopeTransform(CythonTransform, SkipDeclarations):
             return node
         original_node = node
 
-        new_itseq = ResultRefNode(itseq)
+        new_itseq = GenCompResultRefNode(itseq)
         node.loop.iterator.sequence = new_itseq
-        node = EvalWithTempExprNode(new_itseq, node)
+        node = GenCompEvalWithTempExprNode(new_itseq, node)
 
         if isinstance(itseq, ExprNodes.SimpleCallNode):
             # to facilitate optimization also create a version that looks like:
@@ -1362,16 +1363,16 @@ class ComprehensionScopeTransform(CythonTransform, SkipDeclarations):
                 # "reversed" preserved the order the arguments are evaluated
                 if a.is_literal:
                     continue
-                a = ResultRefNode(a)
+                a = GenCompResultRefNode(a)
                 itseq.args[n] = a
-                node = EvalWithTempExprNode(a, node)
+                node = GenCompEvalWithTempExprNode(a, node)
 
             if (isinstance(itseq.function, ExprNodes.AttributeNode) and
                 not itseq.function.obj.is_literal):
 
-                function = ResultRefNode(itseq.function)
+                function = GenCompResultRefNode(itseq.function)
                 itseq.function = function
-                node = EvalWithTempExprNode(function, node)
+                node = GenCompEvalWithTempExprNode(function, node)
 
         elif isinstance(itseq, ExprNodes.SliceIndexNode):
             node = self._process_slices(node, itseq, ('base', 'start', 'stop', 'slice'))
@@ -1389,9 +1390,9 @@ class ComprehensionScopeTransform(CythonTransform, SkipDeclarations):
                 # slice nodes need not be wrapped, but should have their arguments wrapped
                 node = self._process_slices(node, obj, ("start", "stop", "step"))
                 continue
-            obj = ResultRefNode(obj)
+            obj = GenCompResultRefNode(obj)
             setattr(slicelike_subnode, attr, obj)
-            node = EvalWithTempExprNode(obj, node)
+            node = GenCompEvalWithTempExprNode(obj, node)
         return node
 
     def visit_GeneratorExpressionNode(self, node):
@@ -1456,14 +1457,14 @@ class ComprehensionScopeTransform(CythonTransform, SkipDeclarations):
             #       arg[n]
             #       |
             #       GE
-            while isinstance(current_EWTN, EvalWithTempExprNode):
+            while isinstance(current_EWTN, GenCompEvalWithTempExprNode):
                 EWTNs.append(current_EWTN)
                 current_EWTN = current_EWTN.subexpression
             args[n] = current_EWTN # actually the generator expression
             for current_EWTN in reversed(EWTNs):
                 # going through nodes backwards is necessary to preserve
                 # evaluation order
-                node = EvalWithTempExprNode(current_EWTN.lazy_temp, node)
+                node = GenCompEvalWithTempExprNode(current_EWTN.lazy_temp, node)
 
         return node
 

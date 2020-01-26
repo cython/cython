@@ -227,6 +227,14 @@ class LetNodeMixin:
         self.lazy_temp = lazy_temp
         self.temp_expression = lazy_temp.expression
 
+    # property prevents it from getting out of sync
+    @property
+    def temp_expression(self):
+        return self.lazy_temp.expression
+    @temp_expression.setter
+    def temp_expression(self, value):
+        self.lazy_temp.update_expression(value)
+
     def setup_temp_expr(self, code):
         self.temp_expression.generate_evaluation_code(code)
         self.temp_type = self.temp_expression.type
@@ -282,8 +290,7 @@ class EvalWithTempExprNode(ExprNodes.ExprNode, LetNodeMixin):
         return self.subexpression.result()
 
     def analyse_types(self, env):
-        self.temp_expression = self.temp_expression.analyse_types(env)
-        self.lazy_temp.update_expression(self.temp_expression)  # overwrite in case it changed
+        self.temp_expression = self.temp_expression.analyse_types(env) # autoupdates lazy_temp
         self.subexpression = self.subexpression.analyse_types(env)
         self.type = self.subexpression.type
         return self
@@ -299,8 +306,26 @@ class EvalWithTempExprNode(ExprNodes.ExprNode, LetNodeMixin):
         self.subexpression.generate_evaluation_code(code)
         self.teardown_temp_expr(code)
 
+class GenCompEvalWithTempExprNode(EvalWithTempExprNode):
+    """For sequence taken out of generator expression or comprehensions"""
+    def analyse_types(self, env):
+        super(GenCompEvalWithTempExprNode, self).analyse_types(env)
+        if self.temp_expression.is_literal:
+            # there's no value in keeping this out of the generator
+            # expression any more, so substitute in
+            from .Visitor import recursively_replace_node
+            recursively_replace_node(self.subexpression,
+                                        self.lazy_temp, self.temp_expression)
+            return self.subexpression.analyse_types(env) # re-analyse?
+        return self
+
+class GenCompResultRefNode(ResultRefNode):
+    pass
+
 
 LetRefNode = ResultRefNode
+
+
 
 
 class LetNode(Nodes.StatNode, LetNodeMixin):
