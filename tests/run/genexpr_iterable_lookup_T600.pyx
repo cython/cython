@@ -96,4 +96,4 @@ def genexpr_over_array_slice():
     for i in range(10):
         x[i] = i
     cdef int n = 5
-    return (n for n in x[:n+1]) # will fail if slice indices aren't taken out of the optimization
+    return (n for n in x[:n+1])  # will fail if slice indices aren't taken out of the optimization

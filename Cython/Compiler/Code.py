@@ -810,6 +810,7 @@ class FunctionState(object):
 
         A C string referring to the variable is returned.
         """
+        from . import PyrexTypes
         if type.is_cv_qualified and not type.is_reference:
             type = type.cv_base_type
         elif type.is_reference and not type.is_fake_reference:

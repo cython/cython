@@ -115,6 +115,14 @@ class ResultRefNode(AtomicExprNode):
 
     subexprs = []
     lhs_of_first_assignment = False
+    # attribute_self_argument   ResultRefNode (optional) -
+    #   One optimization on AttributeNodes is that they can sometimes
+    #   be converted to a builtin function pointer. If this happens
+    #   the SimpleCallNode is now separated from the attribute node
+    #   by a ResultRefNode. Keep a ResultRefNode to the function pointer
+    #   to make it work. EvalWithTempExprNode handles the
+    #   necessary wrapping in its constructor
+    attribute_self_argument = None
 
     def __init__(self, expression=None, pos=None, type=None, may_hold_none=True, is_temp=False):
         self.expression = expression
@@ -225,7 +233,7 @@ class ResultRefNode(AtomicExprNode):
 class LetNodeMixin:
     def set_temp_expr(self, lazy_temp):
         self.lazy_temp = lazy_temp
-        self.temp_expression = lazy_temp.expression
+        # don't need to set temp_expression because of property
 
     # property prevents it from getting out of sync
     @property
@@ -240,6 +248,8 @@ class LetNodeMixin:
         self.temp_type = self.temp_expression.type
         if self.temp_type.is_array:
             self.temp_type = c_ptr_type(self.temp_type.base_type)
+        elif self.temp_type.is_cfunction:
+            self.temp_type = c_ptr_type(self.temp_type)
         self._result_in_temp = self.temp_expression.result_in_temp()
         if self._result_in_temp:
             self.temp = self.temp_expression.result()
@@ -272,8 +282,22 @@ class EvalWithTempExprNode(ExprNodes.ExprNode, LetNodeMixin):
     # proves generally useful)
 
     subexprs = ['temp_expression', 'subexpression']
+    is_genexp_loop_scope = False  # the loop attribute of either a generator expression
+                                  # or comprehension
 
-    def __init__(self, lazy_temp, subexpression):
+    def __init__(self, lazy_temp, subexpression, wrap_selfref=True):
+        if (wrap_selfref and isinstance(lazy_temp.expression, ExprNodes.AttributeNode)):
+
+            # see description of ResultRefNode.attribute_self_argument
+            #  - creates an extra layer of EvalWithTempExprNode for
+            #    the obj of the AttributeNode
+            self_result_ref = ResultRefNode(lazy_temp.expression.obj)
+            lazy_temp.expression.obj = self_result_ref
+            lazy_temp.attribute_self_argument = self_result_ref
+            subexpression = EvalWithTempExprNode(lazy_temp, subexpression,
+                                                    wrap_selfref=False)
+            lazy_temp = self_result_ref
+
         self.set_temp_expr(lazy_temp)
         self.pos = subexpression.pos
         self.subexpression = subexpression
@@ -290,9 +314,17 @@ class EvalWithTempExprNode(ExprNodes.ExprNode, LetNodeMixin):
         return self.subexpression.result()
 
     def analyse_types(self, env):
-        self.temp_expression = self.temp_expression.analyse_types(env) # autoupdates lazy_temp
+        self.temp_expression = self.temp_expression.analyse_types(env)  # autoupdates lazy_temp
         self.subexpression = self.subexpression.analyse_types(env)
         self.type = self.subexpression.type
+
+        if self.temp_expression.is_literal:
+            # there's no value in keeping this out of the generator
+            # expression any more, so substitute in
+            from .Visitor import recursively_replace_node
+            recursively_replace_node(self.subexpression,
+                                        self.lazy_temp, self.temp_expression)
+            return self.subexpression
         return self
 
     def free_subexpr_temps(self, code):
@@ -306,21 +338,8 @@ class EvalWithTempExprNode(ExprNodes.ExprNode, LetNodeMixin):
         self.subexpression.generate_evaluation_code(code)
         self.teardown_temp_expr(code)
 
-class GenCompEvalWithTempExprNode(EvalWithTempExprNode):
-    """For sequence taken out of generator expression or comprehensions"""
-    def analyse_types(self, env):
-        super(GenCompEvalWithTempExprNode, self).analyse_types(env)
-        if self.temp_expression.is_literal:
-            # there's no value in keeping this out of the generator
-            # expression any more, so substitute in
-            from .Visitor import recursively_replace_node
-            recursively_replace_node(self.subexpression,
-                                        self.lazy_temp, self.temp_expression)
-            return self.subexpression.analyse_types(env) # re-analyse?
-        return self
-
-class GenCompResultRefNode(ResultRefNode):
-    pass
+    def calculate_constant_result(self):
+        return self.subexpression.calculate_constant_result()
 
 
 LetRefNode = ResultRefNode

@@ -5565,6 +5565,7 @@ class SimpleCallNode(CallNode):
         return self.args, None
 
     def analyse_types(self, env):
+        from .UtilNodes import ResultRefNode
         if self.analyse_as_type_constructor(env):
             return self
         if self.analysed:
@@ -5574,11 +5575,19 @@ class SimpleCallNode(CallNode):
         self.function = self.function.analyse_types(env)
         function = self.function
 
-        if function.is_attribute and function.entry and function.entry.is_cmethod:
+        if isinstance(function, ResultRefNode):
+            self_arg = lambda: function.attribute_self_argument
+            # function.attribute_self_argument should be another ResultRefNode
+            function_for_self = function.expression
+        else:
+            function_for_self = function
+            self_arg = lambda: function.obj
+        if (function_for_self.is_attribute and function_for_self.entry and
+            function_for_self.entry.is_cmethod):
             # Take ownership of the object from which the attribute
             # was obtained, because we need to pass it as 'self'.
-            self.self = function.obj
-            function.obj = CloneNode(self.self)
+            self.self = self_arg()
+            function_for_self.obj = CloneNode(self.self)
 
         func_type = self.function_type()
         self.is_numpy_call_with_exprs = False

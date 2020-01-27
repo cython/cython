@@ -164,7 +164,7 @@ class _ReplaceResultRefNodes(Visitor.EnvTransform):
 
             def_node = self.gen_node.def_node
 
-            self.args.append(new_arg) # don't add args to def_node right now,
+            self.args.append(new_arg)  # don't add args to def_node right now,
                 # otherwise they can get replaced automatically by mistake.
                 # use "finalize_args" at the end
 
@@ -4146,7 +4146,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         super(ConstantFolding, self).__init__()
         self.reevaluate = reevaluate
 
-    def _calculate_const(self, node):
+    def _calculate_const(self, node, children=None):
         if (not self.reevaluate and
                 node.constant_result is not ExprNodes.constant_value_not_set):
             return
@@ -4156,7 +4156,8 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         node.constant_result = not_a_constant
 
         # check if all children are constant
-        children = self.visitchildren(node)
+        if children is None:
+            children = self.visitchildren(node)
         for child_result in children.values():
             if type(child_result) is list:
                 for child in child_result:
@@ -4201,16 +4202,13 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         # before the subexpression, so that the update propagates
         # to the subexpression (visitchildren does the assignment
         # after all children are visited)
-        self.visitchildren(node, attrs="temp_expression")
-        self.visitchildren(node, exclude="temp_expression")
-        return node
+        if (not self.reevaluate and
+                node.constant_result is not ExprNodes.constant_value_not_set):
+            return node
+        children = self.visitchildren(node, attrs="temp_expression")
+        children.update(self.visitchildren(node, exclude="temp_expression"))
+        self._calculate_const(node, children=children)
 
-    def visit_GenCompEvalWithTempExprNode(self, node):
-        # explicitly substitute these out with literals if possible
-        node = self.visit_EvalWithTempExprNode(node)
-        if node.temp_expression.is_literal:
-            Visitor.recursively_replace_node(node.subexpression,
-                                             node.lazy_temp, node.temp_expression)
         return node
 
     def visit_UnopNode(self, node):
@@ -4379,8 +4377,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
     def visit_MulNode(self, node):
         self._calculate_const(node)
         if node.operand1.is_sequence_constructor:
-            ret = self._calculate_constant_seq(node, node.operand1, node.operand2)
-            return ret
+            return self._calculate_constant_seq(node, node.operand1, node.operand2)
         if isinstance(node.operand1, ExprNodes.IntNode) and \
                 node.operand2.is_sequence_constructor:
             return self._calculate_constant_seq(node, node.operand2, node.operand1)

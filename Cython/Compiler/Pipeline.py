@@ -188,7 +188,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         ParallelRangeTransform(context),
         AdjustDefByDirectives(context),
         WithTransform(context),
-        ComprehensionScopeTransform(context),
+        ComprehensionScopeTransform(),
         MarkClosureVisitor(context),
         _align_function_definitions,
         RemoveUnreachableCode(context),
