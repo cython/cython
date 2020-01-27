@@ -11,3 +11,8 @@ cdef extern from "<numeric>" namespace "std" nogil:
     T accumulate[InputIt, T](InputIt first, InputIt last, T init)
 
     T accumulate[InputIt, T, BinaryOperation](InputIt first, InputIt last, T init, BinaryOperation op)
+
+    void adjacent_difference[InputIt, OutputIt](InputIt in_first, InputIt in_last, OutputIt out_first)
+
+    void adjacent_difference[InputIt, OutputIt, BinaryOperation](InputIt in_first, InputIt in_last, OutputIt out_first,
+                                                                 BinaryOperation op)

@@ -1,7 +1,7 @@
 # mode: run
 # tag: cpp, werror, cpp11
 
-from libcpp.numeric cimport inner_product, iota, accumulate
+from libcpp.numeric cimport inner_product, iota, accumulate, adjacent_difference
 from libcpp.vector cimport vector
 from libcpp cimport bool
 
@@ -66,6 +66,17 @@ def test_iota_negative_init(vector[int] v, int value):
     iota(v.begin(), v.end(), value)
     return v
 
+def test_accumulate(vector[int] v, int init):
+    """
+    Test accumulate.
+     0 + 1 = 1
+     1 + 2 = 3
+     3 + 3 = 6
+    >>> test_accumulate([1, 2, 3], 0)
+    6
+    """
+    return accumulate(v.begin(), v.end(), init)
+
 def test_accumulate_with_subtraction(vector[int] v, int init):
     """
     Test accumulate with subtraction. Note that accumulate is a fold-left operation.
@@ -76,3 +87,28 @@ def test_accumulate_with_subtraction(vector[int] v, int init):
     -6
     """
     return accumulate(v.begin(), v.end(), init, subtract_integers)
+
+def test_adjacent_difference(vector[int] v):
+    """
+    Test adjacent_difference with integer values.
+    2 - 0,   -> 2
+    4 - 2,   -> 2
+    6 - 4,   -> 2
+    8 - 6,   -> 2
+    10 - 8,  -> 2
+    12 - 10  -> 2
+    >>> test_adjacent_difference([2, 4, 6, 8, 10, 12])
+    [2, 2, 2, 2, 2, 2]
+    """
+    adjacent_difference(v.begin(), v.end(), v.begin())
+    return v
+
+def test_adjacent_difference_with_bin_op(vector[int] v):
+    """
+    Test adjacent_difference with a binary operation.
+
+    >>> test_adjacent_difference_with_bin_op([1, 2, 4, 5, 6])
+    [1, 3, 6, 9, 11]
+    """
+    adjacent_difference(v.begin(), v.end(), v.begin(), add_integers)
+    return v
