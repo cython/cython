@@ -139,12 +139,7 @@ def test_partial_sum(vector[int] v):
 def test_partial_sum_with_bin_op(vector[int] v):
     """
     Test partial_sum with a binary operation.
-    Here are the first 5 powers of 2.
-    2^1 = 2
-    2^2 = 4
-    2^3 = 8
-    2^4 = 16
-    2^5 = 32
+    Using multiply_integers, partial_sum will calculate the first 5 powers of 2.
     >>> test_partial_sum_with_bin_op([2, 2, 2, 2, 2])
     [2, 4, 8, 16, 32]
     """
