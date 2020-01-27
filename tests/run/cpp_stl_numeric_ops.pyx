@@ -1,7 +1,7 @@
 # mode: run
 # tag: cpp, werror, cpp11
 
-from libcpp.numeric cimport inner_product, iota, accumulate, adjacent_difference
+from libcpp.numeric cimport inner_product, iota, accumulate, adjacent_difference, partial_sum
 from libcpp.vector cimport vector
 from libcpp cimport bool
 
@@ -12,6 +12,10 @@ cdef int subtract_integers(int lhs, int rhs):
 # Adds two integers.
 cdef int add_integers(int lhs, int rhs):
     return lhs + rhs
+
+# Multiplies two integers.
+cdef int multiply_integers(int lhs, int rhs):
+    return lhs * rhs
 
 # Determines equality for two integers.
 # If lhs == rhs, returns true. Returns false otherwise.
@@ -106,9 +110,43 @@ def test_adjacent_difference(vector[int] v):
 def test_adjacent_difference_with_bin_op(vector[int] v):
     """
     Test adjacent_difference with a binary operation.
-
+    0 + 1 -> 1
+    1 + 2 -> 3
+    2 + 4 -> 6
+    4 + 5 -> 9
+    5 + 6 -> 11
     >>> test_adjacent_difference_with_bin_op([1, 2, 4, 5, 6])
     [1, 3, 6, 9, 11]
     """
     adjacent_difference(v.begin(), v.end(), v.begin(), add_integers)
+    return v
+
+def test_partial_sum(vector[int] v):
+    """
+    Test partial_sum with integer values.
+    2 + 0   -> 2
+    2 + 2   -> 4
+    4 + 2   -> 6
+    6 + 2   -> 8
+    8 + 2   -> 10
+    10 + 2  -> 12
+    >>> test_partial_sum([2, 2, 2, 2, 2, 2])
+    [2, 4, 6, 8, 10, 12]
+    """
+    partial_sum(v.begin(), v.end(), v.begin())
+    return v
+
+def test_partial_sum_with_bin_op(vector[int] v):
+    """
+    Test partial_sum with a binary operation.
+    Here are the first 5 powers of 2.
+    2^1 = 2
+    2^2 = 4
+    2^3 = 8
+    2^4 = 16
+    2^5 = 32
+    >>> test_partial_sum_with_bin_op([2, 2, 2, 2, 2])
+    [2, 4, 8, 16, 32]
+    """
+    partial_sum(v.begin(), v.end(), v.begin(), multiply_integers)
     return v
