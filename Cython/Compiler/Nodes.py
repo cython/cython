@@ -9104,6 +9104,7 @@ class DeviceWithBlockNode(ParallelStatNode):
     is_parallel = False
     names = []
     _count_sfx = "__count"
+    _valid_mappings = ['to', 'from', 'tofrom', 'alloc']
     map = {}
 
     def analyse_declarations(self, env):
@@ -9111,26 +9112,38 @@ class DeviceWithBlockNode(ParallelStatNode):
         if self.args:
             error(self.pos, "cython.parallel.device() does not take "
                             "positional arguments")
-        _valid_mappings = ['to', 'from', 'tofrom', 'alloc']
         _keys = list(self.map.keys())
         for e in _keys:
-            if self.map[e] not in _valid_mappings:
-                error(self.pos, "device mapping must be one of %s (not '%s')" % (_valid_mappings, self.map[e]))
+            m = self.map[e]
+            if m not in self._valid_mappings:
+                error(self.pos, "device mapping must be one of %s (not '%s')" % (self._valid_mappings, m))
                 del self.map[e]
 
-    def _generate_var_map(self, entry):
+    def _generate_map_lists(self):
         """
-        for a given variable, return list of names to be mapped to/device device.
-        The openmp map clauses require range-clauses for arrays to move the data to the device.
-        Hence we cannot simply map entire memview structs but instead need to map all members explicitly.
+        Generate a list of entries for every map-type.
+        memviewlice data pointer is char, we need an additional properly typed pointer variable
+        so that the OpenMP compiler can send the right amount of data in array-maps.
+        We do not allow arrays/memviews to be resized or reshaped or re-strided.
+        We only allow writing to the data pointer, so we never need to send back the memview struct itself.
         """
-        if entry.type.is_memoryviewslice:
-            members = (', %s.' % entry.cname).join(['memview', 'shape', 'strides', 'suboffsets'])
-            return "%(name)s.data[0:%(name)s%(sfx)s], %(name)s.%(members)s" % {'name': entry.cname,
-                                                                               'sfx': self._count_sfx,
-                                                                               'members': members}
-        else:
-            return entry.cname
+        _maps = {x:[] for x in self._valid_mappings}
+        _maps['memview'] = []
+        for entry in self.map:
+            m = self.map[entry]
+            if entry.type.is_memoryviewslice:
+                if entry.type.is_c_contig:
+                    # the struct itself cannot be altered, so it's always a 'to'
+                    _maps['to'] += ['%s.%s' % (entry.cname, m) for m in ['memview', 'shape', 'strides', 'suboffsets']]
+                    # an extra data pointer inherits the read/write/to/from attribute
+                    _maps['memview'].append(entry)
+                    _cnt = '*'.join(['sizeof(%s)' % entry.type.dtype_name] + ['%s.shape[%d]' % (entry.cname, i) for i in range(entry.type.ndim)])
+                    _maps[m].append("%s.data[0:%s]" % (entry.cname, _cnt))
+                else:
+                    error(e.pos, "Memoryviews must be C-contiguous when used in device with blocks")
+            else:
+                _maps[m].append(entry.cname)
+        return _maps
 
     def generate_execution_code(self, code):
         """
@@ -9144,42 +9157,38 @@ class DeviceWithBlockNode(ParallelStatNode):
         Notice that we map(tofrom:) variables that we write to (including targets/iterators)
         but we only map(to:) read-only variables.
 
+        Note: We rely on bitwise copies bewteen host and device as defined in the OpenMP spec.
+
         TODO: identify map(from:), e.g. write-only variables
         """
         # Let's separate write and read-only vars used anywhere in the device scope
-        writes = [e for e in self.privates]
+        # we can ignore all scalars
+        for e in self.privates:
+            if e.type.is_memoryviewslice and e not in self.map:
+                self.map[e] = 'tofrom'
         for e in self.assignments:
             if hasattr(e[0], 'base'):
                 entry = e[0].base.entry
             else:
-                entry = entry = e[0].entry
-            if entry and entry not in writes and entry not in self.map:
-                writes.append(entry)
+                entry = e[0].entry
+            if entry and entry.type.is_memoryviewslice and entry not in self.map:
+                self.map[entry] = 'tofrom'
+
         # self.names holds all variables, extract read-only vars by excluding write-vars
-        reads = [e for e in self.names if e not in writes and e not in self.map]
+        self.map.update({e: 'to' for e in self.names if e.type.is_memoryviewslice and e not in self.map})
+
+        reverse_map = self._generate_map_lists()
 
         # Now we can create the extra scope
         code.begin_block()
-        # and compute/store array/memview sizes
-        for e in reads + writes:
-            if e.type.is_memoryviewslice:
-                if e.type.is_c_contig:
-                    code.putln("size_t %s%s = %s;" % (e.cname,
-                                                      self._count_sfx,
-                                                      '*'.join(['%s.shape[%d]' % (e.cname, i) for i in range(e.type.ndim)])))
-                else:
-                    error(e.pos, "Memoryviews must be C-contiguous when used in device with blocks")
 
         # The rest is relatively easy, we add the openmp pragma including map clauses and generate the body
         code.putln("#ifdef _OPENMP")
         code.put("#pragma omp target")
 
-        for e in self.map:
-            code.put(" map(%s: %s)" % (self.map[e], self._generate_var_map(e)))
-        if reads:
-            code.put(" map(to: %s)" % ', '.join([self._generate_var_map(e) for e in reads]))
-        if writes:
-            code.put(" map(tofrom: %s)" % ', '.join([self._generate_var_map(e) for e in writes]))
+        for maptype in self._valid_mappings:
+            if reverse_map[maptype]:
+                code.put(" map(%s: %s)" % (maptype, ', '.join(reverse_map[maptype])))
         code.putln('')
         code.putln("#endif /* _OPENMP */")
 
@@ -9211,7 +9220,10 @@ class ParallelWithBlockNode(ParallelStatNode):
         self.setup_parallel_control_flow_block(code)
 
         code.putln("#ifdef _OPENMP")
-        code.put("#pragma omp parallel ")
+        if self.on_device:
+            code.put("#pragma omp teams ")
+        else:
+            code.put("#pragma omp parallel ")
 
         if self.privates:
             privates = [e.cname for e in self.privates
@@ -9514,12 +9526,19 @@ class ParallelRangeNode(ParallelStatNode):
         else:
             code.putln("#ifdef _OPENMP")
 
+        if self.on_device:
+            pragma_for = "#pragma omp distribute parallel for"
+            pragma_par = "#pragma omp teams"
+        else:
+            pragma_for = "#pragma omp for"
+            pragma_par = "#pragma omp parallel"
+
         if not self.is_parallel:
-            code.put("#pragma omp for")
+            code.put(pragma_for)
             self.privatization_insertion_point = code.insertion_point()
             reduction_codepoint = self.parent.privatization_insertion_point
         else:
-            code.put("#pragma omp parallel")
+            code.put(pragma_par)
             self.privatization_insertion_point = code.insertion_point()
             reduction_codepoint = self.privatization_insertion_point
             code.putln("")
@@ -9534,7 +9553,7 @@ class ParallelRangeNode(ParallelStatNode):
                 code.putln("#if 0")
             else:
                 code.putln("#ifdef _OPENMP")
-            code.put("#pragma omp for")
+            code.put(pragma_for)
 
         for entry, (op, lastprivate) in sorted(self.privates.items()):
             # Don't declare the index variable as a reduction
@@ -9548,7 +9567,9 @@ class ParallelRangeNode(ParallelStatNode):
                                 " reduction(%s:%s)" % (op, entry.cname))
             else:
                 if entry == self.target.entry:
-                    code.put(" firstprivate(%s)" % entry.cname)
+                    if not self.on_device:
+                        # doesn't work in "omp teams distributed" context
+                        code.put(" firstprivate(%s)" % entry.cname)
                     code.put(" lastprivate(%s)" % entry.cname)
                     continue
 
