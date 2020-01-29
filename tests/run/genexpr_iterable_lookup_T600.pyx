@@ -26,8 +26,11 @@ def list_genexpr_iterable_lookup():
 #@cython.test_fail_if_path_exists('//SingleAssignmentNode//SimpleCallNode')
 def genexpr_iterable_in_closure():
     """
-    >>> genexpr_iterable_in_closure()
-    ['aa', 'cc']
+    (loop just to avoid u"aa" in Py2)
+    >>> for s in genexpr_iterable_in_closure():
+    ...   print(s)
+    aa
+    cc
     """
     x = 'abc'
     def f():

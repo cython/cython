@@ -344,7 +344,41 @@ class EvalWithTempExprNode(ExprNodes.ExprNode, LetNodeMixin):
 
 LetRefNode = ResultRefNode
 
+class ResultRefInCallNode(ResultRefNode):
+    # define additional properties which make it easier
+    # for CallNode to analyse
+    @property
+    def entry(self):
+        return self.expression.entry
+    @entry.setter
+    def entry(self, entry):
+        self.expression.entry = entry
 
+    @property
+    def is_attribute(self):
+        return self.expression.is_attribute
+    @property
+    def attribute(self):
+        return self.expression.attribute
+    @property
+    def obj(self):
+        return self.attribute_self_argument
+    @obj.setter
+    def obj(self, obj):
+        # complicated behaviour here is main for the benefit
+        # of SimpleCallNode.analyse_types (which sets obj)
+        if (isinstance(obj, ExprNodes.CloneNode) and
+            obj.arg is self.attribute_self_argument):
+            # specific workaround for the function self.self
+            # attribute
+            obj.arg.may_hold_none = obj.arg.expression.may_be_none()
+        elif obj is self.attribute_self_argument:
+            pass # no need to do anything
+        else:
+            if not isinstance(obj, ResultRefNode):
+                obj = ResultRefNode(obj)
+            self.attribute_self_argument = obj
+        self.expression.obj = obj
 
 
 class LetNode(Nodes.StatNode, LetNodeMixin):

@@ -155,3 +155,22 @@ def list_fcall_order():
     """
     obj = NoisyAttributeLookup()
     return list(a for a in obj.function(f(), g(), h()))
+
+def call1():
+    print(1)
+    return ["a"]
+def call2():
+    print(2)
+    return ["b"]
+
+def multiple_genexps_to_call_order():
+    """
+    >>> multiple_genexps_to_call_order()
+    1
+    2
+    """
+    def takes_two_genexps(a, b):
+        pass
+
+    return takes_two_genexps((x for x in call1()), (x for x in call2()))
+

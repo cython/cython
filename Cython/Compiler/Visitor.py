@@ -826,6 +826,7 @@ class PrintTree(TreeVisitor):
         if node is None:
             return "(none)"
         else:
+            from . import UtilNodes
             result = node.__class__.__name__
             if isinstance(node, ExprNodes.NameNode):
                 result += "(type=%s, name=\"%s\")" % (repr(node.type), node.name)
@@ -835,6 +836,9 @@ class PrintTree(TreeVisitor):
                 result += "(type=%s, attribute=\"%s\")" % (repr(node.type), node.attribute)
             elif isinstance(node, ExprNodes.ConstNode):
                 result += "(type=%s, value=\"%s\")" % (repr(node.type), node.value)
+            elif isinstance(node, UtilNodes.ResultRefNode):
+                result += "(type=%s, expression=\"%s\")" % (repr(node.type),
+                                                            type(node.expression).__name__)
             elif isinstance(node, ExprNodes.ExprNode):
                 t = node.type
                 result += "(type=%s)" % repr(t)

@@ -273,11 +273,18 @@ class IterationTransform(Visitor.EnvTransform):
         return self._optimise_for_loop(node, node.iterator.sequence)
 
     def visit_EvalWithTempExprNode(self, node):
-        # there a good chance that the subexpression of these nodes gets optimized out
-        #  - remove them if that happens
         temp_ref = node.lazy_temp
         self.temp_expr_stack.append(temp_ref)
         self.visitchildren(node)
+
+        if (node.is_genexp_loop_scope and
+                isinstance(node.temp_expression, (ExprNodes.IndexNode, ExprNodes.DereferenceNode)) and
+                node.temp_expression.type.is_cpp_class):
+            node.temp_expression.type = PyrexTypes.CFakeReferenceType(node.temp_expression.type)
+            node.lazy_temp.type = node.temp_expression.type # just refresh all the types
+
+        # there a good chance that the subexpression of these nodes gets optimized out
+        #  - remove them if that happens
         if not Visitor.tree_contains(node.subexpression, temp_ref):
             return node.subexpression
         self.temp_expr_stack.pop()
@@ -360,6 +367,9 @@ class IterationTransform(Visitor.EnvTransform):
         # dict iteration?
         if function.is_attribute and not reversed and not arg_count:
             base_obj = iterable.self or function.obj
+            if isinstance(base_obj, UtilNodes.ResultRefNode):
+                base_obj = base_obj.expression
+
             method = function.attribute
             # in Py3, items() is equivalent to Py2's iteritems()
             is_safe_iter = self.global_scope().context.language_level >= 3
@@ -1679,15 +1689,12 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         else:
             handler_name = '_handle_general_function_%s' % function.name
         handle_call = getattr(self, handler_name, None)
-
         if handle_call is not None:
             if kwargs is None:
                 return handle_call(node, args)
             else:
                 return handle_call(node, args, kwargs)
         return node
-
-
 
     def _inject_capi_function(self, node, cname, func_type, utility_code=None):
         node.function = ExprNodes.PythonCapiFunctionNode(
@@ -4386,7 +4393,6 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         elif node.operand2.is_string_literal:
             return self._multiply_string(node, node.operand2, node.operand1)
         return self.visit_BinopNode(node)
-
 
     def _multiply_string(self, node, string_node, multiplier_node):
         multiplier = multiplier_node.constant_result

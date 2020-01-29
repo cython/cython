@@ -20,7 +20,8 @@ from . import Errors
 from .Visitor import VisitorTransform, TreeVisitor
 from .Visitor import CythonTransform, EnvTransform, ScopeTrackingTransform
 from .Visitor import tree_contains
-from .UtilNodes import LetNode, LetRefNode, ResultRefNode, EvalWithTempExprNode
+from .UtilNodes import (LetNode, LetRefNode, ResultRefNode, EvalWithTempExprNode,
+                        ResultRefInCallNode)
 from .TreeFragment import TreeFragment
 from .StringEncoding import EncodedString, _unicode
 from .Errors import error, warning, CompileError, InternalError
@@ -1316,156 +1317,108 @@ class WithTransform(CythonTransform, SkipDeclarations):
         # With statements are never inside expressions.
         return node
 
-class ComprehensionScopeTransform(VisitorTransform, SkipDeclarations):
+class _ComprehensionScopeTransformActivated(VisitorTransform, SkipDeclarations):
     """
-    Moves expressions out of list/set/etc comprehensions so they have the correct scope
+    This is the "activated" state of ComprehensionScopeTransform, where it
+    actively expects to see a comprehension or generator expression.
 
-    Effectively
-        cmp = [ a for a in some_expression ]
-    is changed to
-        tmp = some_expression
-        cmp = [ a for a in tmp ]
+    For full details see the documentation of ComprehensionScopeTransform.
 
-    (with some complications to keep optimizations (e.g. if "some_expression" is a range
-    where possible)
+    This class swaps out an variables that need to be moved into a
+    temp for a ResultRefNode, and adds them to the member result_refs.
     """
-    def __init__(self, *args, **kwds):
-        super(ComprehensionScopeTransform, self).__init__(*args, **kwds)
-
-        # For the optimization in OptimizeBuiltinCalls to work the call node must be
-        # adjacent to the genexp (or comprehension - read them interchangably here).
-        # Therefore, we can't just wrap the genexp with EvalWithTempExprNodes.
-        # Instead we must surround the longest out of
-        #    genexp
-        #    call(genexp)
-        #    node.call(genexp)
-        # A lot of the work of this transform is keeping track of this sequence
-        # (in the wrap_from_here_nodes - the first element of which is the place
-        # where the wrapping should happen).
-        # The lazy_temps for the EvalWithTempExprNodes are kept in the list of
-        # ewte_args.
-        self.wrap_from_here_nodes = []
-        self.ewte_args = []
-
-    def _last_wrap_from_here_node_isinstance(self, types):
-        if not self.wrap_from_here_nodes:
-            return False
-        return isinstance(self.wrap_from_here_nodes[-1], types)
-
-    def _first_wrap_from_here_node_is(self, node):
-        if not self.wrap_from_here_nodes:
-            return False
-        return self.wrap_from_here_nodes[0] is node
-
-    def _maybe_make_eval_with_temps(self, node):
-        if self._first_wrap_from_here_node_is(node):
-            for arg in self.ewte_args:
-                node = EvalWithTempExprNode(arg, node)
-                node.is_genexp_loop_scope = True
-        return node
+    def __init__(self):
+        super(_ComprehensionScopeTransformActivated, self).__init__()
+        self.result_refs = []
+        self.last_node_seen = None
 
     def visit_Node(self, node):
-        wrap_from_here_nodes = self.wrap_from_here_nodes
-        self.wrap_from_here_nodes = []  # most nodes don't need including in the EvalWithTempExprNode
-
-        self.visitchildren(node)
-
-        self.wrap_from_here_nodes = wrap_from_here_nodes
-        return node
+        # in the general case we have not seen the comprehension or
+        # genexp expected, so return to the "unactivated" state
+        return ComprehensionScopeTransform()(node)
 
     def visit_AttributeNode(self, node):
-        wrap_from_here_nodes = self.wrap_from_here_nodes
-        ewte_args = self.ewte_args
-        self.wrap_from_here_nodes = [node]
-        self.ewte_args = []
-
-        self.visitchildren(node)
-
-        node = self._maybe_make_eval_with_temps(node)
-
-        self.ewte_args = ewte_args
-        self.wrap_from_here_nodes = wrap_from_here_nodes
-        return node
+        if self.last_node_seen is None:
+            self.last_node_seen = node
+            self.visitchildren(node)
+            return node
+        else:
+            # AttributeNode can only be the start of the sequence;
+            # drop back to unactivated state (so we can start a new
+            # sequence)
+            return self.visit_Node(node)
 
     def visit_CallNode(self, node):
-        wrap_from_here_nodes = self.wrap_from_here_nodes
-        ewte_args = self.ewte_args
-        if self._last_wrap_from_here_node_isinstance(ExprNodes.AttributeNode):
-            self.wrap_from_here_nodes.append(node)
+        if (self.last_node_seen is None or
+            isinstance(self.last_node_seen, ExprNodes.AttributeNode)):
+            self.last_node_seen = node
+            self.visitchildren(node)
+            return node
         else:
-            self.wrap_from_here_nodes = [node]
-            self.ewte_args = []
-        self.visitchildren(node)
-
-        node = self._maybe_make_eval_with_temps(node)
-
-        self.ewte_args = ewte_args
-        self.wrap_from_here_nodes = wrap_from_here_nodes
-        return node
-
+            # not the expected sequence - unactivated state
+            return self.visit_Node(node)
 
     def visit_ComprehensionNode(self, node):
-        wrap_from_here_nodes = self.wrap_from_here_nodes
-        ewte_args = self.ewte_args
-        if not self._last_wrap_from_here_node_isinstance(ExprNodes.CallNode):
-            self.wrap_from_here_nodes = [node]
-            self.ewte_args = []
+        if not (self.last_node_seen is None or
+                isinstance(self.last_node_seen, ExprNodes.CallNode)):
+            # we didn't get one of the sequences expected so
+            # swap back to the unactivated state (which will then
+            # immediately swap back to the activated state, but
+            # with only this node in the sequence)
+            return self.visit_Node(node)
+        else:
+            self.last_node_seen = self # shouldn't really be needed
 
-        self.visitchildren(node)
+        # visit children in unactivated state
+        ComprehensionScopeTransform().visitchildren(node)
 
-        try:  # just to ensure clearup is done with any return
-            if not isinstance(node.loop, Nodes.ForInStatNode):
-                # FIXME?
-                # For example ForFromStatNode (but possibly others)
-                #  - should probably do something intelligent with them
-                #    but for the moment fall back to the old behaviour
-                return node
-
-            itseq = node.loop.iterator.sequence
-            # there's no value in substituting these very simple expressions
-            # with a temp. Mainly catches "ConstNode"
-            if itseq.is_literal:
-                return node
-            original_node = node
-
-            new_itseq = ResultRefNode(itseq)
-            node.loop.iterator.sequence = new_itseq
-            self.ewte_args.append(new_itseq)
-
-            if isinstance(itseq, ExprNodes.SimpleCallNode):
-                # to facilitate optimization also create a version that looks like:
-                #     cmp = [ a for a in range(0, 10) ]
-                # to:
-                #     tmp0 = 0
-                #     tmp1 = 10
-                #     cmp = [ a for a in range(tmp0, tmp1) ]
-                # e.g. for dict.keys
-                for n, a in reversed(list(enumerate(itseq.args))):
-                    # "reversed" preserved the order the arguments are evaluated
-                    if a.is_literal:
-                        continue
-                    a = ResultRefNode(a)
-                    itseq.args[n] = a
-                    self.ewte_args.append(a)
-
-                if (isinstance(itseq.function, ExprNodes.AttributeNode) and
-                    not itseq.function.obj.is_literal):
-
-                    function = ResultRefNode(itseq.function)
-                    itseq.function = function
-                    self.ewte_args.append(function)
-
-            elif isinstance(itseq, ExprNodes.SliceIndexNode):
-                self._process_slices(node, itseq, ('base', 'start', 'stop', 'slice'))
-            elif isinstance(itseq, ExprNodes.IndexNode):
-                self._process_slices(node, itseq, ('base', 'index'))
-
-            node = self._maybe_make_eval_with_temps(node)
-
+        if not isinstance(node.loop, Nodes.ForInStatNode):
+            # FIXME?
+            # For example ForFromStatNode (but possibly others)
+            #  - should probably do something intelligent with them
+            #    but for the moment fall back to the old behaviour
             return node
-        finally:
-            self.ewte_args = ewte_args
-            self.wrap_from_here_nodes = wrap_from_here_nodes
+
+        itseq = node.loop.iterator.sequence
+        # there's no value in substituting these very simple expressions
+        # with a temp. Mainly catches "ConstNode"
+        if itseq.is_literal:
+            return node
+        original_node = node
+
+        new_itseq = ResultRefNode(itseq)
+        node.loop.iterator.sequence = new_itseq
+        self.result_refs.append(new_itseq)
+
+        if isinstance(itseq, ExprNodes.SimpleCallNode):
+            # to facilitate optimization also create a version that looks like:
+            #     cmp = [ a for a in range(0, 10) ]
+            # to:
+            #     tmp0 = 0
+            #     tmp1 = 10
+            #     cmp = [ a for a in range(tmp0, tmp1) ]
+            # e.g. for dict.keys
+            for n, a in reversed(list(enumerate(itseq.args))):
+                # "reversed" preserved the order the arguments are evaluated
+                if a.is_literal:
+                    continue
+                a = ResultRefNode(a)
+                itseq.args[n] = a
+                self.result_refs.append(a)
+
+            if (isinstance(itseq.function, ExprNodes.AttributeNode) and
+                not itseq.function.obj.is_literal):
+
+                function = ResultRefInCallNode(itseq.function)
+                itseq.function = function
+                self.result_refs.append(function)
+
+        elif isinstance(itseq, ExprNodes.SliceIndexNode):
+            self._process_slices(node, itseq, ('base', 'start', 'stop', 'slice'))
+        elif isinstance(itseq, ExprNodes.IndexNode):
+            self._process_slices(node, itseq, ('base', 'index'))
+
+        return node
 
     def _process_slices(self, node, slicelike_subnode, attrs):
         for attr in reversed(attrs):
@@ -1478,10 +1431,60 @@ class ComprehensionScopeTransform(VisitorTransform, SkipDeclarations):
                 continue
             obj = ResultRefNode(obj)
             setattr(slicelike_subnode, attr, obj)
-            self.ewte_args.append(obj)
+            self.result_refs.append(obj)
 
     def visit_GeneratorExpressionNode(self, node):
         return self.visit_ComprehensionNode(node)  # implementation is the same
+
+
+
+class ComprehensionScopeTransform(VisitorTransform, SkipDeclarations):
+    """
+    Moves expressions out of list/set/etc comprehensions so they have the correct scope
+
+    Effectively
+        cmp = [ a for a in some_expression ]
+    is changed to
+        tmp = some_expression
+        cmp = [ a for a in tmp ]
+
+    (with some complications to keep optimizations (e.g. if "some_expression" is a range
+    where possible)
+
+    There's then an added complication:
+    For the optimization in OptimizeBuiltinCalls to work the surrounding call node must
+    be adjacent to the genexp (or comprehension - read them interchangably here).
+    Therefore, we can't just wrap the genexp with EvalWithTempExprNodes.
+    Instead we must surround the longest out of
+        genexp
+        call(genexp)
+        node.call(genexp)
+    A lot of the work of this transform is keeping track of this sequence. To do this
+    the transform is split into activated and unactivated states - this class
+    represents the unactivated state
+    (in the wrap_from_here_nodes - the first element of which is the place
+    """
+    def _activate(self, node):
+        activated_transform = _ComprehensionScopeTransformActivated()
+        node = activated_transform(node)
+        for rr in activated_transform.result_refs:
+            node = EvalWithTempExprNode(rr, node)
+            node.is_genexp_loop_scope = True
+        return node
+
+    def visit_AttributeNode(self, node):
+        return self._activate(node)
+    def visit_CallNode(self, node):
+        return self._activate(node)
+    def visit_ComprehensionNode(self, node):
+        return self._activate(node)
+    def visit_GeneratorExpressionNode(self, node):
+        return self._activate(node)
+
+    def visit_Node(self, node):
+        self.visitchildren(node)
+        return node
+
 
 class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
     """

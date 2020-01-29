@@ -10,6 +10,11 @@ cdef extern from "cpp_iterators_simple.h":
         DoublePointerIter(double* start, int len)
         double* begin()
         double* end()
+    cdef cppclass DoublePointerIterCanMakeEmpty:
+        DoublePointerIterCanMakeEmpty()
+        DoublePointerIterCanMakeEmpty(double* start, int len)
+        double* begin()
+        double* end()
 
 def test_vector(py_v):
     """
@@ -95,6 +100,34 @@ def test_custom():
         # TODO: It'd be nice to automatically dereference this in a way that
         # would not conflict with the pointer slicing iteration.
         return [x for x in iter[0]]
+    finally:
+        del iter
+
+def test_custom2():
+    """
+    (deref(iter) instead of iter[0])
+    >>> test_custom()
+    [1.0, 2.0, 3.0]
+    """
+    cdef double* values = [1, 2, 3]
+    cdef DoublePointerIter* iter
+    try:
+        iter = new DoublePointerIter(values, 3)
+        return [x for x in deref(iter)]
+    finally:
+        del iter
+
+def test_custom_genexp():
+    """
+    >>> list(test_custom())
+    [1.0, 2.0, 3.0]
+    """
+    cdef double* values = [1, 2, 3]
+    cdef DoublePointerIterCanMakeEmpty* iter
+    try:
+        iter = new DoublePointerIterCanMakeEmpty(values, 3)
+        # TODO: Needs to copy once - currently copies twice
+        return (x for x in iter[0])
     finally:
         del iter
 
