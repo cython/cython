@@ -5,6 +5,9 @@ Cython Changelog
 0.29.15 (20??-??-??)
 ====================
 
+* Crash when returning a temporary Python object from an async-def function.
+  (Github issue #3337)
+
 * Crash when using ``**kwargs`` in generators.
   Patch by David Woods.  (Github issue #3265)
 

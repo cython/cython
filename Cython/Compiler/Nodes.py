@@ -5996,6 +5996,7 @@ class ReturnStatNode(StatNode):
                     rhs=value,
                     code=code,
                     have_gil=self.in_nogil_context)
+                value.generate_post_assignment_code(code)
             elif self.in_generator:
                 # return value == raise StopIteration(value), but uncatchable
                 code.globalstate.use_utility_code(
@@ -6009,7 +6010,7 @@ class ReturnStatNode(StatNode):
                 code.putln("%s = %s;" % (
                     Naming.retval_cname,
                     value.result_as(self.return_type)))
-            value.generate_post_assignment_code(code)
+                value.generate_post_assignment_code(code)
             value.free_temps(code)
         else:
             if self.return_type.is_pyobject:
