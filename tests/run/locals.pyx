@@ -117,8 +117,8 @@ def buffers_in_locals(object[char, ndim=1] a):
 def set_comp_scope():
     """
     locals should be evaluated in the outer scope
-    >>> set_comp_scope()
-    {'something'}
+    >>> list(set_comp_scope())
+    ['something']
     """
     something = 1
     return { b for b in locals().keys() }
