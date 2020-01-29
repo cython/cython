@@ -191,7 +191,6 @@ class _ReplaceResultRefNodes(Visitor.EnvTransform):
         if not hasattr(root, "scope"):
             root.scope = None
             return super(_ReplaceResultRefNodes, self).__call__(root)
-            del root.scope
         else:
             return super(_ReplaceResultRefNodes, self).__call__(root)
 
@@ -281,7 +280,7 @@ class IterationTransform(Visitor.EnvTransform):
                 isinstance(node.temp_expression, (ExprNodes.IndexNode, ExprNodes.DereferenceNode)) and
                 node.temp_expression.type.is_cpp_class):
             node.temp_expression.type = PyrexTypes.CFakeReferenceType(node.temp_expression.type)
-            node.lazy_temp.type = node.temp_expression.type # just refresh all the types
+            node.lazy_temp.type = node.temp_expression.type  # just refresh all the types
 
         # there a good chance that the subexpression of these nodes gets optimized out
         #  - remove them if that happens
@@ -608,7 +607,7 @@ class IterationTransform(Visitor.EnvTransform):
     def _transform_carray_iteration(self, node, slice_node, reversed=False):
         neg_step = False
         if (isinstance(slice_node, UtilNodes.ResultRefNode) and
-            isinstance(slice_node.expression,
+                isinstance(slice_node.expression,
                        (ExprNodes.SliceIndexNode, ExprNodes.SliceNode, ExprNodes.IndexNode))):
             # it's worth being careful about what types we pop out of the expression
             #  - popping arbitrary types out leads to things being evaluated in the

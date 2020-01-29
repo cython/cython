@@ -9689,13 +9689,13 @@ class GeneratorExpressionNode(LambdaNode):
         self.def_node.entry.signature = TypeSlots.pyfunction_noargs
 
     def generate_result_code(self, code):
-        args_to_call = [""] + [ cp.result() for cp in self.call_parameters ]
+        args_to_call = ([self.closure_result_code()] +
+                        [ cp.result() for cp in self.call_parameters ])
         args_to_call = ", ".join(args_to_call)
         code.putln(
-            '%s = %s(%s%s); %s' % (
+            '%s = %s(%s); %s' % (
                 self.result(),
                 self.def_node.entry.pyfunc_cname,
-                self.closure_result_code(),
                 args_to_call,
                 code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())

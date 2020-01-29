@@ -1367,7 +1367,7 @@ class _ComprehensionScopeTransformActivated(VisitorTransform, SkipDeclarations):
             # with only this node in the sequence)
             return self.visit_Node(node)
         else:
-            self.last_node_seen = self # shouldn't really be needed
+            self.last_node_seen = node  # shouldn't really be needed
 
         # visit children in unactivated state
         ComprehensionScopeTransform().visitchildren(node)

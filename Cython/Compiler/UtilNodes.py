@@ -248,8 +248,6 @@ class LetNodeMixin:
         self.temp_type = self.temp_expression.type
         if self.temp_type.is_array:
             self.temp_type = c_ptr_type(self.temp_type.base_type)
-        elif self.temp_type.is_cfunction:
-            self.temp_type = c_ptr_type(self.temp_type)
         self._result_in_temp = self.temp_expression.result_in_temp()
         if self._result_in_temp:
             self.temp = self.temp_expression.result()
@@ -373,7 +371,7 @@ class ResultRefInCallNode(ResultRefNode):
             # attribute
             obj.arg.may_hold_none = obj.arg.expression.may_be_none()
         elif obj is self.attribute_self_argument:
-            pass # no need to do anything
+            pass  # no need to do anything
         else:
             if not isinstance(obj, ResultRefNode):
                 obj = ResultRefNode(obj)
