@@ -2,6 +2,11 @@
 # mode: run
 # tag: pep492, pep530, asyncfor, await
 
+###########
+# This file is a copy of the corresponding test file in CPython.
+# Please keep in sync and do not add non-upstream tests.
+###########
+
 import re
 import gc
 import sys
