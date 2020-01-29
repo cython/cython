@@ -169,8 +169,20 @@ Other changes
 0.29.15 (20??-??-??)
 ====================
 
+* Crash when returning a temporary Python object from an async-def function.
+  (Github issue #3337)
+
+* Crash when using ``**kwargs`` in generators.
+  Patch by David Woods.  (Github issue #3265)
+
 * Double reference free in ``__class__`` cell handling for ``super()`` calls.
   (Github issue #3246)
+
+* Import failure in IPython 7.11.
+  (Github issue #3297)
+
+* Fixed C name collision in the auto-pickle code.
+  Patch by ThePrez.  (Github issue #3238)
 
 * Deprecated import failed in Python 3.9.
   (Github issue #3266)
@@ -183,7 +195,7 @@ Bugs fixed
 ----------
 
 * The generated code failed to initialise the ``tp_print`` slot in CPython 3.8.
-  Patches by Pablo Galindo and Orivej Desh (Github issues #3171, #3201).
+  Patches by Pablo Galindo and Orivej Desh.  (Github issues #3171, #3201)
 
 * ``?`` for ``bool`` was missing from the supported NumPy dtypes.
   Patch by Max Klein.  (Github issue #2675)
