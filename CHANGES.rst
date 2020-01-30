@@ -178,6 +178,9 @@ Other changes
 * Double reference free in ``__class__`` cell handling for ``super()`` calls.
   (Github issue #3246)
 
+* Compile error when using ``*args`` as Python class bases.
+  (Github issue #3338)
+
 * Import failure in IPython 7.11.
   (Github issue #3297)
 
