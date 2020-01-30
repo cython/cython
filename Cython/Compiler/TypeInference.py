@@ -229,12 +229,7 @@ class MarkParallelAssignments(EnvTransform):
 
         self.parallel_block_stack.append(node)
 
-        if len(self.parallel_block_stack) == 1:
-            if not node.is_parallel and not node.is_prange:
-                node.on_device = True
-            else:
-                node.on_device = False
-        else:
+        if not node.on_device and node.parent:
             node.on_device = node.parent.on_device
 
         nested = nested or len(self.parallel_block_stack) > 2

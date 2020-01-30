@@ -2224,29 +2224,29 @@ class AnalyseExpressionsTransform(CythonTransform):
 
     def __init__(self, context):
         super(AnalyseExpressionsTransform, self).__init__(context)
-        self.device_with_block = None
+        self.parallel_with_block = None
 
     def visit_SingleAssignmentNode(self, node):
-        if self.device_with_block != None:
-            self.device_with_block.assignments.append((node.lhs, node.rhs))
+        if self.parallel_with_block != None:
+            self.parallel_with_block.all_assignments.append((node.lhs, node.rhs))
         self.visitchildren(node)
         return node
 
     def visit_CascadedAssignmentNode(self, node):
-        if self.device_with_block != None:
+        if self.parallel_with_block != None:
             for lhs in node.lhs_list:
-                self.device_with_block.assignments.append((lhs, node.rhs))
+                self.parallel_with_block.all_assignments.append((lhs, node.rhs))
         self.visitchildren(node)
         return node
 
     def visit_NameNode(self, node):
         """
-        Collect all names/vars in parallel blocks so we can emit proper map(to:) clauses for device with blocks.
+        Collect all names/vars in parallel blocks so we can emit proper map(to:) clauses for target-parallel with blocks.
         """
-        if self.device_with_block != None:
+        if self.parallel_with_block != None:
             entry = node.entry
-            if entry.is_variable and entry not in self.device_with_block.names:
-                self.device_with_block.names.append(entry)
+            if entry.is_variable and entry not in self.parallel_with_block.all_names:
+                self.parallel_with_block.all_names.append(entry)
         return node
 
     def visit_ModuleNode(self, node):
@@ -2284,15 +2284,25 @@ class AnalyseExpressionsTransform(CythonTransform):
             node = node.base
         return node
 
-    def visit_DeviceWithBlockNode(self, node):
-        if self.device_with_block != None:
-            error(node.pos, "Nested parallel.device() not allowed")
-        node.assignments = []
-        node.names = []
-        self.device_with_block = node
+    def visit_ParallelWithBlockNode(self, node):
+        if self.parallel_with_block != None:
+            error(node.pos, "Nested parallel.parallel() not allowed")
+        node.all_assignments = []
+        node.all_names = []
+        self.parallel_with_block = node
         self.visitchildren(node)
-        self.device_with_block = None
+        self.parallel_with_block = None
         return node
+
+    # def visit_DeviceWithBlockNode(self, node):
+    #     if self.device_with_block != None:
+    #         error(node.pos, "Nested parallel.device() not allowed")
+    #     node.assignments = []
+    #     node.names = []
+    #     self.device_with_block = node
+    #     self.visitchildren(node)
+    #     self.device_with_block = None
+    #     return node
 
 
 class ReplacePropertyNode(CythonTransform):
