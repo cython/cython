@@ -4503,26 +4503,22 @@ class PyClassDefNode(ClassDefNode):
                     pass  # no base classes => no inherited metaclass
                 else:
                     self.metaclass = ExprNodes.PyClassMetaclassNode(
-                        pos, mkw=mkdict, bases=self.bases)
+                        pos, class_def_node=self)
                 needs_metaclass_calculation = False
             else:
                 needs_metaclass_calculation = True
 
             self.dict = ExprNodes.PyClassNamespaceNode(
-                pos, name=name, doc=doc_node,
-                metaclass=self.metaclass, bases=self.bases, mkw=self.mkw)
+                pos, name=name, doc=doc_node, class_def_node=self)
             self.classobj = ExprNodes.Py3ClassNode(
-                pos, name=name,
-                bases=self.bases, dict=self.dict, doc=doc_node,
-                metaclass=self.metaclass, mkw=self.mkw,
+                pos, name=name, class_def_node=self, doc=doc_node,
                 calculate_metaclass=needs_metaclass_calculation,
                 allow_py2_metaclass=allow_py2_metaclass)
         else:
             # no bases, no metaclass => old style class creation
             self.dict = ExprNodes.DictNode(pos, key_value_pairs=[])
             self.classobj = ExprNodes.ClassNode(
-                pos, name=name,
-                bases=bases, dict=self.dict, doc=doc_node)
+                pos, name=name, class_def_node=self, doc=doc_node)
 
         self.target = ExprNodes.NameNode(pos, name=name)
         self.class_cell = ExprNodes.ClassCellInjectorNode(self.pos)
@@ -4540,7 +4536,7 @@ class PyClassDefNode(ClassDefNode):
                              visibility='private',
                              module_name=None,
                              class_name=self.name,
-                             bases=self.classobj.bases or ExprNodes.TupleNode(self.pos, args=[]),
+                             bases=self.bases or ExprNodes.TupleNode(self.pos, args=[]),
                              decorators=self.decorators,
                              body=self.body,
                              in_pxd=False,
@@ -4564,6 +4560,10 @@ class PyClassDefNode(ClassDefNode):
                     args=[class_result])
             self.decorators = None
         self.class_result = class_result
+        if self.bases:
+            self.bases.analyse_declarations(env)
+        if self.mkw:
+            self.mkw.analyse_declarations(env)
         self.class_result.analyse_declarations(env)
         self.target.analyse_target_declaration(env)
         cenv = self.create_scope(env)
@@ -4574,10 +4574,10 @@ class PyClassDefNode(ClassDefNode):
     def analyse_expressions(self, env):
         if self.bases:
             self.bases = self.bases.analyse_expressions(env)
-        if self.metaclass:
-            self.metaclass = self.metaclass.analyse_expressions(env)
         if self.mkw:
             self.mkw = self.mkw.analyse_expressions(env)
+        if self.metaclass:
+            self.metaclass = self.metaclass.analyse_expressions(env)
         self.dict = self.dict.analyse_expressions(env)
         self.class_result = self.class_result.analyse_expressions(env)
         cenv = self.scope
