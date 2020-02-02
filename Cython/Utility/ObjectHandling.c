@@ -737,10 +737,9 @@ bad:
 
 /////////////// TupleAndListFromArray.proto ///////////////
 
-#if CYTHON_COMPILING_IN_CPYTHON
+// likely to be inefficient in limited api/non-cpython
 static CYTHON_INLINE PyObject* __Pyx_PyList_FromArray(PyObject *const *src, Py_ssize_t n);
 static CYTHON_INLINE PyObject* __Pyx_PyTuple_FromArray(PyObject *const *src, Py_ssize_t n);
-#endif
 
 /////////////// TupleAndListFromArray ///////////////
 //@substitute: naming
@@ -754,6 +753,14 @@ static CYTHON_INLINE void __Pyx_copy_object_array(PyObject *const *CYTHON_RESTRI
         Py_INCREF(v);
     }
 }
+#else
+static CYTHON_INLINE void __Pyx_fill_sequence_from_array(PyObject *const *src, PyObject* dest, Py_ssize_t length) {
+    Py_ssize_t i;
+    for (i = 0; i < length; i++) {
+        PySequence_SetItem(dest, i, src[i]);
+    }
+}
+#endif
 
 static CYTHON_INLINE PyObject *
 __Pyx_PyTuple_FromArray(PyObject *const *src, Py_ssize_t n)
@@ -765,7 +772,11 @@ __Pyx_PyTuple_FromArray(PyObject *const *src, Py_ssize_t n)
     }
     res = PyTuple_New(n);
     if (unlikely(res == NULL)) return NULL;
+#if CYTHON_COMPILING_IN_CPYTHON
     __Pyx_copy_object_array(src, ((PyTupleObject*)res)->ob_item, n);
+#else
+    __Pyx_fill_sequence_from_array(src, res, n);
+#endif
     return res;
 }
 
@@ -778,10 +789,13 @@ __Pyx_PyList_FromArray(PyObject *const *src, Py_ssize_t n)
     }
     res = PyList_New(n);
     if (unlikely(res == NULL)) return NULL;
+#if CYTHON_COMPILING_IN_CPYTHON
     __Pyx_copy_object_array(src, ((PyListObject*)res)->ob_item, n);
+#else
+    __Pyx_fill_sequence_from_array(src, res, n);
+#endif
     return res;
 }
-#endif
 
 
 /////////////// SliceTupleAndList.proto ///////////////
@@ -2060,6 +2074,11 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_Call(PyObject *func, PyObject *arg
 }
 #endif
 
+/////////////// PyObjectVectorCall.proto ///////////////
+
+#if CYTHON_VECTORCALL
+#define __Pyx_PyObject_VectorCall(func, args, nargs , kwds) _PyObject_VectorCall(func, args, nargs, kwds)
+#endif
 
 /////////////// PyObjectCallMethO.proto ///////////////
 

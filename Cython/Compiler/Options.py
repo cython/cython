@@ -258,7 +258,6 @@ def one_of(*args):
             return value
     return validate
 
-
 def normalise_encoding_name(option_name, encoding):
     """
     >>> normalise_encoding_name('c_string_encoding', 'ascii')
@@ -317,6 +316,8 @@ directive_types = {
     'c_string_type': one_of('bytes', 'bytearray', 'str', 'unicode'),
     'c_string_encoding': normalise_encoding_name,
     'trashcan': bool,
+    'fastcall_args': one_of('off', '*', '**', 'both'),
+    'vectorcall_args': one_of('off', '*', '**', 'both'),
 }
 
 for key, val in _directive_defaults.items():

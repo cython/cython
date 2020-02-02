@@ -465,6 +465,13 @@ class Scope(object):
         # declared.
         if type.is_buffer and not isinstance(self, LocalScope): # and not is_type:
             error(pos, 'Buffer types only allowed as function local variables')
+        elif (type.is_fastcall_type and
+              not isinstance(self, (LocalScope, StructOrUnionScope))):
+            # (allow StructOrUnionScope since this is generated in TupleNode.analyse_types
+            #  but shouldn't be able to propagate out further hopefully)
+            error(pos, 'Fastcall-argument tuples and dicts only allowed as function local variables. '+
+                  "You are probably receiving this message because '%s' has been added to a closure." %
+                  name)
         if not self.in_cinclude and cname and re.match("^_[_A-Z]+$", cname):
             # See https://www.gnu.org/software/libc/manual/html_node/Reserved-Names.html#Reserved-Names
             warning(pos, "'%s' is a reserved name in C." % cname, -1)

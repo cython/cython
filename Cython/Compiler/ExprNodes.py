@@ -1010,7 +1010,8 @@ class ExprNode(Node):
         type = self.type
         if type.is_enum or type.is_error:
             return self
-        elif type.is_pyobject or type.is_int or type.is_ptr or type.is_float:
+        elif (type.is_pyobject or type.is_int or type.is_ptr or type.is_float or
+                type.is_fastcall_type):
             return CoerceToBooleanNode(self, env)
         elif type.is_cpp_class:
             return SimpleCallNode(
@@ -2633,6 +2634,8 @@ class IteratorNode(ExprNode):
             self.type = self.sequence.type
         elif self.sequence.type.is_cpp_class:
             self.analyse_cpp_types(env)
+        elif self.sequence.type.is_fastcall_type:
+            self.type = py_object_type
         else:
             self.sequence = self.sequence.coerce_to_pyobject(env)
             if self.sequence.type in (list_type, tuple_type):
@@ -3634,7 +3637,9 @@ class IndexNode(_IndexingBaseNode):
         is_memslice = self.base.type.is_memoryviewslice
         # Handle the case where base is a literal char* (and we expect a string, not an int)
         if not is_memslice and (isinstance(self.base, BytesNode) or is_slice):
-            if self.base.type.is_string or not (self.base.type.is_ptr or self.base.type.is_array):
+            if (self.base.type.is_string or
+                not (self.base.type.is_ptr or self.base.type.is_array or
+                     self.base.type.is_fastcall_type)):
                 self.base = self.base.coerce_to_pyobject(env)
 
         replacement_node = self.analyse_as_buffer_operation(env, getting)
@@ -3669,6 +3674,10 @@ class IndexNode(_IndexingBaseNode):
             return self.analyse_as_c_function(env)
         elif base_type.is_ctuple:
             return self.analyse_as_c_tuple(env, getting, setting)
+        elif base_type.is_fastcall_tuple:
+            return self.analyse_as_fastcall_tuple(env, is_slice, getting, setting)
+        elif base_type.is_fastcall_dict:
+            return self.analyse_as_fastcall_dict(env, is_slice, getting, setting)
         else:
             error(self.pos,
                   "Attempting to index non-array type '%s'" %
@@ -3857,6 +3866,32 @@ class IndexNode(_IndexingBaseNode):
             replacement_node = replacement_node.analyse_types(env, getting)
         return replacement_node
 
+    def analyse_as_fastcall_tuple(self, env, is_slice, getting, setting):
+        cant_handle = False
+        if setting or is_slice:
+            cant_handle = True
+        if cant_handle:
+            self.base = self.base.coerce_to_pyobject(env)
+            return self.analyse_as_pyobject(env, is_slice, getting, setting)
+        if self.index.type.is_pyobject:
+            self.index = self.index.coerce_to(PyrexTypes.c_py_ssize_t_type, env)
+        elif not self.index.type.is_int:
+            error(self.pos, "Invalid index type '%s'" % self.index.type)
+        self.type = PyrexTypes.py_object_type
+        self.is_temp = True
+        return self
+
+    def analyse_as_fastcall_dict(self, env, is_slice, getting, setting):
+        if setting:
+            self.base = self.base.coerce_to_pyobject(env)
+            return self.analyse_as_pyobject(env, is_slice, getting, setting)
+        if not self.index.type.is_pyobject:
+            self.index = self.index.coere_to_pyobject(env)
+        self.type = PyrexTypes.py_object_type
+        self.is_temp = True
+        return self
+
+
     def wrap_in_nonecheck_node(self, env, getting):
         if not env.directives['nonecheck'] or not self.base.may_be_none():
             return
@@ -4024,13 +4059,17 @@ class IndexNode(_IndexingBaseNode):
         if self.type.is_pyobject:
             error_value = 'NULL'
             if self.index.type.is_int:
+                utility_code = TempitaUtilityCode.load_cached("GetItemInt", "ObjectHandling.c")
                 if self.base.type is list_type:
                     function = "__Pyx_GetItemInt_List"
                 elif self.base.type is tuple_type:
                     function = "__Pyx_GetItemInt_Tuple"
+                elif self.base.type.is_fastcall_tuple:
+                    function = "__Pyx_GetItemInt_FastcallTuple"
+                    utility_code = UtilityCode.load_cached(
+                        "fastcall_tuple_indexing", "FunctionArguments.c")
                 else:
                     function = "__Pyx_GetItemInt"
-                utility_code = TempitaUtilityCode.load_cached("GetItemInt", "ObjectHandling.c")
             else:
                 if self.base.type is dict_type:
                     function = "__Pyx_PyDict_GetItem"
@@ -4039,6 +4078,9 @@ class IndexNode(_IndexingBaseNode):
                     # obj[str] is probably doing a dict lookup
                     function = "__Pyx_PyObject_Dict_GetItem"
                     utility_code = UtilityCode.load_cached("DictGetItem", "ObjectHandling.c")
+                elif self.base.type.is_fastcall_dict:
+                    function = "__Pyx_FastcallDict_GetItem"
+                    utility_code = UtilityCode.load_cached("fastcall_dict_getitem", "FunctionArguments.c")
                 else:
                     function = "__Pyx_PyObject_GetItem"
                     code.globalstate.use_utility_code(
@@ -4079,7 +4121,7 @@ class IndexNode(_IndexingBaseNode):
                 "%s = %s(%s, %s%s); %s" % (
                     self.result(),
                     function,
-                    self.base.py_result(),
+                    self.base.py_result() if not self.base.type.is_fastcall_type else self.base.result(),
                     index_code,
                     self.extra_index_params(code),
                     code.error_goto_if(error_check % self.result(), self.pos)))
@@ -4782,6 +4824,8 @@ class SliceIndexNode(ExprNode):
         elif base_type in (bytes_type, bytearray_type, str_type, unicode_type,
                            basestring_type, list_type, tuple_type):
             return base_type
+        elif base_type.is_fastcall_tuple:
+            return base_type
         elif base_type.is_ptr or base_type.is_array:
             return PyrexTypes.c_array_type(base_type.base_type, None)
         return py_object_type
@@ -4844,7 +4888,8 @@ class SliceIndexNode(ExprNode):
     def analyse_types(self, env, getting=True):
         self.base = self.base.analyse_types(env)
 
-        if self.base.type.is_buffer or self.base.type.is_pythran_expr or self.base.type.is_memoryviewslice:
+        if (self.base.type.is_buffer or self.base.type.is_pythran_expr or
+            self.base.type.is_memoryviewslice):
             none_node = NoneNode(self.pos)
             index = SliceNode(self.pos,
                               start=self.start or none_node,
@@ -4881,6 +4926,8 @@ class SliceIndexNode(ExprNode):
             # array types can result in invalid type casts in the C
             # code
             self.type = PyrexTypes.CPtrType(base_type.base_type)
+        elif base_type.is_fastcall_tuple:
+            self.type = base_type
         else:
             self.base = self.base.coerce_to_pyobject(env)
             self.type = py_object_type
@@ -4981,7 +5028,7 @@ class SliceIndexNode(ExprNode):
         return super(SliceIndexNode, self).coerce_to(dst_type, env)
 
     def generate_result_code(self, code):
-        if not self.type.is_pyobject:
+        if not (self.type.is_pyobject or self.type.is_fastcall_tuple):
             error(self.pos,
                   "Slicing is not currently supported for '%s'." % self.type)
             return
@@ -5060,6 +5107,18 @@ class SliceIndexNode(ExprNode):
                     has_c_start, has_c_stop,
                     bool(code.globalstate.directives['wraparound']),
                     code.error_goto_if_null(result, self.pos)))
+        elif self.type.is_fastcall_tuple:
+            # utilitycode should already be included
+            (has_c_start, has_c_stop, c_start, c_stop,
+             py_start, py_stop, py_slice) = self.get_slice_config()
+            code.putln(
+                "%s = __Pyx_FastcallTuple_SliceIndex(%s, %s, %s, %d); %s" % (
+                    result,
+                    self.base.result(),
+                    c_start, c_stop,
+                    bool(code.globalstate.directives['wraparound']),
+                    code.error_goto_if_null("{0}.args".format(result), self.pos)))
+            return  # deliberately skip the "gotref"
         else:
             if self.base.type is list_type:
                 code.globalstate.use_utility_code(
@@ -6096,6 +6155,10 @@ class PyMethodCallNode(SimpleCallNode):
             UtilityCode.load_cached("PyObjectFastCall", "ObjectHandling.c"))
 
         code.putln("{")
+        # TODO - there's a potential optimization here if args comes from
+        # a FastCallDict_obj (and has PY_VECTORCALL_ARGUMENTS_OFFSET set,
+        # which is fairly likely)
+        # then it could be used directly without repacking the args
         code.putln("PyObject *__pyx_callargs[%d] = {%s, %s};" % (
             len(args)+1,
             self_arg,
@@ -6507,8 +6570,8 @@ class GeneralCallNode(CallNode):
                 self.positional_args.py_result(),
                 kwargs,
                 code.error_goto_if_null(self.result(), self.pos)))
+        # TODO generate fastcall code if possible?
         code.put_gotref(self.py_result())
-
 
 class AsTupleNode(ExprNode):
     #  Convert argument to tuple. Used for normalising
@@ -7057,6 +7120,7 @@ class AttributeNode(ExprNode):
             if (obj_type.is_string or obj_type.is_cpp_string
                 or obj_type.is_buffer or obj_type.is_memoryviewslice
                 or obj_type.is_numeric
+                or obj_type.is_fastcall_dict or obj_type.is_fastcall_tuple
                 or (obj_type.is_ctuple and obj_type.can_coerce_to_pyobject(env))
                 or (obj_type.is_struct and obj_type.can_coerce_to_pyobject(env))):
                 if not immutable_obj:
@@ -7595,7 +7659,10 @@ class SequenceNode(ExprNode):
                           or not rhs.type.is_builtin_type)
         long_enough_for_a_loop = len(self.unpacked_items) > 3
 
-        if special_unpack:
+        if rhs.type.is_fastcall_tuple:
+            self.generate_fastcall_tuple_parallel_unpacking_code(
+                code, rhs)
+        elif special_unpack:
             self.generate_special_parallel_unpacking_code(
                 code, rhs, use_loop=long_enough_for_a_loop)
         else:
@@ -7697,6 +7764,27 @@ class SequenceNode(ExprNode):
             self.generate_generic_parallel_unpacking_code(
                 code, rhs, self.unpacked_items, use_loop=use_loop)
             code.putln("}")
+
+    def generate_fastcall_tuple_parallel_unpacking_code(self, code, rhs):
+        result = rhs.result()
+        code.putln("{")
+        code.putln("Py_ssize_t size = __Pyx_FastcallTuple_Len({0});".format(result))
+        code.putln("if (unlikely(size != %d)) {" % len(self.args))
+        code.globalstate.use_utility_code(raise_too_many_values_to_unpack)
+        code.putln("if (size > %d) __Pyx_RaiseTooManyValuesError(%d);" % (
+            len(self.args), len(self.args)))
+        code.globalstate.use_utility_code(raise_need_more_values_to_unpack)
+        code.putln("else if (size >= 0) __Pyx_RaiseNeedMoreValuesError(size);")
+        # < 0 => exception
+        code.putln(code.error_goto(self.pos))
+        code.putln("}")
+        code.globalstate.use_utility_code(UtilityCode.load_cached(
+            "fastcall_tuple_indexing", "FunctionArguments.c"))
+        for i, item in enumerate(self.unpacked_items):
+            code.putln("%s = __Pyx_GetItemInt_FastcallTuple_Fast(%s, %d, 0, 0);" % (
+                    item.result(), result, i))  # should not be able to fail
+            code.put_gotref(item.result())
+        code.putln("}")
 
     def generate_generic_parallel_unpacking_code(self, code, rhs, unpacked_items, use_loop, terminate=True):
         code.globalstate.use_utility_code(raise_need_more_values_to_unpack)
@@ -12394,6 +12482,14 @@ class CmpNode(object):
                 self.special_bool_cmp_utility_code = UtilityCode.load_cached("PyUnicodeContains", "StringTools.c")
                 self.special_bool_cmp_function = "__Pyx_PyUnicode_ContainsTF"
                 return True
+            elif self.operand2.type.is_fastcall_tuple:
+                self.special_bool_cmp_utility_code = UtilityCode.load_cached("fastcall_tuple_contains",
+                                                                                "FunctionArguments.c")
+                self.special_bool_cmp_function = "__Pyx_FastcallTuple_ContainsTF"
+            elif self.operand2.type.is_fastcall_dict:
+                self.special_bool_cmp_utility_code = UtilityCode.load_cached("fastcall_dict_contains",
+                                                                                "FunctionArguments.c")
+                self.special_bool_cmp_function = "__Pyx_FastcallDict_ContainsTF"
             else:
                 if not self.operand2.type.is_pyobject:
                     self.operand2 = self.operand2.coerce_to_pyobject(env)
@@ -12587,7 +12683,12 @@ class PrimaryCmpNode(ExprNode, CmpNode):
                 common_type = None # if coercion needed, the method call above has already done it
                 self.is_pycmp = False # result is bint
             else:
-                common_type = py_object_type
+                if not self.operand2.type.is_fastcall_type:
+                    common_type = py_object_type
+                else:
+                    if not self.operand1.type.is_pyobject:
+                        self.operand1 = self.operand1.coerce_to_pyobject(env)
+                    common_type = None
                 self.is_pycmp = True
         elif self.find_special_bool_compare_function(env, self.operand1):
             if not self.operand1.type.is_pyobject:
@@ -13171,6 +13272,13 @@ class CoerceToPyTypeNode(CoercionNode):
             elif arg.type.is_complex:
                 self.type = Builtin.complex_type
             self.target_type = self.type
+            # the the fastcall_tuple and _dict conversions self.target_type
+            # is used to indicate if it's an explicitly requested conversion
+            # therefore leave as py_object_type here (but set type)
+            if arg.type.is_fastcall_tuple:
+                self.type = tuple_type
+            elif arg.type.is_fastcall_dict:
+                self.type = dict_type
         elif arg.type.is_string or arg.type.is_cpp_string:
             if (type not in (bytes_type, bytearray_type)
                     and not env.directives['c_string_encoding']):
@@ -13216,6 +13324,13 @@ class CoerceToPyTypeNode(CoercionNode):
             code.error_goto_if_null(self.result(), self.pos)))
 
         code.put_gotref(self.py_result())
+
+        for tp in ("tuple", "dict"):
+            if (getattr(self.arg.type, "is_fastcall_%s" % tp) and
+                    self.arg.type.coercion_count == 2 and self.target_type is py_object_type):
+                msg = ("Fastcall %s argument has been coerced to a Python object at least twice "
+                        "in this function. It may be more efficient to use a regular %s argument.")
+                warning(self.pos, msg % (tp, tp), 1)
 
 
 class CoerceIntToBytesNode(CoerceToPyTypeNode):
@@ -13313,11 +13428,13 @@ class CoerceToBooleanNode(CoercionNode):
         Builtin.bytes_type:      'PyBytes_GET_SIZE',
         Builtin.bytearray_type:  'PyByteArray_GET_SIZE',
         Builtin.unicode_type:    '__Pyx_PyUnicode_IS_TRUE',
+        PyrexTypes.FastcallTupleType(): '__Pyx_FastcallTuple_Len',
+        PyrexTypes.FastcallDictType(): '__Pyx_FastcallDict_Len'
     }
 
     def __init__(self, arg, env):
         CoercionNode.__init__(self, arg)
-        if arg.type.is_pyobject:
+        if arg.type.is_pyobject or arg.type.is_fastcall_type:
             self.is_temp = 1
 
     def nogil_check(self, env):
@@ -13340,8 +13457,10 @@ class CoerceToBooleanNode(CoercionNode):
             return
         test_func = self._special_builtins.get(self.arg.type)
         if test_func is not None:
+            arg_result = (self.arg.py_result() if not self.arg.type.is_fastcall_type
+                            else self.arg.result())
             checks = ["(%s != Py_None)" % self.arg.py_result()] if self.arg.may_be_none() else []
-            checks.append("(%s(%s) != 0)" % (test_func, self.arg.py_result()))
+            checks.append("(%s(%s) != 0)" % (test_func, arg_result))
             code.putln("%s = %s;" % (self.result(), '&&'.join(checks)))
         else:
             code.putln(

@@ -192,6 +192,9 @@ class PyrexType(BaseType):
     #  is_buffer             boolean     Is buffer access type
     #  is_pythran_expr       boolean     Is Pythran expr
     #  is_numpy_buffer       boolean     Is Numpy array buffer
+    #  is_fastcall_tuple     boolean     Optimized stararg
+    #  is_fastcall_dict      boolean     Optimized starstararg
+    #  is_fastcall_type      boolean     Either of fastcall_tuple or fastcall_dict
     #  has_attributes        boolean     Has C dot-selectable attributes
     #  default_value         string      Initial value that can be assigned before first user assignment.
     #  declaration_value     string      The value statically assigned on declaration (if any).
@@ -256,6 +259,8 @@ class PyrexType(BaseType):
     is_memoryviewslice = 0
     is_pythran_expr = 0
     is_numpy_buffer = 0
+    is_fastcall_tuple = 0
+    is_fastcall_dict = 0
     has_attributes = 0
     default_value = ""
     declaration_value = ""
@@ -333,6 +338,10 @@ class PyrexType(BaseType):
             result_code,
             convert_call,
             code.error_goto_if(error_condition or self.error_condition(result_code), error_pos))
+
+    @property
+    def is_fastcall_type(self):
+        return self.is_fastcall_tuple or self.is_fastcall_dict
 
 
 def public_decl(base_code, dll_linkage):
@@ -4118,6 +4127,141 @@ class ErrorType(PyrexType):
     def error_condition(self, result_code):
         return "dummy"
 
+class FastcallTupleType(PyrexType):
+    """Represents an optimized tuple-like type for "*args"
+
+    Eliminates the need for an actual tuple to be created, but
+    only supports the limited range of operations that can
+    be carried out efficiently
+    """
+
+    is_fastcall_tuple = 1
+    declaration_value = "{}"
+
+    def __init__(self):
+        super(FastcallTupleType, self).__init__()
+        self.coercion_count = 0
+
+    def create_declaration_utility_code(self, env):
+        env.use_utility_code(UtilityCode.load_cached('fastcall_tuple', 'FunctionArguments.c'))
+
+    def declaration_code(self, entity_code,
+            for_display = 0, dll_linkage = None, pyrex = 0):
+        return "__Pyx_FastcallTuple_obj {0}".format(entity_code)
+
+    def create_to_py_utility_code(self, env):
+        # code is in declaration code
+        return True
+
+    def create_from_py_utility_code(self, env):
+        return False
+
+    def to_py_call_code(self, source_code, result_code, result_type, to_py_function=None):
+        # TODO maybe something cleverer with result_type
+        from .Builtin import tuple_type
+        if result_type is not tuple_type:
+            # this is an explicit conversion so don't generate warnings
+            self.coercion_count += 1
+        return "{0} = __Pyx_FastcallTuple_ToTuple({1})".format(result_code, source_code)
+
+    def literal_code(self, value):
+        assert value in ("0", "{}") # only know how to handle empty literals
+        return self.declaration_value
+
+    # different instances are created just to hold a different "coercion_count" for each
+    # function. However, it's useful for looking up the type if they compare equal
+    # (apart from the count there's no useful difference between instances)
+    def __hash__(self):
+        return hash(type(self))
+    def __eq__(self, rhs):
+        return type(self) == type(rhs)
+
+class FastcallDictType(PyrexType):
+    """Represents an optimized dict-like type for "**kwds"
+
+    Eliminates the need for an actual dict to be created,
+    (in some cases) but
+    only supports the limited range of operations that can
+    be carried out efficiently
+    """
+
+    is_fastcall_dict = 1
+    #is_builtin_type = 1
+    has_attributes = 1
+    name = "fastcalldict"
+    exception_check = None
+
+    declaration_value = "__Pyx_FastcallDict_New()"
+
+    # set temporarily when generating the definition in the
+    # function wrapper to create a value and not a pointer
+    as_value = False
+
+    @classmethod
+    def _get_methods(self):
+        from .Builtin import BuiltinMethod
+        uc = UtilityCode.load_cached("fastcall_dict_iter", "FunctionArguments.c")
+        return [
+            BuiltinMethod("keys", "T", "O", "__Pyx_FastcallDict_Keys",
+                utility_code=uc),
+            BuiltinMethod("values", "T", "O", "__Pyx_FastcallDict_Values",
+                utility_code=uc),
+            BuiltinMethod("items", "T", "O", "__Pyx_FastcallDict_Items",
+                utility_code=uc),
+        ]
+
+    def __init__(self):
+        from .Symtab import CClassScope
+        super(FastcallDictType, self).__init__()
+        self.scope = CClassScope("fastcalldicttype", None, "extern")
+        self.scope.parent_type = self
+        self.scope.directives = {}
+        self.coercion_count = 0
+
+        for m in self._get_methods():
+            m.declare_in_type(self)
+
+    def attributes_known(self):
+        return True
+
+    def create_declaration_utility_code(self, env):
+        env.use_utility_code(UtilityCode.load_cached('fastcall_dict', 'FunctionArguments.c'))
+
+    def declaration_code(self, entity_code,
+            for_display = 0, dll_linkage = None, pyrex = 0):
+        if not self.as_value:
+            return "__Pyx_FastcallDict_obj* {0}".format(entity_code)
+        else:
+            return "__Pyx_FastcallDict_obj {0}".format(entity_code)
+
+    def create_to_py_utility_code(self, env):
+        env.use_utility_code(UtilityCode.load_cached('fastcall_dict_convert',
+                                                        'FunctionArguments.c'))
+        return True
+
+    def create_from_py_utility_code(self, env):
+        return False
+
+    def to_py_call_code(self, source_code, result_code, result_type, to_py_function=None):
+        from .Builtin import dict_type
+        if result_type is dict_type:
+            return "{0} = __Pyx_FastcallDict_ToDict_Explicit({1})".format(result_code, source_code)
+        else:
+            self.coercion_count += 1
+            return "{0} = __Pyx_FastcallDict_ToDict({1})".format(result_code, source_code)
+
+    # different instances are created just to hold a different "coercion_count" for each
+    # function. However, it's useful for looking up the type if they compare equal
+    # (apart from the count there's no useful difference between instances)
+    def __hash__(self):
+        return hash(type(self))
+    def __eq__(self, rhs):
+        return type(self) == type(rhs)
+
+    def literal_code(self, value):
+        assert value in ("0", "{}") # only know how to handle empty literals
+        return self.declaration_value
+
 
 rank_to_type_name = (
     "char",         # 0
@@ -4649,6 +4793,9 @@ def parse_basic_type(name):
     basic_type = simple_c_type(1, 0, name)
     if basic_type:
         return basic_type
+
+    #if name == "fastcall_tuple":
+    #    return cy_fallcall_tuple_type
     #
     signed = 1
     longness = 0

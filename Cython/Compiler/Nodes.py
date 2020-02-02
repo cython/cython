@@ -2076,10 +2076,9 @@ class FuncDefNode(StatNode, BlockNode):
                 code.put_xdecref_memoryviewslice(entry.cname, have_gil=not lenv.nogil)
             elif entry.type.is_pyobject:
                 if not entry.is_arg or len(entry.cf_assignments) > 1:
-                    if entry.xdecref_cleanup:
-                        code.put_var_xdecref(entry)
-                    else:
-                        code.put_var_decref(entry)
+                    code.put_var_xdecref(entry)  # TODO ideally should pick based on
+                        # entry.xdecref_cleanup but this doesn't seem to be set reliably
+                        # for regular variables
 
         # Decref any increfed args
         for entry in lenv.arg_entries:
@@ -2719,6 +2718,8 @@ class DecoratorNode(Node):
     # decorator    NameNode or CallNode or AttributeNode
     child_attrs = ['decorator']
 
+def _get_type_attr(arg, attr):
+    return getattr(getattr(arg, "type", None), attr, None)
 
 class DefNode(FuncDefNode):
     # A Python function definition.
@@ -3077,6 +3078,15 @@ class DefNode(FuncDefNode):
 
             if not uses_args_tuple:
                 sig = self.entry.signature = sig.with_fastcall()
+            if (not self.entry.signature.use_fastcall and self.starstar_arg and
+                    _get_type_attr(self.starstar_arg, "is_fastcall_dict")):
+                del self.starstar_arg.type
+                if hasattr(self.starstar_arg, "entry"):
+                    del self.starstar_arg.entry.type
+                warning(self.pos, ("Ignoring request for **{0} to be a specialized "
+                    "fastcall argument since the function itself is not fastcallable "
+                    "and so this would only cause slower performance."
+                    ).format(self.starstar_arg.name), 1)
 
     def bad_signature(self):
         sig = self.entry.signature
@@ -3140,7 +3150,9 @@ class DefNode(FuncDefNode):
 
     def declare_python_arg(self, env, arg):
         if arg:
-            if env.directives['infer_types'] != False:
+            if getattr(arg, 'type', None):
+                type = arg.type
+            elif env.directives['infer_types'] != False:
                 type = PyrexTypes.unspecified_type
             else:
                 type = py_object_type
@@ -3161,6 +3173,8 @@ class DefNode(FuncDefNode):
                 decorator.decorator = decorator.decorator.analyse_expressions(env)
 
         self.py_wrapper.prepare_argument_coercion(env)
+        if _get_type_attr(self.star_arg, "is_fastcall_tuple"):
+            self.star_arg.type.create_declaration_utility_code(env)
         return self
 
     def needs_assignment_synthesis(self, env, code=None):
@@ -3347,7 +3361,10 @@ class DefNodeWrapper(FuncDefNode):
         if self.star_arg:
             args.append(self.star_arg.entry.cname)
         if self.starstar_arg:
-            args.append(self.starstar_arg.entry.cname)
+            if _get_type_attr(self.starstar_arg, "is_fastcall_dict"):
+                args.append("&%s" % self.starstar_arg.entry.cname)
+            else:
+                args.append(self.starstar_arg.entry.cname)
         args = ', '.join(args)
         if not self.return_type.is_void:
             code.put('%s = ' % Naming.retval_cname)
@@ -3410,6 +3427,8 @@ class DefNodeWrapper(FuncDefNode):
         for entry in lenv.var_entries:
             if entry.is_arg and entry.type.is_pyobject:
                 code.put_var_decref(entry)
+            if entry.type.is_fastcall_dict:
+                code.put_xdecref("%s.object" % entry.cname, py_object_type, nanny=False)
 
         code.put_finish_refcount_context()
         if not self.return_type.is_void:
@@ -3510,7 +3529,17 @@ class DefNodeWrapper(FuncDefNode):
                     code.put_var_declaration(arg.entry)
         for entry in env.var_entries:
             if entry.is_arg:
-                code.put_var_declaration(entry)
+                if entry.type.is_fastcall_dict:
+                    # fastcall dict needs to be a value type here, but a pointer
+                    # in the main function (so that changes to it propagate correctly)
+                    old_as_value = entry.type.as_value
+                    entry.type.as_value = True
+                    try:
+                        code.put_var_declaration(entry)
+                    finally:
+                        entry.type.as_value = old_as_value
+                else:
+                    code.put_var_declaration(entry)
 
         # Assign nargs variable as len(args), but avoid an "unused" warning in the few cases where we don't need it.
         if self.signature_has_generic_args():
@@ -3610,24 +3639,36 @@ class DefNodeWrapper(FuncDefNode):
                 bool(self.starstar_arg), self.error_value()))
 
         if self.starstar_arg and self.starstar_arg.entry.cf_used:
+            if _get_type_attr(self.starstar_arg, "is_fastcall_dict"):
+                suffix = "_fastcallstruct"
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("ParseKeywords_fastcallstruct", "FunctionArguments.c"))
+            else:
+                suffix = ""
             code.putln("if (%s) {" % kwarg_check)
-            code.putln("%s = __Pyx_KwargsAsDict_%s(%s, %s);" % (
+            code.putln("%s = __Pyx_KwargsAsDict_%s%s(%s, %s);" % (
                 self.starstar_arg.entry.cname,
                 self.signature.fastvar,
+                suffix,
                 Naming.kwds_cname,
                 Naming.kwvalues_cname))
-            code.putln("if (unlikely(!%s)) return %s;" % (
-                self.starstar_arg.entry.cname, self.error_value()))
-            code.put_gotref(self.starstar_arg.entry.cname)
-            code.putln("} else {")
-            allow_null = all(ref.node.allow_null for ref in self.starstar_arg.entry.cf_references)
-            if allow_null:
-                code.putln("%s = NULL;" % (self.starstar_arg.entry.cname,))
-            else:
-                code.putln("%s = PyDict_New();" % (self.starstar_arg.entry.cname,))
+            if not self.starstar_arg.entry.type.is_fastcall_dict:
                 code.putln("if (unlikely(!%s)) return %s;" % (
                     self.starstar_arg.entry.cname, self.error_value()))
                 code.put_gotref(self.starstar_arg.entry.cname)
+            code.putln("} else {")
+            allow_null = all(ref.node.allow_null for ref in self.starstar_arg.entry.cf_references)
+            if allow_null:
+                code.putln("%s = %s;" % (self.starstar_arg.entry.cname,
+                                         self.starstar_arg.entry.type.literal_code()))
+            else:
+                if _get_type_attr(self.starstar_arg, "is_fastcall_dict"):
+                    code.putln("%s = __Pyx_FastcallDict_New();" % self.starstar_arg.entry.cname)
+                else:
+                    code.putln("%s = PyDict_New();" % self.starstar_arg.entry.cname)
+                    code.putln("if (unlikely(!%s)) return %s;" % (
+                        self.starstar_arg.entry.cname, self.error_value()))
+                    code.put_gotref(self.starstar_arg.entry.cname)
             self.starstar_arg.entry.xdecref_cleanup = allow_null
             code.putln("}")
 
@@ -3645,7 +3686,7 @@ class DefNodeWrapper(FuncDefNode):
                 code.putln("}")
             else:
                 code.putln("return %s;" % self.error_value())
-            code.put_gotref(self.star_arg.entry.cname)
+            code.put_var_gotref(self.star_arg.entry)
             code.put_incref(Naming.self_cname, py_object_type)
             code.put_giveref(Naming.self_cname)
             code.putln("PyTuple_SET_ITEM(%s, 0, %s);" % (
@@ -3664,11 +3705,17 @@ class DefNodeWrapper(FuncDefNode):
             self.star_arg.entry.xdecref_cleanup = 0
         elif self.star_arg:
             assert not self.signature.use_fastcall
-            code.put_incref(Naming.args_cname, py_object_type)
-            code.putln("%s = %s;" % (
-                self.star_arg.entry.cname,
-                Naming.args_cname))
-            self.star_arg.entry.xdecref_cleanup = 0
+            if _get_type_attr(self.star_arg, "is_fastcall_tuple"):
+                # need a specific conversion
+                code.putln("%s = __Pyx_FastcallTuple_FromTuple(%s);" % (
+                    self.star_arg.entry.cname,
+                    Naming.args_cname))
+            else:
+                code.put_incref(Naming.args_cname, py_object_type)
+                code.putln("%s = %s;" % (
+                    self.star_arg.entry.cname,
+                    Naming.args_cname))
+                self.star_arg.entry.xdecref_cleanup = 0
 
     def generate_tuple_and_keyword_parsing_code(self, args, success_label, code):
         code.globalstate.use_utility_code(
@@ -3893,12 +3940,17 @@ class DefNodeWrapper(FuncDefNode):
     def generate_stararg_init_code(self, max_positional_args, code):
         if self.starstar_arg:
             self.starstar_arg.entry.xdecref_cleanup = 0
-            code.putln('%s = PyDict_New(); if (unlikely(!%s)) return %s;' % (
-                self.starstar_arg.entry.cname,
-                self.starstar_arg.entry.cname,
-                self.error_value()))
-            code.put_gotref(self.starstar_arg.entry.cname)
+            if not _get_type_attr(self.starstar_arg, "is_fastcall_dict"):
+                code.putln('%s = PyDict_New(); if (unlikely(!%s)) return %s;' % (
+                        self.starstar_arg.entry.cname,
+                        self.starstar_arg.entry.cname,
+                        self.error_value()))
+                code.put_gotref(self.starstar_arg.entry.cname)
+            # starstar case should already be set-up
         if self.star_arg:
+            is_fastcall_tuple = self.star_arg.entry.type.is_fastcall_tuple
+            postfix = "" if not is_fastcall_tuple else "_struct"
+
             self.star_arg.entry.xdecref_cleanup = 0
             if max_positional_args == 0:
                 # If there are no positional arguments, use the args tuple
@@ -3910,16 +3962,17 @@ class DefNodeWrapper(FuncDefNode):
                 # It is possible that this is a slice of "negative" length,
                 # as in args[5:3]. That's not a problem, the function below
                 # handles that efficiently and returns the empty tuple.
-                code.putln('%s = __Pyx_ArgsSlice_%s(%s, %d, %s);' % (
-                    self.star_arg.entry.cname, self.signature.fastvar,
+                code.putln('%s = __Pyx_ArgsSlice_%s%s(%s, %d, %s);' % (
+                    self.star_arg.entry.cname, self.signature.fastvar, postfix,
                     Naming.args_cname, max_positional_args, Naming.nargs_cname))
-                code.putln("if (unlikely(!%s)) {" % self.star_arg.entry.cname)
+                code.putln("if (unlikely(!%s)) {" %
+                           (self.star_arg.entry.cname if not is_fastcall_tuple else "1"))
                 if self.starstar_arg:
-                    code.put_decref_clear(self.starstar_arg.entry.cname, py_object_type)
+                    code.put_var_decref_clear(self.starstar_arg.entry)
                 code.put_finish_refcount_context()
                 code.putln('return %s;' % self.error_value())
                 code.putln('}')
-                code.put_gotref(self.star_arg.entry.cname)
+                code.put_var_gotref(self.star_arg.entry)
 
     def generate_argument_values_setup_code(self, args, code):
         max_args = len(args)
@@ -4104,13 +4157,20 @@ class DefNodeWrapper(FuncDefNode):
             values_array = 'values + %d' % num_pos_only_args
         else:
             values_array = 'values'
+        starstar_cname = self.starstar_arg and self.starstar_arg.entry.cname or '0'
+        if not getattr(getattr(self.starstar_arg, "type", None), "is_fastcall_dict", None):
+            suffix = ""
+        else:
+            suffix = "_fastcallstruct"
+            starstar_cname = "&" + starstar_cname
         code.globalstate.use_utility_code(
-            UtilityCode.load_cached("ParseKeywords", "FunctionArguments.c"))
-        code.putln('if (unlikely(__Pyx_ParseOptionalKeywords(%s, %s, %s, %s, %s, %s, %s) < 0)) %s' % (
+            UtilityCode.load_cached("ParseKeywords%s" % suffix, "FunctionArguments.c"))
+        code.putln('if (unlikely(__Pyx_ParseOptionalKeywords%s(%s, %s, %s, %s, %s, %s, %s) < 0)) %s' % (
+            suffix,
             Naming.kwds_cname,
             Naming.kwvalues_cname,
             Naming.pykwdlist_cname,
-            self.starstar_arg and self.starstar_arg.entry.cname or '0',
+            starstar_cname,
             values_array,
             pos_arg_count,
             self_name_csafe,
@@ -5531,6 +5591,8 @@ class SingleAssignmentNode(AssignmentNode):
                     env.use_utility_code(UtilityCode.load_cached("CppExceptionConversion", "CppSupport.cpp"))
             else:
                 rhs = self.rhs.coerce_to(self.lhs.type, env)
+        elif self.rhs.type.is_fastcall_tuple and isinstance(self.lhs, ExprNodes.TupleNode):
+            rhs = self.rhs
         else:
             rhs = self.rhs.coerce_to(self.lhs.type, env)
 

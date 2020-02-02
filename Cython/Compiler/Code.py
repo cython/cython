@@ -2157,7 +2157,7 @@ class CCodeWriter(object):
 
     def put_var_decref(self, entry):
         if entry.type.is_pyobject:
-            self.putln("__Pyx_XDECREF(%s);" % self.entry_as_pyobject(entry))
+            self.putln("__Pyx_DECREF(%s);" % self.entry_as_pyobject(entry))
 
     def put_var_xdecref(self, entry, nanny=True):
         if entry.type.is_pyobject:
