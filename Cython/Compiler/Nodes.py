@@ -8666,29 +8666,43 @@ class ParallelStatNode(StatNode, ParallelNode):
     def _generate_map_lists(self, device_map):
         """
         Helper function generating a list of entries for every map-type.
-        memviewlice data pointer is char, we need an additional properly typed pointer variable
-        so that the OpenMP compiler can send the right amount of data in array-maps.
-        We do not allow arrays/memviews to be resized or reshaped or re-strided.
-        We only allow writing to the data pointer, so we never need to send back the memview struct itself.
+        Scalars are mapped by name only, memviews require a range.
+        Since memviewlice data pointer is char, we need its range to also
+        multiply by type-size.
+        We do not allow arrays/memviews to be resized or reshaped or re-strided
+        within the device/parallel block.
+        We only allow writing to the data pointer, so we never need to send back
+        the memview struct itself.
         """
         if not device_map or not isinstance(device_map, dict):
             return {}
         _maps = {x:[] for x in self.valid_mappings}
         _maps['memview'] = []
         for entry in device_map:
+            if entry == None:
+                error(self.pos, "Error in device mapping, key might not be a declared variable")
+                continue
             m = device_map[entry]
             if entry.type.is_memoryviewslice:
                 if entry.type.is_c_contig:
                     # the struct itself cannot be altered, so it's always a 'to'
-                    _maps['to'] += ['%s.%s' % (entry.cname, m) for m in ['memview', 'shape', 'strides', 'suboffsets']]
+                    _maps['to'] += ['%s.%s' % (entry.cname, m) for m in ['memview',
+                                                                         'shape',
+                                                                         'strides',
+                                                                         'suboffsets']]
                     # an extra data pointer inherits the read/write/to/from attribute
                     _maps['memview'].append(entry)
-                    _cnt = '*'.join(['sizeof(%s)' % entry.type.dtype_name] + ['%s.shape[%d]' % (entry.cname, i) for i in range(entry.type.ndim)])
+                    _szs = ['%s.shape[%d]' % (entry.cname, i) for i in range(entry.type.ndim)]
+                    _cnt = '*'.join(['sizeof(%s)' % entry.type.dtype_name] + _szs)
                     _maps[m].append("%s.data[0:%s]" % (entry.cname, _cnt))
                 else:
-                    error(e.pos, "Memoryviews must be C-contiguous when used in device with blocks")
-            else:
+                    error(entry.pos, "Mapped memoryviews must be "
+                                     "C-contiguous (%s is not)" % entry.name)
+            elif entry.type.is_numeric:
                 _maps[m].append(entry.cname)
+            else:
+                error(entry.pos, "Mapped variables must be memoryview "
+                                 "or scalar (%s is %s)" % (entry.name, entry.type))
         return _maps
 
     def initialize_privates_to_nan(self, code, exclude=None):
