@@ -8841,6 +8841,7 @@ class ParallelStatNode(StatNode, ParallelNode):
         If compiled without OpenMP support (at the C level), then we still have
         to acquire the GIL to decref any object temporaries.
         """
+        begin_code = self.begin_of_parallel_block
         self.begin_of_parallel_block = None
 
         if self.error_label_used:
