@@ -3043,20 +3043,6 @@ class GilCheck(VisitorTransform):
         self.visitchildren(node)
         return node
 
-    def visit_DeviceWithBlockNode(self, node):
-        if not self.nogil:
-            error(node.pos, "The device section may only be used without "
-                            "the GIL")
-            return None
-
-        if node.nogil_check:
-            # It does not currently implement this, but test for it anyway to
-            # avoid potential future surprises
-            node.nogil_check(self.env_stack[-1])
-
-        self.visitchildren(node)
-        return node
-
     def visit_TryFinallyStatNode(self, node):
         """
         Take care of try/finally statements in nogil code sections.
