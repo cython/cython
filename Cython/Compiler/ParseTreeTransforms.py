@@ -2296,16 +2296,6 @@ class AnalyseExpressionsTransform(CythonTransform):
         self.parallel_with_block = None
         return node
 
-    # def visit_DeviceWithBlockNode(self, node):
-    #     if self.device_with_block != None:
-    #         error(node.pos, "Nested parallel.device() not allowed")
-    #     node.assignments = []
-    #     node.names = []
-    #     self.device_with_block = node
-    #     self.visitchildren(node)
-    #     self.device_with_block = None
-    #     return node
-
 
 class ReplacePropertyNode(CythonTransform):
     def visit_CFuncDefNode(self, node):
@@ -2422,6 +2412,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
     @cython.ccall
     @cython.inline
     @cython.nogil
+    @cython.device
     """
 
     def visit_ModuleNode(self, node):
@@ -2442,6 +2433,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
         if 'inline' in self.directives:
             modifiers.append('inline')
         nogil = self.directives.get('nogil')
+        device = self.directives.get('device')
         except_val = self.directives.get('exceptval')
         return_type_node = self.directives.get('returns')
         if return_type_node is None and self.directives['annotation_typing']:
@@ -2453,23 +2445,31 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
             # backward compatible default: no exception check
             except_val = (None, False)
         if 'ccall' in self.directives:
-            node = node.as_cfunction(
-                overridable=True, modifiers=modifiers, nogil=nogil,
-                returns=return_type_node, except_val=except_val)
+            node = node.as_cfunction(overridable=True,
+                                     modifiers=modifiers,
+                                     nogil=nogil,
+                                     device=device,
+                                     returns=return_type_node,
+                                     except_val=except_val)
             return self.visit(node)
         if 'cfunc' in self.directives:
             if self.in_py_class:
                 error(node.pos, "cfunc directive is not allowed here")
             else:
-                node = node.as_cfunction(
-                    overridable=False, modifiers=modifiers, nogil=nogil,
-                    returns=return_type_node, except_val=except_val)
+                node = node.as_cfunction(overridable=False,
+                                         modifiers=modifiers,
+                                         nogil=nogil,
+                                         device=device,
+                                         returns=return_type_node,
+                                         except_val=except_val)
                 return self.visit(node)
         if 'inline' in modifiers:
             error(node.pos, "Python functions cannot be declared 'inline'")
         if nogil:
             # TODO: turn this into a "with gil" declaration.
             error(node.pos, "Python functions cannot be declared 'nogil'")
+        if device:
+            error(node.pos, "Python functions cannot be declared 'device'")
         self.visitchildren(node)
         return node
 
