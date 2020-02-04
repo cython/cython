@@ -24,6 +24,7 @@ from .TreeFragment import TreeFragment
 from .StringEncoding import EncodedString, _unicode
 from .Errors import error, warning, CompileError, InternalError
 from .Code import UtilityCode
+from .UtilityCode import NonManglingModuleScope
 
 
 class SkipDeclarations(object):
@@ -2215,6 +2216,7 @@ class MangleDunderNamesTransform(CythonTransform):
     def __init__(self, *args, **kwargs):
         super(MangleDunderNamesTransform, self).__init__(*args, **kwargs)
         self.last_class_name = None
+        self.dont_mangle_pyx = False
 
     def _visit_class_common(self, node, name):
         # The class name (target), list of bases and metaclass name should be
@@ -2230,6 +2232,15 @@ class MangleDunderNamesTransform(CythonTransform):
         self.last_class_name = prev
 
         self.visitchildren(node, attrs=exclude_at_first)
+        return node
+
+    def visit_ModuleNode(self, node):
+        dont_mangle_pyx = self.dont_mangle_pyx
+        # classes defined in utility code are treated slightly and attributes
+        # starting with __pyx_ aren't mangled (otherwise memoryviews break)
+        self.dont_mangle_pyx = isinstance(node.scope, NonManglingModuleScope)
+        self.visitchildren(node)
+        self.dont_mangle_pyx = dont_mangle_pyx
         return node
 
     def visit_PyClassDefNode(self, node):
@@ -2284,9 +2295,11 @@ class MangleDunderNamesTransform(CythonTransform):
         return node
 
     def mangle_special_name(self, name):
+        pyx_test = ((not self.dont_mangle_pyx) and
+                    (not name.lower().startswith(Naming.pyrex_prefix)))
         if (self.last_class_name and
             name and name.startswith('__') and not name.endswith('__') and
-            not name.lower().startswith(Naming.pyrex_prefix)):
+            pyx_test):
             class_name = self.last_class_name.lstrip('_')
             if class_name:
                 # According to
