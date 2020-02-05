@@ -601,6 +601,11 @@ class CFuncDeclaratorNode(CDeclaratorNode):
     is_const_method = 0
     templates = None
 
+    def __init__(self, pos, **kw):
+        super(CFuncDeclaratorNode, self).__init__(pos, **kw)
+        if self.device and not self.nogil:
+            self.nogil = True
+
     def analyse_templates(self):
         if isinstance(self.base, CArrayDeclaratorNode):
             from .ExprNodes import TupleNode, NameNode
@@ -1771,6 +1776,11 @@ class FuncDefNode(StatNode, BlockNode):
         if self.py_func:
             self.py_func.generate_function_header(
                 code, with_pymethdef=with_pymethdef, proto_only=True)
+
+        on_device = self.local_scope.directives['device'] or self.declarator.device
+        if on_device:
+            code.putln_openmp("#pragma omp declare target")
+
         self.generate_function_header(code, with_pymethdef=with_pymethdef)
         # ----- Local variable declarations
         # Find function scope
@@ -2134,6 +2144,9 @@ class FuncDefNode(StatNode, BlockNode):
             code.putln("return %s;" % Naming.retval_cname)
 
         code.putln("}")
+
+        if on_device:
+            code.putln_openmp("#pragma omp end declare target")
 
         if preprocessor_guard:
             code.putln("#endif /*!(%s)*/" % preprocessor_guard)
@@ -2524,6 +2537,8 @@ class CFuncDefNode(FuncDefNode):
             for entry in self.local_scope.var_entries:
                 if entry.type.is_pyobject and not entry.in_with_gil_block:
                     error(self.pos, "Function declared nogil has Python locals or temporaries")
+        elif env.directives['device'] and not env.directives['nogil']:
+            error(self.pos, "Function declared device must not require the GIL")
 
     def analyse_expressions(self, env):
         self.local_scope.directives = env.directives
@@ -2794,6 +2809,9 @@ class DefNode(FuncDefNode):
             error(self.starstar_arg.pos, "cdef function cannot have starstar argument")
         exception_value, exception_check = except_val or (None, False)
 
+        if device:
+            nogil = True
+
         if cfunc is None:
             cfunc_args = []
             for formal_arg in self.args:
@@ -2838,7 +2856,8 @@ class DefNode(FuncDefNode):
                                          exception_check=cfunc_type.exception_check,
                                          exception_value=exception_value,
                                          with_gil=cfunc_type.with_gil,
-                                         nogil=cfunc_type.nogil)
+                                         nogil=cfunc_type.nogil,
+                                         device=cfunc_type.device)
         return CFuncDefNode(self.pos,
                             modifiers=modifiers or [],
                             base_type=CAnalysedBaseTypeNode(self.pos, type=cfunc_type.return_type),
@@ -9467,9 +9486,14 @@ class ParallelRangeNode(ParallelStatNode):
         names = 'start', 'stop', 'step', 'target'
         nodes = self.start, self.stop, self.step, self.target
         for name, node in zip(names, nodes):
-            if node is not None and node.type.is_pyobject:
-                error(node.pos, "%s may not be a Python object "
-                                "as we don't have the GIL" % name)
+            if node is not None:
+                if node.type:
+                    if node.type.is_pyobject:
+                        error(node.pos, "%s may not be a Python object "
+                                        "as we don't have the GIL" % name)
+                else:
+                    error(node.pos, "%s is undeclared" % name)
+
 
     def generate_execution_code(self, code):
         """
