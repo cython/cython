@@ -2084,7 +2084,7 @@ class FuncDefNode(StatNode, BlockNode):
         for entry in lenv.arg_entries:
             if entry.type.is_pyobject:
                 if (acquire_gil or len(entry.cf_assignments) > 1) and not entry.in_closure:
-                    code.put_var_decref(entry)
+                    code.put_var_xdecref(entry)
             elif (entry.type.is_memoryviewslice and
                   (not is_cdef or len(entry.cf_assignments) > 1)):
                 # decref slices of def functions and acquired slices from cdef
@@ -3426,7 +3426,10 @@ class DefNodeWrapper(FuncDefNode):
         code.put_label(code.return_label)
         for entry in lenv.var_entries:
             if entry.is_arg and entry.type.is_pyobject:
-                code.put_var_decref(entry)
+                if entry.xdecref_cleanup:
+                    code.put_var_xdecref(entry)
+                else:
+                    code.put_var_decref(entry)
             if entry.type.is_fastcall_dict:
                 code.put_xdecref("%s.object" % entry.cname, py_object_type, nanny=False)
 
@@ -3660,7 +3663,7 @@ class DefNodeWrapper(FuncDefNode):
             allow_null = all(ref.node.allow_null for ref in self.starstar_arg.entry.cf_references)
             if allow_null:
                 code.putln("%s = %s;" % (self.starstar_arg.entry.cname,
-                                         self.starstar_arg.entry.type.literal_code()))
+                                         self.starstar_arg.entry.type.literal_code(0)))
             else:
                 if _get_type_attr(self.starstar_arg, "is_fastcall_dict"):
                     code.putln("%s = __Pyx_FastcallDict_New();" % self.starstar_arg.entry.cname)
