@@ -38,6 +38,7 @@ class MarkParallelAssignments(EnvTransform):
         self.parallel_block_stack = []
         super(MarkParallelAssignments, self).__init__(context)
         self.visit_safe_node = self.visitchildren  # for _visit_FuncDefNode
+        self.on_device = False
 
     def mark_assignment(self, lhs, rhs, inplace_op=None):
         if isinstance(lhs, (ExprNodes.NameNode, Nodes.PyArgDeclNode)):
@@ -204,6 +205,13 @@ class MarkParallelAssignments(EnvTransform):
         self.visitchildren(node)
         return node
 
+    def visit_FuncDefNode(self, node):
+        tmp = self.on_device
+        self.on_device = node.declarator.device
+        self.visitchildren(node)
+        self.on_device = tmp
+        return node
+
     def visit_ParallelStatNode(self, node):
         if self.parallel_block_stack:
             node.parent = self.parallel_block_stack[-1]
@@ -229,8 +237,11 @@ class MarkParallelAssignments(EnvTransform):
 
         self.parallel_block_stack.append(node)
 
-        if not node.on_device and node.parent:
-            node.on_device = node.parent.on_device
+        if not node.on_device:
+            if self.on_device:
+                node.on_device = True
+            elif node.parent:
+                node.on_device = node.parent.on_device
 
         nested = nested or len(self.parallel_block_stack) > 2
         if not self.parallel_errors and nested and not node.is_prange:

@@ -121,7 +121,7 @@ optimization = _Optimization()
 overflowcheck.fold = optimization.use_switch = \
     optimization.unpack_method_calls = lambda arg: _EmptyDecoratorAndManager()
 
-final = internal = type_version_tag = no_gc_clear = no_gc = device = _empty_decorator
+final = internal = type_version_tag = no_gc_clear = no_gc = _empty_decorator
 
 binding = lambda _: _empty_decorator
 
@@ -204,6 +204,7 @@ class _nogil(object):
 
 nogil = _nogil()
 gil = _nogil()
+device = _nogil()
 del _nogil
 
 

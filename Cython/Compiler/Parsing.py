@@ -36,7 +36,7 @@ from . import Options
 
 _IS_PY3 = sys.version_info[0] >= 3
 _IS_2BYTE_UNICODE = sys.maxunicode == 0xffff
-_CDEF_MODIFIERS = ('inline', 'nogil', 'api')
+_CDEF_MODIFIERS = ('inline', 'nogil', 'api', 'device')
 
 
 class Ctx(object):
@@ -48,6 +48,7 @@ class Ctx(object):
     api = 0
     overridable = 0
     nogil = 0
+    device = 0
     namespace = None
     templates = None
     allow_struct_enum_decorator = False
@@ -2824,12 +2825,14 @@ def p_c_func_declarator(s, pos, ctx, base, cmethod_flag):
     ellipsis = p_optional_ellipsis(s)
     s.expect(')')
     nogil = p_nogil(s)
+    device = p_device(s)
     exc_val, exc_check = p_exception_value_clause(s)
     with_gil = p_with_gil(s)
     return Nodes.CFuncDeclaratorNode(pos,
         base = base, args = args, has_varargs = ellipsis,
         exception_value = exc_val, exception_check = exc_check,
-        nogil = nogil or ctx.nogil or with_gil, with_gil = with_gil)
+        nogil = nogil or ctx.nogil or with_gil, with_gil = with_gil,
+        device=device)
 
 supported_overloaded_operators = cython.declare(set, set([
     '+', '-', '*', '/', '%',
@@ -2936,6 +2939,13 @@ def p_with_gil(s):
     if s.sy == 'with':
         s.next()
         s.expect_keyword('gil')
+        return 1
+    else:
+        return 0
+
+def p_device(s):
+    if s.sy == 'IDENT' and s.systring == 'device':
+        s.next()
         return 1
     else:
         return 0
@@ -3066,6 +3076,11 @@ def p_cdef_statement(s, ctx):
         if ctx.overridable:
             error(pos, "cdef blocks cannot be declared cpdef")
         return p_cdef_block(s, ctx)
+    elif p_device(s):
+        ctx.device = 1
+        if ctx.overridable:
+            error(pos, "cdef blocks cannot be declared cpdef")
+        return p_cdef_block(s, ctx)
     elif s.sy == ':':
         if ctx.overridable:
             error(pos, "cdef blocks cannot be declared cpdef")
@@ -3108,6 +3123,8 @@ def p_cdef_extern_block(s, pos, ctx):
         ctx.namespace = p_string_literal(s, 'u')[2]
     if p_nogil(s):
         ctx.nogil = 1
+    if p_device(s):
+        ctx.device = 1
 
     # Use "docstring" as verbatim string to include
     verbatim_include, body = p_suite_with_docstring(s, ctx, True)

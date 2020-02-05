@@ -2294,7 +2294,6 @@ class AnalyseExpressionsTransform(CythonTransform):
         self.parallel_with_block = None
         return node
 
-
 class ReplacePropertyNode(CythonTransform):
     def visit_CFuncDefNode(self, node):
         if not node.decorators:
@@ -2425,6 +2424,12 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
         self.visitchildren(node)
         self.directives = old_directives
         return node
+
+    #def visit_FuncDefNode(self, node):
+    #    nogil = self.directives.get('nogil')
+    #    device = self.directives.get('device')
+    #    self.visitchildren(node)
+    #    return node
 
     def visit_DefNode(self, node):
         modifiers = []
@@ -2974,7 +2979,7 @@ class GilCheck(VisitorTransform):
         if inner_nogil:
             self.nogil_declarator_only = True
 
-        if inner_nogil and node.nogil_check:
+        if node.nogil_check:
             node.nogil_check(node.local_scope)
 
         self._visit_scoped_children(node, inner_nogil)
@@ -3021,6 +3026,7 @@ class GilCheck(VisitorTransform):
             return self.visit_GILStatNode(node)
 
         if not self.nogil:
+            # ?? or self.env_stack[-1].directives['nogil']
             error(node.pos, "prange() can only be used without the GIL")
             # Forget about any GIL-related errors that may occur in the body
             return None
