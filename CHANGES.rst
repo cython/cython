@@ -2,7 +2,7 @@
 Cython Changelog
 ================
 
-0.29.15 (20??-??-??)
+0.29.15 (2020-02-06)
 ====================
 
 * Crash when returning a temporary Python object from an async-def function.
