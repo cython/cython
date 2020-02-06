@@ -1080,14 +1080,14 @@ class GlobalState(object):
         'h_code',
         'filename_table',
         'utility_code_proto_before_types',
-        'module_state',
-        'module_state_clear',
-        'module_state_traverse',
-        'module_state_defines',
         'numeric_typedefs',          # Let these detailed individual parts stay!,
         'complex_type_declarations', # as the proper solution is to make a full DAG...
         'type_declarations',         # More coarse-grained blocks would simply hide
         'utility_code_proto',        # the ugliness, not fix it
+        'module_state',
+        'module_state_clear',
+        'module_state_traverse',
+        'module_state_defines',
         'module_declarations',
         'typeinfo',
         'before_global_var',

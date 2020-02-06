@@ -2455,8 +2455,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('int %s;' % Naming.lineno_cname)
         code.putln('int %s;' % Naming.clineno_cname)
         code.putln('const char *%s;' % Naming.filename_cname)
+        code.putln('#ifdef __Pyx_CyFunction_USED')
         code.putln('PyObject *%s;' % Naming.cyfunction_type_cname)
+        code.putln('#endif')
+        code.putln('#ifdef __Pyx_FusedFunction_USED')
         code.putln('PyObject *%s;' % Naming.fusedfunction_type_cname)
+        code.putln('#endif')
 
     def generate_module_state_end(self, env, modules, globalstate):
         module_state = globalstate['module_state']
@@ -2533,14 +2537,18 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             Naming.filename_cname,
             Naming.modulestateglobal_cname,
             Naming.filename_cname))
+        code.putln('#ifdef __Pyx_CyFunction_USED')
         code.putln('#define %s %s->%s' % (
             Naming.cyfunction_type_cname,
             Naming.modulestateglobal_cname,
             Naming.cyfunction_type_cname))
+        code.putln('#endif')
+        code.putln('#ifdef __Pyx_FusedFunction_USED')
         code.putln('#define %s %s->%s' %
             (Naming.fusedfunction_type_cname,
             Naming.modulestateglobal_cname,
             Naming.fusedfunction_type_cname))
+        code.putln('#endif')
 
     def generate_module_state_clear(self, env, code):
         code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
@@ -2559,10 +2567,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             Naming.empty_bytes)
         code.putln('Py_CLEAR(clear_module_state->%s);' %
             Naming.empty_unicode)
+        code.putln('#ifdef __Pyx_CyFunction_USED')
         code.putln('Py_CLEAR(clear_module_state->%s);' %
             Naming.cyfunction_type_cname)
+        code.putln('#endif')
+        code.putln('#ifdef __Pyx_FusedFunction_USED')
         code.putln('Py_CLEAR(clear_module_state->%s);' %
             Naming.fusedfunction_type_cname)
+        code.putln('#endif')
 
     def generate_module_state_traverse(self, env, code):
         code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
@@ -2581,10 +2593,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             Naming.empty_bytes)
         code.putln('Py_VISIT(traverse_module_state->%s);' %
             Naming.empty_unicode)
+        code.putln('#ifdef __Pyx_CyFunction_USED')
         code.putln('Py_VISIT(traverse_module_state->%s);' %
             Naming.cyfunction_type_cname)
+        code.putln('#endif')
+        code.putln('#ifdef __Pyx_FusedFunction_USED')
         code.putln('Py_VISIT(traverse_module_state->%s);' %
             Naming.fusedfunction_type_cname)
+        code.putln('#endif')
 
     def generate_module_init_func(self, imported_modules, env, code):
         subfunction = self.mod_init_subfunction(self.scope, code)
