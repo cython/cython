@@ -799,8 +799,10 @@ Cython code.  Here is the list of currently supported directives:
 ``fastcall_args`` (off/*/**/both)
     Sets the ``*args`` or ``**kwds`` of a function to a more
     limited specialized type designed to work efficiently with
-    the fastcall and vectorcall calling conventions introducted
-    in CPython 3.7+. These can be more efficient but don't
+    the fastcall and vectorcall calling conventions introduced
+    in CPython 3.7+. The biggest advantage is in being forwarding
+    the arguments quickly to other C-compiled functions.
+    The specialized types can be more efficient but don't
     support all the operations that a regular ``tuple`` or ``dict``
     would. Cython generates warnings when inefficient operations
     are performed on these types.

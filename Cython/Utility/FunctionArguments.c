@@ -800,15 +800,6 @@ static CYTHON_UNUSED PyObject* __Pyx_FastcallDict_GetItem(__Pyx_FastcallDict_obj
     if (o->object == NULL) {
         // not found
     } else if (o->args) {
-
-//        Py_ssize_t idx = PySequence_Index(o->object, key);
-//        if (idx != -1) {
-//            Py_INCREF(o->args[idx]);
-//            return o->args[idx];
-//        } else {
-//            if (PyErr_Occurred()) PyErr_Clear(); // want to set out own exception
-//        }
-
         Py_ssize_t idx = __Pyx_FastcallDict_Index_impl(o, key);
         if (idx>=0) {
             Py_INCREF(o->args[idx]);
@@ -817,6 +808,7 @@ static CYTHON_UNUSED PyObject* __Pyx_FastcallDict_GetItem(__Pyx_FastcallDict_obj
     } else {
         return __Pyx_PyDict_GetItem(o->object, key);
     }
+    if (unlikely(PyErr_Occurred())) PyErr_Clear(); // set our own exception
     PyErr_SetObject(PyExc_KeyError, key);
     return NULL;
 }
@@ -842,8 +834,11 @@ static CYTHON_UNUSED int __Pyx_FastcallDict_Index_impl(__Pyx_FastcallDict_obj* o
 #if (PY_MAJOR_VERSION >= 3)
         if (lhs == key) return idx;
         if (likely((is_unicode) && PyUnicode_Check(lhs))) {
-            if (PyUnicode_Compare(lhs, key)==0) {
+            int cmp = PyUnicode_Compare(lhs, key);
+            if (cmp == 0) {
                 return idx;
+            } else if ((cmp < 0) && unlikely(PyErr_Occurred())) {
+                return -1;
             } else {
                 continue; // FIXME? may fail with odd types that define an __eq__ function
                     // but these should be in function arguments anyway...
@@ -860,7 +855,12 @@ static CYTHON_UNUSED int __Pyx_FastcallDict_Contains(__Pyx_FastcallDict_obj* o, 
         return 0;
     } else if (o->args) {
         //return PySequence_Contains(o->object, key);
-        return (__Pyx_FastcallDict_Index_impl(o, key) != -1);
+        int res = __Pyx_FastcallDict_Index_impl(o, key);
+        if (res == -1) {
+            return (unlikely(PyErr_Occurred())) ? -1 : 0;
+        } else {
+            return 1;
+        }
     } else {
         return PyDict_Contains(o->object, key);
     }
@@ -918,16 +918,78 @@ static CYTHON_UNUSED int __Pyx_ParseOptionalKeywords_fastcallstruct(PyObject *kw
     int kwds_is_tuple = CYTHON_METH_FASTCALL && likely(PyTuple_Check(kwds));
     if (!kwds_is_tuple) goto make_dict_instead;
 
-    // for the moment only deal with the simple case where all the positional arguments
-    // have already been assigned
-    if (*first_kw_arg != NULL) goto make_dict_instead;
-    // in principle a better version could cope with finding kwds from the start and/or the
-    // end of the list (but would break if arguments in the middle were used since that
-    // would require reallocating kwvalues)
+    // cycle through kwds
+    Py_ssize_t pos;
+    const Py_ssize_t len_kwds = PyTuple_GET_SIZE(kwds);
+    PyObject *key, *value, ***name;
+    Py_ssize_t first_unassigned_index = 0;
+    Py_ssize_t last_unassigned_index = 0;
+    Py_ssize_t last_assigned_index = 0;
+    for (pos = 0; pos < len_kwds; ++pos) {
+        key = PyTuple_GET_ITEM(kwds, pos);
+        value = kwvalues[pos];
 
-    kwds2->object = kwds;
-    Py_INCREF(kwds2->object);
-    kwds2->args = kwvalues;
+        name = argnames;
+        while (*name && (**name != key)) name++;
+        if (*name) {
+            if (name < first_kw_arg) {
+                // already assigned - set error
+                goto arg_passed_twice;
+            } else {
+                if (first_unassigned_index == pos) {
+                    first_unassigned_index = pos + 1;
+                } //else if (last_assigned_index < (pos-1)) {
+                    // non-contiguous array
+                  //  goto make_dict_instead;
+                //}
+                last_assigned_index = pos;
+
+                values[name-argnames] = value;
+                continue; // the for loop
+            }
+        }
+        if (unlikely(!PyUnicode_Check(key))) {
+            goto invalid_keyword_type;
+        }
+
+        name = argnames;
+        while (*name) {
+            // don't both with string comparison from the other function - this one only happens in Py3
+            int cmp = (PyUnicode_GET_SIZE(**name) != PyUnicode_GET_SIZE(key)) ? 1 :
+                       PyUnicode_Compare(**name, key);
+            if (cmp < 0 && unlikely(PyErr_Occurred())) goto bad;
+            if (cmp == 0) {
+                if (name < first_kw_arg) {
+                    goto arg_passed_twice;
+                } else {
+                    if (first_unassigned_index == pos) {
+                        first_unassigned_index = pos + 1;
+                    } else if (last_assigned_index < (pos-1)) {
+                        // non-contiguous array
+                        goto make_dict_instead;
+                    }
+                    last_assigned_index = pos;
+                    values[name-argnames] = value;
+                    goto continue_for_loop;
+                }
+            }
+            ++name;
+        }
+        // here we didn't find a name to match this key to
+        last_unassigned_index = pos;
+
+        if ((first_unassigned_index < last_assigned_index) &&
+            (last_assigned_index < last_unassigned_index)) {
+            // non continuous block of keyword values
+            goto make_dict_instead;
+        }
+
+        continue_for_loop:
+        ;
+    }
+
+    kwds2->object = PyTuple_GetSlice(kwds, first_unassigned_index, last_unassigned_index+1);
+    kwds2->args = kwvalues + first_unassigned_index;
     return 0;
 
     make_dict_instead:
@@ -941,6 +1003,16 @@ static CYTHON_UNUSED int __Pyx_ParseOptionalKeywords_fastcallstruct(PyObject *kw
             Py_CLEAR(kwds2->object);
         }
         return result;
+
+    arg_passed_twice:
+        __Pyx_RaiseDoubleKeywordsError(function_name, key);
+        goto bad;
+    invalid_keyword_type:
+        PyErr_Format(PyExc_TypeError,
+            "%.200s() keywords must be strings", function_name);
+        goto bad;
+    bad:
+        return -1;
 }
 
 static CYTHON_UNUSED __Pyx_FastcallDict_obj __Pyx_KwargsAsDict_FASTCALL_fastcallstruct(

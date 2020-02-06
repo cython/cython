@@ -1995,6 +1995,8 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCall(PyObject *func, PyObject 
 /////////////// PyObjectFastCallKwds.proto //////////////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallKwds(PyObject *func, PyObject **args, Py_ssize_t nargs, PyObject* kwnames); /*proto*/
+// a second best option for when we only have the keywords in dict form
+static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallKwdsDict(PyObject *func, PyObject **args, Py_ssize_t nargs, PyObject* kwdict); /* proto*/
 
 /////////////// PyObjectFastCallKwds //////////////////////////////
 //@requires: FunctionArguments.c::fastcall
@@ -2002,6 +2004,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallKwds(PyObject *func, PyObj
 //@requires: PyFunctionFastCall
 //@requires: PyVectorcallNargs
 //@requires: PyObjectFastCall
+//@requires: TupleAndListFromArray
 
 static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallKwds_fallback(PyObject *func, PyObject *const *args, Py_ssize_t nargs, PyObject* kwnames) {
     PyObject *argstuple;
@@ -2020,6 +2023,35 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallKwds_fallback(PyObject *fu
         Py_DECREF(kwargs_dict);
     }
     Py_DECREF(argstuple);
+    return result;
+}
+
+static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallKwdsDict(PyObject *func, PyObject **args, Py_ssize_t nargs, PyObject* kwdict) {
+    if (kwdict == NULL) {
+        return __Pyx_PyObject_FastCall(func, args, nargs);
+    }
+
+    #if PY_VERSION_HEX < 0x030800B1
+    #if CYTHON_FAST_PYCCALL
+    if (PyCFunction_Check(func)) {
+        return _PyCFunction_FastCallDict(func, args, nargs, kwdict);
+    }
+    #endif
+    #if CYTHON_FAST_PYCALL
+    if (PyFunction_Check(func)) {
+        return __Pyx_PyFunction_FastCallDict(func, args, nargs, kwdict);
+    }
+    #endif
+    #endif
+
+    #if CYTHON_VECTORCALL
+    return _PyObject_FastCallDict(func, args, nargs, kwdict);
+    #endif
+    // very simple fallback
+    PyObject* args_as_vector = __Pyx_PyTuple_FromArray(args, nargs);
+    if (!args_as_vector) return NULL;
+    PyObject* result = __Pyx_PyObject_Call(func, args_as_vector, kwdict);
+    Py_DECREF(args_as_vector);
     return result;
 }
 
@@ -2060,7 +2092,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallKwds(PyObject *func, PyObj
 /////////////// PyObjectFastCall__Args_OptimizedStructs.proto ///////////////
 //@requires: FunctionArguments.c::fastcall_tuple
 
-static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallArgs_structs(PyObject* callable, __Pyx_FastcallTuple_obj args);
+static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallArgs_structs(PyObject* callable, __Pyx_FastcallTuple_obj args); /* proto */
 
 /////////////// PyObjectFastCall__Args_OptimizedStructs ///////////////
 //@requires:PyObjectFastCall
@@ -2072,14 +2104,16 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallArgs_structs(PyObject* cal
 #else
     PyObject* tpl = __Pyx_FastcallTuple_ToTuple(args);
     if (!tpl) return NULL;
-    return __Pyx_PyObject_Call(callable, tpl, NULL);
+    PyObject* result = __Pyx_PyObject_Call(callable, tpl, NULL);
+    Py_DECREF(tpl);
+    return result;
 #endif
 }
 
 /////////////// PyObjectFastCall__Kwds_OptimizedStructs.proto ///////////////
 //@requires: FunctionArguments.c::fastcall_dict
 
-static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallKwds_structs(PyObject* callable, __Pyx_FastcallDict_obj* kwds);
+static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallKwds_structs(PyObject* callable, __Pyx_FastcallDict_obj* kwds); /* proto */
 
 /////////////// PyObjectFastCall__Kwds_OptimizedStructs ///////////////
 //@requires:PyObjectCallMethO
@@ -2094,7 +2128,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallKwds_structs(PyObject* cal
         return __Pyx_PyObject_FastCallKwds(callable, (PyObject**)kwds->args, 0, kwds->object);
     } else {
         // kwds->object is just a dict
-        return __Pyx_PyObject_Call(callable, $empty_tuple, kwds->object);
+        return __Pyx_PyObject_FastCallKwdsDict(callable, NULL, 0, kwds->object);
     }
 }
 
@@ -2108,36 +2142,42 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallArgsKwds_structs(PyObject*
 //@requires:PyObjectCall
 //@requires:FunctionArguments.c::fastcall_dict_convert
 //@requires:PyObjectFastCallKwds
+//@requires:PyObjectFastCall
 
 static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallArgsKwds_structs(PyObject* callable, __Pyx_FastcallTuple_obj args, __Pyx_FastcallDict_obj* kwds) {
-    PyObject* kwds_as_object = NULL;
-#if CYTHON_METH_FASTCALL
-    if (kwds->object != NULL) {
-        if (!kwds->args) {
-            // kwds->object is a dict
-            goto fallback;
-        }
+    #if CYTHON_COMPILING_IN_CPYTHON
+    if (kwds->object == NULL) {
+        // no keywords
+        return __Pyx_PyObject_FastCall(callable, (PyObject**)args.args, args.nargs);
+    } else if (!kwds->args) {
+        // kwds->object is a dict - may be some optimization available
+        return __Pyx_PyObject_FastCallKwdsDict(callable, (PyObject**)args.args, args.nargs, kwds->object);
+    } else {
+        // kwds->object is a tuple
         if (kwds->args != args.args + __Pyx_FastcallTuple_Len(args)) {
             // the memory for the two bits isn't contiguous
-            kwds_as_object = __Pyx_FastcallDict_ToDict_Explicit(kwds);
-            goto fallback;
+            // Might be better going straight to fallback, possibly?
+            PyObject* kwds_as_dict = __Pyx_FastcallDict_ToDict_Explicit(kwds);
+            if (!kwds_as_dict) return NULL;
+            PyObject* result = __Pyx_PyObject_FastCallKwdsDict(callable, (PyObject**)args.args, args.nargs, kwds_as_dict);
+            Py_DECREF(kwds_as_dict);
+            return result;
         }
+        // all is good to call through the optimized path
+        return __Pyx_PyObject_FastCallKwds(callable, (PyObject**)args.args, args.nargs, kwds->object);
     }
-    // should be good to call it
-    return __Pyx_PyObject_FastCallKwds(callable, (PyObject**)args.args, args.nargs, kwds->object);
-    fallback:
-#endif
-    {
-        PyObject* args_tpl = __Pyx_FastcallTuple_ToTuple(args);
-        PyObject* result = NULL;
-        if (args_tpl) {
-            result = __Pyx_PyObject_Call(callable, args_tpl,
-                                           kwds_as_object ? kwds_as_object : kwds->object);
-        }
-        Py_XDECREF(kwds_as_object);
-        Py_DECREF(args_tpl);
-        return result;
+    #else
+    PyObject* result = NULL;
+    PyObject* tpl = __Pyx_FastcallTuple_ToTuple(args);
+    if (!tpl) return NULL;
+    PyObject* dict = __Pyx_FastcallDict_ToDict_Explicit(kwds);
+    if (dict) {
+        result = __Pyx_PyObject_Call(callable, tpl, dict);
+        Py_DECREF(dict);
     }
+    Py_DECREF(tpl);
+    return result;
+    #endif
 }
 
 /////////////// PyObjectFastCall_OptimizedStructs_Method.proto ///////////////
