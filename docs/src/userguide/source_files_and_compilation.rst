@@ -802,7 +802,9 @@ Cython code.  Here is the list of currently supported directives:
     the fastcall and vectorcall calling conventions introducted
     in CPython 3.7+. These can be more efficient but don't
     support all the operations that a regular ``tuple`` or ``dict``
-    would. Default is "off". ``vectorcall_args`` is an alternative
+    would. Cython generates warnings when inefficient operations
+    are performed on these types.
+    Default is "off". ``vectorcall_args`` is an alternative
     syntax for the same thing.
 
 ``profile`` (True / False)

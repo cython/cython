@@ -154,6 +154,9 @@ class PyDummy:
         """
         return len(args) + len(kw)
 
+def call_with_args(*args):
+    return len(args)
+
 # all of these operations should be supported without coercion
 @cython.test_fail_if_path_exists("//CoerceToPyTypeNode")
 @cython.fastcall_args("*")
@@ -172,7 +175,7 @@ def test_starargs_ops(*args):
     3
     True
     3
-
+    3
     """
     cdef int res = 1
     a = args[0]
@@ -207,6 +210,7 @@ def test_starargs_ops(*args):
     print(True if res else False)  # do it this way to avoid coercion to Python
     res = len(args)
     print("3" if res==3 else "not 3")  # do it this way to avoid coercion to Python
+    print(call_with_args(*args))  # should go directly to a fastcall call and not prepare a tuple
 
 @cython.test_fail_if_path_exists("//CoerceToPyTypeNode")
 @cython.fastcall_args("both")
@@ -236,7 +240,7 @@ def test_starargs_ops_explicit_conversion(*args):
     (1, 2, 3)
     """
     res1 = tuple(args)
-    res2 = tuple(args) # if the conversion were non-explicit then they would generate warnings
+    res2 = tuple(args)  # if the conversion were non-explicit then they would generate warnings
     print(res1)
 
 @cython.fastcall_args("*")
@@ -248,7 +252,11 @@ def test_starargs_coercion_warning(*args):
 
     return args.index(1), args
 
-# TODO - failed test for copy into closure
+cdef ord_(x):
+    return ord(x)  # keeps the CoerceToPyTypeNode out of the main function
+
+def call_with_kwds(**kwds):
+    return len(kwds)
 
 @cython.test_fail_if_path_exists("//CoerceToPyTypeNode")
 @cython.fastcall_args("**")
@@ -261,36 +269,26 @@ def test_starstarargs_ops(**kwds):
     [('a', 1), ('b', 2), ('c', 3)]
     True
     1
-    a
-    b
-    c
-    a 1
-    b 2
-    c 3
-    a
-    b
-    c
-    1
-    2
+    294
+    590
+    294
+    6
     3
     """
     cdef int res
     res = len(kwds)
-    print("3" if res==3 else "not 3") # avoid coercion to python object
+    print("3" if res==3 else "not 3")  # avoid coercion to python object
     print(sorted(kwds.keys()))
     print(sorted(kwds.values()))
     print(sorted(kwds.items()))
     res = "a" in kwds
-    print(True if res else False) # avoid coercion to python object
+    print(True if res else False)  # avoid coercion to python object
     print(kwds["a"])
-    for k in kwds:
-        print(k)
-    for k,v in kwds.items():
-        print(k, v)
-    for k in kwds.keys():
-        print(k)
-    for v in kwds.values():
-        print(v)
+    print(sum([ ord_(k) for k in kwds ]))  # this way order doesn't matter
+    print(sum([ ord_(k)*v for k, v in kwds.items() ]))
+    print(sum([ ord_(k) for k in kwds.keys() ]))
+    print(sum([ v for v in kwds.values() ]))
+    print(call_with_kwds(**kwds))  # should be able to convert directly to a fastcall call
 
 @cython.fastcall_args("**")
 def test_starstarargs_ops_explicit_conversion(**kwds):
@@ -300,7 +298,7 @@ def test_starstarargs_ops_explicit_conversion(**kwds):
     [1, 2, 3]
     """
     res1 = dict(kwds)
-    res2 = dict(kwds) # 2nd non-explicit conversion will generate warnings
+    res2 = dict(kwds)  # 2nd non-explicit conversion will generate warnings
     print(sorted(res1.keys()))
     print(sorted(res2.values()))
 
@@ -325,6 +323,6 @@ def test_starstarargs_ops_changes(**kwds):
 
 _WARNINGS = """
 73:4: Ignoring request for **kw to be a specialized fastcall argument since the function itself is not fastcallable and so this would only cause slower performance.
-249:26: Fastcall tuple argument has been coerced to a Python object at least twice in this function. It may be more efficient to use a regular tuple argument.
-321:4: Fastcall dict argument has been coerced to a Python object at least twice in this function. It may be more efficient to use a regular dict argument.
+253:26: Fastcall tuple argument has been coerced to a Python object at least twice in this function. It may be more efficient to use a regular tuple argument.
+319:4: Fastcall dict argument has been coerced to a Python object at least twice in this function. It may be more efficient to use a regular dict argument.
 """

@@ -480,11 +480,6 @@ typedef struct {
 } __Pyx_FastcallTuple_obj;
 static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_FastcallTuple_New(PyObject *rt, Py_ssize_t start_idx, Py_ssize_t end_idx);
 #endif
-#if !CYTHON_BACKPORT_VECTORCALL
-#define __Pyx_PyVectorcall_NARGS(x) PyVectorcall_NARGS(x)
-#else
-#define __Pyx_PyVectorcall_NARGS(x) x
-#endif
 
 static CYTHON_INLINE Py_ssize_t __Pyx_FastcallTuple_Len(__Pyx_FastcallTuple_obj o);
 static CYTHON_INLINE PyObject *__Pyx_FastcallTuple_ToTuple(__Pyx_FastcallTuple_obj o);
@@ -499,6 +494,7 @@ static CYTHON_INLINE PyObject *__Pyx_FastcallTuple_ToTuple(__Pyx_FastcallTuple_o
 static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_FastcallTuple_FromTuple(PyObject* o);
 
 /////////////// fastcall_tuple ///////////////
+//@requires: ObjectHandling.c::PyVectorcallNargs
 
 #if CYTHON_COMPILING_IN_CPYTHON
 static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_FastcallTuple_New(PyObject *const *args, Py_ssize_t nargs) {
@@ -524,8 +520,7 @@ static CYTHON_INLINE PyObject *__Pyx_FastcallTuple_ToTuple(__Pyx_FastcallTuple_o
 #if CYTHON_COMPILING_IN_CPYTHON
     return __Pyx_PyTuple_FromArray(o.args, __Pyx_FastcallTuple_Len(o));
 #else
-    __Pyx_INCREF(o.referenced_tuple); // already a tuple
-    return o.referenced_tuple;
+    return PySequence_GetSlice(o.referenced_tuple, o.start_idx, os.stop_idx);
 #endif
 }
 
@@ -632,7 +627,7 @@ static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_FastcallTuple_SliceIndex(__Py
 /////////////////// fastcall_dict.proto /////////////////////////
 
 typedef struct {
-    PyObject *const *args; // start of the keyword args
+    PyObject *const *args; // start of the keyword args values
     PyObject *object;      // either a dict, a tuple or NULL
 } __Pyx_FastcallDict_obj;
 // exists in one of three states:
@@ -663,8 +658,8 @@ static CYTHON_UNUSED __Pyx_FastcallDict_obj __Pyx_FastcallDict_New() {
 
 /////////////////// fastcall_dict_convert.proto //////////////////////
 
-static CYTHON_UNUSED PyObject* __Pyx_FastcallDict_ToDict(__Pyx_FastcallDict_obj *o);
-static CYTHON_UNUSED PyObject* __Pyx_FastcallDict_ToDict_Explicit(__Pyx_FastcallDict_obj *o);
+static CYTHON_UNUSED PyObject* __Pyx_FastcallDict_ToDict(__Pyx_FastcallDict_obj *o); /* proto */
+static CYTHON_UNUSED PyObject* __Pyx_FastcallDict_ToDict_Explicit(__Pyx_FastcallDict_obj *o); /* proto */
 
 /////////////////// fastcall_dict_convert //////////////////////
 //@requires: fastcall
@@ -769,7 +764,11 @@ static CYTHON_INLINE PyObject* __Pyx_dict_iterator_fastcalldict(__Pyx_FastcallDi
     } else {
         const char *name;
         if (!method_name) name = "keys";
+#if PY_MAJOR_VERSION >= 3
         else name = PyUnicode_AsUTF8(method_name);
+#else
+        else name = PyString_AsString(method_name);
+#endif
 
         if (strncmp(name, "iter", 4)==0) name = name + 4;
 
@@ -921,7 +920,7 @@ static CYTHON_UNUSED int __Pyx_ParseOptionalKeywords_fastcallstruct(PyObject *kw
 
     // for the moment only deal with the simple case where all the positional arguments
     // have already been assigned
-    if (first_kw_arg != NULL) goto make_dict_instead;
+    if (*first_kw_arg != NULL) goto make_dict_instead;
     // in principle a better version could cope with finding kwds from the start and/or the
     // end of the list (but would break if arguments in the middle were used since that
     // would require reallocating kwvalues)
@@ -953,7 +952,6 @@ static CYTHON_UNUSED __Pyx_FastcallDict_obj __Pyx_KwargsAsDict_FASTCALL_fastcall
     Py_INCREF(kwds);
 #else
     kwds = __Pyx_KwargsAsDict_FASTCALL(kwds, kwvalues);  // default to this (dict copy)
-    if (!kwds) return NULL;
 #endif
     out.object = kwds;
     return out;

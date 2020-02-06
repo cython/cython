@@ -4165,7 +4165,7 @@ class FastcallTupleType(PyrexType):
         return "{0} = __Pyx_FastcallTuple_ToTuple({1})".format(result_code, source_code)
 
     def literal_code(self, value):
-        assert value in ("0", "{}") # only know how to handle empty literals
+        assert value in ("0", "{}")  # only know how to handle empty literals
         return self.declaration_value
 
     # different instances are created just to hold a different "coercion_count" for each
@@ -4259,7 +4259,7 @@ class FastcallDictType(PyrexType):
         return type(self) == type(rhs)
 
     def literal_code(self, value):
-        assert value in ("0", "{}") # only know how to handle empty literals
+        assert value in ("0", "{}")  # only know how to handle empty literals
         return self.declaration_value
 
 

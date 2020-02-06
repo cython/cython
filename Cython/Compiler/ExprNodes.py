@@ -6155,10 +6155,6 @@ class PyMethodCallNode(SimpleCallNode):
             UtilityCode.load_cached("PyObjectFastCall", "ObjectHandling.c"))
 
         code.putln("{")
-        # TODO - there's a potential optimization here if args comes from
-        # a FastCallDict_obj (and has PY_VECTORCALL_ARGUMENTS_OFFSET set,
-        # which is fairly likely)
-        # then it could be used directly without repacking the args
         code.putln("PyObject *__pyx_callargs[%d] = {%s, %s};" % (
             len(args)+1,
             self_arg,
@@ -6364,6 +6360,8 @@ class GeneralCallNode(CallNode):
     #  keyword_args     ExprNode or None  Dict of keyword arguments
 
     type = py_object_type
+    fastcallable_with_types = False  # can use fastcall_dict and/or
+            # fastcall_tuple to call
 
     subexprs = ['function', 'positional_args', 'keyword_args']
 
@@ -6408,11 +6406,34 @@ class GeneralCallNode(CallNode):
                     pass
             else:
                 self.function = self.function.coerce_to_pyobject(env)
+
         if self.keyword_args:
             self.keyword_args = self.keyword_args.analyse_types(env)
         self.positional_args = self.positional_args.analyse_types(env)
-        self.positional_args = \
-            self.positional_args.coerce_to_pyobject(env)
+
+        dont_coerce_args = False
+        pos_is_fastcall = (isinstance(self.positional_args, CoerceToPyTypeNode) and
+                            self.positional_args.arg.type.is_fastcall_tuple)
+        pos_is_empty = (isinstance(self.positional_args, TupleNode) and
+                            len(self.positional_args.args) == 0)
+        kwds_is_fastcall = (self.keyword_args and
+                                (isinstance(self.keyword_args, CoerceToPyTypeNode) and
+                                self.keyword_args.arg.type.is_fastcall_dict))
+        kwds_is_none = self.keyword_args is None
+
+        if pos_is_fastcall or kwds_is_fastcall:
+            # worth a go at converting to a fastcall call
+            if ((pos_is_fastcall or pos_is_empty) and
+                (kwds_is_fastcall or kwds_is_none)):
+                self.fastcallable_with_types = True
+                if pos_is_fastcall:
+                    self.positional_args = self.positional_args.arg
+                if kwds_is_fastcall:
+                    self.keyword_args = self.keyword_args.arg
+
+        if not self.fastcallable_with_types:
+            self.positional_args = \
+                self.positional_args.coerce_to_pyobject(env)
         self.set_py_result_type(self.function)
         self.is_temp = 1
         return self
@@ -6557,6 +6578,43 @@ class GeneralCallNode(CallNode):
 
     def generate_result_code(self, code):
         if self.type.is_error: return
+        if self.fastcallable_with_types:
+            args_empty = (isinstance(self.positional_args, TupleNode) and
+                          len(self.positional_args.args) == 0)
+            if self.keyword_args and args_empty:
+                code.globalstate.use_utility_code(UtilityCode.load_cached(
+                    "PyObjectFastCall__Kwds_OptimizedStructs", "ObjectHandling.c"))
+                code.putln(
+                    "%s = __Pyx_PyObject_FastCallKwds_structs(%s, %s); %s" % (
+                        self.result(),
+                        self.function.py_result(),
+                        self.keyword_args.result(),
+                        code.error_goto_if_null(self.result(), self.pos)))
+            elif self.keyword_args:  # both with args
+                code.globalstate.use_utility_code(UtilityCode.load_cached(
+                    "PyObjectFastCall__ArgsKwds_OptimizedStructs", "ObjectHandling.c"))
+                code.putln(
+                    "%s = __Pyx_PyObject_FastCallArgsKwds_structs(%s, %s, %s); %s" % (
+                        self.result(),
+                        self.function.py_result(),
+                        self.positional_args.result(),
+                        self.keyword_args.result(),
+                        code.error_goto_if_null(self.result(), self.pos)))
+            else:
+                code.globalstate.use_utility_code(UtilityCode.load_cached(
+                    "PyObjectFastCall__Args_OptimizedStructs", "ObjectHandling.c"))
+                function ="__Pyx_PyObject_FastCallArgs_structs"
+                code.putln(
+                    "%s = __Pyx_PyObject_FastCallArgs_structs(%s, %s); %s" % (
+                        self.result(),
+                        self.function.py_result(),
+                        self.positional_args.result(),
+                        code.error_goto_if_null(self.result(), self.pos)))
+            code.put_gotref(self.py_result())
+            return
+
+
+
         if self.keyword_args:
             kwargs = self.keyword_args.py_result()
         else:
@@ -6570,7 +6628,6 @@ class GeneralCallNode(CallNode):
                 self.positional_args.py_result(),
                 kwargs,
                 code.error_goto_if_null(self.result(), self.pos)))
-        # TODO generate fastcall code if possible?
         code.put_gotref(self.py_result())
 
 class AsTupleNode(ExprNode):
@@ -12680,8 +12737,8 @@ class PrimaryCmpNode(ExprNode, CmpNode):
             elif self.find_special_bool_compare_function(env, self.operand1):
                 if not self.operand1.type.is_pyobject:
                     self.operand1 = self.operand1.coerce_to_pyobject(env)
-                common_type = None # if coercion needed, the method call above has already done it
-                self.is_pycmp = False # result is bint
+                common_type = None  # if coercion needed, the method call above has already done it
+                self.is_pycmp = False  # result is bint
             else:
                 if not self.operand2.type.is_fastcall_type:
                     common_type = py_object_type

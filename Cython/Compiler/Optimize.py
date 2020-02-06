@@ -2438,7 +2438,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         if arg.type is Builtin.dict_type:
             if (isinstance(arg, ExprNodes.CoerceToPyTypeNode) and
                 arg.arg.type.is_fastcall_dict):
-                arg.target_type = Builtin.dict_type # used to flag an explicit conversion
+                arg.target_type = Builtin.dict_type  # used to flag an explicit conversion
 
             arg = arg.as_none_safe_node("'NoneType' is not iterable")
             return ExprNodes.PythonCapiCallNode(
@@ -2488,7 +2488,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         if arg.type is Builtin.tuple_type and not arg.may_be_none():
             if (isinstance(arg, ExprNodes.CoerceToPyTypeNode) and
                 arg.arg.type.is_fastcall_tuple):
-                arg.target_type = Builtin.tuple_type # used to flag an explicit conversion
+                arg.target_type = Builtin.tuple_type  # used to flag an explicit conversion
             return arg
         if arg.type is Builtin.list_type:
             pos_args[0] = arg.as_none_safe_node(
