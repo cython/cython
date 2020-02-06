@@ -7,90 +7,109 @@ static PyObject* __Pyx_FetchCommonTypeFromSpec(PyType_Spec *spec, PyObject *base
 
 /////////////// FetchCommonType ///////////////
 
-static PyObject *fetch_fake_module(void) {
-    PyObject *fake_module = PyImport_AddModule((char*) "_cython_" CYTHON_ABI);
-    if (!fake_module) return NULL;
-    Py_INCREF(fake_module);
-    return fake_module;
+static PyObject *__Pyx_FetchSharedCythonABIModule(void) {
+    PyObject *abi_module = PyImport_AddModule((char*) "_cython_" CYTHON_ABI);
+    if (!abi_module) return NULL;
+    Py_INCREF(abi_module);
+    return abi_module;
 }
 
-static void verify_cached_type(PyObject *cached_type,
+static int __Pyx_VerifyCachedType(PyObject *cached_type,
                                const char *name,
                                Py_ssize_t basicsize,
                                Py_ssize_t expected_basicsize) {
     if (!PyType_Check(cached_type)) {
         PyErr_Format(PyExc_TypeError,
             "Shared Cython type %.200s is not a type object", name);
+        return -1;
     }
     if (basicsize != expected_basicsize) {
         PyErr_Format(PyExc_TypeError,
             "Shared Cython type %.200s has the wrong size, try recompiling",
             name);
+        return -1;
     }
+    return 0;
 }
 
 static PyTypeObject* __Pyx_FetchCommonType(PyTypeObject* type) {
-    PyObject* fake_module;
+    PyObject* abi_module;
     PyTypeObject *cached_type = NULL;
 
-    fake_module = fetch_fake_module();
-    if (!fake_module) goto done;
-    cached_type = (PyTypeObject*) PyObject_GetAttrString(fake_module, type->tp_name);
+    abi_module = __Pyx_FetchSharedCythonABIModule();
+    if (!abi_module) goto bad;
+    cached_type = (PyTypeObject*) PyObject_GetAttrString(abi_module, type->tp_name);
     if (cached_type) {
-        verify_cached_type(
-            (PyObject *)cached_type,
-            type->tp_name,
-            cached_type->tp_basicsize,
-            type->tp_basicsize);
+        if (__Pyx_VerifyCachedType(
+              (PyObject *)cached_type,
+              type->tp_name,
+              cached_type->tp_basicsize,
+              type->tp_basicsize) < 0) {
+            goto bad;
+        }
         goto done;
     }
 
-    if (!PyErr_ExceptionMatches(PyExc_AttributeError)) goto done;
+    if (!PyErr_ExceptionMatches(PyExc_AttributeError)) goto bad;
     PyErr_Clear();
-    if (PyType_Ready(type) < 0) goto done;
-    if (PyObject_SetAttrString(fake_module, type->tp_name, (PyObject *)type) < 0)
-        goto done;
+    if (PyType_Ready(type) < 0) goto bad;
+    if (PyObject_SetAttrString(abi_module, type->tp_name, (PyObject *)type) < 0)
+        goto bad;
     Py_INCREF(type);
     cached_type = type;
 
 done:
+    Py_XDECREF(abi_module);
     // NOTE: always returns owned reference, or NULL on error
-    Py_XDECREF(fake_module);
-    Py_XDECREF(cached_type);
     return cached_type;
+
+bad:
+    Py_XDECREF(cached_type);
+    cached_type = NULL;
+    goto done;
 }
 
 #if CYTHON_COMPILING_IN_LIMITED_API
 static PyObject *__Pyx_FetchCommonTypeFromSpec(PyType_Spec *spec, PyObject *bases) {
-    PyObject *fake_module, *py_basicsize, *type, *cached_type = NULL;
+    PyObject *abi_module, *py_basicsize, *type, *cached_type = NULL;
     Py_ssize_t basicsize;
 
-    fake_module = fetch_fake_module();
-    if (!fake_module) goto done;
-    cached_type = PyObject_GetAttrString(fake_module, spec->name);
+    abi_module = __Pyx_FetchSharedCythonABIModule();
+    if (!abi_module) goto bad;
+    cached_type = PyObject_GetAttrString(abi_module, spec->name);
     if (cached_type) {
         py_basicsize = PyObject_GetAttrString(cached_type, "__basicsize__");
-        if (!py_basicsize) goto done;
+        if (!py_basicsize) goto bad;
         basicsize = PyLong_AsSsize_t(py_basicsize);
         Py_DECREF(py_basicsize);
         py_basicsize = 0;
-        if (basicsize == (Py_ssize_t)-1 && PyErr_Occurred()) goto done;
-        verify_cached_type(cached_type, spec->name, basicsize, spec->basicsize);
+        if (basicsize == (Py_ssize_t)-1 && PyErr_Occurred()) goto bad;
+        if (__Pyx_VerifyCachedType(
+              cached_type,
+              spec->name,
+              basicsize,
+              spec->basicsize) < 0) {
+            goto bad;
+        }
         goto done;
     }
 
-    if (!PyErr_ExceptionMatches(PyExc_AttributeError)) goto done;
+    if (!PyErr_ExceptionMatches(PyExc_AttributeError)) goto bad;
     PyErr_Clear();
     type = PyType_FromSpecWithBases(spec, bases);
-    if (unlikely(!type)) goto done;
-    if (PyObject_SetAttrString(fake_module, spec->name, type) < 0) goto done;
+    if (unlikely(!type)) goto bad;
+    if (PyObject_SetAttrString(abi_module, spec->name, type) < 0) goto bad;
     cached_type = type;
 
 done:
+    Py_XDECREF(abi_module);
     // NOTE: always returns owned reference, or NULL on error
-    Py_XDECREF(fake_module);
-    Py_XDECREF(cached_type);
     return cached_type;
+
+bad:
+    Py_XDECREF(cached_type);
+    cached_type = NULL;
+    goto done;
 }
 #endif
 
@@ -103,27 +122,27 @@ static void* __Pyx_FetchCommonPointer(void* pointer, const char* name);
 
 
 static void* __Pyx_FetchCommonPointer(void* pointer, const char* name) {
-    PyObject* fake_module = NULL;
+    PyObject* abi_module = NULL;
     PyObject* capsule = NULL;
     void* value = NULL;
 
-    fake_module = PyImport_AddModule((char*) "_cython_" CYTHON_ABI);
-    if (!fake_module) return NULL;
-    Py_INCREF(fake_module);
+    abi_module = PyImport_AddModule((char*) "_cython_" CYTHON_ABI);
+    if (!abi_module) return NULL;
+    Py_INCREF(abi_module);
 
-    capsule = PyObject_GetAttrString(fake_module, name);
+    capsule = PyObject_GetAttrString(abi_module, name);
     if (!capsule) {
         if (!PyErr_ExceptionMatches(PyExc_AttributeError)) goto bad;
         PyErr_Clear();
         capsule = PyCapsule_New(pointer, name, NULL);
         if (!capsule) goto bad;
-        if (PyObject_SetAttrString(fake_module, name, capsule) < 0)
+        if (PyObject_SetAttrString(abi_module, name, capsule) < 0)
             goto bad;
     }
     value = PyCapsule_GetPointer(capsule, name);
 
 bad:
     Py_XDECREF(capsule);
-    Py_DECREF(fake_module);
+    Py_DECREF(abi_module);
     return value;
 }

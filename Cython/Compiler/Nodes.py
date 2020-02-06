@@ -5081,7 +5081,6 @@ class CClassDefNode(ClassDefNode):
             tuple_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
             base_type = scope.parent_type.base_type
             if base_type:
-                slot = TypeSlots.get_slot_by_name("tp_base")
                 code.putln(
                     "%s = PyTuple_Pack(1, (PyObject *)%s); %s" % (
                     tuple_temp,
