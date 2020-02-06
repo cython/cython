@@ -636,8 +636,8 @@ typedef struct {
 // * args is non-null, kwnames is a tuple
 // Defaults to "object" being a dict unless one of the quicker options can be easily created
 
-static CYTHON_UNUSED Py_ssize_t __Pyx_FastcallDict_Len(__Pyx_FastcallDict_obj *o);
-static CYTHON_UNUSED __Pyx_FastcallDict_obj __Pyx_FastcallDict_New();
+static CYTHON_UNUSED Py_ssize_t __Pyx_FastcallDict_Len(__Pyx_FastcallDict_obj *o); /* proto */
+static CYTHON_UNUSED __Pyx_FastcallDict_obj __Pyx_FastcallDict_New(void); /* proto */
 
 /////////////////// fastcall_dict //////////////////////
 
@@ -651,7 +651,7 @@ static CYTHON_UNUSED Py_ssize_t __Pyx_FastcallDict_Len(__Pyx_FastcallDict_obj *o
     }
 }
 
-static CYTHON_UNUSED __Pyx_FastcallDict_obj __Pyx_FastcallDict_New() {
+static CYTHON_UNUSED __Pyx_FastcallDict_obj __Pyx_FastcallDict_New(void) {
     __Pyx_FastcallDict_obj out = {};
     return out;
 }

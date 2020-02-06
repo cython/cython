@@ -1897,7 +1897,7 @@ bad:
 
 /////////////// PyObjectFastCall.proto ///////////////
 
-static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCall(PyObject *func, PyObject *const *args, Py_ssize_t nargs); /*proto*/
+static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCall(PyObject *func, PyObject **args, Py_ssize_t nargs); /*proto*/
 
 /////////////// PyObjectFastCall ///////////////
 //@requires: PyObjectCall
@@ -1906,7 +1906,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCall(PyObject *func, PyObject 
 //@requires: PyObjectCallMethO
 //@substitute: naming
 
-static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCall_fallback(PyObject *func, PyObject *const *args, Py_ssize_t nargs) {
+static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCall_fallback(PyObject *func, PyObject **args, Py_ssize_t nargs) {
     PyObject *argstuple;
     PyObject *result;
     Py_ssize_t i;
@@ -1922,7 +1922,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCall_fallback(PyObject *func, 
     return result;
 }
 
-static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCall(PyObject *func, PyObject *const *args, Py_ssize_t nargs) {
+static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCall(PyObject *func, PyObject **args, Py_ssize_t nargs) {
     // nargs can have PY_VECTORCALL_ARGUMENTS_OFFSET flag, and this should be preserved
     //
     // Special fast paths for 0 and 1 arguments
@@ -1994,7 +1994,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCall(PyObject *func, PyObject 
 
 /////////////// PyObjectFastCallKwds.proto //////////////////////////////
 
-static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallKwds(PyObject *func, PyObject *const *args, Py_ssize_t nargs, PyObject* kwnames); /*proto*/
+static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallKwds(PyObject *func, PyObject **args, Py_ssize_t nargs, PyObject* kwnames); /*proto*/
 
 /////////////// PyObjectFastCallKwds //////////////////////////////
 //@requires: FunctionArguments.c::fastcall
@@ -2023,7 +2023,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallKwds_fallback(PyObject *fu
     return result;
 }
 
-static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallKwds(PyObject *func, PyObject *const *args, Py_ssize_t nargs, PyObject* kwnames) {
+static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallKwds(PyObject *func, PyObject **args, Py_ssize_t nargs, PyObject* kwnames) {
     if (kwnames == NULL) {
         return __Pyx_PyObject_FastCall(func, args, nargs);
     }
@@ -2068,7 +2068,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallArgs_structs(PyObject* cal
 
 static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallArgs_structs(PyObject* callable, __Pyx_FastcallTuple_obj args) {
 #if CYTHON_METH_FASTCALL
-    return __Pyx_PyObject_FastCall(callable, args.args, args.nargs);
+    return __Pyx_PyObject_FastCall(callable, (PyObject**)args.args, args.nargs);
 #else
     PyObject* tpl = __Pyx_FastcallTuple_ToTuple(args);
     if (!tpl) return NULL;
@@ -2091,7 +2091,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallKwds_structs(PyObject* cal
     if (kwds->object == NULL) {
         return __Pyx_PyObject_CallMethO(callable, NULL);
     } else if (kwds->args) {
-        return __Pyx_PyObject_FastCallKwds(callable, kwds->args, 0, kwds->object);
+        return __Pyx_PyObject_FastCallKwds(callable, (PyObject**)kwds->args, 0, kwds->object);
     } else {
         // kwds->object is just a dict
         return __Pyx_PyObject_Call(callable, $empty_tuple, kwds->object);
@@ -2124,7 +2124,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallArgsKwds_structs(PyObject*
         }
     }
     // should be good to call it
-    return __Pyx_PyObject_FastCallKwds(callable, args.args, args.nargs, kwds->object);
+    return __Pyx_PyObject_FastCallKwds(callable, (PyObject**)args.args, args.nargs, kwds->object);
     fallback:
 #endif
     {
