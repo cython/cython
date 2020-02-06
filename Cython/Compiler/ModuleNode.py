@@ -1577,7 +1577,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         for entry in memoryview_slices:
             code.put_xdecref_memoryviewslice("p->%s" % entry.cname,
-                                             have_gil=True)
+                                             have_gil='gil')
 
         if base_type:
             if needs_gc:

@@ -206,10 +206,11 @@ class MarkParallelAssignments(EnvTransform):
         return node
 
     def visit_FuncDefNode(self, node):
-        tmp = self.on_device
-        self.on_device = node.declarator.device
+        was_device = self.on_device
+        if hasattr(node.declarator, 'device'):
+            self.on_device = node.declarator.device
         self.visitchildren(node)
-        self.on_device = tmp
+        self.on_device = was_device
         return node
 
     def visit_ParallelStatNode(self, node):

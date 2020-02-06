@@ -78,7 +78,7 @@ def put_init_entry(mv_cname, code):
 
 
 def put_acquire_memoryviewslice(lhs_cname, lhs_type, lhs_pos, rhs, code,
-                                have_gil=False, first_assignment=True):
+                                have_gil='nogil', first_assignment=True):
     "We can avoid decreffing the lhs if we know it is the first assignment"
     assert rhs.type.is_memoryviewslice
 
@@ -99,7 +99,7 @@ def put_acquire_memoryviewslice(lhs_cname, lhs_type, lhs_pos, rhs, code,
 
 
 def put_assign_to_memviewslice(lhs_cname, rhs, rhs_cname, memviewslicetype, code,
-                               have_gil=False, first_assignment=False):
+                               have_gil='nogil', first_assignment=False):
     if not first_assignment:
         code.put_xdecref_memoryviewslice(lhs_cname, have_gil=have_gil)
 
@@ -265,7 +265,7 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
 
         code.putln("%(dst)s.data = %(src)s.data;" % locals())
         code.putln("%(dst)s.memview = %(src)s.memview;" % locals())
-        code.put_incref_memoryviewslice(dst)
+        code.put_incref_memoryviewslice(dst, have_gil=have_gil)
 
         all_dimensions_direct = all(access == 'direct' for access, packing in self.type.axes)
         suboffset_dim_temp = []

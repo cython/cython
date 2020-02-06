@@ -795,7 +795,7 @@ class ExprNode(Node):
                     code.put_decref_clear(self.result(), self.ctype())
                 elif self.type.is_memoryviewslice:
                     code.put_xdecref_memoryviewslice(
-                            self.result(), have_gil=not self.in_nogil_context)
+                            self.result(), have_gil=self.in_nogil_context)
                     code.putln("%s.memview = NULL;" % self.result())
                     code.putln("%s.data = NULL;" % self.result())
         else:
@@ -2411,7 +2411,7 @@ class NameNode(AtomicExprNode):
             lhs_pos=self.pos,
             rhs=rhs,
             code=code,
-            have_gil=not self.in_nogil_context,
+            have_gil=self.in_nogil_context,
             first_assignment=self.cf_is_null)
 
     def generate_acquire_buffer(self, rhs, code):
@@ -2486,7 +2486,7 @@ class NameNode(AtomicExprNode):
                     code.putln('%s = NULL;' % self.result())
                 else:
                     code.put_xdecref_memoryviewslice(self.entry.cname,
-                                                     have_gil=not self.nogil)
+                                                     have_gil=self.in_nogil_context)
         else:
             error(self.pos, "Deletion of C names not supported")
 
@@ -4615,7 +4615,7 @@ class MemoryViewSliceNode(MemoryViewIndexNode):
         if self.is_ellipsis_noop:
             return  ### FIXME: remove
         buffer_entry = self.buffer_entry()
-        have_gil = not self.in_nogil_context
+        have_gil = self.in_nogil_context
 
         # TODO Mark: this is insane, do it better
         have_slices = False
@@ -7191,7 +7191,7 @@ class AttributeNode(ExprNode):
                         return
 
                 code.putln("%s = %s;" % (self.result(), self.obj.result()))
-                code.put_incref_memoryviewslice(self.result(), have_gil=True)
+                code.put_incref_memoryviewslice(self.result(), have_gil='gil')
 
                 T = "__pyx_memslice_transpose(&%s) == 0"
                 code.putln(code.error_goto_if(T % self.result(), self.pos))
@@ -7215,7 +7215,7 @@ class AttributeNode(ExprNode):
         if self.is_temp and self.type.is_memoryviewslice and self.is_memslice_transpose:
             # mirror condition for putting the memview incref here:
             code.put_xdecref_memoryviewslice(
-                    self.result(), have_gil=True)
+                    self.result(), have_gil='gil')
             code.putln("%s.memview = NULL;" % self.result())
             code.putln("%s.data = NULL;" % self.result())
         else:
@@ -13408,7 +13408,7 @@ class CoerceToTempNode(CoercionNode):
                 code.put_incref(self.result(), self.ctype())
             elif self.type.is_memoryviewslice:
                 code.put_incref_memoryviewslice(self.result(),
-                                                not self.in_nogil_context)
+                                                self.in_nogil_context)
 
 class ProxyNode(CoercionNode):
     """
