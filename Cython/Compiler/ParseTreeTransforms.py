@@ -2957,6 +2957,7 @@ class GilCheck(VisitorTransform):
     def __call__(self, root):
         self.env_stack = [root.scope]
         self.nogil = False
+        self.on_device = False
 
         # True for 'cdef func() nogil:' functions, as the GIL may be held while
         # calling this function (thus contained 'nogil' blocks may be valid).
@@ -2977,6 +2978,8 @@ class GilCheck(VisitorTransform):
     def visit_FuncDefNode(self, node):
         self.env_stack.append(node.local_scope)
         inner_nogil = node.local_scope.nogil
+        was_device = self.on_device
+        self.on_device = getattr(node, 'on_device', False)
 
         if inner_nogil:
             self.nogil_declarator_only = True
@@ -2988,11 +2991,14 @@ class GilCheck(VisitorTransform):
 
         # This cannot be nested, so it doesn't need backup/restore
         self.nogil_declarator_only = False
+        self.on_device = was_device
 
         self.env_stack.pop()
         return node
 
     def visit_GILStatNode(self, node):
+        if self.on_device:
+            error(node.pos, "Use of GIL not allowed on device")
         if node.condition is not None:
             error(node.condition.pos,
                   "Non-constant condition in a "
@@ -3022,7 +3028,7 @@ class GilCheck(VisitorTransform):
         return node
 
     def visit_ParallelRangeNode(self, node):
-        if node.nogil:
+        if node.nogil and not node.on_device:
             node.nogil = False
             node = Nodes.GILStatNode(node.pos, state='nogil', body=node)
             return self.visit_GILStatNode(node)
@@ -3048,13 +3054,22 @@ class GilCheck(VisitorTransform):
             # avoid potential future surprises
             node.nogil_check(self.env_stack[-1])
 
+        was_device = self.on_device
+        if node.on_device:
+            self.on_device = True
+
         self.visitchildren(node)
+        self.on_device = was_device
+
         return node
 
     def visit_TryFinallyStatNode(self, node):
         """
         Take care of try/finally statements in nogil code sections.
         """
+        if self.on_device:
+            error(node.pos, "Try/finally not allowed on device")
+
         if not self.nogil or isinstance(node, Nodes.GILStatNode):
             return self.visit_Node(node)
 
@@ -3070,8 +3085,10 @@ class GilCheck(VisitorTransform):
             self._visit_scoped_children(node, self.nogil)
         else:
             self.visitchildren(node)
-        if self.nogil:
-            node.in_nogil_context = True
+        if self.on_device:
+            node.in_nogil_context = 'device'
+        elif self.nogil:
+            node.in_nogil_context = 'nogil'
         return node
 
 

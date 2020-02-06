@@ -1777,8 +1777,8 @@ class FuncDefNode(StatNode, BlockNode):
             self.py_func.generate_function_header(
                 code, with_pymethdef=with_pymethdef, proto_only=True)
 
-        on_device = self.local_scope.directives['device'] or self.declarator.device
-        if on_device:
+        is_cdef = isinstance(self, CFuncDefNode)
+        if is_cdef and self.on_device:
             code.putln_openmp("#pragma omp declare target")
 
         self.generate_function_header(code, with_pymethdef=with_pymethdef)
@@ -1926,7 +1926,6 @@ class FuncDefNode(StatNode, BlockNode):
         self.generate_argument_parsing_code(env, code)
         # If an argument is assigned to in the body, we must
         # incref it to properly keep track of refcounts.
-        is_cdef = isinstance(self, CFuncDefNode)
         for entry in lenv.arg_entries:
             if entry.type.is_pyobject:
                 if (acquire_gil or len(entry.cf_assignments) > 1) and not entry.in_closure:
@@ -1937,7 +1936,11 @@ class FuncDefNode(StatNode, BlockNode):
             #       new references. If we are a cdef function, we need to
             #       incref our arguments
             elif is_cdef and entry.type.is_memoryviewslice and len(entry.cf_assignments) > 1:
-                code.put_incref_memoryviewslice(entry.cname, have_gil=code.funcstate.gil_owned)
+                if self.on_device:
+                    _have_gil = 'device'
+                else:
+                    _have_gil = 'gil' if code.funcstate.gil_owned else 'nogil'
+                code.put_incref_memoryviewslice(entry.cname, have_gil=_have_gil)
         for entry in lenv.var_entries:
             if entry.is_arg and len(entry.cf_assignments) > 1 and not entry.in_closure:
                 if entry.xdecref_cleanup:
@@ -2082,7 +2085,8 @@ class FuncDefNode(StatNode, BlockNode):
                 continue
 
             if entry.type.is_memoryviewslice:
-                code.put_xdecref_memoryviewslice(entry.cname, have_gil=not lenv.nogil)
+                code.put_xdecref_memoryviewslice(entry.cname,
+                                                 have_gil='nogil' if lenv.nogil else 'gil')
             elif entry.type.is_pyobject:
                 if not entry.is_arg or len(entry.cf_assignments) > 1:
                     if entry.xdecref_cleanup:
@@ -2100,7 +2104,7 @@ class FuncDefNode(StatNode, BlockNode):
                 # decref slices of def functions and acquired slices from cdef
                 # functions, but not borrowed slices from cdef functions.
                 code.put_xdecref_memoryviewslice(entry.cname,
-                                                 have_gil=not lenv.nogil)
+                                                 have_gil='nogil' if lenv.nogil else 'gil')
         if self.needs_closure:
             code.put_decref(Naming.cur_scope_cname, lenv.scope_class.type)
 
@@ -2145,7 +2149,7 @@ class FuncDefNode(StatNode, BlockNode):
 
         code.putln("}")
 
-        if on_device:
+        if is_cdef and self.on_device:
             code.putln_openmp("#pragma omp end declare target")
 
         if preprocessor_guard:
@@ -2438,6 +2442,10 @@ class CFuncDefNode(FuncDefNode):
 
         self.declare_cpdef_wrapper(env)
         self.create_local_scope(env)
+
+        self.on_device = False
+        if hasattr(self.declarator, 'device'):
+            self.on_device = self.declarator.device
 
     def declare_cpdef_wrapper(self, env):
         if self.overridable:
@@ -3904,7 +3912,7 @@ class DefNodeWrapper(FuncDefNode):
                         arg.calculate_default_value_code(code)))
                     if arg.type.is_memoryviewslice:
                         code.put_incref_memoryviewslice(arg.entry.cname,
-                                                        have_gil=True)
+                                                        have_gil='gil')
                     code.putln('}')
             else:
                 error(arg.pos, "Cannot convert Python object argument to type '%s'" % arg.type)
@@ -8820,7 +8828,8 @@ class ParallelStatNode(StatNode, ParallelNode):
             code.putln("/* Clean up any temporaries */")
             for temp, type in sorted(self.temps):
                 if type.is_memoryviewslice:
-                    code.put_xdecref_memoryviewslice(temp, have_gil=False)
+                    code.put_xdecref_memoryviewslice(temp,
+                                                     have_gil='device' if self.on_device else 'nogil')
                 elif type.is_pyobject:
                     code.put_xdecref(temp, type)
                     code.putln("%s = NULL;" % temp)
