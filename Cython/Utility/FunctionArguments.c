@@ -914,96 +914,100 @@ static CYTHON_UNUSED int __Pyx_ParseOptionalKeywords_fastcallstruct(PyObject *kw
     __Pyx_FastcallDict_obj *kwds2, PyObject *values[], Py_ssize_t num_pos_args,
     const char* function_name) {
     PyObject*** first_kw_arg = argnames + num_pos_args;
+    PyObject* key = NULL;
 
     int kwds_is_tuple = CYTHON_METH_FASTCALL && likely(PyTuple_Check(kwds));
     if (!kwds_is_tuple) goto make_dict_instead;
 
-    // cycle through kwds
-    Py_ssize_t pos;
-    const Py_ssize_t len_kwds = PyTuple_GET_SIZE(kwds);
-    PyObject *key, *value, ***name;
-    Py_ssize_t first_unassigned_index = 0;
-    Py_ssize_t last_unassigned_index = 0;
-    Py_ssize_t last_assigned_index = 0;
-    for (pos = 0; pos < len_kwds; ++pos) {
-        key = PyTuple_GET_ITEM(kwds, pos);
-        value = kwvalues[pos];
+    {
+        // cycle through kwds
+        Py_ssize_t pos;
+        const Py_ssize_t len_kwds = PyTuple_GET_SIZE(kwds);
+        PyObject *value, ***name;
+        Py_ssize_t first_unassigned_index = 0;
+        Py_ssize_t last_unassigned_index = 0;
+        Py_ssize_t last_assigned_index = 0;
+        for (pos = 0; pos < len_kwds; ++pos) {
+            key = PyTuple_GET_ITEM(kwds, pos);
+            value = kwvalues[pos];
 
-        name = argnames;
-        while (*name && (**name != key)) name++;
-        if (*name) {
-            if (name < first_kw_arg) {
-                // already assigned - set error
-                goto arg_passed_twice;
-            } else {
-                if (first_unassigned_index == pos) {
-                    first_unassigned_index = pos + 1;
-                } //else if (last_assigned_index < (pos-1)) {
-                    // non-contiguous array
-                  //  goto make_dict_instead;
-                //}
-                last_assigned_index = pos;
-
-                values[name-argnames] = value;
-                continue; // the for loop
-            }
-        }
-        if (unlikely(!PyUnicode_Check(key))) {
-            goto invalid_keyword_type;
-        }
-
-        name = argnames;
-        while (*name) {
-            // don't both with string comparison from the other function - this one only happens in Py3
-            int cmp = (PyUnicode_GET_SIZE(**name) != PyUnicode_GET_SIZE(key)) ? 1 :
-                       PyUnicode_Compare(**name, key);
-            if (cmp < 0 && unlikely(PyErr_Occurred())) goto bad;
-            if (cmp == 0) {
+            name = argnames;
+            while (*name && (**name != key)) name++;
+            if (*name) {
                 if (name < first_kw_arg) {
+                    // already assigned - set error
                     goto arg_passed_twice;
                 } else {
                     if (first_unassigned_index == pos) {
                         first_unassigned_index = pos + 1;
-                    } else if (last_assigned_index < (pos-1)) {
+                    } //else if (last_assigned_index < (pos-1)) {
                         // non-contiguous array
-                        goto make_dict_instead;
-                    }
+                    //  goto make_dict_instead;
+                    //}
                     last_assigned_index = pos;
+
                     values[name-argnames] = value;
-                    goto continue_for_loop;
+                    continue; // the for loop
                 }
             }
-            ++name;
-        }
-        // here we didn't find a name to match this key to
-        last_unassigned_index = pos;
+            if (unlikely(!PyUnicode_Check(key))) {
+                goto invalid_keyword_type;
+            }
 
-        if ((first_unassigned_index < last_assigned_index) &&
-            (last_assigned_index < last_unassigned_index)) {
-            // non continuous block of keyword values
-            goto make_dict_instead;
+            name = argnames;
+            while (*name) {
+                // don't both with string comparison from the other function - this one only happens in Py3
+                int cmp = (PyUnicode_GET_SIZE(**name) != PyUnicode_GET_SIZE(key)) ? 1 :
+                        PyUnicode_Compare(**name, key);
+                if (cmp < 0 && unlikely(PyErr_Occurred())) goto bad;
+                if (cmp == 0) {
+                    if (name < first_kw_arg) {
+                        goto arg_passed_twice;
+                    } else {
+                        if (first_unassigned_index == pos) {
+                            first_unassigned_index = pos + 1;
+                        } else if (last_assigned_index < (pos-1)) {
+                            // non-contiguous array
+                            goto make_dict_instead;
+                        }
+                        last_assigned_index = pos;
+                        values[name-argnames] = value;
+                        goto continue_for_loop;
+                    }
+                }
+                ++name;
+            }
+            // here we didn't find a name to match this key to
+            last_unassigned_index = pos;
+
+            if ((first_unassigned_index < last_assigned_index) &&
+                (last_assigned_index < last_unassigned_index)) {
+                // non continuous block of keyword values
+                goto make_dict_instead;
+            }
+
+            continue_for_loop:
+            ;
         }
 
-        continue_for_loop:
-        ;
+        kwds2->object = PyTuple_GetSlice(kwds, first_unassigned_index, last_unassigned_index+1);
+        kwds2->args = kwvalues + first_unassigned_index;
+        return 0;
     }
-
-    kwds2->object = PyTuple_GetSlice(kwds, first_unassigned_index, last_unassigned_index+1);
-    kwds2->args = kwvalues + first_unassigned_index;
-    return 0;
 
     make_dict_instead:
         // we don't know how to process the keywords so just do the default "dict" version
         // of the structure
         kwds2->object = PyDict_New();
         if (!kwds2->object) return -1;
-        int result = __Pyx_ParseOptionalKeywords(kwds, kwvalues, argnames,
+        {
+            int result = __Pyx_ParseOptionalKeywords(kwds, kwvalues, argnames,
                                            kwds2->object, values, num_pos_args, function_name);
-        if (result) {
-            Py_CLEAR(kwds2->object);
+            if (result) {
+                Py_CLEAR(kwds2->object);
+            }
+            return result;
         }
-        return result;
-
     arg_passed_twice:
         __Pyx_RaiseDoubleKeywordsError(function_name, key);
         goto bad;
