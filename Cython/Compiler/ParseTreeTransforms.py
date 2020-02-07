@@ -969,6 +969,10 @@ class InterpretCompilerDirectives(CythonTransform):
         new_directives = dict(old_directives)
         new_directives.update(directives)
 
+        # the device directive requires nogil
+        if new_directives['device']:
+            new_directives['nogil'] = True
+
         if new_directives == old_directives:
             return self.visit_Node(node)
 
@@ -2425,18 +2429,14 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
         self.directives = old_directives
         return node
 
-    #def visit_FuncDefNode(self, node):
-    #    nogil = self.directives.get('nogil')
-    #    device = self.directives.get('device')
-    #    self.visitchildren(node)
-    #    return node
-
     def visit_DefNode(self, node):
         modifiers = []
         if 'inline' in self.directives:
             modifiers.append('inline')
         nogil = self.directives.get('nogil')
         device = self.directives.get('device')
+        if device and not nogil:
+            error(node.pos, "@cython.device requires @cython.nogil")
         except_val = self.directives.get('exceptval')
         return_type_node = self.directives.get('returns')
         if return_type_node is None and self.directives['annotation_typing']:

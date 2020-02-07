@@ -601,11 +601,6 @@ class CFuncDeclaratorNode(CDeclaratorNode):
     is_const_method = 0
     templates = None
 
-    def __init__(self, pos, **kw):
-        super(CFuncDeclaratorNode, self).__init__(pos, **kw)
-        if self.device and not self.nogil:
-            self.nogil = True
-
     def analyse_templates(self):
         if isinstance(self.base, CArrayDeclaratorNode):
             from .ExprNodes import TupleNode, NameNode
@@ -2545,8 +2540,6 @@ class CFuncDefNode(FuncDefNode):
             for entry in self.local_scope.var_entries:
                 if entry.type.is_pyobject and not entry.in_with_gil_block:
                     error(self.pos, "Function declared nogil has Python locals or temporaries")
-        elif env.directives['device'] and not env.directives['nogil']:
-            error(self.pos, "Function declared device must not require the GIL")
 
     def analyse_expressions(self, env):
         self.local_scope.directives = env.directives

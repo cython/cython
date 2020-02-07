@@ -207,8 +207,9 @@ class MarkParallelAssignments(EnvTransform):
 
     def visit_FuncDefNode(self, node):
         was_device = self.on_device
-        if hasattr(node.declarator, 'device'):
-            self.on_device = node.declarator.device
+        if self.current_directives['device']:
+            self.on_device = True
+            node.on_device = True
         self.visitchildren(node)
         self.on_device = was_device
         return node
