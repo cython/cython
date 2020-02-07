@@ -42,6 +42,28 @@ def c_safe_identifier(cname):
         cname = Naming.pyrex_prefix + cname
     return cname
 
+def punycodify_name(cname, mangle_with=None):
+    # if passed the mangle_with should be a byte string
+    # modified from  PEP489
+    try:
+        cname.encode('ascii')
+    except UnicodeEncodeError:
+        cname = cname.encode('punycode').replace(b'-', b'_').decode('ascii')
+        if mangle_with:
+            # sometimes it necessary to mangle unicode names alone where
+            # they'll be inserted directly into C, because the punycode
+            # transformation can turn them into invalid identifiers
+            cname = "%s_%s" % (mangle_with, cname)
+        elif cname.startswith(Naming.pyrex_prefix):
+            # a punycode name could also be a valid ascii variable name so
+            # change the prefix to distinguish
+            cname = cname.replace(Naming.pyrex_prefix,
+                                  Naming.pyunicode_identifier_prefix, 1)
+
+    return cname
+
+
+
 
 class BufferAux(object):
     writable_needed = False
@@ -349,7 +371,6 @@ class Scope(object):
         self.defined_c_classes = []
         self.imported_c_classes = {}
         self.cname_to_entry = {}
-        self.string_to_entry = {}
         self.identifier_to_entry = {}
         self.num_to_entry = {}
         self.obj_to_entry = {}
@@ -392,7 +413,7 @@ class Scope(object):
 
     def mangle(self, prefix, name = None):
         if name:
-            return "%s%s%s" % (prefix, self.scope_prefix, name)
+            return punycodify_name("%s%s%s" % (prefix, self.scope_prefix, name))
         else:
             return self.parent_scope.mangle(prefix, self.name)
 
@@ -447,6 +468,7 @@ class Scope(object):
         if not self.in_cinclude and cname and re.match("^_[_A-Z]+$", cname):
             # See https://www.gnu.org/software/libc/manual/html_node/Reserved-Names.html#Reserved-Names
             warning(pos, "'%s' is a reserved name in C." % cname, -1)
+
         entries = self.entries
         if name and name in entries and not shadow:
             old_entry = entries[name]
@@ -738,7 +760,7 @@ class Scope(object):
         qualified_name = self.qualify_name(lambda_name)
 
         entry = self.declare(None, func_cname, py_object_type, pos, 'private')
-        entry.name = lambda_name
+        entry.name = EncodedString(lambda_name)
         entry.qualified_name = qualified_name
         entry.pymethdef_cname = pymethdef_cname
         entry.func_cname = func_cname
@@ -833,6 +855,23 @@ class Scope(object):
         type.entry = entry
         return entry
 
+    def declare_cgetter(self, name, return_type, pos=None, cname=None,
+                        visibility="private", modifiers=(), defining=False, **cfunc_type_config):
+        assert all(
+            k in ('exception_value', 'exception_check', 'nogil', 'with_gil', 'is_const_method', 'is_static_method')
+            for k in cfunc_type_config
+        )
+        cfunc_type = PyrexTypes.CFuncType(
+            return_type,
+            [PyrexTypes.CFuncTypeArg("self", self.parent_type, None)],
+            **cfunc_type_config)
+        entry = self.declare_cfunction(
+            name, cfunc_type, pos, cname=None, visibility=visibility, modifiers=modifiers, defining=defining)
+        entry.is_cgetter = True
+        if cname is not None:
+            entry.func_cname = cname
+        return entry
+
     def add_cfunction(self, name, type, pos, cname, visibility, modifiers,
                       inherited=False):
         # Add a C function entry without giving it a func_cname.
@@ -908,8 +947,7 @@ class Scope(object):
             method = obj_type.scope.lookup("operator%s" % operator)
             if method is not None:
                 arg_types = [arg.type for arg in operands[1:]]
-                res = PyrexTypes.best_match([arg.type for arg in operands[1:]],
-                                            method.all_alternatives())
+                res = PyrexTypes.best_match(arg_types, method.all_alternatives())
                 if res is not None:
                     return res
         function = self.lookup("operator%s" % operator)
@@ -1119,7 +1157,6 @@ class ModuleScope(Scope):
     # utility_code_list    [UtilityCode]      Queuing utility codes for forwarding to Code.py
     # c_includes           {key: IncludeCode} C headers or verbatim code to be generated
     #                                         See process_include() for more documentation
-    # string_to_entry      {string : Entry}   Map string const to entry
     # identifier_to_entry  {string : Entry}   Map identifier string const to entry
     # context              Context
     # parent_module        Scope              Parent in the import namespace
@@ -1743,7 +1780,7 @@ class LocalScope(Scope):
         Scope.__init__(self, name, outer_scope, parent_scope)
 
     def mangle(self, prefix, name):
-        return prefix + name
+        return punycodify_name(prefix + name)
 
     def declare_arg(self, name, type, pos):
         # Add an entry for an argument of a function.
@@ -2149,6 +2186,7 @@ class CClassScope(ClassScope):
                 cname = name
                 if visibility == 'private':
                     cname = c_safe_identifier(cname)
+                cname = punycodify_name(cname, Naming.unicode_structmember_prefix)
             if type.is_cpp_class and visibility != 'extern':
                 type.check_nullary_constructor(pos)
                 self.use_utility_code(Code.UtilityCode("#include <new>"))
@@ -2192,6 +2230,7 @@ class CClassScope(ClassScope):
                                   # I keep it in for now. is_member should be enough
                                   # later on
             self.namespace_cname = "(PyObject *)%s" % self.parent_type.typeptr_cname
+
             return entry
 
     def declare_pyfunction(self, name, pos, allow_redefine=False):
@@ -2250,7 +2289,7 @@ class CClassScope(ClassScope):
                       (args[0].type, name, self.parent_type))
         entry = self.lookup_here(name)
         if cname is None:
-            cname = c_safe_identifier(name)
+            cname = punycodify_name(c_safe_identifier(name), Naming.unicode_vtabentry_prefix)
         if entry:
             if not entry.is_cfunction:
                 warning(pos, "'%s' redeclared  " % name, 0)
@@ -2431,7 +2470,7 @@ class CppClassScope(Scope):
         class_name = self.name.split('::')[-1]
         if name in (class_name, '__init__') and cname is None:
             cname = "%s__init__%s" % (Naming.func_prefix, class_name)
-            name = '<init>'
+            name = EncodedString('<init>')
             type.return_type = PyrexTypes.CVoidType()
             # This is called by the actual constructor, but need to support
             # arguments that cannot by called by value.
@@ -2445,7 +2484,7 @@ class CppClassScope(Scope):
             type.args = [maybe_ref(arg) for arg in type.args]
         elif name == '__dealloc__' and cname is None:
             cname = "%s__dealloc__%s" % (Naming.func_prefix, class_name)
-            name = '<del>'
+            name = EncodedString('<del>')
             type.return_type = PyrexTypes.CVoidType()
         if name in ('<init>', '<del>') and type.nogil:
             for base in self.type.base_classes:

@@ -581,7 +581,9 @@ class PxdPostParse(CythonTransform, SkipDeclarations):
             err = None # allow these slots
 
         if isinstance(node, Nodes.CFuncDefNode):
-            if (u'inline' in node.modifiers and
+            if node.decorators and self.scope_type == 'cclass':
+                err = None
+            elif (u'inline' in node.modifiers and
                 self.scope_type in ('pxd', 'cclass')):
                 node.inline_in_pxd = True
                 if node.visibility != 'private':
@@ -1325,9 +1327,9 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
     _properties = None
 
     _map_property_attribute = {
-        'getter': '__get__',
-        'setter': '__set__',
-        'deleter': '__del__',
+        'getter': EncodedString('__get__'),
+        'setter': EncodedString('__set__'),
+        'deleter': EncodedString('__del__'),
     }.get
 
     def visit_CClassDefNode(self, node):
@@ -1701,7 +1703,7 @@ if VALUE is not None:
                     e.type.create_from_py_utility_code(env)
             all_members_names = sorted([e.name for e in all_members])
             checksum = '0x%s' % hashlib.sha1(' '.join(all_members_names).encode('utf-8')).hexdigest()[:7]
-            unpickle_func_name = '__pyx_unpickle_%s' % node.class_name
+            unpickle_func_name = '__pyx_unpickle_%s' % node.punycode_class_name
 
             # TODO(robertwb): Move the state into the third argument
             # so it can be pickled *after* self is memoized.
@@ -1798,6 +1800,8 @@ if VALUE is not None:
         node.stats.insert(0, node.py_func)
         node.py_func = self.visit(node.py_func)
         node.update_fused_defnode_entry(env)
+        # For the moment, fused functions do not support METH_FASTCALL
+        node.py_func.entry.signature.use_fastcall = False
         pycfunc = ExprNodes.PyCFunctionNode.from_defnode(node.py_func, binding=True)
         pycfunc = ExprNodes.ProxyNode(pycfunc.coerce_to_temp(env))
         node.resulting_fused_function = pycfunc
@@ -2725,7 +2729,7 @@ class CreateClosureClasses(CythonTransform):
                 if not node.py_cfunc_node:
                     raise InternalError("DefNode does not have assignment node")
                 inner_node = node.py_cfunc_node
-            inner_node.needs_self_code = False
+            inner_node.needs_closure_code = False
             node.needs_outer_scope = False
 
         if node.is_generator:
@@ -2738,9 +2742,13 @@ class CreateClosureClasses(CythonTransform):
             node.needs_outer_scope = True
             return
 
+        # entry.cname can contain periods (eg. a derived C method of a class).
+        # We want to use the cname as part of a C struct name, so we replace
+        # periods with double underscores.
         as_name = '%s_%s' % (
             target_module_scope.next_id(Naming.closure_class_prefix),
-            node.entry.cname)
+            node.entry.cname.replace('.','__'))
+        as_name = EncodedString(as_name)
 
         entry = target_module_scope.declare_c_class(
             name=as_name, pos=node.pos, defining=True,

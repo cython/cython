@@ -1,0 +1,162 @@
+# mode: run
+# tag: coverage,trace
+
+"""
+PYTHON setup.py build_ext -i
+PYTHON -m coverage run --source=src coverage_test.py
+PYTHON collect_coverage.py
+"""
+
+######## setup.py ########
+
+from distutils.core import setup
+from Cython.Build import cythonize
+
+setup(ext_modules = cythonize([
+    'src/trivial_module.pyx',
+]))
+
+
+######## .coveragerc ########
+[run]
+plugins = Cython.Coverage
+
+
+######## src/trivial_module.pyx ########
+# cython: linetrace=True
+# distutils: define_macros=CYTHON_TRACE=1
+
+def func1(int a, int b):
+    cdef int x = 1      #  5
+    c = func2(a) + b    #  6
+    return x + c        #  7
+
+
+def func2(int a):
+    return a * 2        # 11
+
+
+######## coverage_test.py ########
+
+import os.path
+import trivial_module
+
+
+assert not any(
+    trivial_module.__file__.endswith(ext)
+    for ext in '.py .pyc .pyo .pyw .pyx .pxi'.split()
+), module.__file__
+
+
+def run_coverage(module):
+    assert module.func1(1, 2) == (1 * 2) + 2 + 1
+    assert module.func2(2) == 2 * 2
+
+
+if __name__ == '__main__':
+    run_coverage(trivial_module)
+
+
+######## collect_coverage.py ########
+
+import re
+import sys
+import os
+import os.path
+import subprocess
+from glob import iglob
+
+
+def run_coverage_command(*command):
+    env = dict(os.environ, LANG='', LC_ALL='C')
+    process = subprocess.Popen(
+        [sys.executable, '-m', 'coverage'] + list(command),
+        stdout=subprocess.PIPE, env=env)
+    stdout, _ = process.communicate()
+    return stdout
+
+
+def run_report():
+    stdout = run_coverage_command('report', '--show-missing')
+    stdout = stdout.decode('iso8859-1')  # 'safe' decoding
+    lines = stdout.splitlines()
+    print(stdout)
+
+    module_path = 'trivial_module.pyx'
+    assert any(module_path in line for line in lines), (
+        "'%s' not found in coverage report:\n\n%s" % (module_path, stdout))
+
+    files = {}
+    line_iter = iter(lines)
+    for line in line_iter:
+        if line.startswith('---'):
+            break
+    extend = [''] * 2
+    for line in line_iter:
+        if not line or line.startswith('---'):
+            continue
+        name, statements, missed, covered, _missing = (line.split(None, 4) + extend)[:5]
+        missing = []
+        for start, end in re.findall('([0-9]+)(?:-([0-9]+))?', _missing):
+            if end:
+                missing.extend(range(int(start), int(end)+1))
+            else:
+                missing.append(int(start))
+        files[os.path.basename(name)] = (statements, missed, covered, missing)
+
+    assert  5 not in files[module_path][-1], files[module_path]
+    assert  6 not in files[module_path][-1], files[module_path]
+    assert  7 not in files[module_path][-1], files[module_path]
+    assert 11 not in files[module_path][-1], files[module_path]
+
+
+def run_xml_report():
+    stdout = run_coverage_command('xml', '-o', '-')
+    print(stdout)
+
+    import xml.etree.ElementTree as etree
+    data = etree.fromstring(stdout)
+
+    files = {}
+    for module in data.iterfind('.//class'):
+        files[module.get('filename').replace('\\', '/')] = dict(
+            (int(line.get('number')), int(line.get('hits')))
+            for line in module.findall('lines/line')
+        )
+
+    module_path = 'src/trivial_module.pyx'
+
+    assert files[module_path][5] > 0, files[module_path]
+    assert files[module_path][6] > 0, files[module_path]
+    assert files[module_path][7] > 0, files[module_path]
+    assert files[module_path][11] > 0, files[module_path]
+
+
+def run_html_report():
+    stdout = run_coverage_command('html', '-d', 'html')
+    _parse_lines = re.compile(
+        r'<p[^>]* id=["\'][^0-9"\']*(?P<id>[0-9]+)[^0-9"\']*["\'][^>]*'
+        r' class=["\'][^"\']*(?P<run>mis|run)[^"\']*["\']').findall
+
+    files = {}
+    for file_path in iglob('html/*.html'):
+        with open(file_path) as f:
+            page = f.read()
+        executed = set()
+        missing = set()
+        for line, has_run in _parse_lines(page):
+            (executed if has_run == 'run' else missing).add(int(line))
+        files[file_path] = (executed, missing)
+
+    executed, missing = [data for path, data in files.items() if 'trivial_module' in path][0]
+    assert executed
+    assert 5 in executed, executed
+    assert 6 in executed, executed
+    assert 7 in executed, executed
+    assert 11 in executed, executed
+
+
+if __name__ == '__main__':
+    run_report()
+    run_xml_report()
+    run_html_report()

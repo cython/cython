@@ -698,6 +698,16 @@ def assign_temporary_to_object(object[:] mslice):
     buf = mslice
     buf[1] = {3-2: 2+(2*4)-2}
 
+
+def test_pyview_of_memview(int[:] ints):
+    """
+    >>> A = IntMockBuffer(None, [1, 2, 3])
+    >>> len(test_pyview_of_memview(A))
+    3
+    """
+    return ints
+
+
 def test_generic_slicing(arg, indirect=False):
     """
     Test simple slicing

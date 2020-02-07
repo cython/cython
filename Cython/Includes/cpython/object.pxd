@@ -181,6 +181,14 @@ cdef extern from "Python.h":
     # equivalent of the Python expression "str(o)". Called by the
     # str() built-in function and by the print statement.
 
+    object PyObject_Bytes(object o)
+    # Return value: New reference.
+    # Compute a bytes representation of object o. Return NULL on
+    # failure and a bytes object on success. This is equivalent to
+    # the Python expression bytes(o), when o is not an integer.
+    # Unlike bytes(o), a TypeError is raised when o is an integer
+    # instead of a zero-initialized bytes object.
+
     object PyObject_Unicode(object o)
     # Return value: New reference.
     # Compute a Unicode string representation of object o. Returns the

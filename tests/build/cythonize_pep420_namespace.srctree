@@ -1,0 +1,44 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import runner"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+
+from distutils.core import setup, Extension
+
+setup(
+  ext_modules=cythonize([
+    Extension("nsp.m1.a", ["nsp/m1/a.pyx"]),
+    Extension("nsp.m2.b", ["nsp/m2/b.pyx"])
+  ]),
+)
+
+######## nsp/m1/__init__.py ########
+
+######## nsp/m1/a.pyx ########
+
+cdef class A:
+    pass
+
+######## nsp/m1/a.pxd ########
+
+cdef class A:
+    pass
+
+######## nsp/m2/__init__.py ########
+
+######## nsp/m2/b.pyx ########
+
+from nsp.m1.a cimport A
+
+cdef class B(A):
+    pass
+
+######## runner.py ########
+
+from nsp.m1.a import A
+from nsp.m2.b import B
+
+a = A()
+b = B()

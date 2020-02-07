@@ -428,6 +428,7 @@ VER_DEP_MODULES = {
                                         'run.special_methods_T561_py2',
                                         ]),
     (3,3) : (operator.lt, lambda x: x in ['build.package_compilation',
+                                          'build.cythonize_pep420_namespace',
                                           'run.yield_from_py33',
                                           'pyximport.pyximport_namespace',
                                           'run.qualname',
@@ -544,9 +545,14 @@ class build_ext(_build_ext):
 class ErrorWriter(object):
     match_error = re.compile(r'(warning:)?(?:.*:)?\s*([-0-9]+)\s*:\s*([-0-9]+)\s*:\s*(.*)').match
 
-    def __init__(self):
+    def __init__(self, encoding=None):
         self.output = []
-        self.write = self.output.append
+        self.encoding = encoding
+
+    def write(self, value):
+        if self.encoding:
+            value = value.encode('ISO-8859-1').decode(self.encoding)
+        self.output.append(value)
 
     def _collect(self):
         s = ''.join(self.output)
@@ -760,12 +766,10 @@ class TestBuilder(object):
         pythran_dir = self.pythran_dir
         if 'pythran' in tags['tag'] and not pythran_dir and 'cpp' in languages:
             import pythran.config
-            from pythran import __version__ as pythran_version
-            pythran_ext = (
-                pythran.config.make_extension(python=True)
-                if pythran_version >= '0.9' or pythran_version >= '0.8.7'
-                else pythran.config.make_extension()
-            )
+            try:
+                pythran_ext = pythran.config.make_extension(python=True)
+            except TypeError:  # old pythran version syntax
+                pythran_ext = pythran.config.make_extension()
             pythran_dir = pythran_ext['include_dirs'][0]
 
         preparse_list = tags.get('preparse', ['id'])
@@ -917,13 +921,17 @@ class CythonCompileTestCase(unittest.TestCase):
                 shutil.rmtree(self.workdir, ignore_errors=True)
             else:
                 for rmfile in os.listdir(self.workdir):
+                    ext = os.path.splitext(rmfile)[1]
                     if not cleanup_c_files:
-                        if (rmfile[-2:] in (".c", ".h") or
-                                rmfile[-4:] == ".cpp" or
-                                rmfile.endswith(".html") and rmfile.startswith(self.module)):
+                        # Keep C, C++ files, header files, preprocessed sources
+                        # and assembly sources (typically the .i and .s files
+                        # are intentionally generated when -save-temps is given)
+                        if ext in (".c", ".cpp", ".h", ".i", ".ii", ".s"):
+                            continue
+                        if ext == ".html" and rmfile.startswith(self.module):
                             continue
 
-                    is_shared_obj = rmfile.endswith(".so") or rmfile.endswith(".dll")
+                    is_shared_obj = ext in (".so", ".dll")
 
                     if not cleanup_lib_files and is_shared_obj:
                         continue
@@ -999,6 +1007,13 @@ class CythonCompileTestCase(unittest.TestCase):
 
     def split_source_and_output(self, test_directory, module, workdir):
         source_file = self.find_module_source_file(os.path.join(test_directory, module) + '.pyx')
+
+        from Cython.Utils import detect_opened_file_encoding
+        with io_open(source_file, 'rb') as f:
+            # encoding is passed to ErrorWriter but not used on the source
+            # since it is sometimes deliberately wrong
+            encoding = detect_opened_file_encoding(f, default=None)
+
         with io_open(source_file, 'r', encoding='ISO-8859-1') as source_and_output:
             error_writer = warnings_writer = None
             out = io_open(os.path.join(workdir, module + os.path.splitext(source_file)[1]),
@@ -1007,10 +1022,10 @@ class CythonCompileTestCase(unittest.TestCase):
                 for line in source_and_output:
                     if line.startswith("_ERRORS"):
                         out.close()
-                        out = error_writer = ErrorWriter()
+                        out = error_writer = ErrorWriter(encoding=encoding)
                     elif line.startswith("_WARNINGS"):
                         out.close()
-                        out = warnings_writer = ErrorWriter()
+                        out = warnings_writer = ErrorWriter(encoding=encoding)
                     else:
                         out.write(line)
             finally:
@@ -1110,6 +1125,11 @@ class CythonCompileTestCase(unittest.TestCase):
             if self.pythran_dir:
                 from Cython.Build.Dependencies import update_pythran_extension
                 update_pythran_extension(extension)
+
+            # Compile with -DCYTHON_CLINE_IN_TRACEBACK=1 unless we have
+            # the "traceback" tag
+            if 'traceback' not in self.tags['tag']:
+                extension.define_macros.append(("CYTHON_CLINE_IN_TRACEBACK", 1))
 
             for matcher, fixer in list(EXT_EXTRAS.items()):
                 if isinstance(matcher, str):
@@ -1740,6 +1760,7 @@ class EndToEndTest(unittest.TestCase):
     def runTest(self):
         self.success = False
         commands = (self.commands
+            .replace("CYTHONIZE", "PYTHON %s" % os.path.join(self.cython_root, 'cythonize.py'))
             .replace("CYTHON", "PYTHON %s" % os.path.join(self.cython_root, 'cython.py'))
             .replace("PYTHON", sys.executable))
         old_path = os.environ.get('PYTHONPATH')
@@ -1991,6 +2012,10 @@ def flush_and_terminate(status):
 def main():
 
     global DISTDIR, WITH_CYTHON
+
+    # Set an environment variable to the top directory
+    os.environ['CYTHON_PROJECT_DIR'] = os.path.abspath(os.path.dirname(__file__))
+
     DISTDIR = os.path.join(os.getcwd(), os.path.dirname(sys.argv[0]))
 
     from Cython.Compiler import DebugFlags
@@ -2124,6 +2149,8 @@ def main():
                       help="specify Pythran include directory. This will run the C++ tests using Pythran backend for Numpy")
     parser.add_option("--no-capture", dest="capture", default=True, action="store_false",
                       help="do not capture stdout, stderr in srctree tests. Makes pdb.set_trace interactive")
+    parser.add_option("--limited-api", dest="limited_api", default=False, action="store_true",
+                      help="Compiles Cython using CPython's LIMITED_API")
 
     options, cmd_args = parser.parse_args(args)
 
@@ -2343,6 +2370,10 @@ def runtests(options, cmd_args, coverage=None):
         sys.path.insert(0, os.path.split(libpath)[0])
         CFLAGS.append("-DCYTHON_REFNANNY=1")
 
+    if options.limited_api:
+        CFLAGS.append("-DCYTHON_LIMITED_API=1")
+
+
     if xml_output_dir and options.fork:
         # doesn't currently work together
         sys.stderr.write("Disabling forked testing to support XML test output\n")
@@ -2401,6 +2432,7 @@ def runtests(options, cmd_args, coverage=None):
         bug_files = [
             ('bugs.txt', True),
             ('pypy_bugs.txt', IS_PYPY),
+            ('limited_api_bugs.txt', options.limited_api),
             ('windows_bugs.txt', sys.platform == 'win32'),
             ('cygwin_bugs.txt', sys.platform == 'cygwin')
         ]

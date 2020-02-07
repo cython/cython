@@ -13,6 +13,8 @@ codewriter_temp_prefix = pyrex_prefix + "t_"
 
 temp_prefix       = u"__cyt_"
 
+pyunicode_identifier_prefix = pyrex_prefix + 'U'
+
 builtin_prefix    = pyrex_prefix + "builtin_"
 arg_prefix        = pyrex_prefix + "arg_"
 funcdoc_prefix    = pyrex_prefix + "doc_"
@@ -45,12 +47,19 @@ pybufferstruct_prefix  = pyrex_prefix + "pybuffer_"
 vtable_prefix     = pyrex_prefix + "vtable_"
 vtabptr_prefix    = pyrex_prefix + "vtabptr_"
 vtabstruct_prefix = pyrex_prefix + "vtabstruct_"
+unicode_vtabentry_prefix  = pyrex_prefix + "Uvtabentry_"
+ # vtab entries aren't  normally manged,
+ # but punycode names sometimes start with numbers leading
+ # to a C syntax error
+unicode_structmember_prefix = pyrex_prefix + "Umember_"
+ # as above -
+ # not normally manged but punycode names cause specific problems
 opt_arg_prefix    = pyrex_prefix + "opt_args_"
 convert_func_prefix = pyrex_prefix + "convert_"
 closure_scope_prefix = pyrex_prefix + "scope_"
 closure_class_prefix = pyrex_prefix + "scope_struct_"
 lambda_func_prefix = pyrex_prefix + "lambda_"
-module_is_main   = pyrex_prefix + "module_is_main_"
+module_is_main   = pyrex_prefix + "module_is_main"
 defaults_struct_prefix = pyrex_prefix + "defaults"
 dynamic_args_cname = pyrex_prefix + "dynamic_args"
 
@@ -67,6 +76,8 @@ interned_prefixes = {
 
 ctuple_type_prefix = pyrex_prefix + "ctuple_"
 args_cname       = pyrex_prefix + "args"
+nargs_cname      = pyrex_prefix + "nargs"
+kwvalues_cname   = pyrex_prefix + "kwvalues"
 generator_cname  = pyrex_prefix + "generator"
 sent_value_cname = pyrex_prefix + "sent_value"
 pykwdlist_cname  = pyrex_prefix + "pyargnames"
@@ -85,6 +96,8 @@ clineno_cname    = pyrex_prefix + "clineno"
 cfilenm_cname    = pyrex_prefix + "cfilenm"
 local_tstate_cname = pyrex_prefix + "tstate"
 module_cname     = pyrex_prefix + "m"
+modulestate_cname = pyrex_prefix + "mstate"
+modulestateglobal_cname = pyrex_prefix + "mstate_global"
 moddoc_cname     = pyrex_prefix + "mdoc"
 methtable_cname  = pyrex_prefix + "methods"
 retval_cname     = pyrex_prefix + "r"
@@ -152,8 +165,11 @@ exc_vars = (exc_type_name, exc_value_name, exc_tb_name)
 
 api_name        = pyrex_prefix + "capi__"
 
-h_guard_prefix   = "__PYX_HAVE__"
-api_guard_prefix = "__PYX_HAVE_API__"
+# the h and api guards get changed to:
+#  __PYX_HAVE__FILENAME (for ascii filenames)
+#  __PYX_HAVE_U_PUNYCODEFILENAME (for non-ascii filenames)
+h_guard_prefix   = "__PYX_HAVE_"
+api_guard_prefix = "__PYX_HAVE_API_"
 api_func_guard   = "__PYX_HAVE_API_FUNC_"
 
 PYX_NAN          = "__PYX_NAN()"

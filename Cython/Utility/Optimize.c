@@ -685,9 +685,11 @@ static PyObject* __Pyx__PyNumber_PowerOf2(PyObject *two, PyObject *exp, PyObject
             return PyLong_FromUnsignedLongLong(value);
 #endif
         } else {
-            PyObject *one = PyInt_FromLong(1L);
+            PyObject *result, *one = PyInt_FromLong(1L);
             if (unlikely(!one)) return NULL;
-            return PyNumber_Lshift(one, exp);
+            result = PyNumber_Lshift(one, exp);
+            Py_DECREF(one);
+            return result;
         }
     } else if (shiftby == -1 && PyErr_Occurred()) {
         PyErr_Clear();
@@ -774,7 +776,11 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject els
 
     if (PyFloat_CheckExact({{pyval}})) {
         const long {{'a' if order == 'CObj' else 'b'}} = intval;
+#if CYTHON_COMPILING_IN_LIMITED_API
+        double {{ival}} = __pyx_PyFloat_AsDouble({{pyval}});
+#else
         double {{ival}} = PyFloat_AS_DOUBLE({{pyval}});
+#endif
         {{return_compare('(double)a', '(double)b', c_op)}}
     }
 
@@ -917,7 +923,11 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, CYTHON_UNUSED
         {{if c_op == '&'}}
         // special case for &-ing arbitrarily large numbers with known single digit operands
         if ((intval & PyLong_MASK) == intval) {
-            return PyLong_FromLong(likely(size) ? digits[0] & intval : 0);
+            long result = 0;
+            if(likely(size)) {
+                result = intval & (likely(size>0) ? digits[0] : (PyLong_MASK - digits[0] + 1));
+            }
+            return PyLong_FromLong(result);
         }
         {{endif}}
         // special cases for 0: + - * % / // | ^ & >> <<
@@ -1062,7 +1072,11 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, CYTHON_UNUSED
     {{if c_op in '+-*' or op in ('TrueDivide', 'Eq', 'Ne')}}
     if (PyFloat_CheckExact({{pyval}})) {
         const long {{'a' if order == 'CObj' else 'b'}} = intval;
+#if CYTHON_COMPILING_IN_LIMITED_API
+        double {{ival}} = __pyx_PyFloat_AsDouble({{pyval}});
+#else
         double {{ival}} = PyFloat_AS_DOUBLE({{pyval}});
+#endif
         {{if op in ('Eq', 'Ne')}}
             if ((double)a {{c_op}} (double)b) {
                 {{return_true}};
@@ -1141,7 +1155,11 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, double floatv
     {{endif}}
 
     if (likely(PyFloat_CheckExact({{pyval}}))) {
+#if CYTHON_COMPILING_IN_LIMITED_API
+        {{fval}} = __pyx_PyFloat_AsDouble({{pyval}});
+#else
         {{fval}} = PyFloat_AS_DOUBLE({{pyval}});
+#endif
         {{zerodiv_check(fval)}}
     } else
 

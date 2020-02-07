@@ -2557,12 +2557,20 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
     Pyx_strlen_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_size_t_type, [
             PyrexTypes.CFuncTypeArg("bytes", PyrexTypes.c_const_char_ptr_type, None)
-        ])
+        ],
+        nogil=True)
+
+    Pyx_ssize_strlen_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_py_ssize_t_type, [
+            PyrexTypes.CFuncTypeArg("bytes", PyrexTypes.c_const_char_ptr_type, None)
+        ],
+        exception_value="-1")
 
     Pyx_Py_UNICODE_strlen_func_type = PyrexTypes.CFuncType(
-        PyrexTypes.c_size_t_type, [
+        PyrexTypes.c_py_ssize_t_type, [
             PyrexTypes.CFuncTypeArg("unicode", PyrexTypes.c_const_py_unicode_ptr_type, None)
-        ])
+        ],
+        exception_value="-1")
 
     PyObject_Size_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_py_ssize_t_type, [
@@ -2596,18 +2604,19 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             arg = arg.arg
         if arg.type.is_string:
             new_node = ExprNodes.PythonCapiCallNode(
-                node.pos, "strlen", self.Pyx_strlen_func_type,
+                node.pos, "__Pyx_ssize_strlen", self.Pyx_ssize_strlen_func_type,
                 args = [arg],
                 is_temp = node.is_temp,
-                utility_code = UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
+                utility_code = UtilityCode.load_cached("ssize_strlen", "StringTools.c"))
         elif arg.type.is_pyunicode_ptr:
             new_node = ExprNodes.PythonCapiCallNode(
-                node.pos, "__Pyx_Py_UNICODE_strlen", self.Pyx_Py_UNICODE_strlen_func_type,
+                node.pos, "__Pyx_Py_UNICODE_ssize_strlen", self.Pyx_Py_UNICODE_strlen_func_type,
                 args = [arg],
-                is_temp = node.is_temp)
+                is_temp = node.is_temp,
+                utility_code = UtilityCode.load_cached("ssize_pyunicode_strlen", "StringTools.c"))
         elif arg.type.is_memoryviewslice:
             func_type = PyrexTypes.CFuncType(
-                PyrexTypes.c_size_t_type, [
+                PyrexTypes.c_py_ssize_t_type, [
                     PyrexTypes.CFuncTypeArg("memoryviewslice", arg.type, None)
                 ], nogil=True)
             new_node = ExprNodes.PythonCapiCallNode(
@@ -4422,25 +4431,25 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         args = []
         items = []
 
-        def add(arg):
+        def add(parent, arg):
             if arg.is_dict_literal:
-                if items:
-                    items[0].key_value_pairs.extend(arg.key_value_pairs)
+                if items and items[-1].reject_duplicates == arg.reject_duplicates:
+                    items[-1].key_value_pairs.extend(arg.key_value_pairs)
                 else:
                     items.append(arg)
-            elif isinstance(arg, ExprNodes.MergedDictNode):
+            elif isinstance(arg, ExprNodes.MergedDictNode) and parent.reject_duplicates == arg.reject_duplicates:
                 for child_arg in arg.keyword_args:
-                    add(child_arg)
+                    add(arg, child_arg)
             else:
                 if items:
-                    args.append(items[0])
+                    args.extend(items)
                     del items[:]
                 args.append(arg)
 
         for arg in node.keyword_args:
-            add(arg)
+            add(node, arg)
         if items:
-            args.append(items[0])
+            args.extend(items)
 
         if len(args) == 1:
             arg = args[0]

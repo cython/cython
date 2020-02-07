@@ -20,7 +20,8 @@ cdef extern from "Python.h":
 
     # This is not actually a struct, but make sure it can never be coerced to
     # an int or used in arithmetic expressions
-    ctypedef struct PyGILState_STATE
+    ctypedef struct PyGILState_STATE:
+        pass
 
     # The type of the trace function registered using PyEval_SetProfile() and
     # PyEval_SetTrace().

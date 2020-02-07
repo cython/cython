@@ -294,15 +294,17 @@ static PyCodeObject *__Pyx_createFrameCodeObject(const char *funcname, const cha
 #if PY_MAJOR_VERSION >= 3
     py_code = PyCode_NewEmpty(srcfile, funcname, firstlineno);
     // make CPython use a fresh dict for "f_locals" at need (see GH #1836)
-    py_code->co_flags |= CO_OPTIMIZED | CO_NEWLOCALS;
+    if (likely(py_code)) {
+        py_code->co_flags |= CO_OPTIMIZED | CO_NEWLOCALS;
+    }
 #else
     PyObject *py_srcfile = 0;
     PyObject *py_funcname = 0;
 
     py_funcname = PyString_FromString(funcname);
-    if (!py_funcname) goto bad;
+    if (unlikely(!py_funcname)) goto bad;
     py_srcfile = PyString_FromString(srcfile);
-    if (!py_srcfile) goto bad;
+    if (unlikely(!py_srcfile)) goto bad;
 
     py_code = PyCode_New(
         0,                /*int argcount,*/

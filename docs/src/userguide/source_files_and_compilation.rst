@@ -623,6 +623,8 @@ You can see them also by typing ```%%cython?`` in IPython or a Jupyter notebook.
 
 -a, --annotate                                Produce a colorized HTML version of the source.
 
+--annotate-fullc                              Produce a colorized HTML version of the source which includes entire generated C/C++-code.
+
 -+, --cplus                                   Output a C++ rather than C file.
 
 -f, --force                                   Force the compilation of a new module, even if the source has been previously compiled.
@@ -648,6 +650,7 @@ You can see them also by typing ```%%cython?`` in IPython or a Jupyter notebook.
 --pgo                                         Enable profile guided optimisation in the C compiler. Compiles the cell twice and executes it in between to generate a runtime profile.
 
 --verbose                                     Print debug information like generated .c/.cpp file location and exact gcc/g++ command invoked.
+
 ============================================  =======================================================================================================================================
 
 
@@ -675,7 +678,6 @@ Here are the options that are available:
 
 .. autodata:: Cython.Compiler.Options.docstrings
 .. autodata:: Cython.Compiler.Options.embed_pos_in_docstring
-.. autodata:: Cython.Compiler.Options.emit_code_comments
 .. pre_import
 .. autodata:: Cython.Compiler.Options.generate_cleanup_code
 .. autodata:: Cython.Compiler.Options.clear_to_none
@@ -856,7 +858,17 @@ Cython code.  Here is the list of currently supported directives:
     asyncio before Python 3.5.  This directive can be applied in modules or
     selectively as decorator on an async-def coroutine to make the affected
     coroutine(s) iterable and thus directly interoperable with yield-from.
+  
+  ``annotation_typing`` (True / False)
+    Uses function argument annotations to determine the type of variables. Default
+    is True, but can be disabled. Since Python does not enforce types given in
+    annotations, setting to False gives greater compatibility with Python code.
+    Must be set globally.
 
+``emit_code_comments`` (True / False)
+    Copy the original source code line by line into C code comments in the generated
+    code file to help with understanding the output.
+    This is also required for coverage analysis.
 
 .. _configurable_optimisations:
 

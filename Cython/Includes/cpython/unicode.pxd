@@ -92,6 +92,14 @@ cdef extern from *:
     # when u is NULL.
     unicode PyUnicode_FromUnicode(Py_UNICODE *u, Py_ssize_t size)
 
+    # Similar to PyUnicode_FromUnicode(), but u points to UTF-8 encoded
+    # bytes
+    unicode PyUnicode_FromStringAndSize(const char *u, Py_ssize_t size)
+
+    # Similar to PyUnicode_FromUnicode(), but u points to null-terminated
+    # UTF-8 encoded bytes.  The size is determined with strlen().
+    unicode PyUnicode_FromString(const char *u)
+
     # Create a Unicode Object from the given Unicode code point ordinal.
     #
     # The ordinal must be in range(0x10000) on narrow Python builds

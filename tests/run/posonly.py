@@ -1,8 +1,6 @@
 # cython: always_allow_keywords=True
 # mode: run
-# tag: posonly
-
-# TODO: remove posonly tag before merge
+# tag: posonly, pure3.8
 
 import cython
 import sys
@@ -14,14 +12,14 @@ def test_optional_posonly_args1(a, b=10, /, c=100):
     6
     >>> test_optional_posonly_args1(1, 2, c=3)
     6
-    >>> test_optional_posonly_args1(1, b=2, c=3)
+    >>> test_optional_posonly_args1(1, b=2, c=3)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: test_optional_posonly_args1() got an unexpected keyword argument 'b'
+    TypeError: test_optional_posonly_args1() got ... keyword argument... 'b'
     >>> test_optional_posonly_args1(1, 2)
     103
-    >>> test_optional_posonly_args1(1, b=2)
+    >>> test_optional_posonly_args1(1, b=2)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: test_optional_posonly_args1() got an unexpected keyword argument 'b'
+    TypeError: test_optional_posonly_args1() got ... keyword argument... 'b'
     """
     return a + b + c
 
@@ -31,14 +29,14 @@ def test_optional_posonly_args2(a=1, b=10, /, c=100):
     6
     >>> test_optional_posonly_args2(1, 2, c=3)
     6
-    >>> test_optional_posonly_args2(1, b=2, c=3)
+    >>> test_optional_posonly_args2(1, b=2, c=3)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: test_optional_posonly_args2() got an unexpected keyword argument 'b'
+    TypeError: test_optional_posonly_args2() got ... keyword argument... 'b'
     >>> test_optional_posonly_args2(1, 2)
     103
-    >>> test_optional_posonly_args2(1, b=2)
+    >>> test_optional_posonly_args2(1, b=2)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: test_optional_posonly_args2() got an unexpected keyword argument 'b'
+    TypeError: test_optional_posonly_args2() got ... keyword argument... 'b'
     >>> test_optional_posonly_args2(1, c=2)
     13
     """
@@ -74,14 +72,14 @@ def test_optional_posonly_args2(a=1, b=10, /, c=100):
 #    """
 #    return (a299, b, c, d)
 
-#TODO: update this test for Python 3.8
+#TODO: update this test for Python 3.8 final
 @cython.binding(True)
 def func_introspection1(a, b, c, /, d, e=1, *, f, g=2):
     """
     >>> if sys.version_info[0] < 3:
-    ...     assert func_introspection2.__code__.co_argcount == 7
+    ...     assert func_introspection2.__code__.co_argcount == 7, func_introspection2.__code__.co_argcount
     ... else:
-    ...     assert func_introspection2.__code__.co_argcount == 5
+    ...     assert func_introspection2.__code__.co_argcount == 5, func_introspection2.__code__.co_argcount
     >>> func_introspection1.__defaults__
     (1,)
     """
@@ -90,9 +88,9 @@ def func_introspection1(a, b, c, /, d, e=1, *, f, g=2):
 def func_introspection2(a, b, c=1, /, d=2, e=3, *, f, g=4):
     """
     >>> if sys.version_info[0] < 3:
-    ...     assert func_introspection2.__code__.co_argcount == 7
+    ...     assert func_introspection2.__code__.co_argcount == 7, func_introspection2.__code__.co_argcount
     ... else:
-    ...     assert func_introspection2.__code__.co_argcount == 5
+    ...     assert func_introspection2.__code__.co_argcount == 5, func_introspection2.__code__.co_argcount
     >>> func_introspection2.__defaults__
     (1, 2, 3)
     """
@@ -107,79 +105,79 @@ def test_pos_only_call_via_unpacking(a, b, /):
 def test_use_positional_as_keyword1(a, /):
     """
     >>> test_use_positional_as_keyword1(1)
-    >>> test_use_positional_as_keyword1(a=1)
+    >>> test_use_positional_as_keyword1(a=1)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: test_use_positional_as_keyword1() takes no keyword arguments
+    TypeError: test_use_positional_as_keyword1() ... keyword arguments...
     """
 
 def test_use_positional_as_keyword2(a, /, b):
     """
     >>> test_use_positional_as_keyword2(1, 2)
     >>> test_use_positional_as_keyword2(1, b=2)
-    >>> test_use_positional_as_keyword2(a=1, b=2)
+    >>> test_use_positional_as_keyword2(a=1, b=2)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: test_use_positional_as_keyword2() takes exactly 2 positional arguments (0 given)
+    TypeError: test_use_positional_as_keyword2() ... positional...arguments...
     """
 
 def test_use_positional_as_keyword3(a, b, /):
     """
     >>> test_use_positional_as_keyword3(1, 2)
-    >>> test_use_positional_as_keyword3(a=1, b=2)
+    >>> test_use_positional_as_keyword3(a=1, b=2) # doctest:+ELLIPSIS
     Traceback (most recent call last):
-    TypeError: test_use_positional_as_keyword3() takes exactly 2 positional arguments (0 given)
+    TypeError: test_use_positional_as_keyword3() got ... keyword argument...
     """
 
 def test_positional_only_and_arg_invalid_calls(a, b, /, c):
     """
     >>> test_positional_only_and_arg_invalid_calls(1, 2, 3)
     >>> test_positional_only_and_arg_invalid_calls(1, 2, c=3)
-    >>> test_positional_only_and_arg_invalid_calls(1, 2)
+    >>> test_positional_only_and_arg_invalid_calls(1, 2)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: test_positional_only_and_arg_invalid_calls() takes exactly 3 positional arguments (2 given)
-    >>> test_positional_only_and_arg_invalid_calls(1)
+    TypeError: test_positional_only_and_arg_invalid_calls() ... positional argument...
+    >>> test_positional_only_and_arg_invalid_calls(1)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: test_positional_only_and_arg_invalid_calls() takes exactly 3 positional arguments (1 given)
-    >>> test_positional_only_and_arg_invalid_calls(1,2,3,4)
+    TypeError: test_positional_only_and_arg_invalid_calls() ... positional arguments...
+    >>> test_positional_only_and_arg_invalid_calls(1,2,3,4)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: test_positional_only_and_arg_invalid_calls() takes exactly 3 positional arguments (4 given)
+    TypeError: test_positional_only_and_arg_invalid_calls() takes ... positional arguments ...4 ...given...
     """
 
 def test_positional_only_and_optional_arg_invalid_calls(a, b, /, c=3):
     """
     >>> test_positional_only_and_optional_arg_invalid_calls(1, 2)
-    >>> test_positional_only_and_optional_arg_invalid_calls(1)
+    >>> test_positional_only_and_optional_arg_invalid_calls(1)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: test_positional_only_and_optional_arg_invalid_calls() takes at least 2 positional arguments (1 given)
-    >>> test_positional_only_and_optional_arg_invalid_calls()
+    TypeError: test_positional_only_and_optional_arg_invalid_calls() ... positional argument...
+    >>> test_positional_only_and_optional_arg_invalid_calls()  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: test_positional_only_and_optional_arg_invalid_calls() takes at least 2 positional arguments (0 given)
-    >>> test_positional_only_and_optional_arg_invalid_calls(1, 2, 3, 4)
+    TypeError: test_positional_only_and_optional_arg_invalid_calls() ... positional arguments...
+    >>> test_positional_only_and_optional_arg_invalid_calls(1, 2, 3, 4)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: test_positional_only_and_optional_arg_invalid_calls() takes at most 3 positional arguments (4 given)
+    TypeError: test_positional_only_and_optional_arg_invalid_calls() takes ... positional arguments ...4 ...given...
     """
 
 def test_positional_only_and_kwonlyargs_invalid_calls(a, b, /, c, *, d, e):
     """
     >>> test_positional_only_and_kwonlyargs_invalid_calls(1, 2, 3, d=1, e=2)
-    >>> test_positional_only_and_kwonlyargs_invalid_calls(1, 2, 3, e=2)
+    >>> test_positional_only_and_kwonlyargs_invalid_calls(1, 2, 3, e=2)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: test_positional_only_and_kwonlyargs_invalid_calls() needs keyword-only argument d
-    >>> test_positional_only_and_kwonlyargs_invalid_calls(1, 2, 3)
+    TypeError: test_positional_only_and_kwonlyargs_invalid_calls() ... keyword-only argument...d...
+    >>> test_positional_only_and_kwonlyargs_invalid_calls(1, 2, 3)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: test_positional_only_and_kwonlyargs_invalid_calls() needs keyword-only argument d
-    >>> test_positional_only_and_kwonlyargs_invalid_calls(1, 2)
+    TypeError: test_positional_only_and_kwonlyargs_invalid_calls() ... keyword-only argument...d...
+    >>> test_positional_only_and_kwonlyargs_invalid_calls(1, 2)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: test_positional_only_and_kwonlyargs_invalid_calls() takes exactly 3 positional arguments (2 given)
-    >>> test_positional_only_and_kwonlyargs_invalid_calls(1)
+    TypeError: test_positional_only_and_kwonlyargs_invalid_calls() ... positional argument...
+    >>> test_positional_only_and_kwonlyargs_invalid_calls(1)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: test_positional_only_and_kwonlyargs_invalid_calls() takes exactly 3 positional arguments (1 given)
-    >>> test_positional_only_and_kwonlyargs_invalid_calls()
+    TypeError: test_positional_only_and_kwonlyargs_invalid_calls() ... positional arguments...
+    >>> test_positional_only_and_kwonlyargs_invalid_calls()  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: test_positional_only_and_kwonlyargs_invalid_calls() takes exactly 3 positional arguments (0 given)
-    >>> test_positional_only_and_kwonlyargs_invalid_calls(1, 2, 3, 4, 5, 6, d=7, e=8)
+    TypeError: test_positional_only_and_kwonlyargs_invalid_calls() ... positional arguments...
+    >>> test_positional_only_and_kwonlyargs_invalid_calls(1, 2, 3, 4, 5, 6, d=7, e=8)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: test_positional_only_and_kwonlyargs_invalid_calls() takes exactly 3 positional arguments (6 given)
-    >>> test_positional_only_and_kwonlyargs_invalid_calls(1, 2, 3, d=1, e=4, f=56)
+    TypeError: test_positional_only_and_kwonlyargs_invalid_calls() takes ... positional arguments ...
+    >>> test_positional_only_and_kwonlyargs_invalid_calls(1, 2, 3, d=1, e=4, f=56)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: test_positional_only_and_kwonlyargs_invalid_calls() got an unexpected keyword argument 'f'
     """
@@ -187,34 +185,34 @@ def test_positional_only_and_kwonlyargs_invalid_calls(a, b, /, c, *, d, e):
 def test_positional_only_invalid_calls(a, b, /):
     """
     >>> test_positional_only_invalid_calls(1, 2)
-    >>> test_positional_only_invalid_calls(1)
+    >>> test_positional_only_invalid_calls(1)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: test_positional_only_invalid_calls() takes exactly 2 positional arguments (1 given)
-    >>> test_positional_only_invalid_calls()
+    TypeError: test_positional_only_invalid_calls() ... positional argument...
+    >>> test_positional_only_invalid_calls()  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: test_positional_only_invalid_calls() takes exactly 2 positional arguments (0 given)
-    >>> test_positional_only_invalid_calls(1, 2, 3)
+    TypeError: test_positional_only_invalid_calls() ... positional arguments...
+    >>> test_positional_only_invalid_calls(1, 2, 3)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: test_positional_only_invalid_calls() takes exactly 2 positional arguments (3 given)
+    TypeError: test_positional_only_invalid_calls() takes ... positional arguments ...3 ...given...
     """
 
 def test_positional_only_with_optional_invalid_calls(a, b=2, /):
     """
     >>> test_positional_only_with_optional_invalid_calls(1)
-    >>> test_positional_only_with_optional_invalid_calls()
+    >>> test_positional_only_with_optional_invalid_calls()  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: test_positional_only_with_optional_invalid_calls() takes at least 1 positional argument (0 given)
-    >>> test_positional_only_with_optional_invalid_calls(1, 2, 3)
+    TypeError: test_positional_only_with_optional_invalid_calls() ... positional argument...
+    >>> test_positional_only_with_optional_invalid_calls(1, 2, 3)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: test_positional_only_with_optional_invalid_calls() takes at most 2 positional arguments (3 given)
+    TypeError: test_positional_only_with_optional_invalid_calls() takes ... positional arguments ...3 ...given...
     """
 
 def test_no_standard_args_usage(a, b, /, *, c):
     """
     >>> test_no_standard_args_usage(1, 2, c=3)
-    >>> test_no_standard_args_usage(1, b=2, c=3)
+    >>> test_no_standard_args_usage(1, b=2, c=3)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: test_no_standard_args_usage() takes exactly 2 positional arguments (1 given)
+    TypeError: test_no_standard_args_usage() ... positional... arguments...
     """
 
 #def test_change_default_pos_only():
@@ -264,9 +262,9 @@ class TestPosonlyMethods(object):
     ... except TypeError:
     ...    print("Got type error")
     Got type error
-    >>> TestPosonlyMethods().f(1, b=2)
+    >>> TestPosonlyMethods().f(1, b=2)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: f() takes exactly 3 positional arguments (2 given)
+    TypeError: f() got ... keyword argument... 'b'
     """
     def f(self, a, b, /):
         return a, b
@@ -277,16 +275,19 @@ class TestMangling(object):
     42
     >>> TestMangling().f2()
     42
-    >>> TestMangling().f3()
-    (42, 43)
-    >>> TestMangling().f4()
-    (42, 43, 44)
+
+    #>>> TestMangling().f3()
+    #(42, 43)
+    #>>> TestMangling().f4()
+    #(42, 43, 44)
+
     >>> TestMangling().f2(1)
     1
-    >>> TestMangling().f3(1, __b=2)
-    (1, 2)
-    >>> TestMangling().f4(1, __b=2, __c=3)
-    (1, 2, 3)
+
+    #>>> TestMangling().f3(1, _TestMangling__b=2)
+    #(1, 2)
+    #>>> TestMangling().f4(1, _TestMangling__b=2, _TestMangling__c=3)
+    #(1, 2, 3)
     """
     def f(self, *, __a=42):
         return __a
@@ -294,30 +295,31 @@ class TestMangling(object):
     def f2(self, __a=42, /):
         return __a
 
-    def f3(self, __a=42, /, __b=43):
-        return (__a, __b)
+# FIXME: https://github.com/cython/cython/issues/1382
+#    def f3(self, __a=42, /, __b=43):
+#        return (__a, __b)
 
-    def f4(self, __a=42, /, __b=43, *, __c=44):
-        return (__a, __b, __c)
+#    def f4(self, __a=42, /, __b=43, *, __c=44):
+#        return (__a, __b, __c)
 
 def test_module_function(a, b, /):
     """
     >>> test_module_function(1, 2)
-    >>> test_module_function()
+    >>> test_module_function()  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: test_module_function() takes exactly 2 positional arguments (0 given)
+    TypeError: test_module_function() ... positional arguments...
     """
 
 def test_closures1(x,y):
     """
     >>> test_closures1(1,2)(3,4)
     10
-    >>> test_closures1(1,2)(3)
+    >>> test_closures1(1,2)(3)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: g() takes exactly 2 positional arguments (1 given)
-    >>> test_closures1(1,2)(3,4,5)
+    TypeError: g() ... positional argument...
+    >>> test_closures1(1,2)(3,4,5)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: g() takes exactly 2 positional arguments (3 given)
+    TypeError: g() ... positional argument...
     """
     def g(x2,/,y2):
         return x + y + x2 + y2
@@ -332,28 +334,30 @@ def test_closures2(x,/,y):
         return x + y + x2 + y2
     return g
 
+
 def test_closures3(x,/,y):
     """
     >>> test_closures3(1,2)(3,4)
     10
-    >>> test_closures3(1,2)(3)
+    >>> test_closures3(1,2)(3)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: g() takes exactly 2 positional arguments (1 given)
-    >>> test_closures3(1,2)(3,4,5)
+    TypeError: g() ... positional argument...
+    >>> test_closures3(1,2)(3,4,5)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: g() takes exactly 2 positional arguments (3 given)
+    TypeError: g() ... positional argument...
     """
     def g(x2,/,y2):
         return x + y + x2 + y2
     return g
 
+
 def test_same_keyword_as_positional_with_kwargs(something, /, **kwargs):
     """
     >>> test_same_keyword_as_positional_with_kwargs(42, something=42)
     (42, {'something': 42})
-    >>> test_same_keyword_as_positional_with_kwargs(something=42)
+    >>> test_same_keyword_as_positional_with_kwargs(something=42)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: test_same_keyword_as_positional_with_kwargs() takes exactly 1 positional argument (0 given)
+    TypeError: test_same_keyword_as_positional_with_kwargs() ... positional argument...
     >>> test_same_keyword_as_positional_with_kwargs(42)
     (42, {})
     """
@@ -365,9 +369,9 @@ def test_serialization1(a, b, /):
     >>> unpickled_posonly = pickle.loads(pickled_posonly)
     >>> unpickled_posonly(1, 2)
     (1, 2)
-    >>> unpickled_posonly(a=1, b=2)
+    >>> unpickled_posonly(a=1, b=2)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: test_serialization1() takes exactly 2 positional arguments (0 given)
+    TypeError: test_serialization1() got ... keyword argument...
     """
     return (a, b)
 
@@ -377,9 +381,9 @@ def test_serialization2(a, /, b):
     >>> unpickled_optional = pickle.loads(pickled_optional)
     >>> unpickled_optional(1, 2)
     (1, 2)
-    >>> unpickled_optional(a=1, b=2)
+    >>> unpickled_optional(a=1, b=2)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: test_serialization2() takes exactly 2 positional arguments (0 given)
+    TypeError: test_serialization2() ... positional... arguments...
     """
     return (a, b)
 
@@ -389,19 +393,21 @@ def test_serialization3(a=1, /, b=2):
     >>> unpickled_defaults = pickle.loads(pickled_defaults)
     >>> unpickled_defaults(1, 2)
     (1, 2)
-    >>> unpickled_defaults(a=1, b=2)
+    >>> unpickled_defaults(a=1, b=2)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: test_serialization3() got an unexpected keyword argument 'a'
+    TypeError: test_serialization3() got ... keyword argument... 'a'
     """
     return (a, b)
 
+
 async def test_async(a=1, /, b=2):
     """
-    >>> test_async(a=1, b=2)
+    >>> test_async(a=1, b=2)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: test_async() got an unexpected keyword argument 'a'
+    TypeError: test_async() got ... keyword argument... 'a'
     """
     return a, b
+
 
 def test_async_call(*args, **kwargs):
     """
@@ -417,14 +423,14 @@ def test_async_call(*args, **kwargs):
         coro.send(None)
     except StopIteration as e:
         result = e.value
-    assert result == (1, 2)
+    assert result == (1, 2), result
 
 
 def test_generator(a=1, /, b=2):
     """
-    >>> test_generator(a=1, b=2)
+    >>> test_generator(a=1, b=2)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: test_generator() got an unexpected keyword argument 'a'
+    TypeError: test_generator() got ... keyword argument... 'a'
     >>> gen = test_generator(1, 2)
     >>> next(gen)
     (1, 2)
@@ -496,3 +502,67 @@ def f_call_one_optional_kwd(a,/,*,b=2):
     (1, 3)
     """
     return (a,b)
+
+def f_call_posonly_stararg(a,/,*args):
+    """
+    >>> f_call_posonly_stararg(1)
+    (1, ())
+    >>> f_call_posonly_stararg(1, 2, 3, 4)
+    (1, (2, 3, 4))
+    """
+    return (a,args)
+
+def f_call_posonly_kwarg(a,/,**kw):
+    """
+    >>> f_call_posonly_kwarg(1)
+    (1, {})
+    >>> all_args = f_call_posonly_kwarg(1, b=2, c=3, d=4)
+    >>> all_args == (1, {'b': 2, 'c': 3, 'd': 4}) or all_args
+    True
+    """
+    return (a,kw)
+
+def f_call_posonly_stararg_kwarg(a,/,*args,**kw):
+    """
+    >>> f_call_posonly_stararg_kwarg(1)
+    (1, (), {})
+    >>> f_call_posonly_stararg_kwarg(1, 2)
+    (1, (2,), {})
+    >>> all_args = f_call_posonly_stararg_kwarg(1, b=3, c=4)
+    >>> all_args == (1, (), {'b': 3, 'c': 4}) or all_args
+    True
+    >>> all_args = f_call_posonly_stararg_kwarg(1, 2, b=3, c=4)
+    >>> all_args == (1, (2,), {'b': 3, 'c': 4}) or all_args
+    True
+    """
+    return (a,args,kw)
+
+def test_empty_kwargs(a, b, /):
+    """
+    >>> test_empty_kwargs(1, 2)
+    (1, 2)
+    >>> test_empty_kwargs(1, 2, **{})
+    (1, 2)
+    >>> test_empty_kwargs(1, 2, **{'c': 3})
+    Traceback (most recent call last):
+    TypeError: test_empty_kwargs() got an unexpected keyword argument 'c'
+    """
+    return (a,b)
+
+
+@cython.cclass
+class TestExtensionClass:
+    """
+    >>> t = TestExtensionClass()
+    >>> t.f(1,2)
+    (1, 2, 3)
+    >>> t.f(1,2,4)
+    (1, 2, 4)
+    >>> t.f(1, 2, c=4)
+    (1, 2, 4)
+    >>> t.f(1, 2, 5, c=6)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: f() got multiple values for ...argument 'c'
+    """
+    def f(self, a, b, /, c=3):
+        return (a,b,c)

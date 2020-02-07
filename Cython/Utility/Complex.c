@@ -253,7 +253,6 @@ static {{type}} __Pyx_PyComplex_As_{{type_name}}(PyObject* o) {
                     case 1:
                         return a;
                     case 2:
-                        z = __Pyx_c_prod{{func_suffix}}(a, a);
                         return __Pyx_c_prod{{func_suffix}}(a, a);
                     case 3:
                         z = __Pyx_c_prod{{func_suffix}}(a, a);

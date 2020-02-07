@@ -147,20 +147,29 @@ def find_root_package_dir(file_path):
 
 
 @cached_function
-def check_package_dir(dir, package_names):
+def check_package_dir(dir_path, package_names):
+    namespace = True
     for dirname in package_names:
-        dir = os.path.join(dir, dirname)
-        if not is_package_dir(dir):
-            return None
-    return dir
+        dir_path = os.path.join(dir_path, dirname)
+        has_init = contains_init(dir_path)
+        if not namespace and not has_init:
+            return None, False
+        elif has_init:
+            namespace = False
+    return dir_path, namespace
 
 
 @cached_function
-def is_package_dir(dir_path):
+def contains_init(dir_path):
     for filename in PACKAGE_FILES:
         path = os.path.join(dir_path, filename)
         if path_exists(path):
             return 1
+
+
+def is_package_dir(dir_path):
+    if contains_init(dir_path):
+        return 1
 
 
 @cached_function
@@ -207,7 +216,7 @@ def decode_filename(filename):
 _match_file_encoding = re.compile(br"(\w*coding)[:=]\s*([-\w.]+)").search
 
 
-def detect_opened_file_encoding(f):
+def detect_opened_file_encoding(f, default='UTF-8'):
     # PEPs 263 and 3120
     # Most of the time the first two lines fall in the first couple of hundred chars,
     # and this bulk read/split is much faster.
@@ -227,7 +236,7 @@ def detect_opened_file_encoding(f):
         m = _match_file_encoding(lines[1])
         if m:
             return m.group(2).decode('iso8859-1')
-    return "UTF-8"
+    return default
 
 
 def skip_bom(f):
@@ -465,7 +474,7 @@ def raise_error_if_module_name_forbidden(full_module_name):
 
 def build_hex_version(version_string):
     """
-    Parse and translate '4.3a1' into the readable hex representation '0x040300A1' (like PY_HEX_VERSION).
+    Parse and translate '4.3a1' into the readable hex representation '0x040300A1' (like PY_VERSION_HEX).
     """
     # First, parse '4.12a1' into [4, 12, 0, 0xA01].
     digits = []

@@ -26,6 +26,7 @@ TMPDIR = .repo_tmp
 	rm -rf $(TMPDIR)
 	git ls-files -d | xargs git checkout --
 
+# Create a git repo from an unpacked source directory.
 repo: .git
 
 

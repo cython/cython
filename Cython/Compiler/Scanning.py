@@ -12,6 +12,7 @@ cython.declare(make_lexicon=object, lexicon=object,
 
 import os
 import platform
+from unicodedata import normalize
 
 from .. import Utils
 from ..Plex.Scanners import Scanner
@@ -303,12 +304,25 @@ class PyrexScanner(Scanner):
     def __init__(self, file, filename, parent_scanner=None,
                  scope=None, context=None, source_encoding=None, parse_comments=True, initial_pos=None):
         Scanner.__init__(self, get_lexicon(), file, filename, initial_pos)
+
+        if filename.is_python_file():
+            self.in_python_file = True
+            self.keywords = set(py_reserved_words)
+        else:
+            self.in_python_file = False
+            self.keywords = set(pyx_reserved_words)
+
+        self.async_enabled = 0
+
         if parent_scanner:
             self.context = parent_scanner.context
             self.included_files = parent_scanner.included_files
             self.compile_time_env = parent_scanner.compile_time_env
             self.compile_time_eval = parent_scanner.compile_time_eval
             self.compile_time_expr = parent_scanner.compile_time_expr
+
+            if parent_scanner.async_enabled:
+                self.enter_async()
         else:
             self.context = context
             self.included_files = scope.included_files
@@ -319,20 +333,21 @@ class PyrexScanner(Scanner):
                 self.compile_time_env.update(context.options.compile_time_env)
         self.parse_comments = parse_comments
         self.source_encoding = source_encoding
-        if filename.is_python_file():
-            self.in_python_file = True
-            self.keywords = set(py_reserved_words)
-        else:
-            self.in_python_file = False
-            self.keywords = set(pyx_reserved_words)
         self.trace = trace_scanner
         self.indentation_stack = [0]
         self.indentation_char = None
         self.bracket_nesting_level = 0
-        self.async_enabled = 0
+
         self.begin('INDENT')
         self.sy = ''
         self.next()
+
+    def normalize_ident(self, text):
+        try:
+            text.encode('ascii') # really just name.isascii but supports Python 2 and 3
+        except UnicodeEncodeError:
+            text = normalize('NFKC', text)
+        self.produce(IDENT, text)
 
     def commentline(self, text):
         if self.parse_comments:
