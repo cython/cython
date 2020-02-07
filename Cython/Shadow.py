@@ -204,11 +204,11 @@ class _nogil(object):
 
 nogil = _nogil()
 gil = _nogil()
-device = _nogil()
 del _nogil
 
+def device(f, *args, **kwds):
+    return nogil(*args, **kwds)(f)
 
-# Emulated types
 
 class CythonMetaType(type):
 
