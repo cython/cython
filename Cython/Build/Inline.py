@@ -35,6 +35,14 @@ if sys.version_info[0] < 3:
 else:
     to_unicode = lambda x: x
 
+if sys.version_info[:2] < (3, 3):
+    import imp
+    def load_dynamic(name, module_path):
+        return imp.load_dynamic(name, module_path)
+else:
+    from importlib.machinery import ExtensionFileLoader
+    def load_dynamic(name, module_path):
+        return ExtensionFileLoader(name, module_path).load_module()
 
 class UnboundSymbols(EnvTransform, SkipDeclarations):
     def __init__(self):
@@ -249,7 +257,7 @@ def __invoke(%(params)s):
             build_extension.build_lib  = lib_dir
             build_extension.run()
 
-        module = imp.load_dynamic(module_name, module_path)
+        module = load_dynamic(module_name, module_path)
 
     _cython_inline_cache[orig_code, arg_sigs] = module.__invoke
     arg_list = [kwds[arg] for arg in arg_names]
