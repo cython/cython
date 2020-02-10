@@ -9676,12 +9676,15 @@ class ParallelRangeNode(ParallelStatNode):
         code.putln("%(target)s = (%(target_type)s)(%(start)s + %(step)s * %(i)s);" % fmt_dict)
         self.initialize_privates_to_nan(code, exclude=self.target.entry)
 
-        if self.is_parallel:
+        if self.is_parallel and not self.is_nested_prange:
+            # nested pranges are not omp'ified, temps go to outer loops
             code.funcstate.start_collecting_temps()
 
         self.body.generate_execution_code(code)
         self.trap_parallel_exit(code, should_flush=True)
-        self.privatize_temps(code)
+        if self.is_parallel and not self.is_nested_prange:
+            # nested pranges are not omp'ified, temps go to outer loops
+            self.privatize_temps(code)
 
         if self.breaking_label_used:
             # Put a guard around the loop body in case return, break or
