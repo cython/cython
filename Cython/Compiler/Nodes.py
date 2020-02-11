@@ -8771,7 +8771,7 @@ class ParallelStatNode(StatNode, ParallelNode):
         c = self.privatization_insertion_point
         self.privatization_insertion_point = None
 
-        if self.is_parallel:
+        if self.is_parallel or self.on_device:
             self.temps = temps = code.funcstate.stop_collecting_temps()
             privates, firstprivates = [], []
             for temp, type in sorted(temps):
@@ -9676,13 +9676,13 @@ class ParallelRangeNode(ParallelStatNode):
         code.putln("%(target)s = (%(target_type)s)(%(start)s + %(step)s * %(i)s);" % fmt_dict)
         self.initialize_privates_to_nan(code, exclude=self.target.entry)
 
-        if self.is_parallel and not self.is_nested_prange:
+        if (self.is_parallel or self.on_device) and not self.is_nested_prange:
             # nested pranges are not omp'ified, temps go to outer loops
             code.funcstate.start_collecting_temps()
 
         self.body.generate_execution_code(code)
         self.trap_parallel_exit(code, should_flush=True)
-        if self.is_parallel and not self.is_nested_prange:
+        if (self.is_parallel or self.on_device) and not self.is_nested_prange:
             # nested pranges are not omp'ified, temps go to outer loops
             self.privatize_temps(code)
 
