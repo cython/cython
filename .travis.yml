@@ -39,17 +39,7 @@ env:
 
 matrix:
   include:
-# Disabled: coverage analysis takes excessively long, several times longer than without.
-#    - python: 3.7
-#      env: COVERAGE=1
-    - python: 3.7
-      env: TEST_CODE_STYLE=1
-    - python: 3.8
-      env: LIMITED_API=--limited-api EXCLUDE=--no-file
-    - python: 3.7
-      env: LIMITED_API=--limited-api EXCLUDE=--no-file
-    - python: 3.6
-      env: LIMITED_API=--limited-api EXCLUDE=--no-file
+    # slowest first
     - os: osx
       osx_image: xcode6.4
       env: PY=2
@@ -64,6 +54,17 @@ matrix:
       language: c
       compiler: clang
       cache: false
+# Disabled: coverage analysis takes excessively long, several times longer than without.
+#    - python: 3.7
+#      env: COVERAGE=1
+    - python: 3.7
+      env: TEST_CODE_STYLE=1
+    - python: 3.8
+      env: LIMITED_API=--limited-api EXCLUDE=--no-file
+    - python: 3.7
+      env: LIMITED_API=--limited-api EXCLUDE=--no-file
+    - python: 3.6
+      env: LIMITED_API=--limited-api EXCLUDE=--no-file
     - env: STACKLESS=true BACKEND=c PY=2
       python: 2.7
     - env: STACKLESS=true BACKEND=c PY=3
