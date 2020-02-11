@@ -9,7 +9,9 @@ def assert_typeerror_no_keywords(func, *args, **kwds):
     try:
         func(*args, **kwds)
     except TypeError as e:
-        assert e.args[0].endswith(" takes no keyword arguments")
+        assert e.args[0].endswith(" takes no keyword arguments"), e.args[0]
+    else:
+        assert False, "call did not raise TypeError"
 
 
 def func1(arg):
