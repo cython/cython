@@ -959,6 +959,7 @@ def addref(*args):
 def decref(*args):
     for item in args: Py_DECREF(item)
 
+@cython.binding(False)
 def get_refcount(x):
     return (<PyObject*>x).ob_refcnt
 
@@ -974,7 +975,7 @@ def printbuf_object(object[object] buf, shape):
 
     >>> a, b, c = "globally_unique_string_23234123", {4:23}, [34,3]
     >>> get_refcount(a), get_refcount(b), get_refcount(c)
-    (3, 3, 3)
+    (2, 2, 2)
     >>> A = ObjectMockBuffer(None, [a, b, c])
     >>> printbuf_object(A, (3,))
     'globally_unique_string_23234123' 2
