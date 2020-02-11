@@ -1571,13 +1571,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for entry in cpp_class_attrs:
             code.putln("__Pyx_call_destructor(p->%s);" % entry.cname)
 
-        for entry in py_attrs:
+        for entry in (py_attrs + memoryview_slices):
             code.put_xdecref_clear("p->%s" % entry.cname, entry.type, nanny=False,
-                                   clear_before_decref=True)
-
-        for entry in memoryview_slices:
-            code.put_xdecref_memoryviewslice("p->%s" % entry.cname,
-                                             have_gil=True)
+                                   clear_before_decref=True, have_gil=True)
 
         if base_type:
             if needs_gc:
@@ -2916,7 +2912,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         EncodedString(decode_filename(
                             os.path.dirname(module_path)))).cname,
                     code.error_goto_if_null(temp, self.pos)))
-                code.put_gotref(temp)
+                code.put_gotref(temp, py_object_type)
                 code.putln(
                     'if (PyObject_SetAttrString(%s, "__path__", %s) < 0) %s;' % (
                         env.module_cname, temp, code.error_goto(self.pos)))
@@ -3153,7 +3149,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 module_temp,
                 Naming.pymoduledef_cname,
                 code.error_goto_if_null(module_temp, self.pos)))
-        code.put_gotref(module_temp)
+        code.put_gotref(module_temp, py_object_type)
         code.putln(code.error_goto_if_neg("PyState_AddModule(%s, &%s)" % (
             module_temp, Naming.pymoduledef_cname), self.pos))
         code.put_decref_clear(module_temp, type=py_object_type)
@@ -3507,7 +3503,7 @@ class ModuleImportGenerator(object):
         self.temps.append(temp)
         code.putln('%s = PyImport_ImportModule(%s); if (unlikely(!%s)) %s' % (
             temp, module_name_string, temp, error_code))
-        code.put_gotref(temp)
+        code.put_gotref(temp, py_object_type)
         self.imported[module_name_string] = temp
         return temp
 

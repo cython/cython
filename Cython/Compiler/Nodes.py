@@ -918,8 +918,7 @@ class CArgDeclNode(Node):
         default.make_owned_reference(code)
         result = default.result() if overloaded_assignment else default.result_as(self.type)
         code.putln("%s = %s;" % (target, result))
-        if self.type.is_pyobject:
-            code.put_giveref(default.result())
+        code.put_giveref(default.result(), self.type)
         default.generate_post_assignment_code(code)
         default.free_temps(code)
 
@@ -1537,7 +1536,7 @@ class CEnumDefNode(StatNode):
                     temp,
                     item.cname,
                     code.error_goto_if_null(temp, item.pos)))
-                code.put_gotref(temp)
+                code.put_gotref(temp, PyrexTypes.py_object_type)
                 code.putln('if (PyDict_SetItemString(%s, "%s", %s) < 0) %s' % (
                     Naming.moddict_cname,
                     item.name,
@@ -1880,7 +1879,7 @@ class FuncDefNode(StatNode, BlockNode):
             code.put_incref("Py_None", py_object_type)
             code.putln(code.error_goto(self.pos))
             code.putln("} else {")
-            code.put_gotref(Naming.cur_scope_cname)
+            code.put_gotref(Naming.cur_scope_cname, lenv.scope_class.type)
             code.putln("}")
             # Note that it is unsafe to decref the scope at this point.
         if self.needs_outer_scope:
@@ -1899,7 +1898,7 @@ class FuncDefNode(StatNode, BlockNode):
             elif self.needs_closure:
                 # inner closures own a reference to their outer parent
                 code.put_incref(outer_scope_cname, cenv.scope_class.type)
-                code.put_giveref(outer_scope_cname)
+                code.put_giveref(outer_scope_cname, cenv.scope_class.type)
         # ----- Trace function call
         if profile or linetrace:
             # this looks a bit late, but if we don't get here due to a
@@ -1928,7 +1927,7 @@ class FuncDefNode(StatNode, BlockNode):
             #       new references. If we are a cdef function, we need to
             #       incref our arguments
             elif is_cdef and entry.type.is_memoryviewslice and len(entry.cf_assignments) > 1:
-                code.put_incref_memoryviewslice(entry.cname, have_gil=code.funcstate.gil_owned)
+                code.put_var_incref(entry, have_gil=code.funcstate.gil_owned)
         for entry in lenv.var_entries:
             if entry.is_arg and len(entry.cf_assignments) > 1 and not entry.in_closure:
                 if entry.xdecref_cleanup:
@@ -2072,26 +2071,23 @@ class FuncDefNode(StatNode, BlockNode):
             if not entry.used or entry.in_closure:
                 continue
 
-            if entry.type.is_memoryviewslice:
-                code.put_xdecref_memoryviewslice(entry.cname, have_gil=not lenv.nogil)
-            elif entry.type.is_pyobject:
-                if not entry.is_arg or len(entry.cf_assignments) > 1:
-                    if entry.xdecref_cleanup:
-                        code.put_var_xdecref(entry)
-                    else:
-                        code.put_var_decref(entry)
+            if entry.type.is_pyobject:
+                if not (not entry.is_arg or len(entry.cf_assignments) > 1):
+                    continue
+            code.put_var_xdecref(entry, have_gil=not lenv.nogil)
+                        # TODO ideally should pick based on
+                        # entry.xdecref_cleanup but this doesn't seem to be set reliably
+                        # for regular variables
 
         # Decref any increfed args
         for entry in lenv.arg_entries:
-            if entry.type.is_pyobject:
-                if (acquire_gil or len(entry.cf_assignments) > 1) and not entry.in_closure:
-                    code.put_var_decref(entry)
-            elif (entry.type.is_memoryviewslice and
-                  (not is_cdef or len(entry.cf_assignments) > 1)):
-                # decref slices of def functions and acquired slices from cdef
-                # functions, but not borrowed slices from cdef functions.
-                code.put_xdecref_memoryviewslice(entry.cname,
-                                                 have_gil=not lenv.nogil)
+            if ((entry.type.is_pyobject and
+                    ((acquire_gil or len(entry.cf_assignments) > 1) and not entry.in_closure))
+                or (entry.type.is_memoryviewslice and
+                    # decref slices of def functions and acquired slices from cdef
+                    # functions, but not borrowed slices from cdef functions.
+                        (not is_cdef or len(entry.cf_assignments) > 1))):
+                    code.put_var_xdecref(entry, have_gil=not lenv.nogil)
         if self.needs_closure:
             code.put_decref(Naming.cur_scope_cname, lenv.scope_class.type)
 
@@ -2103,7 +2099,8 @@ class FuncDefNode(StatNode, BlockNode):
             if err_val is None and default_retval:
                 err_val = default_retval  # FIXME: why is err_val not used?
             if self.return_type.is_pyobject:
-                code.put_xgiveref(self.return_type.as_pyobject(Naming.retval_cname))
+                # don't giveref memoryviews
+                code.put_xgiveref(Naming.retval_cname, self.return_type)
 
         if self.entry.is_special and self.entry.name == "__hash__":
             # Returning -1 for __hash__ is supposed to signal an error
@@ -2232,7 +2229,7 @@ class FuncDefNode(StatNode, BlockNode):
         view = py_buffer.cname
         if obj_type and obj_type.is_pyobject:
             code.put_init_to_py_none("%s->obj" % view, obj_type)
-            code.put_giveref("%s->obj" % view) # Do not refnanny object within structs
+            code.put_giveref("%s->obj" % view, obj_type) # Do not refnanny object within structs
         else:
             code.putln("%s->obj = NULL;" % view)
 
@@ -2241,7 +2238,7 @@ class FuncDefNode(StatNode, BlockNode):
         view = py_buffer.cname
         if obj_type and obj_type.is_pyobject:
             code.putln("if (%s->obj != NULL) {" % view)
-            code.put_gotref("%s->obj" % view)
+            code.put_gotref("%s->obj" % view, obj_type)
             code.put_decref_clear("%s->obj" % view, obj_type)
             code.putln("}")
         else:
@@ -2252,7 +2249,7 @@ class FuncDefNode(StatNode, BlockNode):
         view = py_buffer.cname
         if obj_type and obj_type.is_pyobject:
             code.putln("if (%s->obj == Py_None) {" % view)
-            code.put_gotref("%s->obj" % view)
+            code.put_gotref("%s->obj" % view, obj_type)
             code.put_decref_clear("%s->obj" % view, obj_type)
             code.putln("}")
 
@@ -3409,7 +3406,7 @@ class DefNodeWrapper(FuncDefNode):
         code.put_label(code.return_label)
         for entry in lenv.var_entries:
             if entry.is_arg and entry.type.is_pyobject:
-                code.put_var_decref(entry)
+                code.put_var_xdecref(entry)
 
         code.put_finish_refcount_context()
         if not self.return_type.is_void:
@@ -3618,7 +3615,7 @@ class DefNodeWrapper(FuncDefNode):
                 Naming.kwvalues_cname))
             code.putln("if (unlikely(!%s)) return %s;" % (
                 self.starstar_arg.entry.cname, self.error_value()))
-            code.put_gotref(self.starstar_arg.entry.cname)
+            code.put_gotref(self.starstar_arg.entry.cname, py_object_type)
             code.putln("} else {")
             allow_null = all(ref.node.allow_null for ref in self.starstar_arg.entry.cf_references)
             if allow_null:
@@ -3627,7 +3624,7 @@ class DefNodeWrapper(FuncDefNode):
                 code.putln("%s = PyDict_New();" % (self.starstar_arg.entry.cname,))
                 code.putln("if (unlikely(!%s)) return %s;" % (
                     self.starstar_arg.entry.cname, self.error_value()))
-                code.put_gotref(self.starstar_arg.entry.cname)
+                code.put_gotref(self.starstar_arg.entry.cname, py_object_type)
             self.starstar_arg.entry.xdecref_cleanup = allow_null
             code.putln("}")
 
@@ -3645,9 +3642,9 @@ class DefNodeWrapper(FuncDefNode):
                 code.putln("}")
             else:
                 code.putln("return %s;" % self.error_value())
-            code.put_gotref(self.star_arg.entry.cname)
+            code.put_gotref(self.star_arg.entry.cname, py_object_type)
             code.put_incref(Naming.self_cname, py_object_type)
-            code.put_giveref(Naming.self_cname)
+            code.put_giveref(Naming.self_cname, py_object_type)
             code.putln("PyTuple_SET_ITEM(%s, 0, %s);" % (
                 self.star_arg.entry.cname, Naming.self_cname))
             temp = code.funcstate.allocate_temp(PyrexTypes.c_py_ssize_t_type, manage_ref=False)
@@ -3656,7 +3653,7 @@ class DefNodeWrapper(FuncDefNode):
             code.putln("PyObject* item = PyTuple_GET_ITEM(%s, %s);" % (
                 Naming.args_cname, temp))
             code.put_incref("item", py_object_type)
-            code.put_giveref("item")
+            code.put_giveref("item", py_object_type)
             code.putln("PyTuple_SET_ITEM(%s, %s+1, item);" % (
                 self.star_arg.entry.cname, temp))
             code.putln("}")
@@ -3884,8 +3881,7 @@ class DefNodeWrapper(FuncDefNode):
                         arg.entry.cname,
                         arg.calculate_default_value_code(code)))
                     if arg.type.is_memoryviewslice:
-                        code.put_incref_memoryviewslice(arg.entry.cname,
-                                                        have_gil=True)
+                        code.put_var_incref(arg.entry, have_gil=True)
                     code.putln('}')
             else:
                 error(arg.pos, "Cannot convert Python object argument to type '%s'" % arg.type)
@@ -3897,7 +3893,7 @@ class DefNodeWrapper(FuncDefNode):
                 self.starstar_arg.entry.cname,
                 self.starstar_arg.entry.cname,
                 self.error_value()))
-            code.put_gotref(self.starstar_arg.entry.cname)
+            code.put_gotref(self.starstar_arg.entry.cname, py_object_type)
         if self.star_arg:
             self.star_arg.entry.xdecref_cleanup = 0
             if max_positional_args == 0:
@@ -3919,7 +3915,7 @@ class DefNodeWrapper(FuncDefNode):
                 code.put_finish_refcount_context()
                 code.putln('return %s;' % self.error_value())
                 code.putln('}')
-                code.put_gotref(self.star_arg.entry.cname)
+                code.put_gotref(self.star_arg.entry.cname, py_object_type)
 
     def generate_argument_values_setup_code(self, args, code):
         max_args = len(args)
@@ -4273,7 +4269,7 @@ class GeneratorDefNode(DefNode):
             code.putln('%s = __Pyx_CyFunction_GetClassObj(%s);' % (
                 classobj_cname, Naming.self_cname))
             code.put_incref(classobj_cname, py_object_type)
-            code.put_giveref(classobj_cname)
+            code.put_giveref(classobj_cname, py_object_type)
         code.put_finish_refcount_context()
         code.putln('return (PyObject *) gen;')
         code.putln('}')
@@ -4393,7 +4389,7 @@ class GeneratorBodyDefNode(DefNode):
             code.putln("%s = %s; %s" % (
                 Naming.retval_cname, comp_init,
                 code.error_goto_if_null(Naming.retval_cname, self.pos)))
-            code.put_gotref(Naming.retval_cname)
+            code.put_gotref(Naming.retval_cname, py_object_type)
 
         # ----- Function body
         self.generate_function_body(env, code)
@@ -4439,7 +4435,7 @@ class GeneratorBodyDefNode(DefNode):
         # ----- Non-error return cleanup
         code.put_label(code.return_label)
         if self.is_inlined:
-            code.put_xgiveref(Naming.retval_cname)
+            code.put_xgiveref(Naming.retval_cname, py_object_type)
         else:
             code.put_xdecref_clear(Naming.retval_cname, py_object_type)
         # For Py3.7, clearing is already done below.
@@ -4555,7 +4551,7 @@ class OverrideCheckNode(StatNode):
         err = code.error_goto_if_null(func_node_temp, self.pos)
         code.putln("%s = __Pyx_PyObject_GetAttrStr(%s, %s); %s" % (
             func_node_temp, self_arg, interned_attr_cname, err))
-        code.put_gotref(func_node_temp)
+        code.put_gotref(func_node_temp, py_object_type)
 
         is_builtin_function_or_method = "PyCFunction_Check(%s)" % func_node_temp
         is_overridden = "(PyCFunction_GET_FUNCTION(%s) != (PyCFunction)(void*)%s)" % (
@@ -5048,7 +5044,7 @@ class CClassDefNode(ClassDefNode):
                 code.putln("%s = PyType_Type.tp_new(&PyType_Type, %s, NULL);" % (
                     trial_type, self.type_init_args.result()))
                 code.putln(code.error_goto_if_null(trial_type, self.pos))
-                code.put_gotref(trial_type)
+                code.put_gotref(trial_type, py_object_type)
                 code.putln("if (((PyTypeObject*) %s)->tp_base != %s) {" % (
                     trial_type, first_base))
                 code.putln("PyErr_Format(PyExc_TypeError, \"best base '%s' must be equal to first base '%s'\",")
@@ -5058,7 +5054,7 @@ class CClassDefNode(ClassDefNode):
                 code.putln("}")
                 code.funcstate.release_temp(trial_type)
                 code.put_incref(bases, PyrexTypes.py_object_type)
-                code.put_giveref(bases)
+                code.put_giveref(bases, py_object_type)
                 code.putln("%s.tp_bases = %s;" % (self.entry.type.typeobj_cname, bases))
                 code.put_decref_clear(trial_type, PyrexTypes.py_object_type)
                 self.type_init_args.generate_disposal_code(code)
@@ -6018,7 +6014,7 @@ class ExecStatNode(StatNode):
             arg.free_temps(code)
         code.putln(
             code.error_goto_if_null(temp_result, self.pos))
-        code.put_gotref(temp_result)
+        code.put_gotref(temp_result, PyrexTypes.py_object_type)
         code.put_decref_clear(temp_result, py_object_type)
         code.funcstate.release_temp(temp_result)
 
@@ -6371,10 +6367,10 @@ class ReraiseStatNode(StatNode):
         vars = code.funcstate.exc_vars
         if vars:
             code.globalstate.use_utility_code(restore_exception_utility_code)
-            code.put_giveref(vars[0])
-            code.put_giveref(vars[1])
+            code.put_giveref(vars[0], py_object_type)
+            code.put_giveref(vars[1], py_object_type)
             # fresh exceptions may not have a traceback yet (-> finally!)
-            code.put_xgiveref(vars[2])
+            code.put_xgiveref(vars[2], py_object_type)
             code.putln("__Pyx_ErrRestoreWithState(%s, %s, %s);" % tuple(vars))
             for varname in vars:
                 code.put("%s = 0; " % varname)
@@ -6783,7 +6779,7 @@ class DictIterationNextNode(Node):
 
         # evaluate all coercions before the assignments
         for var, result, target in assignments:
-            code.put_gotref(var.result())
+            code.put_exprnode_gotref(var)
         for var, result, target in assignments:
             result.generate_evaluation_code(code)
         for var, result, target in assignments:
@@ -6845,7 +6841,7 @@ class SetIterationNextNode(Node):
         code.funcstate.release_temp(result_temp)
 
         # evaluate all coercions before the assignments
-        code.put_gotref(value_ref.result())
+        code.put_exprnode_gotref(value_ref)
         self.coerced_value_var.generate_evaluation_code(code)
         self.value_target.generate_assignment_code(self.coerced_value_var, code)
         value_ref.release(code)
@@ -7158,7 +7154,7 @@ class ForFromStatNode(LoopNode, StatNode):
                     target_node.result(),
                     interned_cname,
                     code.error_goto_if_null(target_node.result(), self.target.pos)))
-                code.put_gotref(target_node.result())
+                code.put_exprnode_gotref(target_node)
             else:
                 target_node = self.target
             from_py_node = ExprNodes.CoerceFromPyTypeNode(
@@ -7294,7 +7290,7 @@ class WithStatNode(StatNode):
             code.intern_identifier(EncodedString('__aexit__' if self.is_async else '__exit__')),
             code.error_goto_if_null(self.exit_var, self.pos),
             ))
-        code.put_gotref(self.exit_var)
+        code.put_gotref(self.exit_var, py_object_type)
 
         # need to free exit_var in the face of exceptions during setup
         old_error_label = code.new_error_label()
@@ -7438,11 +7434,11 @@ class TryExceptStatNode(StatNode):
             save_exc.putln("__Pyx_ExceptionSave(%s);" % (
                 ', '.join(['&%s' % var for var in exc_save_vars])))
             for var in exc_save_vars:
-                save_exc.put_xgotref(var)
+                save_exc.put_xgotref(var, py_object_type)
 
             def restore_saved_exception():
                 for name in exc_save_vars:
-                    code.put_xgiveref(name)
+                    code.put_xgiveref(name, py_object_type)
                 code.putln("__Pyx_ExceptionReset(%s);" %
                            ', '.join(exc_save_vars))
         else:
@@ -7644,7 +7640,7 @@ class ExceptClauseNode(Node):
         code.putln("if (__Pyx_GetException(%s) < 0) %s" % (
             exc_args, code.error_goto(self.pos)))
         for var in exc_vars:
-            code.put_gotref(var)
+            code.put_gotref(var, py_object_type)
         if self.target:
             self.exc_value.set_var(exc_vars[1])
             self.exc_value.generate_evaluation_code(code)
@@ -7923,7 +7919,7 @@ class TryFinallyStatNode(StatNode):
                    " unlikely(__Pyx_GetException(&%s, &%s, &%s) < 0)) "
                    "__Pyx_ErrFetch(&%s, &%s, &%s);" % (exc_vars[:3] * 2))
         for var in exc_vars:
-            code.put_xgotref(var)
+            code.put_xgotref(var, py_object_type)
         if exc_lineno_cnames:
             code.putln("%s = %s; %s = %s; %s = %s;" % (
                 exc_lineno_cnames[0], Naming.lineno_cname,
@@ -7944,11 +7940,11 @@ class TryFinallyStatNode(StatNode):
         # unused utility functions and/or temps
         code.putln("if (PY_MAJOR_VERSION >= 3) {")
         for var in exc_vars[3:]:
-            code.put_xgiveref(var)
+            code.put_xgiveref(var, py_object_type)
         code.putln("__Pyx_ExceptionReset(%s, %s, %s);" % exc_vars[3:])
         code.putln("}")
         for var in exc_vars[:3]:
-            code.put_xgiveref(var)
+            code.put_xgiveref(var, py_object_type)
         code.putln("__Pyx_ErrRestore(%s, %s, %s);" % exc_vars[:3])
 
         if self.is_try_finally_in_nogil:
@@ -7970,7 +7966,7 @@ class TryFinallyStatNode(StatNode):
         # unused utility functions and/or temps
         code.putln("if (PY_MAJOR_VERSION >= 3) {")
         for var in exc_vars[3:]:
-            code.put_xgiveref(var)
+            code.put_xgiveref(var, py_object_type)
         code.putln("__Pyx_ExceptionReset(%s, %s, %s);" % exc_vars[3:])
         code.putln("}")
         for var in exc_vars[:3]:
@@ -8330,7 +8326,7 @@ class FromImportStatNode(StatNode):
                     self.module.py_result(),
                     code.intern_identifier(name),
                     code.error_goto_if_null(item_temp, self.pos)))
-            code.put_gotref(item_temp)
+            code.put_gotref(item_temp, py_object_type)
             if coerced_item is None:
                 target.generate_assignment_code(self.item, code)
             else:
@@ -8707,10 +8703,8 @@ class ParallelStatNode(StatNode, ParallelNode):
         if self.is_parallel and not self.is_nested_prange:
             code.putln("/* Clean up any temporaries */")
             for temp, type in sorted(self.temps):
-                if type.is_memoryviewslice:
-                    code.put_xdecref_memoryviewslice(temp, have_gil=False)
-                elif type.is_pyobject:
-                    code.put_xdecref(temp, type)
+                code.put_xdecref(temp, type, have_gil=False)
+                if type.is_pyobject:
                     code.putln("%s = NULL;" % temp)
 
     def setup_parallel_control_flow_block(self, code):
@@ -8942,7 +8936,7 @@ class ParallelStatNode(StatNode, ParallelNode):
         pos_info = chain(*zip(self.parallel_pos_info, self.pos_info))
         code.funcstate.uses_error_indicator = True
         code.putln("%s = %s; %s = %s; %s = %s;" % tuple(pos_info))
-        code.put_gotref(Naming.parallel_exc_type)
+        code.put_gotref(Naming.parallel_exc_type, py_object_type)
 
         code.putln(
             "}")
@@ -8955,7 +8949,7 @@ class ParallelStatNode(StatNode, ParallelNode):
         code.begin_block()
         code.put_ensure_gil(declare_gilstate=True)
 
-        code.put_giveref(Naming.parallel_exc_type)
+        code.put_giveref(Naming.parallel_exc_type, py_object_type)
         code.putln("__Pyx_ErrRestoreWithState(%s, %s, %s);" % self.parallel_exc)
         pos_info = chain(*zip(self.pos_info, self.parallel_pos_info))
         code.putln("%s = %s; %s = %s; %s = %s;" % tuple(pos_info))

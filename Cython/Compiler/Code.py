@@ -1873,6 +1873,8 @@ class CCodeWriter(object):
     # code generation
 
     def putln(self, code="", safe=False):
+        if code is None:
+            return
         if self.last_pos and self.bol:
             self.emit_marker()
         if self.code_config.emit_linenums and self.last_marked_pos:
@@ -2060,7 +2062,7 @@ class CCodeWriter(object):
         type = entry.type
         if (not entry.is_self_arg and not entry.type.is_complete()
             or entry.type.is_extension_type):
-            return "(PyObject *)" + entry.cname
+            return "(PyObject *)" + entry.cname # FIXME need to implement this
         else:
             return entry.cname
 
@@ -2068,123 +2070,120 @@ class CCodeWriter(object):
         from .PyrexTypes import py_object_type, typecast
         return typecast(py_object_type, type, cname)
 
-    def put_gotref(self, cname):
-        self.putln("__Pyx_GOTREF(%s);" % cname)
+    def put_gotref(self, cname, type, no_pyobject_cast=False):
+        self.putln(type.generate_gotref(cname, no_pyobject_cast=no_pyobject_cast))
 
-    def put_giveref(self, cname):
-        self.putln("__Pyx_GIVEREF(%s);" % cname)
-
-    def put_xgiveref(self, cname):
-        self.putln("__Pyx_XGIVEREF(%s);" % cname)
-
-    def put_xgotref(self, cname):
-        self.putln("__Pyx_XGOTREF(%s);" % cname)
-
-    def put_incref(self, cname, type, nanny=True):
-        if nanny:
-            self.putln("__Pyx_INCREF(%s);" % self.as_pyobject(cname, type))
+    def put_exprnode_gotref(self, node):
+        if node.is_temp and node.type.is_pyobject:
+            # temp py_objects are always just py_object_type
+            # not an special type
+            from .PyrexTypes import py_object_type as type
         else:
-            self.putln("Py_INCREF(%s);" % self.as_pyobject(cname, type))
+            type = node.type
+        self.put_gotref(node.result(), type)
+
+    def put_giveref(self, cname, type, no_pyobject_cast=False):
+        self.putln(type.generate_giveref(cname, no_pyobject_cast=no_pyobject_cast))
+
+    def put_exprnode_giveref(self, node):
+        if node.is_temp and node.type.is_pyobject:
+            # temp py_objects are always just py_object_type
+            # not an special type
+            from .PyrexTypes import py_object_type as type
+        else:
+            type = node.type
+        self.put_giveref(node.result(), type)
+
+    def put_xgiveref(self, cname, type, no_pyobject_cast=False):
+        self.putln(type.generate_xgiveref(cname, no_pyobject_cast=no_pyobject_cast))
+
+    def put_exprnode_xgiveref(self, node):
+        if node.is_temp and node.type.is_pyobject:
+            # temp py_objects are always just py_object_type
+            # not an special type
+            from .PyrexTypes import py_object_type as type
+        else:
+            type = node.type
+        self.put_xgiveref(node.result(), type)
+
+    def put_xgotref(self, cname, type, no_pyobject_cast=False):
+        self.putln(type.generate_xgotref(cname, no_pyobject_cast=no_pyobject_cast))
+
+    def put_exprnode_xgotref(self, node):
+        if node.is_temp and node.type.is_pyobject:
+            # temp py_objects are always just py_object_type
+            # not an special type
+            from .PyrexTypes import py_object_type as type
+        else:
+            type = node.type
+        self.put_xgotref(node.result(), type)
+
+    def put_incref(self, cname, type, nanny=True, have_gil=False):
+        self.putln(type.generate_incref(cname, nanny=nanny, have_gil=have_gil))
 
     def put_decref(self, cname, type, nanny=True):
-        self._put_decref(cname, type, nanny, null_check=False, clear=False)
+        self.putln(type.generate_decref(cname, nanny=nanny))
 
     def put_var_gotref(self, entry):
-        if entry.type.is_pyobject:
-            self.putln("__Pyx_GOTREF(%s);" % self.entry_as_pyobject(entry))
+        self.put_gotref(entry.cname, entry.type)
 
     def put_var_giveref(self, entry):
-        if entry.type.is_pyobject:
-            self.putln("__Pyx_GIVEREF(%s);" % self.entry_as_pyobject(entry))
+        self.put_giveref(entry.cname, entry.type)
 
     def put_var_xgotref(self, entry):
-        if entry.type.is_pyobject:
-            self.putln("__Pyx_XGOTREF(%s);" % self.entry_as_pyobject(entry))
+        self.put_xgotref(entry.cname, entry.type)
 
     def put_var_xgiveref(self, entry):
-        if entry.type.is_pyobject:
-            self.putln("__Pyx_XGIVEREF(%s);" % self.entry_as_pyobject(entry))
+        self.put_xgiveref(entry.cname, entry.type)
 
-    def put_var_incref(self, entry, nanny=True):
-        if entry.type.is_pyobject:
-            if nanny:
-                self.putln("__Pyx_INCREF(%s);" % self.entry_as_pyobject(entry))
-            else:
-                self.putln("Py_INCREF(%s);" % self.entry_as_pyobject(entry))
+    def put_var_incref(self, entry, nanny=True, have_gil=False):
+        self.put_incref(entry.cname, entry.type, nanny=nanny, have_gil=have_gil)
 
     def put_var_xincref(self, entry):
-        if entry.type.is_pyobject:
-            self.putln("__Pyx_XINCREF(%s);" % self.entry_as_pyobject(entry))
+        self.put_xdecref(entry.cname, entry.type)
 
-    def put_decref_clear(self, cname, type, nanny=True, clear_before_decref=False):
-        self._put_decref(cname, type, nanny, null_check=False,
-                         clear=True, clear_before_decref=clear_before_decref)
+    def put_decref_clear(self, cname, type, nanny=True, clear_before_decref=False,
+                               have_gil=False):
+        self.putln(type.generate_decref_clear(cname, nanny=nanny,
+                        clear_before_decref = clear_before_decref,
+                        have_gil = have_gil))
 
-    def put_xdecref(self, cname, type, nanny=True, have_gil=True):
-        self._put_decref(cname, type, nanny, null_check=True,
-                         have_gil=have_gil, clear=False)
+    def put_xdecref(self, cname, type, nanny=True, have_gil=False):
+        self.putln(type.generate_xdecref(cname, nanny=nanny, have_gil=have_gil))
 
-    def put_xdecref_clear(self, cname, type, nanny=True, clear_before_decref=False):
-        self._put_decref(cname, type, nanny, null_check=True,
-                         clear=True, clear_before_decref=clear_before_decref)
+    def put_xdecref_clear(self, cname, type, nanny=True, clear_before_decref=False,
+                            have_gil=False):
+        self.putln(type.generate_xdecref_clear(cname, nanny=nanny,
+                        clear_before_decref=clear_before_decref,
+                        have_gil = have_gil))
 
-    def _put_decref(self, cname, type, nanny=True, null_check=False,
-                    have_gil=True, clear=False, clear_before_decref=False):
-        if type.is_memoryviewslice:
-            self.put_xdecref_memoryviewslice(cname, have_gil=have_gil)
-            return
+    def put_decref_set(self, cname, type, rhs_cname):
+        self.putln(type.generate_decref_set(cname, rhs_cname))
 
-        prefix = '__Pyx' if nanny else 'Py'
-        X = 'X' if null_check else ''
-
-        if clear:
-            if clear_before_decref:
-                if not nanny:
-                    X = ''  # CPython doesn't have a Py_XCLEAR()
-                self.putln("%s_%sCLEAR(%s);" % (prefix, X, cname))
-            else:
-                self.putln("%s_%sDECREF(%s); %s = 0;" % (
-                    prefix, X, self.as_pyobject(cname, type), cname))
-        else:
-            self.putln("%s_%sDECREF(%s);" % (
-                prefix, X, self.as_pyobject(cname, type)))
-
-    def put_decref_set(self, cname, rhs_cname):
-        self.putln("__Pyx_DECREF_SET(%s, %s);" % (cname, rhs_cname))
-
-    def put_xdecref_set(self, cname, rhs_cname):
-        self.putln("__Pyx_XDECREF_SET(%s, %s);" % (cname, rhs_cname))
+    def put_xdecref_set(self, cname, type, rhs_cname):
+        self.putln(type.generate_xdecref_set(cname, rhs_cname))
 
     def put_var_decref(self, entry):
-        if entry.type.is_pyobject:
-            self.putln("__Pyx_XDECREF(%s);" % self.entry_as_pyobject(entry))
+        self.putln(entry.type.generate_decref(entry.cname, nanny=True))
+        #if code:
+        #    self.putln(code)
+        #if entry.type.is_pyobject:
+        #    self.putln("__Pyx_XDECREF(%s);" % self.entry_as_pyobject(entry))
 
-    def put_var_xdecref(self, entry, nanny=True):
-        if entry.type.is_pyobject:
-            if nanny:
-                self.putln("__Pyx_XDECREF(%s);" % self.entry_as_pyobject(entry))
-            else:
-                self.putln("Py_XDECREF(%s);" % self.entry_as_pyobject(entry))
+    def put_var_xdecref(self, entry, nanny=True, have_gil=True):
+        self.putln(entry.type.generate_xdecref(entry.cname, nanny=nanny, have_gil=True))
 
-    def put_var_decref_clear(self, entry):
-        self._put_var_decref_clear(entry, null_check=False)
+    def put_var_decref_clear(self, entry, have_gil=False):
+        self._put_var_decref_clear(entry, null_check=False, have_gil=have_gil)
 
-    def put_var_xdecref_clear(self, entry):
-        self._put_var_decref_clear(entry, null_check=True)
+    def put_var_xdecref_clear(self, entry, have_gil=False):
+        self._put_var_decref_clear(entry, null_check=True, have_gil=have_gil)
 
-    def _put_var_decref_clear(self, entry, null_check):
-        if entry.type.is_pyobject:
-            if entry.in_closure:
-                # reset before DECREF to make sure closure state is
-                # consistent during call to DECREF()
-                self.putln("__Pyx_%sCLEAR(%s);" % (
-                    null_check and 'X' or '',
-                    entry.cname))
-            else:
-                self.putln("__Pyx_%sDECREF(%s); %s = 0;" % (
-                    null_check and 'X' or '',
-                    self.entry_as_pyobject(entry),
-                    entry.cname))
+    def _put_var_decref_clear(self, entry, null_check, have_gil):
+        f = getattr(entry.type, "generate_%sdecref_clear" %
+                                (null_check and "x" or ""))
+        self.putln(f(entry.cname, nanny=True, have_gil=have_gil,
+                     clear_before_decref=entry.in_closure))
 
     def put_var_decrefs(self, entries, used_only = 0):
         for entry in entries:
@@ -2201,19 +2200,6 @@ class CCodeWriter(object):
     def put_var_xdecrefs_clear(self, entries):
         for entry in entries:
             self.put_var_xdecref_clear(entry)
-
-    def put_incref_memoryviewslice(self, slice_cname, have_gil=False):
-        from . import MemoryView
-        self.globalstate.use_utility_code(MemoryView.memviewslice_init_code)
-        self.putln("__PYX_INC_MEMVIEW(&%s, %d);" % (slice_cname, int(have_gil)))
-
-    def put_xdecref_memoryviewslice(self, slice_cname, have_gil=False):
-        from . import MemoryView
-        self.globalstate.use_utility_code(MemoryView.memviewslice_init_code)
-        self.putln("__PYX_XDEC_MEMVIEW(&%s, %d);" % (slice_cname, int(have_gil)))
-
-    def put_xgiveref_memoryviewslice(self, slice_cname):
-        self.put_xgiveref("%s.memview" % slice_cname)
 
     def put_init_to_py_none(self, cname, type, nanny=True):
         from .PyrexTypes import py_object_type, typecast
