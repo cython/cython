@@ -166,7 +166,7 @@ Other changes
 * Support for Python 2.6 was removed.
 
 
-0.29.15 (20??-??-??)
+0.29.15 (2020-02-06)
 ====================
 
 * Crash when returning a temporary Python object from an async-def function.
