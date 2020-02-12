@@ -378,7 +378,7 @@ def test_prange_continue():
 
 def test_nested_break_continue():
     """
-    >> test_nested_break_continue()
+    >>> test_nested_break_continue()
     6 7 6 7
     8
     """
