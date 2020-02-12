@@ -1763,7 +1763,9 @@ if VALUE is not None:
                 },
                 level='c_class', pipeline=[NormalizeTree(None)]).substitute({})
             pickle_func.analyse_declarations(node.scope)
+            self.enter_scope(node, node.scope)  # functions should be visited in the class scope
             self.visit(pickle_func)
+            self.exit_scope()
             node.body.stats.append(pickle_func)
 
     def _handle_fused_def_decorators(self, old_decorators, env, node):
