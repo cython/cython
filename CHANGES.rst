@@ -166,6 +166,18 @@ Other changes
 * Support for Python 2.6 was removed.
 
 
+0.29.16 (2020-0?-??)
+====================
+
+* Avoid C compiler warning about unreachable code in ``prange()``.
+
+* Fix deprecated import of "imp" module.
+  Patch by Matti Picus.  (Github issue #3350)
+
+* Avoid "undeclared" warning about automatically generated pickle methods.
+  Patch by David Woods.  (Github issue #3353)
+
+
 0.29.15 (2020-02-06)
 ====================
 
