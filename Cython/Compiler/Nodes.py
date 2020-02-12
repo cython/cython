@@ -8685,11 +8685,12 @@ class ParallelStatNode(StatNode, ParallelNode):
             if entry.type.is_memoryviewslice:
                 if entry.type.is_c_contig:
                     # the struct itself cannot be altered, so it's always a 'to'
-                    _maps['to'] += ['%s.%s' % (entry.cname, m) for m in ['memview',
+                    _maps['to'] += ["%s.%s" % (entry.cname, m) for m in ['memview',
                                                                          'shape',
                                                                          'strides',
                                                                          'suboffsets']]
-                    # an extra data pointer inherits the read/write/to/from attribute
+                    # the data pointer inherits the read/write/to/from attribute
+                    # it needs to be mapped individually anyway to get the data transferred
                     _maps['memview'].append(entry)
                     _szs = ['%s.shape[%d]' % (entry.cname, i) for i in range(entry.type.ndim)]
                     _cnt = '*'.join(['sizeof(%s)' % entry.type.dtype_name] + _szs)
@@ -9250,30 +9251,19 @@ class ParallelWithBlockNode(ParallelStatNode):
           Then we add a "#pragma omp target" with appropriate map clauses.
           We need them to properly move array data because just mapping a pointer will not move the data.
 
-          Notice that we map(tofrom:) variables that we write to (including targets/iterators)
-          but we only map(to:) read-only variables.
+          Notice that we map() all variables.
+          We currently have no optimization to reduce the data transfer. Potentially, we could
+            - map(to:) read-only variables
+            - map(from:) write-only variables
+            - map(alloc:) temporary variables
 
-          Note: We rely on bitwise copies bewteen host and device as defined in the OpenMP spec.
+          Note: We rely on bitwise copies between host and device as defined in the OpenMP spec.
 
           TODO: identify map(from:), e.g. write-only variables
         """
         reverse_map = {}
         if self.on_device:
-            # Let's separate write and read-only vars used anywhere in the device scope
-            # we can ignore all scalars
-            for e in self.all_assignments:
-                if hasattr(e[0], 'base'):
-                    entry = e[0].base.entry
-                else:
-                    entry = e[0].entry
-                if entry and entry.type.is_memoryviewslice and entry not in self.device:
-                    self.device[entry] = 'tofrom'
-            for e in self.privates:
-                if e.type.is_memoryviewslice and e not in self.device:
-                    self.device[e] = 'tofrom'
-            # self.names holds all variables, extract read-only vars by excluding write-vars
-            self.device.update({e: 'to' for e in self.all_names if e.type.is_memoryviewslice and e not in self.device})
-
+            self.device.update({e: 'tofrom' for e in self.all_names if e.type.is_memoryviewslice and e not in self.device})
             reverse_map = self._generate_map_lists(self.device)
 
         self.declare_closure_privates(code)
@@ -9281,7 +9271,7 @@ class ParallelWithBlockNode(ParallelStatNode):
 
         code.putln("#ifdef _OPENMP")
         if self.on_device:
-            code.put("#pragma omp target teams")
+            code.put("#pragma omp target teams defaultmap(tofrom:scalar)")
         else:
             code.put("#pragma omp parallel")
 
