@@ -8703,20 +8703,25 @@ class ParallelStatNode(StatNode, ParallelNode):
         """
         if not device_map or not isinstance(device_map, dict):
             return {}
-        _maps = {x:[] for x in self.valid_mappings}
+        _maps = {x+':':[] for x in self.valid_mappings}
         _maps['memview'] = []
+        _maps[''] = []
         for entry in device_map:
             if entry == None:
                 error(self.pos, "Error in device mapping, key might not be a declared variable")
                 continue
             m = device_map[entry]
+            if m == 'default':
+                m = ''
+            else:
+                m = m+':'
             if entry.type.is_memoryviewslice:
                 if entry.type.is_c_contig:
                     # the struct itself cannot be altered, so it's always a 'to'
-                    _maps['to'] += ["%s.%s" % (entry.cname, m) for m in ['memview',
-                                                                         'shape',
-                                                                         'strides',
-                                                                         'suboffsets']]
+                    _maps['to:'] += ["%s.%s" % (entry.cname, m) for m in ['memview',
+                                                                          'shape',
+                                                                          'strides',
+                                                                          'suboffsets']]
                     # the data pointer inherits the read/write/to/from attribute
                     # it needs to be mapped individually anyway to get the data transferred
                     _maps['memview'].append(entry)
@@ -9230,10 +9235,11 @@ class DeviceWithBlockNode(ParallelStatNode):
         # The rest is relatively easy, we add the openmp pragmas including map clauses around the execution code
         code.putln("#ifdef _OPENMP")
         code.put("#pragma omp target enter data")
-        for maptype in self.valid_mappings:
+        maptypes = [x+':' for x in self.valid_mappings]
+        for maptype in maptypes:
             if reverse_map[maptype]:
-                mt = 'to' if maptype.startswith('to') else 'alloc'
-                code.put(" map(%s: %s)" % (mt, ', '.join(reverse_map[maptype])))
+                mt = 'to:' if maptype.startswith('to') else 'alloc:'
+                code.put(" map(%s %s)" % (mt, ', '.join(reverse_map[maptype])))
         code.putln('')
         code.putln("#endif /* _OPENMP */")
 
@@ -9241,10 +9247,10 @@ class DeviceWithBlockNode(ParallelStatNode):
 
         code.putln("#ifdef _OPENMP")
         code.put("#pragma omp target exit data")
-        for maptype in self.valid_mappings:
+        for maptype in maptypes:
             if reverse_map[maptype]:
-                mt = 'from' if maptype.endswith('from') else 'release'
-                code.put(" map(%s: %s)" % (mt, ', '.join(reverse_map[maptype])))
+                mt = 'from:' if maptype.endswith('from:') else 'release:'
+                code.put(" map(%s %s)" % (mt, ', '.join(reverse_map[maptype])))
         code.putln('')
         code.putln("#endif /* _OPENMP */")
 
@@ -9317,7 +9323,7 @@ class ParallelWithBlockNode(ParallelStatNode):
         """
         reverse_map = {}
         if self.on_device:
-            self.device.update({e: 'tofrom' for e in self.all_names if e.type.is_memoryviewslice and e not in self.device})
+            self.device.update({e: 'default' for e in self.all_names if e.type.is_memoryviewslice and e not in self.device})
             reverse_map = self._generate_map_lists(self.device)
 
         self.declare_closure_privates(code)
@@ -9329,10 +9335,11 @@ class ParallelWithBlockNode(ParallelStatNode):
         else:
             code.put("#pragma omp parallel")
 
+        maptypes = [''] + [x+':' for x in self.valid_mappings]
         if reverse_map:
-            for maptype in self.valid_mappings:
+            for maptype in maptypes:
                 if reverse_map[maptype]:
-                    code.put(" map(%s: %s)" % (maptype, ', '.join(reverse_map[maptype])))
+                    code.put(" map(%s %s)" % (maptype, ', '.join(reverse_map[maptype])))
 
         if self.privates:
             privates = [e.cname for e in self.privates
