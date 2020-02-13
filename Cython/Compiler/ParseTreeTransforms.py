@@ -2216,7 +2216,7 @@ class MangleDunderNamesTransform(CythonTransform):
     def __init__(self, *args, **kwargs):
         super(MangleDunderNamesTransform, self).__init__(*args, **kwargs)
         self.last_class_name = None
-        self.dont_mangle_pyx = False
+        self.preserve_pyx_names = False
 
     def _visit_class_common(self, node, name):
         # The class name (target), list of bases and metaclass name should be
@@ -2235,12 +2235,12 @@ class MangleDunderNamesTransform(CythonTransform):
         return node
 
     def visit_ModuleNode(self, node):
-        dont_mangle_pyx = self.dont_mangle_pyx
+        preserve_pyx_names = self.preserve_pyx_names
         # classes defined in utility code are treated slightly and attributes
         # starting with __pyx_ aren't mangled (otherwise memoryviews break)
-        self.dont_mangle_pyx = isinstance(node.scope, NonManglingModuleScope)
+        self.preserve_pyx_names = isinstance(node.scope, NonManglingModuleScope)
         self.visitchildren(node)
-        self.dont_mangle_pyx = dont_mangle_pyx
+        self.preserve_pyx_names = preserve_pyx_names
         return node
 
     def visit_PyClassDefNode(self, node):
@@ -2272,7 +2272,7 @@ class MangleDunderNamesTransform(CythonTransform):
         return node
 
     def visit_CompilerDirectivesNode(self, node):
-        # It probably isn't desirable to wait until ForwardDeclareTypes to
+        # It probably isn't desirable to wait until AnalyseDeclarationsTransform to
         # mangle the names (the earlier the better as far as possible).
         # Therefore, attempt to change the relevant compiler directives
         directives = node.directives
@@ -2295,11 +2295,10 @@ class MangleDunderNamesTransform(CythonTransform):
         return node
 
     def mangle_special_name(self, name):
-        pyx_test = ((not self.dont_mangle_pyx) and
-                    (not name.lower().startswith(Naming.pyrex_prefix)))
         if (self.last_class_name and
-            name and name.startswith('__') and not name.endswith('__') and
-            pyx_test):
+                name and name.startswith('__') and not name.endswith('__') and
+                not (self.preserve_pyx_names and name.lower().startswith(Naming.pyrex_prefix))
+                ):
             class_name = self.last_class_name.lstrip('_')
             if class_name:
                 # According to
