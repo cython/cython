@@ -1254,12 +1254,19 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
                 error(node.target.pos,
                       "Can only iterate over an iteration variable")
 
+            if not self.state:
+                # there is no parallel() context, let's create one
+                new_node = Nodes.ParallelWithBlockNode(node)
+            else:
+                new_node = node
             self.state = 'prange'
+        else:
+            new_node = node
 
         self.visit(node.body)
         self.state = previous_state
         self.visit(node.else_clause)
-        return node
+        return new_node
 
     def visit(self, node):
         "Visit a node that may be None"

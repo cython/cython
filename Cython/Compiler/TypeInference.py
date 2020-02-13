@@ -222,11 +222,6 @@ class MarkParallelAssignments(EnvTransform):
 
         nested = False
         if node.is_prange:
-            if not node.parent:
-                node.is_parallel = True
-            else:
-                node.is_parallel = (node.parent.is_prange or not
-                                    node.parent.is_parallel)
                 nested = node.parent.is_prange
         else:
             # Note: no need to set is_parallel:

@@ -8411,7 +8411,8 @@ class ParallelStatNode(StatNode, ParallelNode):
 
     is_prange = False
     is_nested_prange = False
-    on_device = False
+
+    device_default = False
 
     error_label_used = False
 
@@ -8461,43 +8462,48 @@ class ParallelStatNode(StatNode, ParallelNode):
         # [NameNode]
         self.assigned_nodes = []
 
-        self.on_device = False
+        self.on_device = ParallelStatNode.device_default
 
-    def analyse_declarations(self, env):
+    def analyse_declarations(self, env, use_from_body=False):
         self.body.analyse_declarations(env)
 
         self.num_threads = None
 
-        if self.kwargs:
-            # Try to find num_threads and chunksize keyword arguments
-            pairs = []
-            seen = set()
-            for dictitem in self.kwargs.key_value_pairs:
-                if dictitem.key.value in seen:
-                    error(self.pos, "Duplicate keyword argument found: %s" % dictitem.key.value)
-                seen.add(dictitem.key.value)
-                if dictitem.key.value == 'num_threads':
-                    if not dictitem.value.is_none:
-                       self.num_threads = dictitem.value
-                elif self.is_prange and dictitem.key.value == 'chunksize':
-                    if not dictitem.value.is_none:
-                        self.chunksize = dictitem.value
-                else:
-                    pairs.append(dictitem)
-
-            self.kwargs.key_value_pairs = pairs
-
-            try:
-                self.kwargs = self.kwargs.compile_time_value(env)
-            except Exception as e:
-                error(self.kwargs.pos, "Only compile-time values may be "
-                                       "supplied as keyword arguments")
+        if use_from_body:
+            # body's kwargs have already been covnerted to dict
+            self.kwargs = self.body.kwargs
         else:
-            self.kwargs = {}
+            if self.kwargs:
+                # Try to find num_threads and chunksize keyword arguments
+                pairs = []
+                seen = set()
+                for dictitem in self.kwargs.key_value_pairs:
+                    if dictitem.key.value in seen:
+                        error(self.pos, "Duplicate keyword argument found: %s" % dictitem.key.value)
+                    seen.add(dictitem.key.value)
+                    if dictitem.key.value == 'num_threads':
+                        if not dictitem.value.is_none:
+                           self.num_threads = dictitem.value
+                    elif self.is_prange and dictitem.key.value == 'chunksize':
+                        if not dictitem.value.is_none:
+                            self.chunksize = dictitem.value
+                    else:
+                        pairs.append(dictitem)
+
+                self.kwargs.key_value_pairs = pairs
+
+                try:
+                    self.kwargs = self.kwargs.compile_time_value(env)
+                except Exception as e:
+                    error(self.kwargs.pos, "Only compile-time values may be "
+                                           "supplied as keyword arguments")
+            else:
+                self.kwargs = {}
 
         for kw, val in self.kwargs.items():
             if kw not in self.valid_keyword_arguments:
-                error(self.pos, "Invalid keyword argument: %s" % kw)
+                if not use_from_body:
+                    error(self.pos, "Invalid keyword argument: %s" % kw)
             else:
                 setattr(self, kw, val)
 
@@ -8545,7 +8551,7 @@ class ParallelStatNode(StatNode, ParallelNode):
         """
         for entry, (pos, op) in self.assignments.items():
 
-            if self.is_prange and not self.is_parallel:
+            if self.is_prange and self.parent.is_parallel:
                 # closely nested prange in a with parallel block, disallow
                 # assigning to privates in the with parallel block (we
                 # consider it too implicit and magicky for users)
@@ -8629,7 +8635,7 @@ class ParallelStatNode(StatNode, ParallelNode):
             return
 
         if self.is_prange:
-            if not self.is_parallel and entry not in self.parent.assignments:
+            if entry not in self.parent.assignments:
                 # Parent is a parallel with block
                 parent = self.parent.parent
             else:
@@ -8772,7 +8778,8 @@ class ParallelStatNode(StatNode, ParallelNode):
         c = self.privatization_insertion_point
         self.privatization_insertion_point = None
 
-        if self.is_parallel or self.on_device:
+        # FIXMEFS: if self.is_parallel or self.on_device:
+        if self.is_parallel or not self.is_nested_prange:
             self.temps = temps = code.funcstate.stop_collecting_temps()
             privates, firstprivates = [], []
             for temp, type in sorted(temps):
@@ -8796,7 +8803,8 @@ class ParallelStatNode(StatNode, ParallelNode):
 
     def cleanup_temps(self, code):
         # Now clean up any memoryview slice and object temporaries
-        if self.is_parallel and not self.is_nested_prange:
+        if self.is_parallel:
+            assert not self.is_nested_prange
             code.putln("/* Clean up any temporaries */")
             for temp, type in sorted(self.temps):
                 if type.is_memoryviewslice:
@@ -9233,15 +9241,28 @@ class ParallelWithBlockNode(ParallelStatNode):
     all_names = []
     all_assignments = []
 
+    def __init__(self, pos_or_prange, **kwargs):
+        if isinstance(pos_or_prange, ParallelRangeNode):
+            self.body = pos_or_prange
+            pos = self.body.pos
+            kwargs={'args':[], 'kwargs':{}}
+            self.has_tight_prange = True
+        else:
+            pos = pos_or_prange
+            self.has_tight_prange = False
+        super(ParallelWithBlockNode, self).__init__(pos, **kwargs)
+
     def analyse_declarations(self, env):
         self.device = None
-        super(ParallelWithBlockNode, self).analyse_declarations(env)
+        super(ParallelWithBlockNode, self).analyse_declarations(env, self.has_tight_prange)
         if self.args:
             error(self.pos, "cython.parallel.parallel() does not take "
                             "positional arguments")
         self.analyse_device_map(self.device)
         if self.device != None:
             self.on_device = True
+        elif self.on_device:
+            self.device = {}
 
     def generate_execution_code(self, code):
         """
@@ -9293,7 +9314,8 @@ class ParallelWithBlockNode(ParallelStatNode):
 
         code.begin_block()  # parallel block
         self.begin_parallel_block(code)
-        self.initialize_privates_to_nan(code)
+        if not self.has_tight_prange:
+            self.initialize_privates_to_nan(code)
         code.funcstate.start_collecting_temps()
         self.body.generate_execution_code(code)
         self.trap_parallel_exit(code)
@@ -9328,6 +9350,7 @@ class ParallelRangeNode(ParallelStatNode):
     start = stop = step = None
 
     is_prange = True
+    is_parallel = False
     names = False
 
     nogil = None
@@ -9593,27 +9616,9 @@ class ParallelRangeNode(ParallelStatNode):
             pragma_for = "#pragma omp for"
             pragma_par = "#pragma omp parallel"
 
-        if not self.is_parallel:
-            code.put(pragma_for)
-            self.privatization_insertion_point = code.insertion_point()
-            reduction_codepoint = self.parent.privatization_insertion_point
-        else:
-            code.put(pragma_par)
-            self.privatization_insertion_point = code.insertion_point()
-            reduction_codepoint = self.privatization_insertion_point
-            code.putln("")
-            code.putln("#endif /* _OPENMP */")
-
-            code.begin_block() # pragma omp parallel begin block
-
-            # Initialize the GIL if needed for this thread
-            self.begin_parallel_block(code)
-
-            if self.is_nested_prange:
-                code.putln("#if 0")
-            else:
-                code.putln("#ifdef _OPENMP")
-            code.put(pragma_for)
+        code.put(pragma_for)
+        self.privatization_insertion_point = code.insertion_point()
+        reduction_codepoint = self.parent.privatization_insertion_point
 
         for entry, (op, lastprivate) in sorted(self.privates.items()):
             # Don't declare the index variable as a reduction
@@ -9666,13 +9671,13 @@ class ParallelRangeNode(ParallelStatNode):
         code.putln("%(target)s = (%(target_type)s)(%(start)s + %(step)s * %(i)s);" % fmt_dict)
         self.initialize_privates_to_nan(code, exclude=self.target.entry)
 
-        if (self.is_parallel or self.on_device) and not self.is_nested_prange:
+        if not self.is_nested_prange:
             # nested pranges are not omp'ified, temps go to outer loops
             code.funcstate.start_collecting_temps()
 
         self.body.generate_execution_code(code)
         self.trap_parallel_exit(code, should_flush=True)
-        if (self.is_parallel or self.on_device) and not self.is_nested_prange:
+        if not self.is_nested_prange:
             # nested pranges are not omp'ified, temps go to outer loops
             self.privatize_temps(code)
 
@@ -9683,11 +9688,6 @@ class ParallelRangeNode(ParallelStatNode):
 
         code.end_block()  # end guard around loop body
         code.end_block()  # end for loop block
-
-        if self.is_parallel:
-            # Release the GIL and deallocate the thread state
-            self.end_parallel_block(code)
-            code.end_block()  # pragma omp parallel end block
 
 
 class CnameDecoratorNode(StatNode):
