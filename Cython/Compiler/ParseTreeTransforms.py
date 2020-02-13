@@ -3051,6 +3051,11 @@ class GilCheck(VisitorTransform):
         return node
 
     def visit_ParallelWithBlockNode(self, node):
+        if node.nogil:
+            node.nogil = False
+            node = Nodes.GILStatNode(node.pos, state='nogil', body=node)
+            return self.visit_GILStatNode(node)
+
         if not self.nogil:
             error(node.pos, "The parallel section may only be used without "
                             "the GIL")
@@ -3067,7 +3072,6 @@ class GilCheck(VisitorTransform):
 
         self.visitchildren(node)
         self.on_device = was_device
-
         return node
 
     def visit_TryFinallyStatNode(self, node):
