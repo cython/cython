@@ -770,8 +770,13 @@ def test_prange_in_with(int x, ctx):
 
 cdef extern from *:
     """
-    #define address_of_temp(store, temp) store = &temp
-    #define address_of_temp2(store, ignore, temp) store = &temp
+    #ifdef _OPENMP
+    #define _get_addr(_x, _idx) &_x
+    #else
+    #define _get_addr(_x, _idx) (&_x+_idx)
+    #endif
+    #define address_of_temp(store, temp, idx) store = _get_addr(temp, idx)
+    #define address_of_temp2(store, ignore, temp, idx) store = _get_addr(temp, idx)
 
     double get_value() {
         return 1.0;
@@ -795,14 +800,14 @@ def test_inner_private():
     cdef Py_ssize_t n, m
 
     for n in range(2):
-        address_of_temp(not_parallel[n], get_value())
+        address_of_temp(not_parallel[n], get_value(), 0)
     assert not_parallel[0] == not_parallel[1], "Addresses should be the same since they come from the same temp"
 
     for n in prange(2, num_threads=2, schedule='static', chunksize=1, nogil=True):
-        address_of_temp(outer_vals[n], get_value())
+        address_of_temp(outer_vals[n], get_value(), n)
         for m in prange(1):
             # second temp just ensures different numbering
-            address_of_temp2(inner_vals[n], get_value(), get_value())
+            address_of_temp2(inner_vals[n], get_value(), get_value(), n)
 
     inner_are_the_same = inner_vals[0] == inner_vals[1]
     outer_are_the_same = outer_vals[0] == outer_vals[1]
