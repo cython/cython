@@ -766,3 +766,48 @@ def test_prange_in_with(int x, ctx):
             with gil:
                 l[0] += i
         return l[0]
+
+
+cdef extern from *:
+    """
+    #define address_of_temp(store, temp) store = &temp
+    #define address_of_temp2(store, ignore, temp) store = &temp
+
+    double get_value() {
+        return 1.0;
+    }
+    """
+    void address_of_temp(...) nogil
+    void address_of_temp2(...) nogil
+    double get_value() nogil except -1.0  # will generate a temp for exception checking
+
+def test_inner_private():
+    """
+    Determines if a temp variable is private by taking its address in multiple threads
+    and seeing if they're the same (thread private variables should have different
+    addresses
+    >>> test_inner_private()
+    ok
+    """
+    cdef double* not_parallel[2]
+    cdef double* inner_vals[2]
+    cdef double* outer_vals[2]
+    cdef Py_ssize_t n, m
+
+    for n in range(2):
+        address_of_temp(not_parallel[n], get_value())
+    assert not_parallel[0] == not_parallel[1], "Addresses should be the same since they come from the same temp"
+
+    for n in prange(2, num_threads=2, schedule='static', chunksize=1, nogil=True):
+        address_of_temp(outer_vals[n], get_value())
+        for m in prange(1):
+            # second temp just ensures different numbering
+            address_of_temp2(inner_vals[n], get_value(), get_value())
+
+    inner_are_the_same = inner_vals[0] == inner_vals[1]
+    outer_are_the_same = outer_vals[0] == outer_vals[1]
+
+    assert outer_are_the_same == False, "Temporary variables in outer loop should be private"
+    assert inner_are_the_same == False,  "Temporary variables in inner loop should be private"
+
+    print('ok')
