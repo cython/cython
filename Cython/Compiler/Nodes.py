@@ -8643,7 +8643,7 @@ class ParallelStatNode(StatNode, ParallelNode):
 
             # We don't need to propagate privates, only reductions and
             # lastprivates
-            if parent and (parent.is_parallel or parent.is_prange) and (op or lastprivate):
+            if parent and parent.is_prange and (op or lastprivate):
                 parent.propagate_var_privatization(entry, pos, op, lastprivate)
 
     def _allocate_closure_temp(self, code, entry):
@@ -9232,7 +9232,7 @@ class ParallelWithBlockNode(ParallelStatNode):
     This node represents a 'with cython.parallel.parallel():' block
     """
 
-    valid_keyword_arguments = ['num_threads', 'device']
+    valid_keyword_arguments = ['num_threads', 'nogil', 'device']
 
     num_threads = None
     is_parallel = True
@@ -9263,6 +9263,17 @@ class ParallelWithBlockNode(ParallelStatNode):
             self.on_device = True
         elif self.on_device:
             self.device = {}
+
+    def analyse_expressions(self, env):
+        was_nogil = env.nogil
+        if self.has_tight_prange:
+            self.nogil = self.body.nogil
+            if self.nogil:
+                env.nogil = True
+        node = super(ParallelWithBlockNode, self).analyse_expressions(env)
+        if node.has_tight_prange and node.nogil:
+            env.nogil = was_nogil
+        return node
 
     def generate_execution_code(self, code):
         """
