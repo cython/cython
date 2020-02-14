@@ -8492,7 +8492,7 @@ class ParallelStatNode(StatNode, ParallelNode):
         self.num_threads = None
 
         if use_from_body:
-            # body's kwargs have already been covnerted to dict
+            # body's kwargs have already been converted to dict
             self.kwargs = self.body.kwargs
         else:
             if self.kwargs:
@@ -8768,8 +8768,9 @@ class ParallelStatNode(StatNode, ParallelNode):
     def put_num_threads(self, code):
         """
         Write self.num_threads if set as the num_threads OpenMP directive
+        We ignore num_threads for now when running on a device.
         """
-        if self.num_threads is not None:
+        if not self.on_device and self.num_threads is not None:
             code.put(" num_threads(%s)" % self.evaluate_before_block(code, self.num_threads))
 
 
@@ -9283,6 +9284,15 @@ class ParallelWithBlockNode(ParallelStatNode):
     def analyse_declarations(self, env):
         self.device = None
         super(ParallelWithBlockNode, self).analyse_declarations(env, self.has_tight_prange)
+
+        if self.has_tight_prange:
+            self.num_threads = self.body.num_threads
+            self.body.num_threads = None
+            if self.device != None:
+                self.body.device = None
+            if self.nogil:
+                self.body.nogil = False
+
         if self.args:
             error(self.pos, "cython.parallel.parallel() does not take "
                             "positional arguments")
@@ -9294,12 +9304,10 @@ class ParallelWithBlockNode(ParallelStatNode):
 
     def analyse_expressions(self, env):
         was_nogil = env.nogil
-        if self.has_tight_prange:
-            self.nogil = self.body.nogil
-            if self.nogil:
-                env.nogil = True
+        if self.nogil:
+            env.nogil = True
         node = super(ParallelWithBlockNode, self).analyse_expressions(env)
-        if node.has_tight_prange and node.nogil:
+        if node.nogil:
             env.nogil = was_nogil
         return node
 
