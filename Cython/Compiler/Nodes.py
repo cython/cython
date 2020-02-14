@@ -8728,7 +8728,9 @@ class ParallelStatNode(StatNode, ParallelNode):
                 # it needs to be mapped individually anyway to get the data transferred
                 _maps['memview'].append(entry)
                 _szs = ['%s.shape[%d]' % (entry.cname, i) for i in range(entry.type.ndim)]
-                _cnt = '*'.join(['sizeof(%s)' % entry.type.dtype_name] + _szs)
+                _cnt = '*'.join(['sizeof(%s)' % (entry.type.dtype.typedef_cname
+                                                 if hasattr(entry.type.dtype, 'typedef_cname')
+                                                 else str(entry.type.dtype))] + _szs)
                 _maps[m].append("%s.data[0:%s]" % (entry.cname, _cnt))
                 #else:
                 #    error(entry.pos, "Mapped memoryviews must be "
@@ -8741,18 +8743,20 @@ class ParallelStatNode(StatNode, ParallelNode):
         return (_maps, _noncontig)
 
     def _put_noncontig_check(self, code, noncontig):
-        allow_dev = 'allow_device'
         if noncontig:
-            code.putln('int %s = 1' % allow_dev)
+            allow_dev = 'allow_device'
+            code.putln('int %s = 1;' % allow_dev)
             code.putln('static int not_warned = 1')
-        for entry in noncontig:
-            code.putln(
-                "if(__pyx_memviewslice_is_contig(%s, 'C', %s) != 0 && not_warned) {" % (entry.cname, entry.type.ndim))
-            code.putln('not_warned = 0;')
-            code.putln('%s = 0;' % allow_dev)
-            code.putln('/* warn */')
-            code.putln('}')
-        return allow_dev
+            for entry in noncontig:
+                code.putln(
+                    "if(__pyx_memviewslice_is_contig(%s, 'C', %s) != 0 && not_warned) {" % (entry.cname, entry.type.ndim))
+                code.putln('not_warned = 0;')
+                code.putln('%s = 0;' % allow_dev)
+                code.putln('/* warn */')
+                code.putln('}')
+            return allow_dev
+        return '1'
+
 
     def initialize_privates_to_nan(self, code, exclude=None):
         first = True
@@ -9248,9 +9252,11 @@ class DeviceWithBlockNode(ParallelStatNode):
         """
         # revers mapping from var:maptype to maptype:var-list
         reverse_map, noncontig = self._generate_map_lists(self.map)
-        code.begin_block()
-        # check at runtime if memviews are contiguous
-        allow_dev = self._put_noncontig_check(code, noncontig)
+        allow_dev = '1'
+        if noncontig:
+            code.begin_block()
+            # check at runtime if memviews are contiguous
+            allow_dev = self._put_noncontig_check(code, noncontig)
         # The rest is relatively easy, we add the openmp pragmas including map clauses around the execution code
         code.putln("#ifdef _OPENMP")
         code.put("#pragma omp target enter data if(%s)" % allow_dev)
@@ -9272,7 +9278,8 @@ class DeviceWithBlockNode(ParallelStatNode):
                 code.put(" map(%s %s)" % (mt, ', '.join(reverse_map[maptype])))
         code.putln('')
         code.putln("#endif /* _OPENMP */")
-        code.end_block()
+        if noncontig:
+            code.end_block()
 
 
 class ParallelWithBlockNode(ParallelStatNode):
@@ -9357,8 +9364,9 @@ class ParallelWithBlockNode(ParallelStatNode):
         if self.on_device:
             self.device.update({e: 'default' for e in self.all_names if e.type.is_memoryviewslice and e not in self.device})
             reverse_map, noncontig = self._generate_map_lists(self.device)
-
-        allow_dev = self._put_noncontig_check(code, noncontig)
+        allow_dev = '1'
+        if noncontig:
+            allow_dev = self._put_noncontig_check(code, noncontig)
 
         code.putln("#ifdef _OPENMP")
         if self.on_device:
