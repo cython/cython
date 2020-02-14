@@ -20,7 +20,7 @@ dist/$(PACKAGENAME)-$(VERSION).tar.gz:
 pywheel: dist/$(PACKAGENAME)-$(VERSION)-py2.py3-none-any.whl
 
 dist/$(PACKAGENAME)-$(VERSION)-py2.py3-none-any.whl:
-	${PYTHON} setup.py bdist_wheel --no-cython-compile
+	${PYTHON} setup.py bdist_wheel --no-cython-compile --universal
 	[ -f "$@" ]  # check that we generated the expected universal wheel
 
 TMPDIR = .repo_tmp
