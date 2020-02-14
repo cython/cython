@@ -9249,6 +9249,8 @@ class ParallelWithBlockNode(ParallelStatNode):
     all_assignments = []
 
     def __init__(self, pos_or_prange, **kwargs):
+        self.device = None
+        self.nogil = False
         if isinstance(pos_or_prange, ParallelRangeNode):
             self.body = pos_or_prange
             pos = self.body.pos
@@ -9260,7 +9262,6 @@ class ParallelWithBlockNode(ParallelStatNode):
         super(ParallelWithBlockNode, self).__init__(pos, **kwargs)
 
     def analyse_declarations(self, env):
-        self.device = None
         super(ParallelWithBlockNode, self).analyse_declarations(env, self.has_tight_prange)
 
         if self.has_tight_prange:
