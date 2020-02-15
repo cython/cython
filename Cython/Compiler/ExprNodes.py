@@ -448,6 +448,7 @@ class ExprNode(Node):
 
     saved_subexpr_nodes = None
     is_temp = False
+    has_temp_moved = False  # if True then attempting to do anything but free the temp is invalid
     is_target = False
     is_starred = False
 
@@ -490,6 +491,7 @@ class ExprNode(Node):
 
     def result(self):
         if self.is_temp:
+            assert not self.has_temp_moved, "Attempting to get a result that has already been moved"
             #if not self.temp_code:
             #    pos = (os.path.basename(self.pos[0].get_description()),) + self.pos[1:] if self.pos else '(?)'
             #    raise RuntimeError("temp result name not set in %s at %r" % (
@@ -497,6 +499,16 @@ class ExprNode(Node):
             return self.temp_code
         else:
             return self.calculate_result_code()
+
+    def _make_move_result_rhs(self, result):
+        if self.is_temp and self.type.is_cpp_class:
+            self.has_temp_moved = True
+            return "__PYX_STD_MOVE_IF_SUPPORTED({0})".format(result)
+        else:
+            return result
+
+    def move_result_rhs(self):
+        return self._make_move_result_rhs(self.result())
 
     def pythran_result(self, type_=None):
         if is_pythran_supported_node_or_none(self):
@@ -519,6 +531,9 @@ class ExprNode(Node):
             # reflect the actual type (e.g. an extension type)
             return typecast(type, py_object_type, self.result())
         return typecast(type, self.ctype(), self.result())
+
+    def move_result_as_rhs(self, type = None):
+        return self._make_move_result_rhs(self.result_as(type))
 
     def py_result(self):
         #  Return the result code cast to PyObject *.
@@ -723,6 +738,10 @@ class ExprNode(Node):
                 return
             self.temp_code = code.funcstate.allocate_temp(
                 type, manage_ref=self.use_managed_ref)
+
+            if self.type.is_cpp_class:
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("MoveIfSupported", "CppSupport.cpp"))
         else:
             self.temp_code = None
 
@@ -790,7 +809,9 @@ class ExprNode(Node):
                 # postponed from self.generate_evaluation_code()
                 self.generate_subexpr_disposal_code(code)
                 self.free_subexpr_temps(code)
-            if self.result():
+            if (not self.type.is_cpp_class  # check this before calling result()
+                    # since result may have been moved
+                    and self.result()):
                 if self.type.is_pyobject:
                     code.put_decref_clear(self.result(), self.ctype())
                 elif self.type.is_memoryviewslice:
@@ -2373,7 +2394,7 @@ class NameNode(AtomicExprNode):
             if not self.type.is_memoryviewslice:
                 if not assigned:
                     if overloaded_assignment:
-                        result = rhs.result()
+                        result = rhs.move_result_rhs()
                         if exception_check == '+':
                             translate_cpp_exception(
                                 code, self.pos,
@@ -2383,7 +2404,7 @@ class NameNode(AtomicExprNode):
                         else:
                             code.putln('%s = %s;' % (self.result(), result))
                     else:
-                        result = rhs.result_as(self.ctype())
+                        result = rhs.move_result_as_rhs(self.ctype())
 
                         if is_pythran_expr(self.type):
                             code.putln('new (&%s) decltype(%s){%s};' % (self.result(), self.result(), result))
@@ -5606,6 +5627,7 @@ class SimpleCallNode(CallNode):
             self.analyse_c_function_call(env)
             if func_type.exception_check == '+':
                 self.is_temp = True
+
         return self
 
     def function_type(self):
@@ -5842,7 +5864,7 @@ class SimpleCallNode(CallNode):
         expected_nargs = max_nargs - func_type.optional_arg_count
         actual_nargs = len(self.args)
         for formal_arg, actual_arg in args[:expected_nargs]:
-                arg_code = actual_arg.result_as(formal_arg.type)
+                arg_code = actual_arg.move_result_as_rhs(formal_arg.type)
                 arg_list_code.append(arg_code)
 
         if func_type.is_overridable:
@@ -5856,7 +5878,7 @@ class SimpleCallNode(CallNode):
             arg_list_code.append(optional_args)
 
         for actual_arg in self.args[len(formal_args):]:
-            arg_list_code.append(actual_arg.result())
+            arg_list_code.append(actual_arg.move_result_rhs())
 
         result = "%s(%s)" % (self.function.result(), ', '.join(arg_list_code))
         return result
@@ -7254,7 +7276,7 @@ class AttributeNode(ExprNode):
                 code.putln(
                     "%s = %s;" % (
                         select_code,
-                        rhs.result_as(self.ctype())))
+                        rhs.move_result_as_rhs(self.ctype())))
                         #rhs.result()))
             rhs.generate_post_assignment_code(code)
             rhs.free_temps(code)
