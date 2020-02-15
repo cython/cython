@@ -424,11 +424,6 @@ class Scope(object):
         return self.mangle(prefix)
         #return self.parent_scope.mangle(prefix, self.name)
 
-    def mangle_class_private_name(self, name):
-        if self.parent_scope:
-            return self.parent_scope.mangle_class_private_name(name)
-        return name
-
     def next_id(self, name=None):
         # Return a cname fragment that is unique for this module
         counters = self.global_scope().id_counters
