@@ -3340,8 +3340,15 @@ class DefNodeWrapper(FuncDefNode):
         for arg in self.args:
             if arg.hdr_type and not (arg.type.is_memoryviewslice or
                                      arg.type.is_struct or
-                                     arg.type.is_complex):
+                                     arg.type.is_complex or
+                                     arg.type.is_cpp_class):
                 args.append(arg.type.cast_code(arg.entry.cname))
+            elif arg.hdr_type and arg.type.is_cpp_class:
+                # it's safe to move converted C++ types because they aren't
+                # used again afterwards
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("MoveIfSupported", "CppSupport.cpp"))
+                args.append("__PYX_STD_MOVE_IF_SUPPORTED(%s)" % arg.entry.cname)
             else:
                 args.append(arg.entry.cname)
         if self.star_arg:
