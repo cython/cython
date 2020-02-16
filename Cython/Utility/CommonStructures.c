@@ -59,12 +59,12 @@ static PyTypeObject* __Pyx_FetchCommonType(PyTypeObject* type) {
     cached_type = type;
 
 done:
-    Py_XDECREF(abi_module);
+    Py_DECREF(abi_module);
     // NOTE: always returns owned reference, or NULL on error
     return cached_type;
 
 bad:
-    Py_DECREF(cached_type);
+    Py_XDECREF(cached_type);
     cached_type = NULL;
     goto done;
 }
