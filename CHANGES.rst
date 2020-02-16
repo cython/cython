@@ -163,6 +163,10 @@ Other changes
 * The command line parser was rewritten and modernised using ``argparse``.
   Patch by Egor Dranischnikow.  (Github issue #2952, #3001)
 
+* Dotted filenames for qualified module names (``pkg.mod.pyx``) are deprecated.
+  Use the normal Python package directory layout instead.
+  (Github issue #2686)
+
 * Support for Python 2.6 was removed.
 
 
