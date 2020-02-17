@@ -656,8 +656,9 @@ def search_include_directories(dirs, qualified_name, suffix, pos, include=False)
     for dirname in dirs:
         path = os.path.join(dirname, dotted_filename)
         if os.path.exists(path):
-            warning(pos, "Dotted filenames ('%s') are deprecated."
-                         " Please use the normal Python package directory layout." % dotted_filename, level=1)
+            if '.' in qualified_name and '.' in os.path.splitext(dotted_filename)[0]:
+                warning(pos, "Dotted filenames ('%s') are deprecated."
+                             " Please use the normal Python package directory layout." % dotted_filename, level=1)
             return path
 
     # search for filename in package structure e.g. <dir>/foo/bar.pxd or <dir>/foo/bar/__init__.pxd
