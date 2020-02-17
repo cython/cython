@@ -9389,11 +9389,11 @@ class ParallelWithBlockNode(ParallelStatNode):
                         self.device[var] = ('default', 1)
                     elif var.type.is_memoryviewslice:
                         t = var.type.dtype
-                    if t.is_numeric:
+                    if var.type.is_memoryviewslice and (t.is_numeric or t.is_struct_or_union):
+                        self.device[var] = 'default'
+                    elif t.is_numeric:
                         # we let the C-compiler do the job for scalars
-                        # but we explicitly handle memviews
-                        if var.type.is_memoryviewslice:
-                            self.device[var] = 'default'
+                        pass
                     elif t.is_ptr:
                         error(self.pos, "Cannot use pointer variable %s in device block without explicit range declaration" % var.name)
                     elif not var.is_self_arg:
