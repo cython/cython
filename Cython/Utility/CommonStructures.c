@@ -37,7 +37,7 @@ static PyTypeObject* __Pyx_FetchCommonType(PyTypeObject* type) {
     PyTypeObject *cached_type = NULL;
 
     abi_module = __Pyx_FetchSharedCythonABIModule();
-    if (!abi_module) goto bad;
+    if (!abi_module) return NULL;
     cached_type = (PyTypeObject*) PyObject_GetAttrString(abi_module, type->tp_name);
     if (cached_type) {
         if (__Pyx_VerifyCachedType(
@@ -75,7 +75,7 @@ static PyObject *__Pyx_FetchCommonTypeFromSpec(PyType_Spec *spec, PyObject *base
     Py_ssize_t basicsize;
 
     abi_module = __Pyx_FetchSharedCythonABIModule();
-    if (!abi_module) goto bad;
+    if (!abi_module) return NULL;
     cached_type = PyObject_GetAttrString(abi_module, spec->name);
     if (cached_type) {
         py_basicsize = PyObject_GetAttrString(cached_type, "__basicsize__");
