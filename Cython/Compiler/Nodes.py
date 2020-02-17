@@ -8515,8 +8515,7 @@ class ParallelStatNode(StatNode, ParallelNode):
                 if isinstance(m, tuple):
                     if not e.type.is_ptr:
                         error(self.pos, "device mapping can only include a count for pointers, %s is not a pointer" % e.name)
-                    if not m[1].type.is_int:
-                        # FIXME (device) constant integers
+                    if not (isinstance(m[1], int) or (hasattr(m[1], 'type') and m[1].type.is_int)):
                         error(self.pos, "count in device mapping must be an integer, %s for %s is not" % (m[1], e.name))
                     m = m[0]
                 if m not in self.valid_mappings:
@@ -8699,7 +8698,11 @@ class ParallelStatNode(StatNode, ParallelNode):
             m = device_map[entry]
             cnt = None
             if isinstance(m, tuple):
-                cnt = m[1].cname
+                cnt = m[1]
+                if hasattr(cnt, 'cname'):
+                    cnt = cnt.cname
+                elif not isinstance(cnt, int):
+                    error(self.pos, "count in map-tuple must be a variable or integer constant, %s is not" % (cnt))
                 m = m[0]
             if m == 'default':
                 m = ''
@@ -8727,7 +8730,7 @@ class ParallelStatNode(StatNode, ParallelNode):
                 #                     "C-contiguous (%s is not)" % entry.name)
             elif entry.type.is_numeric or (entry.type.is_ptr and m == 'alloc:'):
                 _maps[m].append(entry.cname)
-            elif entry.type.is_ptr:
+            elif entry.type.is_ptr or entry.is_self_arg:
                 _maps[m].append("%s[0:%s]" % (entry.cname, cnt))
             else:
                 error(entry.pos, "Mapped variables must be memoryview "
@@ -9360,7 +9363,9 @@ class ParallelWithBlockNode(ParallelStatNode):
                 # we accept anything the user explicitly requests
                 if var not in self.device:
                     t = var.type
-                    if var.type.is_memoryviewslice:
+                    if var.is_self_arg:
+                        self.device[var] = ('default', 1)
+                    elif var.type.is_memoryviewslice:
                         t = var.type.dtype
                     if t.is_numeric:
                         # we let the C-compiler do the job for scalars
@@ -9369,7 +9374,7 @@ class ParallelWithBlockNode(ParallelStatNode):
                             self.device[var] = 'default'
                     elif t.is_ptr:
                         error(self.pos, "Cannot use pointer variable %s in device block without explicit range declaration" % var.name)
-                    else:
+                    elif not var.is_self_arg:
                         error(self.pos, "Type %s (%s) not supported in device block" % (t, var.name))
             reverse_map, noncontig = self._generate_map_lists(self.device)
         allow_dev = '1'
