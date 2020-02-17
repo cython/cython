@@ -8512,11 +8512,18 @@ class ParallelStatNode(StatNode, ParallelNode):
             _keys = list(device_map.keys())
             for e in _keys:
                 m = device_map[e]
+                if isinstance(m, tuple):
+                    if not e.type.is_ptr:
+                        error(self.pos, "device mapping can only include a count for pointers, %s is not a pointer" % e.name)
+                    if not m[1].type.is_int:
+                        # FIXME (device) constant integers
+                        error(self.pos, "count in device mapping must be an integer, %s for %s is not" % (m[1], e.name))
+                    m = m[0]
                 if m not in self.valid_mappings:
                     error(self.pos, "device mapping must be one of %s (not '%s')" % (self.valid_mappings, m))
                     del device_map[e]
-        elif device_map != None:
-            error(self.pos, "device-map must be None or a dictionary")
+        elif device_map != None and device_map != False:
+            error(self.pos, "device-map must be None, False or a dictionary")
 
     def analyse_expressions(self, env):
         if self.num_threads:
@@ -8690,6 +8697,10 @@ class ParallelStatNode(StatNode, ParallelNode):
                 error(self.pos, "Error in device mapping, key might not be a declared variable")
                 continue
             m = device_map[entry]
+            cnt = None
+            if isinstance(m, tuple):
+                cnt = m[1].cname
+                m = m[0]
             if m == 'default':
                 m = ''
             else:
@@ -8706,31 +8717,35 @@ class ParallelStatNode(StatNode, ParallelNode):
                 # it needs to be mapped individually anyway to get the data transferred
                 _maps['memview'].append(entry)
                 _szs = ['%s.shape[%d]' % (entry.cname, i) for i in range(entry.type.ndim)]
-                _cnt = '*'.join(['sizeof(%s)' % (entry.type.dtype.typedef_cname
-                                                 if hasattr(entry.type.dtype, 'typedef_cname')
-                                                 else str(entry.type.dtype))] + _szs)
+                _cnt = '*'.join(['sizeof(%s)' % (entry.type.dtype.cv_base_type.empty_declaration_code()
+                                                 if hasattr(entry.type.dtype, 'cv_base_type')
+                                                 else entry.type.dtype.empty_declaration_code())] + _szs)
+
                 _maps[m].append("%s.data[0:%s]" % (entry.cname, _cnt))
                 #else:
                 #    error(entry.pos, "Mapped memoryviews must be "
                 #                     "C-contiguous (%s is not)" % entry.name)
-            elif entry.type.is_numeric:
+            elif entry.type.is_numeric or (entry.type.is_ptr and m == 'alloc:'):
                 _maps[m].append(entry.cname)
+            elif entry.type.is_ptr:
+                _maps[m].append("%s[0:%s]" % (entry.cname, cnt))
             else:
                 error(entry.pos, "Mapped variables must be memoryview "
-                                 "or scalar (%s is %s)" % (entry.name, entry.type))
+                                 "scalar or pointer (%s is %s)" % (entry.name, entry.type))
         return (_maps, _noncontig)
 
     def _put_noncontig_check(self, code, noncontig):
         if noncontig:
             allow_dev = 'allow_device'
             code.putln('int %s = 1;' % allow_dev)
-            code.putln('static int not_warned = 1')
+            code.putln('static int not_warned = 1;')
             for entry in noncontig:
                 code.putln(
                     "if(__pyx_memviewslice_is_contig(%s, 'C', %s) != 0 && not_warned) {" % (entry.cname, entry.type.ndim))
                 code.putln('not_warned = 0;')
                 code.putln('%s = 0;' % allow_dev)
-                code.putln('/* warn */')
+                code.putln('fprintf(stderr, "%s: %s is not C-contiguous, device block will not be offloaded to device.");'
+                           % (self.pos, entry.name))
                 code.putln('}')
             return allow_dev
         return '1'
@@ -9302,8 +9317,9 @@ class ParallelWithBlockNode(ParallelStatNode):
             error(self.pos, "cython.parallel.parallel() does not take "
                             "positional arguments")
         self.analyse_device_map(self.device)
+        print(self.device, self.on_device)
         if self.device != None:
-            self.on_device = True
+            self.on_device = True if self.device != False else False
         elif self.on_device:
             self.device = {}
 
@@ -9340,7 +9356,21 @@ class ParallelWithBlockNode(ParallelStatNode):
         reverse_map = {}
         noncontig = False
         if self.on_device:
-            self.device.update({e: 'default' for e in self.all_names if e.type.is_memoryviewslice and e not in self.device})
+            for var in self.all_names:
+                # we accept anything the user explicitly requests
+                if var not in self.device:
+                    t = var.type
+                    if var.type.is_memoryviewslice:
+                        t = var.type.dtype
+                    if t.is_numeric:
+                        # we let the C-compiler do the job for scalars
+                        # but we explicitly handle memviews
+                        if var.type.is_memoryviewslice:
+                            self.device[var] = 'default'
+                    elif t.is_ptr:
+                        error(self.pos, "Cannot use pointer variable %s in device block without explicit range declaration" % var.name)
+                    else:
+                        error(self.pos, "Type %s (%s) not supported in device block" % (t, var.name))
             reverse_map, noncontig = self._generate_map_lists(self.device)
         allow_dev = '1'
         if noncontig:
@@ -9348,7 +9378,8 @@ class ParallelWithBlockNode(ParallelStatNode):
 
         code.putln("#ifdef _OPENMP")
         if self.on_device:
-            code.put("#pragma omp target teams defaultmap(tofrom:scalar) if(%s)" % allow_dev)
+            code.put("#pragma omp target %s defaultmap(tofrom:scalar) if(%s)"
+                     % ('teams' if self.has_tight_prange else 'parallel', allow_dev))
         else:
             code.put("#pragma omp parallel")
 
@@ -9666,7 +9697,7 @@ class ParallelRangeNode(ParallelStatNode):
         else:
             code.putln("#ifdef _OPENMP")
 
-        if self.on_device:
+        if self.on_device and not self.is_nested_prange and self.parent.has_tight_prange:
             pragma_for = "#pragma omp distribute parallel for"
             pragma_par = "#pragma omp teams"
         else:
