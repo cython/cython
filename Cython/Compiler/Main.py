@@ -494,6 +494,12 @@ def run_pipeline(source, options, full_module_name=None, context=None):
         pipeline = Pipeline.create_pyx_pipeline(context, options, result)
 
     context.setup_errors(options, result)
+
+    if '.' in full_module_name and '.' in os.path.splitext(os.path.basename(abs_path))[0]:
+        warning((source_desc, 1, 0),
+                "Dotted filenames ('%s') are deprecated."
+                " Please use the normal Python package directory layout." % os.path.basename(abs_path), level=1)
+
     err, enddata = Pipeline.run_pipeline(pipeline, source)
     context.teardown_errors(err, options, result)
     return result
@@ -650,6 +656,9 @@ def search_include_directories(dirs, qualified_name, suffix, pos, include=False)
     for dirname in dirs:
         path = os.path.join(dirname, dotted_filename)
         if os.path.exists(path):
+            if '.' in qualified_name and '.' in os.path.splitext(dotted_filename)[0]:
+                warning(pos, "Dotted filenames ('%s') are deprecated."
+                             " Please use the normal Python package directory layout." % dotted_filename, level=1)
             return path
 
     # search for filename in package structure e.g. <dir>/foo/bar.pxd or <dir>/foo/bar/__init__.pxd

@@ -63,6 +63,10 @@ def generate_c_code_config(env, options):
     else:
         emit_linenums = options.emit_linenums
 
+    if hasattr(options, "emit_code_comments"):
+        print('Warning: option emit_code_comments is deprecated. '
+              'Instead, use compiler directive emit_code_comments.')
+
     return Code.CCodeConfig(
         emit_linenums=emit_linenums,
         emit_code_comments=env.directives['emit_code_comments'],
@@ -606,15 +610,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for entry in vtabslot_list:
             self.generate_objstruct_predeclaration(entry.type, code)
         vtabslot_entries = set(vtabslot_list)
+        ctuple_names = set()
         for module in modules:
             definition = module is env
-            if definition:
-                type_entries = module.type_entries
-            else:
-                type_entries = []
-                for entry in module.type_entries:
-                    if entry.defined_in_pxd:
+            type_entries = []
+            for entry in module.type_entries:
+                if entry.type.is_ctuple:
+                    if entry.name not in ctuple_names:
+                        ctuple_names.add(entry.name)
                         type_entries.append(entry)
+                elif definition or entry.defined_in_pxd:
+                    type_entries.append(entry)
             type_entries = [t for t in type_entries if t not in vtabslot_entries]
             self.generate_type_header_code(type_entries, code)
         for entry in vtabslot_list:
@@ -2492,10 +2498,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state.putln("#endif")
         module_state_defines.putln("#endif")
         module_state_clear.putln("return 0;")
-        module_state_clear.putln("};")
+        module_state_clear.putln("}")
         module_state_clear.putln("#endif")
         module_state_traverse.putln("return 0;")
-        module_state_traverse.putln("};")
+        module_state_traverse.putln("}")
         module_state_traverse.putln("#endif")
 
     def generate_module_state_defines(self, env, code):

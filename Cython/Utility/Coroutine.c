@@ -362,7 +362,8 @@ static void __Pyx_Generator_Replace_StopIteration(CYTHON_UNUSED int in_async_gen
 //////////////////// CoroutineBase.proto ////////////////////
 //@substitute: naming
 
-typedef PyObject *(*__pyx_coroutine_body_t)(PyObject *, PyThreadState *, PyObject *);
+struct __pyx_CoroutineObject;
+typedef PyObject *(*__pyx_coroutine_body_t)(struct __pyx_CoroutineObject *, PyThreadState *, PyObject *);
 
 #if CYTHON_USE_EXC_INFO_STACK
 // See  https://bugs.python.org/issue25612
@@ -376,7 +377,7 @@ typedef struct {
 } __Pyx_ExcInfoStruct;
 #endif
 
-typedef struct {
+typedef struct __pyx_CoroutineObject {
     PyObject_HEAD
     __pyx_coroutine_body_t body;
     PyObject *closure;
@@ -740,7 +741,7 @@ PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value, i
 #endif
 
     self->is_running = 1;
-    retval = self->body((PyObject *) self, tstate, value);
+    retval = self->body(self, tstate, value);
     self->is_running = 0;
 
 #if CYTHON_USE_EXC_INFO_STACK

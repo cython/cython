@@ -8914,12 +8914,11 @@ class ClassNode(ExprNode, ModuleNameMixin):
     #  a name, tuple of bases and class dictionary.
     #
     #  name         EncodedString      Name of the class
-    #  bases        ExprNode           Base class tuple
-    #  dict         ExprNode           Class dict (not owned by this node)
+    #  class_def_node  PyClassDefNode  PyClassDefNode defining this class
     #  doc          ExprNode or None   Doc string
     #  module_name  EncodedString      Name of defining module
 
-    subexprs = ['bases', 'doc']
+    subexprs = ['doc']
     type = py_object_type
     is_temp = True
 
@@ -8928,7 +8927,6 @@ class ClassNode(ExprNode, ModuleNameMixin):
         return py_object_type
 
     def analyse_types(self, env):
-        self.bases = self.bases.analyse_types(env)
         if self.doc:
             self.doc = self.doc.analyse_types(env)
             self.doc = self.doc.coerce_to_pyobject(env)
@@ -8941,12 +8939,13 @@ class ClassNode(ExprNode, ModuleNameMixin):
     gil_message = "Constructing Python class"
 
     def generate_result_code(self, code):
+        class_def_node = self.class_def_node
         cname = code.intern_identifier(self.name)
 
         if self.doc:
             code.put_error_if_neg(self.pos,
                 'PyDict_SetItem(%s, %s, %s)' % (
-                    self.dict.py_result(),
+                    class_def_node.dict.py_result(),
                     code.intern_identifier(
                         StringEncoding.EncodedString("__doc__")),
                     self.doc.py_result()))
@@ -8955,8 +8954,8 @@ class ClassNode(ExprNode, ModuleNameMixin):
         code.putln(
             '%s = __Pyx_CreateClass(%s, %s, %s, %s, %s); %s' % (
                 self.result(),
-                self.bases.py_result(),
-                self.dict.py_result(),
+                class_def_node.bases.py_result(),
+                class_def_node.dict.py_result(),
                 cname,
                 qualname,
                 py_mod_name,
@@ -8970,8 +8969,8 @@ class Py3ClassNode(ExprNode):
     #  a name, tuple of bases and class dictionary.
     #
     #  name         EncodedString      Name of the class
-    #  dict         ExprNode           Class dict (not owned by this node)
     #  module_name  EncodedString      Name of defining module
+    #  class_def_node  PyClassDefNode  PyClassDefNode defining this class
     #  calculate_metaclass  bool       should call CalculateMetaclass()
     #  allow_py2_metaclass  bool       should look for Py2 metaclass
 
@@ -8994,12 +8993,10 @@ class Py3ClassNode(ExprNode):
     def generate_result_code(self, code):
         code.globalstate.use_utility_code(UtilityCode.load_cached("Py3ClassCreate", "ObjectHandling.c"))
         cname = code.intern_identifier(self.name)
-        if self.mkw:
-            mkw = self.mkw.py_result()
-        else:
-            mkw = 'NULL'
-        if self.metaclass:
-            metaclass = self.metaclass.py_result()
+        class_def_node = self.class_def_node
+        mkw = class_def_node.mkw.py_result() if class_def_node.mkw else 'NULL'
+        if class_def_node.metaclass:
+            metaclass = class_def_node.metaclass.py_result()
         else:
             metaclass = "((PyObject*)&__Pyx_DefaultClassType)"
         code.putln(
@@ -9007,8 +9004,8 @@ class Py3ClassNode(ExprNode):
                 self.result(),
                 metaclass,
                 cname,
-                self.bases.py_result(),
-                self.dict.py_result(),
+                class_def_node.bases.py_result(),
+                class_def_node.dict.py_result(),
                 mkw,
                 self.calculate_metaclass,
                 self.allow_py2_metaclass,
@@ -9019,8 +9016,7 @@ class Py3ClassNode(ExprNode):
 class PyClassMetaclassNode(ExprNode):
     # Helper class holds Python3 metaclass object
     #
-    #  bases        ExprNode           Base class tuple (not owned by this node)
-    #  mkw          ExprNode           Class keyword arguments (not owned by this node)
+    #  class_def_node  PyClassDefNode  PyClassDefNode defining this class
 
     subexprs = []
 
@@ -9033,38 +9029,38 @@ class PyClassMetaclassNode(ExprNode):
         return True
 
     def generate_result_code(self, code):
-        if self.mkw:
+        bases = self.class_def_node.bases
+        mkw = self.class_def_node.mkw
+        if mkw:
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("Py3MetaclassGet", "ObjectHandling.c"))
             call = "__Pyx_Py3MetaclassGet(%s, %s)" % (
-                self.bases.result(),
-                self.mkw.result())
+                bases.result(),
+                mkw.result())
         else:
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("CalculateMetaclass", "ObjectHandling.c"))
             call = "__Pyx_CalculateMetaclass(NULL, %s)" % (
-                self.bases.result())
+                bases.result())
         code.putln(
             "%s = %s; %s" % (
                 self.result(), call,
                 code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
 
+
 class PyClassNamespaceNode(ExprNode, ModuleNameMixin):
     # Helper class holds Python3 namespace object
     #
     # All this are not owned by this node
-    #  metaclass    ExprNode           Metaclass object
-    #  bases        ExprNode           Base class tuple
-    #  mkw          ExprNode           Class keyword arguments
+    #  class_def_node  PyClassDefNode  PyClassDefNode defining this class
     #  doc          ExprNode or None   Doc string (owned)
 
     subexprs = ['doc']
 
     def analyse_types(self, env):
         if self.doc:
-            self.doc = self.doc.analyse_types(env)
-            self.doc = self.doc.coerce_to_pyobject(env)
+            self.doc = self.doc.analyse_types(env).coerce_to_pyobject(env)
         self.type = py_object_type
         self.is_temp = 1
         return self
@@ -9076,23 +9072,16 @@ class PyClassNamespaceNode(ExprNode, ModuleNameMixin):
         cname = code.intern_identifier(self.name)
         py_mod_name = self.get_py_mod_name(code)
         qualname = self.get_py_qualified_name(code)
-        if self.doc:
-            doc_code = self.doc.result()
-        else:
-            doc_code = '(PyObject *) NULL'
-        if self.mkw:
-            mkw = self.mkw.py_result()
-        else:
-            mkw = '(PyObject *) NULL'
-        if self.metaclass:
-            metaclass = self.metaclass.py_result()
-        else:
-            metaclass = "(PyObject *) NULL"
+        class_def_node = self.class_def_node
+        null = "(PyObject *) NULL"
+        doc_code = self.doc.result() if self.doc else null
+        mkw = class_def_node.mkw.py_result() if class_def_node.mkw else null
+        metaclass = class_def_node.metaclass.py_result() if class_def_node.metaclass else null
         code.putln(
             "%s = __Pyx_Py3MetaclassPrepare(%s, %s, %s, %s, %s, %s, %s); %s" % (
                 self.result(),
                 metaclass,
-                self.bases.result(),
+                class_def_node.bases.result(),
                 cname,
                 qualname,
                 mkw,
