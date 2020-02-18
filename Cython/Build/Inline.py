@@ -178,6 +178,8 @@ def cython_inline(code, get_type=unsafe_type,
             print("Could not parse code as a string (to extract unbound symbols).")
 
     cython_compiler_directives = dict(cython_compiler_directives or {})
+    if language_level is None and 'language_level' not in cython_compiler_directives:
+        language_level = '3str'
     if language_level is not None:
         cython_compiler_directives['language_level'] = language_level
 
