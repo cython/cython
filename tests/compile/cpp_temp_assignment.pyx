@@ -23,10 +23,10 @@ cdef extern from *:
     #endif
 
     NoAssign get_NoAssign_Py() {
-        return NoAssign{};
+        return NoAssign();
     }
     NoAssign get_NoAssign_Cpp() {
-        return NoAssign{};
+        return NoAssign();
     }
     """
     cdef cppclass NoAssign:
