@@ -1987,121 +1987,124 @@ class FuncDefNode(StatNode, BlockNode):
             if not self.body.is_terminator:
                 code.put_goto(code.return_label)
             code.put_label(code.error_label)
-            for cname, type in code.funcstate.all_managed_temps():
-                code.put_xdecref(cname, type, have_gil=not lenv.nogil)
+            if not self.on_device:
+                for cname, type in code.funcstate.all_managed_temps():
+                    code.put_xdecref(cname, type, have_gil=not lenv.nogil)
 
-            # Clean up buffers -- this calls a Python function
-            # so need to save and restore error state
-            buffers_present = len(used_buffer_entries) > 0
-            #memslice_entries = [e for e in lenv.entries.values() if e.type.is_memoryviewslice]
-            if buffers_present:
-                code.globalstate.use_utility_code(restore_exception_utility_code)
-                code.putln("{ PyObject *__pyx_type, *__pyx_value, *__pyx_tb;")
-                code.putln("__Pyx_PyThreadState_declare")
-                code.putln("__Pyx_PyThreadState_assign")
-                code.putln("__Pyx_ErrFetch(&__pyx_type, &__pyx_value, &__pyx_tb);")
-                for entry in used_buffer_entries:
-                    Buffer.put_release_buffer_code(code, entry)
-                    #code.putln("%s = 0;" % entry.cname)
-                code.putln("__Pyx_ErrRestore(__pyx_type, __pyx_value, __pyx_tb);}")
+                # Clean up buffers -- this calls a Python function
+                # so need to save and restore error state
+                buffers_present = len(used_buffer_entries) > 0
+                #memslice_entries = [e for e in lenv.entries.values() if e.type.is_memoryviewslice]
+                if buffers_present:
+                    code.globalstate.use_utility_code(restore_exception_utility_code)
+                    code.putln("{ PyObject *__pyx_type, *__pyx_value, *__pyx_tb;")
+                    code.putln("__Pyx_PyThreadState_declare")
+                    code.putln("__Pyx_PyThreadState_assign")
+                    code.putln("__Pyx_ErrFetch(&__pyx_type, &__pyx_value, &__pyx_tb);")
+                    for entry in used_buffer_entries:
+                        Buffer.put_release_buffer_code(code, entry)
+                        #code.putln("%s = 0;" % entry.cname)
+                    code.putln("__Pyx_ErrRestore(__pyx_type, __pyx_value, __pyx_tb);}")
 
-            if self.return_type.is_memoryviewslice:
-                MemoryView.put_init_entry(Naming.retval_cname, code)
-                err_val = Naming.retval_cname
-            else:
-                err_val = self.error_value()
+                if self.return_type.is_memoryviewslice:
+                    MemoryView.put_init_entry(Naming.retval_cname, code)
+                    err_val = Naming.retval_cname
+                else:
+                    err_val = self.error_value()
 
-            exc_check = self.caller_will_check_exceptions()
-            if err_val is not None or exc_check:
-                # TODO: Fix exception tracing (though currently unused by cProfile).
-                # code.globalstate.use_utility_code(get_exception_tuple_utility_code)
-                # code.put_trace_exception()
+                exc_check = self.caller_will_check_exceptions()
+                if err_val is not None or exc_check:
+                    # TODO: Fix exception tracing (though currently unused by cProfile).
+                    # code.globalstate.use_utility_code(get_exception_tuple_utility_code)
+                    # code.put_trace_exception()
 
-                if lenv.nogil and not lenv.has_with_gil_block:
-                    code.putln("{")
-                    code.put_ensure_gil()
+                    if lenv.nogil and not lenv.has_with_gil_block:
+                        code.putln("{")
+                        code.put_ensure_gil()
 
-                code.put_add_traceback(self.entry.qualified_name)
+                    code.put_add_traceback(self.entry.qualified_name)
 
-                if lenv.nogil and not lenv.has_with_gil_block:
-                    code.put_release_ensured_gil()
-                    code.putln("}")
-            else:
-                warning(self.entry.pos,
-                        "Unraisable exception in function '%s'." %
-                        self.entry.qualified_name, 0)
-                code.put_unraisable(self.entry.qualified_name, lenv.nogil)
-            default_retval = self.return_type.default_value
-            if err_val is None and default_retval:
-                err_val = default_retval
-            if err_val is not None:
-                if err_val != Naming.retval_cname:
-                    code.putln("%s = %s;" % (Naming.retval_cname, err_val))
-            elif not self.return_type.is_void:
-                code.putln("__Pyx_pretend_to_initialize(&%s);" % Naming.retval_cname)
+                    if lenv.nogil and not lenv.has_with_gil_block:
+                        code.put_release_ensured_gil()
+                        code.putln("}")
+                else:
+                    warning(self.entry.pos,
+                            "Unraisable exception in function '%s'." %
+                            self.entry.qualified_name, 0)
+                    code.put_unraisable(self.entry.qualified_name, lenv.nogil)
+                default_retval = self.return_type.default_value
+                if err_val is None and default_retval:
+                    err_val = default_retval
+                if err_val is not None:
+                    if err_val != Naming.retval_cname:
+                        code.putln("%s = %s;" % (Naming.retval_cname, err_val))
+                elif not self.return_type.is_void:
+                    code.putln("__Pyx_pretend_to_initialize(&%s);" % Naming.retval_cname)
 
-            if is_getbuffer_slot:
-                self.getbuffer_error_cleanup(code)
+                if is_getbuffer_slot:
+                    self.getbuffer_error_cleanup(code)
 
-            # If we are using the non-error cleanup section we should
-            # jump past it if we have an error. The if-test below determine
-            # whether this section is used.
-            if buffers_present or is_getbuffer_slot or self.return_type.is_memoryviewslice:
-                code.put_goto(code.return_from_error_cleanup_label)
+                # If we are using the non-error cleanup section we should
+                # jump past it if we have an error. The if-test below determine
+                # whether this section is used.
+                if buffers_present or is_getbuffer_slot or self.return_type.is_memoryviewslice:
+                    code.put_goto(code.return_from_error_cleanup_label)
 
         # ----- Non-error return cleanup
         code.put_label(code.return_label)
-        for entry in used_buffer_entries:
-            Buffer.put_release_buffer_code(code, entry)
-        if is_getbuffer_slot:
-            self.getbuffer_normal_cleanup(code)
+        if not self.on_device:
+            for entry in used_buffer_entries:
+                Buffer.put_release_buffer_code(code, entry)
+            if is_getbuffer_slot:
+                self.getbuffer_normal_cleanup(code)
 
-        if self.return_type.is_memoryviewslice:
-            # See if our return value is uninitialized on non-error return
-            # from . import MemoryView
-            # MemoryView.err_if_nogil_initialized_check(self.pos, env)
-            cond = code.unlikely(self.return_type.error_condition(Naming.retval_cname))
-            code.putln(
-                'if (%s) {' % cond)
-            if env.nogil:
-                code.put_ensure_gil()
-            code.putln(
-                'PyErr_SetString(PyExc_TypeError, "Memoryview return value is not initialized");')
-            if env.nogil:
-                code.put_release_ensured_gil()
-            code.putln(
-                '}')
+            if self.return_type.is_memoryviewslice:
+                # See if our return value is uninitialized on non-error return
+                # from . import MemoryView
+                # MemoryView.err_if_nogil_initialized_check(self.pos, env)
+                cond = code.unlikely(self.return_type.error_condition(Naming.retval_cname))
+                code.putln(
+                    'if (%s) {' % cond)
+                if env.nogil:
+                    code.put_ensure_gil()
+                code.putln(
+                    'PyErr_SetString(PyExc_TypeError, "Memoryview return value is not initialized");')
+                if env.nogil:
+                    code.put_release_ensured_gil()
+                code.putln(
+                    '}')
 
         # ----- Return cleanup for both error and no-error return
         code.put_label(code.return_from_error_cleanup_label)
 
-        for entry in lenv.var_entries:
-            if not entry.used or entry.in_closure:
-                continue
+        if not self.on_device:
+            for entry in lenv.var_entries:
+                if not entry.used or entry.in_closure:
+                    continue
 
-            if entry.type.is_memoryviewslice:
-                code.put_xdecref_memoryviewslice(entry.cname,
-                                                 have_gil='nogil' if lenv.nogil else 'gil')
-            elif entry.type.is_pyobject:
-                if not entry.is_arg or len(entry.cf_assignments) > 1:
-                    if entry.xdecref_cleanup:
-                        code.put_var_xdecref(entry)
-                    else:
+                if entry.type.is_memoryviewslice:
+                    code.put_xdecref_memoryviewslice(entry.cname,
+                                                     have_gil='nogil' if lenv.nogil else 'gil')
+                elif entry.type.is_pyobject:
+                    if not entry.is_arg or len(entry.cf_assignments) > 1:
+                        if entry.xdecref_cleanup:
+                            code.put_var_xdecref(entry)
+                        else:
+                            code.put_var_decref(entry)
+
+            # Decref any increfed args
+            for entry in lenv.arg_entries:
+                if entry.type.is_pyobject:
+                    if (acquire_gil or len(entry.cf_assignments) > 1) and not entry.in_closure:
                         code.put_var_decref(entry)
-
-        # Decref any increfed args
-        for entry in lenv.arg_entries:
-            if entry.type.is_pyobject:
-                if (acquire_gil or len(entry.cf_assignments) > 1) and not entry.in_closure:
-                    code.put_var_decref(entry)
-            elif (entry.type.is_memoryviewslice and
-                  (not is_cdef or len(entry.cf_assignments) > 1)):
-                # decref slices of def functions and acquired slices from cdef
-                # functions, but not borrowed slices from cdef functions.
-                code.put_xdecref_memoryviewslice(entry.cname,
-                                                 have_gil='nogil' if lenv.nogil else 'gil')
-        if self.needs_closure:
-            code.put_decref(Naming.cur_scope_cname, lenv.scope_class.type)
+                elif (entry.type.is_memoryviewslice and
+                      (not is_cdef or len(entry.cf_assignments) > 1)):
+                    # decref slices of def functions and acquired slices from cdef
+                    # functions, but not borrowed slices from cdef functions.
+                    code.put_xdecref_memoryviewslice(entry.cname,
+                                                     have_gil='nogil' if lenv.nogil else 'gil')
+            if self.needs_closure:
+                code.put_decref(Naming.cur_scope_cname, lenv.scope_class.type)
 
         # ----- Return
         # This code is duplicated in ModuleNode.generate_module_init_func
@@ -2801,6 +2804,7 @@ class DefNode(FuncDefNode):
         self.num_kwonly_args = k
         self.num_required_kw_args = rk
         self.num_required_args = r
+        self.on_device = False
 
     def as_cfunction(self, cfunc=None, scope=None, overridable=True, returns=None, except_val=None, modifiers=None,
                      nogil=False, with_gil=False, device=False):

@@ -7196,12 +7196,13 @@ class AttributeNode(ExprNode):
                 T = "__pyx_memslice_transpose(&%s) == 0"
                 code.putln(code.error_goto_if(T % self.result(), self.pos))
             elif self.initialized_check:
+                set_error = 'PyErr_SetString(PyExc_AttributeError, "Memoryview is not initialized");\n'
+                if self.in_nogil_context == 'device':
+                    set_error = ''
                 code.putln(
                     'if (unlikely(!%s.memview)) {'
-                        'PyErr_SetString(PyExc_AttributeError,'
-                                        '"Memoryview is not initialized");'
-                        '%s'
-                    '}' % (self.result(), code.error_goto(self.pos)))
+                        '%s''%s'
+                    '}' % (self.result(), set_error, code.error_goto(self.pos)))
         else:
             # result_code contains what is needed, but we may need to insert
             # a check and raise an exception
