@@ -5361,8 +5361,8 @@ class ExprStatNode(StatNode):
         code.mark_pos(self.pos)
         self.expr.result_is_used = False  # hint that .result() may safely be left empty
         self.expr.generate_evaluation_code(code)
-        if not self.expr.is_temp and self.expr.result():
-            result = self.expr.result()
+        result = self.expr.result()
+        if not self.expr.is_temp and result:
             if not self.expr.type.is_void:
                 result = "(void)(%s)" % result
             code.putln("%s;" % result)

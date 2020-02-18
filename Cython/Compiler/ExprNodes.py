@@ -491,7 +491,10 @@ class ExprNode(Node):
 
     def result(self):
         if self.is_temp:
+            # TODO it's possible this safety check might be more trouble than it's worth in terms of
+            # false positives being generated. If so then remove it.
             assert not self.has_temp_moved, "Attempting to get a result that has already been moved"
+
             #if not self.temp_code:
             #    pos = (os.path.basename(self.pos[0].get_description()),) + self.pos[1:] if self.pos else '(?)'
             #    raise RuntimeError("temp result name not set in %s at %r" % (
@@ -500,8 +503,9 @@ class ExprNode(Node):
         else:
             return self.calculate_result_code()
 
-    def _make_move_result_rhs(self, result):
-        if self.is_temp and self.type.is_cpp_class:
+    def _make_move_result_rhs(self, result, allow_move=True):
+        if (self.is_temp and allow_move and
+                self.type.is_cpp_class and not self.type.is_reference):
             self.has_temp_moved = True
             return "__PYX_STD_MOVE_IF_SUPPORTED({0})".format(result)
         else:
@@ -533,7 +537,9 @@ class ExprNode(Node):
         return typecast(type, self.ctype(), self.result())
 
     def move_result_as_rhs(self, type = None):
-        return self._make_move_result_rhs(self.result_as(type))
+        allow_move = True if type is None else (not type.is_reference)
+        return self._make_move_result_rhs(self.result_as(type),
+                                          allow_move=allow_move)
 
     def py_result(self):
         #  Return the result code cast to PyObject *.
@@ -5864,8 +5870,8 @@ class SimpleCallNode(CallNode):
         expected_nargs = max_nargs - func_type.optional_arg_count
         actual_nargs = len(self.args)
         for formal_arg, actual_arg in args[:expected_nargs]:
-                arg_code = actual_arg.move_result_as_rhs(formal_arg.type)
-                arg_list_code.append(arg_code)
+            arg_code = actual_arg.move_result_as_rhs(formal_arg.type)
+            arg_list_code.append(arg_code)
 
         if func_type.is_overridable:
             arg_list_code.append(str(int(self.wrapper_call or self.function.entry.is_unbound_cmethod)))
