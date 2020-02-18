@@ -12472,7 +12472,8 @@ class CmpNode(object):
                     result_code if self.type.is_pyobject else None,
                     self.exception_value,
                     self.in_nogil_context)
-            code.putln(statement)
+            else:
+                code.putln(statement)
 
     def c_operator(self, op):
         if op == 'is':
