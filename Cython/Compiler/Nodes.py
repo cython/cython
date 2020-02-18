@@ -5078,11 +5078,29 @@ class CClassDefNode(ClassDefNode):
             return
         if entry.visibility != 'extern':
             code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-            code.putln(
-                "%s = PyType_FromSpec(&%s_spec); %s" % (
-                    typeobj_cname,
-                    typeobj_cname,
-                    code.error_goto_if_null(typeobj_cname, entry.pos)))
+            tuple_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+            base_type = scope.parent_type.base_type
+            if base_type:
+                code.putln(
+                    "%s = PyTuple_Pack(1, (PyObject *)%s); %s" % (
+                    tuple_temp,
+                    base_type.typeptr_cname,
+                    code.error_goto_if_null(tuple_temp, entry.pos)))
+                code.put_gotref(tuple_temp)
+                code.putln(
+                    "%s = PyType_FromSpecWithBases(&%s_spec, %s); %s" % (
+                        typeobj_cname,
+                        typeobj_cname,
+                        tuple_temp,
+                        code.error_goto_if_null(typeobj_cname, entry.pos)))
+                code.put_xdecref_clear(tuple_temp, type=py_object_type)
+                code.funcstate.release_temp(tuple_temp)
+            else:
+                code.putln(
+                    "%s = PyType_FromSpec(&%s_spec); %s" % (
+                        typeobj_cname,
+                        typeobj_cname,
+                        code.error_goto_if_null(typeobj_cname, entry.pos)))
             code.putln("#else")
             for slot in TypeSlots.slot_table:
                 slot.generate_dynamic_init_code(scope, code)
@@ -5227,7 +5245,11 @@ class CClassDefNode(ClassDefNode):
         # Generate code to initialise the typeptr of an extension
         # type defined in this module to point to its type object.
         if type.typeobj_cname:
-            code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
+            code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+            code.putln(
+                "%s = (PyTypeObject *)%s;" % (
+                    type.typeptr_cname, type.typeobj_cname))
+            code.putln("#else")
             code.putln(
                 "%s = &%s;" % (
                     type.typeptr_cname, type.typeobj_cname))
