@@ -4211,13 +4211,14 @@ class FastcallDictType(PyrexType):
                 utility_code=uc),
         ]
 
-    def __init__(self):
+    def __init__(self, explicitly_requested=False):
         from .Symtab import CClassScope
         super(FastcallDictType, self).__init__()
         self.scope = CClassScope("fastcalldicttype", None, "extern")
         self.scope.parent_type = self
         self.scope.directives = {}
         self.coercion_count = 0
+        self.explicitly_requested = explicitly_requested
 
         for m in self._get_methods():
             m.declare_in_type(self)
@@ -4723,6 +4724,8 @@ def _spanning_type(type1, type2):
         return widest_numeric_type(type1, c_double_type)
     elif type1.is_extension_type and type2.is_extension_type:
         return widest_extension_type(type1, type2)
+    elif type1.is_fastcall_type or type2.is_fastcall_type:
+        return _fastcall_spanning_types(type1, type2)
     elif type1.is_pyobject or type2.is_pyobject:
         return py_object_type
     elif type1.assignable_from(type2):
@@ -4773,6 +4776,17 @@ def widest_cpp_type(type1, type2):
     else:
         # Fall back to void* for now.
         return None
+
+def _fastcall_spanning_types(type1, type2):
+    from .Builtin import dict_type, tuple_type
+    if ((type1.is_fastcall_dict and type2 is dict_type) or
+        (type2.is_fastcall_dict and type1 is dict_type)):
+        return dict_type
+    elif ((type1.is_fastcall_tuple and type2 is tuple_type) or
+            (type2.is_fastcall_tuple and type1 is tuple_type)):
+        return tuple_type
+    else:
+        return py_object_type
 
 
 def simple_c_type(signed, longness, name):

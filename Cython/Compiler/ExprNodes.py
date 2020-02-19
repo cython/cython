@@ -6411,7 +6411,6 @@ class GeneralCallNode(CallNode):
             self.keyword_args = self.keyword_args.analyse_types(env)
         self.positional_args = self.positional_args.analyse_types(env)
 
-        dont_coerce_args = False
         pos_is_fastcall = (isinstance(self.positional_args, CoerceToPyTypeNode) and
                             self.positional_args.arg.type.is_fastcall_tuple)
         pos_is_empty = (isinstance(self.positional_args, TupleNode) and
@@ -6425,11 +6424,14 @@ class GeneralCallNode(CallNode):
             # worth a go at converting to a fastcall call
             if ((pos_is_fastcall or pos_is_empty) and
                 (kwds_is_fastcall or kwds_is_none)):
+                #import pdb; pdb.set_trace()
                 self.fastcallable_with_types = True
                 if pos_is_fastcall:
                     self.positional_args = self.positional_args.arg
+                    self.positional_args.type.coercion_count -= 1
                 if kwds_is_fastcall:
                     self.keyword_args = self.keyword_args.arg
+                    self.keyword_args.type.coercion_count -= 1
 
         if not self.fastcallable_with_types:
             self.positional_args = \
@@ -6593,6 +6595,7 @@ class GeneralCallNode(CallNode):
             elif self.keyword_args:  # both with args
                 code.globalstate.use_utility_code(UtilityCode.load_cached(
                     "PyObjectFastCall__ArgsKwds_OptimizedStructs", "ObjectHandling.c"))
+                #import pdb; pdb.set_trace()
                 code.putln(
                     "%s = __Pyx_PyObject_FastCallArgsKwds_structs(%s, %s, %s); %s" % (
                         self.result(),
@@ -13342,6 +13345,9 @@ class CoerceToPyTypeNode(CoercionNode):
                     arg.type.coercion_count += 1
             elif arg.type.is_fastcall_dict:
                 self.type = dict_type
+                if not arg.type.explicitly_requested:
+                    # coercion count isn't currently used for dicts but it's good to have
+                    arg.type.coercion_count += 1
         elif arg.type.is_string or arg.type.is_cpp_string:
             if (type not in (bytes_type, bytearray_type)
                     and not env.directives['c_string_encoding']):
