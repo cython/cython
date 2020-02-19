@@ -3181,9 +3181,6 @@ class DefNode(FuncDefNode):
             for decorator in self.decorators[::-1]:
                 decorator.decorator = decorator.decorator.analyse_expressions(env)
 
-        self.py_wrapper.prepare_argument_coercion(env)
-        if _get_type_attr(self.star_arg, "is_fastcall_tuple"):
-            self.star_arg.type.create_declaration_utility_code(env)
         return self
 
     def needs_assignment_synthesis(self, env, code=None):
@@ -3257,6 +3254,10 @@ class DefNode(FuncDefNode):
         else:
             arg_code = 'void'  # No arguments
         dc = self.return_type.declaration_code(self.entry.pyfunc_cname)
+
+        for arg in [self.star_arg, self.starstar_arg]:
+            if arg and arg.entry.type.is_fastcall_type:
+                arg.entry.type.create_declaration_utility_code(code.globalstate)
 
         decls_code = code.globalstate['decls']
         preprocessor_guard = self.get_preprocessor_guard()
@@ -3958,9 +3959,9 @@ class DefNodeWrapper(FuncDefNode):
                         self.starstar_arg.entry.cname,
                         self.error_value()))
                 code.put_gotref(self.starstar_arg.entry.cname)
-            # starstar case should already be set-up
         if self.star_arg:
-            is_fastcall_tuple = self.star_arg.entry.type.is_fastcall_tuple
+            is_fastcall_tuple = _get_type_attr(self.star_arg, 'is_fastcall_tuple')
+
             postfix = "" if not is_fastcall_tuple else "_struct"
 
             self.star_arg.entry.xdecref_cleanup = 0
@@ -4170,7 +4171,7 @@ class DefNodeWrapper(FuncDefNode):
         else:
             values_array = 'values'
         starstar_cname = self.starstar_arg and self.starstar_arg.entry.cname or '0'
-        if not getattr(getattr(self.starstar_arg, "type", None), "is_fastcall_dict", None):
+        if not _get_type_attr(self.starstar_arg, "is_fastcall_dict"):
             suffix = ""
         else:
             suffix = "_fastcallstruct"
