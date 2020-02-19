@@ -290,6 +290,7 @@ class FusedCFuncDefNode(StatListNode):
                     if isinstance(arg, {{py_type_name}}):
                         dest_sig[{{dest_sig_idx}}] = '{{specialized_type_name}}'; break
                 """)
+
     def _dtype_name(self, dtype):
         if dtype.is_typedef:
             return '___pyx_%s' % dtype
@@ -578,6 +579,7 @@ class FusedCFuncDefNode(StatListNode):
                     {{endif}}
                 {{endif}}
             """)
+
     def _fused_signature_index(self, pyx_code):
         """
         Generate Cython code for constructing a persistent nested dictionary index of
@@ -597,6 +599,7 @@ class FusedCFuncDefNode(StatListNode):
                         sigindex_node[sig_series[-1]] = sig
             """
         )
+
     def make_fused_cpdef(self, orig_py_func, env, is_def):
         """
         This creates the function that is indexable from Python and does
@@ -704,11 +707,14 @@ class FusedCFuncDefNode(StatListNode):
             self._buffer_declarations(pyx_code, decl_code, all_buffer_types, pythran_types)
             env.use_utility_code(Code.UtilityCode.load_cached("Import", "ImportExport.c"))
             env.use_utility_code(Code.UtilityCode.load_cached("ImportNumPyArray", "ImportExport.c"))
+
         self._fused_signature_index(pyx_code)
+
         pyx_code.put_chunk(
             u"""
                 sigindex_matches = []
                 sigindex_candidates = [_fused_sigindex]
+                
                 for dst_type in <list>dest_sig:
                     found_matches = []
                     found_candidates = []
