@@ -290,7 +290,6 @@ class FusedCFuncDefNode(StatListNode):
                     if isinstance(arg, {{py_type_name}}):
                         dest_sig[{{dest_sig_idx}}] = '{{specialized_type_name}}'; break
                 """)
-
     def _dtype_name(self, dtype):
         if dtype.is_typedef:
             return '___pyx_%s' % dtype
@@ -579,7 +578,25 @@ class FusedCFuncDefNode(StatListNode):
                     {{endif}}
                 {{endif}}
             """)
-
+    def _fused_signature_index(self, pyx_code):
+        """
+        Generate Cython code for constructing a persistent nested dictionary index of
+        fused type specialization signatures.
+        """
+        pyx_code.put_chunk(
+            u"""
+                if not _fused_sigindex:
+                    #print('Constructing fused type signature index.')
+                    for sig in <dict>signatures:
+                        sigindex_node = _fused_sigindex
+                        sig_series = sig.strip('()').split('|')
+                        for sig_type in sig_series[:-1]:
+                            if sig_type not in sigindex_node:
+                                sigindex_node[sig_type] = {}
+                            sigindex_node = sigindex_node[sig_type]
+                        sigindex_node[sig_series[-1]] = sig
+            """
+        )
     def make_fused_cpdef(self, orig_py_func, env, is_def):
         """
         This creates the function that is indexable from Python and does
@@ -616,9 +633,10 @@ class FusedCFuncDefNode(StatListNode):
 
         pyx_code.put_chunk(
             u"""
-                def __pyx_fused_cpdef(signatures, args, kwargs, defaults):
+                def __pyx_fused_cpdef(signatures, args, kwargs, defaults, *, _fused_sigindex={}):
                     # FIXME: use a typed signature - currently fails badly because
                     #        default arguments inherit the types we specify here!
+                    # FIXME: Avoid using a mutable hidden default keyword argument to make a local object persist through different function calls. (Reconstructing it every call (even from a literal) would probably incur a cost scaled to its `O(k**n)` size.)
 
                     dest_sig = [None] * {{n_fused}}
 
@@ -686,25 +704,32 @@ class FusedCFuncDefNode(StatListNode):
             self._buffer_declarations(pyx_code, decl_code, all_buffer_types, pythran_types)
             env.use_utility_code(Code.UtilityCode.load_cached("Import", "ImportExport.c"))
             env.use_utility_code(Code.UtilityCode.load_cached("ImportNumPyArray", "ImportExport.c"))
-
+        self._fused_signature_index(pyx_code)
         pyx_code.put_chunk(
             u"""
-                candidates = []
-                for sig in <dict>signatures:
-                    match_found = False
-                    src_sig = sig.strip('()').split('|')
-                    for i in range(len(dest_sig)):
-                        dst_type = dest_sig[i]
-                        if dst_type is not None:
-                            if src_sig[i] == dst_type:
-                                match_found = True
-                            else:
-                                match_found = False
-                                break
-
-                    if match_found:
-                        candidates.append(sig)
-
+                sigindex_matches = []
+                sigindex_candidates = [_fused_sigindex]
+                for dst_type in <list>dest_sig:
+                    found_matches = []
+                    found_candidates = []
+                    # Make two seperate lists: One for for signature sub-trees with at least one definite match, and another for signature sub-trees with only ambiguous matches (where `dest_sig[i] is None`).
+                    if dst_type is None:
+                        for sn in <list>sigindex_matches:
+                            found_matches.extend((<dict>sn).values())
+                        for sn in <list>sigindex_candidates:
+                            found_candidates.extend((<dict>sn).values())
+                    else:
+                        for search_list in (sigindex_matches, sigindex_candidates):
+                            for sn in <list>search_list:
+                                if dst_type in <dict>sn:
+                                    found_matches.append((<dict>sn)[dst_type])
+                    sigindex_matches = found_matches
+                    sigindex_candidates = found_candidates
+                    if not (found_matches or found_candidates):
+                        break
+                
+                candidates = sigindex_matches
+                
                 if not candidates:
                     raise TypeError("No matching signature found")
                 elif len(candidates) > 1:
