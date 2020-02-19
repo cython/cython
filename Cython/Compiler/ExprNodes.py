@@ -6874,6 +6874,10 @@ class AttributeNode(ExprNode):
             error(self.pos, "%s.type already set" % self.__name__)
         self._type = value
 
+    @type.deleter
+    def type(self):
+        del self._type
+
     def as_cython_attribute(self):
         if (isinstance(self.obj, NameNode) and
                 self.obj.is_cython_module and not
@@ -13334,6 +13338,8 @@ class CoerceToPyTypeNode(CoercionNode):
             # therefore leave as py_object_type here (but set type)
             if arg.type.is_fastcall_tuple:
                 self.type = tuple_type
+                if not arg.type.explicitly_requested:
+                    arg.type.coercion_count += 1
             elif arg.type.is_fastcall_dict:
                 self.type = dict_type
         elif arg.type.is_string or arg.type.is_cpp_string:
@@ -13381,13 +13387,6 @@ class CoerceToPyTypeNode(CoercionNode):
             code.error_goto_if_null(self.result(), self.pos)))
 
         code.put_gotref(self.py_result())
-
-        for tp in ("tuple", "dict"):
-            if (getattr(self.arg.type, "is_fastcall_%s" % tp) and
-                    self.arg.type.coercion_count == 2 and self.target_type is py_object_type):
-                msg = ("Fastcall %s argument has been coerced to a Python object at least twice "
-                        "in this function. It may be more efficient to use a regular %s argument.")
-                warning(self.pos, msg % (tp, tp), 1)
 
 
 class CoerceIntToBytesNode(CoerceToPyTypeNode):
@@ -13440,7 +13439,7 @@ class CoerceFromPyTypeNode(CoercionNode):
         self.is_temp = 1
         if not result_type.create_from_py_utility_code(env):
             error(arg.pos,
-                  "Cannot convert Python object to '%s'" % result_type)
+                "Cannot convert Python object to '%s'" % result_type)
         if self.type.is_string or self.type.is_pyunicode_ptr:
             if self.arg.is_name and self.arg.entry and self.arg.entry.is_pyglobal:
                 warning(arg.pos,

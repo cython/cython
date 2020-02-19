@@ -189,6 +189,7 @@ class MarkParallelAssignments(EnvTransform):
 
     def visit_DefNode(self, node):
         # use fake expressions with the right result type
+        # TODO does this need to account for fastcall args?
         if node.star_arg:
             self.mark_assignment(
                 node.star_arg, TypedExprNode(Builtin.tuple_type, node.pos))

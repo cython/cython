@@ -4138,9 +4138,10 @@ class FastcallTupleType(PyrexType):
     is_fastcall_tuple = 1
     declaration_value = "{}"
 
-    def __init__(self):
+    def __init__(self, explicitly_requested=False):
         super(FastcallTupleType, self).__init__()
         self.coercion_count = 0
+        self.explicitly_requested = explicitly_requested
 
     def create_declaration_utility_code(self, env):
         env.use_utility_code(UtilityCode.load_cached('fastcall_tuple', 'FunctionArguments.c'))
@@ -4159,9 +4160,9 @@ class FastcallTupleType(PyrexType):
     def to_py_call_code(self, source_code, result_code, result_type, to_py_function=None):
         # TODO maybe something cleverer with result_type
         from .Builtin import tuple_type
-        if result_type is not tuple_type:
-            # this is an explicit conversion so don't generate warnings
-            self.coercion_count += 1
+        #if (result_type is not tuple_type) and (not self.explicitly_requested):
+            # tuple_type indicates that the conversion was requested by the user
+        #    self.coercion_count += 1
         return "{0} = __Pyx_FastcallTuple_ToTuple({1})".format(result_code, source_code)
 
     def literal_code(self, value):

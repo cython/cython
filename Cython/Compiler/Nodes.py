@@ -5582,7 +5582,6 @@ class SingleAssignmentNode(AssignmentNode):
                 # cannot assign to C array, only to its full slice
                 self.lhs = ExprNodes.SliceIndexNode(self.lhs.pos, base=self.lhs, start=None, stop=None)
                 self.lhs = self.lhs.analyse_target_types(env)
-
         if self.lhs.type.is_cpp_class:
             op = env.lookup_operator_for_types(self.pos, '=', [self.lhs.type, self.rhs.type])
             if op:

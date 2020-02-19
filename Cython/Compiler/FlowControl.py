@@ -362,6 +362,7 @@ class StaticAssignment(NameAssignment):
 class Argument(NameAssignment):
     def __init__(self, lhs, rhs, entry):
         NameAssignment.__init__(self, lhs, rhs, entry)
+        #if entry.name == "args":
         self.is_arg = True
 
 
@@ -717,14 +718,18 @@ class ControlFlowAnalysis(CythonTransform):
 
         for arg in node.args:
             self._visit(arg)
+        # TODO a better version would try to identify if the argument makes it into the closure,
+        # but for now just block using the fastcall types on any function with a closure
         if node.star_arg:
+            star_type = Builtin.tuple_type if node.needs_closure else PyrexTypes.FastcallTupleType()
             self.flow.mark_argument(node.star_arg,
-                                    TypedExprNode(Builtin.tuple_type,
+                                    TypedExprNode(star_type,
                                                   may_be_none=False),
                                     node.star_arg.entry)
         if node.starstar_arg:
+            starstar_type = Builtin.dict_type if node.needs_closure else PyrexTypes.FastcallDictType()
             self.flow.mark_argument(node.starstar_arg,
-                                    TypedExprNode(Builtin.dict_type,
+                                    TypedExprNode(starstar_type,
                                                   may_be_none=False),
                                     node.starstar_arg.entry)
         self._visit(node.body)
