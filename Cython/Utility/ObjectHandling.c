@@ -1903,19 +1903,29 @@ bad:
 #endif
 
 /////////////// PyObjectFastCall.proto ///////////////
+//@requires: PyObjectFastCallKwds
 
-static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCall(PyObject *func, PyObject **args, Py_ssize_t nargs); /*proto*/
+#define __Pyx_PyObject_FastCall(func, args, nargs) __Pyx_PyObject_FastCallKwds(func, args, nargs, NULL)
 
-/////////////// PyObjectFastCall ///////////////
+/////////////// PyObjectFastCallKwds.proto //////////////////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallKwds_Impl(PyObject *func, PyObject **args, Py_ssize_t nargs, PyObject* kwnames, int kwds_in_dict); /*proto*/
+#define __Pyx_PyObject_FastCallKwds(func, args, nargs, kwnames) __Pyx_PyObject_FastCallKwds_Impl(func, args, nargs, kwnames, 0)
+// a second best option for when we only have the keywords in dict form
+#define __Pyx_PyObject_FastCallKwdsDict(func, args, nargs, kwdict) __Pyx_PyObject_FastCallKwds_Impl(func, args, nargs, kwdict, 1)
+
+/////////////// PyObjectFastCallKwds //////////////////////////////
+//@requires: FunctionArguments.c::fastcall
 //@requires: PyObjectCall
 //@requires: PyFunctionFastCall
 //@requires: PyVectorcallNargs
+//@requires: TupleAndListFromArray
 //@requires: PyObjectCallMethO
 //@substitute: naming
 
-static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCall_fallback(PyObject *func, PyObject **args, Py_ssize_t nargs) {
+static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallKwds_fallback(PyObject *func, PyObject *const *args, Py_ssize_t nargs, PyObject* kwds, int kwds_in_dict) {
     PyObject *argstuple;
-    PyObject *result;
+    PyObject *result = NULL;
     Py_ssize_t i;
 
     argstuple = PyTuple_New(nargs);
@@ -1924,12 +1934,20 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCall_fallback(PyObject *func, 
         Py_INCREF(args[i]);
         PyTuple_SET_ITEM(argstuple, i, args[i]);
     }
-    result = __Pyx_PyObject_Call(func, argstuple, NULL);
+    if (!kwds_in_dict && kwds) {
+        kwds = __Pyx_KwargsAsDict_FASTCALL(kwds, args+nargs);
+        if (!kwds) goto bad;
+    }
+    result = __Pyx_PyObject_Call(func, argstuple, kwds);
+    if (!kwds_in_dict && kwds) {
+        Py_DECREF(kwds);
+    }
+    bad:
     Py_DECREF(argstuple);
     return result;
 }
 
-static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCall(PyObject *func, PyObject **args, Py_ssize_t nargs) {
+static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallKwds_Impl(PyObject *func, PyObject **args, Py_ssize_t nargs, PyObject* kwds, int kwds_in_dict) {
     // nargs can have PY_VECTORCALL_ARGUMENTS_OFFSET flag, and this should be preserved
     //
     // Special fast paths for 0 and 1 arguments
@@ -1938,7 +1956,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCall(PyObject *func, PyObject 
     // be optimized away.
     Py_ssize_t actual_nargs = __Pyx_PyVectorcall_NARGS(nargs);
 #if CYTHON_COMPILING_IN_CPYTHON
-    if (actual_nargs == 0) {
+    if ((actual_nargs == 0) && (kwds == NULL)) {
 #ifdef __Pyx_CyFunction_USED
         if (PyCFunction_Check(func) || __Pyx_CyFunction_Check(func))
 #else
@@ -1950,7 +1968,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCall(PyObject *func, PyObject 
             }
         }
     }
-    else if (actual_nargs == 1) {
+    else if ((actual_nargs == 1)  && (kwds == NULL)) {
         if (PyCFunction_Check(func))
         {
             if (likely(PyCFunction_GET_FLAGS(func) & METH_O)) {
@@ -1962,138 +1980,43 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCall(PyObject *func, PyObject 
 
     #if PY_VERSION_HEX < 0x030800B1
     #if CYTHON_FAST_PYCCALL && PY_VERSION_HEX >= 0x030700A1
-    if (PyCFunction_Check(func)) {
-        return _PyCFunction_FastCallKeywords(func, args, nargs, NULL);
+    if (PyCFunction_Check(func) && (!kwds_in_dict || kwds == NULL)) {
+        return _PyCFunction_FastCallKeywords(func, args, nargs, kwds);
     }
-    if (Py_TYPE(func) == &PyMethodDescr_Type) {
-        return _PyMethodDescr_FastCallKeywords(func, args, nargs, NULL);
+    if (Py_TYPE(func) == &PyMethodDescr_Type && (!kwds_in_dict || kwds == NULL)) {
+        return _PyMethodDescr_FastCallKeywords(func, args, nargs, kwds);
     }
     #elif CYTHON_FAST_PYCCALL
-    if (PyCFunction_Check(func)) {
+    if (PyCFunction_Check(func) && (kwds_in_dict || kwds == NULL)) {
         return _PyCFunction_FastCallDict(func, args, nargs, NULL);
     }
     #endif
     #if CYTHON_FAST_PYCALL
-    if (PyFunction_Check(func)) {
-        return __Pyx_PyFunction_FastCall(func, args, actual_nargs);
+    if (PyFunction_Check(func) && (kwds_in_dict || kwds == NULL)) {
+        return __Pyx_PyFunction_FastCallDict(func, args, actual_nargs, kwds);
     }
     #endif
     #endif
 
-    #if CYTHON_VECTORCALL
-    vectorcallfunc f = _PyVectorcall_Function(func);
-    if (f) {
-        return f(func, args, nargs, NULL);
-    }
-    #elif __Pyx_CyFunction_USED && CYTHON_BACKPORT_VECTORCALL
-    // exclude fused functions for now
-    if (Py_TYPE(func) == __pyx_CyFunctionType) {
-        __pyx_vectorcallfunc f = __Pyx_CyFunction_func_vectorcall(func);
-        if (f) return f(func, args, nargs, NULL);
-    }
-    #endif
-
-    if (actual_nargs == 0) {
-        return __Pyx_PyObject_Call(func, $empty_tuple, NULL);
-    }
-    return __Pyx_PyObject_FastCall_fallback(func, args, actual_nargs);
-}
-
-/////////////// PyObjectFastCallKwds.proto //////////////////////////////
-
-static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallKwds(PyObject *func, PyObject **args, Py_ssize_t nargs, PyObject* kwnames); /*proto*/
-// a second best option for when we only have the keywords in dict form
-static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallKwdsDict(PyObject *func, PyObject **args, Py_ssize_t nargs, PyObject* kwdict); /* proto*/
-
-/////////////// PyObjectFastCallKwds //////////////////////////////
-//@requires: FunctionArguments.c::fastcall
-//@requires: PyObjectCall
-//@requires: PyFunctionFastCall
-//@requires: PyVectorcallNargs
-//@requires: PyObjectFastCall
-//@requires: TupleAndListFromArray
-
-static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallKwds_fallback(PyObject *func, PyObject *const *args, Py_ssize_t nargs, PyObject* kwnames) {
-    PyObject *argstuple;
-    PyObject *result = NULL;
-    Py_ssize_t i;
-
-    argstuple = PyTuple_New(nargs);
-    if (unlikely(!argstuple)) return NULL;
-    for (i = 0; i < nargs; i++) {
-        Py_INCREF(args[i]);
-        PyTuple_SET_ITEM(argstuple, i, args[i]);
-    }
-    PyObject* kwargs_dict = __Pyx_KwargsAsDict_FASTCALL(kwnames, args+nargs);
-    if (kwargs_dict) {
-        result = __Pyx_PyObject_Call(func, argstuple, kwargs_dict);
-        Py_DECREF(kwargs_dict);
-    }
-    Py_DECREF(argstuple);
-    return result;
-}
-
-static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallKwdsDict(PyObject *func, PyObject **args, Py_ssize_t nargs, PyObject* kwdict) {
-    if (kwdict == NULL) {
-        return __Pyx_PyObject_FastCall(func, args, nargs);
+    if (!kwds_in_dict || kwds == NULL) {
+        #if CYTHON_VECTORCALL
+        vectorcallfunc f = _PyVectorcall_Function(func);
+        if (f) {
+            return f(func, args, nargs, kwds);
+        }
+        #elif __Pyx_CyFunction_USED && CYTHON_BACKPORT_VECTORCALL
+        // exclude fused functions for now
+        if (Py_TYPE(func) == __pyx_CyFunctionType) {
+            __pyx_vectorcallfunc f = __Pyx_CyFunction_func_vectorcall(func);
+            if (f) return f(func, args, nargs, kwds);
+        }
+        #endif
     }
 
-    #if PY_VERSION_HEX < 0x030800B1
-    #if CYTHON_FAST_PYCCALL
-    if (PyCFunction_Check(func)) {
-        return _PyCFunction_FastCallDict(func, args, nargs, kwdict);
+    if (actual_nargs == 0 && kwds_in_dict) {
+        return __Pyx_PyObject_Call(func, $empty_tuple, kwds);
     }
-    #endif
-    #if CYTHON_FAST_PYCALL
-    if (PyFunction_Check(func)) {
-        return __Pyx_PyFunction_FastCallDict(func, args, nargs, kwdict);
-    }
-    #endif
-    #endif
-
-    #if CYTHON_VECTORCALL
-    return _PyObject_FastCallDict(func, args, nargs, kwdict);
-    #endif
-    // very simple fallback
-    PyObject* args_as_vector = __Pyx_PyTuple_FromArray(args, nargs);
-    if (!args_as_vector) return NULL;
-    PyObject* result = __Pyx_PyObject_Call(func, args_as_vector, kwdict);
-    Py_DECREF(args_as_vector);
-    return result;
-}
-
-static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallKwds(PyObject *func, PyObject **args, Py_ssize_t nargs, PyObject* kwnames) {
-    if (kwnames == NULL) {
-        return __Pyx_PyObject_FastCall(func, args, nargs);
-    }
-    // kwnames should be a tuple
-
-    #if PY_VERSION_HEX < 0x030800B1
-    #if CYTHON_FAST_PYCCALL && PY_VERSION_HEX >= 0x030700A1
-    if (PyCFunction_Check(func)) {
-        return _PyCFunction_FastCallKeywords(func, args, nargs, kwnames);
-    }
-    if (Py_TYPE(func) == &PyMethodDescr_Type) {
-        return _PyMethodDescr_FastCallKeywords(func, args, nargs, kwnames);
-    }
-    #endif
-    #endif
-
-    #if CYTHON_VECTORCALL
-    vectorcallfunc f = _PyVectorcall_Function(func);
-    if (f) {
-        return f(func, args, nargs, kwnames);
-    }
-    #elif __Pyx_CyFunction_USED && CYTHON_BACKPORT_VECTORCALL
-    // exclude fused functions for now
-    if (Py_TYPE(func) == __pyx_CyFunctionType) {
-        __pyx_vectorcallfunc f = __Pyx_CyFunction_func_vectorcall(func);
-        if (f) return f(func, args, nargs, kwnames);
-    }
-    #endif
-
-    Py_ssize_t actual_nargs = __Pyx_PyVectorcall_NARGS(nargs);
-    return __Pyx_PyObject_FastCallKwds_fallback(func, args, actual_nargs, kwnames);
+    return __Pyx_PyObject_FastCallKwds_fallback(func, args, actual_nargs, kwds, kwds_in_dict);
 }
 
 /////////////// PyObjectFastCall__Args_OptimizedStructs.proto ///////////////
