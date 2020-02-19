@@ -4148,7 +4148,7 @@ class FastcallTupleType(PyrexType):
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
-        return "__Pyx_FastcallTuple_obj {0}".format(entity_code)
+        return "__Pyx_FastcallTuple_obj %s" % entity_code
 
     def create_to_py_utility_code(self, env):
         # code is in declaration code
@@ -4163,7 +4163,7 @@ class FastcallTupleType(PyrexType):
         #if (result_type is not tuple_type) and (not self.explicitly_requested):
             # tuple_type indicates that the conversion was requested by the user
         #    self.coercion_count += 1
-        return "{0} = __Pyx_FastcallTuple_ToTuple({1})".format(result_code, source_code)
+        return "%s = __Pyx_FastcallTuple_ToTuple(%s)" % (result_code, source_code)
 
     def literal_code(self, value):
         assert value in ("0", "{}")  # only know how to handle empty literals
@@ -4231,9 +4231,9 @@ class FastcallDictType(PyrexType):
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
         if not self.as_value:
-            return "__Pyx_FastcallDict_obj* {0}".format(entity_code)
+            return "__Pyx_FastcallDict_obj* %s" % entity_code
         else:
-            return "__Pyx_FastcallDict_obj {0}".format(entity_code)
+            return "__Pyx_FastcallDict_obj %s" % entity_code
 
     def create_to_py_utility_code(self, env):
         env.use_utility_code(UtilityCode.load_cached('fastcall_dict_convert',
@@ -4246,10 +4246,10 @@ class FastcallDictType(PyrexType):
     def to_py_call_code(self, source_code, result_code, result_type, to_py_function=None):
         from .Builtin import dict_type
         if result_type is dict_type:
-            return "{0} = __Pyx_FastcallDict_ToDict_Explicit({1})".format(result_code, source_code)
+            return "%s = __Pyx_FastcallDict_ToDict_Explicit(%s)" % (result_code, source_code)
         else:
             self.coercion_count += 1
-            return "{0} = __Pyx_FastcallDict_ToDict({1})".format(result_code, source_code)
+            return "%s = __Pyx_FastcallDict_ToDict(%s)" % (result_code, source_code)
 
     # different instances are created just to hold a different "coercion_count" for each
     # function. However, it's useful for looking up the type if they compare equal

@@ -754,11 +754,14 @@ static CYTHON_INLINE void __Pyx_copy_object_array(PyObject *const *CYTHON_RESTRI
     }
 }
 #else
-static CYTHON_INLINE void __Pyx_fill_sequence_from_array(PyObject *const *src, PyObject* dest, Py_ssize_t length) {
+static CYTHON_INLINE int __Pyx_fill_sequence_from_array(PyObject *const *src, PyObject* dest, Py_ssize_t length) {
     Py_ssize_t i;
     for (i = 0; i < length; i++) {
-        PySequence_SetItem(dest, i, src[i]);
+        if (PySequence_SetItem(dest, i, src[i]) != 0) {
+            return -1;
+        }
     }
+    return 0;
 }
 #endif
 
@@ -775,7 +778,9 @@ __Pyx_PyTuple_FromArray(PyObject *const *src, Py_ssize_t n)
 #if CYTHON_COMPILING_IN_CPYTHON
     __Pyx_copy_object_array(src, ((PyTupleObject*)res)->ob_item, n);
 #else
-    __Pyx_fill_sequence_from_array(src, res, n);
+    if (__Pyx_fill_sequence_from_array(src, res, n) != 0) {
+        Py_CLEAR(res);
+    }
 #endif
     return res;
 }
@@ -792,7 +797,9 @@ __Pyx_PyList_FromArray(PyObject *const *src, Py_ssize_t n)
 #if CYTHON_COMPILING_IN_CPYTHON
     __Pyx_copy_object_array(src, ((PyListObject*)res)->ob_item, n);
 #else
-    __Pyx_fill_sequence_from_array(src, res, n);
+    if (__Pyx_fill_sequence_from_array(src, res, n) != 0) {
+        Py_CLEAR(res);
+    }
 #endif
     return res;
 }

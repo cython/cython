@@ -2719,7 +2719,16 @@ class DecoratorNode(Node):
     child_attrs = ['decorator']
 
 def _get_type_attr(arg, attr):
-    return getattr(getattr(arg, "type", None), attr, None)
+    if isinstance(arg, PyArgDeclNode):
+        attrs = ["entry", "type", attr]
+    else:
+        # CArgDeclNode
+        attrs = ["type", attr]
+    for a in attrs:
+        arg = getattr(arg, a, None)
+        if arg is None:
+            break
+    return arg
 
 class DefNode(FuncDefNode):
     # A Python function definition.
@@ -3955,7 +3964,7 @@ class DefNodeWrapper(FuncDefNode):
             postfix = "" if not is_fastcall_tuple else "_struct"
 
             self.star_arg.entry.xdecref_cleanup = 0
-            if max_positional_args == 0:
+            if max_positional_args == 0 and not is_fastcall_tuple:
                 # If there are no positional arguments, use the args tuple
                 # directly
                 assert not self.signature.use_fastcall

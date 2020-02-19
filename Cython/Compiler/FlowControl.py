@@ -726,7 +726,12 @@ class ControlFlowAnalysis(CythonTransform):
                                                   may_be_none=False),
                                     node.star_arg.entry)
         if node.starstar_arg:
-            starstar_type = Builtin.dict_type if node.needs_closure else PyrexTypes.FastcallDictType()
+            # If the wrapping function doesn't have a fastcall signature there's
+            # no value in using FastcallDictType - it only adds a layer of indirection
+            # (this doesn't apply for FastcallTupleType, which might offer small benefits
+            # however called)
+            starstar_type = (Builtin.dict_type if (node.needs_closure and node.entry.signature.use_fastcall)
+                                else PyrexTypes.FastcallDictType())
             self.flow.mark_argument(node.starstar_arg,
                                     TypedExprNode(starstar_type,
                                                   may_be_none=False),

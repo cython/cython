@@ -487,8 +487,9 @@ static CYTHON_INLINE PyObject *__Pyx_FastcallTuple_ToTuple(__Pyx_FastcallTuple_o
 #if CYTHON_METH_FASTCALL
     static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_ArgsSlice_FASTCALL_struct(PyObject *const *args, Py_ssize_t start, Py_ssize_t stop);
 #else
-    static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_ArgsSlice_FASTCALL_struct(PyObject *args, Py_ssize_t start, Py_ssize_t stop);
+#define __Pyx_ArgsSlice_FASTCALL_struct(PyObject *args, Py_ssize_t start, Py_ssize_t stop) __Pyx_ArgsSlice_VARARGS_struct(args, start, stop)
 #endif
+static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_ArgsSlice_VARARGS_struct(PyObject *args, Py_ssize_t start, Py_ssize_t stop);
 
 // no type-checking - used for conversion in function call
 static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_FastcallTuple_FromTuple(PyObject* o);
@@ -534,8 +535,9 @@ static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_ArgsSlice_FASTCALL_struct(PyO
 #endif
     return __Pyx_FastcallTuple_New(args+start, nargs);
 }
-#else // CYTHON_METH_FASTCALL
-static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_ArgsSlice_FASTCALL_struct(PyObject *args, Py_ssize_t start, Py_ssize_t stop) {
+#endif // CYTHON_METH_FASTCALL
+
+static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_ArgsSlice_VARARGS_struct(PyObject *args, Py_ssize_t start, Py_ssize_t stop) {
     __Pyx_FastcallTuple_obj out = __Pyx_FastcallTuple_FromTuple(args);
 #if CYTHON_COMPILING_IN_CPYTHON
     out.args += start;
@@ -545,8 +547,7 @@ static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_ArgsSlice_FASTCALL_struct(PyO
     out.end_idx = stop;
 #endif
     return out;
-    }
-#endif
+}
 
 static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_FastcallTuple_FromTuple(PyObject* o) {
 #if !CYTHON_COMPILING_IN_CPYTHON
