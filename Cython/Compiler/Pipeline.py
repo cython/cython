@@ -210,7 +210,6 @@ def create_pipeline(context, mode, exclude_classes=()):
         _check_c_declarations,
         InlineDefNodeCalls(context),
         AnalyseExpressionsTransform(context),
-        PrintTree(),
         FindInvalidUseOfFusedTypes(context),
         ExpandInplaceOperators(context),
         IterationTransform(context),

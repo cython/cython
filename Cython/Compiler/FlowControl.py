@@ -362,7 +362,6 @@ class StaticAssignment(NameAssignment):
 class Argument(NameAssignment):
     def __init__(self, lhs, rhs, entry):
         NameAssignment.__init__(self, lhs, rhs, entry)
-        #if entry.name == "args":
         self.is_arg = True
 
 
