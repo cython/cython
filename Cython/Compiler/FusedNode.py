@@ -636,10 +636,14 @@ class FusedCFuncDefNode(StatListNode):
 
         pyx_code.put_chunk(
             u"""
-                def __pyx_fused_cpdef(signatures, args, kwargs, defaults, *, _fused_sigindex={}):
+                def __pyx_fused_cpdef(signatures, args, kwargs, defaults, *, _fused_sigindex=(None,)):
                     # FIXME: use a typed signature - currently fails badly because
                     #        default arguments inherit the types we specify here!
                     # FIXME: Avoid using a mutable hidden default keyword argument to make a local object persist through different function calls. (Reconstructing it every call (even from a literal) would probably incur a cost scaled to its `O(k**n)` size.)
+                
+                    #print('Incoming cpdef arguments: '+str(args)+' '+str(kwargs)+' '+str(defaults))
+                    
+                    _fused_sigindex = {}# _fused_sigindex[0]
 
                     dest_sig = [None] * {{n_fused}}
 
@@ -715,33 +719,38 @@ class FusedCFuncDefNode(StatListNode):
                 sigindex_matches = []
                 sigindex_candidates = [_fused_sigindex]
                 
-                for dst_type in <list>dest_sig:
+                #print('Argument signature: '+str(dest_sig))
+                
+                for dst_type in dest_sig:
                     found_matches = []
                     found_candidates = []
                     # Make two seperate lists: One for for signature sub-trees with at least one definite match, and another for signature sub-trees with only ambiguous matches (where `dest_sig[i] is None`).
                     if dst_type is None:
-                        for sn in <list>sigindex_matches:
-                            found_matches.extend((<dict>sn).values())
-                        for sn in <list>sigindex_candidates:
-                            found_candidates.extend((<dict>sn).values())
+                        for sn in sigindex_matches:
+                            found_matches.extend((sn).values())
+                        for sn in sigindex_candidates:
+                            found_candidates.extend((sn).values())
                     else:
                         for search_list in (sigindex_matches, sigindex_candidates):
-                            for sn in <list>search_list:
-                                if dst_type in <dict>sn:
-                                    found_matches.append((<dict>sn)[dst_type])
+                            for sn in search_list:
+                                if dst_type in sn:
+                                    found_matches.append((sn)[dst_type])
                     sigindex_matches = found_matches
                     sigindex_candidates = found_candidates
                     if not (found_matches or found_candidates):
                         break
                 
                 candidates = sigindex_matches
+                #print('Matching cpdef signatures: '+str(candidates))
                 
                 if not candidates:
                     raise TypeError("No matching signature found")
                 elif len(candidates) > 1:
                     raise TypeError("Function call with ambiguous argument types")
                 else:
-                    return (<dict>signatures)[candidates[0]]
+                    result = (signatures)[candidates[0]]
+                    #print('Result: '+str(result))
+                    return result
             """)
 
         fragment_code = pyx_code.getvalue()
