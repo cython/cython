@@ -2121,6 +2121,9 @@ class CCodeWriter(object):
     def put_incref(self, cname, type, nanny=True, have_gil=False):
         self.putln(type.generate_incref(cname, nanny=nanny, have_gil=have_gil))
 
+    def put_xincref(self, cname, type, nanny=True, have_gil=False):
+        self.putln(type.generate_xincref(cname, nanny=nanny, have_gil=have_gil))
+
     def put_decref(self, cname, type, nanny=True):
         self.putln(type.generate_decref(cname, nanny=nanny))
 
@@ -2140,7 +2143,7 @@ class CCodeWriter(object):
         self.put_incref(entry.cname, entry.type, nanny=nanny, have_gil=have_gil)
 
     def put_var_xincref(self, entry):
-        self.put_xdecref(entry.cname, entry.type)
+        self.put_xincref(entry.cname, entry.type)
 
     def put_decref_clear(self, cname, type, nanny=True, clear_before_decref=False,
                                have_gil=False):

@@ -360,7 +360,7 @@ class PyrexType(BaseType):
         else:
             return "%s = %s" % (cname, rhs_cname)
 
-    generate_incref = generate_decref = generate_xdecref \
+    generate_incref = generate_xincref = generate_decref = generate_xdecref \
         = generate_decref_clear = generate_xdecref_clear \
         = generate_gotref = generate_xgotref = generate_giveref = generate_xgiveref \
         = generate_nullcheck \
@@ -1255,6 +1255,12 @@ class PyObjectType(PyrexType):
             return "__Pyx_INCREF(%s);" % self.as_pyobject(cname)
         else:
             return "Py_INCREF(%s);" % self.as_pyobject(cname)
+
+    def generate_xincref(self, cname, nanny, have_gil):
+        if nanny:
+            return "__Pyx_XINCREF(%s);" % self.as_pyobject(cname)
+        else:
+            return "Py_XINCREF(%s);" % self.as_pyobject(cname)
 
     def generate_decref(self, cname, nanny):
         return self._generate_decref(cname, nanny, null_check=False, clear=False)
