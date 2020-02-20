@@ -4256,7 +4256,8 @@ class FastcallTupleType(PyrexType):
     """
 
     is_fastcall_tuple = 1
-    declaration_value = "{}"
+    declaration_value = "__Pyx_FastcallTuple_Empty"
+    needs_xxxref = 1
 
     @property
     def nearest_python_type(self):
@@ -4309,6 +4310,30 @@ class FastcallTupleType(PyrexType):
         return hash(type(self))
     def __eq__(self, rhs):
         return type(self) == type(rhs)
+
+    def generate_gotref(self, cname):
+        return "__Pyx_FastcallTuple_GOTREF(%s);" % cname
+
+    def generate_incref(self, cname, **ignored_kwds):
+        return "__Pyx_FastcallTuple_INCREF(%s);" % cname
+
+    def generate_xincref(self, cname, **ignored_kwds):
+        return "__Pyx_FastcallTuple_XINCREF(%s);" % cname
+
+    def generate_xdecref(self, cname, **ignored_kwds):
+        return "__Pyx_FastcallTuple_XDECREF(%s);" % cname
+
+    def generate_decref_set(self, cname, rhs_cname):
+        return "__Pyx_FastcallTuple_DECREF_SET(%s, %s);" % (cname, rhs_cname)
+
+    def generate_xdecref_set(self, cname, rhs_cname):
+        return "__Pyx_FastcallTuple_XDECREF_SET(%s, %s);" % (cname, rhs_cname)
+
+    def generate_decref_clear(self, cname, **ignored_kwds):
+        return "__Pyx_FastcallTuple_CLEAR(%s);" % cname
+
+    def generate_nullcheck(self, cname):
+        return "__Pyx_FastcallTuple_NULLCHECK(%s)" % cname
 
 class FastcallDictType(PyrexType):
     """Represents an optimized dict-like type for "**kwds"

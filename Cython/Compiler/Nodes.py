@@ -3725,7 +3725,7 @@ class DefNodeWrapper(FuncDefNode):
                 code.putln("%s = %s;" % (
                     self.star_arg.entry.cname,
                     Naming.args_cname))
-                self.star_arg.entry.xdecref_cleanup = 0
+            self.star_arg.entry.xdecref_cleanup = 0
 
     def generate_tuple_and_keyword_parsing_code(self, args, success_label, code):
         code.globalstate.use_utility_code(

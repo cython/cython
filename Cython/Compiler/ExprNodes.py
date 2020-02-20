@@ -2331,7 +2331,7 @@ class NameNode(AtomicExprNode):
                 # per entry and coupled with it.
                 self.generate_acquire_buffer(rhs, code)
             assigned = False
-            if self.type.is_pyobject:
+            if self.type.is_pyobject or self.type.is_fastcall_type:
                 #print "NameNode.generate_assignment_code: to", self.name ###
                 #print "...from", rhs ###
                 #print "...LHS type", self.type, "ctype", self.ctype() ###
@@ -5099,17 +5099,17 @@ class SliceIndexNode(ExprNode):
                     bool(code.globalstate.directives['wraparound']),
                     code.error_goto_if_null(result, self.pos)))
         elif self.type.is_fastcall_tuple:
-            # utilitycode should already be included
+            code.globalstate.use_utility_code(UtilityCode.load_cached(
+                "fastcall_tuple_slice", "FunctionArguments.c"))
             (has_c_start, has_c_stop, c_start, c_stop,
              py_start, py_stop, py_slice) = self.get_slice_config()
             code.putln(
-                "%s = __Pyx_FastcallTuple_SliceIndex(%s, %s, %s, %d); %s" % (
+                "%s = __Pyx_FastcallTuple_GetSlice(%s, %s, %s, %d); %s" % (
                     result,
                     self.base.result(),
                     c_start, c_stop,
                     bool(code.globalstate.directives['wraparound']),
-                    code.error_goto_if_null("{0}.args".format(result), self.pos)))
-            return  # deliberately skip the "gotref"
+                    code.error_goto_if_null(self.type.generate_nullcheck(result), self.pos)))
         else:
             if self.base.type is list_type:
                 code.globalstate.use_utility_code(
