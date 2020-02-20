@@ -1348,7 +1348,7 @@ static PyType_Slot __pyx_FusedFunctionType_slots[] = {
     {Py_tp_members, (void *)__pyx_FusedFunction_members},
     {Py_tp_getset, (void *)__pyx_CyFunction_getsets},
     {Py_tp_descr_get, (void *)__pyx_FusedFunction_descr_get},
-    {Py_mp_ass_subscript, (void *)__pyx_FusedFunction_getitem},
+    {Py_mp_subscript, (void *)__pyx_FusedFunction_getitem},
     {0, 0},
 };
 
