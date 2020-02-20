@@ -136,6 +136,8 @@ type_dict_guard_temp = pyrex_prefix + "type_dict_guard"
 cython_runtime_cname   = pyrex_prefix + "cython_runtime"
 cyfunction_type_cname = pyrex_prefix + "CyFunctionType"
 fusedfunction_type_cname = pyrex_prefix + "FusedFunctionType"
+fused_cpdef_globalindex = pyrex_prefix + "fusedcpdef_sigindices"
+fused_cpdef_globalindex_prefix = pyrex_prefix + "fusedcpdef_sigindex_"
 
 global_code_object_cache_find = pyrex_prefix + 'find_code_object'
 global_code_object_cache_insert = pyrex_prefix + 'insert_code_object'

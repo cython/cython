@@ -4,29 +4,10 @@ import copy
 
 from . import (ExprNodes, PyrexTypes, MemoryView,
                ParseTreeTransforms, StringEncoding, Errors)
+from .Naming import fused_cpdef_globalindex, fused_cpdef_globalindex_prefix
 from .ExprNodes import CloneNode, ProxyNode, TupleNode
 from .Nodes import FuncDefNode, CFuncDefNode, StatListNode, DefNode
 from ..Utils import OrderedSet
-
-
-def _gen_unique_values():
-    """
-    Generator that will never return the same value twice in one instantiation.
-    Used by `_get_unique_identifier_base()` to avoid dict key collisions. Should
-    avert all key collisions there, provided that (1) a module can only be compiled
-    in one piece, (2) this module can only be loaded once per compilation of another
-    module, and (3) `globals()` never returns any namespace that is more general than
-    that of the module where it is called.
-    """
-    i = 0
-    while True:
-        yield i
-        i += 1
-
-_unique_value_gen = _gen_unique_values()
-
-def get_unique_value():
-    return next(_unique_value_gen)
 
 
 class FusedCFuncDefNode(StatListNode):
@@ -607,7 +588,6 @@ class FusedCFuncDefNode(StatListNode):
         """
         pyx_code.put_chunk(
             u"""
-                # CONSTRUCTING NESTED DICTIONARY INDEX OF SPECIALIZED SIGNATURES
                 if not _fused_sigindex:
                     for sig in <dict>signatures:
                         sigindex_node = _fused_sigindex
@@ -619,30 +599,7 @@ class FusedCFuncDefNode(StatListNode):
                         sigindex_node[sig_series[-1]] = sig
             """
         )
-    def _get_unique_identifier_base(self):
-        """
-        Try to generate a unique identifier string that will likely
-        never be repeated for different nodes, in different processes,
-        on different machines, or in different projects.
-        """
-        import time, random, sys
-        return '{seq!s}-{time_ns!s}-{id!s}-{randint!s}'.format(
-            seq = get_unique_value(),
-            time_ns = int(time.time() * 1e9),
-            id = id(self),
-            randint = random.randint(0, sys.maxsize-1)
-        )
-    def _fused_sigindex_key(self, pyx_code):
-        """
-        Generate Cython code for creating a key that should uniquely
-        identify this particular function in this particular
-        interpreter session in the signature index.
-        """
-        pyx_code.put_chunk(
-            u"""
-                func_sigindex_key = '{{func_sigindex_keybase}}-{{name}}'
-            """
-        )
+
     def make_fused_cpdef(self, orig_py_func, env, is_def):
         """
         This creates the function that is indexable from Python and does
@@ -760,24 +717,23 @@ class FusedCFuncDefNode(StatListNode):
             env.use_utility_code(Code.UtilityCode.load_cached("ImportNumPyArray", "ImportExport.c"))
         
         context.update(
-            global_sigindex_name = "'__cython__fusedcpdef__sigindices'",
-            func_sigindex_keybase = self._get_unique_identifier_base()
+            global_sigindex_name = fused_cpdef_globalindex,
+            func_sigindex_key = env.mangle(fused_cpdef_globalindex_prefix, orig_py_func.entry.cname)
         )
-        
-        self._fused_sigindex_key(pyx_code)
-        
+
         pyx_code.put_chunk(
             u"""
                 globs = globals()
-                if {{global_sigindex_name}} not in <dict>globs:
-                    globs[{{global_sigindex_name}}] = {}
-                _fused_sigindex = (<dict>globs)[{{global_sigindex_name}}]
-                if func_sigindex_key not in <dict>_fused_sigindex:
-                    _fused_sigindex[func_sigindex_key] = {}
-                _fused_sigindex = (<dict>_fused_sigindex)[func_sigindex_key]
+                if '{{global_sigindex_name}}' not in <dict>globs:
+                    global {{global_sigindex_name}}
+                    {{global_sigindex_name}} = {}
+                _fused_sigindex = (<dict>globs)['{{global_sigindex_name}}']
+                if '{{func_sigindex_key}}' not in <dict>_fused_sigindex:
+                    _fused_sigindex['{{func_sigindex_key}}'] = {}
+                _fused_sigindex = (<dict>_fused_sigindex)['{{func_sigindex_key}}']
             """
         )
-        
+
         self._fused_signature_index(pyx_code)
 
         pyx_code.put_chunk(
