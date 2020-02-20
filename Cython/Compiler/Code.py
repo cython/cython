@@ -2185,6 +2185,11 @@ class CCodeWriter(object):
         self.putln(f(entry.cname, nanny=True, have_gil=have_gil,
                      clear_before_decref=entry.in_closure))
 
+    def get_var_nullcheck(self, entry):
+        # we usually want to put this into an is statement so it's a get,
+        # not a put
+        return entry.type.generate_nullcheck(entry.cname)
+
     def put_var_decrefs(self, entries, used_only = 0):
         for entry in entries:
             if not used_only or entry.used:

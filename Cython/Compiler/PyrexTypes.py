@@ -352,6 +352,7 @@ class PyrexType(BaseType):
                                       self)
         else:
             return None
+
     def _generate_xxxref_set_placeholder(self, cname, rhs_cname, *ignored_args, **ignored_kwds):
         if self.needs_xxxref:
             raise NotImplementedError("Ref-counting operation not yet implemented for type %s" %
@@ -362,6 +363,7 @@ class PyrexType(BaseType):
     generate_incref = generate_decref = generate_xdecref \
         = generate_decref_clear = generate_xdecref_clear \
         = generate_gotref = generate_xgotref = generate_giveref = generate_xgiveref \
+        = generate_nullcheck \
             = _generate_xxxref_placeholder
 
     generate_decref_set = generate_xdecref_set = _generate_xxxref_set_placeholder
@@ -1306,6 +1308,9 @@ class PyObjectType(PyrexType):
         else:
             return ("%s_%sDECREF(%s);" % (
                 prefix, X, self.as_pyobject(cname)))
+
+    def generate_nullcheck(self, cname):
+        return cname
 
 
 builtin_types_that_cannot_create_refcycles = set([
