@@ -616,8 +616,7 @@ class FusedCFuncDefNode(StatListNode):
         """
         pyx_code.put_chunk(
             u"""
-                globs = globals()
-                func_sigindex_key = '{{func_sigindex_keybase}}-{{name}}/'+(<dict>globs)['__name__']
+                func_sigindex_key = '{{func_sigindex_keybase}}-{{name}}'
             """
         )
     def make_fused_cpdef(self, orig_py_func, env, is_def):
@@ -745,6 +744,7 @@ class FusedCFuncDefNode(StatListNode):
         
         pyx_code.put_chunk(
             u"""
+                globs = globals()
                 if {{global_sigindex_name}} not in <dict>globs:
                     globs[{{global_sigindex_name}}] = {}
                 _fused_sigindex = (<dict>globs)[{{global_sigindex_name}}]
