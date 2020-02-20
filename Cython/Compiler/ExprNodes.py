@@ -7198,11 +7198,14 @@ class AttributeNode(ExprNode):
             elif self.initialized_check:
                 set_error = 'PyErr_SetString(PyExc_AttributeError, "Memoryview is not initialized");\n'
                 if self.in_nogil_context == 'device':
-                    set_error = ''
+                    code.put('/* TODO (offload)')
                 code.putln(
                     'if (unlikely(!%s.memview)) {'
-                        '%s''%s'
-                    '}' % (self.result(), set_error, code.error_goto(self.pos)))
+                    'PyErr_SetString(PyExc_AttributeError, "Memoryview is not initialized");'
+                    '%s'
+                    '}' % (self.result(), code.error_goto(self.pos)))
+                if self.in_nogil_context == 'device':
+                    code.put('TODO (offload) */')
         else:
             # result_code contains what is needed, but we may need to insert
             # a check and raise an exception
