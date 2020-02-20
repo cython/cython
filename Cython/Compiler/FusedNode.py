@@ -723,8 +723,8 @@ class FusedCFuncDefNode(StatListNode):
 
         pyx_code.put_chunk(
             u"""
+                global {{global_sigindex_name}}
                 if '{{global_sigindex_name}}' not in <dict>globals():
-                    global {{global_sigindex_name}}
                     {{global_sigindex_name}} = {}
                 if '{{func_sigindex_key}}' not in <dict>{{global_sigindex_name}}:
                     {{global_sigindex_name}}['{{func_sigindex_key}}'] = {}
