@@ -143,7 +143,6 @@ def test_opt_func_introspection():
     >>> opt_func.__defaults__
     (1.2, 7)
     >>> opt_func.__kwdefaults__
-    {'_fused_sigindex': (None,)}
     >>> opt_func.__annotations__
     {}
 

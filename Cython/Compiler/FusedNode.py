@@ -587,8 +587,8 @@ class FusedCFuncDefNode(StatListNode):
         """
         pyx_code.put_chunk(
             u"""
+                # CONSTRUCTING NESTED DICTIONARY INDEX OF SPECIALIZED SIGNATURES
                 if not _fused_sigindex:
-                    #print('Constructing fused type signature index.')
                     for sig in <dict>signatures:
                         sigindex_node = _fused_sigindex
                         sig_series = sig.strip('()').split('|')
@@ -599,7 +599,26 @@ class FusedCFuncDefNode(StatListNode):
                         sigindex_node[sig_series[-1]] = sig
             """
         )
-
+    def _get_unique_identifier_base(self):
+        """
+        Try to generate a unique identifier string that will likely
+        never be repeated for different nodes, in different processes,
+        on different machines, or in different projects.
+        """
+        # FIXME: Replace and remove this.
+        import time, random, sys
+        return '{time_ns!s}-{id!s}-{randint!s}'.format(time_ns=int(time.time()*1e9), id=id(self), randint=random.randint(0, sys.maxsize-1))
+    def _fused_sigindex_key(self, pyx_code):
+        """
+        Generate Cython code for creating a key that should uniquely
+        identify this particular function in this particular
+        interpreter session in the signature index.
+        """
+        pyx_code.put_chunk(
+            u"""
+                func_sigindex_key = '{{func_sigindex_keybase}}-{module}/{{name}}'.format(module=globals()['__name__'])
+            """
+        )
     def make_fused_cpdef(self, orig_py_func, env, is_def):
         """
         This creates the function that is indexable from Python and does
@@ -633,17 +652,20 @@ class FusedCFuncDefNode(StatListNode):
                     int __Pyx_Is_Little_Endian()
             """)
         decl_code.indent()
-
         pyx_code.put_chunk(
             u"""
-                def __pyx_fused_cpdef(signatures, args, kwargs, defaults, *, _fused_sigindex=(None,)):
+                def __pyx_fused_cpdef(signatures, args, kwargs, defaults):#, *, _fused_sigindex=(None,)):
                     # FIXME: use a typed signature - currently fails badly because
                     #        default arguments inherit the types we specify here!
-                    # FIXME: Avoid using a mutable hidden default keyword argument to make a local object persist through different function calls. (Reconstructing it every call (even from a literal) would probably incur a cost scaled to its `O(k**n)` size.)
-                
-                    #print('Incoming cpdef arguments: '+str(args)+' '+str(kwargs)+' '+str(defaults))
-                    
-                    _fused_sigindex = {}# _fused_sigindex[0]
+                    # FIXME: Keep the signature index in a local default keyword argument
+                    #        to make it persist through calls without polluting global
+                    #        namespace. Currently results in segfault when resulting
+                    #        function is later bound as a method.
+                    #        https://github.com/cython/cython/issues/3370
+                    # FIXME: Avoid using a mutable hidden default keyword argument
+                    #        to make a local object persist through different function calls.
+                    #        (Reconstructing it every call (even from a literal)
+                    #        would probably incur a cost scaled to its `O(k**n)` size.)
 
                     dest_sig = [None] * {{n_fused}}
 
@@ -654,6 +676,7 @@ class FusedCFuncDefNode(StatListNode):
 
                     # instance check body
             """)
+        
 
         pyx_code.indent() # indent following code to function body
         pyx_code.named_insertion_point("imports")
@@ -711,15 +734,32 @@ class FusedCFuncDefNode(StatListNode):
             self._buffer_declarations(pyx_code, decl_code, all_buffer_types, pythran_types)
             env.use_utility_code(Code.UtilityCode.load_cached("Import", "ImportExport.c"))
             env.use_utility_code(Code.UtilityCode.load_cached("ImportNumPyArray", "ImportExport.c"))
-
+        
+        context.update(
+            global_sigindex_name = "'__cython__fusedcpdef__sigindices'",
+            func_sigindex_keybase = self._get_unique_identifier_base()
+        )
+        
+        self._fused_sigindex_key(pyx_code)
+        
+        pyx_code.put_chunk(
+            u"""
+                globs = globals()
+                if {{global_sigindex_name}} not in globs:
+                    globs[{{global_sigindex_name}}] = {}
+                _fused_sigindex = globs[{{global_sigindex_name}}]
+                if func_sigindex_key not in _fused_sigindex:
+                    _fused_sigindex[func_sigindex_key] = {}
+                _fused_sigindex = _fused_sigindex[func_sigindex_key]
+            """
+        )
+        
         self._fused_signature_index(pyx_code)
 
         pyx_code.put_chunk(
             u"""
                 sigindex_matches = []
                 sigindex_candidates = [_fused_sigindex]
-                
-                #print('Argument signature: '+str(dest_sig))
                 
                 for dst_type in dest_sig:
                     found_matches = []
@@ -741,7 +781,6 @@ class FusedCFuncDefNode(StatListNode):
                         break
                 
                 candidates = sigindex_matches
-                #print('Matching cpdef signatures: '+str(candidates))
                 
                 if not candidates:
                     raise TypeError("No matching signature found")
@@ -749,7 +788,6 @@ class FusedCFuncDefNode(StatListNode):
                     raise TypeError("Function call with ambiguous argument types")
                 else:
                     result = (signatures)[candidates[0]]
-                    #print('Result: '+str(result))
                     return result
             """)
 
