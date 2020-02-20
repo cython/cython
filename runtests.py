@@ -1766,15 +1766,11 @@ class EndToEndTest(unittest.TestCase):
             with self.stats.time('%s(%d)' % (self.name, command_no), 'c',
                                  'etoe-build' if 'setup.py' in command else 'etoe-run'):
                 if self.capture:
-                    p = subprocess.Popen(command,
-                                         stderr=subprocess.PIPE,
-                                         stdout=subprocess.PIPE,
-                                         shell=True,
-                                         env=env)
+                    p = subprocess.Popen(command, stderr=subprocess.PIPE, stdout=subprocess.PIPE, env=env)
                     _out, _err = p.communicate()
                     res = p.returncode
                 else:
-                    p = subprocess.call(command, shell=True, env=env)
+                    p = subprocess.call(command, env=env)
                     _out, _err = b'', b''
                     res = p
                 cmd.append(command)

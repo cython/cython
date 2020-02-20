@@ -187,11 +187,14 @@ class TreeAssertVisitor(VisitorTransform):
 
 
 def unpack_source_tree(tree_file, workdir, cython_root):
-    programs = {'PYTHON': [sys.executable],
-                'CYTHON': [sys.executable, os.path.join(cython_root, 'cython.py')],
-                'CYTHONIZE': [sys.executable, os.path.join(cython_root, 'cythonize.py')]}
+    programs = {
+        'PYTHON': [sys.executable],
+        'CYTHON': [sys.executable, os.path.join(cython_root, 'cython.py')],
+        'CYTHONIZE': [sys.executable, os.path.join(cython_root, 'cythonize.py')]
+    }
 
-    if workdir is None: workdir = tempfile.mkdtemp()
+    if workdir is None:
+        workdir = tempfile.mkdtemp()
     header, cur_file = [], None
     with open(tree_file) as f:
         try:
@@ -203,7 +206,7 @@ def unpack_source_tree(tree_file, workdir, cython_root):
                         os.makedirs(os.path.dirname(path))
                     cur_file.close()
                     cur_file = open(path, 'w')
-                elif not getattr(cur_file, 'closed', True):
+                elif cur_file is not None:
                     cur_file.write(line)
                 elif line.strip() and not line.lstrip().startswith('#'):
                     if line.strip() not in ('"""', "'''"):
@@ -216,5 +219,6 @@ def unpack_source_tree(tree_file, workdir, cython_root):
                         except KeyError:
                             header.append(command)
         finally:
-            if not getattr(cur_file, 'closed', True): cur_file.close()
+            if not getattr(cur_file, 'closed', True):
+                cur_file.close()
     return workdir, header
