@@ -881,7 +881,7 @@ class FusedCFuncDefNode(StatListNode):
                 "((__pyx_FusedFunctionObject *) %s)->__signatures__ = %s;" %
                                     (self.resulting_fused_function.result(),
                                      self.__signatures__.result()))
-            code.put_exprnode_giveref(self.__signatures__)
+            self.__signatures__.generate_giveref(code)
 
             self.fused_func_assignment.generate_execution_code(code)
 

@@ -1094,14 +1094,14 @@ class GlobalState(object):
         'h_code',
         'filename_table',
         'utility_code_proto_before_types',
-        'module_state',
-        'module_state_clear',
-        'module_state_traverse',
-        'module_state_defines',
         'numeric_typedefs',          # Let these detailed individual parts stay!,
         'complex_type_declarations', # as the proper solution is to make a full DAG...
         'type_declarations',         # More coarse-grained blocks would simply hide
         'utility_code_proto',        # the ugliness, not fix it
+        'module_state',
+        'module_state_clear',
+        'module_state_traverse',
+        'module_state_defines',
         'module_declarations',
         'typeinfo',
         'before_global_var',
@@ -1789,6 +1789,8 @@ class CCodeWriter(object):
     def write(self, s):
         # also put invalid markers (lineno 0), to indicate that those lines
         # have no Cython source code correspondence
+        #if s.find("__Pyx_GIVEREF(None);") != -1:
+        #    import pdb; pdb.set_trace()
         cython_lineno = self.last_marked_pos[1] if self.last_marked_pos else 0
         self.buffer.markers.extend([cython_lineno] * s.count('\n'))
         self.buffer.write(s)
@@ -2089,50 +2091,14 @@ class CCodeWriter(object):
     def put_gotref(self, cname, type):
         self.putln(type.generate_gotref(cname))
 
-    def put_exprnode_gotref(self, node):
-        if node.is_temp and node.type.is_pyobject:
-            # temp py_objects are always just py_object_type
-            # not an special type
-            from .PyrexTypes import py_object_type as type
-        else:
-            type = node.type
-        self.put_gotref(node.result(), type)
-
     def put_giveref(self, cname, type):
         self.putln(type.generate_giveref(cname))
-
-    def put_exprnode_giveref(self, node):
-        if node.is_temp and node.type.is_pyobject:
-            # temp py_objects are always just py_object_type
-            # not an special type
-            from .PyrexTypes import py_object_type as type
-        else:
-            type = node.type
-        self.put_giveref(node.result(), type)
 
     def put_xgiveref(self, cname, type):
         self.putln(type.generate_xgiveref(cname))
 
-    def put_exprnode_xgiveref(self, node):
-        if node.is_temp and node.type.is_pyobject:
-            # temp py_objects are always just py_object_type
-            # not an special type
-            from .PyrexTypes import py_object_type as type
-        else:
-            type = node.type
-        self.put_xgiveref(node.result(), type)
-
     def put_xgotref(self, cname, type):
         self.putln(type.generate_xgotref(cname))
-
-    def put_exprnode_xgotref(self, node):
-        if node.is_temp and node.type.is_pyobject:
-            # temp py_objects are always just py_object_type
-            # not an special type
-            from .PyrexTypes import py_object_type as type
-        else:
-            type = node.type
-        self.put_xgotref(node.result(), type)
 
     def put_incref(self, cname, type, nanny=True, have_gil=False):
         self.putln(type.generate_incref(cname, nanny=nanny, have_gil=have_gil))

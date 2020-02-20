@@ -163,10 +163,32 @@ Other changes
 * The command line parser was rewritten and modernised using ``argparse``.
   Patch by Egor Dranischnikow.  (Github issue #2952, #3001)
 
+* Dotted filenames for qualified module names (``pkg.mod.pyx``) are deprecated.
+  Use the normal Python package directory layout instead.
+  (Github issue #2686)
+
 * Support for Python 2.6 was removed.
 
 
-0.29.15 (20??-??-??)
+0.29.16 (2020-0?-??)
+====================
+
+* Temporary internal variables in nested prange loops could leak into other
+  threads.  Patch by Frank Schlimbach.  (Github issue #3348)
+
+* Fix an unhandled C++ exception in comparisons.
+  Patch by David Woods.  (Github issue #3361)
+
+* Fix deprecated import of "imp" module.
+  Patch by Matti Picus.  (Github issue #3350)
+
+* Avoid "undeclared" warning about automatically generated pickle methods.
+  Patch by David Woods.  (Github issue #3353)
+
+* Avoid C compiler warning about unreachable code in ``prange()``.
+
+
+0.29.15 (2020-02-06)
 ====================
 
 * Crash when returning a temporary Python object from an async-def function.
@@ -177,6 +199,9 @@ Other changes
 
 * Double reference free in ``__class__`` cell handling for ``super()`` calls.
   (Github issue #3246)
+
+* Compile error when using ``*args`` as Python class bases.
+  (Github issue #3338)
 
 * Import failure in IPython 7.11.
   (Github issue #3297)
