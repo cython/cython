@@ -1713,9 +1713,9 @@ class EndToEndTest(unittest.TestCase):
         self.cleanup_workdir = cleanup_workdir
         self.stats = stats
         self.capture = capture
-        cython_syspath = [self.cython_root]
+        cython_syspath = [EndToEndTest.cython_root]
         for path in sys.path:
-            if path.startswith(self.cython_root) and path not in cython_syspath:
+            if path.startswith(EndToEndTest.cython_root) and path not in cython_syspath:
                 # Py3 installation and refnanny build prepend their
                 # fixed paths to sys.path => prefer that over the
                 # generic one (cython_root itself goes last)
@@ -1728,7 +1728,7 @@ class EndToEndTest(unittest.TestCase):
 
     def setUp(self):
         from Cython.TestUtils import unpack_source_tree
-        _, self.commands = unpack_source_tree(self.treefile, self.workdir)
+        _, self.commands = unpack_source_tree(self.treefile, self.workdir, EndToEndTest.cython_root)
         self.old_dir = os.getcwd()
         os.chdir(self.workdir)
         if self.workdir not in sys.path:
@@ -1753,10 +1753,6 @@ class EndToEndTest(unittest.TestCase):
 
     def runTest(self):
         self.success = False
-        commands = (self.commands
-            .replace("CYTHONIZE", "PYTHON %s" % os.path.join(self.cython_root, 'cythonize.py'))
-            .replace("CYTHON", "PYTHON %s" % os.path.join(self.cython_root, 'cython.py'))
-            .replace("PYTHON", sys.executable))
         old_path = os.environ.get('PYTHONPATH')
         env = dict(os.environ)
         new_path = self.cython_syspath
@@ -1766,21 +1762,19 @@ class EndToEndTest(unittest.TestCase):
         cmd = []
         out = []
         err = []
-        for command_no, command in enumerate(filter(None, commands.splitlines()), 1):
+        for command_no, command in enumerate(self.commands, 1):
             with self.stats.time('%s(%d)' % (self.name, command_no), 'c',
-                                 'etoe-build' if ' setup.py ' in command else 'etoe-run'):
+                                 'etoe-build' if 'setup.py' in command else 'etoe-run'):
                 if self.capture:
                     p = subprocess.Popen(command,
-                                     stderr=subprocess.PIPE,
-                                     stdout=subprocess.PIPE,
-                                     shell=True,
-                                     env=env)
+                                         stderr=subprocess.PIPE,
+                                         stdout=subprocess.PIPE,
+                                         shell=True,
+                                         env=env)
                     _out, _err = p.communicate()
                     res = p.returncode
                 else:
-                    p = subprocess.call(command,
-                                     shell=True,
-                                     env=env)
+                    p = subprocess.call(command, shell=True, env=env)
                     _out, _err = b'', b''
                     res = p
                 cmd.append(command)
