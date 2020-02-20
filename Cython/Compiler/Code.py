@@ -237,6 +237,13 @@ class UtilityCodeBase(object):
 
         [definitions]
 
+        ##### MyUtility #####
+        #@subsitute: tempita
+
+        [requires tempita substitution
+         - context can't be specified here though
+         - only necessary when @required from non-tempita code]
+
     for prototypes and implementation respectively.  For non-python or
     -cython files backslashes should be used instead.  5 to 30 comment
     characters may be used on either side.
@@ -255,8 +262,7 @@ class UtilityCodeBase(object):
             return
 
         code = '\n'.join(lines)
-        if tags and 'substitute' in tags and tags['substitute'] == set(['naming']):
-            del tags['substitute']
+        if tags and 'substitute' in tags and 'naming' in tags['substitute']:
             try:
                 code = Template(code).substitute(vars(Naming))
             except (KeyError, ValueError) as e:
@@ -347,6 +353,7 @@ class UtilityCodeBase(object):
         Load utility code from a file specified by from_file (relative to
         Cython/Utility) and name util_code_name.
         """
+
         if '::' in util_code_name:
             from_file, util_code_name = util_code_name.rsplit('::', 1)
         assert from_file
@@ -354,6 +361,9 @@ class UtilityCodeBase(object):
         proto, impl, tags = utilities[util_code_name]
 
         if tags:
+            if "substitute" in tags and "tempita" in tags["substitute"]:
+                if not issubclass(cls, TempitaUtilityCode):
+                    return TempitaUtilityCode.load(util_code_name, from_file, **kwargs)
             orig_kwargs = kwargs.copy()
             for name, values in tags.items():
                 if name in kwargs:
@@ -367,6 +377,12 @@ class UtilityCodeBase(object):
                         # dependencies are rarely unique, so use load_cached() when we can
                         values = [cls.load_cached(dep, from_file)
                                   for dep in sorted(values)]
+                elif name == 'substitute':
+                    # don't want to pass "naming" or "tempita" to the constructor
+                    # since these will have been handled
+                    values = values - set(['naming', 'tempita'])
+                    if not values:
+                        continue
                 elif not values:
                     values = None
                 elif len(values) == 1:
