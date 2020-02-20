@@ -607,7 +607,11 @@ class FusedCFuncDefNode(StatListNode):
         """
         # FIXME: Replace and remove this.
         import time, random, sys
-        return '{time_ns!s}-{id!s}-{randint!s}'.format(time_ns=int(time.time()*1e9), id=id(self), randint=random.randint(0, sys.maxsize-1))
+        return '{time_ns!s}-{id!s}-{randint!s}'.format(
+            time_ns=int(time.time()*1e9),
+            id=id(self),
+            randint=random.randint(0, sys.maxsize-1)
+        )
     def _fused_sigindex_key(self, pyx_code):
         """
         Generate Cython code for creating a key that should uniquely
@@ -764,7 +768,10 @@ class FusedCFuncDefNode(StatListNode):
                 for dst_type in <list>dest_sig:
                     found_matches = []
                     found_candidates = []
-                    # Make two seperate lists: One for for signature sub-trees with at least one definite match, and another for signature sub-trees with only ambiguous matches (where `dest_sig[i] is None`).
+                    # Make two seperate lists: One for for signature sub-trees
+                    #        with at least one definite match, and another for
+                    #        signature sub-trees with only ambiguous matches
+                    #        (where `dest_sig[i] is None`).
                     if dst_type is None:
                         for sn in <list>sigindex_matches:
                             found_matches.extend((<dict>sn).values())
