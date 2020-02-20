@@ -1083,10 +1083,10 @@ class MemoryViewSliceType(PyrexType):
         # memoryviews don't currently distinguish between xdecref and decref
         return self.generate_decref_clear(cname, have_gil, nanny, clear_before_decref)
 
-    def generate_xgiveref(self, cname, no_pyobject_cast=False):
+    def generate_xgiveref(self, cname):
         return py_object_type.generate_xgiveref("%s.memview" % cname)
 
-    def generate_giveref(self, cname, no_pyobject_cast=False):
+    def generate_giveref(self, cname):
         return py_object_type.generate_giveref("%s.memview" % cname)
 
 
@@ -1218,7 +1218,7 @@ class PyObjectType(PyrexType):
             entity_code = "*%s" % entity_code
         return self.base_declaration_code(base_code, entity_code)
 
-    def as_pyobject(self, cname, no_pyobject_cast=False):
+    def as_pyobject(self, cname):
         if (not self.is_complete()) or self.is_extension_type:
             return "(PyObject *)" + cname
         else:
@@ -1264,17 +1264,17 @@ class PyObjectType(PyrexType):
         return self._generate_decref(cname, nanny, null_check=True,
                          clear=True, clear_before_decref=clear_before_decref)
 
-    def generate_gotref(self, cname, no_pyobject_cast=False):
-        return "__Pyx_GOTREF(%s);" % self.as_pyobject(cname, no_pyobject_cast=no_pyobject_cast)
+    def generate_gotref(self, cname):
+        return "__Pyx_GOTREF(%s);" % self.as_pyobject(cname)
 
-    def generate_xgotref(self, cname, no_pyobject_cast=False):
-        return "__Pyx_XGOTREF(%s);" % self.as_pyobject(cname, no_pyobject_cast=no_pyobject_cast)
+    def generate_xgotref(self, cname):
+        return "__Pyx_XGOTREF(%s);" % self.as_pyobject(cname)
 
-    def generate_giveref(self, cname, no_pyobject_cast=False):
-        return "__Pyx_GIVEREF(%s);" % self.as_pyobject(cname, no_pyobject_cast=no_pyobject_cast)
+    def generate_giveref(self, cname):
+        return "__Pyx_GIVEREF(%s);" % self.as_pyobject(cname)
 
-    def generate_xgiveref(self, cname, no_pyobject_cast=False):
-        return "__Pyx_XGIVEREF(%s);" % self.as_pyobject(cname, no_pyobject_cast=no_pyobject_cast)
+    def generate_xgiveref(self, cname):
+        return "__Pyx_XGIVEREF(%s);" % self.as_pyobject(cname)
 
     def generate_decref_set(self, cname, rhs_cname):
         return "__Pyx_DECREF_SET(%s, %s);" % (cname, rhs_cname)
@@ -1433,8 +1433,8 @@ class BuiltinObjectType(PyObjectType):
             entity_code = "*%s" % entity_code
         return self.base_declaration_code(base_code, entity_code)
 
-    def as_pyobject(self, cname, no_pyobject_cast=False):
-        if self.decl_type == 'PyObject' or no_pyobject_cast:
+    def as_pyobject(self, cname):
+        if self.decl_type == 'PyObject':
             return cname
         else:
             return "(PyObject *)" + cname

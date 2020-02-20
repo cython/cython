@@ -3624,7 +3624,7 @@ class DefNodeWrapper(FuncDefNode):
                 code.putln("%s = PyDict_New();" % (self.starstar_arg.entry.cname,))
                 code.putln("if (unlikely(!%s)) return %s;" % (
                     self.starstar_arg.entry.cname, self.error_value()))
-                code.put_gotref(self.starstar_arg.entry.cname, py_object_type)
+                code.put_var_gotref(self.starstar_arg.entry)
             self.starstar_arg.entry.xdecref_cleanup = allow_null
             code.putln("}")
 
@@ -3637,12 +3637,12 @@ class DefNodeWrapper(FuncDefNode):
                 self.star_arg.entry.cname))
             if self.starstar_arg and self.starstar_arg.entry.cf_used:
                 code.putln("{")
-                code.put_xdecref_clear(self.starstar_arg.entry.cname, py_object_type)
+                code.put_var_xdecref_clear(self.starstar_arg.entry)
                 code.putln("return %s;" % self.error_value())
                 code.putln("}")
             else:
                 code.putln("return %s;" % self.error_value())
-            code.put_gotref(self.star_arg.entry.cname, py_object_type)
+            code.put_var_gotref(self.star_arg.entry)
             code.put_incref(Naming.self_cname, py_object_type)
             code.put_giveref(Naming.self_cname, py_object_type)
             code.putln("PyTuple_SET_ITEM(%s, 0, %s);" % (
@@ -3893,7 +3893,7 @@ class DefNodeWrapper(FuncDefNode):
                 self.starstar_arg.entry.cname,
                 self.starstar_arg.entry.cname,
                 self.error_value()))
-            code.put_gotref(self.starstar_arg.entry.cname, py_object_type)
+            code.put_var_gotref(self.starstar_arg.entry)
         if self.star_arg:
             self.star_arg.entry.xdecref_cleanup = 0
             if max_positional_args == 0:
@@ -3911,11 +3911,11 @@ class DefNodeWrapper(FuncDefNode):
                     Naming.args_cname, max_positional_args, Naming.nargs_cname))
                 code.putln("if (unlikely(!%s)) {" % self.star_arg.entry.cname)
                 if self.starstar_arg:
-                    code.put_decref_clear(self.starstar_arg.entry.cname, py_object_type)
+                    code.put_var_decref_clear(self.starstar_arg.entry)
                 code.put_finish_refcount_context()
                 code.putln('return %s;' % self.error_value())
                 code.putln('}')
-                code.put_gotref(self.star_arg.entry.cname, py_object_type)
+                code.put_var_gotref(self.star_arg.entry)
 
     def generate_argument_values_setup_code(self, args, code):
         max_args = len(args)
