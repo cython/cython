@@ -2070,8 +2070,8 @@ class CCodeWriter(object):
         from .PyrexTypes import py_object_type, typecast
         return typecast(py_object_type, type, cname)
 
-    def put_gotref(self, cname, type, no_pyobject_cast=False):
-        self.putln(type.generate_gotref(cname, no_pyobject_cast=no_pyobject_cast))
+    def put_gotref(self, cname, type):
+        self.putln(type.generate_gotref(cname))
 
     def put_exprnode_gotref(self, node):
         if node.is_temp and node.type.is_pyobject:
@@ -2082,8 +2082,8 @@ class CCodeWriter(object):
             type = node.type
         self.put_gotref(node.result(), type)
 
-    def put_giveref(self, cname, type, no_pyobject_cast=False):
-        self.putln(type.generate_giveref(cname, no_pyobject_cast=no_pyobject_cast))
+    def put_giveref(self, cname, type):
+        self.putln(type.generate_giveref(cname))
 
     def put_exprnode_giveref(self, node):
         if node.is_temp and node.type.is_pyobject:
@@ -2094,8 +2094,8 @@ class CCodeWriter(object):
             type = node.type
         self.put_giveref(node.result(), type)
 
-    def put_xgiveref(self, cname, type, no_pyobject_cast=False):
-        self.putln(type.generate_xgiveref(cname, no_pyobject_cast=no_pyobject_cast))
+    def put_xgiveref(self, cname, type):
+        self.putln(type.generate_xgiveref(cname))
 
     def put_exprnode_xgiveref(self, node):
         if node.is_temp and node.type.is_pyobject:
@@ -2106,8 +2106,8 @@ class CCodeWriter(object):
             type = node.type
         self.put_xgiveref(node.result(), type)
 
-    def put_xgotref(self, cname, type, no_pyobject_cast=False):
-        self.putln(type.generate_xgotref(cname, no_pyobject_cast=no_pyobject_cast))
+    def put_xgotref(self, cname, type):
+        self.putln(type.generate_xgotref(cname))
 
     def put_exprnode_xgotref(self, node):
         if node.is_temp and node.type.is_pyobject:
