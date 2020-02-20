@@ -1789,8 +1789,6 @@ class CCodeWriter(object):
     def write(self, s):
         # also put invalid markers (lineno 0), to indicate that those lines
         # have no Cython source code correspondence
-        #if s.find("__Pyx_GIVEREF(None);") != -1:
-        #    import pdb; pdb.set_trace()
         cython_lineno = self.last_marked_pos[1] if self.last_marked_pos else 0
         self.buffer.markers.extend([cython_lineno] * s.count('\n'))
         self.buffer.write(s)

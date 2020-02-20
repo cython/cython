@@ -2397,7 +2397,7 @@ class NameNode(AtomicExprNode):
                         else:
                             assigned = False
                     if is_external_ref:
-                        self.generate_giveref(code)
+                        rhs.generate_giveref(code)
             if not self.type.is_memoryviewslice:
                 if not assigned:
                     if overloaded_assignment:
