@@ -205,8 +205,8 @@ def unpack_source_tree(tree_file, workdir, cython_root):
                     if not os.path.exists(os.path.dirname(path)):
                         os.makedirs(os.path.dirname(path))
                     if cur_file is not None:
-                        f, cur_file = cur_file, None
-                        f.close()
+                        to_close, cur_file = cur_file, None
+                        to_close.close()
                     cur_file = open(path, 'w')
                 elif cur_file is not None:
                     cur_file.write(line)
