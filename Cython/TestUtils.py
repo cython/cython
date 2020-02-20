@@ -204,7 +204,9 @@ def unpack_source_tree(tree_file, workdir, cython_root):
                     path = os.path.join(workdir, filename)
                     if not os.path.exists(os.path.dirname(path)):
                         os.makedirs(os.path.dirname(path))
-                    cur_file.close()
+                    if cur_file is not None:
+                        f, cur_file = cur_file, None
+                        f.close()
                     cur_file = open(path, 'w')
                 elif cur_file is not None:
                     cur_file.write(line)
@@ -219,6 +221,6 @@ def unpack_source_tree(tree_file, workdir, cython_root):
                         except KeyError:
                             header.append(command)
         finally:
-            if not getattr(cur_file, 'closed', True):
+            if cur_file is not None:
                 cur_file.close()
     return workdir, header
