@@ -1339,12 +1339,6 @@ static PyMemberDef __pyx_FusedFunction_members[] = {
     {0, 0, 0, 0, 0},
 };
 
-static PyMappingMethods __pyx_FusedFunction_mapping_methods = {
-    0,
-    (binaryfunc) __pyx_FusedFunction_getitem,
-    0,
-};
-
 #if CYTHON_COMPILING_IN_LIMITED_API
 static PyType_Slot __pyx_FusedFunctionType_slots[] = {
     {Py_tp_dealloc, (void *)__pyx_FusedFunction_dealloc},
@@ -1354,7 +1348,7 @@ static PyType_Slot __pyx_FusedFunctionType_slots[] = {
     {Py_tp_members, (void *)__pyx_FusedFunction_members},
     {Py_tp_getset, (void *)__pyx_CyFunction_getsets},
     {Py_tp_descr_get, (void *)__pyx_FusedFunction_descr_get},
-    {Py_mp_ass_subscript, (void *)__pyx_FusedFunction_getitem},
+    {Py_mp_subscript, (void *)__pyx_FusedFunction_getitem},
     {0, 0},
 };
 
@@ -1365,7 +1359,15 @@ static PyType_Spec __pyx_FusedFunctionType_spec = {
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE, /*tp_flags*/
     __pyx_FusedFunctionType_slots
 };
-#else
+
+#else  /* !CYTHON_COMPILING_IN_LIMITED_API */
+
+static PyMappingMethods __pyx_FusedFunction_mapping_methods = {
+    0,
+    (binaryfunc) __pyx_FusedFunction_getitem,
+    0,
+};
+
 static PyTypeObject __pyx_FusedFunctionType_type = {
     PyVarObject_HEAD_INIT(0, 0)
     "fused_cython_function",           /*tp_name*/
