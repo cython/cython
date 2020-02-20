@@ -616,7 +616,8 @@ class FusedCFuncDefNode(StatListNode):
         """
         pyx_code.put_chunk(
             u"""
-                func_sigindex_key = '{{func_sigindex_keybase}}-{module}/{{name}}'.format(module=globals()['__name__'])
+                globs = globals()
+                func_sigindex_key = '{{func_sigindex_keybase}}-{{name}}/'+(<dict>globs)['__name__']
             """
         )
     def make_fused_cpdef(self, orig_py_func, env, is_def):
@@ -744,13 +745,12 @@ class FusedCFuncDefNode(StatListNode):
         
         pyx_code.put_chunk(
             u"""
-                globs = globals()
-                if {{global_sigindex_name}} not in globs:
+                if {{global_sigindex_name}} not in <dict>globs:
                     globs[{{global_sigindex_name}}] = {}
-                _fused_sigindex = globs[{{global_sigindex_name}}]
-                if func_sigindex_key not in _fused_sigindex:
+                _fused_sigindex = (<dict>globs)[{{global_sigindex_name}}]
+                if func_sigindex_key not in <dict>_fused_sigindex:
                     _fused_sigindex[func_sigindex_key] = {}
-                _fused_sigindex = _fused_sigindex[func_sigindex_key]
+                _fused_sigindex = (<dict>_fused_sigindex)[func_sigindex_key]
             """
         )
         
@@ -761,20 +761,20 @@ class FusedCFuncDefNode(StatListNode):
                 sigindex_matches = []
                 sigindex_candidates = [_fused_sigindex]
                 
-                for dst_type in dest_sig:
+                for dst_type in <list>dest_sig:
                     found_matches = []
                     found_candidates = []
                     # Make two seperate lists: One for for signature sub-trees with at least one definite match, and another for signature sub-trees with only ambiguous matches (where `dest_sig[i] is None`).
                     if dst_type is None:
-                        for sn in sigindex_matches:
-                            found_matches.extend((sn).values())
-                        for sn in sigindex_candidates:
-                            found_candidates.extend((sn).values())
+                        for sn in <list>sigindex_matches:
+                            found_matches.extend((<dict>sn).values())
+                        for sn in <list>sigindex_candidates:
+                            found_candidates.extend((<dict>sn).values())
                     else:
                         for search_list in (sigindex_matches, sigindex_candidates):
-                            for sn in search_list:
-                                if dst_type in sn:
-                                    found_matches.append((sn)[dst_type])
+                            for sn in <list>search_list:
+                                if dst_type in <dict>sn:
+                                    (<list>found_matches).append((<dict>sn)[dst_type])
                     sigindex_matches = found_matches
                     sigindex_candidates = found_candidates
                     if not (found_matches or found_candidates):
@@ -787,7 +787,7 @@ class FusedCFuncDefNode(StatListNode):
                 elif len(candidates) > 1:
                     raise TypeError("Function call with ambiguous argument types")
                 else:
-                    result = (signatures)[candidates[0]]
+                    result = (<dict>signatures)[candidates[0]]
                     return result
             """)
 
