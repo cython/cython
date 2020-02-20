@@ -6779,7 +6779,7 @@ class DictIterationNextNode(Node):
 
         # evaluate all coercions before the assignments
         for var, result, target in assignments:
-            code.put_exprnode_gotref(var)
+            var.generate_gotref(code)
         for var, result, target in assignments:
             result.generate_evaluation_code(code)
         for var, result, target in assignments:
@@ -6841,7 +6841,7 @@ class SetIterationNextNode(Node):
         code.funcstate.release_temp(result_temp)
 
         # evaluate all coercions before the assignments
-        code.put_exprnode_gotref(value_ref)
+        value_ref.generate_gotref(code)
         self.coerced_value_var.generate_evaluation_code(code)
         self.value_target.generate_assignment_code(self.coerced_value_var, code)
         value_ref.release(code)
@@ -7154,7 +7154,7 @@ class ForFromStatNode(LoopNode, StatNode):
                     target_node.result(),
                     interned_cname,
                     code.error_goto_if_null(target_node.result(), self.target.pos)))
-                code.put_exprnode_gotref(target_node)
+                target_node.generate_gotref(code)
             else:
                 target_node = self.target
             from_py_node = ExprNodes.CoerceFromPyTypeNode(
