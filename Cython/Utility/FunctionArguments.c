@@ -566,17 +566,23 @@ static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_FastcallTuple_FromTuple(PyObj
 
 /////////////// fastcall_tuple_indexing.proto ///////////////
 //@requires: fastcall_tuple
+//@requires: ObjectHandling.c::GetItemInt
 
 // based on ObjectHandling.c
 #define __Pyx_GetItemInt_FastcallTuple(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck) \
     (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
     __Pyx_GetItemInt_FastcallTuple_Fast(o, (Py_ssize_t)i, wraparound, boundscheck) : \
     (PyErr_SetString(PyExc_IndexError, "tuple index out of range"), (PyObject*)NULL))
+#if CYTHON_METH_FASTCALL
 static CYTHON_INLINE PyObject *__Pyx_GetItemInt_FastcallTuple_Fast(__Pyx_FastcallTuple_obj o, Py_ssize_t i,
                                                               int wraparound, int boundscheck);
+#else
+#define __Pyx_GetItemInt_FastcallTuple_Fast __Pyx_GetItemInt_Tuple_Fast
+#endif
 
 /////////////// fastcall_tuple_indexing ///////////////
 
+#if CYTHON_METH_FASTCALL
 static CYTHON_INLINE PyObject *__Pyx_GetItemInt_FastcallTuple_Fast(__Pyx_FastcallTuple_obj o, Py_ssize_t i,
                                                               int wraparound, int boundscheck) {
     Py_ssize_t len = __Pyx_FastcallTuple_Len(o);
@@ -592,25 +598,27 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_FastcallTuple_Fast(__Pyx_Fastcal
         }
     }
 
-#if CYTHON_METH_FASTCALL
     PyObject* result = o.args[i];
     Py_INCREF(result);
     return result;
-#else
-    return PyTuple_GetItem(o, i); // FIXME ideally use __Pyx_GetItemInt_Tuple_Fast
-                                                   // but need to work out how to include it reliably
-#endif
 }
+#endif
 
 /////////////// fastcall_tuple_slice.proto ///////////////
+//@requires: ObjectHandling.c::SliceTupleAndList
 
+#if CYTHON_METH_FASTCALL
 static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_FastcallTuple_GetSlice(__Pyx_FastcallTuple_obj in,
-                                                            Py_ssize_t start, Py_ssize_t stop, int wraparound); /* proto */
+                                                            Py_ssize_t start, Py_ssize_t stop); /* proto */
+#else
+#define __Pyx_FastcallTuple_GetSlice __Pyx_PyTuple_GetSlice
+#endif
 
 /////////////// fastcall_tuple_slice ///////////////
-// FIXME defer to the tuple getslice where possible
 
-static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_FastcallTuple_GetSlice(__Pyx_FastcallTuple_obj in, Py_ssize_t start, Py_ssize_t stop, int wraparound) {
+#if CYTHON_METH_FASTCALL
+static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_FastcallTuple_GetSlice(__Pyx_FastcallTuple_obj in, Py_ssize_t start, Py_ssize_t stop) {
+    const int wraparound = 1;
     if (stop < start) {
         return in;
     }
@@ -624,17 +632,14 @@ static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_FastcallTuple_GetSlice(__Pyx_
     Py_ssize_t out_len = stop - start;
     if (out_len < 0) out_len = 0;
 
-#if CYTHON_METH_FASTCALL
 #if CYTHON_VECTORCALL
     if ((start > 0) || (in.nargs & PY_VECTORCALL_ARGUMENTS_OFFSET)) {
         out_len |= PY_VECTORCALL_ARGUMENTS_OFFSET;
     }
 #endif /* CYTHON_VECTORCALL */
     return __Pyx_FastcallTuple_New(in.args + start, out_len);
-#else /* CYTHON_METH_FASTCALL */
-    return __Pyx_FastcallTuple_New(in, start, stop);
-#endif
 }
+#endif
 
 
 /////////////////// fastcall_dict.proto /////////////////////////

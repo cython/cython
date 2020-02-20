@@ -5098,19 +5098,8 @@ class SliceIndexNode(ExprNode):
                     has_c_start, has_c_stop,
                     bool(code.globalstate.directives['wraparound']),
                     code.error_goto_if_null(result, self.pos)))
-        elif self.type.is_fastcall_tuple:
-            code.globalstate.use_utility_code(UtilityCode.load_cached(
-                "fastcall_tuple_slice", "FunctionArguments.c"))
-            (has_c_start, has_c_stop, c_start, c_stop,
-             py_start, py_stop, py_slice) = self.get_slice_config()
-            code.putln(
-                "%s = __Pyx_FastcallTuple_GetSlice(%s, %s, %s, %d); %s" % (
-                    result,
-                    self.base.result(),
-                    c_start, c_stop,
-                    bool(code.globalstate.directives['wraparound']),
-                    code.error_goto_if_null(self.type.generate_nullcheck(result), self.pos)))
         else:
+            base_result = self.base.py_result()
             if self.base.type is list_type:
                 code.globalstate.use_utility_code(
                     TempitaUtilityCode.load_cached("SliceTupleAndList", "ObjectHandling.c"))
@@ -5119,16 +5108,21 @@ class SliceIndexNode(ExprNode):
                 code.globalstate.use_utility_code(
                     TempitaUtilityCode.load_cached("SliceTupleAndList", "ObjectHandling.c"))
                 cfunc = '__Pyx_PyTuple_GetSlice'
+            elif self.type.is_fastcall_tuple:
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("fastcall_tuple_slice", "FunctionArguments.c"))
+                cfunc = '__Pyx_FastcallTuple_GetSlice'
+                base_result = self.base.result()
             else:
                 cfunc = 'PySequence_GetSlice'
             code.putln(
                 "%s = %s(%s, %s, %s); %s" % (
                     result,
                     cfunc,
-                    self.base.py_result(),
+                    base_result,
                     start_code,
                     stop_code,
-                    code.error_goto_if_null(result, self.pos)))
+                    code.error_goto_if_null(self.type.generate_nullcheck(result), self.pos)))
         code.put_exprnode_gotref(self)
 
     def generate_assignment_code(self, rhs, code, overloaded_assignment=False,
