@@ -3181,6 +3181,7 @@ class DefNode(FuncDefNode):
             for decorator in self.decorators[::-1]:
                 decorator.decorator = decorator.decorator.analyse_expressions(env)
 
+        self.py_wrapper.prepare_argument_coercion(env)
         return self
 
     def needs_assignment_synthesis(self, env, code=None):

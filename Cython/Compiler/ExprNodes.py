@@ -6424,7 +6424,6 @@ class GeneralCallNode(CallNode):
             # worth a go at converting to a fastcall call
             if ((pos_is_fastcall or pos_is_empty) and
                 (kwds_is_fastcall or kwds_is_none)):
-                #import pdb; pdb.set_trace()
                 self.fastcallable_with_types = True
                 if pos_is_fastcall:
                     self.positional_args = self.positional_args.arg
@@ -6595,7 +6594,6 @@ class GeneralCallNode(CallNode):
             elif self.keyword_args:  # both with args
                 code.globalstate.use_utility_code(UtilityCode.load_cached(
                     "PyObjectFastCall__ArgsKwds_OptimizedStructs", "ObjectHandling.c"))
-                #import pdb; pdb.set_trace()
                 code.putln(
                     "%s = __Pyx_PyObject_FastCallArgsKwds_structs(%s, %s, %s); %s" % (
                         self.result(),

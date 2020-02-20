@@ -538,8 +538,9 @@ def args_tuple_keywords(*args, **kwargs):
     """
     >>> args_tuple_keywords(1,2,3, a=1, b=2)
     """
-    assert typeof(args) == "tuple object", typeof(args)
-    assert typeof(kwargs) == "dict object", typeof(kwargs)
+    # This test isn't about the fastcall optimization so accept both with and without
+    assert typeof(args) in ["tuple object", "FastcallTuple"] , typeof(args)
+    assert typeof(kwargs) in ["dict object", "FastcallDict"], typeof(kwargs)
 
 @infer_types(None)
 def args_tuple_keywords_reassign_same(*args, **kwargs):

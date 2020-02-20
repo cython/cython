@@ -4138,6 +4138,12 @@ class FastcallTupleType(PyrexType):
     is_fastcall_tuple = 1
     declaration_value = "{}"
 
+    @property
+    def nearest_python_type(self):
+        # used when infer types is turned right down
+        from .Builtin import tuple_type
+        return tuple_type
+
     def __init__(self, explicitly_requested=False):
         super(FastcallTupleType, self).__init__()
         self.coercion_count = 0
@@ -4148,7 +4154,11 @@ class FastcallTupleType(PyrexType):
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
-        return "__Pyx_FastcallTuple_obj %s" % entity_code
+        if for_display:
+            return "FastcallTuple"
+        else:
+            return "__Pyx_FastcallTuple_obj %s" % entity_code
+
 
     def create_to_py_utility_code(self, env):
         # code is in declaration code
@@ -4156,6 +4166,9 @@ class FastcallTupleType(PyrexType):
 
     def create_from_py_utility_code(self, env):
         return False
+
+    def can_coerce_to_pyobject(self, env):
+        return True
 
     def to_py_call_code(self, source_code, result_code, result_type, to_py_function=None):
         # TODO maybe something cleverer with result_type
@@ -4191,6 +4204,12 @@ class FastcallDictType(PyrexType):
     has_attributes = 1
     name = "fastcalldict"
     exception_check = None
+
+    @property
+    def nearest_python_type(self):
+        # used when infer types is turned right down
+        from .Builtin import dict_type
+        return dict_type
 
     declaration_value = "__Pyx_FastcallDict_New()"
 
@@ -4231,6 +4250,8 @@ class FastcallDictType(PyrexType):
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
+        if for_display:
+            return "FastcallDict"
         if not self.as_value:
             return "__Pyx_FastcallDict_obj* %s" % entity_code
         else:
@@ -4243,6 +4264,9 @@ class FastcallDictType(PyrexType):
 
     def create_from_py_utility_code(self, env):
         return False
+
+    def can_coerce_to_pyobject(self, env):
+        return True
 
     def to_py_call_code(self, source_code, result_code, result_type, to_py_function=None):
         from .Builtin import dict_type
@@ -4779,12 +4803,10 @@ def widest_cpp_type(type1, type2):
 
 def _fastcall_spanning_types(type1, type2):
     from .Builtin import dict_type, tuple_type
-    if ((type1.is_fastcall_dict and type2 is dict_type) or
-        (type2.is_fastcall_dict and type1 is dict_type)):
-        return dict_type
-    elif ((type1.is_fastcall_tuple and type2 is tuple_type) or
-            (type2.is_fastcall_tuple and type1 is tuple_type)):
-        return tuple_type
+    if type1.is_fastcall_type and type2 is type1.nearest_python_type:
+        return type1.nearest_python_type
+    elif type2.is_fastcall_type and type1 is type2.nearest_python_type:
+        return type2.nearest_python_type
     else:
         return py_object_type
 
@@ -4809,9 +4831,6 @@ def parse_basic_type(name):
     if basic_type:
         return basic_type
 
-    #if name == "fastcall_tuple":
-    #    return cy_fallcall_tuple_type
-    #
     signed = 1
     longness = 0
     if name == 'Py_UNICODE':

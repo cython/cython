@@ -487,7 +487,7 @@ static CYTHON_INLINE PyObject *__Pyx_FastcallTuple_ToTuple(__Pyx_FastcallTuple_o
 #if CYTHON_METH_FASTCALL
     static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_ArgsSlice_FASTCALL_struct(PyObject *const *args, Py_ssize_t start, Py_ssize_t stop);
 #else
-#define __Pyx_ArgsSlice_FASTCALL_struct(PyObject *args, Py_ssize_t start, Py_ssize_t stop) __Pyx_ArgsSlice_VARARGS_struct(args, start, stop)
+#define __Pyx_ArgsSlice_FASTCALL_struct(args, start, stop) __Pyx_ArgsSlice_VARARGS_struct(args, start, stop)
 #endif
 static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_ArgsSlice_VARARGS_struct(PyObject *args, Py_ssize_t start, Py_ssize_t stop);
 
