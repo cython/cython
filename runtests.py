@@ -1713,9 +1713,9 @@ class EndToEndTest(unittest.TestCase):
         self.cleanup_workdir = cleanup_workdir
         self.stats = stats
         self.capture = capture
-        cython_syspath = [EndToEndTest.cython_root]
+        cython_syspath = [self.cython_root]
         for path in sys.path:
-            if path.startswith(EndToEndTest.cython_root) and path not in cython_syspath:
+            if path.startswith(self.cython_root) and path not in cython_syspath:
                 # Py3 installation and refnanny build prepend their
                 # fixed paths to sys.path => prefer that over the
                 # generic one (cython_root itself goes last)
@@ -1728,7 +1728,7 @@ class EndToEndTest(unittest.TestCase):
 
     def setUp(self):
         from Cython.TestUtils import unpack_source_tree
-        _, self.commands = unpack_source_tree(self.treefile, self.workdir, EndToEndTest.cython_root)
+        _, self.commands = unpack_source_tree(self.treefile, self.workdir, self.cython_root)
         self.old_dir = os.getcwd()
         os.chdir(self.workdir)
         if self.workdir not in sys.path:
