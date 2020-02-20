@@ -2330,6 +2330,8 @@ class NameNode(AtomicExprNode):
                 # per entry and coupled with it.
                 self.generate_acquire_buffer(rhs, code)
             assigned = False
+            # FIXME should this apply to memoryviews too given that
+            # decref_set etc should be implemented for them?
             if self.type.is_pyobject:
                 #print "NameNode.generate_assignment_code: to", self.name ###
                 #print "...from", rhs ###
