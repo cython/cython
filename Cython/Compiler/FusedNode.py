@@ -9,6 +9,26 @@ from .Nodes import FuncDefNode, CFuncDefNode, StatListNode, DefNode
 from ..Utils import OrderedSet
 
 
+def _gen_unique_values():
+    """
+    Generator that will never return the same value twice in one instantiation.
+    Used by `_get_unique_identifier_base()` to avoid dict key collisions. Should
+    avert all key collisions there, provided that (1) a module can only be compiled
+    in one piece, (2) this module can only be loaded once per compilation of another
+    module, and (3) `globals()` never returns any namespace that is more general than
+    that of the module where it is called.
+    """
+    i = 0
+    while True:
+        yield i
+        i += 1
+
+_unique_value_gen = _gen_unique_values()
+
+def get_unique_value():
+    return next(_unique_value_gen)
+
+
 class FusedCFuncDefNode(StatListNode):
     """
     This node replaces a function with fused arguments. It deep-copies the
@@ -605,12 +625,12 @@ class FusedCFuncDefNode(StatListNode):
         never be repeated for different nodes, in different processes,
         on different machines, or in different projects.
         """
-        # FIXME: Replace and remove this.
         import time, random, sys
-        return '{time_ns!s}-{id!s}-{randint!s}'.format(
-            time_ns=int(time.time()*1e9),
-            id=id(self),
-            randint=random.randint(0, sys.maxsize-1)
+        return '{seq!s}-{time_ns!s}-{id!s}-{randint!s}'.format(
+            seq = get_unique_value(),
+            time_ns = int(time.time() * 1e9),
+            id = id(self),
+            randint = random.randint(0, sys.maxsize-1)
         )
     def _fused_sigindex_key(self, pyx_code):
         """
