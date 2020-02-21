@@ -114,6 +114,13 @@ It currently supports OpenMP, but later on more backends might be supported.
         may give substantially different performance results, depending on the schedule, the load balance it provides,
         the scheduling overhead and the amount of false sharing (if any).
 
+    :param simd:
+        The ``simd`` argument indicates that the loop can be transformed into a SIMD loop (that is, multiple iterations
+        of the loop can be executed concurrently using SIMD instructions).
+        ``simd```is set to ``False`` by default.
+        Note that the use of ``simd`` typically requires ``@boundscheck(False)`` and ``@initializedcheck(False)``
+        (see :ref:'Compiler directives <compiler-directives>') .
+
 Example with a reduction:
 
 .. literalinclude:: ../../examples/userguide/parallelism/simple_sum.pyx

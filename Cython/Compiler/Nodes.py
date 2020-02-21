@@ -9475,12 +9475,13 @@ class ParallelRangeNode(ParallelStatNode):
     nogil = None
     schedule = None
 
-    valid_keyword_arguments = ['schedule', 'nogil', 'num_threads', 'chunksize', 'device']
+    valid_keyword_arguments = ['schedule', 'nogil', 'num_threads', 'chunksize', 'device', 'simd']
 
     def __init__(self, pos, **kwds):
         super(ParallelRangeNode, self).__init__(pos, **kwds)
         # Pretend to be a ForInStatNode for control flow analysis
         self.iterator = PassStatNode(pos)
+        self.simd = False
 
     def analyse_declarations(self, env):
         super(ParallelRangeNode, self).analyse_declarations(env)
@@ -9504,6 +9505,9 @@ class ParallelRangeNode(ParallelStatNode):
 
         if self.schedule not in (None, 'static', 'dynamic', 'guided', 'runtime'):
             error(self.pos, "Invalid schedule argument to prange: %s" % (self.schedule,))
+
+        if self.simd not in [True, False]:
+            error(self.pos, "Invalid simd argument to prange: %s is not False or True" % self.simd)
 
     def analyse_expressions(self, env):
         was_nogil = env.nogil
@@ -9736,6 +9740,8 @@ class ParallelRangeNode(ParallelStatNode):
             pragma_par = "#pragma omp parallel"
 
         code.put(pragma_for)
+        if self.simd:
+            code.put(" simd")
         self.privatization_insertion_point = code.insertion_point()
         reduction_codepoint = self.parent.privatization_insertion_point
 
