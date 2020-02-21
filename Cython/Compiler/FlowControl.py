@@ -717,25 +717,46 @@ class ControlFlowAnalysis(CythonTransform):
 
         for arg in node.args:
             self._visit(arg)
+
+        fastcall_directives = node.local_scope.directives.get('fastcall_args', [None, None])
         # TODO a better version would try to identify if the argument makes it into the closure,
         # but for now just block using the fastcall types on any function with a closure
         if node.star_arg:
-            star_type = Builtin.tuple_type if node.needs_closure else PyrexTypes.FastcallTupleType()
+            # can be True, False, or None
+            fastcall_set = fastcall_directives[0]
+
+            # self_in_stararg needs to build a new tuple containing self and so can't easily
+            # be made to work
+            star_type = (Builtin.tuple_type if (node.needs_closure or node.self_in_stararg
+                                                    or fastcall_set == False)
+                                else PyrexTypes.FastcallTupleType())
             self.flow.mark_argument(node.star_arg,
                                     TypedExprNode(star_type,
                                                   may_be_none=False),
                                     node.star_arg.entry)
+            if fastcall_set:
+                if node.self_in_stararg:
+                    error(node.pos, "Cannot use 'fastcall_args(\"*\")' on a function where the"
+                          " self argument is included in *args")
+                node.star_arg.type = PyrexTypes.FastcallTupleType(explicitly_requested=True)
         if node.starstar_arg:
+            # can be True, False, or None
+            fastcall_set = fastcall_directives[1]
+
             # If the wrapping function doesn't have a fastcall signature there's
             # no value in using FastcallDictType - it only adds a layer of indirection
             # (this doesn't apply for FastcallTupleType, which might offer small benefits
             # however called)
-            starstar_type = (Builtin.dict_type if (node.needs_closure and node.entry.signature.use_fastcall)
+            starstar_type = (Builtin.dict_type if (node.needs_closure
+                                                    or not node.entry.signature.use_fastcall
+                                                    or fastcall_set == False)
                                 else PyrexTypes.FastcallDictType())
             self.flow.mark_argument(node.starstar_arg,
                                     TypedExprNode(starstar_type,
                                                   may_be_none=False),
                                     node.starstar_arg.entry)
+            if fastcall_set:
+                node.starstar_arg.type = PyrexTypes.FastcallDictType(explicitly_requested=True)
         self._visit(node.body)
         # Workaround for generators
         if node.is_generator:

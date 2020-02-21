@@ -316,8 +316,7 @@ directive_types = {
     'c_string_type': one_of('bytes', 'bytearray', 'str', 'unicode'),
     'c_string_encoding': normalise_encoding_name,
     'trashcan': bool,
-    'fastcall_args': one_of('off', '*', '**', 'both'),
-    'vectorcall_args': one_of('off', '*', '**', 'both'),
+    'fastcall_args': list, # implements some of its own logic on top of this
 }
 
 for key, val in _directive_defaults.items():

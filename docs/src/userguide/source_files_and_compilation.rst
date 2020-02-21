@@ -796,18 +796,17 @@ Cython code.  Here is the list of currently supported directives:
     ``METH_NOARGS`` and ``METH_O`` signatures provide faster
     calling conventions but disallow the use of keywords.
     
-``fastcall_args`` (off/*/**/both)
+``fastcall_args`` (True / False / None, [True / False / None])
     Sets the ``*args`` or ``**kwds`` of a function to a more
     limited specialized type designed to work efficiently with
     the fastcall and vectorcall calling conventions introduced
-    in CPython 3.7+. The biggest advantage is in being forwarding
+    in CPython 3.7+. The biggest advantage is being able to forward
     the arguments quickly to other C-compiled functions.
-    The specialized types can be more efficient but don't
-    support all the operations that a regular ``tuple`` or ``dict``
-    would. Cython generates warnings when inefficient operations
-    are performed on these types.
-    Default is "off". ``vectorcall_args`` is an alternative
-    syntax for the same thing.
+    The two arguments apply to ``*args`` and ``**kwds``
+    respectively. If only one argument is given the it applies to
+    both. The default argument of ``None`` lets Cython chose
+    when to use these and should be correct the vast majority of
+    the time.
 
 ``profile`` (True / False)
     Write hooks for Python profilers into the compiled C code.  Default

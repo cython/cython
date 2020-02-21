@@ -107,7 +107,7 @@ class _Optimization(object):
 
 cclass = ccall = cfunc = _EmptyDecoratorAndManager()
 
-fastcall_args = vectorcall_args = _EmptyDecoratorAndManager()
+fastcall_args = _EmptyDecoratorAndManager()
 
 returns = wraparound = boundscheck = initializedcheck = nonecheck = \
     embedsignature = cdivision = cdivision_warnings = \

@@ -2718,12 +2718,12 @@ class DecoratorNode(Node):
     child_attrs = ['decorator']
 
 def _get_type_attr(arg, attr):
-    if isinstance(arg, PyArgDeclNode):
-        attrs = ["entry", "type", attr]
-    else:
-        # CArgDeclNode
-        attrs = ["type", attr]
-    for a in attrs:
+    #if isinstance(arg, PyArgDeclNode):
+    #    attrs = ["entry", "type", attr]
+    #else:
+    #    # CArgDeclNode
+    #    attrs = ["type", attr]
+    for a in ["entry", "type", attr]:
         arg = getattr(arg, a, None)
         if arg is None:
             break
@@ -3684,6 +3684,7 @@ class DefNodeWrapper(FuncDefNode):
 
         if self.self_in_stararg and not self.target.is_staticmethod:
             assert not self.signature.use_fastcall
+            assert not self.star_arg.entry.type.is_fastcall_tuple
             # need to create a new tuple with 'self' inserted as first item
             code.put("%s = PyTuple_New(%s + 1); if (unlikely(!%s)) " % (
                 self.star_arg.entry.cname,

@@ -6633,7 +6633,7 @@ class GeneralCallNode(CallNode):
                         self.function.py_result(),
                         self.positional_args.result(),
                         code.error_goto_if_null(self.result(), self.pos)))
-            code.put_gotref(self.py_result())
+            self.generate_gotref(code)
             return
 
 
@@ -7865,7 +7865,7 @@ class SequenceNode(ExprNode):
         for i, item in enumerate(self.unpacked_items):
             code.putln("%s = __Pyx_GetItemInt_FastcallTuple_Fast(%s, %d, 0, 0);" % (
                     item.result(), result, i))  # should not be able to fail
-            code.put_gotref(item.result())
+            item.generate_gotref(code)
         code.putln("}")
 
     def generate_generic_parallel_unpacking_code(self, code, rhs, unpacked_items, use_loop, terminate=True):
