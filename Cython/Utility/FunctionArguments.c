@@ -629,6 +629,7 @@ static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_FastcallTuple_GetSlice(__Pyx_
     }
     if (start < 0) start = 0;
     if (stop < 0) stop = 0;
+    if (stop > len_in) stop = len_in;
     Py_ssize_t out_len = stop - start;
     if (out_len < 0) out_len = 0;
 

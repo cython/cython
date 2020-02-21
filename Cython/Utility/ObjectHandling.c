@@ -2049,14 +2049,14 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallArgs_structs(PyObject* cal
 static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallKwds_structs(PyObject* callable, __Pyx_FastcallDict_obj* kwds); /* proto */
 
 /////////////// PyObjectFastCall__Kwds_OptimizedStructs ///////////////
-//@requires:PyObjectCallMethO
 //@requires:PyObjectCall
 //@requires:PyObjectFastCallKwds
+//@requires:PyObjectFastCall
 //@substitute: naming
 
 static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallKwds_structs(PyObject* callable, __Pyx_FastcallDict_obj* kwds) {
     if (kwds->object == NULL) {
-        return __Pyx_PyObject_CallMethO(callable, NULL);
+        return __Pyx_PyObject_Call(callable, $empty_tuple, NULL);
     } else if (kwds->args) {
         return __Pyx_PyObject_FastCallKwds(callable, (PyObject**)kwds->args, 0, kwds->object);
     } else {
