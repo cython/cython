@@ -4314,14 +4314,14 @@ class FastcallTupleType(PyrexType):
     def generate_gotref(self, cname):
         return "__Pyx_FastcallTuple_GOTREF(%s);" % cname
 
-    def generate_incref(self, cname, **ignored_kwds):
-        return "__Pyx_FastcallTuple_INCREF(%s);" % cname
+    def generate_incref(self, cname, nanny, **ignored_kwds):
+        return "__Pyx_FastcallTuple_INCREF(%s, %s);" % (cname, int(nanny))
 
     def generate_xincref(self, cname, **ignored_kwds):
         return "__Pyx_FastcallTuple_XINCREF(%s);" % cname
 
-    def generate_xdecref(self, cname, **ignored_kwds):
-        return "__Pyx_FastcallTuple_XDECREF(%s);" % cname
+    def generate_xdecref(self, cname, nanny, **ignored_kwds):
+        return "__Pyx_FastcallTuple_XDECREF(%s, %s);" % (cname, int(nanny))
 
     def generate_decref_set(self, cname, rhs_cname):
         return "__Pyx_FastcallTuple_DECREF_SET(%s, %s);" % (cname, rhs_cname)
@@ -4329,8 +4329,8 @@ class FastcallTupleType(PyrexType):
     def generate_xdecref_set(self, cname, rhs_cname):
         return "__Pyx_FastcallTuple_XDECREF_SET(%s, %s);" % (cname, rhs_cname)
 
-    def generate_decref_clear(self, cname, **ignored_kwds):
-        return "__Pyx_FastcallTuple_CLEAR(%s);" % cname
+    def generate_decref_clear(self, cname, nanny, **ignored_kwds):
+        return "__Pyx_FastcallTuple_CLEAR(%s, %s);" % (cname, int(nanny))
 
     def generate_nullcheck(self, cname):
         return "__Pyx_FastcallTuple_NULLCHECK(%s)" % cname
@@ -4345,10 +4345,10 @@ class FastcallDictType(PyrexType):
     """
 
     is_fastcall_dict = 1
-    #is_builtin_type = 1
     has_attributes = 1
-    name = "fastcalldict"
+    name = "FastcallDict"
     exception_check = None
+    needs_xxxref = 1
 
     @property
     def nearest_python_type(self):
@@ -4356,11 +4356,7 @@ class FastcallDictType(PyrexType):
         from .Builtin import dict_type
         return dict_type
 
-    declaration_value = "__Pyx_FastcallDict_New()"
-
-    # set temporarily when generating the definition in the
-    # function wrapper to create a value and not a pointer
-    as_value = False
+    declaration_value = "{{}}" # Can only be used for the array version defined in the wrapper
 
     @classmethod
     def _get_methods(self):
@@ -4391,16 +4387,18 @@ class FastcallDictType(PyrexType):
         return True
 
     def create_declaration_utility_code(self, env):
-        env.use_utility_code(UtilityCode.load_cached('fastcall_dict', 'FunctionArguments.c'))
+        env.use_utility_code(UtilityCode.load_cached('FastcallDict', 'FunctionArguments.c'))
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
+        # Abuse "dll_linkage" to indicate if it's in the wrapper function
+        # in which case, create an array instead
         if for_display:
             return "FastcallDict"
-        if not self.as_value:
-            return "__Pyx_FastcallDict_obj* %s" % entity_code
+        if dll_linkage == "wrapper":
+            return "__Pyx_FastcallDict_obj %s[1]" % entity_code
         else:
-            return "__Pyx_FastcallDict_obj %s" % entity_code
+            return "__Pyx_FastcallDict_obj *%s" % entity_code
 
     def create_to_py_utility_code(self, env):
         env.use_utility_code(UtilityCode.load_cached('fastcall_dict_convert',
@@ -4432,6 +4430,17 @@ class FastcallDictType(PyrexType):
     def literal_code(self, value):
         assert value in ("0", "{}")  # only know how to handle empty literals
         return self.declaration_value
+
+    def generate_gotref(self, cname):
+        return "__Pyx_FastcallDict_GOTREF(%s);" % cname
+    def generate_decref_clear(self, cname, nanny, **ignored_kwds):
+        return "__Pyx_FastcallDict_CLEAR(%s, %s);" % (cname, int(nanny))
+    def generate_xdecref(self, cname, nanny, **ignored_kwds):
+        return "__Pyx_FastcallDict_XDECREF(%s, %s);" % (cname, int(nanny))
+    def generate_incref(self, cname, nanny, **ignored_kwds):
+        return "__Pyx_FastcallDict_INCREF(%s, %s);" % (cname, int(nanny))
+    def generate_decref_set(self, cname, rhs_cname):
+        return "__Pyx_FastcallDict_DECREF_SET(%s, %s);" % (cname, rhs_cname)
 
 
 rank_to_type_name = (

@@ -756,7 +756,14 @@ class ControlFlowAnalysis(CythonTransform):
                                                   may_be_none=False),
                                     node.starstar_arg.entry)
             if fastcall_set:
-                node.starstar_arg.type = PyrexTypes.FastcallDictType(explicitly_requested=True)
+                if node.entry.signature.use_fastcall:
+                    node.starstar_arg.type = PyrexTypes.FastcallDictType(explicitly_requested=True)
+                else:
+                    warning(node.pos,
+                            "Ignoring request for FastcallDict on function %s - Cython cannot currently"
+                            " generate a fastcall/vectorcall signature for the wrapper function so there"
+                            " is no benefit to using the specialized type."
+                                % node.entry.name, 1)
         self._visit(node.body)
         # Workaround for generators
         if node.is_generator:

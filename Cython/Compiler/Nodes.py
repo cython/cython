@@ -3371,10 +3371,7 @@ class DefNodeWrapper(FuncDefNode):
         if self.star_arg:
             args.append(self.star_arg.entry.cname)
         if self.starstar_arg:
-            if _get_type_attr(self.starstar_arg, "is_fastcall_dict"):
-                args.append("&%s" % self.starstar_arg.entry.cname)
-            else:
-                args.append(self.starstar_arg.entry.cname)
+            args.append(self.starstar_arg.entry.cname)
         args = ', '.join(args)
         if not self.return_type.is_void:
             code.put('%s = ' % Naming.retval_cname)
@@ -3435,10 +3432,10 @@ class DefNodeWrapper(FuncDefNode):
         # ----- Non-error return cleanup
         code.put_label(code.return_label)
         for entry in lenv.var_entries:
-            if entry.is_arg and entry.type.is_pyobject:
+            if entry.is_arg and not entry.type.is_memoryviewslice:
+                # FIXME given that memoryviews are excluded here does their refcounting
+                # treatment generally make sense?
                 code.put_var_xdecref(entry)
-            elif entry.type.is_fastcall_dict:
-                code.put_xdecref("%s.object" % entry.cname, py_object_type, nanny=False)
 
         code.put_finish_refcount_context()
         if not self.return_type.is_void:
@@ -3540,14 +3537,10 @@ class DefNodeWrapper(FuncDefNode):
         for entry in env.var_entries:
             if entry.is_arg:
                 if entry.type.is_fastcall_dict:
-                    # fastcall dict needs to be a value type here, but a pointer
-                    # in the main function (so that changes to it propagate correctly)
-                    old_as_value = entry.type.as_value
-                    entry.type.as_value = True
-                    try:
-                        code.put_var_declaration(entry)
-                    finally:
-                        entry.type.as_value = old_as_value
+                    # fastcall dict needs to be a declared different in the wrapper function
+                    # (where it's an array) compared to everywhere else (where it's a pointer)
+                    # Abuse dll_linkage to flag this
+                    code.put_var_declaration(entry, dll_linkage="wrapper")
                 else:
                     code.put_var_declaration(entry)
 
@@ -3673,7 +3666,7 @@ class DefNodeWrapper(FuncDefNode):
                                          self.starstar_arg.entry.type.literal_code(0)))
             else:
                 if _get_type_attr(self.starstar_arg, "is_fastcall_dict"):
-                    code.putln("%s = __Pyx_FastcallDict_New();" % self.starstar_arg.entry.cname)
+                    code.putln("%s = {__Pyx_FastcallDict_New()};" % self.starstar_arg.entry.cname)
                 else:
                     code.putln("%s = PyDict_New();" % self.starstar_arg.entry.cname)
                     code.putln("if (unlikely(!%s)) return %s;" % (
@@ -4173,7 +4166,6 @@ class DefNodeWrapper(FuncDefNode):
             suffix = ""
         else:
             suffix = "_fastcallstruct"
-            starstar_cname = "&" + starstar_cname
         code.globalstate.use_utility_code(
             UtilityCode.load_cached("ParseKeywords%s" % suffix, "FunctionArguments.c"))
         code.putln('if (unlikely(__Pyx_ParseOptionalKeywords%s(%s, %s, %s, %s, %s, %s, %s) < 0)) %s' % (

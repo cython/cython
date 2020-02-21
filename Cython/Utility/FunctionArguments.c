@@ -474,12 +474,12 @@ static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_FastcallTuple_New(PyObject *c
 #define __Pyx_FastcallTuple_Empty {}
 // reference counting is all a no-op
 #define __Pyx_FastcallTuple_GOTREF(x)
-#define __Pyx_FastcallTuple_CLEAR(x)
+#define __Pyx_FastcallTuple_CLEAR(x, nanny)
 #define __Pyx_FastcallTuple_XINCREF(x)
-#define __Pyx_FastcallTuple_INCREF(x)
-#define __Pyx_FastcallTuple_XDECREF(x)
-#define __Pyx_FastcallTuple_DECREF_SET(lhs, rhs) lhs = rhs
-#define __Pyx_FastcallTuple_XDECREF_SET(lhs, rhs) lhs = rhs
+#define __Pyx_FastcallTuple_INCREF(x, nanny)
+#define __Pyx_FastcallTuple_XDECREF(x, nanny)
+#define __Pyx_FastcallTuple_DECREF_SET(lhs, rhs) do { lhs = rhs } while(0);
+#define __Pyx_FastcallTuple_XDECREF_SET(lhs, rhs) do { lhs = rhs } while(0);
 #define __Pyx_FastcallTuple_NULLCHECK(x) x.args
 static CYTHON_INLINE Py_ssize_t __Pyx_FastcallTuple_Len(__Pyx_FastcallTuple_obj o); /* proto */
 #else
@@ -487,10 +487,10 @@ typedef PyObject* __Pyx_FastcallTuple_obj;
 #define __Pyx_FastcallTuple_Empty 0
 #define __Pyx_FastcallTuple_New PyTuple_GetSlice
 #define __Pyx_FastcallTuple_GOTREF(x) __Pyx_GOTREF(x)
-#define __Pyx_FastcallTuple_CLEAR(x) __Pyx_CLEAR(x)
+#define __Pyx_FastcallTuple_CLEAR(x, nanny) if (nanny) { __Pyx_CLEAR(x); } else { Py_CLEAR(x); }
 #define __Pyx_FastcallTuple_XINCREF(x) __Pyx_XINCREF(x)
-#define __Pyx_FastcallTuple_INCREF(x) __Pyx_INCREF(x)
-#define __Pyx_FastcallTuple_XDECREF(x) __Pyx_XDECREF(x)
+#define __Pyx_FastcallTuple_INCREF(x, nanny) if (nanny) { __Pyx_INCREF(x); } else { Py_INCREF(x); }
+#define __Pyx_FastcallTuple_XDECREF(x, nanny) if (nanny) { __Pyx_XDECREF(x); } else { Py_XDECREF(x); }
 #define __Pyx_FastcallTuple_DECREF_SET(lhs, rhs) __Pyx_DECREF_SET(lhs, rhs)
 #define __Pyx_FastcallTuple_XDECREF_SET(lhs, rhs) __Pyx_XDECREF_SET(lhs, rhs)
 #define __Pyx_FastcallTuple_NULLCHECK(x) x
@@ -642,7 +642,7 @@ static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_FastcallTuple_GetSlice(__Pyx_
 #endif
 
 
-/////////////////// fastcall_dict.proto /////////////////////////
+/////////////////// FastcallDict.proto /////////////////////////
 
 typedef struct {
     PyObject *const *args; // start of the keyword args values
@@ -657,7 +657,15 @@ typedef struct {
 static CYTHON_UNUSED Py_ssize_t __Pyx_FastcallDict_Len(__Pyx_FastcallDict_obj *o); /* proto */
 static CYTHON_UNUSED __Pyx_FastcallDict_obj __Pyx_FastcallDict_New(void); /* proto */
 
-/////////////////// fastcall_dict //////////////////////
+// reference counting
+#define __Pyx_FastcallDict_GOTREF(x) __Pyx_GOTREF(x->object)
+#define __Pyx_FastcallDict_INCREF(x, nanny) if (nanny) { __Pyx_INCREF(x->object); } else { Py_INCREF(x->object); }
+#define __Pyx_FastcallDict_XDECREF(x, nanny) if(nanny) { __Pyx_XDECREF(x->object); } else { Py_XDECREF(x->object); }
+#define __Pyx_FastcallDict_CLEAR(x, nanny) do { if(nanny) { __Pyx_CLEAR(x->object); } else { Py_CLEAR(x->object); } x->args = NULL; } while(0)
+#define __Pyx_FastcallDict_DECREF_SET(lhs, rhs) do { __Pyx_DECREF_SET(lhs->object, rhs->object); lhs->args = rhs->args; } while(0)
+#define __Pyx_FastcallDict_XDECREF_SET(lhs, rhs) do { __Pyx_XDECREF_SET(lhs->object, rhs->object); lhs->args = rhs->args; } while(0)
+
+/////////////////// FastcallDict //////////////////////
 
 static CYTHON_UNUSED Py_ssize_t __Pyx_FastcallDict_Len(__Pyx_FastcallDict_obj *o) {
     if (o->object == NULL) {
@@ -911,7 +919,7 @@ static CYTHON_INLINE int __Pyx_FastcallTuple_ContainsTF(PyObject* item, __Pyx_Fa
 }
 
 /////////////// ParseKeywords_fastcallstruct.proto ///////////////
-//@requires: fastcall_dict
+//@requires: FastcallDict
 
 static CYTHON_UNUSED int __Pyx_ParseOptionalKeywords_fastcallstruct(PyObject *kwds, PyObject *const *kwvalues,
     PyObject **argnames[],
