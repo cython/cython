@@ -918,7 +918,9 @@ class CArgDeclNode(Node):
         default.make_owned_reference(code)
         result = default.result() if overloaded_assignment else default.result_as(self.type)
         code.putln("%s = %s;" % (target, result))
-        code.put_giveref(default.result(), self.type)
+        if not self.type.is_memoryviewslice:
+            # TODO - are memoryviewslices special-cased too much or not enough
+            code.put_giveref(default.result(), self.type)
         default.generate_post_assignment_code(code)
         default.free_temps(code)
 
