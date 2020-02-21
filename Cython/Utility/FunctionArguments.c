@@ -462,7 +462,7 @@ static CYTHON_INLINE PyObject * __Pyx_GetKwValue_FASTCALL(PyObject *kwnames, PyO
 }
 #endif
 
-/////////////// fastcall_tuple.proto ///////////////
+/////////////// FastcallTuple.proto ///////////////
 // A struct which can be created cheaply without needing to construct a Python object
 
 #if CYTHON_METH_FASTCALL
@@ -475,7 +475,7 @@ static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_FastcallTuple_New(PyObject *c
 // reference counting is all a no-op
 #define __Pyx_FastcallTuple_GOTREF(x)
 #define __Pyx_FastcallTuple_CLEAR(x, nanny)
-#define __Pyx_FastcallTuple_XINCREF(x)
+#define __Pyx_FastcallTuple_XINCREF(x, nanny)
 #define __Pyx_FastcallTuple_INCREF(x, nanny)
 #define __Pyx_FastcallTuple_XDECREF(x, nanny)
 #define __Pyx_FastcallTuple_DECREF_SET(lhs, rhs) do { lhs = rhs } while(0);
@@ -488,7 +488,7 @@ typedef PyObject* __Pyx_FastcallTuple_obj;
 #define __Pyx_FastcallTuple_New PyTuple_GetSlice
 #define __Pyx_FastcallTuple_GOTREF(x) __Pyx_GOTREF(x)
 #define __Pyx_FastcallTuple_CLEAR(x, nanny) if (nanny) { __Pyx_CLEAR(x); } else { Py_CLEAR(x); }
-#define __Pyx_FastcallTuple_XINCREF(x) __Pyx_XINCREF(x)
+#define __Pyx_FastcallTuple_XINCREF(x, nanny)  if (nanny) { __Pyx_XINCREF(x); } else { Py_XINCREF(x); }
 #define __Pyx_FastcallTuple_INCREF(x, nanny) if (nanny) { __Pyx_INCREF(x); } else { Py_INCREF(x); }
 #define __Pyx_FastcallTuple_XDECREF(x, nanny) if (nanny) { __Pyx_XDECREF(x); } else { Py_XDECREF(x); }
 #define __Pyx_FastcallTuple_DECREF_SET(lhs, rhs) __Pyx_DECREF_SET(lhs, rhs)
@@ -509,7 +509,7 @@ static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_ArgsSlice_VARARGS_struct(PyOb
 // no type-checking - used for conversion in function call
 static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_FastcallTuple_FromTuple(PyObject* o);
 
-/////////////// fastcall_tuple ///////////////
+/////////////// FastcallTuple ///////////////
 //@requires: ObjectHandling.c::PyVectorcallNargs
 
 #if CYTHON_METH_FASTCALL
@@ -564,8 +564,8 @@ static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_FastcallTuple_FromTuple(PyObj
 #endif
 }
 
-/////////////// fastcall_tuple_indexing.proto ///////////////
-//@requires: fastcall_tuple
+/////////////// FastcallTupleGetItemInt.proto ///////////////
+//@requires: FastcallTuple
 //@requires: ObjectHandling.c::GetItemInt
 
 // based on ObjectHandling.c
@@ -580,7 +580,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_FastcallTuple_Fast(__Pyx_Fastcal
 #define __Pyx_GetItemInt_FastcallTuple_Fast __Pyx_GetItemInt_Tuple_Fast
 #endif
 
-/////////////// fastcall_tuple_indexing ///////////////
+/////////////// FastcallTupleGetItemInt ///////////////
 
 #if CYTHON_METH_FASTCALL
 static CYTHON_INLINE PyObject *__Pyx_GetItemInt_FastcallTuple_Fast(__Pyx_FastcallTuple_obj o, Py_ssize_t i,
@@ -604,7 +604,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_FastcallTuple_Fast(__Pyx_Fastcal
 }
 #endif
 
-/////////////// fastcall_tuple_slice.proto ///////////////
+/////////////// FastcallTupleSlice.proto ///////////////
 //@requires: ObjectHandling.c::SliceTupleAndList
 
 #if CYTHON_METH_FASTCALL
@@ -614,7 +614,7 @@ static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_FastcallTuple_GetSlice(__Pyx_
 #define __Pyx_FastcallTuple_GetSlice __Pyx_PyTuple_GetSlice
 #endif
 
-/////////////// fastcall_tuple_slice ///////////////
+/////////////// FastcallTupleSlice ///////////////
 
 #if CYTHON_METH_FASTCALL
 static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_FastcallTuple_GetSlice(__Pyx_FastcallTuple_obj in, Py_ssize_t start, Py_ssize_t stop) {
@@ -648,22 +648,32 @@ typedef struct {
     PyObject *const *args; // start of the keyword args values
     PyObject *object;      // either a dict, a tuple or NULL
 } __Pyx_FastcallDict_obj;
-// exists in one of three states:
+// exists in one of three (ish) states:
 // * args is NULL, "object" is NULL, meaning no keyword arguments
 // * args is NULL, in which case "object" is actually a dict, and this just defers to the dict methods
-// * args is non-null, kwnames is a tuple
+// * args is non-null, object is a tuple
+// * args is non-null, object is NULL - used to signify an invalid state (but only really checked on creation)
 // Defaults to "object" being a dict unless one of the quicker options can be easily created
 
 static CYTHON_UNUSED Py_ssize_t __Pyx_FastcallDict_Len(__Pyx_FastcallDict_obj *o); /* proto */
 static CYTHON_UNUSED __Pyx_FastcallDict_obj __Pyx_FastcallDict_New(void); /* proto */
 
-// reference counting
-#define __Pyx_FastcallDict_GOTREF(x) __Pyx_GOTREF(x->object)
-#define __Pyx_FastcallDict_INCREF(x, nanny) if (nanny) { __Pyx_INCREF(x->object); } else { Py_INCREF(x->object); }
-#define __Pyx_FastcallDict_XDECREF(x, nanny) if(nanny) { __Pyx_XDECREF(x->object); } else { Py_XDECREF(x->object); }
-#define __Pyx_FastcallDict_CLEAR(x, nanny) do { if(nanny) { __Pyx_CLEAR(x->object); } else { Py_CLEAR(x->object); } x->args = NULL; } while(0)
-#define __Pyx_FastcallDict_DECREF_SET(lhs, rhs) do { __Pyx_DECREF_SET(lhs->object, rhs->object); lhs->args = rhs->args; } while(0)
-#define __Pyx_FastcallDict_XDECREF_SET(lhs, rhs) do { __Pyx_XDECREF_SET(lhs->object, rhs->object); lhs->args = rhs->args; } while(0)
+// reference counting - for these always use "X" functions since object==NULL is a valid state
+// It's difficult to do refnanny sensibly on these at the moment since it's valid for
+// x->object to be swapped out in the middle of a function if it's coerced to Python.
+// Therefore, disable it (FIXME!?)
+#define __Pyx_FastcallDict_GOTREF(x)
+#define __Pyx_FastcallDict_CLEAR(x, nanny) do { Py_CLEAR(x->object); x->args = NULL; } while(0)
+#define __Pyx_FastcallDict_XDECREF(x, nanny) Py_XDECREF(x->object)
+#define __Pyx_FastcallDict_INCREF __Pyx_FastcallDict_XINCREF
+#define __Pyx_FastcallDict_XINCREF(x, nanny) Py_XINCREF(x->object)
+#define __Pyx_FastcallDict_DECREF_SET __Pyx_FastcallDict_XDECREF_SET
+#define __Pyx_FastcallDict_XDECREF_SET(lhs, rhs) do { \
+        __PyxFastcallDict_obj *temp = lhs; \
+        lhs = rhs; \
+        Py_XDECREF(temp->object); \
+    } while(0)
+#define __Pyx_FastcallDict_NULLCHECK(x) !(x->args!=NULL && x->object==NULL)
 
 /////////////////// FastcallDict //////////////////////
 
@@ -682,12 +692,12 @@ static CYTHON_UNUSED __Pyx_FastcallDict_obj __Pyx_FastcallDict_New(void) {
     return out;
 }
 
-/////////////////// fastcall_dict_convert.proto //////////////////////
+/////////////////// FastcallDictConvert.proto //////////////////////
 
 static CYTHON_UNUSED PyObject* __Pyx_FastcallDict_ToDict(__Pyx_FastcallDict_obj *o); /* proto */
 static CYTHON_UNUSED PyObject* __Pyx_FastcallDict_ToDict_Explicit(__Pyx_FastcallDict_obj *o); /* proto */
 
-/////////////////// fastcall_dict_convert //////////////////////
+/////////////////// FastcallDictConvert //////////////////////
 //@requires: fastcall
 
 static CYTHON_UNUSED PyObject* __Pyx_FastcallDict_ToDict(__Pyx_FastcallDict_obj *o){
@@ -712,7 +722,7 @@ static CYTHON_UNUSED PyObject* __Pyx_FastcallDict_ToDict_Explicit(__Pyx_Fastcall
     }
 }
 
-/////////////////// fastcall_dict_iter.proto //////////////////////
+/////////////////// FastcallDictIter.proto //////////////////////
 
 // These methods behaves slightly differently from the regular dict methods
 // in that they just return a list rather than an iterator. For most of them
@@ -721,7 +731,7 @@ static CYTHON_UNUSED PyObject* __Pyx_FastcallDict_Keys(__Pyx_FastcallDict_obj* o
 static CYTHON_UNUSED PyObject* __Pyx_FastcallDict_Values(__Pyx_FastcallDict_obj* o);
 static CYTHON_UNUSED PyObject* __Pyx_FastcallDict_Items(__Pyx_FastcallDict_obj* o);
 
-/////////////////// fastcall_dict_iter //////////////////////
+/////////////////// FastcallDictIter //////////////////////
 //@requires:ObjectHandling.c::TupleAndListFromArray
 
 static CYTHON_UNUSED PyObject* __Pyx_FastcallDict_Keys(__Pyx_FastcallDict_obj *o) {
@@ -766,16 +776,16 @@ static CYTHON_UNUSED PyObject* __Pyx_FastcallDict_Items(__Pyx_FastcallDict_obj* 
     }
 }
 
-/////////////////// fastcall_dict_loopiter.proto //////////////////////
+/////////////////// FastcallDictLoopIter.proto //////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_dict_iterator_fastcalldict(__Pyx_FastcallDict_obj* iterable,
                                                                 int is_dict, PyObject* method_name,
                                                    Py_ssize_t* p_orig_length, int* p_source_is_dict);
 
-/////////////////// fastcall_dict_loopiter //////////////////////
-// fastcall_dict_iter
+/////////////////// FastcallDictLoopIter //////////////////////
+// FastcallDictIter
 //@requires:Optimize.c::dict_iter // partly to get __Pyx_dict_iter_next (which we don't need to redefine)
-//@requires:fastcall_dict_iter
+//@requires:FastcallDictIter
 
 static CYTHON_INLINE PyObject* __Pyx_dict_iterator_fastcalldict(__Pyx_FastcallDict_obj* iterable,
                                                                 int is_dict, PyObject* method_name,
@@ -814,13 +824,13 @@ static CYTHON_INLINE PyObject* __Pyx_dict_iterator_fastcalldict(__Pyx_FastcallDi
     return result;
 }
 
-/////////////////// fastcall_dict_getitem.proto ///////////////////////
+/////////////////// FastcallDictGetItem.proto ///////////////////////
 
 static CYTHON_UNUSED PyObject* __Pyx_FastcallDict_GetItem(__Pyx_FastcallDict_obj* o, PyObject* key);
 
-/////////////////// fastcall_dict_getitem //////////////////////////////
+/////////////////// FastcallDictGetItem //////////////////////////////
 //@requires:ObjectHandling.c::DictGetItem
-//@requires:fastcall_dict_contains
+//@requires:FastcallDictContains
 
 static CYTHON_UNUSED PyObject* __Pyx_FastcallDict_GetItem(__Pyx_FastcallDict_obj* o, PyObject* key) {
     if (o->object == NULL) {
@@ -839,13 +849,13 @@ static CYTHON_UNUSED PyObject* __Pyx_FastcallDict_GetItem(__Pyx_FastcallDict_obj
     return NULL;
 }
 
-/////////////////// fastcall_dict_contains.proto //////////////////////
+/////////////////// FastcallDictContains.proto //////////////////////
 
 static CYTHON_UNUSED int __Pyx_FastcallDict_Index_impl(__Pyx_FastcallDict_obj* o, PyObject* key);
 static CYTHON_UNUSED int __Pyx_FastcallDict_Contains(__Pyx_FastcallDict_obj* o, PyObject* key);
 static CYTHON_INLINE int __Pyx_FastcallDict_ContainsTF(PyObject* item, __Pyx_FastcallDict_obj* dict, int eq);
 
-/////////////////// fastcall_dict_contains //////////////////////
+/////////////////// FastcallDictContains //////////////////////
 
 static CYTHON_UNUSED int __Pyx_FastcallDict_Index_impl(__Pyx_FastcallDict_obj* o, PyObject* key) {
 // returns -1 if not found otherwise the index
@@ -897,12 +907,12 @@ static CYTHON_INLINE int __Pyx_FastcallDict_ContainsTF(PyObject* item, __Pyx_Fas
     return unlikely(result < 0) ? result : (result == (eq == Py_EQ));
 }
 
-/////////////////// fastcall_tuple_contains.proto //////////////////////
+/////////////////// FastcallTupleContains.proto //////////////////////
 
 static CYTHON_UNUSED int __Pyx_FastcallTuple_Contains(__Pyx_FastcallTuple_obj o, PyObject* key);
 static CYTHON_INLINE int __Pyx_FastcallTuple_ContainsTF(PyObject* item, __Pyx_FastcallTuple_obj t, int eq);
 
-/////////////////// fastcall_tuple_contains //////////////////////
+/////////////////// FastcallTupleContains //////////////////////
 
 static CYTHON_UNUSED int __Pyx_FastcallTuple_Contains(__Pyx_FastcallTuple_obj o, PyObject* key) {
     Py_ssize_t idx;
@@ -1054,6 +1064,9 @@ static CYTHON_UNUSED __Pyx_FastcallDict_obj __Pyx_KwargsAsDict_FASTCALL_fastcall
     Py_INCREF(kwds);
 #else
     kwds = __Pyx_KwargsAsDict_FASTCALL(kwds, kwvalues);  // default to this (dict copy)
+    if (!kwds) {
+        out.args = 1; // invalid state as error flag
+    }
 #endif
     out.object = kwds;
     return out;

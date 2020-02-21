@@ -734,11 +734,7 @@ class ControlFlowAnalysis(CythonTransform):
                                     TypedExprNode(star_type,
                                                   may_be_none=False),
                                     node.star_arg.entry)
-            if fastcall_set:
-                if node.self_in_stararg:
-                    error(node.pos, "Cannot use 'fastcall_args(\"*\")' on a function where the"
-                          " self argument is included in *args")
-                node.star_arg.type = PyrexTypes.FastcallTupleType(explicitly_requested=True)
+            # if the user has specifically requested the fastcall type it's set in AdjustDefByDirectives
         if node.starstar_arg:
             # can be True, False, or None
             fastcall_set = fastcall_directives[1]
@@ -755,15 +751,6 @@ class ControlFlowAnalysis(CythonTransform):
                                     TypedExprNode(starstar_type,
                                                   may_be_none=False),
                                     node.starstar_arg.entry)
-            if fastcall_set:
-                if node.entry.signature.use_fastcall:
-                    node.starstar_arg.type = PyrexTypes.FastcallDictType(explicitly_requested=True)
-                else:
-                    warning(node.pos,
-                            "Ignoring request for FastcallDict on function %s - Cython cannot currently"
-                            " generate a fastcall/vectorcall signature for the wrapper function so there"
-                            " is no benefit to using the specialized type."
-                                % node.entry.name, 1)
         self._visit(node.body)
         # Workaround for generators
         if node.is_generator:

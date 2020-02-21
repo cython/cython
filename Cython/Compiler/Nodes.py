@@ -2071,7 +2071,7 @@ class FuncDefNode(StatNode, BlockNode):
             if not entry.used or entry.in_closure:
                 continue
 
-            if entry.type.is_pyobject:
+            if entry.type.is_pyobject or entry.type.is_fastcall_type:
                 if not (not entry.is_arg or len(entry.cf_assignments) > 1):
                     continue
             code.put_var_xdecref(entry, have_gil=not lenv.nogil)
@@ -2718,16 +2718,15 @@ class DecoratorNode(Node):
     child_attrs = ['decorator']
 
 def _get_type_attr(arg, attr):
-    #if isinstance(arg, PyArgDeclNode):
-    #    attrs = ["entry", "type", attr]
-    #else:
-    #    # CArgDeclNode
-    #    attrs = ["type", attr]
-    for a in ["entry", "type", attr]:
-        arg = getattr(arg, a, None)
-        if arg is None:
-            break
-    return arg
+    for attrs in (["entry", "type", attr],
+                  ["type", attr]):
+        for a in attrs:
+            try:
+                arg = getattr(arg, a)
+            except AttributeError:
+                break
+        else:
+            return arg
 
 class DefNode(FuncDefNode):
     # A Python function definition.
@@ -3086,14 +3085,13 @@ class DefNode(FuncDefNode):
 
             if not uses_args_tuple:
                 sig = self.entry.signature = sig.with_fastcall()
-            if (not self.entry.signature.use_fastcall and self.starstar_arg and
-                    _get_type_attr(self.starstar_arg, "is_fastcall_dict")):
-                del self.starstar_arg.type
-                if hasattr(self.starstar_arg, "entry"):
-                    del self.starstar_arg.entry.type
-                warning(self.pos, ("Ignoring request for **{0} to be a specialized "
-                    "fastcall argument since the function itself is not fastcallable "
-                    "and so this would only cause slower performance."
+            if (not self.entry.signature.use_fastcall
+                    and _get_type_attr(self.starstar_arg, "is_fastcall_dict")):
+                # it's a failure of the inference if we end up here without asking
+                assert _get_type_attr(self.starstar_arg, "explicitly_requested")
+                warning(self.pos, ("Request for **{0} to be a specialized "
+                    "fastcall argument is pointless since the function itself is not fastcallable "
+                    "and so this will only cause degrade performance."
                     ).format(self.starstar_arg.name), 1)
 
     def bad_signature(self):
@@ -3646,19 +3644,22 @@ class DefNodeWrapper(FuncDefNode):
                 suffix = "_fastcallstruct"
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("ParseKeywords_fastcallstruct", "FunctionArguments.c"))
+                assign_index = "[0]"
             else:
                 suffix = ""
+                assign_index = ""
             code.putln("if (%s) {" % kwarg_check)
-            code.putln("%s = __Pyx_KwargsAsDict_%s%s(%s, %s);" % (
+            code.putln("%s%s = __Pyx_KwargsAsDict_%s%s(%s, %s);" % (
                 self.starstar_arg.entry.cname,
+                assign_index,
                 self.signature.fastvar,
                 suffix,
                 Naming.kwds_cname,
                 Naming.kwvalues_cname))
-            if not self.starstar_arg.entry.type.is_fastcall_dict:
-                code.putln("if (unlikely(!%s)) return %s;" % (
-                    self.starstar_arg.entry.cname, self.error_value()))
-                code.put_gotref(self.starstar_arg.entry.cname, py_object_type)
+
+            code.putln("if (unlikely(!%s)) return %s;" % (
+                    code.get_var_nullcheck(self.starstar_arg.entry), self.error_value()))
+            code.put_var_gotref(self.starstar_arg.entry)
             code.putln("} else {")
             allow_null = all(ref.node.allow_null for ref in self.starstar_arg.entry.cf_references)
             if allow_null:
@@ -3666,11 +3667,11 @@ class DefNodeWrapper(FuncDefNode):
                                          self.starstar_arg.entry.type.literal_code(0)))
             else:
                 if _get_type_attr(self.starstar_arg, "is_fastcall_dict"):
-                    code.putln("%s = {__Pyx_FastcallDict_New()};" % self.starstar_arg.entry.cname)
+                    code.putln("%s[0] = __Pyx_FastcallDict_New();" % self.starstar_arg.entry.cname)
                 else:
                     code.putln("%s = PyDict_New();" % self.starstar_arg.entry.cname)
-                    code.putln("if (unlikely(!%s)) return %s;" % (
-                        self.starstar_arg.entry.cname, self.error_value()))
+                code.putln("if (unlikely(!%s)) return %s;" % (
+                        code.get_var_nullcheck(self.starstar_arg.entry), self.error_value()))
                 code.put_var_gotref(self.starstar_arg.entry)
             self.starstar_arg.entry.xdecref_cleanup = allow_null
             code.putln("}")

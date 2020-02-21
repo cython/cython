@@ -4247,7 +4247,28 @@ class ErrorType(PyrexType):
     def error_condition(self, result_code):
         return "dummy"
 
-class FastcallTupleType(PyrexType):
+class FastcallBaseType(PyrexType):
+    # Convenience class for refcounting functions
+    needs_xxxref = 1
+
+    def generate_gotref(self, cname):
+        return "__Pyx_%s_GOTREF(%s);" % (self.name, cname)
+    def generate_decref_clear(self, cname, nanny, **ignored_kwds):
+        return "__Pyx_%s_CLEAR(%s, %s);" % (self.name, cname, int(nanny))
+    def generate_xdecref(self, cname, nanny, **ignored_kwds):
+        return "__Pyx_%s_XDECREF(%s, %s);" % (self.name, cname, int(nanny))
+    def generate_incref(self, cname, nanny, **ignored_kwds):
+        return "__Pyx_%s_INCREF(%s, %s);" % (self.name, cname, int(nanny))
+    def generate_xincref(self, cname, nanny, **ignored_kwds):
+        return "__Pyx_%s_XINCREF(%s, %s);" % (self.name, cname, int(nanny))
+    def generate_decref_set(self, cname, rhs_cname):
+        return "__Pyx_%s_DECREF_SET(%s, %s);" % (self.name, cname, rhs_cname)
+    def generate_xdecref_set(self, cname, rhs_cname):
+        return "__Pyx_%s_XDECREF_SET(%s, %s);" % (self.name, cname, rhs_cname)
+    def generate_nullcheck(self, cname):
+        return "__Pyx_%s_NULLCHECK(%s)" % (self.name, cname)
+
+class FastcallTupleType(FastcallBaseType):
     """Represents an optimized tuple-like type for "*args"
 
     Eliminates the need for an actual tuple to be created, but
@@ -4256,8 +4277,8 @@ class FastcallTupleType(PyrexType):
     """
 
     is_fastcall_tuple = 1
+    name = "FastcallTuple"
     declaration_value = "__Pyx_FastcallTuple_Empty"
-    needs_xxxref = 1
 
     @property
     def nearest_python_type(self):
@@ -4271,7 +4292,7 @@ class FastcallTupleType(PyrexType):
         self.explicitly_requested = explicitly_requested
 
     def create_declaration_utility_code(self, env):
-        env.use_utility_code(UtilityCode.load_cached('fastcall_tuple', 'FunctionArguments.c'))
+        env.use_utility_code(UtilityCode.load_cached('FastcallTuple', 'FunctionArguments.c'))
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
@@ -4311,31 +4332,7 @@ class FastcallTupleType(PyrexType):
     def __eq__(self, rhs):
         return type(self) == type(rhs)
 
-    def generate_gotref(self, cname):
-        return "__Pyx_FastcallTuple_GOTREF(%s);" % cname
-
-    def generate_incref(self, cname, nanny, **ignored_kwds):
-        return "__Pyx_FastcallTuple_INCREF(%s, %s);" % (cname, int(nanny))
-
-    def generate_xincref(self, cname, **ignored_kwds):
-        return "__Pyx_FastcallTuple_XINCREF(%s);" % cname
-
-    def generate_xdecref(self, cname, nanny, **ignored_kwds):
-        return "__Pyx_FastcallTuple_XDECREF(%s, %s);" % (cname, int(nanny))
-
-    def generate_decref_set(self, cname, rhs_cname):
-        return "__Pyx_FastcallTuple_DECREF_SET(%s, %s);" % (cname, rhs_cname)
-
-    def generate_xdecref_set(self, cname, rhs_cname):
-        return "__Pyx_FastcallTuple_XDECREF_SET(%s, %s);" % (cname, rhs_cname)
-
-    def generate_decref_clear(self, cname, nanny, **ignored_kwds):
-        return "__Pyx_FastcallTuple_CLEAR(%s, %s);" % (cname, int(nanny))
-
-    def generate_nullcheck(self, cname):
-        return "__Pyx_FastcallTuple_NULLCHECK(%s)" % cname
-
-class FastcallDictType(PyrexType):
+class FastcallDictType(FastcallBaseType):
     """Represents an optimized dict-like type for "**kwds"
 
     Eliminates the need for an actual dict to be created,
@@ -4361,7 +4358,7 @@ class FastcallDictType(PyrexType):
     @classmethod
     def _get_methods(self):
         from .Builtin import BuiltinMethod
-        uc = UtilityCode.load_cached("fastcall_dict_iter", "FunctionArguments.c")
+        uc = UtilityCode.load_cached("FastcallDictIter", "FunctionArguments.c")
         return [
             BuiltinMethod("keys", "T", "O", "__Pyx_FastcallDict_Keys",
                 utility_code=uc),
@@ -4401,7 +4398,7 @@ class FastcallDictType(PyrexType):
             return "__Pyx_FastcallDict_obj *%s" % entity_code
 
     def create_to_py_utility_code(self, env):
-        env.use_utility_code(UtilityCode.load_cached('fastcall_dict_convert',
+        env.use_utility_code(UtilityCode.load_cached('FastcallDictConvert',
                                                         'FunctionArguments.c'))
         return True
 
@@ -4430,18 +4427,6 @@ class FastcallDictType(PyrexType):
     def literal_code(self, value):
         assert value in ("0", "{}")  # only know how to handle empty literals
         return self.declaration_value
-
-    def generate_gotref(self, cname):
-        return "__Pyx_FastcallDict_GOTREF(%s);" % cname
-    def generate_decref_clear(self, cname, nanny, **ignored_kwds):
-        return "__Pyx_FastcallDict_CLEAR(%s, %s);" % (cname, int(nanny))
-    def generate_xdecref(self, cname, nanny, **ignored_kwds):
-        return "__Pyx_FastcallDict_XDECREF(%s, %s);" % (cname, int(nanny))
-    def generate_incref(self, cname, nanny, **ignored_kwds):
-        return "__Pyx_FastcallDict_INCREF(%s, %s);" % (cname, int(nanny))
-    def generate_decref_set(self, cname, rhs_cname):
-        return "__Pyx_FastcallDict_DECREF_SET(%s, %s);" % (cname, rhs_cname)
-
 
 rank_to_type_name = (
     "char",         # 0

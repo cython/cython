@@ -659,7 +659,7 @@ class IterationTransform(Visitor.EnvTransform):
         stop_call = ExprNodes.PythonCapiCallNode(
                 iter_node.pos, "__Pyx_FastcallTuple_Len", func_type,
                 args=[iter_node], is_temp=False,
-                utility_code = UtilityCode.load_cached("fastcall_tuple", "FunctionArguments.c"))
+                utility_code = UtilityCode.load_cached("FastcallTuple", "FunctionArguments.c"))
         bound2 = UtilNodes.LetRefNode(stop_call)
 
         relation1, relation2 = self._find_for_from_node_relations(False, reversed)
@@ -1002,7 +1002,7 @@ class IterationTransform(Visitor.EnvTransform):
         func_type_for_assignment = self.PyDict_Iterator_func_type
         if dict_obj.type.is_fastcall_dict:
             func_name += "_fastcalldict"
-            utility_code = UtilityCode.load_cached("fastcall_dict_loopiter", "FunctionArguments.c")
+            utility_code = UtilityCode.load_cached("FastcallDictLoopIter", "FunctionArguments.c")
             func_type_for_assignment = self.PyFastcallDict_Iterator_func_type
         result_code = [
             Nodes.SingleAssignmentNode(
@@ -2721,7 +2721,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             new_node = ExprNodes.PythonCapiCallNode(
                 node.pos, "__Pyx_FastcallTuple_Len", func_type,
                 args=[arg], is_temp=node.is_temp,
-                utility_code = UtilityCode.load_cached("fastcall_tuple", "FunctionArguments.c"))
+                utility_code = UtilityCode.load_cached("FastcallTuple", "FunctionArguments.c"))
         elif arg.type.is_fastcall_dict:
             func_type = PyrexTypes.CFuncType(
                 PyrexTypes.c_py_ssize_t_type, [

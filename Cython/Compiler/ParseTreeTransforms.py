@@ -2429,6 +2429,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
     @cython.ccall
     @cython.inline
     @cython.nogil
+    @@cython.fastcall_args - some of
     """
 
     def visit_ModuleNode(self, node):
@@ -2451,6 +2452,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
         nogil = self.directives.get('nogil')
         except_val = self.directives.get('exceptval')
         return_type_node = self.directives.get('returns')
+        fastcall_args = self.directives.get('fastcall_args')
         if return_type_node is None and self.directives['annotation_typing']:
             return_type_node = node.return_type_annotation
             # for Python anntations, prefer safe exception handling by default
@@ -2477,6 +2479,14 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
         if nogil:
             # TODO: turn this into a "with gil" declaration.
             error(node.pos, "Python functions cannot be declared 'nogil'")
+        if fastcall_args:
+            if fastcall_args[0] and node.star_arg:
+                if node.self_in_stararg:
+                    error(node.pos, "Cannot use 'fastcall_args(\"*\")' on a function where the"
+                          " self argument is included in *args")
+                node.star_arg.type = PyrexTypes.FastcallTupleType(explicitly_requested=True)
+            if fastcall_args[1] and node.starstar_arg:
+                node.starstar_arg.type = PyrexTypes.FastcallDictType(explicitly_requested=True)
 
         self.visitchildren(node)
         return node
