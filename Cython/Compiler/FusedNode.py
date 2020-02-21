@@ -635,18 +635,9 @@ class FusedCFuncDefNode(StatListNode):
         decl_code.indent()
         pyx_code.put_chunk(
             u"""
-                def __pyx_fused_cpdef(signatures, args, kwargs, defaults):#, *, _fused_sigindex=(None,)):
+                def __pyx_fused_cpdef(signatures, args, kwargs, defaults):
                     # FIXME: use a typed signature - currently fails badly because
                     #        default arguments inherit the types we specify here!
-                    # FIXME: Keep the signature index in a local default keyword argument
-                    #        to make it persist through calls without polluting global
-                    #        namespace. Currently results in segfault when resulting
-                    #        function is later bound as a method.
-                    #        https://github.com/cython/cython/issues/3370
-                    # FIXME: Avoid using a mutable hidden default keyword argument
-                    #        to make a local object persist through different function calls.
-                    #        (Reconstructing it every call (even from a literal)
-                    #        would probably incur a cost scaled to its `O(k**n)` size.)
                     
                     cdef list dest_sig, sigindex_matches, sigindex_candidates, found_matches, found_candidates, search_list, candidates
                     
@@ -729,6 +720,8 @@ class FusedCFuncDefNode(StatListNode):
             u"""
                 global {{global_sigindex_name}}
                 if '{{global_sigindex_name}}' not in <dict>globals():
+                    # FIXME: Do `cdef dict {{global_sigindex_name}}` at the
+                    #    module level instead.
                     {{global_sigindex_name}} = {}
                 if '{{func_sigindex_key}}' not in <dict>{{global_sigindex_name}}:
                     {{global_sigindex_name}}['{{func_sigindex_key}}'] = {}
