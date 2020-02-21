@@ -647,6 +647,10 @@ class FusedCFuncDefNode(StatListNode):
                     #        to make a local object persist through different function calls.
                     #        (Reconstructing it every call (even from a literal)
                     #        would probably incur a cost scaled to its `O(k**n)` size.)
+                    
+                    cdef list dest_sig, sigindex_matches, sigindex_candidates, found_matches, found_candidates, search_list, candidates
+                    
+                    cdef dict _fused_sigindex, sn
 
                     dest_sig = [None] * {{n_fused}}
 
@@ -739,7 +743,7 @@ class FusedCFuncDefNode(StatListNode):
                 sigindex_matches = []
                 sigindex_candidates = [_fused_sigindex]
                 
-                for dst_type in <list>dest_sig:
+                for dst_type in dest_sig:
                     found_matches = []
                     found_candidates = []
                     # Make two seperate lists: One for for signature sub-trees
@@ -747,15 +751,15 @@ class FusedCFuncDefNode(StatListNode):
                     #        signature sub-trees with only ambiguous matches
                     #        (where `dest_sig[i] is None`).
                     if dst_type is None:
-                        for sn in <list>sigindex_matches:
-                            found_matches.extend((<dict>sn).values())
-                        for sn in <list>sigindex_candidates:
-                            found_candidates.extend((<dict>sn).values())
+                        for sn in sigindex_matches:
+                            found_matches.extend(sn.values())
+                        for sn in sigindex_candidates:
+                            found_candidates.extend(sn.values())
                     else:
                         for search_list in (sigindex_matches, sigindex_candidates):
-                            for sn in <list>search_list:
+                            for sn in search_list:
                                 if dst_type in <dict>sn:
-                                    (<list>found_matches).append((<dict>sn)[dst_type])
+                                    found_matches.append(sn[dst_type])
                     sigindex_matches = found_matches
                     sigindex_candidates = found_candidates
                     if not (found_matches or found_candidates):
