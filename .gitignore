@@ -52,3 +52,5 @@ MANIFEST
 /.idea
 /*.iml
 
+# Komodo EDIT/IDE project files
+/*.komodoproject
