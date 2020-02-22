@@ -1821,6 +1821,7 @@ if VALUE is not None:
     def _handle_def(self, decorators, env, node):
         "Handle def or cpdef fused functions"
         self._inject_fusedcpdef_sigindex(node)
+        # FIXME: Don't duplicate this for every `fused` `cpdef` function, make sure it works with methods, etc.
         # Create PyCFunction nodes for each specialization
         node.stats.insert(0, node.py_func)
         node.py_func = self.visit(node.py_func)
