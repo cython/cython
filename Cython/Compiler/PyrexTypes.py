@@ -1093,11 +1093,15 @@ class MemoryViewSliceType(PyrexType):
         # memoryviews don't currently distinguish between xdecref and decref
         return self.generate_decref_clear(cname, have_gil, nanny, clear_before_decref)
 
+    # memoryviews don't appear to participate in giveref/gotref
     def generate_xgiveref(self, cname):
-        return py_object_type.generate_xgiveref("%s.memview" % cname)
-
+        return None
     def generate_giveref(self, cname):
-        return py_object_type.generate_giveref("%s.memview" % cname)
+        return None
+    def generate_xgotref(self, cname):
+        return None
+    def generate_gotref(self, cname):
+        return None
 
 
 class BufferType(BaseType):

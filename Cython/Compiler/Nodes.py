@@ -918,9 +918,7 @@ class CArgDeclNode(Node):
         default.make_owned_reference(code)
         result = default.result() if overloaded_assignment else default.result_as(self.type)
         code.putln("%s = %s;" % (target, result))
-        if not self.type.is_memoryviewslice:
-            # TODO - are memoryviewslices special-cased too much or not enough
-            code.put_giveref(default.result(), self.type)
+        code.put_giveref(default.result(), self.type)
         default.generate_post_assignment_code(code)
         default.free_temps(code)
 
@@ -2101,9 +2099,7 @@ class FuncDefNode(StatNode, BlockNode):
             err_val = self.error_value()
             if err_val is None and default_retval:
                 err_val = default_retval  # FIXME: why is err_val not used?
-            if self.return_type.is_pyobject:
-                # don't giveref memoryviews
-                code.put_xgiveref(Naming.retval_cname, self.return_type)
+            code.put_xgiveref(Naming.retval_cname, self.return_type)
 
         if self.entry.is_special and self.entry.name == "__hash__":
             # Returning -1 for __hash__ is supposed to signal an error
