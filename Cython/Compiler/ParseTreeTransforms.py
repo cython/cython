@@ -1605,10 +1605,19 @@ if VALUE is not None:
     def visit_ModuleNode(self, node):
         # Pickling support requires injecting module-level nodes.
         self.extra_module_declarations = []
+        self.module_contains_fusedcpdefs = False
         self.seen_vars_stack.append(set())
         node.analyse_declarations(self.current_env())
         self.visitchildren(node)
         self.seen_vars_stack.pop()
+        # print("Visiting ModuleNode", node)
+        # print(node.scope)
+        # print(node.body)
+        # print(node.body.stats)
+        # print(self.module_contains_fusedcpdefs)
+        if self.module_contains_fusedcpdefs:
+            self._inject_fusedcpdef_sigindex(node)
+         #   node.body.stats.insert(0, self._inject_fusedcpdef_sigindex(node))
         node.body.stats.extend(self.extra_module_declarations)
         return node
 
@@ -1638,26 +1647,27 @@ if VALUE is not None:
         return node
 
     def _inject_fusedcpdef_sigindex(self, node):
-        print(node)
+        # print("Injecting `fusedcpdef` stuff", node)
         sigindex_dict = TreeFragment(
-            u"""            
-            cdef dict %(fused_cpdef_globalindex)s = {}
-            
+            #cdef dict %(fused_cpdef_globalindex)s
+            # FIXME: Statically type this.
+            u"""
             %(fused_cpdef_globalindex)s = {}
             """ % {'fused_cpdef_globalindex': Naming.fused_cpdef_globalindex},
             level = 'module',
             pipeline = [NormalizeTree(None)]
         ).substitute({})
         # print(sigindex_dict)
-        self.visit(sigindex_dict)
+        #self.visit(sigindex_dict)
         #print(sorted(dir(node.node)))
-        # print(node.node)
-        # print(node.node.entry)
-        print(node.node.entry.scope)
-        sigindex_dict.analyse_declarations(node.node.entry.scope)
+        #print(node.node)
+        #print(node.node.entry)
+        # print(node.scope)
+        sigindex_dict.analyse_declarations(node.scope)
+        #return sigindex_dict
         self.extra_module_declarations.append(sigindex_dict)
-        print(self.extra_module_declarations)
-        print(self)
+        # print(self.extra_module_declarations)
+        # print(self)
 
     def _inject_pickle_methods(self, node):
         env = self.current_env()
@@ -1820,8 +1830,7 @@ if VALUE is not None:
 
     def _handle_def(self, decorators, env, node):
         "Handle def or cpdef fused functions"
-        self._inject_fusedcpdef_sigindex(node)
-        # FIXME: Don't duplicate this for every `fused` `cpdef` function, make sure it works with methods, etc.
+        self.module_contains_fusedcpdefs = True
         # Create PyCFunction nodes for each specialization
         node.stats.insert(0, node.py_func)
         node.py_func = self.visit(node.py_func)
