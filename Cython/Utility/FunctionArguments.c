@@ -535,6 +535,7 @@ static CYTHON_INLINE PyObject *__Pyx_FastcallTuple_ToTuple(__Pyx_FastcallTuple_o
 #if CYTHON_METH_FASTCALL
 static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_ArgsSlice_FASTCALL_struct(PyObject *const *args, Py_ssize_t start, Py_ssize_t stop) {
     Py_ssize_t nargs = (stop - start);
+    if (nargs < 0) nargs = 0;
 #if CYTHON_VECTORCALL
     if (start > 0) {
         nargs |= PY_VECTORCALL_ARGUMENTS_OFFSET; // we know there's at least one space in front

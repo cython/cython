@@ -4265,13 +4265,13 @@ class FastcallBaseType(PyrexType):
 
     def generate_gotref(self, cname):
         return "__Pyx_%s_GOTREF(%s);" % (self.name, cname)
-    def generate_decref_clear(self, cname, nanny, **ignored_kwds):
+    def generate_decref_clear(self, cname, nanny=True, **ignored_kwds):
         return "__Pyx_%s_CLEAR(%s, %s);" % (self.name, cname, int(nanny))
-    def generate_xdecref(self, cname, nanny, **ignored_kwds):
+    def generate_xdecref(self, cname, nanny=True, **ignored_kwds):
         return "__Pyx_%s_XDECREF(%s, %s);" % (self.name, cname, int(nanny))
-    def generate_incref(self, cname, nanny, **ignored_kwds):
+    def generate_incref(self, cname, nanny=True, **ignored_kwds):
         return "__Pyx_%s_INCREF(%s, %s);" % (self.name, cname, int(nanny))
-    def generate_xincref(self, cname, nanny, **ignored_kwds):
+    def generate_xincref(self, cname, nanny=True, **ignored_kwds):
         return "__Pyx_%s_XINCREF(%s, %s);" % (self.name, cname, int(nanny))
     def generate_decref_set(self, cname, rhs_cname):
         return "__Pyx_%s_DECREF_SET(%s, %s);" % (self.name, cname, rhs_cname)

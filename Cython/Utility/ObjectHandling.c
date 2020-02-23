@@ -2066,14 +2066,14 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallKwds_structs(PyObject* cal
 }
 
 /////////////// PyObjectFastCall__ArgsKwds_OptimizedStructs.proto ///////////////
-//@requires: FunctionArguments.c::fastcall_tuple
-//@requires: FunctionArguments.c::fastcall_dict
+//@requires: FunctionArguments.c::FastcallTuple
+//@requires: FunctionArguments.c::FastcallDict
 
 static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallArgsKwds_structs(PyObject* callable, __Pyx_FastcallTuple_obj args, __Pyx_FastcallDict_obj* kwds); /* proto */
 
 /////////////// PyObjectFastCall__ArgsKwds_OptimizedStructs.proto ///////////////
 //@requires:PyObjectCall
-//@requires:FunctionArguments.c::fastcall_dict_convert
+//@requires:FunctionArguments.c::FastcallDictConvert
 //@requires:PyObjectFastCallKwds
 //@requires:PyObjectFastCall
 

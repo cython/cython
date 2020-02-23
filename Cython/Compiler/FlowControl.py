@@ -730,6 +730,10 @@ class ControlFlowAnalysis(CythonTransform):
             star_type = (Builtin.tuple_type if (node.needs_closure or node.self_in_stararg
                                                     or fastcall_set == False)
                                 else PyrexTypes.FastcallTupleType())
+            if star_type.is_fastcall_tuple and not node.entry.signature.use_fastcall:
+                # Makes it a more favourable to fall back to a tuple later if the
+                # argument is passed to the function as a tuple anyway
+                star_type.coercion_count += 1
             self.flow.mark_argument(node.star_arg,
                                     TypedExprNode(star_type,
                                                   may_be_none=False),
