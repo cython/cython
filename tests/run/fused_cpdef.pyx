@@ -149,3 +149,13 @@ def test_multiarg():
     multiarg[int, float](1, 2.0)
     multiarg[cy.int, cy.float](1, 2.0)
     multiarg(4, 5.0)
+
+def test_ambiguousmatch():
+    """
+    >>> multiarg(5, ())
+    Traceback (most recent call last):
+    TypeError: Function call with ambiguous argument types
+    >>> multiarg((), 2.0)
+    Traceback (most recent call last):
+    TypeError: Function call with ambiguous argument types
+    """
