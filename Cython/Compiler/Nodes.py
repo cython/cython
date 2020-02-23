@@ -1927,7 +1927,8 @@ class FuncDefNode(StatNode, BlockNode):
             #       new references. If we are a cdef function, we need to
             #       incref our arguments
             elif is_cdef and entry.type.is_memoryviewslice and len(entry.cf_assignments) > 1:
-                code.put_var_incref(entry, have_gil=code.funcstate.gil_owned)
+                code.put_var_incref(entry, do_for_memoryviewslice = True,
+                                    have_gil=code.funcstate.gil_owned)
         for entry in lenv.var_entries:
             if entry.is_arg and len(entry.cf_assignments) > 1 and not entry.in_closure:
                 if entry.xdecref_cleanup:
@@ -2072,22 +2073,32 @@ class FuncDefNode(StatNode, BlockNode):
                 continue
 
             if entry.type.is_pyobject:
-                if not (not entry.is_arg or len(entry.cf_assignments) > 1):
+                #if not (not entry.is_arg or len(entry.cf_assignments) > 1):
+                if entry.is_arg and len(entry.cf_assignments) <= 1:
                     continue
-            code.put_var_xdecref(entry, have_gil=not lenv.nogil)
+            code.put_var_xdecref(entry,
+                                 do_for_memoryviewslice=True,
+                                 have_gil=not lenv.nogil)
                         # TODO ideally should pick based on
                         # entry.xdecref_cleanup but this doesn't seem to be set reliably
                         # for regular variables
 
         # Decref any increfed args
         for entry in lenv.arg_entries:
-            if ((entry.type.is_pyobject and
-                    ((acquire_gil or len(entry.cf_assignments) > 1) and not entry.in_closure))
-                or (entry.type.is_memoryviewslice and
-                    # decref slices of def functions and acquired slices from cdef
-                    # functions, but not borrowed slices from cdef functions.
-                        (not is_cdef or len(entry.cf_assignments) > 1))):
-                    code.put_var_xdecref(entry, have_gil=not lenv.nogil)
+            if entry.type.is_memoryviewslice:
+                # decref slices of def functions and acquired slices from cdef
+                # functions, but not borrowed slices from cdef functions.
+                if is_cdef and len(entry.cf_assignments) <= 1:
+                    continue
+            else:
+                if entry.in_closure:
+                    continue
+                if not acquire_gil and len(entry.cf_assignments) <= 1:
+                    continue
+
+            code.put_var_xdecref(entry,
+                                    do_for_memoryviewslice = True,
+                                    have_gil=not lenv.nogil)
         if self.needs_closure:
             code.put_decref(Naming.cur_scope_cname, lenv.scope_class.type)
 
@@ -3879,7 +3890,7 @@ class DefNodeWrapper(FuncDefNode):
                         arg.entry.cname,
                         arg.calculate_default_value_code(code)))
                     if arg.type.is_memoryviewslice:
-                        code.put_var_incref(arg.entry, have_gil=True)
+                        code.put_var_incref(arg.entry, do_for_memoryviewslice=True, have_gil=True)
                     code.putln('}')
             else:
                 error(arg.pos, "Cannot convert Python object argument to type '%s'" % arg.type)
@@ -8723,9 +8734,7 @@ class ParallelStatNode(StatNode, ParallelNode):
         if self.is_parallel and not self.is_nested_prange:
             code.putln("/* Clean up any temporaries */")
             for temp, type in sorted(self.temps):
-                code.put_xdecref(temp, type, have_gil=False)
-                if type.is_pyobject:
-                    code.putln("%s = NULL;" % temp)
+                code.put_xdecref_clear(temp, type, do_for_memoryviewslice=True, have_gil=False)
 
     def setup_parallel_control_flow_block(self, code):
         """

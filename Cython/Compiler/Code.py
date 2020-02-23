@@ -2082,14 +2082,40 @@ class CCodeWriter(object):
     def put_xgotref(self, cname, type):
         self.putln(type.generate_xgotref(cname))
 
-    def put_incref(self, cname, type, nanny=True, have_gil=False):
-        self.putln(type.generate_incref(cname, nanny=nanny, have_gil=have_gil))
+    def put_incref(self, cname, type, **kwds):
+        # TODO is "use_utility_code" necessary? - implemented purely for
+        # memoryviews, but their init code does seem to be loaded anyway
+        # so this may just be generating extra work
+        self.globalstate.use_utility_code(type.incdecref_utility_code)
+        self.putln(type.generate_incref(cname, **kwds))
 
-    def put_xincref(self, cname, type, nanny=True, have_gil=False):
-        self.putln(type.generate_xincref(cname, nanny=nanny, have_gil=have_gil))
+    def put_xincref(self, cname, type, **kwds):
+        self.globalstate.use_utility_code(type.incdecref_utility_code)
+        self.putln(type.generate_xincref(cname, **kwds))
 
-    def put_decref(self, cname, type, nanny=True):
-        self.putln(type.generate_decref(cname, nanny=nanny))
+    def put_decref(self, cname, type, **kwds):
+        self.globalstate.use_utility_code(type.incdecref_utility_code)
+        self.putln(type.generate_decref(cname, **kwds))
+
+    def put_decref_clear(self, cname, type, **kwds):
+        self.globalstate.use_utility_code(type.incdecref_utility_code)
+        self.putln(type.generate_decref_clear(cname, **kwds))
+
+    def put_xdecref(self, cname, type, **kwds):
+        self.globalstate.use_utility_code(type.incdecref_utility_code)
+        self.putln(type.generate_xdecref(cname, **kwds))
+
+    def put_xdecref_clear(self, cname, type, **kwds):
+        self.globalstate.use_utility_code(type.incdecref_utility_code)
+        self.putln(type.generate_xdecref_clear(cname, **kwds))
+
+    def put_decref_set(self, cname, type, rhs_cname):
+        self.globalstate.use_utility_code(type.incdecref_utility_code)
+        self.putln(type.generate_decref_set(cname, rhs_cname))
+
+    def put_xdecref_set(self, cname, type, rhs_cname):
+        self.globalstate.use_utility_code(type.incdecref_utility_code)
+        self.putln(type.generate_xdecref_set(cname, rhs_cname))
 
     def put_var_gotref(self, entry):
         self.put_gotref(entry.cname, entry.type)
@@ -2103,54 +2129,30 @@ class CCodeWriter(object):
     def put_var_xgiveref(self, entry):
         self.put_xgiveref(entry.cname, entry.type)
 
-    def put_var_incref(self, entry, nanny=True, have_gil=False):
-        self.put_incref(entry.cname, entry.type, nanny=nanny, have_gil=have_gil)
+    def put_var_incref(self, entry, **kwds):
+        self.put_incref(entry.cname, entry.type, **kwds)
 
-    def put_var_xincref(self, entry):
-        self.put_xincref(entry.cname, entry.type)
+    def put_var_xincref(self, entry, **kwds):
+        self.put_xincref(entry.cname, entry.type, **kwds)
 
-    def put_decref_clear(self, cname, type, nanny=True, clear_before_decref=False,
-                               have_gil=False):
-        self.putln(type.generate_decref_clear(cname, nanny=nanny,
-                        clear_before_decref = clear_before_decref,
-                        have_gil = have_gil))
+    def put_var_decref(self, entry, **kwds):
+        self.putln(entry.type.generate_decref(entry.cname, **kwds))
 
-    def put_xdecref(self, cname, type, nanny=True, have_gil=False):
-        self.putln(type.generate_xdecref(cname, nanny=nanny, have_gil=have_gil))
+    def put_var_xdecref(self, entry, **kwds):
+        self.putln(entry.type.generate_xdecref(entry.cname, **kwds))
 
-    def put_xdecref_clear(self, cname, type, nanny=True, clear_before_decref=False,
-                            have_gil=False):
-        self.putln(type.generate_xdecref_clear(cname, nanny=nanny,
-                        clear_before_decref=clear_before_decref,
-                        have_gil = have_gil))
+    def put_var_decref_clear(self, entry, **kwds):
+        self._put_var_decref_clear(entry, null_check=False, **kwds)
 
-    def put_decref_set(self, cname, type, rhs_cname):
-        self.putln(type.generate_decref_set(cname, rhs_cname))
+    def put_var_xdecref_clear(self, entry, **kwds):
+        self._put_var_decref_clear(entry, null_check=True, **kwds)
 
-    def put_xdecref_set(self, cname, type, rhs_cname):
-        self.putln(type.generate_xdecref_set(cname, rhs_cname))
-
-    def put_var_decref(self, entry):
-        self.putln(entry.type.generate_decref(entry.cname, nanny=True))
-        #if code:
-        #    self.putln(code)
-        #if entry.type.is_pyobject:
-        #    self.putln("__Pyx_XDECREF(%s);" % self.entry_as_pyobject(entry))
-
-    def put_var_xdecref(self, entry, nanny=True, have_gil=True):
-        self.putln(entry.type.generate_xdecref(entry.cname, nanny=nanny, have_gil=True))
-
-    def put_var_decref_clear(self, entry, have_gil=False):
-        self._put_var_decref_clear(entry, null_check=False, have_gil=have_gil)
-
-    def put_var_xdecref_clear(self, entry, have_gil=False):
-        self._put_var_decref_clear(entry, null_check=True, have_gil=have_gil)
-
-    def _put_var_decref_clear(self, entry, null_check, have_gil):
+    def _put_var_decref_clear(self, entry, null_check, **kwds):
         f = getattr(entry.type, "generate_%sdecref_clear" %
                                 (null_check and "x" or ""))
-        self.putln(f(entry.cname, nanny=True, have_gil=have_gil,
-                     clear_before_decref=entry.in_closure))
+        self.putln(f(entry.cname,
+                     clear_before_decref=entry.in_closure,
+                     **kwds))
 
     def get_var_nullcheck(self, entry):
         # we usually want to put this into an is statement so it's a get,
