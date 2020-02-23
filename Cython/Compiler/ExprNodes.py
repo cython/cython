@@ -744,16 +744,18 @@ class ExprNode(Node):
 
     # ---------------- Code Generation -----------------
 
-    def make_owned_reference(self, code):
+    def make_owned_reference(self, code, do_for_memoryviewslice=False):
         """
         Make sure we own a reference to result.
         If the result is in a temp, it is already a new reference.
         """
         if not self.result_in_temp():
             code.put_incref(self.result(), self.ctype(),
+                            do_for_memoryviewslice=do_for_memoryviewslice,
                             have_gil=self.in_nogil_context)
 
-    make_owned_memoryviewslice = make_owned_reference
+    def make_owned_memoryviewslice(self, code):
+        self.make_owned_reference(code, do_for_memoryviewslice=True)
 
     def generate_evaluation_code(self, code):
         #  Generate code to evaluate this node and
@@ -787,7 +789,8 @@ class ExprNode(Node):
                 self.free_subexpr_temps(code)
             if self.result():
                 code.put_decref_clear(self.result(), self.ctype(),
-                                          have_gil=not self.in_nogil_context)
+                                        do_for_memoryviewslice=True,
+                                        have_gil=not self.in_nogil_context)
         else:
             # Already done if self.is_temp
             self.generate_subexpr_disposal_code(code)
@@ -2501,22 +2504,20 @@ class NameNode(AtomicExprNode):
                 if self.cf_maybe_null and not ignore_nonexisting:
                     code.put_error_if_unbound(self.pos, self.entry)
 
-                if self.entry.type.is_pyobject:
-                    if self.entry.in_closure:
-                        # generator
-                        if ignore_nonexisting and self.cf_maybe_null:
-                            self.generate_xgotref(code)
-                        else:
-                            self.generate_gotref(code)
+                if self.entry.in_closure:
+                    # generator
                     if ignore_nonexisting and self.cf_maybe_null:
-                        code.put_xdecref(self.result(), self.ctype())
+                        self.generate_xgotref(code)
                     else:
-                        code.put_decref(self.result(), self.ctype())
-                    code.putln('%s = NULL;' % self.result())
+                        self.generate_gotref(code)
+                if ignore_nonexisting and self.cf_maybe_null:
+                    code.put_xdecref_clear(self.result(), self.ctype(),
+                                        do_for_memoryviewslice=True,
+                                        have_gil=not self.nogil)
                 else:
-                    # TODO probably no need to handle as a special case now?
-                    code.put_xdecref(self.entry.cname, self.ctype(),
-                                                     have_gil=not self.nogil)
+                    code.put_xdecref_clear(self.result(), self.ctype(),
+                                        do_for_memoryviewslice=True,
+                                        have_gil=not self.nogil)
         else:
             error(self.pos, "Deletion of C names not supported")
 
@@ -7339,7 +7340,9 @@ class AttributeNode(ExprNode):
                         return
 
                 code.putln("%s = %s;" % (self.result(), self.obj.result()))
-                code.put_incref(self.result(), self.type, have_gil=True)
+                code.put_incref(self.result(), self.type,
+                                do_for_memoryviewslice=True,
+                                have_gil=True)
 
                 T = "__pyx_memslice_transpose(&%s) == 0"
                 code.putln(code.error_goto_if(T % self.result(), self.pos))
@@ -7362,8 +7365,8 @@ class AttributeNode(ExprNode):
     def generate_disposal_code(self, code):
         if self.is_temp and self.type.is_memoryviewslice and self.is_memslice_transpose:
             # mirror condition for putting the memview incref here:
-            # (TODO maybe could be handled by the general path?)
-            code.put_xdecref_clear(self.result(), self.type, have_gil=True)
+            code.put_xdecref_clear(self.result(), self.type,
+                                   do_for_memoryviewslice=True, have_gil=True)
         else:
             ExprNode.generate_disposal_code(self, code)
 
@@ -13603,7 +13606,9 @@ class CoerceToTempNode(CoercionNode):
         code.putln("%s = %s;" % (
             self.result(), self.arg.result_as(self.ctype())))
         if self.use_managed_ref:
-            code.put_incref(self.result(), self.ctype(), have_gil=not self.in_nogil_context)
+            code.put_incref(self.result(), self.ctype(),
+                            do_for_memoryviewslice=True,
+                            have_gil=not self.in_nogil_context)
 
 class ProxyNode(CoercionNode):
     """

@@ -198,6 +198,7 @@ class PyrexType(BaseType):
     #  has_attributes        boolean     Has C dot-selectable attributes
     #  needs_xxxref          boolean     Needs code to be generated similar to incref/gotref/decref.
     #                                    Largely used internally.
+    #  incdecref_utility_code   object or None    To be loaded if (x)incref or (x)decref is called
     #  default_value         string      Initial value that can be assigned before first user assignment.
     #  declaration_value     string      The value statically assigned on declaration (if any).
     #  entry                 Entry       The Entry for this type
@@ -265,6 +266,7 @@ class PyrexType(BaseType):
     is_fastcall_dict = 0
     has_attributes = 0
     needs_xxxref = 0
+    incdecref_utility_code = None
     default_value = ""
     declaration_value = ""
 
@@ -600,7 +602,14 @@ class MemoryViewSliceType(PyrexType):
     is_memoryviewslice = 1
 
     has_attributes = 1
-    needs_xxxref = 1
+    needs_xxxref = 1  # Ideally this would be true and reference counting for
+        # memoryview and pyobject code could be generated in the same way.
+        # However, memoryviews are sufficiently specialized that this doesn't
+        # seem practical. Implement a limited version of it for now
+    @property
+    def incdecref_utility_code(self):
+        from .MemoryView import memviewslice_init_code
+        return memviewslice_init_code
     scope = None
 
     # These are special cased in Defnode
@@ -1074,34 +1083,33 @@ class MemoryViewSliceType(PyrexType):
     def cast_code(self, expr_code):
         return expr_code
 
-    def generate_incref(self, cname, have_gil, nanny):
-        # FIXME use_utility_code
-        return "__PYX_INC_MEMVIEW(&%s, %d);" % (cname, int(have_gil))
+    # incref paths are often special-cased for memoryviews. Therefore pass an explicit
+    # flag to make it clear that memoryviewslices should be included. This provides a path
+    # to making the code more generic, without requiring it to be all done at once
+    def generate_incref(self, cname, do_for_memoryviewslice=False, **kwds):
+        if do_for_memoryviewslice:
+            # FIXME use_utility_code
+            return "__PYX_INC_MEMVIEW(&%s, %d);" % (cname, int(kwds['have_gil']))
 
-    def generate_xdecref(self, cname, have_gil, nanny):
+    # decref however did look to always apply for memoryview slices
+    # with "have_gil" set to True by default
+    def generate_xdecref(self, cname, have_gil=True, **kwds):
         # FIXME use_utility_code
         return "__PYX_XDEC_MEMVIEW(&%s, %d);" % (cname, int(have_gil))
 
-    def generate_decref_clear(self, cname, have_gil, nanny,
-                              clear_before_decref):
+    def generate_xdecref_clear(self, cname, clear_before_decref=False,
+                                do_for_memoryviewslice=False, **kwds):
         return "%s %s.memview = NULL; %s.data = NULL;" % (
-            self.generate_xdecref(cname, have_gil, nanny),
-            cname, cname)
+                self.generate_xdecref(cname, do_for_memoryviewslice=True, **kwds),
+                cname, cname)
 
-    def generate_xdecref_clear(self, cname, have_gil, nanny,
-                              clear_before_decref):
+    def generate_decref_clear(self, cname, **kwds):
         # memoryviews don't currently distinguish between xdecref and decref
-        return self.generate_decref_clear(cname, have_gil, nanny, clear_before_decref)
+        return self.generate_xdecref_clear(cname, **kwds)
 
-    # memoryviews don't appear to participate in giveref/gotref
-    def generate_xgiveref(self, cname):
-        return None
-    def generate_giveref(self, cname):
-        return None
-    def generate_xgotref(self, cname):
-        return None
-    def generate_gotref(self, cname):
-        return None
+    # memoryviews don't participate in giveref/gotref
+    generate_gotref = generate_xgotref = generate_xgiveref = generate_giveref = lambda *args: None
+
 
 
 class BufferType(BaseType):
@@ -1254,33 +1262,33 @@ class PyObjectType(PyrexType):
     def check_for_null_code(self, cname):
         return cname
 
-    def generate_incref(self, cname, nanny, have_gil):
+    def generate_incref(self, cname, nanny=True, **ignored_kwds):
         if nanny:
             return "__Pyx_INCREF(%s);" % self.as_pyobject(cname)
         else:
             return "Py_INCREF(%s);" % self.as_pyobject(cname)
 
-    def generate_xincref(self, cname, nanny, have_gil):
+    def generate_xincref(self, cname, nanny=True, **ignored_kwds):
         if nanny:
             return "__Pyx_XINCREF(%s);" % self.as_pyobject(cname)
         else:
             return "Py_XINCREF(%s);" % self.as_pyobject(cname)
 
-    def generate_decref(self, cname, nanny):
+    def generate_decref(self, cname, nanny=True, **ignored_kwds):
         return self._generate_decref(cname, nanny, null_check=False, clear=False)
 
-    def generate_xdecref(self, cname, nanny, have_gil):
+    def generate_xdecref(self, cname, nanny=True, **ignored_kwds):
         # in this (and other) PyObjectType functions, have_gil is being
         # passed to provide a common interface with MemoryviewSlice. It is
         # treated as "True" and not checked
         return self._generate_decref(cname, nanny, null_check=True,
                          clear=False)
 
-    def generate_decref_clear(self, cname, nanny, clear_before_decref, have_gil):
+    def generate_decref_clear(self, cname, clear_before_decref=False, nanny=True, **ignored_kwds):
         return self._generate_decref(cname, nanny, null_check=False,
                          clear=True, clear_before_decref=clear_before_decref)
 
-    def generate_xdecref_clear(self, cname, nanny, clear_before_decref, have_gil):
+    def generate_xdecref_clear(self, cname, clear_before_decref=False, nanny=True, **ignored_kwds):
         return self._generate_decref(cname, nanny, null_check=True,
                          clear=True, clear_before_decref=clear_before_decref)
 
@@ -1302,7 +1310,7 @@ class PyObjectType(PyrexType):
     def generate_xdecref_set(self, cname, rhs_cname):
         return "__Pyx_XDECREF_SET(%s, %s);" % (cname, rhs_cname)
 
-    def _generate_decref(self, cname, nanny=True, null_check=False,
+    def _generate_decref(self, cname, nanny, null_check=False,
                     clear=False, clear_before_decref=False):
         prefix = '__Pyx' if nanny else 'Py'
         X = 'X' if null_check else ''
