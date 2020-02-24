@@ -85,7 +85,7 @@ def test_midimport_run():
     A, x is long 2 long
     A, x is long 2 long
     """
-    print midimport_run
+    print str(midimport_run).strip('\n')
 
 
 def assert_raise(func, *args):

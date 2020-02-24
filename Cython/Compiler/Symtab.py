@@ -1212,7 +1212,6 @@ class ModuleScope(Scope):
         for var_name in ['__builtins__', '__name__', '__file__', '__doc__', '__path__',
                          '__spec__', '__loader__', '__package__', '__cached__']:
             self.declare_var(EncodedString(var_name), py_object_type, None)
-        self.declare_var(EncodedString(Naming.fused_cpdef_globalindex), Builtin.dict_type, None, is_cdef=True)
         self.process_include(Code.IncludeCode("Python.h", initial=True))
 
     def qualifying_scope(self):
