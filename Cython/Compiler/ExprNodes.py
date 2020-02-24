@@ -998,6 +998,13 @@ class ExprNode(Node):
               and src_type != dst_type
               and dst_type.assignable_from(src_type)):
             src = CoerceToComplexNode(src, dst_type, env)
+        elif (src.type.is_fastcall_type
+                and src_type != dst_type):
+            # These can always be coerced to a PyObject as a fallback option
+            # It may not be efficient but they're only intended to cover a
+            # limited number of cases efficiently
+            src = CoerceToPyTypeNode(src, env)
+            src = src.coerce_to(dst_type, env)
         else: # neither src nor dst are py types
             # Added the string comparison, since for c types that
             # is enough, but Cython gets confused when the types are
@@ -7190,7 +7197,14 @@ class AttributeNode(ExprNode):
         # type, or it is an extension type and the attribute is either not
         # declared or is declared as a Python method. Treat it as a Python
         # attribute reference.
+        original_obj = self.obj
         self.analyse_as_python_attribute(env, obj_type, immutable_obj)
+        if (self.obj is not original_obj
+            and self.obj.type is not PyrexTypes.py_object_type):
+            # If it's emerged from the analysis changed, and a more specialised
+            # type (for example a builtin type)
+            # There may be more that can be done with it, so analyse again
+            self.analyse_attribute(env, self.obj.type)
 
     def analyse_as_python_attribute(self, env, obj_type=None, immutable_obj=False):
         if obj_type is None:
@@ -13350,14 +13364,9 @@ class CoerceToPyTypeNode(CoercionNode):
             # the the fastcall_tuple and _dict conversions self.target_type
             # is used to indicate if it's an explicitly requested conversion
             # therefore leave as py_object_type here (but set type)
-            if arg.type.is_fastcall_tuple:
-                self.type = tuple_type
+            if arg.type.is_fastcall_type:
+                self.type = arg.type.nearest_python_type
                 if not arg.type.explicitly_requested:
-                    arg.type.coercion_count += 1
-            elif arg.type.is_fastcall_dict:
-                self.type = dict_type
-                if not arg.type.explicitly_requested:
-                    # coercion count isn't currently used for dicts but it's good to have
                     arg.type.coercion_count += 1
         elif arg.type.is_string or arg.type.is_cpp_string:
             if (type not in (bytes_type, bytearray_type)

@@ -4376,6 +4376,7 @@ class FastcallDictType(FastcallBaseType):
                 utility_code=uc),
             BuiltinMethod("values", "T", "O", "__Pyx_FastcallDict_Values",
                 utility_code=uc),
+            # TODO: "Items" currently seems like a small performance regression
             BuiltinMethod("items", "T", "O", "__Pyx_FastcallDict_Items",
                 utility_code=uc),
         ]
