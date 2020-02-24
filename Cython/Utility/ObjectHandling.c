@@ -1991,7 +1991,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallKwds_Impl(PyObject *func, 
     }
     #elif CYTHON_FAST_PYCCALL
     if (PyCFunction_Check(func) && (kwds_in_dict || kwds == NULL)) {
-        return _PyCFunction_FastCallDict(func, args, nargs, NULL);
+        return _PyCFunction_FastCallDict(func, args, nargs, kwds);
     }
     #endif
     #if CYTHON_FAST_PYCALL

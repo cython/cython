@@ -307,6 +307,117 @@ def test_starstarargs_ops_changes(**kwds):
     kwds["d"] = 10
     print(kwds.pop("d"))
 
+def call_with_both(*args, **kwds):
+    return len(args), len(kwds)
+
+cdef extern from *:
+    """
+    #if CYTHON_METH_FASTCALL
+    #define FASTCALLTUPLE_PROBE(x, offset) (intptr_t)(x.args + offset)
+    #else
+    #define FASTCALLTUPLE_PROBE(x, offset) 0 // test is pretty meaningless
+    #endif
+    """
+    long FASTCALLTUPLE_PROBE(...)
+    int PyCFunction_GET_FLAGS(op)
+
+def has_fastcall(meth):
+    """
+    Given a builtin_function_or_method or cyfunction ``meth``,
+    return whether it uses ``METH_FASTCALL``.
+    """
+    # Hardcode METH_FASTCALL constant equal to 0x80 for simplicity
+    return bool(PyCFunction_GET_FLAGS(meth) & 0x80)
+
+
+def assert_fastcall(meth):
+    """
+    Assert that ``meth`` uses ``METH_FASTCALL`` if the Python
+    implementation supports it.
+    """
+    # getattr uses METH_FASTCALL on CPython >= 3.7
+    if has_fastcall(getattr) and not has_fastcall(meth):
+        raise AssertionError(f"{meth} does not use METH_FASTCALL")
+
+def call_with_args_and_probe(dummy, *args):
+    """
+    Dummy argument is necessary for Cython to make it fastcall
+    The assert_fastcall is only to check that the arguments can genuinely be forwarded directly
+    (otherwise the test this is used in is pointless)
+    >>> assert_fastcall(call_with_args_and_probe)
+    """
+    return FASTCALLTUPLE_PROBE(args, 0)
+
+from cpython.long cimport PyLong_FromLong
+
+@cython.test_fail_if_path_exists("//CoerceToPyTypeNode")
+def test_forwarding(a, *args, **kwds):
+    """
+    >>> test_forwarding(1, 'a', 'b', 'c', 'd', x=1, y=2)
+    FastcallTuple FastcallDict
+    4
+    2
+    4 2
+    True
+    """
+    print(cython.typeof(args), cython.typeof(kwds))
+    print(call_with_args(*args))
+    print(call_with_kwds(**kwds))
+    print(*call_with_both(*args, **kwds))
+    # PyLong_FromLong is to avoid coercion node being created
+    print(PyLong_FromLong(FASTCALLTUPLE_PROBE(args, 1)) # +1 account for dummy argument
+           == call_with_args_and_probe(*args))
+
+def test_forwarding2(a, *args, **kwds):
+    """
+    Tests that all three combinations of kwds work:
+    - the kwnames version
+    - the dict version created after coercion/modification
+    - the empty version
+    >>> test_forwarding2(1, 'a', 'b', 'c', 'd', x=1, y=2)
+    FastcallTuple FastcallDict
+    2 2
+    1 1
+    >>> test_forwarding2(1, 'a', 'b', 'c', 'd')
+    FastcallTuple FastcallDict
+    0 0
+    """
+    print(cython.typeof(args), cython.typeof(kwds))
+    print(call_with_kwds(**kwds), call_with_both(*args, **kwds)[1])
+    if (len(kwds)):
+        kwds.popitem()  # modifies so converts to a dictionary version
+        print(call_with_kwds(**kwds), call_with_both(*args, **kwds)[1])
+
+def test_coercion_gives_tuple(a, *args):
+    """
+    >>> test_coercion_gives_tuple(1, 2, 3)
+    tuple object
+    """
+    class C:
+        pass
+    args.index(2)
+    print(cython.typeof(args))
+    c = C()
+    c.store_args = args  # 2 coercions to should be enough to force it to use regular args
+
+def test_noncoercion_gives_fastcall(a, *args):
+    """
+    >>> test_noncoercion_gives_fastcall(1, 2, 3)
+    FastcallTuple
+    """
+    print(cython.typeof(args))
+
+def test_nonfastcall_doesnt_use_keywords(*args, **kwds):
+    """
+    If the first test fails that isn't a problem - we just need to find another function
+    that Cython doesn't give the fastcall calling convention
+    >>> has_fastcall(test_nonfastcall_doesnt_use_keywords)
+    False
+    >>> test_nonfastcall_doesnt_use_keywords(a=1, b=2)
+    'dict object'
+    """
+    return cython.typeof(kwds)
+
 _WARNINGS = """
 73:4: Request for **kw to be a specialized fastcall argument is pointless since the function itself is not fastcallable and so this will only cause degrade performance.
 """
