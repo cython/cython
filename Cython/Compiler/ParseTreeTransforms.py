@@ -1610,12 +1610,13 @@ if VALUE is not None:
         node.analyse_declarations(self.current_env())
         self.visitchildren(node)
         self.seen_vars_stack.pop()
-        # print("Visiting ModuleNode", node)
-        # print(node.scope)
-        # print(node.body)
-        # print(node.body.stats)
-        # print(self.module_contains_fusedcpdefs)
+        print("Visiting ModuleNode", node)
+        print(node.scope)
+        print(node.body)
+        print(node.body.stats)
+        print(self.module_contains_fusedcpdefs)
         if self.module_contains_fusedcpdefs:
+            pass
             self._inject_fusedcpdef_sigindex(node)
          #   node.body.stats.insert(0, self._inject_fusedcpdef_sigindex(node))
         node.body.stats.extend(self.extra_module_declarations)
