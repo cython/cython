@@ -4280,6 +4280,18 @@ class FastcallBaseType(PyrexType):
     def generate_nullcheck(self, cname):
         return "__Pyx_%s_NULLCHECK(%s)" % (self.name, cname)
 
+    # different instances are created just to hold a different "coercion_count" for each
+    # function. However, it's useful for looking up the type if they compare equal
+    # (apart from the count there's no useful difference between instances)
+    def __hash__(self):
+        return hash(type(self))
+    def __eq__(self, rhs):
+        return type(self) == type(rhs)
+
+    def literal_code(self, value):
+        assert value in ("0", "{}"), str(value)  # only know how to handle empty literals
+        return self.declaration_value
+
 class FastcallTupleType(FastcallBaseType):
     """Represents an optimized tuple-like type for "*args"
 
@@ -4331,18 +4343,6 @@ class FastcallTupleType(FastcallBaseType):
             # tuple_type indicates that the conversion was requested by the user
         #    self.coercion_count += 1
         return "%s = __Pyx_FastcallTuple_ToTuple(%s)" % (result_code, source_code)
-
-    def literal_code(self, value):
-        assert value in ("0", "{}")  # only know how to handle empty literals
-        return self.declaration_value
-
-    # different instances are created just to hold a different "coercion_count" for each
-    # function. However, it's useful for looking up the type if they compare equal
-    # (apart from the count there's no useful difference between instances)
-    def __hash__(self):
-        return hash(type(self))
-    def __eq__(self, rhs):
-        return type(self) == type(rhs)
 
 class FastcallDictType(FastcallBaseType):
     """Represents an optimized dict-like type for "**kwds"
@@ -4428,18 +4428,6 @@ class FastcallDictType(FastcallBaseType):
         else:
             self.coercion_count += 1
             return "%s = __Pyx_FastcallDict_ToDict(%s)" % (result_code, source_code)
-
-    # different instances are created just to hold a different "coercion_count" for each
-    # function. However, it's useful for looking up the type if they compare equal
-    # (apart from the count there's no useful difference between instances)
-    def __hash__(self):
-        return hash(type(self))
-    def __eq__(self, rhs):
-        return type(self) == type(rhs)
-
-    def literal_code(self, value):
-        assert value in ("0", "{}")  # only know how to handle empty literals
-        return self.declaration_value
 
 rank_to_type_name = (
     "char",         # 0

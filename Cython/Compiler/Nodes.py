@@ -3723,6 +3723,7 @@ class DefNodeWrapper(FuncDefNode):
                 code.putln("%s = __Pyx_FastcallTuple_FromTuple(%s);" % (
                     self.star_arg.entry.cname,
                     Naming.args_cname))
+                code.put_var_gotref(self.star_arg.entry)
             else:
                 code.put_incref(Naming.args_cname, py_object_type)
                 code.putln("%s = %s;" % (

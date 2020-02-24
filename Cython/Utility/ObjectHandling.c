@@ -2078,7 +2078,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallArgsKwds_structs(PyObject*
 //@requires:PyObjectFastCall
 
 static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallArgsKwds_structs(PyObject* callable, __Pyx_FastcallTuple_obj args, __Pyx_FastcallDict_obj* kwds) {
-    #if CYTHON_COMPILING_IN_CPYTHON
+    #if CYTHON_METH_FASTCALL
     if (kwds->object == NULL) {
         // no keywords
         return __Pyx_PyObject_FastCall(callable, (PyObject**)args.args, args.nargs);

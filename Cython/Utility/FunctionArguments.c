@@ -657,6 +657,9 @@ typedef struct {
 // * args is non-null, object is NULL - used to signify an invalid state (but only really checked on creation)
 // Defaults to "object" being a dict unless one of the quicker options can be easily created
 
+// just a constant pointer to use for the "args is non-null object NULL" invalid state case
+static CYTHON_UNUSED PyObject* __Pyx_FastcallDict_ErrorArgs[0];
+
 static CYTHON_UNUSED Py_ssize_t __Pyx_FastcallDict_Len(__Pyx_FastcallDict_obj *o); /* proto */
 static CYTHON_UNUSED __Pyx_FastcallDict_obj __Pyx_FastcallDict_New(void); /* proto */
 
@@ -729,9 +732,9 @@ static CYTHON_UNUSED PyObject* __Pyx_FastcallDict_ToDict_Explicit(__Pyx_Fastcall
 // These methods behaves slightly differently from the regular dict methods
 // in that they just return a list rather than an iterator. For most of them
 // an iterator would be dangerous since it might outlive the __Pyx_FastcallDict_obj
-static CYTHON_UNUSED PyObject* __Pyx_FastcallDict_Keys(__Pyx_FastcallDict_obj* o);
-static CYTHON_UNUSED PyObject* __Pyx_FastcallDict_Values(__Pyx_FastcallDict_obj* o);
-static CYTHON_UNUSED PyObject* __Pyx_FastcallDict_Items(__Pyx_FastcallDict_obj* o);
+static CYTHON_UNUSED PyObject* __Pyx_FastcallDict_Keys(__Pyx_FastcallDict_obj* o); /* proto */
+static CYTHON_UNUSED PyObject* __Pyx_FastcallDict_Values(__Pyx_FastcallDict_obj* o); /* proto */
+static CYTHON_UNUSED PyObject* __Pyx_FastcallDict_Items(__Pyx_FastcallDict_obj* o); /* proto */
 
 /////////////////// FastcallDictIter //////////////////////
 //@requires:ObjectHandling.c::TupleAndListFromArray
@@ -911,11 +914,16 @@ static CYTHON_INLINE int __Pyx_FastcallDict_ContainsTF(PyObject* item, __Pyx_Fas
 
 /////////////////// FastcallTupleContains.proto //////////////////////
 
+#if CYTHON_METH_FASTCALL
 static CYTHON_UNUSED int __Pyx_FastcallTuple_Contains(__Pyx_FastcallTuple_obj o, PyObject* key);
+#else
+#define __Pyx_FastcallTuple_Contains PySequence_Contains
+#endif
 static CYTHON_INLINE int __Pyx_FastcallTuple_ContainsTF(PyObject* item, __Pyx_FastcallTuple_obj t, int eq);
 
 /////////////////// FastcallTupleContains //////////////////////
 
+#if CYTHON_METH_FASTCALL
 static CYTHON_UNUSED int __Pyx_FastcallTuple_Contains(__Pyx_FastcallTuple_obj o, PyObject* key) {
     Py_ssize_t idx;
     for (idx = 0; idx < o.nargs; ++idx) {
@@ -924,6 +932,7 @@ static CYTHON_UNUSED int __Pyx_FastcallTuple_Contains(__Pyx_FastcallTuple_obj o,
     }
     return 0;
 }
+#endif
 
 static CYTHON_INLINE int __Pyx_FastcallTuple_ContainsTF(PyObject* item, __Pyx_FastcallTuple_obj t, int eq) {
     int result = __Pyx_FastcallTuple_Contains(t, item);
@@ -1067,7 +1076,7 @@ static CYTHON_UNUSED __Pyx_FastcallDict_obj __Pyx_KwargsAsDict_FASTCALL_fastcall
 #else
     kwds = __Pyx_KwargsAsDict_FASTCALL(kwds, kwvalues);  // default to this (dict copy)
     if (!kwds) {
-        out.args = 1; // invalid state as error flag
+        out.args = __Pyx_FastcallDict_ErrorArgs; // invalid state as error flag
     }
 #endif
     out.object = kwds;

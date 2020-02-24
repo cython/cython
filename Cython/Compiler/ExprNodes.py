@@ -7501,6 +7501,14 @@ class StarredUnpackingNode(ExprNode):
     def calculate_result_code(self):
         return ""
 
+    def coerce_to_pyobject(self, env):
+        # for args=fastcall tuple with `(something, *args)` it's easier for the
+        # analysis if the StarredUnpackingNode wraps the PyObject and not the
+        # other way round
+        self.target = self.target.coerce_to_pyobject(env)
+        self.type = self.target.type
+        return self
+
     def generate_result_code(self, code):
         pass
 
