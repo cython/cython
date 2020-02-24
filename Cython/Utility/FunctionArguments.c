@@ -987,10 +987,7 @@ static CYTHON_UNUSED int __Pyx_ParseOptionalKeywords_fastcallstruct(PyObject *kw
                 } else {
                     if (first_unassigned_index == pos) {
                         first_unassigned_index = pos + 1;
-                    } //else if (last_assigned_index < (pos-1)) {
-                        // non-contiguous array
-                    //  goto make_dict_instead;
-                    //}
+                    }
                     last_assigned_index = pos;
 
                     values[name-argnames] = value;
@@ -1013,9 +1010,6 @@ static CYTHON_UNUSED int __Pyx_ParseOptionalKeywords_fastcallstruct(PyObject *kw
                     } else {
                         if (first_unassigned_index == pos) {
                             first_unassigned_index = pos + 1;
-                        } else if (last_assigned_index < (pos-1)) {
-                            // non-contiguous array
-                            goto make_dict_instead;
                         }
                         last_assigned_index = pos;
                         values[name-argnames] = value;
