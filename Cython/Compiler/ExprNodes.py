@@ -4104,7 +4104,7 @@ class IndexNode(_IndexingBaseNode):
                 elif self.base.type.is_fastcall_tuple:
                     function = "__Pyx_GetItemInt_FastcallTuple"
                     utility_code = UtilityCode.load_cached(
-                        "FastcallTupleGetItemInt", "FunctionArguments.c")
+                        "FastcallTupleGetItemInt", "ObjectHandling.c")
                 else:
                     function = "__Pyx_GetItemInt"
             else:
@@ -4117,7 +4117,7 @@ class IndexNode(_IndexingBaseNode):
                     utility_code = UtilityCode.load_cached("DictGetItem", "ObjectHandling.c")
                 elif self.base.type.is_fastcall_dict:
                     function = "__Pyx_FastcallDict_GetItem"
-                    utility_code = UtilityCode.load_cached("FastcallDictGetItem", "FunctionArguments.c")
+                    utility_code = UtilityCode.load_cached("FastcallDictGetItem", "ObjectHandling.c")
                 else:
                     function = "__Pyx_PyObject_GetItem"
                     code.globalstate.use_utility_code(
@@ -5156,7 +5156,7 @@ class SliceIndexNode(ExprNode):
                 cfunc = '__Pyx_PyTuple_GetSlice'
             elif self.type.is_fastcall_tuple:
                 code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("FastcallTupleSlice", "FunctionArguments.c"))
+                    UtilityCode.load_cached("FastcallTupleSlice", "ObjectHandling.c"))
                 cfunc = '__Pyx_FastcallTuple_GetSlice'
                 base_result = self.base.result()
             else:
@@ -7887,7 +7887,7 @@ class SequenceNode(ExprNode):
         code.putln(code.error_goto(self.pos))
         code.putln("}")
         code.globalstate.use_utility_code(UtilityCode.load_cached(
-            "FastcallTupleGetItemInt", "FunctionArguments.c"))
+            "FastcallTupleGetItemInt", "ObjectHandling.c"))
         for i, item in enumerate(self.unpacked_items):
             code.putln("%s = __Pyx_GetItemInt_FastcallTuple_Fast(%s, %d, 0, 0);" % (
                     item.result(), result, i))  # should not be able to fail
@@ -12580,11 +12580,11 @@ class CmpNode(object):
                 return True
             elif self.operand2.type.is_fastcall_tuple:
                 self.special_bool_cmp_utility_code = UtilityCode.load_cached("FastcallTupleContains",
-                                                                                "FunctionArguments.c")
+                                                                                "ObjectHandling.c")
                 self.special_bool_cmp_function = "__Pyx_FastcallTuple_ContainsTF"
             elif self.operand2.type.is_fastcall_dict:
                 self.special_bool_cmp_utility_code = UtilityCode.load_cached("FastcallDictContains",
-                                                                                "FunctionArguments.c")
+                                                                                "ObjectHandling.c")
                 self.special_bool_cmp_function = "__Pyx_FastcallDict_ContainsTF"
             else:
                 if not self.operand2.type.is_pyobject:

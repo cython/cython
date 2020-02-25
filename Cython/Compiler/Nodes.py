@@ -3651,7 +3651,7 @@ class DefNodeWrapper(FuncDefNode):
             if _get_type_attr(self.starstar_arg, "is_fastcall_dict"):
                 suffix = "_fastcallstruct"
                 code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("ParseKeywords_fastcallstruct", "FunctionArguments.c"))
+                    UtilityCode.load_cached("FastcallDict_KwargsAsDict", "FunctionArguments.c"))
                 assign_index = "[0]"
             else:
                 suffix = ""

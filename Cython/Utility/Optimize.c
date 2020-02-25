@@ -420,6 +420,53 @@ static CYTHON_INLINE int __Pyx_dict_iter_next(
     return 1;
 }
 
+/////////////////// FastcallDictLoopIter.proto //////////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_dict_iterator_fastcalldict(__Pyx_FastcallDict_obj* iterable,
+                                                                int is_dict, PyObject* method_name,
+                                                   Py_ssize_t* p_orig_length, int* p_source_is_dict);
+
+/////////////////// FastcallDictLoopIter //////////////////////
+//@requires:dict_iter // partly to get __Pyx_dict_iter_next (which we don't need to redefine)
+//@requires:FunctionArguments.c::FastcallDictIter
+
+static CYTHON_INLINE PyObject* __Pyx_dict_iterator_fastcalldict(__Pyx_FastcallDict_obj* iterable,
+                                                                int is_dict, PyObject* method_name,
+                                                   Py_ssize_t* p_orig_length, int* p_source_is_dict) {
+    PyObject* obj = NULL;
+    if (iterable->object == NULL) {
+        obj = PyDict_New();
+        if (!obj) return NULL;
+    } else if (iterable->args == NULL) {
+        obj = iterable->object; // is a dict
+        Py_INCREF(obj);
+    } else {
+        const char *name;
+        if (!method_name) name = "keys";
+#if PY_MAJOR_VERSION >= 3
+        else name = PyUnicode_AsUTF8(method_name);
+#else
+        else name = PyString_AsString(method_name);
+#endif
+
+        if (strncmp(name, "iter", 4)==0) name = name + 4;
+
+        if (strcmp(name, "items") == 0) {
+            obj = __Pyx_FastcallDict_Items(iterable);
+        } else if (strcmp(name, "keys") == 0) {
+            obj = __Pyx_FastcallDict_Keys(iterable);
+        } else if (strcmp(name, "values") == 0) {
+            obj = __Pyx_FastcallDict_Values(iterable);
+        } else {
+            obj = NULL; // should never happen
+        }
+        method_name = NULL; // so __Pyx_dict_iterator doesn't try to use it on these objects
+    }
+    PyObject* result = __Pyx_dict_iterator(obj, is_dict, method_name, p_orig_length, p_source_is_dict);
+    Py_DECREF(obj);
+    return result;
+}
+
 
 /////////////// set_iter.proto ///////////////
 

@@ -214,6 +214,68 @@ static int __Pyx_ParseOptionalKeywords(PyObject *kwds, PyObject *const *kwvalues
 //
 //  This method does not check for required keyword arguments.
 
+static CYTHON_INLINE int __Pyx_ParseOptionalKeywords_Impl_Iter(PyObject* kwds, int kwds_is_tuple,
+                                                          PyObject *const *kwvalues,
+                                        Py_ssize_t *pos, PyObject **key, PyObject **value) {
+    if (kwds_is_tuple) {
+        if (*pos >= PyTuple_GET_SIZE(kwds)) return 0;
+            *key = PyTuple_GET_ITEM(kwds, *pos);
+            *value = kwvalues[*pos];
+            (*pos)++;
+    } else {
+        if (!PyDict_Next(kwds, pos, key, value)) return 0;
+    }
+    return 1;
+}
+
+typedef int (*__Pyx_ParseOptionalKeywords_Impl_CmpFunc)(PyObject*, PyObject*);
+
+static CYTHON_INLINE int __Pyx_ParseOptionalKeywords_Impl_BasicCheck(PyObject* rhs, PyObject* lhs) {
+    return lhs != rhs;
+}
+
+static CYTHON_INLINE PyObject*** __Pyx_ParseOptionalKeywords_Impl_MatchName(PyObject* key,
+                                            PyObject **name_start[], PyObject ***name_end,
+                                            const char* function_name) {
+    // note that an error can be set on return from this function
+
+    PyObject ***name;
+    name = name_start;
+    #if PY_MAJOR_VERSION < 3
+    if (likely(PyString_CheckExact(key)) || likely(PyString_Check(key))) {
+        while ((*name) && (name != name_end)) {
+            if ((CYTHON_COMPILING_IN_PYPY || PyString_GET_SIZE(**name) == PyString_GET_SIZE(key))
+                        && _PyString_Eq(**name, key)) {
+                return name;
+            }
+            ++name;
+        }
+    } else
+#endif
+    if (likely(PyUnicode_Check(key))) {
+        while ((*name) && (name != name_end)) {
+            int cmp = (**name == key) ? 0 :
+            #if !CYTHON_COMPILING_IN_PYPY && PY_MAJOR_VERSION >= 3
+                (PyUnicode_GET_SIZE(**name) != PyUnicode_GET_SIZE(key)) ? 1 :
+            #endif
+                // need to convert argument name from bytes to unicode for comparison
+                PyUnicode_Compare(**name, key);
+
+            if (cmp < 0 && unlikely(PyErr_Occurred())) return NULL;
+            if (cmp == 0) {
+                return name;
+            }
+            ++name;
+        }
+    }
+    else {
+        PyErr_Format(PyExc_TypeError,
+            "%.200s() keywords must be strings", function_name);
+        return NULL;
+    }
+    return NULL;
+}
+
 static int __Pyx_ParseOptionalKeywords(
     PyObject *kwds,
     PyObject *const *kwvalues,
@@ -229,18 +291,7 @@ static int __Pyx_ParseOptionalKeywords(
     PyObject*** first_kw_arg = argnames + num_pos_args;
     int kwds_is_tuple = CYTHON_METH_FASTCALL && likely(PyTuple_Check(kwds));
 
-    while (1) {
-        if (kwds_is_tuple) {
-            if (pos >= PyTuple_GET_SIZE(kwds)) break;
-            key = PyTuple_GET_ITEM(kwds, pos);
-            value = kwvalues[pos];
-            pos++;
-        }
-        else
-        {
-            if (!PyDict_Next(kwds, &pos, &key, &value)) break;
-        }
-
+    while (__Pyx_ParseOptionalKeywords_Impl_Iter(kwds, kwds_is_tuple, kwvalues, &pos, &key, &value)) {
         name = first_kw_arg;
         while (*name && (**name != key)) name++;
         if (*name) {
@@ -249,64 +300,20 @@ static int __Pyx_ParseOptionalKeywords(
         }
 
         name = first_kw_arg;
-        #if PY_MAJOR_VERSION < 3
-        if (likely(PyString_CheckExact(key)) || likely(PyString_Check(key))) {
-            while (*name) {
-                if ((CYTHON_COMPILING_IN_PYPY || PyString_GET_SIZE(**name) == PyString_GET_SIZE(key))
-                        && _PyString_Eq(**name, key)) {
-                    values[name-argnames] = value;
-                    break;
-                }
-                name++;
+
+        name = __Pyx_ParseOptionalKeywords_Impl_MatchName(key, first_kw_arg, NULL, function_name);
+        if (!name && PyErr_Occurred()) goto bad;
+        if (name) {
+            values[name-argnames] = value;
+        } else {
+            // not found after positional args, check for duplicate
+            PyObject*** argname = __Pyx_ParseOptionalKeywords_Impl_MatchName(key, argnames, first_kw_arg,
+                                                                                function_name);
+            if (!argname && PyErr_Occurred()) goto bad;
+            if (argname) {
+                goto arg_passed_twice;
             }
-            if (*name) continue;
-            else {
-                // not found after positional args, check for duplicate
-                PyObject*** argname = argnames;
-                while (argname != first_kw_arg) {
-                    if ((**argname == key) || (
-                            (CYTHON_COMPILING_IN_PYPY || PyString_GET_SIZE(**argname) == PyString_GET_SIZE(key))
-                             && _PyString_Eq(**argname, key))) {
-                        goto arg_passed_twice;
-                    }
-                    argname++;
-                }
-            }
-        } else
-        #endif
-        if (likely(PyUnicode_Check(key))) {
-            while (*name) {
-                int cmp = (**name == key) ? 0 :
-                #if !CYTHON_COMPILING_IN_PYPY && PY_MAJOR_VERSION >= 3
-                    (PyUnicode_GET_SIZE(**name) != PyUnicode_GET_SIZE(key)) ? 1 :
-                #endif
-                    // need to convert argument name from bytes to unicode for comparison
-                    PyUnicode_Compare(**name, key);
-                if (cmp < 0 && unlikely(PyErr_Occurred())) goto bad;
-                if (cmp == 0) {
-                    values[name-argnames] = value;
-                    break;
-                }
-                name++;
-            }
-            if (*name) continue;
-            else {
-                // not found after positional args, check for duplicate
-                PyObject*** argname = argnames;
-                while (argname != first_kw_arg) {
-                    int cmp = (**argname == key) ? 0 :
-                    #if !CYTHON_COMPILING_IN_PYPY && PY_MAJOR_VERSION >= 3
-                        (PyUnicode_GET_SIZE(**argname) != PyUnicode_GET_SIZE(key)) ? 1 :
-                    #endif
-                        // need to convert argument name from bytes to unicode for comparison
-                        PyUnicode_Compare(**argname, key);
-                    if (cmp < 0 && unlikely(PyErr_Occurred())) goto bad;
-                    if (cmp == 0) goto arg_passed_twice;
-                    argname++;
-                }
-            }
-        } else
-            goto invalid_keyword_type;
+        }
 
         if (kwds2) {
             if (unlikely(PyDict_SetItem(kwds2, key, value))) goto bad;
@@ -317,10 +324,6 @@ static int __Pyx_ParseOptionalKeywords(
     return 0;
 arg_passed_twice:
     __Pyx_RaiseDoubleKeywordsError(function_name, key);
-    goto bad;
-invalid_keyword_type:
-    PyErr_Format(PyExc_TypeError,
-        "%.200s() keywords must be strings", function_name);
     goto bad;
 invalid_keyword:
     #if PY_MAJOR_VERSION < 3
@@ -565,85 +568,6 @@ static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_FastcallTuple_FromTuple(PyObj
 #endif
 }
 
-/////////////// FastcallTupleGetItemInt.proto ///////////////
-//@requires: FastcallTuple
-//@requires: ObjectHandling.c::GetItemInt
-
-// based on ObjectHandling.c
-#define __Pyx_GetItemInt_FastcallTuple(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck) \
-    (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
-    __Pyx_GetItemInt_FastcallTuple_Fast(o, (Py_ssize_t)i, wraparound, boundscheck) : \
-    (PyErr_SetString(PyExc_IndexError, "tuple index out of range"), (PyObject*)NULL))
-#if CYTHON_METH_FASTCALL
-static CYTHON_INLINE PyObject *__Pyx_GetItemInt_FastcallTuple_Fast(__Pyx_FastcallTuple_obj o, Py_ssize_t i,
-                                                              int wraparound, int boundscheck);
-#else
-#define __Pyx_GetItemInt_FastcallTuple_Fast __Pyx_GetItemInt_Tuple_Fast
-#endif
-
-/////////////// FastcallTupleGetItemInt ///////////////
-
-#if CYTHON_METH_FASTCALL
-static CYTHON_INLINE PyObject *__Pyx_GetItemInt_FastcallTuple_Fast(__Pyx_FastcallTuple_obj o, Py_ssize_t i,
-                                                              int wraparound, int boundscheck) {
-    Py_ssize_t len = __Pyx_FastcallTuple_Len(o);
-    if (wraparound) {
-        if (i < 0) {
-            i = len + i;
-        }
-    }
-    if (boundscheck) {
-        if ((i < 0) || (i >= len)) {
-            PyErr_SetString(PyExc_IndexError, "tuple index out of range");
-            return NULL;
-        }
-    }
-
-    PyObject* result = o.args[i];
-    Py_INCREF(result);
-    return result;
-}
-#endif
-
-/////////////// FastcallTupleSlice.proto ///////////////
-//@requires: ObjectHandling.c::SliceTupleAndList
-
-#if CYTHON_METH_FASTCALL
-static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_FastcallTuple_GetSlice(__Pyx_FastcallTuple_obj in,
-                                                            Py_ssize_t start, Py_ssize_t stop); /* proto */
-#else
-#define __Pyx_FastcallTuple_GetSlice __Pyx_PyTuple_GetSlice
-#endif
-
-/////////////// FastcallTupleSlice ///////////////
-
-#if CYTHON_METH_FASTCALL
-static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_FastcallTuple_GetSlice(__Pyx_FastcallTuple_obj in, Py_ssize_t start, Py_ssize_t stop) {
-    const int wraparound = 1;
-    if (stop < start) {
-        return in;
-    }
-    Py_ssize_t len_in = __Pyx_FastcallTuple_Len(in);
-    if (wraparound) {
-        if (start < 0) start = len_in + start;
-        if (stop < 0) stop = len_in + stop;
-    }
-    if (start < 0) start = 0;
-    if (stop < 0) stop = 0;
-    if (stop > len_in) stop = len_in;
-    Py_ssize_t out_len = stop - start;
-    if (out_len < 0) out_len = 0;
-
-#if CYTHON_VECTORCALL
-    if ((start > 0) || (in.nargs & PY_VECTORCALL_ARGUMENTS_OFFSET)) {
-        out_len |= PY_VECTORCALL_ARGUMENTS_OFFSET;
-    }
-#endif /* CYTHON_VECTORCALL */
-    return __Pyx_FastcallTuple_New(in.args + start, out_len);
-}
-#endif
-
-
 /////////////////// FastcallDict.proto /////////////////////////
 
 typedef struct {
@@ -781,182 +705,18 @@ static CYTHON_UNUSED PyObject* __Pyx_FastcallDict_Items(__Pyx_FastcallDict_obj* 
     }
 }
 
-/////////////////// FastcallDictLoopIter.proto //////////////////////
-
-static CYTHON_INLINE PyObject* __Pyx_dict_iterator_fastcalldict(__Pyx_FastcallDict_obj* iterable,
-                                                                int is_dict, PyObject* method_name,
-                                                   Py_ssize_t* p_orig_length, int* p_source_is_dict);
-
-/////////////////// FastcallDictLoopIter //////////////////////
-// FastcallDictIter
-//@requires:Optimize.c::dict_iter // partly to get __Pyx_dict_iter_next (which we don't need to redefine)
-//@requires:FastcallDictIter
-
-static CYTHON_INLINE PyObject* __Pyx_dict_iterator_fastcalldict(__Pyx_FastcallDict_obj* iterable,
-                                                                int is_dict, PyObject* method_name,
-                                                   Py_ssize_t* p_orig_length, int* p_source_is_dict) {
-    PyObject* obj = NULL;
-    if (iterable->object == NULL) {
-        obj = PyDict_New(); // empty tuple is likely to be a cheap iterator
-        if (!obj) return NULL;
-    } else if (iterable->args == NULL) {
-        obj = iterable->object; // is a dict
-        Py_INCREF(obj);
-    } else {
-        const char *name;
-        if (!method_name) name = "keys";
-#if PY_MAJOR_VERSION >= 3
-        else name = PyUnicode_AsUTF8(method_name);
-#else
-        else name = PyString_AsString(method_name);
-#endif
-
-        if (strncmp(name, "iter", 4)==0) name = name + 4;
-
-        if (strcmp(name, "items") == 0) {
-            obj = __Pyx_FastcallDict_Items(iterable);
-        } else if (strcmp(name, "keys") == 0) {
-            obj = __Pyx_FastcallDict_Keys(iterable);
-        } else if (strcmp(name, "values") == 0) {
-            obj = __Pyx_FastcallDict_Values(iterable);
-        } else {
-            obj = NULL; // should never happen
-        }
-        method_name = NULL; // so __Pyx_dict_iterator doesn't try to use it on these objects
-    }
-    PyObject* result = __Pyx_dict_iterator(obj, is_dict, method_name, p_orig_length, p_source_is_dict);
-    Py_DECREF(obj);
-    return result;
-}
-
-/////////////////// FastcallDictGetItem.proto ///////////////////////
-
-static CYTHON_UNUSED PyObject* __Pyx_FastcallDict_GetItem(__Pyx_FastcallDict_obj* o, PyObject* key);
-
-/////////////////// FastcallDictGetItem //////////////////////////////
-//@requires:ObjectHandling.c::DictGetItem
-//@requires:FastcallDictContains
-
-static CYTHON_UNUSED PyObject* __Pyx_FastcallDict_GetItem(__Pyx_FastcallDict_obj* o, PyObject* key) {
-    if (o->object == NULL) {
-        // not found
-    } else if (o->args) {
-        Py_ssize_t idx = __Pyx_FastcallDict_Index_impl(o, key);
-        if (idx>=0) {
-            Py_INCREF(o->args[idx]);
-            return o->args[idx];
-        }
-    } else {
-        return __Pyx_PyDict_GetItem(o->object, key);
-    }
-    if (unlikely(PyErr_Occurred())) PyErr_Clear(); // set our own exception
-    PyErr_SetObject(PyExc_KeyError, key);
-    return NULL;
-}
-
-/////////////////// FastcallDictContains.proto //////////////////////
-
-static CYTHON_UNUSED int __Pyx_FastcallDict_Index_impl(__Pyx_FastcallDict_obj* o, PyObject* key);
-static CYTHON_UNUSED int __Pyx_FastcallDict_Contains(__Pyx_FastcallDict_obj* o, PyObject* key);
-static CYTHON_INLINE int __Pyx_FastcallDict_ContainsTF(PyObject* item, __Pyx_FastcallDict_obj* dict, int eq);
-
-/////////////////// FastcallDictContains //////////////////////
-
-static CYTHON_UNUSED int __Pyx_FastcallDict_Index_impl(__Pyx_FastcallDict_obj* o, PyObject* key) {
-// returns -1 if not found otherwise the index
-// only to be used when we know o->object is a tuple
-#if (PY_MAJOR_VERSION >= 3)
-    const int is_unicode = PyUnicode_Check(key);
-#endif
-    Py_ssize_t idx;
-    const Py_ssize_t len =  PyTuple_GET_SIZE(o->object);
-    for (idx = 0; idx < len; ++idx) {
-        PyObject* lhs = PyTuple_GET_ITEM(o->object, idx);
-#if (PY_MAJOR_VERSION >= 3)
-        if (lhs == key) return idx;
-        if (likely((is_unicode) && PyUnicode_Check(lhs))) {
-            int cmp = PyUnicode_Compare(lhs, key);
-            if (cmp == 0) {
-                return idx;
-            } else if ((cmp < 0) && unlikely(PyErr_Occurred())) {
-                return -1;
-            } else {
-                continue; // FIXME? may fail with odd types that define an __eq__ function
-                    // but these should be in function arguments anyway...
-            }
-        }
-#endif
-        if (PyObject_RichCompareBool(lhs, key, Py_EQ)) return idx;
-    }
-    return -1;
-}
-
-static CYTHON_UNUSED int __Pyx_FastcallDict_Contains(__Pyx_FastcallDict_obj* o, PyObject* key) {
-    if (o->object == NULL) {
-        return 0;
-    } else if (o->args) {
-        //return PySequence_Contains(o->object, key);
-        int res = __Pyx_FastcallDict_Index_impl(o, key);
-        if (res == -1) {
-            return (unlikely(PyErr_Occurred())) ? -1 : 0;
-        } else {
-            return 1;
-        }
-    } else {
-        return PyDict_Contains(o->object, key);
-    }
-}
-
-static CYTHON_INLINE int __Pyx_FastcallDict_ContainsTF(PyObject* item, __Pyx_FastcallDict_obj* dict, int eq) {
-    int result = __Pyx_FastcallDict_Contains(dict, item);
-    return unlikely(result < 0) ? result : (result == (eq == Py_EQ));
-}
-
-/////////////////// FastcallTupleContains.proto //////////////////////
-
-#if CYTHON_METH_FASTCALL
-static CYTHON_UNUSED int __Pyx_FastcallTuple_Contains(__Pyx_FastcallTuple_obj o, PyObject* key);
-#else
-#define __Pyx_FastcallTuple_Contains PySequence_Contains
-#endif
-static CYTHON_INLINE int __Pyx_FastcallTuple_ContainsTF(PyObject* item, __Pyx_FastcallTuple_obj t, int eq);
-
-/////////////////// FastcallTupleContains //////////////////////
-
-#if CYTHON_METH_FASTCALL
-static CYTHON_UNUSED int __Pyx_FastcallTuple_Contains(__Pyx_FastcallTuple_obj o, PyObject* key) {
-    Py_ssize_t idx;
-    for (idx = 0; idx < o.nargs; ++idx) {
-        PyObject* val = o.args[idx];
-        return PyObject_RichCompareBool(val, key, Py_EQ);
-    }
-    return 0;
-}
-#endif
-
-static CYTHON_INLINE int __Pyx_FastcallTuple_ContainsTF(PyObject* item, __Pyx_FastcallTuple_obj t, int eq) {
-    int result = __Pyx_FastcallTuple_Contains(t, item);
-    return unlikely(result < 0) ? result : (result == (eq == Py_EQ));
-}
-
 /////////////// ParseKeywords_fastcallstruct.proto ///////////////
 //@requires: FastcallDict
 
-static CYTHON_UNUSED int __Pyx_ParseOptionalKeywords_fastcallstruct(PyObject *kwds, PyObject *const *kwvalues,
+static int __Pyx_ParseOptionalKeywords_fastcallstruct(PyObject *kwds, PyObject *const *kwvalues,
     PyObject **argnames[],
     __Pyx_FastcallDict_obj *kwds2, PyObject *values[], Py_ssize_t num_pos_args,
     const char* function_name); /*proto*/
-static CYTHON_UNUSED __Pyx_FastcallDict_obj __Pyx_KwargsAsDict_FASTCALL_fastcallstruct(
-    PyObject *kwds,
-    PyObject *const * kwvalues);
-static CYTHON_UNUSED __Pyx_FastcallDict_obj __Pyx_KwargsAsDict_VARARGS_fastcallstruct(
-    PyObject *kwds,
-    PyObject *const * kwvalues);
 
 /////////////// ParseKeywords_fastcallstruct ///////////////
 //@requires: ParseKeywords
 
-static CYTHON_UNUSED int __Pyx_ParseOptionalKeywords_fastcallstruct(PyObject *kwds, PyObject *const *kwvalues,
+static int __Pyx_ParseOptionalKeywords_fastcallstruct(PyObject *kwds, PyObject *const *kwvalues,
     PyObject **argnames[],
     __Pyx_FastcallDict_obj *kwds2, PyObject *values[], Py_ssize_t num_pos_args,
     const char* function_name) {
@@ -968,18 +728,19 @@ static CYTHON_UNUSED int __Pyx_ParseOptionalKeywords_fastcallstruct(PyObject *kw
 
     {
         // cycle through kwds
-        Py_ssize_t pos;
-        const Py_ssize_t len_kwds = PyTuple_GET_SIZE(kwds);
-        PyObject *value, ***name;
+        Py_ssize_t pos=0;
+        PyObject *value;
         Py_ssize_t first_unassigned_index = 0;
         Py_ssize_t last_unassigned_index = 0;
         Py_ssize_t last_assigned_index = 0;
-        for (pos = 0; pos < len_kwds; ++pos) {
-            key = PyTuple_GET_ITEM(kwds, pos);
-            value = kwvalues[pos];
-
-            name = argnames;
+        while (__Pyx_ParseOptionalKeywords_Impl_Iter(kwds, 1, kwvalues, &pos, &key, &value)) {
+            PyObject ***name = argnames;
             while (*name && (**name != key)) name++;
+            if (!name) {
+                name = __Pyx_ParseOptionalKeywords_Impl_MatchName(key, argnames, NULL,
+                                                                  function_name);
+                if (!name && PyErr_Occurred()) goto bad;
+            }
             if (*name) {
                 if (name < first_kw_arg) {
                     // already assigned - set error
@@ -994,41 +755,15 @@ static CYTHON_UNUSED int __Pyx_ParseOptionalKeywords_fastcallstruct(PyObject *kw
                     continue; // the for loop
                 }
             }
-            if (unlikely(!PyUnicode_Check(key))) {
-                goto invalid_keyword_type;
-            }
 
-            name = argnames;
-            while (*name) {
-                // don't both with string comparison from the other function - this one only happens in Py3
-                int cmp = (PyUnicode_GET_SIZE(**name) != PyUnicode_GET_SIZE(key)) ? 1 :
-                        PyUnicode_Compare(**name, key);
-                if (cmp < 0 && unlikely(PyErr_Occurred())) goto bad;
-                if (cmp == 0) {
-                    if (name < first_kw_arg) {
-                        goto arg_passed_twice;
-                    } else {
-                        if (first_unassigned_index == pos) {
-                            first_unassigned_index = pos + 1;
-                        }
-                        last_assigned_index = pos;
-                        values[name-argnames] = value;
-                        goto continue_for_loop;
-                    }
-                }
-                ++name;
-            }
             // here we didn't find a name to match this key to
             last_unassigned_index = pos;
 
             if ((first_unassigned_index < last_assigned_index) &&
                 (last_assigned_index < last_unassigned_index)) {
-                // non continuous block of keyword values
+                // non-continuous block of keyword values
                 goto make_dict_instead;
             }
-
-            continue_for_loop:
-            ;
         }
 
         kwds2->object = PyTuple_GetSlice(kwds, first_unassigned_index, last_unassigned_index+1);
@@ -1052,13 +787,22 @@ static CYTHON_UNUSED int __Pyx_ParseOptionalKeywords_fastcallstruct(PyObject *kw
     arg_passed_twice:
         __Pyx_RaiseDoubleKeywordsError(function_name, key);
         goto bad;
-    invalid_keyword_type:
-        PyErr_Format(PyExc_TypeError,
-            "%.200s() keywords must be strings", function_name);
-        goto bad;
     bad:
         return -1;
 }
+
+//////////////////// FastcallDict_KwargsAsDict.proto ////////////////////////
+//@requires: FastcallDict
+
+static CYTHON_UNUSED __Pyx_FastcallDict_obj __Pyx_KwargsAsDict_FASTCALL_fastcallstruct(
+    PyObject *kwds,
+    PyObject *const * kwvalues); /* proto */
+static CYTHON_UNUSED __Pyx_FastcallDict_obj __Pyx_KwargsAsDict_VARARGS_fastcallstruct(
+    PyObject *kwds,
+    PyObject *const * kwvalues); /* proto */
+
+//////////////////// FastcallDict_KwargsAsDict ////////////////////////
+//@requires: fastcall
 
 static CYTHON_UNUSED __Pyx_FastcallDict_obj __Pyx_KwargsAsDict_FASTCALL_fastcallstruct(
     PyObject *kwds,

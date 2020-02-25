@@ -1002,7 +1002,7 @@ class IterationTransform(Visitor.EnvTransform):
         func_type_for_assignment = self.PyDict_Iterator_func_type
         if dict_obj.type.is_fastcall_dict:
             func_name += "_fastcalldict"
-            utility_code = UtilityCode.load_cached("FastcallDictLoopIter", "FunctionArguments.c")
+            utility_code = UtilityCode.load_cached("FastcallDictLoopIter", "Optimize.c")
             func_type_for_assignment = self.PyFastcallDict_Iterator_func_type
         result_code = [
             Nodes.SingleAssignmentNode(
