@@ -239,8 +239,7 @@ static CYTHON_INLINE PyObject*** __Pyx_ParseOptionalKeywords_Impl_MatchName(PyOb
                                             const char* function_name) {
     // note that an error can be set on return from this function
 
-    PyObject ***name;
-    name = name_start;
+    PyObject ***name = name_start;
     #if PY_MAJOR_VERSION < 3
     if (likely(PyString_CheckExact(key)) || likely(PyString_Check(key))) {
         while ((*name) && (name != name_end)) {
@@ -737,12 +736,13 @@ static int __Pyx_ParseOptionalKeywords_fastcallstruct(PyObject *kwds, PyObject *
             Py_ssize_t pos = iter_pos-1;  // iterator function keeps pos 1 in advance
             PyObject ***name = argnames;
             while (*name && (**name != key)) name++;
-            if (!name) {
+            if (!*name) {
+                // try to find it with a more thorough search
                 name = __Pyx_ParseOptionalKeywords_Impl_MatchName(key, argnames, NULL,
                                                                   function_name);
                 if (!name && PyErr_Occurred()) goto bad;
             }
-            if (*name) {
+            if (name && *name) {
                 if (name < first_kw_arg) {
                     // already assigned - set error
                     goto arg_passed_twice;

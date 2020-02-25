@@ -180,3 +180,35 @@ def test_int_kwargs(f):
     TypeError: ...keywords must be strings
     """
     f(a=1,b=2,c=3, **{10:20,30:40})
+
+def call_ordering_callee(a, b, **kwds):
+    c = kwds['c']
+    d = kwds['d']
+    e = kwds['e']
+    return a, b, c, d, e
+
+def call_ordering():
+    """
+    Fairly thorough test that arguments are correctly resolved when passed in any order
+    >>> call_ordering()
+    """
+    from itertools import permutations
+    keys = ['a', 'b', 'c', 'd', 'e']
+    values = [1, 2, 3, 4, 5]
+    for len_ in range(2):
+        star = values[:len_]
+        star_str = ", ".join(str(s) for s in star)
+        if star_str:
+            star_str = star_str + ","
+        starstar = dict(zip(keys[len_:], values[len_:]))
+        for perm in permutations(list(zip(keys[len_:], values[len_:]))):
+            starstar_str = [ "%s=%s" % (k, v) for k, v in perm ]
+            starstar_str = ", ".join(starstar_str)
+
+            res = eval('call_ordering_callee(%s %s)' % (star_str, starstar_str))
+            assert res==tuple(values)
+            res = eval('call_ordering_callee(*star, %s)' % starstar_str)
+            assert res==tuple(values)
+        res = eval('call_ordering_callee(%s **starstar)' % star_str)
+        assert res==tuple(values)
+        res = eval('call_ordering_callee(*star, **starstar)')
