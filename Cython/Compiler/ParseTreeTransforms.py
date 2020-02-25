@@ -1610,14 +1610,7 @@ if VALUE is not None:
         node.analyse_declarations(self.current_env())
         self.visitchildren(node)
         self.seen_vars_stack.pop()
-        print("Visiting ModuleNode", node)
-        print(node.scope)
-        print(node.body)
-        print(node.body.stats)
-        print(self.module_contains_fusedcpdefs)
-        if self.module_contains_fusedcpdefs:
-            pass
-            self._inject_fusedcpdef_sigindex(node)
+
          #   node.body.stats.insert(0, self._inject_fusedcpdef_sigindex(node))
         node.body.stats.extend(self.extra_module_declarations)
         return node
@@ -1646,29 +1639,6 @@ if VALUE is not None:
                 and not node.scope.lookup('__reduce_ex__')):
                 self._inject_pickle_methods(node)
         return node
-
-    def _inject_fusedcpdef_sigindex(self, node):
-        # print("Injecting `fusedcpdef` stuff", node)
-        sigindex_dict = TreeFragment(
-            #cdef dict %(fused_cpdef_globalindex)s
-            # FIXME: Statically type this.
-            u"""
-            %(fused_cpdef_globalindex)s = {}
-            """ % {'fused_cpdef_globalindex': Naming.fused_cpdef_globalindex},
-            level = 'module',
-            pipeline = [NormalizeTree(None)]
-        ).substitute({})
-        # print(sigindex_dict)
-        #self.visit(sigindex_dict)
-        #print(sorted(dir(node.node)))
-        #print(node.node)
-        #print(node.node.entry)
-        # print(node.scope)
-        sigindex_dict.analyse_declarations(node.scope)
-        #return sigindex_dict
-        self.extra_module_declarations.append(sigindex_dict)
-        # print(self.extra_module_declarations)
-        # print(self)
 
     def _inject_pickle_methods(self, node):
         env = self.current_env()

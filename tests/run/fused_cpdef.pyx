@@ -84,6 +84,7 @@ def test_midimport_run():
     A, x is long 2 long
     A, x is long 2 long
     A, x is long 2 long
+    <BLANKLINE>
     """
     print midimport_run
 

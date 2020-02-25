@@ -638,9 +638,9 @@ class FusedCFuncDefNode(StatListNode):
                 def __pyx_fused_cpdef(signatures, args, kwargs, defaults):
                     # FIXME: use a typed signature - currently fails badly because
                     #        default arguments inherit the types we specify here!
-                    
+
                     cdef list dest_sig, sigindex_matches, sigindex_candidates, found_matches, found_candidates, search_list, candidates
-                    
+
                     cdef dict _fused_sigindex, sn
 
                     dest_sig = [None] * {{n_fused}}
@@ -652,7 +652,7 @@ class FusedCFuncDefNode(StatListNode):
 
                     # instance check body
             """)
-        
+
 
         pyx_code.indent() # indent following code to function body
         pyx_code.named_insertion_point("imports")
@@ -710,19 +710,22 @@ class FusedCFuncDefNode(StatListNode):
             self._buffer_declarations(pyx_code, decl_code, all_buffer_types, pythran_types)
             env.use_utility_code(Code.UtilityCode.load_cached("Import", "ImportExport.c"))
             env.use_utility_code(Code.UtilityCode.load_cached("ImportNumPyArray", "ImportExport.c"))
-        
+
         context.update(
             global_sigindex_name = fused_cpdef_globalindex,
             func_sigindex_key = env.mangle(fused_cpdef_globalindex_prefix, orig_py_func.entry.cname)
         )
 
+        global_scope = env.global_scope()
+        if not global_scope.lookup_here(fused_cpdef_globalindex):
+            from .Builtin import dict_type
+            global_scope.declare_var(StringEncoding.EncodedString(fused_cpdef_globalindex), dict_type, None, is_cdef=True)
+
         pyx_code.put_chunk(
             u"""
                 global {{global_sigindex_name}}
-                # if '{{global_sigindex_name}}' not in <dict>globals():
-                    # FIXME: Do `cdef dict {{global_sigindex_name}}` at the
-                    #    module level instead.
-                    # {{global_sigindex_name}} = {}
+                if {{global_sigindex_name}} is None:
+                    {{global_sigindex_name}} = {}
                 if '{{func_sigindex_key}}' not in <dict>{{global_sigindex_name}}:
                     {{global_sigindex_name}}['{{func_sigindex_key}}'] = {}
                 _fused_sigindex = (<dict>{{global_sigindex_name}})['{{func_sigindex_key}}']
@@ -735,7 +738,7 @@ class FusedCFuncDefNode(StatListNode):
             u"""
                 sigindex_matches = []
                 sigindex_candidates = [_fused_sigindex]
-                
+
                 for dst_type in dest_sig:
                     found_matches = []
                     found_candidates = []
@@ -757,9 +760,9 @@ class FusedCFuncDefNode(StatListNode):
                     sigindex_candidates = found_candidates
                     if not (found_matches or found_candidates):
                         break
-                
+
                 candidates = sigindex_matches
-                
+
                 if not candidates:
                     raise TypeError("No matching signature found")
                 elif len(candidates) > 1:
