@@ -728,12 +728,13 @@ static int __Pyx_ParseOptionalKeywords_fastcallstruct(PyObject *kwds, PyObject *
 
     {
         // cycle through kwds
-        Py_ssize_t pos=0;
+        Py_ssize_t iter_pos=0;
         PyObject *value;
         Py_ssize_t first_unassigned_index = 0;
         Py_ssize_t last_unassigned_index = 0;
         Py_ssize_t last_assigned_index = 0;
-        while (__Pyx_ParseOptionalKeywords_Impl_Iter(kwds, 1, kwvalues, &pos, &key, &value)) {
+        while (__Pyx_ParseOptionalKeywords_Impl_Iter(kwds, 1, kwvalues, &iter_pos, &key, &value)) {
+            Py_ssize_t pos = iter_pos-1;  // iterator function keeps pos 1 in advance
             PyObject ***name = argnames;
             while (*name && (**name != key)) name++;
             if (!name) {
@@ -752,7 +753,7 @@ static int __Pyx_ParseOptionalKeywords_fastcallstruct(PyObject *kwds, PyObject *
                     last_assigned_index = pos;
 
                     values[name-argnames] = value;
-                    continue; // the for loop
+                    continue; // the while loop
                 }
             }
 
@@ -775,6 +776,7 @@ static int __Pyx_ParseOptionalKeywords_fastcallstruct(PyObject *kwds, PyObject *
         // we don't know how to process the keywords so just do the default "dict" version
         // of the structure
         kwds2->object = PyDict_New();
+        kwds2->args = NULL;
         if (!kwds2->object) return -1;
         {
             int result = __Pyx_ParseOptionalKeywords(kwds, kwvalues, argnames,

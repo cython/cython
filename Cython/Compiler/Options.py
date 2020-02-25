@@ -206,6 +206,7 @@ _directive_defaults = {
     'old_style_globals': False,
     'np_pythran': False,
     'fast_gil': False,
+    'fastcall_args': [None, None],
 
     # set __file__ and/or __path__ to known source/target path at import time (instead of not having them available)
     'set_initial_path' : None,  # SOURCEFILE or "/full/path/to/module"
@@ -363,7 +364,7 @@ directive_scopes = {  # defaults to available everywhere
 }
 
 
-def parse_directive_value(name, value, relaxed_bool=False):
+def parse_directive_value(name, value, relaxed_bool=False, type=None):
     """
     Parses value as an option value for the given name and returns
     the interpreted value. None is returned if the option does not exist.
@@ -391,7 +392,8 @@ def parse_directive_value(name, value, relaxed_bool=False):
     Traceback (most recent call last):
     ValueError: c_string_type directive must be one of ('bytes', 'bytearray', 'str', 'unicode'), got 'unnicode'
     """
-    type = directive_types.get(name)
+    if not type:
+        type = directive_types.get(name)
     if not type:
         return None
     orig_value = value
@@ -417,6 +419,12 @@ def parse_directive_value(name, value, relaxed_bool=False):
                 name, orig_value))
     elif type is str:
         return str(value)
+    elif name=="fastcall_args":
+        # FIXME - can only take single value argument in a comment
+        if value.lower == "none":
+            return [None, None]
+        else:
+            return [parse_directive_value("", value, relaxed_bool, type=bool)]*2
     elif callable(type):
         return type(name, value)
     else:

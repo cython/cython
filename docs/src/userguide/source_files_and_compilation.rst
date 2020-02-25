@@ -806,7 +806,8 @@ Cython code.  Here is the list of currently supported directives:
     respectively. If only one argument is given the it applies to
     both. The default argument of ``None`` lets Cython chose
     when to use these and should be correct the vast majority of
-    the time.
+    the time. At module level only a single argument is currently
+    supported (e.g. `#cython: fastcall_args=True`)
 
 ``profile`` (True / False)
     Write hooks for Python profilers into the compiled C code.  Default
