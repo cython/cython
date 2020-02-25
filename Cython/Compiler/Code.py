@@ -2083,38 +2083,30 @@ class CCodeWriter(object):
         self.putln(type.generate_xgotref(cname))
 
     def put_incref(self, cname, type, **kwds):
-        # TODO is "use_utility_code" necessary? - implemented purely for
-        # memoryviews, but their init code does seem to be loaded anyway
-        # so this may just be generating extra work
-        self.globalstate.use_utility_code(type.incdecref_utility_code)
+        # Note: original put_Memslice_Incref/Decref also added in some utility code
+        # this is unnecessary since the relevant utility code is loaded anyway if a memoryview is used
+        # and so has been removed. However, it's potentially a feature that might be useful here
         self.putln(type.generate_incref(cname, **kwds))
 
     def put_xincref(self, cname, type, **kwds):
-        self.globalstate.use_utility_code(type.incdecref_utility_code)
         self.putln(type.generate_xincref(cname, **kwds))
 
     def put_decref(self, cname, type, **kwds):
-        self.globalstate.use_utility_code(type.incdecref_utility_code)
         self.putln(type.generate_decref(cname, **kwds))
 
     def put_decref_clear(self, cname, type, **kwds):
-        self.globalstate.use_utility_code(type.incdecref_utility_code)
         self.putln(type.generate_decref_clear(cname, **kwds))
 
     def put_xdecref(self, cname, type, **kwds):
-        self.globalstate.use_utility_code(type.incdecref_utility_code)
         self.putln(type.generate_xdecref(cname, **kwds))
 
     def put_xdecref_clear(self, cname, type, **kwds):
-        self.globalstate.use_utility_code(type.incdecref_utility_code)
         self.putln(type.generate_xdecref_clear(cname, **kwds))
 
     def put_decref_set(self, cname, type, rhs_cname):
-        self.globalstate.use_utility_code(type.incdecref_utility_code)
         self.putln(type.generate_decref_set(cname, rhs_cname))
 
     def put_xdecref_set(self, cname, type, rhs_cname):
-        self.globalstate.use_utility_code(type.incdecref_utility_code)
         self.putln(type.generate_xdecref_set(cname, rhs_cname))
 
     def put_var_gotref(self, entry):

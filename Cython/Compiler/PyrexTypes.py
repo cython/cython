@@ -195,7 +195,6 @@ class PyrexType(BaseType):
     #  has_attributes        boolean     Has C dot-selectable attributes
     #  needs_xxxref          boolean     Needs code to be generated similar to incref/gotref/decref.
     #                                    Largely used internally.
-    #  incdecref_utility_code   object or None    To be loaded if (x)incref or (x)decref is called
     #  default_value         string      Initial value that can be assigned before first user assignment.
     #  declaration_value     string      The value statically assigned on declaration (if any).
     #  entry                 Entry       The Entry for this type
@@ -261,7 +260,6 @@ class PyrexType(BaseType):
     is_numpy_buffer = 0
     has_attributes = 0
     needs_xxxref = 0
-    incdecref_utility_code = None
     default_value = ""
     declaration_value = ""
 
@@ -598,10 +596,6 @@ class MemoryViewSliceType(PyrexType):
         # memoryview and pyobject code could be generated in the same way.
         # However, memoryviews are sufficiently specialized that this doesn't
         # seem practical. Implement a limited version of it for now
-    @property
-    def incdecref_utility_code(self):
-        from .MemoryView import memviewslice_init_code
-        return memviewslice_init_code
     scope = None
 
     # These are special cased in Defnode
