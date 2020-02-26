@@ -1494,6 +1494,23 @@ class GlobalState(object):
             w = self.parts['pystring_table']
             w.putln("")
             w.putln("static __Pyx_StringTabEntry %s[] = {" % Naming.stringtab_cname)
+            if py_string.py3str_cstring:
+                w.putln("#if PY_MAJOR_VERSION >= 3")
+                w_py3str_writer = w.insertion_point()
+                w.putln("#else")
+            w.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+            w_limited_api = w.insertion_point()
+            w.putln("#else")
+            w_not_limited_api = w.insertion_point()
+            w.putln("#endif")
+            if py_string.py3str_cstring:
+                w.putln("#endif")
+            decls_writer.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
+            not_limited_api_decls_writer = decls_writer.insertion_point()
+            decls_writer.putln("#endif")
+            init_globals.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+            init_globals_limited_api = init_globals.insertion_point()
+            init_globals.putln("#endif")
             for idx, py_string_args in enumerate(py_strings):
                 c_cname, _, py_string = py_string_args
                 if not py_string.is_str or not py_string.encoding or \
@@ -1512,23 +1529,17 @@ class GlobalState(object):
                     py_string.cname)
                 self.parts['module_state_traverse'].putln("Py_VISIT(traverse_module_state->%s);" %
                     py_string.cname)
-                decls_writer.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
-                decls_writer.putln(
+                not_limited_api_decls_writer.putln(
                     "static PyObject *%s;" % py_string.cname)
-                decls_writer.putln("#endif")
                 if py_string.py3str_cstring:
-                    w.putln("#if PY_MAJOR_VERSION >= 3")
-                    w.putln("{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
+                    w_py3str_writer.putln("{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
                         py_string.cname,
                         py_string.py3str_cstring.cname,
                         py_string.py3str_cstring.cname,
                         '0', 1, 0,
                         py_string.intern
                         ))
-                    w.putln("#else")
-
-                w.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-                w.putln("{0, %s, sizeof(%s), %s, %d, %d, %d}," % (
+                w_limited_api.putln("{0, %s, sizeof(%s), %s, %d, %d, %d}," % (
                     c_cname,
                     c_cname,
                     encoding,
@@ -1536,8 +1547,7 @@ class GlobalState(object):
                     py_string.is_str,
                     py_string.intern
                     ))
-                w.putln("#else")
-                w.putln("{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
+                w_not_limited_api.putln("{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
                     py_string.cname,
                     c_cname,
                     c_cname,
@@ -1546,16 +1556,11 @@ class GlobalState(object):
                     py_string.is_str,
                     py_string.intern
                     ))
-                w.putln("#endif")
-                init_globals.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-                init_globals.putln("if (__Pyx_InitString(%s[%d], &%s) < 0) %s;" % (
+                init_globals_limited_api.putln("if (__Pyx_InitString(%s[%d], &%s) < 0) %s;" % (
                     Naming.stringtab_cname,
                     idx,
                     py_string.cname,
                     init_globals.error_goto(self.module_pos)))
-                init_globals.putln("#endif")
-                if py_string.py3str_cstring:
-                    w.putln("#endif")
             w.putln("{0, 0, 0, 0, 0, 0, 0}")
             w.putln("};")
 
