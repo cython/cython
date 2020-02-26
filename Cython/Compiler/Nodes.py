@@ -2719,7 +2719,6 @@ class DecoratorNode(Node):
     # decorator    NameNode or CallNode or AttributeNode
     child_attrs = ['decorator']
 
-
 class DefNode(FuncDefNode):
     # A Python function definition.
     #
@@ -2741,6 +2740,8 @@ class DefNode(FuncDefNode):
     #  py_cfunc_node  PyCFunctionNode/InnerFunctionNode   The PyCFunction to create and assign
     #
     # decorator_indirection IndirectionNode Used to remove __Pyx_Method_ClassMethod for fused functions
+    # _decorator_data PropertyNode or [Nodes] temporarily used during the analyse declarations phase
+    # _properties    temporarily used during the analyse declarations phase
 
     child_attrs = ["args", "star_arg", "starstar_arg", "body", "decorators", "return_type_annotation"]
     outer_attrs = ["decorators", "return_type_annotation"]
@@ -2761,6 +2762,9 @@ class DefNode(FuncDefNode):
     requires_classobj = False
     defaults_struct = None # Dynamic kwrds structure name
     doc = None
+    _decorator_data = None
+    _main_property = True  # for use in AnalyseDeclarationsTransform
+                # @other_property.setter have this set to False
 
     fused_py_func = False
     specialized_cpdefs = None
@@ -2769,6 +2773,12 @@ class DefNode(FuncDefNode):
     func_cname = None
 
     defaults_getter = None
+
+    _map_property_attribute = {
+        'getter': EncodedString('__get__'),
+        'setter': EncodedString('__set__'),
+        'deleter': EncodedString('__del__'),
+    }.get
 
     def __init__(self, pos, **kwds):
         FuncDefNode.__init__(self, pos, **kwds)
@@ -2865,20 +2875,117 @@ class DefNode(FuncDefNode):
             return False
         return True
 
-    def analyse_declarations(self, env):
-        if self.decorators:
-            for decorator in self.decorators:
-                func = decorator.decorator
-                if func.is_name:
-                    self.is_classmethod |= func.name == 'classmethod'
-                    self.is_staticmethod |= func.name == 'staticmethod'
+    def _chain_decorators(self, decorators):
+        """
+        Decorators are applied directly in DefNode and PyClassDefNode to avoid
+        reassignments to the function/class name - except for cdef class methods.
+        For those, the reassignment is required as methods are originally
+        defined in the PyMethodDef struct.
 
-        if self.is_classmethod and env.lookup_here('classmethod'):
-            # classmethod() was overridden - not much we can do here ...
-            self.is_classmethod = False
-        if self.is_staticmethod and env.lookup_here('staticmethod'):
-            # staticmethod() was overridden - not much we can do here ...
-            self.is_staticmethod = False
+        The IndirectionNode allows DefNode to override the decorator.
+        """
+        from . import ExprNodes
+        decorator_result = ExprNodes.NameNode(self.pos, name=self.name)
+        for decorator in decorators[::-1]:
+            decorator_result = ExprNodes.SimpleCallNode(
+                decorator.pos,
+                function=decorator.decorator,
+                args=[decorator_result])
+
+        name_node = ExprNodes.NameNode(self.pos, name=self.name)
+        reassignment = SingleAssignmentNode(
+            self.pos,
+            lhs=name_node,
+            rhs=decorator_result)
+
+        reassignment = IndirectionNode([reassignment])
+        self.decorator_indirection = reassignment
+        return [self, reassignment]
+
+    def analyse_decorators(self, env):
+        if not env.is_c_class_scope:
+            return  # py_class_scopes don't need to special-case their decorators much
+        if not self.decorators:
+            return
+
+        if len(self.decorators):
+            # no loop - it's only possible to do the special transformations
+            # on the innermost decorator
+            decorator_node = self.decorators[-1]
+            decorator = decorator_node.decorator
+            if (decorator.is_name and decorator.name == 'property'
+                and not env.lookup_here('property')
+                and len(self.decorators) == 1):
+                # TODO warning for len(self.decorators)
+                # FIXME can probably just read normally provided binding=True
+                name = self.name
+                self.name = EncodedString('__get__')
+                self.decorators.remove(decorator_node)
+                stat_list = [self]
+                # ParseTreeTransforms version looks to see if this already exists
+                prop = PropertyNode(self.pos, name=name)
+                prop.doc = self.doc
+                prop.body = StatListNode(self.pos, stats=stat_list)
+                self._decorator_data = prop
+                self._properties[name] = prop
+                return
+                # TODO do something with it
+            elif (decorator.is_attribute and len(self.decorators) == 1):
+                prop = self._properties.get(decorator.obj.name, None)
+                handler_name = self._map_property_attribute(decorator.attribute)
+                if handler_name and prop and isinstance(prop, PropertyNode):
+                    self.decorators.remove(decorator_node)
+                    name = self.name
+                    self.name = handler_name
+                    stats = prop.body.stats
+                    for i, stat in enumerate(stats):
+                        if stat.name == handler_name:
+                            stats[i] = self
+                            break
+                    else:
+                        stats.append(self)
+                    self._decorator_data = prop
+                    self._main_property = False
+                    if decorator.obj.name != name:
+                        # CPython does not generate an error or warning, but not something useful either.
+                        # FIXME - is this a sensible warning to generate
+                        # I think we should just generate both
+                        warning(decorator_node.pos,
+                            "Mismatching property names, expected '%s', got '%s'" % (
+                            decorator.obj.name, name), 1)
+                        self._properties[name] = prop
+                    return
+
+            if (decorator.is_name and decorator.name in ['classmethod', 'staticmethod']
+                and not env.lookup_here(decorator.name)
+                and count_from_inner == 0  # can only really special-case innermost decorator
+                ):
+                self.is_classmethod |= decorator.name == 'classmethod'
+                self.is_classmethod |= decorator.name == 'classmethod'
+                self.decorators.remove(decorator_node)
+
+        decs = self.decorators
+        self.decorators = None
+        self._decorator_data = self._chain_decorators(decs)
+
+        return
+
+    def analyse_declarations(self, env):
+        decorator_data_store, self._decorator_data = self._decorator_data, None
+        self.analyse_decorators(env)
+        if self._decorator_data is not None:
+            if not isinstance(self._decorator_data, PropertyNode):
+                for dd_part in self._decorator_data:
+                    dd_part.analyse_declarations(env)
+            # there's two paths:
+            #  - _decorator_data is a PropertyNode containing this node, which will have
+            #    analyse_declarations called from the containing CClass
+            #  - _decorator_data is a list of function calls and assignments from arbitrary
+            #    decorators which also ultimately contains this node.
+            # Either way, this function will be re-called without the decorators so do not
+            # continue now
+            return
+        self._decorator_data = decorator_data_store
 
         if self.name == '__new__' and env.is_py_class_scope:
             self.is_staticmethod = 1
@@ -4982,6 +5089,10 @@ class CClassDefNode(ClassDefNode):
             scope.doc = embed_position(self.pos, self.doc)
 
         if has_body:
+            properties = {}
+            for stat in getattr(self.body, 'stats', []):
+                if isinstance(stat, FuncDefNode):
+                    stat._properties = properties  # deliberately shared between them
             self.body.analyse_declarations(scope)
             dict_entry = self.scope.lookup_here("__dict__")
             if dict_entry and dict_entry.is_variable and (not scope.defined and not scope.implemented):
@@ -4991,6 +5102,11 @@ class CClassDefNode(ClassDefNode):
                 scope.defined = 1
             else:
                 scope.implemented = 1
+            for stat in getattr(self.body, 'stats', []):
+                if isinstance(stat, FuncDefNode):
+                    del stat._properties
+            for prop in properties.values():
+                prop.analyse_declarations(scope)
 
         if len(self.bases.args) > 1:
             if not has_body or self.in_pxd:

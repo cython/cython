@@ -1318,136 +1318,14 @@ class WithTransform(CythonTransform, SkipDeclarations):
 
 class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
     """
-    Transforms method decorators in cdef classes into nested calls or properties.
-
-    Python-style decorator properties are transformed into a PropertyNode
-    with up to the three getter, setter and deleter DefNodes.
-    The functional style isn't supported yet.
+    Now severely cut down - just generates warnings for old-style syntax
+    (which can probably be moved)
     """
-    _properties = None
-
-    _map_property_attribute = {
-        'getter': EncodedString('__get__'),
-        'setter': EncodedString('__set__'),
-        'deleter': EncodedString('__del__'),
-    }.get
-
-    def visit_CClassDefNode(self, node):
-        if self._properties is None:
-            self._properties = []
-        self._properties.append({})
-        super(DecoratorTransform, self).visit_CClassDefNode(node)
-        self._properties.pop()
-        return node
-
     def visit_PropertyNode(self, node):
         # Low-level warning for other code until we can convert all our uses over.
         level = 2 if isinstance(node.pos[0], str) else 0
         warning(node.pos, "'property %s:' syntax is deprecated, use '@property'" % node.name, level)
         return node
-
-    def visit_DefNode(self, node):
-        scope_type = self.scope_type
-        node = self.visit_FuncDefNode(node)
-        if scope_type != 'cclass' or not node.decorators:
-            return node
-
-        # transform @property decorators
-        properties = self._properties[-1]
-        for decorator_node in node.decorators[::-1]:
-            decorator = decorator_node.decorator
-            if decorator.is_name and decorator.name == 'property':
-                if len(node.decorators) > 1:
-                    return self._reject_decorated_property(node, decorator_node)
-                name = node.name
-                node.name = EncodedString('__get__')
-                node.decorators.remove(decorator_node)
-                stat_list = [node]
-                if name in properties:
-                    prop = properties[name]
-                    prop.pos = node.pos
-                    prop.doc = node.doc
-                    prop.body.stats = stat_list
-                    return []
-                prop = Nodes.PropertyNode(node.pos, name=name)
-                prop.doc = node.doc
-                prop.body = Nodes.StatListNode(node.pos, stats=stat_list)
-                properties[name] = prop
-                return [prop]
-            elif decorator.is_attribute and decorator.obj.name in properties:
-                handler_name = self._map_property_attribute(decorator.attribute)
-                if handler_name:
-                    if decorator.obj.name != node.name:
-                        # CPython does not generate an error or warning, but not something useful either.
-                        error(decorator_node.pos,
-                              "Mismatching property names, expected '%s', got '%s'" % (
-                                  decorator.obj.name, node.name))
-                    elif len(node.decorators) > 1:
-                        return self._reject_decorated_property(node, decorator_node)
-                    else:
-                        return self._add_to_property(properties, node, handler_name, decorator_node)
-
-        # we clear node.decorators, so we need to set the
-        # is_staticmethod/is_classmethod attributes now
-        for decorator in node.decorators:
-            func = decorator.decorator
-            if func.is_name:
-                node.is_classmethod |= func.name == 'classmethod'
-                node.is_staticmethod |= func.name == 'staticmethod'
-
-        # transform normal decorators
-        decs = node.decorators
-        node.decorators = None
-        return self.chain_decorators(node, decs, node.name)
-
-    @staticmethod
-    def _reject_decorated_property(node, decorator_node):
-        # restrict transformation to outermost decorator as wrapped properties will probably not work
-        for deco in node.decorators:
-            if deco != decorator_node:
-                error(deco.pos, "Property methods with additional decorators are not supported")
-        return node
-
-    @staticmethod
-    def _add_to_property(properties, node, name, decorator):
-        prop = properties[node.name]
-        node.name = name
-        node.decorators.remove(decorator)
-        stats = prop.body.stats
-        for i, stat in enumerate(stats):
-            if stat.name == name:
-                stats[i] = node
-                break
-        else:
-            stats.append(node)
-        return []
-
-    @staticmethod
-    def chain_decorators(node, decorators, name):
-        """
-        Decorators are applied directly in DefNode and PyClassDefNode to avoid
-        reassignments to the function/class name - except for cdef class methods.
-        For those, the reassignment is required as methods are originally
-        defined in the PyMethodDef struct.
-
-        The IndirectionNode allows DefNode to override the decorator.
-        """
-        decorator_result = ExprNodes.NameNode(node.pos, name=name)
-        for decorator in decorators[::-1]:
-            decorator_result = ExprNodes.SimpleCallNode(
-                decorator.pos,
-                function=decorator.decorator,
-                args=[decorator_result])
-
-        name_node = ExprNodes.NameNode(node.pos, name=name)
-        reassignment = Nodes.SingleAssignmentNode(
-            node.pos,
-            lhs=name_node,
-            rhs=decorator_result)
-
-        reassignment = Nodes.IndirectionNode([reassignment])
-        node.decorator_indirection = reassignment
-        return [node, reassignment]
 
 
 class CnameDirectivesTransform(CythonTransform, SkipDeclarations):
@@ -1906,6 +1784,25 @@ if VALUE is not None:
         return node
 
     def visit_DefNode(self, node):
+        dd = node._decorator_data
+        if dd:
+            # this will end up visiting the DefNode again, without decorator_data
+            # so won't actually miss the operations below
+            if not isinstance(dd, Nodes.PropertyNode):
+                node._decorator_data = None
+                for dd_part in dd:
+                    self.visit(dd_part)
+                return dd
+            else:
+                assert self.current_env().is_c_class_scope, self.current_env()
+                # but handle normally inside a property scope
+                node._decorator_data = None
+                if node._main_property:
+                    self.visit(dd)
+                    return dd
+                else:
+                    return None
+
         node = self.visit_FuncDefNode(node)
         env = self.current_env()
         if isinstance(node, Nodes.DefNode) and node.is_wrapper:
