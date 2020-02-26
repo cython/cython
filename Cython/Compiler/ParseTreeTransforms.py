@@ -1605,13 +1605,10 @@ if VALUE is not None:
     def visit_ModuleNode(self, node):
         # Pickling support requires injecting module-level nodes.
         self.extra_module_declarations = []
-        self.module_contains_fusedcpdefs = False
         self.seen_vars_stack.append(set())
         node.analyse_declarations(self.current_env())
         self.visitchildren(node)
         self.seen_vars_stack.pop()
-
-         #   node.body.stats.insert(0, self._inject_fusedcpdef_sigindex(node))
         node.body.stats.extend(self.extra_module_declarations)
         return node
 
@@ -1801,7 +1798,6 @@ if VALUE is not None:
 
     def _handle_def(self, decorators, env, node):
         "Handle def or cpdef fused functions"
-        self.module_contains_fusedcpdefs = True
         # Create PyCFunction nodes for each specialization
         node.stats.insert(0, node.py_func)
         node.py_func = self.visit(node.py_func)
