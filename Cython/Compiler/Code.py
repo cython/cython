@@ -241,7 +241,9 @@ class UtilityCodeBase(object):
         #@subsitute: tempita
 
         [requires tempita substitution
-         - context can't be specified here though
+         - context can't be specified here though so only
+           tempita utility that requires no external context
+           will benefit from this tag
          - only necessary when @required from non-tempita code]
 
     for prototypes and implementation respectively.  For non-python or
