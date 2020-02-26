@@ -639,9 +639,9 @@ class FusedCFuncDefNode(StatListNode):
                     # FIXME: use a typed signature - currently fails badly because
                     #        default arguments inherit the types we specify here!
 
-                    cdef list dest_sig, sigindex_matches, sigindex_candidates, found_matches, found_candidates, search_list, candidates
+                    cdef list search_list
 
-                    cdef dict _fused_sigindex, sn
+                    cdef dict sn
 
                     dest_sig = [None] * {{n_fused}}
 
@@ -652,7 +652,6 @@ class FusedCFuncDefNode(StatListNode):
 
                     # instance check body
             """)
-
 
         pyx_code.indent() # indent following code to function body
         pyx_code.named_insertion_point("imports")

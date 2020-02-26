@@ -3,14 +3,12 @@ import sys, io
 
 cy = __import__("cython")
 
-cpdef func1(self, cython.integral x, printto=None):
-    if printto is None:
-        printto = sys.stdout
-    print >> printto, "%s," % (self,),
+cpdef func1(self, cython.integral x):
+    print "%s," % (self,),
     if cython.integral is int:
-        print >> printto, 'x is int', x, cython.typeof(x)
+        print 'x is int', x, cython.typeof(x)
     else:
-        print >> printto, 'x is long', x, cython.typeof(x)
+        print 'x is long', x, cython.typeof(x)
 
 
 class A(object):
@@ -19,21 +17,19 @@ class A(object):
         return "A"
 
 cdef class B:
-    cpdef int meth(self, cython.integral x, printto=None):
-        if printto is None:
-            printto = sys.stdout
-        print >> printto, "%s," % (self,),
+    cpdef int meth(self, cython.integral x):
+        print "%s," % (self,),
         if cython.integral is int:
-            print >> printto, 'x is int', x, cython.typeof(x)
+            print 'x is int', x, cython.typeof(x)
         else:
-            print >> printto, 'x is long', x, cython.typeof(x)
+            print 'x is long', x, cython.typeof(x)
         return 0
     def __str__(self):
         return "B"
 
 pyfunc = func1
 
-def test_fused_cpdef(printto=None):
+def test_fused_cpdef():
     """
     >>> test_fused_cpdef()
     None, x is int 2 int
@@ -50,36 +46,45 @@ def test_fused_cpdef(printto=None):
     <BLANKLINE>
     B, x is long 2 long
     """
-    if printto is None:
-        printto = sys.stdout
-    func1[int](None, 2, printto)
-    func1[long](None, 2, printto)
-    func1(None, 2, printto=printto)
+    func1[int](None, 2)
+    func1[long](None, 2)
+    func1(None, 2)
 
-    print >> printto
+    print
 
-    pyfunc[cy.int](None, 2, printto=printto)
-    pyfunc(None, 2, printto=printto)
+    pyfunc[cy.int](None, 2)
+    pyfunc(None, 2)
 
-    print >> printto
+    print
 
-    A.meth[cy.int](A(), 2, printto=printto)
-    A.meth(A(), 2, printto=printto)
-    A().meth[cy.long](2, printto=printto)
-    A().meth(2, printto=printto)
+    A.meth[cy.int](A(), 2)
+    A.meth(A(), 2)
+    A().meth[cy.long](2)
+    A().meth(2)
 
-    print >> printto
+    print
 
-    B().meth(2, printto=printto)
+    B().meth(2)
 
 
 midimport_run = io.StringIO()
-midimport_run.write = lambda c: io.StringIO.write(midimport_run, unicode(c))
+try:
+    unicode
+except NameError:
+    pass
+else:
+    # Monkey-patch midimport_run.write to accept non-unicode strings under Python 2.
+    midimport_run.write = lambda c: io.StringIO.write(midimport_run, unicode(c))
+
+realstdout = sys.stdout
+sys.stdout = midimport_run
 
 try:
-    test_fused_cpdef(printto=midimport_run)
+    test_fused_cpdef()
 except Exception as e:
-    print >> midimport_run, repr(e)
+    print midimport_run, repr(e)
+finally:
+    sys.stdout = realstdout
 
 def test_midimport_run():
     """
