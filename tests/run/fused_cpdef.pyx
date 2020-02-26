@@ -74,6 +74,8 @@ def test_fused_cpdef(printto=None):
 
 
 midimport_run = io.StringIO()
+midimport_run.write = lambda c: io.StringIO.write(midimport_run, unicode(c))
+
 try:
     test_fused_cpdef(printto=midimport_run)
 except Exception as e:
