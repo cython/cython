@@ -1,6 +1,5 @@
 cimport cython
-from Cython.Compiler.Naming import fused_cpdef_globalindex
-import sys
+import sys, io
 
 cy = __import__("cython")
 
@@ -16,9 +15,21 @@ cpdef func1(self, cython.integral x, printto=None):
 
 class A(object):
     meth = func1
-
     def __str__(self):
         return "A"
+
+cdef class B:
+    cpdef int meth(self, cython.integral x, printto=None):
+        if printto is None:
+            printto = sys.stdout
+        print >> printto, "%s," % (self,),
+        if cython.integral is int:
+            print >> printto, 'x is int', x, cython.typeof(x)
+        else:
+            print >> printto, 'x is long', x, cython.typeof(x)
+        return 0
+    def __str__(self):
+        return "B"
 
 pyfunc = func1
 
@@ -36,6 +47,8 @@ def test_fused_cpdef(printto=None):
     A, x is long 2 long
     A, x is long 2 long
     A, x is long 2 long
+    <BLANKLINE>
+    B, x is long 2 long
     """
     if printto is None:
         printto = sys.stdout
@@ -55,16 +68,12 @@ def test_fused_cpdef(printto=None):
     A().meth[cy.long](2, printto=printto)
     A().meth(2, printto=printto)
 
+    print >> printto
 
-class fakestdout(object):
-    def __init__(self):
-        self.sequence = []
-    def write(self, content):
-        self.sequence.append(content)
-    def __str__(self):
-        return ''.join(self.sequence)
+    B().meth(2, printto=printto)
 
-midimport_run = fakestdout()
+
+midimport_run = io.StringIO()
 try:
     test_fused_cpdef(printto=midimport_run)
 except Exception as e:
@@ -72,7 +81,7 @@ except Exception as e:
 
 def test_midimport_run():
     """
-    >>> test_midimport_run()
+    >>> test_fused_cpdef()
     None, x is int 2 int
     None, x is long 2 long
     None, x is long 2 long
@@ -84,8 +93,10 @@ def test_midimport_run():
     A, x is long 2 long
     A, x is long 2 long
     A, x is long 2 long
+    <BLANKLINE>
+    B, x is long 2 long
     """
-    print str(midimport_run).strip('\n')
+    print midimport_run.getvalue().strip('\n')
 
 
 def assert_raise(func, *args):
@@ -108,6 +119,7 @@ def test_badcall():
     assert_raise(A.meth)
     assert_raise(A().meth[cy.int])
     assert_raise(A.meth[cy.int])
+    assert_raise(B().meth, 1, 2, 3)
 
 def test_nomatch():
     """
