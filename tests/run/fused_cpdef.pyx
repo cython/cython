@@ -88,7 +88,7 @@ finally:
 
 def test_midimport_run():
     """
-    >>> test_fused_cpdef()
+    >>> test_midimport_run()
     None, x is int 2 int
     None, x is long 2 long
     None, x is long 2 long
