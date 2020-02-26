@@ -726,9 +726,9 @@ class FusedCFuncDefNode(StatListNode):
                 global {{global_sigindex_name}}
                 if {{global_sigindex_name}} is None:
                     {{global_sigindex_name}} = {}
-                if '{{func_sigindex_key}}' not in <dict>{{global_sigindex_name}}:
+                if '{{func_sigindex_key}}' not in {{global_sigindex_name}}:
                     {{global_sigindex_name}}['{{func_sigindex_key}}'] = {}
-                _fused_sigindex = (<dict>{{global_sigindex_name}})['{{func_sigindex_key}}']
+                _fused_sigindex = {{global_sigindex_name}}['{{func_sigindex_key}}']
             """
         )
 
@@ -754,7 +754,7 @@ class FusedCFuncDefNode(StatListNode):
                     else:
                         for search_list in (sigindex_matches, sigindex_candidates):
                             for sn in search_list:
-                                if dst_type in <dict>sn:
+                                if dst_type in sn:
                                     found_matches.append(sn[dst_type])
                     sigindex_matches = found_matches
                     sigindex_candidates = found_candidates
