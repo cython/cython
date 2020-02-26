@@ -1826,6 +1826,10 @@ class EmbedTest(unittest.TestCase):
         except OSError:
             pass
 
+def load_listfile(filename):
+    # just re-use the FileListExclude implementation
+    fle = FileListExcluder(filename)
+    return list(fle.excludes)
 
 class MissingDependencyExcluder(object):
     def __init__(self, deps):
@@ -1880,6 +1884,13 @@ class FileListExcluder(object):
             print("Excluding %s because it's listed in %s"
                   % (testname, self._list_file))
         return exclude
+
+class CombinedExcluder(object):
+    def __init__(self, excluders):
+        self.excluders = excluders
+
+    def __call__(self, testname, tags=None):
+        return any(ex(testname, tags=tags) for ex in self.excluders)
 
 
 class TagsSelector(object):
@@ -2068,6 +2079,9 @@ def main():
     parser.add_option("-x", "--exclude", dest="exclude",
                       action="append", metavar="PATTERN",
                       help="exclude tests matching the PATTERN")
+    parser.add_option("--listfile", dest="listfile",
+                      action="append",
+                      help="specify a file containing a list of tests to run")
     parser.add_option("-j", "--shard_count", dest="shard_count", metavar="N",
                       type=int, default=1,
                       help="shard this run into several parallel runs")
@@ -2160,6 +2174,10 @@ def main():
 
     if options.xml_output_dir:
         shutil.rmtree(options.xml_output_dir, ignore_errors=True)
+
+    if options.listfile:
+        for listfile in options.listfile:
+            cmd_args.extend(load_listfile(listfile))
 
     if options.capture:
         keep_alive_interval = 10
@@ -2416,6 +2434,8 @@ def runtests(options, cmd_args, coverage=None):
         bug_files = [
             ('bugs.txt', True),
             ('pypy_bugs.txt', IS_PYPY),
+            ('pypy_crash_bugs.txt', IS_PYPY),
+            ('pypy_implementation_detail_bugs.txt', IS_PYPY),
             ('limited_api_bugs.txt', options.limited_api),
             ('windows_bugs.txt', sys.platform == 'win32'),
             ('cygwin_bugs.txt', sys.platform == 'cygwin')

@@ -71,10 +71,14 @@ matrix:
       env: BACKEND=c
     - python: pypy3
       env: BACKEND=c
+# a secondary pypy3 test which is allowed to fail and which specifically
+# tests known bugs
+    - python: pypy3
+      env: BACKEND=c EXCLUDE="--listfile=tests/pypy_bugs.txt bugs"
   allow_failures:
     - python: 3.9-dev
     - python: pypy
-    - python: pypy3
+    - env: BACKEND=c EXCLUDE="--listfile=tests/pypy_bugs.txt bugs"
 
 branches:
   only:

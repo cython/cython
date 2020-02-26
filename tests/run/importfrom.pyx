@@ -68,6 +68,10 @@ def typed_imports():
     try:
         from sys import version_info as maxunicode
     except TypeError, e:
+        if '__pypy__' in sys.builtin_module_names:
+            # translate message
+            if e.args[0].startswith("int() argument must be"):
+                e = "an integer is required"
         print(e)
 
     try:
