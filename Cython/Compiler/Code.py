@@ -1494,17 +1494,11 @@ class GlobalState(object):
             w = self.parts['pystring_table']
             w.putln("")
             w.putln("static __Pyx_StringTabEntry %s[] = {" % Naming.stringtab_cname)
-            if py_string.py3str_cstring:
-                w.putln("#if PY_MAJOR_VERSION >= 3")
-                w_py3str_writer = w.insertion_point()
-                w.putln("#else")
             w.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-            w_limited_api = w.insertion_point()
+            w_limited_writer = w.insertion_point()
             w.putln("#else")
-            w_not_limited_api = w.insertion_point()
+            w_not_limited_writer = w.insertion_point()
             w.putln("#endif")
-            if py_string.py3str_cstring:
-                w.putln("#endif")
             decls_writer.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
             not_limited_api_decls_writer = decls_writer.insertion_point()
             decls_writer.putln("#endif")
@@ -1532,22 +1526,24 @@ class GlobalState(object):
                 not_limited_api_decls_writer.putln(
                     "static PyObject *%s;" % py_string.cname)
                 if py_string.py3str_cstring:
-                    w_py3str_writer.putln("{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
+                    w_not_limited_writer.putln("#if PY_MAJOR_VERSION >= 3")
+                    w_not_limited_writer.putln("{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
                         py_string.cname,
                         py_string.py3str_cstring.cname,
                         py_string.py3str_cstring.cname,
                         '0', 1, 0,
                         py_string.intern
                         ))
-                w_limited_api.putln("{0, %s, sizeof(%s), %s, %d, %d, %d}," % (
-                    c_cname,
-                    c_cname,
-                    encoding,
+                    w_not_limited_writer.putln("#else")
+                w_limited_writer.putln("{0, %s, sizeof(%s), %s, %d, %d, %d}," % (
+                    c_cname if not py_string.py3str_cstring else py_string.py3str_cstring.cname,
+                    c_cname if not py_string.py3str_cstring else py_string.py3str_cstring.cname,
+                    encoding if not py_string.py3str_cstring else '0',
                     py_string.is_unicode,
                     py_string.is_str,
                     py_string.intern
                     ))
-                w_not_limited_api.putln("{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
+                w_not_limited_writer.putln("{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
                     py_string.cname,
                     c_cname,
                     c_cname,
@@ -1556,6 +1552,8 @@ class GlobalState(object):
                     py_string.is_str,
                     py_string.intern
                     ))
+                if py_string.py3str_cstring:
+                    w_not_limited_writer.putln("#endif")
                 init_globals_limited_api.putln("if (__Pyx_InitString(%s[%d], &%s) < 0) %s;" % (
                     Naming.stringtab_cname,
                     idx,
