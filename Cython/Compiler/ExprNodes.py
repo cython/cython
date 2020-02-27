@@ -9360,7 +9360,8 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         elif def_node.is_classmethod:
             flags.append('__Pyx_CYFUNCTION_CLASSMETHOD')
 
-        if def_node.local_scope.parent_scope.is_c_class_scope and not def_node.entry.is_anonymous:
+        if (def_node.local_scope.parent_scope.is_c_class_scope
+            and not def_node.entry.is_anonymous):
             flags.append('__Pyx_CYFUNCTION_CCLASS')
 
         if flags:

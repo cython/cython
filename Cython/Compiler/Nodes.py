@@ -2740,8 +2740,6 @@ class DefNode(FuncDefNode):
     #  py_cfunc_node  PyCFunctionNode/InnerFunctionNode   The PyCFunction to create and assign
     #
     # decorator_indirection IndirectionNode Used to remove __Pyx_Method_ClassMethod for fused functions
-    # _decorator_data PropertyNode or [Nodes] temporarily used during the analyse declarations phase
-    # _properties    temporarily used during the analyse declarations phase
 
     child_attrs = ["args", "star_arg", "starstar_arg", "body", "decorators", "return_type_annotation"]
     outer_attrs = ["decorators", "return_type_annotation"]
@@ -2758,13 +2756,14 @@ class DefNode(FuncDefNode):
     entry = None
     acquire_gil = 0
     self_in_stararg = 0
+    self_type_overridden = 0
     py_cfunc_node = None
     requires_classobj = False
     defaults_struct = None # Dynamic kwrds structure name
     doc = None
-    _decorator_data = None
-    _main_property = True  # for use in AnalyseDeclarationsTransform
-                # @other_property.setter have this set to False
+    is_in_arbitrary_decorator = False  # only relevant for functions in cdef classes
+    is_transformed_to_property = False  # useful for a single warning message
+
 
     fused_py_func = False
     specialized_cpdefs = None
@@ -2773,12 +2772,6 @@ class DefNode(FuncDefNode):
     func_cname = None
 
     defaults_getter = None
-
-    _map_property_attribute = {
-        'getter': EncodedString('__get__'),
-        'setter': EncodedString('__set__'),
-        'deleter': EncodedString('__del__'),
-    }.get
 
     def __init__(self, pos, **kwds):
         FuncDefNode.__init__(self, pos, **kwds)
@@ -2875,117 +2868,48 @@ class DefNode(FuncDefNode):
             return False
         return True
 
-    def _chain_decorators(self, decorators):
-        """
-        Decorators are applied directly in DefNode and PyClassDefNode to avoid
-        reassignments to the function/class name - except for cdef class methods.
-        For those, the reassignment is required as methods are originally
-        defined in the PyMethodDef struct.
-
-        The IndirectionNode allows DefNode to override the decorator.
-        """
-        from . import ExprNodes
-        decorator_result = ExprNodes.NameNode(self.pos, name=self.name)
-        for decorator in decorators[::-1]:
-            decorator_result = ExprNodes.SimpleCallNode(
-                decorator.pos,
-                function=decorator.decorator,
-                args=[decorator_result])
-
-        name_node = ExprNodes.NameNode(self.pos, name=self.name)
-        reassignment = SingleAssignmentNode(
-            self.pos,
-            lhs=name_node,
-            rhs=decorator_result)
-
-        reassignment = IndirectionNode([reassignment])
-        self.decorator_indirection = reassignment
-        return [self, reassignment]
-
-    def analyse_decorators(self, env):
-        if not env.is_c_class_scope:
-            return  # py_class_scopes don't need to special-case their decorators much
-        if not self.decorators:
-            return
-
-        if len(self.decorators):
-            # no loop - it's only possible to do the special transformations
-            # on the innermost decorator
-            decorator_node = self.decorators[-1]
-            decorator = decorator_node.decorator
-            if (decorator.is_name and decorator.name == 'property'
-                and not env.lookup_here('property')
-                and len(self.decorators) == 1):
-                # TODO warning for len(self.decorators)
-                # FIXME can probably just read normally provided binding=True
-                name = self.name
-                self.name = EncodedString('__get__')
-                self.decorators.remove(decorator_node)
-                stat_list = [self]
-                # ParseTreeTransforms version looks to see if this already exists
-                prop = PropertyNode(self.pos, name=name)
-                prop.doc = self.doc
-                prop.body = StatListNode(self.pos, stats=stat_list)
-                self._decorator_data = prop
-                self._properties[name] = prop
-                return
-                # TODO do something with it
-            elif (decorator.is_attribute and len(self.decorators) == 1):
-                prop = self._properties.get(decorator.obj.name, None)
-                handler_name = self._map_property_attribute(decorator.attribute)
-                if handler_name and prop and isinstance(prop, PropertyNode):
-                    self.decorators.remove(decorator_node)
-                    name = self.name
-                    self.name = handler_name
-                    stats = prop.body.stats
-                    for i, stat in enumerate(stats):
-                        if stat.name == handler_name:
-                            stats[i] = self
-                            break
-                    else:
-                        stats.append(self)
-                    self._decorator_data = prop
-                    self._main_property = False
-                    if decorator.obj.name != name:
-                        # CPython does not generate an error or warning, but not something useful either.
-                        # FIXME - is this a sensible warning to generate
-                        # I think we should just generate both
-                        warning(decorator_node.pos,
-                            "Mismatching property names, expected '%s', got '%s'" % (
-                            decorator.obj.name, name), 1)
-                        self._properties[name] = prop
-                    return
-
-            if (decorator.is_name and decorator.name in ['classmethod', 'staticmethod']
-                and not env.lookup_here(decorator.name)
-                and count_from_inner == 0  # can only really special-case innermost decorator
-                ):
-                self.is_classmethod |= decorator.name == 'classmethod'
-                self.is_classmethod |= decorator.name == 'classmethod'
-                self.decorators.remove(decorator_node)
-
-        decs = self.decorators
-        self.decorators = None
-        self._decorator_data = self._chain_decorators(decs)
-
-        return
-
     def analyse_declarations(self, env):
-        decorator_data_store, self._decorator_data = self._decorator_data, None
-        self.analyse_decorators(env)
-        if self._decorator_data is not None:
-            if not isinstance(self._decorator_data, PropertyNode):
-                for dd_part in self._decorator_data:
-                    dd_part.analyse_declarations(env)
-            # there's two paths:
-            #  - _decorator_data is a PropertyNode containing this node, which will have
-            #    analyse_declarations called from the containing CClass
-            #  - _decorator_data is a list of function calls and assignments from arbitrary
-            #    decorators which also ultimately contains this node.
-            # Either way, this function will be re-called without the decorators so do not
-            # continue now
-            return
-        self._decorator_data = decorator_data_store
+        if self.decorators:
+            # should only apply to functions outside cdef classes
+            if len(self.decorators):
+                # only test the innermost decorator for classmethod
+                # and static method - anything else will have to be
+                # fed to the relevant builtin functions
+                decorator = self.decorators[-1]
+                func = decorator.decorator
+                if func.is_name:
+                    self.is_classmethod |= func.name == 'classmethod'
+                    self.is_staticmethod |= func.name == 'staticmethod'
+
+        if self.is_classmethod and env.lookup_here('classmethod'):
+            # classmethod() was overridden - not much we can do here ...
+            self.is_classmethod = False
+        if self.is_staticmethod and env.lookup_here('staticmethod'):
+            # staticmethod() was overridden - not much we can do here ...
+            self.is_staticmethod = False
+        if self.is_transformed_to_property and env.lookup_here('property'):
+            warning(node.pos, "Custom assignment of 'property' was ignored when "
+                    "function was transformed to property of cdef class", 1)
+
+        if (self.is_in_arbitrary_decorator
+                and not (self.is_staticmethod or self.is_classmethod)):
+            assert env.is_c_class_scope, env
+            if (self.args and len(self.args)
+                    and not self.args[0].base_type.name  # type manually set anyway
+                    ):
+                # we don't know how arbitrarily decorated stuff will be called, so generate
+                # two versions - one typed and one generic
+                class BaseTypeWrapper(CSimpleBaseTypeNode):
+                    # just something that exports the same interface but always returns
+                    # one fused type
+                    name = None
+                    _tp = PyrexTypes.FusedType([env.parent_type, PyrexTypes.py_object_type],
+                                                name="fused self or object")
+                    def analyse(self, env):
+                        return self._tp
+
+                self.args[0].base_type = BaseTypeWrapper(self.args[0].base_type.pos)
+                self.self_type_overridden = 1
 
         if self.name == '__new__' and env.is_py_class_scope:
             self.is_staticmethod = 1
@@ -3082,6 +3006,15 @@ class DefNode(FuncDefNode):
             self.np_args_idx = []
 
     def analyse_signature(self, env):
+        if (len(self.args) and self.args[0].base_type.name
+                    and self.entry.signature.num_fixed_args() and self.entry.signature.is_self_arg(0)
+                    and self.args[0].type != env.parent_type):
+            # type of first argument is explicitly specified as
+            # something different
+            # FIXME ensure binding=True
+            # FIXME does this also work with annotation typing?
+            self.self_type_overridden = 1
+
         if self.entry.is_special:
             if self.decorators:
                 error(self.pos, "special functions of cdef classes cannot have decorators")
@@ -3123,21 +3056,35 @@ class DefNode(FuncDefNode):
             sig.is_staticmethod = True
             sig.has_generic_args = True
 
-        if ((self.is_classmethod or self.is_staticmethod) and
-                self.has_fused_arguments and env.is_c_class_scope):
-            del self.decorator_indirection.stats[:]
-
         for i in range(min(nfixed, len(self.args))):
             arg = self.args[i]
             arg.is_generic = 0
-            if sig.is_self_arg(i) and not self.is_staticmethod:
+            if (sig.is_self_arg(i) and not self.is_staticmethod):
                 if self.is_classmethod:
                     arg.is_type_arg = 1
-                    arg.hdr_type = arg.type = Builtin.type_type
+                    usual_type = Builtin.type_type
+                    if not self.self_type_overridden:
+                        # TODO does overriding work on classmethods?
+                        arg.hdr_type = arg.type = usual_type
                 else:
                     arg.is_self_arg = 1
-                    arg.hdr_type = arg.type = env.parent_type
+                    usual_type = env.parent_type
+                    if not self.self_type_overridden:
+                        arg.hdr_type = arg.type = usual_type
                 arg.needs_conversion = 0
+                if self.self_type_overridden:
+                    if arg.type.same_as(usual_type):
+                        arg.hdr_type = usual_type
+                    else:
+                        arg.hdr_type = py_object_type
+                    if not arg.type.same_as(arg.hdr_type):
+                        if arg.hdr_type.is_pyobject and arg.type.is_pyobject:
+                            # for consistency with general behaviour of not testing self type
+                            # only test it if we're expecting something unusual
+                            arg.needs_type_test = not arg.type.same_as(usual_type)
+                        else:
+                            arg.needs_conversion = 1
+
             else:
                 arg.hdr_type = sig.fixed_arg_type(i)
                 if not arg.type.same_as(arg.hdr_type):
@@ -3149,6 +3096,10 @@ class DefNode(FuncDefNode):
                 arg.hdr_cname = punycodify_name(Naming.arg_prefix + arg.name)
             else:
                 arg.hdr_cname = punycodify_name(Naming.var_prefix + arg.name)
+
+        if ((self.is_classmethod or self.is_staticmethod) and
+                self.has_fused_arguments and env.is_c_class_scope):
+            del self.decorator_indirection.stats[:]
 
         if nfixed > len(self.args):
             self.bad_signature()
