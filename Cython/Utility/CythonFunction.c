@@ -1228,12 +1228,13 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
 
     if (binding_func->self) {
         // Bound method call, put 'self' in the args tuple
+        PyObject *self;
         Py_ssize_t i;
         new_args = PyTuple_New(argc + 1);
         if (!new_args)
             return NULL;
 
-        PyObject *self = binding_func->self;
+        self = binding_func->self;
 #if !(CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS)
         Py_INCREF(self);
 #endif
