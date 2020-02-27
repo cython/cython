@@ -3916,7 +3916,8 @@ class DefNodeWrapper(FuncDefNode):
                 code.putln('%s = __Pyx_ArgsSlice_%s(%s, %d, %s);' % (
                     self.star_arg.entry.cname, self.signature.fastvar,
                     Naming.args_cname, max_positional_args, Naming.nargs_cname))
-                code.putln("if (unlikely(!%s)) {" % entry.type.nullcheck_string(entry.cname))
+                code.putln("if (unlikely(!%s)) {" %
+                           self.star_arg.entry.type.nullcheck_string(self.star_arg.entry.cname))
                 if self.starstar_arg:
                     code.put_var_decref_clear(self.starstar_arg.entry)
                 code.put_finish_refcount_context()

@@ -1076,19 +1076,18 @@ class MemoryViewSliceType(PyrexType):
     def generate_incref(self, code, name, **kwds):
         pass
 
-    def generate_incref_memoryviewslice(code, slice_cname, have_gil):
+    def generate_incref_memoryviewslice(self, code, slice_cname, have_gil):
         # TODO ideally would be done separately
         code.putln("__PYX_INC_MEMVIEW(&%s, %d);" % (slice_cname, int(have_gil)))
 
     # decref however did look to always apply for memoryview slices
     # with "have_gil" set to True by default
-    def generate_xdecref(self, code, cname, have_gil):
+    def generate_xdecref(self, code, cname, nanny, have_gil):
         code.putln("__PYX_XDEC_MEMVIEW(&%s, %d);" % (cname, int(have_gil)))
 
     def generate_xdecref_clear(self, code, cname, clear_before_decref, **kwds):
-        code.putln("%s %s.memview = NULL; %s.data = NULL;" % (
-                self.generate_xdecref(cname, **kwds),
-                cname, cname))
+        self.generate_xdecref(code, cname, **kwds)
+        code.putln("%s.memview = NULL; %s.data = NULL;" % (cname, cname))
 
     def generate_decref_clear(self, code, cname, **kwds):
         # memoryviews don't currently distinguish between xdecref and decref
