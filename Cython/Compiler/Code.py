@@ -2140,11 +2140,11 @@ class CCodeWriter(object):
                                                 clear_before_decref=entry.in_closure,
                                                 **kwds))
 
-    def put_var_decref_set(self, entry, **kwds):
-        self.putln_if_ln(entry.type.generate_decref_set(entry.cname, **kwds))
+    def put_var_decref_set(self, entry, rhs_cname, **kwds):
+        self.putln_if_ln(entry.type.generate_decref_set(entry.cname, rhs_cname, **kwds))
 
-    def put_var_xdecref_set(self, entry, **kwds):
-        self.putln_if_ln(entry.type.generate_xdecref_set(entry.cname, **kwds))
+    def put_var_xdecref_set(self, entry, rhs_cname, **kwds):
+        self.putln_if_ln(entry.type.generate_xdecref_set(entry.cname, rhs_cname, **kwds))
 
     def put_var_xdecref_clear(self, entry, **kwds):
         self.putln_if_ln(entry.type.generate_xdecref_clear(entry.cname,

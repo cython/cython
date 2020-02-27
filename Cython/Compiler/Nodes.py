@@ -2075,12 +2075,14 @@ class FuncDefNode(StatNode, BlockNode):
             if entry.type.is_pyobject:
                 if entry.is_arg and not entry.cf_is_reassigned:
                     continue
-            code.put_var_xdecref(entry,
+            if entry.xdecref_cleanup:
+                code.put_var_xdecref(entry,
                                  do_for_memoryviewslice=True,
                                  have_gil=not lenv.nogil)
-                        # TODO ideally should pick based on
-                        # entry.xdecref_cleanup but this doesn't seem to be set reliably
-                        # for regular variables
+            else:
+                code.put_var_xdecref(entry,
+                                do_for_memoryviewslice=True,
+                                have_gil=not lenv.nogil)
 
         # Decref any increfed args
         for entry in lenv.arg_entries:
@@ -3414,7 +3416,10 @@ class DefNodeWrapper(FuncDefNode):
         code.put_label(code.return_label)
         for entry in lenv.var_entries:
             if entry.is_arg and entry.type.is_pyobject:
-                code.put_var_xdecref(entry)
+                if entry.xdecref_cleanup:
+                    code.put_var_xdecref(entry)
+                else:
+                    code.put_var_decref(entry)
 
         code.put_finish_refcount_context()
         if not self.return_type.is_void:
