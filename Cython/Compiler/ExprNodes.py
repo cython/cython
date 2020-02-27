@@ -744,18 +744,22 @@ class ExprNode(Node):
 
     # ---------------- Code Generation -----------------
 
-    def make_owned_reference(self, code, do_for_memoryviewslice=False):
+    def make_owned_reference(self, code):
         """
         Make sure we own a reference to result.
         If the result is in a temp, it is already a new reference.
         """
         if not self.result_in_temp():
-            code.put_incref(self.result(), self.ctype(),
-                            do_for_memoryviewslice=do_for_memoryviewslice,
-                            have_gil=self.in_nogil_context)
+            code.put_incref(self.result(), self.ctype())
 
     def make_owned_memoryviewslice(self, code):
-        self.make_owned_reference(code, do_for_memoryviewslice=True)
+        """
+        Make sure we own the reference to this memoryview slice.
+        """
+        # TODO ideally this would be shared with "make_owned_reference"
+        if not self.result_in_temp():
+            code.put_incref_memoryviewslice(self.result(), self.type,
+                                            have_gil=True)
 
     def generate_evaluation_code(self, code):
         #  Generate code to evaluate this node and
@@ -789,7 +793,6 @@ class ExprNode(Node):
                 self.free_subexpr_temps(code)
             if self.result():
                 code.put_decref_clear(self.result(), self.ctype(),
-                                        do_for_memoryviewslice=True,
                                         have_gil=not self.in_nogil_context)
         else:
             # Already done if self.is_temp
@@ -844,21 +847,22 @@ class ExprNode(Node):
 
     # ----Generation of small bits of reference counting --
 
-    @property
-    def refcounting_type(self):
-        type = self.type
-        if self.is_temp and self.type.is_pyobject:
+    #@property
+    #def refcounting_type(self):
+        # FIXME this might just be "ctype"?
+    #    type = self.type
+    #    if self.is_temp and self.type.is_pyobject:
             # when a temp object is created it's always just
             # created as a py_object_type and not a
             # derived type
-            type = PyrexTypes.py_object_type
-        return type
+    #        type = PyrexTypes.py_object_type
+    #    return type
 
     def generate_decref_set(self, code, rhs):
-        code.put_decref_set(self.result(), self.refcounting_type, rhs)
+        code.put_decref_set(self.result(), self.ctype(), rhs)
 
     def generate_xdecref_set(self, code, rhs):
-        code.put_xdecref_set(self.result(), self.refcounting_type, rhs)
+        code.put_xdecref_set(self.result(), self.ctype(), rhs)
 
     def generate_guarded_decref_set(self, code, rhs):
         # TODO don't like the name
@@ -869,10 +873,10 @@ class ExprNode(Node):
                 self.generate_decref_set(code, rhs)
 
     def generate_gotref(self, code):
-        code.put_gotref(self.result(), self.refcounting_type)
+        code.put_gotref(self.result(), self.ctype())
 
     def generate_xgotref(self, code):
-        code.put_xgotref(self.result(), self.refcounting_type)
+        code.put_xgotref(self.result(), self.ctype())
 
     def generate_guarded_gotref(self, code, and_maybe_null=True):
         # TODO don't like the name
@@ -883,10 +887,10 @@ class ExprNode(Node):
                 self.generate_gotref(code)
 
     def generate_giveref(self, code):
-        code.put_giveref(self.result(), self.refcounting_type)
+        code.put_giveref(self.result(), self.ctype())
 
     def generate_xgiveref(self, code):
-        code.put_xgiveref(self.result(), self.refcounting_type)
+        code.put_xgiveref(self.result(), self.ctype())
 
     # ---------------- Annotation ---------------------
 
@@ -2505,11 +2509,9 @@ class NameNode(AtomicExprNode):
                     self.generate_guarded_gotref(code, and_maybe_null=ignore_nonexisting)
                 if ignore_nonexisting and self.cf_maybe_null:
                     code.put_xdecref_clear(self.result(), self.ctype(),
-                                        do_for_memoryviewslice=True,
                                         have_gil=not self.nogil)
                 else:
                     code.put_xdecref_clear(self.result(), self.ctype(),
-                                        do_for_memoryviewslice=True,
                                         have_gil=not self.nogil)
         else:
             error(self.pos, "Deletion of C names not supported")
@@ -7214,8 +7216,7 @@ class AttributeNode(ExprNode):
                         return
 
                 code.putln("%s = %s;" % (self.result(), self.obj.result()))
-                code.put_incref(self.result(), self.type,
-                                do_for_memoryviewslice=True,
+                code.put_incref_memoryviewslice(self.result(), self.type,
                                 have_gil=True)
 
                 T = "__pyx_memslice_transpose(&%s) == 0"
@@ -7239,8 +7240,7 @@ class AttributeNode(ExprNode):
     def generate_disposal_code(self, code):
         if self.is_temp and self.type.is_memoryviewslice and self.is_memslice_transpose:
             # mirror condition for putting the memview incref here:
-            code.put_xdecref_clear(self.result(), self.type,
-                                   do_for_memoryviewslice=True, have_gil=True)
+            code.put_xdecref_clear(self.result(), self.type, have_gil=True)
         else:
             ExprNode.generate_disposal_code(self, code)
 
@@ -13427,9 +13427,11 @@ class CoerceToTempNode(CoercionNode):
         code.putln("%s = %s;" % (
             self.result(), self.arg.result_as(self.ctype())))
         if self.use_managed_ref:
-            code.put_incref(self.result(), self.ctype(),
-                            do_for_memoryviewslice=True,
-                            have_gil=not self.in_nogil_context)
+            if not self.type.is_memoryviewslice:
+                code.put_incref(self.result(), self.ctype())
+            else:
+                code.put_incref_memoryviewslice(self.result(), self.type,
+                                            have_gil=not self.in_nogil_context)
 
 class ProxyNode(CoercionNode):
     """

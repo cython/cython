@@ -1918,7 +1918,7 @@ class FuncDefNode(StatNode, BlockNode):
         # incref it to properly keep track of refcounts.
         is_cdef = isinstance(self, CFuncDefNode)
         for entry in lenv.arg_entries:
-            if entry.type.is_pyobject:
+            if not entry.type.is_memoryviewslice:
                 if (acquire_gil or entry.cf_is_reassigned) and not entry.in_closure:
                     code.put_var_incref(entry)
 
@@ -1926,8 +1926,8 @@ class FuncDefNode(StatNode, BlockNode):
             #       we acquire arguments from object conversion, so we have
             #       new references. If we are a cdef function, we need to
             #       incref our arguments
-            elif is_cdef and entry.type.is_memoryviewslice and entry.cf_is_reassigned:
-                code.put_var_incref(entry, do_for_memoryviewslice = True,
+            elif is_cdef and entry.cf_is_reassigned:
+                code.put_var_incref(entry,
                                     have_gil=code.funcstate.gil_owned)
         for entry in lenv.var_entries:
             if entry.is_arg and entry.cf_is_reassigned and not entry.in_closure:
@@ -2076,13 +2076,9 @@ class FuncDefNode(StatNode, BlockNode):
                 if entry.is_arg and not entry.cf_is_reassigned:
                     continue
             if entry.xdecref_cleanup:
-                code.put_var_xdecref(entry,
-                                 do_for_memoryviewslice=True,
-                                 have_gil=not lenv.nogil)
+                code.put_var_xdecref(entry, have_gil=not lenv.nogil)
             else:
-                code.put_var_xdecref(entry,
-                                do_for_memoryviewslice=True,
-                                have_gil=not lenv.nogil)
+                code.put_var_xdecref(entry, have_gil=not lenv.nogil)
 
         # Decref any increfed args
         for entry in lenv.arg_entries:
@@ -2097,9 +2093,7 @@ class FuncDefNode(StatNode, BlockNode):
                 if not acquire_gil and not entry.cf_is_reassigned:
                     continue
 
-            code.put_var_xdecref(entry,
-                                    do_for_memoryviewslice = True,
-                                    have_gil=not lenv.nogil)
+            code.put_var_xdecref(entry, have_gil=not lenv.nogil)
         if self.needs_closure:
             code.put_decref(Naming.cur_scope_cname, lenv.scope_class.type)
 
@@ -3894,7 +3888,7 @@ class DefNodeWrapper(FuncDefNode):
                         arg.entry.cname,
                         arg.calculate_default_value_code(code)))
                     if arg.type.is_memoryviewslice:
-                        code.put_var_incref(arg.entry, do_for_memoryviewslice=True, have_gil=True)
+                        code.put_var_incref_memoryviewslice(arg.entry, have_gil=True)
                     code.putln('}')
             else:
                 error(arg.pos, "Cannot convert Python object argument to type '%s'" % arg.type)
@@ -3922,7 +3916,7 @@ class DefNodeWrapper(FuncDefNode):
                 code.putln('%s = __Pyx_ArgsSlice_%s(%s, %d, %s);' % (
                     self.star_arg.entry.cname, self.signature.fastvar,
                     Naming.args_cname, max_positional_args, Naming.nargs_cname))
-                code.putln("if (unlikely(!%s)) {" % code.get_var_nullcheck(self.star_arg.entry))
+                code.putln("if (unlikely(!%s)) {" % entry.type.nullcheck_string(entry.cname))
                 if self.starstar_arg:
                     code.put_var_decref_clear(self.starstar_arg.entry)
                 code.put_finish_refcount_context()
@@ -8738,7 +8732,7 @@ class ParallelStatNode(StatNode, ParallelNode):
         if self.is_parallel and not self.is_nested_prange:
             code.putln("/* Clean up any temporaries */")
             for temp, type in sorted(self.temps):
-                code.put_xdecref_clear(temp, type, do_for_memoryviewslice=True, have_gil=False)
+                code.put_xdecref_clear(temp, type, have_gil=False)
 
     def setup_parallel_control_flow_block(self, code):
         """

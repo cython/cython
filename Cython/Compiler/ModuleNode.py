@@ -1584,7 +1584,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         for entry in (py_attrs + memoryview_slices):
             code.put_xdecref_clear("p->%s" % entry.cname, entry.type, nanny=False,
-                                   do_for_memoryviewslice=True,
                                    clear_before_decref=True, have_gil=True)
 
         if base_type:
