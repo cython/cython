@@ -193,7 +193,7 @@ class PyrexType(BaseType):
     #  is_pythran_expr       boolean     Is Pythran expr
     #  is_numpy_buffer       boolean     Is Numpy array buffer
     #  has_attributes        boolean     Has C dot-selectable attributes
-    #  needs_xxxref          boolean     Needs code to be generated similar to incref/gotref/decref.
+    #  needs_refcounting          boolean     Needs code to be generated similar to incref/gotref/decref.
     #                                    Largely used internally.
     #  default_value         string      Initial value that can be assigned before first user assignment.
     #  declaration_value     string      The value statically assigned on declaration (if any).
@@ -259,7 +259,7 @@ class PyrexType(BaseType):
     is_pythran_expr = 0
     is_numpy_buffer = 0
     has_attributes = 0
-    needs_xxxref = 0
+    needs_refcounting = 0
     default_value = ""
     declaration_value = ""
 
@@ -338,13 +338,13 @@ class PyrexType(BaseType):
             code.error_goto_if(error_condition or self.error_condition(result_code), error_pos))
 
     def _generate_xxxref_placeholder(self, *ignored_args, **ignored_kwds):
-        if self.needs_xxxref:
+        if self.needs_refcounting:
             raise NotImplementedError("Ref-counting operation not yet implemented for type %s" %
                                       self)
         return ''
 
     def _generate_xxxref_set_placeholder(self, cname, rhs_cname, *ignored_args, **ignored_kwds):
-        if self.needs_xxxref:
+        if self.needs_refcounting:
             raise NotImplementedError("Ref-counting operation not yet implemented for type %s" %
                                       self)
         return "%s = %s" % (cname, rhs_cname)
@@ -352,10 +352,15 @@ class PyrexType(BaseType):
     generate_incref = generate_xincref = generate_decref = generate_xdecref \
         = generate_decref_clear = generate_xdecref_clear \
         = generate_gotref = generate_xgotref = generate_giveref = generate_xgiveref \
-        = generate_nullcheck \
             = _generate_xxxref_placeholder
 
     generate_decref_set = generate_xdecref_set = _generate_xxxref_set_placeholder
+
+    def generate_nullcheck(self, cname):
+        if self.needs_refcounting:
+            raise NotImplementedError("Ref-counting operation not yet implemented for type %s" %
+                                      self)
+        return "1"
 
 
 
@@ -590,7 +595,7 @@ class MemoryViewSliceType(PyrexType):
     is_memoryviewslice = 1
 
     has_attributes = 1
-    needs_xxxref = 1  # Ideally this would be true and reference counting for
+    needs_refcounting = 1  # Ideally this would be true and reference counting for
         # memoryview and pyobject code could be generated in the same way.
         # However, memoryviews are sufficiently specialized that this doesn't
         # seem practical. Implement a limited version of it for now
@@ -1092,7 +1097,7 @@ class MemoryViewSliceType(PyrexType):
         return self.generate_xdecref_clear(cname, **kwds)
 
     # memoryviews don't participate in giveref/gotref
-    generate_gotref = generate_xgotref = generate_xgiveref = generate_giveref = lambda *args: None
+    generate_gotref = generate_xgotref = generate_xgiveref = generate_giveref = lambda *args: ''
 
 
 
@@ -1193,7 +1198,7 @@ class PyObjectType(PyrexType):
     is_subclassed = False
     is_gc_simple = False
     builtin_trashcan = False  # builtin type using trashcan
-    needs_xxxref = True
+    needs_refcounting = True
 
     def __str__(self):
         return "Python object"
@@ -1305,11 +1310,11 @@ class PyObjectType(PyrexType):
                     X = ''  # CPython doesn't have a Py_XCLEAR()
                 return "%s_%sCLEAR(%s);" % (prefix, X, cname)
             else:
-                return ("%s_%sDECREF(%s); %s = 0;" % (
-                    prefix, X, self.as_pyobject(cname), cname))
+                return "%s_%sDECREF(%s); %s = 0;" % (
+                    prefix, X, self.as_pyobject(cname), cname)
         else:
-            return ("%s_%sDECREF(%s);" % (
-                prefix, X, self.as_pyobject(cname)))
+            return "%s_%sDECREF(%s);" % (
+                prefix, X, self.as_pyobject(cname))
 
     def generate_nullcheck(self, cname):
         return cname

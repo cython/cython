@@ -1919,18 +1919,18 @@ class FuncDefNode(StatNode, BlockNode):
         is_cdef = isinstance(self, CFuncDefNode)
         for entry in lenv.arg_entries:
             if entry.type.is_pyobject:
-                if (acquire_gil or len(entry.cf_assignments) > 1) and not entry.in_closure:
+                if (acquire_gil or entry.cf_is_reassigned) and not entry.in_closure:
                     code.put_var_incref(entry)
 
             # Note: defaults are always incref-ed. For def functions, we
             #       we acquire arguments from object conversion, so we have
             #       new references. If we are a cdef function, we need to
             #       incref our arguments
-            elif is_cdef and entry.type.is_memoryviewslice and len(entry.cf_assignments) > 1:
+            elif is_cdef and entry.type.is_memoryviewslice and entry.cf_is_reassigned:
                 code.put_var_incref(entry, do_for_memoryviewslice = True,
                                     have_gil=code.funcstate.gil_owned)
         for entry in lenv.var_entries:
-            if entry.is_arg and len(entry.cf_assignments) > 1 and not entry.in_closure:
+            if entry.is_arg and entry.cf_is_reassigned and not entry.in_closure:
                 if entry.xdecref_cleanup:
                     code.put_var_xincref(entry)
                 else:
@@ -2073,8 +2073,7 @@ class FuncDefNode(StatNode, BlockNode):
                 continue
 
             if entry.type.is_pyobject:
-                #if not (not entry.is_arg or len(entry.cf_assignments) > 1):
-                if entry.is_arg and len(entry.cf_assignments) <= 1:
+                if entry.is_arg and not entry.cf_is_reassigned:
                     continue
             code.put_var_xdecref(entry,
                                  do_for_memoryviewslice=True,
@@ -2088,12 +2087,12 @@ class FuncDefNode(StatNode, BlockNode):
             if entry.type.is_memoryviewslice:
                 # decref slices of def functions and acquired slices from cdef
                 # functions, but not borrowed slices from cdef functions.
-                if is_cdef and len(entry.cf_assignments) <= 1:
+                if is_cdef and not entry.cf_is_reassigned:
                     continue
             else:
                 if entry.in_closure:
                     continue
-                if not acquire_gil and len(entry.cf_assignments) <= 1:
+                if not acquire_gil and not entry.cf_is_reassigned:
                     continue
 
             code.put_var_xdecref(entry,

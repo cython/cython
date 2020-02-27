@@ -844,38 +844,49 @@ class ExprNode(Node):
 
     # ----Generation of small bits of reference counting --
 
-    def generate_gotref(self, code):
+    @property
+    def refcounting_type(self):
         type = self.type
         if self.is_temp and self.type.is_pyobject:
-            # temp py_objects are always just py_object_type
-            # not an special type
+            # when a temp object is created it's always just
+            # created as a py_object_type and not a
+            # derived type
             type = PyrexTypes.py_object_type
-        code.put_gotref(self.result(), type)
+        return type
+
+    def generate_decref_set(self, code, rhs):
+        code.put_decref_set(self.result(), self.refcounting_type, rhs)
+
+    def generate_xdecref_set(self, code, rhs):
+        code.put_xdecref_set(self.result(), self.refcounting_type, rhs)
+
+    def generate_guarded_decref_set(self, code, rhs):
+        # TODO don't like the name
+        if not self.cf_is_null:
+            if self.cf_maybe_null:
+                self.generate_xdecref_set(code, rhs)
+            else:
+                self.generate_decref_set(code, rhs)
+
+    def generate_gotref(self, code):
+        code.put_gotref(self.result(), self.refcounting_type)
 
     def generate_xgotref(self, code):
-        type = self.type
-        if self.is_temp and self.type.is_pyobject:
-            # temp py_objects are always just py_object_type
-            # not an special type
-            type = PyrexTypes.py_object_type
-        code.put_xgotref(self.result(), type)
+        code.put_xgotref(self.result(), self.refcounting_type)
+
+    def generate_guarded_gotref(self, code, and_maybe_null=True):
+        # TODO don't like the name
+        if not self.cf_is_null:
+            if self.cf_maybe_null and and_maybe_null:
+                self.generate_xgotref(code)
+            else:
+                self.generate_gotref(code)
 
     def generate_giveref(self, code):
-        type = self.type
-        if self.is_temp and self.type.is_pyobject:
-            # temp py_objects are always just py_object_type
-            # not an special type
-            type = PyrexTypes.py_object_type
-        code.put_giveref(self.result(), type)
+        code.put_giveref(self.result(), self.refcounting_type)
 
     def generate_xgiveref(self, code):
-        type = self.type
-        if self.is_temp and self.type.is_pyobject:
-            # temp py_objects are always just py_object_type
-            # not an special type
-            type = PyrexTypes.py_object_type
-        code.put_xgiveref(self.result(), type)
-
+        code.put_xgiveref(self.result(), self.refcounting_type)
 
     # ---------------- Annotation ---------------------
 
@@ -2377,24 +2388,13 @@ class NameNode(AtomicExprNode):
                     rhs.make_owned_reference(code)
                     is_external_ref = entry.is_cglobal or self.entry.in_closure or self.entry.from_closure
                     if is_external_ref:
-                        if not self.cf_is_null:
-                            if self.cf_maybe_null:
-                                self.generate_xgotref(code)
-                            else:
-                                self.generate_gotref(code)
+                        self.generate_guarded_gotref(code)
                     assigned = True
                     if entry.is_cglobal:
-                        code.put_decref_set(
-                            self.result(), self.type, rhs.result_as(self.ctype()))
+                        self.generate_decref_set(code, rhs.result_as(self.ctype()))
                     else:
-                        if not self.cf_is_null:
-                            if self.cf_maybe_null:
-                                code.put_xdecref_set(
-                                    self.result(), self.type, rhs.result_as(self.ctype()))
-                            else:
-                                code.put_decref_set(
-                                    self.result(), self.type, rhs.result_as(self.ctype()))
-                        else:
+                        self.generate_guarded_decref_set(code, rhs.result_as(self.ctype()))
+                        if self.cf_is_null:
                             assigned = False
                     if is_external_ref:
                         rhs.generate_giveref(code)
@@ -2502,10 +2502,7 @@ class NameNode(AtomicExprNode):
 
                 if self.entry.in_closure:
                     # generator
-                    if ignore_nonexisting and self.cf_maybe_null:
-                        self.generate_xgotref(code)
-                    else:
-                        self.generate_gotref(code)
+                    self.generate_guarded_gotref(code, and_maybe_null=ignore_nonexisting)
                 if ignore_nonexisting and self.cf_maybe_null:
                     code.put_xdecref_clear(self.result(), self.ctype(),
                                         do_for_memoryviewslice=True,
@@ -8268,7 +8265,7 @@ class ScopedExprNode(ExprNode):
         for entry in py_entries:
             if entry.is_cglobal:
                 code.put_var_gotref(entry)
-                code.put_decref_set(entry.cname, entry.type, "Py_None")
+                code.put_var_decref_set(entry, "Py_None")
             else:
                 code.put_var_xdecref_clear(entry)
 
@@ -8917,7 +8914,7 @@ class SortedDictKeysNode(ExprNode):
                 code.error_goto_if_null(self.result(), self.pos)))
             self.generate_gotref(code)
             code.putln("if (unlikely(!PyList_Check(%s))) {" % self.result())
-            code.put_decref_set(self.result(), self.type, "PySequence_List(%s)" % self.result())
+            self.generate_decref_set(code, "PySequence_List(%s)" % self.result())
             code.putln(code.error_goto_if_null(self.result(), self.pos))
             self.generate_gotref(code)
             code.putln("}")
