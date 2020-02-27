@@ -341,15 +341,13 @@ class PyrexType(BaseType):
         if self.needs_xxxref:
             raise NotImplementedError("Ref-counting operation not yet implemented for type %s" %
                                       self)
-        else:
-            return None
+        return ''
 
     def _generate_xxxref_set_placeholder(self, cname, rhs_cname, *ignored_args, **ignored_kwds):
         if self.needs_xxxref:
             raise NotImplementedError("Ref-counting operation not yet implemented for type %s" %
                                       self)
-        else:
-            return "%s = %s" % (cname, rhs_cname)
+        return "%s = %s" % (cname, rhs_cname)
 
     generate_incref = generate_xincref = generate_decref = generate_xdecref \
         = generate_decref_clear = generate_xdecref_clear \
