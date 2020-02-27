@@ -39,6 +39,7 @@ def regular_func_0():
 
 cdef class Cdef:
     """
+    >>> import sys
     >>> c = Cdef()
     >>> c.fused_func()
     ('Cdef', 'Cdef')
@@ -48,8 +49,6 @@ cdef class Cdef:
     ('float', 'double')
     >>> Cdef.fused_func(1.5)
     ('float', 'double')
-    >>> Cdef.regular_func(1.5)
-    ('float', 'Python object')
     >>> Cdef.fused_in_class(c, 1.5)
     ('float', 'double')
     >>> Cdef.fused_func_0()
@@ -59,10 +58,9 @@ cdef class Cdef:
     >>> c.fused_func_0()
     Traceback (most recent call last):
     TypeError: No matching signature found
-    >>> c.fused_func_0['double']()
+    >>> c.fused_func_0['double']()  # doctest: +IGNORE_EXCEPTION_DETAIL
     Traceback (most recent call last):
-    TypeError: must be real number, not fused_bound_functions.Cdef
-    >>> Cdef.regular_func_0()
+    TypeError:
     >>> c.regular_func_0()
     Traceback (most recent call last):
     TypeError: regular_func_0() takes no arguments (1 given)
@@ -78,7 +76,7 @@ cdef class Cdef:
     def regular_in_class(self):
         return type(self).__name__
 
-class Regular:
+class Regular(object):
     """
     >>> c = Regular()
     >>> c.fused_func()
@@ -87,8 +85,6 @@ class Regular:
     ('Regular', 'Python object')
     >>> Regular.fused_func(1.5)
     ('float', 'double')
-    >>> Regular.regular_func(1.5)
-    ('float', 'Python object')
     >>> Regular.fused_func_0()
     ('int', 'int')
     >>> Regular.fused_func_0['double']()
@@ -96,16 +92,28 @@ class Regular:
     >>> c.fused_func_0()
     Traceback (most recent call last):
     TypeError: No matching signature found
-    >>> c.fused_func_0['double']()
+    >>> c.fused_func_0['double']()  # doctest: +IGNORE_EXCEPTION_DETAIL
     Traceback (most recent call last):
-    TypeError: must be real number, not Regular
-    >>> Regular.regular_func_0()
-    >>> c.regular_func_0()
+    TypeError:
+    >>> c.regular_func_0()  # doctest: +IGNORE_EXCEPTION_DETAIL
     Traceback (most recent call last):
-    TypeError: regular_func_0() takes no arguments (1 given)
+    TypeError:
     """
     fused_func = fused_func
     fused_func_0 = fused_func_0
     regular_func = regular_func
     regular_func_0 = regular_func_0
 
+import sys
+if sys.version_info[0] > 2:
+    # extra Py3 only tests
+    __doc__ = """
+    >>> Cdef.regular_func(1.5)
+    ('float', 'Python object')
+    >>> Regular.regular_func(1.5)
+    ('float', 'Python object')
+    >>> Cdef.regular_func_0()
+    >>> Regular.regular_func_0()
+    """
+else:
+    __doc__ = """"""
