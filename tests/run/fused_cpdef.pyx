@@ -1,14 +1,17 @@
+# cython: language_level=3
+# mode: run
+
 cimport cython
 import sys, io
 
 cy = __import__("cython")
 
 cpdef func1(self, cython.integral x):
-    print "%s," % (self,),
+    print(f"{self},", end=' ')
     if cython.integral is int:
-        print 'x is int', x, cython.typeof(x)
+        print('x is int', x, cython.typeof(x))
     else:
-        print 'x is long', x, cython.typeof(x)
+        print('x is long', x, cython.typeof(x))
 
 
 class A(object):
@@ -18,11 +21,11 @@ class A(object):
 
 cdef class B:
     cpdef int meth(self, cython.integral x):
-        print "%s," % (self,),
+        print(f"{self},", end=' ')
         if cython.integral is int:
-            print 'x is int', x, cython.typeof(x)
+            print('x is int', x, cython.typeof(x))
         else:
-            print 'x is long', x, cython.typeof(x)
+            print('x is long', x, cython.typeof(x))
         return 0
     def __str__(self):
         return "B"
@@ -50,29 +53,25 @@ def test_fused_cpdef():
     func1[long](None, 2)
     func1(None, 2)
 
-    print
+    print()
 
     pyfunc[cy.int](None, 2)
     pyfunc(None, 2)
 
-    print
+    print()
 
     A.meth[cy.int](A(), 2)
     A.meth(A(), 2)
     A().meth[cy.long](2)
     A().meth(2)
 
-    print
+    print()
 
     B().meth(2)
 
 
 midimport_run = io.StringIO()
-try:
-    unicode
-except NameError:
-    pass
-else:
+if sys.version_info.major < 3:
     # Monkey-patch midimport_run.write to accept non-unicode strings under Python 2.
     midimport_run.write = lambda c: io.StringIO.write(midimport_run, unicode(c))
 
@@ -103,7 +102,7 @@ def test_midimport_run():
     <BLANKLINE>
     B, x is long 2 long
     """
-    print midimport_run.getvalue().strip('\n')
+    print(midimport_run.getvalue().strip('\n'))
 
 
 def assert_raise(func, *args):
@@ -139,18 +138,18 @@ ctypedef long double long_double
 
 cpdef multiarg(cython.integral x, cython.floating y):
     if cython.integral is int:
-        print "x is an int,",
+        print("x is an int,", end=' ')
     else:
-        print "x is a long,",
+        print("x is a long,", end=' ')
 
     if cython.floating is long_double:
-        print "y is a long double:",
+        print("y is a long double:", end=' ')
     elif float is cython.floating:
-        print "y is a float:",
+        print("y is a float:", end=' ')
     else:
-        print "y is a double:",
+        print("y is a double:", end=' ')
 
-    print x, y
+    print(x, y)
 
 def test_multiarg():
     """
