@@ -1921,13 +1921,12 @@ class FuncDefNode(StatNode, BlockNode):
             if not entry.type.is_memoryviewslice:
                 if (acquire_gil or entry.cf_is_reassigned) and not entry.in_closure:
                     code.put_var_incref(entry)
-
             # Note: defaults are always incref-ed. For def functions, we
             #       we acquire arguments from object conversion, so we have
             #       new references. If we are a cdef function, we need to
             #       incref our arguments
             elif is_cdef and entry.cf_is_reassigned:
-                code.put_var_incref(entry,
+                code.put_var_incref_memoryviewslice(entry,
                                     have_gil=code.funcstate.gil_owned)
         for entry in lenv.var_entries:
             if entry.is_arg and entry.cf_is_reassigned and not entry.in_closure:
