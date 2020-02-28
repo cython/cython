@@ -2358,7 +2358,6 @@ def runtests(options, cmd_args, coverage=None):
         CFLAGS.append("-DCYTHON_LIMITED_API=1")
         CFLAGS.append('-Wno-unused-function')
 
-
     if xml_output_dir and options.fork:
         # doesn't currently work together
         sys.stderr.write("Disabling forked testing to support XML test output\n")
