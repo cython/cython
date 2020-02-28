@@ -8764,20 +8764,22 @@ class ParallelStatNode(StatNode, ParallelNode):
         return (_maps, _noncontig)
 
     def _put_noncontig_check(self, code, noncontig):
+        allow_dev = 'allow_device'
+        code.putln('int %s = omp_get_num_devices();' % allow_dev)
         if noncontig:
-            allow_dev = 'allow_device'
-            code.putln('int %s = 1;' % allow_dev)
+            code.putln('if(%s > 0)' % allow_dev)
+            code.begin_block()
             code.putln('static int not_warned = 1;')
             for entry in noncontig:
-                code.putln(
-                    "if(__pyx_memviewslice_is_contig(%s, 'C', %s) != 0 && not_warned) {" % (entry.cname, entry.type.ndim))
+                code.putln("if(not_warned && __pyx_memviewslice_is_contig(%s, 'C', %s) != 0) {" % (entry.cname,
+                                                                                                   entry.type.ndim))
                 code.putln('not_warned = 0;')
                 code.putln('%s = 0;' % allow_dev)
                 code.putln('fprintf(stderr, "%s: %s is not C-contiguous, device block will not be offloaded to device.");'
                            % (self.pos, entry.name))
                 code.putln('}')
-            return allow_dev
-        return '1'
+            code.end_block()
+        return allow_dev
 
 
     def initialize_privates_to_nan(self, code, exclude=None):
@@ -9274,11 +9276,9 @@ class DeviceWithBlockNode(ParallelStatNode):
         """
         # revers mapping from var:maptype to maptype:var-list
         reverse_map, noncontig = self._generate_map_lists(self.map)
-        allow_dev = '1'
-        if noncontig:
-            code.begin_block()
-            # check at runtime if memviews are contiguous
-            allow_dev = self._put_noncontig_check(code, noncontig)
+        code.begin_block()
+        # check at runtime if memviews are contiguous
+        allow_dev = self._put_noncontig_check(code, noncontig)
         # The rest is relatively easy, we add the openmp pragmas including map clauses around the execution code
         code.putln("#ifdef _OPENMP")
         code.put("#pragma omp target enter data if(%s)" % allow_dev)
@@ -9300,8 +9300,7 @@ class DeviceWithBlockNode(ParallelStatNode):
                 code.put(" map(%s %s)" % (mt, ', '.join(reverse_map[maptype])))
         code.putln('')
         code.putln("#endif /* _OPENMP */")
-        if noncontig:
-            code.end_block()
+        code.end_block()
 
 
 class ParallelWithBlockNode(ParallelStatNode):
@@ -9403,14 +9402,13 @@ class ParallelWithBlockNode(ParallelStatNode):
                     elif not var.is_self_arg:
                         error(self.pos, "Type %s (%s) not supported in device block" % (t, var.name))
             reverse_map, noncontig = self._generate_map_lists(self.device)
-        allow_dev = '1'
-        if noncontig:
-            allow_dev = self._put_noncontig_check(code, noncontig)
+
+        allow_dev = self._put_noncontig_check(code, noncontig)
 
         code.putln("#ifdef _OPENMP")
         if self.on_device:
-            code.put("#pragma omp target %s defaultmap(tofrom:scalar) if(%s)"
-                     % ('teams' if self.has_tight_prange else 'parallel', allow_dev))
+            code.put("#pragma omp target %s defaultmap(tofrom:scalar) if(%s)" % ('teams', allow_dev))
+            #         % ('teams' if self.has_tight_prange else 'parallel', allow_dev))
         else:
             code.put("#pragma omp parallel")
 
@@ -9732,7 +9730,7 @@ class ParallelRangeNode(ParallelStatNode):
         else:
             code.putln("#ifdef _OPENMP")
 
-        if self.on_device and not self.is_nested_prange and self.parent.has_tight_prange:
+        if self.on_device and not self.is_nested_prange:  # and self.parent.has_tight_prange:
             pragma_for = "#pragma omp distribute parallel for"
             pragma_par = "#pragma omp teams"
         else:
