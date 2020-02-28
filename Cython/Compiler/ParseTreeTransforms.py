@@ -1324,12 +1324,13 @@ class _IdentifyPropertiesTransform(ScopeTrackingTransform, SkipDeclarations):
     of them
 
     TODO - this probably doesn't really need to be a ScopeTrackingTransform
+         - we use scope_type but mostly for re-assurance purposes
     """
     def __init__(self, context, scope_type, scope_node, current_directives):
         self.scope_type = scope_type
         self.scope_node = scope_node
         self.current_directives = current_directives
-        self.properties = {}
+        self.properties = {}  # a dict o
         self.cant_be_properties = set()
         super(_IdentifyPropertiesTransform, self).__init__(context)
 
@@ -1356,22 +1357,22 @@ class _IdentifyPropertiesTransform(ScopeTrackingTransform, SkipDeclarations):
                   and decorator.attribute in DecoratorTransform._property_attributes.keys()):
                 if len(node.decorators) > 1:
                     return self._reject_decorated_property(node, decorator_node)
+                prop = self.properties[decorator.obj.name]
                 if decorator.obj.name != node.name:
                     # CPython does not generate an error or warning.
-                    # Correct behaviour is just to create the property twice under two
-                    # different names
+                    # We follow the slightly CPython behaviour but generate a warning
+                    # since it's odd and rarely what's desired
                     warning(decorator_node.pos,
                               "Mismatching property names, expected '%s', got '%s'" % (
                                   decorator.obj.name, node.name))
-                prop = self.properties[decorator.obj.name]
+                    prop = copy.deepcopy(prop)
                 if decorator.attribute in prop:
                     prop.setdefault('overridden', []).append(prop[decorator.attribute])
                 prop[decorator.attribute] = node
                 self.properties[node.name] = prop
         return node
 
-    @staticmethod
-    def _reject_decorated_property(node, decorator_node):
+    def _reject_decorated_property(self, node, decorator_node):
         self.cant_be_properties.add(node.name)
         # restrict transformation to outermost decorator as wrapped properties will probably not work
         for deco in node.decorators:
@@ -1389,7 +1390,7 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
     with up to the three getter, setter and deleter DefNodes.
     The functional style isn't supported yet.
     """
-    _properties_node_dicts = None
+    _properties_node_sets = None
 
     _property_attributes = {
         'getter': EncodedString('__get__'),
@@ -1400,8 +1401,8 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
     _map_property_attribute = _property_attributes.get
 
     def visit_CClassDefNode(self, node):
-        if self._properties_node_dicts is None:
-            self._properties_node_dicts = []
+        if self._properties_node_sets is None:
+            self._properties_node_sets = []
         id_props_transform = _IdentifyPropertiesTransform(self.context,
                                                             self.scope_type,
                                                             self.scope_node,
@@ -1412,31 +1413,35 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
         properties = id_props_transform.properties
         for name in id_props_transform.cant_be_properties:
             properties.pop(name, None)
-        self._properties_node_dicts.append({})
+        self._properties_node_sets.append(set())
         for name in properties.keys():
-            for overridden_node in properties[name].pop('overridden', []):
+            property_dict = properties[name]
+
+            for overridden_node in property_dict.pop('overridden', []):
                 # so that the node can correctly be replaced by nothing
-                self._properties_node_dicts[-1][overridden_node] = []
+                self._properties_node_sets[-1].add(overridden_node)
             prop = Nodes.PropertyNode(node.pos, name=name)
+            prop.created_from_decorator = True
             prop.body = Nodes.StatListNode(node.pos, stats=[])
-            for property_type, prop_node in properties[name].items():
+
+            for property_type, def_node in property_dict.items():
                 if property_type == "getter":
-                    prop.doc = prop_node.doc
-                    self._properties_node_dicts[-1][prop_node] = [prop]
-                else:
-                    self._properties_node_dicts[-1][prop_node] = []
-                prop_node.name = self._map_property_attribute(property_type)
-                prop.body.stats.append(prop_node)
-                prop_node.decorators = None
+                    prop.doc = def_node.doc
+                self._properties_node_sets[-1].add(def_node)
+                def_node.name = self._map_property_attribute(property_type)
+                prop.body.stats.append(def_node)
+                def_node.decorators = None
+            node.body.stats.append(prop)
 
         super(DecoratorTransform, self).visit_CClassDefNode(node)
-        self._properties_node_dicts.pop()
+        self._properties_node_sets.pop()
         return node
 
     def visit_PropertyNode(self, node):
         # Low-level warning for other code until we can convert all our uses over.
-        level = 2 if isinstance(node.pos[0], str) else 0
-        warning(node.pos, "'property %s:' syntax is deprecated, use '@property'" % node.name, level)
+        if not node.created_from_decorator:
+            level = 2 if isinstance(node.pos[0], str) else 0
+            warning(node.pos, "'property %s:' syntax is deprecated, use '@property'" % node.name, level)
         return node
 
     def visit_DefNode(self, node):
@@ -1446,9 +1451,9 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
         if scope_type != 'cclass':
             return node
 
-        if node in self._properties_node_dicts[-1]:
+        if self._properties_node_sets and node in self._properties_node_sets[-1]:
             node.is_transformed_to_property = True
-            return self._properties_node_dicts[-1][node]
+            return []  # drop the node from the cclass
 
         if not node.decorators:
             return node
@@ -1488,15 +1493,25 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
         defined in the PyMethodDef struct.
 
         The IndirectionNode allows DefNode to override the decorator.
+
+        Use LetNode because the decorators must be evaluated before the
+        DefNode is assigned (before for things like properties, they often
+        use @function_name.attribute so they must be able to look up
+        what function_name was
         """
+        from .UtilNodes import LetRefNode, LetNode
+
+        decorators = [ LetRefNode(decorator.decorator, pos=decorator.pos)
+                        for decorator in decorators ]
+        name_node = ExprNodes.NameNode(node.pos, name=name)
+
         decorator_result = ExprNodes.NameNode(node.pos, name=name)
         for decorator in decorators[::-1]:
             decorator_result = ExprNodes.SimpleCallNode(
                 decorator.pos,
-                function=decorator.decorator,
+                function=decorator,
                 args=[decorator_result])
 
-        name_node = ExprNodes.NameNode(node.pos, name=name)
         reassignment = Nodes.SingleAssignmentNode(
             node.pos,
             lhs=name_node,
@@ -1504,9 +1519,14 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
 
         reassignment = Nodes.IndirectionNode([reassignment])
         node.decorator_indirection = reassignment
+        body = Nodes.StatListNode(node.pos, stats=[node, reassignment])
+
+        for decorator in decorators[::-1]:
+            body = LetNode(decorator, body)
+
         if not (len(decorators) == 1 and (node.is_staticmethod or node.is_classmethod)):
             node.is_in_arbitrary_decorator = True
-        return [node, reassignment]
+        return body
 
 
 class CnameDirectivesTransform(CythonTransform, SkipDeclarations):

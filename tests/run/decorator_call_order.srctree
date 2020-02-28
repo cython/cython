@@ -1,0 +1,85 @@
+PYTHON -c "import doctest; import test_order; exit(doctest.testmod(test_order).failed)"
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import doctest; import test_order; exit(doctest.testmod(test_order).failed)"
+
+
+######## setup.py ########
+
+from distutils.core import setup
+from Cython.Build import cythonize
+
+setup(
+    ext_modules = cythonize("create_some_decorated_classes.py")
+)
+
+#################### test_order.py #########################################
+
+def test():
+    """
+    >>> test()
+    Making Regular
+    d1
+    d2
+    d3
+    d3.actual_decorator
+    d2.actual_decorator
+    d1.actual_decorator
+    Making Cdef
+    d1
+    d2
+    d3
+    d3.actual_decorator
+    d2.actual_decorator
+    d1.actual_decorator
+    compiled != has_dict: True
+    """
+    import create_some_decorated_classes
+
+
+#################### create_some_decorated_classes.py ###########################
+# Pure Python, so we can compare against the uncythonized behaviour
+# All the interesting behaviour happens at import time
+
+from __future__ import print_function
+
+import cython
+
+def d1():
+    print("d1")
+    def actual_decorator(f):
+        print("d1.actual_decorator")
+        return f
+    return actual_decorator
+
+def d2():
+    print("d2")
+    def actual_decorator(f):
+        print("d2.actual_decorator")
+        return f
+    return actual_decorator
+
+def d3():
+    print("d3")
+    def actual_decorator(f):
+        print("d3.actual_decorator")
+        return f
+    return actual_decorator
+
+print("Making Regular")
+class Regular:
+    @d1()
+    @d2()
+    @d3()
+    def f(self):
+        return 1
+
+print("Making Cdef")
+@cython.cclass
+class Cdef:
+    @d1()
+    @d2()
+    @d3()
+    def f(self):
+        return 1
+        
+print("compiled != has_dict:", cython.compiled != hasattr(Cdef(), "__dict__"))

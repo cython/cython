@@ -882,6 +882,7 @@ class FusedCFuncDefNode(StatListNode):
                                     (self.resulting_fused_function.result(),
                                      self.__signatures__.result()))
             code.put_giveref(self.__signatures__.result())
+            self.__signatures__.release_temp_result(code)
 
             self.fused_func_assignment.generate_execution_code(code)
 
@@ -889,6 +890,7 @@ class FusedCFuncDefNode(StatListNode):
             self.resulting_fused_function.generate_disposal_code(code)
             self.defaults_tuple.generate_disposal_code(code)
             self.code_object.generate_disposal_code(code)
+            #self.__signatures__.generate_disposal_code(code)
 
         for default in self.defaults:
             if default is not None:

@@ -815,6 +815,7 @@ class CArgDeclNode(Node):
     # kw_only        boolean            Is a keyword-only argument
     # is_dynamic     boolean            Non-literal arg stored inside CyFunction
     # pos_only       boolean            Is a positional-only argument
+    # type_set_manually boolean         Used in overriding the type of self arguments - otherwise unimportant
     #
     # name_cstring                         property that converts the name to a cstring taking care of unicode
     #                                      and quoting it
@@ -834,10 +835,20 @@ class CArgDeclNode(Node):
     default_value = None
     annotation = None
     is_dynamic = 0
+    _type_set_manually = 0
 
     @property
     def name_cstring(self):
         return self.name.as_c_string_literal()
+
+    @property
+    def type_set_manually(self):
+        if self._type_set_manually:
+            return True
+        return bool(getattr(self.base_type, "name", False))
+    @type_set_manually.setter
+    def type_set_manually(self, value):
+        self._type_set_manually = value
 
     def analyse(self, env, nonempty=0, is_self_arg=False):
         if is_self_arg:
@@ -1683,6 +1694,7 @@ class FuncDefNode(StatNode, BlockNode):
             error(type_node.pos, "Previous declaration here")
         else:
             arg.type = other_type
+            arg.type_set_manually = True
         return arg
 
     def need_gil_acquisition(self, lenv):
@@ -2756,7 +2768,6 @@ class DefNode(FuncDefNode):
     entry = None
     acquire_gil = 0
     self_in_stararg = 0
-    self_type_overridden = 0
     py_cfunc_node = None
     requires_classobj = False
     defaults_struct = None # Dynamic kwrds structure name
@@ -2772,6 +2783,10 @@ class DefNode(FuncDefNode):
     func_cname = None
 
     defaults_getter = None
+
+    @property
+    def self_type_overridden(self):
+        return len(self.args) and self.args[0].type_set_manually
 
     def __init__(self, pos, **kwds):
         FuncDefNode.__init__(self, pos, **kwds)
@@ -2881,22 +2896,20 @@ class DefNode(FuncDefNode):
                     self.is_classmethod |= func.name == 'classmethod'
                     self.is_staticmethod |= func.name == 'staticmethod'
 
-        if self.is_classmethod and env.lookup_here('classmethod'):
+        if self.is_classmethod and env.lookup('classmethod'):
             # classmethod() was overridden - not much we can do here ...
             self.is_classmethod = False
-        if self.is_staticmethod and env.lookup_here('staticmethod'):
+        if self.is_staticmethod and env.lookup('staticmethod'):
             # staticmethod() was overridden - not much we can do here ...
             self.is_staticmethod = False
-        if self.is_transformed_to_property and env.lookup_here('property'):
-            warning(node.pos, "Custom assignment of 'property' was ignored when "
+        if self.is_transformed_to_property and env.lookup('property'):
+            warning(self.pos, "Re-assignment of name 'property' was ignored when "
                     "function was transformed to property of cdef class", 1)
 
         if (self.is_in_arbitrary_decorator
                 and not (self.is_staticmethod or self.is_classmethod)):
             assert env.is_c_class_scope, env
-            if (self.args and len(self.args)
-                    and not self.args[0].base_type.name  # type manually set anyway
-                    ):
+            if len(self.args) and not self.self_type_overridden:
                 # we don't know how arbitrarily decorated stuff will be called, so generate
                 # two versions - one typed and one generic
                 class BaseTypeWrapper(CSimpleBaseTypeNode):
@@ -2909,7 +2922,7 @@ class DefNode(FuncDefNode):
                         return self._tp
 
                 self.args[0].base_type = BaseTypeWrapper(self.args[0].base_type.pos)
-                self.self_type_overridden = 1
+                self.args[0].type_set_manually = True
 
         if self.name == '__new__' and env.is_py_class_scope:
             self.is_staticmethod = 1
@@ -3006,15 +3019,6 @@ class DefNode(FuncDefNode):
             self.np_args_idx = []
 
     def analyse_signature(self, env):
-        if (len(self.args) and self.args[0].base_type.name
-                    and self.entry.signature.num_fixed_args() and self.entry.signature.is_self_arg(0)
-                    and self.args[0].type != env.parent_type):
-            # type of first argument is explicitly specified as
-            # something different
-            # FIXME ensure binding=True
-            # FIXME does this also work with annotation typing?
-            self.self_type_overridden = 1
-
         if self.entry.is_special:
             if self.decorators:
                 error(self.pos, "special functions of cdef classes cannot have decorators")
@@ -3064,7 +3068,6 @@ class DefNode(FuncDefNode):
                     arg.is_type_arg = 1
                     usual_type = Builtin.type_type
                     if not self.self_type_overridden:
-                        # TODO does overriding work on classmethods?
                         arg.hdr_type = arg.type = usual_type
                 else:
                     arg.is_self_arg = 1
@@ -5338,6 +5341,7 @@ class PropertyNode(StatNode):
     #  body   StatListNode
 
     child_attrs = ["body"]
+    created_from_decorator = 0  # just used in a deprecation warning
 
     def analyse_declarations(self, env):
         self.entry = env.declare_property(self.name, self.doc, self.pos)
