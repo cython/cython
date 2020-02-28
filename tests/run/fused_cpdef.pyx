@@ -82,7 +82,7 @@ sys.stdout = midimport_run
 try:
     test_fused_cpdef()
 except Exception as e:
-    print midimport_run, repr(e)
+    midimport_run.write(f"{e!r}\n")
 finally:
     sys.stdout = realstdout
 
