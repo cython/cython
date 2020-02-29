@@ -17,7 +17,7 @@ from . import Options
 from . import Builtin
 from . import Errors
 
-from .Visitor import VisitorTransform, TreeVisitor
+from .Visitor import VisitorTransform, TreeVisitor, recursively_replace_node
 from .Visitor import CythonTransform, EnvTransform, ScopeTrackingTransform
 from .UtilNodes import LetNode, LetRefNode
 from .TreeFragment import TreeFragment
@@ -1015,7 +1015,6 @@ class InterpretCompilerDirectives(CythonTransform):
         # Split the decorators into two lists -- real decorators and directives
         directives = []
         realdecs = []
-        both = []
         # Decorators coming first take precedence.
         for dec in node.decorators[::-1]:
             new_directives = self.try_to_parse_directives(dec.decorator)
@@ -1026,7 +1025,7 @@ class InterpretCompilerDirectives(CythonTransform):
                         if self.directives.get(name, object()) != value:
                             directives.append(directive)
                         if directive[0] == 'staticmethod':
-                            both.append(dec)
+                            realdecs.append(dec)
                     # Adapt scope type based on decorators that change it.
                     if directive[0] == 'cclass' and scope_name == 'class':
                         scope_name = 'cclass'
@@ -1035,7 +1034,7 @@ class InterpretCompilerDirectives(CythonTransform):
         if realdecs and (scope_name == 'cclass' or
                          isinstance(node, (Nodes.CClassDefNode, Nodes.CVarDefNode))):
             raise PostParseError(realdecs[0].pos, "Cdef functions/classes cannot take arbitrary decorators.")
-        node.decorators = realdecs[::-1] + both[::-1]
+        node.decorators = realdecs[::-1]
         # merge or override repeated directives
         optdict = {}
         for directive in directives:
@@ -1485,21 +1484,27 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
         return node
 
     @staticmethod
-    def chain_decorators(node, decorators, name):
+    def chain_decorators(node, decorators, name, use_as_stat0=None):
         """
         Decorators are applied directly in DefNode and PyClassDefNode to avoid
         reassignments to the function/class name - except for cdef class methods.
         For those, the reassignment is required as methods are originally
         defined in the PyMethodDef struct.
 
-        The IndirectionNode allows DefNode to override the decorator.
+        Setting node.decorator_callstack to let the node pop out classmethod/staticmethod
+        if needed
 
         Use LetNode because the decorators must be evaluated before the
         DefNode is assigned (before for things like properties, they often
         use @function_name.attribute so they must be able to look up
         what function_name was
+
+        use_as_stat0 is helpful for fused functions
         """
         from .UtilNodes import LetRefNode, LetNode
+
+        if not use_as_stat0:
+            use_as_stat0 = node
 
         decorators = [ LetRefNode(decorator.decorator, pos=decorator.pos)
                         for decorator in decorators ]
@@ -1517,12 +1522,15 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
             lhs=name_node,
             rhs=decorator_result)
 
-        reassignment = Nodes.IndirectionNode([reassignment])
-        node.decorator_indirection = reassignment
-        body = Nodes.StatListNode(node.pos, stats=[node, reassignment])
+        body = Nodes.StatListNode(node.pos, stats=[use_as_stat0, reassignment])
 
         for decorator in decorators[::-1]:
             body = LetNode(decorator, body)
+
+        # putting it in a 1-long stat list node just makes it easier to replace
+        body = Nodes.StatListNode(node.pos, stats=[body])
+
+        node.decorator_call_tree = body
 
         if not (len(decorators) == 1 and (node.is_staticmethod or node.is_classmethod)):
             node.is_in_arbitrary_decorator = True
@@ -1868,10 +1876,16 @@ if VALUE is not None:
         if decorators:
             transform = DecoratorTransform(self.context)
             def_node = node.node
-            _, reassignments = transform.chain_decorators(
-                def_node, decorators, def_node.name)
+            dummy_node = Nodes.Node(def_node.pos)
+            dummy_node.child_attrs = []  # this feels hacky
+            reassignments = transform.chain_decorators(
+                def_node, decorators, def_node.name,
+                use_as_stat0=dummy_node)
             reassignments.analyse_declarations(env)
-            node = [node, reassignments]
+            # replace the dummy_node after analysis to avoid node being analysed unnecessarily
+            recursively_replace_node(reassignments, dummy_node, node)
+
+            node = reassignments
 
         return node
 
@@ -1974,7 +1988,6 @@ if VALUE is not None:
                 else:
                     error(type_node.pos, "Not a type")
 
-        #print(node.name, self._handle_fused(node))
         if self._handle_fused(node):
             node = self._create_fused_function(env, node)
         else:

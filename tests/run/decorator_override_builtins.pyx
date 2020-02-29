@@ -1,6 +1,6 @@
-#mode: run
-#tag: warnings
-#cython: binding=True
+# mode: run
+# tag: warnings
+# cython: binding=True
 
 from __future__ import print_function
 
