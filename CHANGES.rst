@@ -173,14 +173,23 @@ Other changes
 0.29.16 (2020-0?-??)
 ====================
 
+Bugs fixed
+----------
+
 * Temporary internal variables in nested prange loops could leak into other
   threads.  Patch by Frank Schlimbach.  (Github issue #3348)
+
+* C-tuples declared in ``.pxd`` files could generate incomplete C code.
+  Patch by Kirk Meyer.  (Github issue #1427)
 
 * Fix an unhandled C++ exception in comparisons.
   Patch by David Woods.  (Github issue #3361)
 
 * Fix deprecated import of "imp" module.
   Patch by Matti Picus.  (Github issue #3350)
+
+* The ``_Py_PyAtExit()`` function in ``cpython.pylifecycle`` was misdeclared.
+  Patch by Zackery Spytz.  (Github issue #3382)
 
 * Avoid "undeclared" warning about automatically generated pickle methods.
   Patch by David Woods.  (Github issue #3353)
@@ -190,6 +199,9 @@ Other changes
 
 0.29.15 (2020-02-06)
 ====================
+
+Bugs fixed
+----------
 
 * Crash when returning a temporary Python object from an async-def function.
   (Github issue #3337)
