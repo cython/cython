@@ -1015,6 +1015,7 @@ class InterpretCompilerDirectives(CythonTransform):
         # Split the decorators into two lists -- real decorators and directives
         directives = []
         realdecs = []
+        has_arbitrary_decorators = False
         # Decorators coming first take precedence.
         for dec in node.decorators[::-1]:
             new_directives = self.try_to_parse_directives(dec.decorator)
@@ -1031,7 +1032,8 @@ class InterpretCompilerDirectives(CythonTransform):
                         scope_name = 'cclass'
             else:
                 realdecs.append(dec)
-        if realdecs and (scope_name == 'cclass' or
+                has_arbitrary_decorators = True
+        if has_arbitrary_decorators and (scope_name == 'cclass' or
                          isinstance(node, (Nodes.CClassDefNode, Nodes.CVarDefNode))):
             raise PostParseError(realdecs[0].pos, "Cdef functions/classes cannot take arbitrary decorators.")
         node.decorators = realdecs[::-1]
