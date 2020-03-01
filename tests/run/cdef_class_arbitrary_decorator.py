@@ -110,6 +110,14 @@ class C:
         print(type(args[0]).__name__)
         print(not_self.imag, sum(args[1:]))
 
+    @cython.test_fail_if_path_exists("//FusedCFuncDefNode")  # args is know to be a tuple so
+        # should not need a fused function
+    @arbitrary_decorator1
+    def arb_decorated3(*args):
+        print(cython.typeof(args), type(args).__name__)
+        print(type(args[0]).__name__, sum(args[1:]))
+
+
 import sys
 
 __doc__ = """
@@ -143,11 +151,18 @@ __doc__ = """
     {1} int
     {0}
     0 6
+
+    For arb_decorated3
+    >>> C().arb_decorated3(1, 2, 3)
+    tuple{4} tuple
+    C 6
     """.format(
         "C" if sys.version_info[0] > 2 or cython.compiled else "instance",
         "Python object" if cython.compiled else "int",
         "'int' object is not callable" if sys.version_info[0] > 2 else "unbound method",
         # exact detail vary depending on if it's compiled...
-        "" if sys.version_info[0] > 2 else "# doctest: +IGNORE_EXCEPTION_DETAIL"
+        "" if sys.version_info[0] > 2 else "# doctest: +IGNORE_EXCEPTION_DETAIL",
+        " object" if cython.compiled else "",
         )
+
 

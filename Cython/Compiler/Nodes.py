@@ -16,7 +16,7 @@ import sys, os, copy
 from itertools import chain
 
 from . import Builtin
-from .Errors import error, warning, InternalError, CompileError
+from .Errors import error, warning, warn_once, InternalError, CompileError
 from . import Naming
 from . import PyrexTypes
 from . import TypeSlots
@@ -2785,10 +2785,6 @@ class DefNode(FuncDefNode):
 
     defaults_getter = None
 
-    @property
-    def self_type_overridden(self):
-        return len(self.args) and self.args[0].type_set_manually
-
     def __init__(self, pos, **kwds):
         FuncDefNode.__init__(self, pos, **kwds)
         p = k = rk = r = 0
@@ -2915,18 +2911,6 @@ class DefNode(FuncDefNode):
             self.declare_lambda_function(env)
         else:
             self.declare_pyfunction(env)
-
-        if (self.is_in_arbitrary_decorator
-                and not (self.is_staticmethod or self.is_classmethod)):
-            assert env.is_c_class_scope, env
-            if len(self.args) and not self.self_type_overridden:
-                # we don't know how arbitrarily decorated stuff will be called, so generate
-                # two versions - one typed and one generic
-                self.args[0].base_type = None  # just to make sure it doesn't get re-analysed
-                self.args[0].type = PyrexTypes.FusedType([env.parent_type, PyrexTypes.py_object_type],
-                                                name="fused self or object")
-                self.args[0].type_set_manually = True
-                self.has_fused_arguments = True
 
         self.analyse_signature(env)
         self.return_type = self.entry.signature.return_type()
@@ -3059,18 +3043,33 @@ class DefNode(FuncDefNode):
             arg = self.args[i]
             arg.is_generic = 0
             if (sig.is_self_arg(i) and not self.is_staticmethod):
+                self_type_overridden = arg.type_set_manually
                 if self.is_classmethod:
                     arg.is_type_arg = 1
                     usual_type = Builtin.type_type
-                    if not self.self_type_overridden:
+                    if not arg.type_set_manually:
                         arg.hdr_type = arg.type = usual_type
                 else:
                     arg.is_self_arg = 1
-                    usual_type = env.parent_type
-                    if not self.self_type_overridden:
+                    if self.is_in_arbitrary_decorator:
+                        usual_type = PyrexTypes.FusedType([env.parent_type, PyrexTypes.py_object_type],
+                                                name="fused self or object")
+                        warn_once(arg.pos, "Type of argument '%s' cannot be assumed to be %s because "
+                                    "it has an unknown decorator. "
+                                    "Consider setting the type explicitly." % (
+                                        arg.name, env.parent_type),
+                                    1, warn_once_key="unknown decorator type")
+                    else:
+                        usual_type = env.parent_type
+                    if not self_type_overridden:
                         arg.hdr_type = arg.type = usual_type
+                    if arg.type.is_fused:
+                        arg.type_set_manually = True
+                        self_type_overridden = True
+                        self.has_fused_arguments = True
+
                 arg.needs_conversion = 0
-                if self.self_type_overridden:
+                if self_type_overridden:
                     if arg.type.same_as(usual_type):
                         arg.hdr_type = usual_type
                     else:

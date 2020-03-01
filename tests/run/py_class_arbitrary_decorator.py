@@ -100,6 +100,11 @@ class C:
         print(type(args[0]).__name__)
         print(not_self.imag, sum(args[1:]))
 
+    @arbitrary_decorator1
+    def arb_decorated3(*args):
+        print(cython.typeof(args), type(args).__name__)
+        print(type(args[0]).__name__, sum(args[1:]))
+
 import sys
 
 __doc__ = """
@@ -123,6 +128,11 @@ __doc__ = """
     {1} int
     {0}
     0 6
+
+    For arb_decorated3
+    >>> C().arb_decorated3(1, 2, 3)
+    tuple{5} tuple
+    C 6
     """.format(
         "C" if sys.version_info[0] > 2 else "instance",
         "Python object" if cython.compiled else "int",
@@ -130,5 +140,6 @@ __doc__ = """
         # exact detail vary depending on if it's compiled...
         "" if sys.version_info[0] > 2 else "# doctest: +IGNORE_EXCEPTION_DETAIL",
         "Python object" if cython.compiled else "C",
+        " object" if cython.compiled else "",
         )
 

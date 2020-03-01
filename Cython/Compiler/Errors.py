@@ -213,8 +213,10 @@ def warning(position, message, level=0):
 
 
 _warn_once_seen = {}
-def warn_once(position, message, level=0):
-    if level < LEVEL or message in _warn_once_seen:
+def warn_once(position, message, level=0, warn_once_key=None):
+    if warn_once_key is None:
+        warn_once_key = message
+    if level < LEVEL or warn_once_key in _warn_once_seen:
         return
     warn = CompileWarning(position, message)
     line = u"warning: %s\n" % warn
@@ -222,7 +224,7 @@ def warn_once(position, message, level=0):
         _write_file_encode(listing_file, line)
     if echo_file:
         _write_file_encode(echo_file, line)
-    _warn_once_seen[message] = True
+    _warn_once_seen[warn_once_key] = True
     return warn
 
 

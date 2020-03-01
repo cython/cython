@@ -161,10 +161,11 @@ else:
 
 # FIXME I think the "redeclared" warnings are spurious. They certainly aren't what we're interested in testing here
 _WARNINGS="""
+98:4: Re-assignment of name 'property' was ignored when function was transformed to property of cdef class
 103:4: 'prop2' redeclared
 103:4: 'prop2' redeclared
 104:4: Property methods with additional decorators cannot be efficiently transformed in cdef classes
-98:4: Re-assignment of name 'property' was ignored when function was transformed to property of cdef class
+105:14: Type of argument 'self' cannot be assumed to be CdefClass because it has an unknown decorator. Consider setting the type explicitly.
 112:4: 'sm2' redeclared
 112:4: 'sm2' redeclared
 121:4: 'cm2' redeclared
