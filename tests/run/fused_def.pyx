@@ -7,6 +7,9 @@ Test Python def functions without extern types
 cy = __import__("cython")
 cimport cython
 
+cdef extern from *:
+    int __Pyx_CyFunction_Check(object)
+
 cdef class Base(object):
     def __repr__(self):
         return type(self).__name__
@@ -128,6 +131,16 @@ def opt_func(fused_t obj, cython.floating myf = 1.2, cython.integral myi = 7):
     print cython.typeof(obj), cython.typeof(myf), cython.typeof(myi)
     print obj, "%.2f" % myf, myi, "%.2f" % f, i
 
+def run_cyfunction_check():
+    """
+    tp_base of the fused function was being set incorrectly meaning
+    it wasn't being identified as a CyFunction
+    >>> run_cyfunction_check()
+    fused_cython_function
+    1
+    """
+    print(type(opt_func).__name__)
+    print(__Pyx_CyFunction_Check(opt_func))  # should be True
 
 def test_opt_func():
     """

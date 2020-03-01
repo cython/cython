@@ -1405,7 +1405,7 @@ static PyTypeObject __pyx_FusedFunctionType_type = {
     // __doc__ is None for the fused function type, but we need it to be
     // a descriptor for the instance's __doc__, so rebuild descriptors in our subclass
     __pyx_CyFunction_getsets,           /*tp_getset*/
-    &__pyx_CyFunctionType_type,         /*tp_base*/
+    &__pyx_CyFunctionType_type,         /*tp_base - NOTE placeholder value, replaced in module initialization*/
     0,                                  /*tp_dict*/
     __pyx_FusedFunction_descr_get,      /*tp_descr_get*/
     0,                                  /*tp_descr_set*/
@@ -1443,6 +1443,7 @@ static int __pyx_FusedFunction_init(void) {
     __pyx_FusedFunctionType = __Pyx_FetchCommonTypeFromSpec(&__pyx_FusedFunctionType_spec, bases);
     Py_DECREF(bases);
 #else
+    __pyx_FusedFunctionType_type.tp_base = __pyx_CyFunctionType;  // the value set from __Pyx_FetchCommonTypeFromSpec, not the static value
     __pyx_FusedFunctionType = __Pyx_FetchCommonType(&__pyx_FusedFunctionType_type);
 #endif
     if (__pyx_FusedFunctionType == NULL) {
