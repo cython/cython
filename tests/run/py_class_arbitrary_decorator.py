@@ -132,7 +132,7 @@ __doc__ = """
     For arb_decorated3
     >>> C().arb_decorated3(1, 2, 3)
     tuple{5} tuple
-    C 6
+    {0} 6
     """.format(
         "C" if sys.version_info[0] > 2 else "instance",
         "Python object" if cython.compiled else "int",
