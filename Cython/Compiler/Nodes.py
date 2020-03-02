@@ -878,6 +878,8 @@ class CArgDeclNode(Node):
             # inject type declaration from annotations
             # this is called without 'env' by AdjustDefByDirectives transform before declaration analysis
             if (self.annotation and env and env.directives['annotation_typing']
+                    # CSimpleBaseTypeNode has a name attribute; CAnalysedBaseTypeNode
+                    # (and maybe other options) doesn't
                     and getattr(self.base_type, "name", None) is None):
                 arg_type = self.inject_type_from_annotations(env)
                 if arg_type is not None:
@@ -1680,7 +1682,7 @@ class FuncDefNode(StatNode, BlockNode):
         if other_type is None:
             error(type_node.pos, "Not a type")
         elif other_type.is_fused and any(orig_type.same_as(t) for t in other_type.types):
-            arg.type = orig_type  # use specialized rather than fused type
+            pass # use specialized rather than fused type
         elif orig_type is not py_object_type and not orig_type.same_as(other_type):
             error(arg.base_type.pos, "Signature does not agree with previous declaration")
             error(type_node.pos, "Previous declaration here")
