@@ -2608,6 +2608,41 @@ class YieldNodeCollector(TreeVisitor):
         pass
 
 
+
+class IsCoroutineTransform(CythonTransform):
+    def visit_FuncDefNode(self, node):
+        if isinstance(node, (Nodes.AsyncDefNode, Nodes.IterableAsyncDefNode, Nodes.AsyncGenNode)):
+            pos = node.pos
+            encoded_is_coroutine = EncodedString("_is_coroutine")
+
+            # Get _is_coroutine object from asyncio.coroutines
+            import_is_coroutine = Nodes.FromImportStatNode(pos,
+                module=ExprNodes.ImportNode(
+                    pos,
+                    module_name=ExprNodes.IdentifierStringNode(pos, value=EncodedString("asyncio.coroutines")),
+                    name_list=ExprNodes.ListNode(
+                        pos, args=[ExprNodes.IdentifierStringNode(pos, value=encoded_is_coroutine)],
+                    ),
+                    level=0,
+                ),
+                items=[(encoded_is_coroutine, ExprNodes.NameNode(pos, name=encoded_is_coroutine))],
+            )
+
+            # Tag cython functions with _is_coroutine
+            assign_is_coroutine = Nodes.SingleAssignmentNode(
+                pos,
+                lhs=ExprNodes.AttributeNode(
+                    pos,
+                    obj=ExprNodes.NameNode(pos, name=node.name),
+                    attribute=encoded_is_coroutine,
+                ),
+                rhs=ExprNodes.NameNode(pos, name=encoded_is_coroutine),
+            )
+            return Nodes.StatListNode(pos, stats=[node, import_is_coroutine, assign_is_coroutine])
+
+        return node
+
+
 class MarkClosureVisitor(CythonTransform):
 
     def visit_ModuleNode(self, node):

@@ -143,7 +143,7 @@ def create_pipeline(context, mode, exclude_classes=()):
     from .ParseTreeTransforms import WithTransform, NormalizeTree, PostParse, PxdPostParse
     from .ParseTreeTransforms import ForwardDeclareTypes, InjectGilHandling, AnalyseDeclarationsTransform
     from .ParseTreeTransforms import AnalyseExpressionsTransform, FindInvalidUseOfFusedTypes
-    from .ParseTreeTransforms import CreateClosureClasses, MarkClosureVisitor, DecoratorTransform
+    from .ParseTreeTransforms import CreateClosureClasses, MarkClosureVisitor, DecoratorTransform, IsCoroutineTransform
     from .ParseTreeTransforms import TrackNumpyAttributes, InterpretCompilerDirectives, TransformBuiltinMethods
     from .ParseTreeTransforms import ExpandInplaceOperators, ParallelRangeTransform
     from .ParseTreeTransforms import CalculateQualifiedNamesTransform, ReplacePropertyNode
@@ -188,6 +188,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         AdjustDefByDirectives(context),
         WithTransform(context),
         MarkClosureVisitor(context),
+        IsCoroutineTransform(context),
         _align_function_definitions,
         RemoveUnreachableCode(context),
         ConstantFolding(),
