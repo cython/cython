@@ -622,6 +622,14 @@ static CYTHON_INLINE void * PyThread_tss_get(Py_tss_t *key) {
   #define __Pyx_PyNumber_InPlaceDivide(x,y)  PyNumber_InPlaceDivide(x,y)
 #endif
 
+#if PY_MAJOR_VERSION >= 3 && (!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07010100)
+#define __Pyx_PyDict_GetItemWithError PyDict_GetItemWithError
+#define __Pyx_PyDict_GetItemWithError_ErrOccurred PyErr_Occurred
+#else
+#define __Pyx_PyDict_GetItemWithError PyDict_GetItem
+#define __Pyx_PyDict_GetItemWithError_ErrOccurred() (0)  // use to avoid unnecessary calls to PyErr_Occurred()
+#endif
+
 #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX > 0x030600B4 && CYTHON_USE_UNICODE_INTERNALS
 // _PyDict_GetItem_KnownHash() exists since CPython 3.5, but it was
 // dropping exceptions. Since 3.6, exceptions are kept.
@@ -631,8 +639,8 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStr(PyObject *dict, PyObject
     if (res == NULL) PyErr_Clear();
     return res;
 }
-#elif PY_MAJOR_VERSION >= 3 && (!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07030100)
-#define __Pyx_PyDict_GetItemStrWithError  PyDict_GetItemWithError
+#elif PY_MAJOR_VERSION >= 3
+#define __Pyx_PyDict_GetItemStrWithError  __Pyx_PyDict_GetItemWithError
 #define __Pyx_PyDict_GetItemStr           PyDict_GetItem
 #else
 static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict, PyObject *name) {

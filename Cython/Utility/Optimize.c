@@ -190,26 +190,22 @@ static PyObject* __Pyx_PyDict_GetItemDefault(PyObject* d, PyObject* key, PyObjec
 
 static PyObject* __Pyx_PyDict_GetItemDefault(PyObject* d, PyObject* key, PyObject* default_value) {
     PyObject* value;
-#if PY_MAJOR_VERSION >= 3 && !CYTHON_COMPILING_IN_PYPY
-    value = PyDict_GetItemWithError(d, key);
-    if (unlikely(!value)) {
-        if (unlikely(PyErr_Occurred()))
-            return NULL;
-        value = default_value;
-    }
-    Py_INCREF(value);
-    // avoid C compiler warning about unused utility functions
-    if ((1));
+#if PY_MAJOR_VERSION >= 3
+    if ((1)) {
 #else
     if (PyString_CheckExact(key) || PyUnicode_CheckExact(key) || PyInt_CheckExact(key)) {
         /* these presumably have safe hash functions */
-        value = PyDict_GetItem(d, key);
+#endif
+        value = __Pyx_PyDict_GetItemWithError(d, key);
         if (unlikely(!value)) {
+            if (unlikely(__Pyx_PyDict_GetItemWithError_ErrOccurred()))
+                return NULL;
             value = default_value;
         }
         Py_INCREF(value);
     }
-#endif
+    // avoid C compiler warning about unused utility functions
+    if ((1));
     else {
         if (default_value == Py_None)
             value = CALL_UNBOUND_METHOD(PyDict_Type, "get", d, key);
@@ -238,27 +234,20 @@ static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *ke
 #else
     if (is_safe_type == 1 || (is_safe_type == -1 &&
         /* the following builtins presumably have repeatably safe and fast hash functions */
-#if PY_MAJOR_VERSION >= 3 && !CYTHON_COMPILING_IN_PYPY
+#if PY_MAJOR_VERSION >= 3
             (PyUnicode_CheckExact(key) || PyString_CheckExact(key) || PyLong_CheckExact(key)))) {
-        value = PyDict_GetItemWithError(d, key);
-        if (unlikely(!value)) {
-            if (unlikely(PyErr_Occurred()))
-                return NULL;
-            if (unlikely(PyDict_SetItem(d, key, default_value) == -1))
-                return NULL;
-            value = default_value;
-        }
-        Py_INCREF(value);
 #else
             (PyString_CheckExact(key) || PyUnicode_CheckExact(key) || PyInt_CheckExact(key) || PyLong_CheckExact(key)))) {
-        value = PyDict_GetItem(d, key);
+#endif
+        value = __Pyx_PyDict_GetItemWithError(d, key);
         if (unlikely(!value)) {
+            if (unlikely(__Pyx_PyDict_GetItemWithError_ErrOccurred()))
+                return NULL;
             if (unlikely(PyDict_SetItem(d, key, default_value) == -1))
                 return NULL;
             value = default_value;
         }
         Py_INCREF(value);
-#endif
 #endif
     } else {
         value = CALL_UNBOUND_METHOD(PyDict_Type, "setdefault", d, key, default_value);

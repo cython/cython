@@ -4,7 +4,7 @@
 
 broken_exception
 bufaccess
-run.memoryview
+memoryview.memoryview
 sequential_parallel
 
 yield_from_pep380
@@ -36,9 +36,15 @@ run.final_cdef_class
 run.index
 run.pyclass_special_methods
 run.reimport_from_package
+run.reimport_from_subinterpreter
 pkg.cimportfrom
-test_embed
+embed
+TestCyCache
 run.ext_auto_richcmp
+run.coverage_cmd
+run.coverage_cmd_src_layout
+run.coverage_installed_pkg
+run.coverage_api
 
 # very little coroutine-related seems to work
 run.test_asyncgen
@@ -46,6 +52,7 @@ run.test_coroutines_pep492
 run.async_iter_pep492
 run.embedsignatures
 run.py35_asyncio_async_def
+run.asyncio_generators
 
 # gc issue?
 external_ref_reassignment
@@ -54,3 +61,13 @@ run.exttype_dealloc
 # bugs in cpyext
 run.special_methods_T561
 run.special_methods_T561_py2
+
+# looks to be fixed in PyPy 7.3.0
+# TODO - remove when Travis updates
+run.py_unicode_strings
+run.unicodeliterals
+run.unicode_identifiers
+run.unicode_identifiers_import
+run.tracebacks
+run.fstring
+run.unicode_identifiers_normalization
