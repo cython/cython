@@ -204,8 +204,6 @@ static PyObject* __Pyx_PyDict_GetItemDefault(PyObject* d, PyObject* key, PyObjec
         }
         Py_INCREF(value);
     }
-    // avoid C compiler warning about unused utility functions
-    if ((1));
     else {
         if (default_value == Py_None)
             value = CALL_UNBOUND_METHOD(PyDict_Type, "get", d, key);
