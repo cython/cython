@@ -3,8 +3,6 @@
 
 #cython: annotation_typing=True
 
-from __future__ import annotations
-
 import cython
 
 InPy = cython.fused_type(cython.int, cython.float)
