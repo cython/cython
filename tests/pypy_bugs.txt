@@ -38,13 +38,14 @@ run.pyclass_special_methods
 run.reimport_from_package
 run.reimport_from_subinterpreter
 pkg.cimportfrom
-embed
+embedded
 TestCyCache
 run.ext_auto_richcmp
 run.coverage_cmd
 run.coverage_cmd_src_layout
 run.coverage_installed_pkg
 run.coverage_api
+run.coverage_nogil
 
 # very little coroutine-related seems to work
 run.test_asyncgen
@@ -68,6 +69,7 @@ run.py_unicode_strings
 run.unicodeliterals
 run.unicode_identifiers
 run.unicode_identifiers_import
+errors.unicode_identifiers_e4
 run.tracebacks
 run.fstring
 run.unicode_identifiers_normalization

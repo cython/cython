@@ -1885,13 +1885,6 @@ class FileListExcluder(object):
                   % (testname, self._list_file))
         return exclude
 
-class CombinedExcluder(object):
-    def __init__(self, excluders):
-        self.excluders = excluders
-
-    def __call__(self, testname, tags=None):
-        return any(ex(testname, tags=tags) for ex in self.excluders)
-
 
 class TagsSelector(object):
     def __init__(self, tag, value):
@@ -2317,6 +2310,16 @@ def runtests_callback(args):
 
 
 def runtests(options, cmd_args, coverage=None):
+    # faulthandler should be able to provide a limited traceback
+    # in the event of a segmentation fault. Hopefully better than Travis
+    # just keeping running until timeout. Only available on Python 3.3+
+    try:
+        import faulthandler
+    except ImportError:
+        pass  # OK - not essential
+    else:
+        faulthandler.enable()
+
 
     WITH_CYTHON = options.with_cython
     ROOTDIR = os.path.abspath(options.root_dir)
