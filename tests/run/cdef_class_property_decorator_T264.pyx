@@ -6,6 +6,9 @@ cimport cython
 
 my_property = property
 
+class derived_from_property(property):
+    pass
+
 cdef class Prop:
     """
     >>> p = Prop()
@@ -104,8 +107,11 @@ cdef class CantHaveEfficientProp:
     >>> inst.b = 2
     >>> print(inst.b)
     2
+    >>> inst.c = 10
+    >>> print(inst.c)
+    10
     """
-    cdef int _a, _b
+    cdef int _a, _b, _c
 
     @property
     def a(self):
@@ -128,3 +134,12 @@ cdef class CantHaveEfficientProp:
     @b.deleter
     def b(self):
         self._b = -1
+
+    # GH issue https://github.com/cython/cython/issues/2181
+    # Simply using a "setter" attribute doesn't create a property
+    @derived_from_property
+    def c(self):
+        return self._c
+    @c.setter
+    def c(self, value):
+        self._c = value
