@@ -37,10 +37,10 @@ cdef extern from "Python.h":
     # Clear the context variable free list. Return the total number of freed
     # items. This function always succeeds.
 
-    object PyContextVar_New(const char *name, object def)
+    object PyContextVar_New(const char *name, object default)
     # Return value: New reference.
     # Create a new ContextVar object. The name parameter is used for
-    # introspection and debug purposes. The def parameter may optionally
+    # introspection and debug purposes. The default parameter may optionally
     # specify the default value for the context variable. If an error has
     # occurred, this function returns NULL.
 
