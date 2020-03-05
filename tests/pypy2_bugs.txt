@@ -1,0 +1,12 @@
+# Specific bugs that only apply to pypy2
+
+build.cythonize_script_package
+run.initial_file_path
+run.reduce_pickle
+run.final_in_pxd
+run.cdef_multiple_inheritance
+run.cdef_multiple_inheritance_nodict
+run.extstarargs
+
+# looks like a "when does the GC run?" issue - slightly surprised it's OK on pypy3
+memoryview.numpy_memoryview
