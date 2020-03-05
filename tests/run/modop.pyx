@@ -19,7 +19,7 @@ def mod_10_obj(int2):
     """
     >>> mod_10_obj(0)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    ZeroDivisionError: ... division ...by zero
+    ZeroDivisionError: ... modulo by zero
     >>> 10 % 1
     0
     >>> mod_10_obj(1)
