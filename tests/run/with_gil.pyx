@@ -13,6 +13,7 @@ def redirect_stderr(func, *args, **kwargs):
     Helper function that redirects stderr to stdout for doctest.
     """
     stderr, sys.stderr = sys.stderr, sys.stdout
+    print("Dummy line")  # otherwise doctest interprets ... at the start of the line as a continuation
     func(*args, **kwargs)
     sys.stderr = stderr
 
@@ -276,6 +277,7 @@ cdef void void_nogil_nested_gil() nogil:
 def test_nogil_void_funcs_with_gil():
     """
     >>> redirect_stderr(test_nogil_void_funcs_with_gil)  # doctest: +ELLIPSIS
+    Dummy line
     ...ExceptionWithMsg: This is swallowed
     Exception... ignored...
     Inner gil section
@@ -289,6 +291,7 @@ def test_nogil_void_funcs_with_gil():
 def test_nogil_void_funcs_with_nogil():
     """
     >>> redirect_stderr(test_nogil_void_funcs_with_nogil)  # doctest: +ELLIPSIS
+    Dummy line
     ...ExceptionWithMsg: This is swallowed
     Exception... ignored...
     Inner gil section
