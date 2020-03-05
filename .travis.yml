@@ -73,10 +73,10 @@ matrix:
       env: BACKEND=c
 # a secondary pypy tests which is allowed to fail and which specifically
 # tests known bugs
+    - python: pypy
+      env: BACKEND=c EXCLUDE="--listfile=tests/pypy_bugs.txt --listfile=tests/pypy2_bugs.txt bugs"
     - python: pypy3
       env: BACKEND=c EXCLUDE="--listfile=tests/pypy_bugs.txt bugs"
-    - python: pypy2
-      env: BACKEND=c EXCLUDE="--listfile=tests/pypy_bugs.txt --listfile=tests/pypy2_bugs.txt bugs"
   allow_failures:
     - python: 3.9-dev
     - env: BACKEND=c EXCLUDE="--listfile=tests/pypy_bugs.txt bugs"
