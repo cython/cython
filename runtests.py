@@ -1878,8 +1878,7 @@ class FileListExcluder(object):
                     self.excludes[line.split()[0]] = True
 
     def __call__(self, testname, tags=None):
-        exclude = (testname in self.excludes
-                   or testname.split('.')[-1] in self.excludes)
+        exclude = any(string_selector(ex)(testname) for ex in self.excludes)
         if exclude and self.verbose:
             print("Excluding %s because it's listed in %s"
                   % (testname, self._list_file))

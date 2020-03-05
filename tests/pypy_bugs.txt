@@ -4,7 +4,7 @@
 
 broken_exception
 bufaccess
-memoryview.memoryview
+memoryview.memoryview$
 sequential_parallel
 
 yield_from_pep380
