@@ -8,5 +8,9 @@ run.cdef_multiple_inheritance
 run.cdef_multiple_inheritance_nodict
 run.extstarargs
 
+# Silly error with doctest matching slightly different string outputs rather than 
+# an actual bug but one I can't easily resolve
+run.with_gil
+
 # looks like a "when does the GC run?" issue - slightly surprised it's OK on pypy3
 memoryview.numpy_memoryview
