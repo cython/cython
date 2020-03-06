@@ -1104,6 +1104,9 @@ __pyx_FusedFunction_descr_get(PyObject *self, PyObject *obj, PyObject *type)
     // since otherwise it will be freed on destruction of meth despite
     // belonging to func rather than meth
     if (func->func.defaults) {
+        PyObject **pydefaults;
+        int i;
+
         if (!__Pyx_CyFunction_InitDefaults((PyObject*)meth,
                                       func->func.defaults_size,
                                       func->func.defaults_pyobjects)) {
@@ -1111,6 +1114,10 @@ __pyx_FusedFunction_descr_get(PyObject *self, PyObject *obj, PyObject *type)
             return NULL;
         }
         memcpy(meth->func.defaults, func->func.defaults, func->func.defaults_size);
+
+        pydefaults = __Pyx_CyFunction_Defaults(PyObject *, meth);
+        for (i = 0; i < meth->func.defaults_pyobjects; i++)
+            Py_XINCREF(pydefaults[i]);
     }
 
     Py_XINCREF(func->func.func_classobj);
