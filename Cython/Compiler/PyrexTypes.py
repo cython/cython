@@ -656,7 +656,8 @@ class MemoryViewSliceType(PyrexType):
         assert not pyrex
         assert not dll_linkage
         from . import MemoryView
-        base_code = str(self) if for_display else MemoryView.memviewslice_cname
+        base_code = StringEncoding.EncodedString(
+                        (str(self)) if for_display else MemoryView.memviewslice_cname)
         return self.base_declaration_code(
                 base_code,
                 entity_code)
@@ -1309,7 +1310,7 @@ class BuiltinObjectType(PyObjectType):
             name = '"%s"' % self.name
             # avoid wasting too much space but limit number of different format strings
             space_for_name = (len(self.name) // 16 + 1) * 16
-        error = '(PyErr_Format(PyExc_TypeError, "Expected %%.%ds, got %%.200s", %s, Py_TYPE(%s)->tp_name), 0)' % (
+        error = '(PyErr_Format(PyExc_TypeError, "Expected %%.%ds, got %%.200s", %s, __Pyx_PyType_Name(Py_TYPE(%s))), 0)' % (
             space_for_name, name, arg)
         return check + '||' + error
 
@@ -1555,8 +1556,14 @@ class PythranExpr(CType):
             self.scope = scope = Symtab.CClassScope('', None, visibility="extern")
             scope.parent_type = self
             scope.directives = {}
-            scope.declare_var("shape", CPtrType(c_long_type), None, cname="_shape", is_cdef=True)
-            scope.declare_var("ndim", c_long_type, None, cname="value", is_cdef=True)
+            scope.declare_cgetter(
+                "shape",
+                CPtrType(c_long_type),
+                pos=None,
+                cname="__Pyx_PythranShapeAccessor",
+                visibility="extern",
+                nogil=True)
+            scope.declare_var("ndim", c_long_type, pos=None, cname="value", is_cdef=True)
 
         return True
 
@@ -1767,6 +1774,7 @@ class CNumericType(CType):
             base_code = type_name.replace('PY_LONG_LONG', 'long long')
         else:
             base_code = public_decl(type_name, dll_linkage)
+        base_code = StringEncoding.EncodedString(base_code)
         return self.base_declaration_code(base_code, entity_code)
 
     def attributes_known(self):

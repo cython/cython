@@ -2,6 +2,8 @@ from __future__ import absolute_import
 
 import os
 import unittest
+import shlex
+import sys
 import tempfile
 from io import open
 
@@ -185,30 +187,41 @@ class TreeAssertVisitor(VisitorTransform):
     visit_Node = VisitorTransform.recurse_to_children
 
 
-def unpack_source_tree(tree_file, dir=None):
-    if dir is None:
-        dir = tempfile.mkdtemp()
-    header = []
-    cur_file = None
-    with open(tree_file, mode='rb') as f:
-        lines = f.readlines()
-    try:
-        for line in lines:
-            if line[:5] == b'#####':
-                filename = line.strip().strip(b'#').strip().decode('utf8').replace('/', os.path.sep)
-                path = os.path.join(dir, filename)
-                if not os.path.exists(os.path.dirname(path)):
-                    os.makedirs(os.path.dirname(path))
-                if cur_file is not None:
-                    f, cur_file = cur_file, None
-                    f.close()
-                cur_file = open(path, 'wb')
-            elif cur_file is not None:
-                cur_file.write(line)
-            elif line.strip() and not line.lstrip().startswith(b'#'):
-                if line.strip() not in (b'"""', b"'''"):
-                    header.append(line.decode('utf8'))
-    finally:
-        if cur_file is not None:
-            cur_file.close()
-    return dir, ''.join(header)
+def unpack_source_tree(tree_file, workdir, cython_root):
+    programs = {
+        'PYTHON': [sys.executable],
+        'CYTHON': [sys.executable, os.path.join(cython_root, 'cython.py')],
+        'CYTHONIZE': [sys.executable, os.path.join(cython_root, 'cythonize.py')]
+    }
+
+    if workdir is None:
+        workdir = tempfile.mkdtemp()
+    header, cur_file = [], None
+    with open(tree_file, 'rb') as f:
+        try:
+            for line in f:
+                if line[:5] == b'#####':
+                    filename = line.strip().strip(b'#').strip().decode('utf8').replace('/', os.path.sep)
+                    path = os.path.join(workdir, filename)
+                    if not os.path.exists(os.path.dirname(path)):
+                        os.makedirs(os.path.dirname(path))
+                    if cur_file is not None:
+                        to_close, cur_file = cur_file, None
+                        to_close.close()
+                    cur_file = open(path, 'wb')
+                elif cur_file is not None:
+                    cur_file.write(line)
+                elif line.strip() and not line.lstrip().startswith(b'#'):
+                    if line.strip() not in (b'"""', b"'''"):
+                        command = shlex.split(line.decode('utf8'))
+                        if not command: continue
+                        # In Python 3: prog, *args = command
+                        prog, args = command[0], command[1:]
+                        try:
+                            header.append(programs[prog]+args)
+                        except KeyError:
+                            header.append(command)
+        finally:
+            if cur_file is not None:
+                cur_file.close()
+    return workdir, header
