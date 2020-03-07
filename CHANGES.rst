@@ -12,7 +12,16 @@ Features added
   Patch by Jeroen Demeyer.  (Github issue #2263)
 
 * Unicode identifiers are supported in Cython code (PEP 3131).
-  Patch by da-woods.  (Github issue #2601)
+  Patch by David Woods.  (Github issue #2601)
+
+* Unicode module names and imports are supported.
+  Patch by David Woods.  (Github issue #3119)
+
+* Annotations are no longer parsed, keeping them as strings following PEP-563.
+  Patch by David Woods.  (Github issue #3285)
+
+* The ``LIMITED_API`` is supported by setting the ``CYTHON_LIMITED_API`` C macro.
+  Patches by Eddie Elizondo.  (Github issue #3223, #3311)
 
 * ``with gil/nogil`` statements can be conditional based on compile-time
   constants, e.g. fused type checks.
@@ -34,7 +43,7 @@ Features added
   CPython trashcan. This allows deallocating deeply recursive objects without
   overflowing the stack.  Patch by Jeroen Demeyer.  (Github issue #2842)
 
-* Properties can be defined for external extension types.
+* Inlined properties can be defined for external extension types.
   Patch by Matti Picus.  (Github issue #2640)
 
 * Multiplication of Python numbers with small constant integers is faster.
@@ -49,8 +58,13 @@ Features added
   generators and coroutines now return an actual frame object for introspection.
   (Github issue #2306)
 
-* Several missing declarations in ``cpython.*`` were added.
-  Patches by Jeroen Demeyer and Zackery Spytz.  (Github issues #2826, #2713)
+* Several declarations in ``cpython.*``, ``libc.*`` and ``libcpp.*`` were added.
+  Patches by Jeroen Demeyer, Matthew Edwards, Chris Gyurgyik, Jerome Kieffer,
+  Omer Ozarslan and Zackery Spytz.
+  (Github issues #3358, #3332, #3179, #2891, #2826, #2713)
+
+* Deprecated NumPy API usages were removed from ``numpy.pxd``.
+  Patch by Matti Picus.  (Github issue #3365)
 
 * The builtin ``abs()`` function can now be used on C numbers in nogil code.
   Patch by Elliott Sales de Andrade.  (Github issue #2748)
@@ -68,6 +82,9 @@ Features added
 * ``--no-docstrings`` option added to ``cythonize`` script.
   Original patch by mo-han.  (Github issue #2889)
 
+* The Pythran ``shape`` attribute is supported.
+  Patch by Serge Guelton.  (Github issue #3307)
+
 * The ``@cython.binding`` decorator is available in Python code.
 
 Bugs fixed
@@ -77,6 +94,10 @@ Bugs fixed
   incorrectly optimised for single character input values and only returned
   the first character if multiple characters should have been returned.
   They now use the original Python methods again.
+
+* Fused argument types were not correctly handled in type annotations and
+  ``cython.locals()``.
+  Patch by David Woods.  (Github issue #3391)
 
 * Diverging from the usual behaviour, ``len(memoryview)``, ``len(char*)``
   and ``len(Py_UNICODE*)`` returned an unsigned ``size_t`` value.  They now
@@ -1312,7 +1333,7 @@ Features added
   Patch by Syrtis Major (Github issue #1625).
 
 * ``abs()`` is optimised for C complex numbers.
-  Patch by da-woods (Github issue #1648).
+  Patch by David Woods (Github issue #1648).
 
 * The display of C lines in Cython tracebacks can now be enabled at runtime
   via ``import cython_runtime; cython_runtime.cline_in_traceback=True``.
@@ -1441,7 +1462,7 @@ Features added
   Patch by Claudio Freire.
 
 * Buffer variables are no longer excluded from ``locals()``.
-  Patch by da-woods.
+  Patch by David Woods.
 
 * Building f-strings is faster, especially when formatting C integers.
 
