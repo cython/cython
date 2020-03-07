@@ -890,7 +890,7 @@ class InterpretCompilerDirectives(CythonTransform):
                 if directivetype is bool:
                     arg = ExprNodes.BoolNode(node.pos, value=True)
                     return [self.try_to_parse_directive(optname, [arg], None, node.pos)]
-                elif directivetype is None:
+                elif directivetype is None or directivetype is Ellipsis:
                     return [(optname, None)]
                 else:
                     raise PostParseError(
@@ -957,6 +957,10 @@ class InterpretCompilerDirectives(CythonTransform):
                 raise PostParseError(pos,
                     'The %s directive takes one compile-time string argument' % optname)
             return (optname, directivetype(optname, str(args[0].value)))
+        elif directivetype is Ellipsis:
+            # signal to pass things on without processing
+            return (optname, (args,
+                              dict([(key.value, value) for key, value in kwds.key_value_pairs])))
         else:
             assert False
 
@@ -1025,7 +1029,8 @@ class InterpretCompilerDirectives(CythonTransform):
                         name, value = directive
                         if self.directives.get(name, object()) != value:
                             directives.append(directive)
-                        if directive[0] == 'staticmethod':
+                        if (directive[0] == 'staticmethod'
+                                or (directive[0] == 'dataclass' and scope_name == 'class')):
                             both.append(dec)
                     # Adapt scope type based on decorators that change it.
                     if directive[0] == 'cclass' and scope_name == 'class':
@@ -1034,6 +1039,11 @@ class InterpretCompilerDirectives(CythonTransform):
                 realdecs.append(dec)
         if realdecs and (scope_name == 'cclass' or
                          isinstance(node, (Nodes.CClassDefNode, Nodes.CVarDefNode))):
+            for rd in realdecs:
+                rd = rd.decorator
+                if ((rd.is_name and rd.name == "dataclass")
+                        or (isinstance(rd, ExprNodes.AttributeNode) and rd.attribute=="dataclass")):
+                    error(rd.pos, "Use '@cython.dataclass' on cdef classes to create a dataclass")
             raise PostParseError(realdecs[0].pos, "Cdef functions/classes cannot take arbitrary decorators.")
         node.decorators = realdecs[::-1] + both[::-1]
         # merge or override repeated directives
@@ -1621,6 +1631,9 @@ if VALUE is not None:
 
     def visit_CClassDefNode(self, node):
         node = self.visit_ClassDefNode(node)
+        if 'dataclass' in node.scope.directives:
+            from .Dataclass import handle_cclass_dataclass
+            handle_cclass_dataclass(node, node.scope.directives['dataclass'], self)
         if node.scope and node.scope.implemented and node.body:
             stats = []
             for entry in node.scope.var_entries:
@@ -3043,6 +3056,11 @@ class TransformBuiltinMethods(EnvTransform):
                 pass
             elif self.context.cython_scope.lookup_qualified_name(attribute):
                 pass
+            elif attribute in ['field', 'dataclass']:
+                from .Dataclass import make_dataclass_module_callnode
+                dataclass_module = make_dataclass_module_callnode(node.pos)
+                node = ExprNodes.AttributeNode(node.pos, obj=dataclass_module,
+                                               attribute=EncodedString(attribute))
             else:
                 error(node.pos, u"'%s' not a valid cython attribute or is being used incorrectly" % attribute)
         return node
@@ -3204,6 +3222,11 @@ class TransformBuiltinMethods(EnvTransform):
                 node.function = ExprNodes.NameNode(node.pos, name=EncodedString('set'))
             elif function == u'staticmethod':
                 node.function = ExprNodes.NameNode(node.pos, name=EncodedString('staticmethod'))
+            elif function == u'dataclass':
+                from .Dataclass import make_dataclass_module_callnode
+                dataclass_module = make_dataclass_module_callnode(node.pos)
+                node.function = ExprNodes.AttributeNode(node.pos, obj=dataclass_module,
+                                               attribute=EncodedString(function))
             elif self.context.cython_scope.lookup_qualified_name(function):
                 pass
             else:

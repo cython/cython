@@ -317,6 +317,10 @@ directive_types = {
     'c_string_type': one_of('bytes', 'bytearray', 'str', 'unicode'),
     'c_string_encoding': normalise_encoding_name,
     'trashcan': bool,
+    'dataclass': Ellipsis,  # use Ellipsis as a flag not to attempt to analyse the arguments
+                            # when the directive is applied
+                            # TODO this may not be the best way of flagging it?
+    'field': Ellipsis,
 }
 
 for key, val in _directive_defaults.items():
@@ -360,6 +364,7 @@ directive_scopes = {  # defaults to available everywhere
     'fast_gil': ('module',),
     'iterable_coroutine': ('module', 'function'),
     'trashcan' : ('cclass',),
+    'dataclass' : ('class', 'cclass',)
 }
 
 

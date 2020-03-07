@@ -472,3 +472,12 @@ class CythonDotParallel(object):
 import sys
 sys.modules['cython.parallel'] = CythonDotParallel()
 del sys
+
+try:
+    # In pure Python mode @cython.dataclass and dataclass field should just
+    # shadow the standard library ones
+    from dataclasses import dataclass, field
+except ImportError:
+    # but if they don't exist (Python is not sufficiently up-to-date) then
+    # you can't use them
+    pass

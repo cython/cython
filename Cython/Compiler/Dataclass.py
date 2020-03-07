@@ -1,0 +1,493 @@
+# functions to transform a c class into a dataclass
+
+from collections import OrderedDict
+
+from .Errors import error, warning
+from . import ExprNodes, Nodes, PyrexTypes
+from .Code import UtilityCode
+from .Visitor import VisitorTransform
+from . import UtilNodes, Builtin
+from .StringEncoding import BytesLiteral, EncodedString
+from .TreeFragment import TreeFragment
+from .ParseTreeTransforms import NormalizeTree, SkipDeclarations, AnalyseDeclarationsTransform
+
+def make_dataclass_module_callnode(pos):
+    loader_utilitycode = UtilityCode.load_cached("DataclassModuleLoader", "Dataclasses.c")
+    return ExprNodes.PythonCapiCallNode(pos, "__Pyx_LoadDataclassModule",
+                                PyrexTypes.CFuncType(PyrexTypes.py_object_type, []),
+                                utility_code = loader_utilitycode,
+                                args=[])
+
+
+def make_common_utilitycode(scope):
+    scope.global_scope().use_utility_code(
+        UtilityCode.load_cached("DataclassModuleLoader", "Dataclasses.c"))
+
+
+class RemoveAssignments(VisitorTransform, SkipDeclarations):
+    def __init__(self, names):
+        super(RemoveAssignments, self).__init__()
+        self.names = names
+        self.removed_assignments = {}
+
+    def visit_CClassNode(self, node):
+        self.visitchildren(node)
+        return node
+
+    def visit_PyClassNode(self, node):
+        return node # go no further
+
+    def visit_FuncDefNode(self, node):
+        return node # go no further
+
+    def visit_SingleAssignmentNode(self, node):
+        if node.lhs.is_name and node.lhs.name in self.names:
+            self.removed_assignments[node.lhs.name] = node.rhs
+            return []
+        return node
+
+    # I believe cascaded assignment is always a syntax error with decorators
+    # so can be ignored
+
+    def visit_Node(self, node):
+        self.visitchildren(node)
+        return node
+
+class _MISSING_TYPE:
+    pass
+MISSING = _MISSING_TYPE()
+
+def process_class_get_fields(node):
+    _TrueNode = ExprNodes.BoolNode(node.pos, value=True)
+    _FalseNode = ExprNodes.BoolNode(node.pos, value=False)
+    _NoneNode = ExprNodes.NoneNode(node.pos)
+
+    class Field:
+        # store fields as nodes so they can be used in code construction
+        # more readily; define class inside function so default arguments
+        # have a useful pos
+        default = MISSING
+        default_factory = MISSING
+        def __init__(self, default=MISSING, default_factory=MISSING,
+                        repr=_TrueNode, hash=_NoneNode, init=_TrueNode,
+                        compare=_TrueNode, metadata=_NoneNode):
+            if default is not MISSING:
+                self.default = default
+            if default_factory is not MISSING:
+                self.default_factory = default_factory
+            self.repr = repr
+            self.hash = hash
+            self.init = init
+            self.compare = compare
+            self.metadata = metadata
+
+    var_entries = node.scope.var_entries
+    # order of definition is used in the dataclass
+    var_entries = sorted(var_entries, key=lambda entry: entry.pos)
+    var_names = [ entry.name for entry in var_entries ]
+
+    # remove assignments for stat_list
+    transform = RemoveAssignments(var_names)
+    transform(node)
+
+    if node.base_type and node.base_type.dataclass_fields:
+        fields = node.base_type.dataclass_fields.copy()
+    else:
+        fields = OrderedDict()
+    for name in var_names:
+        if name in transform.removed_assignments:
+            assignment = transform.removed_assignments[name]
+            if (isinstance(assignment, ExprNodes.CallNode)
+                    and assignment.function.as_cython_attribute() == "field"):
+                # I believe most of this is well-enforced when it's treated as a directive
+                # but it doesn't hurt to make sure
+                if (not isinstance(assignment, ExprNodes.GeneralCallNode)
+                        or not isinstance(assignment.positional_args, ExprNodes.TupleNode)
+                        or assignment.positional_args.args
+                        or not isinstance(assignment.keyword_args, ExprNodes.DictNode)):
+                    error(assignment.pos, "Call to 'cython.field' must only consist of compile-time "
+                          "keyword arguments")
+                    continue
+                keyword_args = { k.value: v for k, v in assignment.keyword_args.key_value_pairs }
+                if 'default' in keyword_args and 'default_factory' in keyword_args:
+                    error(assignment.pos, "You cannot specify both 'default' and 'default_factory'"
+                          " for a dataclass member")
+                    continue
+                field = Field(**keyword_args)
+            else:
+                if isinstance(assignment, ExprNodes.CallNode):
+                    func = assignment.function
+                    if ((func.is_name and func.name == "field")
+                            or (isinstance(func, ExprNodes.AttributeNode)
+                                and func.attribute == "field")):
+                        warning(assignment.pos, "Do you mean cython.field instead?", 1)
+                if assignment.type in [Builtin.list_type,
+                                    Builtin.dict_type,
+                                    Builtin.set_type]:
+                    # The standard library module generates a TypeError at runtime
+                    # in this situation
+                    error(assignment.pos, "Mutable default passed argument for '{0}' - "
+                          "use 'default_factory' instead and see "
+                          "'https://docs.python.org/library/dataclasses.html#mutable-default-values'"
+                          "for more details".format(name))
+
+                field = Field(default=assignment)
+        else:
+            field = Field()
+        fields[name] = field
+    node.entry.type.dataclass_fields = fields
+    return fields
+
+def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
+    from .ExprNodes import (AttributeNode, TupleNode, NameNode,
+                            GeneralCallNode, DictNode,
+                            IdentifierStringNode, BoolNode, DictItemNode)
+
+    # https://docs.python.org/3/library/dataclasses.html
+    kwargs = dict(init=True, repr=True, eq=True,
+                  order=False, unsafe_hash=False, frozen=False)
+    if dataclass_args is not None:
+        if dataclass_args[0]:
+            error(node.pos, "cython.dataclass takes no positional arguments")
+        for k, v in dataclass_args[1].items():
+            if k not in kwargs:
+                error(node.pos,
+                      "Unrecognised keyword argument '{0}' to cython.dataclass".format(k))
+            if not isinstance(v, ExprNodes.BoolNode):
+                error(node.pos,
+                      "Arguments to cython.dataclass must be True or False")
+            kwargs[k] = v
+
+    dataclass_scope = make_common_utilitycode(node.scope)
+    fields = process_class_get_fields(node)
+
+    dataclass_module = make_dataclass_module_callnode(node.pos)
+    dataclass_module = UtilNodes.LetRefNode(pos=node.pos, expression=dataclass_module)
+
+    # create __dataclass_params__ attribute
+    dataclass_params_func = AttributeNode(node.pos,
+                                                    obj=dataclass_module,
+                                                    attribute=EncodedString("_DataclassParams"))
+    dataclass_params_keywords = DictNode.from_pairs(node.pos,
+            [ (IdentifierStringNode(node.pos, value=EncodedString(k)),
+                BoolNode(node.pos, value=v))
+                for k, v in kwargs.items() ])
+    dataclass_params = GeneralCallNode(node.pos,
+                                    function = dataclass_params_func,
+                                    positional_args = TupleNode(node.pos, args=[]),
+                                    keyword_args = dataclass_params_keywords)
+    dataclass_params_assignment = \
+        Nodes.SingleAssignmentNode(node.pos,
+                        lhs = NameNode(node.pos,
+                                        name=EncodedString("__dataclass_params__")),
+                        rhs = dataclass_params)
+
+    # set up __dataclass_fields__
+    field_func = AttributeNode(node.pos, obj = dataclass_module,
+                                    attribute=EncodedString("field"))
+    dc_fields = DictNode(node.pos, key_value_pairs=[])
+    dc_fields_namevalue_assignments = []
+    placeholders = {}
+    for name, field in fields.items():
+        placeholder_name = "PLACEHOLDER_%s" % name
+        dc_field_keywords = DictNode.from_pairs(node.pos,
+            [ (IdentifierStringNode(node.pos, value=EncodedString(k)), v)
+                for k, v in field.__dict__.items() ])
+        dc_field_call = GeneralCallNode(node.pos, function = field_func,
+                                    positional_args = TupleNode(node.pos, args=[]),
+                                    keyword_args = dc_field_keywords)
+        dc_fields.key_value_pairs.append(
+            DictItemNode(node.pos,
+                key=IdentifierStringNode(node.pos, value=EncodedString(name)),
+                value=dc_field_call))
+        dc_fields_namevalue_assignments.append(
+            u"""
+__dataclass_fields__[{0!r}].name = {0!r}
+__dataclass_fields__[{0!r}].type = {1}
+""".format(name, placeholder_name))
+
+        placeholders[placeholder_name] = get_type_node(node.scope.entries[name])
+
+    dataclass_fields_assignment = \
+        Nodes.SingleAssignmentNode(node.pos,
+                        lhs = ExprNodes.NameNode(node.pos,
+                                        name=EncodedString("__dataclass_fields__")),
+                        rhs = dc_fields)
+
+    dc_fields_namevalue_assignments = u"\n".join(dc_fields_namevalue_assignments)
+    dc_fields_namevalue_assignments = TreeFragment(dc_fields_namevalue_assignments,
+                                                   level="c_class",
+                                                   pipeline=[NormalizeTree(None)])
+    dc_fields_namevalue_assignments = dc_fields_namevalue_assignments.substitute(placeholders)
+
+    stats = Nodes.StatListNode(node.pos,
+                               stats=[dataclass_params_assignment,
+                                      dataclass_fields_assignment]+dc_fields_namevalue_assignments.stats)
+    ln = UtilNodes.LetNode(dataclass_module, stats)
+    ln.analyse_declarations(node.scope)
+
+    node.body.stats.append(ln)
+
+    generate_init_code(kwargs['init'], node, fields, analyse_decs_transform)
+    generate_repr_code(kwargs['repr'], node, fields, analyse_decs_transform)
+    generate_eq_code(kwargs['eq'], node, fields, analyse_decs_transform)
+    generate_order_code(kwargs['order'], node, fields, analyse_decs_transform)
+    generate_hash_code(kwargs['unsafe_hash'], kwargs['eq'], kwargs['frozen'],
+                       node, fields, analyse_decs_transform)
+
+def generate_init_code(init, node, fields, analyse_decs_transform):
+    if not init or node.scope.lookup_here("__init__"):
+        return
+    args = ["self"]
+
+    placeholders = {}
+    placeholder_count = [0]
+
+    # create a temp to get _HAS_DEFAULT_FACTORY
+    dataclass_module = make_dataclass_module_callnode(node.pos)
+    has_default_factory = ExprNodes.AttributeNode(node.pos,
+                                        obj = dataclass_module,
+                                        attribute = EncodedString("_HAS_DEFAULT_FACTORY"))
+
+    def get_placeholder_name():
+        while True:
+            name = "PLACEHOLDER_%s" % placeholder_count[0]
+            if (name not in placeholders
+                    and name not in fields):
+                # make sure name isn't already used and doesn't
+                # conflict with a variable name (which is unlikely but possible)
+                break
+            placeholder_count[0] += 1
+        return name
+
+    default_factory_placeholder = get_placeholder_name()
+    placeholders[default_factory_placeholder] = has_default_factory
+
+    for name, field in fields.items():
+        if not field.init.value:
+            continue  # not a parameter
+        entry = node.scope.lookup(name)
+        annotation = entry.pep563_annotation
+        if annotation:
+            annotation = u": %s" % annotation
+        else:
+            annotation = u""
+        assignment = u''
+        if field.default is not MISSING or field.default_factory is not MISSING:
+            if field.default_factory is not MISSING:
+                ph_name = default_factory_placeholder
+            else:
+                ph_name = get_placeholder_name()
+                placeholders[ph_name] = field.default  # should be node
+            assignment = u" = %s" % ph_name
+
+        args.append(u"%s%s%s" % (name, annotation, assignment))
+    args = u", ".join(args)
+    func_call = u"def __init__(%s):" % args
+
+    code_lines = [func_call,
+                  "    pass", # just in-case it's an empty body
+                  ]
+    for name, field in fields.items():
+        if field.default_factory is MISSING:
+            if field.init.value:
+                code_lines.append(u"    self.%s = %s" % (name, name))
+        else:
+            ph_name = get_placeholder_name()
+            placeholders[ph_name] = field.default_factory
+            if field.init.value:
+                code_lines.append(u"    if %s is %s:"
+                                % (name, default_factory_placeholder))
+                code_lines.append(u"        self.%s = %s()"
+                                % (name, ph_name))
+                code_lines.append(u"    else:")
+                code_lines.append(u"        self.%s = %s" % (name, name))
+            else:
+                # still need to use the default factory to initialize
+                code_lines.append(u"    self.%s = %s()"
+                                  % (name, ph_name))
+    if node.scope.lookup("__post_init__"):
+        code_lines.append("    self.__post_init__()")
+    code_lines = u"\n".join(code_lines)
+
+    code_tree = TreeFragment(code_lines,
+                              level='c_class', pipeline=[NormalizeTree(None)]
+                              ).substitute(placeholders)
+    # TODO - this can generate errors, for example if you get
+    # __init__(self, a=1, b):
+    # This is consistent with Python dataclass behaviour so is fine
+    # It might be good to detect the errors and add a message
+    # that they come from dataclass generated code?
+
+    #code_tree = InitSubstituteTransform(fields, has_default_factory)(code_tree)
+    # turn off annotation typing, so all arguments are accepted as generic objects
+    # and this can accept _HAS_DEFAULT_FACTORY
+    # type conversion done comes later
+    # (for some reason this has to be on the class scope, so save and restore)
+    annotation_typing = node.scope.directives['annotation_typing']
+    node.scope.directives['annotation_typing'] = False
+    code_tree.analyse_declarations(node.scope)
+
+    # probably already in this scope but it doesn't hurt to be sure
+    analyse_decs_transform.enter_scope(node, node.scope)
+    analyse_decs_transform.visit(code_tree)
+    analyse_decs_transform.exit_scope()
+    node.scope.directives['annotation_typing'] = annotation_typing
+    node.body.stats.extend(code_tree.stats)
+
+def generate_repr_code(repr, node, fields, analyse_decs_transform):
+    if not repr or node.scope.lookup("__repr__"):
+        return
+    code_lines = ["def __repr__(self):"]
+    strs = [ u"%s={self.%s}" % (name, name)
+            for name, field in fields.items() if field.repr.value ]
+    format_string = u", ".join(strs)
+    code_lines.append(u"    return f'{type(self).__name__}(%s)'" % format_string)
+    code_lines = u"\n".join(code_lines)
+
+    code_tree = TreeFragment(code_lines,
+                              level='c_class', pipeline=[NormalizeTree(None)]
+                              ).substitute({})
+    code_tree.analyse_declarations(node.scope)
+    # probably already in this scope but it doesn't hurt to be sure
+    analyse_decs_transform.enter_scope(node, node.scope)
+    analyse_decs_transform.visit(code_tree)
+    analyse_decs_transform.exit_scope()
+    node.body.stats.extend(code_tree.stats)
+
+def generate_cmp_code(op, funcname, node, fields, analyse_decs_transform):
+    if node.scope.lookup_here(funcname):
+        return  # already exists
+
+    names = [ name for name, field in fields.items() if field.compare.value ]
+
+    if not names:
+        return # no comparable types
+
+    code_lines = ["def %s(self, other):" % funcname,
+                  "    cdef %s other_cast" % node.class_name,
+                  "    try:",
+                  "        other_cast = other",
+                  "    except TypeError:",
+                  "        return NotImplemented"]
+
+    for name in names:
+        shared = "if not (self.%s == other_cast.%s):" % (name, name)
+        if op == "==":
+            code_lines.append("    %s return False" % shared)
+        else:
+            code_lines.append("    %s return self.%s %s other_cast.%s" %
+                              (shared, name, op, name))
+
+    if "=" in op:
+        code_lines.append("    return True")
+    else:
+        code_lines.append("    return False")
+
+    code_lines = u"\n".join(code_lines)
+
+    code_tree = TreeFragment(code_lines,
+                              level='c_class', pipeline=[NormalizeTree(None)]
+                              ).substitute({})
+    code_tree.analyse_declarations(node.scope)
+    # probably already in this scope but it doesn't hurt to be sure
+    analyse_decs_transform.enter_scope(node, node.scope)
+    analyse_decs_transform.visit(code_tree)
+    analyse_decs_transform.exit_scope()
+    node.body.stats.extend(code_tree.stats)
+
+def generate_eq_code(eq, node, fields, analyse_decs_transform):
+    if not eq:
+        return
+    generate_cmp_code("==", "__eq__", node, fields, analyse_decs_transform)
+
+def generate_order_code(order, node, fields, analyse_decs_transform):
+    if not order:
+        return
+    for op, name in [("<", "__lt__"),
+                     ("<=", "__le__"),
+                     (">", "__gt__"),
+                     (">=", "__ge__")]:
+        generate_cmp_code(op, name, node, fields, analyse_decs_transform)
+
+def generate_hash_code(unsafe_hash, eq, frozen, node, fields, analyse_decs_transform):
+    hash_entry = node.scope.lookup_here("__hash__")
+    if hash_entry:
+        # TODO ideally assignment of __hash__ to None shouldn't trigger this
+        # but difficult to get the right information here
+        if unsafe_hash:
+            error(node.pos, "Request for dataclass unsafe_hash when a '__hash__' function"
+                  " already exists")
+        return
+    if not unsafe_hash:
+        if eq and not frozen:
+            hash = Nodes.SingleAssignmentNode(node.pos,
+                                        lhs = ExprNodes.NameNode(node.pos, name=EncodedString("__hash__")),
+                                        rhs = ExprNodes.NoneNode(node.pos))
+            hash.analyse_declarations(node.scope)
+            analyse_decs_transform.enter_scope(node, node.scope)
+            analyse_decs_transform.visit(hash)
+            analyse_decs_transform.exit_scope()
+            node.body.stats.append(hash)
+
+            return
+        if not eq:
+            return
+
+    names = [ name for name, field in fields.items()
+                if (field.compare.value if field.hash.value is None else field.hash.value) ]
+    if not names:
+        return # nothing to hash
+
+    # make a tuple of the hashes
+    tpl = u", ".join(u"hash(self.%s)" % name for name in names )
+
+    # if we're here we want to generate a hash
+    code_lines = u"""def __hash__(self):
+    return hash((%s))
+""" % tpl
+    code_tree = TreeFragment(code_lines,
+                              level='c_class', pipeline=[NormalizeTree(None)]
+                              ).substitute({})
+    code_tree.analyse_declarations(node.scope)
+    # probably already in this scope but it doesn't hurt to be sure
+    analyse_decs_transform.enter_scope(node, node.scope)
+    analyse_decs_transform.visit(code_tree)
+    analyse_decs_transform.exit_scope()
+    node.body.stats.extend(code_tree.stats)
+
+def get_type_node(entry):
+    """
+    Creates a node for assignment to __dataclass_fields__[name].type
+
+    It's difficult to know what the best option is in all cases, but order here is:
+    * if it's a Python type then get that type (the PyTypeObject)
+    * if it's convertible to a pytype then get that nearest pytype
+    * otherwise fall back to a string:
+      - the annotation
+      - the name of the type
+    """
+    type = entry.type
+    cname = None
+    amp = ''
+    if type.is_extension_type:
+        cname = type.typeptr_cname
+    elif type == PyrexTypes.py_object_type:
+        # TODO not hugely happy with this because it's easily overridden by something
+        # else in the scope
+        return ExprNodes.NameNode(entry.pos, name=EncodedString("object"))
+    else:
+        py_type_name = type.py_type_name()
+        #see if there's a convertible py_type
+        if py_type_name:
+            pytype = entry.scope.builtin_scope().lookup_type(py_type_name)
+            if pytype:
+                cname = pytype.cname
+                amp = '&'
+    if cname:
+        return ExprNodes.RawCNameExprNode(entry.pos, Builtin.type_type, amp+cname)
+    # otherwise we're left to return a string
+    s = entry.pep563_annotation
+    if not s:
+        s = entry.type.declaration_code(for_display=1)
+    return ExprNodes.StringNode(entry.pos, value=s)

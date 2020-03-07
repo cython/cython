@@ -1933,6 +1933,7 @@ class NameNode(AtomicExprNode):
             atype = unspecified_type if as_target and env.directives['infer_types'] != False else py_object_type
         self.entry = env.declare_var(name, atype, self.pos, is_cdef=not as_target)
         self.entry.annotation = annotation.expr
+        self.entry.pep563_annotation = annotation.string.value
 
     def analyse_as_module(self, env):
         # Try to interpret this as a reference to a cimported module.
@@ -1975,7 +1976,12 @@ class NameNode(AtomicExprNode):
             self.entry = env.lookup_here(self.name)
         if not self.entry and self.annotation is not None:
             # name : type = ...
-            self.declare_from_annotation(env, as_target=True)
+            # in a dataclass an assignment should not prevent a name becoming
+            # a class member
+            if 'dataclass' in env.directives:
+                self.declare_from_annotation(env, as_target=False)
+            else:
+                self.declare_from_annotation(env, as_target=True)
         if not self.entry:
             if env.directives['warn.undeclared']:
                 warning(self.pos, "implicit declaration of '%s'" % self.name, 1)

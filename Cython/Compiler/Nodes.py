@@ -4845,6 +4845,7 @@ class CClassDefNode(ClassDefNode):
     check_size = None
     decorators = None
     shadow = False
+    is_dataclass = False
 
     @property
     def punycode_class_name(self):
@@ -4894,6 +4895,8 @@ class CClassDefNode(ClassDefNode):
 
         if env.in_cinclude and not self.objstruct_name:
             error(self.pos, "Object struct name specification required for C class defined in 'extern from' block")
+        if "dataclass" in env.directives:
+            self.is_dataclass = True
         if self.decorators:
             error(self.pos, "Decorators not allowed on cdef classes (used on type '%s')" % self.class_name)
         self.base_type = None

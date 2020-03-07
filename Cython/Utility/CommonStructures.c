@@ -1,6 +1,6 @@
 /////////////// FetchCommonType.proto ///////////////
 
-static PyTypeObject* __Pyx_FetchCommonType(PyTypeObject* type);
+static CYTHON_UNUSED PyTypeObject* __Pyx_FetchCommonType(PyTypeObject* type);
 #if CYTHON_COMPILING_IN_LIMITED_API
 static PyObject* __Pyx_FetchCommonTypeFromSpec(PyType_Spec *spec, PyObject *bases);
 #endif

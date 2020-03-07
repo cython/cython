@@ -84,6 +84,7 @@ class Entry(object):
     # type             PyrexType  Type of entity
     # doc              string     Doc string
     # annotation       ExprNode   PEP 484/526 annotation
+    # pep563_annotation string    PEP563 string version of the annotation
     # init             string     Initial value
     # visibility       'private' or 'public' or 'extern'
     # is_builtin       boolean    Is an entry in the Python builtins dict
@@ -164,6 +165,7 @@ class Entry(object):
     borrowed = 0
     init = ""
     annotation = None
+    pep563_annotation = None
     visibility = 'private'
     is_builtin = 0
     is_cglobal = 0
@@ -918,9 +920,10 @@ class Scope(object):
     def lookup(self, name):
         # Look up name in this scope or an enclosing one.
         # Return None if not found.
-        return (self.lookup_here(name)
+        ret = (self.lookup_here(name)
             or (self.outer_scope and self.outer_scope.lookup(name))
             or None)
+        return ret
 
     def lookup_here(self, name):
         # Look up in this scope only, return None if not found.
@@ -2389,6 +2392,8 @@ class CClassScope(ClassScope):
                 base_entry.name, adapt(base_entry.cname),
                 base_entry.type, None, 'private')
             entry.is_variable = 1
+            entry.annotation = base_entry.annotation
+            entry.pep563_annotation = base_entry.pep563_annotation
             self.inherited_var_entries.append(entry)
 
         # If the class defined in a pxd, specific entries have not been added.

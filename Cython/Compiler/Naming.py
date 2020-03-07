@@ -178,3 +178,13 @@ PYX_NAN          = "__PYX_NAN()"
 
 def py_version_hex(major, minor=0, micro=0, release_level=0, release_serial=0):
     return (major << 24) | (minor << 16) | (micro << 8) | (release_level << 4) | (release_serial)
+
+class _dataclass_py_code:
+    # Abusing slightly UtilityCode "subsitute naming" - inserts a long string lazily
+    def __str__(self):
+        from .Code import UtilityCode
+        from . import StringEncoding
+        python_utility_code = UtilityCode.load_cached("Dataclasses_backup", "Dataclasses.pyx")
+        python_utility_code = StringEncoding.EncodedString(python_utility_code.impl)
+        return python_utility_code.as_c_string_literal()
+dataclass_py_code = _dataclass_py_code()
