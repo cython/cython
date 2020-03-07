@@ -206,6 +206,10 @@ Bugs fixed
 * C-tuples declared in ``.pxd`` files could generate incomplete C code.
   Patch by Kirk Meyer.  (Github issue #1427)
 
+* Fused functions were not always detected and optimised as Cython
+  implemented functions.
+  Patch by David Woods.  (Github issue #3384)
+
 * Fix an unhandled C++ exception in comparisons.
   Patch by David Woods.  (Github issue #3361)
 
