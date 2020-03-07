@@ -405,3 +405,31 @@ def test_decorators(cython.floating arg):
     >>> test_decorators.order
     [3, 2, 1]
     """
+
+@cython.binding(True)
+def bind_me(self, cython.floating a=1.):
+    return a
+
+cdef class HasBound:
+    """
+    Using default arguments of bound specialized fused functions used to cause a segfault
+    https://github.com/cython/cython/issues/3370
+    >>> inst = HasBound()
+    >>> inst.func()
+    1.0
+    >>> inst.func(2)
+    2.0
+    >>> inst.func_fused()
+    1.0
+    >>> inst.func_fused(2.)
+    2.0
+    >>> bind_me.__defaults__
+    (1.0,)
+    >>> inst.func.__defaults__
+    (1.0,)
+    >>> inst.func_fused.__defaults__
+    (1.0,)
+    """
+    func = bind_me[float]
+
+    func_fused = bind_me
