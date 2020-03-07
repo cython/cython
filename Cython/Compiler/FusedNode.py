@@ -4,7 +4,6 @@ import copy
 
 from . import (ExprNodes, PyrexTypes, MemoryView,
                ParseTreeTransforms, StringEncoding, Errors)
-from .Naming import fused_cpdef_globalindex, fused_cpdef_globalindex_prefix
 from .ExprNodes import CloneNode, ProxyNode, TupleNode
 from .Nodes import FuncDefNode, CFuncDefNode, StatListNode, DefNode
 from ..Utils import OrderedSet
@@ -635,13 +634,13 @@ class FusedCFuncDefNode(StatListNode):
         decl_code.indent()
         pyx_code.put_chunk(
             u"""
-                def __pyx_fused_cpdef(signatures, args, kwargs, defaults):
+                def __pyx_fused_cpdef(signatures, args, kwargs, defaults, *, _fused_sigindex={}):
                     # FIXME: use a typed signature - currently fails badly because
                     #        default arguments inherit the types we specify here!
 
                     cdef list search_list
 
-                    cdef dict sn
+                    cdef dict sn, sigindex_node
 
                     dest_sig = [None] * {{n_fused}}
 
@@ -709,27 +708,6 @@ class FusedCFuncDefNode(StatListNode):
             self._buffer_declarations(pyx_code, decl_code, all_buffer_types, pythran_types)
             env.use_utility_code(Code.UtilityCode.load_cached("Import", "ImportExport.c"))
             env.use_utility_code(Code.UtilityCode.load_cached("ImportNumPyArray", "ImportExport.c"))
-
-        context.update(
-            global_sigindex_name = fused_cpdef_globalindex,
-            func_sigindex_key = env.mangle(fused_cpdef_globalindex_prefix, orig_py_func.entry.cname)
-        )
-
-        global_scope = env.global_scope()
-        if not global_scope.lookup_here(fused_cpdef_globalindex):
-            from .Builtin import dict_type
-            global_scope.declare_var(StringEncoding.EncodedString(fused_cpdef_globalindex), dict_type, None, is_cdef=True)
-
-        pyx_code.put_chunk(
-            u"""
-                global {{global_sigindex_name}}
-                if {{global_sigindex_name}} is None:
-                    {{global_sigindex_name}} = {}
-                if '{{func_sigindex_key}}' not in {{global_sigindex_name}}:
-                    {{global_sigindex_name}}['{{func_sigindex_key}}'] = {}
-                _fused_sigindex = {{global_sigindex_name}}['{{func_sigindex_key}}']
-            """
-        )
 
         self._fused_signature_index(pyx_code)
 

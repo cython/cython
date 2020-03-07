@@ -16,6 +16,7 @@ cpdef func1(self, cython.integral x):
 
 class A(object):
     meth = func1
+
     def __str__(self):
         return "A"
 
@@ -27,6 +28,7 @@ cdef class B:
         else:
             print('x is long', x, cython.typeof(x))
         return 0
+
     def __str__(self):
         return "B"
 
@@ -118,8 +120,8 @@ def test_badcall():
     >>> test_badcall()
     """
     assert_raise(pyfunc)
-    assert_raise(pyfunc, 1, 2, None, 3)
-    assert_raise(pyfunc[cy.int], 10, 11, None, 12)
+    assert_raise(pyfunc, 1, 2, 3)
+    assert_raise(pyfunc[cy.int], 10, 11, 12)
     assert_raise(pyfunc, None, object())
     assert_raise(A().meth)
     assert_raise(A.meth)
