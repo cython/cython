@@ -39,6 +39,7 @@ typedef struct {
     // Dynamic default args and annotations
     void *defaults;
     int defaults_pyobjects;
+    size_t defaults_size;  // used by FusedFunction for copying defaults
     int flags;
 
     // Defaults info
@@ -497,6 +498,7 @@ static PyObject *__Pyx_CyFunction_New(PyTypeObject *type, PyMethodDef *ml, int f
     op->func_code = code;
     // Dynamic Default args
     op->defaults_pyobjects = 0;
+    op->defaults_size = 0;
     op->defaults = NULL;
     op->defaults_tuple = NULL;
     op->defaults_kwdict = NULL;
@@ -946,6 +948,7 @@ static CYTHON_INLINE void *__Pyx_CyFunction_InitDefaults(PyObject *func, size_t 
         return PyErr_NoMemory();
     memset(m->defaults, 0, size);
     m->defaults_pyobjects = pyobjects;
+    m->defaults_size = size;
     return m->defaults;
 }
 
@@ -1096,6 +1099,26 @@ __pyx_FusedFunction_descr_get(PyObject *self, PyObject *obj, PyObject *type)
                     ((__pyx_CyFunctionObject *) func)->func_code);
     if (!meth)
         return NULL;
+
+    // defaults needs copying fully rather than just copying the pointer
+    // since otherwise it will be freed on destruction of meth despite
+    // belonging to func rather than meth
+    if (func->func.defaults) {
+        PyObject **pydefaults;
+        int i;
+
+        if (!__Pyx_CyFunction_InitDefaults((PyObject*)meth,
+                                      func->func.defaults_size,
+                                      func->func.defaults_pyobjects)) {
+            Py_XDECREF((PyObject*)meth);
+            return NULL;
+        }
+        memcpy(meth->func.defaults, func->func.defaults, func->func.defaults_size);
+
+        pydefaults = __Pyx_CyFunction_Defaults(PyObject *, meth);
+        for (i = 0; i < meth->func.defaults_pyobjects; i++)
+            Py_XINCREF(pydefaults[i]);
+    }
 
     Py_XINCREF(func->func.func_classobj);
     meth->func.func_classobj = func->func.func_classobj;
