@@ -179,6 +179,9 @@ Bugs fixed
 * Temporary internal variables in nested prange loops could leak into other
   threads.  Patch by Frank Schlimbach.  (Github issue #3348)
 
+* Default arguments on fused functions could crash.
+  Patch by David Woods.  (Github issue #3370)
+
 * C-tuples declared in ``.pxd`` files could generate incomplete C code.
   Patch by Kirk Meyer.  (Github issue #1427)
 
