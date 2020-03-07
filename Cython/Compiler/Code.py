@@ -1463,11 +1463,14 @@ class GlobalState(object):
         for (type_cname, method_name), cname in sorted(self.cached_cmethods.items()):
             cnames.append(cname)
             method_name_cname = self.get_interned_identifier(StringEncoding.EncodedString(method_name)).cname
-            decl.putln('static __Pyx_CachedCFunction %s = {0, &%s, 0, 0, 0};' % (
-                cname, method_name_cname))
+            decl.putln('static __Pyx_CachedCFunction %s = {0, 0, 0, 0, 0};' % (
+                cname))
             # split type reference storage as it might not be static
             init.putln('%s.type = (PyObject*)&%s;' % (
                 cname, type_cname))
+            # method name string isn't static in limited api
+            init.putln('%s.method_name = &%s;' % (
+                cname, method_name_cname))
 
         if Options.generate_cleanup_code:
             cleanup = self.parts['cleanup_globals']
