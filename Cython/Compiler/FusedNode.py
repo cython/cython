@@ -632,6 +632,7 @@ class FusedCFuncDefNode(StatListNode):
                     int __Pyx_Is_Little_Endian()
             """)
         decl_code.indent()
+
         pyx_code.put_chunk(
             u"""
                 def __pyx_fused_cpdef(signatures, args, kwargs, defaults, *, _fused_sigindex={}):
