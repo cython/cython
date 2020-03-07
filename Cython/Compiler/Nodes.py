@@ -877,7 +877,10 @@ class CArgDeclNode(Node):
 
             # inject type declaration from annotations
             # this is called without 'env' by AdjustDefByDirectives transform before declaration analysis
-            if self.annotation and env and env.directives['annotation_typing'] and self.base_type.name is None:
+            if (self.annotation and env and env.directives['annotation_typing']
+                    # CSimpleBaseTypeNode has a name attribute; CAnalysedBaseTypeNode
+                    # (and maybe other options) doesn't
+                    and getattr(self.base_type, "name", None) is None):
                 arg_type = self.inject_type_from_annotations(env)
                 if arg_type is not None:
                     base_type = arg_type
@@ -1678,6 +1681,8 @@ class FuncDefNode(StatNode, BlockNode):
             return arg
         if other_type is None:
             error(type_node.pos, "Not a type")
+        elif other_type.is_fused and any(orig_type.same_as(t) for t in other_type.types):
+            pass # use specialized rather than fused type
         elif orig_type is not py_object_type and not orig_type.same_as(other_type):
             error(arg.base_type.pos, "Signature does not agree with previous declaration")
             error(type_node.pos, "Previous declaration here")
@@ -2934,9 +2939,6 @@ class DefNode(FuncDefNode):
                 arg.name = name_declarator.name
                 arg.type = type
 
-                if type.is_fused:
-                    self.has_fused_arguments = True
-
             self.align_argument_type(env, arg)
             if name_declarator and name_declarator.cname:
                 error(self.pos, "Python function argument cannot have C name specification")
@@ -2967,6 +2969,9 @@ class DefNode(FuncDefNode):
                     error(arg.pos, "Only Python type arguments can have 'not None'")
                 if arg.or_none:
                     error(arg.pos, "Only Python type arguments can have 'or None'")
+
+            if arg.type.is_fused:
+                self.has_fused_arguments = True
         env.fused_to_specific = f2s
 
         if has_np_pythran(env):
