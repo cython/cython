@@ -1032,5 +1032,38 @@ generated containing declarations for its object struct and type object. By
 including the ``.h`` file in external C code that you write, that code can
 access the attributes of the extension type.
 
+Dataclass extension types
+=========================
 
+Cython supports extension types that behave like the dataclasses defined in
+the Python 3.7+ standard library. The main benefit of using a dataclasses is
+that it can auto-generate simple `__init__`, `__repr__` and comparison
+functions. The Cython implementation behaves as much like the Python
+standard library implementation as possible and therefore the documentation
+here only briefly outlines the differences - if you plan on using them
+then please read the documentation for the standard library module.
 
+Dataclasses can be declared using the `@cython.dataclass` decorator. If
+you need to define special properties on a field then use `cython.field`::
+
+    cimport cython
+    
+    @cython.dataclass
+    cdef class MyDataclass:
+        # fields can be declared using annotations
+        a: int = 0
+        b: double = cython.field(default_factory = lambda: 10, repr=False)
+        
+        # fields can also be declared using `cdef`:
+        cdef str c
+        c = "hello"  # assignment of default value on a separate line
+
+You may use C-level types such as structs, pointers, or C++ classes.
+However, you may these types are not compatible with the auto-generated
+special methods - for example if they cannot be converted from a Python
+type they cannot be passed to a constructor, and you must use a 
+`default_factory` to initialize them. As in Python, you can also control
+which special functions an attribute is used in using `field()`.
+
+The `InitVar` and `ClassVar` features of the standard library module are
+currently not supported.

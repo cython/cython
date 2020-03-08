@@ -4,6 +4,8 @@
 from __future__ import print_function
 
 from cython cimport dataclass, field
+from libc.stdlib cimport malloc, free
+import array
 
 cdef class NotADataclass:
     cdef int a
@@ -81,6 +83,36 @@ cdef class InheritsFromNotADataclass(NotADataclass):
     """
 
     c: int = 1
+
+cdef struct S:
+    int a
+
+ctypedef S* S_ptr
+
+cdef S_ptr malloc_a_struct():
+    return <S_ptr>malloc(sizeof(S))
+
+@dataclass
+cdef class ContainsNonPyFields:
+    """
+    >>> print(ContainsNonPyFields()) # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: __init__() takes ... 1 positional ...
+    >>> print(ContainsNonPyFields(mystruct={'a': 1 }))
+    ContainsNonPyFields(mystruct={'a': 1}, memview=<MemoryView of 'array' object>)
+    >>> print(ContainsNonPyFields(mystruct={'a': 1 }, memview=array.array('d',[10])))
+    ContainsNonPyFields(mystruct={'a': 1}, memview=<MemoryView of 'array' object>)
+    >>> print(ContainsNonPyFields(mystruct={'a': 1 }, mystruct_ptr=0))
+    Traceback (most recent call last):
+    TypeError: __init__() got an unexpected keyword argument 'mystruct_ptr'
+    """
+    mystruct: S = field(compare=False)
+    mystruct_ptr: S_ptr = field(init=False, repr=False, default_factory=malloc_a_struct)
+    memview: double[::1] = field(default=array.array('d', [1,2,3]),  # mutable so not great but OK for a test
+                                 compare=False)
+
+    def __dealloc__(self):
+        free(self.mystruct_ptr)
 
 import sys
 if (sys.version_info >= (3, 7)

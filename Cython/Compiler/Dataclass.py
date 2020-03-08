@@ -42,6 +42,9 @@ class RemoveAssignments(VisitorTransform, SkipDeclarations):
 
     def visit_SingleAssignmentNode(self, node):
         if node.lhs.is_name and node.lhs.name in self.names:
+            if node.lhs.name in self.removed_assignments:
+                warning(node.pos, ("Multiple assignments for '%s' in dataclass; "
+                                   "using most recent") % node.lhs.name, 1)
             self.removed_assignments[node.lhs.name] = node.rhs
             return []
         return node
@@ -191,7 +194,8 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     for name, field in fields.items():
         placeholder_name = "PLACEHOLDER_%s" % name
         dc_field_keywords = DictNode.from_pairs(node.pos,
-            [ (IdentifierStringNode(node.pos, value=EncodedString(k)), v)
+            [ (IdentifierStringNode(node.pos, value=EncodedString(k)),
+               FieldsValueNode(node.pos, arg=v))
                 for k, v in field.__dict__.items() ])
         dc_field_call = GeneralCallNode(node.pos, function = field_func,
                                     positional_args = TupleNode(node.pos, args=[]),
@@ -206,7 +210,7 @@ __dataclass_fields__[{0!r}].name = {0!r}
 __dataclass_fields__[{0!r}].type = {1}
 """.format(name, placeholder_name))
 
-        placeholders[placeholder_name] = get_type_node(node.scope.entries[name])
+        placeholders[placeholder_name] = GetTypeNode(node.scope.entries[name])
 
     dataclass_fields_assignment = \
         Nodes.SingleAssignmentNode(node.pos,
@@ -456,38 +460,68 @@ def generate_hash_code(unsafe_hash, eq, frozen, node, fields, analyse_decs_trans
     analyse_decs_transform.exit_scope()
     node.body.stats.extend(code_tree.stats)
 
-def get_type_node(entry):
-    """
-    Creates a node for assignment to __dataclass_fields__[name].type
 
-    It's difficult to know what the best option is in all cases, but order here is:
-    * if it's a Python type then get that type (the PyTypeObject)
-    * if it's convertible to a pytype then get that nearest pytype
-    * otherwise fall back to a string:
-      - the annotation
-      - the name of the type
-    """
-    type = entry.type
-    cname = None
-    amp = ''
-    if type.is_extension_type:
-        cname = type.typeptr_cname
-    elif type == PyrexTypes.py_object_type:
-        # TODO not hugely happy with this because it's easily overridden by something
-        # else in the scope
-        return ExprNodes.NameNode(entry.pos, name=EncodedString("object"))
-    else:
-        py_type_name = type.py_type_name()
-        #see if there's a convertible py_type
-        if py_type_name:
-            pytype = entry.scope.builtin_scope().lookup_type(py_type_name)
-            if pytype:
-                cname = pytype.cname
-                amp = '&'
-    if cname:
-        return ExprNodes.RawCNameExprNode(entry.pos, Builtin.type_type, amp+cname)
-    # otherwise we're left to return a string
-    s = entry.pep563_annotation
-    if not s:
-        s = entry.type.declaration_code(for_display=1)
-    return ExprNodes.StringNode(entry.pos, value=s)
+class GetTypeNode(ExprNodes.ExprNode):
+    # Tries to return a pytype_type if possible. However contains
+    # some fallback provision if it turns out not to resolve to a Python object
+    # Initialize with "entry"
+
+    subexprs = []
+
+    def __init__(self, entry):
+        super(GetTypeNode, self).__init__(entry.pos, entry=entry)
+
+    def analyse_types(self, env):
+        type = self.entry.type
+        cname = None
+        amp = ''
+        if type.is_extension_type:
+            cname = type.typeptr_cname
+        elif type == PyrexTypes.py_object_type:
+            # TODO not hugely happy with this because it's easily overridden by something
+            # else in the scope
+            return ExprNodes.NameNode(self.pos, name=EncodedString("object")).analyse_types(env)
+        else:
+            py_type_name = type.py_type_name()
+            #see if there's a convertible py_type
+            if py_type_name:
+                pytype = env.builtin_scope().lookup_type(py_type_name)
+                if pytype:
+                    cname = pytype.cname
+                    amp = '&'
+        if cname:
+            # TODO this seems potentially nasty for the limited API?
+            # (Although there's other places with the same issue)
+            return ExprNodes.RawCNameExprNode(self.pos, Builtin.type_type,
+                                                amp+cname).analyse_types(env)
+        # otherwise we're left to return a string
+        s = self.entry.pep563_annotation
+        if not s:
+            s = self.entry.type.declaration_code("", for_display=1)
+        return ExprNodes.StringNode(self.pos, value=s).analyse_types(env)
+
+
+class FieldsValueNode(ExprNodes.ExprNode):
+    # largely just forwards arg. Allows it to be coerced to a Python object
+    # if possible, and if not then generates a sensible backup string
+    subexprs = ['arg']
+
+    def analyse_types(self, env):
+        self.arg.analyse_types(env)
+        self.type = self.arg.type
+        return self
+
+    def coerce_to_pyobject(self, env):
+        if self.arg.type.can_coerce_to_pyobject(env):
+            return self.arg.coerce_to_pyobject(env)
+        else:
+            # A string representation of the code that gave the field seems like a reasonable
+            # fallback. This'll mostly happen for "default" and "default_factory" where the
+            # type may be a C-type that can't be converted to Python.
+            from .AutoDocTransforms import AnnotationWriter
+            writer = AnnotationWriter(description="Dataclass field")
+            string = writer.write(self.arg)
+            return ExprNodes.StringNode(self.pos, value=EncodedString(string))
+
+    def generate_evaluation_code(self, code):
+        return self.arg.generate_evaluation_code(code)

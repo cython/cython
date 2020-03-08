@@ -1631,7 +1631,7 @@ if VALUE is not None:
 
     def visit_CClassDefNode(self, node):
         node = self.visit_ClassDefNode(node)
-        if 'dataclass' in node.scope.directives:
+        if node.scope and 'dataclass' in node.scope.directives:
             from .Dataclass import handle_cclass_dataclass
             handle_cclass_dataclass(node, node.scope.directives['dataclass'], self)
         if node.scope and node.scope.implemented and node.body:
