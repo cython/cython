@@ -1,11 +1,10 @@
 # mode: run
 # tag: dataclass
 
-from __future__ import print_function
-
 from cython cimport dataclass, field
 from libc.stdlib cimport malloc, free
-import array
+
+include "cythonarrayutil.pxi"
 
 cdef class NotADataclass:
     cdef int a
@@ -49,7 +48,7 @@ cdef class BasicDataclass:
     >>> inst1 == inst2
     False
     >>> inst2 = BasicDataclass(2.0, NotADataclass(), [], [1,2,3])
-    >>> print(inst2)
+    >>> inst2
     BasicDataclass(a=2.0, b=NADC, c=[], d=[1, 2, 3])
     """
     a: float
@@ -62,23 +61,23 @@ cdef class InheritsFromDataclass(BasicDataclass):
     """
     >>> sorted(list(InheritsFromDataclass.__dataclass_fields__.keys()))
     ['a', 'b', 'c', 'd', 'e']
-    >>> print(InheritsFromDataclass(a=1.0, e=5))
+    >>> InheritsFromDataclass(a=1.0, e=5)
     In __post_init__
     InheritsFromDataclass(a=1.0, b=NADC, c=0, d=[], e=5)
     """
     e: int = 0
 
     def __post_init__(self):
-        print("In __post_init__")
+        print "In __post_init__"
 
 @dataclass
 cdef class InheritsFromNotADataclass(NotADataclass):
     """
     >>> sorted(list(InheritsFromNotADataclass.__dataclass_fields__.keys()))
     ['c']
-    >>> print(InheritsFromNotADataclass())
+    >>> InheritsFromNotADataclass()
     InheritsFromNotADataclass(c=1)
-    >>> print(InheritsFromNotADataclass(5))
+    >>> InheritsFromNotADataclass(5)
     InheritsFromNotADataclass(c=5)
     """
 
@@ -95,20 +94,20 @@ cdef S_ptr malloc_a_struct():
 @dataclass
 cdef class ContainsNonPyFields:
     """
-    >>> print(ContainsNonPyFields()) # doctest: +ELLIPSIS
+    >>> ContainsNonPyFields() # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: __init__() takes ... 1 positional ...
-    >>> print(ContainsNonPyFields(mystruct={'a': 1 }))
+    >>> ContainsNonPyFields(mystruct={'a': 1 })
     ContainsNonPyFields(mystruct={'a': 1}, memview=<MemoryView of 'array' object>)
-    >>> print(ContainsNonPyFields(mystruct={'a': 1 }, memview=array.array('d',[10])))
+    >>> ContainsNonPyFields(mystruct={'a': 1 }, memview=create_array((2,2), "c"))
     ContainsNonPyFields(mystruct={'a': 1}, memview=<MemoryView of 'array' object>)
-    >>> print(ContainsNonPyFields(mystruct={'a': 1 }, mystruct_ptr=0))
+    >>> ContainsNonPyFields(mystruct={'a': 1 }, mystruct_ptr=0)
     Traceback (most recent call last):
     TypeError: __init__() got an unexpected keyword argument 'mystruct_ptr'
     """
     mystruct: S = field(compare=False)
     mystruct_ptr: S_ptr = field(init=False, repr=False, default_factory=malloc_a_struct)
-    memview: double[::1] = field(default=array.array('d', [1,2,3]),  # mutable so not great but OK for a test
+    memview: int[:, ::1] = field(default=create_array((3,1), "c"),  # mutable so not great but OK for a test
                                  compare=False)
 
     def __dealloc__(self):
