@@ -160,13 +160,13 @@ def cmod(a, b):
 
 # Emulated language constructs
 
-def cast(type, *args, **kwargs):
+def cast(type_, *args, **kwargs):
     kwargs.pop('typecheck', None)
     assert not kwargs
-    if callable(type) and not (args and isinstance(args[0], type)):
-        return type(*args)
-    else:
-        return args[0]
+    if callable(type_):
+        if not isinstance(type_, type) or not (args and isinstance(args[0], type_)):
+            return type_(*args)
+    return args[0]
 
 def sizeof(arg):
     return 1
