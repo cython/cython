@@ -95,3 +95,10 @@ def field(*ignore, **kwds):
     if ignore:
         raise ValueError("'field' does not take any positional arguments")
     return Field(default, default_factory, init, repr, hash, compare, metadata)
+
+class _DummySubscriptable:
+    def __getitem__(self, item):
+        return dataclass()  # just to raise the error
+
+InitVar = _DummySubscriptable()
+ClassVar = _DummySubscriptable()

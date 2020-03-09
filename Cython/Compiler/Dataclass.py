@@ -73,7 +73,8 @@ def process_class_get_fields(node):
         default_factory = MISSING
         def __init__(self, default=MISSING, default_factory=MISSING,
                         repr=_TrueNode, hash=_NoneNode, init=_TrueNode,
-                        compare=_TrueNode, metadata=_NoneNode):
+                        compare=_TrueNode, metadata=_NoneNode,
+                        is_initvar=False):
             if default is not MISSING:
                 self.default = default
             if default_factory is not MISSING:
@@ -83,11 +84,13 @@ def process_class_get_fields(node):
             self.init = init
             self.compare = compare
             self.metadata = metadata
+            self.is_initvar = is_initvar
 
     var_entries = node.scope.var_entries
     # order of definition is used in the dataclass
     var_entries = sorted(var_entries, key=lambda entry: entry.pos)
     var_names = [ entry.name for entry in var_entries ]
+    var_isinitvars = [ entry.is_initvar for entry in var_entries ]
 
     # remove assignments for stat_list
     transform = RemoveAssignments(var_names)
@@ -97,7 +100,7 @@ def process_class_get_fields(node):
         fields = node.base_type.dataclass_fields.copy()
     else:
         fields = OrderedDict()
-    for name in var_names:
+    for name, is_initvar in zip(var_names, var_isinitvars):
         if name in transform.removed_assignments:
             assignment = transform.removed_assignments[name]
             if (isinstance(assignment, ExprNodes.CallNode)
@@ -137,6 +140,7 @@ def process_class_get_fields(node):
                 field = Field(default=assignment)
         else:
             field = Field()
+        field.is_initvar = is_initvar
         fields[name] = field
     node.entry.type.dataclass_fields = fields
     return fields
@@ -193,10 +197,15 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     placeholders = {}
     for name, field in fields.items():
         placeholder_name = "PLACEHOLDER_%s" % name
+        placeholders[placeholder_name] = GetTypeNode(node.scope.entries[name])
+
+        if field.is_initvar:
+            continue
+
         dc_field_keywords = DictNode.from_pairs(node.pos,
             [ (IdentifierStringNode(node.pos, value=EncodedString(k)),
                FieldsValueNode(node.pos, arg=v))
-                for k, v in field.__dict__.items() ])
+                for k, v in field.__dict__.items() if k != "is_initvar" ])
         dc_field_call = GeneralCallNode(node.pos, function = field_func,
                                     positional_args = TupleNode(node.pos, args=[]),
                                     keyword_args = dc_field_keywords)
@@ -209,8 +218,6 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
 __dataclass_fields__[{0!r}].name = {0!r}
 __dataclass_fields__[{0!r}].type = {1}
 """.format(name, placeholder_name))
-
-        placeholders[placeholder_name] = GetTypeNode(node.scope.entries[name])
 
     dataclass_fields_assignment = \
         Nodes.SingleAssignmentNode(node.pos,
@@ -267,9 +274,10 @@ def generate_init_code(init, node, fields, analyse_decs_transform):
     default_factory_placeholder = get_placeholder_name()
     placeholders[default_factory_placeholder] = has_default_factory
 
+    seen_default = False
     for name, field in fields.items():
         if not field.init.value:
-            continue  # not a parameter
+            continue
         entry = node.scope.lookup(name)
         annotation = entry.pep563_annotation
         if annotation:
@@ -278,12 +286,17 @@ def generate_init_code(init, node, fields, analyse_decs_transform):
             annotation = u""
         assignment = u''
         if field.default is not MISSING or field.default_factory is not MISSING:
+            seen_default = True
             if field.default_factory is not MISSING:
                 ph_name = default_factory_placeholder
             else:
                 ph_name = get_placeholder_name()
                 placeholders[ph_name] = field.default  # should be node
             assignment = u" = %s" % ph_name
+        elif seen_default:
+            error(entry.pos, ("non-default argument %s follows default argument "
+                             "in dataclass __init__") % name)
+            return
 
         args.append(u"%s%s%s" % (name, annotation, assignment))
     args = u", ".join(args)
@@ -293,6 +306,8 @@ def generate_init_code(init, node, fields, analyse_decs_transform):
                   "    pass", # just in-case it's an empty body
                   ]
     for name, field in fields.items():
+        if field.is_initvar:
+            continue
         if field.default_factory is MISSING:
             if field.init.value:
                 code_lines.append(u"    self.%s = %s" % (name, name))
@@ -311,17 +326,14 @@ def generate_init_code(init, node, fields, analyse_decs_transform):
                 code_lines.append(u"    self.%s = %s()"
                                   % (name, ph_name))
     if node.scope.lookup("__post_init__"):
-        code_lines.append("    self.__post_init__()")
+        post_init_vars = ", ".join(name for name, field in fields.items()
+                                    if field.is_initvar)
+        code_lines.append("    self.__post_init__(%s)" % post_init_vars)
     code_lines = u"\n".join(code_lines)
 
     code_tree = TreeFragment(code_lines,
                               level='c_class', pipeline=[NormalizeTree(None)]
                               ).substitute(placeholders)
-    # TODO - this can generate errors, for example if you get
-    # __init__(self, a=1, b):
-    # This is consistent with Python dataclass behaviour so is fine
-    # It might be good to detect the errors and add a message
-    # that they come from dataclass generated code?
 
     #code_tree = InitSubstituteTransform(fields, has_default_factory)(code_tree)
     # turn off annotation typing, so all arguments are accepted as generic objects
@@ -344,7 +356,7 @@ def generate_repr_code(repr, node, fields, analyse_decs_transform):
         return
     code_lines = ["def __repr__(self):"]
     strs = [ u"%s={self.%s}" % (name, name)
-            for name, field in fields.items() if field.repr.value ]
+            for name, field in fields.items() if field.repr.value and not field.is_initvar ]
     format_string = u", ".join(strs)
     code_lines.append(u"    return f'{type(self).__name__}(%s)'" % format_string)
     code_lines = u"\n".join(code_lines)
@@ -363,7 +375,8 @@ def generate_cmp_code(op, funcname, node, fields, analyse_decs_transform):
     if node.scope.lookup_here(funcname):
         return  # already exists
 
-    names = [ name for name, field in fields.items() if field.compare.value ]
+    names = [ name for name, field in fields.items()
+                if (field.compare.value and not field.is_initvar) ]
 
     if not names:
         return # no comparable types
@@ -439,7 +452,8 @@ def generate_hash_code(unsafe_hash, eq, frozen, node, fields, analyse_decs_trans
             return
 
     names = [ name for name, field in fields.items()
-                if (field.compare.value if field.hash.value is None else field.hash.value) ]
+                if (not field.is_initvar and
+                    (field.compare.value if field.hash.value is None else field.hash.value)) ]
     if not names:
         return # nothing to hash
 

@@ -1,7 +1,7 @@
 # mode: run
 # tag: dataclass
 
-from cython cimport dataclass, field
+from cython cimport dataclass, field, InitVar, ClassVar
 from libc.stdlib cimport malloc, free
 
 include "cythonarrayutil.pxi"
@@ -112,6 +112,31 @@ cdef class ContainsNonPyFields:
 
     def __dealloc__(self):
         free(self.mystruct_ptr)
+
+@dataclass
+cdef class InitClassVars:
+    """
+    >>> sorted(list(InitClassVars.__dataclass_fields__.keys()))
+    ['a']
+    >>> InitClassVars.c
+    2.0
+    >>> inst1 = InitClassVars()
+    In __post_init__
+    >>> inst1  # init vars don't appear in string
+    InitClassVars(a=0)
+    >>> inst2 = InitClassVars(b=5)
+    In __post_init__
+    >>> inst1 == inst2  # comparison ignores the initvar
+    True
+    """
+    a: int = 0
+    b: InitVar[double] = 1.0
+    c: ClassVar[float] = 2.0
+
+    def __post_init__(self, b):
+        assert self.b==0, self.b  # hasn't been assigned yet
+        self.b = b
+        print "In __post_init__"
 
 import sys
 if (sys.version_info >= (3, 7)

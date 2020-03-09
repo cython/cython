@@ -846,6 +846,10 @@ class InterpretCompilerDirectives(CythonTransform):
             directive = self.directive_names.get(node.name)
             if directive is not None:
                 node.cython_attribute = directive
+        if node.annotation:
+            # may not seem necessary but annotation can have cython attrributes
+            # and isn't a child attribute - TODO should this need this special case?
+            self.visitchildren(node.annotation.expr)
         return node
 
     def visit_NewExprNode(self, node):

@@ -1066,4 +1066,5 @@ type they cannot be passed to a constructor, and you must use a
 which special functions an attribute is used in using `field()`.
 
 The `InitVar` and `ClassVar` features of the standard library module are
-currently not supported.
+supported using `cython.InitVar` and `cython.ClassVar` as annotations,
+but not currently in a `cdef` statement.

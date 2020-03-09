@@ -158,6 +158,7 @@ class Entry(object):
     # is_fused_specialized boolean Whether this entry of a cdef or def function
     #                              is a specialization
     # is_cgetter       boolean    Is a c-level getter function
+    # is_initvar       boolean    Used by cdef dataclasses
 
     # TODO: utility_code and utility_code_definition serves the same purpose...
 
@@ -229,6 +230,7 @@ class Entry(object):
     cf_used = True
     outer_entry = None
     is_cgetter = False
+    is_initvar = False
 
     def __init__(self, name, cname, type, pos = None, init = None):
         self.name = name
