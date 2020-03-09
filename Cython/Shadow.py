@@ -163,7 +163,7 @@ def cmod(a, b):
 def cast(type, *args, **kwargs):
     kwargs.pop('typecheck', None)
     assert not kwargs
-    if hasattr(type, '__call__'):
+    if callable(type) and not (args and isinstance(args[0], type)):
         return type(*args)
     else:
         return args[0]
