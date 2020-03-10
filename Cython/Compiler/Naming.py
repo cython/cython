@@ -136,6 +136,7 @@ type_dict_guard_temp = pyrex_prefix + "type_dict_guard"
 cython_runtime_cname   = pyrex_prefix + "cython_runtime"
 cyfunction_type_cname = pyrex_prefix + "CyFunctionType"
 fusedfunction_type_cname = pyrex_prefix + "FusedFunctionType"
+dataclass_field_default_cname = pyrex_prefix + "dataclass_dflt"
 
 global_code_object_cache_find = pyrex_prefix + 'find_code_object'
 global_code_object_cache_insert = pyrex_prefix + 'insert_code_object'
@@ -179,12 +180,17 @@ PYX_NAN          = "__PYX_NAN()"
 def py_version_hex(major, minor=0, micro=0, release_level=0, release_serial=0):
     return (major << 24) | (minor << 16) | (micro << 8) | (release_level << 4) | (release_serial)
 
-class _dataclass_py_code:
-    # Abusing slightly UtilityCode "subsitute naming" - inserts a long string lazily
+class _py_code:
+    # This is in Naming.py to be able to abuse the UtilityCode "subsitute naming" mechanism.
+    # It inserts a long chunk of Python code as a string loaded from a .py file.
+    def __init__(self, code_name, filename):
+        self.code_name = code_name
+        self.filename = filename
     def __str__(self):
         from .Code import UtilityCode
         from . import StringEncoding
-        python_utility_code = UtilityCode.load_cached("Dataclasses_backup", "Dataclasses.pyx")
+        python_utility_code = UtilityCode.load_cached(self.code_name, self.filename)
         python_utility_code = StringEncoding.EncodedString(python_utility_code.impl)
         return python_utility_code.as_c_string_literal()
-dataclass_py_code = _dataclass_py_code()
+dataclass_py_code = _py_code("Dataclasses_fallback", "Dataclasses.py")
+typing_py_code = _py_code("Typing_fallback", "Dataclasses.py")

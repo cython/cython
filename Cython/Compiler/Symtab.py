@@ -158,7 +158,6 @@ class Entry(object):
     # is_fused_specialized boolean Whether this entry of a cdef or def function
     #                              is a specialization
     # is_cgetter       boolean    Is a c-level getter function
-    # is_initvar       boolean    Used by cdef dataclasses
 
     # TODO: utility_code and utility_code_definition serves the same purpose...
 
@@ -230,7 +229,6 @@ class Entry(object):
     cf_used = True
     outer_entry = None
     is_cgetter = False
-    is_initvar = False
 
     def __init__(self, name, cname, type, pos = None, init = None):
         self.name = name
@@ -2177,6 +2175,13 @@ class CClassScope(ClassScope):
     def declare_var(self, name, type, pos,
                     cname = None, visibility = 'private',
                     api = 0, in_pxd = 0, is_cdef = 0):
+        if type.is_classvar:
+            is_cdef = 0
+
+        if type.is_initvar and not 'dataclass' in self.directives:
+            # no real reason to ban it, but it doesn't hugely make sense
+            warning(pos, "Use of cython.InitVar does not make sense outside a dataclass")
+
         if is_cdef:
             # Add an entry for an attribute.
             if self.defined:

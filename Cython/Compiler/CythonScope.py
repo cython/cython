@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 
-from .Symtab import ModuleScope
+from .Symtab import ModuleScope, Entry
 from .PyrexTypes import *
 from .UtilityCode import CythonUtilityCode
 from .Errors import error
@@ -25,6 +25,7 @@ class CythonScope(ModuleScope):
                                          None,
                                          cname='<error>')
             entry.in_cinclude = True
+
 
     def is_cpp(self):
         # Allow C++ utility code in C++ contexts.
@@ -97,6 +98,15 @@ class CythonScope(ModuleScope):
             pos = None,
             defining = 1,
             cname = 'PyObject_TypeCheck')
+
+        entry = self.declare_type("InitVar", InitOrClassVar("InitVar"), pos = None)
+        # just need .as_variable to appear like an entry - the namenode is swapped
+        # out in TransformBuiltinMethods anyway
+        dummy_entry = Entry("InitVar", "<error>", py_object_type)
+        entry.as_variable = dummy_entry
+        entry = self.declare_type("ClassVar", InitOrClassVar("ClassVar"), pos = None)
+        dummy_entry = Entry("ClassVar", "<error>", py_object_type)
+        entry.as_variable = dummy_entry
 
     def load_cythonscope(self):
         """

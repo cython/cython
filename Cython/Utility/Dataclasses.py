@@ -1,13 +1,12 @@
-################### Dataclasses_backup ###############################
+################### Dataclasses_fallback ###############################
 
-# This is the backup dataclass code if the stdlib module isn't available.
+# This is the fallback dataclass code if the stdlib module isn't available.
 # It defines enough of the support types to be used with cdef classes
 # and to fail if used on regular types.
 
 # (Intended to be included as py code - not compiled)
 
 from collections import namedtuple
-import types
 try:
     from types import MappingProxyType
 except ImportError:
@@ -74,9 +73,11 @@ class _HAS_DEFAULT_FACTORY_CLASS:
         return '<factory>'
 _HAS_DEFAULT_FACTORY = _HAS_DEFAULT_FACTORY_CLASS()
 
+_DATACLASS_MODULE_UNAVAILABLE_ERROR = ("Standard library 'dataclasses' module"
+    "is unavailable, likely due to the version of Python you're using.")
+
 def dataclass(*args, **kwds):
-    raise NotImplementedError("Standard library 'dataclasses' module is unavailable, likely due "
-        "to the version of Python you're using.")
+    raise NotImplementedError(_DATACLASS_MODULE_UNAVAILABLE_ERROR)
 
 def field(*ignore, **kwds):
     default = kwds.pop("default", MISSING)
@@ -98,7 +99,15 @@ def field(*ignore, **kwds):
 
 class _DummySubscriptable:
     def __getitem__(self, item):
-        return dataclass()  # just to raise the error
+        return NotImplemented(_DATACLASS_MODULE_UNAVAILABLE_ERROR)
 
 InitVar = _DummySubscriptable()
+
+################### Typing_fallback ###############################
+
+class _DummySubscriptable:
+    def __getitem__(self, item):
+        return NotImplemented("Standard library 'typing' module"
+    "is unavailable, likely due to the version of Python you're using.")
+
 ClassVar = _DummySubscriptable()

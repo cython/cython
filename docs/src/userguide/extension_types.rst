@@ -1044,19 +1044,9 @@ here only briefly outlines the differences - if you plan on using them
 then please read the documentation for the standard library module.
 
 Dataclasses can be declared using the `@cython.dataclass` decorator. If
-you need to define special properties on a field then use `cython.field`::
+you need to define special properties on a field then use `cython.field`
 
-    cimport cython
-    
-    @cython.dataclass
-    cdef class MyDataclass:
-        # fields can be declared using annotations
-        a: int = 0
-        b: double = cython.field(default_factory = lambda: 10, repr=False)
-        
-        # fields can also be declared using `cdef`:
-        cdef str c
-        c = "hello"  # assignment of default value on a separate line
+.. literalinclude:: ../../examples/userguide/extension_types/dataclass.pyx    
 
 You may use C-level types such as structs, pointers, or C++ classes.
 However, you may these types are not compatible with the auto-generated
@@ -1065,6 +1055,3 @@ type they cannot be passed to a constructor, and you must use a
 `default_factory` to initialize them. As in Python, you can also control
 which special functions an attribute is used in using `field()`.
 
-The `InitVar` and `ClassVar` features of the standard library module are
-supported using `cython.InitVar` and `cython.ClassVar` as annotations,
-but not currently in a `cdef` statement.

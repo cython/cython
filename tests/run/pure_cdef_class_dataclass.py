@@ -10,13 +10,13 @@ import cython
 class MyDataclass:
     """
     >>> sorted(list(MyDataclass.__dataclass_fields__.keys()))
-    ['a', 'b']
+    ['a', 'self']
     >>> inst1 = MyDataclass(2.0, ['a', 'b'])
     >>> print(inst1)
-    MyDataclass(a=2.0, b=['a', 'b'])
+    MyDataclass(a=2.0, self=['a', 'b'])
     >>> inst2 = MyDataclass()
     >>> print(inst2)
-    MyDataclass(a=1, b=[])
+    MyDataclass(a=1, self=[])
     >>> inst1 == inst2
     False
     >>> inst1 > inst2
@@ -28,4 +28,4 @@ class MyDataclass:
     """
 
     a: int = 1
-    b: list = cython.field(default_factory=list, hash=False)
+    self: list = cython.field(default_factory=list, hash=False)  # test that arguments of init don't conflict

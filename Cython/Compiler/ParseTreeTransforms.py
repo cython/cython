@@ -3045,6 +3045,12 @@ class TransformBuiltinMethods(EnvTransform):
 
     def visit_cython_attribute(self, node):
         attribute = node.as_cython_attribute()
+        if (not attribute and node.is_name
+                and node.name in ["ClassVar", "InitVar"] # not directives so don't get picked up correctly
+                ):
+            entry = self.current_env().lookup(node.name)
+            if entry and getattr(entry.scope, "is_cython_builtin"):
+                attribute = node.name
         if attribute:
             if attribute == u'compiled':
                 node = ExprNodes.BoolNode(node.pos, value=True)
@@ -3058,13 +3064,17 @@ class TransformBuiltinMethods(EnvTransform):
                                           entry=self.current_env().builtin_scope().lookup_here(attribute))
             elif PyrexTypes.parse_basic_type(attribute):
                 pass
+            elif attribute in ['field', 'dataclass', 'InitVar', 'ClassVar']:
+                from .Dataclass import (make_dataclass_module_callnode,
+                                        make_typing_module_callnode)
+                if attribute == "ClassVar":
+                    module = make_typing_module_callnode(node.pos)
+                else:
+                    module = make_dataclass_module_callnode(node.pos)
+                node = ExprNodes.AttributeNode(node.pos, obj=module,
+                                               attribute=EncodedString(attribute))
             elif self.context.cython_scope.lookup_qualified_name(attribute):
                 pass
-            elif attribute in ['field', 'dataclass']:
-                from .Dataclass import make_dataclass_module_callnode
-                dataclass_module = make_dataclass_module_callnode(node.pos)
-                node = ExprNodes.AttributeNode(node.pos, obj=dataclass_module,
-                                               attribute=EncodedString(attribute))
             else:
                 error(node.pos, u"'%s' not a valid cython attribute or is being used incorrectly" % attribute)
         return node

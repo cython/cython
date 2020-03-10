@@ -6,18 +6,25 @@ from .Errors import error, warning
 from . import ExprNodes, Nodes, PyrexTypes
 from .Code import UtilityCode
 from .Visitor import VisitorTransform
-from . import UtilNodes, Builtin
+from . import UtilNodes, Builtin, Naming
 from .StringEncoding import BytesLiteral, EncodedString
 from .TreeFragment import TreeFragment
-from .ParseTreeTransforms import NormalizeTree, SkipDeclarations, AnalyseDeclarationsTransform
+from .ParseTreeTransforms import (NormalizeTree, SkipDeclarations, AnalyseDeclarationsTransform,
+                                  MarkClosureVisitor)
 
-def make_dataclass_module_callnode(pos):
-    loader_utilitycode = UtilityCode.load_cached("DataclassModuleLoader", "Dataclasses.c")
-    return ExprNodes.PythonCapiCallNode(pos, "__Pyx_LoadDataclassModule",
+def _make_module_callnode(pos, name):
+    loader_utilitycode = UtilityCode.load_cached("%sModuleLoader" % name, "Dataclasses.c")
+    return ExprNodes.PythonCapiCallNode(pos, "__Pyx_Load%sModule" % name,
                                 PyrexTypes.CFuncType(PyrexTypes.py_object_type, []),
                                 utility_code = loader_utilitycode,
                                 args=[])
 
+def make_dataclass_module_callnode(pos):
+    return _make_module_callnode(pos, "Dataclass")
+def make_typing_module_callnode(pos):
+    return _make_module_callnode(pos, "Typing")
+
+_INTERNAL_DEFAULTSHOLDER_NAME = EncodedString('__pyx_dataclass_defaults')
 
 def make_common_utilitycode(scope):
     scope.global_scope().use_utility_code(
@@ -86,11 +93,16 @@ def process_class_get_fields(node):
             self.metadata = metadata
             self.is_initvar = is_initvar
 
+            for field_name in ("repr", "hash", "init", "compare", "metadata"):
+                field_value = getattr(self, field_name)
+                if not field_value.is_literal:
+                    error(field_value.pos, "cython.field parameter '%s' must be a literal value"
+                            % field_name)
+
     var_entries = node.scope.var_entries
     # order of definition is used in the dataclass
     var_entries = sorted(var_entries, key=lambda entry: entry.pos)
     var_names = [ entry.name for entry in var_entries ]
-    var_isinitvars = [ entry.is_initvar for entry in var_entries ]
 
     # remove assignments for stat_list
     transform = RemoveAssignments(var_names)
@@ -100,7 +112,9 @@ def process_class_get_fields(node):
         fields = node.base_type.dataclass_fields.copy()
     else:
         fields = OrderedDict()
-    for name, is_initvar in zip(var_names, var_isinitvars):
+    for entry in var_entries:
+        name = entry.name
+        is_initvar = entry.type.is_initvar
         if name in transform.removed_assignments:
             assignment = transform.removed_assignments[name]
             if (isinstance(assignment, ExprNodes.CallNode)
@@ -169,12 +183,10 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     fields = process_class_get_fields(node)
 
     dataclass_module = make_dataclass_module_callnode(node.pos)
-    dataclass_module = UtilNodes.LetRefNode(pos=node.pos, expression=dataclass_module)
 
     # create __dataclass_params__ attribute
-    dataclass_params_func = AttributeNode(node.pos,
-                                                    obj=dataclass_module,
-                                                    attribute=EncodedString("_DataclassParams"))
+    dataclass_params_func = AttributeNode(node.pos, obj=dataclass_module,
+                                            attribute=EncodedString("_DataclassParams"))
     dataclass_params_keywords = DictNode.from_pairs(node.pos,
             [ (IdentifierStringNode(node.pos, value=EncodedString(k)),
                 BoolNode(node.pos, value=v))
@@ -189,67 +201,44 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
                                         name=EncodedString("__dataclass_params__")),
                         rhs = dataclass_params)
 
-    # set up __dataclass_fields__
-    field_func = AttributeNode(node.pos, obj = dataclass_module,
-                                    attribute=EncodedString("field"))
-    dc_fields = DictNode(node.pos, key_value_pairs=[])
-    dc_fields_namevalue_assignments = []
-    placeholders = {}
-    for name, field in fields.items():
-        placeholder_name = "PLACEHOLDER_%s" % name
-        placeholders[placeholder_name] = GetTypeNode(node.scope.entries[name])
-
-        if field.is_initvar:
-            continue
-
-        dc_field_keywords = DictNode.from_pairs(node.pos,
-            [ (IdentifierStringNode(node.pos, value=EncodedString(k)),
-               FieldsValueNode(node.pos, arg=v))
-                for k, v in field.__dict__.items() if k != "is_initvar" ])
-        dc_field_call = GeneralCallNode(node.pos, function = field_func,
-                                    positional_args = TupleNode(node.pos, args=[]),
-                                    keyword_args = dc_field_keywords)
-        dc_fields.key_value_pairs.append(
-            DictItemNode(node.pos,
-                key=IdentifierStringNode(node.pos, value=EncodedString(name)),
-                value=dc_field_call))
-        dc_fields_namevalue_assignments.append(
-            u"""
-__dataclass_fields__[{0!r}].name = {0!r}
-__dataclass_fields__[{0!r}].type = {1}
-""".format(name, placeholder_name))
-
-    dataclass_fields_assignment = \
-        Nodes.SingleAssignmentNode(node.pos,
-                        lhs = ExprNodes.NameNode(node.pos,
-                                        name=EncodedString("__dataclass_fields__")),
-                        rhs = dc_fields)
-
-    dc_fields_namevalue_assignments = u"\n".join(dc_fields_namevalue_assignments)
-    dc_fields_namevalue_assignments = TreeFragment(dc_fields_namevalue_assignments,
-                                                   level="c_class",
-                                                   pipeline=[NormalizeTree(None)])
-    dc_fields_namevalue_assignments = dc_fields_namevalue_assignments.substitute(placeholders)
+    dataclass_fields_stats = _setup_dataclass_fields(node, fields, dataclass_module)
 
     stats = Nodes.StatListNode(node.pos,
-                               stats=[dataclass_params_assignment,
-                                      dataclass_fields_assignment]+dc_fields_namevalue_assignments.stats)
-    ln = UtilNodes.LetNode(dataclass_module, stats)
-    ln.analyse_declarations(node.scope)
+                               stats=[dataclass_params_assignment]
+                                    + dataclass_fields_stats)
 
-    node.body.stats.append(ln)
+    init_stats = generate_init_code(kwargs['init'], node, fields)
+    repr_stats = generate_repr_code(kwargs['repr'], node, fields)
+    eq_stats = generate_eq_code(kwargs['eq'], node, fields)
+    order_stats = generate_order_code(kwargs['order'], node, fields)
+    hash_stats = generate_hash_code(kwargs['unsafe_hash'], kwargs['eq'], kwargs['frozen'],
+                       node, fields)
 
-    generate_init_code(kwargs['init'], node, fields, analyse_decs_transform)
-    generate_repr_code(kwargs['repr'], node, fields, analyse_decs_transform)
-    generate_eq_code(kwargs['eq'], node, fields, analyse_decs_transform)
-    generate_order_code(kwargs['order'], node, fields, analyse_decs_transform)
-    generate_hash_code(kwargs['unsafe_hash'], kwargs['eq'], kwargs['frozen'],
-                       node, fields, analyse_decs_transform)
+    stats.stats = stats.stats + init_stats + repr_stats + eq_stats + order_stats + hash_stats
 
-def generate_init_code(init, node, fields, analyse_decs_transform):
+    # turn off annotation typing, so all arguments to __init__ are accepted as
+    # generic objects and thus can accept _HAS_DEFAULT_FACTORY
+    # type conversion done comes later
+    # (for some reason this has to be on the class scope, so save and restore)
+    annotation_typing = node.scope.directives['annotation_typing']
+    node.scope.directives['annotation_typing'] = False
+    stats.analyse_declarations(node.scope)
+    # probably already in this scope, but it doesn't hurt to make sure
+    analyse_decs_transform.enter_scope(node, node.scope)
+    analyse_decs_transform.visit(stats)
+    analyse_decs_transform.exit_scope()
+    node.scope.directives['annotation_typing'] = annotation_typing
+
+    RemoveDontAnalyseDeclarations()(stats)
+
+    node.body.stats.extend(stats.stats)
+
+def generate_init_code(init, node, fields):
     if not init or node.scope.lookup_here("__init__"):
-        return
-    args = ["self"]
+        return []
+    # selfname behaviour copied from the cpython module
+    selfname = "__dataclass_self__" if "self" in fields else "self"
+    args = [selfname]
 
     placeholders = {}
     placeholder_count = [0]
@@ -296,7 +285,7 @@ def generate_init_code(init, node, fields, analyse_decs_transform):
         elif seen_default:
             error(entry.pos, ("non-default argument %s follows default argument "
                              "in dataclass __init__") % name)
-            return
+            return []
 
         args.append(u"%s%s%s" % (name, annotation, assignment))
     args = u", ".join(args)
@@ -310,50 +299,38 @@ def generate_init_code(init, node, fields, analyse_decs_transform):
             continue
         if field.default_factory is MISSING:
             if field.init.value:
-                code_lines.append(u"    self.%s = %s" % (name, name))
+                code_lines.append(u"    %s.%s = %s" % (selfname, name, name))
         else:
             ph_name = get_placeholder_name()
             placeholders[ph_name] = field.default_factory
             if field.init.value:
                 code_lines.append(u"    if %s is %s:"
                                 % (name, default_factory_placeholder))
-                code_lines.append(u"        self.%s = %s()"
-                                % (name, ph_name))
+                code_lines.append(u"        %s.%s = %s()"
+                                % (selfname, name, ph_name))
                 code_lines.append(u"    else:")
-                code_lines.append(u"        self.%s = %s" % (name, name))
+                code_lines.append(u"        %s.%s = %s" % (selfname, name, name))
             else:
                 # still need to use the default factory to initialize
-                code_lines.append(u"    self.%s = %s()"
-                                  % (name, ph_name))
+                code_lines.append(u"    %s.%s = %s()"
+                                  % (selfname, name, ph_name))
     if node.scope.lookup("__post_init__"):
         post_init_vars = ", ".join(name for name, field in fields.items()
                                     if field.is_initvar)
-        code_lines.append("    self.__post_init__(%s)" % post_init_vars)
+        code_lines.append("    %s.__post_init__(%s)" % (selfname, post_init_vars))
     code_lines = u"\n".join(code_lines)
 
-    code_tree = TreeFragment(code_lines,
-                              level='c_class', pipeline=[NormalizeTree(None)]
+    code_tree = TreeFragment(code_lines, level='c_class',
+                             pipeline=[NormalizeTree(node.scope),
+                                       ]
                               ).substitute(placeholders)
 
-    #code_tree = InitSubstituteTransform(fields, has_default_factory)(code_tree)
-    # turn off annotation typing, so all arguments are accepted as generic objects
-    # and this can accept _HAS_DEFAULT_FACTORY
-    # type conversion done comes later
-    # (for some reason this has to be on the class scope, so save and restore)
-    annotation_typing = node.scope.directives['annotation_typing']
-    node.scope.directives['annotation_typing'] = False
-    code_tree.analyse_declarations(node.scope)
+    return code_tree.stats
 
-    # probably already in this scope but it doesn't hurt to be sure
-    analyse_decs_transform.enter_scope(node, node.scope)
-    analyse_decs_transform.visit(code_tree)
-    analyse_decs_transform.exit_scope()
-    node.scope.directives['annotation_typing'] = annotation_typing
-    node.body.stats.extend(code_tree.stats)
 
-def generate_repr_code(repr, node, fields, analyse_decs_transform):
+def generate_repr_code(repr, node, fields):
     if not repr or node.scope.lookup("__repr__"):
-        return
+        return []
     code_lines = ["def __repr__(self):"]
     strs = [ u"%s={self.%s}" % (name, name)
             for name, field in fields.items() if field.repr.value and not field.is_initvar ]
@@ -364,22 +341,17 @@ def generate_repr_code(repr, node, fields, analyse_decs_transform):
     code_tree = TreeFragment(code_lines,
                               level='c_class', pipeline=[NormalizeTree(None)]
                               ).substitute({})
-    code_tree.analyse_declarations(node.scope)
-    # probably already in this scope but it doesn't hurt to be sure
-    analyse_decs_transform.enter_scope(node, node.scope)
-    analyse_decs_transform.visit(code_tree)
-    analyse_decs_transform.exit_scope()
-    node.body.stats.extend(code_tree.stats)
+    return code_tree.stats
 
-def generate_cmp_code(op, funcname, node, fields, analyse_decs_transform):
+def generate_cmp_code(op, funcname, node, fields):
     if node.scope.lookup_here(funcname):
-        return  # already exists
+        return [] # already exists
 
     names = [ name for name, field in fields.items()
                 if (field.compare.value and not field.is_initvar) ]
 
     if not names:
-        return # no comparable types
+        return [] # no comparable types
 
     code_lines = ["def %s(self, other):" % funcname,
                   "    cdef %s other_cast" % node.class_name,
@@ -406,28 +378,25 @@ def generate_cmp_code(op, funcname, node, fields, analyse_decs_transform):
     code_tree = TreeFragment(code_lines,
                               level='c_class', pipeline=[NormalizeTree(None)]
                               ).substitute({})
-    code_tree.analyse_declarations(node.scope)
-    # probably already in this scope but it doesn't hurt to be sure
-    analyse_decs_transform.enter_scope(node, node.scope)
-    analyse_decs_transform.visit(code_tree)
-    analyse_decs_transform.exit_scope()
-    node.body.stats.extend(code_tree.stats)
+    return code_tree.stats
 
-def generate_eq_code(eq, node, fields, analyse_decs_transform):
+def generate_eq_code(eq, node, fields):
     if not eq:
-        return
-    generate_cmp_code("==", "__eq__", node, fields, analyse_decs_transform)
+        return []
+    return generate_cmp_code("==", "__eq__", node, fields)
 
-def generate_order_code(order, node, fields, analyse_decs_transform):
+def generate_order_code(order, node, fields):
     if not order:
-        return
+        return []
+    stats = []
     for op, name in [("<", "__lt__"),
                      ("<=", "__le__"),
                      (">", "__gt__"),
                      (">=", "__ge__")]:
-        generate_cmp_code(op, name, node, fields, analyse_decs_transform)
+        stats.extend(generate_cmp_code(op, name, node, fields))
+    return stats
 
-def generate_hash_code(unsafe_hash, eq, frozen, node, fields, analyse_decs_transform):
+def generate_hash_code(unsafe_hash, eq, frozen, node, fields):
     hash_entry = node.scope.lookup_here("__hash__")
     if hash_entry:
         # TODO ideally assignment of __hash__ to None shouldn't trigger this
@@ -435,27 +404,20 @@ def generate_hash_code(unsafe_hash, eq, frozen, node, fields, analyse_decs_trans
         if unsafe_hash:
             error(node.pos, "Request for dataclass unsafe_hash when a '__hash__' function"
                   " already exists")
-        return
+        return []
     if not unsafe_hash:
         if eq and not frozen:
-            hash = Nodes.SingleAssignmentNode(node.pos,
+            return [Nodes.SingleAssignmentNode(node.pos,
                                         lhs = ExprNodes.NameNode(node.pos, name=EncodedString("__hash__")),
-                                        rhs = ExprNodes.NoneNode(node.pos))
-            hash.analyse_declarations(node.scope)
-            analyse_decs_transform.enter_scope(node, node.scope)
-            analyse_decs_transform.visit(hash)
-            analyse_decs_transform.exit_scope()
-            node.body.stats.append(hash)
-
-            return
+                                        rhs = ExprNodes.NoneNode(node.pos))]
         if not eq:
-            return
+            return []
 
     names = [ name for name, field in fields.items()
                 if (not field.is_initvar and
                     (field.compare.value if field.hash.value is None else field.hash.value)) ]
     if not names:
-        return # nothing to hash
+        return [] # nothing to hash
 
     # make a tuple of the hashes
     tpl = u", ".join(u"hash(self.%s)" % name for name in names )
@@ -467,12 +429,7 @@ def generate_hash_code(unsafe_hash, eq, frozen, node, fields, analyse_decs_trans
     code_tree = TreeFragment(code_lines,
                               level='c_class', pipeline=[NormalizeTree(None)]
                               ).substitute({})
-    code_tree.analyse_declarations(node.scope)
-    # probably already in this scope but it doesn't hurt to be sure
-    analyse_decs_transform.enter_scope(node, node.scope)
-    analyse_decs_transform.visit(code_tree)
-    analyse_decs_transform.exit_scope()
-    node.body.stats.extend(code_tree.stats)
+    return code_tree.stats
 
 
 class GetTypeNode(ExprNodes.ExprNode):
@@ -487,38 +444,66 @@ class GetTypeNode(ExprNodes.ExprNode):
 
     def analyse_types(self, env):
         type = self.entry.type
-        cname = None
-        amp = ''
-        if type.is_extension_type:
-            cname = type.typeptr_cname
-        elif type == PyrexTypes.py_object_type:
-            # TODO not hugely happy with this because it's easily overridden by something
-            # else in the scope
-            return ExprNodes.NameNode(self.pos, name=EncodedString("object")).analyse_types(env)
-        else:
-            py_type_name = type.py_type_name()
-            #see if there's a convertible py_type
-            if py_type_name:
-                pytype = env.builtin_scope().lookup_type(py_type_name)
-                if pytype:
-                    cname = pytype.cname
-                    amp = '&'
-        if cname:
-            # TODO this seems potentially nasty for the limited API?
-            # (Although there's other places with the same issue)
+
+        if type.is_extension_type or type.is_builtin_type:
             return ExprNodes.RawCNameExprNode(self.pos, Builtin.type_type,
-                                                amp+cname).analyse_types(env)
+                                                type.typeptr_cname).analyse_types(env)
+        else:
+            names = None
+            py_name = type.py_type_name()
+            # int types can return "(int, long)"
+            if py_name:
+                names = py_name.split(",")
+                names = [ n.strip("() ") for n in names ]
+            if names:
+                for name in names:
+                    name = EncodedString(name)
+                    nn = ExprNodes.NameNode(self.pos, name=name)
+                    # try to set the entry now to prevent the user accidentally shadowing
+                    # the name
+                    nn.entry = env.builtin_scope().lookup(name)
+                    if not nn.entry:
+                        try:
+                            nn.entry = env.declare_builtin(name, self.pos)
+                        except:
+                            pass  # not convinced a failure means much
+                    if nn.entry:
+                        return nn.analyse_types(env)
+
         # otherwise we're left to return a string
         s = self.entry.pep563_annotation
         if not s:
             s = self.entry.type.declaration_code("", for_display=1)
         return ExprNodes.StringNode(self.pos, value=s).analyse_types(env)
 
+class DontAnalyseDeclarationsNode(ExprNodes.ExprNode):
+    # arg    ExprNode
+    #
+    # This is designed to wrap stuff that's already been analysed
+    # so that lambdas aren't redeclared for example
+    # and then immediately be replaced
+
+    subexprs = []
+
+    def analyse_declarations(self, env):
+        return
+
+class RemoveDontAnalyseDeclarations(VisitorTransform):
+    def visit_DontAnalyseDeclarationsNode(self, node):
+        return node.arg
+
+    def visit_Node(self, node):
+        self.visitchildren(node)
+        return node
+
 
 class FieldsValueNode(ExprNodes.ExprNode):
     # largely just forwards arg. Allows it to be coerced to a Python object
     # if possible, and if not then generates a sensible backup string
     subexprs = ['arg']
+
+    def __init__(self, pos, arg):
+        super(FieldsValueNode, self).__init__(pos, arg=arg)
 
     def analyse_types(self, env):
         self.arg.analyse_types(env)
@@ -532,10 +517,95 @@ class FieldsValueNode(ExprNodes.ExprNode):
             # A string representation of the code that gave the field seems like a reasonable
             # fallback. This'll mostly happen for "default" and "default_factory" where the
             # type may be a C-type that can't be converted to Python.
-            from .AutoDocTransforms import AnnotationWriter
-            writer = AnnotationWriter(description="Dataclass field")
-            string = writer.write(self.arg)
-            return ExprNodes.StringNode(self.pos, value=EncodedString(string))
+            return self._make_string()
+
+    def _make_string(self):
+        from .AutoDocTransforms import AnnotationWriter
+        writer = AnnotationWriter(description="Dataclass field")
+        string = writer.write(self.arg)
+        return ExprNodes.StringNode(self.pos, value=EncodedString(string))
 
     def generate_evaluation_code(self, code):
         return self.arg.generate_evaluation_code(code)
+
+
+def _setup_dataclass_fields(node, fields, dataclass_module):
+    from .ExprNodes import (AttributeNode, TupleNode, NameNode,
+                            GeneralCallNode, DictNode,
+                            IdentifierStringNode, BoolNode, DictItemNode,
+                            CloneNode)
+
+    # For defaults and default_factories containing things like lambda,
+    # they're already declared in the class scope, and it creates a big
+    # problem if multiple copies are floating around in both the __init__
+    # function, and in the __dataclass_fields__ structure.
+    # Therefore, create module-level constants holding these values and
+    # pass those around instead
+    variables_assignment_stats = []
+    for name, field in fields.items():
+        for attrname in [ "default", "default_factory" ]:
+            f_def = getattr(field, attrname)
+            if f_def is MISSING or f_def.is_literal or f_def.is_name:
+                # some simple cases where we don't need to set up
+                # the variable as a module-level constant
+                continue
+            global_scope = node.scope.global_scope()
+            module_field_name = global_scope.mangle(global_scope.mangle(
+                                    Naming.dataclass_field_default_cname,
+                                    node.class_name), name)
+            # create an entry in the global scope for this variable to live
+            nn = NameNode(f_def.pos, name=EncodedString(module_field_name))
+            nn.entry = global_scope.declare_var(nn.name, type=f_def.type or PyrexTypes.unspecified_type,
+                                                pos=f_def.pos, cname=nn.name, is_cdef=1)
+            # replace the field so that future users just receive the namenode
+            setattr(field, attrname, nn)
+
+            variables_assignment_stats.append(
+                Nodes.SingleAssignmentNode(f_def.pos,
+                                           lhs = nn,
+                                           rhs = DontAnalyseDeclarationsNode(f_def.pos, arg=f_def)))
+
+    placeholders = {}
+    field_func = AttributeNode(node.pos, obj = dataclass_module,
+                                    attribute=EncodedString("field"))
+    dc_fields = DictNode(node.pos, key_value_pairs=[])
+    dc_fields_namevalue_assignments = []
+    for name, field in fields.items():
+        placeholder_name = "PLACEHOLDER_%s" % name
+        placeholders[placeholder_name] = GetTypeNode(node.scope.entries[name])
+
+        if field.is_initvar:
+            continue
+
+        dc_field_keywords = DictNode.from_pairs(node.pos,
+            [ (IdentifierStringNode(node.pos, value=EncodedString(k)),
+               FieldsValueNode(node.pos, arg=v))
+                for k, v in field.__dict__.items() if k != "is_initvar" ])
+        dc_field_call = GeneralCallNode(node.pos, function = field_func,
+                                    positional_args = TupleNode(node.pos, args=[]),
+                                    keyword_args = dc_field_keywords)
+        dc_fields.key_value_pairs.append(
+            DictItemNode(node.pos,
+                key=IdentifierStringNode(node.pos, value=EncodedString(name)),
+                value=dc_field_call))
+        dc_fields_namevalue_assignments.append(
+            u"""
+__dataclass_fields__[{0!r}].name = {0!r}
+__dataclass_fields__[{0!r}].type = {1}
+""".format(name, placeholder_name))
+
+    dataclass_fields_assignment = \
+        Nodes.SingleAssignmentNode(node.pos,
+                        lhs = ExprNodes.NameNode(node.pos,
+                                        name=EncodedString("__dataclass_fields__")),
+                        rhs = dc_fields)
+
+    dc_fields_namevalue_assignments = u"\n".join(dc_fields_namevalue_assignments)
+    dc_fields_namevalue_assignments = TreeFragment(dc_fields_namevalue_assignments,
+                                                   level="c_class",
+                                                   pipeline=[NormalizeTree(None)])
+    dc_fields_namevalue_assignments = dc_fields_namevalue_assignments.substitute(placeholders)
+
+    return (variables_assignment_stats
+            + [dataclass_fields_assignment]
+            + dc_fields_namevalue_assignments.stats)

@@ -321,8 +321,6 @@ directive_types = {
                             # when the directive is applied
                             # TODO this may not be the best way of flagging it?
     'field': Ellipsis,
-    'InitVar': Ellipsis,
-    'ClassVar': Ellipsis,
 }
 
 for key, val in _directive_defaults.items():

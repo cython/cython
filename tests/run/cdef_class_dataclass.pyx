@@ -2,12 +2,13 @@
 # tag: dataclass
 
 from cython cimport dataclass, field, InitVar, ClassVar
+import cython
 from libc.stdlib cimport malloc, free
 
 include "cythonarrayutil.pxi"
 
 cdef class NotADataclass:
-    cdef int a
+    cdef cython.int a
     b: float
 
     def __repr__(self):
@@ -65,7 +66,7 @@ cdef class InheritsFromDataclass(BasicDataclass):
     In __post_init__
     InheritsFromDataclass(a=1.0, b=NADC, c=0, d=[], e=5)
     """
-    e: int = 0
+    e: cython.int = 0
 
     def __post_init__(self):
         print "In __post_init__"
@@ -81,7 +82,7 @@ cdef class InheritsFromNotADataclass(NotADataclass):
     InheritsFromNotADataclass(c=5)
     """
 
-    c: int = 1
+    c: cython.int = 1
 
 cdef struct S:
     int a
@@ -120,22 +121,30 @@ cdef class InitClassVars:
     ['a']
     >>> InitClassVars.c
     2.0
+    >>> InitClassVars.e
+    []
     >>> inst1 = InitClassVars()
     In __post_init__
     >>> inst1  # init vars don't appear in string
     InitClassVars(a=0)
-    >>> inst2 = InitClassVars(b=5)
+    >>> inst2 = InitClassVars(b=5, d=100)
     In __post_init__
     >>> inst1 == inst2  # comparison ignores the initvar
     True
     """
-    a: int = 0
+    a: cython.int = 0
     b: InitVar[double] = 1.0
     c: ClassVar[float] = 2.0
+    cdef InitVar[cython.int] d
+    d = 5
+    cdef ClassVar[list] e
+    e = []
 
-    def __post_init__(self, b):
+    def __post_init__(self, b, d):
         assert self.b==0, self.b  # hasn't been assigned yet
+        assert self.d==0, self.d
         self.b = b
+        self.d = d
         print "In __post_init__"
 
 import sys
@@ -154,7 +163,7 @@ if (sys.version_info >= (3, 7)
         >>> is_dataclass(RegularClass())
         True
         """
-        a: int = field(default_factory = lambda: 5)
+        a: cython.int = field(default_factory = lambda: 5)
 
     @dataclass(init=True)
     class RegularClass2:
@@ -163,18 +172,39 @@ if (sys.version_info >= (3, 7)
         >>> is_dataclass(RegularClass2)
         True
         """
-        a: int = field(default_factory = lambda: 5)
+        a: cython.int = field(default_factory = lambda: 5)
+
+dc1 = dataclass  # copy the cython attributes
+fld1 = field
+iv1 = InitVar
+cv1 = ClassVar
+
+cimport cython
+dc2 = cython.dataclass
+fld2 = cython.field
+iv2 = cython.InitVar
+cv2 = cython.ClassVar
+
+__doc__ = """
+# test that the Cython attributes are available as PyObjects
+# any further use is impossible without the dataclasses module though
+>>> all(isinstance(o, object) for o in [dc1, dc2, fld1, fld2, iv1, iv2, cv1, cv2])
+True
+"""
 
 if sys.version_info >= (3, 7):
-    dc = dataclass  # copy the cython attributes
-    fld = field
-    __doc__ = """
-    >>> from dataclasses import is_dataclass, dataclass, field
+    __doc__ += """
+    >>> from dataclasses import is_dataclass, dataclass, field, InitVar
+    >>> from typing import ClassVar
 
     # cython attributes revert to being the standard library values
-    >>> dc is dataclass
+    >>> dc1 is dc2 and dc1 is dataclass
     True
-    >>> fld is field
+    >>> fld1 is fld2 and fld1 is field
+    True
+    >>> iv1 is iv2 and iv1 is InitVar
+    True
+    >>> cv1 is cv2 and cv1 is ClassVar
     True
 
     # check out Cython dataclasses are close enough to convince it

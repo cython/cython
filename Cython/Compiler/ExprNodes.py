@@ -1924,19 +1924,15 @@ class NameNode(AtomicExprNode):
             return
 
         annotation = self.annotation
-        is_initvar = False
         if annotation.expr.is_string_literal:
             # name: "description" => not a type, but still a declared variable or attribute
             atype = None
         else:
             _, atype = annotation.analyse_type_annotation(env)
-            if (isinstance(annotation.expr, IndexNode)
-                    and annotation.expr.base.as_cython_attribute() == "InitVar"):
-                is_initvar = True
         if atype is None:
             atype = unspecified_type if as_target and env.directives['infer_types'] != False else py_object_type
+        is_classvar = atype.is_classvar
         self.entry = env.declare_var(name, atype, self.pos, is_cdef=not as_target)
-        self.entry.is_initvar = is_initvar
         self.entry.annotation = annotation.expr
         self.entry.pep563_annotation = annotation.string.value
 
@@ -1981,11 +1977,8 @@ class NameNode(AtomicExprNode):
             self.entry = env.lookup_here(self.name)
         if not self.entry and self.annotation is not None:
             # name : type = ...
-            if ('dataclass' in env.directives
-                and not (isinstance(self.annotation.expr, IndexNode)
-                         and self.annotation.expr.base.as_cython_attribute() == "ClassVar")):
-                # in a dataclass an assignment should not prevent a name becoming
-                # a class member (except for ClassVar)
+            if 'dataclass' in env.directives:
+                # in a dataclass an assignment should not prevent a name becoming a class member
                 self.declare_from_annotation(env, as_target=False)
             else:
                 self.declare_from_annotation(env, as_target=True)
@@ -3489,21 +3482,6 @@ class IndexNode(_IndexingBaseNode):
         pass
 
     def analyse_as_type(self, env):
-        base_as_cython_attribute = self.base.as_cython_attribute()
-        if base_as_cython_attribute in ['InitVar', 'ClassVar']:
-            # special case for dataclasses - just forward the index type
-            tp = self.index.analyse_as_type(env)
-            if (base_as_cython_attribute == "ClassVar"
-                    and not tp.is_pyobject):
-                # nearest PyObject type - since it's essentially a global
-                py_type_name = tp.py_type_name()
-                if py_type_name:
-                    tp = (env.builtin_scope().lookup_type(py_type_name)
-                            or tp)
-                else:
-                    tp = PyrexTypes.py_object_type
-            return tp
-
         base_type = self.base.analyse_as_type(env)
         if base_type and not base_type.is_pyobject:
             if base_type.is_cpp_class:

@@ -192,6 +192,8 @@ class PyrexType(BaseType):
     #  is_buffer             boolean     Is buffer access type
     #  is_pythran_expr       boolean     Is Pythran expr
     #  is_numpy_buffer       boolean     Is Numpy array buffer
+    #  is_initvar            boolean     Is a dataclass InitVar
+    #  is_classvar            boolean     Is a dataclass ClassVar
     #  has_attributes        boolean     Has C dot-selectable attributes
     #  default_value         string      Initial value that can be assigned before first user assignment.
     #  declaration_value     string      The value statically assigned on declaration (if any).
@@ -256,6 +258,8 @@ class PyrexType(BaseType):
     is_memoryviewslice = 0
     is_pythran_expr = 0
     is_numpy_buffer = 0
+    is_initvar = 0
+    is_classvar = 0
     has_attributes = 0
     default_value = ""
     declaration_value = ""
@@ -4119,6 +4123,72 @@ class ErrorType(PyrexType):
 
     def error_condition(self, result_code):
         return "dummy"
+
+class InitOrClassVar: #(PyrexType):
+    """Used to help Cython interpret dataclass InitVar or ClassVar.
+
+    Although not really a CppClassType, it uses a template-like syntax
+    so claims to be to allow exisiting code to use it with minimal fuss
+
+    Don't inherit from PyrexType to simplify implementation of
+    __getattribute__. However, this behaves like a PyrexType
+    """
+
+    template_type = None
+
+    @property
+    def is_cpp_class(self):
+        if self.template_type:
+            return self.template_type.is_cpp_class
+        return 1
+    @property
+    def is_initvar(self):
+        return self.name == "InitVar"
+    @property
+    def is_classvar(self):
+        return self.name == "ClassVar"
+
+    def __init__(self, name, template_type=None):
+        assert name in ["InitVar", "ClassVar"], name
+
+        self.name = name
+
+        if (name == "ClassVar" and template_type
+                and not template_type.is_pyobject):
+            # because classvars end up essentially used as globals they have
+            # to be PyObjects. Try to find the nearest suitable type (although
+            # practically I doubt this matters
+            py_type_name = template_type.py_type_name()
+            if py_type_name:
+                from .Builtin import builtin_scope
+                template_type = (builtin_scope.lookup_type(py_type_name)
+                                        or py_object_type)
+            else:
+                template_type = py_object_type
+        self.template_type = template_type
+
+    def is_template_type(self):
+        return self.template_type is None
+
+    def specialize_here(self, pos, template_values=None):
+        if not self.is_template_type():
+            error(pos, "'%r' has already been specialize" % self )
+            return error_type
+        if len(template_values) != 1:
+            error(pos, "'%s' takes exactly one template argument." % self.name)
+        return InitOrClassVar(self.name, template_values[0])
+
+    def __repr__(self):
+        if self.template_type:
+            return "%s[%r]" % (self.name, self.template_type)
+        else:
+            return self.name
+
+    def __getattr__(self, attr):
+        tt = self.template_type
+        if tt:
+            return getattr(tt, attr)
+        return getattr(PyrexType, attr)  # fall back to looking like a PyrexType
 
 
 rank_to_type_name = (
