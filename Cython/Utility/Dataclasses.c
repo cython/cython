@@ -37,11 +37,16 @@ static PyObject* __Pyx_LoadInternalModule(const char* name, const char* fallback
         } else {
             goto bad;
         }
-        modulename = PyUnicode_FromFormat("_cython_" CYTHON_ABI ".%s", name);
+        modulename = PyBytes_FromFormat("_cython_" CYTHON_ABI ".%s", name);
         if (!modulename) goto bad;
-        module = PyImport_AddModuleObject(modulename);
+#if PY_MAJOR_VERSION >= 3
+        module = PyImport_AddModuleObject(modulename); // borrowed
+#else
+        module = PyImport_AddModule(PyString_AsString(modulename)); // borrowed
+#endif
         Py_DECREF(modulename);
         if (!module) goto bad;
+        Py_INCREF(module);
         if (PyObject_SetAttrString(shared_abi_module, name, module)<0) goto bad;
         localDict = PyModule_GetDict(module); // borrowed
         if (!localDict) goto bad;
@@ -49,9 +54,7 @@ static PyObject* __Pyx_LoadInternalModule(const char* name, const char* fallback
         if (!builtins) goto bad;
         if (PyDict_SetItemString(localDict, "__builtins__", builtins) <0) goto bad;
 
-
         runValue = PyRun_String(fallback_code, Py_file_input, localDict, localDict);
-
         if (!runValue) goto bad;
         Py_DECREF(runValue);
     }
