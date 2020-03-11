@@ -127,6 +127,17 @@ class CythonScope(ModuleScope):
                                             self.viewscope, cython_scope=self,
                                             whitelist=MemoryView.view_utility_whitelist)
 
+        # Marks the types as imported so that they can be extended from
+        # without Cython attempting to import cython.view
+        ext_types = [ entry.type
+                         for entry in view_utility_scope.entries.values()
+                         if entry.type.is_extension_type ]
+        for mod in self.context.modules.values():
+            if mod is self or mod.is_builtin_scope:
+                continue
+            mod.types_imported.update(ext_types)
+
+
         # self.entries["array"] = view_utility_scope.entries.pop("array")
 
 
