@@ -1048,6 +1048,9 @@ class CythonCompileTestCase(unittest.TestCase):
         if 'allow_unknown_names' in self.tags['tag']:
             from Cython.Compiler import Options
             Options.error_on_unknown_names = False
+        if 'no_cache_builtins' in self.tags['tag']:
+            from Cython.Compiler import Options
+            Options.cache_builtins = False
 
         try:
             CompilationOptions
