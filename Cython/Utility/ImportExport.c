@@ -493,6 +493,9 @@ static PyTypeObject *__Pyx_ImportType(PyObject *module, const char *module_name,
 #if !CYTHON_COMPILING_IN_LIMITED_API
     basicsize = ((PyTypeObject *)result)->tp_basicsize;
 #else
+    if (size == 0) {
+        return (PyTypeObject *)result;
+    }
     py_basicsize = PyObject_GetAttrString(result, "__basicsize__");
     if (!py_basicsize)
         goto bad;

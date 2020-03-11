@@ -3496,6 +3496,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_name = type.module_name
         condition = replacement = None
         if module_name not in ('__builtin__', 'builtins'):
+            is_builtin_type = False
             module_name = '"%s"' % module_name
         elif type.name in Code.ctypedef_builtins_map:
             # Fast path for special builtins, don't actually import
@@ -3503,6 +3504,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln('%s = %s;' % (type.typeptr_cname, ctypename))
             return
         else:
+            is_builtin_type = True
             module_name = '__Pyx_BUILTIN_MODULE_NAME'
             if type.name in Code.non_portable_builtins_map:
                 condition, replacement = Code.non_portable_builtins_map[type.name]
@@ -3537,9 +3539,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("")  # start in new line
             code.putln("#if defined(PYPY_VERSION_NUM) && PYPY_VERSION_NUM < 0x050B0000")
             code.putln('sizeof(%s),' % objstruct)
-            code.putln("#elif CYTHON_COMPILING_IN_LIMITED_API")
-            code.putln('sizeof(%s),' % objstruct)
-            code.putln("#else")
+            if is_builtin_type:
+                # Builtin types are opaque in when the limited API is enabled
+                # and subsequents attempt to access their fields will trigger
+                # compile errors. Skip the struct size check here so things keep
+                # working when a builtin type is imported but not actually used.
+                code.putln('#elif CYTHON_COMPILING_IN_LIMITED_API')
+                code.putln('0,')
+            code.putln('#else')
             code.putln('sizeof(%s),' % sizeof_objstruct)
             code.putln("#endif")
         else:
