@@ -878,7 +878,7 @@ class CythonCompileTestCase(unittest.TestCase):
         from Cython.Compiler import Options
         self._saved_options = [
             (name, getattr(Options, name))
-            for name in ('warning_errors', 'clear_to_none', 'error_on_unknown_names', 'error_on_uninitialized')
+            for name in dir(Options) if not name.startswith("_")
         ]
         self._saved_default_directives = list(Options.get_directive_defaults().items())
         Options.warning_errors = self.warning_errors
@@ -1074,6 +1074,7 @@ class CythonCompileTestCase(unittest.TestCase):
             common_utility_include_dir = common_utility_include_dir,
             **extra_compile_options
             )
+        from Cython.Compiler import Options
         cython_compile(source, options=options,
                        full_module_name=module)
 
