@@ -1074,7 +1074,6 @@ class CythonCompileTestCase(unittest.TestCase):
             common_utility_include_dir = common_utility_include_dir,
             **extra_compile_options
             )
-        from Cython.Compiler import Options
         cython_compile(source, options=options,
                        full_module_name=module)
 

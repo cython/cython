@@ -55,3 +55,9 @@ pyregr.test_urllibnet
 
 # Inlined generators
 inlined_generator_expressions
+
+# The test works fine. However setting Options.cache_builtins
+# affects what's stored in the builtins scope which isn't reset
+# between tests so it breaks a lot of subsequent stuff. There's
+# too much static-state to see an easy way round it.
+memoryview.memoryview_cache_builtins
