@@ -26,14 +26,14 @@ from libcpp.vector cimport *
 from libcpp.complex cimport *
 from libcpp.limits cimport *
 
-cdef libcpp.deque.deque[int]   d1 = deque[int]()
-cdef libcpp.list.list[int]     l1 = list[int]()
-cdef libcpp.map.map[int,int]   m1 = map[int,int]()
-cdef libcpp.pair.pair[int,int] p1 = pair[int,int](1,2)
-cdef libcpp.queue.queue[int]   q1 = queue[int]()
-cdef libcpp.set.set[int]       s1 = set[int]()
-cdef libcpp.stack.stack[int]   t1 = stack[int]()
-cdef libcpp.vector.vector[int] v1 = vector[int]()
+cdef libcpp.deque.deque[int]       d1 = deque[int]()
+cdef libcpp.list.list[int]         l1 = list[int]()
+cdef libcpp.map.map[int,int]       m1 = map[int,int]()
+cdef libcpp.pair.pair[int,int]     p1 = pair[int,int](1,2)
+cdef libcpp.queue.queue[int]       q1 = queue[int]()
+cdef libcpp.set.set[int]           s1 = set[int]()
+cdef libcpp.stack.stack[int]       t1 = stack[int]()
+cdef libcpp.vector.vector[int]     v1 = vector[int]()
 
 cdef deque[int].iterator id1 = d1.begin()
 cdef deque[int].iterator id2 = d1.end()
