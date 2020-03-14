@@ -3788,14 +3788,14 @@ class DefNodeWrapper(FuncDefNode):
                 compare = '!='
             else:
                 compare = '<'
-            code.putln('} else if (%s %s %d) {' % (
+            code.putln('} else if (unlikely(%s %s %d)) {' % (
                 Naming.nargs_cname, compare, min_positional_args))
             code.put_goto(argtuple_error_label)
 
         if self.num_required_kw_args:
             # pure error case: keywords required but not passed
             if max_positional_args > min_positional_args and not self.star_arg:
-                code.putln('} else if (%s > %d) {' % (
+                code.putln('} else if (unlikely(%s > %d)) {' % (
                     Naming.nargs_cname, max_positional_args))
                 code.put_goto(argtuple_error_label)
             code.putln('} else {')
