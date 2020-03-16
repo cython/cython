@@ -146,14 +146,16 @@ def compile(f):
 # Special functions
 
 def cdiv(a, b):
-    q = a / b
-    if q < 0:
-        q += 1
-    return q
+    if a < 0:
+        a = -a
+        b = -b
+    if b < 0:
+        return (a + b + 1) // b
+    return a // b
 
 def cmod(a, b):
     r = a % b
-    if (a*b) < 0:
+    if (a * b) < 0 and r:
         r -= b
     return r
 
