@@ -41,3 +41,40 @@ In our integration example, we might break it up into ``pxd`` files like this:
     Note that if you have a cdef class with attributes, the attributes must
     be declared in the class declaration ``pxd`` file (if you use one), not
     the ``pyx`` file. The compiler will tell you about this.
+
+
+__init__.pxd
+^^^^^^^^^^^^
+
+Cython also supports ``__init__.pxd`` files for declarations in package's
+namespaces, similar to ``__init__.py`` files in Python.
+
+Continuing the integration example, we could package the module as follows:
+
+ 1. Place the module files in a directory tree as one usually would for
+    Python:
+    ::
+
+        CyIntegration/
+        ├── __init__.pyx
+        ├── __init__.pxd
+        ├── integrate.pyx
+        └── integrate.pxd
+
+ 2. In ``__init__.pxd``, use ``cimport`` for any declarations that one
+    would want to be available from the package's main namespace:
+    ::
+
+        from CyIntegration cimport integrate
+
+    Other modules would then be able to use ``cimport`` on the package in
+    order to gain faster, Cython access to the entire package and the data
+    recursively declared in it:
+    ::
+
+        cimport CyIntegration
+        
+        cpdef do_integration(CyIntegration.integrate.Function f):
+            return CyIntegration.integrate.integrate(f, 0., 2., 1)
+
+
