@@ -999,6 +999,7 @@ class CommonTest(BaseTest):
         y += 'ab'
         self.assertEqual('a', y[0])
         self.assertEqual('b', y[1])
+        self.assertEqual(['a', 'b'], y)
 
 
 class MixinStrUnicodeUserStringTest:
