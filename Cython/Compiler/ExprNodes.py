@@ -11369,30 +11369,12 @@ class AddNode(NumBinopNode):
                          else (unicode_type, str_type))
         type1, type2 = self.operand1.type, self.operand2.type
         is_unicode_concat = type1 in unicode_types and type2 in unicode_types
-        is_bytes_concat = type1 is bytes_type and type2 is bytes_type
 
-        func = None
         if is_unicode_concat:
-            if self.inplace or self.operand1.is_temp:
-                func = '__Pyx_PyUnicode_ConcatInplace'
-                code.globalstate.use_utility_code(
-                        UtilityCode.load_cached("UnicodeConcatInplace", "ObjectHandling.c"))
-            else:
-                func = '__Pyx_PyUnicode_Concat'
-        elif is_bytes_concat:
-            code.globalstate.use_utility_code(
-                        UtilityCode.load_cached("BytesConcat", "ObjectHandling.c"))
-            if self.inplace or self.operand1.is_temp:
-                func = '__Pyx_PyBytes_ConcatInplace'
-            else:
-                func = '__Pyx_PyBytes_Concat'
-
-        if func:
             if self.operand1.may_be_none() or self.operand2.may_be_none():
-                return func + 'Safe'
+                return '__Pyx_PyUnicode_ConcatSafe'
             else:
-                return func
-
+                return '__Pyx_PyUnicode_Concat'
         return super(AddNode, self).py_operation_function(code)
 
 
