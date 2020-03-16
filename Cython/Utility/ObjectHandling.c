@@ -2553,3 +2553,86 @@ static PyObject *__Pyx_PyMethod_New(PyObject *func, PyObject *self, CYTHON_UNUSE
 #else
     #define __Pyx_PyMethod_New PyMethod_New
 #endif
+
+/////////////// UnicodeConcatInplace.proto ////////////////
+
+#if CYTHON_COMPILING_IN_PYPY || PY_MAJOR_VERSION == 2
+    #define __Pyx_PyUnicode_ConcatInplace __Pyx_PyUnicode_Concat
+#else
+    #if CYTHON_REFNANNY
+        #define __Pyx_PyUnicode_ConcatInplace(a, b) __Pyx_PyUnicode_ConcatInplaceImpl(&a, b, __pyx_refnanny)
+    #else
+        #define __Pyx_PyUnicode_ConcatInplace(a, b) __Pyx_PyUnicode_ConcatInplaceImpl(&a, b)
+    #endif
+// __Pyx_PyUnicode_ConcatInPlace is slightly odd because it has the potential to modify the input
+// argument (but only in cases where no user should notice). Therefore, it needs to keep Cython's
+// refnanny informed.
+static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInplaceImpl(PyObject **a, PyObject *b
+    #if CYTHON_REFNANNY
+                                                                 , void * __pyx_refnanny
+    #endif
+                                                                ); /* proto */
+#endif
+#define __Pyx_PyUnicode_ConcatInplaceSafe(a, b) ((unlikely((a) == Py_None) || unlikely((b) == Py_None)) ? \
+    PyNumber_Add(a, b) : __Pyx_PyUnicode_ConcatInplace(a, b))
+
+////////////// UnicodeConcatInplace ////////////////////
+
+#if !(CYTHON_COMPILING_IN_PYPY || PY_MAJOR_VERSION == 2)
+    static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInplaceImpl(PyObject **a, PyObject *b
+    #if CYTHON_REFNANNY
+                                                                    , void * __pyx_refnanny
+    #endif
+) {
+    __Pyx_GIVEREF(*a);
+    PyUnicode_Append(a, b);  // this does it's own safety checks so is always safe to use
+    __Pyx_XINCREF(*a);  // there are now copies of `*a` - the one just returned and the one
+                // passed in as an argument
+    return *a;
+}
+#endif // !CYTHON_COMPILING_IN_PYPY
+
+//////////// BytesConcat.proto ///////////////////////
+
+// Follows the interface of "PyUnicode_Concat", but with Bytes, rather than the
+// interface of PyBytes_Concat. However, uses PyBytes_Concat which has the potential
+// to modify in-place. See UnicodeConcatInplace for comments
+#if CYTHON_COMPILING_IN_PYPY
+    #define __Pyx_PyBytes_Concat(a, b) PyNumber_Add(a,b)
+    #define __Pyx_PyBytes_ConcatInplace(a, b) PyNumber_Add(a,b)
+#else
+    #if CYTHON_REFNANNY
+        #define __Pyx_PyBytes_Concat(a, b) __Pyx_PyBytes_ConcatImpl(&a, b, 0, __pyx_refnanny)
+        #define __Pyx_PyBytes_ConcatInplace(a, b) __Pyx_PyBytes_ConcatImpl(&a, b, 1, __pyx_refnanny)
+    #else
+        #define __Pyx_PyBytes_Concat(a, b) __Pyx_PyBytes_ConcatImpl(&a, b, 0)
+        #define __Pyx_PyBytes_ConcatInplace(a, b) __Pyx_PyBytes_ConcatImpl(&a, b, 1)
+    #endif
+    static CYTHON_INLINE PyObject *__Pyx_PyBytes_ConcatImpl(PyObject **a, PyObject *b, int inplace
+        #if CYTHON_REFNANNY
+                                                                 , void * __pyx_refnanny
+        #endif
+                                                            ); /* proto */
+#endif
+#define __Pyx_PyBytes_ConcatSafe(a, b) ((unlikely((a) == Py_None) || unlikely((b) == Py_None)) ? \
+    PyNumber_Add(a, b) : __Pyx_PyBytes_Concat(a, b))
+#define __Pyx_PyBytes_ConcatInplaceSafe(a, b) ((unlikely((a) == Py_None) || unlikely((b) == Py_None)) ? \
+    PyNumber_Add(a, b) : __Pyx_PyBytes_ConcatInplace(a, b))
+
+//////////// BytesConcat ///////////////////////
+
+#if !CYTHON_COMPILING_IN_PYPY
+static CYTHON_INLINE PyObject *__Pyx_PyBytes_ConcatImpl(PyObject **a, PyObject *b, int inplace
+        #if CYTHON_REFNANNY
+                                                                 , void * __pyx_refnanny
+        #endif
+                                                            ) {
+    if (!inplace) Py_INCREF(*a); // an extra reference will prevent resizing in place
+   __Pyx_GIVEREF(*a);
+    PyBytes_Concat(a, b);  // this does it's own safety checks so is always safe to use
+    __Pyx_XINCREF(*a);  // there are now copies of `*a` - the one just returned and the one
+                // passed in as an argument
+    if (!inplace) Py_XDECREF(*a); // undo extra reference
+    return *a;
+}
+#endif
