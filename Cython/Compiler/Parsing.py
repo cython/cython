@@ -2826,10 +2826,12 @@ def p_c_func_declarator(s, pos, ctx, base, cmethod_flag):
     nogil = p_nogil(s)
     exc_val, exc_check = p_exception_value_clause(s)
     with_gil = p_with_gil(s)
+    with_nogil = p_with_nogil(s)
     return Nodes.CFuncDeclaratorNode(pos,
         base = base, args = args, has_varargs = ellipsis,
         exception_value = exc_val, exception_check = exc_check,
-        nogil = nogil or ctx.nogil or with_gil, with_gil = with_gil)
+        nogil = nogil or ctx.nogil or with_gil, with_gil = with_gil,
+        with_nogil=with_nogil)
 
 supported_overloaded_operators = cython.declare(set, set([
     '+', '-', '*', '/', '%',
@@ -2932,13 +2934,21 @@ def p_nogil(s):
     else:
         return 0
 
-def p_with_gil(s):
+def p_with_nogil(s):
     if s.sy == 'with':
         s.next()
-        s.expect_keyword('gil')
+        s.expect_keyword('nogil')
         return 1
     else:
         return 0
+
+
+def p_with_gil(s):
+    if s.sy == 'with' and s.peek() == ('IDENT', 'gil'):
+        s.next()
+        s.next()
+        return 1
+    return 0
 
 def p_exception_value_clause(s):
     exc_val = None

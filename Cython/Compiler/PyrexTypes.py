@@ -2668,6 +2668,7 @@ class CFuncType(CType):
     #  calling_convention  string  Function calling convention
     #  nogil            boolean    Can be called without gil
     #  with_gil         boolean    Acquire gil around function body
+    #  with_nogil       boolean    Droppong gil around function body
     #  templates        [string] or None
     #  cached_specialized_types [CFuncType]   cached specialized versions of the CFuncType if defined in a pxd
     #  from_fused       boolean    Indicates whether this is a specialized
@@ -2687,7 +2688,7 @@ class CFuncType(CType):
 
     def __init__(self, return_type, args, has_varargs = 0,
             exception_value = None, exception_check = 0, calling_convention = "",
-            nogil = 0, with_gil = 0, is_overridable = 0, optional_arg_count = 0,
+            nogil = 0, with_gil = 0, with_nogil=0, is_overridable = 0, optional_arg_count = 0,
             is_const_method = False, is_static_method=False,
             templates = None, is_strict_signature = False):
         self.return_type = return_type
@@ -2699,6 +2700,7 @@ class CFuncType(CType):
         self.calling_convention = calling_convention
         self.nogil = nogil
         self.with_gil = with_gil
+        self.with_nogil = with_nogil
         self.is_overridable = is_overridable
         self.is_const_method = is_const_method
         self.is_static_method = is_static_method

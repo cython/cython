@@ -593,6 +593,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
     # exception_check  boolean    True if PyErr_Occurred check needed
     # nogil            boolean    Can be called without gil
     # with_gil         boolean    Acquire gil around function body
+    # with_nogil       boolean    Drop gil around function body
     # is_const_method  boolean    Whether this is a const method
 
     child_attrs = ["base", "args", "exception_value"]
@@ -728,7 +729,8 @@ class CFuncDeclaratorNode(CDeclaratorNode):
             optional_arg_count=self.optional_arg_count,
             exception_value=exc_val, exception_check=exc_check,
             calling_convention=self.base.calling_convention,
-            nogil=self.nogil, with_gil=self.with_gil, is_overridable=self.overridable,
+            nogil=self.nogil, with_gil=self.with_gil, with_nogil=self.with_nogil,
+            is_overridable=self.overridable,
             is_const_method=self.is_const_method,
             templates=self.templates)
 
@@ -1709,7 +1711,7 @@ class FuncDefNode(StatNode, BlockNode):
         lenv.return_type = self.return_type
         type = self.entry.type
         if type.is_cfunction:
-            lenv.nogil = type.nogil and not type.with_gil
+            lenv.nogil = (type.nogil and not type.with_gil) or type.with_nogil
         self.local_scope = lenv
         lenv.directives = env.directives
         return lenv
@@ -1815,6 +1817,7 @@ class FuncDefNode(StatNode, BlockNode):
 
         # ----- GIL acquisition
         acquire_gil = self.acquire_gil
+        drop_gil = self.drop_gil
 
         # See if we need to acquire the GIL for variable declarations, or for
         # refnanny only
@@ -1842,6 +1845,9 @@ class FuncDefNode(StatNode, BlockNode):
         if acquire_gil or acquire_gil_for_var_decls_only:
             code.put_ensure_gil()
             code.funcstate.gil_owned = True
+        elif drop_gil:
+            code.put_release_gil()
+            code.funcstate.gil_owned = False
         elif lenv.nogil and lenv.has_with_gil_block:
             code.declare_gilstate()
 
@@ -2136,6 +2142,10 @@ class FuncDefNode(StatNode, BlockNode):
             code.put_release_ensured_gil()
             code.funcstate.gil_owned = False
 
+        if drop_gil:
+            code.put_acquire_gil()
+            code.funcstate.gil_owned = True
+
         if not self.return_type.is_void:
             code.putln("return %s;" % Naming.retval_cname)
 
@@ -2290,6 +2300,7 @@ class CFuncDefNode(FuncDefNode):
     #  decorators    [DecoratorNode]        list of decorators
     #
     #  with_gil      boolean    Acquire GIL around body
+    #  with_nogil    boolean    Drop GIL around body
     #  type          CFuncType
     #  py_func       wrapper for calling from Python
     #  overridable   whether or not this is a cpdef function
@@ -2520,6 +2531,9 @@ class CFuncDefNode(FuncDefNode):
     def need_gil_acquisition(self, lenv):
         return self.type.with_gil
 
+    def need_gil_drop(self, lenv):
+        return self.type.with_nogil
+
     def nogil_check(self, env):
         type = self.type
         with_gil = type.with_gil
@@ -2543,6 +2557,7 @@ class CFuncDefNode(FuncDefNode):
             self.analyse_default_values(env)
             self.analyse_annotations(env)
         self.acquire_gil = self.need_gil_acquisition(self.local_scope)
+        self.drop_gil = self.need_gil_drop(self.local_scope)
         return self
 
     def needs_assignment_synthesis(self, env, code=None):
@@ -2761,6 +2776,7 @@ class DefNode(FuncDefNode):
     return_type_annotation = None
     entry = None
     acquire_gil = 0
+    drop_gil = 0
     self_in_stararg = 0
     py_cfunc_node = None
     requires_classobj = False
@@ -2793,7 +2809,7 @@ class DefNode(FuncDefNode):
         self.num_required_args = r
 
     def as_cfunction(self, cfunc=None, scope=None, overridable=True, returns=None, except_val=None, modifiers=None,
-                     nogil=False, with_gil=False):
+                     nogil=False, with_gil=False, with_nogil=False):
         if self.star_arg:
             error(self.star_arg.pos, "cdef function cannot have star argument")
         if self.starstar_arg:
@@ -2816,6 +2832,7 @@ class DefNode(FuncDefNode):
                                               exception_check=exception_check,
                                               nogil=nogil,
                                               with_gil=with_gil,
+                                              with_nogil=with_nogil,
                                               is_overridable=overridable)
             cfunc = CVarDefNode(self.pos, type=cfunc_type)
         else:
@@ -2843,6 +2860,7 @@ class DefNode(FuncDefNode):
                                          exception_check=cfunc_type.exception_check,
                                          exception_value=exception_value,
                                          with_gil=cfunc_type.with_gil,
+                                         with_nogil=cfunc_type.with_nogil,
                                          nogil=cfunc_type.nogil)
         return CFuncDefNode(self.pos,
                             modifiers=modifiers or [],
