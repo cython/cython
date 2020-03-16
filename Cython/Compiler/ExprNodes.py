@@ -11364,8 +11364,11 @@ class AddNode(NumBinopNode):
                 self, type1, type2)
 
     def py_operation_function(self, code):
+        language_level = code.globalstate.directives['language_level'] or '3str'
+        unicode_types = ((unicode_type,) if language_level in ('2', '3str')
+                         else (unicode_type, str_type))
         type1, type2 = self.operand1.type, self.operand2.type
-        is_unicode_concat = type1 is unicode_type and type2 is unicode_type
+        is_unicode_concat = type1 in unicode_types and type2 in unicode_types
 
         if is_unicode_concat:
             if self.operand1.may_be_none() or self.operand2.may_be_none():
