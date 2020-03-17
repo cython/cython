@@ -2553,3 +2553,101 @@ static PyObject *__Pyx_PyMethod_New(PyObject *func, PyObject *self, CYTHON_UNUSE
 #else
     #define __Pyx_PyMethod_New PyMethod_New
 #endif
+
+/////////////// UnicodeConcatInplace.proto ////////////////
+
+#if CYTHON_COMPILING_IN_PYPY || PY_MAJOR_VERSION == 2
+    #define __Pyx_PyUnicode_ConcatInplace __Pyx_PyUnicode_Concat
+#else
+    #if CYTHON_REFNANNY
+        #define __Pyx_PyUnicode_ConcatInplace(a, b) __Pyx_PyUnicode_ConcatInplaceImpl(&a, b, __pyx_refnanny)
+    #else
+        #define __Pyx_PyUnicode_ConcatInplace(a, b) __Pyx_PyUnicode_ConcatInplaceImpl(&a, b)
+    #endif
+// __Pyx_PyUnicode_ConcatInPlace is slightly odd because it has the potential to modify the input
+// argument (but only in cases where no user should notice). Therefore, it needs to keep Cython's
+// refnanny informed.
+static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInplaceImpl(PyObject **a, PyObject *b
+    #if CYTHON_REFNANNY
+                                                                 , void * __pyx_refnanny
+    #endif
+                                                                ); /* proto */
+#endif
+#define __Pyx_PyUnicode_ConcatInplaceSafe(a, b) ((unlikely((a) == Py_None) || unlikely((b) == Py_None)) ? \
+    PyNumber_Add(a, b) : __Pyx_PyUnicode_ConcatInplace(a, b))
+
+////////////// UnicodeConcatInplace ////////////////////
+
+#if !(CYTHON_COMPILING_IN_PYPY || PY_MAJOR_VERSION == 2)
+    static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInplaceImpl(PyObject **a, PyObject *b
+    #if CYTHON_REFNANNY
+                                                                    , void * __pyx_refnanny
+    #endif
+) {
+    __Pyx_GIVEREF(*a);
+    PyUnicode_Append(a, b);  // this does it's own safety checks so is always safe to use
+    __Pyx_XINCREF(*a);  // there are two copies of `*a` - the one just returned and the one
+                // passed in as an argument
+    return *a;
+}
+#endif // !CYTHON_COMPILING_IN_PYPY
+
+//////////// BytesConcat.proto ///////////////////////
+
+// Follows the interface of "PyUnicode_Concat", but with Bytes, rather than the
+// interface of PyBytes_Concat. However, uses PyBytes_Concat which has the potential
+// to modify in-place. See UnicodeConcatInplace for comments
+#if CYTHON_COMPILING_IN_PYPY
+    #define __Pyx_PyBytes_Concat(a, b) PyNumber_Add(a,b)
+    #define __Pyx_PyBytes_ConcatInplace(a, b) PyNumber_Add(a,b)
+#else
+    #if CYTHON_REFNANNY
+        #define __Pyx_PyBytes_ConcatInplace(a, b) __Pyx_PyBytes_ConcatInplaceImpl(&a, b, __pyx_refnanny)
+    #else
+        #define __Pyx_PyBytes_ConcatInplace(a, b) __Pyx_PyBytes_ConcatInplaceImpl(&a, b)
+    #endif
+    static CYTHON_INLINE PyObject *__Pyx_PyBytes_ConcatInplaceImpl(PyObject **a, PyObject *b
+        #if CYTHON_REFNANNY
+                                                                 , void * __pyx_refnanny
+        #endif
+                                                            ); /* proto */
+    static CYTHON_INLINE PyObject *__Pyx_PyBytes_Concat(PyObject *a, PyObject *b);
+#endif
+#define __Pyx_PyBytes_ConcatSafe(a, b) ((unlikely((a) == Py_None) || unlikely((b) == Py_None)) ? \
+    PyNumber_Add(a, b) : __Pyx_PyBytes_Concat(a, b))
+#define __Pyx_PyBytes_ConcatInplaceSafe(a, b) ((unlikely((a) == Py_None) || unlikely((b) == Py_None)) ? \
+    PyNumber_Add(a, b) : __Pyx_PyBytes_ConcatInplace(a, b))
+
+//////////// BytesConcat ///////////////////////
+
+#if !CYTHON_COMPILING_IN_PYPY
+static CYTHON_INLINE PyObject *__Pyx_PyBytes_ConcatInplaceImpl(PyObject **a, PyObject *b
+        #if CYTHON_REFNANNY
+                                                                 , void * __pyx_refnanny
+        #endif
+                                                            ) {
+   __Pyx_GIVEREF(*a);
+    PyBytes_Concat(a, b);  // this does it's own safety checks so is always safe to use
+    __Pyx_XINCREF(*a);  // there are two copies of `*a` - the one just returned and the one
+                // passed in as an argument
+    return *a;
+}
+
+static CYTHON_INLINE PyObject *__Pyx_PyBytes_Concat(PyObject *a, PyObject *b) {
+    // unusual for utilitycode to use refnanny, but the __Pyx_PyBytes_ConcatInplaceImpl
+    // needs something forwarded to it
+    __Pyx_RefNannyDeclarations
+    __Pyx_RefNannySetupContext("__Pyx_PyBytes_Concat (internal)", 0);
+    // wrapper function prevents "outside" a from getting modified
+    PyObject* result;
+    Py_INCREF(a); // an extra reference will prevent PyBytes_Concat from operating in place
+    result = __Pyx_PyBytes_ConcatInplaceImpl(&a, b
+            #if CYTHON_REFNANNY
+                                             , __pyx_refnanny
+            #endif
+                                                );
+
+    Py_XDECREF(a);
+    return result;
+}
+#endif
