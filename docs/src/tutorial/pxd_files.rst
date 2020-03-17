@@ -69,12 +69,10 @@ Continuing the integration example, we could package the module as follows:
 
     Other modules would then be able to use ``cimport`` on the package in
     order to gain faster, Cython access to the entire package and the data
-    recursively declared in it:
-    ::
+    recursively declared in it::
 
         cimport CyIntegration
         
         cpdef do_integration(CyIntegration.integrate.Function f):
             return CyIntegration.integrate.integrate(f, 0., 2., 1)
-
 
