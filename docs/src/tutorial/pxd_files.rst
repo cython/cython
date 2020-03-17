@@ -13,8 +13,7 @@ using the ``cimport`` keyword.
 
 1.  They can be used for sharing external C declarations.
 2.  They can contain functions which are well suited for inlining by
-    the C compiler. Such functions should be marked ``inline``, example:
-    ::
+    the C compiler. Such functions should be marked ``inline``, example::
 
        cdef inline int int_min(int a, int b):
            return b if b < a else a
@@ -30,8 +29,7 @@ In our integration example, we might break it up into ``pxd`` files like this:
     the C ``math.h`` header file, like ``sin``. Then one would simply do
     ``from cmath cimport sin`` in ``integrate.pyx``.
 2.  Add a ``integrate.pxd`` so that other modules written in Cython
-    can define fast custom functions to integrate.
-    ::
+    can define fast custom functions to integrate::
 
        cdef class Function:
            cpdef evaluate(self, double x)
