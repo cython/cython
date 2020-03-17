@@ -62,8 +62,7 @@ Continuing the integration example, we could package the module as follows:
         └── integrate.pxd
 
  2. In ``__init__.pxd``, use ``cimport`` for any declarations that one
-    would want to be available from the package's main namespace:
-    ::
+    would want to be available from the package's main namespace::
 
         from CyIntegration cimport integrate
 
@@ -75,4 +74,3 @@ Continuing the integration example, we could package the module as follows:
         
         cpdef do_integration(CyIntegration.integrate.Function f):
             return CyIntegration.integrate.integrate(f, 0., 2., 1)
-
