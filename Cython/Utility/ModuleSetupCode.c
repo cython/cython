@@ -591,7 +591,10 @@ static CYTHON_INLINE void * PyThread_tss_get(Py_tss_t *key) {
   #define PyString_Type                PyUnicode_Type
   #define PyString_Check               PyUnicode_Check
   #define PyString_CheckExact          PyUnicode_CheckExact
+  // PyPy3 used to define "PyObject_Unicode"
+#ifndef PyObject_Unicode
   #define PyObject_Unicode             PyObject_Str
+#endif
 #endif
 
 #if PY_MAJOR_VERSION >= 3
@@ -1065,7 +1068,7 @@ static void __pyx_insert_code_object(int code_line, PyCodeObject* code_object) {
     if (__pyx_code_cache.count == __pyx_code_cache.max_count) {
         int new_max = __pyx_code_cache.max_count + 64;
         entries = (__Pyx_CodeObjectCacheEntry*)PyMem_Realloc(
-            __pyx_code_cache.entries, (size_t)new_max*sizeof(__Pyx_CodeObjectCacheEntry));
+            __pyx_code_cache.entries, ((size_t)new_max) * sizeof(__Pyx_CodeObjectCacheEntry));
         if (unlikely(!entries)) {
             return;
         }
