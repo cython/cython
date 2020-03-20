@@ -11364,13 +11364,10 @@ class AddNode(NumBinopNode):
                 self, type1, type2)
 
     def py_operation_function(self, code):
-        language_level = code.funcstate.scope.global_scope().context.language_level
         type1, type2 = self.operand1.type, self.operand2.type
-        # in Py2 str_type is bytes but this can be concatted to a unicode_type string.
-        # in Py3 str_type is unicode so can be concatted to unicode_type or str_type
-        is_unicode_concat = (type1 in (unicode_type, str_type) and type2 in ((unicode_type, str_type))
-                                and not (type1 is str_type and type2 is str_type
-                                         and language_level == 2))
+        is_unicode_concat = ((type1 is unicode_type or type2 is unicode_type)
+                                and type1 in (unicode_type, str_type)
+                                and type2 in (unicode_type, str_type))
 
         if is_unicode_concat:
             if self.operand1.may_be_none() or self.operand2.may_be_none():
