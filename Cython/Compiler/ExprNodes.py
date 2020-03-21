@@ -11300,6 +11300,9 @@ class NumBinopNode(BinopNode):
         function_name = self.py_functions[self.operator]
         if self.inplace:
             function_name = function_name.replace('PyNumber_', 'PyNumber_InPlace')
+        elif self.operator == "+" and self.operand1.is_temp:
+            # a specific optimization for string concatenation
+            function_name = "__Pyx_PyNumber_AddToTemp"
         return function_name
 
     py_functions = {
@@ -11308,7 +11311,7 @@ class NumBinopNode(BinopNode):
         "&":        "PyNumber_And",
         "<<":       "PyNumber_Lshift",
         ">>":       "PyNumber_Rshift",
-        "+":        "PyNumber_Add",
+        "+":        "__Pyx_PyNumber_Add",
         "-":        "PyNumber_Subtract",
         "*":        "PyNumber_Multiply",
         "@":        "__Pyx_PyNumber_MatrixMultiply",
@@ -11376,16 +11379,16 @@ class AddNode(NumBinopNode):
         func = None
         if is_unicode_concat:
             if self.inplace or self.operand1.is_temp:
-                func = '__Pyx_PyUnicode_ConcatInplace'
+                func = '__PYX_PYUNICODE_CONCATINPLACE'
                 code.globalstate.use_utility_code(
-                        UtilityCode.load_cached("UnicodeConcatInplace", "ObjectHandling.c"))
+                        UtilityCode.load_cached("UnicodeConcatInPlace", "ObjectHandling.c"))
             else:
                 func = '__Pyx_PyUnicode_Concat'
         elif is_bytes_concat:
             code.globalstate.use_utility_code(
                         UtilityCode.load_cached("BytesConcat", "ObjectHandling.c"))
             if self.inplace or self.operand1.is_temp:
-                func = '__Pyx_PyBytes_ConcatInplace'
+                func = '__PYX_PYBYTES_CONCATINPLACE'
             else:
                 func = '__Pyx_PyBytes_Concat'
 
@@ -11396,6 +11399,10 @@ class AddNode(NumBinopNode):
                 return func
 
         return super(AddNode, self).py_operation_function(code)
+
+    def generate_evaluation_code(self, code):
+        code.globalstate.use_utility_code(UtilityCode.load_cached("NumberAdd", "ObjectHandling.c"))
+        super(AddNode, self).generate_evaluation_code(code)
 
 
 class SubNode(NumBinopNode):
