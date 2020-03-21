@@ -2556,9 +2556,7 @@ static PyObject *__Pyx_PyMethod_New(PyObject *func, PyObject *self, CYTHON_UNUSE
 
 /////////////// UnicodeConcatInplace.proto ////////////////
 
-#if CYTHON_COMPILING_IN_PYPY || PY_MAJOR_VERSION == 2
-    #define __Pyx_PyUnicode_ConcatInplace __Pyx_PyUnicode_Concat
-#else
+#if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 2
     #if CYTHON_REFNANNY
         #define __Pyx_PyUnicode_ConcatInplace(a, b) __Pyx_PyUnicode_ConcatInplaceImpl(&a, b, __pyx_refnanny)
     #else
@@ -2572,13 +2570,15 @@ static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInplaceImpl(PyObject **a, P
                                                                  , void * __pyx_refnanny
     #endif
                                                                 ); /* proto */
+#else
+    #define __Pyx_PyUnicode_ConcatInplace __Pyx_PyUnicode_Concat
 #endif
 #define __Pyx_PyUnicode_ConcatInplaceSafe(a, b) ((unlikely((a) == Py_None) || unlikely((b) == Py_None)) ? \
     PyNumber_Add(a, b) : __Pyx_PyUnicode_ConcatInplace(a, b))
 
 ////////////// UnicodeConcatInplace ////////////////////
 
-#if !(CYTHON_COMPILING_IN_PYPY || PY_MAJOR_VERSION == 2)
+#if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 2
     static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInplaceImpl(PyObject **a, PyObject *b
     #if CYTHON_REFNANNY
                                                                     , void * __pyx_refnanny
@@ -2597,10 +2597,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInplaceImpl(PyObject **a, P
 // Follows the interface of "PyUnicode_Concat", but with Bytes, rather than the
 // interface of PyBytes_Concat. However, uses PyBytes_Concat which has the potential
 // to modify in-place. See UnicodeConcatInplace for comments
-#if CYTHON_COMPILING_IN_PYPY
-    #define __Pyx_PyBytes_Concat(a, b) PyNumber_Add(a,b)
-    #define __Pyx_PyBytes_ConcatInplace(a, b) PyNumber_Add(a,b)
-#else
+#if CYTHON_COMPILING_IN_CPYTHON
     #if CYTHON_REFNANNY
         #define __Pyx_PyBytes_ConcatInplace(a, b) __Pyx_PyBytes_ConcatInplaceImpl(&a, b, __pyx_refnanny)
     #else
@@ -2612,6 +2609,9 @@ static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInplaceImpl(PyObject **a, P
         #endif
                                                             ); /* proto */
     static CYTHON_INLINE PyObject *__Pyx_PyBytes_Concat(PyObject *a, PyObject *b);
+#else
+    #define __Pyx_PyBytes_Concat(a, b) PyNumber_Add(a,b)
+    #define __Pyx_PyBytes_ConcatInplace(a, b) PyNumber_Add(a,b)
 #endif
 #define __Pyx_PyBytes_ConcatSafe(a, b) ((unlikely((a) == Py_None) || unlikely((b) == Py_None)) ? \
     PyNumber_Add(a, b) : __Pyx_PyBytes_Concat(a, b))
@@ -2620,7 +2620,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInplaceImpl(PyObject **a, P
 
 //////////// BytesConcat ///////////////////////
 
-#if !CYTHON_COMPILING_IN_PYPY
+#if CYTHON_COMPILING_IN_CPYTHON
 static CYTHON_INLINE PyObject *__Pyx_PyBytes_ConcatInplaceImpl(PyObject **a, PyObject *b
         #if CYTHON_REFNANNY
                                                                  , void * __pyx_refnanny
