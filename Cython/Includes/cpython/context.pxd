@@ -24,7 +24,7 @@ cdef extern from "Python.h":
     # Create a shallow copy of the current thread context. Returns NULL if an
     # error has occurred.
 
-    int PyContext_Enter(object ctx)
+    int PyContext_Enter(object ctx) except -1
     # Set ctx as the current context for the current thread. Returns 0 on
     # success, and -1 on error.
 
