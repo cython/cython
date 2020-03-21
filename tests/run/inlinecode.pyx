@@ -1,4 +1,4 @@
-from Cython import Shadow
+import cython
 
 _inline_divcode = '''\
 def f(int a, int b):
@@ -14,4 +14,4 @@ def inline_langversion(language_level, a=5, b=2):
     """
     # Caching for inline code didn't always respect language version.
     # https://github.com/cython/cython/issues/3419
-    print(Shadow.inline(_inline_divcode, language_level=language_level, quiet=True)(a=a, b=b))
+    print(cython.inline(_inline_divcode, language_level=language_level, quiet=True)(a=a, b=b))
