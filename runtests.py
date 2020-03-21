@@ -878,7 +878,7 @@ class CythonCompileTestCase(unittest.TestCase):
         from Cython.Compiler import Options
         self._saved_options = [
             (name, getattr(Options, name))
-            for name in dir(Options) if not name.startswith("_")
+            for name in ('warning_errors', 'clear_to_none', 'error_on_unknown_names', 'error_on_uninitialized')
         ]
         self._saved_default_directives = list(Options.get_directive_defaults().items())
         Options.warning_errors = self.warning_errors
@@ -1048,9 +1048,6 @@ class CythonCompileTestCase(unittest.TestCase):
         if 'allow_unknown_names' in self.tags['tag']:
             from Cython.Compiler import Options
             Options.error_on_unknown_names = False
-        if 'no_cache_builtins' in self.tags['tag']:
-            from Cython.Compiler import Options
-            Options.cache_builtins = False
 
         try:
             CompilationOptions
