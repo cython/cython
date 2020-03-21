@@ -11308,7 +11308,7 @@ class NumBinopNode(BinopNode):
         "&":        "PyNumber_And",
         "<<":       "PyNumber_Lshift",
         ">>":       "PyNumber_Rshift",
-        "+":        "__Pyx_PyNumber_Add",
+        "+":        "PyNumber_Add",
         "-":        "PyNumber_Subtract",
         "*":        "PyNumber_Multiply",
         "@":        "__Pyx_PyNumber_MatrixMultiply",
@@ -11377,30 +11377,24 @@ class AddNode(NumBinopNode):
                 is_unicode_concat = False
 
             if is_unicode_concat:
+                if self.inplace or self.operand1.is_temp:
+                    code.globalstate.use_utility_code(
+                        UtilityCode.load_cached("UnicodeConcatInPlace", "ObjectHandling.c"))
                 func = '__Pyx_PyUnicode_Concat'
         elif type1 is bytes_type and type2 is bytes_type:
+            code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("BytesConcatInPlace", "ObjectHandling.c"))
             func = '__Pyx_PyBytes_Concat'
 
         if func:
             # any necessary utility code will be got by "NumberAdd" in generate_evaluation_code
             if self.inplace or self.operand1.is_temp:
-                func = func.upper() + 'INPLACE'  # upper case to indicate unintuitive macro
+                func += 'InPlace'  # upper case to indicate unintuitive macro
             if self.operand1.may_be_none() or self.operand2.may_be_none():
                 func += 'Safe'
             return func
 
-        if self.operand1.is_temp:
-            # a specific optimization for string concatenation (where the type isn't known in advance)
-            return "__PYX_PYNUMBER_ADDTOTEMP"
-        else:
-            func = super(AddNode, self).py_operation_function(code)
-            if self.inplace:
-                func = func.upper()
-            return func
-
-    def generate_evaluation_code(self, code):
-        code.globalstate.use_utility_code(UtilityCode.load_cached("NumberAdd", "ObjectHandling.c"))
-        super(AddNode, self).generate_evaluation_code(code)
+        return super(AddNode, self).py_operation_function(code)
 
 
 class SubNode(NumBinopNode):
