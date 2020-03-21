@@ -57,7 +57,7 @@ cdef extern from "Python.h":
     # Set the value of var to value in the current context. Returns a pointer
     # to a PyObject object, or NULL if an error has occurred.
 
-    int PyContextVar_Reset(object var, object token)
+    int PyContextVar_Reset(object var, object token) except -1
     # Reset the state of the var context variable to that it was in before
     # PyContextVar_Set() was called. This function returns 0 on success and
     # -1 on error.
