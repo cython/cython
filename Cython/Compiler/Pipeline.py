@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import itertools
 from time import time
 
@@ -149,7 +147,7 @@ def create_pipeline(context, mode, exclude_classes=()):
     from .ParseTreeTransforms import CalculateQualifiedNamesTransform, ReplacePropertyNode
     from .TypeInference import MarkParallelAssignments, MarkOverflowingArithmetic
     from .ParseTreeTransforms import AdjustDefByDirectives, AlignFunctionDefinitions
-    from .ParseTreeTransforms import RemoveUnreachableCode, GilCheck, MangleDunderNamesTransform
+    from .ParseTreeTransforms import RemoveUnreachableCode, GilCheck
     from .FlowControl import ControlFlowAnalysis
     from .AnalysedTreeTransforms import AutoTestDictTransform
     from .AutoDocTransforms import EmbedSignature
@@ -186,7 +184,6 @@ def create_pipeline(context, mode, exclude_classes=()):
         InterpretCompilerDirectives(context, context.compiler_directives),
         ParallelRangeTransform(context),
         AdjustDefByDirectives(context),
-        MangleDunderNamesTransform(context),
         WithTransform(context),
         MarkClosureVisitor(context),
         _align_function_definitions,

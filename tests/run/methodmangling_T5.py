@@ -21,8 +21,17 @@ class CyTest(object):
     False
     >>> cy._CyTest__y
     2
+
+    >>> '_CyTest___more_than_two' in dir(cy)
+    True
+    >>> '___more_than_two' in dir(cy)
+    False
+    >>> '___more_than_two_special___' in dir(cy)
+    True
     """
     __x = 1
+    ___more_than_two = 3
+    ___more_than_two_special___ = 4
 
     def __init__(self):
         self.__y = 2

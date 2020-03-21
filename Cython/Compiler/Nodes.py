@@ -887,6 +887,16 @@ class CArgDeclNode(Node):
     def name_cstring(self):
         return self.name.as_c_string_literal()
 
+    @property
+    def hdr_cname(self):
+        # done lazily - needs self.entry to be set to get the class-mangled
+        # name, which means it has to be generated relatively late
+        if self.needs_conversion:
+            return punycodify_name(Naming.arg_prefix + self.entry.name)
+        else:
+            return punycodify_name(Naming.var_prefix + self.entry.name)
+
+
     def analyse(self, env, nonempty=0, is_self_arg=False):
         if is_self_arg:
             self.base_type.is_self_arg = self.is_self_arg = True
@@ -3091,10 +3101,6 @@ class DefNode(FuncDefNode):
                         arg.needs_type_test = 1
                     else:
                         arg.needs_conversion = 1
-            if arg.needs_conversion:
-                arg.hdr_cname = punycodify_name(Naming.arg_prefix + arg.name)
-            else:
-                arg.hdr_cname = punycodify_name(Naming.var_prefix + arg.name)
 
         if nfixed > len(self.args):
             self.bad_signature()
@@ -3768,7 +3774,7 @@ class DefNodeWrapper(FuncDefNode):
         non_posonly_args = [arg for arg in all_args if not arg.pos_only]
         code.putln("static PyObject **%s[] = {%s};" % (
             Naming.pykwdlist_cname,
-            ','.join(['&%s' % code.intern_identifier(arg.name)
+            ','.join(['&%s' % code.intern_identifier(arg.entry.name)
                       for arg in non_posonly_args] + ['0'])))
 
         # Before being converted and assigned to the target variables,
@@ -3840,7 +3846,7 @@ class DefNodeWrapper(FuncDefNode):
             code.putln('} else {')
             for i, arg in enumerate(kw_only_args):
                 if not arg.default:
-                    pystring_cname = code.intern_identifier(arg.name)
+                    pystring_cname = code.intern_identifier(arg.entry.name)
                     # required keyword-only argument missing
                     code.globalstate.use_utility_code(
                         UtilityCode.load_cached("RaiseKeywordRequired", "FunctionArguments.c"))
@@ -4057,7 +4063,7 @@ class DefNodeWrapper(FuncDefNode):
                         code.putln('default:')
                     else:
                         code.putln('case %2d:' % i)
-                pystring_cname = code.intern_identifier(arg.name)
+                pystring_cname = code.intern_identifier(arg.entry.name)
                 if arg.default:
                     if arg.kw_only:
                         # optional kw-only args are handled separately below
