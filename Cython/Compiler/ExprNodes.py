@@ -11368,6 +11368,10 @@ class AddNode(NumBinopNode):
         is_unicode_concat = ((type1 is unicode_type or type2 is unicode_type)
                                 and type1 in (unicode_type, str_type)
                                 and type2 in (unicode_type, str_type))
+        if isinstance(self.operand1, FormattedValueNode) or isinstance(self.operand2, FormattedValueNode):
+            # possibly unnecessary since FormattedValueNode is always unicode_type
+            is_unicode_concat = True
+
 
         if is_unicode_concat:
             if self.operand1.may_be_none() or self.operand2.may_be_none():
