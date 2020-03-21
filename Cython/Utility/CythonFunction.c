@@ -39,6 +39,7 @@ typedef struct {
     // Dynamic default args and annotations
     void *defaults;
     int defaults_pyobjects;
+    size_t defaults_size;  // used by FusedFunction for copying defaults
     int flags;
 
     // Defaults info
@@ -497,6 +498,7 @@ static PyObject *__Pyx_CyFunction_New(PyTypeObject *type, PyMethodDef *ml, int f
     op->func_code = code;
     // Dynamic Default args
     op->defaults_pyobjects = 0;
+    op->defaults_size = 0;
     op->defaults = NULL;
     op->defaults_tuple = NULL;
     op->defaults_kwdict = NULL;
@@ -946,6 +948,7 @@ static CYTHON_INLINE void *__Pyx_CyFunction_InitDefaults(PyObject *func, size_t 
         return PyErr_NoMemory();
     memset(m->defaults, 0, size);
     m->defaults_pyobjects = pyobjects;
+    m->defaults_size = size;
     return m->defaults;
 }
 
@@ -1091,6 +1094,26 @@ __pyx_FusedFunction_descr_get(PyObject *self, PyObject *obj, PyObject *type)
                     ((__pyx_CyFunctionObject *) func)->func_code);
     if (!meth)
         return NULL;
+
+    // defaults needs copying fully rather than just copying the pointer
+    // since otherwise it will be freed on destruction of meth despite
+    // belonging to func rather than meth
+    if (func->func.defaults) {
+        PyObject **pydefaults;
+        int i;
+
+        if (!__Pyx_CyFunction_InitDefaults((PyObject*)meth,
+                                      func->func.defaults_size,
+                                      func->func.defaults_pyobjects)) {
+            Py_XDECREF((PyObject*)meth);
+            return NULL;
+        }
+        memcpy(meth->func.defaults, func->func.defaults, func->func.defaults_size);
+
+        pydefaults = __Pyx_CyFunction_Defaults(PyObject *, meth);
+        for (i = 0; i < meth->func.defaults_pyobjects; i++)
+            Py_XINCREF(pydefaults[i]);
+    }
 
     Py_XINCREF(func->func.func_classobj);
     meth->func.func_classobj = func->func.func_classobj;
@@ -1370,6 +1393,7 @@ static PyTypeObject __pyx_FusedFunctionType_type = {
     // __doc__ is None for the fused function type, but we need it to be
     // a descriptor for the instance's __doc__, so rebuild descriptors in our subclass
     __pyx_CyFunction_getsets,           /*tp_getset*/
+    // NOTE: tp_base may be changed later during module initialisation when importing CyFunction across modules.
     &__pyx_CyFunctionType_type,         /*tp_base*/
     0,                                  /*tp_dict*/
     __pyx_FusedFunction_descr_get,      /*tp_descr_get*/
@@ -1408,6 +1432,8 @@ static int __pyx_FusedFunction_init(void) {
     __pyx_FusedFunctionType = __Pyx_FetchCommonTypeFromSpec(&__pyx_FusedFunctionType_spec, bases);
     Py_DECREF(bases);
 #else
+    // Set base from __Pyx_FetchCommonTypeFromSpec, in case it's different from the local static value.
+    __pyx_FusedFunctionType_type.tp_base = __pyx_CyFunctionType;
     __pyx_FusedFunctionType = __Pyx_FetchCommonType(&__pyx_FusedFunctionType_type);
 #endif
     if (__pyx_FusedFunctionType == NULL) {
