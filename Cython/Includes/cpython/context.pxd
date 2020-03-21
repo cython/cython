@@ -28,7 +28,7 @@ cdef extern from "Python.h":
     # Set ctx as the current context for the current thread. Returns 0 on
     # success, and -1 on error.
 
-    int PyContext_Exit(object ctx)
+    int PyContext_Exit(object ctx) except -1
     # Deactivate the ctx context and restore the previous context as the
     # current context for the current thread. Returns 0 on success, and -1 on
     # error.
