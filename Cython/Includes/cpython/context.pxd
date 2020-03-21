@@ -44,7 +44,7 @@ cdef extern from "Python.h":
     # specify the default value for the context variable. If an error has
     # occurred, this function returns NULL.
 
-    int PyContextVar_Get(object var, object default_value, PyObject **value)
+    int PyContextVar_Get(object var, object default_value, PyObject **value) except -1
     # Get the value of a context variable. Returns -1 if an error has occurred
     # during lookup, and 0 if no error occurred, whether or not a value was
     # found. If the context variable was found, value will be a pointer to it.
