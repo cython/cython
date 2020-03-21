@@ -27,6 +27,9 @@ Bugs fixed
 * Fix deprecated import of "imp" module.
   Patch by Matti Picus.  (Github issue #3350)
 
+* Fix compatibility with Pythran 0.9.6 and later.
+  Patch by Serge Guelton.  (Github issue #3308)
+
 * The ``_Py_PyAtExit()`` function in ``cpython.pylifecycle`` was misdeclared.
   Patch by Zackery Spytz.  (Github issue #3382)
 
