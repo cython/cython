@@ -326,7 +326,7 @@ def errors_non_string_kwarg():
     """
     >>> errors_non_string_kwarg()  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: ...keywords must be strings
+    TypeError: ...keywords must be strings...
     """
     f(**{1:2})
 
@@ -463,10 +463,10 @@ def call_builtin_empty_dict():
 
 def call_builtin_nonempty_dict():
     """
-    >>> call_builtin_nonempty_dict()
+    >>> call_builtin_nonempty_dict() # doctest: +ELLIPSIS
     Traceback (most recent call last):
       ...
-    TypeError: id() takes no keyword arguments
+    TypeError: id() ... keyword argument...
     """
     return id(1, **{'foo': 1})
 

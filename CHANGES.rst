@@ -210,19 +210,38 @@ Bugs fixed
   implemented functions.
   Patch by David Woods.  (Github issue #3384)
 
+* Valid Python object concatenation of (iterable) strings to non-strings
+  could fail with an exception.
+  Patch by David Woods.  (Github issue #3433)
+
+* Using C functions as temporary values lead to invalid C code.
+  Original patch by David Woods.  (Github issue #3418)
+
 * Fix an unhandled C++ exception in comparisons.
   Patch by David Woods.  (Github issue #3361)
 
 * Fix deprecated import of "imp" module.
   Patch by Matti Picus.  (Github issue #3350)
 
+* Fix compatibility with Pythran 0.9.6 and later.
+  Patch by Serge Guelton.  (Github issue #3308)
+
 * The ``_Py_PyAtExit()`` function in ``cpython.pylifecycle`` was misdeclared.
   Patch by Zackery Spytz.  (Github issue #3382)
+
+* Several missing declarations in ``cpython.*`` were added.
+  Patches by Zackery Spytz.  (Github issue #3421, #3411, #3402)
+
+* A declaration for ``libc.math.fpclassify()`` was added.
+  Patch by Zackery Spytz.  (Github issue #2514)
 
 * Avoid "undeclared" warning about automatically generated pickle methods.
   Patch by David Woods.  (Github issue #3353)
 
 * Avoid C compiler warning about unreachable code in ``prange()``.
+
+* Some C compiler warnings in PyPy were resolved.
+  Patch by Matti Picus.  (Github issue #3437)
 
 
 0.29.15 (2020-02-06)

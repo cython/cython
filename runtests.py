@@ -1826,6 +1826,10 @@ class EmbedTest(unittest.TestCase):
         except OSError:
             pass
 
+def load_listfile(filename):
+    # just re-use the FileListExclude implementation
+    fle = FileListExcluder(filename)
+    return list(fle.excludes)
 
 class MissingDependencyExcluder(object):
     def __init__(self, deps):
@@ -1874,8 +1878,7 @@ class FileListExcluder(object):
                     self.excludes[line.split()[0]] = True
 
     def __call__(self, testname, tags=None):
-        exclude = (testname in self.excludes
-                   or testname.split('.')[-1] in self.excludes)
+        exclude = any(string_selector(ex)(testname) for ex in self.excludes)
         if exclude and self.verbose:
             print("Excluding %s because it's listed in %s"
                   % (testname, self._list_file))
@@ -2068,6 +2071,9 @@ def main():
     parser.add_option("-x", "--exclude", dest="exclude",
                       action="append", metavar="PATTERN",
                       help="exclude tests matching the PATTERN")
+    parser.add_option("--listfile", dest="listfile",
+                      action="append",
+                      help="specify a file containing a list of tests to run")
     parser.add_option("-j", "--shard_count", dest="shard_count", metavar="N",
                       type=int, default=1,
                       help="shard this run into several parallel runs")
@@ -2160,6 +2166,10 @@ def main():
 
     if options.xml_output_dir:
         shutil.rmtree(options.xml_output_dir, ignore_errors=True)
+
+    if options.listfile:
+        for listfile in options.listfile:
+            cmd_args.extend(load_listfile(listfile))
 
     if options.capture:
         keep_alive_interval = 10
@@ -2299,6 +2309,16 @@ def runtests_callback(args):
 
 
 def runtests(options, cmd_args, coverage=None):
+    # faulthandler should be able to provide a limited traceback
+    # in the event of a segmentation fault. Hopefully better than Travis
+    # just keeping running until timeout. Only available on Python 3.3+
+    try:
+        import faulthandler
+    except ImportError:
+        pass  # OK - not essential
+    else:
+        faulthandler.enable()
+
 
     WITH_CYTHON = options.with_cython
     ROOTDIR = os.path.abspath(options.root_dir)
@@ -2416,6 +2436,9 @@ def runtests(options, cmd_args, coverage=None):
         bug_files = [
             ('bugs.txt', True),
             ('pypy_bugs.txt', IS_PYPY),
+            ('pypy2_bugs.txt', IS_PYPY and IS_PY2),
+            ('pypy_crash_bugs.txt', IS_PYPY),
+            ('pypy_implementation_detail_bugs.txt', IS_PYPY),
             ('limited_api_bugs.txt', options.limited_api),
             ('windows_bugs.txt', sys.platform == 'win32'),
             ('cygwin_bugs.txt', sys.platform == 'cygwin')
