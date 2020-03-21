@@ -337,12 +337,12 @@ class PyrexType(BaseType):
             convert_call,
             code.error_goto_if(error_condition or self.error_condition(result_code), error_pos))
 
-    def _generate_xxxref_placeholder(self, code, *ignored_args, **ignored_kwds):
+    def _generate_dummy_refcounting(self, code, *ignored_args, **ignored_kwds):
         if self.needs_refcounting:
             raise NotImplementedError("Ref-counting operation not yet implemented for type %s" %
                                       self)
 
-    def _generate_xxxref_set_placeholder(self, code, cname, rhs_cname, *ignored_args, **ignored_kwds):
+    def _generate_dummy_refcounting_assignment(self, code, cname, rhs_cname, *ignored_args, **ignored_kwds):
         if self.needs_refcounting:
             raise NotImplementedError("Ref-counting operation not yet implemented for type %s" %
                                       self)
@@ -351,9 +351,9 @@ class PyrexType(BaseType):
     generate_incref = generate_xincref = generate_decref = generate_xdecref \
         = generate_decref_clear = generate_xdecref_clear \
         = generate_gotref = generate_xgotref = generate_giveref = generate_xgiveref \
-            = _generate_xxxref_placeholder
+            = _generate_dummy_refcounting
 
-    generate_decref_set = generate_xdecref_set = _generate_xxxref_set_placeholder
+    generate_decref_set = generate_xdecref_set = _generate_dummy_refcounting_assignment
 
     def nullcheck_string(self, code, cname):
         if self.needs_refcounting:
@@ -1262,6 +1262,7 @@ class PyObjectType(PyrexType):
 
     def generate_decref(self, code, cname, nanny, have_gil):
         # have_gil is for the benefit of memoryviewslice - it's ignored here
+        assert have_gil
         self._generate_decref(code, cname, nanny, null_check=False, clear=False)
 
     def generate_xdecref(self, code, cname, nanny, have_gil):

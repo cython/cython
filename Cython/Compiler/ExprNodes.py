@@ -759,7 +759,7 @@ class ExprNode(Node):
         # TODO ideally this would be shared with "make_owned_reference"
         if not self.result_in_temp():
             code.put_incref_memoryviewslice(self.result(), self.type,
-                                            have_gil=True)
+                                            have_gil=self.in_nogil_context)
 
     def generate_evaluation_code(self, code):
         #  Generate code to evaluate this node and
@@ -858,33 +858,27 @@ class ExprNode(Node):
     #        type = PyrexTypes.py_object_type
     #    return type
 
-    def generate_decref_set(self, code, rhs):
-        code.put_decref_set(self.result(), self.ctype(), rhs)
+    def generate_decref_set(self, code, rhs, handle_null=False):
+        if not (handle_null and self.cf_is_null):
+            if handle_null and self.cf_maybe_null:
+                self.generate_xdecref_set(code, rhs)
+            else:
+                code.put_decref_set(self.result(), self.ctype(), rhs)
 
     def generate_xdecref_set(self, code, rhs):
         code.put_xdecref_set(self.result(), self.ctype(), rhs)
 
-    def generate_guarded_decref_set(self, code, rhs):
-        # TODO don't like the name
-        if not self.cf_is_null:
-            if self.cf_maybe_null:
-                self.generate_xdecref_set(code, rhs)
+    def generate_gotref(self, code, handle_null=False,
+                        maybe_null_extra_check=True):
+        if not (handle_null and self.cf_is_null):
+            if (handle_null and self.cf_maybe_null
+                    and maybe_null_extra_check):
+                self.generate_xgotref(code)
             else:
-                self.generate_decref_set(code, rhs)
-
-    def generate_gotref(self, code):
-        code.put_gotref(self.result(), self.ctype())
+                code.put_gotref(self.result(), self.ctype())
 
     def generate_xgotref(self, code):
         code.put_xgotref(self.result(), self.ctype())
-
-    def generate_guarded_gotref(self, code, and_maybe_null=True):
-        # TODO don't like the name
-        if not self.cf_is_null:
-            if self.cf_maybe_null and and_maybe_null:
-                self.generate_xgotref(code)
-            else:
-                self.generate_gotref(code)
 
     def generate_giveref(self, code):
         code.put_giveref(self.result(), self.ctype())
@@ -2392,12 +2386,12 @@ class NameNode(AtomicExprNode):
                     rhs.make_owned_reference(code)
                     is_external_ref = entry.is_cglobal or self.entry.in_closure or self.entry.from_closure
                     if is_external_ref:
-                        self.generate_guarded_gotref(code)
+                        self.generate_gotref(code, handle_null=True)
                     assigned = True
                     if entry.is_cglobal:
                         self.generate_decref_set(code, rhs.result_as(self.ctype()))
                     else:
-                        self.generate_guarded_decref_set(code, rhs.result_as(self.ctype()))
+                        self.generate_decref_set(code, rhs.result_as(self.ctype()), handle_null=True)
                         if self.cf_is_null:
                             assigned = False
                     if is_external_ref:
@@ -2506,12 +2500,8 @@ class NameNode(AtomicExprNode):
 
                 if self.entry.in_closure:
                     # generator
-                    self.generate_guarded_gotref(code, and_maybe_null=ignore_nonexisting)
-                if ignore_nonexisting and self.cf_maybe_null:
-                    code.put_xdecref_clear(self.result(), self.ctype(),
-                                        have_gil=not self.nogil)
-                else:
-                    code.put_xdecref_clear(self.result(), self.ctype(),
+                    self.generate_gotref(code, handle_null=True, maybe_null_extra_check=ignore_nonexisting)
+                code.put_xdecref_clear(self.result(), self.ctype(),
                                         have_gil=not self.nogil)
         else:
             error(self.pos, "Deletion of C names not supported")

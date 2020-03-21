@@ -2060,7 +2060,7 @@ class CCodeWriter(object):
         type = entry.type
         if (not entry.is_self_arg and not entry.type.is_complete()
             or entry.type.is_extension_type):
-            return "(PyObject *)" + entry.cname # FIXME need to implement this
+            return "(PyObject *)" + entry.cname
         else:
             return entry.cname
 
