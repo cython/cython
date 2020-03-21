@@ -210,6 +210,9 @@ Bugs fixed
   implemented functions.
   Patch by David Woods.  (Github issue #3384)
 
+* Using C functions as temporary values lead to invalid C code.
+  Original patch by David Woods.  (Github issue #3418)
+
 * Fix an unhandled C++ exception in comparisons.
   Patch by David Woods.  (Github issue #3361)
 
