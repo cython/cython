@@ -30,10 +30,16 @@ Bugs fixed
 * The ``_Py_PyAtExit()`` function in ``cpython.pylifecycle`` was misdeclared.
   Patch by Zackery Spytz.  (Github issue #3382)
 
+* The matrix multiplication functions in ``cpython.number`` were missing.
+  Patch by Zackery Spytz.  (Github issue #3421)
+
 * Avoid "undeclared" warning about automatically generated pickle methods.
   Patch by David Woods.  (Github issue #3353)
 
 * Avoid C compiler warning about unreachable code in ``prange()``.
+
+* Some C compiler warnings in PyPy were resolved.
+  Patch by Matti Picus.  (Github issue #3437)
 
 
 0.29.15 (2020-02-06)
