@@ -59,7 +59,7 @@ convert_func_prefix = pyrex_prefix + "convert_"
 closure_scope_prefix = pyrex_prefix + "scope_"
 closure_class_prefix = pyrex_prefix + "scope_struct_"
 lambda_func_prefix = pyrex_prefix + "lambda_"
-module_is_main   = pyrex_prefix + "module_is_main_"
+module_is_main   = pyrex_prefix + "module_is_main"
 defaults_struct_prefix = pyrex_prefix + "defaults"
 dynamic_args_cname = pyrex_prefix + "dynamic_args"
 
@@ -96,6 +96,8 @@ clineno_cname    = pyrex_prefix + "clineno"
 cfilenm_cname    = pyrex_prefix + "cfilenm"
 local_tstate_cname = pyrex_prefix + "tstate"
 module_cname     = pyrex_prefix + "m"
+modulestate_cname = pyrex_prefix + "mstate"
+modulestateglobal_cname = pyrex_prefix + "mstate_global"
 moddoc_cname     = pyrex_prefix + "mdoc"
 methtable_cname  = pyrex_prefix + "methods"
 retval_cname     = pyrex_prefix + "r"
@@ -132,6 +134,8 @@ tp_dict_version_temp = pyrex_prefix + "tp_dict_version"
 obj_dict_version_temp = pyrex_prefix + "obj_dict_version"
 type_dict_guard_temp = pyrex_prefix + "type_dict_guard"
 cython_runtime_cname   = pyrex_prefix + "cython_runtime"
+cyfunction_type_cname = pyrex_prefix + "CyFunctionType"
+fusedfunction_type_cname = pyrex_prefix + "FusedFunctionType"
 
 global_code_object_cache_find = pyrex_prefix + 'find_code_object'
 global_code_object_cache_insert = pyrex_prefix + 'insert_code_object'
@@ -163,8 +167,11 @@ exc_vars = (exc_type_name, exc_value_name, exc_tb_name)
 
 api_name        = pyrex_prefix + "capi__"
 
-h_guard_prefix   = "__PYX_HAVE__"
-api_guard_prefix = "__PYX_HAVE_API__"
+# the h and api guards get changed to:
+#  __PYX_HAVE__FILENAME (for ascii filenames)
+#  __PYX_HAVE_U_PUNYCODEFILENAME (for non-ascii filenames)
+h_guard_prefix   = "__PYX_HAVE_"
+api_guard_prefix = "__PYX_HAVE_API_"
 api_func_guard   = "__PYX_HAVE_API_FUNC_"
 
 PYX_NAN          = "__PYX_NAN()"

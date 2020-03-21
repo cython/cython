@@ -56,3 +56,5 @@ auto __Pyx_pythran_to_python(T &&value) -> decltype(to_python(
   using returnable_type = typename pythonic::returnable<typename std::remove_cv<typename std::remove_reference<T>::type>::type>::type;
   return to_python(returnable_type{std::forward<T>(value)});
 }
+
+#define __Pyx_PythranShapeAccessor(x) (x.shape().array())

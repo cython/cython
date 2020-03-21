@@ -18,6 +18,7 @@ cimport cpython.dict
 cimport cpython.exc
 cimport cpython.float
 cimport cpython.function
+cimport cpython.genobject
 cimport cpython.getargs
 cimport cpython.instance
 cimport cpython.int

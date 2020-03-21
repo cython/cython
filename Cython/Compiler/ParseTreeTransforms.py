@@ -1765,7 +1765,9 @@ if VALUE is not None:
                 },
                 level='c_class', pipeline=[NormalizeTree(None)]).substitute({})
             pickle_func.analyse_declarations(node.scope)
+            self.enter_scope(node, node.scope)  # functions should be visited in the class scope
             self.visit(pickle_func)
+            self.exit_scope()
             node.body.stats.append(pickle_func)
 
     def _handle_fused_def_decorators(self, old_decorators, env, node):
@@ -1939,9 +1941,6 @@ if VALUE is not None:
             rhs.binding = True
 
         node.is_cyfunction = rhs.binding
-        if rhs.binding:
-            # For the moment, CyFunctions do not support METH_FASTCALL
-            node.entry.signature.use_fastcall = False
         return self._create_assignment(node, rhs, env)
 
     def _create_assignment(self, def_node, rhs, env):

@@ -185,13 +185,11 @@ class old_build_ext(_build_ext.build_ext):
 
         _build_ext.build_ext.run(self)
 
-    def build_extensions(self):
-        # First, sanity-check the 'extensions' list
-        self.check_extensions_list(self.extensions)
-
+    def check_extensions_list(self, extensions):
+        # Note: might get called multiple times.
+        _build_ext.build_ext.check_extensions_list(self, extensions)
         for ext in self.extensions:
             ext.sources = self.cython_sources(ext.sources, ext)
-            self.build_extension(ext)
 
     def cython_sources(self, sources, extension):
         """
@@ -200,17 +198,6 @@ class old_build_ext(_build_ext.build_ext):
         found, and return a modified 'sources' list with Cython source
         files replaced by the generated C (or C++) files.
         """
-        try:
-            from Cython.Compiler.Main \
-                import CompilationOptions, \
-                       default_options as cython_default_options, \
-                       compile as cython_compile
-            from Cython.Compiler.Errors import PyrexError
-        except ImportError:
-            e = sys.exc_info()[1]
-            print("failed to import Cython: %s" % e)
-            raise DistutilsPlatformError("Cython does not appear to be installed")
-
         new_sources = []
         cython_sources = []
         cython_targets = {}
@@ -251,7 +238,7 @@ class old_build_ext(_build_ext.build_ext):
         #    2.    Add in any (unique) paths from the extension
         #        cython_include_dirs (if Cython.Distutils.extension is used).
         #    3.    Add in any (unique) paths from the extension include_dirs
-        includes = self.cython_include_dirs
+        includes = list(self.cython_include_dirs)
         try:
             for i in extension.cython_include_dirs:
                 if not i in includes:
@@ -270,12 +257,11 @@ class old_build_ext(_build_ext.build_ext):
         #    1. Start with the command line option.
         #    2. Add in any (unique) entries from the extension
         #         cython_directives (if Cython.Distutils.extension is used).
-        directives = self.cython_directives
+        directives = dict(self.cython_directives)
         if hasattr(extension, "cython_directives"):
             directives.update(extension.cython_directives)
 
-        # Set the target_ext to '.c'.  Cython will change this to '.cpp' if
-        # needed.
+        # Set the target file extension for C/C++ mode.
         if cplus:
             target_ext = '.cpp'
         else:
@@ -312,6 +298,17 @@ class old_build_ext(_build_ext.build_ext):
 
         if not cython_sources:
             return new_sources
+
+        try:
+            from Cython.Compiler.Main \
+                import CompilationOptions, \
+                       default_options as cython_default_options, \
+                       compile as cython_compile
+            from Cython.Compiler.Errors import PyrexError
+        except ImportError:
+            e = sys.exc_info()[1]
+            print("failed to import Cython: %s" % e)
+            raise DistutilsPlatformError("Cython does not appear to be installed")
 
         module_name = extension.name
 

@@ -7,9 +7,7 @@ Many scientific Python distributions, such as Anaconda [Anaconda]_,
 Enthought Canopy [Canopy]_, and Sage [Sage]_,
 bundle Cython and no setup is needed.  Note however that if your
 distribution ships a version of Cython which is too old you can still
-use the instructions below to update Cython.  Everything in this
-tutorial should work with Cython 0.11.2 and newer, unless a footnote
-says otherwise.
+use the instructions below to update Cython.
 
 Unlike most Python software, Cython requires a C compiler to be
 present on the system. The details of getting a C compiler varies

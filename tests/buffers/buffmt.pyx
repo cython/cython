@@ -165,7 +165,7 @@ def char3int(fmt):
     >>> char3int("c3xiii")
     >>> char3int("cxxxiii")
 
-    Standard alignment (assming int size is 4)
+    Standard alignment (assuming int size is 4)
     >>> char3int("=c3xiii")
     >>> char3int("=ciii")
     Traceback (most recent call last):

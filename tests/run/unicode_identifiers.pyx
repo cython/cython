@@ -51,10 +51,15 @@ if sys.version_info[0]>2:
     'NormalClassΓΓ.εxciting_function.<locals>.nestεd'
 
     Do kwargs work?
-    >>> unicode_kwarg(αrg=5)
+    >>> unicode_kwarg(αrγ=5)
     5
     >>> unicode_kwarg_from_cy()
     1
+
+    Normalization of attributes
+    (The cdef class version is testable in Python 2 too)
+    >>> NormalizeAttrPy().get()
+    5
     """
 else:
     __doc__ = ""
@@ -79,7 +84,7 @@ cdef class A:
         return self.ναμε==1
     def regular_function(self):
         """
-        Can use unicode cdef functions and (private) attributes iternally
+        Can use unicode cdef functions and (private) attributes internally
         >>> A().regular_function()
         True
         """
@@ -169,8 +174,8 @@ cdef class Derived(Γναμε2):
 
 cdef Γναμε2 global_ναμε3 = Γναμε2()
 
-def function_taking_fancy_argument(Γναμε2 αrg):
-    return αrg
+def function_taking_fancy_argument(Γναμε2 αrγ):
+    return αrγ
 
 class NormalClassΓΓ(Γναμε2):
     """
@@ -190,19 +195,23 @@ class NormalClassΓΓ(Γναμε2):
             pass
         return nestεd
 
-def unicode_kwarg(*,αrg):
-    return αrg
+def unicode_kwarg(*, αrγ):
+    return αrγ
 
 def unicode_kwarg_from_cy():
-    return unicode_kwarg(αrg=1)
+    return unicode_kwarg(αrγ=1)
+
+class NormalizeAttrPy:
+    """Python normalizes identifier names before they are used;
+    therefore ﬁ and fi should access the same attribute"""
+    def __init__(self):
+        self.ﬁ = 5 # note unicode ligature symbol
+    def get(self):
+        return self.fi
 
 cdef class NormalizeAttrCdef:
     """Python normalizes identifier names before they are used;
-    therefore ﬁ and fi should access the same attribute.
-    A more comprehensive version of this is in "unicode_identifiers_normalize.py"
-    comparing the behaviour to Python. The version here shows it
-    behaves the same in a cdef class and is tested with Python 2
-
+    therefore ﬁ and fi should access the same attribute
     >>> NormalizeAttrCdef().get()
     5
     """

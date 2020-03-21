@@ -1,5 +1,4 @@
-# tag: numpy_old
-# cannot be named "numpy" in order to not clash with the numpy module!
+# tag: numpy
 
 cimport numpy as np
 cimport cython
@@ -945,5 +944,3 @@ def test_broadcast_comparison(np.ndarray[double, ndim=1] a):
     cdef object obj = a
     return a == 0, obj == 0, a == 1, obj == 1
 
-
-include "numpy_common.pxi"
