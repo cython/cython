@@ -19,6 +19,7 @@ cache:
 python:
   - 3.8
   - 2.7
+  - 3.9-dev
   - 3.7
   - 3.6
   - 3.5
@@ -38,6 +39,19 @@ env:
 
 matrix:
   include:
+    # slowest first
+    - os: osx
+      env: PY=2
+      python: 2
+      language: c
+      compiler: clang
+      cache: false
+    - os: osx
+      env: PY=3
+      python: 3
+      language: c
+      compiler: clang
+      cache: false
 # Disabled: coverage analysis takes excessively long, several times longer than without.
 #    - python: 3.7
 #      env: COVERAGE=1
@@ -49,20 +63,6 @@ matrix:
       env: LIMITED_API=--limited-api EXCLUDE=--no-file
     - python: 3.6
       env: LIMITED_API=--limited-api EXCLUDE=--no-file
-    - os: osx
-      osx_image: xcode6.4
-      env: PY=2
-      python: 2
-      language: c
-      compiler: clang
-      cache: false
-    - os: osx
-      osx_image: xcode6.4
-      env: PY=3
-      python: 3
-      language: c
-      compiler: clang
-      cache: false
     - env: STACKLESS=true BACKEND=c PY=2
       python: 2.7
     - env: STACKLESS=true BACKEND=c PY=3
@@ -71,9 +71,16 @@ matrix:
       env: BACKEND=c
     - python: pypy3
       env: BACKEND=c
-  allow_failures:
+# a secondary pypy tests which is allowed to fail and which specifically
+# tests known bugs
     - python: pypy
+      env: BACKEND=c EXCLUDE="--listfile=tests/pypy_bugs.txt --listfile=tests/pypy2_bugs.txt bugs"
     - python: pypy3
+      env: BACKEND=c EXCLUDE="--listfile=tests/pypy_bugs.txt bugs"
+  allow_failures:
+    - python: 3.9-dev
+    - env: BACKEND=c EXCLUDE="--listfile=tests/pypy_bugs.txt bugs"
+    - env: BACKEND=c EXCLUDE="--listfile=tests/pypy_bugs.txt --listfile=tests/pypy2_bugs.txt bugs"
 
 branches:
   only:

@@ -859,7 +859,7 @@ Cython code.  Here is the list of currently supported directives:
     selectively as decorator on an async-def coroutine to make the affected
     coroutine(s) iterable and thus directly interoperable with yield-from.
   
-  ``annotation_typing`` (True / False)
+``annotation_typing`` (True / False)
     Uses function argument annotations to determine the type of variables. Default
     is True, but can be disabled. Since Python does not enforce types given in
     annotations, setting to False gives greater compatibility with Python code.

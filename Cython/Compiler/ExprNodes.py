@@ -1434,11 +1434,7 @@ def _analyse_name_as_type(name, pos, env):
         return type
 
     global_entry = env.global_scope().lookup(name)
-    if global_entry and global_entry.type and (
-            global_entry.type.is_extension_type
-            or global_entry.type.is_struct_or_union
-            or global_entry.type.is_builtin_type
-            or global_entry.type.is_cpp_class):
+    if global_entry and global_entry.is_type and global_entry.type:
         return global_entry.type
 
     from .TreeFragment import TreeFragment
@@ -11368,19 +11364,24 @@ class AddNode(NumBinopNode):
                 self, type1, type2)
 
     def py_operation_function(self, code):
-        is_unicode_concat = False
-        if isinstance(self.operand1, FormattedValueNode) or isinstance(self.operand2, FormattedValueNode):
-            is_unicode_concat = True
-        else:
-            type1, type2 = self.operand1.type, self.operand2.type
-            if type1 is unicode_type or type2 is unicode_type:
-                is_unicode_concat = type1.is_builtin_type and type2.is_builtin_type
+        type1, type2 = self.operand1.type, self.operand2.type
 
-        if is_unicode_concat:
-            if self.operand1.may_be_none() or self.operand2.may_be_none():
-                return '__Pyx_PyUnicode_ConcatSafe'
+        if type1 is unicode_type or type2 is unicode_type:
+            if type1 in (unicode_type, str_type) and type2 in (unicode_type, str_type):
+                is_unicode_concat = True
+            elif isinstance(self.operand1, FormattedValueNode) or isinstance(self.operand2, FormattedValueNode):
+                # Assume that even if we don't know the second type, it's going to be a string.
+                is_unicode_concat = True
             else:
-                return '__Pyx_PyUnicode_Concat'
+                # Operation depends on the second type.
+                is_unicode_concat = False
+
+            if is_unicode_concat:
+                if self.operand1.may_be_none() or self.operand2.may_be_none():
+                    return '__Pyx_PyUnicode_ConcatSafe'
+                else:
+                    return '__Pyx_PyUnicode_Concat'
+
         return super(AddNode, self).py_operation_function(code)
 
 
@@ -12472,7 +12473,8 @@ class CmpNode(object):
                     result_code if self.type.is_pyobject else None,
                     self.exception_value,
                     self.in_nogil_context)
-            code.putln(statement)
+            else:
+                code.putln(statement)
 
     def c_operator(self, op):
         if op == 'is':

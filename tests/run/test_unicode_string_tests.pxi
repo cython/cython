@@ -993,6 +993,14 @@ class CommonTest(BaseTest):
         self.checkequal('\u019b\u1d00\u1d86\u0221\u1fb7',
                         '\u019b\u1d00\u1d86\u0221\u1fb7', 'capitalize')
 
+    def test_list_concat(self):
+        # https://github.com/cython/cython/issues/3426
+        y = []
+        y += 'ab'
+        self.assertEqual('a', y[0])
+        self.assertEqual('b', y[1])
+        self.assertEqual(['a', 'b'], y)
+
 
 class MixinStrUnicodeUserStringTest:
     # additional tests that only work for
