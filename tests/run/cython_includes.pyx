@@ -22,6 +22,7 @@ cimport cpython.getargs
 cimport cpython.instance
 cimport cpython.int
 cimport cpython.iterator
+cimport cpython.iterobject
 cimport cpython.list
 cimport cpython.long
 cimport cpython.longintrepr
