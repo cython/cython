@@ -24,7 +24,6 @@ from .TreeFragment import TreeFragment
 from .StringEncoding import EncodedString, _unicode
 from .Errors import error, warning, CompileError, InternalError
 from .Code import UtilityCode
-from .UtilityCode import NonManglingModuleScope
 
 
 class SkipDeclarations(object):

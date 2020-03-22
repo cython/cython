@@ -2136,7 +2136,7 @@ class CClassScope(ClassScope):
 
     def mangle_class_private_name(self, name):
         # a few utilitycode names need to specifically be ignored
-        if name and name.startswith("__pyx_unpickle_"):
+        if name and name.lower().startswith("__pyx"):
             return name
         return super(CClassScope, self).mangle_class_private_name(name)
 
