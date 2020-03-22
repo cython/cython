@@ -40,7 +40,7 @@ search path. But this runtime patch is not useful when distribution.
 
 Unlike MSVC, MinGW has its owned standard libraries such as ``libstdc++-6.dll``,
 which are not be placed at system path (like ``C:\Windows\System32``).
-You can check the dependencies by MSVC tool ``dumpbin``::
+For a C++ example, you can check the dependencies by MSVC tool ``dumpbin``::
 
     > dumpbin /dependents my_gnu_extension.cp38-win_amd64.pyd
     ...
@@ -62,7 +62,8 @@ add those options to linker::
 
     -static-libgcc -static-libstdc++ -Wl,-Bstatic,--whole-archive -lwinpthread -Wl,--no-whole-archive
 
-In ``setup.py``, a cross platform config can be added through extending ``build_ext`` class::
+In ``setup.py``, a cross platform config can be added through
+extending ``build_ext`` class::
 
     from setuptools import setup
     from setuptools.command.build_ext import build_ext
