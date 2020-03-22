@@ -136,7 +136,6 @@ def get_distutils_distro(_cache=[]):
 
 EXT_DEP_MODULES = {
     'tag:numpy':     'numpy',
-    'tag:numpy_old': 'numpy',
     'tag:pythran':  'pythran',
     'tag:setuptools':  'setuptools.sandbox',
     'tag:asyncio':  'asyncio',
@@ -254,10 +253,6 @@ def exclude_extension_on_platform(*platforms):
 def update_linetrace_extension(ext):
     ext.define_macros.append(('CYTHON_TRACE', 1))
     return ext
-
-
-def update_old_numpy_extension(ext):
-    update_numpy_extension(ext, set_api17_macro=False)
 
 
 def update_numpy_extension(ext, set_api17_macro=True):
@@ -400,7 +395,6 @@ EXCLUDE_EXT = object()
 
 EXT_EXTRAS = {
     'tag:numpy' : update_numpy_extension,
-    'tag:numpy_old' : update_old_numpy_extension,
     'tag:openmp': update_openmp_extension,
     'tag:cpp11': update_cpp11_extension,
     'tag:trace' : update_linetrace_extension,
@@ -1734,7 +1728,7 @@ class EndToEndTest(unittest.TestCase):
 
     def setUp(self):
         from Cython.TestUtils import unpack_source_tree
-        _, self.commands = unpack_source_tree(self.treefile, self.workdir)
+        _, self.commands = unpack_source_tree(self.treefile, self.workdir, self.cython_root)
         self.old_dir = os.getcwd()
         os.chdir(self.workdir)
         if self.workdir not in sys.path:
@@ -1759,10 +1753,6 @@ class EndToEndTest(unittest.TestCase):
 
     def runTest(self):
         self.success = False
-        commands = (self.commands
-            .replace("CYTHONIZE", "PYTHON %s" % os.path.join(self.cython_root, 'cythonize.py'))
-            .replace("CYTHON", "PYTHON %s" % os.path.join(self.cython_root, 'cython.py'))
-            .replace("PYTHON", sys.executable))
         old_path = os.environ.get('PYTHONPATH')
         env = dict(os.environ)
         new_path = self.cython_syspath
@@ -1772,21 +1762,15 @@ class EndToEndTest(unittest.TestCase):
         cmd = []
         out = []
         err = []
-        for command_no, command in enumerate(filter(None, commands.splitlines()), 1):
+        for command_no, command in enumerate(self.commands, 1):
             with self.stats.time('%s(%d)' % (self.name, command_no), 'c',
-                                 'etoe-build' if ' setup.py ' in command else 'etoe-run'):
+                                 'etoe-build' if 'setup.py' in command else 'etoe-run'):
                 if self.capture:
-                    p = subprocess.Popen(command,
-                                     stderr=subprocess.PIPE,
-                                     stdout=subprocess.PIPE,
-                                     shell=True,
-                                     env=env)
+                    p = subprocess.Popen(command, stderr=subprocess.PIPE, stdout=subprocess.PIPE, env=env)
                     _out, _err = p.communicate()
                     res = p.returncode
                 else:
-                    p = subprocess.call(command,
-                                     shell=True,
-                                     env=env)
+                    p = subprocess.call(command, env=env)
                     _out, _err = b'', b''
                     res = p
                 cmd.append(command)
@@ -1842,6 +1826,10 @@ class EmbedTest(unittest.TestCase):
         except OSError:
             pass
 
+def load_listfile(filename):
+    # just re-use the FileListExclude implementation
+    fle = FileListExcluder(filename)
+    return list(fle.excludes)
 
 class MissingDependencyExcluder(object):
     def __init__(self, deps):
@@ -1890,8 +1878,7 @@ class FileListExcluder(object):
                     self.excludes[line.split()[0]] = True
 
     def __call__(self, testname, tags=None):
-        exclude = (testname in self.excludes
-                   or testname.split('.')[-1] in self.excludes)
+        exclude = any(string_selector(ex)(testname) for ex in self.excludes)
         if exclude and self.verbose:
             print("Excluding %s because it's listed in %s"
                   % (testname, self._list_file))
@@ -2084,6 +2071,9 @@ def main():
     parser.add_option("-x", "--exclude", dest="exclude",
                       action="append", metavar="PATTERN",
                       help="exclude tests matching the PATTERN")
+    parser.add_option("--listfile", dest="listfile",
+                      action="append",
+                      help="specify a file containing a list of tests to run")
     parser.add_option("-j", "--shard_count", dest="shard_count", metavar="N",
                       type=int, default=1,
                       help="shard this run into several parallel runs")
@@ -2176,6 +2166,10 @@ def main():
 
     if options.xml_output_dir:
         shutil.rmtree(options.xml_output_dir, ignore_errors=True)
+
+    if options.listfile:
+        for listfile in options.listfile:
+            cmd_args.extend(load_listfile(listfile))
 
     if options.capture:
         keep_alive_interval = 10
@@ -2315,6 +2309,16 @@ def runtests_callback(args):
 
 
 def runtests(options, cmd_args, coverage=None):
+    # faulthandler should be able to provide a limited traceback
+    # in the event of a segmentation fault. Hopefully better than Travis
+    # just keeping running until timeout. Only available on Python 3.3+
+    try:
+        import faulthandler
+    except ImportError:
+        pass  # OK - not essential
+    else:
+        faulthandler.enable()
+
 
     WITH_CYTHON = options.with_cython
     ROOTDIR = os.path.abspath(options.root_dir)
@@ -2372,7 +2376,7 @@ def runtests(options, cmd_args, coverage=None):
 
     if options.limited_api:
         CFLAGS.append("-DCYTHON_LIMITED_API=1")
-
+        CFLAGS.append('-Wno-unused-function')
 
     if xml_output_dir and options.fork:
         # doesn't currently work together
@@ -2432,6 +2436,9 @@ def runtests(options, cmd_args, coverage=None):
         bug_files = [
             ('bugs.txt', True),
             ('pypy_bugs.txt', IS_PYPY),
+            ('pypy2_bugs.txt', IS_PYPY and IS_PY2),
+            ('pypy_crash_bugs.txt', IS_PYPY),
+            ('pypy_implementation_detail_bugs.txt', IS_PYPY),
             ('limited_api_bugs.txt', options.limited_api),
             ('windows_bugs.txt', sys.platform == 'win32'),
             ('cygwin_bugs.txt', sys.platform == 'cygwin')

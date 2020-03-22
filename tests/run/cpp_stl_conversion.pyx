@@ -143,10 +143,12 @@ def test_typedef_vector(o):
     Traceback (most recent call last):
     ...
     OverflowError: ...
+
+    "TypeError: an integer is required" on CPython
     >>> test_typedef_vector([1, 2, None])       #doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    TypeError: an integer is required
+    TypeError: ...int...
     """
     cdef vector[my_int] v = o
     return v
