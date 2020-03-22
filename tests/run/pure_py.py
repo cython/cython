@@ -432,7 +432,7 @@ class Foo:
         self.c = c
 
 @cython.cclass
-class EmptyClass:
+class EmptyClass(object):
     def __init__(self, *args):
         pass
 
@@ -465,17 +465,49 @@ def multi_args_init_declare():
 
     return f
 
+EmptyClassSyn = cython.typedef(EmptyClass)
+
 def empty_declare():
     """
-    >>> empty_declare() is None
-    True
+    >>> empty_declare()
+    []
     """
-    f = cython.declare(EmptyClass)
+
+    r0 = cython.declare(EmptyClass)
+    r1 = cython.declare(EmptyClassSyn)
+    r2 = cython.declare(MyStruct)
+    r3 = cython.declare(MyUnion)
+    r4 = cython.declare(MyStruct2)
+    r5 = cython.declare(cython.int[2])
 
     if cython.compiled:
-        f = None
+        r0 = None
+        r1 = None
 
-    return f
+    res = [
+        r0 is None,
+        r1 is None,
+        r2 is not None,
+        r3 is not None,
+        r4 is not None,
+        r5 is not None
+    ]
+
+    r2.is_integral = True
+    assert( r2.is_integral == True )
+
+    r3.x = 12.3
+    assert( r3.x == 12.3 )
+
+    #It generates a correct C code, but raises an exception when interpreted
+    if cython.compiled:
+        r4[0].is_integral = True
+        assert( r4[0].is_integral == True )
+
+    r5[0] = 42
+    assert ( r5[0] == 42 )
+
+    return [i for i, x in enumerate(res) if not x]
 
 def same_declare():
     """

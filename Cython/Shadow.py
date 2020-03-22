@@ -71,7 +71,7 @@ def index_type(base_type, item):
     else:
         # int[8] etc.
         assert int(item) == item  # array size must be a plain integer
-        array(base_type, item)
+        return array(base_type, item)
 
 # END shameless copy
 
@@ -165,13 +165,14 @@ def cmod(a, b):
 def cast(t, *args, **kwargs):
     kwargs.pop('typecheck', None)
     assert not kwargs
-    if hasattr(t, '__call__') and (
-        not isinstance(t, type) or len(args) != 1 or (
-            args[0] is not None and not isinstance(args[0], t)
-    )):
+   
+    if isinstance(t, typedef):
         return t(*args)
-    else:
-        return args[0]
+    elif isinstance(t, type): #Doesn't work with old-style classes of Python 2.x
+        if len(args) != 1 or not (args[0] is None or isinstance(args[0], t)):
+            return t(*args)
+            
+    return args[0]
 
 def sizeof(arg):
     return 1
@@ -183,10 +184,16 @@ def typeof(arg):
 def address(arg):
     return pointer(type(arg))([arg])
 
+def _is_value_type(t):
+    if isinstance(t, typedef):
+        return _is_value_type(t._basetype)
+        
+    return isinstance(t, type) and issubclass(t, (StructType, UnionType, ArrayType))
+
 def declare(t=None, value=_Unspecified, **kwds):
     if value is not _Unspecified:
         return cast(t, value)
-    elif (isinstance(t, type) and issubclass(t, (StructType, UnionType))) or isinstance(t, typedef):
+    elif _is_value_type(t):
         return t()
     else:
         return None
