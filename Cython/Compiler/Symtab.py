@@ -2000,6 +2000,9 @@ class ClassScope(Scope):
     #  doc    string or None   Doc string
 
     def mangle_class_private_name(self, name):
+        # a few utilitycode names need to specifically be ignored
+        if name and name.lower().startswith("__pyx"):
+            return name
         return self.mangle_special_name(name)
 
     def mangle_special_name(self, name):
@@ -2150,12 +2153,6 @@ class CClassScope(ClassScope):
         be disabled to keep references for the __dealloc__ cleanup function.
         """
         return self.needs_gc() and not self.directives.get('no_gc_clear', False)
-
-    def mangle_class_private_name(self, name):
-        # a few utilitycode names need to specifically be ignored
-        if name and name.lower().startswith("__pyx"):
-            return name
-        return super(CClassScope, self).mangle_class_private_name(name)
 
     def get_refcounted_entries(self, include_weakref=False,
                                include_gc_simple=True):
