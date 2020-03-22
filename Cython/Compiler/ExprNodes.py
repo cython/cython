@@ -2490,7 +2490,7 @@ class NameNode(AtomicExprNode):
                 if self.entry.in_closure:
                     # generator
                     self.generate_gotref(code, handle_null=True, maybe_null_extra_check=ignore_nonexisting)
-                if ignore_nonexisting and cf_maybe_null:
+                if ignore_nonexisting and self.cf_maybe_null:
                     code.put_xdecref_clear(self.result(), self.ctype(),
                                         have_gil=not self.nogil)
                 else:
