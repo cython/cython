@@ -2565,7 +2565,7 @@ static PyObject *__Pyx_PyMethod_New(PyObject *func, PyObject *self, CYTHON_UNUSE
     #else
         #define __Pyx_PyUnicode_ConcatInPlace(a, b) __Pyx_PyUnicode_ConcatInPlaceImpl(&a, b, NULL)
     #endif
-    // __PYX_PYUNICODE_CONCATINPLACE is slightly odd because it has the potential to modify the input
+    // __Pyx_PyUnicode_ConcatInPlace is slightly odd because it has the potential to modify the input
     // argument (but only in cases where no user should notice). Therefore, it needs to keep Cython's
     // refnanny informed.
     static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **a, PyObject *b, CYTHON_UNUSED void * __pyx_refnanny); /* proto */
