@@ -24,16 +24,16 @@ def foo(dtype_t[:] a, dtype_t_out[:, :] b):
 _WARNINGS = """
 22:10: 'cpdef_method' redeclared
 33:10: 'cpdef_cname_method' redeclared
-449:72: Argument evaluation order in C function call is undefined and may not be as expected
-449:72: Argument evaluation order in C function call is undefined and may not be as expected
-752:34: Argument evaluation order in C function call is undefined and may not be as expected
-752:34: Argument evaluation order in C function call is undefined and may not be as expected
-946:27: Ambiguous exception value, same as default return value: 0
-946:27: Ambiguous exception value, same as default return value: 0
-977:29: Ambiguous exception value, same as default return value: 0
-977:29: Ambiguous exception value, same as default return value: 0
-1005:46: Ambiguous exception value, same as default return value: 0
-1005:46: Ambiguous exception value, same as default return value: 0
-1095:29: Ambiguous exception value, same as default return value: 0
-1095:29: Ambiguous exception value, same as default return value: 0
+447:72: Argument evaluation order in C function call is undefined and may not be as expected
+447:72: Argument evaluation order in C function call is undefined and may not be as expected
+750:34: Argument evaluation order in C function call is undefined and may not be as expected
+750:34: Argument evaluation order in C function call is undefined and may not be as expected
+944:27: Ambiguous exception value, same as default return value: 0
+944:27: Ambiguous exception value, same as default return value: 0
+975:29: Ambiguous exception value, same as default return value: 0
+975:29: Ambiguous exception value, same as default return value: 0
+1003:46: Ambiguous exception value, same as default return value: 0
+1003:46: Ambiguous exception value, same as default return value: 0
+1093:29: Ambiguous exception value, same as default return value: 0
+1093:29: Ambiguous exception value, same as default return value: 0
 """
