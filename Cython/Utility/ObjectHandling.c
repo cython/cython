@@ -2580,8 +2580,10 @@ static PyObject *__Pyx_PyMethod_New(PyObject *func, PyObject *self, CYTHON_UNUSE
 #if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION > 2
 static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **a, PyObject *b, CYTHON_UNUSED void * __pyx_refnanny) {
       __Pyx_GIVEREF(*a);
-      PyUnicode_Append(a, b);  // this does it's own safety checks so is always safe to use
-      __Pyx_XINCREF(*a);  // there are two copies of `*a` - the one just returned and the one
+      // PyUnicode_Append() may reassign `a` in place, and sets it to NULL on error.
+      PyUnicode_Append(a, b);
+      // We need two references to `*a` - the one we return and the one that we keep in the input pointer.
+      __Pyx_XINCREF(*a);
       return *a;
   }
 #endif
@@ -2612,8 +2614,10 @@ static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **a, P
 #if CYTHON_COMPILING_IN_CPYTHON
 static CYTHON_INLINE PyObject *__Pyx_PyBytes_ConcatInPlaceImpl(PyObject **a, PyObject *b, CYTHON_UNUSED void * __pyx_refnanny) {
       __Pyx_GIVEREF(*a);
-      PyUnicode_Append(a, b);  // this does it's own safety checks so is always safe to use
-      __Pyx_XINCREF(*a);  // there are two copies of `*a` - the one just returned and the one
+      // PyBytes_Concat() may reassign `a` in place, and sets it to NULL on error.
+      PyBytes_Concat(a, b);
+      // We need two references to `*a` - the one we return and the one that we keep in the input pointer.
+      __Pyx_XINCREF(*a);
       return *a;
   }
 #endif
