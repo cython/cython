@@ -1,8 +1,5 @@
 os: linux
-dist: trusty
 language: python
-# 'sudo' is enabled automatically by the 'apt' addon below.
-#sudo: false
 
 addons:
   apt:
@@ -19,6 +16,15 @@ cache:
   directories:
     - $HOME/.ccache
 
+python:
+  - 3.8
+  - 2.7
+  - 3.9-dev
+  - 3.7
+  - 3.6
+  - 3.5
+  - 3.4
+
 env:
   global:
     - USE_CCACHE=1
@@ -27,64 +33,36 @@ env:
     - CCACHE_MAXSIZE=250M
     - PATH="/usr/lib/ccache:$HOME/miniconda/bin:$PATH"
     - BACKEND=c,cpp
+  matrix:
+    - BACKEND=c
+    - BACKEND=cpp
 
 matrix:
   include:
-    - python: 2.7
-      env: BACKEND=c
-    - python: 2.7
-      env: BACKEND=cpp
-    - python: 3.7
-      dist: xenial    # Required for Python 3.7
-      sudo: required  # travis-ci/travis-ci#9069
-      env: BACKEND=c
-    - python: 3.7
-      dist: xenial    # Required for Python 3.7
-      sudo: required  # travis-ci/travis-ci#9069
-      env: BACKEND=cpp
-# Disabled: coverage analysis takes excessively long, several times longer than without.
-#    - python: 3.7
-#      dist: xenial    # Required for Python 3.7
-#      sudo: required  # travis-ci/travis-ci#9069
-#      env: COVERAGE=1
-    - python: 3.7
-      dist: xenial    # Required for Python 3.7
-      sudo: required  # travis-ci/travis-ci#9069
-      env: TEST_CODE_STYLE=1
-    - python: 3.4
-      env: BACKEND=c
-    - python: 3.4
-      env: BACKEND=cpp
-    - python: 3.5
-      env: BACKEND=c
-    - python: 3.5
-      env: BACKEND=cpp
-    - python: 3.6
-      env: BACKEND=c
-    - python: 3.6
-      env: BACKEND=cpp
-    - python: 3.8-dev
-      dist: xenial    # Required for Python 3.8
-      sudo: required  # travis-ci/travis-ci#9069
-      env: BACKEND=c
-    - python: 3.8-dev
-      dist: xenial    # Required for Python 3.8
-      sudo: required  # travis-ci/travis-ci#9069
-      env: BACKEND=cpp
+    # slowest first
     - os: osx
-      osx_image: xcode6.4
       env: PY=2
       python: 2
       language: c
       compiler: clang
       cache: false
     - os: osx
-      osx_image: xcode6.4
       env: PY=3
       python: 3
       language: c
       compiler: clang
       cache: false
+# Disabled: coverage analysis takes excessively long, several times longer than without.
+#    - python: 3.7
+#      env: COVERAGE=1
+    - python: 3.7
+      env: TEST_CODE_STYLE=1
+    - python: 3.8
+      env: LIMITED_API=--limited-api EXCLUDE=--no-file
+    - python: 3.7
+      env: LIMITED_API=--limited-api EXCLUDE=--no-file
+    - python: 3.6
+      env: LIMITED_API=--limited-api EXCLUDE=--no-file
     - env: STACKLESS=true BACKEND=c PY=2
       python: 2.7
     - env: STACKLESS=true BACKEND=c PY=3
@@ -93,9 +71,16 @@ matrix:
       env: BACKEND=c
     - python: pypy3
       env: BACKEND=c
-  allow_failures:
+# a secondary pypy tests which is allowed to fail and which specifically
+# tests known bugs
     - python: pypy
+      env: BACKEND=c EXCLUDE="--listfile=tests/pypy_bugs.txt --listfile=tests/pypy2_bugs.txt bugs"
     - python: pypy3
+      env: BACKEND=c EXCLUDE="--listfile=tests/pypy_bugs.txt bugs"
+  allow_failures:
+    - python: 3.9-dev
+    - env: BACKEND=c EXCLUDE="--listfile=tests/pypy_bugs.txt bugs"
+    - env: BACKEND=c EXCLUDE="--listfile=tests/pypy_bugs.txt --listfile=tests/pypy2_bugs.txt bugs"
 
 branches:
   only:
@@ -136,7 +121,7 @@ before_install:
 
 install:
   - python -c 'import sys; print("Python %s" % (sys.version,))'
-  - if [ -n "${TRAVIS_PYTHON_VERSION##*-dev}" ]; then pip install -r test-requirements.txt $( [ -z "${TRAVIS_PYTHON_VERSION##pypy*}" -o -z "${TRAVIS_PYTHON_VERSION##3.7*}" ] || echo " -r test-requirements-cpython.txt" ) ; fi
+  - if [ -n "${TRAVIS_PYTHON_VERSION##*-dev}" ]; then pip install -r test-requirements.txt $( [ -z "${TRAVIS_PYTHON_VERSION##pypy*}" -o -z "${TRAVIS_PYTHON_VERSION##3.[4789]*}" ] || echo " -r test-requirements-cpython.txt" ) ; fi
 #  - CFLAGS="-O2 -ggdb -Wall -Wextra $(python -c 'import sys; print("-fno-strict-aliasing" if sys.version_info[0] == 2 else "")')" python setup.py build
 
 before_script: ccache -s || true
@@ -154,5 +139,5 @@ script:
 # Need to clear the ccache? Try something like this:
 #  - if [ -n "${BACKEND##*cpp*}" -a -z "${TRAVIS_PYTHON_VERSION##*3.4}" ]; then ccache -C || true; fi
   - if [ "$COVERAGE" != "1" ]; then CFLAGS="-O2 -ggdb -Wall -Wextra $(python -c 'import sys; print("-fno-strict-aliasing" if sys.version_info[0] == 2 else "")')" python setup.py build_ext -i; fi
-  - CFLAGS="-O0 -ggdb -Wall -Wextra" python runtests.py -vv $STYLE_ARGS -x Debugger --backends=$BACKEND $(if [ "$COVERAGE" == "1" ]; then echo " --coverage"; fi) $(if [ -z "$TEST_CODE_STYLE" ]; then echo " -j7 "; fi)
+  - CFLAGS="-O0 -ggdb -Wall -Wextra" python runtests.py -vv $STYLE_ARGS -x Debugger --backends=$BACKEND $LIMITED_API $EXCLUDE $(if [ "$COVERAGE" == "1" ]; then echo " --coverage"; fi) $(if [ -z "$TEST_CODE_STYLE" ]; then echo " -j7 "; fi)
   - ccache -s || true

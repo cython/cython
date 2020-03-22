@@ -6,4 +6,3 @@
 True
 """
 cimport numpy as np
-include "numpy_common.pxi"

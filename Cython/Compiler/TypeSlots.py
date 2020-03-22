@@ -242,7 +242,15 @@ class SlotDescriptor(object):
             guard = ("#if PY_MAJOR_VERSION >= 3")
         return guard
 
-    def generate(self, scope, code):
+    def spec_slot_value(self, scope):
+        if self.is_initialised_dynamically:
+            return None
+        result = self.slot_code(scope)
+        if result == "0":
+            return None
+        return result
+
+    def generate(self, scope, code, spec=False):
         preprocessor_guard = self.preprocessor_guard_code()
         if preprocessor_guard:
             code.putln(preprocessor_guard)
@@ -271,7 +279,11 @@ class SlotDescriptor(object):
                     code.putln("#else")
                     end_pypy_guard = True
 
-        code.putln("%s, /*%s*/" % (value, self.slot_name))
+        if spec:
+            if value != "0":
+                code.putln("{Py_%s, (void *)%s}," % (self.slot_name, value))
+        else:
+            code.putln("%s, /*%s*/" % (value, self.slot_name))
 
         if end_pypy_guard:
             code.putln("#endif")
@@ -554,6 +566,11 @@ class SuiteSlot(SlotDescriptor):
             code.putln("};")
             if self.ifdef:
                 code.putln("#endif")
+
+    def generate_substructure_spec(self, scope, code):
+        if not self.is_empty(scope):
+            for slot in self.sub_slots:
+                slot.generate(scope, code, spec=True)
 
 substructures = []   # List of all SuiteSlot instances
 
@@ -893,7 +910,8 @@ PyAsyncMethods = (
 
 slot_table = (
     ConstructorSlot("tp_dealloc", '__dealloc__'),
-    EmptySlot("tp_print"), #MethodSlot(printfunc, "tp_print", "__print__"),
+    EmptySlot("tp_print", ifdef="PY_VERSION_HEX < 0x030800b4"),
+    EmptySlot("tp_vectorcall_offset", ifdef="PY_VERSION_HEX >= 0x030800b4"),
     EmptySlot("tp_getattr"),
     EmptySlot("tp_setattr"),
 
@@ -956,6 +974,7 @@ slot_table = (
     EmptySlot("tp_version_tag"),
     EmptySlot("tp_finalize", ifdef="PY_VERSION_HEX >= 0x030400a1"),
     EmptySlot("tp_vectorcall", ifdef="PY_VERSION_HEX >= 0x030800b1"),
+    EmptySlot("tp_print", ifdef="PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000"),
 )
 
 #------------------------------------------------------------------------------------------

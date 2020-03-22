@@ -1,6 +1,5 @@
 import os
 import sys
-import copy
 from unittest import TestCase
 try:
     from StringIO import StringIO
@@ -10,32 +9,18 @@ except ImportError:
 from .. import Options
 from ..CmdLine import parse_command_line
 
+from .Utils import backup_Options, restore_Options, check_global_options
+
 
 class CmdLineParserTest(TestCase):
     def setUp(self):
-        backup = {}
-        for name, value in vars(Options).items():
-            # we need a deep copy of _directive_defaults, because they can be changed
-            if name == '_directive_defaults':
-               value = copy.deepcopy(value)
-            backup[name] = value
-        self._options_backup = backup
+        self._options_backup = backup_Options()
 
     def tearDown(self):
-        no_value = object()
-        for name, orig_value in self._options_backup.items():
-            if getattr(Options, name, no_value) != orig_value:
-                setattr(Options, name, orig_value)
-        # strip Options from new keys that might have been added:
-        for name in vars(Options).keys():
-            if name not in self._options_backup:
-                delattr(Options, name)
+        restore_Options(self._options_backup)
 
     def check_default_global_options(self, white_list=[]):
-        no_value = object()
-        for name, orig_value in self._options_backup.items():
-            if name not in white_list:
-               self.assertEqual(getattr(Options, name, no_value), orig_value, msg="error in option " + name)
+        self.assertEqual(check_global_options(self._options_backup, white_list), "")
 
     def check_default_options(self, options, white_list=[]):
         default_options = Options.CompilationOptions(Options.default_options)

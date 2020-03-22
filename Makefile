@@ -17,6 +17,12 @@ sdist: dist/$(PACKAGENAME)-$(VERSION).tar.gz
 dist/$(PACKAGENAME)-$(VERSION).tar.gz:
 	$(PYTHON) setup.py sdist
 
+pywheel: dist/$(PACKAGENAME)-$(VERSION)-py2.py3-none-any.whl
+
+dist/$(PACKAGENAME)-$(VERSION)-py2.py3-none-any.whl:
+	${PYTHON} setup.py bdist_wheel --no-cython-compile --universal
+	[ -f "$@" ]  # check that we generated the expected universal wheel
+
 TMPDIR = .repo_tmp
 .git: .gitrev
 	rm -rf $(TMPDIR)
@@ -26,6 +32,7 @@ TMPDIR = .repo_tmp
 	rm -rf $(TMPDIR)
 	git ls-files -d | xargs git checkout --
 
+# Create a git repo from an unpacked source directory.
 repo: .git
 
 

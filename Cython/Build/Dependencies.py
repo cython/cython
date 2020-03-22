@@ -783,6 +783,8 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
     create_extension = ctx.options.create_extension or default_create_extension
 
     for pattern in patterns:
+        if not isinstance(pattern, (Extension_distutils, Extension_setuptools)):
+            pattern = encode_filename_in_py2(pattern)
         if isinstance(pattern, str):
             filepattern = pattern
             template = Extension(pattern, [])  # Fake Extension without sources
@@ -911,7 +913,8 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                     variable called ``foo`` as a string, and then call
                     ``cythonize(..., aliases={'MY_HEADERS': foo})``.
 
-    :param quiet: If True, Cython won't print error and warning messages during the compilation.
+    :param quiet: If True, Cython won't print error, warning, or status messages during the
+                  compilation.
 
     :param force: Forces the recompilation of the Cython modules, even if the timestamps
                   don't indicate that a recompilation is necessary.

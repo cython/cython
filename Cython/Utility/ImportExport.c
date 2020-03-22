@@ -182,8 +182,13 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
         if (level == -1) {
             if (strchr(__Pyx_MODULE_NAME, '.')) {
                 /* try package relative import first */
+                #if CYTHON_COMPILING_IN_LIMITED_API
+                module = PyImport_ImportModuleLevelObject(
+                    name, empty_dict, empty_dict, from_list, 1);
+                #else
                 module = PyImport_ImportModuleLevelObject(
                     name, $moddict_cname, empty_dict, from_list, 1);
+                #endif
                 if (unlikely(!module)) {
                     if (unlikely(!PyErr_ExceptionMatches(PyExc_ImportError)))
                         goto bad;
@@ -202,8 +207,13 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
                 name, $moddict_cname, empty_dict, from_list, py_level, (PyObject *)NULL);
             Py_DECREF(py_level);
             #else
+            #if CYTHON_COMPILING_IN_LIMITED_API
+            module = PyImport_ImportModuleLevelObject(
+                name, empty_dict, empty_dict, from_list, level);
+            #else
             module = PyImport_ImportModuleLevelObject(
                 name, $moddict_cname, empty_dict, from_list, level);
+            #endif
             #endif
         }
     }
@@ -465,7 +475,7 @@ static PyTypeObject *__Pyx_ImportType(PyObject *module, const char *module_name,
     PyObject *result = 0;
     char warning[200];
     Py_ssize_t basicsize;
-#ifdef Py_LIMITED_API
+#if CYTHON_COMPILING_IN_LIMITED_API
     PyObject *py_basicsize;
 #endif
 
@@ -478,7 +488,7 @@ static PyTypeObject *__Pyx_ImportType(PyObject *module, const char *module_name,
             module_name, class_name);
         goto bad;
     }
-#ifndef Py_LIMITED_API
+#if !CYTHON_COMPILING_IN_LIMITED_API
     basicsize = ((PyTypeObject *)result)->tp_basicsize;
 #else
     py_basicsize = PyObject_GetAttrString(result, "__basicsize__");
@@ -686,11 +696,19 @@ static int __Pyx_SetVtable(PyObject *dict, void *vtable); /*proto*/
 
 /////////////// SetVTable ///////////////
 
+#if CYTHON_COMPILING_IN_LIMITED_API
+static int __Pyx_SetVtable(PyObject *type, void *vtable) {
+#else
 static int __Pyx_SetVtable(PyObject *dict, void *vtable) {
+#endif
     PyObject *ob = PyCapsule_New(vtable, 0, 0);
     if (!ob)
         goto bad;
+#if CYTHON_COMPILING_IN_LIMITED_API
+    if (PyObject_SetAttr(type, PYIDENT("__pyx_vtable__"), ob) < 0)
+#else
     if (PyDict_SetItem(dict, PYIDENT("__pyx_vtable__"), ob) < 0)
+#endif
         goto bad;
     Py_DECREF(ob);
     return 0;
@@ -702,13 +720,17 @@ bad:
 
 /////////////// GetVTable.proto ///////////////
 
-static void* __Pyx_GetVtable(PyObject *dict); /*proto*/
+static void* __Pyx_GetVtable(PyTypeObject *type); /*proto*/
 
 /////////////// GetVTable ///////////////
 
-static void* __Pyx_GetVtable(PyObject *dict) {
+static void* __Pyx_GetVtable(PyTypeObject *type) {
     void* ptr;
-    PyObject *ob = PyObject_GetItem(dict, PYIDENT("__pyx_vtable__"));
+#if CYTHON_COMPILING_IN_LIMITED_API
+    PyObject *ob = PyObject_GetAttr((PyObject *)type, PYIDENT("__pyx_vtable__"));
+#else
+    PyObject *ob = PyObject_GetItem(type->tp_dict, PYIDENT("__pyx_vtable__"));
+#endif
     if (!ob)
         goto bad;
     ptr = PyCapsule_GetPointer(ob, 0);
@@ -751,13 +773,13 @@ static int __Pyx_MergeVtables(PyTypeObject *type) {
     // instance struct is so extended.  (It would be good to also do this
     // check when a multiple-base class is created in pure Python as well.)
     for (i = 1; i < PyTuple_GET_SIZE(bases); i++) {
-        void* base_vtable = __Pyx_GetVtable(((PyTypeObject*)PyTuple_GET_ITEM(bases, i))->tp_dict);
+        void* base_vtable = __Pyx_GetVtable(((PyTypeObject*)PyTuple_GET_ITEM(bases, i)));
         if (base_vtable != NULL) {
             int j;
             PyTypeObject* base = type->tp_base;
             for (j = 0; j < base_depth; j++) {
                 if (base_vtables[j] == unknown) {
-                    base_vtables[j] = __Pyx_GetVtable(base->tp_dict);
+                    base_vtables[j] = __Pyx_GetVtable(base);
                     base_vtables[j + 1] = unknown;
                 }
                 if (base_vtables[j] == base_vtable) {

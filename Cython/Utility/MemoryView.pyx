@@ -885,7 +885,7 @@ cdef int slice_memviewslice(
         dst.shape[new_ndim] = new_shape
         dst.suboffsets[new_ndim] = suboffset
 
-    # Add the slicing or idexing offsets to the right suboffset or base data *
+    # Add the slicing or indexing offsets to the right suboffset or base data *
     if suboffset_dim[0] < 0:
         dst.data += start * stride
     else:
@@ -1050,7 +1050,7 @@ cdef memoryview_fromslice({{memviewslice_name}} memviewslice,
 
 @cname('__pyx_memoryview_get_slice_from_memoryview')
 cdef {{memviewslice_name}} *get_slice_from_memview(memoryview memview,
-                                                   {{memviewslice_name}} *mslice):
+                                                   {{memviewslice_name}} *mslice) except NULL:
     cdef _memoryviewslice obj
     if isinstance(memview, _memoryviewslice):
         obj = memview
@@ -1176,11 +1176,10 @@ cdef void copy_strided_to_strided({{memviewslice_name}} *src,
 @cname('__pyx_memoryview_slice_get_size')
 cdef Py_ssize_t slice_get_size({{memviewslice_name}} *src, int ndim) nogil:
     "Return the size of the memory occupied by the slice in number of bytes"
-    cdef int i
-    cdef Py_ssize_t size = src.memview.view.itemsize
+    cdef Py_ssize_t shape, size = src.memview.view.itemsize
 
-    for i in range(ndim):
-        size *= src.shape[i]
+    for shape in src.shape[:ndim]:
+        size *= shape
 
     return size
 
@@ -1197,11 +1196,11 @@ cdef Py_ssize_t fill_contig_strides_array(
     if order == 'F':
         for idx in range(ndim):
             strides[idx] = stride
-            stride = stride * shape[idx]
+            stride *= shape[idx]
     else:
         for idx in range(ndim - 1, -1, -1):
             strides[idx] = stride
-            stride = stride * shape[idx]
+            stride *= shape[idx]
 
     return stride
 

@@ -52,11 +52,6 @@ docstrings = True
 #: Embed the source code position in the docstrings of functions and classes.
 embed_pos_in_docstring = False
 
-#: Copy the original source code line by line into C code comments
-#: in the generated code file to help with understanding the output.
-#: This is also required for coverage analysis.
-emit_code_comments = True
-
 # undocumented
 pre_import = None
 
