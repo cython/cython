@@ -2074,10 +2074,8 @@ class FuncDefNode(StatNode, BlockNode):
             if entry.type.is_pyobject:
                 if entry.is_arg and not entry.cf_is_reassigned:
                     continue
-            if entry.xdecref_cleanup:
-                code.put_var_xdecref(entry, have_gil=not lenv.nogil)
-            else:
-                code.put_var_xdecref(entry, have_gil=not lenv.nogil)
+            # FIXME ideally use entry.xdecref_cleanup but this currently isn't reliable
+            code.put_var_xdecref(entry, have_gil=not lenv.nogil)
 
         # Decref any increfed args
         for entry in lenv.arg_entries:
@@ -2092,7 +2090,10 @@ class FuncDefNode(StatNode, BlockNode):
                 if not acquire_gil and not entry.cf_is_reassigned:
                     continue
 
-            code.put_var_xdecref(entry, have_gil=not lenv.nogil)
+            if entry.xdecref_cleanup:
+                code.put_var_xdecref(entry, have_gil=not lenv.nogil)
+            else:
+                code.put_var_decref(entry, have_gil=not lenv.nogil)
         if self.needs_closure:
             code.put_decref(Naming.cur_scope_cname, lenv.scope_class.type)
 

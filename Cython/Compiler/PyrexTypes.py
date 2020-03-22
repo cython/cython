@@ -1085,6 +1085,9 @@ class MemoryViewSliceType(PyrexType):
     def generate_xdecref(self, code, cname, nanny, have_gil):
         code.putln("__PYX_XDEC_MEMVIEW(&%s, %d);" % (cname, int(have_gil)))
 
+    def generate_decref(self, code, cname, nanny, have_gil):
+        self.generate_xdecref(code, cname, nanny, have_gil)
+
     def generate_xdecref_clear(self, code, cname, clear_before_decref, **kwds):
         self.generate_xdecref(code, cname, **kwds)
         code.putln("%s.memview = NULL; %s.data = NULL;" % (cname, cname))

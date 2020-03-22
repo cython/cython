@@ -847,23 +847,8 @@ class ExprNode(Node):
 
     # ----Generation of small bits of reference counting --
 
-    #@property
-    #def refcounting_type(self):
-        # FIXME this might just be "ctype"?
-    #    type = self.type
-    #    if self.is_temp and self.type.is_pyobject:
-            # when a temp object is created it's always just
-            # created as a py_object_type and not a
-            # derived type
-    #        type = PyrexTypes.py_object_type
-    #    return type
-
-    def generate_decref_set(self, code, rhs, handle_null=False):
-        if not (handle_null and self.cf_is_null):
-            if handle_null and self.cf_maybe_null:
-                self.generate_xdecref_set(code, rhs)
-            else:
-                code.put_decref_set(self.result(), self.ctype(), rhs)
+    def generate_decref_set(self, code, rhs):
+        code.put_decref_set(self.result(), self.ctype(), rhs)
 
     def generate_xdecref_set(self, code, rhs):
         code.put_xdecref_set(self.result(), self.ctype(), rhs)
@@ -2391,8 +2376,12 @@ class NameNode(AtomicExprNode):
                     if entry.is_cglobal:
                         self.generate_decref_set(code, rhs.result_as(self.ctype()))
                     else:
-                        self.generate_decref_set(code, rhs.result_as(self.ctype()), handle_null=True)
-                        if self.cf_is_null:
+                        if not self.cf_is_null:
+                            if self.cf_maybe_null:
+                                self.generate_xdecref_set(code, rhs.result_as(self.ctype()))
+                            else:
+                                self.generate_decref_set(code, rhs.result_as(self.ctype()))
+                        else:
                             assigned = False
                     if is_external_ref:
                         rhs.generate_giveref(code)
@@ -2501,8 +2490,12 @@ class NameNode(AtomicExprNode):
                 if self.entry.in_closure:
                     # generator
                     self.generate_gotref(code, handle_null=True, maybe_null_extra_check=ignore_nonexisting)
-                code.put_xdecref_clear(self.result(), self.ctype(),
+                if ignore_nonexisting and cf_maybe_null:
+                    code.put_xdecref_clear(self.result(), self.ctype(),
                                         have_gil=not self.nogil)
+                else:
+                    code.put_decref_clear(self.result(), self.ctype(),
+                                          have_gil=not self.nogil)
         else:
             error(self.pos, "Deletion of C names not supported")
 
