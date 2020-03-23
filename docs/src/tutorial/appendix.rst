@@ -31,15 +31,16 @@ the regular Cython developers have convenient access to Windows.
 Python 3.8+
 -----------
 
-Since Python 3.8, the search paths of DLL dependencies has been reset. ([changelog]_)
+Since Python 3.8, the search paths of DLL dependencies has been reset.
+(`changelog <https://docs.python.org/3/whatsnew/3.8.html#changes-in-the-python-api>`_)
 
 Only the system paths, the directory containing the DLL or PYD file
 are searched for load-time dependencies.
-Instead, a new function [os.add_dll_directory]_ was added for additional
-search path. But this runtime patch is not useful when distribution.
+Instead, a new function `os.add_dll_directory() <https://docs.python.org/3.8/library/os.html#os.add_dll_directory>`_
+was added to supply additional search paths.  But such a runtime update is not applicable in all situations.
 
 Unlike MSVC, MinGW has its owned standard libraries such as ``libstdc++-6.dll``,
-which are not be placed at system path (like ``C:\Windows\System32``).
+which are not placed in the system path (such as ``C:\Windows\System32``).
 For a C++ example, you can check the dependencies by MSVC tool ``dumpbin``::
 
     > dumpbin /dependents my_gnu_extension.cp38-win_amd64.pyd
@@ -57,8 +58,7 @@ For a C++ example, you can check the dependencies by MSVC tool ``dumpbin``::
           libstdc++-6.dll
           ...
 
-We can embed standard libraries by static linking,
-add those options to linker::
+These standard libraries can be embedded via static linking, by adding the following options to the linker::
 
     -static-libgcc -static-libstdc++ -Wl,-Bstatic,--whole-archive -lwinpthread -Wl,--no-whole-archive
 
@@ -90,5 +90,3 @@ extending ``build_ext`` class::
     )
 
 .. [WinInst] https://github.com/cython/cython/wiki/CythonExtensionsOnWindows
-.. [changelog] https://docs.python.org/3/whatsnew/3.8.html#changes-in-the-python-api
-.. [os.add_dll_directory] https://docs.python.org/3.8/library/os.html#os.add_dll_directory
