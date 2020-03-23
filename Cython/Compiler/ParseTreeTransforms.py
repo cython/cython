@@ -677,6 +677,7 @@ class InterpretCompilerDirectives(CythonTransform):
         "parallel",
         "prange",
         "threadid",
+        "device",
         #"threadsavailable",
     ])
 
@@ -968,6 +969,10 @@ class InterpretCompilerDirectives(CythonTransform):
         new_directives = dict(old_directives)
         new_directives.update(directives)
 
+        # the device directive requires nogil
+        if new_directives['device']:
+            new_directives['nogil'] = True
+
         if new_directives == old_directives:
             return self.visit_Node(node)
 
@@ -1088,7 +1093,7 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
     """
 
     # a list of names, maps 'cython.parallel.prange' in the code to
-    # ['cython', 'parallel', 'prange']
+    # ['cython', 'parallel', 'prange', 'device']
     parallel_directive = None
 
     # Indicates whether a namenode in an expression is the cython module
@@ -1097,8 +1102,8 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
     # Keep track of whether we are the context manager of a 'with' statement
     in_context_manager_section = False
 
-    # One of 'prange' or 'with parallel'. This is used to disallow closely
-    # nested 'with parallel:' blocks
+    # One of 'prange' or 'with parallel' or 'with device'. This is used to disallow
+    # closely-nested 'with parallel:' and generally-nested 'with device:' blocks
     state = None
 
     directive_to_node = {
@@ -1106,6 +1111,7 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
         # u"cython.parallel.threadsavailable": ExprNodes.ParallelThreadsAvailableNode,
         u"cython.parallel.threadid": ExprNodes.ParallelThreadIdNode,
         u"cython.parallel.prange": Nodes.ParallelRangeNode,
+        u"cython.parallel.device": Nodes.DeviceWithBlockNode,
     }
 
     def node_is_parallel_directive(self, node):
@@ -1198,6 +1204,18 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
 
             newnode.body = body
             return newnode
+        elif isinstance(newnode, Nodes.DeviceWithBlockNode):
+            if self.state != None:
+                error(node.manager.pos,
+                      "device with blocks nested within device/parallel/prange blocks are disallowed")
+
+            self.state = 'device with'
+            body = self.visit(node.body)
+            self.state = None
+
+            newnode.body = body
+            return newnode
+
         elif self.parallel_directive:
             parallel_directive_class = self.get_directive_class_node(node)
 
@@ -1236,12 +1254,19 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
                 error(node.target.pos,
                       "Can only iterate over an iteration variable")
 
+            if not self.state:
+                # there is no parallel() context, let's create one
+                new_node = Nodes.ParallelWithBlockNode(node)
+            else:
+                new_node = node
             self.state = 'prange'
+        else:
+            new_node = node
 
         self.visit(node.body)
         self.state = previous_state
         self.visit(node.else_clause)
-        return node
+        return new_node
 
     def visit(self, node):
         "Visit a node that may be None"
@@ -2210,6 +2235,33 @@ class CalculateQualifiedNamesTransform(EnvTransform):
 
 class AnalyseExpressionsTransform(CythonTransform):
 
+    def __init__(self, context):
+        super(AnalyseExpressionsTransform, self).__init__(context)
+        self.parallel_with_block = None
+
+    def visit_SingleAssignmentNode(self, node):
+        if self.parallel_with_block != None:
+            self.parallel_with_block.all_assignments.append((node.lhs, node.rhs))
+        self.visitchildren(node)
+        return node
+
+    def visit_CascadedAssignmentNode(self, node):
+        if self.parallel_with_block != None:
+            for lhs in node.lhs_list:
+                self.parallel_with_block.all_assignments.append((lhs, node.rhs))
+        self.visitchildren(node)
+        return node
+
+    def visit_NameNode(self, node):
+        """
+        Collect all names/vars in parallel blocks so we can emit proper map(to:) clauses for target-parallel with blocks.
+        """
+        if self.parallel_with_block != None:
+            entry = node.entry
+            if entry.is_variable and entry not in self.parallel_with_block.all_names:
+                self.parallel_with_block.all_names.append(entry)
+        return node
+
     def visit_ModuleNode(self, node):
         node.scope.infer_types()
         node.body = node.body.analyse_expressions(node.scope)
@@ -2243,6 +2295,16 @@ class AnalyseExpressionsTransform(CythonTransform):
         self.visit_Node(node)
         if node.is_fused_index and not node.type.is_error:
             node = node.base
+        return node
+
+    def visit_ParallelWithBlockNode(self, node):
+        if self.parallel_with_block != None:
+            error(node.pos, "Nested parallel.parallel() not allowed")
+        node.all_assignments = []
+        node.all_names = []
+        self.parallel_with_block = node
+        self.visitchildren(node)
+        self.parallel_with_block = None
         return node
 
 class ReplacePropertyNode(CythonTransform):
@@ -2360,6 +2422,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
     @cython.ccall
     @cython.inline
     @cython.nogil
+    @cython.device
     """
 
     def visit_ModuleNode(self, node):
@@ -2380,6 +2443,9 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
         if 'inline' in self.directives:
             modifiers.append('inline')
         nogil = self.directives.get('nogil')
+        device = self.directives.get('device')
+        if device and not nogil:
+            error(node.pos, "@cython.device requires @cython.nogil")
         except_val = self.directives.get('exceptval')
         return_type_node = self.directives.get('returns')
         if return_type_node is None and self.directives['annotation_typing']:
@@ -2391,23 +2457,31 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
             # backward compatible default: no exception check
             except_val = (None, False)
         if 'ccall' in self.directives:
-            node = node.as_cfunction(
-                overridable=True, modifiers=modifiers, nogil=nogil,
-                returns=return_type_node, except_val=except_val)
+            node = node.as_cfunction(overridable=True,
+                                     modifiers=modifiers,
+                                     nogil=nogil,
+                                     device=device,
+                                     returns=return_type_node,
+                                     except_val=except_val)
             return self.visit(node)
         if 'cfunc' in self.directives:
             if self.in_py_class:
                 error(node.pos, "cfunc directive is not allowed here")
             else:
-                node = node.as_cfunction(
-                    overridable=False, modifiers=modifiers, nogil=nogil,
-                    returns=return_type_node, except_val=except_val)
+                node = node.as_cfunction(overridable=False,
+                                         modifiers=modifiers,
+                                         nogil=nogil,
+                                         device=device,
+                                         returns=return_type_node,
+                                         except_val=except_val)
                 return self.visit(node)
         if 'inline' in modifiers:
             error(node.pos, "Python functions cannot be declared 'inline'")
         if nogil:
             # TODO: turn this into a "with gil" declaration.
             error(node.pos, "Python functions cannot be declared 'nogil'")
+        if device:
+            error(node.pos, "Python functions cannot be declared 'device'")
         self.visitchildren(node)
         return node
 
@@ -2890,6 +2964,7 @@ class GilCheck(VisitorTransform):
     def __call__(self, root):
         self.env_stack = [root.scope]
         self.nogil = False
+        self.on_device = False
 
         # True for 'cdef func() nogil:' functions, as the GIL may be held while
         # calling this function (thus contained 'nogil' blocks may be valid).
@@ -2910,22 +2985,27 @@ class GilCheck(VisitorTransform):
     def visit_FuncDefNode(self, node):
         self.env_stack.append(node.local_scope)
         inner_nogil = node.local_scope.nogil
+        was_device = self.on_device
+        self.on_device = getattr(node, 'on_device', False)
 
         if inner_nogil:
             self.nogil_declarator_only = True
 
-        if inner_nogil and node.nogil_check:
+        if node.nogil_check:
             node.nogil_check(node.local_scope)
 
         self._visit_scoped_children(node, inner_nogil)
 
         # This cannot be nested, so it doesn't need backup/restore
         self.nogil_declarator_only = False
+        self.on_device = was_device
 
         self.env_stack.pop()
         return node
 
     def visit_GILStatNode(self, node):
+        if self.on_device:
+            error(node.pos, "Use of GIL not allowed on device")
         if node.condition is not None:
             error(node.condition.pos,
                   "Non-constant condition in a "
@@ -2955,12 +3035,13 @@ class GilCheck(VisitorTransform):
         return node
 
     def visit_ParallelRangeNode(self, node):
-        if node.nogil:
+        if node.nogil and not node.on_device:
             node.nogil = False
             node = Nodes.GILStatNode(node.pos, state='nogil', body=node)
             return self.visit_GILStatNode(node)
 
         if not self.nogil:
+            # ?? or self.env_stack[-1].directives['nogil']
             error(node.pos, "prange() can only be used without the GIL")
             # Forget about any GIL-related errors that may occur in the body
             return None
@@ -2970,6 +3051,11 @@ class GilCheck(VisitorTransform):
         return node
 
     def visit_ParallelWithBlockNode(self, node):
+        if node.nogil:
+            node.nogil = False
+            node = Nodes.GILStatNode(node.pos, state='nogil', body=node)
+            return self.visit_GILStatNode(node)
+
         if not self.nogil:
             error(node.pos, "The parallel section may only be used without "
                             "the GIL")
@@ -2980,13 +3066,21 @@ class GilCheck(VisitorTransform):
             # avoid potential future surprises
             node.nogil_check(self.env_stack[-1])
 
+        was_device = self.on_device
+        if node.on_device:
+            self.on_device = True
+
         self.visitchildren(node)
+        self.on_device = was_device
         return node
 
     def visit_TryFinallyStatNode(self, node):
         """
         Take care of try/finally statements in nogil code sections.
         """
+        if self.on_device:
+            error(node.pos, "Try/finally not allowed on device")
+
         if not self.nogil or isinstance(node, Nodes.GILStatNode):
             return self.visit_Node(node)
 
@@ -3002,8 +3096,10 @@ class GilCheck(VisitorTransform):
             self._visit_scoped_children(node, self.nogil)
         else:
             self.visitchildren(node)
-        if self.nogil:
-            node.in_nogil_context = True
+        if self.on_device:
+            node.in_nogil_context = 'device'
+        elif self.nogil:
+            node.in_nogil_context = 'nogil'
         return node
 
 

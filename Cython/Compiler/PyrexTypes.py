@@ -2668,6 +2668,7 @@ class CFuncType(CType):
     #  calling_convention  string  Function calling convention
     #  nogil            boolean    Can be called without gil
     #  with_gil         boolean    Acquire gil around function body
+    #  device           boolean    Can be called on a device
     #  templates        [string] or None
     #  cached_specialized_types [CFuncType]   cached specialized versions of the CFuncType if defined in a pxd
     #  from_fused       boolean    Indicates whether this is a specialized
@@ -2689,7 +2690,7 @@ class CFuncType(CType):
             exception_value = None, exception_check = 0, calling_convention = "",
             nogil = 0, with_gil = 0, is_overridable = 0, optional_arg_count = 0,
             is_const_method = False, is_static_method=False,
-            templates = None, is_strict_signature = False):
+            templates = None, is_strict_signature = False, device = 0):
         self.return_type = return_type
         self.args = args
         self.has_varargs = has_varargs
@@ -2704,6 +2705,7 @@ class CFuncType(CType):
         self.is_static_method = is_static_method
         self.templates = templates
         self.is_strict_signature = is_strict_signature
+        self.device = device
 
     def __repr__(self):
         arg_reprs = list(map(repr, self.args))
@@ -2732,7 +2734,8 @@ class CFuncType(CType):
                 with_gil,
                 self.is_overridable, self.optional_arg_count,
                 self.is_const_method, self.is_static_method,
-                self.templates, self.is_strict_signature)
+                self.templates, self.is_strict_signature,
+                self.device)
 
     def calling_convention_prefix(self):
         cc = self.calling_convention
@@ -2840,6 +2843,8 @@ class CFuncType(CType):
             return 0
         if self.nogil != other_type.nogil:
             return 0
+        if self.device != other_type.device:
+            return 0
         if not self._is_exception_compatible_with(other_type):
             return 0
         self.original_sig = other_type.original_sig or other_type
@@ -2905,7 +2910,7 @@ class CFuncType(CType):
 
     def same_as_resolved_type(self, other_type, as_cmethod=False):
         return self.same_c_signature_as_resolved_type(other_type, as_cmethod=as_cmethod) \
-            and self.nogil == other_type.nogil
+            and self.nogil == other_type.nogil and self.device == other_type.device
 
     def pointer_assignable_from_resolved_type(self, rhs_type):
         # Accept compatible exception/nogil declarations for the RHS.
@@ -2914,7 +2919,8 @@ class CFuncType(CType):
         if not rhs_type.is_cfunction:
             return 0
         return rhs_type.same_c_signature_as_resolved_type(self, exact_semantics=False) \
-            and not (self.nogil and not rhs_type.nogil)
+            and not (self.nogil and not rhs_type.nogil)\
+            and not (self.device and not rhs_type.device)
 
     def declaration_code(self, entity_code,
                          for_display = 0, dll_linkage = None, pyrex = 0,
@@ -2945,6 +2951,8 @@ class CFuncType(CType):
                 trailer = " except *"
             if self.nogil:
                 trailer += " nogil"
+            if self.device:
+                trailer += " device"
         if not with_calling_convention:
             cc = ''
         else:
@@ -2987,7 +2995,8 @@ class CFuncType(CType):
                            optional_arg_count = self.optional_arg_count,
                            is_const_method = self.is_const_method,
                            is_static_method = self.is_static_method,
-                           templates = self.templates)
+                           templates = self.templates,
+                           device = self.device)
 
         result.from_fused = self.is_fused
         return result

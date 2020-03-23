@@ -24,7 +24,6 @@ class TypedExprNode(ExprNodes.ExprNode):
 
 object_expr = TypedExprNode(py_object_type)
 
-
 class MarkParallelAssignments(EnvTransform):
     # Collects assignments inside parallel blocks prange, with parallel.
     # Perhaps it's better to move it to ControlFlowAnalysis.
@@ -38,6 +37,8 @@ class MarkParallelAssignments(EnvTransform):
         # Track the parallel block scopes (with parallel, for i in prange())
         self.parallel_block_stack = []
         super(MarkParallelAssignments, self).__init__(context)
+        self.visit_safe_node = self.visitchildren  # for _visit_FuncDefNode
+        self.on_device = False
 
     def mark_assignment(self, lhs, rhs, inplace_op=None):
         if isinstance(lhs, (ExprNodes.NameNode, Nodes.PyArgDeclNode)):
@@ -204,6 +205,15 @@ class MarkParallelAssignments(EnvTransform):
         self.visitchildren(node)
         return node
 
+    def visit_FuncDefNode(self, node):
+        was_device = self.on_device
+        if self.current_directives['device']:
+            self.on_device = True
+            node.on_device = True
+        self.visitchildren(node)
+        self.on_device = was_device
+        return node
+
     def visit_ParallelStatNode(self, node):
         if self.parallel_block_stack:
             node.parent = self.parallel_block_stack[-1]
@@ -212,20 +222,23 @@ class MarkParallelAssignments(EnvTransform):
 
         nested = False
         if node.is_prange:
-            if not node.parent:
-                node.is_parallel = True
-            else:
-                node.is_parallel = (node.parent.is_prange or not
-                                    node.parent.is_parallel)
                 nested = node.parent.is_prange
         else:
-            node.is_parallel = True
+            # Note: no need to set is_parallel:
+            #       - device with blocks are never parallel
+            #       - parallel with blocks are always parallel
             # Note: nested with parallel() blocks are handled by
             # ParallelRangeTransform!
             # nested = node.parent
             nested = node.parent and node.parent.is_prange
 
         self.parallel_block_stack.append(node)
+
+        if not node.on_device:
+            if self.on_device:
+                node.on_device = True
+            elif node.parent:
+                node.on_device = node.parent.on_device
 
         nested = nested or len(self.parallel_block_stack) > 2
         if not self.parallel_errors and nested and not node.is_prange:

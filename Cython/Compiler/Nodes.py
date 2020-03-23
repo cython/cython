@@ -32,7 +32,6 @@ from . import DebugFlags
 from .Pythran import has_np_pythran, pythran_type, is_pythran_buffer
 from ..Utils import add_metaclass
 
-
 if sys.version_info[0] >= 3:
     _py_int_types = int
 else:
@@ -1777,6 +1776,11 @@ class FuncDefNode(StatNode, BlockNode):
         if self.py_func:
             self.py_func.generate_function_header(
                 code, with_pymethdef=with_pymethdef, proto_only=True)
+
+        is_cdef = isinstance(self, CFuncDefNode)
+        if is_cdef and self.on_device:
+            code.putln_openmp("#pragma omp declare target")
+
         self.generate_function_header(code, with_pymethdef=with_pymethdef)
         # ----- Local variable declarations
         # Find function scope
@@ -1922,7 +1926,6 @@ class FuncDefNode(StatNode, BlockNode):
         self.generate_argument_parsing_code(env, code)
         # If an argument is assigned to in the body, we must
         # incref it to properly keep track of refcounts.
-        is_cdef = isinstance(self, CFuncDefNode)
         for entry in lenv.arg_entries:
             if entry.type.is_pyobject:
                 if (acquire_gil or len(entry.cf_assignments) > 1) and not entry.in_closure:
@@ -1933,7 +1936,11 @@ class FuncDefNode(StatNode, BlockNode):
             #       new references. If we are a cdef function, we need to
             #       incref our arguments
             elif is_cdef and entry.type.is_memoryviewslice and len(entry.cf_assignments) > 1:
-                code.put_incref_memoryviewslice(entry.cname, have_gil=code.funcstate.gil_owned)
+                if self.on_device:
+                    _have_gil = 'device'
+                else:
+                    _have_gil = 'gil' if code.funcstate.gil_owned else 'nogil'
+                code.put_incref_memoryviewslice(entry.cname, have_gil=_have_gil)
         for entry in lenv.var_entries:
             if entry.is_arg and len(entry.cf_assignments) > 1 and not entry.in_closure:
                 if entry.xdecref_cleanup:
@@ -1985,120 +1992,124 @@ class FuncDefNode(StatNode, BlockNode):
             if not self.body.is_terminator:
                 code.put_goto(code.return_label)
             code.put_label(code.error_label)
-            for cname, type in code.funcstate.all_managed_temps():
-                code.put_xdecref(cname, type, have_gil=not lenv.nogil)
+            if not self.on_device:
+                for cname, type in code.funcstate.all_managed_temps():
+                    code.put_xdecref(cname, type, have_gil=not lenv.nogil)
 
-            # Clean up buffers -- this calls a Python function
-            # so need to save and restore error state
-            buffers_present = len(used_buffer_entries) > 0
-            #memslice_entries = [e for e in lenv.entries.values() if e.type.is_memoryviewslice]
-            if buffers_present:
-                code.globalstate.use_utility_code(restore_exception_utility_code)
-                code.putln("{ PyObject *__pyx_type, *__pyx_value, *__pyx_tb;")
-                code.putln("__Pyx_PyThreadState_declare")
-                code.putln("__Pyx_PyThreadState_assign")
-                code.putln("__Pyx_ErrFetch(&__pyx_type, &__pyx_value, &__pyx_tb);")
-                for entry in used_buffer_entries:
-                    Buffer.put_release_buffer_code(code, entry)
-                    #code.putln("%s = 0;" % entry.cname)
-                code.putln("__Pyx_ErrRestore(__pyx_type, __pyx_value, __pyx_tb);}")
+                # Clean up buffers -- this calls a Python function
+                # so need to save and restore error state
+                buffers_present = len(used_buffer_entries) > 0
+                #memslice_entries = [e for e in lenv.entries.values() if e.type.is_memoryviewslice]
+                if buffers_present:
+                    code.globalstate.use_utility_code(restore_exception_utility_code)
+                    code.putln("{ PyObject *__pyx_type, *__pyx_value, *__pyx_tb;")
+                    code.putln("__Pyx_PyThreadState_declare")
+                    code.putln("__Pyx_PyThreadState_assign")
+                    code.putln("__Pyx_ErrFetch(&__pyx_type, &__pyx_value, &__pyx_tb);")
+                    for entry in used_buffer_entries:
+                        Buffer.put_release_buffer_code(code, entry)
+                        #code.putln("%s = 0;" % entry.cname)
+                    code.putln("__Pyx_ErrRestore(__pyx_type, __pyx_value, __pyx_tb);}")
 
-            if self.return_type.is_memoryviewslice:
-                MemoryView.put_init_entry(Naming.retval_cname, code)
-                err_val = Naming.retval_cname
-            else:
-                err_val = self.error_value()
+                if self.return_type.is_memoryviewslice:
+                    MemoryView.put_init_entry(Naming.retval_cname, code)
+                    err_val = Naming.retval_cname
+                else:
+                    err_val = self.error_value()
 
-            exc_check = self.caller_will_check_exceptions()
-            if err_val is not None or exc_check:
-                # TODO: Fix exception tracing (though currently unused by cProfile).
-                # code.globalstate.use_utility_code(get_exception_tuple_utility_code)
-                # code.put_trace_exception()
+                exc_check = self.caller_will_check_exceptions()
+                if err_val is not None or exc_check:
+                    # TODO: Fix exception tracing (though currently unused by cProfile).
+                    # code.globalstate.use_utility_code(get_exception_tuple_utility_code)
+                    # code.put_trace_exception()
 
-                if lenv.nogil and not lenv.has_with_gil_block:
-                    code.putln("{")
-                    code.put_ensure_gil()
+                    if lenv.nogil and not lenv.has_with_gil_block:
+                        code.putln("{")
+                        code.put_ensure_gil()
 
-                code.put_add_traceback(self.entry.qualified_name)
+                    code.put_add_traceback(self.entry.qualified_name)
 
-                if lenv.nogil and not lenv.has_with_gil_block:
-                    code.put_release_ensured_gil()
-                    code.putln("}")
-            else:
-                warning(self.entry.pos,
-                        "Unraisable exception in function '%s'." %
-                        self.entry.qualified_name, 0)
-                code.put_unraisable(self.entry.qualified_name, lenv.nogil)
-            default_retval = self.return_type.default_value
-            if err_val is None and default_retval:
-                err_val = default_retval
-            if err_val is not None:
-                if err_val != Naming.retval_cname:
-                    code.putln("%s = %s;" % (Naming.retval_cname, err_val))
-            elif not self.return_type.is_void:
-                code.putln("__Pyx_pretend_to_initialize(&%s);" % Naming.retval_cname)
+                    if lenv.nogil and not lenv.has_with_gil_block:
+                        code.put_release_ensured_gil()
+                        code.putln("}")
+                else:
+                    warning(self.entry.pos,
+                            "Unraisable exception in function '%s'." %
+                            self.entry.qualified_name, 0)
+                    code.put_unraisable(self.entry.qualified_name, lenv.nogil)
+                default_retval = self.return_type.default_value
+                if err_val is None and default_retval:
+                    err_val = default_retval
+                if err_val is not None:
+                    if err_val != Naming.retval_cname:
+                        code.putln("%s = %s;" % (Naming.retval_cname, err_val))
+                elif not self.return_type.is_void:
+                    code.putln("__Pyx_pretend_to_initialize(&%s);" % Naming.retval_cname)
 
-            if is_getbuffer_slot:
-                self.getbuffer_error_cleanup(code)
+                if is_getbuffer_slot:
+                    self.getbuffer_error_cleanup(code)
 
-            # If we are using the non-error cleanup section we should
-            # jump past it if we have an error. The if-test below determine
-            # whether this section is used.
-            if buffers_present or is_getbuffer_slot or self.return_type.is_memoryviewslice:
-                code.put_goto(code.return_from_error_cleanup_label)
+                # If we are using the non-error cleanup section we should
+                # jump past it if we have an error. The if-test below determine
+                # whether this section is used.
+                if buffers_present or is_getbuffer_slot or self.return_type.is_memoryviewslice:
+                    code.put_goto(code.return_from_error_cleanup_label)
 
         # ----- Non-error return cleanup
         code.put_label(code.return_label)
-        for entry in used_buffer_entries:
-            Buffer.put_release_buffer_code(code, entry)
-        if is_getbuffer_slot:
-            self.getbuffer_normal_cleanup(code)
+        if not self.on_device:
+            for entry in used_buffer_entries:
+                Buffer.put_release_buffer_code(code, entry)
+            if is_getbuffer_slot:
+                self.getbuffer_normal_cleanup(code)
 
-        if self.return_type.is_memoryviewslice:
-            # See if our return value is uninitialized on non-error return
-            # from . import MemoryView
-            # MemoryView.err_if_nogil_initialized_check(self.pos, env)
-            cond = code.unlikely(self.return_type.error_condition(Naming.retval_cname))
-            code.putln(
-                'if (%s) {' % cond)
-            if env.nogil:
-                code.put_ensure_gil()
-            code.putln(
-                'PyErr_SetString(PyExc_TypeError, "Memoryview return value is not initialized");')
-            if env.nogil:
-                code.put_release_ensured_gil()
-            code.putln(
-                '}')
+            if self.return_type.is_memoryviewslice:
+                # See if our return value is uninitialized on non-error return
+                # from . import MemoryView
+                # MemoryView.err_if_nogil_initialized_check(self.pos, env)
+                cond = code.unlikely(self.return_type.error_condition(Naming.retval_cname))
+                code.putln(
+                    'if (%s) {' % cond)
+                if env.nogil:
+                    code.put_ensure_gil()
+                code.putln(
+                    'PyErr_SetString(PyExc_TypeError, "Memoryview return value is not initialized");')
+                if env.nogil:
+                    code.put_release_ensured_gil()
+                code.putln(
+                    '}')
 
         # ----- Return cleanup for both error and no-error return
         code.put_label(code.return_from_error_cleanup_label)
 
-        for entry in lenv.var_entries:
-            if not entry.used or entry.in_closure:
-                continue
+        if not self.on_device:
+            for entry in lenv.var_entries:
+                if not entry.used or entry.in_closure:
+                    continue
 
-            if entry.type.is_memoryviewslice:
-                code.put_xdecref_memoryviewslice(entry.cname, have_gil=not lenv.nogil)
-            elif entry.type.is_pyobject:
-                if not entry.is_arg or len(entry.cf_assignments) > 1:
-                    if entry.xdecref_cleanup:
-                        code.put_var_xdecref(entry)
-                    else:
+                if entry.type.is_memoryviewslice:
+                    code.put_xdecref_memoryviewslice(entry.cname,
+                                                     have_gil='nogil' if lenv.nogil else 'gil')
+                elif entry.type.is_pyobject:
+                    if not entry.is_arg or len(entry.cf_assignments) > 1:
+                        if entry.xdecref_cleanup:
+                            code.put_var_xdecref(entry)
+                        else:
+                            code.put_var_decref(entry)
+
+            # Decref any increfed args
+            for entry in lenv.arg_entries:
+                if entry.type.is_pyobject:
+                    if (acquire_gil or len(entry.cf_assignments) > 1) and not entry.in_closure:
                         code.put_var_decref(entry)
-
-        # Decref any increfed args
-        for entry in lenv.arg_entries:
-            if entry.type.is_pyobject:
-                if (acquire_gil or len(entry.cf_assignments) > 1) and not entry.in_closure:
-                    code.put_var_decref(entry)
-            elif (entry.type.is_memoryviewslice and
-                  (not is_cdef or len(entry.cf_assignments) > 1)):
-                # decref slices of def functions and acquired slices from cdef
-                # functions, but not borrowed slices from cdef functions.
-                code.put_xdecref_memoryviewslice(entry.cname,
-                                                 have_gil=not lenv.nogil)
-        if self.needs_closure:
-            code.put_decref(Naming.cur_scope_cname, lenv.scope_class.type)
+                elif (entry.type.is_memoryviewslice and
+                      (not is_cdef or len(entry.cf_assignments) > 1)):
+                    # decref slices of def functions and acquired slices from cdef
+                    # functions, but not borrowed slices from cdef functions.
+                    code.put_xdecref_memoryviewslice(entry.cname,
+                                                     have_gil='nogil' if lenv.nogil else 'gil')
+            if self.needs_closure:
+                code.put_decref(Naming.cur_scope_cname, lenv.scope_class.type)
 
         # ----- Return
         # This code is duplicated in ModuleNode.generate_module_init_func
@@ -2140,6 +2151,9 @@ class FuncDefNode(StatNode, BlockNode):
             code.putln("return %s;" % Naming.retval_cname)
 
         code.putln("}")
+
+        if is_cdef and self.on_device:
+            code.putln_openmp("#pragma omp end declare target")
 
         if preprocessor_guard:
             code.putln("#endif /*!(%s)*/" % preprocessor_guard)
@@ -2431,6 +2445,10 @@ class CFuncDefNode(FuncDefNode):
 
         self.declare_cpdef_wrapper(env)
         self.create_local_scope(env)
+
+        self.on_device = False
+        if hasattr(self.declarator, 'device'):
+            self.on_device = self.declarator.device
 
     def declare_cpdef_wrapper(self, env):
         if self.overridable:
@@ -2791,14 +2809,18 @@ class DefNode(FuncDefNode):
         self.num_kwonly_args = k
         self.num_required_kw_args = rk
         self.num_required_args = r
+        self.on_device = False
 
     def as_cfunction(self, cfunc=None, scope=None, overridable=True, returns=None, except_val=None, modifiers=None,
-                     nogil=False, with_gil=False):
+                     nogil=False, with_gil=False, device=False):
         if self.star_arg:
             error(self.star_arg.pos, "cdef function cannot have star argument")
         if self.starstar_arg:
             error(self.starstar_arg.pos, "cdef function cannot have starstar argument")
         exception_value, exception_check = except_val or (None, False)
+
+        if device:
+            nogil = True
 
         if cfunc is None:
             cfunc_args = []
@@ -2816,7 +2838,8 @@ class DefNode(FuncDefNode):
                                               exception_check=exception_check,
                                               nogil=nogil,
                                               with_gil=with_gil,
-                                              is_overridable=overridable)
+                                              is_overridable=overridable,
+                                              device=device)
             cfunc = CVarDefNode(self.pos, type=cfunc_type)
         else:
             if scope is None:
@@ -2843,7 +2866,8 @@ class DefNode(FuncDefNode):
                                          exception_check=cfunc_type.exception_check,
                                          exception_value=exception_value,
                                          with_gil=cfunc_type.with_gil,
-                                         nogil=cfunc_type.nogil)
+                                         nogil=cfunc_type.nogil,
+                                         device=cfunc_type.device)
         return CFuncDefNode(self.pos,
                             modifiers=modifiers or [],
                             base_type=CAnalysedBaseTypeNode(self.pos, type=cfunc_type.return_type),
@@ -3890,7 +3914,7 @@ class DefNodeWrapper(FuncDefNode):
                         arg.calculate_default_value_code(code)))
                     if arg.type.is_memoryviewslice:
                         code.put_incref_memoryviewslice(arg.entry.cname,
-                                                        have_gil=True)
+                                                        have_gil='gil')
                     code.putln('}')
             else:
                 error(arg.pos, "Cannot convert Python object argument to type '%s'" % arg.type)
@@ -8385,6 +8409,9 @@ class ParallelStatNode(StatNode, ParallelNode):
     assignments     { Entry(var) : (var.pos, inplace_operator_or_None) }
                     assignments to variables in this parallel section
 
+    names           list of names/vars used in parallel block
+                    relevant only for device with blocks, set to False for others
+
     parent          parent ParallelStatNode or None
     is_parallel     indicates whether this node is OpenMP parallel
                     (true for #pragma omp parallel for and
@@ -8416,6 +8443,8 @@ class ParallelStatNode(StatNode, ParallelNode):
     is_prange = False
     is_nested_prange = False
 
+    device_default = False
+
     error_label_used = False
 
     num_threads = None
@@ -8441,6 +8470,8 @@ class ParallelStatNode(StatNode, ParallelNode):
 
     critical_section_counter = 0
 
+    valid_mappings = ['to', 'from', 'tofrom', 'alloc']
+
     def __init__(self, pos, **kwargs):
         super(ParallelStatNode, self).__init__(pos, **kwargs)
 
@@ -8455,46 +8486,74 @@ class ParallelStatNode(StatNode, ParallelNode):
         # If op is not None, it's a reduction.
         self.privates = {}
 
+        # List of variables which need to be map(to:)'ed from host to device
+        # Notice: privates get map(tofrom:)'ed
+        self.reads = []
+
         # [NameNode]
         self.assigned_nodes = []
 
-    def analyse_declarations(self, env):
+        self.on_device = ParallelStatNode.device_default
+
+    def analyse_declarations(self, env, use_from_body=False):
         self.body.analyse_declarations(env)
 
         self.num_threads = None
 
-        if self.kwargs:
-            # Try to find num_threads and chunksize keyword arguments
-            pairs = []
-            seen = set()
-            for dictitem in self.kwargs.key_value_pairs:
-                if dictitem.key.value in seen:
-                    error(self.pos, "Duplicate keyword argument found: %s" % dictitem.key.value)
-                seen.add(dictitem.key.value)
-                if dictitem.key.value == 'num_threads':
-                    if not dictitem.value.is_none:
-                       self.num_threads = dictitem.value
-                elif self.is_prange and dictitem.key.value == 'chunksize':
-                    if not dictitem.value.is_none:
-                        self.chunksize = dictitem.value
-                else:
-                    pairs.append(dictitem)
-
-            self.kwargs.key_value_pairs = pairs
-
-            try:
-                self.kwargs = self.kwargs.compile_time_value(env)
-            except Exception as e:
-                error(self.kwargs.pos, "Only compile-time values may be "
-                                       "supplied as keyword arguments")
+        if use_from_body:
+            # body's kwargs have already been converted to dict
+            self.kwargs = self.body.kwargs
         else:
-            self.kwargs = {}
+            if self.kwargs:
+                # Try to find num_threads and chunksize keyword arguments
+                pairs = []
+                seen = set()
+                for dictitem in self.kwargs.key_value_pairs:
+                    if dictitem.key.value in seen:
+                        error(self.pos, "Duplicate keyword argument found: %s" % dictitem.key.value)
+                    seen.add(dictitem.key.value)
+                    if dictitem.key.value == 'num_threads':
+                        if not dictitem.value.is_none:
+                           self.num_threads = dictitem.value
+                    elif self.is_prange and dictitem.key.value == 'chunksize':
+                        if not dictitem.value.is_none:
+                            self.chunksize = dictitem.value
+                    else:
+                        pairs.append(dictitem)
+
+                self.kwargs.key_value_pairs = pairs
+
+                try:
+                    self.kwargs = self.kwargs.compile_time_value(env)
+                except Exception as e:
+                    error(self.kwargs.pos, "Only compile-time values may be "
+                                           "supplied as keyword arguments")
+            else:
+                self.kwargs = {}
 
         for kw, val in self.kwargs.items():
             if kw not in self.valid_keyword_arguments:
-                error(self.pos, "Invalid keyword argument: %s" % kw)
+                if not use_from_body:
+                    error(self.pos, "Invalid keyword argument: %s" % kw)
             else:
                 setattr(self, kw, val)
+
+    def analyse_device_map(self, device_map):
+        if isinstance(device_map, dict):
+            _keys = list(device_map.keys())
+            for e in _keys:
+                m = device_map[e]
+                if isinstance(m, tuple):
+                    if not e.type.is_ptr:
+                        error(self.pos, "device mapping can only include a count for pointers, %s is not a pointer" % e.name)
+                    if not (isinstance(m[1], int) or (hasattr(m[1], 'type') and m[1].type.is_int)):
+                        error(self.pos, "count in device mapping must be an integer, %s for %s is not" % (m[1], e.name))
+                    m = m[0]
+                if m not in self.valid_mappings:
+                    error(self.pos, "device mapping must be one of %s (not '%s')" % (self.valid_mappings, m))
+                    del device_map[e]
+        elif device_map != None and device_map != False:
+            error(self.pos, "device-map must be None, False or a dictionary")
 
     def analyse_expressions(self, env):
         if self.num_threads:
@@ -8529,7 +8588,7 @@ class ParallelStatNode(StatNode, ParallelNode):
         """
         for entry, (pos, op) in self.assignments.items():
 
-            if self.is_prange and not self.is_parallel:
+            if self.is_prange and self.parent.is_parallel:
                 # closely nested prange in a with parallel block, disallow
                 # assigning to privates in the with parallel block (we
                 # consider it too implicit and magicky for users)
@@ -8600,14 +8659,20 @@ class ParallelStatNode(StatNode, ParallelNode):
 
             # sum and j are undefined here
         """
+        if not self.is_parallel and not self.is_prange:
+            # device with block doesn't need to check
+            # we probably do not even need the propagation at all
+            return
+
         self.privates[entry] = (op, lastprivate)
 
-        if entry.type.is_memoryviewslice:
+        if entry.type.is_memoryviewslice and (self.is_parallel or self.is_prange):
+            # second check in if is for excluding device with blocks
             error(pos, "Memoryview slices can only be shared in parallel sections")
             return
 
         if self.is_prange:
-            if not self.is_parallel and entry not in self.parent.assignments:
+            if entry not in self.parent.assignments:
                 # Parent is a parallel with block
                 parent = self.parent.parent
             else:
@@ -8615,7 +8680,7 @@ class ParallelStatNode(StatNode, ParallelNode):
 
             # We don't need to propagate privates, only reductions and
             # lastprivates
-            if parent and (op or lastprivate):
+            if parent and parent.is_prange and (op or lastprivate):
                 parent.propagate_var_privatization(entry, pos, op, lastprivate)
 
     def _allocate_closure_temp(self, code, entry):
@@ -8639,6 +8704,88 @@ class ParallelStatNode(StatNode, ParallelNode):
         self.modified_entries.append((entry, entry.cname))
         code.putln("%s = %s;" % (cname, entry.cname))
         entry.cname = cname
+
+    def _generate_map_lists(self, device_map):
+        """
+        Helper function generating a list of entries for every map-type.
+        Scalars are mapped by name only, memviews require a range.
+        Since memviewlice data pointer is char, we need its range to also
+        multiply by type-size.
+        We do not allow arrays/memviews to be resized or reshaped or re-strided
+        within the device/parallel block.
+        We only allow writing to the data pointer, so we never need to send back
+        the memview struct itself.
+        """
+        if not device_map or not isinstance(device_map, dict):
+            return {}
+        _maps = {x+':':[] for x in self.valid_mappings}
+        _maps['memview'] = []
+        _maps[''] = []
+        _noncontig = []
+        for entry in device_map:
+            if entry == None:
+                error(self.pos, "Error in device mapping, key might not be a declared variable")
+                continue
+            m = device_map[entry]
+            cnt = None
+            if isinstance(m, tuple):
+                cnt = m[1]
+                if hasattr(cnt, 'cname'):
+                    cnt = cnt.cname
+                elif not isinstance(cnt, int):
+                    error(self.pos, "count in map-tuple must be a variable or integer constant, %s is not" % (cnt))
+                m = m[0]
+            if m == 'default':
+                m = ''
+            else:
+                m = m+':'
+            if entry.type.is_memoryviewslice:
+                if not entry.type.is_c_contig:
+                    _noncontig.append(entry)
+                # the struct itself cannot be altered, so it's always a 'to'
+                _maps['to:'] += ["%s.%s" % (entry.cname, m) for m in ['memview',
+                                                                      'shape',
+                                                                      'strides',
+                                                                      'suboffsets']]
+                # the data pointer inherits the read/write/to/from attribute
+                # it needs to be mapped individually anyway to get the data transferred
+                _maps['memview'].append(entry)
+                _szs = ['%s.shape[%d]' % (entry.cname, i) for i in range(entry.type.ndim)]
+                _cnt = '*'.join(['sizeof(%s)' % (entry.type.dtype.cv_base_type.empty_declaration_code()
+                                                 if hasattr(entry.type.dtype, 'cv_base_type')
+                                                 else entry.type.dtype.empty_declaration_code())] + _szs)
+
+                _maps[m].append("%s.data[0:%s]" % (entry.cname, _cnt))
+                #else:
+                #    error(entry.pos, "Mapped memoryviews must be "
+                #                     "C-contiguous (%s is not)" % entry.name)
+            elif entry.type.is_numeric or (entry.type.is_ptr and m == 'alloc:'):
+                _maps[m].append(entry.cname)
+            elif entry.type.is_ptr or entry.is_self_arg:
+                _maps[m].append("%s[0:%s]" % (entry.cname, cnt))
+            else:
+                error(entry.pos, "Mapped variables must be memoryview "
+                                 "scalar or pointer (%s is %s)" % (entry.name, entry.type))
+        return (_maps, _noncontig)
+
+    def _put_noncontig_check(self, code, noncontig):
+        allow_dev = 'allow_device'
+        code.putln('int %s = omp_get_num_devices();' % allow_dev)
+        if noncontig:
+            code.putln('if(%s > 0)' % allow_dev)
+            code.begin_block()
+            code.putln('static int not_warned = 1;')
+            for entry in noncontig:
+                code.putln("if(not_warned && __pyx_memviewslice_is_contig(%s, 'C', %s) != 0) {" % (entry.cname,
+                                                                                                   entry.type.ndim))
+                code.putln('not_warned = 0;')
+                code.putln('%s = 0;' % allow_dev)
+                code.putln('fprintf(stderr, "%s: %s is not C-contiguous, device block will not be offloaded to device.");'
+                           % (self.pos, entry.name))
+                code.putln('}')
+            code.end_block()
+        return allow_dev
+
 
     def initialize_privates_to_nan(self, code, exclude=None):
         first = True
@@ -8670,8 +8817,9 @@ class ParallelStatNode(StatNode, ParallelNode):
     def put_num_threads(self, code):
         """
         Write self.num_threads if set as the num_threads OpenMP directive
+        We ignore num_threads for now when running on a device.
         """
-        if self.num_threads is not None:
+        if not self.on_device and self.num_threads is not None:
             code.put(" num_threads(%s)" % self.evaluate_before_block(code, self.num_threads))
 
 
@@ -8707,7 +8855,8 @@ class ParallelStatNode(StatNode, ParallelNode):
         c = self.privatization_insertion_point
         self.privatization_insertion_point = None
 
-        if self.is_parallel:
+        # FIXMEFS: if self.is_parallel or self.on_device:
+        if self.is_parallel or not self.is_nested_prange:
             self.temps = temps = code.funcstate.stop_collecting_temps()
             privates, firstprivates = [], []
             for temp, type in sorted(temps):
@@ -8731,11 +8880,13 @@ class ParallelStatNode(StatNode, ParallelNode):
 
     def cleanup_temps(self, code):
         # Now clean up any memoryview slice and object temporaries
-        if self.is_parallel and not self.is_nested_prange:
+        if self.is_parallel:
+            assert not self.is_nested_prange
             code.putln("/* Clean up any temporaries */")
             for temp, type in sorted(self.temps):
                 if type.is_memoryviewslice:
-                    code.put_xdecref_memoryviewslice(temp, have_gil=False)
+                    code.put_xdecref_memoryviewslice(temp,
+                                                     have_gil='device' if self.on_device else 'nogil')
                 elif type.is_pyobject:
                     code.put_xdecref(temp, type)
                     code.putln("%s = NULL;" % temp)
@@ -8843,6 +8994,10 @@ class ParallelStatNode(StatNode, ParallelNode):
         self.error_label_used = False
 
         self.parallel_private_temps = []
+
+        if self.on_device:
+            code.put_label(code.error_label)
+            return
 
         all_labels = code.get_all_labels()
 
@@ -9090,32 +9245,188 @@ class ParallelStatNode(StatNode, ParallelNode):
             code.redef_builtin_expect(self.redef_condition)
 
 
+class DeviceWithBlockNode(ParallelStatNode):
+    """
+    This node represents a 'with cython.parallel.device():' block
+    """
+    valid_keyword_arguments = []
+    is_parallel = False
+
+    def analyse_declarations(self, env):
+        super(DeviceWithBlockNode, self).analyse_declarations(env)
+        if self.args:
+            if len(self.args) > 1:
+                error(self.pos, "cython.parallel.device() takes only a single positional argument 'map'")
+            self.map = self.args[0].compile_time_value(env)
+            _map = self.map
+        else:
+            _map = None
+        if not _map or not isinstance(_map, dict):
+            error(self.pos, "argument to device must be a non-empty dictionary")
+        self.analyse_device_map(_map)
+        self.on_device = False
+
+    def generate_execution_code(self, code):
+        """
+        Create an OpenMP target data block for variables provided by the programmer.
+
+        We enclose the execution code with "#pragma omp target enter data" and
+        "#pragma omp target enter data" directives with the appropriate map clauses.
+        We need them to properly move array data because just mapping a pointer will not move the data.
+        We cannot use "#pragma omp target data" blocks since cythion might generate gotos
+        to outside the execution block.
+        Note: In case of and error caught with goto the data will not be deleted from the device for now.
+
+        Note: We rely on bitwise copies between host and device as defined in the OpenMP spec.
+        """
+        # revers mapping from var:maptype to maptype:var-list
+        reverse_map, noncontig = self._generate_map_lists(self.map)
+        code.begin_block()
+        # check at runtime if memviews are contiguous
+        allow_dev = self._put_noncontig_check(code, noncontig)
+        # The rest is relatively easy, we add the openmp pragmas including map clauses around the execution code
+        code.putln("#ifdef _OPENMP")
+        code.put("#pragma omp target enter data if(%s)" % allow_dev)
+        maptypes = [x+':' for x in self.valid_mappings]
+        for maptype in maptypes:
+            if reverse_map[maptype]:
+                mt = 'to:' if maptype.startswith('to') else 'alloc:'
+                code.put(" map(%s %s)" % (mt, ', '.join(reverse_map[maptype])))
+        code.putln('')
+        code.putln("#endif /* _OPENMP */")
+
+        self.body.generate_execution_code(code)
+
+        code.putln("#ifdef _OPENMP")
+        code.put("#pragma omp target exit data")
+        for maptype in maptypes:
+            if reverse_map[maptype]:
+                mt = 'from:' if maptype.endswith('from:') else 'release:'
+                code.put(" map(%s %s)" % (mt, ', '.join(reverse_map[maptype])))
+        code.putln('')
+        code.putln("#endif /* _OPENMP */")
+        code.end_block()
+
+
 class ParallelWithBlockNode(ParallelStatNode):
     """
     This node represents a 'with cython.parallel.parallel():' block
     """
 
-    valid_keyword_arguments = ['num_threads']
+    valid_keyword_arguments = ['num_threads', 'nogil', 'device']
 
     num_threads = None
+    is_parallel = True
+    names = False
+
+    all_names = []
+    all_assignments = []
+
+    def __init__(self, pos_or_prange, **kwargs):
+        self.device = None
+        self.nogil = False
+        if isinstance(pos_or_prange, ParallelRangeNode):
+            self.body = pos_or_prange
+            pos = self.body.pos
+            kwargs={'args':[], 'kwargs':{}}
+            self.has_tight_prange = True
+        else:
+            pos = pos_or_prange
+            self.has_tight_prange = False
+        super(ParallelWithBlockNode, self).__init__(pos, **kwargs)
 
     def analyse_declarations(self, env):
-        super(ParallelWithBlockNode, self).analyse_declarations(env)
+        super(ParallelWithBlockNode, self).analyse_declarations(env, self.has_tight_prange)
+
+        if self.has_tight_prange:
+            self.num_threads = self.body.num_threads
+            self.body.num_threads = None
+            if self.device != None:
+                self.body.device = None
+            if self.nogil:
+                self.body.nogil = False
+
         if self.args:
             error(self.pos, "cython.parallel.parallel() does not take "
                             "positional arguments")
+        self.analyse_device_map(self.device)
+        print(self.device, self.on_device)
+        if self.device != None:
+            self.on_device = True if self.device != False else False
+        elif self.on_device:
+            self.device = {}
+
+    def analyse_expressions(self, env):
+        was_nogil = env.nogil
+        if self.nogil:
+            env.nogil = True
+        node = super(ParallelWithBlockNode, self).analyse_expressions(env)
+        if node.nogil:
+            env.nogil = was_nogil
+        return node
 
     def generate_execution_code(self, code):
+        """
+        Create an OpenMP parallel or target parallel block
+
+        For device/target:
+          Then we add a "#pragma omp target" with appropriate map clauses.
+          We need them to properly move array data because just mapping a pointer will not move the data.
+
+          Notice that we map() all variables.
+          We currently have no optimization to reduce the data transfer. Potentially, we could
+            - map(to:) read-only variables
+            - map(from:) write-only variables
+            - map(alloc:) temporary variables
+
+          Note: We rely on bitwise copies between host and device as defined in the OpenMP spec.
+
+          TODO: identify map(from:), e.g. write-only variables
+        """
         self.declare_closure_privates(code)
         self.setup_parallel_control_flow_block(code)
 
+        reverse_map = {}
+        noncontig = False
+        if self.on_device:
+            for var in self.all_names:
+                # we accept anything the user explicitly requests
+                if var not in self.device:
+                    t = var.type
+                    if var.is_self_arg:
+                        self.device[var] = ('default', 1)
+                    elif var.type.is_memoryviewslice:
+                        t = var.type.dtype
+                    if var.type.is_memoryviewslice and (t.is_numeric or t.is_struct_or_union):
+                        self.device[var] = 'default'
+                    elif t.is_numeric:
+                        # we let the C-compiler do the job for scalars
+                        pass
+                    elif t.is_ptr:
+                        error(self.pos, "Cannot use pointer variable %s in device block without explicit range declaration" % var.name)
+                    elif not var.is_self_arg:
+                        error(self.pos, "Type %s (%s) not supported in device block" % (t, var.name))
+            reverse_map, noncontig = self._generate_map_lists(self.device)
+
+        allow_dev = self._put_noncontig_check(code, noncontig)
+
         code.putln("#ifdef _OPENMP")
-        code.put("#pragma omp parallel ")
+        if self.on_device:
+            code.put("#pragma omp target %s defaultmap(tofrom:scalar) if(%s)" % ('teams', allow_dev))
+            #         % ('teams' if self.has_tight_prange else 'parallel', allow_dev))
+        else:
+            code.put("#pragma omp parallel")
+
+        maptypes = [''] + [x+':' for x in self.valid_mappings]
+        if reverse_map:
+            for maptype in maptypes:
+                if reverse_map[maptype]:
+                    code.put(" map(%s %s)" % (maptype, ', '.join(reverse_map[maptype])))
 
         if self.privates:
             privates = [e.cname for e in self.privates
                         if not e.type.is_pyobject]
-            code.put('private(%s)' % ', '.join(sorted(privates)))
+            code.put(' private(%s)' % ', '.join(sorted(privates)))
 
         self.privatization_insertion_point = code.insertion_point()
         self.put_num_threads(code)
@@ -9125,7 +9436,8 @@ class ParallelWithBlockNode(ParallelStatNode):
 
         code.begin_block()  # parallel block
         self.begin_parallel_block(code)
-        self.initialize_privates_to_nan(code)
+        if not self.has_tight_prange:
+            self.initialize_privates_to_nan(code)
         code.funcstate.start_collecting_temps()
         self.body.generate_execution_code(code)
         self.trap_parallel_exit(code)
@@ -9160,16 +9472,19 @@ class ParallelRangeNode(ParallelStatNode):
     start = stop = step = None
 
     is_prange = True
+    is_parallel = False
+    names = False
 
     nogil = None
     schedule = None
 
-    valid_keyword_arguments = ['schedule', 'nogil', 'num_threads', 'chunksize']
+    valid_keyword_arguments = ['schedule', 'nogil', 'num_threads', 'chunksize', 'device', 'simd']
 
     def __init__(self, pos, **kwds):
         super(ParallelRangeNode, self).__init__(pos, **kwds)
         # Pretend to be a ForInStatNode for control flow analysis
         self.iterator = PassStatNode(pos)
+        self.simd = False
 
     def analyse_declarations(self, env):
         super(ParallelRangeNode, self).analyse_declarations(env)
@@ -9193,6 +9508,9 @@ class ParallelRangeNode(ParallelStatNode):
 
         if self.schedule not in (None, 'static', 'dynamic', 'guided', 'runtime'):
             error(self.pos, "Invalid schedule argument to prange: %s" % (self.schedule,))
+
+        if self.simd not in [True, False]:
+            error(self.pos, "Invalid simd argument to prange: %s is not False or True" % self.simd)
 
     def analyse_expressions(self, env):
         was_nogil = env.nogil
@@ -9287,9 +9605,14 @@ class ParallelRangeNode(ParallelStatNode):
         names = 'start', 'stop', 'step', 'target'
         nodes = self.start, self.stop, self.step, self.target
         for name, node in zip(names, nodes):
-            if node is not None and node.type.is_pyobject:
-                error(node.pos, "%s may not be a Python object "
-                                "as we don't have the GIL" % name)
+            if node is not None:
+                if node.type:
+                    if node.type.is_pyobject:
+                        error(node.pos, "%s may not be a Python object "
+                                        "as we don't have the GIL" % name)
+                else:
+                    error(node.pos, "%s is undeclared" % name)
+
 
     def generate_execution_code(self, code):
         """
@@ -9412,27 +9735,18 @@ class ParallelRangeNode(ParallelStatNode):
         else:
             code.putln("#ifdef _OPENMP")
 
-        if not self.is_parallel:
-            code.put("#pragma omp for")
-            self.privatization_insertion_point = code.insertion_point()
-            reduction_codepoint = self.parent.privatization_insertion_point
+        if self.on_device and not self.is_nested_prange:  # and self.parent.has_tight_prange:
+            pragma_for = "#pragma omp distribute parallel for"
+            pragma_par = "#pragma omp teams"
         else:
-            code.put("#pragma omp parallel")
-            self.privatization_insertion_point = code.insertion_point()
-            reduction_codepoint = self.privatization_insertion_point
-            code.putln("")
-            code.putln("#endif /* _OPENMP */")
+            pragma_for = "#pragma omp for"
+            pragma_par = "#pragma omp parallel"
 
-            code.begin_block() # pragma omp parallel begin block
-
-            # Initialize the GIL if needed for this thread
-            self.begin_parallel_block(code)
-
-            if self.is_nested_prange:
-                code.putln("#if 0")
-            else:
-                code.putln("#ifdef _OPENMP")
-            code.put("#pragma omp for")
+        code.put(pragma_for)
+        if self.simd:
+            code.put(" simd")
+        self.privatization_insertion_point = code.insertion_point()
+        reduction_codepoint = self.parent.privatization_insertion_point
 
         for entry, (op, lastprivate) in sorted(self.privates.items()):
             # Don't declare the index variable as a reduction
@@ -9446,7 +9760,9 @@ class ParallelRangeNode(ParallelStatNode):
                                 " reduction(%s:%s)" % (op, entry.cname))
             else:
                 if entry == self.target.entry:
-                    code.put(" firstprivate(%s)" % entry.cname)
+                    if not self.on_device:
+                        # doesn't work in "omp teams distributed" context
+                        code.put(" firstprivate(%s)" % entry.cname)
                     code.put(" lastprivate(%s)" % entry.cname)
                     continue
 
@@ -9483,13 +9799,13 @@ class ParallelRangeNode(ParallelStatNode):
         code.putln("%(target)s = (%(target_type)s)(%(start)s + %(step)s * %(i)s);" % fmt_dict)
         self.initialize_privates_to_nan(code, exclude=self.target.entry)
 
-        if self.is_parallel and not self.is_nested_prange:
+        if not self.is_nested_prange:
             # nested pranges are not omp'ified, temps go to outer loops
             code.funcstate.start_collecting_temps()
 
         self.body.generate_execution_code(code)
         self.trap_parallel_exit(code, should_flush=True)
-        if self.is_parallel and not self.is_nested_prange:
+        if not self.is_nested_prange:
             # nested pranges are not omp'ified, temps go to outer loops
             self.privatize_temps(code)
 
@@ -9500,11 +9816,6 @@ class ParallelRangeNode(ParallelStatNode):
 
         code.end_block()  # end guard around loop body
         code.end_block()  # end for loop block
-
-        if self.is_parallel:
-            # Release the GIL and deallocate the thread state
-            self.end_parallel_block(code)
-            code.end_block()  # pragma omp parallel end block
 
 
 class CnameDecoratorNode(StatNode):

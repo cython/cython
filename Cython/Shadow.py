@@ -208,8 +208,9 @@ nogil = _nogil()
 gil = _nogil()
 del _nogil
 
+def device(f, *args, **kwds):
+    return nogil(*args, **kwds)(f)
 
-# Emulated types
 
 class CythonMetaType(type):
 
@@ -454,7 +455,7 @@ class CythonDotParallel(object):
     The cython.parallel module.
     """
 
-    __all__ = ['parallel', 'prange', 'threadid']
+    __all__ = ['parallel', 'prange', 'threadid', 'device']
 
     def parallel(self, num_threads=None):
         return nogil
@@ -467,6 +468,9 @@ class CythonDotParallel(object):
 
     def threadid(self):
         return 0
+
+    def device(self):
+        return nogil
 
     # def threadsavailable(self):
         # return 1

@@ -2156,7 +2156,7 @@ class CCodeWriter(object):
                          clear=True, clear_before_decref=clear_before_decref)
 
     def _put_decref(self, cname, type, nanny=True, null_check=False,
-                    have_gil=True, clear=False, clear_before_decref=False):
+                    have_gil='gil', clear=False, clear_before_decref=False):
         if type.is_memoryviewslice:
             self.put_xdecref_memoryviewslice(cname, have_gil=have_gil)
             return
@@ -2229,15 +2229,19 @@ class CCodeWriter(object):
         for entry in entries:
             self.put_var_xdecref_clear(entry)
 
-    def put_incref_memoryviewslice(self, slice_cname, have_gil=False):
-        from . import MemoryView
-        self.globalstate.use_utility_code(MemoryView.memviewslice_init_code)
-        self.putln("__PYX_INC_MEMVIEW(&%s, %d);" % (slice_cname, int(have_gil)))
+    def put_incref_memoryviewslice(self, slice_cname, have_gil='nogil'):
+        if have_gil != 'device':
+            have_gil = (have_gil == 'gil')
+            from . import MemoryView
+            self.globalstate.use_utility_code(MemoryView.memviewslice_init_code)
+            self.putln("__PYX_INC_MEMVIEW(&%s, %d);" % (slice_cname, int(have_gil)))
 
-    def put_xdecref_memoryviewslice(self, slice_cname, have_gil=False):
-        from . import MemoryView
-        self.globalstate.use_utility_code(MemoryView.memviewslice_init_code)
-        self.putln("__PYX_XDEC_MEMVIEW(&%s, %d);" % (slice_cname, int(have_gil)))
+    def put_xdecref_memoryviewslice(self, slice_cname, have_gil='nogil'):
+        if have_gil != 'device':
+            have_gil = (have_gil == 'gil')
+            from . import MemoryView
+            self.globalstate.use_utility_code(MemoryView.memviewslice_init_code)
+            self.putln("__PYX_XDEC_MEMVIEW(&%s, %d);" % (slice_cname, int(have_gil)))
 
     def put_xgiveref_memoryviewslice(self, slice_cname):
         self.put_xgiveref("%s.memview" % slice_cname)

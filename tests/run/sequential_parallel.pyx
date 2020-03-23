@@ -2,6 +2,7 @@
 
 cimport cython.parallel
 from cython.parallel import prange, threadid
+from cython cimport boundscheck, initializedcheck
 from cython.view cimport array
 from libc.stdlib cimport malloc, calloc, free, abort
 from libc.stdio cimport puts
@@ -816,3 +817,27 @@ def test_inner_private():
     assert inner_are_the_same == False,  "Temporary variables in inner loop should be private"
 
     print('ok')
+
+
+@boundscheck(False)
+@initializedcheck(False)
+def test_parallel_simd():
+    """
+    >>> test_parallel_simd()
+    done
+    """
+    cdef int N = 2048
+    cdef double[:] arr = array(format="d", shape=(N,), itemsize=sizeof(double))
+    cdef double[:] arr2 = array(format="d", shape=(N,), itemsize=sizeof(double))
+    cdef int i
+    with nogil:
+        for i in range(N):
+            arr[i] = 1
+        for i in prange(N, simd=True):
+            arr2[i] = arr[i] + arr[i]
+    for i in range(N):
+        if arr2[i] != 2:
+            print("Incorrect result")
+            break
+    print("done")
+
