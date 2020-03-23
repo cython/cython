@@ -759,7 +759,7 @@ class ExprNode(Node):
         # TODO ideally this would be shared with "make_owned_reference"
         if not self.result_in_temp():
             code.put_incref_memoryviewslice(self.result(), self.type,
-                                            have_gil=self.in_nogil_context)
+                                            have_gil=not self.in_nogil_context)
 
     def generate_evaluation_code(self, code):
         #  Generate code to evaluate this node and
