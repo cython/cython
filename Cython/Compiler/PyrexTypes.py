@@ -1086,6 +1086,7 @@ class MemoryViewSliceType(PyrexType):
         code.putln("__PYX_XDEC_MEMVIEW(&%s, %d);" % (cname, int(have_gil)))
 
     def generate_decref(self, code, cname, nanny, have_gil):
+        # Fall back to xdecref since we don't care to have a separate decref version for this.
         self.generate_xdecref(code, cname, nanny, have_gil)
 
     def generate_xdecref_clear(self, code, cname, clear_before_decref, **kwds):
