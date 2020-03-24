@@ -229,6 +229,7 @@ class PyrexType(BaseType):
     is_extension_type = 0
     is_final_type = 0
     is_builtin_type = 0
+    is_cython_builtin_type = 0
     is_numeric = 0
     is_int = 0
     is_float = 0
