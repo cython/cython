@@ -1235,16 +1235,10 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
             return NULL;
 
         self = binding_func->self;
-#if !(CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS)
-        Py_INCREF(self);
-#endif
+
         Py_INCREF(self);
         PyTuple_SET_ITEM(new_args, 0, self);
-
-#if !(CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS)
-        Py_XDECREF(self);
         self = NULL;
-#endif
 
         for (i = 0; i < argc; i++) {
 #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
