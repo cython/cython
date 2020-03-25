@@ -1953,6 +1953,8 @@ class NameNode(AtomicExprNode):
             _, atype = annotation.analyse_type_annotation(env)
         if atype is None:
             atype = unspecified_type if as_target and env.directives['infer_types'] != False else py_object_type
+        if atype.is_fused and env.fused_to_specific:
+            atype = atype.specialize(env.fused_to_specific)
         self.entry = env.declare_var(name, atype, self.pos, is_cdef=not as_target)
         self.entry.annotation = annotation.expr
 
