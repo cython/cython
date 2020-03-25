@@ -2656,19 +2656,6 @@ static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_le
   }
 #endif
 
-//////////// BytesConcatInPlace.proto ///////////////////////
-
-#define __Pyx_PyBytes_Concat(a, b) PyBytes_Concat(a,b)
-// Bytes cannot be readily resized in place because _PyBytes_Resize will
-// deallocate the argument on failure - this is incompatible with the assumptions that
-// Cython makes. Define very simple forwarding functions for the moment just so
-// bytes and string have a consistent interface
-#define __Pyx_PyBytes_ConcatInPlace(a, b) PyBytes_Concat(a, b)
-#define __Pyx_PyBytes_ConcatSafe(a, b) ((unlikely((left) == Py_None) || unlikely((right) == Py_None)) ? \
-    PyNumber_Add(left, right) : __Pyx_PyBytes_Concat(left, right))
-#define __Pyx_PyBytes_ConcatInPlaceSafe(a, b) ((unlikely((left) == Py_None) || unlikely((right) == Py_None)) ? \
-    PyNumber_Add(left, right) : __Pyx_PyBytes_ConcatInPlace(left, right))
-
 ////////////// StrConcatInPlace.proto ///////////////////////
 //@requires: UnicodeConcatInPlace
 
@@ -2685,4 +2672,3 @@ static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_le
 #define __Pyx_PyStr_ConcatInPlaceSafe(a, b) ((unlikely((a) == Py_None) || unlikely((b) == Py_None)) ? \
     PyNumber_Add(a, b) : __Pyx_PyStr_ConcatInPlace(a, b))
 
-/////////////// StrConcatInPlace ///////////////////////
