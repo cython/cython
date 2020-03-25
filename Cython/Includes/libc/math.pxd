@@ -104,3 +104,9 @@ cdef extern from "<math.h>" nogil:
     bint isnan(long double)
     bint isnormal(long double)
     bint signbit(long double)
+    int fpclassify(long double)
+    const int FP_NAN
+    const int FP_INFINITE
+    const int FP_ZERO
+    const int FP_SUBNORMAL
+    const int FP_NORMAL

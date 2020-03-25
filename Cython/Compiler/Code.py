@@ -237,6 +237,15 @@ class UtilityCodeBase(object):
 
         [definitions]
 
+        ##### MyUtility #####
+        #@subsitute: tempita
+
+        [requires tempita substitution
+         - context can't be specified here though so only
+           tempita utility that requires no external context
+           will benefit from this tag
+         - only necessary when @required from non-tempita code]
+
     for prototypes and implementation respectively.  For non-python or
     -cython files backslashes should be used instead.  5 to 30 comment
     characters may be used on either side.
@@ -255,8 +264,7 @@ class UtilityCodeBase(object):
             return
 
         code = '\n'.join(lines)
-        if tags and 'substitute' in tags and tags['substitute'] == set(['naming']):
-            del tags['substitute']
+        if tags and 'substitute' in tags and 'naming' in tags['substitute']:
             try:
                 code = Template(code).substitute(vars(Naming))
             except (KeyError, ValueError) as e:
@@ -347,6 +355,7 @@ class UtilityCodeBase(object):
         Load utility code from a file specified by from_file (relative to
         Cython/Utility) and name util_code_name.
         """
+
         if '::' in util_code_name:
             from_file, util_code_name = util_code_name.rsplit('::', 1)
         assert from_file
@@ -354,6 +363,9 @@ class UtilityCodeBase(object):
         proto, impl, tags = utilities[util_code_name]
 
         if tags:
+            if "substitute" in tags and "tempita" in tags["substitute"]:
+                if not issubclass(cls, TempitaUtilityCode):
+                    return TempitaUtilityCode.load(util_code_name, from_file, **kwargs)
             orig_kwargs = kwargs.copy()
             for name, values in tags.items():
                 if name in kwargs:
@@ -367,6 +379,12 @@ class UtilityCodeBase(object):
                         # dependencies are rarely unique, so use load_cached() when we can
                         values = [cls.load_cached(dep, from_file)
                                   for dep in sorted(values)]
+                elif name == 'substitute':
+                    # don't want to pass "naming" or "tempita" to the constructor
+                    # since these will have been handled
+                    values = values - set(['naming', 'tempita'])
+                    if not values:
+                        continue
                 elif not values:
                     values = None
                 elif len(values) == 1:
@@ -814,6 +832,9 @@ class FunctionState(object):
             type = type.cv_base_type
         elif type.is_reference and not type.is_fake_reference:
             type = type.ref_base_type
+        elif type.is_cfunction:
+            from . import PyrexTypes
+            type = PyrexTypes.c_ptr_type(type)  # A function itself isn't an l-value
         if not type.is_pyobject and not type.is_memoryviewslice:
             # Make manage_ref canonical, so that manage_ref will always mean
             # a decref is needed.
@@ -1445,11 +1466,14 @@ class GlobalState(object):
         for (type_cname, method_name), cname in sorted(self.cached_cmethods.items()):
             cnames.append(cname)
             method_name_cname = self.get_interned_identifier(StringEncoding.EncodedString(method_name)).cname
-            decl.putln('static __Pyx_CachedCFunction %s = {0, &%s, 0, 0, 0};' % (
-                cname, method_name_cname))
+            decl.putln('static __Pyx_CachedCFunction %s = {0, 0, 0, 0, 0};' % (
+                cname))
             # split type reference storage as it might not be static
             init.putln('%s.type = (PyObject*)&%s;' % (
                 cname, type_cname))
+            # method name string isn't static in limited api
+            init.putln('%s.method_name = &%s;' % (
+                cname, method_name_cname))
 
         if Options.generate_cleanup_code:
             cleanup = self.parts['cleanup_globals']
@@ -1494,6 +1518,17 @@ class GlobalState(object):
             w = self.parts['pystring_table']
             w.putln("")
             w.putln("static __Pyx_StringTabEntry %s[] = {" % Naming.stringtab_cname)
+            w.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+            w_limited_writer = w.insertion_point()
+            w.putln("#else")
+            w_not_limited_writer = w.insertion_point()
+            w.putln("#endif")
+            decls_writer.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
+            not_limited_api_decls_writer = decls_writer.insertion_point()
+            decls_writer.putln("#endif")
+            init_globals.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+            init_globals_limited_api = init_globals.insertion_point()
+            init_globals.putln("#endif")
             for idx, py_string_args in enumerate(py_strings):
                 c_cname, _, py_string = py_string_args
                 if not py_string.is_str or not py_string.encoding or \
@@ -1512,32 +1547,19 @@ class GlobalState(object):
                     py_string.cname)
                 self.parts['module_state_traverse'].putln("Py_VISIT(traverse_module_state->%s);" %
                     py_string.cname)
-                decls_writer.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
-                decls_writer.putln(
+                not_limited_api_decls_writer.putln(
                     "static PyObject *%s;" % py_string.cname)
-                decls_writer.putln("#endif")
                 if py_string.py3str_cstring:
-                    w.putln("#if PY_MAJOR_VERSION >= 3")
-                    w.putln("{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
+                    w_not_limited_writer.putln("#if PY_MAJOR_VERSION >= 3")
+                    w_not_limited_writer.putln("{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
                         py_string.cname,
                         py_string.py3str_cstring.cname,
                         py_string.py3str_cstring.cname,
                         '0', 1, 0,
                         py_string.intern
                         ))
-                    w.putln("#else")
-
-                w.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-                w.putln("{0, %s, sizeof(%s), %s, %d, %d, %d}," % (
-                    c_cname,
-                    c_cname,
-                    encoding,
-                    py_string.is_unicode,
-                    py_string.is_str,
-                    py_string.intern
-                    ))
-                w.putln("#else")
-                w.putln("{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
+                    w_not_limited_writer.putln("#else")
+                w_not_limited_writer.putln("{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
                     py_string.cname,
                     c_cname,
                     c_cname,
@@ -1546,16 +1568,21 @@ class GlobalState(object):
                     py_string.is_str,
                     py_string.intern
                     ))
-                w.putln("#endif")
-                init_globals.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-                init_globals.putln("if (__Pyx_InitString(%s[%d], &%s) < 0) %s;" % (
+                if py_string.py3str_cstring:
+                    w_not_limited_writer.putln("#endif")
+                w_limited_writer.putln("{0, %s, sizeof(%s), %s, %d, %d, %d}," % (
+                    c_cname if not py_string.py3str_cstring else py_string.py3str_cstring.cname,
+                    c_cname if not py_string.py3str_cstring else py_string.py3str_cstring.cname,
+                    encoding if not py_string.py3str_cstring else '0',
+                    py_string.is_unicode,
+                    py_string.is_str,
+                    py_string.intern
+                    ))
+                init_globals_limited_api.putln("if (__Pyx_InitString(%s[%d], &%s) < 0) %s;" % (
                     Naming.stringtab_cname,
                     idx,
                     py_string.cname,
                     init_globals.error_goto(self.module_pos)))
-                init_globals.putln("#endif")
-                if py_string.py3str_cstring:
-                    w.putln("#endif")
             w.putln("{0, 0, 0, 0, 0, 0, 0}")
             w.putln("};")
 
