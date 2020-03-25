@@ -25,15 +25,14 @@ The debugger will need debug information that the Cython compiler can export.
 This can be achieved from within the setup script by passing ``gdb_debug=True``
 to ``cythonize()``::
 
-    from distutils.core import setup
-    from distutils.extension import Extension
+    from setuptools import Extension, setup
 
     extensions = [Extension('source', ['source.pyx'])]
 
     setup(..., ext_modules=cythonize(extensions, gdb_debug=True))
 
 For development it's often helpful to pass the ``--inplace`` flag to
-the ``setup.py`` script, which makes distutils build your project
+the ``setup.py`` script, which makes setuptools build your project
 "in place", i.e., not in a separate `build` directory.
 
 When invoking Cython from the command line directly you can have it write

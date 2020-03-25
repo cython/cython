@@ -191,7 +191,7 @@ Other changes
 * Support for Python 2.6 was removed.
 
 
-0.29.16 (2020-0?-??)
+0.29.16 (2020-03-24)
 ====================
 
 Bugs fixed
@@ -210,6 +210,10 @@ Bugs fixed
   implemented functions.
   Patch by David Woods.  (Github issue #3384)
 
+* Valid Python object concatenation of (iterable) strings to non-strings
+  could fail with an exception.
+  Patch by David Woods.  (Github issue #3433)
+
 * Using C functions as temporary values lead to invalid C code.
   Original patch by David Woods.  (Github issue #3418)
 
@@ -225,8 +229,11 @@ Bugs fixed
 * The ``_Py_PyAtExit()`` function in ``cpython.pylifecycle`` was misdeclared.
   Patch by Zackery Spytz.  (Github issue #3382)
 
-* The matrix multiplication functions in ``cpython.number`` were missing.
-  Patch by Zackery Spytz.  (Github issue #3421)
+* Several missing declarations in ``cpython.*`` were added.
+  Patches by Zackery Spytz.  (Github issue #3452, #3421, #3411, #3402)
+
+* A declaration for ``libc.math.fpclassify()`` was added.
+  Patch by Zackery Spytz.  (Github issue #2514)
 
 * Avoid "undeclared" warning about automatically generated pickle methods.
   Patch by David Woods.  (Github issue #3353)

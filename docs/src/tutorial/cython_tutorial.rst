@@ -40,7 +40,7 @@ Save this code in a file named :file:`helloworld.pyx`.  Now we need to create
 the :file:`setup.py`, which is like a python Makefile (for more information
 see :ref:`compilation`). Your :file:`setup.py` should look like::
 
-    from distutils.core import setup
+    from setuptools import setup
     from Cython.Build import cythonize
 
     setup(
@@ -273,7 +273,7 @@ compile it with Cython (without changing the code). We will also change the name
 file to ``example_py_cy.py`` to differentiate it from the others.
 Now the ``setup.py`` looks like this::
 
-    from distutils.core import setup
+    from setuptools import setup
     from Cython.Build import cythonize
 
     setup(

@@ -18,10 +18,12 @@ cimport cpython.dict
 cimport cpython.exc
 cimport cpython.float
 cimport cpython.function
+cimport cpython.genobject
 cimport cpython.getargs
 cimport cpython.instance
 cimport cpython.int
 cimport cpython.iterator
+cimport cpython.iterobject
 cimport cpython.list
 cimport cpython.long
 cimport cpython.longintrepr

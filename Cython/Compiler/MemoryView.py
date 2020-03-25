@@ -101,7 +101,8 @@ def put_acquire_memoryviewslice(lhs_cname, lhs_type, lhs_pos, rhs, code,
 def put_assign_to_memviewslice(lhs_cname, rhs, rhs_cname, memviewslicetype, code,
                                have_gil=False, first_assignment=False):
     if not first_assignment:
-        code.put_xdecref_memoryviewslice(lhs_cname, have_gil=have_gil)
+        code.put_xdecref(lhs_cname, memviewslicetype,
+                         have_gil=have_gil)
 
     if not rhs.result_in_temp():
         rhs.make_owned_memoryviewslice(code)
@@ -248,7 +249,7 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
 
         return bufp
 
-    def generate_buffer_slice_code(self, code, indices, dst, have_gil,
+    def generate_buffer_slice_code(self, code, indices, dst, dst_type, have_gil,
                                    have_slices, directives):
         """
         Slice a memoryviewslice.
@@ -265,7 +266,7 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
 
         code.putln("%(dst)s.data = %(src)s.data;" % locals())
         code.putln("%(dst)s.memview = %(src)s.memview;" % locals())
-        code.put_incref_memoryviewslice(dst)
+        code.put_incref_memoryviewslice(dst, dst_type, have_gil=have_gil)
 
         all_dimensions_direct = all(access == 'direct' for access, packing in self.type.axes)
         suboffset_dim_temp = []
