@@ -11385,6 +11385,10 @@ class AddNode(NumBinopNode):
             code.globalstate.use_utility_code(
                     UtilityCode.load_cached("BytesConcatInPlace", "ObjectHandling.c"))
             func = '__Pyx_PyBytes_Concat'
+        elif type1 is str_type and type2 is str_type:
+            code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("StrConcatInPlace", "ObjectHandling.c"))
+            func = '__Pyx_PyStr_Concat'
 
         if func:
             # any necessary utility code will be got by "NumberAdd" in generate_evaluation_code

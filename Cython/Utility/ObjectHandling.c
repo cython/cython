@@ -2556,68 +2556,133 @@ static PyObject *__Pyx_PyMethod_New(PyObject *func, PyObject *self, CYTHON_UNUSE
 
 /////////////// UnicodeConcatInPlace.proto ////////////////
 
-#if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION > 2
-    // PyUnicode_Append does it's own safety checks so is always safe to use
-    // The incref is because there now two copies of `*a` - the one just "returned" and the one \
-                // passed in as an argument
+# if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
+// __Pyx_PyUnicode_ConcatInPlace may modify the first argument 'left'
+// However, unlike `PyUnicode_Append` it will never NULL it.
+// It behaves like a regular function - returns a new reference and NULL on error
     #if CYTHON_REFNANNY
-        #define __Pyx_PyUnicode_ConcatInPlace(a, b) __Pyx_PyUnicode_ConcatInPlaceImpl(&a, b, __pyx_refnanny)
+        #define __Pyx_PyUnicode_ConcatInPlace(left, right) __Pyx_PyUnicode_ConcatInPlaceImpl(&left, right, __pyx_refnanny)
     #else
-        #define __Pyx_PyUnicode_ConcatInPlace(a, b) __Pyx_PyUnicode_ConcatInPlaceImpl(&a, b, NULL)
+        #define __Pyx_PyUnicode_ConcatInPlace(left, right) __Pyx_PyUnicode_ConcatInPlaceImpl(&left, right, NULL)
     #endif
     // __Pyx_PyUnicode_ConcatInPlace is slightly odd because it has the potential to modify the input
     // argument (but only in cases where no user should notice). Therefore, it needs to keep Cython's
     // refnanny informed.
-    static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **a, PyObject *b, CYTHON_UNUSED void * __pyx_refnanny); /* proto */
+    static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_left, PyObject *right, void* __pyx_refnanny); /* proto */
 #else
-    #define __Pyx_PyUnicode_ConcatInPlace __Pyx_PyUnicode_Concat
+#define __Pyx_PyUnicode_ConcatInPlace __Pyx_PyUnicode_Concat
 #endif
-#define __Pyx_PyUnicode_ConcatInPlaceSafe(a, b) ((unlikely((a) == Py_None) || unlikely((b) == Py_None)) ? \
-    PyNumber_Add(a, b) : __Pyx_PyUnicode_ConcatInPlace(a, b))
+#define __Pyx_PyUnicode_ConcatInPlaceSafe(left, right) ((unlikely((left) == Py_None) || unlikely((right) == Py_None)) ? \
+    PyNumber_Add(left, right) : __Pyx_PyUnicode_ConcatInPlace(left, right))
 
 /////////////// UnicodeConcatInPlace ////////////////
+//@substitute: naming
 
-#if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION > 2
-static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **a, PyObject *b, CYTHON_UNUSED void * __pyx_refnanny) {
-      __Pyx_GIVEREF(*a);
-      // PyUnicode_Append() may reassign `a` in place, and sets it to NULL on error.
-      PyUnicode_Append(a, b);
-      // We need two references to `*a` - the one we return and the one that we keep in the input pointer.
-      __Pyx_XINCREF(*a);
-      return *a;
+# if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
+// copied directly from unicode_object.c "unicode_modifiable
+// removing _PyUnicode_HASH since it's a macro we don't have
+//  - this is OK because trying PyUnicode_Resize on a non-modifyable
+//  object will still work, it just won't happen in place
+static int
+__Pyx_unicode_modifiable(PyObject *unicode)
+{
+    assert(_PyUnicode_CHECK(unicode));
+    if (Py_REFCNT(unicode) != 1)
+        return 0;
+    if (PyUnicode_CHECK_INTERNED(unicode))
+        return 0;
+    if (!PyUnicode_CheckExact(unicode))
+        return 0;
+#ifdef Py_DEBUG
+    /* singleton refcount is greater than 1 */
+    assert(!unicode_is_singleton(unicode));
+#endif
+    return 1;
+}
+
+static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_left, PyObject *right, void* __pyx_refnanny) {
+    // heavily based on PyUnicode_Append
+    PyObject *left = *p_left;
+    Py_ssize_t left_len, right_len, new_len;
+
+    if (PyUnicode_READY(left) == -1)
+        return NULL;
+    if (PyUnicode_READY(right) == -1)
+        return NULL;
+
+    /* Shortcuts */
+    if (left == $empty_unicode) {
+        Py_INCREF(right);
+        return right;
+    }
+    if (right == $empty_unicode) {
+        Py_INCREF(left);
+        return left;
+    }
+
+    left_len = PyUnicode_GET_LENGTH(left);
+    right_len = PyUnicode_GET_LENGTH(right);
+    if (left_len > PY_SSIZE_T_MAX - right_len) {
+        PyErr_SetString(PyExc_OverflowError,
+                        "strings are too large to concat");
+        return NULL;
+    }
+    new_len = left_len + right_len;
+
+    if (__Pyx_unicode_modifiable(left)
+        && PyUnicode_CheckExact(right)
+        && PyUnicode_KIND(right) <= PyUnicode_KIND(left)
+        /* Don't resize for ascii += latin1. Convert ascii to latin1 requires
+           to change the structure size, but characters are stored just after
+           the structure, and so it requires to move all characters which is
+           not so different than duplicating the string. */
+        && !(PyUnicode_IS_ASCII(left) && !PyUnicode_IS_ASCII(right))) {
+
+        __Pyx_GIVEREF(*p_left);
+        if (PyUnicode_Resize(p_left, new_len) != 0) {
+            // on failure PyUnicode_Resize does not deallocate the the input
+            // so left will remain unchanged - simply undo the giveref
+            __Pyx_GOTREF(*p_left);
+            return NULL;
+        }
+        __Pyx_INCREF(*p_left);
+
+        /* copy 'right' into the newly allocated area of 'left' */
+        _PyUnicode_FastCopyCharacters(*p_left, left_len, right, 0, right_len);
+        return *p_left;
+    } else {
+        return __Pyx_PyUnicode_Concat(left, right);
+    }
   }
 #endif
 
 //////////// BytesConcatInPlace.proto ///////////////////////
 
-// Follows the interface of "PyUnicode_Concat", but with Bytes, rather than the
-// interface of PyBytes_Concat. However, uses PyBytes_Concat which has the potential
-// to modify in-place. See UnicodeConcatInPlace for comments
-#if CYTHON_COMPILING_IN_CPYTHON
-    #if CYTHON_REFNANNY
-        #define __Pyx_PyBytes_ConcatInPlace(a, b) __Pyx_PyBytes_ConcatInPlaceImpl(&a, b, __pyx_refnanny)
-    #else
-        #define __Pyx_PyBytes_ConcatInPlace(a, b) __Pyx_PyBytes_ConcatInPlaceImpl(&a, b, NULL)
-    #endif
+#define __Pyx_PyBytes_Concat(a, b) PyBytes_Concat(a,b)
+// Bytes cannot be readily resized in place because _PyBytes_Resize will
+// deallocate the argument on failure - this is incompatible with the assumptions that
+// Cython makes. Define very simple forwarding functions for the moment just so
+// bytes and string have a consistent interface
+#define __Pyx_PyBytes_ConcatInPlace(a, b) PyBytes_Concat(a, b)
+#define __Pyx_PyBytes_ConcatSafe(a, b) ((unlikely((left) == Py_None) || unlikely((right) == Py_None)) ? \
+    PyNumber_Add(left, right) : __Pyx_PyBytes_Concat(left, right))
+#define __Pyx_PyBytes_ConcatInPlaceSafe(a, b) ((unlikely((left) == Py_None) || unlikely((right) == Py_None)) ? \
+    PyNumber_Add(left, right) : __Pyx_PyBytes_ConcatInPlace(left, right))
+
+////////////// StrConcatInPlace.proto ///////////////////////
+//@requires: UnicodeConcatInPlace
+
+#if PY_MAJOR_VERSION >= 3
+    // allow access to the more efficient versions where we know str_type is unicode
+    #define __Pyx_PyStr_Concat __Pyx_PyUnicode_Concat
+    #define __Pyx_PyStr_ConcatInPlace __Pyx_PyUnicode_ConcatInPlace
 #else
-    static CYTHON_INLINE PyObject *__Pyx_PyBytes_ConcatInPlaceImpl(PyObject **a, PyObject *b, CYTHON_UNUSED void * __pyx_refnanny); /* proto */
-    #define __Pyx_PyBytes_ConcatInPlace(a, b) PyNumber_Add(a,b)
+    #define __Pyx_PyStr_Concat PyNumber_Add
+    #define __Pyx_PyStr_ConcatInPlace PyNumber_Add
 #endif
-#define __Pyx_PyBytes_Concat(a, b) PyNumber_Add(a,b)
-#define __Pyx_PyBytes_ConcatSafe(a, b) ((unlikely((a) == Py_None) || unlikely((b) == Py_None)) ? \
-    PyNumber_Add(a, b) : __Pyx_PyBytes_Concat(a, b))
-#define __Pyx_PyBytes_ConcatInPlaceSafe(a, b) ((unlikely((a) == Py_None) || unlikely((b) == Py_None)) ? \
-    PyNumber_Add(a, b) : __Pyx_PyBytes_ConcatInPlace(a, b))
+#define __Pyx_PyStr_ConcatSafe(a, b) ((unlikely((a) == Py_None) || unlikely((b) == Py_None)) ? \
+    PyNumber_Add(a, b) : __Pyx_PyStr_Concat(a, b))
+#define __Pyx_PyStr_ConcatInPlaceSafe(a, b) ((unlikely((a) == Py_None) || unlikely((b) == Py_None)) ? \
+    PyNumber_Add(a, b) : __Pyx_PyStr_ConcatInPlace(a, b))
 
-//////////// BytesConcatInPlace ///////////////////////
-
-#if CYTHON_COMPILING_IN_CPYTHON
-static CYTHON_INLINE PyObject *__Pyx_PyBytes_ConcatInPlaceImpl(PyObject **a, PyObject *b, CYTHON_UNUSED void * __pyx_refnanny) {
-      __Pyx_GIVEREF(*a);
-      // PyBytes_Concat() may reassign `a` in place, and sets it to NULL on error.
-      PyBytes_Concat(a, b);
-      // We need two references to `*a` - the one we return and the one that we keep in the input pointer.
-      __Pyx_XINCREF(*a);
-      return *a;
-  }
-#endif
+/////////////// StrConcatInPlace ///////////////////////
