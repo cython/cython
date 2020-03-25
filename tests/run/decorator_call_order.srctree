@@ -1,6 +1,6 @@
 PYTHON -c "import doctest; import test_order; exit(doctest.testmod(test_order).failed)"
 PYTHON setup.py build_ext --inplace
-PYTHON -c "import doctest; import test_order; exit(doctest.testmod(test_order).failed)"
+PYTHON -c "import doctest; import test_order; test_order.should_be_compiled = True; exit(doctest.testmod(test_order).failed)"
 
 
 ######## setup.py ########
@@ -13,6 +13,8 @@ setup(
 )
 
 #################### test_order.py #########################################
+
+should_be_compiled = False
 
 def test():
     """
@@ -31,9 +33,9 @@ def test():
     d3.actual_decorator
     d2.actual_decorator
     d1.actual_decorator
-    compiled != has_dict: True
     """
     import create_some_decorated_classes
+    assert create_some_decorated_classes.__file__.endswith(".py") != should_be_compiled
 
 
 #################### create_some_decorated_classes.py ###########################
@@ -81,5 +83,4 @@ class Cdef:
     @d3()
     def f(self):
         return 1
-        
-print("compiled != has_dict:", cython.compiled != hasattr(Cdef(), "__dict__"))
+
