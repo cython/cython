@@ -13597,6 +13597,9 @@ class AnnotationNode(ExprNode):
     #
     # doesn't handle the pre PEP-563 version where the
     # annotation is evaluated into a Python Object
+    untyped = False  # Set for fused specializations:
+        # Once a fused function has been created we don't want
+        # annotations to override an already set type
 
     subexprs = []
     def __init__(self, pos, expr, string=None):
@@ -13619,6 +13622,8 @@ class AnnotationNode(ExprNode):
         return self.analyse_type_annotation(env)[1]
 
     def analyse_type_annotation(self, env, assigned_value=None):
+        if self.untyped:
+            return None, None
         annotation = self.expr
         base_type = None
         is_ambiguous = False
