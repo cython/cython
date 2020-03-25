@@ -1,5 +1,5 @@
 # mode: run
-# tag: fused, pure3.0
+# tag: fused, pure3.6
 
 #cython: annotation_typing=True
 
