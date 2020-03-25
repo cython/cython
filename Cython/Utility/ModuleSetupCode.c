@@ -631,7 +631,7 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStr(PyObject *dict, PyObject
     if (res == NULL) PyErr_Clear();
     return res;
 }
-#elif PY_MAJOR_VERSION >= 3
+#elif PY_MAJOR_VERSION >= 3 && (!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07020000)
 #define __Pyx_PyDict_GetItemStrWithError  PyDict_GetItemWithError
 #define __Pyx_PyDict_GetItemStr           PyDict_GetItem
 #else

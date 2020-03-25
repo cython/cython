@@ -41,7 +41,7 @@ Dynamic linking
 The libc math library is special in that it is not linked by default
 on some Unix-like systems, such as Linux. In addition to cimporting the
 declarations, you must configure your build system to link against the
-shared library ``m``.  For distutils, it is enough to add it to the
+shared library ``m``.  For setuptools, it is enough to add it to the
 ``libraries`` parameter of the ``Extension()`` setup:
 
 .. literalinclude:: ../../examples/tutorial/external/setup.py
