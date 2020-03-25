@@ -180,11 +180,10 @@ Compiling and linking
 =====================
 
 At this point, we have a working Cython module that we can test.  To
-compile it, we need to configure a ``setup.py`` script for distutils.
+compile it, we need to configure a ``setup.py`` script for setuptools.
 Here is the most basic script for compiling a Cython module::
 
-    from distutils.core import setup
-    from distutils.extension import Extension
+    from setuptools import Extension, setup
     from Cython.Build import cythonize
 
     setup(
@@ -193,7 +192,7 @@ Here is the most basic script for compiling a Cython module::
 
 
 To build against the external C library, we need to make sure Cython finds the necessary libraries.
-There are two ways to archive this. First we can tell distutils where to find
+There are two ways to archive this. First we can tell setuptools where to find
 the c-source to compile the :file:`queue.c` implementation automatically. Alternatively,
 we can build and install C-Alg as system library and dynamically link it. The latter is useful
 if other applications also use C-Alg.
@@ -221,7 +220,7 @@ To build the c-code automatically we need to include compiler directives in `que
                 cqueue.queue_free(self._c_queue)
 
 The ``sources`` compiler directive gives the path of the C
-files that distutils is going to compile and
+files that setuptools is going to compile and
 link (statically) into the resulting extension module.
 In general all relevant header files should be found in ``include_dirs``.
 Now we can build the project using::

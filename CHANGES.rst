@@ -191,7 +191,7 @@ Other changes
 * Support for Python 2.6 was removed.
 
 
-0.29.16 (2020-0?-??)
+0.29.16 (2020-03-24)
 ====================
 
 Bugs fixed
@@ -230,7 +230,7 @@ Bugs fixed
   Patch by Zackery Spytz.  (Github issue #3382)
 
 * Several missing declarations in ``cpython.*`` were added.
-  Patches by Zackery Spytz.  (Github issue #3421, #3411, #3402)
+  Patches by Zackery Spytz.  (Github issue #3452, #3421, #3411, #3402)
 
 * A declaration for ``libc.math.fpclassify()`` was added.
   Patch by Zackery Spytz.  (Github issue #2514)
