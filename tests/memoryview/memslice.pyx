@@ -1058,6 +1058,7 @@ def addref(*args):
 def decref(*args):
     for item in args: Py_DECREF(item)
 
+@cython.binding(False)
 def get_refcount(x):
     return (<PyObject*>x).ob_refcnt
 
@@ -2141,7 +2142,7 @@ def test_object_dtype_copying():
     7
     8
     9
-    2 5
+    5
     1 5
     """
     cdef int i
@@ -2162,10 +2163,12 @@ def test_object_dtype_copying():
         print m2[i]
 
     obj = m2[5]
-    print get_refcount(obj), obj
+    refcount1 = get_refcount(obj)
+    print obj
 
     del m2
-    print get_refcount(obj), obj
+    refcount2 = get_refcount(obj)
+    print refcount1 - refcount2, obj
 
     assert unique_refcount == get_refcount(unique), (unique_refcount, get_refcount(unique))
 

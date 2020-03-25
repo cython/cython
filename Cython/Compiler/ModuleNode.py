@@ -1203,6 +1203,18 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 module_state_traverse.putln(
                     "Py_VISIT(traverse_module_state->%s);" %
                     entry.type.typeptr_cname)
+                if entry.type.typeobj_cname is not None:
+                    module_state.putln("PyObject *%s;" % entry.type.typeobj_cname)
+                    module_state_defines.putln("#define %s %s->%s" % (
+                        entry.type.typeobj_cname,
+                        Naming.modulestateglobal_cname,
+                        entry.type.typeobj_cname))
+                    module_state_clear.putln(
+                        "Py_CLEAR(clear_module_state->%s);" % (
+                        entry.type.typeobj_cname))
+                    module_state_traverse.putln(
+                        "Py_VISIT(traverse_module_state->%s);" % (
+                        entry.type.typeobj_cname))
         code.putln("#endif")
 
     def generate_cvariable_declarations(self, env, code, definition):
@@ -1365,12 +1377,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         freecount_name = scope.mangle_internal(Naming.freecount_name)
 
         decls = code.globalstate['decls']
-        if cinit_func_entry is None:
-            decls.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
         decls.putln("static PyObject *%s(PyTypeObject *t, PyObject *a, PyObject *k); /*proto*/" %
                     slot_func)
-        if cinit_func_entry is None:
-            decls.putln("#endif")
         code.putln("")
         if freelist_size:
             code.putln("static %s[%d];" % (
@@ -1378,8 +1386,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 freelist_size))
             code.putln("static int %s = 0;" % freecount_name)
             code.putln("")
-        if cinit_func_entry is None:
-            code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
         code.putln(
             "static PyObject *%s(PyTypeObject *t, %sPyObject *a, %sPyObject *k) {" % (
                 slot_func, unused_marker, unused_marker))
@@ -1390,10 +1396,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if need_self_cast:
             code.putln("%s;" % scope.parent_type.declaration_code("p"))
         if base_type:
+            code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+            code.putln("newfunc new_func = (newfunc)PyType_GetSlot(%s, Py_tp_new);" %
+                base_type.typeptr_cname)
+            code.putln("PyObject *o = new_func(t, a, k);")
+            code.putln("#else")
             tp_new = TypeSlots.get_base_slot_function(scope, tp_slot)
             if tp_new is None:
                 tp_new = "%s->tp_new" % base_type.typeptr_cname
             code.putln("PyObject *o = %s(t, a, k);" % tp_new)
+            code.putln("#endif")
         else:
             code.putln("PyObject *o;")
             code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
@@ -1425,10 +1437,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("} else {")
                 code.putln("o = (PyObject *) PyBaseObject_Type.tp_new(t, %s, 0);" % Naming.empty_tuple)
                 code.putln("}")
-            code.putln("#endif")
         code.putln("if (unlikely(!o)) return 0;")
         if freelist_size and not base_type:
             code.putln('}')
+        if not base_type:
+            code.putln("#endif")
         if need_self_cast:
             code.putln("p = %s;" % type.cast_code("o"))
         #if need_self_cast:
@@ -1488,8 +1501,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("return NULL;")
         code.putln(
             "}")
-        if cinit_func_entry is None:
-            code.putln("#endif")
 
     def generate_dealloc_function(self, scope, code):
         tp_slot = TypeSlots.ConstructorSlot("tp_dealloc", '__dealloc__')
@@ -1571,13 +1582,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for entry in cpp_class_attrs:
             code.putln("__Pyx_call_destructor(p->%s);" % entry.cname)
 
-        for entry in py_attrs:
+        for entry in (py_attrs + memoryview_slices):
             code.put_xdecref_clear("p->%s" % entry.cname, entry.type, nanny=False,
-                                   clear_before_decref=True)
-
-        for entry in memoryview_slices:
-            code.put_xdecref_memoryviewslice("p->%s" % entry.cname,
-                                             have_gil=True)
+                                   clear_before_decref=True, have_gil=True)
 
         if base_type:
             if needs_gc:
@@ -2234,8 +2241,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for slot in TypeSlots.slot_table:
             if slot.slot_name == "tp_flags":
                 continue
-            if slot.slot_name == "tp_new" and scope.lookup_here("__cinit__") is None:
-                continue
             if slot.slot_name == "tp_dealloc" and scope.lookup_here("__dealloc__") is None:
                 continue
             if slot.slot_name == "tp_getattro":
@@ -2452,26 +2457,18 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('int %s;' % Naming.lineno_cname)
         code.putln('int %s;' % Naming.clineno_cname)
         code.putln('const char *%s;' % Naming.filename_cname)
+        code.putln('#ifdef __Pyx_CyFunction_USED')
+        code.putln('PyObject *%s;' % Naming.cyfunction_type_cname)
+        code.putln('#endif')
+        code.putln('#ifdef __Pyx_FusedFunction_USED')
+        code.putln('PyObject *%s;' % Naming.fusedfunction_type_cname)
+        code.putln('#endif')
 
     def generate_module_state_end(self, env, modules, globalstate):
         module_state = globalstate['module_state']
         module_state_defines = globalstate['module_state_defines']
         module_state_clear = globalstate['module_state_clear']
         module_state_traverse = globalstate['module_state_traverse']
-        for module in modules:
-            definition = module is env
-            for entry in env.c_class_entries:
-                if definition or entry.defined_in_pxd:
-                    module_state.putln("PyObject *%s;" % entry.type.typeobj_cname)
-                    module_state_defines.putln("#define %s %s->%s" % (
-                        entry.type.typeobj_cname,
-                        Naming.modulestateglobal_cname,
-                        entry.type.typeobj_cname))
-                    module_state_clear.putln("Py_CLEAR(clear_module_state->%s);" %
-                        entry.type.typeobj_cname)
-                    module_state_traverse.putln(
-                        "Py_VISIT(traverse_module_state->%s);" %
-                        entry.type.typeobj_cname)
         module_state.putln('} %s;' % Naming.modulestate_cname)
         module_state.putln('')
         module_state.putln('#ifdef __cplusplus')
@@ -2542,6 +2539,18 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             Naming.filename_cname,
             Naming.modulestateglobal_cname,
             Naming.filename_cname))
+        code.putln('#ifdef __Pyx_CyFunction_USED')
+        code.putln('#define %s %s->%s' % (
+            Naming.cyfunction_type_cname,
+            Naming.modulestateglobal_cname,
+            Naming.cyfunction_type_cname))
+        code.putln('#endif')
+        code.putln('#ifdef __Pyx_FusedFunction_USED')
+        code.putln('#define %s %s->%s' %
+            (Naming.fusedfunction_type_cname,
+            Naming.modulestateglobal_cname,
+            Naming.fusedfunction_type_cname))
+        code.putln('#endif')
 
     def generate_module_state_clear(self, env, code):
         code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
@@ -2560,6 +2569,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             Naming.empty_bytes)
         code.putln('Py_CLEAR(clear_module_state->%s);' %
             Naming.empty_unicode)
+        code.putln('#ifdef __Pyx_CyFunction_USED')
+        code.putln('Py_CLEAR(clear_module_state->%s);' %
+            Naming.cyfunction_type_cname)
+        code.putln('#endif')
+        code.putln('#ifdef __Pyx_FusedFunction_USED')
+        code.putln('Py_CLEAR(clear_module_state->%s);' %
+            Naming.fusedfunction_type_cname)
+        code.putln('#endif')
 
     def generate_module_state_traverse(self, env, code):
         code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
@@ -2578,6 +2595,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             Naming.empty_bytes)
         code.putln('Py_VISIT(traverse_module_state->%s);' %
             Naming.empty_unicode)
+        code.putln('#ifdef __Pyx_CyFunction_USED')
+        code.putln('Py_VISIT(traverse_module_state->%s);' %
+            Naming.cyfunction_type_cname)
+        code.putln('#endif')
+        code.putln('#ifdef __Pyx_FusedFunction_USED')
+        code.putln('Py_VISIT(traverse_module_state->%s);' %
+            Naming.fusedfunction_type_cname)
+        code.putln('#endif')
 
     def generate_module_init_func(self, imported_modules, env, code):
         subfunction = self.mod_init_subfunction(self.scope, code)
@@ -2916,7 +2941,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         EncodedString(decode_filename(
                             os.path.dirname(module_path)))).cname,
                     code.error_goto_if_null(temp, self.pos)))
-                code.put_gotref(temp)
+                code.put_gotref(temp, py_object_type)
                 code.putln(
                     'if (PyObject_SetAttrString(%s, "__path__", %s) < 0) %s;' % (
                         env.module_cname, temp, code.error_goto(self.pos)))
@@ -3153,7 +3178,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 module_temp,
                 Naming.pymoduledef_cname,
                 code.error_goto_if_null(module_temp, self.pos)))
-        code.put_gotref(module_temp)
+        code.put_gotref(module_temp, py_object_type)
         code.putln(code.error_goto_if_neg("PyState_AddModule(%s, &%s)" % (
             module_temp, Naming.pymoduledef_cname), self.pos))
         code.put_decref_clear(module_temp, type=py_object_type)
@@ -3354,7 +3379,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_base_type_import_code(self, env, entry, code, import_generator):
         base_type = entry.type.base_type
         if (base_type and base_type.module_name != env.qualified_name and not
-                base_type.is_builtin_type and not entry.utility_code_definition):
+                (base_type.is_builtin_type or base_type.is_cython_builtin_type)
+                 and not entry.utility_code_definition):
             self.generate_type_import_code(env, base_type, self.pos, code, import_generator)
 
     def generate_type_import_code(self, env, type, pos, code, import_generator):
@@ -3371,7 +3397,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if type.vtabptr_cname:
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached('GetVTable', 'ImportExport.c'))
-            code.putln("%s = (struct %s*)__Pyx_GetVtable(%s->tp_dict); %s" % (
+            code.putln("%s = (struct %s*)__Pyx_GetVtable(%s); %s" % (
                 type.vtabptr_cname,
                 type.vtabstruct_cname,
                 type.typeptr_cname,
@@ -3507,7 +3533,7 @@ class ModuleImportGenerator(object):
         self.temps.append(temp)
         code.putln('%s = PyImport_ImportModule(%s); if (unlikely(!%s)) %s' % (
             temp, module_name_string, temp, error_code))
-        code.put_gotref(temp)
+        code.put_gotref(temp, py_object_type)
         self.imported[module_name_string] = temp
         return temp
 
