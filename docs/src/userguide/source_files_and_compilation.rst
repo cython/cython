@@ -117,6 +117,14 @@ would be::
         ext_modules = cythonize("example.pyx")
     )
 
+You may also want to inform pip that :mod:`Cython` is required for
+:file:`setup.py` to execute, following `PEP 518
+<https://www.python.org/dev/peps/pep-0518/>`, creating a :file:`pyproject.toml`
+file containing, at least::
+
+    [build-system]
+    requires = ["setuptools", "wheel", "Cython"]
+
 To understand the :file:`setup.py` more fully look at the official `setuptools
 documentation`_. To compile the extension for use in the current directory use:
 
@@ -379,13 +387,16 @@ Another option is to make Cython a setup dependency of your system and use
 Cython's build_ext module which runs ``cythonize`` as part of the build process::
 
     setup(
-        setup_requires=[
-            'cython>=0.x',
-        ],
         extensions = [Extension("*", ["*.pyx"])],
         cmdclass={'build_ext': Cython.Build.build_ext},
         ...
     )
+
+This depends on pip knowing that :mod:`Cython` is a setup dependency, by having
+a :file:`pyproject.toml` file::
+
+    [build-system]
+    requires = ["setuptools", "wheel", "Cython"]
 
 If you want to expose the C-level interface of your library for other
 libraries to cimport from, use package_data to install the ``.pxd`` files,
