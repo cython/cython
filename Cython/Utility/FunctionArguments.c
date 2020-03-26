@@ -305,6 +305,7 @@ static int __Pyx_ParseOptionalKeywords(
         if (!name && PyErr_Occurred()) goto bad;
         if (name) {
             values[name-argnames] = value;
+            continue;
         } else {
             // not found after positional args, check for duplicate
             PyObject*** argname = __Pyx_ParseOptionalKeywords_Impl_MatchName(key, argnames, first_kw_arg,
