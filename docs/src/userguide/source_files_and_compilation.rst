@@ -117,7 +117,8 @@ would be::
         ext_modules = cythonize("example.pyx")
     )
 
-You may also want to inform pip that :mod:`Cython` is required for
+If your build depends directly on Cython in this way,
+then you may also want to inform pip that :mod:`Cython` is required for
 :file:`setup.py` to execute, following `PEP 518
 <https://www.python.org/dev/peps/pep-0518/>`, creating a :file:`pyproject.toml`
 file containing, at least::
@@ -388,7 +389,7 @@ Cython's build_ext module which runs ``cythonize`` as part of the build process:
 
     setup(
         extensions = [Extension("*", ["*.pyx"])],
-        cmdclass={'build_ext': Cython.Build.build_ext},
+        cmdclass={'build_ext': Cython.Build.new_build_ext},
         ...
     )
 
