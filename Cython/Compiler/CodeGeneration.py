@@ -12,7 +12,7 @@ class ExtractPxdCode(VisitorTransform):
     The result is a tuple (StatListNode, ModuleScope), i.e.
     everything that is needed from the pxd after it is processed.
 
-    A purer approach would be to seperately compile the pxd code,
+    A purer approach would be to separately compile the pxd code,
     but the result would have to be slightly more sophisticated
     than pure strings (functions + wanted interned strings +
     wanted utility code + wanted cached objects) so for now this

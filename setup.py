@@ -12,6 +12,10 @@ import sys
 import platform
 is_cpython = platform.python_implementation() == 'CPython'
 
+# this specifies which versions of python we support, pip >= 9 knows to skip
+# versions of packages which are not compatible with the running python
+PYTHON_REQUIRES = '>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*'
+
 if sys.platform == "darwin":
     # Don't create resource files on OS X tar.
     os.environ['COPY_EXTENDED_ATTRIBUTES_DISABLE'] = 'true'
@@ -34,22 +38,11 @@ class sdist(sdist_orig):
         sdist_orig.run(self)
 add_command_class('sdist', sdist)
 
-if sys.version_info[:2] == (3, 2):
-    import lib2to3.refactor
-    from distutils.command.build_py \
-         import build_py_2to3 as build_py
-    # need to convert sources to Py3 on installation
-    with open('2to3-fixers.txt') as f:
-        fixers = [line.strip() for line in f if line.strip()]
-    build_py.fixer_names = fixers
-    add_command_class("build_py", build_py)
-
 pxd_include_dirs = [
     directory for directory, dirs, files
     in os.walk(os.path.join('Cython', 'Includes'))
     if '__init__.pyx' in files or '__init__.pxd' in files
-    or directory == os.path.join('Cython', 'Includes')
-    or directory == os.path.join('Cython', 'Includes', 'Deprecated')]
+    or directory == os.path.join('Cython', 'Includes')]
 
 pxd_include_patterns = [
     p+'/*.pxd' for p in pxd_include_dirs ] + [
@@ -61,39 +54,29 @@ setup_args['package_data'] = {
     'Cython.Runtime'  : ['*.pyx', '*.pxd'],
     'Cython.Utility'  : ['*.pyx', '*.pxd', '*.c', '*.h', '*.cpp'],
     'Cython'          : [ p[7:] for p in pxd_include_patterns ],
-    }
+    'Cython.Debugger.Tests': ['codefile', 'cfuncs.c'],
+}
 
 # This dict is used for passing extra arguments that are setuptools
 # specific to setup
 setuptools_extra_args = {}
 
-# tells whether to include cygdb (the script and the Cython.Debugger package
-include_debugger = sys.version_info[:2] > (2, 5)
-
 if 'setuptools' in sys.modules:
+    setuptools_extra_args['python_requires'] = PYTHON_REQUIRES
     setuptools_extra_args['zip_safe'] = False
     setuptools_extra_args['entry_points'] = {
         'console_scripts': [
             'cython = Cython.Compiler.Main:setuptools_main',
-            'cythonize = Cython.Build.Cythonize:main'
+            'cythonize = Cython.Build.Cythonize:main',
+            'cygdb = Cython.Debugger.Cygdb:main',
         ]
     }
     scripts = []
 else:
     if os.name == "posix":
-        scripts = ["bin/cython", 'bin/cythonize']
+        scripts = ["bin/cython", "bin/cythonize", "bin/cygdb"]
     else:
-        scripts = ["cython.py", "cythonize.py"]
-
-if include_debugger:
-    if 'setuptools' in sys.modules:
-        setuptools_extra_args['entry_points']['console_scripts'].append(
-            'cygdb = Cython.Debugger.Cygdb:main')
-    else:
-        if os.name == "posix":
-            scripts.append('bin/cygdb')
-        else:
-            scripts.append('cygdb.py')
+        scripts = ["cython.py", "cythonize.py", "cygdb.py"]
 
 
 def compile_cython_modules(profile=False, compile_more=False, cython_with_refnanny=False):
@@ -101,18 +84,20 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
     compiled_modules = [
         "Cython.Plex.Scanners",
         "Cython.Plex.Actions",
-        "Cython.Compiler.Lexicon",
         "Cython.Compiler.Scanning",
-        "Cython.Compiler.Parsing",
         "Cython.Compiler.Visitor",
         "Cython.Compiler.FlowControl",
-        "Cython.Compiler.Code",
         "Cython.Runtime.refnanny",
-        # "Cython.Compiler.FusedNode",
+        "Cython.Compiler.FusedNode",
         "Cython.Tempita._tempita",
     ]
     if compile_more:
         compiled_modules.extend([
+            "Cython.StringIOTree",
+            "Cython.Compiler.Code",
+            "Cython.Compiler.Lexicon",
+            "Cython.Compiler.Parsing",
+            "Cython.Compiler.Pythran",
             "Cython.Build.Dependencies",
             "Cython.Compiler.ParseTreeTransforms",
             "Cython.Compiler.Nodes",
@@ -169,59 +154,16 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
         # XXX hack around setuptools quirk for '*.pyx' sources
         extensions[-1].sources[0] = pyx_source_file
 
-    if sys.version_info[:2] == (3, 2):
-        # Python 3.2: can only run Cython *after* running 2to3
-        build_ext = _defer_cython_import_in_py32(source_root, profile)
-    else:
-        from Cython.Distutils import build_ext
-        if profile:
-            from Cython.Compiler.Options import get_directive_defaults
-            get_directive_defaults()['profile'] = True
-            sys.stderr.write("Enabled profiling for the Cython binary modules\n")
+    from Cython.Distutils.build_ext import new_build_ext
+    from Cython.Compiler.Options import get_directive_defaults
+    get_directive_defaults()['language_level'] = 2
+    if profile:
+        get_directive_defaults()['profile'] = True
+        sys.stderr.write("Enabled profiling for the Cython binary modules\n")
 
-    # not using cythonize() here to let distutils decide whether building extensions was requested
-    add_command_class("build_ext", build_ext)
+    # not using cythonize() directly to let distutils decide whether building extensions was requested
+    add_command_class("build_ext", new_build_ext)
     setup_args['ext_modules'] = extensions
-
-
-def _defer_cython_import_in_py32(source_root, profile=False):
-    # Python 3.2: can only run Cython *after* running 2to3
-    # => re-import Cython inside of build_ext
-    from distutils.command.build_ext import build_ext as build_ext_orig
-
-    class build_ext(build_ext_orig):
-        # we must keep the original modules alive to make sure
-        # their code keeps working when we remove them from
-        # sys.modules
-        dead_modules = []
-
-        def __reimport(self):
-            if self.dead_modules:
-                return
-            # add path where 2to3 installed the transformed sources
-            # and make sure Python (re-)imports them from there
-            already_imported = [
-                module for module in sys.modules
-                if module == 'Cython' or module.startswith('Cython.')
-            ]
-            keep_alive = self.dead_modules.append
-            for module in already_imported:
-                keep_alive(sys.modules[module])
-                del sys.modules[module]
-            sys.path.insert(0, os.path.join(source_root, self.build_lib))
-
-        def build_extensions(self):
-            self.__reimport()
-            if profile:
-                from Cython.Compiler.Options import directive_defaults
-                directive_defaults['profile'] = True
-                print("Enabled profiling for the Cython binary modules")
-            from Cython.Build.Dependencies import cythonize
-            self.distribution.ext_modules[:] = cythonize(
-                self.distribution.ext_modules)
-            build_ext_orig.build_extensions(self)
-
-    return build_ext
 
 
 cython_profile = '--cython-profile' in sys.argv
@@ -271,6 +213,8 @@ packages = [
     'Cython.Compiler',
     'Cython.Runtime',
     'Cython.Distutils',
+    'Cython.Debugger',
+    'Cython.Debugger.Tests',
     'Cython.Plex',
     'Cython.Tests',
     'Cython.Build.Tests',
@@ -280,16 +224,10 @@ packages = [
     'pyximport',
 ]
 
-if include_debugger:
-    packages.append('Cython.Debugger')
-    packages.append('Cython.Debugger.Tests')
-    # it's enough to do this for Py2.5+:
-    setup_args['package_data']['Cython.Debugger.Tests'] = ['codefile', 'cfuncs.c']
-
 setup(
     name='Cython',
     version=version,
-    url='http://cython.org/',
+    url='https://cython.org/',
     author='Robert Bradshaw, Stefan Behnel, Dag Seljebotn, Greg Ewing, et al.',
     author_email='cython-devel@python.org',
     description="The Cython compiler for writing C extensions for the Python language.",
@@ -314,7 +252,7 @@ setup(
 
         pip install Cython --install-option="--no-cython-compile"
 
-    .. _Pyrex: http://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/
+    .. _Pyrex: https://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/
     """),
     license='Apache',
     classifiers=[
@@ -324,7 +262,15 @@ setup(
         "Operating System :: OS Independent",
         "Programming Language :: Python",
         "Programming Language :: Python :: 2",
+        "Programming Language :: Python :: 2.7",
         "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.4",
+        "Programming Language :: Python :: 3.5",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: Implementation :: CPython",
+        "Programming Language :: Python :: Implementation :: PyPy",
         "Programming Language :: C",
         "Programming Language :: Cython",
         "Topic :: Software Development :: Code Generators",

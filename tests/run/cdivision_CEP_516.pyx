@@ -27,6 +27,9 @@ True
 >>> [test_cdiv_cmod(a, b) for a, b in v]
 [(1, 7), (-1, -7), (1, -7), (-1, 7)]
 
+>>> [test_cdiv_cmod(a, b) for a, b in [(4, -4), (4, -2), (4, -1)]]
+[(-1, 0), (-2, 0), (-4, 0)]
+
 >>> all([mod_int_py(a,b) == a % b for a in range(-10, 10) for b in range(-10, 10) if b != 0])
 True
 >>> all([div_int_py(a,b) == a // b for a in range(-10, 10) for b in range(-10, 10) if b != 0])
@@ -191,3 +194,14 @@ def py_div_long(long a, long b):
     OverflowError: ...
     """
     return a / b
+
+def c_div_const_test(a, b):
+    """
+    >>> c_div_const_test(5, 3)
+    1
+    """
+    return c_div_const(a, b)
+
+cdef long c_div_const(const long a, int b):
+    cdef long c = a / b
+    return c

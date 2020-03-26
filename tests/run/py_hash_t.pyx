@@ -2,12 +2,30 @@
 cimport cython
 
 
+class IntLike(object):
+  def __init__(self, value):
+    self.value = value
+  def __index__(self):
+    return self.value
+
+
 def assign_py_hash_t(x):
     """
     >>> assign_py_hash_t(12)
     12
     >>> assign_py_hash_t(-12)
     -12
+
+    >>> assign_py_hash_t(IntLike(-3))
+    -3
+    >>> assign_py_hash_t(IntLike(1 << 100))  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    OverflowError: ...
+    >>> assign_py_hash_t(IntLike(1.5))  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    TypeError: __index__ ... (type ...float...)
     """
     cdef Py_hash_t h = x
     return h

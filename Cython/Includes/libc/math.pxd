@@ -1,27 +1,27 @@
 cdef extern from "<math.h>" nogil:
-    double M_E
-    double e "M_E"  # as in Python's math module
-    double M_LOG2E
-    double M_LOG10E
-    double M_LN2
-    double M_LN10
-    double M_PI
-    double pi "M_PI"  # as in Python's math module
-    double M_PI_2
-    double M_PI_4
-    double M_1_PI
-    double M_2_PI
-    double M_2_SQRTPI
-    double M_SQRT2
-    double M_SQRT1_2
+    const double M_E
+    const double e "M_E"  # as in Python's math module
+    const double M_LOG2E
+    const double M_LOG10E
+    const double M_LN2
+    const double M_LN10
+    const double M_PI
+    const double pi "M_PI"  # as in Python's math module
+    const double M_PI_2
+    const double M_PI_4
+    const double M_1_PI
+    const double M_2_PI
+    const double M_2_SQRTPI
+    const double M_SQRT2
+    const double M_SQRT1_2
 
     # C99 constants
-    float INFINITY
-    float NAN
+    const float INFINITY
+    const float NAN
     # note: not providing "nan" and "inf" aliases here as nan() is a function in C
-    double HUGE_VAL
-    float HUGE_VALF
-    long double HUGE_VALL
+    const double HUGE_VAL
+    const float HUGE_VALF
+    const long double HUGE_VALL
 
     double acos(double x)
     double asin(double x)
@@ -104,3 +104,9 @@ cdef extern from "<math.h>" nogil:
     bint isnan(long double)
     bint isnormal(long double)
     bint signbit(long double)
+    int fpclassify(long double)
+    const int FP_NAN
+    const int FP_INFINITE
+    const int FP_ZERO
+    const int FP_SUBNORMAL
+    const int FP_NORMAL

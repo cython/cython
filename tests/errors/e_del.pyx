@@ -25,9 +25,9 @@ del g
 
 _ERRORS = u"""
 10:9: Cannot assign to or delete this
-11:48: Deletion of non-Python, non-C++ object
+11:8: Deletion of non-Python, non-C++ object
 13:9: Deletion of non-Python, non-C++ object
 14:9: Deletion of non-Python, non-C++ object
-19:9: can not delete variable 'a' referenced in nested scope
-23:5: Deletion of global C variable
+19:8: can not delete variable 'a' referenced in nested scope
+23:4: Deletion of global C variable
 """

@@ -9,5 +9,5 @@ def false():
     return False
 
 _ERRORS = u"""
-6:10: Literal list must be assigned to pointer at time of declaration
+6:8: Literal list must be assigned to pointer at time of declaration
 """

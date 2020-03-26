@@ -1,0 +1,208 @@
+"""
+PYTHON setup.py build_ext -i
+PYTHON main.py
+"""
+
+######## main.py ########
+
+from __future__ import absolute_import
+from pkg.user import UseRegisters
+
+def test():
+    from pkg import called
+    assert called == [], called
+
+    ureg = UseRegisters()
+
+    assert called == [
+        'Before setFullFlags',
+        'setFullFlags was called',
+        'After setFullFlags',
+    ], called
+
+    del called[:]
+    ureg.call_write()
+
+    assert called == [
+        'Before regWriteWithOpWords',
+        'regWriteWithOpWords was called',
+        'regWriteWithOpWords leave function',
+        'After regWriteWithOpWords',
+    ], called
+
+    del called[:]
+    ureg.call_non_fused()
+
+    assert called == [
+        'Before nonFusedMiddle',
+        'nonFusedMiddle was called',
+        'After nonFusedMiddle',
+        'Before nonFusedBottom',
+        'nonFusedBottom was called',
+        'After nonFusedBottom',
+        'Before nonFusedTop',
+        'nonFusedTop was called',
+        'After nonFusedTop',
+    ], called
+
+
+def test_sub():
+    from pkg import called
+    from pkg.registers import SubRegisters
+    ureg = UseRegisters(reg_type=SubRegisters)
+
+    del called[:]
+    ureg.call_sub()
+
+    assert called == [
+        'Before nonFusedSub',
+        'nonFusedSub was called',
+        'After nonFusedSub',
+        'Before fusedSub',
+        'fusedSub was called',
+        'After fusedSub',
+    ], called
+
+
+test()
+test_sub()
+
+
+######## setup.py ########
+
+from distutils.core import setup
+from Cython.Build import cythonize
+
+setup(ext_modules = cythonize('pkg/*.pyx'))
+
+######## pkg/__init__.py ########
+
+called = []
+
+######## pkg/user.pxd ########
+
+from .registers cimport Registers, SubRegisters
+
+cdef class UseRegisters:
+    cdef Registers registers
+
+
+######## pkg/user.pyx ########
+
+from . import called
+
+cdef class UseRegisters:
+    def __init__(self, reg_type=Registers):
+        self.registers = reg_type()
+        called.append("Before setFullFlags")
+        self.registers.setFullFlags(<unsigned int>12345, <unsigned int>0)
+        called.append("After setFullFlags")
+
+    def call_write(self):
+        called.append("Before regWriteWithOpWords")
+        self.registers.regWriteWithOpWords(0, <unsigned int>0)
+        called.append("After regWriteWithOpWords")
+
+    def call_non_fused(self):
+        called.append("Before nonFusedMiddle")
+        self.registers.nonFusedMiddle(0, <unsigned int>0)
+        called.append("After nonFusedMiddle")
+
+        called.append("Before nonFusedBottom")
+        self.registers.nonFusedBottom(0, <unsigned int>0)
+        called.append("After nonFusedBottom")
+
+        called.append("Before nonFusedTop")
+        self.registers.nonFusedTop(0, <unsigned int>0)
+        called.append("After nonFusedTop")
+
+    def call_sub(self):
+        assert isinstance(self.registers, SubRegisters), type(self.registers)
+        called.append("Before nonFusedSub")
+        (<SubRegisters>self.registers).nonFusedSub(0, <unsigned int>0)
+        called.append("After nonFusedSub")
+
+        called.append("Before fusedSub")
+        (<SubRegisters>self.registers).fusedSub(0, <unsigned int>0)
+        called.append("After fusedSub")
+
+
+######## pkg/registers.pxd ########
+
+from cython cimport integral
+
+cdef class Registers:
+    cdef unsigned long long regs[1]
+    cdef void nonFusedTop(self, unsigned short regId, unsigned int value)
+    cdef void regWriteWithOpWords(self, unsigned short regId, integral value)
+    cdef void nonFusedMiddle(self, unsigned short regId, unsigned int value)
+    cdef void setFullFlags(self, integral reg0, unsigned int reg1)
+    cdef void nonFusedBottom(self, unsigned short regId, unsigned int value)
+    cdef void lastFusedImplFirst(self, integral reg0, unsigned int reg1)
+
+
+cdef class SubRegisters(Registers):
+    cdef void fusedSub(self, integral reg0, unsigned int reg1)
+    cdef void nonFusedSub(self, unsigned short regId, unsigned int value)
+
+
+######## pkg/registers.pyx ########
+
+from . import called
+
+cdef class Registers:
+    def __init__(self):
+        pass
+
+    cdef void lastFusedImplFirst(self, integral reg0, unsigned int reg1):
+        called.append("lastFusedImplFirst was called")
+
+    cdef void nonFusedTop(self, unsigned short regId, unsigned int value):
+        called.append("nonFusedTop was called")
+
+    cdef void regWriteWithOpWords(self, unsigned short regId, integral value):
+        called.append("regWriteWithOpWords was called")
+        self.regs[regId] = value
+        called.append("regWriteWithOpWords leave function")
+
+    cdef void nonFusedMiddle(self, unsigned short regId, unsigned int value):
+        called.append("nonFusedMiddle was called")
+
+    cdef void setFullFlags(self, integral reg0, unsigned int reg1):
+        called.append("setFullFlags was called")
+
+    cdef void nonFusedBottom(self, unsigned short regId, unsigned int value):
+        called.append("nonFusedBottom was called")
+
+
+cdef class SubRegisters(Registers):
+    cdef void fusedSub(self, integral reg0, unsigned int reg1):
+        called.append("fusedSub was called")
+
+    cdef void nonFusedSub(self, unsigned short regId, unsigned int value):
+        called.append("nonFusedSub was called")
+
+
+######## pkg/sub.pxd ########
+
+from .registers cimport *
+
+cdef class SubSubRegisters(SubRegisters):
+    cdef void fusedSubSubFirst(self, integral reg0, unsigned int reg1)
+    cdef void nonFusedSubSub(self, unsigned short regId, unsigned int value)
+    cdef void fusedSubSubLast(self, integral reg0, unsigned int reg1)
+
+
+######## pkg/sub.pyx ########
+
+from . import called
+
+cdef class SubSubRegisters(SubRegisters):
+    cdef void fusedSubSubFirst(self, integral reg0, unsigned int reg1):
+        called.append("fusedSubSubFirst was called")
+
+    cdef void nonFusedSubSub(self, unsigned short regId, unsigned int value):
+        called.append("nonFusedSubSub was called")
+
+    cdef void fusedSubSubLast(self, integral reg0, unsigned int reg1):
+        called.append("fusedSubSubLast was called")

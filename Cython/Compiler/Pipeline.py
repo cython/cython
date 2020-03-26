@@ -6,7 +6,6 @@ from time import time
 from . import Errors
 from . import DebugFlags
 from . import Options
-from .Visitor import CythonTransform
 from .Errors import CompileError, InternalError, AbortError
 from . import Naming
 
@@ -142,12 +141,12 @@ def create_pipeline(context, mode, exclude_classes=()):
     assert mode in ('pyx', 'py', 'pxd')
     from .Visitor import PrintTree
     from .ParseTreeTransforms import WithTransform, NormalizeTree, PostParse, PxdPostParse
-    from .ParseTreeTransforms import ForwardDeclareTypes, AnalyseDeclarationsTransform
+    from .ParseTreeTransforms import ForwardDeclareTypes, InjectGilHandling, AnalyseDeclarationsTransform
     from .ParseTreeTransforms import AnalyseExpressionsTransform, FindInvalidUseOfFusedTypes
     from .ParseTreeTransforms import CreateClosureClasses, MarkClosureVisitor, DecoratorTransform
-    from .ParseTreeTransforms import InterpretCompilerDirectives, TransformBuiltinMethods
+    from .ParseTreeTransforms import TrackNumpyAttributes, InterpretCompilerDirectives, TransformBuiltinMethods
     from .ParseTreeTransforms import ExpandInplaceOperators, ParallelRangeTransform
-    from .ParseTreeTransforms import CalculateQualifiedNamesTransform
+    from .ParseTreeTransforms import CalculateQualifiedNamesTransform, ReplacePropertyNode
     from .TypeInference import MarkParallelAssignments, MarkOverflowingArithmetic
     from .ParseTreeTransforms import AdjustDefByDirectives, AlignFunctionDefinitions
     from .ParseTreeTransforms import RemoveUnreachableCode, GilCheck
@@ -183,6 +182,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         NormalizeTree(context),
         PostParse(context),
         _specific_post_parse,
+        TrackNumpyAttributes(),
         InterpretCompilerDirectives(context, context.compiler_directives),
         ParallelRangeTransform(context),
         AdjustDefByDirectives(context),
@@ -194,9 +194,11 @@ def create_pipeline(context, mode, exclude_classes=()):
         FlattenInListTransform(),
         DecoratorTransform(context),
         ForwardDeclareTypes(context),
+        InjectGilHandling(),
         AnalyseDeclarationsTransform(context),
         AutoTestDictTransform(context),
         EmbedSignature(context),
+        ReplacePropertyNode(context),
         EarlyReplaceBuiltinCalls(context),  ## Necessary?
         TransformBuiltinMethods(context),
         MarkParallelAssignments(context),
@@ -323,8 +325,15 @@ def insert_into_pipeline(pipeline, transform, before=None, after=None):
 # Running a pipeline
 #
 
+_pipeline_entry_points = {}
+
+
 def run_pipeline(pipeline, source, printtree=True):
     from .Visitor import PrintTree
+    exec_ns = globals().copy() if DebugFlags.debug_verbose_pipeline else None
+
+    def run(phase, data):
+        return phase(data)
 
     error = None
     data = source
@@ -332,17 +341,24 @@ def run_pipeline(pipeline, source, printtree=True):
         try:
             for phase in pipeline:
                 if phase is not None:
+                    if not printtree and isinstance(phase, PrintTree):
+                        continue
                     if DebugFlags.debug_verbose_pipeline:
                         t = time()
                         print("Entering pipeline phase %r" % phase)
-                    if not printtree and isinstance(phase, PrintTree):
-                        continue
-                    data = phase(data)
+                        # create a new wrapper for each step to show the name in profiles
+                        phase_name = getattr(phase, '__name__', type(phase).__name__)
+                        try:
+                            run = _pipeline_entry_points[phase_name]
+                        except KeyError:
+                            exec("def %s(phase, data): return phase(data)" % phase_name, exec_ns)
+                            run = _pipeline_entry_points[phase_name] = exec_ns[phase_name]
+                    data = run(phase, data)
                     if DebugFlags.debug_verbose_pipeline:
                         print("    %.3f seconds" % (time() - t))
         except CompileError as err:
             # err is set
-            Errors.report_error(err)
+            Errors.report_error(err, use_stack=False)
             error = err
     except InternalError as err:
         # Only raise if there was not an earlier error

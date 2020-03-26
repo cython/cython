@@ -1,3 +1,6 @@
+# mode: run
+# tag: pep489
+
 PYTHON setup.py build_ext --inplace
 PYTHON -c "import a"
 
@@ -14,8 +17,8 @@ setup(
 
 import sys
 import a
-assert a in sys.modules.values(), list(sys.modules)
-assert sys.modules['a'] is a, list(sys.modules)
+assert a in sys.modules.values(), sorted(sys.modules)
+assert sys.modules['a'] is a, sorted(sys.modules)
 
 from atest.package import module
 
@@ -30,5 +33,27 @@ assert 'atest.package.module' in sys.modules
 
 import a
 import atest.package.module as module
-assert module in sys.modules.values(), list(sys.modules)
-assert sys.modules['atest.package.module'] is module, list(sys.modules)
+assert module in sys.modules.values(), sorted(sys.modules)
+assert sys.modules['atest.package.module'] is module, sorted(sys.modules)
+
+if sys.version_info >= (3, 5):
+    from . import pymodule
+    assert module is pymodule.import_without_package()
+
+######## atest/package/pymodule.py ########
+
+from . import module
+from ..package import module
+import atest.package.module
+
+import a
+
+def import_without_package():
+    import os.path
+    import sys
+    sys.path.insert(0, os.path.dirname(__file__))
+    sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+    import module
+    import package.module
+    assert package.module is module
+    return module

@@ -1,0 +1,58 @@
+# mode: run
+# tag: asyncio, gh1685
+
+PYTHON setup.py build_ext -i
+PYTHON main.py
+
+
+######## setup.py ########
+
+from Cython.Build import cythonize
+from distutils.core import setup
+
+setup(
+    ext_modules = cythonize("*.pyx"),
+)
+
+
+######## main.py ########
+
+import asyncio
+import cy_test
+from contextlib import closing
+
+async def main():
+    await cy_test.say()
+
+with closing(asyncio.get_event_loop()) as loop:
+    print("Running Python coroutine ...")
+    loop.run_until_complete(main())
+
+    print("Running Cython coroutine ...")
+    loop.run_until_complete(cy_test.say())
+
+
+######## cy_test.pyx ########
+
+import asyncio
+from py_test import py_async
+
+async def cy_async():
+    print("- this one is from Cython")
+
+async def say():
+    await cb()
+
+async def cb():
+    print("awaiting:")
+    await cy_async()
+    await py_async()
+    print("sleeping:")
+    await asyncio.sleep(0.5)
+    print("done!")
+
+
+######## py_test.py ########
+
+async def py_async():
+    print("- and this one is from Python")

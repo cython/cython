@@ -1,6 +1,8 @@
-# cython: language_level=3, binding=True
+# cython: language_level=3, binding=True, annotation_typing=False
 # mode: run
-# tag: generators, python3, exceptions
+# tag: generators, python3, exceptions, gh2230, gh2811
+
+print(end='')  # test that language_level 3 applies immediately at the module start, for the first token.
 
 cimport cython
 
@@ -19,7 +21,8 @@ True
 """
 
 import sys
-if sys.version_info[0] >= 3:
+IS_PY2 = sys.version_info[0] < 3
+if not IS_PY2:
     __doc__ = __doc__.replace(" u'", " '")
 
 def locals_function(a, b=2):
@@ -275,6 +278,7 @@ def exec3_function(cmd):
     exec(cmd, g, l)
     return l
 
+
 def exec2_function(cmd):
     """
     >>> exec2_function('a = 1+1')['a']
@@ -283,6 +287,7 @@ def exec2_function(cmd):
     g = {}
     exec(cmd, g)
     return g
+
 
 EXEC_GLOBAL = [5]
 
@@ -295,6 +300,7 @@ def exec1_function(cmd):
     exec(cmd)
     return EXEC_GLOBAL[old:]
 
+
 ustring = "abcdefg"
 
 def unicode_literals():
@@ -305,6 +311,46 @@ def unicode_literals():
     """
     print(isinstance(ustring, unicode) or type(ustring))
     return ustring
+
+
+def non_ascii_unprefixed_str():
+    u"""
+    >>> s = non_ascii_unprefixed_str()
+    >>> isinstance(s, bytes)
+    False
+    >>> len(s)
+    3
+    """
+    s = 'ø\x20\u0020'
+    assert isinstance(s, unicode)
+    return s
+
+
+def non_ascii_raw_str():
+    u"""
+    >>> s = non_ascii_raw_str()
+    >>> isinstance(s, bytes)
+    False
+    >>> len(s)
+    11
+    """
+    s = r'ø\x20\u0020'
+    assert isinstance(s, unicode)
+    return s
+
+
+def non_ascii_raw_prefixed_unicode():
+    u"""
+    >>> s = non_ascii_raw_prefixed_unicode()
+    >>> isinstance(s, bytes)
+    False
+    >>> len(s)
+    11
+    """
+    s = ru'ø\x20\u0020'
+    assert isinstance(s, unicode)
+    return s
+
 
 def str_type_is_unicode():
     """
@@ -319,6 +365,7 @@ def str_type_is_unicode():
     cdef str s = 'abc'
     return str, s
 
+
 def loop_over_unicode_literal():
     """
     >>> print( loop_over_unicode_literal() )
@@ -328,6 +375,7 @@ def loop_over_unicode_literal():
     for uchar in 'abcdefg':
         assert uchar in 'abcdefg'
     return cython.typeof(uchar)
+
 
 def list_comp():
     """
@@ -339,6 +387,28 @@ def list_comp():
     assert x == 'abc' # don't leak in Py3 code
     return result
 
+
+def list_comp_iterable(it):
+    """
+    >>> list_comp_iterable([])
+    []
+    >>> list_comp_iterable([0])
+    [0]
+    >>> list_comp_iterable([1])
+    []
+    >>> list_comp_iterable([0, 1])
+    [0]
+    >>> list_comp_iterable([2])
+    [4]
+    >>> list_comp_iterable(range(5))
+    [0, 4, 8]
+    """
+    x = 'abc'
+    result = [x*2 for x in it if x % 2 == 0]
+    assert x == 'abc' # don't leak in Py3 code
+    return result
+
+
 def list_comp_with_lambda():
     """
     >>> list_comp_with_lambda()
@@ -348,6 +418,25 @@ def list_comp_with_lambda():
     result = [x*2 for x in range(5) if (lambda x:x % 2)(x) == 0]
     assert x == 'abc' # don't leak in Py3 code
     return result
+
+
+class ListCompInClass(object):
+    """
+    >>> x = ListCompInClass()
+    >>> x.listcomp
+    [1, 2, 3]
+    """
+    listcomp = [i+1 for i in range(3)]
+
+
+cdef class ListCompInCClass:
+    """
+    >>> x = ListCompInCClass()
+    >>> x.listcomp
+    [1, 2, 3]
+    """
+    listcomp = [i+1 for i in range(3)]
+
 
 module_level_lc = [ module_level_loopvar*2 for module_level_loopvar in range(4) ]
 def list_comp_module_level():
@@ -359,6 +448,7 @@ def list_comp_module_level():
     NameError: ...name 'module_level_loopvar' is not defined
     """
 
+
 module_level_list_genexp = list(module_level_genexp_loopvar*2 for module_level_genexp_loopvar in range(4))
 def genexpr_module_level():
     """
@@ -369,12 +459,14 @@ def genexpr_module_level():
     NameError: ...name 'module_level_genexp_loopvar' is not defined
     """
 
+
 def list_comp_unknown_type(l):
     """
     >>> list_comp_unknown_type(range(5))
     [0, 4, 8]
     """
     return [x*2 for x in l if x % 2 == 0]
+
 
 def listcomp_as_condition(sequence):
     """
@@ -389,6 +481,7 @@ def listcomp_as_condition(sequence):
         return True
     return False
 
+
 def set_comp():
     """
     >>> sorted(set_comp())
@@ -399,6 +492,7 @@ def set_comp():
     assert x == 'abc' # don't leak
     return result
 
+
 def dict_comp():
     """
     >>> sorted(dict_comp().items())
@@ -408,6 +502,7 @@ def dict_comp():
     result = {x:x*2 for x in range(5) if x % 2 == 0}
     assert x == 'abc' # don't leak
     return result
+
 
 # in Python 3, d.keys/values/items() are the iteration methods
 @cython.test_assert_path_exists(
@@ -434,6 +529,7 @@ def dict_iter(dict d):
     items = [ item for item in d.items() ]
     return keys, values, items
 
+
 @cython.test_assert_path_exists(
     "//WhileStatNode",
     "//WhileStatNode//DictIterationNextNode")
@@ -457,6 +553,7 @@ def dict_iter_new_dict():
     items = [ item for item in {11 : 1, 22 : 2, 33 : 3}.items() ]
     return dict_keys, keys, values, items
 
+
 def int_literals():
     """
     >>> int_literals()
@@ -470,6 +567,7 @@ def int_literals():
     print(cython.typeof(1UL))
     print(cython.typeof(10000000000000UL))
 
+
 def annotation_syntax(a: "test new test", b : "other" = 2, *args: "ARGS", **kwargs: "KWARGS") -> "ret":
     """
     >>> annotation_syntax(1)
@@ -480,14 +578,41 @@ def annotation_syntax(a: "test new test", b : "other" = 2, *args: "ARGS", **kwar
     >>> len(annotation_syntax.__annotations__)
     5
     >>> print(annotation_syntax.__annotations__['a'])
-    test new test
+    u'test new test'
     >>> print(annotation_syntax.__annotations__['b'])
-    other
+    u'other'
     >>> print(annotation_syntax.__annotations__['args'])
-    ARGS
+    u'ARGS'
     >>> print(annotation_syntax.__annotations__['kwargs'])
-    KWARGS
+    u'KWARGS'
     >>> print(annotation_syntax.__annotations__['return'])
-    ret
+    u'ret'
     """
-    return a+b
+    result : int = a + b
+
+    return result
+
+
+def builtin_as_annotation(text: str):
+    # See https://github.com/cython/cython/issues/2811
+    """
+    >>> builtin_as_annotation("abc")
+    a
+    b
+    c
+    """
+    for c in text:
+        print(c)
+
+
+async def async_def_annotations(x: 'int') -> 'float':
+    """
+    >>> ret, arg = sorted(async_def_annotations.__annotations__.items())
+    >>> print(ret[0]); print(ret[1])
+    return
+    u'float'
+    >>> print(arg[0]); print(arg[1])
+    x
+    u'int'
+    """
+    return float(x)

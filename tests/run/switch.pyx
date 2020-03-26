@@ -1,4 +1,5 @@
 # mode: run
+# cython: linetrace=True
 
 cimport cython
 
@@ -141,6 +142,75 @@ def switch_c(int x):
     else:
         return 0
     return -1
+
+
+
+@cython.test_assert_path_exists(
+    '//SwitchStatNode',
+    '//SwitchStatNode//SwitchStatNode',
+)
+@cython.test_fail_if_path_exists('//BoolBinopNode', '//PrimaryCmpNode')
+def switch_in_switch(int x, int y):
+    """
+    >>> switch_in_switch(1, 1)
+    (1, 1)
+    >>> switch_in_switch(1, 2)
+    (1, 2)
+    >>> switch_in_switch(1, 4)
+    (1, 3)
+
+    >>> switch_in_switch(2, 1)
+    (2, 1)
+    >>> switch_in_switch(2, 2)
+    (2, 2)
+    >>> switch_in_switch(2, 3)
+    (2, 3)
+    >>> switch_in_switch(2, 4)
+    (2, 4)
+    >>> switch_in_switch(2, 20)
+    (2, 4)
+
+    >>> switch_in_switch(3, 0)
+    False
+    >>> switch_in_switch(3, 1)
+    True
+    >>> switch_in_switch(3, 2)
+    True
+    >>> switch_in_switch(3, 3)
+    True
+    >>> switch_in_switch(3, 4)
+    False
+
+    >>> switch_in_switch(20, 0)
+    True
+    >>> switch_in_switch(20, 1)
+    False
+    >>> switch_in_switch(20, 3)
+    False
+    >>> switch_in_switch(20, 4)
+    True
+    """
+    if x == 1:
+        if y == 1:
+            return 1,1
+        elif y == 2:
+            return 1,2
+        else:
+            return 1,3
+    elif x == 2:
+        if y == 1:
+            return 2,1
+        elif y == 2:
+            return 2,2
+        elif y == 3:
+            return 2,3
+        else:
+            return 2,4
+    elif x == 3:
+        return y in (1,2,3)
+    else:
+        return y not in (1,2,3)
+    return 'FAILED'
 
 
 @cython.test_assert_path_exists('//SwitchStatNode')

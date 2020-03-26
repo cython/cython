@@ -38,6 +38,27 @@ cpdef bytearray coerce_charptr_slice(char* b):
     """
     return b[:2]
 
+
+def infer_concatenation_types(bytearray b):
+    """
+    >>> b = bytearray(b'a\\xFEc')
+    >>> b2, c, d, e, tb, tc, td, te = infer_concatenation_types(b)
+    >>> tb, tc, td, te
+    ('bytearray object', 'bytearray object', 'bytearray object', 'bytearray object')
+    >>> b2, c, d, e
+    (bytearray(b'a\\xfec'), bytearray(b'a\\xfeca\\xfec'), bytearray(b'a\\xfeca\\xfec'), bytearray(b'a\\xfeca\\xfec'))
+    """
+    c = b[:]
+    c += b[:]
+
+    d = b[:]
+    d *= 2
+
+    e = b + b
+
+    return b, c, d, e, cython.typeof(b), cython.typeof(c), cython.typeof(d), cython.typeof(e)
+
+
 def infer_index_types(bytearray b):
     """
     >>> b = bytearray(b'a\\xFEc')
@@ -51,11 +72,12 @@ def infer_index_types(bytearray b):
         e = b[1]
     return c, d, e, cython.typeof(c), cython.typeof(d), cython.typeof(e), cython.typeof(b[1])
 
+
 def infer_slice_types(bytearray b):
     """
     >>> b = bytearray(b'abc')
     >>> print(infer_slice_types(b))
-    (bytearray(b'bc'), bytearray(b'bc'), bytearray(b'bc'), 'Python object', 'Python object', 'Python object', 'bytearray object')
+    (bytearray(b'bc'), bytearray(b'bc'), bytearray(b'bc'), 'bytearray object', 'bytearray object', 'bytearray object', 'bytearray object')
     """
     c = b[1:]
     with cython.boundscheck(False):
@@ -63,6 +85,7 @@ def infer_slice_types(bytearray b):
     with cython.boundscheck(False), cython.wraparound(False):
         e = b[1:]
     return c, d, e, cython.typeof(c), cython.typeof(d), cython.typeof(e), cython.typeof(b[1:])
+
 
 def assign_to_index(bytearray b, value):
     """

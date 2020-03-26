@@ -1,6 +1,7 @@
 # mode: run
 # tag: cpp, werror
 
+from libcpp.deque cimport deque
 from libcpp.vector cimport vector
 from cython.operator cimport dereference as deref
 
@@ -15,12 +16,58 @@ def test_vector(py_v):
     >>> test_vector([1, 2, 3])
     [1, 2, 3]
     """
-    cdef vector[int] v = py_v
+    cdef vector[int] vint = py_v
     cdef vector[int] result
     with nogil:
-        for item in v:
+        for item in vint:
             result.push_back(item)
     return result
+
+def test_deque_iterator_subtraction(py_v):
+    """
+    >>> print(test_deque_iterator_subtraction([1, 2, 3]))
+    3
+    """
+    cdef deque[int] dint
+    for i in py_v:
+        dint.push_back(i)
+    cdef deque[int].iterator first = dint.begin()
+    cdef deque[int].iterator last = dint.end()
+
+    return last - first
+
+def test_vector_iterator_subtraction(py_v):
+    """
+    >>> print(test_vector_iterator_subtraction([1, 2, 3]))
+    3
+    """
+    cdef vector[int] vint = py_v
+    cdef vector[int].iterator first = vint.begin()
+    cdef vector[int].iterator last = vint.end()
+
+    return last - first
+
+def test_deque_iterator_addition(py_v):
+    """
+    >>> test_deque_iterator_addition([2, 4, 6])
+    6
+    """
+    cdef deque[int] dint
+    for i in py_v:
+        dint.push_back(i)
+    cdef deque[int].iterator first = dint.begin()
+
+    return deref(first+2)
+
+def test_vector_iterator_addition(py_v):
+    """
+    >>> test_vector_iterator_addition([2, 4, 6])
+    6
+    """
+    cdef vector[int] vint = py_v
+    cdef vector[int].iterator first = vint.begin()
+
+    return deref(first+2)
 
 def test_ptrs():
     """

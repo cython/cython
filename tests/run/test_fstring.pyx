@@ -10,7 +10,6 @@ import contextlib
 
 import sys
 IS_PY2 = sys.version_info[0] < 3
-IS_PY26 = sys.version_info[:2] < (2, 7)
 
 from Cython.Build.Inline import cython_inline
 from Cython.TestUtils import CythonTest
@@ -35,9 +34,10 @@ class TestCase(CythonTest):
             if exception_type is SyntaxError:
                 try:
                     self.fragment(str)
-                    assert held_errors(), "Invalid Cython code failed to raise SyntaxError: %s" % str
                 except CompileError:
                     assert True
+                else:
+                    assert held_errors(), "Invalid Cython code failed to raise SyntaxError: %r" % str
                 finally:
                     release_errors(ignore=True)
             else:
@@ -46,7 +46,7 @@ class TestCase(CythonTest):
                 except exception_type:
                     assert True
                 else:
-                    assert False, "Invalid Cython code failed to raise %s: %s" % (exception_type, str)
+                    assert False, "Invalid Cython code failed to raise %s: %r" % (exception_type, str)
                 finally:
                     if error_stack:
                         release_errors(ignore=True)
@@ -62,23 +62,8 @@ class TestCase(CythonTest):
                     first = stripped_first.decode('unicode_escape')
             super(TestCase, self).assertEqual(first, second, msg)
 
-        if IS_PY26:
-            @contextlib.contextmanager
-            def assertRaises(self, exc):
-                try:
-                    yield
-                except exc:
-                    pass
-                else:
-                    assert False, "exception '%s' not raised" % exc
-
-            def assertIn(self, value, collection):
-                self.assertTrue(value in collection)
-
     def test__format__lookup(self):
-        if IS_PY26:
-            return
-        elif IS_PY2:
+        if IS_PY2:
             raise unittest.SkipTest("Py3-only")
 
         # Make sure __format__ is looked up on the type, not the instance.
@@ -108,7 +93,7 @@ class TestCase(CythonTest):
         self.assertEqual(type(y).__format__(y, ''), 'class')
 
     def __test_ast(self):
-        # Inspired by http://bugs.python.org/issue24975
+        # Inspired by https://bugs.python.org/issue24975
         class X:
             def __init__(self):
                 self.called = False
@@ -141,17 +126,8 @@ f'{a * x()}'"""
         self.assertTrue(g.__doc__ is None)
 
     def __test_literal_eval(self):
-        # With no expressions, an f-string is okay.
-        self.assertEqual(ast.literal_eval("f'x'"), 'x')
-        self.assertEqual(ast.literal_eval("f'x' 'y'"), 'xy')
-
-        # But this should raise an error.
         with self.assertRaisesRegex(ValueError, 'malformed node or string'):
             ast.literal_eval("f'x'")
-
-        # As should this, which uses a different ast node
-        with self.assertRaisesRegex(ValueError, 'malformed node or string'):
-            ast.literal_eval("f'{3}'")
 
     def __test_ast_compile_time_concat(self):
         x = ['']
@@ -296,12 +272,11 @@ f'{a * x()}'"""
         width = 10
         precision = 4
         value = decimal.Decimal('12.34567')
-        if not IS_PY26:
-            self.assertEqual(f'result: {value:{width}.{precision}}', 'result:      12.35')
-            self.assertEqual(f'result: {value:{width!r}.{precision}}', 'result:      12.35')
-            self.assertEqual(f'result: {value:{width:0}.{precision:1}}', 'result:      12.35')
-            self.assertEqual(f'result: {value:{1}{0:0}.{precision:1}}', 'result:      12.35')
-            self.assertEqual(f'result: {value:{ 1}{ 0:0}.{ precision:1}}', 'result:      12.35')
+        self.assertEqual(f'result: {value:{width}.{precision}}', 'result:      12.35')
+        self.assertEqual(f'result: {value:{width!r}.{precision}}', 'result:      12.35')
+        self.assertEqual(f'result: {value:{width:0}.{precision:1}}', 'result:      12.35')
+        self.assertEqual(f'result: {value:{1}{0:0}.{precision:1}}', 'result:      12.35')
+        self.assertEqual(f'result: {value:{ 1}{ 0:0}.{ precision:1}}', 'result:      12.35')
         self.assertEqual(f'{10:#{1}0x}', '       0xa')
         self.assertEqual(f'{10:{"#"}1{0}{"x"}}', '       0xa')
         self.assertEqual(f'{-10:-{"#"}1{0}x}', '      -0xa')
@@ -320,8 +295,7 @@ f'{a * x()}'"""
                              ])
 
         # CYTHON: The nesting restriction seems rather arbitrary. Ignoring it for now and instead test that it works.
-        if not IS_PY26:
-            self.assertEqual(f'result: {value:{width:{0}}.{precision:1}}', 'result:      12.35')
+        self.assertEqual(f'result: {value:{width:{0}}.{precision:1}}', 'result:      12.35')
         #self.assertAllRaise(SyntaxError, "f-string: expressions nested too deeply",
         #                    [# Can't nest format specifiers.
         #                     "f'result: {value:{width:{0}}.{precision:1}}'",
@@ -354,6 +328,10 @@ f'{a * x()}'"""
                              "f'{10:{ }}'",
                              "f' { } '",
 
+                             # The Python parser ignores also the following
+                             # whitespace characters in additional to a space.
+                             "f'''{\t\f\r\n}'''",
+
                              # Catch the empty expression before the
                              #  invalid conversion.
                              "f'{!x}'",
@@ -372,6 +350,12 @@ f'{a * x()}'"""
                              "f'{!s:'",
                              "f'{:'",
                              "f'{:x'",
+                             ])
+
+        # Different error message is raised for other whitespace characters.
+        self.assertAllRaise(SyntaxError, 'invalid character in identifier',
+                            ["f'''{\xa0}'''",
+                             #"\xa0",
                              ])
 
     def test_parens_in_expressions(self):
@@ -434,6 +418,20 @@ f'{a * x()}'"""
         self.assertEqual(f'2\x20', '2 ')
         self.assertEqual(f'2\x203', '2 3')
         self.assertEqual(f'\x203', ' 3')
+
+        #with self.assertWarns(DeprecationWarning):  # invalid escape sequence
+        #    value = cy_eval(r"f'\{6*7}'")
+        #self.assertEqual(value, '\\42')
+        self.assertEqual(f'\\{6*7}', '\\42')
+        self.assertEqual(fr'\{6*7}', '\\42')
+
+        AMPERSAND = 'spam'
+        # Get the right unicode character (&), or pick up local variable
+        # depending on the number of backslashes.
+        self.assertEqual(f'\N{AMPERSAND}', '&')
+        self.assertEqual(f'\\N{AMPERSAND}', '\\Nspam')
+        self.assertEqual(fr'\N{AMPERSAND}', '\\Nspam')
+        self.assertEqual(f'\\\N{AMPERSAND}', '\\&')
 
     def test_misformed_unicode_character_name(self):
         # These test are needed because unicode names are parsed
@@ -662,10 +660,9 @@ f'{a * x()}'"""
 
     def test_conversions(self):
         self.assertEqual(f'{3.14:10.10}', '      3.14')
-        if not IS_PY26:
-            self.assertEqual(f'{3.14!s:10.10}', '3.14      ')
-            self.assertEqual(f'{3.14!r:10.10}', '3.14      ')
-            self.assertEqual(f'{3.14!a:10.10}', '3.14      ')
+        self.assertEqual(f'{3.14!s:10.10}', '3.14      ')
+        self.assertEqual(f'{3.14!r:10.10}', '3.14      ')
+        self.assertEqual(f'{3.14!a:10.10}', '3.14      ')
 
         self.assertEqual(f'{"a"}', 'a')
         self.assertEqual(f'{"a"!r}', "'a'")
@@ -808,7 +805,8 @@ f'{a * x()}'"""
 
     def test_errors(self):
         # see issue 26287
-        self.assertAllRaise((TypeError, ValueError), 'non-empty',  # TypeError in Py3.4+
+        exc = ValueError if sys.version_info < (3, 4) else TypeError
+        self.assertAllRaise(exc, 'unsupported',
                             [r"f'{(lambda: 0):x}'",
                              r"f'{(0,):x}'",
                              ])
@@ -832,6 +830,11 @@ f'{a * x()}'"""
         self.assertEqual(f'{d["foo"]}', 'bar')
         self.assertEqual(f"{d['foo']}", 'bar')
 
+    def __test_backslash_char(self):
+        # Check eval of a backslash followed by a control char.
+        # See bpo-30682: this used to raise an assert in pydebug mode.
+        self.assertEqual(cy_eval('f"\\\n"'), '')
+        self.assertEqual(cy_eval('f"\\\r"'), '')
 
 if __name__ == '__main__':
     unittest.main()

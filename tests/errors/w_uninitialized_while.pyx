@@ -55,8 +55,8 @@ def while_finally_outer(p, f):
 
 
 _ERRORS = """
-9:12: local variable 'a' might be referenced before assignment
-17:12: local variable 'a' might be referenced before assignment
-32:19: local variable 'x' might be referenced before assignment
-40:19: local variable 'x' might be referenced before assignment
+9:11: local variable 'a' might be referenced before assignment
+17:11: local variable 'a' might be referenced before assignment
+32:18: local variable 'x' might be referenced before assignment
+40:18: local variable 'x' might be referenced before assignment
 """

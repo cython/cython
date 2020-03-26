@@ -18,9 +18,9 @@ def dict_comp2(a):
 
 
 _ERRORS = """
-7:12: local variable 'i' might be referenced before assignment
-12:12: undeclared name not builtin: i
-12:15: undeclared name not builtin: j
-16:11: local variable 'i' referenced before assignment
-16:14: local variable 'j' referenced before assignment
+7:11: local variable 'i' might be referenced before assignment
+12:11: undeclared name not builtin: i
+12:14: undeclared name not builtin: j
+16:10: local variable 'i' referenced before assignment
+16:13: local variable 'j' referenced before assignment
 """

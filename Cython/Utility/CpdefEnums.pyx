@@ -6,10 +6,7 @@ cdef extern from *:
     int PY_VERSION_HEX
 
 cdef object __Pyx_OrderedDict
-if PY_VERSION_HEX >= 0x02070000:
-    from collections import OrderedDict as __Pyx_OrderedDict
-else:
-    __Pyx_OrderedDict = dict
+from collections import OrderedDict as __Pyx_OrderedDict
 
 @cython.internal
 cdef class __Pyx_EnumMeta(type):
@@ -23,8 +20,7 @@ cdef class __Pyx_EnumMeta(type):
 
 # @cython.internal
 cdef object __Pyx_EnumBase
-class __Pyx_EnumBase(int):
-    __metaclass__ = __Pyx_EnumMeta
+class __Pyx_EnumBase(int, metaclass=__Pyx_EnumMeta):
     def __new__(cls, value, name=None):
         for v in cls:
             if v == value:

@@ -44,6 +44,14 @@ def testcase_numpy_1_5(f):
         __test__[f.__name__] = f.__doc__
     return f
 
+
+def gc_collect_if_required():
+    major, minor, *rest = np.__version__.split('.')
+    if (int(major), int(minor)) >= (1, 14):
+        import gc
+        gc.collect()
+
+
 #
 ### Test slicing memoryview slices
 #
@@ -183,7 +191,7 @@ def test_transpose():
     cdef dtype_t[:, :] b = a.T
     print a.T.shape[0], a.T.shape[1]
     print a_obj.T.shape
-    print numpy_obj.T.shape
+    print tuple(map(int, numpy_obj.T.shape)) # might use longs in Py2
 
     cdef dtype_t[:, :] c
     with nogil:
@@ -293,13 +301,13 @@ def test_coerce_to_numpy():
     deallocating...
     12.2
     deallocating...
-    13.3
+    13.25
     deallocating...
     (14.4+15.5j)
     deallocating...
-    (16.6+17.7j)
+    (16.5+17.7j)
     deallocating...
-    (18.8+19.9j)
+    (18.8125+19.9375j)
     deallocating...
     22
     deallocating...
@@ -362,14 +370,15 @@ def test_coerce_to_numpy():
     ints[idx] = 222
     longlongs[idx] = 333
     externs[idx] = 444
+    assert externs[idx] == 444  # avoid "set but not used" C compiler warning
 
     floats[idx] = 11.1
     doubles[idx] = 12.2
-    longdoubles[idx] = 13.3
+    longdoubles[idx] = 13.25
 
     floatcomplex[idx] = 14.4 + 15.5j
-    doublecomplex[idx] = 16.6 + 17.7j
-    longdoublecomplex[idx] = 18.8 + 19.9j
+    doublecomplex[idx] = 16.5 + 17.7j
+    longdoublecomplex[idx] = 18.8125 + 19.9375j  # x/64 to avoid float format rounding issues
 
     h_shorts[idx] = 22
     h_doubles[idx] = 33.33
@@ -406,13 +415,13 @@ def test_coerce_to_numpy():
 @testcase_numpy_1_5
 def test_memslice_getbuffer():
     """
-    >>> test_memslice_getbuffer()
+    >>> test_memslice_getbuffer(); gc_collect_if_required()
     [[ 0  2  4]
      [10 12 14]]
     callback called
     """
     cdef int[:, :] array = create_array((4, 5), mode="c", use_callback=True)
-    print np.asarray(array)[::2, ::2]
+    print(np.asarray(array)[::2, ::2])
 
 cdef class DeallocateMe(object):
     def __dealloc__(self):
@@ -691,3 +700,21 @@ def test_refcount_GH507():
     a = np.arange(12).reshape([3, 4])
     cdef np.int_t[:,:] a_view = a
     cdef np.int_t[:,:] b = a_view[1:2,:].T
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def test_boundscheck_and_wraparound(double[:, :] x):
+    """
+    >>> import numpy as np
+    >>> array = np.ones((2,2)) * 3.5
+    >>> test_boundscheck_and_wraparound(array)
+    """
+    # Make sure we don't generate C compiler warnings for unused code here.
+    cdef Py_ssize_t numrow = x.shape[0]
+    cdef Py_ssize_t i
+    for i in range(numrow):
+        x[i, 0]
+        x[i]
+        x[i, ...]
+        x[i, :]

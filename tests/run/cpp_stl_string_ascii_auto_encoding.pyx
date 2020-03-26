@@ -2,9 +2,8 @@
 # tag: cpp, werror
 # cython: c_string_encoding=ascii, c_string_type=unicode
 
-cimport cython
-
 from libcpp.string cimport string
+from libcpp.vector cimport vector
 
 b_asdf = b'asdf'
 s_asdf = 'asdf'
@@ -148,3 +147,17 @@ def test_str_cast(a):
     cdef string s = a
     assert s.length() == <size_t>len(a), "%d != %d" % (s.length(), len(a))
     return <str>s
+
+
+def test_vector_of_strings(*strings):
+    """
+    >>> results = test_vector_of_strings(b_asdf, u_asdf)
+    >>> results == [u_asdf, u_asdf] or results
+    True
+    >>> type(results[0]) is type(u_asdf) or type(results[0])
+    True
+    >>> type(results[1]) is type(u_asdf) or type(results[1])
+    True
+    """
+    cdef vector[string] v = strings
+    return v

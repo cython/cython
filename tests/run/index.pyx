@@ -29,6 +29,9 @@ def index_tuple(tuple t, int i):
     >>> index_tuple((1,1,2,3,5), 100)
     Traceback (most recent call last):
     IndexError: tuple index out of range
+    >>> index_tuple((1,1,2,3,5), -7)
+    Traceback (most recent call last):
+    IndexError: tuple index out of range
     >>> index_tuple(None, 0)
     Traceback (most recent call last):
     TypeError: 'NoneType' object is not subscriptable
@@ -44,6 +47,9 @@ def index_list(list L, int i):
     >>> index_list([2,3,5,7,11,13,17,19], -1)
     19
     >>> index_list([2,3,5,7,11,13,17,19], 100)
+    Traceback (most recent call last):
+    IndexError: list index out of range
+    >>> index_list([2,3,5,7,11,13,17,19], -10)
     Traceback (most recent call last):
     IndexError: list index out of range
     >>> index_list(None, 0)

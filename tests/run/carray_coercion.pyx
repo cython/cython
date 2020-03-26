@@ -5,6 +5,10 @@ IS_PY3 = sys.version_info[0] >= 3
 IS_32BIT_PY2 = not IS_PY3 and sys.maxint < 2**32
 
 
+from libc cimport stdint
+from libc.stdint cimport int16_t as my_int16_t
+
+
 def unlongify(v):
     # on 32bit Py2.x platforms, 'unsigned int' coerces to a Python long => fix doctest output here.
     s = repr(v)
@@ -61,6 +65,30 @@ cpdef tuple tuple_from_typedef_int_array():
     '(1, 2, 3)'
     """
     cdef uint32_t[3] v
+    v[0] = 1
+    v[1] = 2
+    v[2] = 3
+    return v
+
+
+def from_cimported_int_array():
+    """
+    >>> from_cimported_int_array()
+    [1, 2, 3]
+    """
+    cdef stdint.int32_t[3] v
+    v[0] = 1
+    v[1] = 2
+    v[2] = 3
+    return v
+
+
+def from_cimported_as_int_array():
+    """
+    >>> from_cimported_as_int_array()
+    [1, 2, 3]
+    """
+    cdef my_int16_t[3] v
     v[0] = 1
     v[1] = 2
     v[2] = 3

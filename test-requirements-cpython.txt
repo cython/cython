@@ -1,0 +1,4 @@
+jupyter
+line_profiler
+# transitive dependency of jupyter (17.0+ lacks wheels for Py3.4)
+pyzmq<17

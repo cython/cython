@@ -28,6 +28,17 @@ with cfunc:
     def fwith2(a):
         return a*4
 
+    @cython.test_assert_path_exists(
+        '//CFuncDefNode',
+        '//LambdaNode',
+        '//GeneratorDefNode',
+        '//GeneratorBodyDefNode',
+    )
+    def f_with_genexpr(a):
+        f = lambda x: x+1
+        return (f(x) for x in a)
+
+
 with cclass:
     @cython.test_assert_path_exists('//CClassDefNode')
     class Egg(object):
@@ -123,3 +134,14 @@ def test_typed_return():
     """
     x = cython.declare(int, 5)
     assert typed_return(cython.address(x))[0] is x
+
+
+def test_genexpr_in_cdef(l):
+    """
+    >>> gen = test_genexpr_in_cdef([1, 2, 3])
+    >>> list(gen)
+    [2, 3, 4]
+    >>> list(gen)
+    []
+    """
+    return f_with_genexpr(l)

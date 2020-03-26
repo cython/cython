@@ -37,7 +37,7 @@ if int_align != 4 or sizeof(int) != 4:
 cdef class MockBuffer:
     cdef Py_ssize_t zero
     cdef Py_ssize_t minusone
-    cdef object format
+    cdef bytes format
     cdef object itemsize
 
     def __init__(self, format, itemsize):
@@ -117,6 +117,9 @@ ctypedef struct Char3Int:
     int c
     int d
 
+ctypedef struct LongString:
+    char[90198] c
+
 cdef struct CharIntCFloat:
     char a
     int b
@@ -162,7 +165,7 @@ def char3int(fmt):
     >>> char3int("c3xiii")
     >>> char3int("cxxxiii")
 
-    Standard alignment (assming int size is 4)
+    Standard alignment (assuming int size is 4)
     >>> char3int("=c3xiii")
     >>> char3int("=ciii")
     Traceback (most recent call last):
@@ -179,6 +182,16 @@ def char3int(fmt):
     """
     cdef object obj = MockBuffer(fmt, sizeof(Char3Int))
     cdef object[Char3Int, ndim=1] buf = obj
+
+
+@testcase
+def long_string(fmt):
+    """
+    >>> long_string("90198s")
+    """
+    cdef object obj = MockBuffer(fmt, sizeof(LongString))
+    cdef object[LongString, ndim=1] buf = obj
+
 
 @testcase
 def unpacked_struct(fmt):

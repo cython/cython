@@ -1,6 +1,9 @@
 # mode: compile
 
-cdef extern from "cnamespec.h":
+cdef extern from *:
+    """
+    int c_a, c_b;
+    """
     int a "c_a", b "c_b"
 
 cdef struct foo "c_foo":

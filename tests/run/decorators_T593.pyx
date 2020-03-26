@@ -110,8 +110,8 @@ class Base(type):
 
 class Bar(metaclass=Base):
    """
-   >>> Bar._order
-   ['__module__', '__qualname__', '__doc__', 'bar']
+   >>> [n for n in Bar._order if n != "__qualname__"]
+   ['__module__', '__doc__', 'bar']
    """
    @property
    def bar(self):

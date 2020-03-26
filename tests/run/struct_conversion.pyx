@@ -28,10 +28,9 @@ def test_constructor_kwds(x, y, color):
     """
     >>> sorted(test_constructor_kwds(1.25, 2.5, 128).items())
     [('color', 128), ('x', 1.25), ('y', 2.5)]
-    >>> test_constructor_kwds(1.25, 2.5, None)
+    >>> test_constructor_kwds(1.25, 2.5, None)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    ...
-    TypeError: an integer is required
+    TypeError:... int...
     """
     cdef Point p = Point(x=x, y=y, color=color)
     return p
@@ -41,10 +40,9 @@ def return_constructor_kwds(double x, y, color):
     """
     >>> sorted(return_constructor_kwds(1.25, 2.5, 128).items())
     [('color', 128), ('x', 1.25), ('y', 2.5)]
-    >>> return_constructor_kwds(1.25, 2.5, None)
+    >>> return_constructor_kwds(1.25, 2.5, None)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    ...
-    TypeError: an integer is required
+    TypeError:... int...
     """
     return Point(x=x, y=y, color=color)
 
@@ -169,3 +167,19 @@ def test_nested_obj_to_struct(NestedStruct nested):
                                             nested.mystruct.s.decode('UTF-8'),
                                             nested.d)
 
+cdef struct OverriddenCname:
+    int x "not_x"
+
+def test_obj_to_struct_cnames(OverriddenCname s):
+    """
+    >>> test_obj_to_struct_cnames({ 'x': 1 })
+    1
+    """
+    print(s.x)
+
+def test_struct_to_obj_cnames():
+    """
+    >>> test_struct_to_obj_cnames()
+    {'x': 2}
+    """
+    return OverriddenCname(2)

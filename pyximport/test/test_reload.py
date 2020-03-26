@@ -20,7 +20,7 @@ def test():
     hello_file = os.path.join(tempdir, "hello.pyx")
     open(hello_file, "w").write("x = 1; print x; before = 'before'\n")
     import hello
-        assert hello.x == 1
+    assert hello.x == 1
 
     time.sleep(1) # sleep to make sure that new "hello.pyx" has later
               # timestamp than object file.

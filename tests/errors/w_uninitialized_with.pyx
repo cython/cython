@@ -24,7 +24,7 @@ def with_mgr(m):
         print f
 
 _ERRORS = """
-7:15: local variable 'a' referenced before assignment
-11:11: local variable 'm2' referenced before assignment
-24:15: local variable 'f' might be referenced before assignment
+7:14: local variable 'a' referenced before assignment
+11:9: local variable 'm2' referenced before assignment
+24:14: local variable 'f' might be referenced before assignment
 """

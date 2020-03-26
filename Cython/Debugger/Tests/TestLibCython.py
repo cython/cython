@@ -40,7 +40,7 @@ def test_gdb():
     else:
         stdout, _ = p.communicate()
         # Based on Lib/test/test_gdb.py
-        regex = "GNU gdb [^\d]*(\d+)\.(\d+)"
+        regex = r"GNU gdb [^\d]*(\d+)\.(\d+)"
         gdb_version = re.match(regex, stdout.decode('ascii', 'ignore'))
 
     if gdb_version:
@@ -56,13 +56,13 @@ def test_gdb():
                 stdout, _ = p.communicate()
                 try:
                     internal_python_version = list(map(int, stdout.decode('ascii', 'ignore').split()))
-                    if internal_python_version < [2, 6]:
+                    if internal_python_version < [2, 7]:
                         have_gdb = False
                 except ValueError:
                     have_gdb = False
 
     if not have_gdb:
-        warnings.warn('Skipping gdb tests, need gdb >= 7.2 with Python >= 2.6')
+        warnings.warn('Skipping gdb tests, need gdb >= 7.2 with Python >= 2.7')
 
     return have_gdb
 

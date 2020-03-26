@@ -42,9 +42,10 @@ True
 >>> PyxEnum(2) is PyxEnum["TWO"] is PyxEnum.TWO
 True
 
->>> IntEnum  # not leaking into module namespace
+# not leaking into module namespace
+>>> IntEnum        # doctest: +ELLIPSIS
 Traceback (most recent call last):
-NameError: name 'IntEnum' is not defined
+NameError: ...name 'IntEnum' is not defined
 """
 
 
@@ -69,14 +70,8 @@ def test_as_variable_from_cython():
     """
     >>> test_as_variable_from_cython()
     """
-    import sys
-    if sys.version_info >= (2, 7):
-        assert list(PyxEnum) == [TWO, THREE, FIVE], list(PyxEnum)
-        assert list(PxdEnum) == [RANK_0, RANK_1, RANK_2], list(PxdEnum)
-    else:
-        # No OrderedDict.
-        assert set(PyxEnum) == {TWO, THREE, FIVE}, list(PyxEnum)
-        assert set(PxdEnum) == {RANK_0, RANK_1, RANK_2}, list(PxdEnum)
+    assert list(PyxEnum) == [TWO, THREE, FIVE], list(PyxEnum)
+    assert list(PxdEnum) == [RANK_0, RANK_1, RANK_2], list(PxdEnum)
 
 cdef int verify_pure_c() nogil:
     cdef int x = TWO

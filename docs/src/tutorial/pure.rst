@@ -12,17 +12,22 @@ about 20%-50%.
 To go beyond that, Cython provides language constructs to add static typing
 and cythonic functionalities to a Python module to make it run much faster
 when compiled, while still allowing it to be interpreted.
-This is accomplished either via an augmenting :file:`.pxd` file, or
+This is accomplished via an augmenting ``.pxd`` file, via Python
+type annotations (following
+`PEP 484 <https://www.python.org/dev/peps/pep-0484/>`_ and
+`PEP 526 <https://www.python.org/dev/peps/pep-0526/>`_), and/or
 via special functions and decorators available after importing the magic
-``cython`` module.
+``cython`` module.  All three ways can be combined at need, although
+projects would commonly decide on a specific way to keep the static type
+information easy to manage.
 
 Although it is not typically recommended over writing straight Cython code
 in a :file:`.pyx` file, there are legitimate reasons to do this - easier
-testing, collaboration with pure Python developers, etc.  In pure mode, you
-are more or less restricted to code that can be expressed (or at least
-emulated) in Python, plus static type declarations. Anything beyond that
-can only be done in .pyx files with extended language syntax, because it
-depends on features of the Cython compiler.
+testing and debugging, collaboration with pure Python developers, etc.
+In pure mode, you are more or less restricted to code that can be expressed
+(or at least emulated) in Python, plus static type declarations. Anything
+beyond that can only be done in .pyx files with extended language syntax,
+because it depends on features of the Cython compiler.
 
 
 Augmenting .pxd
@@ -42,49 +47,17 @@ If a :file:`.pxd` file is found with the same name as the :file:`.py` file
 being compiled, it will be searched for :keyword:`cdef` classes and
 :keyword:`cdef`/:keyword:`cpdef` functions and methods.  The compiler will
 then convert the corresponding classes/functions/methods in the :file:`.py`
-file to be of the declared type.  Thus if one has a file :file:`A.py`::
+file to be of the declared type.  Thus if one has a file :file:`A.py`:
 
-    def myfunction(x, y=2):
-        a = x-y
-        return a + x * y
+.. literalinclude:: ../../examples/tutorial/pure/A.py
 
-    def _helper(a):
-        return a + 1
+and adds :file:`A.pxd`:
 
-    class A:
-        def __init__(self, b=0):
-            self.a = 3
-            self.b = b
+.. literalinclude:: ../../examples/tutorial/pure/A.pxd
 
-        def foo(self, x):
-            print x + _helper(1.0)
+then Cython will compile the :file:`A.py` as if it had been written as follows:
 
-and adds :file:`A.pxd`::
-
-    cpdef int myfunction(int x, int y=*)
-    cdef double _helper(double a)
-
-    cdef class A:
-        cdef public int a,b
-        cpdef foo(self, double x)
-
-then Cython will compile the :file:`A.py` as if it had been written as follows::
-
-    cpdef int myfunction(int x, int y=2):
-        a = x-y
-        return a + x * y
-
-    cdef double _helper(double a):
-        return a + 1
-
-    cdef class A:
-        cdef public int a,b
-        def __init__(self, b=0):
-            self.a = 3
-            self.b = b
-
-        cpdef foo(self, double x):
-            print x + _helper(1.0)
+.. literalinclude:: ../../examples/tutorial/pure/A_equivalent.pyx
 
 Notice how in order to provide the Python wrappers to the definitions
 in the :file:`.pxd`, that is, to be accessible from Python,
@@ -141,12 +114,7 @@ modules when Cython is not installed.
 * ``compiled`` is a special variable which is set to ``True`` when the compiler
   runs, and ``False`` in the interpreter. Thus, the code
 
-  ::
-
-    if cython.compiled:
-        print("Yep, I'm compiled.")
-    else:
-        print("Just a lowly interpreted script.")
+  .. literalinclude:: ../../examples/tutorial/pure/compiled_switch.py
 
   will behave differently depending on whether or not the code is executed as a
   compiled extension (:file:`.so`/:file:`.pyd`) module or a plain :file:`.py`
@@ -159,57 +127,51 @@ Static typing
 * ``cython.declare`` declares a typed variable in the current scope, which can be
   used in place of the :samp:`cdef type var [= value]` construct. This has two forms,
   the first as an assignment (useful as it creates a declaration in interpreted
-  mode as well)::
+  mode as well):
 
-    x = cython.declare(cython.int)              # cdef int x
-    y = cython.declare(cython.double, 0.57721)  # cdef double y = 0.57721
+  .. literalinclude:: ../../examples/tutorial/pure/cython_declare.py
 
-  and the second mode as a simple function call::
+  and the second mode as a simple function call:
 
-    cython.declare(x=cython.int, y=cython.double)  # cdef int x; cdef double y
+  .. literalinclude:: ../../examples/tutorial/pure/cython_declare2.py
 
-  It can also be used to type class constructors::
+  It can also be used to define extension type private, readonly and public attributes:
 
-    class A:
-        cython.declare(a=cython.int, b=cython.int)
-        def __init__(self, b=0):
-            self.a = 3
-            self.b = b
-
-  And even to define extension type private, readonly and public attributes::
-
-    @cython.cclass
-    class A:
-        cython.declare(a=cython.int, b=cython.int)
-        c = cython.declare(cython.int, visibility='public')
-        d = cython.declare(cython.int, 5)  # private by default.
-        e = cython.declare(cython.int, 5, visibility='readonly')
+  .. literalinclude:: ../../examples/tutorial/pure/cclass.py
 
 * ``@cython.locals`` is a decorator that is used to specify the types of local
-  variables in the function body (including the arguments)::
+  variables in the function body (including the arguments):
 
-    @cython.locals(a=cython.double, b=cython.double, n=cython.p_double)
-    def foo(a, b, x, y):
-        n = a*b
-        ...
+  .. literalinclude:: ../../examples/tutorial/pure/locals.py
 
 * ``@cython.returns(<type>)`` specifies the function's return type.
 
-* Starting with Cython 0.21, Python signature annotations can be used to
-  declare argument types.  Cython recognises three ways to do this, as
-  shown in the following example.  Note that it currently needs to be
-  enabled explicitly with the directive ``annotation_typing=True``.
-  This might change in a later version.
+* ``@cython.exceptval(value=None, *, check=False)`` specifies the function's exception
+  return value and exception check semantics as follows::
 
-  ::
+    @exceptval(-1)               # cdef int func() except -1:
+    @exceptval(-1, check=False)  # cdef int func() except -1:
+    @exceptval(check=True)       # cdef int func() except *:
+    @exceptval(-1, check=True)   # cdef int func() except? -1:
 
-    # cython: annotation_typing=True
+* Python annotations can be used to declare argument types, as shown in the
+  following example.  To avoid conflicts with other kinds of annotation
+  usages, this can be disabled with the directive ``annotation_typing=False``.
 
-    def func(plain_python_type: dict,
-             named_python_type: 'dict',
-             explicit_python_type: {'type': dict},
-             explicit_c_type: {'ctype': 'int'}):
-        ...
+  .. literalinclude:: ../../examples/tutorial/pure/annotations.py
+
+  This can be combined with the ``@cython.exceptval()`` decorator for non-Python
+  return types:
+
+  .. literalinclude:: ../../examples/tutorial/pure/exceptval.py
+
+  Since version 0.27, Cython also supports the variable annotations defined
+  in `PEP 526 <https://www.python.org/dev/peps/pep-0526/>`_. This allows to
+  declare types of variables in a Python 3.6 compatible way as follows:
+
+  .. literalinclude:: ../../examples/tutorial/pure/pep_526.py
+
+  There is currently no way to express the visibility of object attributes.
 
 
 C types
@@ -250,6 +212,10 @@ Extension types and cdef functions
 
 * ``@cython.inline`` is the equivalent of the C ``inline`` modifier.
 
+* ``@cython.final`` terminates the inheritance chain by preventing a type from
+  being used as a base class, or a method from being overridden in subtypes.
+  This enables certain optimisations such as inlined method calls.
+
 Here is an example of a :keyword:`cdef` function::
 
     @cython.cfunc
@@ -273,8 +239,8 @@ Further Cython functions and declarations
   ::
 
     cython.declare(n=cython.longlong)
-    print cython.sizeof(cython.longlong)
-    print cython.sizeof(n)
+    print(cython.sizeof(cython.longlong))
+    print(cython.sizeof(n))
 
 * ``struct`` can be used to create struct types.::
 
@@ -312,20 +278,13 @@ Magic Attributes within the .pxd
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The special `cython` module can also be imported and used within the augmenting
-:file:`.pxd` file. For example, the following Python file :file:`dostuff.py`::
+:file:`.pxd` file. For example, the following Python file :file:`dostuff.py`:
 
-    def dostuff(n):
-        t = 0
-        for i in range(n):
-            t += i
-        return t
+.. literalinclude:: ../../examples/tutorial/pure/dostuff.py
 
-can be augmented with the following :file:`.pxd` file :file:`dostuff.pxd`::
+can be augmented with the following :file:`.pxd` file :file:`dostuff.pxd`:
 
-    import cython
-
-    @cython.locals(t = cython.int, i = cython.int)
-    cpdef int dostuff(int n)
+.. literalinclude:: ../../examples/tutorial/pure/dostuff.pxd
 
 The :func:`cython.declare()` function can be used to specify types for global
 variables in the augmenting :file:`.pxd` file.
@@ -340,25 +299,11 @@ Calling C functions
 Normally, it isn't possible to call C functions in pure Python mode as there
 is no general way to support it in normal (uncompiled) Python.  However, in
 cases where an equivalent Python function exists, this can be achieved by
-combining C function coercion with a conditional import as follows::
+combining C function coercion with a conditional import as follows:
 
-    # in mymodule.pxd:
+.. literalinclude:: ../../examples/tutorial/pure/mymodule.pxd
 
-    # declare a C function as "cpdef" to export it to the module
-    cdef extern from "math.h":
-        cpdef double sin(double x)
-
-
-    # in mymodule.py:
-
-    import cython
-
-    # override with Python import if not in compiled code
-    if not cython.compiled:
-        from math import sin
-
-    # calls sin() from math.h when compiled with Cython and math.sin() in Python
-    print(sin(0))
+.. literalinclude:: ../../examples/tutorial/pure/mymodule.py
 
 Note that the "sin" function will show up in the module namespace of "mymodule"
 here (i.e. there will be a ``mymodule.sin()`` function).  You can mark it as an
@@ -375,24 +320,11 @@ to make the names match again.
 Using C arrays for fixed size lists
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Since Cython 0.22, C arrays can automatically coerce to Python lists or tuples.
+C arrays can automatically coerce to Python lists or tuples.
 This can be exploited to replace fixed size Python lists in Python code by C
-arrays when compiled.  An example::
+arrays when compiled.  An example:
 
-    import cython
-
-    @cython.locals(counts=cython.int[10], digit=cython.int)
-    def count_digits(digits):
-        """
-        >>> digits = '01112222333334445667788899'
-        >>> count_digits(map(int, digits))
-        [1, 3, 4, 5, 3, 1, 2, 2, 3, 2]
-        """
-        counts = [0] * 10
-        for digit in digits:
-            assert 0 <= digit <= 9
-            counts[digit] += 1
-        return counts
+.. literalinclude:: ../../examples/tutorial/pure/c_arrays.py
 
 In normal Python, this will use a Python list to collect the counts, whereas
 Cython will generate C code that uses a C array of C ints.

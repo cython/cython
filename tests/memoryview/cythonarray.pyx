@@ -2,11 +2,26 @@
 
 from __future__ import unicode_literals
 
+# these imports allow testing different ways to access [[cython.]view.]array()
 from cython.view cimport array
 from cython cimport view as v
 cimport cython as cy
 
 include "cythonarrayutil.pxi"
+
+
+def length(shape):
+    """
+    >>> len(length((2,)))
+    2
+    >>> len(length((2,3)))
+    2
+    >>> len(length((5,3,2)))
+    5
+    """
+    cdef array cvarray = array(shape=shape, itemsize=sizeof(int), format="i", mode='c')
+    assert len(cvarray) == shape[0]
+    return cvarray
 
 
 def contiguity():
@@ -20,7 +35,7 @@ def contiguity():
     2 3
     2
     '''
-    cdef v.array cvarray = v.array(shape=(2,3), itemsize=sizeof(int), format="i", mode='c')
+    cdef v.array cvarray = cy.view.array(shape=(2,3), itemsize=sizeof(int), format="i", mode='c')
     assert cvarray.len == 2*3*sizeof(int), (cvarray.len, 2*3*sizeof(int))
     assert cvarray.itemsize == sizeof(int)
     print cvarray.strides[0], cvarray.strides[1]
@@ -194,3 +209,11 @@ def test_cyarray_from_carray():
 
     mslice = a
     print mslice[0, 0], mslice[1, 0], mslice[2, 5]
+
+class InheritFrom(v.array):
+    """
+    Test is just to confirm it works, not to do anything meaningful with it
+    (Be aware that itemsize isn't necessarily right)
+    >>> inst = InheritFrom(shape=(3, 3, 3), itemsize=4, format="i")
+    """
+    pass

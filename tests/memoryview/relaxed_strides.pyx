@@ -10,12 +10,12 @@ Thanks to Nathaniel Smith and Sebastian Berg.
 See also:
 
     Mailing list threads:
-      http://thread.gmane.org/gmane.comp.python.cython.devel/14762
-      http://thread.gmane.org/gmane.comp.python.cython.devel/14634
+      https://thread.gmane.org/gmane.comp.python.cython.devel/14762
+      https://thread.gmane.org/gmane.comp.python.cython.devel/14634
 
     Detailed discussion of the difference between numpy/cython's current
     definition of "contiguity", and the correct definition:
-      http://thread.gmane.org/gmane.comp.python.cython.devel/14634/focus=14640
+      https://thread.gmane.org/gmane.comp.python.cython.devel/14634/focus=14640
 
     The PR implementing NPY_RELAXED_STRIDES_CHECKING:
       https://github.com/numpy/numpy/pull/3162

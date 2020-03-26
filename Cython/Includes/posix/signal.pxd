@@ -31,6 +31,11 @@ cdef extern from "<signal.h>" nogil:
         sigset_t sa_mask
         int      sa_flags
 
+    ctypedef struct stack_t:
+        void  *ss_sp
+        int ss_flags
+        size_t ss_size
+
     enum: SA_NOCLDSTOP
     enum: SIG_BLOCK
     enum: SIG_UNBLOCK
@@ -63,4 +68,6 @@ cdef extern from "<signal.h>" nogil:
     int          sigdelset     (sigset_t *, int)
     int          sigemptyset   (sigset_t *)
     int          sigfillset    (sigset_t *)
-    int          sigismember   (const sigset_t *)
+    int          sigismember   (const sigset_t *, int)
+
+    int sigaltstack(const stack_t *, stack_t *)

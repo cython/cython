@@ -8,5 +8,5 @@ def unbound_inside_generator(*args):
         x = i + i
 
 _ERRORS = """
-7:15: local variable 'x' might be referenced before assignment
+7:14: local variable 'x' might be referenced before assignment
 """

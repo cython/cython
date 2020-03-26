@@ -14,7 +14,7 @@ class CountAllocDealloc {
 
 template<typename T>
 struct FreePtr {
-  void operator()( T * t ) noexcept
+  void operator()( T * t )
   {
     if(t != nullptr) {
       delete t;

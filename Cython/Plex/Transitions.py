@@ -1,9 +1,8 @@
-#
-# Plex - Transition Maps
-#
-# This version represents state sets directly as dicts for speed.
-#
+"""
+Plex - Transition Maps
 
+This version represents state sets directly as dicts for speed.
+"""
 from __future__ import absolute_import
 
 try:
@@ -50,7 +49,6 @@ class TransitionMap(object):
             special = {}
         self.map = map
         self.special = special
-        #self.check() ###
 
     def add(self, event, new_state,
             TupleType=tuple):
@@ -84,12 +82,11 @@ class TransitionMap(object):
         else:
             self.get_special(event).update(new_set)
 
-    def get_epsilon(self,
-                    none=None):
+    def get_epsilon(self):
         """
         Return the mapping for epsilon, or None.
         """
-        return self.special.get('', none)
+        return self.special.get('')
 
     def iteritems(self,
                   len=len):
@@ -132,6 +129,7 @@ class TransitionMap(object):
         # Special case: code == map[-1]
         if code == maxint:
             return hi
+
         # General case
         lo = 0
         # loop invariant: map[lo] <= code < map[hi] and hi - lo >= 2
@@ -147,7 +145,6 @@ class TransitionMap(object):
             return lo
         else:
             map[hi:hi] = [code, map[hi - 1].copy()]
-            #self.check() ###
             return hi
 
     def get_special(self, event):
@@ -242,10 +239,6 @@ class TransitionMap(object):
 #
 #   State set manipulation functions
 #
-
-#def merge_state_sets(set1, set2):
-#        for state in set2.keys():
-#            set1[state] = 1
 
 def state_set_str(set):
     return "[%s]" % ','.join(["S%d" % state.number for state in set])

@@ -22,7 +22,8 @@ cdef extern from "<sys/types.h>":
     ctypedef long nlink_t
     ctypedef long off_t
     ctypedef long pid_t
-    ctypedef long sigset_t
+    ctypedef struct sigset_t:
+        pass
     ctypedef long suseconds_t
     ctypedef long time_t
     ctypedef long timer_t

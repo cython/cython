@@ -46,3 +46,15 @@ static void __Pyx_CppExn2PyErr() {
   }
 }
 #endif
+
+/////////////// PythranConversion.proto ///////////////
+
+template <class T>
+auto __Pyx_pythran_to_python(T &&value) -> decltype(to_python(
+      typename pythonic::returnable<typename std::remove_cv<typename std::remove_reference<T>::type>::type>::type{std::forward<T>(value)}))
+{
+  using returnable_type = typename pythonic::returnable<typename std::remove_cv<typename std::remove_reference<T>::type>::type>::type;
+  return to_python(returnable_type{std::forward<T>(value)});
+}
+
+#define __Pyx_PythranShapeAccessor(x) (x.shape().array())

@@ -19,13 +19,17 @@ cdef func(const int a, const int* b, const (int*) c, const S s, int *const d,
     d = NULL
     t = &s
 
+cdef volatile object v
+
+
 _ERRORS = """
-3:5: Const base type cannot be a Python object
+3:5: Const/volatile base type cannot be a Python object
 8:5: Assignment to const 'x'
-15:6: Assignment to const 'a'
-16:6: Assignment to const 'c'
+15:4: Assignment to const 'a'
+16:4: Assignment to const 'c'
 17:5: Assignment to const dereference
 18:5: Assignment to const attribute 'member'
-19:6: Assignment to const 'd'
-20:6: Assignment to const 't'
+19:4: Assignment to const 'd'
+20:4: Assignment to const 't'
+22:5: Const/volatile base type cannot be a Python object
 """

@@ -1,0 +1,56 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import a"
+PYTHON -c "import b"
+
+######## setup.py ########
+
+from Cython.Build import cythonize
+from distutils.core import setup
+
+setup(
+    ext_modules = cythonize("*.pyx"),
+)
+
+######## a.pxd ########
+# cython: preliminary_late_includes_cy28=True
+
+cdef extern from "a_early.h":
+  ctypedef int my_int
+
+cdef extern from "a_late.h":
+    my_int square_value_plus_one()
+
+cdef my_int my_value "my_value"
+
+cdef my_int square "square"(my_int x)
+
+######## a.pyx ########
+
+my_value = 10
+
+cdef my_int square "square"(my_int x):
+    return x * x
+
+assert square_value_plus_one() == 101
+
+# Square must be explicitly used for its proto to be generated.
+cdef my_int use_square(x):
+  return square(x)
+
+######## a_early.h ########
+
+typedef int my_int;
+
+######## a_late.h ########
+
+static my_int square_value_plus_one() {
+  return square(my_value) + 1;
+}
+
+######## b.pyx ########
+
+cimport a
+
+# Likewise, a.square must be explicitly used.
+assert a.square(a.my_value) + 1 == 101
+assert a.square_value_plus_one() == 101

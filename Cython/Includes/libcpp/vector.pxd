@@ -5,7 +5,7 @@ cdef extern from "<vector>" namespace "std" nogil:
 
         # these should really be allocator_type.size_type and
         # allocator_type.difference_type to be true to the C++ definition
-        # but cython doesn't support defered access on template arguments
+        # but cython doesn't support deferred access on template arguments
         ctypedef size_t size_type
         ctypedef ptrdiff_t difference_type
 
@@ -24,10 +24,11 @@ cdef extern from "<vector>" namespace "std" nogil:
             bint operator>=(iterator)
         cppclass reverse_iterator:
             T& operator*()
-            iterator operator++()
-            iterator operator--()
-            iterator operator+(size_type)
-            iterator operator-(size_type)
+            reverse_iterator operator++()
+            reverse_iterator operator--()
+            reverse_iterator operator+(size_type)
+            reverse_iterator operator-(size_type)
+            difference_type operator-(reverse_iterator)
             bint operator==(reverse_iterator)
             bint operator!=(reverse_iterator)
             bint operator<(reverse_iterator)
@@ -83,4 +84,5 @@ cdef extern from "<vector>" namespace "std" nogil:
 
         # C++11 methods
         T* data()
+        const T* const_data "data"()
         void shrink_to_fit()

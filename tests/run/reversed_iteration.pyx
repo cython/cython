@@ -308,9 +308,9 @@ def reversed_range_step3_neg_py_args(a, b):
 
 def reversed_range_step3_py_obj_left(a, int b):
     """
-    >>> reversed_range_step3_py_obj_left(set(), 0)
+    >>> reversed_range_step3_py_obj_left(set(), 0)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: an integer is required
+    TypeError: ...int...
     """
     cdef long i
     result = []
@@ -319,9 +319,9 @@ def reversed_range_step3_py_obj_left(a, int b):
 
 def reversed_range_step3_py_obj_right(int a, b):
     """
-    >>> reversed_range_step3_py_obj_right(0, set())
+    >>> reversed_range_step3_py_obj_right(0, set())  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: an integer is required
+    TypeError: ...int...
     """
     cdef long i
     result = []
@@ -330,9 +330,9 @@ def reversed_range_step3_py_obj_right(int a, b):
 
 def reversed_range_step3_neg_py_obj_left(a, int b):
     """
-    >>> reversed_range_step3_neg_py_obj_left(set(), 0)
+    >>> reversed_range_step3_neg_py_obj_left(set(), 0)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: an integer is required
+    TypeError: ...int...
     """
     cdef long i
     result = []
@@ -341,9 +341,9 @@ def reversed_range_step3_neg_py_obj_left(a, int b):
 
 def reversed_range_step3_neg_py_obj_right(int a, b):
     """
-    >>> reversed_range_step3_py_obj_right(0, set())
+    >>> reversed_range_step3_py_obj_right(0, set())  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: an integer is required
+    TypeError: ...int...
     """
     cdef long i
     result = []

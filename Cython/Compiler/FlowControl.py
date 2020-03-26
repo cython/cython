@@ -1,16 +1,16 @@
+# cython: language_level=3str
+
 from __future__ import absolute_import
 
 import cython
 cython.declare(PyrexTypes=object, ExprNodes=object, Nodes=object,
                Builtin=object, InternalError=object, error=object, warning=object,
-               py_object_type=object, unspecified_type=object,
-               object_expr=object, fake_rhs_expr=object, TypedExprNode=object)
+               fake_rhs_expr=object, TypedExprNode=object)
 
 from . import Builtin
 from . import ExprNodes
 from . import Nodes
 from . import Options
-from .PyrexTypes import py_object_type, unspecified_type
 from . import PyrexTypes
 
 from .Visitor import TreeVisitor, CythonTransform
@@ -28,9 +28,8 @@ class TypedExprNode(ExprNodes.ExprNode):
     def may_be_none(self):
         return self._may_be_none != False
 
-object_expr = TypedExprNode(py_object_type, may_be_none=True)
 # Fake rhs to silence "unused variable" warning
-fake_rhs_expr = TypedExprNode(unspecified_type)
+fake_rhs_expr = TypedExprNode(PyrexTypes.unspecified_type)
 
 
 class ControlBlock(object):
@@ -341,14 +340,6 @@ class NameAssignment(object):
             return self.entry.type
         return self.inferred_type
 
-    def __getstate__(self):
-        return (self.lhs, self.rhs, self.entry, self.pos,
-                self.refs, self.is_arg, self.is_deletion, self.inferred_type)
-
-    def __setstate__(self, state):
-        (self.lhs, self.rhs, self.entry, self.pos,
-         self.refs, self.is_arg, self.is_deletion, self.inferred_type) = state
-
 
 class StaticAssignment(NameAssignment):
     """Initialised at declaration time, e.g. stack allocation."""
@@ -381,9 +372,9 @@ class NameDeletion(NameAssignment):
 
     def infer_type(self):
         inferred_type = self.rhs.infer_type(self.entry.scope)
-        if (not inferred_type.is_pyobject and
-            inferred_type.can_coerce_to_pyobject(self.entry.scope)):
-            return py_object_type
+        if (not inferred_type.is_pyobject
+                and inferred_type.can_coerce_to_pyobject(self.entry.scope)):
+            return PyrexTypes.py_object_type
         self.inferred_type = inferred_type
         return inferred_type
 
@@ -682,7 +673,8 @@ class AssignmentCollector(TreeVisitor):
 class ControlFlowAnalysis(CythonTransform):
 
     def visit_ModuleNode(self, node):
-        self.gv_ctx = GVContext()
+        dot_output = self.current_directives['control_flow.dot_output']
+        self.gv_ctx = GVContext() if dot_output else None
         self.constant_folder = ConstantFolding()
 
         # Set of NameNode reductions
@@ -693,18 +685,15 @@ class ControlFlowAnalysis(CythonTransform):
         self.env = node.scope
         self.stack = []
         self.flow = ControlFlow()
+        self.object_expr = TypedExprNode(PyrexTypes.py_object_type, may_be_none=True)
         self.visitchildren(node)
 
         check_definitions(self.flow, self.current_directives)
 
-        dot_output = self.current_directives['control_flow.dot_output']
         if dot_output:
             annotate_defs = self.current_directives['control_flow.dot_annotate_defs']
-            fp = open(dot_output, 'wt')
-            try:
+            with open(dot_output, 'wt') as fp:
                 self.gv_ctx.render(fp, 'module', annotate_defs=annotate_defs)
-            finally:
-                fp.close()
         return node
 
     def visit_FuncDefNode(self, node):
@@ -752,7 +741,8 @@ class ControlFlowAnalysis(CythonTransform):
         check_definitions(self.flow, self.current_directives)
         self.flow.blocks.add(self.flow.entry_point)
 
-        self.gv_ctx.add(GV(node.local_scope.name, self.flow))
+        if self.gv_ctx is not None:
+            self.gv_ctx.add(GV(node.local_scope.name, self.flow))
 
         self.flow = self.stack.pop()
         self.env = self.env_stack.pop()
@@ -777,7 +767,7 @@ class ControlFlowAnalysis(CythonTransform):
             self.flow.nextblock()
 
         if not rhs:
-            rhs = object_expr
+            rhs = self.object_expr
         if lhs.is_name:
             if lhs.entry is not None:
                 entry = lhs.entry
@@ -1308,6 +1298,8 @@ class ControlFlowAnalysis(CythonTransform):
         self.env_stack.append(self.env)
         self.env = node.scope
         self.flow.nextblock()
+        if node.doc_node:
+            self.flow.mark_assignment(node.doc_node, fake_rhs_expr, node.doc_node.entry)
         self.visitchildren(node, ('body',))
         self.flow.nextblock()
         self.env = self.env_stack.pop()

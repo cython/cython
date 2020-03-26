@@ -28,10 +28,10 @@ cdef int g(int x) nogil:
         y = x + 42
         return y
 
-cdef int with_gil_func() except 0 with gil:
+cdef int with_gil_func() except -1 with gil:
     raise Exception("error!")
 
-cdef int nogil_func() nogil except 0:
+cdef int nogil_func() nogil except -1:
     with_gil_func()
 
 def test_nogil_exception_propagation():
@@ -53,6 +53,7 @@ cdef int write_unraisable() nogil:
 def test_unraisable():
     """
     >>> print(test_unraisable())  # doctest: +ELLIPSIS
+    ValueError
     Exception...ignored...
     """
     import sys

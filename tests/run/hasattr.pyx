@@ -9,6 +9,10 @@ class Foo:
     def baz(self):
         return int(1)/int(0)
 
+
+unicode_foo = u"foo"
+
+
 def wrap_hasattr(obj, name):
     """
     >>> wrap_hasattr(None, "abc")
@@ -16,6 +20,8 @@ def wrap_hasattr(obj, name):
     >>> wrap_hasattr(list, "append")
     True
     >>> wrap_hasattr(Foo(), "foo")
+    True
+    >>> wrap_hasattr(Foo(), unicode_foo)
     True
     >>> wrap_hasattr(Foo(), "spam")
     False
@@ -27,5 +33,9 @@ def wrap_hasattr(obj, name):
     ZeroDivisionError: ...
     >>> wrap_hasattr(Foo(), "baz")
     False
+    >>> hasattr(Foo(), None)   #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+       ...
+    TypeError: hasattr(): attribute name must be string
     """
     return hasattr(obj, name)

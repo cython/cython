@@ -1,5 +1,7 @@
 ;;; cython-mode.el --- Major mode for editing Cython files
 
+;; License: Apache-2.0
+
 ;;; Commentary:
 
 ;; This should work with python-mode.el as well as either the new
@@ -52,7 +54,7 @@
        symbol-start (group "ctypedef")
        ;; type specifier: at least 1 non-identifier symbol + 1 identifier
        ;; symbol and anything but a comment-starter after that.
-       (opt (regexp "[^a-zA-z0-9_\n]+[a-zA-Z0-9_][^#\n]*")
+       (opt (regexp "[^a-zA-Z0-9_\n]+[a-zA-Z0-9_][^#\n]*")
             ;; type alias: an identifier
             symbol-start (group (regexp "[a-zA-Z_]+[a-zA-Z0-9_]*"))
             ;; space-or-comments till the end of the line
@@ -101,7 +103,7 @@
 (defgroup cython nil "Major mode for editing and compiling Cython files"
   :group 'languages
   :prefix "cython-"
-  :link '(url-link :tag "Homepage" "http://cython.org"))
+  :link '(url-link :tag "Homepage" "https://cython.org/"))
 
 ;;;###autoload
 (defcustom cython-default-compile-format "cython -a %s"
@@ -289,7 +291,7 @@ Finds end of innermost nested class or method definition."
   (set (make-local-variable 'end-of-defun-function)
        #'cython-end-of-defun)
   (set (make-local-variable 'compile-command)
-       (format cython-default-compile-format (shell-quote-argument buffer-file-name)))
+       (format cython-default-compile-format (shell-quote-argument (or buffer-file-name ""))))
   (set (make-local-variable 'add-log-current-defun-function)
        #'cython-current-defun)
   (add-hook 'which-func-functions #'cython-current-defun nil t)

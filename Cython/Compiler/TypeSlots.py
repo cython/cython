@@ -9,8 +9,12 @@ from . import Naming
 from . import PyrexTypes
 from .Errors import error
 
+import copy
+
 invisible = ['__cinit__', '__dealloc__', '__richcmp__',
              '__nonzero__', '__bool__']
+
+richcmp_special_methods = ['__eq__', '__ne__', '__lt__', '__gt__', '__le__', '__ge__']
 
 
 class Signature(object):
@@ -21,6 +25,7 @@ class Signature(object):
     #  fixed_arg_format   string
     #  ret_format         string
     #  error_value        string
+    #  use_fastcall       boolean
     #
     #  The formats are strings made up of the following
     #  characters:
@@ -84,20 +89,24 @@ class Signature(object):
         'z': "-1",
     }
 
-    def __init__(self, arg_format, ret_format):
-        self.has_dummy_arg = 0
-        self.has_generic_args = 0
+    # Use METH_FASTCALL instead of METH_VARARGS
+    use_fastcall = False
+
+    def __init__(self, arg_format, ret_format, nogil=False):
+        self.has_dummy_arg = False
+        self.has_generic_args = False
         if arg_format[:1] == '-':
-            self.has_dummy_arg = 1
+            self.has_dummy_arg = True
             arg_format = arg_format[1:]
         if arg_format[-1:] == '*':
-            self.has_generic_args = 1
+            self.has_generic_args = True
             arg_format = arg_format[:-1]
         self.fixed_arg_format = arg_format
         self.ret_format = ret_format
         self.error_value = self.error_value_map.get(ret_format, None)
         self.exception_check = ret_format != 'r' and self.error_value is not None
         self.is_staticmethod = False
+        self.nogil = nogil
 
     def __repr__(self):
         return '<Signature[%s(%s%s)]>' % (
@@ -147,7 +156,8 @@ class Signature(object):
         exc_value = self.exception_value()
         return PyrexTypes.CFuncType(
             ret_type, args, exception_value=exc_value,
-            exception_check=self.exception_check)
+            exception_check=self.exception_check,
+            nogil=self.nogil)
 
     def method_flags(self):
         if self.ret_format == "O":
@@ -155,16 +165,49 @@ class Signature(object):
             if self.has_dummy_arg:
                 full_args = "O" + full_args
             if full_args in ["O", "T"]:
-                if self.has_generic_args:
-                    return [method_varargs, method_keywords]
-                else:
+                if not self.has_generic_args:
                     return [method_noargs]
+                elif self.use_fastcall:
+                    return [method_fastcall, method_keywords]
+                else:
+                    return [method_varargs, method_keywords]
             elif full_args in ["OO", "TO"] and not self.has_generic_args:
                 return [method_onearg]
 
             if self.is_staticmethod:
-                return [method_varargs, method_keywords]
+                if self.use_fastcall:
+                    return [method_fastcall, method_keywords]
+                else:
+                    return [method_varargs, method_keywords]
         return None
+
+    def method_function_type(self):
+        # Return the C function type
+        mflags = self.method_flags()
+        kw = "WithKeywords" if (method_keywords in mflags) else ""
+        for m in mflags:
+            if m == method_noargs or m == method_onearg:
+                return "PyCFunction"
+            if m == method_varargs:
+                return "PyCFunction" + kw
+            if m == method_fastcall:
+                return "__Pyx_PyCFunction_FastCall" + kw
+        return None
+
+    def with_fastcall(self):
+        # Return a copy of this Signature with use_fastcall=True
+        sig = copy.copy(self)
+        sig.use_fastcall = True
+        return sig
+
+    @property
+    def fastvar(self):
+        # Used to select variants of functions, one dealing with METH_VARARGS
+        # and one dealing with __Pyx_METH_FASTCALL
+        if self.use_fastcall:
+            return "FASTCALL"
+        else:
+            return "VARARGS"
 
 
 class SlotDescriptor(object):
@@ -199,7 +242,15 @@ class SlotDescriptor(object):
             guard = ("#if PY_MAJOR_VERSION >= 3")
         return guard
 
-    def generate(self, scope, code):
+    def spec_slot_value(self, scope):
+        if self.is_initialised_dynamically:
+            return None
+        result = self.slot_code(scope)
+        if result == "0":
+            return None
+        return result
+
+    def generate(self, scope, code, spec=False):
         preprocessor_guard = self.preprocessor_guard_code()
         if preprocessor_guard:
             code.putln(preprocessor_guard)
@@ -228,7 +279,11 @@ class SlotDescriptor(object):
                     code.putln("#else")
                     end_pypy_guard = True
 
-        code.putln("%s, /*%s*/" % (value, self.slot_name))
+        if spec:
+            if value != "0":
+                code.putln("{Py_%s, (void *)%s}," % (self.slot_name, value))
+        else:
+            code.putln("%s, /*%s*/" % (value, self.slot_name))
 
         if end_pypy_guard:
             code.putln("#endif")
@@ -246,14 +301,17 @@ class SlotDescriptor(object):
 
     def generate_dynamic_init_code(self, scope, code):
         if self.is_initialised_dynamically:
-            value = self.slot_code(scope)
-            if value != "0":
-                code.putln("%s.%s = %s;" % (
-                    scope.parent_type.typeobj_cname,
-                    self.slot_name,
-                    value
-                    )
-                )
+            self.generate_set_slot_code(
+                self.slot_code(scope), scope, code)
+
+    def generate_set_slot_code(self, value, scope, code):
+        if value == "0":
+            return
+        code.putln("%s.%s = %s;" % (
+            scope.parent_type.typeobj_cname,
+            self.slot_name,
+            value,
+        ))
 
 
 class FixedSlot(SlotDescriptor):
@@ -303,11 +361,11 @@ class MethodSlot(SlotDescriptor):
 
     def slot_code(self, scope):
         entry = scope.lookup_here(self.method_name)
-        if entry and entry.func_cname:
+        if entry and entry.is_special and entry.func_cname:
             return entry.func_cname
         for method_name in self.alternatives:
             entry = scope.lookup_here(method_name)
-            if entry and entry.func_cname:
+            if entry and entry.is_special and entry.func_cname:
                 return entry.func_cname
         return "0"
 
@@ -358,26 +416,53 @@ class GCClearReferencesSlot(GCDependentSlot):
 class ConstructorSlot(InternalMethodSlot):
     #  Descriptor for tp_new and tp_dealloc.
 
-    def __init__(self, slot_name, method, **kargs):
+    def __init__(self, slot_name, method=None, **kargs):
         InternalMethodSlot.__init__(self, slot_name, **kargs)
         self.method = method
 
-    def slot_code(self, scope):
-        if (self.slot_name != 'tp_new'
-                and scope.parent_type.base_type
+    def _needs_own(self, scope):
+        if (scope.parent_type.base_type
                 and not scope.has_pyobject_attrs
                 and not scope.has_memoryview_attrs
                 and not scope.has_cpp_class_attrs
-                and not scope.lookup_here(self.method)):
+                and not (self.slot_name == 'tp_new' and scope.parent_type.vtabslot_cname)):
+            entry = scope.lookup_here(self.method) if self.method else None
+            if not (entry and entry.is_special):
+                return False
+        # Unless we can safely delegate to the parent, all types need a tp_new().
+        return True
+
+    def _parent_slot_function(self, scope):
+        parent_type_scope = scope.parent_type.base_type.scope
+        if scope.parent_scope is parent_type_scope.parent_scope:
+            entry = scope.parent_scope.lookup_here(scope.parent_type.base_type.name)
+            if entry.visibility != 'extern':
+                return self.slot_code(parent_type_scope)
+        return None
+
+    def slot_code(self, scope):
+        if not self._needs_own(scope):
             # if the type does not have object attributes, it can
             # delegate GC methods to its parent - iff the parent
             # functions are defined in the same module
-            parent_type_scope = scope.parent_type.base_type.scope
-            if scope.parent_scope is parent_type_scope.parent_scope:
-                entry = scope.parent_scope.lookup_here(scope.parent_type.base_type.name)
-                if entry.visibility != 'extern':
-                    return self.slot_code(parent_type_scope)
+            slot_code = self._parent_slot_function(scope)
+            return slot_code or '0'
         return InternalMethodSlot.slot_code(self, scope)
+
+    def generate_dynamic_init_code(self, scope, code):
+        if self.slot_code(scope) != '0':
+            return
+        # If we don't have our own slot function and don't know the
+        # parent function statically, copy it dynamically.
+        base_type = scope.parent_type.base_type
+        if base_type.is_extension_type and base_type.typeobj_cname:
+            src = '%s.%s' % (base_type.typeobj_cname, self.slot_name)
+        elif base_type.typeptr_cname:
+            src = '%s->%s' % (base_type.typeptr_cname, self.slot_name)
+        else:
+            return
+
+        self.generate_set_slot_code(src, scope, code)
 
 
 class SyntheticSlot(InternalMethodSlot):
@@ -394,10 +479,21 @@ class SyntheticSlot(InternalMethodSlot):
         self.default_value = default_value
 
     def slot_code(self, scope):
-        if scope.defines_any(self.user_methods):
+        if scope.defines_any_special(self.user_methods):
             return InternalMethodSlot.slot_code(self, scope)
         else:
             return self.default_value
+
+
+class RichcmpSlot(MethodSlot):
+    def slot_code(self, scope):
+        entry = scope.lookup_here(self.method_name)
+        if entry and entry.is_special and entry.func_cname:
+            return entry.func_cname
+        elif scope.defines_any_special(richcmp_special_methods):
+            return scope.mangle_internal(self.slot_name)
+        else:
+            return "0"
 
 
 class TypeFlagsSlot(SlotDescriptor):
@@ -428,7 +524,7 @@ class DocStringSlot(SlotDescriptor):
             return "0"
         if doc.is_unicode:
             doc = doc.as_utf8_string()
-        return doc.as_c_string_literal()
+        return "PyDoc_STR(%s)" % doc.as_c_string_literal()
 
 
 class SuiteSlot(SlotDescriptor):
@@ -471,6 +567,11 @@ class SuiteSlot(SlotDescriptor):
             if self.ifdef:
                 code.putln("#endif")
 
+    def generate_substructure_spec(self, scope, code):
+        if not self.is_empty(scope):
+            for slot in self.sub_slots:
+                slot.generate(scope, code, spec=True)
+
 substructures = []   # List of all SuiteSlot instances
 
 class MethodTableSlot(SlotDescriptor):
@@ -504,7 +605,7 @@ class BaseClassSlot(SlotDescriptor):
     #  Slot descriptor for the base class slot.
 
     def __init__(self, name):
-        SlotDescriptor.__init__(self, name, dynamic = 1)
+        SlotDescriptor.__init__(self, name, dynamic=True)
 
     def generate_dynamic_init_code(self, scope, code):
         base_type = scope.parent_type.base_type
@@ -519,7 +620,7 @@ class DictOffsetSlot(SlotDescriptor):
     #  Slot descriptor for a class' dict offset, for dynamic attributes.
 
     def slot_code(self, scope):
-        dict_entry = scope.lookup_here("__dict__")
+        dict_entry = scope.lookup_here("__dict__") if not scope.is_closure_class_scope else None
         if dict_entry and dict_entry.is_variable:
             if getattr(dict_entry.type, 'cname', None) != 'PyDict_Type':
                 error(dict_entry.pos, "__dict__ slot must be of type 'dict'")
@@ -559,6 +660,8 @@ def get_special_method_signature(name):
     slot = method_name_to_slot.get(name)
     if slot:
         return slot.signature
+    elif name in richcmp_special_methods:
+        return ibinaryfunc
     else:
         return None
 
@@ -593,6 +696,20 @@ def get_slot_function(scope, slot):
         if entry.visibility != 'extern':
             return slot_code
     return None
+
+
+def get_slot_by_name(slot_name):
+    # For now, only search the type struct, no referenced sub-structs.
+    for slot in slot_table:
+        if slot.slot_name == slot_name:
+            return slot
+    assert False, "Slot not found: %s" % slot_name
+
+
+def get_slot_code_by_name(scope, slot_name):
+    slot = get_slot_by_name(slot_name)
+    return slot.slot_code(scope)
+
 
 #------------------------------------------------------------------------------------------
 #
@@ -660,8 +777,7 @@ delattrofunc = Signature("TO", 'r')
 cmpfunc = Signature("TO", "i")             # typedef int (*cmpfunc)(PyObject *, PyObject *);
 reprfunc = Signature("T", "O")             # typedef PyObject *(*reprfunc)(PyObject *);
 hashfunc = Signature("T", "h")             # typedef Py_hash_t (*hashfunc)(PyObject *);
-                                           # typedef PyObject *(*richcmpfunc) (PyObject *, PyObject *, int);
-richcmpfunc = Signature("OOi", "O")        # typedef PyObject *(*richcmpfunc) (PyObject *, PyObject *, int);
+richcmpfunc = Signature("TOi", "O")        # typedef PyObject *(*richcmpfunc) (PyObject *, PyObject *, int);
 getiterfunc = Signature("T", "O")          # typedef PyObject *(*getiterfunc) (PyObject *);
 iternextfunc = Signature("T", "O")         # typedef PyObject *(*iternextfunc) (PyObject *);
 descrgetfunc = Signature("TOO", "O")       # typedef PyObject *(*descrgetfunc) (PyObject *, PyObject *, PyObject *);
@@ -794,7 +910,8 @@ PyAsyncMethods = (
 
 slot_table = (
     ConstructorSlot("tp_dealloc", '__dealloc__'),
-    EmptySlot("tp_print"), #MethodSlot(printfunc, "tp_print", "__print__"),
+    EmptySlot("tp_print", ifdef="PY_VERSION_HEX < 0x030800b4"),
+    EmptySlot("tp_vectorcall_offset", ifdef="PY_VERSION_HEX >= 0x030800b4"),
     EmptySlot("tp_getattr"),
     EmptySlot("tp_setattr"),
 
@@ -823,8 +940,7 @@ slot_table = (
     GCDependentSlot("tp_traverse"),
     GCClearReferencesSlot("tp_clear"),
 
-    # Later -- synthesize a method to split into separate ops?
-    MethodSlot(richcmpfunc, "tp_richcompare", "__richcmp__", inherited=False),  # Py3 checks for __hash__
+    RichcmpSlot(richcmpfunc, "tp_richcompare", "__richcmp__", inherited=False),  # Py3 checks for __hash__
 
     EmptySlot("tp_weaklistoffset"),
 
@@ -845,7 +961,7 @@ slot_table = (
 
     MethodSlot(initproc, "tp_init", "__init__"),
     EmptySlot("tp_alloc"), #FixedSlot("tp_alloc", "PyType_GenericAlloc"),
-    InternalMethodSlot("tp_new"),
+    ConstructorSlot("tp_new", "__cinit__"),
     EmptySlot("tp_free"),
 
     EmptySlot("tp_is_gc"),
@@ -857,6 +973,8 @@ slot_table = (
     EmptySlot("tp_del"),
     EmptySlot("tp_version_tag"),
     EmptySlot("tp_finalize", ifdef="PY_VERSION_HEX >= 0x030400a1"),
+    EmptySlot("tp_vectorcall", ifdef="PY_VERSION_HEX >= 0x030800b1"),
+    EmptySlot("tp_print", ifdef="PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000"),
 )
 
 #------------------------------------------------------------------------------------------
@@ -874,6 +992,7 @@ MethodSlot(objargproc, "", "__delitem__")
 MethodSlot(ssizessizeobjargproc, "", "__setslice__")
 MethodSlot(ssizessizeargproc, "", "__delslice__")
 MethodSlot(getattrofunc, "", "__getattr__")
+MethodSlot(getattrofunc, "", "__getattribute__")
 MethodSlot(setattrofunc, "", "__setattr__")
 MethodSlot(delattrofunc, "", "__delattr__")
 MethodSlot(descrgetfunc, "", "__get__")
@@ -886,5 +1005,6 @@ MethodSlot(descrdelfunc, "", "__delete__")
 method_noargs   = "METH_NOARGS"
 method_onearg   = "METH_O"
 method_varargs  = "METH_VARARGS"
+method_fastcall = "__Pyx_METH_FASTCALL"  # Actually VARARGS on versions < 3.7
 method_keywords = "METH_KEYWORDS"
 method_coexist  = "METH_COEXIST"

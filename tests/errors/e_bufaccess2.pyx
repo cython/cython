@@ -32,5 +32,5 @@ _ERRORS = u"""
  3: 9: 'nothing' is not a type identifier
 24:11: Cannot access buffer with object dtype without gil
 24:11: Assignment of Python object not allowed without gil
-29:12: Assignment of Python object not allowed without gil
+29:8: Assignment of Python object not allowed without gil
 """

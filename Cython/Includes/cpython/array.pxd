@@ -59,7 +59,7 @@ cdef extern from *:  # Hard-coded utility code hack.
     ctypedef object GETF(array a, Py_ssize_t ix)
     ctypedef object SETF(array a, Py_ssize_t ix, object o)
     ctypedef struct arraydescr:  # [object arraydescr]:
-            int typecode
+            char typecode
             int itemsize
             GETF getitem    # PyObject * (*getitem)(struct arrayobject *, Py_ssize_t);
             SETF setitem    # int (*setitem)(struct arrayobject *, Py_ssize_t, PyObject *);
@@ -75,6 +75,8 @@ cdef extern from *:  # Hard-coded utility code hack.
         char *as_chars
         unsigned long *as_ulongs
         long *as_longs
+        unsigned long long *as_ulonglongs
+        long long *as_longlongs
         short *as_shorts
         unsigned short *as_ushorts
         Py_UNICODE *as_pyunicodes
@@ -90,7 +92,7 @@ cdef extern from *:  # Hard-coded utility code hack.
 
         def __getbuffer__(self, Py_buffer* info, int flags):
             # This implementation of getbuffer is geared towards Cython
-            # requirements, and does not yet fullfill the PEP.
+            # requirements, and does not yet fulfill the PEP.
             # In particular strided access is always provided regardless
             # of flags
             item_count = Py_SIZE(self)
@@ -141,7 +143,7 @@ cdef inline array copy(array self):
     return op
 
 cdef inline int extend_buffer(array self, char* stuff, Py_ssize_t n) except -1:
-    """ efficent appending of new stuff of same type
+    """ efficient appending of new stuff of same type
     (e.g. of same array type)
     n: number of elements (not number of bytes!) """
     cdef Py_ssize_t itemsize = self.ob_descr.itemsize

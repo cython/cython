@@ -250,8 +250,7 @@ class MarkParallelAssignments(EnvTransform):
 
     def visit_YieldExprNode(self, node):
         if self.parallel_block_stack:
-            error(node.pos, "Yield not allowed in parallel sections")
-
+            error(node.pos, "'%s' not allowed in parallel sections" % node.expr_keyword)
         return node
 
     def visit_ReturnStatNode(self, node):
@@ -306,6 +305,13 @@ class MarkOverflowingArithmetic(CythonTransform):
             return self.visit_neutral_node(node)
         else:
             return self.visit_dangerous_node(node)
+
+    def visit_SimpleCallNode(self, node):
+        if node.function.is_name and node.function.name == 'abs':
+          # Overflows for minimum value of fixed size ints.
+          return self.visit_dangerous_node(node)
+        else:
+          return self.visit_neutral_node(node)
 
     visit_UnopNode = visit_neutral_node
 
@@ -372,7 +378,7 @@ class SimpleAssignmentTypeInferer(object):
                     self.set_entry_type(entry, py_object_type)
             return
 
-        # Set of assignemnts
+        # Set of assignments
         assignments = set()
         assmts_resolved = set()
         dependencies = {}
@@ -408,6 +414,24 @@ class SimpleAssignmentTypeInferer(object):
                 return
             entry = node.entry
             return spanning_type(types, entry.might_overflow, entry.pos, scope)
+
+        def inferred_types(entry):
+            has_none = False
+            has_pyobjects = False
+            types = []
+            for assmt in entry.cf_assignments:
+                if assmt.rhs.is_none:
+                    has_none = True
+                else:
+                    rhs_type = assmt.inferred_type
+                    if rhs_type and rhs_type.is_pyobject:
+                        has_pyobjects = True
+                    types.append(rhs_type)
+            # Ignore None assignments as long as there are concrete Python type assignments.
+            # but include them if None is the only assigned Python object.
+            if has_none and not has_pyobjects:
+                types.append(py_object_type)
+            return types
 
         def resolve_assignments(assignments):
             resolved = set()
@@ -461,7 +485,7 @@ class SimpleAssignmentTypeInferer(object):
                 continue
             entry_type = py_object_type
             if assmts_resolved.issuperset(entry.cf_assignments):
-                types = [assmt.inferred_type for assmt in entry.cf_assignments]
+                types = inferred_types(entry)
                 if types and all(types):
                     entry_type = spanning_type(
                         types, entry.might_overflow, entry.pos, scope)
@@ -471,8 +495,9 @@ class SimpleAssignmentTypeInferer(object):
         def reinfer():
             dirty = False
             for entry in inferred:
-                types = [assmt.infer_type()
-                         for assmt in entry.cf_assignments]
+                for assmt in entry.cf_assignments:
+                    assmt.infer_type()
+                types = inferred_types(entry)
                 new_type = spanning_type(types, entry.might_overflow, entry.pos, scope)
                 if new_type != entry.type:
                     self.set_entry_type(entry, new_type)
@@ -508,8 +533,8 @@ def find_spanning_type(type1, type2):
 def simply_type(result_type, pos):
     if result_type.is_reference:
         result_type = result_type.ref_base_type
-    if result_type.is_const:
-        result_type = result_type.const_base_type
+    if result_type.is_cv_qualified:
+        result_type = result_type.cv_base_type
     if result_type.is_cpp_class:
         result_type.check_nullary_constructor(pos)
     if result_type.is_array:
@@ -537,6 +562,8 @@ def safe_spanning_type(types, might_overflow, pos, scope):
     elif result_type is PyrexTypes.c_bint_type:
         # find_spanning_type() only returns 'bint' for clean boolean
         # operations without other int types, so this is safe, too
+        return result_type
+    elif result_type.is_pythran_expr:
         return result_type
     elif result_type.is_ptr:
         # Any pointer except (signed|unsigned|) char* can't implicitly

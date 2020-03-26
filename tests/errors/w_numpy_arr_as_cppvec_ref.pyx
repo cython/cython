@@ -24,8 +24,8 @@ def main():
 
 
 _ERRORS = """
-17:28: Cannot pass Python object as C++ data structure reference (vector[int] &), will pass by copy.
-18:28: Cannot pass Python object as C++ data structure reference (vector[int] &), will pass by copy.
-19:31: Cannot pass Python object as C++ data structure reference (vector[int] &), will pass by copy.
-19:36: Cannot pass Python object as C++ data structure reference (vector[int] &), will pass by copy.
+17:25: Cannot pass Python object as C++ data structure reference (vector[int] &), will pass by copy.
+18:25: Cannot pass Python object as C++ data structure reference (vector[int] &), will pass by copy.
+19:28: Cannot pass Python object as C++ data structure reference (vector[int] &), will pass by copy.
+19:33: Cannot pass Python object as C++ data structure reference (vector[int] &), will pass by copy.
 """

@@ -9,15 +9,21 @@ bottom. Some of these methods behave differently from their Python
 counterparts or have no direct Python counterparts, and require special
 mention.
 
-.. Note: Everything said on this page applies only to extension types, defined
+.. Note::
+
+    Everything said on this page applies only to extension types, defined
     with the :keyword:`cdef class` statement. It doesn't apply to classes defined with the
     Python :keyword:`class` statement, where the normal Python rules apply.
+
+.. _declaration:
 
 Declaration
 ------------
 Special methods of extension types must be declared with :keyword:`def`, not
 :keyword:`cdef`. This does not impact their performance--Python uses different
 calling conventions to invoke these special methods.
+
+.. _docstrings:
 
 Docstrings
 -----------
@@ -28,6 +34,8 @@ won't show up in the corresponding :attr:`__doc__` attribute at run time. (This
 seems to be is a Python limitation -- there's nowhere in the `PyTypeObject`
 data structure to put such docstrings.)
 
+.. _initialisation_methods:
+
 Initialisation methods: :meth:`__cinit__` and :meth:`__init__`
 ---------------------------------------------------------------
 There are two methods concerned with initialising the object.
@@ -35,9 +43,11 @@ There are two methods concerned with initialising the object.
 The :meth:`__cinit__` method is where you should perform basic C-level
 initialisation of the object, including allocation of any C data structures
 that your object will own. You need to be careful what you do in the
-:meth:`__cinit__` method, because the object may not yet be fully valid Python
+:meth:`__cinit__` method, because the object may not yet be a fully valid Python
 object when it is called. Therefore, you should be careful invoking any Python
-operations which might touch the object; in particular, its methods.
+operations which might touch the object; in particular, its methods and anything
+that could be overridden by subtypes (and thus depend on their subtype state being
+initialised already).
 
 By the time your :meth:`__cinit__` method is called, memory has been allocated for the
 object and any C attributes it has have been initialised to 0 or null. (Any
@@ -45,12 +55,13 @@ Python attributes have also been initialised to None, but you probably
 shouldn't rely on that.) Your :meth:`__cinit__` method is guaranteed to be called
 exactly once.
 
-If your extension type has a base type, the :meth:`__cinit__` method of the base type
-is automatically called before your :meth:`__cinit__` method is called; you cannot
-explicitly call the inherited :meth:`__cinit__` method. If you need to pass a modified
-argument list to the base type, you will have to do the relevant part of the
-initialisation in the :meth:`__init__` method instead (where the normal rules for
-calling inherited methods apply).
+If your extension type has a base type, any existing :meth:`__cinit__` methods in
+the base type hierarchy are automatically called before your :meth:`__cinit__`
+method.  You cannot explicitly call the inherited :meth:`__cinit__` methods, and the
+base types are free to choose whether they implement :meth:`__cinit__` at all.
+If you need to pass a modified argument list to the base type, you will have to do
+the relevant part of the initialisation in the :meth:`__init__` method instead, where
+the normal rules for calling inherited methods apply.
 
 Any initialisation which cannot safely be done in the :meth:`__cinit__` method should
 be done in the :meth:`__init__` method. By the time :meth:`__init__` is called, the object is
@@ -71,13 +82,20 @@ your :meth:`__cinit__`` method to take no arguments (other than self) it
 will simply ignore any extra arguments passed to the constructor without
 complaining about the signature mismatch.
 
-.. Note: Older Cython files may use :meth:`__new__` rather than :meth:`__cinit__`. The two are synonyms.
-  The name change from :meth:`__new__` to :meth:`__cinit__` was to avoid
-  confusion with Python :meth:`__new__` (which is an entirely different
-  concept) and eventually the use of :meth:`__new__` in Cython will be
-  disallowed to pave the way for supporting Python-style :meth:`__new__`
+..  Note::
 
-.. [#] http://docs.python.org/reference/datamodel.html#object.__new__
+    All constructor arguments will be passed as Python objects.
+    This implies that non-convertible C types such as pointers or C++ objects
+    cannot be passed into the constructor from Cython code.  If this is needed,
+    use a factory function instead that handles the object initialisation.
+    It often helps to directly call ``__new__()`` in this function to bypass the
+    call to the ``__init__()`` constructor.
+
+    See :ref:`existing-pointers-instantiation` for an example.
+
+.. [#] https://docs.python.org/reference/datamodel.html#object.__new__
+
+.. _finalization_method:
 
 Finalization method: :meth:`__dealloc__`
 ----------------------------------------
@@ -106,6 +124,8 @@ executed unless they are explicitly called by the subclass.
 
 .. Note:: There is no :meth:`__del__` method for extension types.
 
+.. _arithmetic_methods:
+
 Arithmetic methods
 -------------------
 
@@ -124,27 +144,41 @@ This also applies to the in-place arithmetic method :meth:`__ipow__`. It doesn't
 to any of the other in-place methods (:meth:`__iadd__`, etc.) which always
 take `self` as the first argument.
 
+.. _righ_comparisons:
+
 Rich comparisons
 -----------------
 
-There are no separate methods for the individual rich comparison operations
-(:meth:`__eq__`, :meth:`__le__`, etc.) Instead there is a single method
-:meth:`__richcmp__` which takes an integer indicating which operation is to be
-performed, as follows:
+There are two ways to implement comparison methods.
+Depending on the application, one way or the other may be better:
 
-+-----+-----+
-|  <  |  0  |
-+-----+-----+
-| ==  |  2  |
-+-----+-----+
-|  >  |  4  |
-+-----+-----+
-| <=  |  1  |
-+-----+-----+
-| !=  |  3  |
-+-----+-----+
-| >=  |  5  |
-+-----+-----+
+* The first way uses the 6 Python
+  `special methods <https://docs.python.org/3/reference/datamodel.html#basic-customization>`_
+  :meth:`__eq__`, :meth:`__lt__`, etc.
+  This is new since Cython 0.27 and works exactly as in plain Python classes.
+* The second way uses a single special method :meth:`__richcmp__`.
+  This implements all rich comparison operations in one method.
+  The signature is ``def __richcmp__(self, other, int op)``.
+  The integer argument ``op`` indicates which operation is to be performed
+  as shown in the table below:
+
+  +-----+-------+
+  |  <  | Py_LT |
+  +-----+-------+
+  | ==  | Py_EQ |
+  +-----+-------+
+  |  >  | Py_GT |
+  +-----+-------+
+  | <=  | Py_LE |
+  +-----+-------+
+  | !=  | Py_NE |
+  +-----+-------+
+  | >=  | Py_GE |
+  +-----+-------+
+
+  These constants can be cimported from the ``cpython.object`` module.
+
+.. _the__next__method:
 
 The :meth:`__next__` method
 ----------------------------
@@ -153,6 +187,8 @@ Extension types wishing to implement the iterator interface should define a
 method called :meth:`__next__`, not next. The Python system will automatically
 supply a next method which calls your :meth:`__next__`. Do *NOT* explicitly
 give your type a :meth:`next` method, or bad things could happen.
+
+.. _special_methods_table:
 
 Special Method Table
 ---------------------
@@ -168,6 +204,8 @@ declare different types, conversions will be performed as necessary.
 General
 ^^^^^^^
 
+https://docs.python.org/3/reference/datamodel.html#special-method-names
+
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | Name 	                | Parameters                            | Return type | 	Description                                 |
 +=======================+=======================================+=============+=====================================================+
@@ -177,15 +215,13 @@ General
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | __dealloc__           |self 	                                |             | Basic deallocation (no direct Python equivalent)    |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| __cmp__               |x, y 	                                | int         | 3-way comparison                                    |
-+-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| __richcmp__           |x, y, int op                           | object      | Rich comparison (no direct Python equivalent)       |
+| __cmp__               |x, y 	                                | int         | 3-way comparison (Python 2 only)                    |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | __str__               |self 	                                | object      | str(self)                                           |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | __repr__              |self 	                                | object      | repr(self)                                          |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| __hash__              |self 	                                | int         | Hash function                                       |
+| __hash__              |self 	                                | Py_hash_t   | Hash function (returns 32/64 bit integer)           |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | __call__              |self, ...                              | object      | self(...)                                           |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
@@ -200,8 +236,38 @@ General
 | __delattr__           |self, name                             |             | Delete attribute                                    |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 
+Rich comparison operators
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+https://docs.python.org/3/reference/datamodel.html#basic-customization
+
+You can choose to either implement the standard Python special methods
+like :meth:`__eq__` or the single special method :meth:`__richcmp__`.
+Depending on the application, one way or the other may be better.
+
++-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
+| Name 	                | Parameters                            | Return type | 	Description                                    |
++=======================+=======================================+=============+========================================================+
+| __eq__                |self, y                                | object      | self == y                                              |
++-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
+| __ne__                |self, y                                | object      | self != y  (falls back to ``__eq__`` if not available) |
++-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
+| __lt__                |self, y                                | object      | self < y                                               |
++-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
+| __gt__                |self, y                                | object      | self > y                                               |
++-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
+| __le__                |self, y                                | object      | self <= y                                              |
++-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
+| __ge__                |self, y                                | object      | self >= y                                              |
++-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
+| __richcmp__           |self, y, int op                        | object      | Joined rich comparison method for all of the above     |
+|                       |                                       |             | (no direct Python equivalent)                          |
++-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
+
 Arithmetic operators
 ^^^^^^^^^^^^^^^^^^^^
+
+https://docs.python.org/3/reference/datamodel.html#emulating-numeric-types
 
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | Name 	                | Parameters                            | Return type | 	Description                                 |
@@ -248,6 +314,8 @@ Arithmetic operators
 Numeric conversions
 ^^^^^^^^^^^^^^^^^^^
 
+https://docs.python.org/3/reference/datamodel.html#emulating-numeric-types
+
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | Name 	                | Parameters                            | Return type | 	Description                                 |
 +=======================+=======================================+=============+=====================================================+
@@ -266,6 +334,8 @@ Numeric conversions
 
 In-place arithmetic operators
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+https://docs.python.org/3/reference/datamodel.html#emulating-numeric-types
 
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | Name 	                | Parameters                            | Return type | 	Description                                 |
@@ -300,10 +370,12 @@ In-place arithmetic operators
 Sequences and mappings
 ^^^^^^^^^^^^^^^^^^^^^^
 
+https://docs.python.org/3/reference/datamodel.html#emulating-container-types
+
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | Name 	                | Parameters                            | Return type | 	Description                                 |
 +=======================+=======================================+=============+=====================================================+
-| __len__ 	        | self 	int 	                        |             | len(self)                                           |
+| __len__               | self                                  | Py_ssize_t  | len(self)                                           |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | __getitem__ 	        | self, x 	                        | object      | self[x]                                             |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
@@ -322,6 +394,8 @@ Sequences and mappings
 
 Iterators
 ^^^^^^^^^
+
+https://docs.python.org/3/reference/datamodel.html#emulating-container-types
 
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | Name 	                | Parameters                            | Return type | 	Description                                 |
@@ -357,6 +431,8 @@ Buffer interface [legacy] (no Python equivalents - see note 1)
 
 Descriptor objects (see note 2)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+https://docs.python.org/3/reference/datamodel.html#emulating-container-types
 
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | Name 	                | Parameters                            | Return type | 	Description                                 |

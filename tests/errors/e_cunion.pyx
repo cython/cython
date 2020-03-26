@@ -25,5 +25,5 @@ def convert_nok():
 
 
 _ERRORS = """
-24:12: Cannot convert 'IllegalMix' to Python object
+24:11: Cannot convert 'IllegalMix' to Python object
 """

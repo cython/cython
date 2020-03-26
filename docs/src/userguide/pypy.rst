@@ -1,8 +1,8 @@
 Porting Cython code to PyPy
 ===========================
 
-Since version 0.17, Cython has basic support for cpyext, the layer in
-`PyPy <http://pypy.org/>`_ that emulates CPython's C-API.  This is
+Cython has basic support for cpyext, the layer in
+`PyPy <https://pypy.org/>`_ that emulates CPython's C-API.  This is
 achieved by making the generated C code adapt at C compile time, so
 the generated code will compile in both CPython and PyPy unchanged.
 
@@ -118,7 +118,7 @@ re-entrant in PyPy and deadlocks when called twice.  This means that
 code that tries to acquire the GIL "just in case", because it might be
 called with or without the GIL, will not work as expected in PyPy.
 See `PyGILState_Ensure should not deadlock if GIL already held
-<https://bitbucket.org/pypy/pypy/issue/1778>`_.
+<https://bitbucket.org/pypy/pypy/issues/1778>`_.
 
 
 Efficiency

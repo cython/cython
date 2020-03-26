@@ -12,6 +12,7 @@ import sys
 from collections import defaultdict
 
 from coverage.plugin import CoveragePlugin, FileTracer, FileReporter  # requires coverage.py 4.0+
+from coverage.files import canonical_filename
 
 from .Utils import find_root_package_dir, is_package_dir, open_source_file
 
@@ -19,30 +20,34 @@ from .Utils import find_root_package_dir, is_package_dir, open_source_file
 from . import __version__
 
 
+C_FILE_EXTENSIONS = ['.c', '.cpp', '.cc', '.cxx']
+MODULE_FILE_EXTENSIONS = set(['.py', '.pyx', '.pxd'] + C_FILE_EXTENSIONS)
+
+
 def _find_c_source(base_path):
-    if os.path.exists(base_path + '.c'):
-        c_file = base_path + '.c'
-    elif os.path.exists(base_path + '.cpp'):
-        c_file = base_path + '.cpp'
-    else:
-        c_file = None
-    return c_file
+    file_exists = os.path.exists
+    for ext in C_FILE_EXTENSIONS:
+        file_name = base_path + ext
+        if file_exists(file_name):
+            return file_name
+    return None
 
 
-def _find_dep_file_path(main_file, file_path):
+def _find_dep_file_path(main_file, file_path, relative_path_search=False):
     abs_path = os.path.abspath(file_path)
-    if file_path.endswith('.pxi') and not os.path.exists(abs_path):
-        # include files are looked up relative to the main source file
-        pxi_file_path = os.path.join(os.path.dirname(main_file), file_path)
-        if os.path.exists(pxi_file_path):
-            abs_path = os.path.abspath(pxi_file_path)
+    if not os.path.exists(abs_path) and (file_path.endswith('.pxi') or
+                                         relative_path_search):
+        # files are looked up relative to the main source file
+        rel_file_path = os.path.join(os.path.dirname(main_file), file_path)
+        if os.path.exists(rel_file_path):
+            abs_path = os.path.abspath(rel_file_path)
     # search sys.path for external locations if a valid file hasn't been found
     if not os.path.exists(abs_path):
         for sys_path in sys.path:
             test_path = os.path.realpath(os.path.join(sys_path, file_path))
             if os.path.exists(test_path):
-                return test_path
-    return abs_path
+                return canonical_filename(test_path)
+    return canonical_filename(abs_path)
 
 
 class Plugin(CoveragePlugin):
@@ -63,14 +68,14 @@ class Plugin(CoveragePlugin):
         if filename.startswith('<') or filename.startswith('memory:'):
             return None
         c_file = py_file = None
-        filename = os.path.abspath(filename)
+        filename = canonical_filename(os.path.abspath(filename))
         if self._c_files_map and filename in self._c_files_map:
             c_file = self._c_files_map[filename][0]
 
         if c_file is None:
             c_file, py_file = self._find_source_files(filename)
             if not c_file:
-                return None
+                return None  # unknown file
 
             # parse all source file paths and lines from C file
             # to learn about all relevant source files right away (pyx/pxi/pxd)
@@ -78,7 +83,9 @@ class Plugin(CoveragePlugin):
             #        is not from the main .pyx file but a file with a different
             #        name than the .c file (which prevents us from finding the
             #        .c file)
-            self._parse_lines(c_file, filename)
+            _, code = self._read_source_lines(c_file, filename)
+            if code is None:
+                return None  # no source found
 
         if self._file_path_map is None:
             self._file_path_map = {}
@@ -91,23 +98,31 @@ class Plugin(CoveragePlugin):
         #    from coverage.python import PythonFileReporter
         #    return PythonFileReporter(filename)
 
-        filename = os.path.abspath(filename)
+        filename = canonical_filename(os.path.abspath(filename))
         if self._c_files_map and filename in self._c_files_map:
             c_file, rel_file_path, code = self._c_files_map[filename]
         else:
             c_file, _ = self._find_source_files(filename)
             if not c_file:
                 return None  # unknown file
-            rel_file_path, code = self._parse_lines(c_file, filename)
+            rel_file_path, code = self._read_source_lines(c_file, filename)
+            if code is None:
+                return None  # no source found
         return CythonModuleReporter(c_file, filename, rel_file_path, code)
 
     def _find_source_files(self, filename):
         basename, ext = os.path.splitext(filename)
         ext = ext.lower()
-        if ext in ('.py', '.pyx', '.pxd', '.c', '.cpp'):
+        if ext in MODULE_FILE_EXTENSIONS:
             pass
-        elif ext in ('.so', '.pyd'):
-            platform_suffix = re.search(r'[.]cpython-[0-9]+[a-z]*$', basename, re.I)
+        elif ext == '.pyd':
+            # Windows extension module
+            platform_suffix = re.search(r'[.]cp[0-9]+-win[_a-z0-9]*$', basename, re.I)
+            if platform_suffix:
+                basename = basename[:platform_suffix.start()]
+        elif ext == '.so':
+            # Linux/Unix/Mac extension module
+            platform_suffix = re.search(r'[.](?:cpython|pypy)-[0-9]+[-_a-z0-9]*$', basename, re.I)
             if platform_suffix:
                 basename = basename[:platform_suffix.start()]
         elif ext == '.pxi':
@@ -121,7 +136,7 @@ class Plugin(CoveragePlugin):
             # none of our business
             return None, None
 
-        c_file = filename if ext in ('.c', '.cpp') else _find_c_source(basename)
+        c_file = filename if ext in C_FILE_EXTENSIONS else _find_c_source(basename)
         if c_file is None:
             # a module "pkg/mod.so" can have a source file "pkg/pkg.mod.c"
             package_root = find_root_package_dir.uncached(filename)
@@ -155,15 +170,15 @@ class Plugin(CoveragePlugin):
         splitext = os.path.splitext
         for filename in os.listdir(dir_path):
             ext = splitext(filename)[1].lower()
-            if ext in ('.c', '.cpp'):
-                self._parse_lines(os.path.join(dir_path, filename), source_file)
+            if ext in C_FILE_EXTENSIONS:
+                self._read_source_lines(os.path.join(dir_path, filename), source_file)
                 if source_file in self._c_files_map:
                     return
         # not found? then try one package up
         if is_package_dir(dir_path):
             self._find_c_source_files(os.path.dirname(dir_path), source_file)
 
-    def _parse_lines(self, c_file, sourcefile):
+    def _read_source_lines(self, c_file, sourcefile):
         """
         Parse a Cython generated C/C++ source file and find the executable lines.
         Each executable line starts with a comment header that states source file
@@ -174,51 +189,71 @@ class Plugin(CoveragePlugin):
         if c_file in self._parsed_c_files:
             code_lines = self._parsed_c_files[c_file]
         else:
-            match_source_path_line = re.compile(r' */[*] +"(.*)":([0-9]+)$').match
-            match_current_code_line = re.compile(r' *[*] (.*) # <<<<<<+$').match
-            match_comment_end = re.compile(r' *[*]/$').match
-            not_executable = re.compile(
-                r'\s*c(?:type)?def\s+'
-                r'(?:(?:public|external)\s+)?'
-                r'(?:struct|union|enum|class)'
-                r'(\s+[^:]+|)\s*:'
-            ).match
-
-            code_lines = defaultdict(dict)
-            filenames = set()
-            with open(c_file) as lines:
-                lines = iter(lines)
-                for line in lines:
-                    match = match_source_path_line(line)
-                    if not match:
-                        continue
-                    filename, lineno = match.groups()
-                    filenames.add(filename)
-                    lineno = int(lineno)
-                    for comment_line in lines:
-                        match = match_current_code_line(comment_line)
-                        if match:
-                            code_line = match.group(1).rstrip()
-                            if not_executable(code_line):
-                                break
-                            code_lines[filename][lineno] = code_line
-                            break
-                        elif match_comment_end(comment_line):
-                            # unexpected comment format - false positive?
-                            break
-
+            code_lines = self._parse_cfile_lines(c_file)
             self._parsed_c_files[c_file] = code_lines
 
         if self._c_files_map is None:
             self._c_files_map = {}
 
         for filename, code in code_lines.items():
-            abs_path = _find_dep_file_path(c_file, filename)
+            abs_path = _find_dep_file_path(c_file, filename,
+                                           relative_path_search=True)
             self._c_files_map[abs_path] = (c_file, filename, code)
 
         if sourcefile not in self._c_files_map:
             return (None,) * 2  # e.g. shared library file
         return self._c_files_map[sourcefile][1:]
+
+    def _parse_cfile_lines(self, c_file):
+        """
+        Parse a C file and extract all source file lines that generated executable code.
+        """
+        match_source_path_line = re.compile(r' */[*] +"(.*)":([0-9]+)$').match
+        match_current_code_line = re.compile(r' *[*] (.*) # <<<<<<+$').match
+        match_comment_end = re.compile(r' *[*]/$').match
+        match_trace_line = re.compile(r' *__Pyx_TraceLine\(([0-9]+),').match
+        not_executable = re.compile(
+            r'\s*c(?:type)?def\s+'
+            r'(?:(?:public|external)\s+)?'
+            r'(?:struct|union|enum|class)'
+            r'(\s+[^:]+|)\s*:'
+        ).match
+
+        code_lines = defaultdict(dict)
+        executable_lines = defaultdict(set)
+        current_filename = None
+
+        with open(c_file) as lines:
+            lines = iter(lines)
+            for line in lines:
+                match = match_source_path_line(line)
+                if not match:
+                    if '__Pyx_TraceLine(' in line and current_filename is not None:
+                        trace_line = match_trace_line(line)
+                        if trace_line:
+                            executable_lines[current_filename].add(int(trace_line.group(1)))
+                    continue
+                filename, lineno = match.groups()
+                current_filename = filename
+                lineno = int(lineno)
+                for comment_line in lines:
+                    match = match_current_code_line(comment_line)
+                    if match:
+                        code_line = match.group(1).rstrip()
+                        if not_executable(code_line):
+                            break
+                        code_lines[filename][lineno] = code_line
+                        break
+                    elif match_comment_end(comment_line):
+                        # unexpected comment format - false positive?
+                        break
+
+        # Remove lines that generated code but are not traceable.
+        for filename, lines in code_lines.items():
+            dead_lines = set(lines).difference(executable_lines.get(filename, ()))
+            for lineno in dead_lines:
+                del lines[lineno]
+        return code_lines
 
 
 class CythonModuleTracer(FileTracer):

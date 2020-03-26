@@ -175,7 +175,7 @@ def test_broken_anext():
     >>> testfunc = test_broken_anext()
     >>> try: run_async(testfunc())
     ... except TypeError as exc:
-    ...     assert ' int ' in str(exc)
+    ...     assert ' int' in str(exc)
     ... else:
     ...     print("NOT RAISED!")
     """
@@ -279,9 +279,10 @@ def test_with_for():
     print(I[0])
 
 
-cdef class AI_old:
-    async def __aiter__(self):
-        1/0
+# old-style pre-3.5.2 AIter protocol - no longer supported
+#cdef class AI_old:
+#    async def __aiter__(self):
+#        1/0
 
 
 cdef class AI_new:
@@ -291,9 +292,9 @@ cdef class AI_new:
 
 def test_aiter_raises(AI):
     """
-    >>> test_aiter_raises(AI_old)
-    RAISED
-    0
+    #>>> test_aiter_raises(AI_old)
+    #RAISED
+    #0
     >>> test_aiter_raises(AI_new)
     RAISED
     0

@@ -5,6 +5,17 @@
 import cython
 
 
+import sys
+IS_PY2 = sys.version_info < (3, 0)
+
+
+def print_big_ints(t):
+    s = repr(t)
+    if IS_PY2:
+        s = s.replace('L', '')
+    print(s)
+
+
 @cython.test_fail_if_path_exists(
     "//UnaryMinusNode",
     "//UnaryPlusNode",
@@ -107,6 +118,33 @@ def binop_bool():
     ormix3 = False | 0 | False | True
     xor3   = False ^ True ^ False ^ True
     return plus1, pmix1, minus1, and1, or1, ormix1, xor1, plus3, pmix3, minus3, and3, or3, ormix3, xor3
+
+
+@cython.test_fail_if_path_exists(
+    "//MulNode",
+    "//PowNode",
+)
+def binop_mul_pow():
+    """
+    >>> print_big_ints(binop_mul_pow())
+    (800, 12193263111263526900, 248832, 12467572902176589255564000298710470656)
+    """
+    mul_int = 20 * 40
+    mul_large_int = 1234567890 * 9876543210
+    pow_int = 12 ** 5
+    pow_large_int = 1234 ** 12
+    return (mul_int, mul_large_int, pow_int, pow_large_int)
+
+
+def binop_pow_negative():
+    """
+    >>> print_big_ints(binop_pow_negative())
+    (4.018775720164609e-06, 8.020807320287816e-38, 0.1)
+    """
+    pow_int = 12 ** -5
+    pow_large_int = 1234 ** -12
+    pow_expression_int = 10 ** (1-2)
+    return (pow_int, pow_large_int, pow_expression_int)
 
 
 @cython.test_fail_if_path_exists(

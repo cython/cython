@@ -14,6 +14,23 @@ cdef int* f(int x[2][2]):
     return x[0]
 
 
+def assign_index_in_loop():
+    """
+    >>> assign_index_in_loop()
+    2
+    """
+    cdef int i = 0
+    cdef int[1] a
+    cdef int[1] b
+    for a[0], b[0] in enumerate(range(3)):
+        assert a[0] == b[0]
+        assert a[0] == i
+        i += 1
+
+    assert a[0] == b[0]
+    return b[0]
+
+
 def test2():
     """
     >>> test2()

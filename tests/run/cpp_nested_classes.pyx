@@ -13,11 +13,18 @@ cdef extern from "cpp_nested_classes_support.h":
 
     cdef cppclass TypedClass[T]:
         ctypedef T MyType
+        struct MyStruct:
+            T typed_value
+            int int_value
         union MyUnion:
             T typed_value
             int int_value
         enum MyEnum:
             value
+
+    cdef cppclass SpecializedTypedClass(TypedClass[double]):
+        pass
+
 
 def test_nested_classes():
     """
@@ -66,3 +73,53 @@ def test_nested_union(x):
     assert u.int_value == x
     u.typed_value = x
     return u.typed_value
+
+def test_nested_struct(x):
+    """
+    >>> test_nested_struct(2)
+    2.0
+    """
+    cdef TypedClass[double].MyStruct s
+    s.int_value = x
+    assert s.int_value == x
+    s.typed_value = x
+    return s.typed_value
+
+
+
+def test_typed_nested_sub_typedef(x):
+    """
+    >>> test_typed_nested_sub_typedef(4)
+    4.0
+    """
+    cdef SpecializedTypedClass.MyType dx = x
+    return dx
+
+def test_nested_sub_enum(SpecializedTypedClass.MyEnum x):
+    """
+    >>> test_nested_sub_enum(4)
+    False
+    """
+    return x == 0
+
+def test_nested_sub_union(x):
+    """
+    >>> test_nested_sub_union(2)
+    2.0
+    """
+    cdef SpecializedTypedClass.MyUnion u
+    u.int_value = x
+    assert u.int_value == x
+    u.typed_value = x
+    return u.typed_value
+
+def test_nested_sub_struct(x):
+    """
+    >>> test_nested_sub_struct(2)
+    2.0
+    """
+    cdef SpecializedTypedClass.MyStruct s
+    s.int_value = x
+    assert s.int_value == x
+    s.typed_value = x
+    return s.typed_value

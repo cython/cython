@@ -30,9 +30,9 @@ cpdef check(func, op, a, b):
         op_res = op(a, b)
     except OverflowError:
         assign_overflow = True
-    assert func_overflow == assign_overflow, "Inconsistant overflow: %s(%s, %s)" % (func, a, b)
+    assert func_overflow == assign_overflow, "Inconsistent overflow: %s(%s, %s)" % (func, a, b)
     if not func_overflow:
-        assert res == op_res, "Inconsistant values: %s(%s, %s) == %s != %s" % (func, a, b, res, op_res)
+        assert res == op_res, "Inconsistent values: %s(%s, %s) == %s != %s" % (func, a, b, res, op_res)
 
 medium_values = (max_value_ / 2, max_value_ / 3, min_value_ / 2, <INT>sqrt(<long double>max_value_) - <INT>1, <INT>sqrt(<long double>max_value_) + 1)
 def run_test(func, op):

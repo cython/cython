@@ -1,6 +1,6 @@
 PYTHON setup.py build_ext --inplace
-PYTHON -c "import toppkg; assert '.py' not in toppkg.__file__; assert toppkg.PACKAGE == 1"
-PYTHON -c "import toppkg.subpkg; assert '.py' not in toppkg.__file__; assert '.py' not in toppkg.subpkg.__file__; assert toppkg.subpkg.PACKAGE == 2"
+PYTHON -c "import toppkg; assert not toppkg.__file__.rstrip('oc').endswith('.py'); assert toppkg.PACKAGE == 1"
+PYTHON -c "import toppkg.subpkg; assert not toppkg.__file__.rstrip('oc').endswith('.py'); assert not toppkg.subpkg.__file__.rstrip('oc').endswith('.py'); assert toppkg.subpkg.PACKAGE == 2"
 PYTHON -c "import toppkg.a; assert toppkg.a.MODULE == 'a'"
 PYTHON -c "from toppkg.subpkg import a; assert a.MODULE == 'subpkg.a'"
 

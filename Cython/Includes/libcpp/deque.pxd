@@ -1,21 +1,44 @@
 cdef extern from "<deque>" namespace "std" nogil:
     cdef cppclass deque[T,ALLOCATOR=*]:
+        ctypedef T value_type
+        ctypedef ALLOCATOR allocator_type
+
+        # these should really be allocator_type.size_type and
+        # allocator_type.difference_type to be true to the C++ definition
+        # but cython doesn't support deferred access on template arguments
+        ctypedef size_t size_type
+        ctypedef ptrdiff_t difference_type
+
         cppclass iterator:
             T& operator*()
             iterator operator++()
             iterator operator--()
+            iterator operator+(size_type)
+            iterator operator-(size_type)
+            difference_type operator-(iterator)
             bint operator==(iterator)
             bint operator!=(iterator)
+            bint operator<(iterator)
+            bint operator>(iterator)
+            bint operator<=(iterator)
+            bint operator>=(iterator)
         cppclass reverse_iterator:
             T& operator*()
-            iterator operator++()
-            iterator operator--()
+            reverse_iterator operator++()
+            reverse_iterator operator--()
+            reverse_iterator operator+(size_type)
+            reverse_iterator operator-(size_type)
+            difference_type operator-(reverse_iterator)
             bint operator==(reverse_iterator)
             bint operator!=(reverse_iterator)
+            bint operator<(reverse_iterator)
+            bint operator>(reverse_iterator)
+            bint operator<=(reverse_iterator)
+            bint operator>=(reverse_iterator)
         cppclass const_iterator(iterator):
             pass
-        #cppclass const_reverse_iterator(reverse_iterator):
-        #    pass
+        cppclass const_reverse_iterator(reverse_iterator):
+            pass
         deque() except +
         deque(deque&) except +
         deque(size_t) except +
@@ -58,3 +81,6 @@ cdef extern from "<deque>" namespace "std" nogil:
         void resize(size_t, T&)
         size_t size()
         void swap(deque&)
+
+        # C++11 methods
+        void shrink_to_fit()

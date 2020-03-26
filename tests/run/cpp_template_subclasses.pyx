@@ -125,3 +125,43 @@ def test_GH1599(a, b):
   (1, 2.0)
   """
   return public_return_pair(a, b)
+
+
+# Related to GH Issue #1852.
+
+cdef cppclass Callback[T]:#(UntypedCallback):
+    pass
+
+cdef cppclass MyClass[O]:
+    void Invoke(Callback[O]*)
+
+cdef cppclass MySubclass[T](MyClass[T]):
+    void Invoke(Callback[T]* callback):
+      pass
+
+
+cdef cppclass Getter[T]:
+    T get(bint fire) except *:
+        if fire:
+            raise RuntimeError
+        else:
+           raise NotImplementedError
+
+cdef cppclass GetInt(Getter[int]):
+    int get(bint fire) except *:
+        if fire:
+            raise RuntimeError
+        else:
+            return 389
+
+def test_subclass_exception_values(bint fire):
+    """
+    >>> test_subclass_exception_values(False)
+    389
+    >>> test_subclass_exception_values(True)
+    Traceback (most recent call last):
+    ...
+    RuntimeError
+    """
+    cdef GetInt getter
+    return getter.get(fire)

@@ -45,5 +45,5 @@ _ERRORS = u"""
 
 # types()
 32:15: Cannot coerce list to type 'int'
-33:10: starred target must have Python object (list) type
+33:8: starred target must have Python object (list) type
 """

@@ -3,7 +3,7 @@
 Create a C file for embedding one or more Cython source files.
 Requires Cython 0.11.2 (or perhaps newer).
 
-See Demos/freeze/README.txt for more details.
+See Demos/freeze/README.rst for more details.
 """
 from __future__ import print_function
 

@@ -17,4 +17,3 @@ def myfunc():
         A[i, :] /= 2
     return A[0,0]
 
-include "numpy_common.pxi"

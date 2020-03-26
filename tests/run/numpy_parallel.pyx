@@ -4,7 +4,6 @@
 cimport cython
 from cython.parallel import prange
 cimport numpy as np
-include "numpy_common.pxi"
 
 
 @cython.boundscheck(False)

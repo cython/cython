@@ -1,6 +1,5 @@
 # mode: run
-# tag: cpp, werror
-# distutils: extra_compile_args=-std=c++0x
+# tag: cpp, werror, cpp11
 
 import sys
 from libcpp.map cimport map
@@ -72,6 +71,16 @@ def test_string_call(a, b):
     """
     return add_strings(a, b)
 
+def test_c_string_convert(char *c_string):
+    """
+    >>> normalize(test_c_string_convert("abc".encode('ascii')))
+    'abc'
+    """
+    cdef string s
+    with nogil:
+        s = c_string
+    return s
+
 def test_int_vector(o):
     """
     >>> test_int_vector([1, 2, 3])
@@ -134,10 +143,12 @@ def test_typedef_vector(o):
     Traceback (most recent call last):
     ...
     OverflowError: ...
+
+    "TypeError: an integer is required" on CPython
     >>> test_typedef_vector([1, 2, None])       #doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    TypeError: an integer is required
+    TypeError: ...int...
     """
     cdef vector[my_int] v = o
     return v

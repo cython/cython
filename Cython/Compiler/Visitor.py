@@ -1,4 +1,6 @@
 # cython: infer_types=True
+# cython: language_level=3
+# cython: auto_pickle=False
 
 #
 #   Tree visitor and transform framework
@@ -76,7 +78,7 @@ class TreeVisitor(object):
         self.dispatch_table = {}
         self.access_path = []
 
-    def dump_node(self, node, indent=0):
+    def dump_node(self, node):
         ignored = list(node.child_attrs or []) + [
             u'child_attrs', u'pos', u'gil_message', u'cpp_message', u'subexprs']
         values = []
@@ -88,7 +90,6 @@ class TreeVisitor(object):
                 source = os.path.basename(source.get_description())
             values.append(u'%s:%s:%s' % (source, pos[1], pos[2]))
         attribute_names = dir(node)
-        attribute_names.sort()
         for attr in attribute_names:
             if attr in ignored:
                 continue
@@ -154,7 +155,6 @@ class TreeVisitor(object):
         cls = type(obj)
         pattern = "visit_%s"
         mro = inspect.getmro(cls)
-        handler_method = None
         for mro_cls in mro:
             handler_method = getattr(self, pattern % mro_cls.__name__, None)
             if handler_method is not None:
@@ -244,29 +244,45 @@ class VisitorTransform(TreeVisitor):
     was not, an exception will be raised. (Typically you want to ensure that you
     are within a StatListNode or similar before doing this.)
     """
-    def visitchildren(self, parent, attrs=None):
+    def visitchildren(self, parent, attrs=None, exclude=None):
+        # generic def entry point for calls from Python subclasses
+        if exclude is not None:
+            attrs = self._select_attrs(parent.child_attrs if attrs is None else attrs, exclude)
+        return self._process_children(parent, attrs)
+
+    @cython.final
+    def _select_attrs(self, attrs, exclude):
+        return [name for name in attrs if name not in exclude]
+
+    @cython.final
+    def _process_children(self, parent, attrs=None):
+        # fast cdef entry point for calls from Cython subclasses
         result = self._visitchildren(parent, attrs)
         for attr, newnode in result.items():
-            if type(newnode) is not list:
-                setattr(parent, attr, newnode)
-            else:
-                # Flatten the list one level and remove any None
-                newlist = []
-                for x in newnode:
-                    if x is not None:
-                        if type(x) is list:
-                            newlist += x
-                        else:
-                            newlist.append(x)
-                setattr(parent, attr, newlist)
+            if type(newnode) is list:
+                newnode = self._flatten_list(newnode)
+            setattr(parent, attr, newnode)
         return result
 
+    @cython.final
+    def _flatten_list(self, orig_list):
+        # Flatten the list one level and remove any None
+        newlist = []
+        for x in orig_list:
+            if x is not None:
+                if type(x) is list:
+                    newlist.extend(x)
+                else:
+                    newlist.append(x)
+        return newlist
+
     def recurse_to_children(self, node):
-        self.visitchildren(node)
+        self._process_children(node)
         return node
 
     def __call__(self, root):
         return self._visit(root)
+
 
 class CythonTransform(VisitorTransform):
     """
@@ -288,13 +304,14 @@ class CythonTransform(VisitorTransform):
     def visit_CompilerDirectivesNode(self, node):
         old = self.current_directives
         self.current_directives = node.directives
-        self.visitchildren(node)
+        self._process_children(node)
         self.current_directives = old
         return node
 
     def visit_Node(self, node):
-        self.visitchildren(node)
+        self._process_children(node)
         return node
+
 
 class ScopeTrackingTransform(CythonTransform):
     # Keeps track of type of scopes
@@ -304,14 +321,14 @@ class ScopeTrackingTransform(CythonTransform):
     def visit_ModuleNode(self, node):
         self.scope_type = 'module'
         self.scope_node = node
-        self.visitchildren(node)
+        self._process_children(node)
         return node
 
     def visit_scope(self, node, scope_type):
         prev = self.scope_type, self.scope_node
         self.scope_type = scope_type
         self.scope_node = node
-        self.visitchildren(node)
+        self._process_children(node)
         self.scope_type, self.scope_node = prev
         return node
 
@@ -354,45 +371,45 @@ class EnvTransform(CythonTransform):
 
     def visit_FuncDefNode(self, node):
         self.enter_scope(node, node.local_scope)
-        self.visitchildren(node)
+        self._process_children(node)
         self.exit_scope()
         return node
 
     def visit_GeneratorBodyDefNode(self, node):
-        self.visitchildren(node)
+        self._process_children(node)
         return node
 
     def visit_ClassDefNode(self, node):
         self.enter_scope(node, node.scope)
-        self.visitchildren(node)
+        self._process_children(node)
         self.exit_scope()
         return node
 
     def visit_CStructOrUnionDefNode(self, node):
         self.enter_scope(node, node.scope)
-        self.visitchildren(node)
+        self._process_children(node)
         self.exit_scope()
         return node
 
     def visit_ScopedExprNode(self, node):
         if node.expr_scope:
             self.enter_scope(node, node.expr_scope)
-            self.visitchildren(node)
+            self._process_children(node)
             self.exit_scope()
         else:
-            self.visitchildren(node)
+            self._process_children(node)
         return node
 
     def visit_CArgDeclNode(self, node):
         # default arguments are evaluated in the outer scope
         if node.default:
             attrs = [attr for attr in node.child_attrs if attr != 'default']
-            self.visitchildren(node, attrs)
+            self._process_children(node, attrs)
             self.enter_scope(node, self.current_env().outer_scope)
             self.visitchildren(node, ('default',))
             self.exit_scope()
         else:
-            self.visitchildren(node)
+            self._process_children(node)
         return node
 
 
@@ -477,7 +494,7 @@ class MethodDispatcherTransform(EnvTransform):
     """
     # only visit call nodes and Python operations
     def visit_GeneralCallNode(self, node):
-        self.visitchildren(node)
+        self._process_children(node)
         function = node.function
         if not function.type.is_pyobject:
             return node
@@ -492,7 +509,7 @@ class MethodDispatcherTransform(EnvTransform):
         return self._dispatch_to_handler(node, function, args, keyword_args)
 
     def visit_SimpleCallNode(self, node):
-        self.visitchildren(node)
+        self._process_children(node)
         function = node.function
         if function.type.is_pyobject:
             arg_tuple = node.arg_tuple
@@ -506,7 +523,7 @@ class MethodDispatcherTransform(EnvTransform):
     def visit_PrimaryCmpNode(self, node):
         if node.cascade:
             # not currently handled below
-            self.visitchildren(node)
+            self._process_children(node)
             return node
         return self._visit_binop_node(node)
 
@@ -514,7 +531,7 @@ class MethodDispatcherTransform(EnvTransform):
         return self._visit_binop_node(node)
 
     def _visit_binop_node(self, node):
-        self.visitchildren(node)
+        self._process_children(node)
         # FIXME: could special case 'not_in'
         special_method_name = find_special_method_for_binary_operator(node.operator)
         if special_method_name:
@@ -535,7 +552,7 @@ class MethodDispatcherTransform(EnvTransform):
         return node
 
     def visit_UnopNode(self, node):
-        self.visitchildren(node)
+        self._process_children(node)
         special_method_name = find_special_method_for_unary_operator(node.operator)
         if special_method_name:
             operand = node.operand
@@ -552,6 +569,17 @@ class MethodDispatcherTransform(EnvTransform):
     ### dispatch to specific handlers
 
     def _find_handler(self, match_name, has_kwargs):
+        try:
+            match_name.encode('ascii')
+        except UnicodeEncodeError:
+            # specifically when running the Cython compiler under Python 2
+            #  getattr can't take a unicode string.
+            #  Classes with unicode names won't have specific handlers and thus it
+            #  should be OK to return None.
+            # Doing the test here ensures that the same code gets run on
+            # Python 2 and 3
+            return None
+
         call_type = has_kwargs and 'general' or 'simple'
         handler = getattr(self, '_handle_%s_%s' % (call_type, match_name), None)
         if handler is None:
@@ -581,15 +609,23 @@ class MethodDispatcherTransform(EnvTransform):
             # into a C function call (defined in the builtin scope)
             if not function.entry:
                 return node
+            entry = function.entry
             is_builtin = (
-                function.entry.is_builtin or
-                function.entry is self.current_env().builtin_scope().lookup_here(function.name))
+                entry.is_builtin or
+                entry is self.current_env().builtin_scope().lookup_here(function.name))
             if not is_builtin:
                 if function.cf_state and function.cf_state.is_single:
                     # we know the value of the variable
                     # => see if it's usable instead
                     return self._delegate_to_assigned_value(
                         node, function, arg_list, kwargs)
+                if arg_list and entry.is_cmethod and entry.scope and entry.scope.parent_type.is_builtin_type:
+                    if entry.scope.parent_type is arg_list[0].type:
+                        # Optimised (unbound) method of a builtin type => try to "de-optimise".
+                        return self._dispatch_to_method_handler(
+                            entry.name, self_arg=None, is_unbound_method=True,
+                            type_name=entry.scope.parent_type.name,
+                            node=node, function=function, arg_list=arg_list, kwargs=kwargs)
                 return node
             function_handler = self._find_handler(
                 "function_%s" % function.name, kwargs)
@@ -615,8 +651,7 @@ class MethodDispatcherTransform(EnvTransform):
             obj_type = self_arg.type
             is_unbound_method = False
             if obj_type.is_builtin_type:
-                if (obj_type is Builtin.type_type and self_arg.is_name and
-                        arg_list and arg_list[0].type.is_pyobject):
+                if obj_type is Builtin.type_type and self_arg.is_name and arg_list and arg_list[0].type.is_pyobject:
                     # calling an unbound method like 'list.append(L,x)'
                     # (ignoring 'type.mro()' here ...)
                     type_name = self_arg.name
@@ -683,7 +718,7 @@ class RecursiveNodeReplacer(VisitorTransform):
         return node
 
     def visit_Node(self, node):
-        self.visitchildren(node)
+        self._process_children(node)
         if node is self.orig_node:
             return self.new_node
         else:
@@ -797,6 +832,10 @@ class PrintTree(TreeVisitor):
                 result += "(type=%s, name=\"%s\")" % (repr(node.type), node.name)
             elif isinstance(node, Nodes.DefNode):
                 result += "(name=\"%s\")" % node.name
+            elif isinstance(node, ExprNodes.AttributeNode):
+                result += "(type=%s, attribute=\"%s\")" % (repr(node.type), node.attribute)
+            elif isinstance(node, ExprNodes.ConstNode):
+                result += "(type=%s, value=\"%s\")" % (repr(node.type), node.value)
             elif isinstance(node, ExprNodes.ExprNode):
                 t = node.type
                 result += "(type=%s)" % repr(t)

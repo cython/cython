@@ -6,5 +6,5 @@ def test():
      not_assigned_to[2] = 3
 
 _ERRORS = """
-6:20: local variable 'not_assigned_to' referenced before assignment
+6:5: local variable 'not_assigned_to' referenced before assignment
 """

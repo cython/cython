@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, werror
+# tag: cpp, warnings
 
 cimport cython
 
@@ -8,6 +8,40 @@ from libcpp.string cimport string
 b_asdf = b'asdf'
 b_asdg = b'asdg'
 b_s = b's'
+
+
+cdef int compare_to_asdf_ref(string& s) except -999:
+    return s.compare(b"asdf")
+
+def test_coerced_literal_ref():
+    """
+    >>> test_coerced_literal_ref()
+    0
+    """
+    return compare_to_asdf_ref("asdf")
+
+
+cdef int compare_to_asdf_const_ref(const string& s) except -999:
+    return s.compare(b"asdf")
+
+def test_coerced_literal_const_ref():
+    """
+    >>> test_coerced_literal_const_ref()
+    0
+    """
+    return compare_to_asdf_const_ref("asdf")
+
+
+cdef int compare_to_asdf_const(const string s) except -999:
+    return s.compare(b"asdf")
+
+def test_coerced_literal_const():
+    """
+    >>> test_coerced_literal_const()
+    0
+    """
+    return compare_to_asdf_const("asdf")
+
 
 def test_conversion(py_obj):
     """
@@ -310,3 +344,8 @@ def test_iteration(string s):
     []
     """
     return [c for c in s]
+
+
+_WARNINGS = """
+21:31: Cannot pass Python object as C++ data structure reference (string &), will pass by copy.
+"""

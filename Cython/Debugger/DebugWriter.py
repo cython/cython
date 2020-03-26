@@ -44,6 +44,10 @@ class CythonDebugWriter(object):
     def end(self, name):
         self.tb.end(name)
 
+    def add_entry(self, name, **attrs):
+        self.tb.start(name, attrs)
+        self.tb.end(name)
+
     def serialize(self):
         self.tb.end('Module')
         self.tb.end('cython_debug')

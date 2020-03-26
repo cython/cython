@@ -4,15 +4,58 @@
 
 broken_exception
 bufaccess
-memoryview
-memslice
+memoryview.memoryview$
 sequential_parallel
 
 yield_from_pep380
 memoryview_inplace_division
 
+run.unicodemethods
+run.unicode_imports
+run.tp_new
+run.test_fstring
+run.test_exceptions
+run.test_dictviews
+run.str_subclass_kwargs
+run.special_method_docstrings
+run.slice_ptr
+compile.min_async
+run.cython_includes
+run.pyarray
+run.test_unicode
+run.__getattribute__
+run.__getattribute_subclasses__
+run.__debug__
+run.array_cimport
+run.builtin_abs
+run.builtincomplex
+run.cdef_multiple_inheritance_errors
+run.cdivision_CEP_516
+run.cyfunction
+run.final_cdef_class
+run.index
+run.pyclass_special_methods
+run.reimport_from_package
+run.reimport_from_subinterpreter
+pkg.cimportfrom
+embedded
+TestCyCache
+run.ext_auto_richcmp
+run.coverage_cmd
+run.coverage_cmd_src_layout
+run.coverage_installed_pkg
+run.coverage_api
+run.coverage_nogil
+
+# very little coroutine-related seems to work
+run.test_asyncgen
+run.test_coroutines_pep492
+run.async_iter_pep492
+run.embedsignatures
+run.py35_asyncio_async_def
+run.asyncio_generators
+
 # gc issue?
-memoryview_in_subclasses
 external_ref_reassignment
 run.exttype_dealloc
 
@@ -20,13 +63,13 @@ run.exttype_dealloc
 run.special_methods_T561
 run.special_methods_T561_py2
 
-# tests for things that don't exist in cpyext
-compile.pylong
-run.datetime_pxd
-run.datetime_cimport
-run.datetime_members
-run.extern_builtins_T258
-
-# refcounting-specific tests
-double_dealloc_T796
-
+# looks to be fixed in PyPy 7.3.0
+# TODO - remove when Travis updates
+run.py_unicode_strings
+run.unicodeliterals
+run.unicode_identifiers
+run.unicode_identifiers_import
+errors.unicode_identifiers_e4
+run.tracebacks
+run.fstring
+run.unicode_identifiers_normalization

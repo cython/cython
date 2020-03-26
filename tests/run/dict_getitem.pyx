@@ -46,6 +46,72 @@ def test(dict d, index):
     """
     return d[index]
 
+
+def getitem_str(dict d, obj, str index):
+    """
+    >>> d = {'abc': 1, 'xyz': 2, None: 3}
+    >>> getitem_str(d, d, 'abc')
+    (1, 1)
+    >>> getitem_str(d, d, 'xyz')
+    (2, 2)
+    >>> getitem_str(d, d, None)
+    (3, 3)
+
+    >>> class GetItem(object):
+    ...     def __getitem__(self, name): return d[name]
+    >>> getitem_str(d, GetItem(), 'abc')
+    (1, 1)
+    >>> getitem_str(d, GetItem(), 'xyz')
+    (2, 2)
+    >>> getitem_str(d, GetItem(), None)
+    (3, 3)
+    >>> getitem_str(d, GetItem(), 'no')
+    Traceback (most recent call last):
+    KeyError: 'no'
+
+    >>> class GetItemFail(object):
+    ...     def __getitem__(self, name): raise ValueError("failed")
+    >>> getitem_str(d, GetItemFail(), 'abc')
+    Traceback (most recent call last):
+    ValueError: failed
+    >>> getitem_str(d, GetItemFail(), None)
+    Traceback (most recent call last):
+    ValueError: failed
+    """
+    return d[index], obj[index]
+
+
+def getitem_unicode(dict d, obj, unicode index):
+    """
+    >>> d = {'abc': 1, 'xyz': 2, None: 3}
+    >>> getitem_unicode(d, d, u'abc')
+    (1, 1)
+    >>> getitem_unicode(d, d, u'xyz')
+    (2, 2)
+    >>> getitem_unicode(d, d, None)
+    (3, 3)
+
+    >>> class GetItem(object):
+    ...     def __getitem__(self, name): return d[name]
+    >>> getitem_unicode(d, GetItem(), u'abc')
+    (1, 1)
+    >>> getitem_unicode(d, GetItem(), u'xyz')
+    (2, 2)
+    >>> getitem_unicode(d, GetItem(), None)
+    (3, 3)
+    >>> try: getitem_unicode(d, GetItem(), u'no')
+    ... except KeyError as exc: assert exc.args[0] == u'no', str(exc)
+    ... else: assert False, "KeyError not raised"
+
+    >>> class GetItemFail(object):
+    ...     def __getitem__(self, name): raise ValueError("failed")
+    >>> getitem_unicode(d, GetItemFail(), u'abc')
+    Traceback (most recent call last):
+    ValueError: failed
+    """
+    return d[index], obj[index]
+
+
 def getitem_tuple(dict d, index):
     """
     >>> d = {1: 1, (1,): 2}
@@ -54,6 +120,7 @@ def getitem_tuple(dict d, index):
     """
     return d[index], d[index,]
 
+
 def getitem_in_condition(dict d, key, expected_result):
     """
     >>> d = dict(a=1, b=2)
@@ -61,6 +128,7 @@ def getitem_in_condition(dict d, key, expected_result):
     True
     """
     return d[key] is expected_result or d[key] == expected_result
+
 
 @cython.test_fail_if_path_exists('//NoneCheckNode')
 def getitem_not_none(dict d not None, key):
@@ -77,4 +145,18 @@ def getitem_not_none(dict d not None, key):
     Traceback (most recent call last):
     KeyError: (1, 2)
     """
+    return d[key]
+
+
+def getitem_int_key(d, int key):
+    """
+    >>> d = {-1: 10}
+    >>> getitem_int_key(d, -1)  # dict
+    10
+    >>> class D(dict): pass
+    >>> d = D({-1: 10})
+    >>> getitem_int_key(d, -1)  # D
+    10
+    """
+    # Based on GH-1807: must check Mapping protocol first, even for integer "index" keys.
     return d[key]

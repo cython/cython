@@ -1,3 +1,4 @@
+# mode: run
 # tag: cpp
 
 from libcpp cimport bool
@@ -6,7 +7,7 @@ from libcpp.vector cimport vector
 
 
 # XXX should use std::greater, but I don't know how to wrap that.
-cdef inline bool greater(int x, int y):
+cdef inline bool greater(const int &x, const int &y):
     return x > y
 
 
@@ -20,8 +21,8 @@ def heapsort(l, bool reverse=False):
     cdef vector[int] v = l
 
     if reverse:
-        make_heap(v.begin(), v.end(), greater)
-        sort_heap(v.begin(), v.end(), greater)
+        make_heap(v.begin(), v.end(), &greater)
+        sort_heap(v.begin(), v.end(), &greater)
     else:
         make_heap(v.begin(), v.end())
         sort_heap(v.begin(), v.end())
@@ -38,7 +39,7 @@ def partialsort(l, int k, reverse=False):
     """
     cdef vector[int] v = l
     if reverse:
-        partial_sort(v.begin(), v.begin() + k, v.end(), greater)
+        partial_sort(v.begin(), v.begin() + k, v.end(), &greater)
     else:
         partial_sort(v.begin(), v.begin() + k, v.end())
     return v
@@ -53,7 +54,7 @@ def stdsort(l, reverse=False):
     """
     cdef vector[int] v = l
     if reverse:
-        sort(v.begin(), v.end(), greater)
+        sort(v.begin(), v.end(), &greater)
     else:
         sort(v.begin(), v.end())
     return v

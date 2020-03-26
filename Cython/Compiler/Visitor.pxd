@@ -12,10 +12,13 @@ cdef class TreeVisitor:
     cdef _visitchild(self, child, parent, attrname, idx)
     cdef dict _visitchildren(self, parent, attrs)
     cpdef visitchildren(self, parent, attrs=*)
+    cdef _raise_compiler_error(self, child, e)
 
 cdef class VisitorTransform(TreeVisitor):
-    cpdef visitchildren(self, parent, attrs=*)
-    cpdef recurse_to_children(self, node)
+    cdef dict _process_children(self, parent, attrs=*)
+    cpdef visitchildren(self, parent, attrs=*, exclude=*)
+    cdef list _flatten_list(self, list orig_list)
+    cdef list _select_attrs(self, attrs, exclude)
 
 cdef class CythonTransform(VisitorTransform):
     cdef public context

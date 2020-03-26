@@ -81,13 +81,13 @@ def for_finally_outer(p, f):
 
 
 _ERRORS = """
-8:12: local variable 'a' might be referenced before assignment
-14:12: local variable 'a' might be referenced before assignment
-26:12: local variable 'i' might be referenced before assignment
-31:12: local variable 'i' might be referenced before assignment
-37:16: local variable 'x' might be referenced before assignment
-44:11: local variable 'x' might be referenced before assignment
-51:11: local variable 'x' might be referenced before assignment
-58:19: local variable 'x' might be referenced before assignment
-66:19: local variable 'x' might be referenced before assignment
+8:11: local variable 'a' might be referenced before assignment
+14:11: local variable 'a' might be referenced before assignment
+26:11: local variable 'i' might be referenced before assignment
+31:11: local variable 'i' might be referenced before assignment
+37:15: local variable 'x' might be referenced before assignment
+44:10: local variable 'x' might be referenced before assignment
+51:10: local variable 'x' might be referenced before assignment
+58:18: local variable 'x' might be referenced before assignment
+66:18: local variable 'x' might be referenced before assignment
 """

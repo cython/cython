@@ -30,7 +30,7 @@ def bound_dict_get(dict d):
 @cython.test_fail_if_path_exists(
     '//ReturnStatNode//PythonCapiCallNode')
 @cython.test_assert_path_exists(
-    '//ReturnStatNode//SimpleCallNode')
+    '//ReturnStatNode//PyMethodCallNode')
 def bound_dict_get_reassign(dict d):
     """
     >>> bound_dict_get_reassign({})

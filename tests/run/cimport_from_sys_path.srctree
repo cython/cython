@@ -19,13 +19,20 @@ setup(
 
 ######## site-packages/b/other.pxd ########
 
-cdef inline foo(int a):
-     return a**2
+cdef extern from "foo.c":
+    int foo(int)
+
+######## site-packages/b/foo.c ########
+
+static int foo(int a)
+{
+    return a * a;
+}
 
 ######## a.pyx ########
 
 from b.other cimport foo
-print foo(10)
+print(foo(10))
 
 cimport b.other
-print b.other.foo(10)
+print(b.other.foo(10))
