@@ -10,31 +10,31 @@ import cython
 
 @cython.cfunc
 @cython.returns(cython.int)
-def f():
-    print(1)
+def zero():
+    print("In zero")
     return 0
 
 @cython.cfunc
 @cython.returns(cython.int)
-def g():
-    print(2)
+def five():
+    print("In five")
     return 5
 
 @cython.cfunc
 @cython.returns(cython.int)
-def h():
-    print(3)
+def one():
+    print("In one")
     return 1
 
 @cython.test_assert_path_exists("//ForFromStatNode")
 def genexp_range_argument_order():
     """
     >>> list(genexp_range_argument_order())
-    1
-    2
+    In zero
+    In five
     [0, 1, 2, 3, 4]
     """
-    return (a for a in range(f(), g()))
+    return (a for a in range(zero(), five()))
 
 @cython.test_assert_path_exists("//ForFromStatNode")
 @cython.test_assert_path_exists(
@@ -43,24 +43,24 @@ def genexp_range_argument_order():
 def list_range_argument_order():
     """
     >>> list_range_argument_order()
-    1
-    2
+    In zero
+    In five
     [0, 1, 2, 3, 4]
     """
-    return list(a for a in range(f(), g()))
+    return list(a for a in range(zero(), five()))
 
 @cython.test_assert_path_exists("//ForFromStatNode")
 def genexp_array_slice_order():
     """
     >>> list(genexp_array_slice_order())
-    1
-    2
+    In zero
+    In five
     [0, 1, 2, 3, 4]
     """
     # TODO ideally find a way to add the evaluation of x to this test too
     x = cython.declare(cython.int[20])
     x = list(range(20))
-    return (a for a in x[f():g()])
+    return (a for a in x[zero():five()])
 
 @cython.test_assert_path_exists("//ForFromStatNode")
 @cython.test_assert_path_exists(
@@ -69,14 +69,14 @@ def genexp_array_slice_order():
 def list_array_slice_order():
     """
     >>> list(list_array_slice_order())
-    1
-    2
+    In zero
+    In five
     [0, 1, 2, 3, 4]
     """
     # TODO ideally find a way to add the evaluation of x to this test too
     x = cython.declare(cython.int[20])
     x = list(range(20))
-    return list(a for a in x[f():g()])
+    return list(a for a in x[zero():five()])
 
 class IndexableClass:
     def __getitem__(self, idx):
@@ -101,15 +101,15 @@ def genexp_index_order():
     """
     >>> list(genexp_index_order())
     Getting indexer
-    1
-    2
-    3
+    In zero
+    In five
+    In one
     In indexer
     Made generator expression
     [0, 5, 1]
     """
     obj = NoisyAttributeLookup()
-    ret = (a for a in obj.indexer[f():g():h()])
+    ret = (a for a in obj.indexer[zero():five():one()])
     print("Made generator expression")
     return ret
 
@@ -118,29 +118,29 @@ def list_index_order():
     """
     >>> list_index_order()
     Getting indexer
-    1
-    2
-    3
+    In zero
+    In five
+    In one
     In indexer
     [0, 5, 1]
     """
     obj = NoisyAttributeLookup()
-    return list(a for a in obj.indexer[f():g():h()])
+    return list(a for a in obj.indexer[zero():five():one()])
 
 
 def genexpr_fcall_order():
     """
     >>> list(genexpr_fcall_order())
     Getting function
-    1
-    2
-    3
+    In zero
+    In five
+    In one
     In func
     Made generator expression
     [0, 5, 1]
     """
     obj = NoisyAttributeLookup()
-    ret = (a for a in obj.function(f(), g(), h()))
+    ret = (a for a in obj.function(zero(), five(), one()))
     print("Made generator expression")
     return ret
 
@@ -149,27 +149,27 @@ def list_fcall_order():
     """
     >>> list_fcall_order()
     Getting function
-    1
-    2
-    3
+    In zero
+    In five
+    In one
     In func
     [0, 5, 1]
     """
     obj = NoisyAttributeLookup()
-    return list(a for a in obj.function(f(), g(), h()))
+    return list(a for a in obj.function(zero(), five(), one()))
 
 def call1():
-    print(1)
+    print("In call1")
     return ["a"]
 def call2():
-    print(2)
+    print("In call2")
     return ["b"]
 
 def multiple_genexps_to_call_order():
     """
     >>> multiple_genexps_to_call_order()
-    1
-    2
+    In call1
+    In call2
     """
     def takes_two_genexps(a, b):
         pass
