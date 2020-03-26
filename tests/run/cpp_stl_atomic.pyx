@@ -2,7 +2,7 @@
 # mode: run
 # tag: cpp, werror
 
-from cython.operator cimport preincrement as incr
+from cython.operator cimport preincrement as incr, dereference as deref
 from libc.stdint cimport *
 
 from libcpp.atomic cimport atomic
@@ -19,29 +19,9 @@ def int_test(int x):
     atom = new atomic[int](x)
     try:
         atom.store(0)
-        incr(atom[0])
-        incr(atom[0])
-        incr(atom[0])
-        return atom.load()
-    finally:
-        del atom
-
-def float_test(float x):
-    """
-    >>> float_test(3.14159)
-    3.0
-    >>> float_test(42)
-    3.0
-    >>> float_test(100000)
-    3.0
-
-    """
-    atom = new atomic[float](x)
-    try:
-        atom.store(0.0)
-        incr(atom[0])
-        incr(atom[0])
-        incr(atom[0])
+        incr(deref(atom))
+        incr(deref(atom))
+        incr(deref(atom))
         return atom.load()
     finally:
         del atom
@@ -60,9 +40,9 @@ def typedef_test(int x):
     atom = new atomint32_t(x)
     try:
         atom.store(0)
-        incr(atom[0])
-        incr(atom[0])
-        incr(atom[0])
+        incr(deref(atom))
+        incr(deref(atom))
+        incr(deref(atom))
         return atom.load()
     finally:
         del atom
@@ -80,9 +60,9 @@ def stack_allocation_test(int x):
     atom.store(x)
     try:
         atom.store(0)
-        incr(atom[0])
-        incr(atom[0])
-        incr(atom[0])
+        incr(atom)
+        incr(atom)
+        incr(atom)
         return atom.load()
     finally:
         pass
