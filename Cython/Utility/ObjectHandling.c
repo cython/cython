@@ -2586,17 +2586,12 @@ static PyObject *__Pyx_PyMethod_New(PyObject *func, PyObject *self, CYTHON_UNUSE
 static int
 __Pyx_unicode_modifiable(PyObject *unicode)
 {
-    assert(_PyUnicode_CHECK(unicode));
     if (Py_REFCNT(unicode) != 1)
-        return 0;
-    if (PyUnicode_CHECK_INTERNED(unicode))
         return 0;
     if (!PyUnicode_CheckExact(unicode))
         return 0;
-#ifdef Py_DEBUG
-    /* singleton refcount is greater than 1 */
-    assert(!unicode_is_singleton(unicode));
-#endif
+    if (PyUnicode_CHECK_INTERNED(unicode))
+        return 0;
     return 1;
 }
 
@@ -2671,4 +2666,3 @@ static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_le
     PyNumber_Add(a, b) : __Pyx_PyStr_Concat(a, b))
 #define __Pyx_PyStr_ConcatInPlaceSafe(a, b) ((unlikely((a) == Py_None) || unlikely((b) == Py_None)) ? \
     PyNumber_Add(a, b) : __Pyx_PyStr_ConcatInPlace(a, b))
-
