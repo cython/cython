@@ -19,9 +19,9 @@ def int_test(int x):
     atom = new atomic[int](x)
     try:
         atom.store(0)
-        incr(atom)
-        incr(atom)
-        incr(atom)
+        incr(atom[0])
+        incr(atom[0])
+        incr(atom[0])
         return atom.load()
     finally:
         del atom
@@ -39,9 +39,9 @@ def float_test(float x):
     atom = new atomic[float](x)
     try:
         atom.store(0.0)
-        incr(atom)
-        incr(atom)
-        incr(atom)
+        incr(atom[0])
+        incr(atom[0])
+        incr(atom[0])
         return atom.load()
     finally:
         del atom
@@ -60,9 +60,9 @@ def typedef_test(int x):
     atom = new atomint32_t(x)
     try:
         atom.store(0)
-        incr(atom)
-        incr(atom)
-        incr(atom)
+        incr(atom[0])
+        incr(atom[0])
+        incr(atom[0])
         return atom.load()
     finally:
         del atom
@@ -80,9 +80,9 @@ def stack_allocation_test(int x):
     atom.store(x)
     try:
         atom.store(0)
-        incr(atom)
-        incr(atom)
-        incr(atom)
+        incr(atom[0])
+        incr(atom[0])
+        incr(atom[0])
         return atom.load()
     finally:
         pass
