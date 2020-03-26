@@ -2573,7 +2573,7 @@ static PyObject *__Pyx_PyMethod_New(PyObject *func, PyObject *self, CYTHON_UNUSE
 #define __Pyx_PyUnicode_ConcatInPlace __Pyx_PyUnicode_Concat
 #endif
 #define __Pyx_PyUnicode_ConcatInPlaceSafe(left, right) ((unlikely((left) == Py_None) || unlikely((right) == Py_None)) ? \
-    PyNumber_Add(left, right) : __Pyx_PyUnicode_ConcatInPlace(left, right))
+    PyNumber_InPlaceAdd(left, right) : __Pyx_PyUnicode_ConcatInPlace(left, right))
 
 /////////////// UnicodeConcatInPlace ////////////////
 //@substitute: naming
@@ -2605,12 +2605,12 @@ static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_le
     if (PyUnicode_READY(right) == -1)
         return NULL;
 
-    /* Shortcuts */
-    if (left == $empty_unicode) {
+    // Shortcuts
+    if (PyUnicode_GET_LENGTH(left) == 0) {
         Py_INCREF(right);
         return right;
     }
-    if (right == $empty_unicode) {
+    if (PyUnicode_GET_LENGTH(right) == 0) {
         Py_INCREF(left);
         return left;
     }
@@ -2627,10 +2627,10 @@ static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_le
     if (__Pyx_unicode_modifiable(left)
         && PyUnicode_CheckExact(right)
         && PyUnicode_KIND(right) <= PyUnicode_KIND(left)
-        /* Don't resize for ascii += latin1. Convert ascii to latin1 requires
-           to change the structure size, but characters are stored just after
-           the structure, and so it requires to move all characters which is
-           not so different than duplicating the string. */
+        // Don't resize for ascii += latin1. Convert ascii to latin1 requires
+        //   to change the structure size, but characters are stored just after
+        //   the structure, and so it requires to move all characters which is
+        //   not so different than duplicating the string.
         && !(PyUnicode_IS_ASCII(left) && !PyUnicode_IS_ASCII(right))) {
 
         __Pyx_GIVEREF(*p_left);
@@ -2642,7 +2642,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_le
         }
         __Pyx_INCREF(*p_left);
 
-        /* copy 'right' into the newly allocated area of 'left' */
+        // copy 'right' into the newly allocated area of 'left'
         _PyUnicode_FastCopyCharacters(*p_left, left_len, right, 0, right_len);
         return *p_left;
     } else {
@@ -2660,9 +2660,9 @@ static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_le
     #define __Pyx_PyStr_ConcatInPlace __Pyx_PyUnicode_ConcatInPlace
 #else
     #define __Pyx_PyStr_Concat PyNumber_Add
-    #define __Pyx_PyStr_ConcatInPlace PyNumber_Add
+    #define __Pyx_PyStr_ConcatInPlace PyNumber_InPlaceAdd
 #endif
 #define __Pyx_PyStr_ConcatSafe(a, b) ((unlikely((a) == Py_None) || unlikely((b) == Py_None)) ? \
     PyNumber_Add(a, b) : __Pyx_PyStr_Concat(a, b))
 #define __Pyx_PyStr_ConcatInPlaceSafe(a, b) ((unlikely((a) == Py_None) || unlikely((b) == Py_None)) ? \
-    PyNumber_Add(a, b) : __Pyx_PyStr_ConcatInPlace(a, b))
+    PyNumber_InPlaceAdd(a, b) : __Pyx_PyStr_ConcatInPlace(a, b))
