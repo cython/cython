@@ -750,12 +750,16 @@ class ExprNode(Node):
         If the result is in a temp, it is already a new reference.
         """
         if not self.result_in_temp():
-            code.put_incref(self.result(), self.ctype(),
-                            do_for_memoryviewslice=do_for_memoryviewslice,
-                            have_gil=self.in_nogil_context)
+            code.put_incref(self.result(), self.ctype())
 
     def make_owned_memoryviewslice(self, code):
-        self.make_owned_reference(code, do_for_memoryviewslice=True)
+        """
+        Make sure we own the reference to this memoryview slice.
+        """
+        # TODO ideally this would be shared with "make_owned_reference"
+        if not self.result_in_temp():
+            code.put_incref_memoryviewslice(self.result(), self.type,
+                                            have_gil=not self.in_nogil_context)
 
     def generate_evaluation_code(self, code):
         #  Generate code to evaluate this node and
@@ -789,7 +793,6 @@ class ExprNode(Node):
                 self.free_subexpr_temps(code)
             if self.result():
                 code.put_decref_clear(self.result(), self.ctype(),
-                                        do_for_memoryviewslice=True,
                                         have_gil=not self.in_nogil_context)
         else:
             # Already done if self.is_temp
@@ -843,39 +846,29 @@ class ExprNode(Node):
         pass
 
     # ----Generation of small bits of reference counting --
+    def generate_decref_set(self, code, rhs):
+        code.put_decref_set(self.result(), self.ctype(), rhs)
 
-    def generate_gotref(self, code):
-        type = self.type
-        if self.is_temp and self.type.is_pyobject:
-            # temp py_objects are always just py_object_type
-            # not an special type
-            type = PyrexTypes.py_object_type
-        code.put_gotref(self.result(), type)
+    def generate_xdecref_set(self, code, rhs):
+        code.put_xdecref_set(self.result(), self.ctype(), rhs)
+
+    def generate_gotref(self, code, handle_null=False,
+                        maybe_null_extra_check=True):
+        if not (handle_null and self.cf_is_null):
+            if (handle_null and self.cf_maybe_null
+                    and maybe_null_extra_check):
+                self.generate_xgotref(code)
+            else:
+                code.put_gotref(self.result(), self.ctype())
 
     def generate_xgotref(self, code):
-        type = self.type
-        if self.is_temp and self.type.is_pyobject:
-            # temp py_objects are always just py_object_type
-            # not an special type
-            type = PyrexTypes.py_object_type
-        code.put_xgotref(self.result(), type)
+        code.put_xgotref(self.result(), self.ctype())
 
     def generate_giveref(self, code):
-        type = self.type
-        if self.is_temp and self.type.is_pyobject:
-            # temp py_objects are always just py_object_type
-            # not an special type
-            type = PyrexTypes.py_object_type
-        code.put_giveref(self.result(), type)
+        code.put_giveref(self.result(), self.ctype())
 
     def generate_xgiveref(self, code):
-        type = self.type
-        if self.is_temp and self.type.is_pyobject:
-            # temp py_objects are always just py_object_type
-            # not an special type
-            type = PyrexTypes.py_object_type
-        code.put_xgiveref(self.result(), type)
-
+        code.put_xgiveref(self.result(), self.ctype())
 
     # ---------------- Annotation ---------------------
 
@@ -1470,11 +1463,7 @@ def _analyse_name_as_type(name, pos, env):
         return type
 
     global_entry = env.global_scope().lookup(name)
-    if global_entry and global_entry.type and (
-            global_entry.type.is_extension_type
-            or global_entry.type.is_struct_or_union
-            or global_entry.type.is_builtin_type
-            or global_entry.type.is_cpp_class):
+    if global_entry and global_entry.is_type and global_entry.type:
         return global_entry.type
 
     from .TreeFragment import TreeFragment
@@ -2388,23 +2377,16 @@ class NameNode(AtomicExprNode):
                     rhs.make_owned_reference(code)
                     is_external_ref = entry.is_cglobal or self.entry.in_closure or self.entry.from_closure
                     if is_external_ref:
-                        if not self.cf_is_null:
-                            if self.cf_maybe_null:
-                                self.generate_xgotref(code)
-                            else:
-                                self.generate_gotref(code)
+                        self.generate_gotref(code, handle_null=True)
                     assigned = True
                     if entry.is_cglobal:
-                        code.put_decref_set(
-                            self.result(), self.type, rhs.result_as(self.ctype()))
+                        self.generate_decref_set(code, rhs.result_as(self.ctype()))
                     else:
                         if not self.cf_is_null:
                             if self.cf_maybe_null:
-                                code.put_xdecref_set(
-                                    self.result(), self.type, rhs.result_as(self.ctype()))
+                                self.generate_xdecref_set(code, rhs.result_as(self.ctype()))
                             else:
-                                code.put_decref_set(
-                                    self.result(), self.type, rhs.result_as(self.ctype()))
+                                self.generate_decref_set(code, rhs.result_as(self.ctype()))
                         else:
                             assigned = False
                     if is_external_ref:
@@ -2513,18 +2495,13 @@ class NameNode(AtomicExprNode):
 
                 if self.entry.in_closure:
                     # generator
-                    if ignore_nonexisting and self.cf_maybe_null:
-                        self.generate_xgotref(code)
-                    else:
-                        self.generate_gotref(code)
+                    self.generate_gotref(code, handle_null=True, maybe_null_extra_check=ignore_nonexisting)
                 if ignore_nonexisting and self.cf_maybe_null:
                     code.put_xdecref_clear(self.result(), self.ctype(),
-                                        do_for_memoryviewslice=True,
                                         have_gil=not self.nogil)
                 else:
-                    code.put_xdecref_clear(self.result(), self.ctype(),
-                                        do_for_memoryviewslice=True,
-                                        have_gil=not self.nogil)
+                    code.put_decref_clear(self.result(), self.ctype(),
+                                          have_gil=not self.nogil)
         else:
             error(self.pos, "Deletion of C names not supported")
 
@@ -5168,7 +5145,7 @@ class SliceIndexNode(ExprNode):
                     base_result,
                     start_code,
                     stop_code,
-                    code.error_goto_if_null(self.type.generate_nullcheck(result), self.pos)))
+                    code.error_goto_if_null(self.type.nullcheck_string(result), self.pos)))
         self.generate_gotref(code)
 
     def generate_assignment_code(self, rhs, code, overloaded_assignment=False,
@@ -6662,6 +6639,7 @@ class GeneralCallNode(CallNode):
                 code.error_goto_if_null(self.result(), self.pos)))
         self.generate_gotref(code)
 
+
 class AsTupleNode(ExprNode):
     #  Convert argument to tuple. Used for normalising
     #  the * argument of a function call.
@@ -7354,8 +7332,7 @@ class AttributeNode(ExprNode):
                         return
 
                 code.putln("%s = %s;" % (self.result(), self.obj.result()))
-                code.put_incref(self.result(), self.type,
-                                do_for_memoryviewslice=True,
+                code.put_incref_memoryviewslice(self.result(), self.type,
                                 have_gil=True)
 
                 T = "__pyx_memslice_transpose(&%s) == 0"
@@ -7379,8 +7356,7 @@ class AttributeNode(ExprNode):
     def generate_disposal_code(self, code):
         if self.is_temp and self.type.is_memoryviewslice and self.is_memslice_transpose:
             # mirror condition for putting the memview incref here:
-            code.put_xdecref_clear(self.result(), self.type,
-                                   do_for_memoryviewslice=True, have_gil=True)
+            code.put_xdecref_clear(self.result(), self.type, have_gil=True)
         else:
             ExprNode.generate_disposal_code(self, code)
 
@@ -8437,7 +8413,7 @@ class ScopedExprNode(ExprNode):
         for entry in py_entries:
             if entry.is_cglobal:
                 code.put_var_gotref(entry)
-                code.put_decref_set(entry.cname, entry.type, "Py_None")
+                code.put_var_decref_set(entry, "Py_None")
             else:
                 code.put_var_xdecref_clear(entry)
 
@@ -9086,7 +9062,7 @@ class SortedDictKeysNode(ExprNode):
                 code.error_goto_if_null(self.result(), self.pos)))
             self.generate_gotref(code)
             code.putln("if (unlikely(!PyList_Check(%s))) {" % self.result())
-            code.put_decref_set(self.result(), self.type, "PySequence_List(%s)" % self.result())
+            self.generate_decref_set(code, "PySequence_List(%s)" % self.result())
             code.putln(code.error_goto_if_null(self.result(), self.pos))
             self.generate_gotref(code)
             code.putln("}")
@@ -9435,7 +9411,10 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
             scope = Symtab.StructOrUnionScope(cname)
             self.defaults = []
             for arg in nonliteral_objects:
-                entry = scope.declare_var(arg.name, arg.type, None,
+                type_ = arg.type
+                if type_.is_buffer:
+                    type_ = type_.base
+                entry = scope.declare_var(arg.name, type_, None,
                                           Naming.arg_prefix + arg.name,
                                           allow_pyobject=True)
                 self.defaults.append((arg, entry))
@@ -11563,19 +11542,24 @@ class AddNode(NumBinopNode):
                 self, type1, type2)
 
     def py_operation_function(self, code):
-        is_unicode_concat = False
-        if isinstance(self.operand1, FormattedValueNode) or isinstance(self.operand2, FormattedValueNode):
-            is_unicode_concat = True
-        else:
-            type1, type2 = self.operand1.type, self.operand2.type
-            if type1 is unicode_type or type2 is unicode_type:
-                is_unicode_concat = type1.is_builtin_type and type2.is_builtin_type
+        type1, type2 = self.operand1.type, self.operand2.type
 
-        if is_unicode_concat:
-            if self.operand1.may_be_none() or self.operand2.may_be_none():
-                return '__Pyx_PyUnicode_ConcatSafe'
+        if type1 is unicode_type or type2 is unicode_type:
+            if type1 in (unicode_type, str_type) and type2 in (unicode_type, str_type):
+                is_unicode_concat = True
+            elif isinstance(self.operand1, FormattedValueNode) or isinstance(self.operand2, FormattedValueNode):
+                # Assume that even if we don't know the second type, it's going to be a string.
+                is_unicode_concat = True
             else:
-                return '__Pyx_PyUnicode_Concat'
+                # Operation depends on the second type.
+                is_unicode_concat = False
+
+            if is_unicode_concat:
+                if self.operand1.may_be_none() or self.operand2.may_be_none():
+                    return '__Pyx_PyUnicode_ConcatSafe'
+                else:
+                    return '__Pyx_PyUnicode_Concat'
+
         return super(AddNode, self).py_operation_function(code)
 
 
@@ -13623,9 +13607,11 @@ class CoerceToTempNode(CoercionNode):
         code.putln("%s = %s;" % (
             self.result(), self.arg.result_as(self.ctype())))
         if self.use_managed_ref:
-            code.put_incref(self.result(), self.ctype(),
-                            do_for_memoryviewslice=True,
-                            have_gil=not self.in_nogil_context)
+            if not self.type.is_memoryviewslice:
+                code.put_incref(self.result(), self.ctype())
+            else:
+                code.put_incref_memoryviewslice(self.result(), self.type,
+                                            have_gil=not self.in_nogil_context)
 
 class ProxyNode(CoercionNode):
     """

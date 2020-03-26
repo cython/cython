@@ -241,7 +241,7 @@ static CYTHON_INLINE PyObject*** __Pyx_ParseOptionalKeywords_Impl_MatchName(PyOb
 
     PyObject ***name = name_start;
     #if PY_MAJOR_VERSION < 3
-    if (likely(PyString_CheckExact(key)) || likely(PyString_Check(key))) {
+    if (likely(PyString_Check(key))) {
         while ((*name) && (name != name_end)) {
             if ((CYTHON_COMPILING_IN_PYPY || PyString_GET_SIZE(**name) == PyString_GET_SIZE(key))
                         && _PyString_Eq(**name, key)) {
@@ -253,12 +253,13 @@ static CYTHON_INLINE PyObject*** __Pyx_ParseOptionalKeywords_Impl_MatchName(PyOb
 #endif
     if (likely(PyUnicode_Check(key))) {
         while ((*name) && (name != name_end)) {
-            int cmp = (**name == key) ? 0 :
+            int cmp = (
             #if !CYTHON_COMPILING_IN_PYPY && PY_MAJOR_VERSION >= 3
-                (PyUnicode_GET_SIZE(**name) != PyUnicode_GET_SIZE(key)) ? 1 :
+                (__Pyx_PyUnicode_GET_LENGTH(**name) != __Pyx_PyUnicode_GET_LENGTH(key)) ? 1 :
             #endif
-                // need to convert argument name from bytes to unicode for comparison
-                PyUnicode_Compare(**name, key);
+                // In Py2, we may need to convert the argument name from str to unicode for comparison.
+                PyUnicode_Compare(**name, key)
+            );
 
             if (cmp < 0 && unlikely(PyErr_Occurred())) return NULL;
             if (cmp == 0) {

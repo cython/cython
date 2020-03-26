@@ -1584,7 +1584,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         for entry in (py_attrs + memoryview_slices):
             code.put_xdecref_clear("p->%s" % entry.cname, entry.type, nanny=False,
-                                   do_for_memoryviewslice=True,
                                    clear_before_decref=True, have_gil=True)
 
         if base_type:
@@ -3380,7 +3379,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_base_type_import_code(self, env, entry, code, import_generator):
         base_type = entry.type.base_type
         if (base_type and base_type.module_name != env.qualified_name and not
-                base_type.is_builtin_type and not entry.utility_code_definition):
+                (base_type.is_builtin_type or base_type.is_cython_builtin_type)
+                 and not entry.utility_code_definition):
             self.generate_type_import_code(env, base_type, self.pos, code, import_generator)
 
     def generate_type_import_code(self, env, type, pos, code, import_generator):

@@ -877,7 +877,10 @@ class CArgDeclNode(Node):
 
             # inject type declaration from annotations
             # this is called without 'env' by AdjustDefByDirectives transform before declaration analysis
-            if self.annotation and env and env.directives['annotation_typing'] and self.base_type.name is None:
+            if (self.annotation and env and env.directives['annotation_typing']
+                    # CSimpleBaseTypeNode has a name attribute; CAnalysedBaseTypeNode
+                    # (and maybe other options) doesn't
+                    and getattr(self.base_type, "name", None) is None):
                 arg_type = self.inject_type_from_annotations(env)
                 if arg_type is not None:
                     base_type = arg_type
@@ -1677,6 +1680,8 @@ class FuncDefNode(StatNode, BlockNode):
             return arg
         if other_type is None:
             error(type_node.pos, "Not a type")
+        elif other_type.is_fused and any(orig_type.same_as(t) for t in other_type.types):
+            pass # use specialized rather than fused type
         elif orig_type is not py_object_type and not orig_type.same_as(other_type):
             error(arg.base_type.pos, "Signature does not agree with previous declaration")
             error(type_node.pos, "Previous declaration here")
@@ -1918,19 +1923,18 @@ class FuncDefNode(StatNode, BlockNode):
         # incref it to properly keep track of refcounts.
         is_cdef = isinstance(self, CFuncDefNode)
         for entry in lenv.arg_entries:
-            if entry.type.is_pyobject:
-                if (acquire_gil or len(entry.cf_assignments) > 1) and not entry.in_closure:
+            if not entry.type.is_memoryviewslice:
+                if (acquire_gil or entry.cf_is_reassigned) and not entry.in_closure:
                     code.put_var_incref(entry)
-
             # Note: defaults are always incref-ed. For def functions, we
             #       we acquire arguments from object conversion, so we have
             #       new references. If we are a cdef function, we need to
             #       incref our arguments
-            elif is_cdef and entry.type.is_memoryviewslice and len(entry.cf_assignments) > 1:
-                code.put_var_incref(entry, do_for_memoryviewslice = True,
+            elif is_cdef and entry.cf_is_reassigned:
+                code.put_var_incref_memoryviewslice(entry,
                                     have_gil=code.funcstate.gil_owned)
         for entry in lenv.var_entries:
-            if entry.is_arg and len(entry.cf_assignments) > 1 and not entry.in_closure:
+            if entry.is_arg and entry.cf_is_reassigned and not entry.in_closure:
                 if entry.xdecref_cleanup:
                     code.put_var_xincref(entry)
                 else:
@@ -2073,32 +2077,26 @@ class FuncDefNode(StatNode, BlockNode):
                 continue
 
             if entry.type.is_pyobject or entry.type.is_fastcall_type:
-                #if not (not entry.is_arg or len(entry.cf_assignments) > 1):
-                if entry.is_arg and len(entry.cf_assignments) <= 1:
+                if entry.is_arg and not entry.cf_is_reassigned:
                     continue
-            code.put_var_xdecref(entry,
-                                 do_for_memoryviewslice=True,
-                                 have_gil=not lenv.nogil)
-                        # TODO ideally should pick based on
-                        # entry.xdecref_cleanup but this doesn't seem to be set reliably
-                        # for regular variables
+            # FIXME ideally use entry.xdecref_cleanup but this currently isn't reliable
+            code.put_var_xdecref(entry, have_gil=not lenv.nogil)
 
         # Decref any increfed args
         for entry in lenv.arg_entries:
             if entry.type.is_memoryviewslice:
                 # decref slices of def functions and acquired slices from cdef
                 # functions, but not borrowed slices from cdef functions.
-                if is_cdef and len(entry.cf_assignments) <= 1:
+                if is_cdef and not entry.cf_is_reassigned:
                     continue
             else:
                 if entry.in_closure:
                     continue
-                if not acquire_gil and len(entry.cf_assignments) <= 1:
+                if not acquire_gil and not entry.cf_is_reassigned:
                     continue
 
-            code.put_var_xdecref(entry,
-                                    do_for_memoryviewslice = True,
-                                    have_gil=not lenv.nogil)
+            # FIXME use entry.xdecref_cleanup - del arg seems to be the problem
+            code.put_var_xdecref(entry, have_gil=not lenv.nogil)
         if self.needs_closure:
             code.put_decref(Naming.cur_scope_cname, lenv.scope_class.type)
 
@@ -2301,7 +2299,7 @@ class CFuncDefNode(FuncDefNode):
     #  is_c_class_method whether this is a cclass method
 
     child_attrs = ["base_type", "declarator", "body", "py_func_stat", "decorators"]
-    outer_attrs = ["decorators"]
+    outer_attrs = ["decorators", "py_func_stat"]
 
     inline_in_pxd = False
     decorators = None
@@ -2950,9 +2948,6 @@ class DefNode(FuncDefNode):
                 arg.name = name_declarator.name
                 arg.type = type
 
-                if type.is_fused:
-                    self.has_fused_arguments = True
-
             self.align_argument_type(env, arg)
             if name_declarator and name_declarator.cname:
                 error(self.pos, "Python function argument cannot have C name specification")
@@ -2983,6 +2978,9 @@ class DefNode(FuncDefNode):
                     error(arg.pos, "Only Python type arguments can have 'not None'")
                 if arg.or_none:
                     error(arg.pos, "Only Python type arguments can have 'or None'")
+
+            if arg.type.is_fused:
+                self.has_fused_arguments = True
         env.fused_to_specific = f2s
 
         if has_np_pythran(env):
@@ -3439,9 +3437,10 @@ class DefNodeWrapper(FuncDefNode):
         code.put_label(code.return_label)
         for entry in lenv.var_entries:
             if entry.is_arg and not entry.type.is_memoryviewslice:
-                # FIXME given that memoryviews are excluded here does their refcounting
-                # treatment generally make sense?
-                code.put_var_xdecref(entry)
+                if entry.xdecref_cleanup:
+                    code.put_var_xdecref(entry)
+                else:
+                    code.put_var_decref(entry)
 
         code.put_finish_refcount_context()
         if not self.return_type.is_void:
@@ -3666,7 +3665,8 @@ class DefNodeWrapper(FuncDefNode):
                 Naming.kwvalues_cname))
 
             code.putln("if (unlikely(!%s)) return %s;" % (
-                    code.get_var_nullcheck(self.starstar_arg.entry), self.error_value()))
+                    self.starstar_arg.entry.type.nullcheck_string(self.starstar_arg.entry.cname),
+                    self.error_value()))
             code.put_var_gotref(self.starstar_arg.entry)
             code.putln("} else {")
             allow_null = all(ref.node.allow_null for ref in self.starstar_arg.entry.cf_references)
@@ -3679,7 +3679,8 @@ class DefNodeWrapper(FuncDefNode):
                 else:
                     code.putln("%s = PyDict_New();" % self.starstar_arg.entry.cname)
                 code.putln("if (unlikely(!%s)) return %s;" % (
-                        code.get_var_nullcheck(self.starstar_arg.entry), self.error_value()))
+                        self.starstar_arg.entry.type.nullcheck_string(self.starstar_arg.entry.cname),
+                        self.error_value()))
                 code.put_var_gotref(self.starstar_arg.entry)
             self.starstar_arg.entry.xdecref_cleanup = allow_null
             code.putln("}")
@@ -3844,14 +3845,14 @@ class DefNodeWrapper(FuncDefNode):
                 compare = '!='
             else:
                 compare = '<'
-            code.putln('} else if (%s %s %d) {' % (
+            code.putln('} else if (unlikely(%s %s %d)) {' % (
                 Naming.nargs_cname, compare, min_positional_args))
             code.put_goto(argtuple_error_label)
 
         if self.num_required_kw_args:
             # pure error case: keywords required but not passed
             if max_positional_args > min_positional_args and not self.star_arg:
-                code.putln('} else if (%s > %d) {' % (
+                code.putln('} else if (unlikely(%s > %d)) {' % (
                     Naming.nargs_cname, max_positional_args))
                 code.put_goto(argtuple_error_label)
             code.putln('} else {')
@@ -3945,7 +3946,7 @@ class DefNodeWrapper(FuncDefNode):
                         arg.entry.cname,
                         arg.calculate_default_value_code(code)))
                     if arg.type.is_memoryviewslice:
-                        code.put_var_incref(arg.entry, do_for_memoryviewslice=True, have_gil=True)
+                        code.put_var_incref_memoryviewslice(arg.entry, have_gil=True)
                     code.putln('}')
             else:
                 error(arg.pos, "Cannot convert Python object argument to type '%s'" % arg.type)
@@ -3980,7 +3981,8 @@ class DefNodeWrapper(FuncDefNode):
                 code.putln('%s = __Pyx_ArgsSlice_%s%s(%s, %d, %s);' % (
                     self.star_arg.entry.cname, self.signature.fastvar, postfix,
                     Naming.args_cname, max_positional_args, Naming.nargs_cname))
-                code.putln("if (unlikely(!%s)) {" % code.get_var_nullcheck(self.star_arg.entry))
+                code.putln("if (unlikely(!%s)) {" % (
+                    self.star_arg.entry.type.nullcheck_string(self.star_arg.entry.cname)))
                 if self.starstar_arg:
                     code.put_var_decref_clear(self.starstar_arg.entry)
                 code.put_finish_refcount_context()
@@ -5109,8 +5111,6 @@ class CClassDefNode(ClassDefNode):
         # This is needed to generate evaluation code for
         # default values of method arguments.
         code.mark_pos(self.pos)
-        if self.body:
-            self.body.generate_execution_code(code)
         if not self.entry.type.early_init:
             if self.type_init_args:
                 self.type_init_args.generate_evaluation_code(code)
@@ -5138,6 +5138,8 @@ class CClassDefNode(ClassDefNode):
                 self.type_init_args.free_temps(code)
 
             self.generate_type_ready_code(self.entry, code, True)
+        if self.body:
+            self.body.generate_execution_code(code)
 
     # Also called from ModuleNode for early init types.
     @staticmethod
@@ -6114,7 +6116,7 @@ class ExecStatNode(StatNode):
             arg.free_temps(code)
         code.putln(
             code.error_goto_if_null(temp_result, self.pos))
-        code.put_gotref(temp_result, PyrexTypes.py_object_type)
+        code.put_gotref(temp_result, py_object_type)
         code.put_decref_clear(temp_result, py_object_type)
         code.funcstate.release_temp(temp_result)
 
@@ -8803,7 +8805,7 @@ class ParallelStatNode(StatNode, ParallelNode):
         if self.is_parallel and not self.is_nested_prange:
             code.putln("/* Clean up any temporaries */")
             for temp, type in sorted(self.temps):
-                code.put_xdecref_clear(temp, type, do_for_memoryviewslice=True, have_gil=False)
+                code.put_xdecref_clear(temp, type, have_gil=False)
 
     def setup_parallel_control_flow_block(self, code):
         """

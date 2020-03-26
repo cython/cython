@@ -241,7 +241,9 @@ class UtilityCodeBase(object):
         #@subsitute: tempita
 
         [requires tempita substitution
-         - context can't be specified here though
+         - context can't be specified here though so only
+           tempita utility that requires no external context
+           will benefit from this tag
          - only necessary when @required from non-tempita code]
 
     for prototypes and implementation respectively.  For non-python or
@@ -830,6 +832,9 @@ class FunctionState(object):
             type = type.cv_base_type
         elif type.is_reference and not type.is_fake_reference:
             type = type.ref_base_type
+        elif type.is_cfunction:
+            from . import PyrexTypes
+            type = PyrexTypes.c_ptr_type(type)  # A function itself isn't an l-value
         if not type.is_pyobject and not type.is_memoryviewslice:
             # Make manage_ref canonical, so that manage_ref will always mean
             # a decref is needed.
@@ -1461,11 +1466,14 @@ class GlobalState(object):
         for (type_cname, method_name), cname in sorted(self.cached_cmethods.items()):
             cnames.append(cname)
             method_name_cname = self.get_interned_identifier(StringEncoding.EncodedString(method_name)).cname
-            decl.putln('static __Pyx_CachedCFunction %s = {0, &%s, 0, 0, 0};' % (
-                cname, method_name_cname))
+            decl.putln('static __Pyx_CachedCFunction %s = {0, 0, 0, 0, 0};' % (
+                cname))
             # split type reference storage as it might not be static
             init.putln('%s.type = (PyObject*)&%s;' % (
                 cname, type_cname))
+            # method name string isn't static in limited api
+            init.putln('%s.method_name = &%s;' % (
+                cname, method_name_cname))
 
         if Options.generate_cleanup_code:
             cleanup = self.parts['cleanup_globals']
@@ -1510,6 +1518,17 @@ class GlobalState(object):
             w = self.parts['pystring_table']
             w.putln("")
             w.putln("static __Pyx_StringTabEntry %s[] = {" % Naming.stringtab_cname)
+            w.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+            w_limited_writer = w.insertion_point()
+            w.putln("#else")
+            w_not_limited_writer = w.insertion_point()
+            w.putln("#endif")
+            decls_writer.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
+            not_limited_api_decls_writer = decls_writer.insertion_point()
+            decls_writer.putln("#endif")
+            init_globals.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+            init_globals_limited_api = init_globals.insertion_point()
+            init_globals.putln("#endif")
             for idx, py_string_args in enumerate(py_strings):
                 c_cname, _, py_string = py_string_args
                 if not py_string.is_str or not py_string.encoding or \
@@ -1528,32 +1547,19 @@ class GlobalState(object):
                     py_string.cname)
                 self.parts['module_state_traverse'].putln("Py_VISIT(traverse_module_state->%s);" %
                     py_string.cname)
-                decls_writer.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
-                decls_writer.putln(
+                not_limited_api_decls_writer.putln(
                     "static PyObject *%s;" % py_string.cname)
-                decls_writer.putln("#endif")
                 if py_string.py3str_cstring:
-                    w.putln("#if PY_MAJOR_VERSION >= 3")
-                    w.putln("{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
+                    w_not_limited_writer.putln("#if PY_MAJOR_VERSION >= 3")
+                    w_not_limited_writer.putln("{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
                         py_string.cname,
                         py_string.py3str_cstring.cname,
                         py_string.py3str_cstring.cname,
                         '0', 1, 0,
                         py_string.intern
                         ))
-                    w.putln("#else")
-
-                w.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-                w.putln("{0, %s, sizeof(%s), %s, %d, %d, %d}," % (
-                    c_cname,
-                    c_cname,
-                    encoding,
-                    py_string.is_unicode,
-                    py_string.is_str,
-                    py_string.intern
-                    ))
-                w.putln("#else")
-                w.putln("{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
+                    w_not_limited_writer.putln("#else")
+                w_not_limited_writer.putln("{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
                     py_string.cname,
                     c_cname,
                     c_cname,
@@ -1562,16 +1568,21 @@ class GlobalState(object):
                     py_string.is_str,
                     py_string.intern
                     ))
-                w.putln("#endif")
-                init_globals.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-                init_globals.putln("if (__Pyx_InitString(%s[%d], &%s) < 0) %s;" % (
+                if py_string.py3str_cstring:
+                    w_not_limited_writer.putln("#endif")
+                w_limited_writer.putln("{0, %s, sizeof(%s), %s, %d, %d, %d}," % (
+                    c_cname if not py_string.py3str_cstring else py_string.py3str_cstring.cname,
+                    c_cname if not py_string.py3str_cstring else py_string.py3str_cstring.cname,
+                    encoding if not py_string.py3str_cstring else '0',
+                    py_string.is_unicode,
+                    py_string.is_str,
+                    py_string.intern
+                    ))
+                init_globals_limited_api.putln("if (__Pyx_InitString(%s[%d], &%s) < 0) %s;" % (
                     Naming.stringtab_cname,
                     idx,
                     py_string.cname,
                     init_globals.error_goto(self.module_pos)))
-                init_globals.putln("#endif")
-                if py_string.py3str_cstring:
-                    w.putln("#endif")
             w.putln("{0, 0, 0, 0, 0, 0, 0}")
             w.putln("};")
 
@@ -2089,43 +2100,52 @@ class CCodeWriter(object):
         return typecast(py_object_type, type, cname)
 
     def put_gotref(self, cname, type):
-        self.putln(type.generate_gotref(cname))
+        type.generate_gotref(self, cname)
 
     def put_giveref(self, cname, type):
-        self.putln(type.generate_giveref(cname))
+        type.generate_giveref(self, cname)
 
     def put_xgiveref(self, cname, type):
-        self.putln(type.generate_xgiveref(cname))
+        type.generate_xgiveref(self, cname)
 
     def put_xgotref(self, cname, type):
-        self.putln(type.generate_xgotref(cname))
+        type.generate_xgotref(self, cname)
 
-    def put_incref(self, cname, type, **kwds):
+    def put_incref(self, cname, type, nanny=True):
         # Note: original put_Memslice_Incref/Decref also added in some utility code
         # this is unnecessary since the relevant utility code is loaded anyway if a memoryview is used
         # and so has been removed. However, it's potentially a feature that might be useful here
-        self.putln(type.generate_incref(cname, **kwds))
+        type.generate_incref(self, cname, nanny=nanny)
 
-    def put_xincref(self, cname, type, **kwds):
-        self.putln(type.generate_xincref(cname, **kwds))
+    def put_xincref(self, cname, type, nanny=True):
+        type.generate_xincref(self, cname, nanny=nanny)
 
-    def put_decref(self, cname, type, **kwds):
-        self.putln(type.generate_decref(cname, **kwds))
+    def put_decref(self, cname, type, nanny=True, have_gil=True):
+        type.generate_decref(self, cname, nanny=nanny, have_gil=have_gil)
 
-    def put_decref_clear(self, cname, type, **kwds):
-        self.putln(type.generate_decref_clear(cname, **kwds))
+    def put_xdecref(self, cname, type, nanny=True, have_gil=True):
+        type.generate_xdecref(self, cname, nanny=nanny, have_gil=have_gil)
 
-    def put_xdecref(self, cname, type, **kwds):
-        self.putln(type.generate_xdecref(cname, **kwds))
+    def put_decref_clear(self, cname, type, clear_before_decref=False, nanny=True, have_gil=True):
+        type.generate_decref_clear(self, cname, clear_before_decref=clear_before_decref,
+                              nanny=nanny, have_gil=have_gil)
 
-    def put_xdecref_clear(self, cname, type, **kwds):
-        self.putln(type.generate_xdecref_clear(cname, **kwds))
+    def put_xdecref_clear(self, cname, type, clear_before_decref=False, nanny=True, have_gil=True):
+        type.generate_xdecref_clear(self, cname, clear_before_decref=clear_before_decref,
+                              nanny=nanny, have_gil=have_gil)
 
     def put_decref_set(self, cname, type, rhs_cname):
-        self.putln(type.generate_decref_set(cname, rhs_cname))
+        type.generate_decref_set(self, cname, rhs_cname)
 
     def put_xdecref_set(self, cname, type, rhs_cname):
-        self.putln(type.generate_xdecref_set(cname, rhs_cname))
+        type.generate_xdecref_set(self, cname, rhs_cname)
+
+    def put_incref_memoryviewslice(self, slice_cname, type, have_gil):
+        # TODO ideally this would just be merged into "put_incref"
+        type.generate_incref_memoryviewslice(self, slice_cname, have_gil=have_gil)
+
+    def put_var_incref_memoryviewslice(self, entry, have_gil):
+        self.put_incref_memoryviewslice(entry.cname, entry.type, have_gil=have_gil)
 
     def put_var_gotref(self, entry):
         self.put_gotref(entry.cname, entry.type)
@@ -2146,28 +2166,22 @@ class CCodeWriter(object):
         self.put_xincref(entry.cname, entry.type, **kwds)
 
     def put_var_decref(self, entry, **kwds):
-        self.putln(entry.type.generate_decref(entry.cname, **kwds))
+        self.put_decref(entry.cname, entry.type, **kwds)
 
     def put_var_xdecref(self, entry, **kwds):
-        self.putln(entry.type.generate_xdecref(entry.cname, **kwds))
+        self.put_xdecref(entry.cname, entry.type, **kwds)
 
     def put_var_decref_clear(self, entry, **kwds):
-        self._put_var_decref_clear(entry, null_check=False, **kwds)
+        self.put_decref_clear(entry.cname, entry.type, clear_before_decref=entry.in_closure, **kwds)
+
+    def put_var_decref_set(self, entry, rhs_cname, **kwds):
+        self.put_decref_set(entry.cname, entry.type, rhs_cname, **kwds)
+
+    def put_var_xdecref_set(self, entry, rhs_cname, **kwds):
+        self.put_xdecref_set(entry.cname, entry.type, rhs_cname, **kwds)
 
     def put_var_xdecref_clear(self, entry, **kwds):
-        self._put_var_decref_clear(entry, null_check=True, **kwds)
-
-    def _put_var_decref_clear(self, entry, null_check, **kwds):
-        f = getattr(entry.type, "generate_%sdecref_clear" %
-                                (null_check and "x" or ""))
-        self.putln(f(entry.cname,
-                     clear_before_decref=entry.in_closure,
-                     **kwds))
-
-    def get_var_nullcheck(self, entry):
-        # we usually want to put this into an is statement so it's a get,
-        # not a put
-        return entry.type.generate_nullcheck(entry.cname)
+        self.put_xdecref_clear(entry.cname, entry.type, clear_before_decref=entry.in_closure, **kwds)
 
     def put_var_decrefs(self, entries, used_only = 0):
         for entry in entries:

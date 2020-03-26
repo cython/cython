@@ -1,5 +1,6 @@
 # tag: pstats
 # cython: profile = True
+# cython: binding = False
 
 __doc__ = u"""
     >>> import os, tempfile, cProfile as profile, pstats
@@ -12,7 +13,9 @@ __doc__ = u"""
     >>> short_stats['f_cdef']
     100
     >>> short_stats['f_cpdef']
-    300
+    200
+    >>> short_stats['f_cpdef (wrapper)']
+    100
     >>> short_stats['f_inline']
     100
     >>> short_stats['f_inline_prof']
@@ -48,7 +51,9 @@ __doc__ = u"""
     >>> short_stats['m_cdef']
     100
     >>> short_stats['m_cpdef']
-    300
+    200
+    >>> short_stats['m_cpdef (wrapper)']
+    100
 
     >>> try:
     ...    os.unlink(statsfile)
@@ -56,10 +61,10 @@ __doc__ = u"""
     ...    pass
 
     >>> sorted(callees(s, 'test_profile'))  #doctest: +NORMALIZE_WHITESPACE
-    ['f_cdef', 'f_cpdef', 'f_def',
+    ['f_cdef', 'f_cpdef', 'f_cpdef (wrapper)', 'f_def',
      'f_inline', 'f_inline_prof',
      'f_raise',
-     'm_cdef', 'm_cpdef', 'm_def',
+     'm_cdef', 'm_cpdef', 'm_cpdef (wrapper)', 'm_def',
      'withgil_prof']
 
     >>> profile.runctx("test_generators()", locals(), globals(), statsfile)

@@ -262,6 +262,10 @@ class Entry(object):
         else:
             return NotImplemented
 
+    @property
+    def cf_is_reassigned(self):
+        return len(self.cf_assignments) > 1
+
 
 class InnerEntry(Entry):
     """
