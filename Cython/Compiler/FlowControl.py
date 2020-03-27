@@ -725,9 +725,12 @@ class ControlFlowAnalysis(CythonTransform):
         if node.star_arg:
             # self_in_stararg needs to build a new tuple containing self and so can't easily
             # be made to work
-            star_arg_type = (Builtin.tuple_type if (node.needs_closure or node.self_in_stararg
-                                                    or use_fastcall_tuple == False)
-                                else PyrexTypes.FastcallTupleType())
+            star_arg_type = Builtin.tuple_type
+            # FIXME - this doesn't explicitly force it. Need to change argument overriding
+            # rules
+            if use_fastcall_tuple or (not node.needs_closure and not node.self_in_stararg
+                                        and use_fastcall_tuple != False):
+                star_arg_type = PyrexTypes.FastcallTupleType(explicitly_requested=use_fastcall_tuple)
             if star_arg_type.is_fastcall_tuple and not node.entry.signature.use_fastcall:
                 # Makes it a more favourable to fall back to a tuple later if the
                 # argument is passed to the function as a tuple anyway
@@ -742,10 +745,12 @@ class ControlFlowAnalysis(CythonTransform):
             # no value in using FastcallDictType - it only adds a layer of indirection
             # (this doesn't apply for FastcallTupleType, which might offer small benefits
             # however called)
-            starstar_arg_type = (Builtin.dict_type if (node.needs_closure
-                                                    or not node.entry.signature.use_fastcall
-                                                    or use_fastcall_dict == False)
-                                else PyrexTypes.FastcallDictType())
+            starstar_arg_type = Builtin.dict_type
+            if (use_fastcall_dict or (not node.needs_closure
+                                        and use_fastcall_dict != False
+                                        and node.entry.signature.use_fastcall)):
+                starstar_arg_type = PyrexTypes.FastcallDictType(explicitly_requested=use_fastcall_dict)
+
             self.flow.mark_argument(node.starstar_arg,
                                     TypedExprNode(starstar_arg_type,
                                                   may_be_none=False),

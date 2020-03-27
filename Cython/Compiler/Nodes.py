@@ -2712,6 +2712,13 @@ class PyArgDeclNode(Node):
     child_attrs = []
     is_self_arg = False
     is_type_arg = False
+    entry = None
+
+    @property
+    def type(self):
+        if self.entry:
+            return self.entry.type
+        return None
 
     def generate_function_definitions(self, env, code):
         self.entry.generate_function_definitions(env, code)
@@ -2724,15 +2731,16 @@ class DecoratorNode(Node):
     child_attrs = ['decorator']
 
 def _get_type_attr(arg, attr):
-    for attrs in (["entry", "type", attr],
-                  ["type", attr]):
-        for a in attrs:
-            try:
-                arg = getattr(arg, a)
-            except AttributeError:
-                break
-        else:
-            return arg
+    # really just a convenience function for
+    #  if type and type.attr
+    # TODO can probably be removed
+    for a in ["type", attr]:
+        try:
+            arg = getattr(arg, a)
+        except AttributeError:
+            break
+    else:
+        return arg
 
 class DefNode(FuncDefNode):
     # A Python function definition.

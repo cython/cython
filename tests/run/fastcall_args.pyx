@@ -1,6 +1,6 @@
 # mode: run
 # tag: METH_FASTCALL
-# tag: warnings
+#### tag: warnings # FIXME
 
 from __future__ import print_function
 

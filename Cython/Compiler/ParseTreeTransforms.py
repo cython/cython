@@ -2480,13 +2480,15 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
             # TODO: turn this into a "with gil" declaration.
             error(node.pos, "Python functions cannot be declared 'nogil'")
         if fastcall_args:
+            # FIXME pointless now? Done in control-flow
             if fastcall_args[0] and node.star_arg:
                 if node.self_in_stararg:
                     error(node.pos, "Cannot use 'fastcall_args(\"*\")' on a function where the"
                           " self argument is included in *args")
-                node.star_arg.type = PyrexTypes.FastcallTupleType(explicitly_requested=True)
+                #node.star_arg.type = PyrexTypes.FastcallTupleType(explicitly_requested=True)
             if fastcall_args[1] and node.starstar_arg:
-                node.starstar_arg.type = PyrexTypes.FastcallDictType(explicitly_requested=True)
+                pass
+                #node.starstar_arg.type = PyrexTypes.FastcallDictType(explicitly_requested=True)
 
         self.visitchildren(node)
         return node
