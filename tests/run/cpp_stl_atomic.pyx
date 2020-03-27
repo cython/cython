@@ -1,6 +1,5 @@
-# distutils: extra_compile_args=-std=c++11
 # mode: run
-# tag: cpp, werror
+# tag: cpp, cpp11, werror
 
 from cython.operator cimport preincrement as incr, dereference as deref
 from libc.stdint cimport *
