@@ -2606,17 +2606,16 @@ static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_le
         return NULL;
 
     // Shortcuts
-    if (PyUnicode_GET_LENGTH(left) == 0) {
+    left_len = PyUnicode_GET_LENGTH(left);
+    if (left_len == 0) {
         Py_INCREF(right);
         return right;
     }
-    if (PyUnicode_GET_LENGTH(right) == 0) {
+    right_len = PyUnicode_GET_LENGTH(right);
+    if (right_len == 0) {
         Py_INCREF(left);
         return left;
     }
-
-    left_len = PyUnicode_GET_LENGTH(left);
-    right_len = PyUnicode_GET_LENGTH(right);
     if (left_len > PY_SSIZE_T_MAX - right_len) {
         PyErr_SetString(PyExc_OverflowError,
                         "strings are too large to concat");
@@ -2625,13 +2624,13 @@ static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_le
     new_len = left_len + right_len;
 
     if (__Pyx_unicode_modifiable(left)
-        && PyUnicode_CheckExact(right)
-        && PyUnicode_KIND(right) <= PyUnicode_KIND(left)
-        // Don't resize for ascii += latin1. Convert ascii to latin1 requires
-        //   to change the structure size, but characters are stored just after
-        //   the structure, and so it requires to move all characters which is
-        //   not so different than duplicating the string.
-        && !(PyUnicode_IS_ASCII(left) && !PyUnicode_IS_ASCII(right))) {
+            && PyUnicode_CheckExact(right)
+            && PyUnicode_KIND(right) <= PyUnicode_KIND(left)
+            // Don't resize for ascii += latin1. Convert ascii to latin1 requires
+            //   to change the structure size, but characters are stored just after
+            //   the structure, and so it requires to move all characters which is
+            //   not so different than duplicating the string.
+            && !(PyUnicode_IS_ASCII(left) && !PyUnicode_IS_ASCII(right))) {
 
         __Pyx_GIVEREF(*p_left);
         if (PyUnicode_Resize(p_left, new_len) != 0) {
