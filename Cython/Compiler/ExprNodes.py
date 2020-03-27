@@ -744,7 +744,7 @@ class ExprNode(Node):
 
     # ---------------- Code Generation -----------------
 
-    def make_owned_reference(self, code, do_for_memoryviewslice=False):
+    def make_owned_reference(self, code):
         """
         Make sure we own a reference to result.
         If the result is in a temp, it is already a new reference.
@@ -996,7 +996,7 @@ class ExprNode(Node):
             # These can always be coerced to a PyObject as a fallback option.
             # It may not be efficient but they're only intended to cover a
             # limited number of cases efficiently.
-            src = CoerceToPyTypeNode(src, env)
+            src = src.coerce_to_pyobject(env)
             src = src.coerce_to(dst_type, env)
         else: # neither src nor dst are py types
             # Added the string comparison, since for c types that
@@ -6585,41 +6585,7 @@ class GeneralCallNode(CallNode):
     def generate_result_code(self, code):
         if self.type.is_error: return
         if self.fastcallable_with_types:
-            args_empty = (isinstance(self.positional_args, TupleNode) and
-                          len(self.positional_args.args) == 0)
-            if self.keyword_args and args_empty:
-                code.globalstate.use_utility_code(UtilityCode.load_cached(
-                    "PyObjectFastCall__Kwds_OptimizedStructs", "ObjectHandling.c"))
-                code.putln(
-                    "%s = __Pyx_PyObject_FastCallKwds_structs(%s, %s); %s" % (
-                        self.result(),
-                        self.function.py_result(),
-                        self.keyword_args.result(),
-                        code.error_goto_if_null(self.result(), self.pos)))
-            elif self.keyword_args:  # both with args
-                code.globalstate.use_utility_code(UtilityCode.load_cached(
-                    "PyObjectFastCall__ArgsKwds_OptimizedStructs", "ObjectHandling.c"))
-                code.putln(
-                    "%s = __Pyx_PyObject_FastCallArgsKwds_structs(%s, %s, %s); %s" % (
-                        self.result(),
-                        self.function.py_result(),
-                        self.positional_args.result(),
-                        self.keyword_args.result(),
-                        code.error_goto_if_null(self.result(), self.pos)))
-            else:
-                code.globalstate.use_utility_code(UtilityCode.load_cached(
-                    "PyObjectFastCall__Args_OptimizedStructs", "ObjectHandling.c"))
-                function ="__Pyx_PyObject_FastCallArgs_structs"
-                code.putln(
-                    "%s = __Pyx_PyObject_FastCallArgs_structs(%s, %s); %s" % (
-                        self.result(),
-                        self.function.py_result(),
-                        self.positional_args.result(),
-                        code.error_goto_if_null(self.result(), self.pos)))
-            self.generate_gotref(code)
-            return
-
-
+            return self.generate_fastcall_result_code(code)
 
         if self.keyword_args:
             kwargs = self.keyword_args.py_result()
@@ -6635,6 +6601,42 @@ class GeneralCallNode(CallNode):
                 kwargs,
                 code.error_goto_if_null(self.result(), self.pos)))
         self.generate_gotref(code)
+
+    def generate_fastcall_result_code(self, code):
+        # use this path when we're mainly forwarding fastcall tuples and dicts
+        args_empty = (isinstance(self.positional_args, TupleNode) and
+                          len(self.positional_args.args) == 0)
+        if self.keyword_args and args_empty:
+            code.globalstate.use_utility_code(UtilityCode.load_cached(
+                "PyObjectFastCall__Kwds_OptimizedStructs", "ObjectHandling.c"))
+            code.putln(
+                "%s = __Pyx_PyObject_FastCallKwds_structs(%s, %s); %s" % (
+                    self.result(),
+                    self.function.py_result(),
+                    self.keyword_args.result(),
+                    code.error_goto_if_null(self.result(), self.pos)))
+        elif self.keyword_args:  # both with args
+            code.globalstate.use_utility_code(UtilityCode.load_cached(
+                "PyObjectFastCall__ArgsKwds_OptimizedStructs", "ObjectHandling.c"))
+            code.putln(
+                "%s = __Pyx_PyObject_FastCallArgsKwds_structs(%s, %s, %s); %s" % (
+                    self.result(),
+                    self.function.py_result(),
+                    self.positional_args.result(),
+                    self.keyword_args.result(),
+                    code.error_goto_if_null(self.result(), self.pos)))
+        else:
+            code.globalstate.use_utility_code(UtilityCode.load_cached(
+                "PyObjectFastCall__Args_OptimizedStructs", "ObjectHandling.c"))
+            function ="__Pyx_PyObject_FastCallArgs_structs"
+            code.putln(
+                "%s = __Pyx_PyObject_FastCallArgs_structs(%s, %s); %s" % (
+                    self.result(),
+                    self.function.py_result(),
+                    self.positional_args.result(),
+                    code.error_goto_if_null(self.result(), self.pos)))
+        self.generate_gotref(code)
+        return
 
 
 class AsTupleNode(ExprNode):

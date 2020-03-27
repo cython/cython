@@ -207,7 +207,8 @@ _directive_defaults = {
     'old_style_globals': False,
     'np_pythran': False,
     'fast_gil': False,
-    'fastcall_args': [None, None],
+    'fastcall_args': [None, None],  # two values for tuple and dict. True/False sets it explicitly.
+                                # None lets Cython decide.
 
     # set __file__ and/or __path__ to known source/target path at import time (instead of not having them available)
     'set_initial_path' : None,  # SOURCEFILE or "/full/path/to/module"
@@ -257,6 +258,7 @@ def one_of(*args):
         else:
             return value
     return validate
+
 
 def normalise_encoding_name(option_name, encoding):
     """

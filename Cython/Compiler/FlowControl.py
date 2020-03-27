@@ -718,41 +718,36 @@ class ControlFlowAnalysis(CythonTransform):
         for arg in node.args:
             self._visit(arg)
 
-        fastcall_directives = node.local_scope.directives.get('fastcall_args', [None, None])
+        # each can be True, False, or None
+        use_fastcall_tuple, use_fastcall_dict = node.local_scope.directives.get('fastcall_args', [None, None])
         # TODO a better version would try to identify if the argument makes it into the closure,
         # but for now just block using the fastcall types on any function with a closure
         if node.star_arg:
-            # can be True, False, or None
-            fastcall_set = fastcall_directives[0]
-
             # self_in_stararg needs to build a new tuple containing self and so can't easily
             # be made to work
-            star_type = (Builtin.tuple_type if (node.needs_closure or node.self_in_stararg
-                                                    or fastcall_set == False)
+            star_arg_type = (Builtin.tuple_type if (node.needs_closure or node.self_in_stararg
+                                                    or use_fastcall_tuple == False)
                                 else PyrexTypes.FastcallTupleType())
-            if star_type.is_fastcall_tuple and not node.entry.signature.use_fastcall:
+            if star_arg_type.is_fastcall_tuple and not node.entry.signature.use_fastcall:
                 # Makes it a more favourable to fall back to a tuple later if the
                 # argument is passed to the function as a tuple anyway
-                star_type.coercion_count += 1
+                star_arg_type.coercion_count += 1
             self.flow.mark_argument(node.star_arg,
-                                    TypedExprNode(star_type,
+                                    TypedExprNode(star_arg_type,
                                                   may_be_none=False),
                                     node.star_arg.entry)
             # if the user has specifically requested the fastcall type it's set in AdjustDefByDirectives
         if node.starstar_arg:
-            # can be True, False, or None
-            fastcall_set = fastcall_directives[1]
-
             # If the wrapping function doesn't have a fastcall signature there's
             # no value in using FastcallDictType - it only adds a layer of indirection
             # (this doesn't apply for FastcallTupleType, which might offer small benefits
             # however called)
-            starstar_type = (Builtin.dict_type if (node.needs_closure
+            starstar_arg_type = (Builtin.dict_type if (node.needs_closure
                                                     or not node.entry.signature.use_fastcall
-                                                    or fastcall_set == False)
+                                                    or use_fastcall_dict == False)
                                 else PyrexTypes.FastcallDictType())
             self.flow.mark_argument(node.starstar_arg,
-                                    TypedExprNode(starstar_type,
+                                    TypedExprNode(starstar_arg_type,
                                                   may_be_none=False),
                                     node.starstar_arg.entry)
         self._visit(node.body)
