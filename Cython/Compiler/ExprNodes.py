@@ -993,9 +993,9 @@ class ExprNode(Node):
             src = CoerceToComplexNode(src, dst_type, env)
         elif (src.type.is_fastcall_type
                 and src_type != dst_type):
-            # These can always be coerced to a PyObject as a fallback option
+            # These can always be coerced to a PyObject as a fallback option.
             # It may not be efficient but they're only intended to cover a
-            # limited number of cases efficiently
+            # limited number of cases efficiently.
             src = CoerceToPyTypeNode(src, env)
             src = src.coerce_to(dst_type, env)
         else: # neither src nor dst are py types
@@ -3905,7 +3905,6 @@ class IndexNode(_IndexingBaseNode):
         self.is_temp = True
         return self
 
-
     def wrap_in_nonecheck_node(self, env, getting):
         if not env.directives['nonecheck'] or not self.base.may_be_none():
             return
@@ -4902,8 +4901,7 @@ class SliceIndexNode(ExprNode):
     def analyse_types(self, env, getting=True):
         self.base = self.base.analyse_types(env)
 
-        if (self.base.type.is_buffer or self.base.type.is_pythran_expr or
-            self.base.type.is_memoryviewslice):
+        if self.base.type.is_buffer or self.base.type.is_pythran_expr or self.base.type.is_memoryviewslice:
             none_node = NoneNode(self.pos)
             index = SliceNode(self.pos,
                               start=self.start or none_node,
@@ -6368,8 +6366,7 @@ class GeneralCallNode(CallNode):
     #  keyword_args     ExprNode or None  Dict of keyword arguments
 
     type = py_object_type
-    fastcallable_with_types = False  # can use fastcall_dict and/or
-            # fastcall_tuple to call
+    fastcallable_with_types = False  # can use fastcall_dict and/or fastcall_tuple to call
 
     subexprs = ['function', 'positional_args', 'keyword_args']
 
@@ -6431,7 +6428,7 @@ class GeneralCallNode(CallNode):
         if pos_is_fastcall or kwds_is_fastcall:
             # worth a go at converting to a fastcall call
             if ((pos_is_fastcall or pos_is_empty) and
-                (kwds_is_fastcall or kwds_is_none)):
+                    (kwds_is_fastcall or kwds_is_none)):
                 self.fastcallable_with_types = True
                 if pos_is_fastcall:
                     self.positional_args = self.positional_args.arg
@@ -7178,7 +7175,7 @@ class AttributeNode(ExprNode):
         original_obj = self.obj
         self.analyse_as_python_attribute(env, obj_type, immutable_obj)
         if (self.obj is not original_obj
-            and self.obj.type is not PyrexTypes.py_object_type):
+                and self.obj.type is not PyrexTypes.py_object_type):
             # If it's emerged from the analysis changed, and a more specialised
             # type (for example a builtin type)
             # There may be more that can be done with it, so analyse again
@@ -7852,7 +7849,7 @@ class SequenceNode(ExprNode):
     def generate_fastcall_tuple_parallel_unpacking_code(self, code, rhs):
         result = rhs.result()
         code.putln("{")
-        code.putln("Py_ssize_t size = __Pyx_FastcallTuple_Len({0});".format(result))
+        code.putln("Py_ssize_t size = __Pyx_FastcallTuple_Len(%s);" % result)
         code.putln("if (unlikely(size != %d)) {" % len(self.args))
         code.globalstate.use_utility_code(raise_too_many_values_to_unpack)
         code.putln("if (size > %d) __Pyx_RaiseTooManyValuesError(%d);" % (
@@ -12563,12 +12560,12 @@ class CmpNode(object):
                 self.special_bool_cmp_function = "__Pyx_PyUnicode_ContainsTF"
                 return True
             elif self.operand2.type.is_fastcall_tuple:
-                self.special_bool_cmp_utility_code = UtilityCode.load_cached("FastcallTupleContains",
-                                                                                "ObjectHandling.c")
+                self.special_bool_cmp_utility_code = UtilityCode.load_cached(
+                    "FastcallTupleContains", "ObjectHandling.c")
                 self.special_bool_cmp_function = "__Pyx_FastcallTuple_ContainsTF"
             elif self.operand2.type.is_fastcall_dict:
-                self.special_bool_cmp_utility_code = UtilityCode.load_cached("FastcallDictContains",
-                                                                                "ObjectHandling.c")
+                self.special_bool_cmp_utility_code = UtilityCode.load_cached(
+                    "FastcallDictContains", "ObjectHandling.c")
                 self.special_bool_cmp_function = "__Pyx_FastcallDict_ContainsTF"
             else:
                 if not self.operand2.type.is_pyobject:
@@ -13353,7 +13350,7 @@ class CoerceToPyTypeNode(CoercionNode):
             elif arg.type.is_complex:
                 self.type = Builtin.complex_type
             self.target_type = self.type
-            # the the fastcall_tuple and _dict conversions self.target_type
+            # In the fastcall_tuple and _dict conversions self.target_type
             # is used to indicate if it's an explicitly requested conversion
             # therefore leave as py_object_type here (but set type)
             if arg.type.is_fastcall_type:
