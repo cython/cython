@@ -916,7 +916,7 @@ class InterpretCompilerDirectives(CythonTransform):
                 raise PostParseError(
                     pos, 'The exceptval directive takes 0 or 1 positional arguments and the boolean keyword "check"')
             return ('exceptval', (args[0] if args else None, check))
-        elif optname == "fastcall_args":
+        elif False and optname == "fastcall_args":
             if len(args) not in [1, 2]:
                 raise PostParseError(
                     pos, 'The fastcall_args directive takes 1 or 2 positional arguments')
@@ -969,11 +969,14 @@ class InterpretCompilerDirectives(CythonTransform):
                     'The %s directive takes no keyword arguments' % optname)
             return optname, [ str(arg.value) for arg in args ]
         elif callable(directivetype):
-            if kwds is not None or len(args) != 1 or not isinstance(
-                    args[0], (ExprNodes.StringNode, ExprNodes.UnicodeNode)):
+            if kwds is not None:
                 raise PostParseError(pos,
-                    'The %s directive takes one compile-time string argument' % optname)
-            return (optname, directivetype(optname, str(args[0].value)))
+                    'The %s directive does not take keyword arguments' % optname)
+            try:
+                return (optname, directivetype(optname, *[arg.value for arg in args]))
+            except CompileError as e:
+                # convert to postparse error, make sure pos it set, re-raise
+                raise PostParseError(pos, e.message)
         else:
             assert False
 

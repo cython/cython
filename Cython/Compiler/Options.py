@@ -251,7 +251,12 @@ extra_warnings = {
 }
 
 def one_of(*args):
-    def validate(name, value):
+    def validate(name, *values):
+        if len(values) != 1:
+            from .Errors import CompileError
+            raise CompileError(None,
+                    'The %s directive takes one compile-time string argument' % name)
+        value = values[0]
         if value not in args:
             raise ValueError("%s directive must be one of %s, got '%s'" % (
                 name, args, value))
@@ -259,8 +264,21 @@ def one_of(*args):
             return value
     return validate
 
+def parse_fastcall_args(name, *values):
+    if len(values) == 1:
+        values = [values[0], values[0]]
+    elif len(values) != 2:
+        from .Errors import CompileError
+        raise CompileError(None,
+                "directive %s takes 1 or 2 True/False/None positional arguments" % name)
+    def parse_value(value):
+        if hasattr(value, 'lower') and value.lower() == "none":
+            return None
+        return parse_directive_value(name, value, type=bool)
 
-def normalise_encoding_name(option_name, encoding):
+    return [parse_value(v) for v in values]
+
+def normalise_encoding_name(option_name, *values):
     """
     >>> normalise_encoding_name('c_string_encoding', 'ascii')
     'ascii'
@@ -279,6 +297,12 @@ def normalise_encoding_name(option_name, encoding):
     >>> normalise_encoding_name('c_string_encoding', 'SeriousLyNoSuch--Encoding')
     'SeriousLyNoSuch--Encoding'
     """
+    if len(values) != 1:
+        from .Errors import CompileError
+        raise CompileError(None,
+                'The %s directive takes one compile-time string argument' % name)
+    encoding = values[0]
+
     if not encoding:
         return ''
     if encoding.lower() in ('default', 'ascii', 'utf8'):
@@ -318,7 +342,7 @@ directive_types = {
     'c_string_type': one_of('bytes', 'bytearray', 'str', 'unicode'),
     'c_string_encoding': normalise_encoding_name,
     'trashcan': bool,
-    'fastcall_args': list, # implements some of its own logic on top of this
+    'fastcall_args': parse_fastcall_args,
 }
 
 for key, val in _directive_defaults.items():
@@ -420,12 +444,12 @@ def parse_directive_value(name, value, relaxed_bool=False, type=None):
                 name, orig_value))
     elif type is str:
         return str(value)
-    elif name=="fastcall_args":
-        # FIXME - can only take single value argument in a comment
-        if value.lower == "none":
-            return [None, None]
-        else:
-            return [parse_directive_value("", value, relaxed_bool, type=bool)]*2
+    #elif name=="fastcall_args":
+    #    # FIXME - can only take single value argument in a comment
+    #    if value.lower() == "none":
+    #        return [None, None]
+    #    else:
+    #        return [parse_directive_value("", value, relaxed_bool, type=bool)]*2
     elif callable(type):
         return type(name, value)
     else:
