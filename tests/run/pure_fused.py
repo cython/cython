@@ -40,7 +40,7 @@ class TestCls:
         >>> TestCls().cpfunc(2)
         'int'
         """
-        loca = arg
+        loc = arg
         return cython.typeof(arg)
 
     def func1_inpy(self, arg: InPy):
