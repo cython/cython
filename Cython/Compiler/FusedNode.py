@@ -720,7 +720,7 @@ class FusedCFuncDefNode(StatListNode):
                 for dst_type in dest_sig:
                     found_matches = []
                     found_candidates = []
-                    # Make two seperate lists: One for for signature sub-trees
+                    # Make two seperate lists: One for signature sub-trees
                     #        with at least one definite match, and another for
                     #        signature sub-trees with only ambiguous matches
                     #        (where `dest_sig[i] is None`).
