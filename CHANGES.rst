@@ -61,7 +61,7 @@ Features added
 * Several declarations in ``cpython.*``, ``libc.*`` and ``libcpp.*`` were added.
   Patches by Jeroen Demeyer, Matthew Edwards, Chris Gyurgyik, Jerome Kieffer,
   Omer Ozarslan and Zackery Spytz.
-  (Github issues #3358, #3332, #3179, #2891, #2826, #2713)
+  (Github issues #3468, #3358, #3332, #3179, #2891, #2826, #2713)
 
 * Deprecated NumPy API usages were removed from ``numpy.pxd``.
   Patch by Matti Picus.  (Github issue #3365)
@@ -72,12 +72,16 @@ Features added
 * PEP-479 (``generator_stop``) is now enabled by default with language level 3.
   (Github issue #2580)
 
+* The ``cython.view.array`` type supports inheritance.
+  Patch by David Woods.  (Github issue #3413)
+
 * Code annotation accepts a new debugging argument ``--annotate-fullc`` that
   will include the complete syntax highlighted C file in the HTML output.
   (Github issue #2855)
 
 * ``--no-capture`` added to ``runtests.py`` to prevent stdout/stderr capturing
-  during srctree tests.  Patch by Matti Picus.
+  during srctree tests.
+  Patch by Matti Picus.  (Github issue #2701)
 
 * ``--no-docstrings`` option added to ``cythonize`` script.
   Original patch by mo-han.  (Github issue #2889)
@@ -135,6 +139,9 @@ Bugs fixed
   as integer 0 instead of the expected float value.
   Patch by Kryštof Pilnáček.  (Github issue #2133)
 
+* The ``cython.declare()`` and ``cython.cast()`` functions could fail in pure mode.
+  Patch by Dmitry Shesterkin.  (Github issue #3244)
+
 * ``__doc__`` was not available inside of the class body during class creation.
   (Github issue #1635)
 
@@ -148,11 +155,16 @@ Bugs fixed
 * Compiling package ``__init__`` files could fail under Windows due to an
   undefined export symbol.  (Github issue #2968)
 
+* The deprecated ``PyUnicode_GET_SIZE()`` function is no longer used in Py3.
+
 * A C compiler cast warning was resolved.
   Patch by Michael Buesch.  (Github issue #2775)
 
 * Binding staticmethods of Cython functions were not behaving like Python methods.
   Patch by Jeroen Demeyer.  (Github issue #3106, #3102)
+
+* Memoryviews failed to compile when the ``cache_builtins`` feature was disabled.
+  Patch by David Woods.  (Github issue #3406)
 
 Other changes
 -------------
