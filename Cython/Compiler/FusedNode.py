@@ -746,8 +746,7 @@ class FusedCFuncDefNode(StatListNode):
                 elif len(candidates) > 1:
                     raise TypeError("Function call with ambiguous argument types")
                 else:
-                    result = (<dict>signatures)[candidates[0]]
-                    return result
+                    return (<dict>signatures)[candidates[0]]
             """)
 
         fragment_code = pyx_code.getvalue()
