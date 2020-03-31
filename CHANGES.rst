@@ -101,7 +101,7 @@ Bugs fixed
 
 * Fused argument types were not correctly handled in type annotations and
   ``cython.locals()``.
-  Patch by David Woods.  (Github issue #3391)
+  Patch by David Woods.  (Github issues #3391, #3142)
 
 * Diverging from the usual behaviour, ``len(memoryview)``, ``len(char*)``
   and ``len(Py_UNICODE*)`` returned an unsigned ``size_t`` value.  They now
