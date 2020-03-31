@@ -883,7 +883,7 @@ class CythonCompileTestCase(unittest.TestCase):
                 'clear_to_none',
                 'error_on_unknown_names',
                 'error_on_uninitialized',
-                'cache_builtins',
+                # 'cache_builtins',  # not currently supported due to incorrect global caching
             )
         ]
         self._saved_default_directives = list(Options.get_directive_defaults().items())
