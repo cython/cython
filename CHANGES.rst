@@ -155,8 +155,6 @@ Bugs fixed
 * Compiling package ``__init__`` files could fail under Windows due to an
   undefined export symbol.  (Github issue #2968)
 
-* The deprecated ``PyUnicode_GET_SIZE()`` function is no longer used in Py3.
-
 * A C compiler cast warning was resolved.
   Patch by Michael Buesch.  (Github issue #2775)
 
@@ -202,6 +200,18 @@ Other changes
 
 * Support for Python 2.6 was removed.
 
+
+0.29.17 (2020-0?-??)
+====================
+
+Bugs fixed
+----------
+
+* The compilation cache in ``cython.inline("…")`` failed to take the language
+  level into account.
+  Patch by will-ca.  (Github issue #3419)
+
+* The deprecated ``PyUnicode_GET_SIZE()`` function is no longer used in Py3.
 
 0.29.16 (2020-03-24)
 ====================
