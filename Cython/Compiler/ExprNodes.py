@@ -13595,8 +13595,8 @@ class AnnotationNode(ExprNode):
     # 2. The Cython use where the annotation can indicate an
     #  object type
     #
-    # doesn't handle the pre PEP-563 version where the
-    # annotation is evaluated into a Python Object
+    # Doesn't handle the pre PEP-563 version where the
+    # annotation is evaluated into a Python Object.
 
     subexprs = []
 
@@ -13626,6 +13626,7 @@ class AnnotationNode(ExprNode):
 
     def analyse_type_annotation(self, env, assigned_value=None):
         if self.untyped:
+            # Already applied as a fused type, not re-evaluating it here.
             return None, None
         annotation = self.expr
         base_type = None
