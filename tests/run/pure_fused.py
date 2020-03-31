@@ -21,8 +21,7 @@ class TestCls:
         return cython.typeof(arg)
 
     if cython.compiled:
-        @cython.locals(arg = NotInPy,
-                       loc = NotInPy)  # NameError in pure Python
+        @cython.locals(arg=NotInPy, loc=NotInPy)  # NameError for 'NotInPy' in pure Python
         def func2(self, arg):
             """
             >>> TestCls().func2(1.0)
@@ -63,4 +62,3 @@ class TestCls:
         """
         loc = arg
         return cython.typeof(arg)
-
