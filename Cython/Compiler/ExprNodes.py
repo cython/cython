@@ -13597,11 +13597,14 @@ class AnnotationNode(ExprNode):
     #
     # doesn't handle the pre PEP-563 version where the
     # annotation is evaluated into a Python Object
-    untyped = False  # Set for fused specializations:
-        # Once a fused function has been created we don't want
-        # annotations to override an already set type
 
     subexprs = []
+
+    # 'untyped' is set for fused specializations:
+    # Once a fused function has been created we don't want
+    # annotations to override an already set type.
+    untyped = False
+
     def __init__(self, pos, expr, string=None):
         """string is expected to already be a StringNode or None"""
         ExprNode.__init__(self, pos)
