@@ -2,6 +2,19 @@
 Cython Changelog
 ================
 
+0.29.17 (2020-0?-??)
+====================
+
+Bugs fixed
+----------
+
+* The compilation cache in ``cython.inline("…")`` failed to take the language
+  level into account.
+  Patch by will-ca.  (Github issue #3419)
+
+* The deprecated ``PyUnicode_GET_SIZE()`` function is no longer used in Py3.
+
+
 0.29.16 (2020-03-24)
 ====================
 
