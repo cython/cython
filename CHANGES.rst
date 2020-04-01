@@ -24,7 +24,8 @@ Features added
   Patches by Eddie Elizondo.  (Github issue #3223, #3311)
 
 * The dispatch to fused functions is now linear in the number of arguments,
-  which makes it much faster especially for larger fused types.
+  which makes it much faster, often 2x or more, and several times faster for
+  larger fused types with many specialisations.
   Patch by will-ca.  (Github issue #1385)
 
 * ``with gil/nogil`` statements can be conditional based on compile-time
