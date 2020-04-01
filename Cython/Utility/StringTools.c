@@ -1228,8 +1228,6 @@ static CYTHON_INLINE PyObject* __Pyx_PyStr_Str(PyObject *obj);/*proto*/
 //////////////////// PyStr_Str ////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyStr_Str(PyObject *obj) {
-    if (unlikely(obj == Py_None))
-        obj = PYSTR("None");
     return __Pyx_NewRef(obj);
 }
 

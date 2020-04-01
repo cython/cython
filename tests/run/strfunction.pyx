@@ -5,6 +5,8 @@ __doc__ = u"""
    'test'
 """
 
+cimport cython
+
 s = str
 z = str('test')
 
@@ -51,7 +53,7 @@ def typed(str s):
     True
     >>> print(typed('abc'))
     abc
-    >>> type(typed('abc')) istype(typed('abc'))
+    >>> type(typed('abc')) is type(typed('abc'))
     True
     """
     return str(s)
