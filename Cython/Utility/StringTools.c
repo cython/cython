@@ -1235,7 +1235,6 @@ static CYTHON_INLINE PyObject* __Pyx_PyStr_Str(PyObject *obj) {
 
 
 //////////////////// PyObject_Str.proto ////////////////////
-//@requires: PyStr_Str
 
 #if PY_MAJOR_VERSION >= 3
 #define __Pyx_PyObject_Str(obj) \
