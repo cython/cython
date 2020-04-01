@@ -81,6 +81,8 @@ realstdout = sys.stdout
 sys.stdout = midimport_run
 
 try:
+    # Run `test_fused_cpdef()` during import and save the result for
+    #        `test_midimport_run()`.
     test_fused_cpdef()
 except Exception as e:
     midimport_run.write(f"{e!r}\n")
@@ -88,6 +90,9 @@ finally:
     sys.stdout = realstdout
 
 def test_midimport_run():
+	# At one point, dynamically calling fused cpdef functions during import
+	#        would fail because the type signature-matching indices weren't
+	#        yet initialized. (See GH-3366.)
     """
     >>> test_midimport_run()
     None, x is int 2 int
@@ -104,7 +109,7 @@ def test_midimport_run():
     <BLANKLINE>
     B, x is long 2 long
     """
-    print(midimport_run.getvalue().strip('\n'))
+    print(midimport_run.getvalue(), end='')
 
 
 def assert_raise(func, *args):
