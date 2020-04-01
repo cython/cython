@@ -2313,7 +2313,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             node, function.obj, attr_name, arg_list)
 
     PyObject_String_func_type = PyrexTypes.CFuncType(
-        Builtint.str_type, [
+        Builtin.str_type, [
             PyrexTypes.CFuncTypeArg("org", PyrexTypes.py_object_type, None)
             ])
 
@@ -2326,11 +2326,13 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             return node
         arg = pos_args[0]
 
-        if not arg.may_be_none():
-            return arg
+        if basestring is str:  # python 2
+            cname = "__Pyx_String_String", "StringTools.c"
+            utility_code = UtilityCode.load_cached('PyString_String', 'StringTools.c')
+        else:
+            cname = "__Pyx_Object_Unicode"
+            utility_code = UtilityCode.load_cached("PyObject_Unicode", "StringTools.c")
 
-        cname = "__Pyx_Object_Unicode"
-        utility_code = UtilityCode.load_cached("PyObject_Unicode", "StringTools.c")
         return ExprNodes.PythonCapiCallNode(
             node.pos, cname, self.PyObject_String_func_type,
             args=pos_args,

@@ -54,7 +54,7 @@ def typed(str s):
     >>> type(typed('abc')) istype(typed('abc'))
     True
     """
-    return unicode(s)
+    return str(s)
 
 
 @cython.test_fail_if_path_exists(
@@ -68,4 +68,4 @@ def typed_not_none(str s not None):
     >>> type(typed('abc')) is type(typed('abc'))
     True
     """
-    return unicode(s)
+    return str(s)
