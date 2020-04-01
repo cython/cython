@@ -23,6 +23,10 @@ Features added
 * The ``LIMITED_API`` is supported by setting the ``CYTHON_LIMITED_API`` C macro.
   Patches by Eddie Elizondo.  (Github issue #3223, #3311)
 
+* The dispatch to fused functions is now linear in the number of arguments,
+  which makes it much faster especially for larger fused types.
+  Patch by will-ca.  (Github issue #1385)
+
 * ``with gil/nogil`` statements can be conditional based on compile-time
   constants, e.g. fused type checks.
   Patch by Noam Hershtig.  (Github issue #2579)
