@@ -2326,12 +2326,15 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             return node
         arg = pos_args[0]
 
-        if basestring is str:  # python 2
-            cname = "__Pyx_String_String", "StringTools.c"
-            utility_code = UtilityCode.load_cached('PyString_String', 'StringTools.c')
+        if arg.type is Builtin.str_type:
+            if not arg.may_be_none():
+                return arg
+
+            cname = "__Pyx_PyStr_Str"
+            utility_code = UtilityCode.load_cached('PyStr_Str', 'StringTools.c')
         else:
-            cname = "__Pyx_Object_Unicode"
-            utility_code = UtilityCode.load_cached("PyObject_Unicode", "StringTools.c")
+            cname = '__Pyx_PyObject_Str'
+            utility_code = UtilityCode.load_cached('PyObject_Str', 'StringTools.c')
 
         return ExprNodes.PythonCapiCallNode(
             node.pos, cname, self.PyObject_String_func_type,
