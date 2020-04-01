@@ -90,11 +90,11 @@ finally:
     sys.stdout = realstdout
 
 def test_midimport_run():
-	# At one point, dynamically calling fused cpdef functions during import
-	#        would fail because the type signature-matching indices weren't
-	#        yet initialized.
-	#        (See Compiler.FusedNode.FusedCFuncDefNode._fused_signature_index,
-	#        GH-3366.)
+    # At one point, dynamically calling fused cpdef functions during import
+    #        would fail because the type signature-matching indices weren't
+    #        yet initialized.
+    #        (See Compiler.FusedNode.FusedCFuncDefNode._fused_signature_index,
+    #        GH-3366.)
     """
     >>> test_midimport_run()
     None, x is int 2 int
