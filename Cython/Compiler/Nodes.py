@@ -6515,14 +6515,18 @@ class IfStatNode(StatNode):
     def _set_branch_hint(self, clause, statements_node, inverse=False):
         if not statements_node.is_terminator:
             return
-        if not isinstance(statements_node, StatListNode) or not statements_node.stats:
-            return
+        if isinstance(statements_node, StatListNode):
+            if not statements_node.stats:
+                return
+            statements = statements_node.stats
+        else:
+            statements = [statements_node]
         # Anything that unconditionally raises exceptions should be considered unlikely.
-        if isinstance(statements_node.stats[-1], (RaiseStatNode, ReraiseStatNode)):
-            if len(statements_node.stats) > 1:
+        if isinstance(statements[-1], (RaiseStatNode, ReraiseStatNode)):
+            if len(statements) > 1:
                 # Allow simple statements before the 'raise', but no conditions, loops, etc.
                 non_branch_nodes = (ExprStatNode, AssignmentNode, DelStatNode, GlobalNode, NonlocalNode)
-                for node in statements_node.stats[:-1]:
+                for node in statements[:-1]:
                     if not isinstance(node, non_branch_nodes):
                         return
             clause.branch_hint = 'likely' if inverse else 'unlikely'
