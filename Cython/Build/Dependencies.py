@@ -973,6 +973,9 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
         exclude_failures=exclude_failures,
         language=language,
         aliases=aliases)
+
+    fix_windows_unicode_modules(module_list)
+
     deps = create_dependency_tree(ctx, quiet=quiet)
     build_dir = getattr(options, 'build_dir', None)
 
@@ -1126,6 +1129,36 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
     # compiler output, flush now to avoid interleaving output.
     sys.stdout.flush()
     return module_list
+
+
+def fix_windows_unicode_modules(module_list):
+    # Hack around a distutils 3.[5678] bug on Windows for unicode module names.
+    # https://bugs.python.org/issue39432
+    if sys.platform != "win32":
+        return
+    if sys.version_info < (3, 5) or sys.version_info >= (3, 8, 2):
+        return
+
+    def make_filtered_list(ignored_symbol, old_entries):
+        class FilteredExportSymbols(list):
+            # export_symbols for unicode filename cause link errors on Windows
+            # Cython doesn't need them (it already defines PyInit with the correct linkage)
+            # so use this class as a temporary fix to stop them from being generated
+            def __contains__(self, val):
+                # so distutils doesn't "helpfully" add PyInit_<name>
+                return val == ignored_symbol or list.__contains__(self, val)
+
+        filtered_list = FilteredExportSymbols(old_entries)
+        if old_entries:
+            filtered_list.extend(name for name in old_entries if name != ignored_symbol)
+        return filtered_list
+
+    for m in module_list:
+        if not m.name.isascii():
+            m.export_symbols = make_filtered_list(
+                "PyInit_" + m.name.rsplit(".", 1)[-1],
+                m.export_symbols,
+            )
 
 
 if os.environ.get('XML_RESULTS'):
