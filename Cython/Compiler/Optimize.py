@@ -2313,7 +2313,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             node, function.obj, attr_name, arg_list)
 
     PyObject_String_func_type = PyrexTypes.CFuncType(
-        Builtin.str_type, [
+        PyrexTypes.py_object_type, [  # Change this to Builtin.str_type when removing Py2 support.
             PyrexTypes.CFuncTypeArg("obj", PyrexTypes.py_object_type, None)
             ])
 
