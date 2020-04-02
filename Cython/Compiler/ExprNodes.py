@@ -11376,7 +11376,7 @@ class AddNode(NumBinopNode):
 
     def py_operation_function(self, code):
         type1, type2 = self.operand1.type, self.operand2.type
-
+        func = None
         if type1 is unicode_type or type2 is unicode_type:
             if type1 in (unicode_type, str_type) and type2 in (unicode_type, str_type):
                 is_unicode_concat = True
@@ -11388,10 +11388,22 @@ class AddNode(NumBinopNode):
                 is_unicode_concat = False
 
             if is_unicode_concat:
-                if self.operand1.may_be_none() or self.operand2.may_be_none():
-                    return '__Pyx_PyUnicode_ConcatSafe'
-                else:
-                    return '__Pyx_PyUnicode_Concat'
+                if self.inplace or self.operand1.is_temp:
+                    code.globalstate.use_utility_code(
+                        UtilityCode.load_cached("UnicodeConcatInPlace", "ObjectHandling.c"))
+                func = '__Pyx_PyUnicode_Concat'
+        elif type1 is str_type and type2 is str_type:
+            code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("StrConcatInPlace", "ObjectHandling.c"))
+            func = '__Pyx_PyStr_Concat'
+
+        if func:
+            # any necessary utility code will be got by "NumberAdd" in generate_evaluation_code
+            if self.inplace or self.operand1.is_temp:
+                func += 'InPlace'  # upper case to indicate unintuitive macro
+            if self.operand1.may_be_none() or self.operand2.may_be_none():
+                func += 'Safe'
+            return func
 
         return super(AddNode, self).py_operation_function(code)
 
