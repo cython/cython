@@ -2600,9 +2600,9 @@ static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_le
     PyObject *left = *p_left;
     Py_ssize_t left_len, right_len, new_len;
 
-    if (PyUnicode_READY(left) == -1)
+    if (unlikely(PyUnicode_READY(left) == -1))
         return NULL;
-    if (PyUnicode_READY(right) == -1)
+    if (unlikely(PyUnicode_READY(right) == -1))
         return NULL;
 
     // Shortcuts
@@ -2616,7 +2616,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_le
         Py_INCREF(left);
         return left;
     }
-    if (left_len > PY_SSIZE_T_MAX - right_len) {
+    if (unlikely(left_len > PY_SSIZE_T_MAX - right_len)) {
         PyErr_SetString(PyExc_OverflowError,
                         "strings are too large to concat");
         return NULL;
@@ -2633,7 +2633,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_le
             && !(PyUnicode_IS_ASCII(left) && !PyUnicode_IS_ASCII(right))) {
 
         __Pyx_GIVEREF(*p_left);
-        if (PyUnicode_Resize(p_left, new_len) != 0) {
+        if (unlikely(PyUnicode_Resize(p_left, new_len) != 0)) {
             // on failure PyUnicode_Resize does not deallocate the the input
             // so left will remain unchanged - simply undo the giveref
             __Pyx_GOTREF(*p_left);
