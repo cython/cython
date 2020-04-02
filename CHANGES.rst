@@ -57,7 +57,7 @@ Features added
 
 * String concatenation can now happen in place if possible, by extending the
   existing string rather than always creating a new one.
-  Patch by David Woods.  (Github issue #3451)
+  Patch by David Woods.  (Github issue #3453)
 
 * Multiplication of Python numbers with small constant integers is faster.
   (Github issue #2808)
