@@ -51,6 +51,14 @@ Features added
 * Inlined properties can be defined for external extension types.
   Patch by Matti Picus.  (Github issue #2640)
 
+* The ``str()`` builtin now calls ``PyObject_Str()`` instead of going
+  through a Python call.
+  Patch by William Ayd.  (Github issue #3279)
+
+* String concatenation can now happen in place if possible, by extending the
+  existing string rather than always creating a new one.
+  Patch by David Woods.  (Github issue #3451)
+
 * Multiplication of Python numbers with small constant integers is faster.
   (Github issue #2808)
 
