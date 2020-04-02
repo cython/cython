@@ -878,7 +878,13 @@ class CythonCompileTestCase(unittest.TestCase):
         from Cython.Compiler import Options
         self._saved_options = [
             (name, getattr(Options, name))
-            for name in ('warning_errors', 'clear_to_none', 'error_on_unknown_names', 'error_on_uninitialized')
+            for name in (
+                'warning_errors',
+                'clear_to_none',
+                'error_on_unknown_names',
+                'error_on_uninitialized',
+                # 'cache_builtins',  # not currently supported due to incorrect global caching
+            )
         ]
         self._saved_default_directives = list(Options.get_directive_defaults().items())
         Options.warning_errors = self.warning_errors

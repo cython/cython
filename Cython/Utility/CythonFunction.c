@@ -1263,11 +1263,6 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
         PyTuple_SET_ITEM(new_args, 0, self);
         self = NULL;
 
-#if !(CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS)
-        Py_XDECREF(self);
-        self = NULL;
-#endif
-
         for (i = 0; i < argc; i++) {
 #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
             PyObject *item = PyTuple_GET_ITEM(args, i);
@@ -1483,9 +1478,17 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
     else if (PyMethod_Check(method)) {
         // python classes
         return PyClassMethod_New(PyMethod_GET_FUNCTION(method));
-    } else {
-        // CPython does not attempt to validate the argument to classmethod.
-        // If it isn't callable then it fails at runtime
+    }
+    else if (PyCFunction_Check(method)) {
         return PyClassMethod_New(method);
     }
+#ifdef __Pyx_CyFunction_USED
+    else if (__Pyx_CyFunction_Check(method)) {
+        return PyClassMethod_New(method);
+    }
+#endif
+    PyErr_SetString(PyExc_TypeError,
+                   "Class-level classmethod() can only be called on "
+                   "a method_descriptor or instance method.");
+    return NULL;
 }

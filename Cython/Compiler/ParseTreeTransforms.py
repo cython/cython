@@ -1985,6 +1985,8 @@ if VALUE is not None:
         for var, type_node in node.directive_locals.items():
             if not lenv.lookup_here(var):   # don't redeclare args
                 type = type_node.analyse_as_type(lenv)
+                if type and type.is_fused and lenv.fused_to_specific:
+                    type = type.specialize(lenv.fused_to_specific)
                 if type:
                     lenv.declare_var(var, type, type_node.pos)
                 else:
