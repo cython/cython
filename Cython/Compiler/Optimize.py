@@ -2314,7 +2314,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
 
     PyObject_String_func_type = PyrexTypes.CFuncType(
         Builtin.str_type, [
-            PyrexTypes.CFuncTypeArg("org", PyrexTypes.py_object_type, None)
+            PyrexTypes.CFuncTypeArg("obj", PyrexTypes.py_object_type, None)
             ])
 
     def _handle_simple_function_str(self, node, function, pos_args):

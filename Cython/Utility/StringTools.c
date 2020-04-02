@@ -1229,17 +1229,12 @@ static CYTHON_INLINE PyObject* __Pyx_PyStr_Str(PyObject *obj);/*proto*/
 
 static CYTHON_INLINE PyObject* __Pyx_PyStr_Str(PyObject *obj) {
     if (unlikely(obj == Py_None))
-        obj = PYUNICODE("None");
+        obj = PYIDENT("None");
     return __Pyx_NewRef(obj);
 }
 
 
 //////////////////// PyObject_Str.proto ////////////////////
 
-#if PY_MAJOR_VERSION >= 3
-#define __Pyx_PyObject_Str(obj) \
-    (likely(PyUnicode_CheckExact(obj)) ? __Pyx_NewRef(obj) : PyObject_Str(obj))
-#else
 #define __Pyx_PyObject_Str(obj) \
     (likely(PyString_CheckExact(obj)) ? __Pyx_NewRef(obj) : PyObject_Str(obj))
-#endif
