@@ -1953,6 +1953,8 @@ class NameNode(AtomicExprNode):
             _, atype = annotation.analyse_type_annotation(env)
         if atype is None:
             atype = unspecified_type if as_target and env.directives['infer_types'] != False else py_object_type
+        if atype.is_fused and env.fused_to_specific:
+            atype = atype.specialize(env.fused_to_specific)
         self.entry = env.declare_var(name, atype, self.pos, is_cdef=not as_target)
         self.entry.annotation = annotation.expr
 
@@ -13593,10 +13595,16 @@ class AnnotationNode(ExprNode):
     # 2. The Cython use where the annotation can indicate an
     #  object type
     #
-    # doesn't handle the pre PEP-563 version where the
-    # annotation is evaluated into a Python Object
+    # Doesn't handle the pre PEP-563 version where the
+    # annotation is evaluated into a Python Object.
 
     subexprs = []
+
+    # 'untyped' is set for fused specializations:
+    # Once a fused function has been created we don't want
+    # annotations to override an already set type.
+    untyped = False
+
     def __init__(self, pos, expr, string=None):
         """string is expected to already be a StringNode or None"""
         ExprNode.__init__(self, pos)
@@ -13617,6 +13625,9 @@ class AnnotationNode(ExprNode):
         return self.analyse_type_annotation(env)[1]
 
     def analyse_type_annotation(self, env, assigned_value=None):
+        if self.untyped:
+            # Already applied as a fused type, not re-evaluating it here.
+            return None, None
         annotation = self.expr
         base_type = None
         is_ambiguous = False

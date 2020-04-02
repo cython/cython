@@ -1680,8 +1680,6 @@ class FuncDefNode(StatNode, BlockNode):
             return arg
         if other_type is None:
             error(type_node.pos, "Not a type")
-        elif other_type.is_fused and any(orig_type.same_as(t) for t in other_type.types):
-            pass # use specialized rather than fused type
         elif orig_type is not py_object_type and not orig_type.same_as(other_type):
             error(arg.base_type.pos, "Signature does not agree with previous declaration")
             error(type_node.pos, "Previous declaration here")

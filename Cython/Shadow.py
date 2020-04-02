@@ -269,8 +269,11 @@ class PointerType(CythonType):
 
 class ArrayType(PointerType):
 
-    def __init__(self):
-        self._items = [None] * self._n
+    def __init__(self, value=None):
+        if value is None:
+            self._items = [None] * self._n
+        else:
+            super(ArrayType, self).__init__(value)
 
 
 class StructType(CythonType):
