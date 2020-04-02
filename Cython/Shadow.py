@@ -71,7 +71,7 @@ def index_type(base_type, item):
     else:
         # int[8] etc.
         assert int(item) == item  # array size must be a plain integer
-        array(base_type, item)
+        return array(base_type, item)
 
 # END shameless copy
 
@@ -146,27 +146,33 @@ def compile(f):
 # Special functions
 
 def cdiv(a, b):
-    q = a / b
-    if q < 0:
-        q += 1
-    return q
+    if a < 0:
+        a = -a
+        b = -b
+    if b < 0:
+        return (a + b + 1) // b
+    return a // b
 
 def cmod(a, b):
     r = a % b
-    if (a*b) < 0:
+    if (a * b) < 0 and r:
         r -= b
     return r
 
 
 # Emulated language constructs
 
-def cast(type, *args, **kwargs):
+def cast(t, *args, **kwargs):
     kwargs.pop('typecheck', None)
     assert not kwargs
-    if hasattr(type, '__call__'):
-        return type(*args)
-    else:
-        return args[0]
+   
+    if isinstance(t, typedef):
+        return t(*args)
+    elif isinstance(t, type): #Doesn't work with old-style classes of Python 2.x
+        if len(args) != 1 or not (args[0] is None or isinstance(args[0], t)):
+            return t(*args)
+            
+    return args[0]
 
 def sizeof(arg):
     return 1
@@ -178,14 +184,19 @@ def typeof(arg):
 def address(arg):
     return pointer(type(arg))([arg])
 
-def declare(type=None, value=_Unspecified, **kwds):
-    if type not in (None, object) and hasattr(type, '__call__'):
-        if value is not _Unspecified:
-            return type(value)
-        else:
-            return type()
+def _is_value_type(t):
+    if isinstance(t, typedef):
+        return _is_value_type(t._basetype)
+        
+    return isinstance(t, type) and issubclass(t, (StructType, UnionType, ArrayType))
+
+def declare(t=None, value=_Unspecified, **kwds):
+    if value is not _Unspecified:
+        return cast(t, value)
+    elif _is_value_type(t):
+        return t()
     else:
-        return value
+        return None
 
 class _nogil(object):
     """Support for 'with nogil' statement and @nogil decorator.
@@ -258,8 +269,11 @@ class PointerType(CythonType):
 
 class ArrayType(PointerType):
 
-    def __init__(self):
-        self._items = [None] * self._n
+    def __init__(self, value=None):
+        if value is None:
+            self._items = [None] * self._n
+        else:
+            super(ArrayType, self).__init__(value)
 
 
 class StructType(CythonType):

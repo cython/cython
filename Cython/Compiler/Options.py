@@ -169,6 +169,7 @@ def get_directive_defaults():
 
 # Declare compiler directives
 _directive_defaults = {
+    'binding': True,
     'boundscheck' : True,
     'nonecheck' : False,
     'initializedcheck' : True,
@@ -237,8 +238,6 @@ _directive_defaults = {
     'test_fail_if_path_exists' : [],
 
 # experimental, subject to change
-    'binding': None,
-
     'formal_grammar': False,
 }
 

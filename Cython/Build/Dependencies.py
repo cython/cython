@@ -913,7 +913,8 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                     variable called ``foo`` as a string, and then call
                     ``cythonize(..., aliases={'MY_HEADERS': foo})``.
 
-    :param quiet: If True, Cython won't print error and warning messages during the compilation.
+    :param quiet: If True, Cython won't print error, warning, or status messages during the
+                  compilation.
 
     :param force: Forces the recompilation of the Cython modules, even if the timestamps
                   don't indicate that a recompilation is necessary.

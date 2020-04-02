@@ -74,6 +74,18 @@ class TestInline(CythonTest):
             6
         )
 
+    def test_lang_version(self):
+        # GH-3419. Caching for inline code didn't always respect compiler directives.
+        inline_divcode = "def f(int a, int b): return a/b"
+        self.assertEqual(
+            inline(inline_divcode, language_level=2)['f'](5,2),
+            2
+        )
+        self.assertEqual(
+            inline(inline_divcode, language_level=3)['f'](5,2),
+            2.5
+        )
+
     if has_numpy:
 
         def test_numpy(self):
