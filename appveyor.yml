@@ -92,6 +92,7 @@ build_script:
 test: off
 test_script:
   - "%PYTHON%\\Scripts\\pip.exe install -r test-requirements.txt"
+  - "%PYTHON%\\Scripts\\pip.exe install win_unicode_console"
   - "set CFLAGS=/Od /W3"
   - "%WITH_ENV% %PYTHON%\\python.exe runtests.py -vv --backend=%BACKEND% --no-code-style -j5"
 
