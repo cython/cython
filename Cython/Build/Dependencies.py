@@ -1154,11 +1154,16 @@ def fix_windows_unicode_modules(module_list):
         return filtered_list
 
     for m in module_list:
-        if not m.name.isascii():
-            m.export_symbols = make_filtered_list(
-                "PyInit_" + m.name.rsplit(".", 1)[-1],
-                m.export_symbols,
-            )
+        # TODO: use m.name.isascii() in Py3.7+
+        try:
+            m.name.encode("ascii")
+            continue
+        except UnicodeEncodeError:
+            pass
+        m.export_symbols = make_filtered_list(
+            "PyInit_" + m.name.rsplit(".", 1)[-1],
+            m.export_symbols,
+        )
 
 
 if os.environ.get('XML_RESULTS'):
