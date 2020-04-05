@@ -1635,7 +1635,7 @@ class _ReplaceResultRefNodes(EnvTransform):
         self.cname = EncodedString(Naming.genexpr_arg_prefix + str(number))
         self.replacements_made = 0
         self.orig_node = orig_node
-        assert isinstance(orig_node, UtilNodes.ResultRefNode)
+        assert isinstance(orig_node, ResultRefNode)
         self.gen_node = gen_node
         self.args = list(self.gen_node.def_node.args)
         self.call_parameters = list(self.gen_node.call_parameters)
