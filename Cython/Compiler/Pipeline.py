@@ -147,7 +147,7 @@ def create_pipeline(context, mode, exclude_classes=()):
     from .ParseTreeTransforms import TrackNumpyAttributes, InterpretCompilerDirectives, TransformBuiltinMethods
     from .ParseTreeTransforms import ExpandInplaceOperators, ParallelRangeTransform
     from .ParseTreeTransforms import CalculateQualifiedNamesTransform, ReplacePropertyNode
-    from .ParseTreeTransforms import ComprehensionScopeTransform
+    from .ParseTreeTransforms import ComprehensionScopeTransform, FixTempExprAcrossClosures
     from .TypeInference import MarkParallelAssignments, MarkOverflowingArithmetic
     from .ParseTreeTransforms import AdjustDefByDirectives, AlignFunctionDefinitions
     from .ParseTreeTransforms import RemoveUnreachableCode, GilCheck
@@ -217,6 +217,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         IterationTransform(context),
         SwitchTransform(context),
         OptimizeBuiltinCalls(context),  ## Necessary?
+        FixTempExprAcrossClosures(context),
         CreateClosureClasses(context),  ## After all lookups and type inference
         CalculateQualifiedNamesTransform(context),
         ConsolidateOverflowCheck(context),

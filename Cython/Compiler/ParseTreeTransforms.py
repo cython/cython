@@ -1619,6 +1619,136 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
         node.decorator_indirection = reassignment
         return [node, reassignment]
 
+class _ReplaceResultRefNodes(EnvTransform):
+    # Implementation for FixEvalWithTempExprAcrossClosures
+    # handles ResultRefNodes and EvalWithTempExprNode
+    # that are defined outside a generator expression but used inside. It replaces
+    # them with arguments to the "genexpr" function instead
+    def __init__(self, context, number, orig_node, gen_node):
+        # The reason for using ".x" as the name is that this is how CPython
+        # tracks internal variables in loops (e.g.
+        #  { locals() for v in range(10) }
+        # will produce "v" and ",0"). We don't replicate this behaviour completely
+        # but use it as a starting point
+        super(_ReplaceResultRefNodes, self).__init__(context)
+        self.name = EncodedString(".{0}".format(number))
+        self.cname = EncodedString(Naming.genexpr_arg_prefix + str(number))
+        self.replacements_made = 0
+        self.orig_node = orig_node
+        assert isinstance(orig_node, UtilNodes.ResultRefNode)
+        self.gen_node = gen_node
+        self.args = list(self.gen_node.def_node.args)
+        self.call_parameters = list(self.gen_node.call_parameters)
+
+    def make_replacement(self, node):
+        pos = self.orig_node.pos
+        if self.replacements_made == 0:
+            # on the first go append an argument to the generator's def_func
+            # Since most of the types are known by now this is fairly basic
+            self.call_parameters.append(self.orig_node)
+            name_decl = Nodes.CNameDeclaratorNode(pos=pos, name=self.name)
+            name_decl.type = self.orig_node.type
+            new_arg = Nodes.CArgDeclNode(pos=pos, declarator=name_decl,
+                                            base_type=None, default=None, annotation=None)
+            new_arg.name = name_decl.name
+            new_arg.type = name_decl.type
+
+            def_node = self.gen_node.def_node
+
+            self.args.append(new_arg)  # don't add args to def_node right now,
+                # otherwise they can get replaced automatically by mistake.
+                # use "finalize_args" at the end
+
+            new_arg.entry = def_node.declare_argument(def_node.local_scope, new_arg)
+            new_arg.entry.cname = self.cname
+            new_arg.entry.in_closure = True
+
+        name_node = ExprNodes.NameNode(pos=pos, name=self.name)
+        name_node.entry = self.current_env().lookup(name_node.name)
+        name_node.type = name_node.entry.type
+
+        self.replacements_made += 1
+
+        return name_node
+
+    def finalize_args(self):
+        if self.replacements_made:
+            self.gen_node.def_node.args = self.args
+            self.gen_node.call_parameters = self.call_parameters
+
+    def __call__(self, root):
+        # This is usually called with a GeneratorExpressionNode which
+        # doesn't have a scope. Therefore force it to work with a dummy value
+        if not hasattr(root, "scope"):
+            root.scope = None
+            return super(_ReplaceResultRefNodes, self).__call__(root)
+        else:
+            return super(_ReplaceResultRefNodes, self).__call__(root)
+
+    def visit_ResultRefNode(self, node):
+        self.visitchildren(node)
+        if node is self.orig_node:
+            return self.make_replacement(node)
+        else:
+            return node
+
+    def visit_CloneNode(self, node):
+        if node.arg is self.orig_node:
+            node.arg = self.make_replacement(node.arg)
+        return node
+
+class FixTempExprAcrossClosures(EnvTransform, SkipDeclarations):
+    """
+    Handles the case where EvalWithTempExprNodes are split across closures
+
+    By converting them into function arguments that are passed into the
+    function creating the closure. This currently occurs where generator
+    expression loop variables have been moved outside the expression.
+
+    Needs to happen before CreateClosureClasses,
+    but otherwise as late as possible once all the optimizations have
+    been applied
+    """
+    def __init__(self, *args, **kwargs):
+        super(FixTempExprAcrossClosures, self).__init__(*args, **kwargs)
+        self.temp_expr_stack = []
+
+    def visit_EvalWithTempExprNode(self, node):
+        temp_ref = node.lazy_temp
+        self.temp_expr_stack.append(temp_ref)
+        self.visitchildren(node)
+
+        if (node.is_genexp_loop_scope and
+                isinstance(node.temp_expression, (ExprNodes.IndexNode, ExprNodes.DereferenceNode)) and
+                node.temp_expression.type.is_cpp_class):
+            node.temp_expression.type = PyrexTypes.CFakeReferenceType(node.temp_expression.type)
+            node.lazy_temp.type = node.temp_expression.type  # just refresh all the types
+
+        # there a good chance that the subexpression of these nodes gets optimized out
+        #  - remove them if that happens
+        if not tree_contains(node.subexpression, temp_ref):
+            return node.subexpression
+        self.temp_expr_stack.pop()
+        return node
+
+    def visit_GeneratorExpressionNode(self, node):
+        """Generator expressions are often inside EvalWithTempExprNode
+        with the temporary variable defined above them but used inside them.
+        This function transforms it into an argument to the genexpr function
+        so it can be captured correctly by the closure.
+        """
+        self.visitchildren(node)
+        count_replaced = 0
+        for te in reversed(self.temp_expr_stack):
+            replacer = _ReplaceResultRefNodes(self.context, count_replaced, te, node)
+            replacer(node.def_node)
+            replacer.finalize_args()
+            if replacer.replacements_made:
+                count_replaced += 1
+        return node
+
+
+
 
 class CnameDirectivesTransform(CythonTransform, SkipDeclarations):
     """
