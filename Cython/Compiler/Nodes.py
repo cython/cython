@@ -3190,7 +3190,7 @@ class DefNode(FuncDefNode):
         return self.entry.signature.exception_check
 
     def generate_function_definitions(self, env, code):
-        if self.defaults_getter:
+        if self.defaults_getter and not self.specialized_cpdefs:
             # defaults getter must never live in class scopes, it's always a module function
             self.defaults_getter.generate_function_definitions(env.global_scope(), code)
 

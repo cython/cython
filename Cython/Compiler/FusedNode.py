@@ -640,7 +640,7 @@ class FusedCFuncDefNode(StatListNode):
 
         pyx_code.put_chunk(
             u"""
-                def __pyx_fused_cpdef(signatures, args, kwargs, defaults, *, _fused_sigindex={}):
+                def __pyx_fused_cpdef(signatures, args, kwargs, defaults, _fused_sigindex={}):
                     # FIXME: use a typed signature - currently fails badly because
                     #        default arguments inherit the types we specify here!
 
