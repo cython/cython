@@ -58,7 +58,7 @@ def make_command_file(path_to_debug_info, prefix_code='', no_import=False):
                         exec(f.read(), dict(__file__=path_to_activate_this_py))
                 from Cython.Debugger import libcython, libpython
             except Exception as ex:
-                print("There was an error in python code originating from the file ''' + str(__file__) + '''")
+                print("There was an error in python code originating from the file ''' + str(__file__) + '''. It used the python interpreter " + str(sys.executable))
                 print_exc()
             end
             '''))
