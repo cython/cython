@@ -3,6 +3,7 @@
 from __future__ import print_function
 
 import atexit
+import base64
 import os
 import sys
 import re
@@ -1765,6 +1766,8 @@ class EndToEndTest(unittest.TestCase):
         if old_path:
             new_path = new_path + os.pathsep + old_path
         env['PYTHONPATH'] = new_path
+        if not env.get("PYTHONIOENCODING"):
+            env["PYTHONIOENCODING"] = sys.stdout.encoding or sys.getdefaultencoding()
         cmd = []
         out = []
         err = []
@@ -1825,12 +1828,20 @@ class EmbedTest(unittest.TestCase):
         if sys.version_info[0] >=3 and CY3_DIR:
             cython = os.path.join(CY3_DIR, cython)
         cython = os.path.abspath(os.path.join('..', '..', cython))
-        self.assertEqual(0, os.system(
-            "make PYTHON='%s' CYTHON='%s' LIBDIR1='%s' test > make.output" % (sys.executable, cython, libdir)))
+
         try:
-            os.remove('make.output')
-        except OSError:
-            pass
+            subprocess.check_output([
+                "make",
+                "PYTHON='%s'" % sys.executable,
+                "CYTHON='%s'" % cython,
+                "LIBDIR1='%s'" % libdir,
+                "paths", "test",
+            ])
+        except subprocess.CalledProcessError as err:
+            print(err.output.decode())
+            raise
+        self.assertTrue(True)  # :)
+
 
 def load_listfile(filename):
     # just re-use the FileListExclude implementation
@@ -1926,6 +1937,10 @@ class ShardExcludeSelector(object):
     # This is an exclude selector so it can override the (include) selectors.
     # It may not provide uniform distribution (in time or count), but is a
     # determanistic partition of the tests which is important.
+
+    # Random seed to improve the hash distribution.
+    _seed = base64.b64decode(b'2ged1EtsGz/GkisJr22UcLeP6n9XIaA5Vby2wM49Wvg=')
+
     def __init__(self, shard_num, shard_count):
         self.shard_num = shard_num
         self.shard_count = shard_count
@@ -1933,7 +1948,7 @@ class ShardExcludeSelector(object):
     def __call__(self, testname, tags=None, _hash=zlib.crc32, _is_py2=IS_PY2):
         # Cannot use simple hash() here as shard processes might use different hash seeds.
         # CRC32 is fast and simple, but might return negative values in Py2.
-        hashval = _hash(testname) & 0x7fffffff if _is_py2 else _hash(testname.encode())
+        hashval = _hash(self._seed + testname) & 0x7fffffff if _is_py2 else _hash(self._seed + testname.encode())
         return hashval % self.shard_count != self.shard_num
 
 
