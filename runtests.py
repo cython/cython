@@ -3,6 +3,7 @@
 from __future__ import print_function
 
 import atexit
+import base64
 import os
 import sys
 import re
@@ -1926,6 +1927,10 @@ class ShardExcludeSelector(object):
     # This is an exclude selector so it can override the (include) selectors.
     # It may not provide uniform distribution (in time or count), but is a
     # determanistic partition of the tests which is important.
+
+    # Random seed to improve the hash distribution.
+    _seed = base64.b64decode(b'2ged1EtsGz/GkisJr22UcLeP6n9XIaA5Vby2wM49Wvg=')
+
     def __init__(self, shard_num, shard_count):
         self.shard_num = shard_num
         self.shard_count = shard_count
@@ -1933,7 +1938,7 @@ class ShardExcludeSelector(object):
     def __call__(self, testname, tags=None, _hash=zlib.crc32, _is_py2=IS_PY2):
         # Cannot use simple hash() here as shard processes might use different hash seeds.
         # CRC32 is fast and simple, but might return negative values in Py2.
-        hashval = _hash(testname) & 0x7fffffff if _is_py2 else _hash(testname.encode())
+        hashval = _hash(self._seed + testname) & 0x7fffffff if _is_py2 else _hash(self._seed + testname.encode())
         return hashval % self.shard_count != self.shard_num
 
 
