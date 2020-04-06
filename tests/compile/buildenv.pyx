@@ -110,7 +110,7 @@ SIZEOF_OFF_T  {SIZEOF_OFF_T}
 Paths:
 sys.executable = {sys.executable}
 sys.exec_prefix = {sys.exec_prefix}
-sys.base_exec_prefix = {sys.base_exec_prefix}
+sys.base_exec_prefix = {getattr(sys, 'base_exec_prefix', "")}
 sys.prefix = {sys.prefix}
 sys.path = {sys.path}
 PYTHONPATH (env) = {get_env('PYTHONPATH', '')}
