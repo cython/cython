@@ -894,7 +894,7 @@ class AsyncGenAsyncioTest(unittest.TestCase):
 
         async def target():
             await asyncio.sleep(0.01)
-            1 / 0
+            1 / ZERO
 
         async def foo():
             nonlocal DONE
