@@ -595,13 +595,15 @@ class FusedCFuncDefNode(StatListNode):
                     for sig in <dict>signatures:
                         sigindex_node = _fused_sigindex
                         sig_series = sig.strip('()').split('|')
-                        for sig_type in sig_series[:-1]:
+                        for sig_type in sig_series[:(len(sig_series)-1)]:
                             if sig_type not in sigindex_node:
                                 sigindex_node[sig_type] = sigindex_node = {}
                             else:
                                 sigindex_node = sigindex_node[sig_type]
-                        sigindex_node[sig_series[-1]] = sig
+                        sigindex_node[sig_series[len(sig_series)-1]] = sig
             """
+            # use "len(sig_series)-1" to avoid problems if wraparound is externally
+            # set to False
         )
 
     def make_fused_cpdef(self, orig_py_func, env, is_def):
