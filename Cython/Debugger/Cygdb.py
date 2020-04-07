@@ -61,6 +61,7 @@ def make_command_file(path_to_debug_info, prefix_code='', no_import=False):
                 print("There was an error in Python code originating from the file ''' + str(__file__) + '''")
                 print("It used the Python interpreter " + str(sys.executable))
                 print_exc()
+                exit(1)
             end
             '''))
 
