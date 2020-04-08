@@ -2893,7 +2893,7 @@ class DefNode(FuncDefNode):
                 self.is_classmethod |= func.name == 'classmethod'
                 self.is_staticmethod |= func.name == 'staticmethod'
         cm_entry = env.lookup('classmethod')
-        if self.is_classmethod and cm_entry and not cm_entry.cname == "__Pyx_Method_ClassMethod":
+        if self.is_classmethod and (not cm_entry or cm_entry.cname != "__Pyx_Method_ClassMethod"):
             # classmethod() was overridden - not much we can do here ...
             self.is_classmethod = False
         sm_entry = env.lookup('staticmethod')
@@ -3043,7 +3043,7 @@ class DefNode(FuncDefNode):
         for i in range(min(nfixed, len(self.args))):
             arg = self.args[i]
             arg.is_generic = 0
-            if (sig.is_self_arg(i) and not self.is_staticmethod):
+            if sig.is_self_arg(i) and not self.is_staticmethod:
                 self_type_overridden = arg.type_set_manually
                 if self.is_classmethod:
                     arg.is_type_arg = 1
