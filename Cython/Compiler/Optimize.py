@@ -1753,7 +1753,11 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             # Interestingly, PySequence_List works on a lot of non-sequence
             # things as well.
             list_node = loop_node = ExprNodes.PythonCapiCallNode(
-                node.pos, "PySequence_List", self.PySequence_List_func_type,
+                node.pos,
+                "__Pyx_PySequence_ListKeepNew"
+                    if arg.is_temp and arg.type in (PyrexTypes.py_object_type, Builtin.list_type)
+                    else "PySequence_List",
+                self.PySequence_List_func_type,
                 args=pos_args, is_temp=True)
 
         result_node = UtilNodes.ResultRefNode(
@@ -2415,8 +2419,14 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             return node
         arg = pos_args[0]
         return ExprNodes.PythonCapiCallNode(
-            node.pos, "PySequence_List", self.PySequence_List_func_type,
-            args=pos_args, is_temp=node.is_temp)
+            node.pos,
+            "__Pyx_PySequence_ListKeepNew"
+                if node.is_temp and arg.is_temp and arg.type in (PyrexTypes.py_object_type, Builtin.list_type)
+                else "PySequence_List",
+            self.PySequence_List_func_type,
+            args=pos_args,
+            is_temp=node.is_temp,
+        )
 
     PyList_AsTuple_func_type = PyrexTypes.CFuncType(
         Builtin.tuple_type, [

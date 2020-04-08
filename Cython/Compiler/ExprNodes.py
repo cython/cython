@@ -7797,8 +7797,11 @@ class SequenceNode(ExprNode):
 
         starred_target.allocate(code)
         target_list = starred_target.result()
-        code.putln("%s = PySequence_List(%s); %s" % (
+        code.putln("%s = %s(%s); %s" % (
             target_list,
+            "__Pyx_PySequence_ListKeepNew" if (
+                    not iterator_temp and rhs.is_temp and rhs.type in (py_object_type, list_type))
+                else "PySequence_List",
             iterator_temp or rhs.py_result(),
             code.error_goto_if_null(target_list, self.pos)))
         starred_target.generate_gotref(code)
@@ -8531,7 +8534,9 @@ class MergedSequenceNode(ExprNode):
         else:
             code.putln("%s = %s(%s); %s" % (
                 self.result(),
-                'PySet_New' if is_set else 'PySequence_List',
+                'PySet_New' if is_set
+                    else "__Pyx_PySequence_ListKeepNew" if item.is_temp and item.type in (py_object_type, list_type)
+                    else "PySequence_List",
                 item.py_result(),
                 code.error_goto_if_null(self.result(), self.pos)))
             self.generate_gotref(code)
