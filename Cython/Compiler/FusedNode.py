@@ -594,13 +594,13 @@ class FusedCFuncDefNode(StatListNode):
                 if not _fused_sigindex:
                     for sig in <dict>signatures:
                         sigindex_node = _fused_sigindex
-                        sig_series = sig.strip('()').split('|')
-                        for sig_type in sig_series[:-1]:
+                        *sig_series, last_type = sig.strip('()').split('|')
+                        for sig_type in sig_series:
                             if sig_type not in sigindex_node:
                                 sigindex_node[sig_type] = sigindex_node = {}
                             else:
                                 sigindex_node = sigindex_node[sig_type]
-                        sigindex_node[sig_series[-1]] = sig
+                        sigindex_node[last_type] = sig
             """
         )
 
