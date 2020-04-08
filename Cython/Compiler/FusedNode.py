@@ -923,10 +923,7 @@ class FusedCFuncDefNode(StatListNode):
                                     (self.resulting_fused_function.result(),
                                      self.__signatures__.result()))
             self.__signatures__.generate_giveref(code)
-            # TODO would "incref, giveref, gevenrate_disposal code" be more idomatic (but
-            # maybe less efficient) than "giveref, putln(0), release_temp_result"?
-            code.putln("%s = 0;" % self.__signatures__.result())
-            self.__signatures__.release_temp_result(code)
+            self.__signatures__.generate_post_assignment_code(code)
 
             self.fused_func_assignment.generate_execution_code(code)
 

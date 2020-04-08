@@ -168,6 +168,8 @@ _WARNINGS="""
 105:14: Type of argument 'self' cannot be assumed to be CdefClass because it has an unknown decorator. Consider setting the type explicitly.
 112:4: 'sm2' redeclared
 112:4: 'sm2' redeclared
+114:12: Type of argument 'self' cannot be assumed to be CdefClass because it has an unknown decorator. Consider setting the type explicitly.
 121:4: 'cm2' redeclared
 121:4: 'cm2' redeclared
+123:12: Type of argument 'self' cannot be assumed to be CdefClass because it has an unknown decorator. Consider setting the type explicitly.
 """

@@ -2752,9 +2752,6 @@ class DefNode(FuncDefNode):
     #                                   (in case this is a specialization)
     #  specialized_cpdefs   [DefNode]   list of specialized cpdef DefNodes
     #  py_cfunc_node  PyCFunctionNode/InnerFunctionNode   The PyCFunction to create and assign
-    #
-    # decorator_call_tree   StatList node containing LetNodes containing SimpleCallNodes
-    #                   Used to remove __Pyx_Method_ClassMethod for fused functions
 
     child_attrs = ["args", "star_arg", "starstar_arg", "body", "decorators", "return_type_annotation"]
     outer_attrs = ["decorators", "return_type_annotation"]
@@ -2885,20 +2882,22 @@ class DefNode(FuncDefNode):
     def analyse_declarations(self, env):
         if self.decorators:
             # should only apply to functions outside cdef classes
-            if len(self.decorators):
-                # only test the innermost decorator for classmethod
-                # and static method - anything else will have to be
-                # fed to the relevant builtin functions
-                decorator = self.decorators[-1]
-                func = decorator.decorator
-                if func.is_name:
-                    self.is_classmethod |= func.name == 'classmethod'
-                    self.is_staticmethod |= func.name == 'staticmethod'
+            # because decorators inside a cdef class are transformed earlier
+
+            # only test the innermost decorator for classmethod
+            # and static method - anything else will have to be
+            # fed to the relevant builtin functions
+            decorator = self.decorators[-1]
+            func = decorator.decorator
+            if func.is_name:
+                self.is_classmethod |= func.name == 'classmethod'
+                self.is_staticmethod |= func.name == 'staticmethod'
         cm_entry = env.lookup('classmethod')
         if self.is_classmethod and cm_entry and not cm_entry.cname == "__Pyx_Method_ClassMethod":
             # classmethod() was overridden - not much we can do here ...
             self.is_classmethod = False
-        if self.is_staticmethod and env.lookup('staticmethod'):
+        sm_entry = env.lookup('staticmethod')
+        if self.is_staticmethod and sm_entry and sm_entry.is_builtin:
             # staticmethod() was overridden - not much we can do here ...
             self.is_staticmethod = False
         if self.is_transformed_to_property and env.lookup('property'):
@@ -3053,14 +3052,14 @@ class DefNode(FuncDefNode):
                         arg.hdr_type = arg.type = usual_type
                 else:
                     arg.is_self_arg = 1
-                    if self.is_in_arbitrary_decorator:
+                    if self.is_in_arbitrary_decorator and not self_type_overridden:
                         usual_type = PyrexTypes.FusedType([env.parent_type, PyrexTypes.py_object_type],
                                                 name="fused self or object")
-                        warn_once(arg.pos, "Type of argument '%s' cannot be assumed to be %s because "
+                        warning(arg.pos, "Type of argument '%s' cannot be assumed to be %s because "
                                     "it has an unknown decorator. "
                                     "Consider setting the type explicitly." % (
                                         arg.name, env.parent_type),
-                                    1, warn_once_key="unknown decorator type")
+                                    1)
                     else:
                         usual_type = env.parent_type
                     if not self_type_overridden:
@@ -3096,12 +3095,6 @@ class DefNode(FuncDefNode):
             else:
                 arg.hdr_cname = punycodify_name(Naming.var_prefix + arg.name)
 
-        if ((self.is_classmethod or self.is_staticmethod) and
-                self.has_fused_arguments and
-                env.is_c_class_scope):
-            # TODO should this actually only apply to fused?
-            self._remove_classstatic_call()
-
         if nfixed > len(self.args):
             self.bad_signature()
             return
@@ -3136,42 +3129,6 @@ class DefNode(FuncDefNode):
 
             if not uses_args_tuple:
                 sig = self.entry.signature = sig.with_fastcall()
-
-    def _remove_classstatic_call(self):
-        # In the calls to decorators surrounding the function,
-        # remove a call to classmethod or staticmethod if it's
-        # next to the function
-        from .Visitor import CythonTransform
-        from . import UtilNodes
-        class RemoveCallTransform(CythonTransform):
-            removed_node = None
-            def visit_SimpleCallNode(self_, node):
-                assert isinstance(node.function, UtilNodes.LetRefNode), node.function
-                function = node.function.expression
-                assert len(node.args)==1, len(node.function.args)
-                if (function.is_name  and function.name in ["staticmethod", "classmethod"]
-                        and node.args[0].is_name and node.args[0].name == self.name):
-                    self_.removed_node = node.function
-                    return node.args[0]
-                self_.visitchildren(node)
-                return node
-
-            def visit_LetNode(self_, node):
-                # not strictly necessary but avoid generating unnecessary temps
-                self_.visitchildren(node)
-                if node.lazy_temp is self_.removed_node:
-                    return node.body
-                return node
-
-            def visit_DefNode(self_, node):
-                # go no further
-                return node
-
-            def visit_FusedCFuncDefNode(self_, node):
-                # go no further
-                return node
-
-        RemoveCallTransform(None)(self.decorator_call_tree)
 
     def bad_signature(self):
         sig = self.entry.signature

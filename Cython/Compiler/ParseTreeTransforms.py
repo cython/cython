@@ -1493,9 +1493,6 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
         For those, the reassignment is required as methods are originally
         defined in the PyMethodDef struct.
 
-        Setting node.decorator_callstack to let the node pop out classmethod/staticmethod
-        if needed
-
         Use LetNode because the decorators must be evaluated before the
         DefNode is assigned (before for things like properties, they often
         use @function_name.attribute so they must be able to look up
@@ -1508,13 +1505,34 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
         if not use_as_stat0:
             use_as_stat0 = node
 
+        class NotBuiltinSimpleCallNode(ExprNodes.SimpleCallNode):
+            # classmethod and staticmethod innermost decorators should not end up evaluated
+            # when they are just the builtin. This wrapper class detects that, and thus avoids
+            # DefNode having to manually pick through the decorator calls
+            # TODO probably should be defined elsewhere?
+            def analyse_types(self, env):
+                drop_self = False
+                function = self.function.expression
+                if function.is_name and function.name == "classmethod":
+                    cm_entry = env.lookup('classmethod')
+                    if not cm_entry or cm_entry.cname == "__Pyx_Method_ClassMethod":
+                        drop_self = True
+                elif function.is_name and function.name == "staticmethod":
+                    sm_entry = env.lookup('staticmethod')
+                    if not sm_entry or sm_entry.is_builtin:
+                        drop_self = True
+                if drop_self:
+                    return self.args[0].analyse_types(env)
+                return super(NotBuiltinSimpleCallNode, self).analyse_types(env)
+
         decorators = [ LetRefNode(decorator.decorator, pos=decorator.pos)
                         for decorator in decorators ]
         name_node = ExprNodes.NameNode(node.pos, name=name)
 
         decorator_result = ExprNodes.NameNode(node.pos, name=name)
-        for decorator in decorators[::-1]:
-            decorator_result = ExprNodes.SimpleCallNode(
+        for n, decorator in enumerate(decorators[::-1]):
+            cls = NotBuiltinSimpleCallNode if n==0 and node.has_fused_arguments else ExprNodes.SimpleCallNode
+            decorator_result = cls(
                 decorator.pos,
                 function=decorator,
                 args=[decorator_result])
@@ -1531,8 +1549,6 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
 
         # putting it in a 1-long stat list node just makes it easier to replace
         body = Nodes.StatListNode(node.pos, stats=[body])
-
-        node.decorator_call_tree = body
 
         if not (len(decorators) == 1 and (node.is_staticmethod or node.is_classmethod)):
             node.is_in_arbitrary_decorator = True
