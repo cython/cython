@@ -1753,7 +1753,11 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             # Interestingly, PySequence_List works on a lot of non-sequence
             # things as well.
             list_node = loop_node = ExprNodes.PythonCapiCallNode(
-                node.pos, "PySequence_List", self.PySequence_List_func_type,
+                node.pos,
+                "__Pyx_PySequence_ListKeepNew"
+                    if arg.is_temp and arg.type in (PyrexTypes.py_object_type, Builtin.list_type)
+                    else "PySequence_List",
+                self.PySequence_List_func_type,
                 args=pos_args, is_temp=True)
 
         result_node = UtilNodes.ResultRefNode(
@@ -2312,6 +2316,38 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         return ExprNodes.CachedBuiltinMethodCallNode(
             node, function.obj, attr_name, arg_list)
 
+    PyObject_String_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [  # Change this to Builtin.str_type when removing Py2 support.
+            PyrexTypes.CFuncTypeArg("obj", PyrexTypes.py_object_type, None)
+            ])
+
+    def _handle_simple_function_str(self, node, function, pos_args):
+        """Optimize single argument calls to str().
+        """
+        if len(pos_args) != 1:
+            if len(pos_args) == 0:
+                return ExprNodes.StringNode(node.pos, value=EncodedString(), constant_result='')
+            return node
+        arg = pos_args[0]
+
+        if arg.type is Builtin.str_type:
+            if not arg.may_be_none():
+                return arg
+
+            cname = "__Pyx_PyStr_Str"
+            utility_code = UtilityCode.load_cached('PyStr_Str', 'StringTools.c')
+        else:
+            cname = '__Pyx_PyObject_Str'
+            utility_code = UtilityCode.load_cached('PyObject_Str', 'StringTools.c')
+
+        return ExprNodes.PythonCapiCallNode(
+            node.pos, cname, self.PyObject_String_func_type,
+            args=pos_args,
+            is_temp=node.is_temp,
+            utility_code=utility_code,
+            py_name="str"
+        )
+
     PyObject_Unicode_func_type = PyrexTypes.CFuncType(
         Builtin.unicode_type, [
             PyrexTypes.CFuncTypeArg("obj", PyrexTypes.py_object_type, None)
@@ -2383,8 +2419,14 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             return node
         arg = pos_args[0]
         return ExprNodes.PythonCapiCallNode(
-            node.pos, "PySequence_List", self.PySequence_List_func_type,
-            args=pos_args, is_temp=node.is_temp)
+            node.pos,
+            "__Pyx_PySequence_ListKeepNew"
+                if node.is_temp and arg.is_temp and arg.type in (PyrexTypes.py_object_type, Builtin.list_type)
+                else "PySequence_List",
+            self.PySequence_List_func_type,
+            args=pos_args,
+            is_temp=node.is_temp,
+        )
 
     PyList_AsTuple_func_type = PyrexTypes.CFuncType(
         Builtin.tuple_type, [

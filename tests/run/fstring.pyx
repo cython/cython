@@ -18,6 +18,65 @@ min_long = LONG_MIN
 
 
 @cython.test_fail_if_path_exists(
+    "//JoinedStrNode",
+)
+@cython.test_assert_path_exists(
+    "//AddNode",
+)
+def concat_strings(a, b):
+    """
+    >>> concat_strings("", "")
+    x
+    <BLANKLINE>
+    x
+    x
+    x
+    xx
+    >>> concat_strings("a", "")
+    ax
+    a
+    x
+    ax
+    ax
+    axx
+    >>> concat_strings("", "b")
+    x
+    b
+    xb
+    xb
+    xb
+    xxb
+    >>> concat_strings("a", "b")
+    ax
+    ab
+    xb
+    axb
+    axb
+    axxb
+    >>> concat_strings("".join(["a", "b"]), "")  # fresh temp string left
+    abx
+    ab
+    x
+    abx
+    abx
+    abxx
+    >>> concat_strings("", "".join(["a", "b"]))  # fresh temp string right
+    x
+    ab
+    xab
+    xab
+    xab
+    xxab
+    """
+    print(f"{a}x")
+    print(f"{a}{b}")
+    print(f"x{b}")
+    print(f"{a+'x'}{b}")      # fresh temp string left
+    print(f"{a}{'x'+b}")      # fresh temp string right
+    print(f"{a+'x'}{'x'+b}")  # fresh temp strings right and left
+
+
+@cython.test_fail_if_path_exists(
     "//FormattedValueNode",
     "//JoinedStrNode",
     "//AddNode",

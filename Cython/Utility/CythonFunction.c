@@ -1001,7 +1001,6 @@ static int __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions, PyObject *class
 typedef struct {
     __pyx_CyFunctionObject func;
     PyObject *__signatures__;
-    PyObject *type;
     PyObject *self;
 } __pyx_FusedFunctionObject;
 
@@ -1037,7 +1036,6 @@ __pyx_FusedFunction_New(PyTypeObject *type, PyMethodDef *ml, int flags,
         return NULL;
 
     fusedfunc->__signatures__ = NULL;
-    fusedfunc->type = NULL;
     fusedfunc->self = NULL;
     return (PyObject *) fusedfunc;
 }
@@ -1047,7 +1045,6 @@ __pyx_FusedFunction_dealloc(__pyx_FusedFunctionObject *self)
 {
     PyObject_GC_UnTrack(self);
     Py_CLEAR(self->self);
-    Py_CLEAR(self->type);
     Py_CLEAR(self->__signatures__);
     __Pyx__CyFunction_dealloc((__pyx_CyFunctionObject *) self);
 }
@@ -1058,7 +1055,6 @@ __pyx_FusedFunction_traverse(__pyx_FusedFunctionObject *self,
                              void *arg)
 {
     Py_VISIT(self->self);
-    Py_VISIT(self->type);
     Py_VISIT(self->__signatures__);
     return __Pyx_CyFunction_traverse((__pyx_CyFunctionObject *) self, visit, arg);
 }
@@ -1067,7 +1063,6 @@ static int
 __pyx_FusedFunction_clear(__pyx_FusedFunctionObject *self)
 {
     Py_CLEAR(self->self);
-    Py_CLEAR(self->type);
     Py_CLEAR(self->__signatures__);
     return __Pyx_CyFunction_clear((__pyx_CyFunctionObject *) self);
 }
@@ -1125,9 +1120,6 @@ __pyx_FusedFunction_descr_get(PyObject *self, PyObject *obj, PyObject *type)
 
     Py_XINCREF(func->__signatures__);
     meth->__signatures__ = func->__signatures__;
-
-    Py_XINCREF(type);
-    meth->type = type;
 
     Py_XINCREF(func->func.defaults_tuple);
     meth->func.defaults_tuple = func->func.defaults_tuple;
@@ -1205,7 +1197,7 @@ __pyx_err:
     unbound_result_func = PyObject_GetItem(self->__signatures__, signature);
 
     if (unbound_result_func) {
-        if (self->self || self->type) {
+        if (self->self) {
             __pyx_FusedFunctionObject *unbound = (__pyx_FusedFunctionObject *) unbound_result_func;
 
             // TODO: move this to InitClassCell
@@ -1214,7 +1206,7 @@ __pyx_err:
             unbound->func.func_classobj = self->func.func_classobj;
 
             result_func = __pyx_FusedFunction_descr_get(unbound_result_func,
-                                                        self->self, self->type);
+                                                        self->self, self->self);
         } else {
             result_func = unbound_result_func;
             Py_INCREF(result_func);
@@ -1255,23 +1247,21 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
     PyObject *new_args = NULL;
     __pyx_FusedFunctionObject *new_func = NULL;
     PyObject *result = NULL;
-    PyObject *self = NULL;
     int is_staticmethod = binding_func->func.flags & __Pyx_CYFUNCTION_STATICMETHOD;
-    int is_classmethod = binding_func->func.flags & __Pyx_CYFUNCTION_CLASSMETHOD;
 
     if (binding_func->self) {
         // Bound method call, put 'self' in the args tuple
+        PyObject *self;
         Py_ssize_t i;
         new_args = PyTuple_New(argc + 1);
         if (!new_args)
             return NULL;
 
         self = binding_func->self;
-#if !(CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS)
-        Py_INCREF(self);
-#endif
+
         Py_INCREF(self);
         PyTuple_SET_ITEM(new_args, 0, self);
+        self = NULL;
 
         for (i = 0; i < argc; i++) {
 #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
@@ -1284,35 +1274,7 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
         }
 
         args = new_args;
-    } else if (binding_func->type) {
-        // Unbound method call
-        if (argc < 1) {
-            PyErr_SetString(PyExc_TypeError, "Need at least one argument, 0 given.");
-            return NULL;
-        }
-#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
-        self = PyTuple_GET_ITEM(args, 0);
-#else
-        self = PySequence_ITEM(args, 0);  if (unlikely(!self)) return NULL;
-#endif
     }
-
-    if (self && !is_classmethod && !is_staticmethod) {
-        int is_instance = PyObject_IsInstance(self, binding_func->type);
-        if (unlikely(!is_instance)) {
-            PyErr_Format(PyExc_TypeError,
-                         "First argument should be of type %.200s, got %.200s.",
-                         ((PyTypeObject *) binding_func->type)->tp_name,
-                         self->ob_type->tp_name);
-            goto bad;
-        } else if (unlikely(is_instance == -1)) {
-            goto bad;
-        }
-    }
-#if !(CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS)
-    Py_XDECREF(self);
-    self = NULL;
-#endif
 
     if (binding_func->__signatures__) {
         PyObject *tup;
@@ -1345,9 +1307,6 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
 
     result = __pyx_FusedFunction_callfunction(func, args, kw);
 bad:
-#if !(CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS)
-    Py_XDECREF(self);
-#endif
     Py_XDECREF(new_args);
     Py_XDECREF((PyObject *) new_func);
     return result;

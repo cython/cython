@@ -23,6 +23,11 @@ Features added
 * The ``LIMITED_API`` is supported by setting the ``CYTHON_LIMITED_API`` C macro.
   Patches by Eddie Elizondo.  (Github issue #3223, #3311)
 
+* The dispatch to fused functions is now linear in the number of arguments,
+  which makes it much faster, often 2x or more, and several times faster for
+  larger fused types with many specialisations.
+  Patch by will-ca.  (Github issue #1385)
+
 * ``with gil/nogil`` statements can be conditional based on compile-time
   constants, e.g. fused type checks.
   Patch by Noam Hershtig.  (Github issue #2579)
@@ -46,6 +51,14 @@ Features added
 * Inlined properties can be defined for external extension types.
   Patch by Matti Picus.  (Github issue #2640)
 
+* The ``str()`` builtin now calls ``PyObject_Str()`` instead of going
+  through a Python call.
+  Patch by William Ayd.  (Github issue #3279)
+
+* String concatenation can now happen in place if possible, by extending the
+  existing string rather than always creating a new one.
+  Patch by David Woods.  (Github issue #3453)
+
 * Multiplication of Python numbers with small constant integers is faster.
   (Github issue #2808)
 
@@ -59,9 +72,9 @@ Features added
   (Github issue #2306)
 
 * Several declarations in ``cpython.*``, ``libc.*`` and ``libcpp.*`` were added.
-  Patches by Jeroen Demeyer, Matthew Edwards, Chris Gyurgyik, Jerome Kieffer,
-  Omer Ozarslan and Zackery Spytz.
-  (Github issues #3358, #3332, #3179, #2891, #2826, #2713)
+  Patches by Jeroen Demeyer, Matthew Edwards, Chris Gyurgyik, Jerome Kieffer
+  and Zackery Spytz.
+  (Github issues #3468, #3332, #3179, #2891, #2826, #2713)
 
 * Deprecated NumPy API usages were removed from ``numpy.pxd``.
   Patch by Matti Picus.  (Github issue #3365)
@@ -72,12 +85,16 @@ Features added
 * PEP-479 (``generator_stop``) is now enabled by default with language level 3.
   (Github issue #2580)
 
+* The ``cython.view.array`` type supports inheritance.
+  Patch by David Woods.  (Github issue #3413)
+
 * Code annotation accepts a new debugging argument ``--annotate-fullc`` that
   will include the complete syntax highlighted C file in the HTML output.
   (Github issue #2855)
 
 * ``--no-capture`` added to ``runtests.py`` to prevent stdout/stderr capturing
-  during srctree tests.  Patch by Matti Picus.
+  during srctree tests.
+  Patch by Matti Picus.  (Github issue #2701)
 
 * ``--no-docstrings`` option added to ``cythonize`` script.
   Original patch by mo-han.  (Github issue #2889)
@@ -97,7 +114,7 @@ Bugs fixed
 
 * Fused argument types were not correctly handled in type annotations and
   ``cython.locals()``.
-  Patch by David Woods.  (Github issue #3391)
+  Patch by David Woods.  (Github issues #3391, #3142)
 
 * Diverging from the usual behaviour, ``len(memoryview)``, ``len(char*)``
   and ``len(Py_UNICODE*)`` returned an unsigned ``size_t`` value.  They now
@@ -135,6 +152,9 @@ Bugs fixed
   as integer 0 instead of the expected float value.
   Patch by Kryštof Pilnáček.  (Github issue #2133)
 
+* The ``cython.declare()`` and ``cython.cast()`` functions could fail in pure mode.
+  Patch by Dmitry Shesterkin.  (Github issue #3244)
+
 * ``__doc__`` was not available inside of the class body during class creation.
   (Github issue #1635)
 
@@ -153,6 +173,9 @@ Bugs fixed
 
 * Binding staticmethods of Cython functions were not behaving like Python methods.
   Patch by Jeroen Demeyer.  (Github issue #3106, #3102)
+
+* Memoryviews failed to compile when the ``cache_builtins`` feature was disabled.
+  Patch by David Woods.  (Github issue #3406)
 
 Other changes
 -------------
@@ -191,7 +214,25 @@ Other changes
 * Support for Python 2.6 was removed.
 
 
-0.29.16 (2020-0?-??)
+0.29.17 (2020-0?-??)
+====================
+
+Features added
+--------------
+
+* ``std::move()`` is now available from ``libcpp.utility``.
+  Patch by Omer Ozarslan.  (Github issue #2169)
+
+Bugs fixed
+----------
+
+* The compilation cache in ``cython.inline("…")`` failed to take the language
+  level into account.
+  Patch by will-ca.  (Github issue #3419)
+
+* The deprecated ``PyUnicode_GET_SIZE()`` function is no longer used in Py3.
+
+0.29.16 (2020-03-24)
 ====================
 
 Bugs fixed
@@ -210,19 +251,38 @@ Bugs fixed
   implemented functions.
   Patch by David Woods.  (Github issue #3384)
 
+* Valid Python object concatenation of (iterable) strings to non-strings
+  could fail with an exception.
+  Patch by David Woods.  (Github issue #3433)
+
+* Using C functions as temporary values lead to invalid C code.
+  Original patch by David Woods.  (Github issue #3418)
+
 * Fix an unhandled C++ exception in comparisons.
   Patch by David Woods.  (Github issue #3361)
 
 * Fix deprecated import of "imp" module.
   Patch by Matti Picus.  (Github issue #3350)
 
+* Fix compatibility with Pythran 0.9.6 and later.
+  Patch by Serge Guelton.  (Github issue #3308)
+
 * The ``_Py_PyAtExit()`` function in ``cpython.pylifecycle`` was misdeclared.
   Patch by Zackery Spytz.  (Github issue #3382)
+
+* Several missing declarations in ``cpython.*`` were added.
+  Patches by Zackery Spytz.  (Github issue #3452, #3421, #3411, #3402)
+
+* A declaration for ``libc.math.fpclassify()`` was added.
+  Patch by Zackery Spytz.  (Github issue #2514)
 
 * Avoid "undeclared" warning about automatically generated pickle methods.
   Patch by David Woods.  (Github issue #3353)
 
 * Avoid C compiler warning about unreachable code in ``prange()``.
+
+* Some C compiler warnings in PyPy were resolved.
+  Patch by Matti Picus.  (Github issue #3437)
 
 
 0.29.15 (2020-02-06)
