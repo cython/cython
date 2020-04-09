@@ -4,8 +4,8 @@ TESTOPTS?=
 REPO = git://github.com/cython/cython.git
 VERSION?=$(shell sed -ne 's|^__version__\s*=\s*"\([^"]*\)".*|\1|p' Cython/Shadow.py)
 
-MANYLINUX_IMAGE_X86_64=quay.io/pypa/manylinux1_x86_64
-MANYLINUX_IMAGE_686=quay.io/pypa/manylinux1_i686
+MANYLINUX_IMAGE_X86_64=quay.io/pypa/manylinux2010_x86_64
+MANYLINUX_IMAGE_686=quay.io/pypa/manylinux2010_i686
 
 all:    local
 
