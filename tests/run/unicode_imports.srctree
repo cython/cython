@@ -7,8 +7,7 @@ PYTHON -m mydoctest
 ########### mydoctest.py #######
 
 import sys
-if (sys.version_info[0] < 3 or
-    (sys.version_info[0] == 3 and sys.version_info[1] < 5)):
+if sys.version_info < (3, 5):
     # The module is only Cythonized and not build for these versions
     # so don't run the tests
     exit()
@@ -28,6 +27,16 @@ exit(val)
 from __future__ import unicode_literals
 
 import sys
+
+# enable Unicode console output, if possible
+if sys.platform == "win32" and sys.version_info < (3, 6):
+    try:
+        import win_unicode_console
+    except ImportError:
+        pass
+    else:
+        win_unicode_console.enable()
+
 from Cython.Build import cythonize
 
 files = ["mymoð.pyx", "from_cy.pyx"]
