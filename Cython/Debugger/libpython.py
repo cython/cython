@@ -1,9 +1,10 @@
 #!/usr/bin/python
 
-# NOTE: this file is taken from the Python source distribution
+# NOTE: Most of this file is taken from the Python source distribution
 # It can be found under Tools/gdb/libpython.py. It is shipped with Cython
 # because it's not installed as a python module, and because changes are only
 # merged into new python versions (v3.2+).
+# We added some of our code below the "## added, not in CPython" comment.
 
 '''
 From gdb 7 onwards, gdb's build can be configured --with-python, allowing gdb
@@ -105,6 +106,8 @@ hexdigits = "0123456789abcdef"
 
 ENCODING = locale.getpreferredencoding()
 
+FRAME_INFO_OPTIMIZED_OUT = '(frame information optimized out)'
+UNABLE_READ_INFO_PYTHON_FRAME = 'Unable to read information on python frame'
 EVALFRAME = '_PyEval_EvalFrameDefault'
 
 class NullPyObjectPtr(RuntimeError):
@@ -924,7 +927,7 @@ class PyFrameObjectPtr(PyObjectPtr):
     def filename(self):
         '''Get the path of the current Python source file, as a string'''
         if self.is_optimized_out():
-            return '(frame information optimized out)'
+            return FRAME_INFO_OPTIMIZED_OUT
         return self.co_filename.proxyval(set())
 
     def current_line_num(self):
@@ -955,7 +958,7 @@ class PyFrameObjectPtr(PyObjectPtr):
         '''Get the text of the current source line as a string, with a trailing
         newline character'''
         if self.is_optimized_out():
-            return '(frame information optimized out)'
+            return FRAME_INFO_OPTIMIZED_OUT
 
         lineno = self.current_line_num()
         if lineno is None:
@@ -976,7 +979,7 @@ class PyFrameObjectPtr(PyObjectPtr):
 
     def write_repr(self, out, visited):
         if self.is_optimized_out():
-            out.write('(frame information optimized out)')
+            out.write(FRAME_INFO_OPTIMIZED_OUT)
             return
         lineno = self.current_line_num()
         lineno = str(lineno) if lineno is not None else "?"
@@ -999,7 +1002,7 @@ class PyFrameObjectPtr(PyObjectPtr):
 
     def print_traceback(self):
         if self.is_optimized_out():
-            sys.stdout.write('  (frame information optimized out)\n')
+            sys.stdout.write('  %s\n' % FRAME_INFO_OPTIMIZED_OUT)
             return
         visited = set()
         lineno = self.current_line_num()
@@ -1113,12 +1116,6 @@ class PyBytesObjectPtr(PyObjectPtr):
             else:
                 out.write(byte)
         out.write(quote)
-
-
-# Added in Cython for Py2 backwards compatibility.
-class PyStringObjectPtr(PyBytesObjectPtr):
-    _typename = 'PyStringObject'
-
 
 class PyTupleObjectPtr(PyObjectPtr):
     _typename = 'PyTupleObject'
@@ -1404,7 +1401,7 @@ class wrapperobject(PyObjectPtr):
 
 
 def int_from_int(gdbval):
-    return int(str(gdbval))
+    return int(gdbval)
 
 
 def stringify(val):
@@ -1575,8 +1572,8 @@ class Frame(object):
         if not caller:
             return False
 
-        if caller in ('_PyCFunction_FastCallDict',
-                      '_PyCFunction_FastCallKeywords'):
+        if (caller.startswith('cfunction_vectorcall_') or
+            caller == 'cfunction_call'):
             arg_name = 'func'
             # Within that frame:
             #   "func" is the local containing the PyObject* of the
@@ -1612,7 +1609,7 @@ class Frame(object):
         # This assumes the _POSIX_THREADS version of Python/ceval_gil.h:
         name = self._gdbframe.name()
         if name:
-            return 'pthread_cond_timedwait' in name
+            return (name == 'take_gil')
 
     def is_gc_collect(self):
         '''Is this frame "collect" within the garbage-collector?'''
@@ -1756,7 +1753,7 @@ class PyList(gdb.Command):
 
         pyop = frame.get_pyop()
         if not pyop or pyop.is_optimized_out():
-            print('Unable to read information on python frame')
+            print(UNABLE_READ_INFO_PYTHON_FRAME)
             return
 
         filename = pyop.filename()
@@ -1916,7 +1913,7 @@ class PyPrint(gdb.Command):
 
         pyop_frame = frame.get_pyop()
         if not pyop_frame:
-            print('Unable to read information on python frame')
+            print(UNABLE_READ_INFO_PYTHON_FRAME)
             return
 
         pyop_var, scope = pyop_frame.get_var_by_name(name)
@@ -1933,9 +1930,9 @@ PyPrint()
 
 class PyLocals(gdb.Command):
     'Look up the given python variable name, and print it'
-    def __init__(self, command="py-locals"):
+    def __init__(self):
         gdb.Command.__init__ (self,
-                              command,
+                              "py-locals",
                               gdb.COMMAND_DATA,
                               gdb.COMPLETE_NONE)
 
@@ -1950,22 +1947,13 @@ class PyLocals(gdb.Command):
 
         pyop_frame = frame.get_pyop()
         if not pyop_frame:
-            print('Unable to read information on python frame')
+            print(UNABLE_READ_INFO_PYTHON_FRAME)
             return
 
-        namespace = self.get_namespace(pyop_frame)
-        namespace = [(name.proxyval(set()), val) for name, val in namespace]
-
-        if namespace:
-            name, val = max(namespace, key=lambda item: len(item[0]))
-            max_name_length = len(name)
-
-            for name, pyop_value in namespace:
-                value = pyop_value.get_truncated_repr(MAX_OUTPUT_LEN)
-                print('%-*s = %s' % (max_name_length, name, value))
-
-    def get_namespace(self, pyop_frame):
-        return pyop_frame.iter_locals()
+        for pyop_name, pyop_value in pyop_frame.iter_locals():
+            print('%s = %s'
+                   % (pyop_name.proxyval(set()),
+                      pyop_value.get_truncated_repr(MAX_OUTPUT_LEN)))
 
 PyLocals()
 
@@ -1980,14 +1968,38 @@ import tempfile
 import textwrap
 import itertools
 
-class PyGlobals(PyLocals):
+class PyGlobals(gdb.Command):
     'List all the globals in the currently select Python frame'
+    def __init__(self):
+        gdb.Command.__init__ (self,
+                              "py-globals",
+                              gdb.COMMAND_DATA,
+                              gdb.COMPLETE_NONE)
+
+
+    def invoke(self, args, from_tty):
+        name = str(args)
+
+        frame = Frame.get_selected_python_frame()
+        if not frame:
+            print('Unable to locate python frame')
+            return
+
+        pyop_frame = frame.get_pyop()
+        if not pyop_frame:
+            print(UNABLE_READ_INFO_PYTHON_FRAME)
+            return
+
+        for pyop_name, pyop_value in pyop_frame.iter_locals():
+            print('%s = %s'
+                   % (pyop_name.proxyval(set()),
+                      pyop_value.get_truncated_repr(MAX_OUTPUT_LEN)))
 
     def get_namespace(self, pyop_frame):
         return pyop_frame.iter_globals()
 
 
-PyGlobals("py-globals")
+PyGlobals()
 
 
 class PyNameEquals(gdb.Function):
