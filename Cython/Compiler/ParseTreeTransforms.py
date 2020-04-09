@@ -1486,7 +1486,7 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
         return node
 
     @staticmethod
-    def chain_decorators(node, decorators, name, use_as_stat0=None):
+    def chain_decorators(node, decorators, name, use_as_stat0=None, is_fused_specialization=False):
         """
         Decorators are applied directly in DefNode and PyClassDefNode to avoid
         reassignments to the function/class name - except for cdef class methods.
@@ -1498,7 +1498,8 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
         use @function_name.attribute so they must be able to look up
         what function_name was
 
-        use_as_stat0 is helpful for fused functions
+        use_as_stat0 is a placeholder designed to prevent fused function
+        specializations being re-analysed multiple times
         """
         from .UtilNodes import LetRefNode, LetNode
 
@@ -1506,24 +1507,31 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
             use_as_stat0 = node
 
         class NotBuiltinSimpleCallNode(ExprNodes.SimpleCallNode):
-            # classmethod and staticmethod innermost decorators should not end up evaluated
-            # when they are just the builtin. This wrapper class detects that, and thus avoids
-            # DefNode having to manually pick through the decorator calls
-            # TODO probably should be defined elsewhere?
+            # for fused functions classmethod and staticmethod innermost decorators should not
+            # end up evaluated when they are just the builtin since it blocks things like indexing.
+            # This wrapper class detects that.
             def analyse_types(self, env):
-                drop_self = False
+                builtin_classstaticmethod = False
                 function = self.function.expression
-                if function.is_name and function.name == "classmethod":
+                fused = node.has_fused_arguments or is_fused_specialization
+                if node.has_fused_arguments and function.is_name and function.name == "classmethod":
                     cm_entry = env.lookup('classmethod')
                     if not cm_entry or cm_entry.cname == "__Pyx_Method_ClassMethod":
-                        drop_self = True
-                elif function.is_name and function.name == "staticmethod":
+                        builtin_classstaticmethod = True
+                elif node.has_fused_arguments and function.is_name and function.name == "staticmethod":
                     sm_entry = env.lookup('staticmethod')
                     if not sm_entry or sm_entry.is_builtin:
-                        drop_self = True
-                if drop_self:
+                        builtin_classstaticmethod = True
+                if builtin_classstaticmethod:
                     return self.args[0].analyse_types(env)
                 return super(NotBuiltinSimpleCallNode, self).analyse_types(env)
+
+        # TODO a couple of issues:
+        #  1. Any kind of arbitrary decorator on a fused node (including staticmethod/classmethod
+        #     when not innermost) will probably hide the indexing - should this be warned about
+        #     (However this shouldn't apply when it's only fused because self has been auto-converted)
+        #  2. When we drop staticmethod/classmethod we leave behind an unused temp from the LetNode.
+        #     can this be avoided?
 
         decorators = [ LetRefNode(decorator.decorator, pos=decorator.pos)
                         for decorator in decorators ]
@@ -1531,7 +1539,8 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
 
         decorator_result = ExprNodes.NameNode(node.pos, name=name)
         for n, decorator in enumerate(decorators[::-1]):
-            cls = NotBuiltinSimpleCallNode if n==0 and node.has_fused_arguments else ExprNodes.SimpleCallNode
+            cls = NotBuiltinSimpleCallNode if n==0 else ExprNodes.SimpleCallNode
+
             decorator_result = cls(
                 decorator.pos,
                 function=decorator,
@@ -1875,22 +1884,11 @@ if VALUE is not None:
             self.exit_scope()
             node.body.stats.append(pickle_func)
 
-    def _handle_fused_def_decorators(self, old_decorators, env, node):
+    def _handle_fused_def_decorators(self, decorators, env, node):
         """
         Create function calls to the decorators and reassignments to
         the function.
         """
-        # Delete staticmethod and classmethod decorators, this is
-        # handled directly by the fused function object.
-        decorators = []
-        for decorator in old_decorators:
-            func = decorator.decorator
-            if (not func.is_name or
-                func.name not in ('staticmethod', 'classmethod') or
-                env.lookup_here(func.name)):
-                # not a static or classmethod
-                decorators.append(decorator)
-
         if decorators:
             transform = DecoratorTransform(self.context)
             def_node = node.node
@@ -1898,7 +1896,8 @@ if VALUE is not None:
             dummy_node.child_attrs = []  # this feels hacky
             reassignments = transform.chain_decorators(
                 def_node, decorators, def_node.name,
-                use_as_stat0=dummy_node)
+                use_as_stat0=dummy_node,
+                is_fused_specialization=True)
             reassignments.analyse_declarations(env)
             # replace the dummy_node after analysis to avoid node being analysed unnecessarily
             recursively_replace_node(reassignments, dummy_node, node)
