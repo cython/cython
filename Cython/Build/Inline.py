@@ -160,6 +160,8 @@ def cython_inline(code, get_type=unsafe_type,
     if language_level is not None:
         cython_compiler_directives['language_level'] = language_level
 
+    key_hash = None
+
     # Fast path if this has been called in this session.
     _unbound_symbols = _cython_inline_cache.get(code)
     if _unbound_symbols is not None:
@@ -195,7 +197,8 @@ def cython_inline(code, get_type=unsafe_type,
             del kwds[name]
     arg_names = sorted(kwds)
     arg_sigs = tuple([(get_type(kwds[arg], ctx), arg) for arg in arg_names])
-    key_hash = _inline_key(orig_code, arg_sigs, language_level)
+    if key_hash is None:
+        key_hash = _inline_key(orig_code, arg_sigs, language_level)
     module_name = "_cython_inline_" + key_hash
 
     if module_name in sys.modules:
