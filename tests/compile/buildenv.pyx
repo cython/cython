@@ -133,6 +133,7 @@ LINKCC (env) = {get_env('LINKCC', '')}
 
 Encodings:
 LANG (env) = {get_env('LANG', '')}
+PYTHONIOENCODING (env) = {get_env('PYTHONIOENCODING', '')}
 sys stdout encoding = {sys.stdout.encoding}
 sys default encoding = {sys.getdefaultencoding()}
 sys FS encoding = {sys.getfilesystemencoding()}
