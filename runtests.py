@@ -1738,8 +1738,6 @@ class EndToEndTest(unittest.TestCase):
         _, self.commands = unpack_source_tree(self.treefile, self.workdir, self.cython_root)
         self.old_dir = os.getcwd()
         os.chdir(self.workdir)
-        if self.workdir not in sys.path:
-            sys.path.insert(0, self.workdir)
 
     def tearDown(self):
         if self.cleanup_workdir:
@@ -1764,7 +1762,7 @@ class EndToEndTest(unittest.TestCase):
         env = dict(os.environ)
         new_path = self.cython_syspath
         if old_path:
-            new_path = new_path + os.pathsep + old_path
+            new_path = new_path + os.pathsep + self.workdir + os.pathsep + old_path
         env['PYTHONPATH'] = new_path
         if not env.get("PYTHONIOENCODING"):
             env["PYTHONIOENCODING"] = sys.stdout.encoding or sys.getdefaultencoding()
