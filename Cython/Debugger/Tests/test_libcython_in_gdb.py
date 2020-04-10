@@ -323,6 +323,25 @@ class TestPrint(DebugTestCase):
         result = gdb.execute('cy print b', to_string=True)
         self.assertEqual('b = (int) 1\n', result)
 
+correct_result = '''\
+    14            int b, c
+    15    
+    16        b = c = d = 0
+    17    
+    18        b = 1
+>   19        c = 2
+    20        int(10)
+    21        puts("spam")
+    22        os.path.join("foo", "bar")
+    23        some_c_function()
+'''
+class TestList(DebugTestCase):
+
+    def test_list(self):
+        self.break_and_run('c = 2')
+        result = gdb.execute('cy list', to_string=True)
+        self.assertEqual(correct_result, result)
+
 
 class TestUpDown(DebugTestCase):
 
