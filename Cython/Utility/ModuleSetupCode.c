@@ -1,3 +1,16 @@
+/////////////// InitLimitedAPI ///////////////
+
+#if defined(CYTHON_LIMITED_API) && 0  /* disabled: enabling Py_LIMITED_API needs more work */
+  #ifndef Py_LIMITED_API
+    #if CYTHON_LIMITED_API+0 > 0
+      #define Py_LIMITED_API CYTHON_LIMITED_API
+    #else
+      #define Py_LIMITED_API 0x03030000
+    #endif
+  #endif
+#endif
+
+
 /////////////// CModulePreamble ///////////////
 
 #include <stddef.h> /* For offsetof */
