@@ -271,7 +271,7 @@ def __invoke(%(params)s):
         except AttributeError:
             pass
         else:
-            add_dll_directory(os.path.dirname(module_path))
+            add_dll_directory(os.path.abspath(os.path.dirname(module_path)))
 
         module = load_dynamic(module_name, module_path)
 
