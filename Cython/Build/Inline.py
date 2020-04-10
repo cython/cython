@@ -35,7 +35,7 @@ else:
     to_unicode = lambda x: x
 
 
-if sys.version_info < (3, 3):
+if sys.version_info < (3, 5):
     import imp
     def load_dynamic(name, module_path):
         return imp.load_dynamic(name, module_path)
