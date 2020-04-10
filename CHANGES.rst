@@ -184,6 +184,7 @@ Other changes
   but with ``str`` literals (also in Python 2.7).  This is a backwards incompatible
   change from the previous default of Python 2 semantics.  The previous behaviour
   is available through the directive ``language_level=2``.
+  (Github issue #2565)
 
 * Cython no longer generates ``__qualname__`` attributes for classes in Python
   2.x since they are problematic there and not correctly maintained for subclasses.
