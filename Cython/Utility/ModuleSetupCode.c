@@ -671,23 +671,16 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 #endif
 
 #if CYTHON_COMPILING_IN_LIMITED_API
-  #if !defined(PyUnicode_GET_SIZE)
-    #define PyUnicode_GET_SIZE(u)          PyUnicode_GetSize(u)
-  #endif
   #define CYTHON_PEP393_ENABLED 1
-  #define PyUnicode_1BYTE_KIND  1
-  #define PyUnicode_2BYTE_KIND  2
-  #define PyUnicode_4BYTE_KIND  4
   #define __Pyx_PyUnicode_READY(op)       (0)
-  #define __Pyx_PyUnicode_GET_LENGTH(u)   PyUnicode_GetSize(u)
-  #define __Pyx_PyUnicode_READ_CHAR(u, i) ((Py_UCS4)(PyUnicode_AsUnicode(u)[i]))
-  #define __Pyx_PyUnicode_MAX_CHAR_VALUE(u)   ((sizeof(wchar_t) == 2) ? 65535 : 1114111)
-  #define __Pyx_PyUnicode_KIND(u)         (sizeof(wchar_t))
-  #define __Pyx_PyUnicode_DATA(u)         ((void*)PyUnicode_AsUnicode(u))
-  /* (void)(k) => avoid unused variable warning due to macro: */
-  #define __Pyx_PyUnicode_READ(k, d, i)   ((void)(k), (Py_UCS4)(((wchar_t*)d)[i]))
-  #define __Pyx_PyUnicode_WRITE(k, d, i, ch)  (((void)(k)), ((wchar_t*)d)[i] = ch)
-  #define __Pyx_PyUnicode_IS_TRUE(u)      (0 != PyUnicode_GetSize(u))
+  #define __Pyx_PyUnicode_GET_LENGTH(u)   PyUnicode_GetLength(u)
+  #define __Pyx_PyUnicode_READ_CHAR(u, i) PyUnicode_ReadChar(u, i)
+  #define __Pyx_PyUnicode_MAX_CHAR_VALUE(u)   (1114111)
+  //#define __Pyx_PyUnicode_KIND(u)             /* not available */
+  //#define __Pyx_PyUnicode_DATA(u)             /* not available */
+  //#define __Pyx_PyUnicode_READ(k, d, i)       /* not available */
+  //#define __Pyx_PyUnicode_WRITE(k, d, i, ch)  /* not available */
+  #define __Pyx_PyUnicode_IS_TRUE(u)      (0 != PyUnicode_GetLength(u))
 #elif PY_VERSION_HEX > 0x03030000 && defined(PyUnicode_KIND)
   /* new Py3.3 unicode type (PEP 393) */
   #define CYTHON_PEP393_ENABLED 1
@@ -712,7 +705,7 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define __Pyx_PyUnicode_MAX_CHAR_VALUE(u)   ((sizeof(Py_UNICODE) == 2) ? 65535 : 1114111)
   #define __Pyx_PyUnicode_KIND(u)         (sizeof(Py_UNICODE))
   #define __Pyx_PyUnicode_DATA(u)         ((void*)PyUnicode_AS_UNICODE(u))
-  /* (void)(k) => avoid unused variable warning due to macro: */
+  // (void)(k) => avoid unused variable warning due to macro:
   #define __Pyx_PyUnicode_READ(k, d, i)   ((void)(k), (Py_UCS4)(((Py_UNICODE*)d)[i]))
   #define __Pyx_PyUnicode_WRITE(k, d, i, ch)  (((void)(k)), ((Py_UNICODE*)d)[i] = ch)
   #define __Pyx_PyUnicode_IS_TRUE(u)      (0 != PyUnicode_GET_SIZE(u))
