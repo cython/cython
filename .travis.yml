@@ -102,7 +102,8 @@ before_install:
     fi
 
   - |
-    if [ "$TRAVIS_OS_NAME" == "osx" -o "$STACKLESS" == "true" ]; then # Install Miniconda
+    if [ "$TRAVIS_OS_NAME" == "osx" -o "$STACKLESS" == "true" ]; then
+      echo "Installing Miniconda"
       if [ "$TRAVIS_OS_NAME" == "osx" ]; then CONDA_PLATFORM=MacOSX; else CONDA_PLATFORM=Linux; fi
       travis_retry curl -s -o miniconda.sh https://repo.continuum.io/miniconda/Miniconda$PY-latest-${CONDA_PLATFORM}-x86_64.sh
       bash miniconda.sh -b -p $HOME/miniconda && rm miniconda.sh
@@ -116,7 +117,7 @@ before_install:
   - if [ -n "$CC" ]; then which $CC; $CC --version; fi
   - if [ -n "$CXX" ]; then which $CXX; $CXX --version; fi
 
-  - if [[ "$STACKLESS" == "true" ]]; then
+  - if [ "$STACKLESS" == "true" ]; then
       conda config --add channels stackless;
       travis_retry conda install --quiet --yes stackless;
     fi
