@@ -111,7 +111,7 @@ before_install:
       #conda install --quiet --yes nomkl --file=test-requirements.txt --file=test-requirements-cpython.txt
       if [ "$TRAVIS_OS_NAME" == "osx" ]; then
         which clang && clang --version && export CC=clang || true
-        which clang++ && clang++ --version && export CXX=clang++ || true
+        which clang++ && clang++ --version && export CXX=clang++ && export CXXFLAGS="$CXXFLAGS -stdlib=libc++" || true
       fi
     fi
 
