@@ -2197,6 +2197,9 @@ def main():
     else:
         keep_alive_interval = None
     if options.shard_count > 1 and options.shard_num == -1:
+        if "PYTHONIOENCODING" not in os.environ:
+            # Make sure subprocesses can print() Unicode text.
+            os.environ["PYTHONIOENCODING"] = sys.stdout.encoding or sys.getdefaultencoding()
         import multiprocessing
         pool = multiprocessing.Pool(options.shard_count)
         tasks = [(options, cmd_args, shard_num) for shard_num in range(options.shard_count)]
@@ -2340,6 +2343,14 @@ def runtests(options, cmd_args, coverage=None):
     else:
         faulthandler.enable()
 
+    if sys.platform == "win32" and sys.version_info < (3, 6):
+        # enable Unicode console output, if possible
+        try:
+            import win_unicode_console
+        except ImportError:
+            pass
+        else:
+            win_unicode_console.enable()
 
     WITH_CYTHON = options.with_cython
     ROOTDIR = os.path.abspath(options.root_dir)

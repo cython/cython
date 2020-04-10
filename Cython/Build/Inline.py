@@ -264,6 +264,15 @@ def __invoke(%(params)s):
             build_extension.build_lib  = lib_dir
             build_extension.run()
 
+        # On Windows, we need to add the library output directory to the DLL load path (Py3.8+).
+        # https://github.com/cython/cython/issues/3450
+        try:
+            add_dll_directory = os.add_dll_directory
+        except AttributeError:
+            pass
+        else:
+            add_dll_directory(os.path.dirname(module_path))
+
         module = load_dynamic(module_name, module_path)
 
     _cython_inline_cache[orig_code, arg_sigs, key_hash] = module.__invoke

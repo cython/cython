@@ -5,6 +5,7 @@ import unittest
 import shlex
 import sys
 import tempfile
+from io import open
 
 from .Compiler import Errors
 from .CodeWriter import CodeWriter
@@ -196,23 +197,23 @@ def unpack_source_tree(tree_file, workdir, cython_root):
     if workdir is None:
         workdir = tempfile.mkdtemp()
     header, cur_file = [], None
-    with open(tree_file) as f:
+    with open(tree_file, 'rb') as f:
         try:
             for line in f:
-                if line.startswith('#####'):
-                    filename = line.strip().strip('#').strip().replace('/', os.path.sep)
+                if line[:5] == b'#####':
+                    filename = line.strip().strip(b'#').strip().decode('utf8').replace('/', os.path.sep)
                     path = os.path.join(workdir, filename)
                     if not os.path.exists(os.path.dirname(path)):
                         os.makedirs(os.path.dirname(path))
                     if cur_file is not None:
                         to_close, cur_file = cur_file, None
                         to_close.close()
-                    cur_file = open(path, 'w')
+                    cur_file = open(path, 'wb')
                 elif cur_file is not None:
                     cur_file.write(line)
-                elif line.strip() and not line.lstrip().startswith('#'):
-                    if line.strip() not in ('"""', "'''"):
-                        command = shlex.split(line)
+                elif line.strip() and not line.lstrip().startswith(b'#'):
+                    if line.strip() not in (b'"""', b"'''"):
+                        command = shlex.split(line.decode('utf8'))
                         if not command: continue
                         # In Python 3: prog, *args = command
                         prog, args = command[0], command[1:]

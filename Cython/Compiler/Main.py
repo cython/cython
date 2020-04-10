@@ -450,9 +450,9 @@ def run_pipeline(source, options, full_module_name=None, context=None):
 
     # ensure that the inputs are unicode (for Python 2)
     if sys.version_info[0] == 2:
-        source = source.decode(sys.getfilesystemencoding())
+        source = Utils.decode_filename(source)
         if full_module_name:
-            full_module_name = full_module_name.decode("utf-8")
+            full_module_name = Utils.decode_filename(full_module_name)
 
     source_ext = os.path.splitext(source)[1]
     options.configure_language_defaults(source_ext[1:]) # py/pyx
