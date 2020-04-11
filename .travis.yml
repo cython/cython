@@ -41,15 +41,15 @@ matrix:
   include:
     # slowest first
     - os: osx
-      osx_image: xcode9.3
-      env: PY=2
+      osx_image: xcode10.3
+      env: PY=2 MACOSX_DEPLOYMENT_TARGET=10.9
       python: 2
       language: c
       compiler: clang
       cache: false
     - os: osx
       osx_image: xcode10.3
-      env: PY=3
+      env: PY=3 MACOSX_DEPLOYMENT_TARGET=10.9
       python: 3
       language: c
       compiler: clang
