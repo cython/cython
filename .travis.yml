@@ -111,12 +111,12 @@ before_install:
       #conda install --quiet --yes nomkl --file=test-requirements.txt --file=test-requirements-cpython.txt
       if [ "$TRAVIS_OS_NAME" == "osx" ]; then
         which clang && clang --version && export CC=clang || true
-        which clang++ && clang++ --version && export CXX=clang++ && export CXXFLAGS="$CXXFLAGS -stdlib=libc++" || true
+        which clang++ && clang++ --version && export CXX="clang++ -stdlib=libc++" || true
       fi
     fi
 
-  - if [ -n "$CC" ]; then which $CC; $CC --version; fi
-  - if [ -n "$CXX" ]; then which $CXX; $CXX --version; fi
+  - if [ -n "$CC" ]; then which ${CC%% *}; $CC --version; fi
+  - if [ -n "$CXX" ]; then which ${CXX%% *}; $CXX --version; fi
 
   - if [ "$STACKLESS" == "true" ]; then
       conda config --add channels stackless;
