@@ -17,6 +17,10 @@ Features added
 Bugs fixed
 ----------
 
+* Creating a fused function attached it to the garbage collector before it
+  was fully initialised, thus risking crashes in rare failure cases.
+  Original patch by achernomorov.  (Github issue #3215)
+
 * The compilation cache in ``cython.inline("…")`` failed to take the language
   level into account.
   Patch by will-ca.  (Github issue #3419)
