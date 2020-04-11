@@ -80,7 +80,7 @@ Features added
 * Several declarations in ``cpython.*``, ``libc.*`` and ``libcpp.*`` were added.
   Patches by Jeroen Demeyer, Matthew Edwards, Chris Gyurgyik, Jerome Kieffer
   and Zackery Spytz.
-  (Github issues #3468, #3332, #3179, #2891, #2826, #2713)
+  (Github issues #3468, #3332, #3202, #3188, #3179, #2891, #2826, #2713)
 
 * Deprecated NumPy API usages were removed from ``numpy.pxd``.
   Patch by Matti Picus.  (Github issue #3365)
