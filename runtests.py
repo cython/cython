@@ -416,6 +416,7 @@ VER_DEP_MODULES = {
     (2,999): (operator.lt, lambda x: x in ['run.special_methods_T561_py3',
                                            'run.test_raisefrom',
                                            'run.different_package_names',
+                                           'run.unicode_imports',  # encoding problems on appveyor in Py2
                                            ]),
     (3,): (operator.ge, lambda x: x in ['run.non_future_division',
                                         'compile.extsetslice',

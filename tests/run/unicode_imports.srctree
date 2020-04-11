@@ -27,16 +27,6 @@ exit(val)
 from __future__ import unicode_literals
 
 import sys
-
-# enable Unicode console output, if possible
-if sys.platform == "win32" and sys.version_info < (3, 6):
-    try:
-        import win_unicode_console
-    except ImportError:
-        pass
-    else:
-        win_unicode_console.enable()
-
 from Cython.Build import cythonize
 
 files = ["mymoð.pyx", "from_cy.pyx"]
