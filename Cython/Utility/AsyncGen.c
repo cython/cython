@@ -19,11 +19,11 @@ static PyTypeObject *__pyx__PyAsyncGenASendType = 0;
 static PyTypeObject *__pyx__PyAsyncGenAThrowType = 0;
 static PyTypeObject *__pyx_AsyncGenType = 0;
 
-#define __Pyx_AsyncGen_CheckExact(obj) (Py_TYPE(obj) == __pyx_AsyncGenType)
+#define __Pyx_AsyncGen_CheckExact(obj) __Pyx_IS_TYPE(obj, __pyx_AsyncGenType)
 #define __pyx_PyAsyncGenASend_CheckExact(o) \
-                    (Py_TYPE(o) == __pyx__PyAsyncGenASendType)
+                    __Pyx_IS_TYPE(o, __pyx__PyAsyncGenASendType)
 #define __pyx_PyAsyncGenAThrow_CheckExact(o) \
-                    (Py_TYPE(o) == __pyx__PyAsyncGenAThrowType)
+                    __Pyx_IS_TYPE(o, __pyx__PyAsyncGenAThrowType)
 
 static PyObject *__Pyx_async_gen_anext(PyObject *o);
 static CYTHON_INLINE PyObject *__Pyx_async_gen_asend_iternext(PyObject *o);
@@ -182,7 +182,7 @@ static __pyx_PyAsyncGenASend *__Pyx_ag_asend_freelist[_PyAsyncGen_MAXFREELIST];
 static int __Pyx_ag_asend_freelist_free = 0;
 
 #define __pyx__PyAsyncGenWrappedValue_CheckExact(o) \
-                    (Py_TYPE(o) == __pyx__PyAsyncGenWrappedValueType)
+                    __Pyx_IS_TYPE(o, __pyx__PyAsyncGenWrappedValueType)
 
 
 static int
@@ -449,7 +449,7 @@ __Pyx_PyAsyncGen_ClearFreeLists(void)
     while (__Pyx_ag_asend_freelist_free) {
         __pyx_PyAsyncGenASend *o;
         o = __Pyx_ag_asend_freelist[--__Pyx_ag_asend_freelist_free];
-        assert(Py_TYPE(o) == __pyx__PyAsyncGenASendType);
+        assert(__Pyx_IS_TYPE(o, __pyx__PyAsyncGenASendType));
         PyObject_GC_Del(o);
     }
 

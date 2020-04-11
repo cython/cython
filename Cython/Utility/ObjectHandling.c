@@ -1571,9 +1571,9 @@ static int __Pyx_PyObject_GetMethod(PyObject *obj, PyObject *name, PyObject **me
 #elif PY_MAJOR_VERSION >= 3
         // Repeating the condition below accommodates for MSVC's inability to test macros inside of macro expansions.
         #ifdef __Pyx_CyFunction_USED
-        if (likely(PyFunction_Check(descr) || (Py_TYPE(descr) == &PyMethodDescr_Type) || __Pyx_CyFunction_Check(descr)))
+        if (likely(PyFunction_Check(descr) || __Pyx_IS_TYPE(descr, &PyMethodDescr_Type) || __Pyx_CyFunction_Check(descr)))
         #else
-        if (likely(PyFunction_Check(descr) || (Py_TYPE(descr) == &PyMethodDescr_Type)))
+        if (likely(PyFunction_Check(descr) || __Pyx_IS_TYPE(descr, &PyMethodDescr_Type)))
         #endif
 #else
         // "PyMethodDescr_Type" is not part of the C-API in Py2.
@@ -1936,7 +1936,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCall(PyObject *func, PyObject 
     if (PyCFunction_Check(func)) {
         return _PyCFunction_FastCallKeywords(func, args, nargs, NULL);
     }
-    if (Py_TYPE(func) == &PyMethodDescr_Type) {
+    if (__Pyx_IS_TYPE(func, &PyMethodDescr_Type)) {
         return _PyMethodDescr_FastCallKeywords(func, args, nargs, NULL);
     }
     #elif CYTHON_FAST_PYCCALL
@@ -1958,7 +1958,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCall(PyObject *func, PyObject 
     }
     #elif __Pyx_CyFunction_USED && CYTHON_BACKPORT_VECTORCALL
     // exclude fused functions for now
-    if (Py_TYPE(func) == __pyx_CyFunctionType) {
+    if (__Pyx_IS_TYPE(func, __pyx_CyFunctionType)) {
         __pyx_vectorcallfunc f = __Pyx_CyFunction_func_vectorcall(func);
         if (f) return f(func, args, nargs, NULL);
     }
