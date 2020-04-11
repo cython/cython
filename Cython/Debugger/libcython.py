@@ -695,6 +695,7 @@ class CyImport(CythonCommand):
     command_class = gdb.COMMAND_STATUS
     completer_class = gdb.COMPLETE_FILENAME
 
+    @dont_suppress_errors
     def invoke(self, args, from_tty):
         if isinstance(args, BYTES):
             args = args.decode(_filesystemencoding)
@@ -841,6 +842,7 @@ class CyBreak(CythonCommand):
             if func.pf_cname:
                 gdb.execute('break %s' % func.pf_cname)
 
+    @dont_suppress_errors
     def invoke(self, function_names, from_tty):
         if isinstance(function_names, BYTES):
             function_names = function_names.decode(_filesystemencoding)
@@ -944,6 +946,7 @@ class CyStep(CythonExecutionControlCommand, libpython.PythonStepperMixin):
     name = 'cy -step'
     stepinto = True
 
+    @dont_suppress_errors
     def invoke(self, args, from_tty):
         if self.is_python_function():
             self.python_step(self.stepinto)
@@ -973,7 +976,7 @@ class CyRun(CythonExecutionControlCommand):
 
     name = 'cy run'
 
-    invoke = CythonExecutionControlCommand.run
+    invoke = dont_suppress_errors(CythonExecutionControlCommand.run)
 
 
 class CyCont(CythonExecutionControlCommand):
@@ -983,7 +986,7 @@ class CyCont(CythonExecutionControlCommand):
     """
 
     name = 'cy cont'
-    invoke = CythonExecutionControlCommand.cont
+    invoke = dont_suppress_errors(CythonExecutionControlCommand.cont)
 
 
 class CyFinish(CythonExecutionControlCommand):
@@ -992,7 +995,7 @@ class CyFinish(CythonExecutionControlCommand):
     """
     name = 'cy finish'
 
-    invoke = CythonExecutionControlCommand.finish
+    invoke = dont_suppress_errors(CythonExecutionControlCommand.finish)
 
 
 class CyUp(CythonCommand):
@@ -1002,6 +1005,7 @@ class CyUp(CythonCommand):
     name = 'cy up'
     _command = 'up'
 
+    @dont_suppress_errors
     def invoke(self, *args):
         try:
             gdb.execute(self._command, to_string=True)
@@ -1036,6 +1040,7 @@ class CySelect(CythonCommand):
 
     name = 'cy select'
 
+    @dont_suppress_errors
     def invoke(self, stackno, from_tty):
         try:
             stackno = int(stackno)
@@ -1062,6 +1067,7 @@ class CyBacktrace(CythonCommand):
     command_class = gdb.COMMAND_STACK
     completer_class = gdb.COMPLETE_NONE
 
+    @dont_suppress_errors
     @require_running_program
     def invoke(self, args, from_tty):
         # get the first frame
@@ -1095,6 +1101,7 @@ class CyList(CythonCommand):
     command_class = gdb.COMMAND_FILES
     completer_class = gdb.COMPLETE_NONE
 
+    @dont_suppress_errors
     # @dispatch_on_frame(c_command='list')
     def invoke(self, _, from_tty):
         sd, lineno = self.get_source_desc()
@@ -1111,6 +1118,7 @@ class CyPrint(CythonCommand):
     name = 'cy print'
     command_class = gdb.COMMAND_DATA
 
+    @dont_suppress_errors
     def invoke(self, name, from_tty, max_name_length=None):
         if self.is_python_function():
             return gdb.execute('py-print ' + name)
@@ -1146,6 +1154,7 @@ class CyLocals(CythonCommand):
     command_class = gdb.COMMAND_STACK
     completer_class = gdb.COMPLETE_NONE
 
+    @dont_suppress_errors
     @dispatch_on_frame(c_command='info locals', python_command='py-locals')
     def invoke(self, args, from_tty):
         cython_function = self.get_cython_function()
@@ -1173,6 +1182,7 @@ class CyGlobals(CyLocals):
     command_class = gdb.COMMAND_STACK
     completer_class = gdb.COMPLETE_NONE
 
+    @dont_suppress_errors
     @dispatch_on_frame(c_command='info variables', python_command='py-globals')
     def invoke(self, args, from_tty):
         global_python_dict = self.get_cython_globals_dict()
@@ -1297,6 +1307,7 @@ class CyExec(CythonCommand, libpython.PyExec, EvaluateOrExecuteCodeMixin):
     command_class = gdb.COMMAND_STACK
     completer_class = gdb.COMPLETE_NONE
 
+    @dont_suppress_errors
     def invoke(self, expr, from_tty):
         expr, input_type = self.readcode(expr)
         executor = libpython.PythonCodeExecutor()
@@ -1319,6 +1330,7 @@ class CySet(CythonCommand):
     command_class = gdb.COMMAND_DATA
     completer_class = gdb.COMPLETE_NONE
 
+    @dont_suppress_errors
     @require_cython_frame
     def invoke(self, expr, from_tty):
         name_and_expr = expr.split('=', 1)
@@ -1342,6 +1354,7 @@ class CyCName(gdb.Function, CythonBase):
         print $cy_cname("module.function")
     """
 
+    @dont_suppress_errors
     @require_cython_frame
     @gdb_function_value_to_unicode
     def invoke(self, cyname, frame=None):
@@ -1373,6 +1386,7 @@ class CyCValue(CyCName):
     Get the value of a Cython variable.
     """
 
+    @dont_suppress_errors
     @require_cython_frame
     @gdb_function_value_to_unicode
     def invoke(self, cyname, frame=None):
@@ -1393,6 +1407,7 @@ class CyLine(gdb.Function, CythonBase):
     Get the current Cython line.
     """
 
+    @dont_suppress_errors
     @require_cython_frame
     def invoke(self):
         return self.get_cython_lineno()
@@ -1403,6 +1418,7 @@ class CyEval(gdb.Function, CythonBase, EvaluateOrExecuteCodeMixin):
     Evaluate Python code in the nearest Python or Cython frame and return
     """
 
+    @dont_suppress_errors
     @gdb_function_value_to_unicode
     def invoke(self, python_expression):
         input_type = libpython.PythonCodeExecutor.Py_eval_input
