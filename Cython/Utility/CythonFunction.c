@@ -1,6 +1,6 @@
 
+//////////////////// CythonFunctionShared.proto ////////////////////
 
-//////////////////// CythonFunction.proto ////////////////////
 #define __Pyx_CyFunction_USED 1
 
 #define __Pyx_CYFUNCTION_STATICMETHOD  0x01
@@ -55,10 +55,7 @@ static PyTypeObject *__pyx_CyFunctionType = 0;
 
 #define __Pyx_CyFunction_Check(obj)  (__Pyx_TypeCheck(obj, __pyx_CyFunctionType))
 
-#define __Pyx_CyFunction_NewEx(ml, flags, qualname, closure, module, globals, code) \
-    __Pyx_CyFunction_New((PyTypeObject *)__pyx_CyFunctionType, ml, flags, qualname, closure, module, globals, code)
-
-static PyObject *__Pyx_CyFunction_New(PyTypeObject *type, PyMethodDef *ml,
+static PyObject *__Pyx_CyFunction_Init(__pyx_CyFunctionObject* op, PyMethodDef *ml,
                                       int flags, PyObject* qualname,
                                       PyObject *closure,
                                       PyObject *module, PyObject *globals,
@@ -88,7 +85,7 @@ static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS(PyObject *func, 
 #endif
 #endif
 
-//////////////////// CythonFunction ////////////////////
+//////////////////// CythonFunctionShared ////////////////////
 //@substitute: naming
 //@requires: CommonStructures.c::FetchCommonType
 //@requires: ObjectHandling.c::PyMethodNew
@@ -472,11 +469,9 @@ static PyMethodDef __pyx_CyFunction_methods[] = {
 #define __Pyx_CyFunction_weakreflist(cyfunc) ((cyfunc)->func.m_weakreflist)
 #endif
 
-
-static PyObject *__Pyx_CyFunction_New(PyTypeObject *type, PyMethodDef *ml, int flags, PyObject* qualname,
-                                      PyObject *closure, PyObject *module, PyObject* globals, PyObject* code) {
-    __pyx_CyFunctionObject *op = PyObject_GC_New(__pyx_CyFunctionObject, type);
-    if (op == NULL)
+static PyObject *__Pyx_CyFunction_Init(__pyx_CyFunctionObject *op, PyMethodDef *ml, int flags, PyObject* qualname,
+                                       PyObject *closure, PyObject *module, PyObject* globals, PyObject* code) {
+    if (unlikely(op == NULL))
         return NULL;
     op->flags = flags;
     __Pyx_CyFunction_weakreflist(op) = NULL;
@@ -525,7 +520,6 @@ static PyObject *__Pyx_CyFunction_New(PyTypeObject *type, PyMethodDef *ml, int f
         return NULL;
     }
 #endif
-    PyObject_GC_Track(op);
     return (PyObject *) op;
 }
 
@@ -970,11 +964,36 @@ static CYTHON_INLINE void __Pyx_CyFunction_SetAnnotationsDict(PyObject *func, Py
     Py_INCREF(dict);
 }
 
+
+//////////////////// CythonFunction.proto ////////////////////
+
+static PyObject *__Pyx_CyFunction_New(PyMethodDef *ml,
+                                      int flags, PyObject* qualname,
+                                      PyObject *closure,
+                                      PyObject *module, PyObject *globals,
+                                      PyObject* code);
+
+//////////////////// CythonFunction ////////////////////
+//@requires: CythonFunctionShared
+
+static PyObject *__Pyx_CyFunction_New(PyMethodDef *ml, int flags, PyObject* qualname,
+                                      PyObject *closure, PyObject *module, PyObject* globals, PyObject* code) {
+    PyObject *op = __Pyx_CyFunction_Init(
+        PyObject_GC_New(__pyx_CyFunctionObject, __pyx_CyFunctionType),
+        ml, flags, qualname, closure, module, globals, code
+    );
+    if (likely(op)) {
+        PyObject_GC_Track(op);
+    }
+    return op;
+}
+
+
 //////////////////// CyFunctionClassCell.proto ////////////////////
 static int __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions, PyObject *classobj);/*proto*/
 
 //////////////////// CyFunctionClassCell ////////////////////
-//@requires: CythonFunction
+//@requires: CythonFunctionShared
 
 static int __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions, PyObject *classobj) {
     Py_ssize_t i, count = PyList_GET_SIZE(cyfunctions);
@@ -997,17 +1016,16 @@ static int __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions, PyObject *class
     return 0;
 }
 
+
 //////////////////// FusedFunction.proto ////////////////////
+
 typedef struct {
     __pyx_CyFunctionObject func;
     PyObject *__signatures__;
     PyObject *self;
 } __pyx_FusedFunctionObject;
 
-#define __pyx_FusedFunction_NewEx(ml, flags, qualname, closure, module, globals, code)         \
-        __pyx_FusedFunction_New((PyTypeObject *)__pyx_FusedFunctionType, ml, flags, qualname, closure, module, globals, code)
-static PyObject *__pyx_FusedFunction_New(PyTypeObject *type,
-                                         PyMethodDef *ml, int flags,
+static PyObject *__pyx_FusedFunction_New(PyMethodDef *ml, int flags,
                                          PyObject *qualname, PyObject *closure,
                                          PyObject *module, PyObject *globals,
                                          PyObject *code);
@@ -1021,23 +1039,26 @@ static int __pyx_FusedFunction_init(void);
 #define __Pyx_FusedFunction_USED
 
 //////////////////// FusedFunction ////////////////////
-//@requires: CythonFunction
+//@requires: CythonFunctionShared
 
 static PyObject *
-__pyx_FusedFunction_New(PyTypeObject *type, PyMethodDef *ml, int flags,
+__pyx_FusedFunction_New(PyMethodDef *ml, int flags,
                         PyObject *qualname, PyObject *closure,
                         PyObject *module, PyObject *globals,
                         PyObject *code)
 {
-    __pyx_FusedFunctionObject *fusedfunc =
-        (__pyx_FusedFunctionObject *) __Pyx_CyFunction_New(type, ml, flags, qualname,
-                                                           closure, module, globals, code);
-    if (!fusedfunc)
-        return NULL;
-
-    fusedfunc->__signatures__ = NULL;
-    fusedfunc->self = NULL;
-    return (PyObject *) fusedfunc;
+    PyObject *op = __Pyx_CyFunction_Init(
+        // __pyx_CyFunctionObject is correct below since that's the cast that we want.
+        PyObject_GC_New(__pyx_CyFunctionObject, __pyx_FusedFunctionType),
+        ml, flags, qualname, closure, module, globals, code
+    );
+    if (likely(op)) {
+        __pyx_FusedFunctionObject *fusedfunc = (__pyx_FusedFunctionObject *) op;
+        fusedfunc->__signatures__ = NULL;
+        fusedfunc->self = NULL;
+        PyObject_GC_Track(op);
+    }
+    return op;
 }
 
 static void
@@ -1084,7 +1105,7 @@ __pyx_FusedFunction_descr_get(PyObject *self, PyObject *obj, PyObject *type)
     if (obj == Py_None)
         obj = NULL;
 
-    meth = (__pyx_FusedFunctionObject *) __pyx_FusedFunction_NewEx(
+    meth = (__pyx_FusedFunctionObject *) __pyx_FusedFunction_New(
                     ((PyCFunctionObject *) func)->m_ml,
                     ((__pyx_CyFunctionObject *) func)->flags,
                     ((__pyx_CyFunctionObject *) func)->func_qualname,

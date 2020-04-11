@@ -9357,11 +9357,11 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         if self.specialized_cpdefs or self.is_specialization:
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("FusedFunction", "CythonFunction.c"))
-            constructor = "__pyx_FusedFunction_NewEx"
+            constructor = "__pyx_FusedFunction_New"
         else:
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("CythonFunction", "CythonFunction.c"))
-            constructor = "__Pyx_CyFunction_NewEx"
+            constructor = "__Pyx_CyFunction_New"
 
         if self.code_object:
             code_object_result = self.code_object.py_result()
