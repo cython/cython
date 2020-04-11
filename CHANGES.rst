@@ -62,6 +62,10 @@ Features added
 * Multiplication of Python numbers with small constant integers is faster.
   (Github issue #2808)
 
+* Some list copying is avoided internally when a new list needs to be created
+  but we already have a fresh one.
+  (Github issue #3494)
+
 * Extension types that do not need their own ``tp_new`` implementation (because
   they have no object attributes etc.) directly inherit the implementation of
   their parent type if possible.
@@ -78,6 +82,10 @@ Features added
 
 * Deprecated NumPy API usages were removed from ``numpy.pxd``.
   Patch by Matti Picus.  (Github issue #3365)
+
+* ``cython.inline()`` now sets the ``NPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION``
+  C macro automatically when ``numpy`` is imported in the code, to avoid C compiler
+  warnings about deprecated NumPy C-API usage.
 
 * The builtin ``abs()`` function can now be used on C numbers in nogil code.
   Patch by Elliott Sales de Andrade.  (Github issue #2748)
@@ -99,6 +107,10 @@ Features added
 * ``--no-docstrings`` option added to ``cythonize`` script.
   Original patch by mo-han.  (Github issue #2889)
 
+* ``cygdb`` gives better error messages when it fails to initialise the
+  Python runtime support in gdb.
+  Patch by Volker Weissmann.  (Github issue #3489)
+
 * The Pythran ``shape`` attribute is supported.
   Patch by Serge Guelton.  (Github issue #3307)
 
@@ -115,6 +127,10 @@ Bugs fixed
 * Fused argument types were not correctly handled in type annotations and
   ``cython.locals()``.
   Patch by David Woods.  (Github issues #3391, #3142)
+
+* Creating a fused function attached it to the garbage collector before it
+  was fully initialised, thus risking crashes in rare failure cases.
+  Original patch by achernomorov.  (Github issue #3215)
 
 * Diverging from the usual behaviour, ``len(memoryview)``, ``len(char*)``
   and ``len(Py_UNICODE*)`` returned an unsigned ``size_t`` value.  They now
@@ -211,6 +227,9 @@ Other changes
 * Dotted filenames for qualified module names (``pkg.mod.pyx``) are deprecated.
   Use the normal Python package directory layout instead.
   (Github issue #2686)
+
+* Binary Linux wheels now follow the manylinux2010 standard.
+  Patch by Alexey Stepanov.  (Github issue #3355)
 
 * Support for Python 2.6 was removed.
 
