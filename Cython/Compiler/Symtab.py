@@ -2537,9 +2537,9 @@ class CppClassScope(Scope):
             if type.is_cfunction and not defining:
                 entry.is_inherited = 1
         entry.is_variable = 1
-        entry.is_cfunction = type.is_cfunction
-        if type.is_cfunction and self.type:
-            if not self.type.get_fused_types():
+        if type.is_cfunction:
+            entry.is_cfunction = 1
+            if self.type and not self.type.get_fused_types():
                 entry.func_cname = "%s::%s" % (self.type.empty_declaration_code(), cname)
         if name != "this" and (defining or name != "<init>"):
             self.var_entries.append(entry)
