@@ -1,7 +1,18 @@
 # mode: run
 # tag: cpp
 
-cdef extern from "cpp_method_overloading_support.h":
+cdef extern from *:
+    """
+    class Base {
+    public:
+        int foo(double a) {
+            return (int) (a+0.5);
+        }
+        int foo(double* a) {
+          return (int) (*a+0.5) - 1;
+        }
+    };
+    """
     cdef cppclass Base:
         __init__()
         __init__(int a)
