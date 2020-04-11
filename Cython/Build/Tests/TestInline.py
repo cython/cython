@@ -87,6 +87,21 @@ class TestInline(CythonTest):
             inline(inline_divcode, language_level=3)['f'](5,2),
             2.5
         )
+        self.assertEqual(
+            inline(inline_divcode, language_level=2)['f'](5,2),
+            2
+        )
+
+    def test_repeated_use(self):
+        inline_mulcode = "def f(int a, int b): return a * b"
+        self.assertEqual(inline(inline_mulcode)['f'](5, 2), 10)
+        self.assertEqual(inline(inline_mulcode)['f'](5, 3), 15)
+        self.assertEqual(inline(inline_mulcode)['f'](6, 2), 12)
+        self.assertEqual(inline(inline_mulcode)['f'](5, 2), 10)
+
+        f = inline(inline_mulcode)['f']
+        self.assertEqual(f(5, 2), 10)
+        self.assertEqual(f(5, 3), 15)
 
     @unittest.skipIf(not has_numpy, "NumPy is not available")
     def test_numpy(self):
