@@ -3173,6 +3173,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 env.method_table_cname,
                 doc,
                 env.module_cname))
+        code.putln(code.error_goto_if_null(env.module_cname, self.pos))
         code.putln("#elif CYTHON_COMPILING_IN_LIMITED_API")
         module_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
         code.putln(
@@ -3190,8 +3191,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "%s = PyModule_Create(&%s);" % (
                 env.module_cname,
                 Naming.pymoduledef_cname))
-        code.putln("#endif")
         code.putln(code.error_goto_if_null(env.module_cname, self.pos))
+        code.putln("#endif")
         code.putln("#endif")  # CYTHON_PEP489_MULTI_PHASE_INIT
 
         code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
