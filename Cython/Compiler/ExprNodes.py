@@ -2306,7 +2306,6 @@ class NameNode(AtomicExprNode):
             assert entry.type.is_pyobject, "Python global or builtin not a Python object"
             interned_cname = code.intern_identifier(self.entry.name)
             namespace = self.entry.scope.namespace_cname
-            code.putln("{")
             if entry.is_member:
                 # if the entry is a member we have to cheat: SetAttr does not work
                 # on types, so we create a descriptor which is then added to tp_dict
@@ -2315,6 +2314,7 @@ class NameNode(AtomicExprNode):
             elif entry.scope.is_module_scope:
                 setter = 'PyDict_SetItem'
                 namespace = Naming.moddict_cname
+                code.putln("{")
                 code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
                 # global module dict doesn't seems to exist in the limited API so create a temp variable
                 code.putln("PyObject *%s = PyModule_GetDict(%s); %s" % (
@@ -2334,7 +2334,6 @@ class NameNode(AtomicExprNode):
                     namespace,
                     interned_cname,
                     rhs.py_result()))
-            code.putln("}")
             if debug_disposal_code:
                 print("NameNode.generate_assignment_code:")
                 print("...generating disposal code for %s" % rhs)
@@ -2344,6 +2343,8 @@ class NameNode(AtomicExprNode):
                 # in Py2.6+, we need to invalidate the method cache
                 code.putln("PyType_Modified(%s);" %
                            entry.scope.parent_type.typeptr_cname)
+            elif entry.scope.is_module_scope:
+                code.putln("}")
         else:
             if self.type.is_memoryviewslice:
                 self.generate_acquire_memoryviewslice(rhs, code)
