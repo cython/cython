@@ -20,7 +20,10 @@ Features added
 * Annotations are no longer parsed, keeping them as strings following PEP-563.
   Patch by David Woods.  (Github issue #3285)
 
-* The ``LIMITED_API`` is supported by setting the ``CYTHON_LIMITED_API`` C macro.
+* Preliminary support for ``LIMITED_API`` is available by setting the 
+  ``CYTHON_LIMITED_API`` C macro.
+  (Support for ``LIMITED_API`` is currently in an early stage  and many features
+  do not yet work.)
   Patches by Eddie Elizondo.  (Github issue #3223, #3311)
 
 * The dispatch to fused functions is now linear in the number of arguments,
