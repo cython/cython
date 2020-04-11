@@ -228,6 +228,7 @@ def cython_inline(code, get_type=unsafe_type,
             os.makedirs(lib_dir)
         if force or not os.path.isfile(module_path):
             cflags = []
+            define_macros = []
             c_include_dirs = []
             qualified = re.compile(r'([.\w]+)[.]')
             for type, _ in arg_sigs:
@@ -238,6 +239,7 @@ def cython_inline(code, get_type=unsafe_type,
                     if m.groups()[0] == 'numpy':
                         import numpy
                         c_include_dirs.append(numpy.get_include())
+                        define_macros.append(("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION"))
                         # cflags.append('-Wno-unused')
             module_body, func_body = extract_func_code(code)
             params = ', '.join(['%s %s' % a for a in arg_sigs])
@@ -260,10 +262,12 @@ def __invoke(%(params)s):
             finally:
                 fh.close()
             extension = Extension(
-                name = module_name,
-                sources = [pyx_file],
-                include_dirs = c_include_dirs,
-                extra_compile_args = cflags)
+                name=module_name,
+                sources=[pyx_file],
+                include_dirs=c_include_dirs or None,
+                extra_compile_args=cflags or None,
+                define_macros=define_macros or None,
+            )
             if build_extension is None:
                 build_extension = _get_build_extension()
             build_extension.extensions = cythonize(
