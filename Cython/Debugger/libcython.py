@@ -1311,7 +1311,7 @@ class CyExec(CythonCommand, libpython.PyExec, EvaluateOrExecuteCodeMixin):
     def invoke(self, expr, from_tty):
         expr, input_type = self.readcode(expr)
         executor = libpython.PythonCodeExecutor()
-        executor.xdecref(self.evalcode(expr, executor.Py_single_input))
+        executor.xdecref(self.evalcode(expr, executor.Py_file_input))
 
 
 class CySet(CythonCommand):

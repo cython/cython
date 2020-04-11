@@ -4,7 +4,8 @@
 # It can be found under Tools/gdb/libpython.py. It is shipped with Cython
 # because it's not installed as a python module, and because changes are only
 # merged into new python versions (v3.2+).
-# We added some of our code below the "## added, not in CPython" comment.
+# We added some of our code below the "## added, not in CPython" comment
+# and slightly modified PyExec.readcode to make it Python 2 compatible.
 
 '''
 From gdb 7 onwards, gdb's build can be configured --with-python, allowing gdb
@@ -2772,7 +2773,10 @@ class PyExec(gdb.Command):
             lines = []
             while True:
                 try:
-                    line = input('>')
+                    if sys.version_info[0] == 2:
+                        line = raw_input()
+                    else:
+                        line = input('>')
                 except EOFError:
                     break
                 else:
