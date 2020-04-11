@@ -2460,10 +2460,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('int %s;' % Naming.clineno_cname)
         code.putln('const char *%s;' % Naming.filename_cname)
         code.putln('#ifdef __Pyx_CyFunction_USED')
-        code.putln('PyObject *%s;' % Naming.cyfunction_type_cname)
+        code.putln('PyTypeObject *%s;' % Naming.cyfunction_type_cname)
         code.putln('#endif')
         code.putln('#ifdef __Pyx_FusedFunction_USED')
-        code.putln('PyObject *%s;' % Naming.fusedfunction_type_cname)
+        code.putln('PyTypeObject *%s;' % Naming.fusedfunction_type_cname)
         code.putln('#endif')
 
     def generate_module_state_end(self, env, modules, globalstate):
