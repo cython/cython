@@ -1,4 +1,6 @@
-import os, tempfile
+import os
+import tempfile
+import unittest
 from Cython.Shadow import inline
 from Cython.Build.Inline import safe_type
 from Cython.TestUtils import CythonTest
@@ -86,11 +88,10 @@ class TestInline(CythonTest):
             2.5
         )
 
-    if has_numpy:
-
-        def test_numpy(self):
-            import numpy
-            a = numpy.ndarray((10, 20))
-            a[0,0] = 10
-            self.assertEqual(safe_type(a), 'numpy.ndarray[numpy.float64_t, ndim=2]')
-            self.assertEqual(inline("return a[0,0]", a=a, **self.test_kwds), 10.0)
+    @unittest.skipIf(not has_numpy, "NumPy is not available")
+    def test_numpy(self):
+        import numpy
+        a = numpy.ndarray((10, 20))
+        a[0,0] = 10
+        self.assertEqual(safe_type(a), 'numpy.ndarray[numpy.float64_t, ndim=2]')
+        self.assertEqual(inline("return a[0,0]", a=a, **self.test_kwds), 10.0)
