@@ -355,7 +355,7 @@ static int __Pyx_MergeKeywords(PyObject *kwdict, PyObject *source_mapping) {
     if (unlikely(!iter)) {
         // slow fallback: try converting to dict, then iterate
         PyObject *args;
-        if (!PyErr_ExceptionMatches(PyExc_AttributeError)) goto bad;
+        if (unlikely(!PyErr_ExceptionMatches(PyExc_AttributeError))) goto bad;
         PyErr_Clear();
         args = PyTuple_Pack(1, source_mapping);
         if (likely(args)) {

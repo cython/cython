@@ -929,7 +929,7 @@ __Pyx_async_gen_athrow_send(__pyx_PyAsyncGenAThrow *o, PyObject *arg)
     } else {
         /* aclose() mode */
         if (retval) {
-            if (__pyx__PyAsyncGenWrappedValue_CheckExact(retval)) {
+            if (unlikely(__pyx__PyAsyncGenWrappedValue_CheckExact(retval))) {
                 Py_DECREF(retval);
                 goto yield_close;
             }
@@ -983,7 +983,7 @@ __Pyx_async_gen_athrow_throw(__pyx_PyAsyncGenAThrow *o, PyObject *args)
     } else {
         // aclose() mode
         PyObject *exc_type;
-        if (retval && __pyx__PyAsyncGenWrappedValue_CheckExact(retval)) {
+        if (unlikely(retval && __pyx__PyAsyncGenWrappedValue_CheckExact(retval))) {
             o->agt_gen->ag_running_async = 0;
             o->agt_state = __PYX_AWAITABLE_STATE_CLOSED;
             Py_DECREF(retval);

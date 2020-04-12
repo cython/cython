@@ -279,7 +279,7 @@ __Pyx_CyFunction_set_defaults(__pyx_CyFunctionObject *op, PyObject* value, CYTHO
     if (!value) {
         // del => explicit None to prevent rebuilding
         value = Py_None;
-    } else if (value != Py_None && !PyTuple_Check(value)) {
+    } else if (unlikely(value != Py_None && !PyTuple_Check(value))) {
         PyErr_SetString(PyExc_TypeError,
                         "__defaults__ must be set to a tuple object");
         return -1;
@@ -294,7 +294,7 @@ __Pyx_CyFunction_get_defaults(__pyx_CyFunctionObject *op, CYTHON_UNUSED void *co
     PyObject* result = op->defaults_tuple;
     if (unlikely(!result)) {
         if (op->defaults_getter) {
-            if (__Pyx_CyFunction_init_defaults(op) < 0) return NULL;
+            if (unlikely(__Pyx_CyFunction_init_defaults(op) < 0)) return NULL;
             result = op->defaults_tuple;
         } else {
             result = Py_None;
@@ -309,7 +309,7 @@ __Pyx_CyFunction_set_kwdefaults(__pyx_CyFunctionObject *op, PyObject* value, CYT
     if (!value) {
         // del => explicit None to prevent rebuilding
         value = Py_None;
-    } else if (value != Py_None && !PyDict_Check(value)) {
+    } else if (unlikely(value != Py_None && !PyDict_Check(value))) {
         PyErr_SetString(PyExc_TypeError,
                         "__kwdefaults__ must be set to a dict object");
         return -1;
@@ -324,7 +324,7 @@ __Pyx_CyFunction_get_kwdefaults(__pyx_CyFunctionObject *op, CYTHON_UNUSED void *
     PyObject* result = op->defaults_kwdict;
     if (unlikely(!result)) {
         if (op->defaults_getter) {
-            if (__Pyx_CyFunction_init_defaults(op) < 0) return NULL;
+            if (unlikely(__Pyx_CyFunction_init_defaults(op) < 0)) return NULL;
             result = op->defaults_kwdict;
         } else {
             result = Py_None;
@@ -338,7 +338,7 @@ static int
 __Pyx_CyFunction_set_annotations(__pyx_CyFunctionObject *op, PyObject* value, CYTHON_UNUSED void *context) {
     if (!value || value == Py_None) {
         value = NULL;
-    } else if (!PyDict_Check(value)) {
+    } else if (unlikely(!PyDict_Check(value))) {
         PyErr_SetString(PyExc_TypeError,
                         "__annotations__ must be set to a dict object");
         return -1;
@@ -696,7 +696,7 @@ static CYTHON_INLINE int __Pyx_CyFunction_Vectorcall_CheckArgs(__pyx_CyFunctionO
         }
         ret = 1;
     }
-    if (unlikely(kwnames) && PyTuple_GET_SIZE(kwnames)) {
+    if (unlikely(kwnames) && unlikely(PyTuple_GET_SIZE(kwnames))) {
         PyErr_Format(PyExc_TypeError,
                      "%.200s() takes no keyword arguments", cyfunc->func.m_ml->ml_name);
         return -1;
@@ -1090,7 +1090,7 @@ __pyx_FusedFunction_descr_get(PyObject *self, PyObject *obj, PyObject *type)
                     ((PyCFunctionObject *) func)->m_module,
                     ((__pyx_CyFunctionObject *) func)->func_globals,
                     ((__pyx_CyFunctionObject *) func)->func_code);
-    if (!meth)
+    if (unlikely(!meth))
         return NULL;
 
     // defaults needs copying fully rather than just copying the pointer
@@ -1100,9 +1100,10 @@ __pyx_FusedFunction_descr_get(PyObject *self, PyObject *obj, PyObject *type)
         PyObject **pydefaults;
         int i;
 
-        if (!__Pyx_CyFunction_InitDefaults((PyObject*)meth,
-                                      func->func.defaults_size,
-                                      func->func.defaults_pyobjects)) {
+        if (unlikely(!__Pyx_CyFunction_InitDefaults(
+                (PyObject*)meth,
+                func->func.defaults_size,
+                func->func.defaults_pyobjects))) {
             Py_XDECREF((PyObject*)meth);
             return NULL;
         }
@@ -1147,7 +1148,7 @@ __pyx_FusedFunction_getitem(__pyx_FusedFunctionObject *self, PyObject *idx)
     PyObject *unbound_result_func;
     PyObject *result_func = NULL;
 
-    if (self->__signatures__ == NULL) {
+    if (unlikely(self->__signatures__ == NULL)) {
         PyErr_SetString(PyExc_TypeError, "Function is not fused");
         return NULL;
     }
@@ -1159,7 +1160,7 @@ __pyx_FusedFunction_getitem(__pyx_FusedFunctionObject *self, PyObject *idx)
         PyObject *sep = NULL;
         int i;
 
-        if (!list)
+        if (unlikely(!list))
             return NULL;
 
         for (i = 0; i < n; i++) {
@@ -1172,14 +1173,14 @@ __pyx_FusedFunction_getitem(__pyx_FusedFunctionObject *self, PyObject *idx)
 #if !(CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS)
             Py_DECREF(item);
 #endif
-            if (!string || PyList_Append(list, string) < 0)
+            if (unlikely(!string) || unlikely(PyList_Append(list, string) < 0))
                 goto __pyx_err;
 
             Py_DECREF(string);
         }
 
         sep = PyUnicode_FromString("|");
-        if (sep)
+        if (likely(sep))
             signature = PyUnicode_Join(sep, list);
 __pyx_err:
 ;
@@ -1189,12 +1190,12 @@ __pyx_err:
         signature = _obj_to_str(idx);
     }
 
-    if (!signature)
+    if (unlikely(!signature))
         return NULL;
 
     unbound_result_func = PyObject_GetItem(self->__signatures__, signature);
 
-    if (unbound_result_func) {
+    if (likely(unbound_result_func)) {
         if (self->self) {
             __pyx_FusedFunctionObject *unbound = (__pyx_FusedFunctionObject *) unbound_result_func;
 
@@ -1251,7 +1252,7 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
         PyObject *self;
         Py_ssize_t i;
         new_args = PyTuple_New(argc + 1);
-        if (!new_args)
+        if (unlikely(!new_args))
             return NULL;
 
         self = binding_func->self;
@@ -1426,7 +1427,7 @@ static int __pyx_FusedFunction_init(void) {
     __pyx_FusedFunctionType_type.tp_base = __pyx_CyFunctionType;
     __pyx_FusedFunctionType = __Pyx_FetchCommonType(&__pyx_FusedFunctionType_type);
 #endif
-    if (__pyx_FusedFunctionType == NULL) {
+    if (unlikely(__pyx_FusedFunctionType == NULL)) {
         return -1;
     }
     return 0;
@@ -1452,9 +1453,9 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
 #else
     // It appears that PyMethodDescr_Type is not exposed anywhere in the CPython C-API
     static PyTypeObject *methoddescr_type = NULL;
-    if (methoddescr_type == NULL) {
+    if (unlikely(methoddescr_type == NULL)) {
        PyObject *meth = PyObject_GetAttrString((PyObject*)&PyList_Type, "append");
-       if (!meth) return NULL;
+       if (unlikely(!meth)) return NULL;
        methoddescr_type = Py_TYPE(meth);
        Py_DECREF(meth);
     }
