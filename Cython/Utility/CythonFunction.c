@@ -1189,7 +1189,7 @@ __pyx_FusedFunction_getitem(__pyx_FusedFunctionObject *self, PyObject *idx)
 #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
             PyObject *item = PyTuple_GET_ITEM(idx, i);
 #else
-            PyObject *item = PySequence_ITEM(idx, i);
+            PyObject *item = PySequence_ITEM(idx, i);  if (unlikely(!item)) goto __pyx_error;
 #endif
             string = _obj_to_str(item);
 #if !(CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS)
