@@ -12,6 +12,7 @@ Features added
   Patch by Omer Ozarslan.  (Github issue #2169)
 
 * The ``@cython.binding`` decorator is available in Python code.
+  (Github issue #3505)
 
 Bugs fixed
 ----------
