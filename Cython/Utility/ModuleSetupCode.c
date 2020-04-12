@@ -1377,6 +1377,10 @@ static CYTHON_INLINE int __Pyx_Is_Little_Endian(void)
   #define __Pyx_XGIVEREF(r)
 #endif /* CYTHON_REFNANNY */
 
+#define __Pyx_Py_XDECREF_SET(r, v) do {                         \
+        PyObject *tmp = (PyObject *) r;                         \
+        r = v; Py_XDECREF(tmp);                                 \
+    } while (0)
 #define __Pyx_XDECREF_SET(r, v) do {                            \
         PyObject *tmp = (PyObject *) r;                         \
         r = v; __Pyx_XDECREF(tmp);                              \
