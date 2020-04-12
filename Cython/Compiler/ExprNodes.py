@@ -2314,6 +2314,12 @@ class NameNode(AtomicExprNode):
             elif entry.scope.is_module_scope:
                 setter = 'PyDict_SetItem'
                 namespace = Naming.moddict_cname
+                code.putln("{")
+                code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+                # global module dict doesn't seems to exist in the limited API so create a temp variable
+                code.putln("PyObject *%s = PyModule_GetDict(%s); %s" % (
+                    namespace, Naming.module_cname, code.error_goto_if_null(namespace, self.pos)))
+                code.putln("#endif")
             elif entry.is_pyclass_attr:
                 # Special-case setting __new__
                 n = "SetNewInClass" if self.name == "__new__" else "SetNameInClass"
@@ -2321,14 +2327,6 @@ class NameNode(AtomicExprNode):
                 setter = '__Pyx_' + n
             else:
                 assert False, repr(entry)
-            code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-            code.put_incref(rhs.py_result(), py_object_type)
-            code.put_error_if_neg(self.pos, '%s(%s, %s, %s)' % (
-              "PyModule_AddObject",
-              Naming.module_cname,
-              code.get_string_const(self.entry.name),
-              rhs.py_result()))
-            code.putln("#else")
             code.put_error_if_neg(
                 self.pos,
                 '%s(%s, %s, %s)' % (
@@ -2336,7 +2334,6 @@ class NameNode(AtomicExprNode):
                     namespace,
                     interned_cname,
                     rhs.py_result()))
-            code.putln("#endif")
             if debug_disposal_code:
                 print("NameNode.generate_assignment_code:")
                 print("...generating disposal code for %s" % rhs)
@@ -2346,6 +2343,8 @@ class NameNode(AtomicExprNode):
                 # in Py2.6+, we need to invalidate the method cache
                 code.putln("PyType_Modified(%s);" %
                            entry.scope.parent_type.typeptr_cname)
+            elif entry.scope.is_module_scope:
+                code.putln("}")
         else:
             if self.type.is_memoryviewslice:
                 self.generate_acquire_memoryviewslice(rhs, code)
