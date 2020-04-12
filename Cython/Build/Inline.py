@@ -330,37 +330,6 @@ def extract_func_code(code):
     return '\n'.join(module), '    ' + '\n    '.join(function)
 
 
-try:
-    from inspect import getcallargs
-except ImportError:
-    def getcallargs(func, *arg_values, **kwd_values):
-        all = {}
-        args, varargs, kwds, defaults = inspect.getargspec(func)
-        if varargs is not None:
-            all[varargs] = arg_values[len(args):]
-        for name, value in zip(args, arg_values):
-            all[name] = value
-        for name, value in list(kwd_values.items()):
-            if name in args:
-                if name in all:
-                    raise TypeError("Duplicate argument %s" % name)
-                all[name] = kwd_values.pop(name)
-        if kwds is not None:
-            all[kwds] = kwd_values
-        elif kwd_values:
-            raise TypeError("Unexpected keyword arguments: %s" % list(kwd_values))
-        if defaults is None:
-            defaults = ()
-        first_default = len(args) - len(defaults)
-        for ix, name in enumerate(args):
-            if name not in all:
-                if ix >= first_default:
-                    all[name] = defaults[ix - first_default]
-                else:
-                    raise TypeError("Missing argument: %s" % name)
-        return all
-
-
 def get_body(source):
     ix = source.index(':')
     if source[:5] == 'lambda':
@@ -378,7 +347,7 @@ class RuntimeCompiledFunction(object):
         self._body = get_body(inspect.getsource(f))
 
     def __call__(self, *args, **kwds):
-        all = getcallargs(self._f, *args, **kwds)
+        all = inspect.getcallargs(self._f, *args, **kwds)
         if IS_PY3:
             return cython_inline(self._body, locals=self._f.__globals__, globals=self._f.__globals__, **all)
         else:
