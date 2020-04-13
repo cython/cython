@@ -972,14 +972,15 @@ __pyx_FusedFunction_getitem(__pyx_FusedFunctionObject *self, PyObject *idx)
     if (PyTuple_Check(idx)) {
         PyObject *list = PyList_New(0);
         Py_ssize_t n = PyTuple_GET_SIZE(idx);
-        PyObject *string = NULL;
         PyObject *sep = NULL;
         int i;
 
-        if (!list)
+        if (unlikely(!list))
             return NULL;
 
         for (i = 0; i < n; i++) {
+            int ret;
+            PyObject *string;
 #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
             PyObject *item = PyTuple_GET_ITEM(idx, i);
 #else
@@ -989,14 +990,14 @@ __pyx_FusedFunction_getitem(__pyx_FusedFunctionObject *self, PyObject *idx)
 #if !(CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS)
             Py_DECREF(item);
 #endif
-            if (!string || PyList_Append(list, string) < 0)
-                goto __pyx_err;
-
+            if (unlikely(!string)) goto __pyx_err;
+            ret = PyList_Append(list, string);
             Py_DECREF(string);
+            if (unlikely(ret < 0)) goto __pyx_err;
         }
 
         sep = PyUnicode_FromString("|");
-        if (sep)
+        if (likely(sep))
             signature = PyUnicode_Join(sep, list);
 __pyx_err:
 ;
