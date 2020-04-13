@@ -2,6 +2,7 @@
 
 cimport cython
 from cython.operator import dereference as deref
+from libcpp cimport bool
 
 cdef extern from "cpp_templates_helper.h":
     cdef cppclass Wrap[T, AltType=*, UndeclarableAltType=*]:
@@ -32,6 +33,15 @@ cdef extern from "cpp_templates_helper.h":
     cdef cppclass Div[T]:
         @staticmethod
         T half(T value)
+
+    cdef cppclass UnaryAnd[T, N=*]:
+        @staticmethod
+        T call(T value)
+
+    cdef cppclass UnaryPlus[T, N=*]:
+        @staticmethod
+        T call(T value)
+
 
 def test_int(int x, int y):
     """
@@ -101,6 +111,39 @@ def test_pair(int i, double x):
         return pair.first(), pair.second(), deref(pair) == deref(pair), deref(pair) != deref(pair)
     finally:
         del pair
+
+
+def test_pair_pointer(int x, double y):
+    """
+    >>> test_pair_pointer(1, 1.5)
+    (1, 1.5, True, False)
+    >>> test_pair_pointer(2, 2.25)
+    (2, 2.25, True, False)
+    """
+
+    cdef Pair[int*, double*]* pair
+    try:
+        pair = new Pair[int*, double*](&x, &y)
+        return deref(pair.first()), deref(pair.second()), deref(pair) == deref(pair), deref(pair) != deref(pair)
+    finally:
+        del pair
+
+
+def test_pair_reference(int x, double y):
+    """
+    >>> test_pair_reference(1, 1.5)
+    (1, 1.5, True, False)
+    >>> test_pair_reference(2, 2.25)
+    (2, 2.25, True, False)
+    """
+
+    cdef Pair[int&, double&]* pair
+    try:
+        pair = new Pair[int&, double&](x, y)
+        return pair.first(), pair.second(), deref(pair) == deref(pair), deref(pair) != deref(pair)
+    finally:
+        del pair
+
 
 def test_ptr(int i):
     """
@@ -175,3 +218,31 @@ def test_pure_syntax(int i):
         return deref(w.get())
     finally:
         del w
+
+
+def test_and_bool(bool i):
+    """
+    >>> test_and_bool(True)
+    True
+    >>> test_and_bool(False)
+    False
+    """
+    return UnaryAnd[bool, True].call(i)
+
+
+def test_add_char(char i):
+    """
+    >>> test_add_char(ord('a'))
+    ('f', 'k')
+    """
+    return chr(UnaryPlus[char].call(i)), chr(UnaryPlus[char, 10].call(i))
+
+
+def test_add_int(int i):
+    """
+    >>> test_add_int(1)
+    (6, 11)
+    >>> test_add_int(2)
+    (7, 12)
+    """
+    return UnaryPlus[int].call(i), UnaryPlus[int, 10].call(i)

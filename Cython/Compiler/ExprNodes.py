@@ -655,6 +655,13 @@ class ExprNode(Node):
         # type, return that type, else None.
         return None
 
+    def analyse_as_template_parameter(self, env):
+        # If this node can be interpreted as a template parameter,
+        # return that parameter, else None.
+        # Default to type interpretation, specialize
+        # for literals.
+        return self.analyse_as_type(env)
+
     def analyse_as_extension_type(self, env):
         # If this node can be interpreted as a reference to an
         # extension type or builtin type, return its type, else None.
@@ -1210,6 +1217,10 @@ class ConstNode(AtomicExprNode):
     def calculate_result_code(self):
         return str(self.value)
 
+    def analyse_as_template_parameter(self, env):
+        c_value = self.get_constant_c_result_code()
+        return PyrexTypes.TemplatePlaceholderType(c_value)
+
     def generate_result_code(self, code):
         pass
 
@@ -1403,6 +1414,7 @@ class IntNode(ConstNode):
 
     def compile_time_value(self, denv):
         return Utils.str_to_number(self.value)
+
 
 class FloatNode(ConstNode):
     type = PyrexTypes.c_double_type
@@ -3731,7 +3743,6 @@ class IndexNode(_IndexingBaseNode):
             if base_type in (list_type, tuple_type, dict_type):
                 # do the None check explicitly (not in a helper) to allow optimising it away
                 self.base = self.base.as_none_safe_node("'NoneType' object is not subscriptable")
-
         self.wrap_in_nonecheck_node(env, getting)
         return self
 
@@ -3903,7 +3914,7 @@ class IndexNode(_IndexingBaseNode):
         elif isinstance(self.index, TupleNode):
             for arg in self.index.args:
                 positions.append(arg.pos)
-        specific_types = self.parse_index_as_types(env, required=False)
+        specific_types = self.parse_index_as_template_parameters(env, required=False)
 
         if specific_types is None:
             self.index = self.index.analyse_types(env)
