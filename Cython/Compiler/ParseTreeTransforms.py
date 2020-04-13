@@ -630,10 +630,9 @@ class InterpretCompilerDirectives(CythonTransform):
     - Command-line arguments overriding these
     - @cython.directivename decorators
     - with cython.directivename: statements
-    - removes unreachable blocks from if-statements like
-        "if not cython.compiled:"
-      at this fairly early stage - these blocks therefore don't have to
-      be Cython-compatible
+    - replaces "cython.compiled" with BoolNode(value=True)
+      allowing unreachable blocks to be removed at a fairly early stage
+      before cython typing rules are forced on applied
 
     This transform is responsible for interpreting these various sources
     and store the directive in two ways:
