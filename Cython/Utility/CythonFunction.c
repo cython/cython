@@ -1135,7 +1135,13 @@ __pyx_FusedFunction_descr_get(PyObject *self, PyObject *obj, PyObject *type)
 static PyObject *
 _obj_to_str(PyObject *obj)
 {
-    if (PyType_Check(obj))
+    if (PyUnicode_CheckExact(obj))
+        return __Pyx_NewRef(obj);
+#if PY_MAJOR_VERSION == 2
+    else if (PyString_CheckExact(obj))
+        return __Pyx_NewRef(obj);
+#endif
+    else if (PyType_Check(obj))
         return PyObject_GetAttr(obj, PYIDENT("__name__"));
     else
         return PyObject_Str(obj);
@@ -1154,16 +1160,14 @@ __pyx_FusedFunction_getitem(__pyx_FusedFunctionObject *self, PyObject *idx)
     }
 
     if (PyTuple_Check(idx)) {
-        PyObject *list = PyList_New(0);
         Py_ssize_t n = PyTuple_GET_SIZE(idx);
-        PyObject *sep = NULL;
+        PyObject *list = PyList_New(n);
         int i;
 
         if (unlikely(!list))
             return NULL;
 
         for (i = 0; i < n; i++) {
-            int ret;
             PyObject *string;
 #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
             PyObject *item = PyTuple_GET_ITEM(idx, i);
@@ -1175,18 +1179,13 @@ __pyx_FusedFunction_getitem(__pyx_FusedFunctionObject *self, PyObject *idx)
             Py_DECREF(item);
 #endif
             if (unlikely(!string)) goto __pyx_err;
-            ret = PyList_Append(list, string);
-            Py_DECREF(string);
-            if (unlikely(ret < 0)) goto __pyx_err;
+            PyList_SET_ITEM(list, i, string);
         }
 
-        sep = PyUnicode_FromString("|");
-        if (likely(sep))
-            signature = PyUnicode_Join(sep, list);
-__pyx_err:
-;
+        signature = PyUnicode_Join(PYUNICODE("|"), list);
+        signature = PyUnicode_Join(PYUNICODE("|"), list);
+__pyx_err:;
         Py_DECREF(list);
-        Py_XDECREF(sep);
     } else {
         signature = _obj_to_str(idx);
     }
