@@ -630,6 +630,9 @@ class InterpretCompilerDirectives(CythonTransform):
     - Command-line arguments overriding these
     - @cython.directivename decorators
     - with cython.directivename: statements
+    - replaces "cython.compiled" with BoolNode(value=True)
+      allowing unreachable blocks to be removed at a fairly early stage
+      before cython typing rules are forced on applied
 
     This transform is responsible for interpreting these various sources
     and store the directive in two ways:
@@ -846,6 +849,16 @@ class InterpretCompilerDirectives(CythonTransform):
             directive = self.directive_names.get(node.name)
             if directive is not None:
                 node.cython_attribute = directive
+        if node.as_cython_attribute() == "compiled":
+            return ExprNodes.BoolNode(node.pos, value=True)  # replace early so unused branches can be dropped
+                # before they have a chance to cause compile-errors
+        return node
+
+    def visit_AttributeNode(self, node):
+        self.visitchildren(node)
+        if node.as_cython_attribute() == "compiled":
+            return ExprNodes.BoolNode(node.pos, value=True)  # replace early so unused branches can be dropped
+                # before they have a chance to cause compile-errors
         return node
 
     def visit_NewExprNode(self, node):
@@ -3031,9 +3044,7 @@ class TransformBuiltinMethods(EnvTransform):
     def visit_cython_attribute(self, node):
         attribute = node.as_cython_attribute()
         if attribute:
-            if attribute == u'compiled':
-                node = ExprNodes.BoolNode(node.pos, value=True)
-            elif attribute == u'__version__':
+            if attribute == u'__version__':
                 from .. import __version__ as version
                 node = ExprNodes.StringNode(node.pos, value=EncodedString(version))
             elif attribute == u'NULL':
