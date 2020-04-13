@@ -20,6 +20,11 @@ Features added
 * Annotations are no longer parsed, keeping them as strings following PEP-563.
   Patch by David Woods.  (Github issue #3285)
 
+* Conditional blocks in Python code that depend on ``cython.compiled`` are
+  eliminated at an earlier stage, which gives more freedom in writing
+  replacement Python code.
+  Patch by David Woods.  (Github issue #3507)
+
 * Preliminary support for the CPython's ``Py_LIMITED_API`` (stable ABI) is
   available by setting the  ``CYTHON_LIMITED_API`` C macro.  Note that the
   support is currently in an early stage and many features do not yet work.
