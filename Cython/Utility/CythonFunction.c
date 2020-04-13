@@ -1156,7 +1156,6 @@ __pyx_FusedFunction_getitem(__pyx_FusedFunctionObject *self, PyObject *idx)
     if (PyTuple_Check(idx)) {
         PyObject *list = PyList_New(0);
         Py_ssize_t n = PyTuple_GET_SIZE(idx);
-        PyObject *string = NULL;
         PyObject *sep = NULL;
         int i;
 
@@ -1164,19 +1163,21 @@ __pyx_FusedFunction_getitem(__pyx_FusedFunctionObject *self, PyObject *idx)
             return NULL;
 
         for (i = 0; i < n; i++) {
+            int ret;
+            PyObject *string;
 #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
             PyObject *item = PyTuple_GET_ITEM(idx, i);
 #else
-            PyObject *item = PySequence_ITEM(idx, i);  if (unlikely(!item)) goto __pyx_error;
+            PyObject *item = PySequence_ITEM(idx, i);  if (unlikely(!item)) goto __pyx_err;
 #endif
             string = _obj_to_str(item);
 #if !(CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS)
             Py_DECREF(item);
 #endif
-            if (unlikely(!string) || unlikely(PyList_Append(list, string) < 0))
-                goto __pyx_err;
-
+            if (unlikely(!string)) goto __pyx_err;
+            ret = PyList_Append(list, string);
             Py_DECREF(string);
+            if (unlikely(ret < 0)) goto __pyx_err;
         }
 
         sep = PyUnicode_FromString("|");

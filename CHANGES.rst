@@ -116,8 +116,6 @@ Features added
 * The Pythran ``shape`` attribute is supported.
   Patch by Serge Guelton.  (Github issue #3307)
 
-* The ``@cython.binding`` decorator is available in Python code.
-
 Bugs fixed
 ----------
 
@@ -129,10 +127,6 @@ Bugs fixed
 * Fused argument types were not correctly handled in type annotations and
   ``cython.locals()``.
   Patch by David Woods.  (Github issues #3391, #3142)
-
-* Creating a fused function attached it to the garbage collector before it
-  was fully initialised, thus risking crashes in rare failure cases.
-  Original patch by achernomorov.  (Github issue #3215)
 
 * Diverging from the usual behaviour, ``len(memoryview)``, ``len(char*)``
   and ``len(Py_UNICODE*)`` returned an unsigned ``size_t`` value.  They now
@@ -246,9 +240,14 @@ Features added
   Patch by Omer Ozarslan.  (Github issue #2169)
 
 * The ``@cython.binding`` decorator is available in Python code.
+  (Github issue #3505)
 
 Bugs fixed
 ----------
+
+* Creating a fused function attached it to the garbage collector before it
+  was fully initialised, thus risking crashes in rare failure cases.
+  Original patch by achernomorov.  (Github issue #3215)
 
 * The compilation cache in ``cython.inline("…")`` failed to take the language
   level into account.
