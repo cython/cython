@@ -850,6 +850,16 @@ class InterpretCompilerDirectives(CythonTransform):
             directive = self.directive_names.get(node.name)
             if directive is not None:
                 node.cython_attribute = directive
+        if node.as_cython_attribute() == "compiled":
+            return ExprNodes.BoolNode(node.pos, value=True)  # replace early so unused branches can be dropped
+                # before they have a chance to cause compile-errors
+        return node
+
+    def visit_AttributeNode(self, node):
+        self.visitchildren(node)
+        if node.as_cython_attribute() == "compiled":
+            return ExprNodes.BoolNode(node.pos, value=True)  # replace early so unused branches can be dropped
+                # before they have a chance to cause compile-errors
         return node
 
     def visit_NewExprNode(self, node):
@@ -1077,27 +1087,6 @@ class InterpretCompilerDirectives(CythonTransform):
         if directive_dict:
             return self.visit_with_directives(node.body, directive_dict)
         return self.visit_Node(node)
-
-    def visit_IfClauseNode(self, node):
-        self.visitchildren(node)
-        if (isinstance(node.condition, ExprNodes.NotNode)
-                and node.condition.operand.as_cython_attribute() == "compiled"):
-            node.body.stats = [] # drop the body - we know it's unused and this way it won't cause compile errors
-        return node
-
-    def visit_IfStatNode(self, node):
-        self.visitchildren(node)
-        previous_if_clause_compiled = False
-        for if_clause in node.if_clauses:
-            if previous_if_clause_compiled:
-                # we know this won't be run so don't allow this to generate compile errors
-                if_clause.body.stats = []
-            if if_clause.condition.as_cython_attribute() == "compiled":
-                previous_if_clause_compiled = True
-        if previous_if_clause_compiled:
-            # we know this won't be run so don't allow this to generate compile errors
-            node.else_clause = None
-        return node
 
 
 class ParallelRangeTransform(CythonTransform, SkipDeclarations):
