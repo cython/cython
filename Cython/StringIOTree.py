@@ -107,3 +107,32 @@ class StringIOTree(object):
     def allmarkers(self):
         children = self.prepended_children
         return [m for c in children for m in c.allmarkers()] + self.markers
+
+    # Print the result of allmarkers in a nice human-readable form. Use it only for debugging.
+    # Ptints e.g.
+    # cython line 2 maps to 3299-3343
+    # cython line 4 maps to 2236-2245  2306  3188-3201
+    # ...
+    # Note: In the example above, 3343 maps to line 2, 3344 does not.
+    def print_hr_allmarkers(self):
+        from collections import defaultdict
+        markers = self.allmarkers()
+        d = defaultdict(list)
+        for c_lineno, cython_lineno in enumerate(markers):
+            if cython_lineno > 0:
+                d[cython_lineno].append(c_lineno + 1)
+        if len(d) == 0:
+            print("allmarkers is empty")
+        for cython_lineno, c_linenos in sorted(d.items()):
+            print("cython line", cython_lineno, "maps to ", end="")
+            i = 0
+            while i < len(c_linenos):
+                print(c_linenos[i], end="")
+                flag = False
+                while i+1 < len(c_linenos) and c_linenos[i+1] == c_linenos[i]+1:
+                    i += 1
+                    flag = True
+                if flag:
+                    print("-"+str(c_linenos[i]), end="  ")
+                i += 1
+            print("")
