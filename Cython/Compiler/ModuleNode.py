@@ -2652,7 +2652,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("")
         # main module init code lives in Py_mod_exec function, not in PyInit function
         code.putln("static CYTHON_SMALL_CODE int %s(PyObject *%s)" % (
-            self.mod_init_func_cname(Naming.pymodule_exec_func_cname, env),
+            self.module_init_func_cname(),
             Naming.pymodinit_module_arg))
         code.putln("#endif")  # PEP489
 
@@ -3082,6 +3082,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # from PEP483
         return self.punycode_module_name(prefix, env.module_name)
 
+    # Returns the name of the C-function that corresponds to the module initialisation.
+    # (module initialisation == the cython code outside of functions)
+    # Note that this should never be the name of a wrapper and always the name of the
+    # function containing the actual code. Otherwise, cygdb will experience problems.
+    def module_init_func_cname(self):
+        env = self.scope
+        return self.mod_init_func_cname(Naming.pymodule_exec_func_cname, env)
+
     def generate_pymoduledef_struct(self, env, code):
         if env.doc:
             doc = "%s" % code.get_string_const(env.doc)
@@ -3095,7 +3103,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("")
         code.putln("#if PY_MAJOR_VERSION >= 3")
         code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
-        exec_func_cname = self.mod_init_func_cname(Naming.pymodule_exec_func_cname, env)
+        exec_func_cname = self.module_init_func_cname()
         code.putln("static PyObject* %s(PyObject *spec, PyModuleDef *def); /*proto*/" %
                    Naming.pymodule_create_func_cname)
         code.putln("static int %s(PyObject* module); /*proto*/" % exec_func_cname)

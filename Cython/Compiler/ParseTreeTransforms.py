@@ -3478,26 +3478,16 @@ class DebugTransform(CythonTransform):
         it's a "relevant frame" and it will know where to set the breakpoint
         for 'break modulename'.
         """
-        name = node.full_module_name.rpartition('.')[-1]
-
-        cname_py2 = 'init' + name
-        cname_py3 = 'PyInit_' + name
-
-        py2_attrs = dict(
-            name=name,
-            cname=cname_py2,
+        self._serialize_modulenode_as_function(node, dict(
+            name=node.full_module_name.rpartition('.')[-1],
+            cname=node.module_init_func_cname(),
             pf_cname='',
             # Ignore the qualified_name, breakpoints should be set using
             # `cy break modulename:lineno` for module-level breakpoints.
             qualified_name='',
             lineno='1',
             is_initmodule_function="True",
-        )
-
-        py3_attrs = dict(py2_attrs, cname=cname_py3)
-
-        self._serialize_modulenode_as_function(node, py2_attrs)
-        self._serialize_modulenode_as_function(node, py3_attrs)
+        ))
 
     def _serialize_modulenode_as_function(self, node, attrs):
         self.tb.start('Function', attrs=attrs)
