@@ -1754,9 +1754,10 @@ class CCodeWriter(object):
     # code_config         CCodeConfig     configuration options for the C code writer
 
     @cython.locals(create_from='CCodeWriter')
-    def __init__(self, create_from=None, buffer=None, copy_formatting=False):
+    def __init__(self, create_from=None, buffer=None, copy_formatting=False, source_desc=None):
         if buffer is None: buffer = StringIOTree()
         self.buffer = buffer
+        self.source_desc = source_desc
         self.last_pos = None
         self.last_marked_pos = None
         self.pyclass_stack = []
@@ -1780,10 +1781,10 @@ class CCodeWriter(object):
             self.last_pos = create_from.last_pos
             self.last_marked_pos = create_from.last_marked_pos
 
-    def create_new(self, create_from, buffer, copy_formatting):
+    def create_new(self, create_from, buffer, copy_formatting, source_desc):
         # polymorphic constructor -- very slightly more versatile
         # than using __class__
-        result = CCodeWriter(create_from, buffer, copy_formatting)
+        result = CCodeWriter(create_from, buffer, copy_formatting, source_desc)
         return result
 
     def set_global_state(self, global_state):
@@ -1798,14 +1799,23 @@ class CCodeWriter(object):
         return self.buffer.getvalue()
 
     def write(self, s):
-        # also put invalid markers (lineno 0), to indicate that those lines
-        # have no Cython source code correspondence
-        cython_lineno = self.last_marked_pos[1] if self.last_marked_pos else 0
+        # Cygdb needs to know which Cython source line corresponds to which C line.
+        # Therefore, we write the information which Cython line corresponds to which
+        # C line into self.buffer.markers and then write it from there into
+        # cython_debug/cython_debug_info_* (see ModuleNode._serialize_lineno_map).
+        # C lines with cython_lineno = 0 will get ingored by ModuleNode._serialize_lineno_map.
+        # The self.last_marked_pos[0] == self.source_desc check is necessary, because Cygdb
+        # assumes this to be true.
+        if self.last_marked_pos and self.last_marked_pos[0] == self.source_desc:
+            cython_lineno = self.last_marked_pos[1]
+        else:
+            cython_lineno = 0
         self.buffer.markers.extend([cython_lineno] * s.count('\n'))
+
         self.buffer.write(s)
 
     def insertion_point(self):
-        other = self.create_new(create_from=self, buffer=self.buffer.insertion_point(), copy_formatting=True)
+        other = self.create_new(create_from=self, buffer=self.buffer.insertion_point(), copy_formatting=True, source_desc=self.source_desc)
         return other
 
     def new_writer(self):

@@ -181,7 +181,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         h_extension_types = h_entries(env.c_class_entries)
         if h_types or  h_vars or h_funcs or h_extension_types:
             result.h_file = replace_suffix_encoded(result.c_file, ".h")
-            h_code = Code.CCodeWriter()
+            h_code = Code.CCodeWriter(source_desc=self.compilation_source.source_desc)
             c_code_config = generate_c_code_config(env, options)
             Code.GlobalState(h_code, self, c_code_config)
             if options.generate_pxi:
@@ -265,7 +265,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         api_extension_types = api_entries(env.c_class_entries)
         if api_vars or api_funcs or api_extension_types:
             result.api_file = replace_suffix_encoded(result.c_file, "_api.h")
-            h_code = Code.CCodeWriter()
+            h_code = Code.CCodeWriter(source_desc=self.compilation_source.source_desc)
             c_code_config = generate_c_code_config(env, options)
             Code.GlobalState(h_code, self, c_code_config)
             h_code.put_generated_by()
@@ -369,9 +369,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         if Options.annotate or options.annotate:
             show_entire_c_code = Options.annotate == "fullc" or options.annotate == "fullc"
-            rootwriter = Annotate.AnnotationCCodeWriter(show_entire_c_code=show_entire_c_code)
+            rootwriter = Annotate.AnnotationCCodeWriter(show_entire_c_code=show_entire_c_code, source_desc=self.compilation_source.source_desc)
         else:
-            rootwriter = Code.CCodeWriter()
+            rootwriter = Code.CCodeWriter(source_desc=self.compilation_source.source_desc)
 
         c_code_config = generate_c_code_config(env, options)
 
