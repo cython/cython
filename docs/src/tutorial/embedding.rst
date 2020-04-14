@@ -13,7 +13,9 @@ This is a stub documentation page. PRs welcome.
 * `Cython Wiki <https://github.com/cython/cython/wiki/EmbeddingCython>`_
 
 * See the ``--embed`` option to the ``cython`` and ``cythonize`` frontends
-  for generating a C main function.
+  for generating a C main function and the
+  `cython_freeze <https://github.com/cython/cython/blob/master/bin/cython_freeze>`_
+  script for merging multiple extension modules into one library.
 
 * `Embedding demo program <https://github.com/cython/cython/tree/master/Demos/embed>`_
 
