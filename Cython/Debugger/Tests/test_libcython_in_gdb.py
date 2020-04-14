@@ -322,6 +322,10 @@ class TestPrint(DebugTestCase):
         self.break_and_run('c = 2')
         result = gdb.execute('cy print b', to_string=True)
         self.assertEqual('b = (int) 1\n', result)
+        result = gdb.execute('cy print python_var', to_string=True)
+        self.assertEqual('python_var = (int) 13\n', result)
+        result = gdb.execute('cy print c_var', to_string=True)
+        self.assertEqual('c_var = (int) 12\n', result)
 
 correct_result_test_list_inside_func = '''\
     14            int b, c
