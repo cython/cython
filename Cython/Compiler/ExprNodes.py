@@ -4340,9 +4340,8 @@ class BufferIndexNode(_IndexingBaseNode):
             negative_indices=negative_indices,
             in_nogil_context=self.in_nogil_context)
 
-        for temp in index_temps:
-            code.funcstate.release_temp(temp)
-        return buffer_entry, buffer_lookup_result
+        # must return index_temps since that cannot be released until buffer_lookup_result has been used
+        return buffer_entry, buffer_lookup_result, index_temps
 
     def generate_assignment_code(self, rhs, code, overloaded_assignment=False):
         self.generate_subexpr_evaluation_code(code)
@@ -4374,7 +4373,7 @@ class BufferIndexNode(_IndexingBaseNode):
             return
 
         # Used from generate_assignment_code and InPlaceAssignmentNode
-        buffer_entry, ptrexpr = self.buffer_lookup_code(code)
+        buffer_entry, ptrexpr, buffer_temps = self.buffer_lookup_code(code)
 
         if self.buffer_type.dtype.is_pyobject:
             # Must manage refcounts. Decref what is already there
@@ -4392,6 +4391,8 @@ class BufferIndexNode(_IndexingBaseNode):
         else:
             # Simple case
             code.putln("*%s %s= %s;" % (ptrexpr, op, rhs.result()))
+        for temp in buffer_temps:
+            code.funcstate.release_temp(temp)
 
     def generate_result_code(self, code):
         if is_pythran_expr(self.base.type):
@@ -4403,13 +4404,15 @@ class BufferIndexNode(_IndexingBaseNode):
                 self.base.pythran_result(),
                 pythran_indexing_code(self.indices)))
             return
-        buffer_entry, self.buffer_ptr_code = self.buffer_lookup_code(code)
+        buffer_entry, self.buffer_ptr_code, buffer_temps = self.buffer_lookup_code(code)
         if self.type.is_pyobject:
             # is_temp is True, so must pull out value and incref it.
             # NOTE: object temporary results for nodes are declared
             #       as PyObject *, so we need a cast
             code.putln("%s = (PyObject *) *%s;" % (self.result(), self.buffer_ptr_code))
             code.putln("__Pyx_INCREF((PyObject*)%s);" % self.result())
+            for temp in buffer_temps:
+                code.funcstate.release_temp(temp)
 
 
 class MemoryViewIndexNode(BufferIndexNode):
