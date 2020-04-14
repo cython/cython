@@ -4331,7 +4331,7 @@ class BufferIndexNode(_IndexingBaseNode):
         else:
             negative_indices = Buffer.buffer_defaults['negative_indices']
 
-        return buffer_entry, Buffer.put_buffer_lookup_code(
+        buffer_lookup_result = Buffer.put_buffer_lookup_code(
             entry=buffer_entry,
             index_signeds=[ivar.type.signed for ivar in self.indices],
             index_cnames=index_temps,
@@ -4339,6 +4339,10 @@ class BufferIndexNode(_IndexingBaseNode):
             pos=self.pos, code=code,
             negative_indices=negative_indices,
             in_nogil_context=self.in_nogil_context)
+
+        for temp in index_temps:
+            code.funcstate.release_temp(temp)
+        return buffer_entry, buffer_lookup_result
 
     def generate_assignment_code(self, rhs, code, overloaded_assignment=False):
         self.generate_subexpr_evaluation_code(code)
