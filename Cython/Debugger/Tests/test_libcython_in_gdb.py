@@ -323,7 +323,7 @@ class TestPrint(DebugTestCase):
         result = gdb.execute('cy print b', to_string=True)
         self.assertEqual('b = (int) 1\n', result)
 
-correct_result = '''\
+correct_result_test_list_inside_func = '''\
     14            int b, c
     15    
     16        b = c = d = 0
@@ -335,12 +335,29 @@ correct_result = '''\
     22        os.path.join("foo", "bar")
     23        some_c_function()
 '''
+correct_result_test_list_outside_func = '''\
+     5        void some_c_function()
+     6    
+     7    import os
+     8    
+     9    cdef int c_var = 12
+>   10    python_var = 13
+    11    
+    12    def spam(a=0):
+    13        cdef:
+    14            int b, c
+'''
 class TestList(DebugTestCase):
 
-    def test_list(self):
+    def test_list_inside_func(self):
         self.break_and_run('c = 2')
         result = gdb.execute('cy list', to_string=True)
-        self.assertEqual(correct_result, result)
+        self.assertEqual(correct_result_test_list_inside_func, result)
+
+    def test_list_outside_func(self):
+        self.break_and_run('python_var = 13')
+        result = gdb.execute('cy list', to_string=True)
+        self.assertEqual(correct_result_test_list_outside_func, result)
 
 
 class TestUpDown(DebugTestCase):
