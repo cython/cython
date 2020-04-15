@@ -39,6 +39,9 @@ else:
     _py_int_types = (int, long)
 
 
+IMPLICIT_CLASSMETHODS = {"__init_subclass__", "__class_getitem__"}
+
+
 def relative_position(pos):
     return (pos[0].get_filenametable_entry(), pos[1])
 
@@ -2438,7 +2441,7 @@ class CFuncDefNode(FuncDefNode):
             py_func_body = self.call_self_node(is_module_scope=env.is_module_scope)
             if self.is_static_method:
                 from .ExprNodes import NameNode
-                decorators = [DecoratorNode(self.pos, decorator=NameNode(self.pos, name='staticmethod'))]
+                decorators = [DecoratorNode(self.pos, decorator=NameNode(self.pos, name=EncodedString('staticmethod')))]
                 decorators[0].decorator.analyse_types(env)
             else:
                 decorators = []
@@ -2883,7 +2886,12 @@ class DefNode(FuncDefNode):
             self.is_staticmethod = False
 
         if self.name == '__new__' and env.is_py_class_scope:
-            self.is_staticmethod = 1
+            self.is_staticmethod = True
+        if not self.is_classmethod and self.name in IMPLICIT_CLASSMETHODS and env.is_py_class_scope:
+            from .ExprNodes import NameNode
+            self.decorators = self.decorators or []
+            self.decorators.insert(0, DecoratorNode(self.pos, decorator=NameNode(self.pos, name=EncodedString('classmethod'))))
+            self.is_classmethod = True
 
         self.analyse_argument_types(env)
         if self.name == '<lambda>':
