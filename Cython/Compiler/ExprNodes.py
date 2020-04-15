@@ -4411,8 +4411,8 @@ class BufferIndexNode(_IndexingBaseNode):
             #       as PyObject *, so we need a cast
             code.putln("%s = (PyObject *) *%s;" % (self.result(), self.buffer_ptr_code))
             code.putln("__Pyx_INCREF((PyObject*)%s);" % self.result())
-            for temp in buffer_temps:
-                code.funcstate.release_temp(temp)
+        for temp in buffer_temps:
+            code.funcstate.release_temp(temp)
 
 
 class MemoryViewIndexNode(BufferIndexNode):
