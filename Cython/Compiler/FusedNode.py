@@ -839,7 +839,7 @@ class FusedCFuncDefNode(StatListNode):
 
         for i, stat in enumerate(self.stats):
             stat = self.stats[i] = stat.analyse_expressions(env)
-            if isinstance(stat, FuncDefNode) and not stat is self.py_func:
+            if isinstance(stat, FuncDefNode) and stat is not self.py_func:
                 # the dispatcher specifically doesn't want its defaults overriding
                 for arg, default in zip(stat.args, defaults):
                     if default is not None:
