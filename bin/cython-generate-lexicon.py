@@ -16,22 +16,22 @@ import re
 import os
 import sys
 
+from Cython.Compiler import Lexicon
+
 # Make sure we import the right Cython
-cythonpath, _ = os.path.split(os.path.realpath(__file__)) # bin directory
+cythonpath, _ = os.path.split(os.path.realpath(__file__))  # bin directory
 cythonpath, _ = os.path.split(cythonpath)
 if os.path.exists(os.path.join(cythonpath, "Cython")):
     sys.path.insert(0, cythonpath)
     print("Found (and using) local cython directory")
 # else we aren't in a development directory
 
-from Cython.Compiler import Lexicon
-
 
 def main():
     arg = '--overwrite'
     if len(sys.argv) == 2:
         arg = sys.argv[1]
-    if len(sys.argv) > 2 or arg not in ['--overwrite','--here']:
+    if len(sys.argv) > 2 or arg not in ['--overwrite', '--here']:
         print("""Call the script with either:
   --overwrite    to update the existing Lexicon.py file (default)
   --here         to create an version of Lexicon.py in the current directory
@@ -49,7 +49,7 @@ def main():
     with open(Lexicon.__file__, 'r') as f:
         parts = re.split(r"(# (?:BEGIN|END) GENERATED CODE\n?)", f.read())
 
-    if len(parts) not in (4,5) or ' GENERATED CODE' not in parts[1] or ' GENERATED CODE' not in parts[3]:
+    if len(parts) not in (4, 5) or ' GENERATED CODE' not in parts[1] or ' GENERATED CODE' not in parts[3]:
         print("Warning: generated code section not found - code not inserted")
         return
 
@@ -71,11 +71,11 @@ def main():
 # An alternative approach for getting character sets is at https://stackoverflow.com/a/49332214/4657412
 @functools.lru_cache()
 def get_start_characters_as_number():
-    return [ i for i in range(sys.maxunicode) if str.isidentifier(chr(i)) ]
+    return [i for i in range(sys.maxunicode) if str.isidentifier(chr(i))]
 
 
 def get_continue_characters_as_number():
-    return [ i for i in range(sys.maxunicode) if str.isidentifier('a'+chr(i)) ]
+    return [i for i in range(sys.maxunicode) if str.isidentifier('a' + chr(i))]
 
 
 def get_continue_not_start_as_number():
@@ -96,12 +96,12 @@ def to_ranges(char_num_list):
     single_chars = []
     ranges = []
     for n in range(1, len(char_num_list)):
-        if char_num_list[n]-1 != char_num_list[n-1]:
+        if char_num_list[n] - 1 != char_num_list[n - 1]:
             # discontinuous
-            if first_good_val == char_num_list[n-1]:
-                single_chars.append(chr(char_num_list[n-1]))
+            if first_good_val == char_num_list[n - 1]:
+                single_chars.append(chr(char_num_list[n - 1]))
             else:
-                ranges.append(chr(first_good_val) + chr(char_num_list[n-1]))
+                ranges.append(chr(first_good_val) + chr(char_num_list[n - 1]))
             first_good_val = char_num_list[n]
 
     return ''.join(single_chars), ''.join(ranges)

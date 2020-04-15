@@ -100,7 +100,7 @@ def castrate_file(path, st):
             "#error Do not use this file, it is the result of a failed Cython compilation.\n")
         f.close()
         if st:
-            os.utime(path, (st.st_atime, st.st_mtime-1))
+            os.utime(path, (st.st_atime, st.st_mtime - 1))
 
 
 def file_newer_than(path, time):
@@ -186,7 +186,7 @@ def path_exists(path):
         if archive_path:
             normpath = os.path.normpath(path)
             if normpath.startswith(archive_path):
-                arcname = normpath[len(archive_path)+1:]
+                arcname = normpath[len(archive_path) + 1:]
                 try:
                     loader.get_data(arcname)
                     return True
@@ -257,9 +257,11 @@ def open_source_file(source_filename, encoding=None, error_handling=None):
             f = io.open(source_filename, 'rb')
             encoding = detect_opened_file_encoding(f)
             f.seek(0)
-            stream = io.TextIOWrapper(f, encoding=encoding, errors=error_handling)
+            stream = io.TextIOWrapper(
+                f, encoding=encoding, errors=error_handling)
         else:
-            stream = io.open(source_filename, encoding=encoding, errors=error_handling)
+            stream = io.open(source_filename, encoding=encoding,
+                             errors=error_handling)
 
     except OSError:
         if os.path.exists(source_filename):
@@ -284,7 +286,7 @@ def open_source_from_loader(loader,
                             source_filename,
                             encoding=None, error_handling=None):
     nrmpath = os.path.normpath(source_filename)
-    arcname = nrmpath[len(loader.archive)+1:]
+    arcname = nrmpath[len(loader.archive) + 1:]
     data = loader.get_data(arcname)
     return io.TextIOWrapper(io.BytesIO(data),
                             encoding=encoding,
@@ -399,7 +401,8 @@ def captured_fd(stream=2, encoding=None):
 
 def print_bytes(s, header_text=None, end=b'\n', file=sys.stdout, flush=True):
     if header_text:
-        file.write(header_text)  # note: text! => file.write() instead of out.write()
+        # note: text! => file.write() instead of out.write()
+        file.write(header_text)
     file.flush()
     try:
         out = file.buffer  # Py3
@@ -469,7 +472,8 @@ def add_metaclass(metaclass):
 def raise_error_if_module_name_forbidden(full_module_name):
     # it is bad idea to call the pyx-file cython.pyx, so fail early
     if full_module_name == 'cython' or full_module_name.startswith('cython.'):
-        raise ValueError('cython is a special module, cannot be used as a module name')
+        raise ValueError(
+            'cython is a special module, cannot be used as a module name')
 
 
 def build_hex_version(version_string):

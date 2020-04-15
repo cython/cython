@@ -10,13 +10,13 @@ from __future__ import print_function
 import optparse
 from os.path import splitext, basename
 
-usage= '%prog [-o outfile] [-p] module [module ...]'
+usage = '%prog [-o outfile] [-p] module [module ...]'
 description = 'Create a C file for embedding Cython modules.'
 p = optparse.OptionParser(usage=usage, description=description)
 p.add_option('-o', '--output', metavar='FILE',
-        help='write output to FILE instead of standard output')
+             help='write output to FILE instead of standard output')
 p.add_option('-p', '--pymain', action='store_true', default=False,
-        help='do not automatically run the first module as __main__')
+             help='do not automatically run the first module as __main__')
 
 options, args = p.parse_args()
 
@@ -55,7 +55,7 @@ print("""
 static struct _inittab inittab[] = {""")
 
 for name in modules:
-    print('    {"%(name)s", MODINIT(%(name)s)},' % {'name' : name})
+    print('    {"%(name)s", MODINIT(%(name)s)},' % {'name': name})
 
 print("""    {NULL, NULL}
 };
@@ -119,7 +119,7 @@ else:
     Py_Finalize();
     return r;
 }
-""" % {'main' : modules[0]}, end=' ')
+""" % {'main': modules[0]}, end=' ')
 
 print(r"""
 #if PY_MAJOR_VERSION >= 3 && !defined(WIN32) && !defined(MS_WINDOWS)

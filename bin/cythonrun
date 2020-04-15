@@ -9,7 +9,7 @@ Basic usage:
     python cythonrun somefile.py [ARGS]
 """
 
-from Cython.Build.BuildExecutable import build, build_and_run
+from Cython.Build.BuildExecutable import build_and_run
 
 if __name__ == '__main__':
     import sys

@@ -9,6 +9,10 @@ import subprocess
 import textwrap
 import sys
 
+from Cython import __version__ as version
+from distutils.command.sdist import sdist as sdist_orig
+
+
 import platform
 is_cpython = platform.python_implementation() == 'CPython'
 
@@ -23,19 +27,22 @@ if sys.platform == "darwin":
 
 setup_args = {}
 
+
 def add_command_class(name, cls):
     cmdclasses = setup_args.get('cmdclass', {})
     cmdclasses[name] = cls
     setup_args['cmdclass'] = cmdclasses
 
-from distutils.command.sdist import sdist as sdist_orig
+
 class sdist(sdist_orig):
     def run(self):
         self.force_manifest = 1
         if (sys.platform != "win32" and
-            os.path.isdir('.git')):
+                os.path.isdir('.git')):
             assert os.system("git rev-parse --verify HEAD > .gitrev") == 0
         sdist_orig.run(self)
+
+
 add_command_class('sdist', sdist)
 
 pxd_include_dirs = [
@@ -45,15 +52,15 @@ pxd_include_dirs = [
     or directory == os.path.join('Cython', 'Includes')]
 
 pxd_include_patterns = [
-    p+'/*.pxd' for p in pxd_include_dirs ] + [
-    p+'/*.pyx' for p in pxd_include_dirs ]
+    p + '/*.pxd' for p in pxd_include_dirs] + [
+    p + '/*.pyx' for p in pxd_include_dirs]
 
 setup_args['package_data'] = {
-    'Cython.Plex'     : ['*.pxd'],
-    'Cython.Compiler' : ['*.pxd'],
-    'Cython.Runtime'  : ['*.pyx', '*.pxd'],
-    'Cython.Utility'  : ['*.pyx', '*.pxd', '*.c', '*.h', '*.cpp'],
-    'Cython'          : [ p[7:] for p in pxd_include_patterns ],
+    'Cython.Plex': ['*.pxd'],
+    'Cython.Compiler': ['*.pxd'],
+    'Cython.Runtime': ['*.pyx', '*.pxd'],
+    'Cython.Utility': ['*.pyx', '*.pxd', '*.c', '*.h', '*.cpp'],
+    'Cython': [p[7:] for p in pxd_include_patterns],
     'Cython.Debugger.Tests': ['codefile', 'cfuncs.c'],
 }
 
@@ -104,30 +111,32 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
             "Cython.Compiler.ExprNodes",
             "Cython.Compiler.ModuleNode",
             "Cython.Compiler.Optimize",
-            ])
+        ])
 
     from distutils.spawn import find_executable
     from distutils.sysconfig import get_python_inc
     pgen = find_executable(
         'pgen', os.pathsep.join([os.environ['PATH'], os.path.join(get_python_inc(), '..', 'Parser')]))
     if not pgen:
-        sys.stderr.write("Unable to find pgen, not compiling formal grammar.\n")
+        sys.stderr.write(
+            "Unable to find pgen, not compiling formal grammar.\n")
     else:
-        parser_dir = os.path.join(os.path.dirname(__file__), 'Cython', 'Parser')
+        parser_dir = os.path.join(
+            os.path.dirname(__file__), 'Cython', 'Parser')
         grammar = os.path.join(parser_dir, 'Grammar')
         subprocess.check_call([
             pgen,
             os.path.join(grammar),
             os.path.join(parser_dir, 'graminit.h'),
             os.path.join(parser_dir, 'graminit.c'),
-            ])
+        ])
         cst_pyx = os.path.join(parser_dir, 'ConcreteSyntaxTree.pyx')
         if os.stat(grammar)[stat.ST_MTIME] > os.stat(cst_pyx)[stat.ST_MTIME]:
             mtime = os.stat(grammar)[stat.ST_MTIME]
             os.utime(cst_pyx, (mtime, mtime))
         compiled_modules.extend([
-                "Cython.Parser.ConcreteSyntaxTree",
-            ])
+            "Cython.Parser.ConcreteSyntaxTree",
+        ])
 
     defines = []
     if cython_with_refnanny:
@@ -189,11 +198,10 @@ except ValueError:
     compile_cython_itself = True
 
 if compile_cython_itself and (is_cpython or cython_compile_more):
-    compile_cython_modules(cython_profile, cython_compile_more, cython_with_refnanny)
+    compile_cython_modules(
+        cython_profile, cython_compile_more, cython_with_refnanny)
 
 setup_args.update(setuptools_extra_args)
-
-from Cython import __version__ as version
 
 
 def dev_status():
