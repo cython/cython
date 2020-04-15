@@ -6122,6 +6122,7 @@ class PyMethodCallNode(SimpleCallNode):
 
         code.put_xdecref_clear(self_arg, py_object_type)
         code.funcstate.release_temp(self_arg)
+        code.funcstate.release_temp(arg_offset_cname)
         for arg in args:
             arg.generate_disposal_code(code)
             arg.free_temps(code)
