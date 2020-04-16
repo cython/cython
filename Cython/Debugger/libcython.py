@@ -1119,20 +1119,9 @@ class CyPrint(CythonCommand):
     command_class = gdb.COMMAND_DATA
 
     @dont_suppress_errors
-    def invoke(self, name, from_tty, max_name_length=None):
-        if self.is_python_function():
-            return gdb.execute('py-print ' + name)
-        elif self.is_cython_function():
-            value = self.cy.cy_cvalue.invoke(name.lstrip('*'))
-            for c in name:
-                if c == '*':
-                    value = value.dereference()
-                else:
-                    break
-
-            self.print_gdb_value(name, value, max_name_length)
-        else:
-            gdb.execute('print ' + name)
+    def invoke(self, name, from_tty):
+        print("repr("+name+") = ", end="")
+        self.cy.exec_.invoke("print(" + name + ")", from_tty)
 
     def complete(self):
         if self.is_cython_function():
