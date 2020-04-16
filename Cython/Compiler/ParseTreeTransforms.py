@@ -3021,6 +3021,18 @@ class GilCheck(VisitorTransform):
             node.in_nogil_context = True
         return node
 
+    def visit_ModuleNode(self, node):
+        # Not strictly a GIL check however check to see if numpy import_array is called
+        # should probably be done as late as possible
+        for mod in node.scope.cimported_modules:
+            if mod.name == "numpy":
+                import_array = mod.lookup_here("import_array")
+                if import_array and not import_array.used:
+                    warning(node.pos, "'numpy' cimported but 'numpy.import_array' was not called. "
+                            "Using Numpy through a cimport without calling 'import_array' may lead "
+                            "to crashes.", 1)
+        return self.visit_Node(node)
+
 
 class TransformBuiltinMethods(EnvTransform):
     """
