@@ -7,8 +7,8 @@ np.import_array()
 
 cdef extern from *:
     """
-    void** _check_array_api(void) {
-        return PyArray_API; // should be non NULL
+    static void** _check_array_api(void) {
+        return PyArray_API; /* should be non NULL */
     }
     """
     void** _check_array_api()

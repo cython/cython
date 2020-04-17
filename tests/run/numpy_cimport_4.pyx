@@ -6,8 +6,8 @@ cimport numpy
 
 cdef extern from *:
     """
-    void** _check_array_api(void) {
-        return PyArray_API; // should be non NULL if initialized
+    static void** _check_array_api(void) {
+        return PyArray_API; /* should be non NULL if initialized */
     }
     """
     void** _check_array_api()
