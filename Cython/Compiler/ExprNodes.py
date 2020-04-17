@@ -4237,7 +4237,8 @@ class BufferIndexNode(_IndexingBaseNode):
     # Whether we're assigning to a buffer (in that case it needs to be writable)
     writable_needed = False
 
-    index_temps = []
+    # Any indexing temp variables that we need to clean up.
+    index_temps = ()
 
     def analyse_target_types(self, env):
         self.analyse_types(env, getting=False)
