@@ -21,5 +21,5 @@ def check_array_api():
 
 
 _WARNINGS = """
-1:0: 'numpy.import_array()' has been added automatically since 'numpy' was cimported but 'numpy.import_array' was not called.
+4:8: 'numpy.import_array()' has been added automatically since 'numpy' was cimported but 'numpy.import_array' was not called.
 """
