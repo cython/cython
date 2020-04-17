@@ -179,6 +179,15 @@ class CythonVariable(object):
         self.type = type
         self.lineno = int(lineno)
 
+    def __repr__(self): # Use this only for debugging
+        return ("CythonVariable {"
+                + "\n\tname = " + self.name
+                + "\n\tcname = " + self.cname
+                + "\n\tqualified_name = " + self.qualified_name
+                + "\n\ttype = " + self.type
+                + "\n\tlineno = " + repr(self.lineno)
+                + "\n}")
+
 
 class CythonFunction(CythonVariable):
     def __init__(self,
