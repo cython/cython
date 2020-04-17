@@ -430,7 +430,8 @@ cdef extern from "numpy/arrayobject.h":
         int len
 
     int _import_array() except -1
-    # a second definition so _import_array isn't marked as used when we use it here
+    # A second definition so _import_array isn't marked as used when we use it here.
+    # Do not use - subject to change any time.
     int __pyx_import_array "_import_array"() except -1
 
     #

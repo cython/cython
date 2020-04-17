@@ -4,7 +4,7 @@
 // help users debug where this came from:
 /*
  * Cython has automatically inserted a call to _import_array since
- * you didn't include one when your cimported numpy. To disable this
+ * you didn't include one when you cimported numpy. To disable this
  * add the line
  *   <void>_import_array
  */
