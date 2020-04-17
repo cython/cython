@@ -1183,7 +1183,6 @@ __pyx_FusedFunction_getitem(__pyx_FusedFunctionObject *self, PyObject *idx)
         }
 
         signature = PyUnicode_Join(PYUNICODE("|"), list);
-        signature = PyUnicode_Join(PYUNICODE("|"), list);
 __pyx_err:;
         Py_DECREF(list);
     } else {
