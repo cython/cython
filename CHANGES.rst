@@ -194,6 +194,10 @@ Bugs fixed
 * Memoryviews failed to compile when the ``cache_builtins`` feature was disabled.
   Patch by David Woods.  (Github issue #3406)
 
+* Temporary buffer indexing variables were not released and could show up in
+  C compiler warnings, e.g. in generators.
+  Patch by David Woods.  (Github issue #3430)
+
 Other changes
 -------------
 
