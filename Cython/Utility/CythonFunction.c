@@ -1133,18 +1133,18 @@ __pyx_FusedFunction_descr_get(PyObject *self, PyObject *obj, PyObject *type)
 }
 
 static PyObject *
-_obj_to_str(PyObject *obj)
+_obj_to_string(PyObject *obj)
 {
     if (PyUnicode_CheckExact(obj))
         return __Pyx_NewRef(obj);
 #if PY_MAJOR_VERSION == 2
-    else if (PyString_CheckExact(obj))
-        return __Pyx_NewRef(obj);
+    else if (PyString_Check(obj))
+        return PyUnicode_FromEncodedObject(obj, NULL, "strict");
 #endif
     else if (PyType_Check(obj))
         return PyObject_GetAttr(obj, PYIDENT("__name__"));
     else
-        return PyObject_Str(obj);
+        return PyObject_Unicode(obj);
 }
 
 static PyObject *
@@ -1174,7 +1174,7 @@ __pyx_FusedFunction_getitem(__pyx_FusedFunctionObject *self, PyObject *idx)
 #else
             PyObject *item = PySequence_ITEM(idx, i);  if (unlikely(!item)) goto __pyx_err;
 #endif
-            string = _obj_to_str(item);
+            string = _obj_to_string(item);
 #if !(CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS)
             Py_DECREF(item);
 #endif
@@ -1186,7 +1186,7 @@ __pyx_FusedFunction_getitem(__pyx_FusedFunctionObject *self, PyObject *idx)
 __pyx_err:;
         Py_DECREF(list);
     } else {
-        signature = _obj_to_str(idx);
+        signature = _obj_to_string(idx);
     }
 
     if (unlikely(!signature))
