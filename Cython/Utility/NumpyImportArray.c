@@ -9,7 +9,12 @@
  *   <void>_import_array
  */
 #ifdef NPY_NDARRAYOBJECT_H /* numpy headers have been included */
-#if !NO_IMPORT_ARRAY /* can be explicitly set to tell Numpy its initialization is done manually */
-if (_import_array() == -1) __PYX_ERR(1, 1, __pyx_L1_error) /* __pyx_L1_error reliably exists in __Pyx_InitGlobals */
+// NO_IMPORT_ARRAY is Numpy's mechanism for indicating that import_array is handled elsewhere
+#if !NO_IMPORT_ARRAY /* https://docs.scipy.org/doc/numpy-1.17.0/reference/c-api.array.html#c.NO_IMPORT_ARRAY  */
+if (_import_array() == -1) {
+    PyErr_Clear();
+    PyErr_SetString(PyExc_ImportError, "numpy.core.multiarray failed to import");
+    {{ err_goto }};
+}
 #endif
 #endif
