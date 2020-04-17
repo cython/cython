@@ -4413,6 +4413,7 @@ class BufferIndexNode(_IndexingBaseNode):
     def free_temps(self, code):
         for temp in self.index_temps:
             code.funcstate.release_temp(temp)
+        self.index_temps = ()
         super(BufferIndexNode, self).free_temps(code)
 
 
