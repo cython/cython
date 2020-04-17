@@ -3031,14 +3031,12 @@ class GilCheck(VisitorTransform):
                 if ((import_array and not import_array.used)
                         or (_import_array and not _import_array.used)):
                     # sanity check that this is actually numpy and not a user pxd called "numpy"
-                    if import_array and import_array.type.is_cfunction:
+                    if _import_array and _import_array.type.is_cfunction:
                         # warning is mainly for the sake of testing
                         warning(node.pos, "'numpy.import_array()' has been added automatically "
                                 "since 'numpy' was cimported but 'numpy.import_array' was not called.", 0)
-                        from .Code import TempitaUtilityCode
                         node.scope.use_utility_code(
-                            TempitaUtilityCode.load_cached("NumpyImportArray", "NumpyImportArray.c",
-                                                           context={ 'import_array_cname': import_array.cname } )
+                                UtilityCode.load_cached("NumpyImportArray", "NumpyImportArray.c")
                             )
                     else:
                         warning(node.pos, "A module named 'numpy' was cimported but 'import_array' was "
