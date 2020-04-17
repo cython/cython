@@ -4237,6 +4237,8 @@ class BufferIndexNode(_IndexingBaseNode):
     # Whether we're assigning to a buffer (in that case it needs to be writable)
     writable_needed = False
 
+    index_temps = []
+
     def analyse_target_types(self, env):
         self.analyse_types(env, getting=False)
 
@@ -4321,7 +4323,7 @@ class BufferIndexNode(_IndexingBaseNode):
                     warning(self.pos, "Use boundscheck(False) for faster access", level=1)
 
         # Assign indices to temps of at least (s)size_t to allow further index calculations.
-        index_temps = [self.get_index_in_temp(code,ivar) for ivar in self.indices]
+        self.index_temps = index_temps = [self.get_index_in_temp(code,ivar) for ivar in self.indices]
 
         # Generate buffer access code using these temps
         from . import Buffer
@@ -4331,7 +4333,7 @@ class BufferIndexNode(_IndexingBaseNode):
         else:
             negative_indices = Buffer.buffer_defaults['negative_indices']
 
-        buffer_lookup_result = Buffer.put_buffer_lookup_code(
+        return buffer_entry, Buffer.put_buffer_lookup_code(
             entry=buffer_entry,
             index_signeds=[ivar.type.signed for ivar in self.indices],
             index_cnames=index_temps,
@@ -4339,9 +4341,6 @@ class BufferIndexNode(_IndexingBaseNode):
             pos=self.pos, code=code,
             negative_indices=negative_indices,
             in_nogil_context=self.in_nogil_context)
-
-        # must return index_temps since that cannot be released until buffer_lookup_result has been used
-        return buffer_entry, buffer_lookup_result, index_temps
 
     def generate_assignment_code(self, rhs, code, overloaded_assignment=False):
         self.generate_subexpr_evaluation_code(code)
@@ -4373,7 +4372,7 @@ class BufferIndexNode(_IndexingBaseNode):
             return
 
         # Used from generate_assignment_code and InPlaceAssignmentNode
-        buffer_entry, ptrexpr, buffer_temps = self.buffer_lookup_code(code)
+        buffer_entry, ptrexpr = self.buffer_lookup_code(code)
 
         if self.buffer_type.dtype.is_pyobject:
             # Must manage refcounts. Decref what is already there
@@ -4391,8 +4390,6 @@ class BufferIndexNode(_IndexingBaseNode):
         else:
             # Simple case
             code.putln("*%s %s= %s;" % (ptrexpr, op, rhs.result()))
-        for temp in buffer_temps:
-            code.funcstate.release_temp(temp)
 
     def generate_result_code(self, code):
         if is_pythran_expr(self.base.type):
@@ -4404,15 +4401,18 @@ class BufferIndexNode(_IndexingBaseNode):
                 self.base.pythran_result(),
                 pythran_indexing_code(self.indices)))
             return
-        buffer_entry, self.buffer_ptr_code, buffer_temps = self.buffer_lookup_code(code)
+        buffer_entry, self.buffer_ptr_code = self.buffer_lookup_code(code)
         if self.type.is_pyobject:
             # is_temp is True, so must pull out value and incref it.
             # NOTE: object temporary results for nodes are declared
             #       as PyObject *, so we need a cast
             code.putln("%s = (PyObject *) *%s;" % (self.result(), self.buffer_ptr_code))
             code.putln("__Pyx_INCREF((PyObject*)%s);" % self.result())
-            for temp in buffer_temps:
-                code.funcstate.release_temp(temp)
+
+    def free_temps(self, code):
+        for temp in self.index_temps:
+            code.funcstate.release_temp(temp)
+        super(BufferIndexNode, self).free_temps(code)
 
 
 class MemoryViewIndexNode(BufferIndexNode):
@@ -6122,6 +6122,7 @@ class PyMethodCallNode(SimpleCallNode):
 
         code.put_xdecref_clear(self_arg, py_object_type)
         code.funcstate.release_temp(self_arg)
+        code.funcstate.release_temp(arg_offset_cname)
         for arg in args:
             arg.generate_disposal_code(code)
             arg.free_temps(code)
