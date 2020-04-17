@@ -194,10 +194,6 @@ Bugs fixed
 * Memoryviews failed to compile when the ``cache_builtins`` feature was disabled.
   Patch by David Woods.  (Github issue #3406)
 
-* Temporary buffer indexing variables were not released and could show up in
-  C compiler warnings, e.g. in generators.
-  Patch by David Woods.  (Github issue #3430)
-
 Other changes
 -------------
 
@@ -258,11 +254,16 @@ Bugs fixed
   was fully initialised, thus risking crashes in rare failure cases.
   Original patch by achernomorov.  (Github issue #3215)
 
+* Temporary buffer indexing variables were not released and could show up in
+  C compiler warnings, e.g. in generators.
+  Patch by David Woods.  (Github issues #3430, #3522)
+
 * The compilation cache in ``cython.inline("…")`` failed to take the language
   level into account.
   Patch by will-ca.  (Github issue #3419)
 
 * The deprecated ``PyUnicode_GET_SIZE()`` function is no longer used in Py3.
+
 
 0.29.16 (2020-03-24)
 ====================
