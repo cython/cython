@@ -234,6 +234,11 @@ Other changes
 
 * Support for Python 2.6 was removed.
 
+* ``numpy.import_array`` is automatically called if ``numpy`` has been
+  ``cimported`` and it hasn't been called manually. This is intended
+  as a hidden fail-safe so user code should continue to call
+  ``numpy.import_array``. (Github issue #3524)
+
 
 0.29.17 (2020-0?-??)
 ====================
