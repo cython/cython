@@ -657,14 +657,14 @@ class ExprNode(Node):
 
     def analyse_as_specialized_type(self, env):
         type = self.analyse_as_type(env)
-        if type.is_fused and env.fused_to_specific:
+        if type and type.is_fused and env.fused_to_specific:
             # while it would be nice to test "if entry.type in env.fused_to_specific"
             # rather than try/catch this doesn't work reliably (mainly for nested fused types)
             try:
                 return type.specialize(env.fused_to_specific)
             except KeyError:
                 pass
-        if type.is_fused:
+        if type and type.is_fused:
             error(self.pos, "Type is not specific")
         return type
 
