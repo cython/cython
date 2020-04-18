@@ -94,6 +94,11 @@ Features added
   C macro automatically when ``numpy`` is imported in the code, to avoid C compiler
   warnings about deprecated NumPy C-API usage.
 
+* ``numpy.import_array`` is automatically called if ``numpy`` has been cimported
+  and it has not been called in the module code.  This is intended as a hidden
+  fail-safe so user code should continue to call ``numpy.import_array``.
+  Patch by David Woods.  (Github issue #3524)
+
 * The builtin ``abs()`` function can now be used on C numbers in nogil code.
   Patch by Elliott Sales de Andrade.  (Github issue #2748)
 
@@ -120,6 +125,9 @@ Features added
 
 * The Pythran ``shape`` attribute is supported.
   Patch by Serge Guelton.  (Github issue #3307)
+
+* The Cython AST code serialiser class ``CodeWriter`` in ``Cython.CodeWriter``
+  supports more syntax nodes.
 
 Bugs fixed
 ----------
@@ -194,6 +202,9 @@ Bugs fixed
 * Memoryviews failed to compile when the ``cache_builtins`` feature was disabled.
   Patch by David Woods.  (Github issue #3406)
 
+* C++ ``typeid()`` failed for fused types.
+  Patch by David Woods.  (Github issue #3203)
+
 Other changes
 -------------
 
@@ -233,11 +244,6 @@ Other changes
   Patch by Alexey Stepanov.  (Github issue #3355)
 
 * Support for Python 2.6 was removed.
-
-* ``numpy.import_array`` is automatically called if ``numpy`` has been
-  ``cimported`` and it hasn't been called manually. This is intended
-  as a hidden fail-safe so user code should continue to call
-  ``numpy.import_array``. (Github issue #3524)
 
 
 0.29.17 (2020-0?-??)
