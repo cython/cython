@@ -8162,8 +8162,6 @@ utility_code_for_imports = {
 def cimport_numpy_check(node, code):
     # shared code between CImportStatNode and FromCImportStatNode
     # check to ensure that import_array is called
-    if node.module_name != "numpy":
-        return
     for mod in code.globalstate.module_node.scope.cimported_modules:
         if mod.name != node.module_name:
             continue
@@ -8172,8 +8170,7 @@ def cimport_numpy_check(node, code):
         import_array = mod.lookup_here("import_array")
         _import_array = mod.lookup_here("_import_array")
         # at least one entry used
-        used = ((import_array.used if import_array else False)
-                or (_import_array.used if _import_array else False))
+        used = (import_array and import_array.used) or (_import_array and _import_array.used)
         if ((import_array or _import_array) # at least one entry found
                 and not used):
             # sanity check that this is actually numpy and not a user pxd called "numpy"
@@ -8230,7 +8227,8 @@ class CImportStatNode(StatNode):
         return self
 
     def generate_execution_code(self, code):
-        cimport_numpy_check(self, code)
+        if self.module_name == "numpy":
+            cimport_numpy_check(self, code)
 
 
 class FromCImportStatNode(StatNode):
@@ -8309,7 +8307,8 @@ class FromCImportStatNode(StatNode):
         return self
 
     def generate_execution_code(self, code):
-        cimport_numpy_check(self, code)
+        if self.module_name == "numpy":
+            cimport_numpy_check(self, code)
 
 
 class FromImportStatNode(StatNode):

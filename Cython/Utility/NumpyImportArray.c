@@ -11,8 +11,7 @@
 #ifdef NPY_NDARRAYOBJECT_H /* numpy headers have been included */
 // NO_IMPORT_ARRAY is Numpy's mechanism for indicating that import_array is handled elsewhere
 #if !NO_IMPORT_ARRAY /* https://docs.scipy.org/doc/numpy-1.17.0/reference/c-api.array.html#c.NO_IMPORT_ARRAY  */
-if (_import_array() == -1) {
-    PyErr_Clear();
+if (unlikely(_import_array() == -1)) {
     PyErr_SetString(PyExc_ImportError, "numpy.core.multiarray failed to import");
     {{ err_goto }};
 }
