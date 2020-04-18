@@ -655,6 +655,19 @@ class ExprNode(Node):
         # type, return that type, else None.
         return None
 
+    def analyse_as_specialized_type(self, env):
+        type = self.analyse_as_type(env)
+        if type and type.is_fused and env.fused_to_specific:
+            # while it would be nice to test "if entry.type in env.fused_to_specific"
+            # rather than try/catch this doesn't work reliably (mainly for nested fused types)
+            try:
+                return type.specialize(env.fused_to_specific)
+            except KeyError:
+                pass
+        if type and type.is_fused:
+            error(self.pos, "Type is not specific")
+        return type
+
     def analyse_as_extension_type(self, env):
         # If this node can be interpreted as a reference to an
         # extension type or builtin type, return its type, else None.
@@ -10862,7 +10875,7 @@ class TypeidNode(ExprNode):
             self.error("The 'libcpp.typeinfo' module must be cimported to use the typeid() operator")
             return self
         self.type = type_info
-        as_type = self.operand.analyse_as_type(env)
+        as_type = self.operand.analyse_as_specialized_type(env)
         if as_type:
             self.arg_type = as_type
             self.is_type = True
