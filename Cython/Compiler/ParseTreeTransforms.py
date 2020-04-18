@@ -3279,12 +3279,7 @@ class ReplaceFusedTypeChecks(VisitorTransform):
     def visit_PrimaryCmpNode(self, node):
         with Errors.local_errors(ignore=True):
           type1 = node.operand1.analyse_as_type(self.local_scope)
-          # type2 should not be specialized here as a special case
-          # we always want to check against the global fused type
-          fused_to_specific = self.local_scope.fused_to_specific
-          self.local_scope.fused_to_specific = None
           type2 = node.operand2.analyse_as_type(self.local_scope)
-          self.local_scope.fused_to_specific = fused_to_specific
 
         if type1 and type2:
             false_node = ExprNodes.BoolNode(node.pos, value=False)

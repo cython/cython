@@ -655,6 +655,19 @@ class ExprNode(Node):
         # type, return that type, else None.
         return None
 
+    def analyse_as_specialized_type(self, env):
+        type = self.analyse_as_type(env)
+        if type.is_fused and env.fused_to_specific:
+            # while it would be nice to test "if entry.type in env.fused_to_specific"
+            # rather than try/catch this doesn't work reliably (mainly for nested fused types)
+            try:
+                return type.specialize(env.fused_to_specific)
+            except KeyError:
+                pass
+        if type.is_fused:
+            error(self.pos, "Type is not specific")
+        return type
+
     def analyse_as_extension_type(self, env):
         # If this node can be interpreted as a reference to an
         # extension type or builtin type, return its type, else None.
@@ -1961,11 +1974,6 @@ class NameNode(AtomicExprNode):
         if not entry:
             entry = env.lookup(self.name)
         if entry and entry.is_type:
-            if entry.type.is_fused and env.fused_to_specific:
-                if entry.type in env.fused_to_specific:
-                    return entry.type.specialize(env.fused_to_specific)
-                # else lots of valid reasons why we may not be able to get a specific type
-                # so don't fail
             return entry.type
         else:
             return None
@@ -6906,19 +6914,14 @@ class AttributeNode(ExprNode):
         return None
 
     def analyse_as_type(self, env):
-        tp = None
         module_scope = self.obj.analyse_as_module(env)
         if module_scope:
-            tp = module_scope.lookup_type(self.attribute)
-        elif not self.obj.is_string_literal:
+            return module_scope.lookup_type(self.attribute)
+        if not self.obj.is_string_literal:
             base_type = self.obj.analyse_as_type(env)
             if base_type and hasattr(base_type, 'scope') and base_type.scope is not None:
-                tp = base_type.scope.lookup_type(self.attribute)
-        if tp and tp.is_fused and env.fused_to_specific:
-            if tp in env.fused_to_specific:
-                tp = tp.specialize(env.fused_to_specific)
-            # else just use unspecialized type
-        return tp
+                return base_type.scope.lookup_type(self.attribute)
+        return None
 
     def analyse_as_extension_type(self, env):
         # Try to interpret this as a reference to an extension type
@@ -10836,7 +10839,7 @@ class TypeidNode(ExprNode):
             self.error("The 'libcpp.typeinfo' module must be cimported to use the typeid() operator")
             return self
         self.type = type_info
-        as_type = self.operand.analyse_as_type(env)
+        as_type = self.operand.analyse_as_specialized_type(env)
         if as_type:
             self.arg_type = as_type
             self.is_type = True
