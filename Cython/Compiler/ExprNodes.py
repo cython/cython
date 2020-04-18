@@ -13677,7 +13677,7 @@ class AnnotationNode(ExprNode):
         explicit_pytype = explicit_ctype = False
         if annotation.is_dict_literal:
             warning(annotation.pos,
-                    "Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.")
+                    "Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.", level=1)
             for name, value in annotation.key_value_pairs:
                 if not name.is_string_literal:
                     continue
@@ -13689,7 +13689,7 @@ class AnnotationNode(ExprNode):
                     explicit_ctype = True
                     annotation = value
             if explicit_pytype and explicit_ctype:
-                warning(annotation.pos, "Duplicate type declarations found in signature annotation")
+                warning(annotation.pos, "Duplicate type declarations found in signature annotation", level=1)
         arg_type = annotation.analyse_as_type(env)
         if annotation.is_name and not annotation.cython_attribute and annotation.name in ('int', 'long', 'float'):
             # Map builtin numeric Python types to C types in safe cases.
