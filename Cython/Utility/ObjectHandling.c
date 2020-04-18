@@ -383,7 +383,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i,
 
 static PyObject *__Pyx_GetItemInt_Generic(PyObject *o, PyObject* j) {
     PyObject *r;
-    if (!j) return NULL;
+    if (unlikely(!j)) return NULL;
     r = PyObject_GetItem(o, j);
     Py_DECREF(j);
     return r;
@@ -479,7 +479,7 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
 
 static int __Pyx_SetItemInt_Generic(PyObject *o, PyObject *j, PyObject *v) {
     int r;
-    if (!j) return -1;
+    if (unlikely(!j)) return -1;
     r = PyObject_SetItem(o, j, v);
     Py_DECREF(j);
     return r;
@@ -554,7 +554,7 @@ static CYTHON_INLINE int __Pyx_DelItemInt_Fast(PyObject *o, Py_ssize_t i,
 
 static int __Pyx_DelItem_Generic(PyObject *o, PyObject *j) {
     int r;
-    if (!j) return -1;
+    if (unlikely(!j)) return -1;
     r = PyObject_DelItem(o, j);
     Py_DECREF(j);
     return r;
@@ -966,10 +966,10 @@ static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *na
     PyObject *result;
     PyObject *metaclass;
 
-    if (PyDict_SetItem(dict, PYIDENT("__module__"), modname) < 0)
+    if (unlikely(PyDict_SetItem(dict, PYIDENT("__module__"), modname) < 0))
         return NULL;
 #if PY_VERSION_HEX >= 0x03030000
-    if (PyDict_SetItem(dict, PYIDENT("__qualname__"), qualname) < 0)
+    if (unlikely(PyDict_SetItem(dict, PYIDENT("__qualname__"), qualname) < 0))
         return NULL;
 #else
     CYTHON_MAYBE_UNUSED_VAR(qualname);
@@ -1619,7 +1619,7 @@ static int __Pyx_PyObject_GetMethod(PyObject *obj, PyObject *name, PyObject **me
         goto try_unpack;
     }
 
-    if (descr != NULL) {
+    if (likely(descr != NULL)) {
         *method = descr;
         return 0;
     }
