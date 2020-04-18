@@ -9,6 +9,9 @@ from .Errors import warning
 
 
 class AnnotationWriter(ExpressionWriter):
+    """
+    A Cython code writer for Python expressions in argument/variable annotations.
+    """
     def __init__(self, description=None):
         """description is optional. If specified it is used in
         warning messages for the nodes that don't convert to string properly.

@@ -28,7 +28,11 @@ class LinesResult(object):
         self.put(s)
         self.newline()
 
+
 class DeclarationWriter(TreeVisitor):
+    """
+    A Cython code writer that is limited to declarations nodes.
+    """
 
     indent_string = u"    "
 
@@ -103,13 +107,6 @@ class DeclarationWriter(TreeVisitor):
     def visit_CReferenceDeclaratorNode(self, node):
         self.put('&')
         self.visit(node.base)
-
-    def visit_CArrayDeclaratorNode(self, node):
-        self.visit(node.base)
-        self.put(u'[')
-        if node.dimension is not None:
-            self.visit(node.dimension)
-        self.put(u']')
 
     def visit_CArrayDeclaratorNode(self, node):
         self.visit(node.base)
@@ -240,6 +237,7 @@ class DeclarationWriter(TreeVisitor):
         self.endline()
 
     def visit_FuncDefNode(self, node):
+        # TODO: support cdef + cpdef functions
         self.startline(u"def %s(" % node.name)
         self.comma_separated_list(node.args)
         self.endline(u"):")
@@ -284,46 +282,20 @@ class DeclarationWriter(TreeVisitor):
     def visit_NameNode(self, node):
         self.put(node.name)
 
-    def visit_IntNode(self, node):
-        self.put(node.value)
-
-    def visit_NoneNode(self, node):
-        self.put(u"None")
-
-    def visit_NotNode(self, node):
-        self.put(u"(not ")
-        self.visit(node.operand)
-        self.put(u")")
-
     def visit_DecoratorNode(self, node):
         self.startline("@")
         self.visit(node.decorator)
         self.endline()
 
-    def visit_BinopNode(self, node):
-        self.visit(node.operand1)
-        self.put(u" %s " % node.operator)
-        self.visit(node.operand2)
-
-    def visit_AttributeNode(self, node):
-        self.visit(node.obj)
-        self.put(u".%s" % node.attribute)
-
-    def visit_BoolNode(self, node):
-        self.put(str(node.value))
-
-    # FIXME: represent string nodes correctly
-    def visit_StringNode(self, node):
-        value = node.value
-        if value.encoding is not None:
-            value = value.encode(value.encoding)
-        self.put(repr(value))
-
     def visit_PassStatNode(self, node):
         self.startline(u"pass")
         self.endline()
 
-class CodeWriter(DeclarationWriter):
+
+class StatementWriter(DeclarationWriter):
+    """
+    A Cython code writer for most language statement features.
+    """
 
     def visit_SingleAssignmentNode(self, node):
         self.startline()
@@ -349,7 +321,10 @@ class CodeWriter(DeclarationWriter):
 
     def visit_ForInStatNode(self, node):
         self.startline(u"for ")
-        self.visit(node.target)
+        if node.target.is_sequence_constructor:
+            self.comma_separated_list(node.target.args)
+        else:
+            self.visit(node.target)
         self.put(u" in ")
         self.visit(node.iterator.sequence)
         self.endline(u":")
@@ -386,32 +361,6 @@ class CodeWriter(DeclarationWriter):
 
     def visit_SequenceNode(self, node):
         self.comma_separated_list(node.args) # Might need to discover whether we need () around tuples...hmm...
-
-    def visit_SimpleCallNode(self, node):
-        self.visit(node.function)
-        self.put(u"(")
-        self.comma_separated_list(node.args)
-        self.put(")")
-
-    def visit_GeneralCallNode(self, node):
-        self.visit(node.function)
-        self.put(u"(")
-        posarg = node.positional_args
-        if isinstance(posarg, AsTupleNode):
-            self.visit(posarg.arg)
-        else:
-            self.comma_separated_list(posarg.args)  # TupleNode.args
-        if node.keyword_args:
-            if isinstance(node.keyword_args, DictNode):
-                for i, (name, value) in enumerate(node.keyword_args.key_value_pairs):
-                    if i > 0:
-                        self.put(', ')
-                    self.visit(name)
-                    self.put('=')
-                    self.visit(value)
-            else:
-                raise Exception("Not implemented yet")
-        self.put(u")")
 
     def visit_ExprStatNode(self, node):
         self.startline()
@@ -498,30 +447,10 @@ class CodeWriter(DeclarationWriter):
         self.put(self.tempnames[node.handle])
 
 
-class PxdWriter(DeclarationWriter):
-    def __call__(self, node):
-        print(u'\n'.join(self.write(node).lines))
-        return node
-
-    def visit_CFuncDefNode(self, node):
-        if 'inline' in node.modifiers:
-            return
-        if node.overridable:
-            self.startline(u'cpdef ')
-        else:
-            self.startline(u'cdef ')
-        if node.visibility != 'private':
-            self.put(node.visibility)
-            self.put(u' ')
-        if node.api:
-            self.put(u'api ')
-        self.visit(node.declarator)
-
-    def visit_StatNode(self, node):
-        pass
-
-
 class ExpressionWriter(TreeVisitor):
+    """
+    A Cython code writer that is intentionally limited to expressions.
+    """
 
     def __init__(self, result=None):
         super(ExpressionWriter, self).__init__()
@@ -814,3 +743,37 @@ class ExpressionWriter(TreeVisitor):
             # type(body) is Nodes.ExprStatNode
             body = body.expr.arg
         self.emit_comprehension(body, target, sequence, condition, u"()")
+
+
+class PxdWriter(DeclarationWriter, ExpressionWriter):
+    """
+    A Cython code writer for everything supported in pxd files.
+    (currently unused)
+    """
+
+    def __call__(self, node):
+        print(u'\n'.join(self.write(node).lines))
+        return node
+
+    def visit_CFuncDefNode(self, node):
+        if 'inline' in node.modifiers:
+            return
+        if node.overridable:
+            self.startline(u'cpdef ')
+        else:
+            self.startline(u'cdef ')
+        if node.visibility != 'private':
+            self.put(node.visibility)
+            self.put(u' ')
+        if node.api:
+            self.put(u'api ')
+        self.visit(node.declarator)
+
+    def visit_StatNode(self, node):
+        pass
+
+
+class CodeWriter(StatementWriter, ExpressionWriter):
+    """
+    A complete Cython code writer.
+    """
