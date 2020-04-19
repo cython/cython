@@ -29,6 +29,9 @@ Further semantic changes due to the language level include:
 
 * ``/``-division uses the true (float) division operator, unless ``cdivision`` is enabled.
 * ``print`` is a function, not a statement.
+* Python classes that are defined without bases (``class C: ...``) are "new-style"
+  classes also in Py2.x (if you never heard about "old-style classes", you're probably
+  happy without them).
 * Annotations (type hints) are now stored as strings.
   (`PEP 563 <https://github.com/cython/cython/issues/2863>`_)
 * ``StopIteration`` handling in generators has been changed according to
