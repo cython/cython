@@ -1,7 +1,7 @@
 # cython.* namespace for pure mode.
 from __future__ import absolute_import
 
-__version__ = "3.0a1"
+__version__ = "3.0a2"
 
 try:
     from __builtin__ import basestring
