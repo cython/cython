@@ -9005,9 +9005,11 @@ class Py3ClassNode(ExprNode):
     #  class_def_node  PyClassDefNode  PyClassDefNode defining this class
     #  calculate_metaclass  bool       should call CalculateMetaclass()
     #  allow_py2_metaclass  bool       should look for Py2 metaclass
+    #  force_type           bool       always create a "new style" class, even with no bases
 
     subexprs = []
     type = py_object_type
+    force_type = False
     is_temp = True
 
     def infer_type(self, env):
@@ -9029,6 +9031,8 @@ class Py3ClassNode(ExprNode):
         mkw = class_def_node.mkw.py_result() if class_def_node.mkw else 'NULL'
         if class_def_node.metaclass:
             metaclass = class_def_node.metaclass.py_result()
+        elif self.force_type:
+            metaclass = "((PyObject*)&PyType_Type)"
         else:
             metaclass = "((PyObject*)&__Pyx_DefaultClassType)"
         code.putln(

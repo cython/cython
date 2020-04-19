@@ -4690,7 +4690,9 @@ class PyClassDefNode(ClassDefNode):
             self.classobj = ExprNodes.Py3ClassNode(
                 pos, name=name, class_def_node=self, doc=doc_node,
                 calculate_metaclass=needs_metaclass_calculation,
-                allow_py2_metaclass=allow_py2_metaclass)
+                allow_py2_metaclass=allow_py2_metaclass,
+                force_type=force_py3_semantics,
+            )
         else:
             # no bases, no metaclass => old style class creation
             self.dict = ExprNodes.DictNode(pos, key_value_pairs=[])
