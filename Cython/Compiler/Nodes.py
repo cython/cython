@@ -2885,13 +2885,16 @@ class DefNode(FuncDefNode):
             # staticmethod() was overridden - not much we can do here ...
             self.is_staticmethod = False
 
-        if self.name == '__new__' and env.is_py_class_scope:
-            self.is_staticmethod = True
-        if not self.is_classmethod and self.name in IMPLICIT_CLASSMETHODS and env.is_py_class_scope:
-            from .ExprNodes import NameNode
-            self.decorators = self.decorators or []
-            self.decorators.insert(0, DecoratorNode(self.pos, decorator=NameNode(self.pos, name=EncodedString('classmethod'))))
-            self.is_classmethod = True
+        if env.is_py_class_scope:
+            if self.name == '__new__':
+                self.is_staticmethod = True
+            elif not self.is_classmethod and self.name in IMPLICIT_CLASSMETHODS:
+                self.is_classmethod = True
+                # TODO: remove the need to generate a real decorator here, is_classmethod=True should suffice.
+                from .ExprNodes import NameNode
+                self.decorators = self.decorators or []
+                self.decorators.insert(0, DecoratorNode(
+                    self.pos, decorator=NameNode(self.pos, name=EncodedString('classmethod'))))
 
         self.analyse_argument_types(env)
         if self.name == '<lambda>':
