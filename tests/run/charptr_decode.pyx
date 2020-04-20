@@ -1,6 +1,11 @@
 
 cimport cython
 
+cdef extern from *:
+    cdef Py_ssize_t PY_SSIZE_T_MIN
+    cdef Py_ssize_t PY_SSIZE_T_MAX
+
+
 ############################################################
 # tests for char* slicing
 
@@ -117,6 +122,19 @@ def slice_charptr_dynamic_bounds_non_name():
             (cstring+1)[0:].decode('UTF-8'),
             (cstring+1)[:].decode('UTF-8'),
             (cstring+1)[return1():return5()].decode('UTF-8'))
+
+@cython.test_assert_path_exists("//PythonCapiCallNode")
+@cython.test_fail_if_path_exists("//AttributeNode")
+def slice_charptr_decode_large_bounds():
+    """
+    >>> print(str(slice_charptr_decode_large_bounds()).replace("u'", "'"))
+    ('abcABCqtp', '', '', '')
+    """
+    return (cstring[PY_SSIZE_T_MIN:9].decode('UTF-8'),
+            cstring[PY_SSIZE_T_MAX:PY_SSIZE_T_MIN].decode('UTF-8'),
+            cstring[PY_SSIZE_T_MIN:PY_SSIZE_T_MIN].decode('UTF-8'),
+            cstring[PY_SSIZE_T_MAX:PY_SSIZE_T_MAX].decode('UTF-8'))
+
 
 cdef return1(): return 1
 cdef return3(): return 3
