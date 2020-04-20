@@ -356,6 +356,7 @@ static PyObject *__Pyx_PyDict_GetItem(PyObject *d, PyObject* key) {
 #endif
 
 /////////////// GetItemInt.proto ///////////////
+//@substitute: tempita
 
 #define __Pyx_GetItemInt(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck) \
     (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
@@ -378,6 +379,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i,
                                                      int is_list, int wraparound, int boundscheck);
 
 /////////////// GetItemInt ///////////////
+//@substitute: tempita
 
 static PyObject *__Pyx_GetItemInt_Generic(PyObject *o, PyObject* j) {
     PyObject *r;
@@ -796,6 +798,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyTuple_GetSlice(PyObject* src, Py_ssize_t 
 
 /////////////// SliceTupleAndList ///////////////
 //@requires: TupleAndListFromArray
+//@substitute: tempita
 
 #if CYTHON_COMPILING_IN_CPYTHON
 static CYTHON_INLINE void __Pyx_crop_slice(Py_ssize_t* _start, Py_ssize_t* _stop, Py_ssize_t* _length) {
@@ -1293,7 +1296,7 @@ static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name)
     if (unlikely(!$module_cname)) {
         return NULL;
     }
-    result = PyObject_GetItem($module_cname, name);
+    result = PyObject_GetAttr($module_cname, name);
     if (likely(result)) {
         return result;
     }
@@ -1568,9 +1571,9 @@ static int __Pyx_PyObject_GetMethod(PyObject *obj, PyObject *name, PyObject **me
 #elif PY_MAJOR_VERSION >= 3
         // Repeating the condition below accommodates for MSVC's inability to test macros inside of macro expansions.
         #ifdef __Pyx_CyFunction_USED
-        if (likely(PyFunction_Check(descr) || (Py_TYPE(descr) == &PyMethodDescr_Type) || __Pyx_CyFunction_Check(descr)))
+        if (likely(PyFunction_Check(descr) || __Pyx_IS_TYPE(descr, &PyMethodDescr_Type) || __Pyx_CyFunction_Check(descr)))
         #else
-        if (likely(PyFunction_Check(descr) || (Py_TYPE(descr) == &PyMethodDescr_Type)))
+        if (likely(PyFunction_Check(descr) || __Pyx_IS_TYPE(descr, &PyMethodDescr_Type)))
         #endif
 #else
         // "PyMethodDescr_Type" is not part of the C-API in Py2.
@@ -1933,7 +1936,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCall(PyObject *func, PyObject 
     if (PyCFunction_Check(func)) {
         return _PyCFunction_FastCallKeywords(func, args, nargs, NULL);
     }
-    if (Py_TYPE(func) == &PyMethodDescr_Type) {
+    if (__Pyx_IS_TYPE(func, &PyMethodDescr_Type)) {
         return _PyMethodDescr_FastCallKeywords(func, args, nargs, NULL);
     }
     #elif CYTHON_FAST_PYCCALL
@@ -1955,7 +1958,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCall(PyObject *func, PyObject 
     }
     #elif __Pyx_CyFunction_USED && CYTHON_BACKPORT_VECTORCALL
     // exclude fused functions for now
-    if (Py_TYPE(func) == __pyx_CyFunctionType) {
+    if (__Pyx_IS_TYPE(func, __pyx_CyFunctionType)) {
         __pyx_vectorcallfunc f = __Pyx_CyFunction_func_vectorcall(func);
         if (f) return f(func, args, nargs, NULL);
     }
@@ -2550,3 +2553,123 @@ static PyObject *__Pyx_PyMethod_New(PyObject *func, PyObject *self, CYTHON_UNUSE
 #else
     #define __Pyx_PyMethod_New PyMethod_New
 #endif
+
+/////////////// UnicodeConcatInPlace.proto ////////////////
+
+# if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
+// __Pyx_PyUnicode_ConcatInPlace may modify the first argument 'left'
+// However, unlike `PyUnicode_Append` it will never NULL it.
+// It behaves like a regular function - returns a new reference and NULL on error
+    #if CYTHON_REFNANNY
+        #define __Pyx_PyUnicode_ConcatInPlace(left, right) __Pyx_PyUnicode_ConcatInPlaceImpl(&left, right, __pyx_refnanny)
+    #else
+        #define __Pyx_PyUnicode_ConcatInPlace(left, right) __Pyx_PyUnicode_ConcatInPlaceImpl(&left, right)
+    #endif
+    // __Pyx_PyUnicode_ConcatInPlace is slightly odd because it has the potential to modify the input
+    // argument (but only in cases where no user should notice). Therefore, it needs to keep Cython's
+    // refnanny informed.
+    static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_left, PyObject *right
+        #if CYTHON_REFNANNY
+        , void* __pyx_refnanny
+        #endif
+    ); /* proto */
+#else
+#define __Pyx_PyUnicode_ConcatInPlace __Pyx_PyUnicode_Concat
+#endif
+#define __Pyx_PyUnicode_ConcatInPlaceSafe(left, right) ((unlikely((left) == Py_None) || unlikely((right) == Py_None)) ? \
+    PyNumber_InPlaceAdd(left, right) : __Pyx_PyUnicode_ConcatInPlace(left, right))
+
+/////////////// UnicodeConcatInPlace ////////////////
+//@substitute: naming
+
+# if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
+// copied directly from unicode_object.c "unicode_modifiable
+// removing _PyUnicode_HASH since it's a macro we don't have
+//  - this is OK because trying PyUnicode_Resize on a non-modifyable
+//  object will still work, it just won't happen in place
+static int
+__Pyx_unicode_modifiable(PyObject *unicode)
+{
+    if (Py_REFCNT(unicode) != 1)
+        return 0;
+    if (!PyUnicode_CheckExact(unicode))
+        return 0;
+    if (PyUnicode_CHECK_INTERNED(unicode))
+        return 0;
+    return 1;
+}
+
+static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_left, PyObject *right
+        #if CYTHON_REFNANNY
+        , void* __pyx_refnanny
+        #endif
+    ) {
+    // heavily based on PyUnicode_Append
+    PyObject *left = *p_left;
+    Py_ssize_t left_len, right_len, new_len;
+
+    if (unlikely(PyUnicode_READY(left) == -1))
+        return NULL;
+    if (unlikely(PyUnicode_READY(right) == -1))
+        return NULL;
+
+    // Shortcuts
+    left_len = PyUnicode_GET_LENGTH(left);
+    if (left_len == 0) {
+        Py_INCREF(right);
+        return right;
+    }
+    right_len = PyUnicode_GET_LENGTH(right);
+    if (right_len == 0) {
+        Py_INCREF(left);
+        return left;
+    }
+    if (unlikely(left_len > PY_SSIZE_T_MAX - right_len)) {
+        PyErr_SetString(PyExc_OverflowError,
+                        "strings are too large to concat");
+        return NULL;
+    }
+    new_len = left_len + right_len;
+
+    if (__Pyx_unicode_modifiable(left)
+            && PyUnicode_CheckExact(right)
+            && PyUnicode_KIND(right) <= PyUnicode_KIND(left)
+            // Don't resize for ascii += latin1. Convert ascii to latin1 requires
+            //   to change the structure size, but characters are stored just after
+            //   the structure, and so it requires to move all characters which is
+            //   not so different than duplicating the string.
+            && !(PyUnicode_IS_ASCII(left) && !PyUnicode_IS_ASCII(right))) {
+
+        __Pyx_GIVEREF(*p_left);
+        if (unlikely(PyUnicode_Resize(p_left, new_len) != 0)) {
+            // on failure PyUnicode_Resize does not deallocate the the input
+            // so left will remain unchanged - simply undo the giveref
+            __Pyx_GOTREF(*p_left);
+            return NULL;
+        }
+        __Pyx_INCREF(*p_left);
+
+        // copy 'right' into the newly allocated area of 'left'
+        _PyUnicode_FastCopyCharacters(*p_left, left_len, right, 0, right_len);
+        return *p_left;
+    } else {
+        return __Pyx_PyUnicode_Concat(left, right);
+    }
+  }
+#endif
+
+////////////// StrConcatInPlace.proto ///////////////////////
+//@requires: UnicodeConcatInPlace
+
+#if PY_MAJOR_VERSION >= 3
+    // allow access to the more efficient versions where we know str_type is unicode
+    #define __Pyx_PyStr_Concat __Pyx_PyUnicode_Concat
+    #define __Pyx_PyStr_ConcatInPlace __Pyx_PyUnicode_ConcatInPlace
+#else
+    #define __Pyx_PyStr_Concat PyNumber_Add
+    #define __Pyx_PyStr_ConcatInPlace PyNumber_InPlaceAdd
+#endif
+#define __Pyx_PyStr_ConcatSafe(a, b) ((unlikely((a) == Py_None) || unlikely((b) == Py_None)) ? \
+    PyNumber_Add(a, b) : __Pyx_PyStr_Concat(a, b))
+#define __Pyx_PyStr_ConcatInPlaceSafe(a, b) ((unlikely((a) == Py_None) || unlikely((b) == Py_None)) ? \
+    PyNumber_InPlaceAdd(a, b) : __Pyx_PyStr_ConcatInPlace(a, b))

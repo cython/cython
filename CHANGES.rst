@@ -12,7 +12,28 @@ Features added
   Patch by Jeroen Demeyer.  (Github issue #2263)
 
 * Unicode identifiers are supported in Cython code (PEP 3131).
-  Patch by da-woods.  (Github issue #2601)
+  Patch by David Woods.  (Github issue #2601)
+
+* Unicode module names and imports are supported.
+  Patch by David Woods.  (Github issue #3119)
+
+* Annotations are no longer parsed, keeping them as strings following PEP-563.
+  Patch by David Woods.  (Github issue #3285)
+
+* Conditional blocks in Python code that depend on ``cython.compiled`` are
+  eliminated at an earlier stage, which gives more freedom in writing
+  replacement Python code.
+  Patch by David Woods.  (Github issue #3507)
+
+* Preliminary support for the CPython's ``Py_LIMITED_API`` (stable ABI) is
+  available by setting the  ``CYTHON_LIMITED_API`` C macro.  Note that the
+  support is currently in an early stage and many features do not yet work.
+  Patches by Eddie Elizondo.  (Github issue #3223, #3311)
+
+* The dispatch to fused functions is now linear in the number of arguments,
+  which makes it much faster, often 2x or more, and several times faster for
+  larger fused types with many specialisations.
+  Patch by will-ca.  (Github issue #1385)
 
 * ``with gil/nogil`` statements can be conditional based on compile-time
   constants, e.g. fused type checks.
@@ -34,11 +55,23 @@ Features added
   CPython trashcan. This allows deallocating deeply recursive objects without
   overflowing the stack.  Patch by Jeroen Demeyer.  (Github issue #2842)
 
-* Properties can be defined for external extension types.
+* Inlined properties can be defined for external extension types.
   Patch by Matti Picus.  (Github issue #2640)
+
+* The ``str()`` builtin now calls ``PyObject_Str()`` instead of going
+  through a Python call.
+  Patch by William Ayd.  (Github issue #3279)
+
+* String concatenation can now happen in place if possible, by extending the
+  existing string rather than always creating a new one.
+  Patch by David Woods.  (Github issue #3453)
 
 * Multiplication of Python numbers with small constant integers is faster.
   (Github issue #2808)
+
+* Some list copying is avoided internally when a new list needs to be created
+  but we already have a fresh one.
+  (Github issue #3494)
 
 * Extension types that do not need their own ``tp_new`` implementation (because
   they have no object attributes etc.) directly inherit the implementation of
@@ -49,8 +82,17 @@ Features added
   generators and coroutines now return an actual frame object for introspection.
   (Github issue #2306)
 
-* Several missing declarations in ``cpython.*`` were added.
-  Patches by Jeroen Demeyer and Zackery Spytz.  (Github issues #2826, #2713)
+* Several declarations in ``cpython.*``, ``libc.*`` and ``libcpp.*`` were added.
+  Patches by Jeroen Demeyer, Matthew Edwards, Chris Gyurgyik, Jerome Kieffer
+  and Zackery Spytz.
+  (Github issues #3468, #3332, #3202, #3188, #3179, #2891, #2826, #2713)
+
+* Deprecated NumPy API usages were removed from ``numpy.pxd``.
+  Patch by Matti Picus.  (Github issue #3365)
+
+* ``cython.inline()`` now sets the ``NPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION``
+  C macro automatically when ``numpy`` is imported in the code, to avoid C compiler
+  warnings about deprecated NumPy C-API usage.
 
 * The builtin ``abs()`` function can now be used on C numbers in nogil code.
   Patch by Elliott Sales de Andrade.  (Github issue #2748)
@@ -58,17 +100,26 @@ Features added
 * PEP-479 (``generator_stop``) is now enabled by default with language level 3.
   (Github issue #2580)
 
+* The ``cython.view.array`` type supports inheritance.
+  Patch by David Woods.  (Github issue #3413)
+
 * Code annotation accepts a new debugging argument ``--annotate-fullc`` that
   will include the complete syntax highlighted C file in the HTML output.
   (Github issue #2855)
 
 * ``--no-capture`` added to ``runtests.py`` to prevent stdout/stderr capturing
-  during srctree tests.  Patch by Matti Picus.
+  during srctree tests.
+  Patch by Matti Picus.  (Github issue #2701)
 
 * ``--no-docstrings`` option added to ``cythonize`` script.
   Original patch by mo-han.  (Github issue #2889)
 
-* The ``@cython.binding`` decorator is available in Python code.
+* ``cygdb`` gives better error messages when it fails to initialise the
+  Python runtime support in gdb.
+  Patch by Volker Weissmann.  (Github issue #3489)
+
+* The Pythran ``shape`` attribute is supported.
+  Patch by Serge Guelton.  (Github issue #3307)
 
 Bugs fixed
 ----------
@@ -77,6 +128,10 @@ Bugs fixed
   incorrectly optimised for single character input values and only returned
   the first character if multiple characters should have been returned.
   They now use the original Python methods again.
+
+* Fused argument types were not correctly handled in type annotations and
+  ``cython.locals()``.
+  Patch by David Woods.  (Github issues #3391, #3142)
 
 * Diverging from the usual behaviour, ``len(memoryview)``, ``len(char*)``
   and ``len(Py_UNICODE*)`` returned an unsigned ``size_t`` value.  They now
@@ -114,6 +169,9 @@ Bugs fixed
   as integer 0 instead of the expected float value.
   Patch by Kryštof Pilnáček.  (Github issue #2133)
 
+* The ``cython.declare()`` and ``cython.cast()`` functions could fail in pure mode.
+  Patch by Dmitry Shesterkin.  (Github issue #3244)
+
 * ``__doc__`` was not available inside of the class body during class creation.
   (Github issue #1635)
 
@@ -133,6 +191,9 @@ Bugs fixed
 * Binding staticmethods of Cython functions were not behaving like Python methods.
   Patch by Jeroen Demeyer.  (Github issue #3106, #3102)
 
+* Memoryviews failed to compile when the ``cache_builtins`` feature was disabled.
+  Patch by David Woods.  (Github issue #3406)
+
 Other changes
 -------------
 
@@ -140,6 +201,7 @@ Other changes
   but with ``str`` literals (also in Python 2.7).  This is a backwards incompatible
   change from the previous default of Python 2 semantics.  The previous behaviour
   is available through the directive ``language_level=2``.
+  (Github issue #2565)
 
 * Cython no longer generates ``__qualname__`` attributes for classes in Python
   2.x since they are problematic there and not correctly maintained for subclasses.
@@ -163,11 +225,99 @@ Other changes
 * The command line parser was rewritten and modernised using ``argparse``.
   Patch by Egor Dranischnikow.  (Github issue #2952, #3001)
 
+* Dotted filenames for qualified module names (``pkg.mod.pyx``) are deprecated.
+  Use the normal Python package directory layout instead.
+  (Github issue #2686)
+
+* Binary Linux wheels now follow the manylinux2010 standard.
+  Patch by Alexey Stepanov.  (Github issue #3355)
+
 * Support for Python 2.6 was removed.
 
 
-0.29.15 (20??-??-??)
+0.29.17 (2020-0?-??)
 ====================
+
+Features added
+--------------
+
+* ``std::move()`` is now available from ``libcpp.utility``.
+  Patch by Omer Ozarslan.  (Github issue #2169)
+
+* The ``@cython.binding`` decorator is available in Python code.
+  (Github issue #3505)
+
+Bugs fixed
+----------
+
+* Creating a fused function attached it to the garbage collector before it
+  was fully initialised, thus risking crashes in rare failure cases.
+  Original patch by achernomorov.  (Github issue #3215)
+
+* The compilation cache in ``cython.inline("…")`` failed to take the language
+  level into account.
+  Patch by will-ca.  (Github issue #3419)
+
+* The deprecated ``PyUnicode_GET_SIZE()`` function is no longer used in Py3.
+
+0.29.16 (2020-03-24)
+====================
+
+Bugs fixed
+----------
+
+* Temporary internal variables in nested prange loops could leak into other
+  threads.  Patch by Frank Schlimbach.  (Github issue #3348)
+
+* Default arguments on fused functions could crash.
+  Patch by David Woods.  (Github issue #3370)
+
+* C-tuples declared in ``.pxd`` files could generate incomplete C code.
+  Patch by Kirk Meyer.  (Github issue #1427)
+
+* Fused functions were not always detected and optimised as Cython
+  implemented functions.
+  Patch by David Woods.  (Github issue #3384)
+
+* Valid Python object concatenation of (iterable) strings to non-strings
+  could fail with an exception.
+  Patch by David Woods.  (Github issue #3433)
+
+* Using C functions as temporary values lead to invalid C code.
+  Original patch by David Woods.  (Github issue #3418)
+
+* Fix an unhandled C++ exception in comparisons.
+  Patch by David Woods.  (Github issue #3361)
+
+* Fix deprecated import of "imp" module.
+  Patch by Matti Picus.  (Github issue #3350)
+
+* Fix compatibility with Pythran 0.9.6 and later.
+  Patch by Serge Guelton.  (Github issue #3308)
+
+* The ``_Py_PyAtExit()`` function in ``cpython.pylifecycle`` was misdeclared.
+  Patch by Zackery Spytz.  (Github issue #3382)
+
+* Several missing declarations in ``cpython.*`` were added.
+  Patches by Zackery Spytz.  (Github issue #3452, #3421, #3411, #3402)
+
+* A declaration for ``libc.math.fpclassify()`` was added.
+  Patch by Zackery Spytz.  (Github issue #2514)
+
+* Avoid "undeclared" warning about automatically generated pickle methods.
+  Patch by David Woods.  (Github issue #3353)
+
+* Avoid C compiler warning about unreachable code in ``prange()``.
+
+* Some C compiler warnings in PyPy were resolved.
+  Patch by Matti Picus.  (Github issue #3437)
+
+
+0.29.15 (2020-02-06)
+====================
+
+Bugs fixed
+----------
 
 * Crash when returning a temporary Python object from an async-def function.
   (Github issue #3337)
@@ -177,6 +327,9 @@ Other changes
 
 * Double reference free in ``__class__`` cell handling for ``super()`` calls.
   (Github issue #3246)
+
+* Compile error when using ``*args`` as Python class bases.
+  (Github issue #3338)
 
 * Import failure in IPython 7.11.
   (Github issue #3297)
@@ -1272,7 +1425,7 @@ Features added
   Patch by Syrtis Major (Github issue #1625).
 
 * ``abs()`` is optimised for C complex numbers.
-  Patch by da-woods (Github issue #1648).
+  Patch by David Woods (Github issue #1648).
 
 * The display of C lines in Cython tracebacks can now be enabled at runtime
   via ``import cython_runtime; cython_runtime.cline_in_traceback=True``.
@@ -1401,7 +1554,7 @@ Features added
   Patch by Claudio Freire.
 
 * Buffer variables are no longer excluded from ``locals()``.
-  Patch by da-woods.
+  Patch by David Woods.
 
 * Building f-strings is faster, especially when formatting C integers.
 

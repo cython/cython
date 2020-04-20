@@ -2608,7 +2608,7 @@ class PythonCodeExecutor(object):
         return pointer
 
     def free(self, pointer):
-        gdb.parse_and_eval("free((void *) %d)" % pointer)
+        gdb.parse_and_eval("(void) free((void *) %d)" % pointer)
 
     def incref(self, pointer):
         "Increment the reference count of a Python object in the inferior."

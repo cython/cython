@@ -4,8 +4,8 @@ TESTOPTS?=
 REPO = git://github.com/cython/cython.git
 VERSION?=$(shell sed -ne 's|^__version__\s*=\s*"\([^"]*\)".*|\1|p' Cython/Shadow.py)
 
-MANYLINUX_IMAGE_X86_64=quay.io/pypa/manylinux1_x86_64
-MANYLINUX_IMAGE_686=quay.io/pypa/manylinux1_i686
+MANYLINUX_IMAGE_X86_64=quay.io/pypa/manylinux2010_x86_64
+MANYLINUX_IMAGE_686=quay.io/pypa/manylinux2010_i686
 
 all:    local
 
@@ -16,6 +16,12 @@ sdist: dist/$(PACKAGENAME)-$(VERSION).tar.gz
 
 dist/$(PACKAGENAME)-$(VERSION).tar.gz:
 	$(PYTHON) setup.py sdist
+
+pywheel: dist/$(PACKAGENAME)-$(VERSION)-py2.py3-none-any.whl
+
+dist/$(PACKAGENAME)-$(VERSION)-py2.py3-none-any.whl:
+	${PYTHON} setup.py bdist_wheel --no-cython-compile --universal
+	[ -f "$@" ]  # check that we generated the expected universal wheel
 
 TMPDIR = .repo_tmp
 .git: .gitrev

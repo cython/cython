@@ -23,6 +23,7 @@ Demos/*/*.html
 
 /TEST_TMP/
 /build/
+/cython_build/
 /wheelhouse*/
 !tests/build/
 /dist/
@@ -52,3 +53,5 @@ MANIFEST
 /.idea
 /*.iml
 
+# Komodo EDIT/IDE project files
+/*.komodoproject

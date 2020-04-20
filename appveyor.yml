@@ -13,9 +13,19 @@ environment:
     - PYTHON: "C:\\Python27"
       PYTHON_VERSION: "2.7"
       PYTHON_ARCH: "32"
+      PYTHONIOENCODING: "utf-8"
 
     - PYTHON: "C:\\Python27-x64"
       PYTHON_VERSION: "2.7"
+      PYTHON_ARCH: "64"
+      PYTHONIOENCODING: "utf-8"
+
+    - PYTHON: "C:\\Python38"
+      PYTHON_VERSION: "3.8"
+      PYTHON_ARCH: "32"
+
+    - PYTHON: "C:\\Python38-x64"
+      PYTHON_VERSION: "3.8"
       PYTHON_ARCH: "64"
 
     - PYTHON: "C:\\Python37"
@@ -59,6 +69,7 @@ environment:
       PYTHON_VERSION: "2.7"
       PYTHON_ARCH: "64"
       BACKEND: cpp
+      PYTHONIOENCODING: "utf-8"
 
 clone_depth: 5
 
@@ -84,6 +95,7 @@ build_script:
 test: off
 test_script:
   - "%PYTHON%\\Scripts\\pip.exe install -r test-requirements.txt"
+  - "%PYTHON%\\Scripts\\pip.exe install win_unicode_console"
   - "set CFLAGS=/Od /W3"
   - "%WITH_ENV% %PYTHON%\\python.exe runtests.py -vv --backend=%BACKEND% --no-code-style -j5"
 

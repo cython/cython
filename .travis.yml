@@ -19,6 +19,7 @@ cache:
 python:
   - 3.8
   - 2.7
+  - 3.9-dev
   - 3.7
   - 3.6
   - 3.5
@@ -38,6 +39,21 @@ env:
 
 matrix:
   include:
+    # slowest first
+    - os: osx
+      osx_image: xcode10.3
+      env: PY=2 MACOSX_DEPLOYMENT_TARGET=10.9
+      python: 2
+      language: c
+      compiler: clang
+      cache: false
+    - os: osx
+      osx_image: xcode10.3
+      env: PY=3 MACOSX_DEPLOYMENT_TARGET=10.9
+      python: 3
+      language: c
+      compiler: clang
+      cache: false
 # Disabled: coverage analysis takes excessively long, several times longer than without.
 #    - python: 3.7
 #      env: COVERAGE=1
@@ -49,20 +65,6 @@ matrix:
       env: LIMITED_API=--limited-api EXCLUDE=--no-file
     - python: 3.6
       env: LIMITED_API=--limited-api EXCLUDE=--no-file
-    - os: osx
-      osx_image: xcode6.4
-      env: PY=2
-      python: 2
-      language: c
-      compiler: clang
-      cache: false
-    - os: osx
-      osx_image: xcode6.4
-      env: PY=3
-      python: 3
-      language: c
-      compiler: clang
-      cache: false
     - env: STACKLESS=true BACKEND=c PY=2
       python: 2.7
     - env: STACKLESS=true BACKEND=c PY=3
@@ -71,9 +73,16 @@ matrix:
       env: BACKEND=c
     - python: pypy3
       env: BACKEND=c
-  allow_failures:
+# a secondary pypy tests which is allowed to fail and which specifically
+# tests known bugs
     - python: pypy
+      env: BACKEND=c EXCLUDE="--listfile=tests/pypy_bugs.txt --listfile=tests/pypy2_bugs.txt bugs"
     - python: pypy3
+      env: BACKEND=c EXCLUDE="--listfile=tests/pypy_bugs.txt bugs"
+  allow_failures:
+    - python: 3.9-dev
+    - env: BACKEND=c EXCLUDE="--listfile=tests/pypy_bugs.txt bugs"
+    - env: BACKEND=c EXCLUDE="--listfile=tests/pypy_bugs.txt --listfile=tests/pypy2_bugs.txt bugs"
 
 branches:
   only:
@@ -82,7 +91,7 @@ branches:
 
 before_install:
   - |
-    if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+    if [ "$TRAVIS_OS_NAME" == "linux" ]; then
       # adding apt repos in travis is really fragile => retry a couple of times.
       for i in {1..10}; do travis_retry sudo apt-add-repository --yes 'ppa:ubuntu-toolchain-r/test' && break; sleep 2; done
       for i in {1..10}; do travis_retry sudo apt-get update && travis_retry sudo apt-get install --yes gcc-8  $(if [ -z "${BACKEND##*cpp*}" ]; then echo -n "g++-8"; fi ) && break; sleep 2; done
@@ -93,21 +102,23 @@ before_install:
     fi
 
   - |
-    if [[ "$TRAVIS_OS_NAME" == "osx" ]] || [[ "$STACKLESS" == "true" ]]; then # Install Miniconda
-      if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then CONDA_PLATFORM=MacOSX; else CONDA_PLATFORM=Linux; fi
-      travis_retry curl -s -o miniconda.sh https://repo.continuum.io/miniconda/Miniconda$PY-latest-${CONDA_PLATFORM}-x86_64.sh
-      bash miniconda.sh -b -p $HOME/miniconda && rm miniconda.sh
+    if [ "$TRAVIS_OS_NAME" == "osx" -o "$STACKLESS" == "true" ]; then
+      echo "Installing Miniconda"
+      if [ "$TRAVIS_OS_NAME" == "osx" ]; then CONDA_PLATFORM=MacOSX; else CONDA_PLATFORM=Linux; fi
+      travis_retry wget -O miniconda.sh https://repo.continuum.io/miniconda/Miniconda$PY-latest-${CONDA_PLATFORM}-x86_64.sh || exit 1
+      bash miniconda.sh -b -p $HOME/miniconda && rm miniconda.sh || exit 1
+      conda --version || exit 1
       #conda install --quiet --yes nomkl --file=test-requirements.txt --file=test-requirements-cpython.txt
-      if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
+      if [ "$TRAVIS_OS_NAME" == "osx" ]; then
         which clang && clang --version && export CC=clang || true
-        which clang++ && clang++ --version && export CXX=clang++ || true
+        which clang++ && clang++ --version && export CXX="clang++ -stdlib=libc++" || true
       fi
     fi
 
-  - if [ -n "$CC" ]; then which $CC; $CC --version; fi
-  - if [ -n "$CXX" ]; then which $CXX; $CXX --version; fi
+  - if [ -n "$CC" ]; then which ${CC%% *}; $CC --version; fi
+  - if [ -n "$CXX" ]; then which ${CXX%% *}; $CXX --version; fi
 
-  - if [[ "$STACKLESS" == "true" ]]; then
+  - if [ "$STACKLESS" == "true" ]; then
       conda config --add channels stackless;
       travis_retry conda install --quiet --yes stackless;
     fi

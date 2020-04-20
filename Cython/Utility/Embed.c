@@ -11,6 +11,8 @@ int %(wmain_method)s(int argc, wchar_t **argv) {
 #else
 static int __Pyx_main(int argc, wchar_t **argv) {
 #endif
+    wchar_t *program = NULL;
+
     /* 754 requires that FP exceptions run in "no stop" mode by default,
      * and until C vendors implement C99's ways to control FP exceptions,
      * Python requires non-stop mode.  Alas, some platforms enable FP
@@ -65,6 +67,8 @@ static int __Pyx_main(int argc, wchar_t **argv) {
 
 #if PY_MAJOR_VERSION >= 3 && !defined(WIN32) && !defined(MS_WINDOWS)
 #include <locale.h>
+
+#if PY_VERSION_HEX < 0x03050000
 
 static wchar_t*
 __Pyx_char2wchar(char* arg)
@@ -170,6 +174,8 @@ oom:
     return NULL;
 }
 
+#endif
+
 int
 %(main_method)s(int argc, char **argv)
 {
@@ -192,7 +198,12 @@ int
         res = 0;
         setlocale(LC_ALL, "");
         for (i = 0; i < argc; i++) {
-            argv_copy2[i] = argv_copy[i] = __Pyx_char2wchar(argv[i]);
+            argv_copy2[i] = argv_copy[i] =
+#if PY_VERSION_HEX < 0x03050000
+                __Pyx_char2wchar(argv[i]);
+#else
+                Py_DecodeLocale(argv[i], NULL);
+#endif
             if (!argv_copy[i]) res = 1;  /* failure, but continue to simplify cleanup */
         }
         setlocale(LC_ALL, oldloc);

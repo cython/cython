@@ -94,7 +94,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyList_Pop(PyObject* L); /*proto*/
 //@requires: ObjectHandling.c::PyObjectCallMethod0
 
 static CYTHON_INLINE PyObject* __Pyx__PyObject_Pop(PyObject* L) {
-    if (Py_TYPE(L) == &PySet_Type) {
+    if (__Pyx_IS_TYPE(L, &PySet_Type)) {
         return PySet_Pop(L);
     }
     return __Pyx_PyObject_CallMethod0(L, PYIDENT("pop"));
@@ -190,7 +190,7 @@ static PyObject* __Pyx_PyDict_GetItemDefault(PyObject* d, PyObject* key, PyObjec
 
 static PyObject* __Pyx_PyDict_GetItemDefault(PyObject* d, PyObject* key, PyObject* default_value) {
     PyObject* value;
-#if PY_MAJOR_VERSION >= 3 && !CYTHON_COMPILING_IN_PYPY
+#if PY_MAJOR_VERSION >= 3 && (!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07020000)
     value = PyDict_GetItemWithError(d, key);
     if (unlikely(!value)) {
         if (unlikely(PyErr_Occurred()))
@@ -238,7 +238,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *ke
 #else
     if (is_safe_type == 1 || (is_safe_type == -1 &&
         /* the following builtins presumably have repeatably safe and fast hash functions */
-#if PY_MAJOR_VERSION >= 3 && !CYTHON_COMPILING_IN_PYPY
+#if PY_MAJOR_VERSION >= 3 && (!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07020000)
             (PyUnicode_CheckExact(key) || PyString_CheckExact(key) || PyLong_CheckExact(key)))) {
         value = PyDict_GetItemWithError(d, key);
         if (unlikely(!value)) {

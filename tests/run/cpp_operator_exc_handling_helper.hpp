@@ -201,3 +201,16 @@ public:
     return *this;
   }
 };
+
+class second_call_is_different {
+    int count;
+    public:
+        second_call_is_different(): count(0) {}
+    bool operator<(const second_call_is_different& lhs) {
+        if (count>0) {
+            return true;
+        }
+        ++count;
+        return false;
+    }
+};
