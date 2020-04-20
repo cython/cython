@@ -1,5 +1,6 @@
 # mode: run
 # tag: pure3.7
+# cython: language_level=3
 
 # COPIED FROM CPython 3.7
 
