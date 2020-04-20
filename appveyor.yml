@@ -8,17 +8,20 @@ environment:
     # See: https://stackoverflow.com/questions/11267463/compiling-python-modules-on-windows-x64/13751649#13751649
     WITH_ENV: "cmd /E:ON /V:ON /C .\\appveyor\\run_with_env.cmd"
     BACKEND: c
+    PARALLEL: "-j4"
 
   matrix:
     - PYTHON: "C:\\Python27"
       PYTHON_VERSION: "2.7"
       PYTHON_ARCH: "32"
       PYTHONIOENCODING: "utf-8"
+      PARALLEL: ""
 
     - PYTHON: "C:\\Python27-x64"
       PYTHON_VERSION: "2.7"
       PYTHON_ARCH: "64"
       PYTHONIOENCODING: "utf-8"
+      PARALLEL: ""
 
     - PYTHON: "C:\\Python38"
       PYTHON_VERSION: "3.8"
@@ -60,16 +63,19 @@ environment:
     - PYTHON: "C:\\Python34"
       PYTHON_VERSION: "3.4"
       PYTHON_ARCH: "32"
+      PARALLEL: ""
 
     - PYTHON: "C:\\Python34-x64"
       PYTHON_VERSION: "3.4"
       PYTHON_ARCH: "64"
+      PARALLEL: ""
 
     - PYTHON: "C:\\Python27-x64"
       PYTHON_VERSION: "2.7"
       PYTHON_ARCH: "64"
       BACKEND: cpp
       PYTHONIOENCODING: "utf-8"
+      PARALLEL: ""
 
 clone_depth: 5
 
@@ -89,7 +95,7 @@ install:
 
 build: off
 build_script:
-  - "%WITH_ENV% %PYTHON%\\python.exe setup.py build_ext --inplace"
+  - "%WITH_ENV% %PYTHON%\\python.exe setup.py build_ext --inplace %PARALLEL%"
   - "%WITH_ENV% %PYTHON%\\python.exe setup.py bdist_wheel"
 
 test: off
