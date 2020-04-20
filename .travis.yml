@@ -142,6 +142,6 @@ script:
     fi
 # Need to clear the ccache? Try something like this:
 #  - if [ -n "${BACKEND##*cpp*}" -a -z "${TRAVIS_PYTHON_VERSION##*3.4}" ]; then ccache -C || true; fi
-  - if [ "$COVERAGE" != "1" ]; then CFLAGS="-O2 -ggdb -Wall -Wextra $(python -c 'import sys; print("-fno-strict-aliasing" if sys.version_info[0] == 2 else "")')" python setup.py build_ext -i; fi
+  - if [ "$COVERAGE" != "1" ]; then CFLAGS="-O2 -ggdb -Wall -Wextra $(python -c 'import sys; print("-fno-strict-aliasing" if sys.version_info[0] == 2 else "")')" python setup.py build_ext -i $(python -c 'import sys; print("-j5" if sys.version_info >= (3,5) else "")'); fi
   - CFLAGS="-O0 -ggdb -Wall -Wextra" python runtests.py -vv $STYLE_ARGS -x Debugger --backends=$BACKEND $LIMITED_API $EXCLUDE $(if [ "$COVERAGE" == "1" ]; then echo " --coverage"; fi) $(if [ -z "$TEST_CODE_STYLE" ]; then echo " -j7 "; fi)
   - ccache -s || true
