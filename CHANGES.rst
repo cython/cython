@@ -20,6 +20,9 @@ Bugs fixed
 * Creating an empty unicode slice with large bounds could crash.
   Patch by Sam Sneddon.  (Github issue #3531)
 
+* Decoding an empty bytes/char* slice with large bounds could crash.
+  Patch by Sam Sneddon.  (Github issue #3534)
+
 * Creating a fused function attached it to the garbage collector before it
   was fully initialised, thus risking crashes in rare failure cases.
   Original patch by achernomorov.  (Github issue #3215)
