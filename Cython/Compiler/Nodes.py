@@ -3340,17 +3340,16 @@ class DefNodeWrapper(FuncDefNode):
         if self.signature.has_dummy_arg:
             args.append(Naming.self_cname)
         for arg in self.args:
-            if arg.hdr_type and not (arg.type.is_memoryviewslice or
-                                     arg.type.is_struct or
-                                     arg.type.is_complex or
-                                     arg.type.is_cpp_class):
-                args.append(arg.type.cast_code(arg.entry.cname))
-            elif arg.hdr_type and arg.type.is_cpp_class:
+            if arg.hdr_type and arg.type.is_cpp_class:
                 # it's safe to move converted C++ types because they aren't
                 # used again afterwards
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("MoveIfSupported", "CppSupport.cpp"))
                 args.append("__PYX_STD_MOVE_IF_SUPPORTED(%s)" % arg.entry.cname)
+            elif arg.hdr_type and not (arg.type.is_memoryviewslice or
+                                     arg.type.is_struct or
+                                     arg.type.is_complex):
+                args.append(arg.type.cast_code(arg.entry.cname))
             else:
                 args.append(arg.entry.cname)
         if self.star_arg:
@@ -5388,8 +5387,8 @@ class ExprStatNode(StatNode):
         code.mark_pos(self.pos)
         self.expr.result_is_used = False  # hint that .result() may safely be left empty
         self.expr.generate_evaluation_code(code)
-        result = self.expr.result()
-        if not self.expr.is_temp and result:
+        if not self.expr.is_temp and self.expr.result():
+            result = self.expr.result()
             if not self.expr.type.is_void:
                 result = "(void)(%s)" % result
             code.putln("%s;" % result)
