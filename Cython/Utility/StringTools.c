@@ -613,6 +613,8 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Substring(
         stop = length;
     if (stop <= start)
         return __Pyx_NewRef($empty_unicode);
+    if (start == 0 && stop == length)
+        return __Pyx_NewRef(text);
 #if CYTHON_PEP393_ENABLED
     return PyUnicode_FromKindAndData(PyUnicode_KIND(text),
         PyUnicode_1BYTE_DATA(text) + start*PyUnicode_KIND(text), stop-start);
