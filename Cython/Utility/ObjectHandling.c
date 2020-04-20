@@ -318,17 +318,15 @@ static PyObject *__Pyx_PyObject_GetItem_Slow(PyObject *obj, PyObject *key) {
 
 static PyObject *__Pyx_PyObject_GetItem(PyObject *obj, PyObject *key) {
     PyTypeObject *tp = Py_TYPE(obj);
-    PySequenceMethods *sm;
     PyMappingMethods *mm = tp->tp_as_mapping;
+    PySequenceMethods *sm = tp->tp_as_sequence;
+
     if (likely(mm && mm->mp_subscript)) {
         return mm->mp_subscript(obj, key);
     }
-
-    sm = tp->tp_as_sequence;
     if (likely(sm && sm->sq_item)) {
         return __Pyx_PyObject_GetIndex(obj, key);
     }
-
     return __Pyx_PyObject_GetItem_Slow(obj, key);
 }
 #endif
