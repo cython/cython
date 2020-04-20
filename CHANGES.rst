@@ -11,6 +11,9 @@ Features added
 * Cython functions now use the PEP-590 vectorcall protocol in Py3.7+.
   Patch by Jeroen Demeyer.  (Github issue #2263)
 
+* The simplified Py3.6 customisation of class creation is implemented (PEP-487).
+  (Github issue #2781)
+
 * Unicode identifiers are supported in Cython code (PEP 3131).
   Patch by David Woods.  (Github issue #2601)
 

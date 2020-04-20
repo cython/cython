@@ -1020,8 +1020,11 @@ static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObj
                                       PyObject *mkw, int calculate_metaclass, int allow_py2_metaclass); /*proto*/
 
 /////////////// Py3ClassCreate ///////////////
+//@substitute: naming
 //@requires: PyObjectGetAttrStrNoError
 //@requires: CalculateMetaclass
+//@requires: PyObjectCall2Args
+//@requires: PyObjectLookupSpecial
 
 static PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObject *name,
                                            PyObject *qualname, PyObject *mkw, PyObject *modname, PyObject *doc) {
@@ -1063,6 +1066,78 @@ bad:
     return NULL;
 }
 
+#if PY_VERSION_HEX < 0x030600A4
+// https://www.python.org/dev/peps/pep-0487/
+static int __Pyx_SetNamesPEP487(PyObject *type_obj) {
+    PyTypeObject *type = (PyTypeObject*) type_obj;
+    PyObject *names_to_set, *key, *value, *set_name, *tmp;
+    Py_ssize_t i = 0;
+
+#if CYTHON_USE_TYPE_SLOTS
+    names_to_set = PyDict_Copy(type->tp_dict);
+#else
+    names_to_set = PyObject_GetAttr(type_obj, PYIDENT("__dict__"));
+#endif
+    if (unlikely(names_to_set == NULL))
+        goto bad;
+
+    while (PyDict_Next(names_to_set, &i, &key, &value)) {
+        set_name = __Pyx_PyObject_LookupSpecialNoError(value, PYIDENT("__set_name__"));
+        if (unlikely(set_name != NULL)) {
+            tmp = __Pyx_PyObject_Call2Args(set_name, type_obj, key);
+            Py_DECREF(set_name);
+            if (unlikely(tmp == NULL)) {
+                PyErr_Format(PyExc_RuntimeError,
+#if PY_MAJOR_VERSION >= 3
+                    "Error calling __set_name__ on '%.100s' instance %R "
+                    "in '%.100s'",
+                    Py_TYPE(value)->tp_name, key, type->tp_name);
+#else
+                    "Error calling __set_name__ on '%.100s' instance %s "
+                    "in '%.100s'",
+                    Py_TYPE(value)->tp_name, PyString_Check(key) ? PyString_AS_STRING(key) : "?", type->tp_name);
+#endif
+                goto bad;
+            } else {
+                Py_DECREF(tmp);
+            }
+        }
+        else if (unlikely(PyErr_Occurred())) {
+            goto bad;
+        }
+    }
+
+    Py_DECREF(names_to_set);
+    return 0;
+bad:
+    Py_XDECREF(names_to_set);
+    return -1;
+}
+
+static PyObject *__Pyx_InitSubclassPEP487(PyObject *type_obj, PyObject *mkw) {
+    PyObject *super, *func, *res;
+    super = __Pyx_PyObject_Call2Args((PyObject*) &PySuper_Type, type_obj, type_obj);
+    if (unlikely(!super)) {
+        Py_CLEAR(type_obj);
+        goto done;
+    }
+    func = __Pyx_PyObject_GetAttrStrNoError(super, PYIDENT("__init_subclass__"));
+    Py_DECREF(super);
+    if (likely(!func)) {
+        if (unlikely(PyErr_Occurred()))
+            Py_CLEAR(type_obj);
+        goto done;
+    }
+    res = __Pyx_PyObject_Call(func, $empty_tuple, mkw);
+    Py_DECREF(func);
+    if (unlikely(!res))
+        Py_CLEAR(type_obj);
+    Py_XDECREF(res);
+done:
+    return type_obj;
+}
+#endif
+
 static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObject *bases,
                                       PyObject *dict, PyObject *mkw,
                                       int calculate_metaclass, int allow_py2_metaclass) {
@@ -1086,14 +1161,26 @@ static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObj
             return NULL;
         owned_metaclass = metaclass;
     }
+    result = NULL;
     margs = PyTuple_Pack(3, name, bases, dict);
-    if (unlikely(!margs)) {
-        result = NULL;
-    } else {
-        result = PyObject_Call(metaclass, margs, mkw);
+    if (likely(margs)) {
+        // Before PEP-487, type(a,b,c) did not accept any keyword arguments, so guard at least against that case.
+        PyObject *mc_kwargs = (PY_VERSION_HEX >= 0x030600A4) ? mkw : (
+            (metaclass == (PyObject*)&PyType_Type) ? NULL : mkw);
+
+        result = PyObject_Call(metaclass, margs, mc_kwargs);
         Py_DECREF(margs);
     }
     Py_XDECREF(owned_metaclass);
+#if PY_VERSION_HEX < 0x030600A4
+    if (likely(result) && likely(PyType_Check(result))) {
+        if (unlikely(__Pyx_SetNamesPEP487(result) < 0)) {
+            Py_CLEAR(result);
+        } else {
+            result = __Pyx_InitSubclassPEP487(result, mkw);
+        }
+    }
+#endif
     return result;
 }
 
@@ -1357,14 +1444,18 @@ static CYTHON_INLINE PyObject *__Pyx_GetAttr(PyObject *o, PyObject *n) {
 
 /////////////// PyObjectLookupSpecial.proto ///////////////
 //@requires: PyObjectGetAttrStr
+//@requires: PyObjectGetAttrStrNoError
 
 #if CYTHON_USE_PYTYPE_LOOKUP && CYTHON_USE_TYPE_SLOTS
-static CYTHON_INLINE PyObject* __Pyx_PyObject_LookupSpecial(PyObject* obj, PyObject* attr_name) {
+#define __Pyx_PyObject_LookupSpecialNoError(obj, attr_name)  __Pyx__PyObject_LookupSpecial(obj, attr_name, 0)
+#define __Pyx_PyObject_LookupSpecial(obj, attr_name)  __Pyx__PyObject_LookupSpecial(obj, attr_name, 1)
+
+static CYTHON_INLINE PyObject* __Pyx__PyObject_LookupSpecial(PyObject* obj, PyObject* attr_name, int with_error) {
     PyObject *res;
     PyTypeObject *tp = Py_TYPE(obj);
 #if PY_MAJOR_VERSION < 3
     if (unlikely(PyInstance_Check(obj)))
-        return __Pyx_PyObject_GetAttrStr(obj, attr_name);
+        return with_error ? __Pyx_PyObject_GetAttrStr(obj, attr_name) : __Pyx_PyObject_GetAttrStrNoError(obj, attr_name);
 #endif
     // adapted from CPython's special_lookup() in ceval.c
     res = _PyType_Lookup(tp, attr_name);
@@ -1375,12 +1466,13 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_LookupSpecial(PyObject* obj, PyObj
         } else {
             res = f(res, obj, (PyObject *)tp);
         }
-    } else {
+    } else if (with_error) {
         PyErr_SetObject(PyExc_AttributeError, attr_name);
     }
     return res;
 }
 #else
+#define __Pyx_PyObject_LookupSpecialNoError(o,n) __Pyx_PyObject_GetAttrStrNoError(o,n)
 #define __Pyx_PyObject_LookupSpecial(o,n) __Pyx_PyObject_GetAttrStr(o,n)
 #endif
 
