@@ -1245,11 +1245,14 @@ class CythonCompileTestCase(unittest.TestCase):
             finally:
                 if show_output:
                     stdout = get_stdout and get_stdout().strip()
+                    stderr = get_stderr and filter_stderr(get_stderr()).strip()
+                    if so_path and not stderr:
+                        # normal success case => ignore non-error compiler output
+                        stdout = None
                     if stdout:
                         print_bytes(
                             stdout, header_text="\n=== C/C++ compiler output: =========\n",
                             end=None, file=sys.__stderr__)
-                    stderr = get_stderr and filter_stderr(get_stderr()).strip()
                     if stderr:
                         print_bytes(
                             stderr, header_text="\n=== C/C++ compiler error output: ===\n",
