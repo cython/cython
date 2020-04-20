@@ -558,8 +558,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Substring(
         stop += length;
     else if (stop > length)
         stop = length;
-    length = stop - start;
-    if (length <= 0)
+    if (stop <= start)
         return PyUnicode_FromUnicode(NULL, 0);
 #if CYTHON_PEP393_ENABLED
     return PyUnicode_FromKindAndData(PyUnicode_KIND(text),
