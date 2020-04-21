@@ -46,7 +46,8 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
     {
         #if PY_MAJOR_VERSION >= 3
         if (level == -1) {
-            if (strchr(__Pyx_MODULE_NAME, '.')) {
+            // Avoid C compiler warning if strchr() evaluates to false at compile time.
+            if ((1) && (strchr(__Pyx_MODULE_NAME, '.'))) {
                 /* try package relative import first */
                 module = PyImport_ImportModuleLevelObject(
                     name, global_dict, empty_dict, list, 1);
