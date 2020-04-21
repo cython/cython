@@ -180,7 +180,7 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
     {
         #if PY_MAJOR_VERSION >= 3
         if (level == -1) {
-            if (strchr(__Pyx_MODULE_NAME, '.')) {
+            if ((strchr(__Pyx_MODULE_NAME, '.'))) {
                 /* try package relative import first */
                 #if CYTHON_COMPILING_IN_LIMITED_API
                 module = PyImport_ImportModuleLevelObject(
