@@ -1082,8 +1082,12 @@ static int __Pyx_SetNamesPEP487(PyObject *type_obj) {
         PyObject *d = PyObject_GetAttr(type_obj, PYIDENT("__dict__"));
         names_to_set = NULL;
         if (likely(d)) {
-            names_to_set = PyDict_Copy(d);
+            // d may not be a dict, e.g. PyDictProxy in PyPy2.
+            PyObject *names_to_set = PyDict_New();
+            int ret = likely(names_to_set) ? PyDict_Update(names_to_set, d) : -1;
             Py_DECREF(d);
+            if (unlikely(ret < 0))
+                Py_CLEAR(names_to_set);
         }
     }
 #endif
