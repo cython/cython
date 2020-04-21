@@ -1078,7 +1078,14 @@ static int __Pyx_SetNamesPEP487(PyObject *type_obj) {
 #if CYTHON_USE_TYPE_SLOTS
     names_to_set = PyDict_Copy(type->tp_dict);
 #else
-    names_to_set = PyObject_GetAttr(type_obj, PYIDENT("__dict__"));
+    {
+        PyObject *d = PyObject_GetAttr(type_obj, PYIDENT("__dict__"));
+        names_to_set = NULL;
+        if (likely(d)) {
+            names_to_set = PyDict_Copy(d);
+            Py_DECREF(d);
+        }
+    }
 #endif
     if (unlikely(names_to_set == NULL))
         goto bad;
