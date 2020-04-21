@@ -1102,7 +1102,7 @@ static int __Pyx_SetNamesPEP487(PyObject *type_obj) {
                     "in '%.100s'",
                     Py_TYPE(value)->tp_name, key, type->tp_name);
 #else
-                    "Error calling __set_name__ on '%.100s' instance %s "
+                    "Error calling __set_name__ on '%.100s' instance %.100s "
                     "in '%.100s'",
                     Py_TYPE(value)->tp_name, PyString_Check(key) ? PyString_AS_STRING(key) : "?", type->tp_name);
 #endif
