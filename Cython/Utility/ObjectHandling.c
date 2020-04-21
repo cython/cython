@@ -1025,6 +1025,8 @@ static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObj
 //@requires: CalculateMetaclass
 //@requires: PyObjectCall2Args
 //@requires: PyObjectLookupSpecial
+// only in fallback code:
+//@requires: GetBuiltinName
 
 static PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObject *name,
                                            PyObject *qualname, PyObject *mkw, PyObject *modname, PyObject *doc) {
@@ -1115,8 +1117,69 @@ bad:
 }
 
 static PyObject *__Pyx_InitSubclassPEP487(PyObject *type_obj, PyObject *mkw) {
-    PyObject *super, *func, *res;
-    super = __Pyx_PyObject_Call2Args((PyObject*) &PySuper_Type, type_obj, type_obj);
+#if CYTHON_USE_TYPE_SLOTS && !CYTHON_AVOID_BORROWED_REFS
+// Stripped-down version of "super(type_obj, type_obj).__init_subclass__(**mkw)" in CPython 3.8.
+    PyTypeObject *type = (PyTypeObject*) type_obj;
+    PyObject *mro = type->tp_mro;
+    Py_ssize_t i, nbases;
+    if (unlikely(!mro)) goto done;
+
+    // avoid "unused" warning
+    (void) __Pyx_GetBuiltinName;
+
+    Py_INCREF(mro);
+    nbases = PyTuple_GET_SIZE(mro);
+
+    // Skip over the type itself and 'object'.
+    assert(PyTuple_GET_ITEM(mro, 0) == type_obj);
+    for (i = 1; i < nbases-1; i++) {
+        PyObject *base, *dict, *meth;
+        base = PyTuple_GET_ITEM(mro, i);
+        dict = ((PyTypeObject *)base)->tp_dict;
+        meth = __Pyx_PyDict_GetItemStrWithError(dict, PYIDENT("__init_subclass__"));
+        if (unlikely(meth)) {
+            descrgetfunc f = Py_TYPE(meth)->tp_descr_get;
+            PyObject *res;
+            Py_INCREF(meth);
+            if (likely(f)) {
+                res = f(meth, NULL, type_obj);
+                Py_DECREF(meth);
+                if (unlikely(!res)) goto bad;
+                meth = res;
+            }
+            res = __Pyx_PyObject_Call(meth, $empty_tuple, mkw);
+            Py_DECREF(meth);
+            if (unlikely(!res)) goto bad;
+            Py_DECREF(res);
+            goto done;
+        } else if (unlikely(PyErr_Occurred())) {
+            goto bad;
+        }
+    }
+
+done:
+    Py_XDECREF(mro);
+    return type_obj;
+
+bad:
+    Py_XDECREF(mro);
+    Py_DECREF(type_obj);
+    return NULL;
+
+// CYTHON_USE_TYPE_SLOTS && !CYTHON_AVOID_BORROWED_REFS
+#else
+// Generic fallback: "super(type_obj, type_obj).__init_subclass__(**mkw)", as used in CPython 3.8.
+    PyObject *super_type, *super, *func, *res;
+
+#if CYTHON_COMPILING_IN_PYPY && !defined(PySuper_Type)
+    super_type = __Pyx_GetBuiltinName(PYIDENT("super"));
+#else
+    super_type = (PyObject*) &PySuper_Type;
+#endif
+    super = likely(super_type) ? __Pyx_PyObject_Call2Args(super_type, type_obj, type_obj) : NULL;
+#if CYTHON_COMPILING_IN_PYPY && !defined(PySuper_Type)
+    Py_XDECREF(super_type);
+#endif
     if (unlikely(!super)) {
         Py_CLEAR(type_obj);
         goto done;
@@ -1135,7 +1198,10 @@ static PyObject *__Pyx_InitSubclassPEP487(PyObject *type_obj, PyObject *mkw) {
     Py_XDECREF(res);
 done:
     return type_obj;
+#endif
 }
+
+// PY_VERSION_HEX < 0x030600A4
 #endif
 
 static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObject *bases,
