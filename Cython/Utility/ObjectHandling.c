@@ -1068,7 +1068,7 @@ bad:
     return NULL;
 }
 
-#if PY_VERSION_HEX < 0x030600A4
+#if PY_VERSION_HEX < 0x030600A4 && CYTHON_PEP487_INIT_SUBCLASS
 // https://www.python.org/dev/peps/pep-0487/
 static int __Pyx_SetNamesPEP487(PyObject *type_obj) {
     PyTypeObject *type = (PyTypeObject*) type_obj;
@@ -1212,7 +1212,7 @@ done:
 #endif
 }
 
-// PY_VERSION_HEX < 0x030600A4
+// PY_VERSION_HEX < 0x030600A4 && CYTHON_PEP487_INIT_SUBCLASS
 #endif
 
 static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObject *bases,
@@ -1249,7 +1249,7 @@ static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObj
         Py_DECREF(margs);
     }
     Py_XDECREF(owned_metaclass);
-#if PY_VERSION_HEX < 0x030600A4
+#if PY_VERSION_HEX < 0x030600A4 && CYTHON_PEP487_INIT_SUBCLASS
     if (likely(result) && likely(PyType_Check(result))) {
         if (unlikely(__Pyx_SetNamesPEP487(result) < 0)) {
             Py_CLEAR(result);
