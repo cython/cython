@@ -392,11 +392,7 @@ class CythonBase(object):
 
         result = {}
         seen = set()
-        if sys.version_info[0] == 2:
-            iterator = pyobject_dict.iteritems()
-        else:
-            iterator = pyobject_dict.items()
-        for k, v in iterator:
+        for k, v in pyobject_dict.iteritems():
             result[k.proxyval(seen)] = v
 
         return result
@@ -1203,7 +1199,11 @@ class CyGlobals(CyLocals):
         seen = set()
         print('Python globals:')
 
-        for k, v in sorted(global_python_dict.iteritems(), key=sortkey):
+        if sys.version_info[0] == 2:
+            iterator = global_python_dict.iteritems()
+        else:
+            iterator = global_python_dict.items()
+        for k, v in sorted(iterator, key=sortkey):
             v = v.get_truncated_repr(libpython.MAX_OUTPUT_LEN)
             seen.add(k)
             print('    %-*s = %s' % (max_name_length, k, v))
