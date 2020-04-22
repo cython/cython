@@ -6710,7 +6710,9 @@ class MergedDictNode(ExprNode):
 
         if item.type is not dict_type:
             code.putln('} else {')
-            code.putln("%s = PyObject_CallFunctionObjArgs((PyObject*)&PyDict_Type, %s, NULL); %s" % (
+            code.globalstate.use_utility_code(UtilityCode.load_cached(
+                "PyObjectCallOneArg", "ObjectHandling.c"))
+            code.putln("%s = __Pyx_PyObject_CallOneArg((PyObject*)&PyDict_Type, %s); %s" % (
                 self.result(),
                 item.py_result(),
                 code.error_goto_if_null(self.result(), self.pos)))

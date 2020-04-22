@@ -488,6 +488,8 @@ static int __pyx_Generator_init(void); /*proto*/
 //@requires: Exceptions.c::RaiseException
 //@requires: Exceptions.c::SaveResetException
 //@requires: ObjectHandling.c::PyObjectCallMethod1
+//@requires: ObjectHandling.c::PyObjectCallNoArg
+//@requires: ObjectHandling.c::PyObjectFastCall
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
 //@requires: ObjectHandling.c::PyObjectGetAttrStrNoError
 //@requires: CommonStructures.c::FetchCommonType
@@ -905,7 +907,7 @@ static int __Pyx_Coroutine_CloseIter(__pyx_CoroutineObject *gen, PyObject *yf) {
                 PyErr_WriteUnraisable(yf);
             }
         } else {
-            retval = PyObject_CallFunction(meth, NULL);
+            retval = __Pyx_PyObject_CallNoArg(meth);
             Py_DECREF(meth);
             if (unlikely(!retval))
                 err = -1;
@@ -1057,10 +1059,11 @@ static PyObject *__Pyx__Coroutine_Throw(PyObject *self, PyObject *typ, PyObject 
                 goto throw_here;
             }
             if (likely(args)) {
-                ret = PyObject_CallObject(meth, args);
+                ret = __Pyx_PyObject_Call(meth, args, NULL);
             } else {
                 // "tb" or even "val" might be NULL, but that also correctly terminates the argument list
-                ret = PyObject_CallFunctionObjArgs(meth, typ, val, tb, NULL);
+                PyObject *cargs[4] = {NULL, typ, val, tb};
+                ret = __Pyx_PyObject_FastCall(meth, cargs+1, 3 | __Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET);
             }
             Py_DECREF(meth);
         }
