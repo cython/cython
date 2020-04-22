@@ -2017,12 +2017,29 @@ class PyGlobals(gdb.Command):
 
 PyGlobals()
 
+# This function used to be a part of CPython's libpython.py (as a member function of frame).
+# It is'nt anymore, so I copied it.
+def is_evalframeex(frame):
+    '''Is this a PyEval_EvalFrameEx frame?'''
+    if frame._gdbframe.name() == 'PyEval_EvalFrameEx':
+        '''
+        I believe we also need to filter on the inline
+        struct frame_id.inline_depth, only regarding frames with
+        an inline depth of 0 as actually being this function
+
+        So we reject those with type gdb.INLINE_FRAME
+        '''
+        if frame._gdbframe.type() == gdb.NORMAL_FRAME:
+            # We have a PyEval_EvalFrameEx frame:
+            return True
+
+    return False
 
 class PyNameEquals(gdb.Function):
 
     def _get_pycurframe_attr(self, attr):
         frame = Frame(gdb.selected_frame())
-        if frame.is_evalframeex():
+        if is_evalframeex(frame):
             pyframe = frame.get_pyop()
             if pyframe is None:
                 warnings.warn("Use a Python debug build, Python breakpoints "
