@@ -1187,6 +1187,8 @@ bad:
     super_type = __Pyx_GetBuiltinName(PYIDENT("super"));
 #else
     super_type = (PyObject*) &PySuper_Type;
+    // avoid "unused" warning
+    (void) __Pyx_GetBuiltinName;
 #endif
     super = likely(super_type) ? __Pyx_PyObject_Call2Args(super_type, type_obj, type_obj) : NULL;
 #if CYTHON_COMPILING_IN_PYPY && !defined(PySuper_Type)
