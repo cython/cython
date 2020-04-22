@@ -177,12 +177,13 @@ class TestBreak(DebugTestCase):
         assert step_result.rstrip().endswith(nextline)
 
 
-class TestKilled(DebugTestCase):
-
-    def test_abort(self):
-        gdb.execute("set args -c 'import os; os.abort()'")
-        output = gdb.execute('cy run', to_string=True)
-        assert 'abort' in output.lower()
+# I removed this testcase, because it will never work, because
+# gdb.execute(..., to_string=True) does not capture stdout and stderr of python.
+# class TestKilled(DebugTestCase):
+#     def test_abort(self):
+#         gdb.execute("set args -c 'import os;print(123456789);os.abort()'")
+#         output = gdb.execute('cy run', to_string=True)
+#         assert 'abort' in output.lower()
 
 
 class DebugStepperTestCase(DebugTestCase):
