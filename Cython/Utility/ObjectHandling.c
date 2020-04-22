@@ -1187,6 +1187,8 @@ bad:
     super_type = __Pyx_GetBuiltinName(PYIDENT("super"));
 #else
     super_type = (PyObject*) &PySuper_Type;
+    // avoid "unused" warning
+    (void) __Pyx_GetBuiltinName;
 #endif
     super = likely(super_type) ? __Pyx_PyObject_Call2Args(super_type, type_obj, type_obj) : NULL;
 #if CYTHON_COMPILING_IN_PYPY && !defined(PySuper_Type)
@@ -1258,6 +1260,9 @@ static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObj
             result = __Pyx_InitSubclassPEP487(result, mkw);
         }
     }
+#else
+    // avoid "unused" warning
+    (void) __Pyx_GetBuiltinName;
 #endif
     return result;
 }
