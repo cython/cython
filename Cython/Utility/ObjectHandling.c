@@ -1023,6 +1023,7 @@ static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObj
 //@substitute: naming
 //@requires: PyObjectGetAttrStrNoError
 //@requires: CalculateMetaclass
+//@requires: PyObjectCall
 //@requires: PyObjectCall2Args
 //@requires: PyObjectLookupSpecial
 // only in fallback code:
@@ -1245,7 +1246,7 @@ static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObj
         PyObject *mc_kwargs = (PY_VERSION_HEX >= 0x030600A4) ? mkw : (
             (metaclass == (PyObject*)&PyType_Type) ? NULL : mkw);
 
-        result = PyObject_Call(metaclass, margs, mc_kwargs);
+        result = __Pyx_PyObject_Call(metaclass, margs, mc_kwargs);
         Py_DECREF(margs);
     }
     Py_XDECREF(owned_metaclass);
