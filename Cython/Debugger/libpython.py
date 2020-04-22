@@ -1966,8 +1966,23 @@ PyLocals()
 import re
 import warnings
 import tempfile
+import functools
 import textwrap
 import itertools
+import traceback
+
+
+def dont_suppress_errors(function):
+    "*sigh*, readline"
+    @functools.wraps(function)
+    def wrapper(*args, **kwargs):
+        try:
+            return function(*args, **kwargs)
+        except Exception:
+            traceback.print_exc()
+            raise
+
+    return wrapper
 
 class PyGlobals(gdb.Command):
     'List all the globals in the currently select Python frame'
@@ -1977,7 +1992,7 @@ class PyGlobals(gdb.Command):
                               gdb.COMMAND_DATA,
                               gdb.COMPLETE_NONE)
 
-
+    @dont_suppress_errors
     def invoke(self, args, from_tty):
         name = str(args)
 
@@ -2018,6 +2033,7 @@ class PyNameEquals(gdb.Function):
 
         return None
 
+    @dont_suppress_errors
     def invoke(self, funcname):
         attr = self._get_pycurframe_attr('co_name')
         return attr is not None and attr == funcname.string()
@@ -2027,6 +2043,7 @@ PyNameEquals("pyname_equals")
 
 class PyModEquals(PyNameEquals):
 
+    @dont_suppress_errors
     def invoke(self, modname):
         attr = self._get_pycurframe_attr('co_filename')
         if attr is not None:
@@ -2050,6 +2067,7 @@ class PyBreak(gdb.Command):
         py-break func
     """
 
+    @dont_suppress_errors
     def invoke(self, funcname, from_tty):
         if '.' in funcname:
             modname, dot, funcname = funcname.rpartition('.')
@@ -2504,6 +2522,7 @@ class PyStep(ExecutionControlCommandBase, PythonStepperMixin):
 
     stepinto = True
 
+    @dont_suppress_errors
     def invoke(self, args, from_tty):
         self.python_step(stepinto=self.stepinto)
 
@@ -2517,18 +2536,18 @@ class PyNext(PyStep):
 class PyFinish(ExecutionControlCommandBase):
     "Execute until function returns to a caller."
 
-    invoke = ExecutionControlCommandBase.finish
+    invoke = dont_suppress_errors(ExecutionControlCommandBase.finish)
 
 
 class PyRun(ExecutionControlCommandBase):
     "Run the program."
 
-    invoke = ExecutionControlCommandBase.run
+    invoke = dont_suppress_errors(ExecutionControlCommandBase.run)
 
 
 class PyCont(ExecutionControlCommandBase):
 
-    invoke = ExecutionControlCommandBase.cont
+    invoke = dont_suppress_errors(ExecutionControlCommandBase.cont)
 
 
 def _pointervalue(gdbval):
@@ -2740,6 +2759,7 @@ class FixGdbCommand(gdb.Command):
             pass
         # warnings.resetwarnings()
 
+    @dont_suppress_errors
     def invoke(self, args, from_tty):
         self.fix_gdb()
         try:
@@ -2787,6 +2807,7 @@ class PyExec(gdb.Command):
 
             return '\n'.join(lines), PythonCodeExecutor.Py_file_input
 
+    @dont_suppress_errors
     def invoke(self, expr, from_tty):
         expr, input_type = self.readcode(expr)
         executor = PythonCodeExecutor()
