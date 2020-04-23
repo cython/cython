@@ -2,17 +2,73 @@
 Cython Changelog
 ================
 
-3.0.0 (2020-??-??)
-==================
+3.0.0 alpha 2 (2020-04-23)
+==========================
+
+Features added
+--------------
+
+* ``std::move()`` is now used in C++ mode for internal temp variables to
+  make them work without copying values.
+  Patch by David Woods.  (Github issues #3253, 1612)
+
+* ``__class_getitem__`` is supported for types on item access (PEP-560).
+  Patch by msg555.  (Github issue #2753)
+
+* The simplified Py3.6 customisation of class creation is implemented (PEP-487).
+  (Github issue #2781)
+
+* Conditional blocks in Python code that depend on ``cython.compiled`` are
+  eliminated at an earlier stage, which gives more freedom in writing
+  replacement Python code.
+  Patch by David Woods.  (Github issue #3507)
+
+* ``numpy.import_array()`` is automatically called if ``numpy`` has been cimported
+  and it has not been called in the module code.  This is intended as a hidden
+  fail-safe so user code should continue to call ``numpy.import_array``.
+  Patch by David Woods.  (Github issue #3524)
+
+* The Cython AST code serialiser class ``CodeWriter`` in ``Cython.CodeWriter``
+  supports more syntax nodes.
+
+* The fastcall/vectorcall protocols are used for several internal Python calls.
+  (Github issue #3540)
+
+Bugs fixed
+----------
+
+* With ``language_level=3/3str``, Python classes without explicit base class
+  are now new-style (type) classes also in Py2.  Previously, they were created
+  as old-style (non-type) classes.
+  (Github issue #3530)
+
+* C++ ``typeid()`` failed for fused types.
+  Patch by David Woods.  (Github issue #3203)
+
+* ``__arg`` argument names in methods were not mangled with the class name.
+  Patch by David Woods.  (Github issue #1382)
+
+* Creating an empty unicode slice with large bounds could crash.
+  Patch by Sam Sneddon.  (Github issue #3531)
+
+* Decoding an empty bytes/char* slice with large bounds could crash.
+  Patch by Sam Sneddon.  (Github issue #3534)
+
+* Temporary buffer indexing variables were not released and could show up in
+  C compiler warnings, e.g. in generators.
+  Patch by David Woods.  (Github issues #3430, #3522)
+
+* Several C compiler warnings were fixed.
+
+
+3.0.0 alpha 1 (2020-04-12)
+==========================
 
 Features added
 --------------
 
 * Cython functions now use the PEP-590 vectorcall protocol in Py3.7+.
   Patch by Jeroen Demeyer.  (Github issue #2263)
-
-* The simplified Py3.6 customisation of class creation is implemented (PEP-487).
-  (Github issue #2781)
 
 * Unicode identifiers are supported in Cython code (PEP 3131).
   Patch by David Woods.  (Github issue #2601)
@@ -23,15 +79,10 @@ Features added
 * Annotations are no longer parsed, keeping them as strings following PEP-563.
   Patch by David Woods.  (Github issue #3285)
 
-* Conditional blocks in Python code that depend on ``cython.compiled`` are
-  eliminated at an earlier stage, which gives more freedom in writing
-  replacement Python code.
-  Patch by David Woods.  (Github issue #3507)
-
 * Preliminary support for the CPython's ``Py_LIMITED_API`` (stable ABI) is
   available by setting the  ``CYTHON_LIMITED_API`` C macro.  Note that the
   support is currently in an early stage and many features do not yet work.
-  Patches by Eddie Elizondo.  (Github issue #3223, #3311)
+  Patches by Eddie Elizondo and David Woods.  (Github issues #3223, #3311, #3501)
 
 * The dispatch to fused functions is now linear in the number of arguments,
   which makes it much faster, often 2x or more, and several times faster for
@@ -97,11 +148,6 @@ Features added
   C macro automatically when ``numpy`` is imported in the code, to avoid C compiler
   warnings about deprecated NumPy C-API usage.
 
-* ``numpy.import_array`` is automatically called if ``numpy`` has been cimported
-  and it has not been called in the module code.  This is intended as a hidden
-  fail-safe so user code should continue to call ``numpy.import_array``.
-  Patch by David Woods.  (Github issue #3524)
-
 * The builtin ``abs()`` function can now be used on C numbers in nogil code.
   Patch by Elliott Sales de Andrade.  (Github issue #2748)
 
@@ -128,9 +174,6 @@ Features added
 
 * The Pythran ``shape`` attribute is supported.
   Patch by Serge Guelton.  (Github issue #3307)
-
-* The Cython AST code serialiser class ``CodeWriter`` in ``Cython.CodeWriter``
-  supports more syntax nodes.
 
 Bugs fixed
 ----------
@@ -204,9 +247,6 @@ Bugs fixed
 
 * Memoryviews failed to compile when the ``cache_builtins`` feature was disabled.
   Patch by David Woods.  (Github issue #3406)
-
-* C++ ``typeid()`` failed for fused types.
-  Patch by David Woods.  (Github issue #3203)
 
 Other changes
 -------------
