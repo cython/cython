@@ -1124,7 +1124,7 @@ bad:
 }
 
 static PyObject *__Pyx_InitSubclassPEP487(PyObject *type_obj, PyObject *mkw) {
-#if CYTHON_USE_TYPE_SLOTS && !CYTHON_AVOID_BORROWED_REFS
+#if CYTHON_USE_TYPE_SLOTS && CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
 // Stripped-down version of "super(type_obj, type_obj).__init_subclass__(**mkw)" in CPython 3.8.
     PyTypeObject *type = (PyTypeObject*) type_obj;
     PyObject *mro = type->tp_mro;
@@ -1173,7 +1173,7 @@ bad:
     Py_DECREF(type_obj);
     return NULL;
 
-// CYTHON_USE_TYPE_SLOTS && !CYTHON_AVOID_BORROWED_REFS
+// CYTHON_USE_TYPE_SLOTS && CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
 #else
 // Generic fallback: "super(type_obj, type_obj).__init_subclass__(**mkw)", as used in CPython 3.8.
     PyObject *super_type, *super, *func, *res;
