@@ -248,8 +248,9 @@ setup(
     Python code.
 
     Note that for one-time builds, e.g. for CI/testing, on platforms that are not
-    covered by one of the wheel packages provided on PyPI, it is substantially faster
-    than a full source build to install an uncompiled (slower) version of Cython with::
+    covered by one of the wheel packages provided on PyPI *and* the pure Python wheel
+    that we provide is not used, it is substantially faster than a full source build
+    to install an uncompiled (slower) version of Cython with::
 
         pip install Cython --install-option="--no-cython-compile"
 
