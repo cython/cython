@@ -665,7 +665,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(json.dumps(metadata, indent=4, sort_keys=True))
             code.putln("END: Cython Metadata */")
             code.putln("")
+
         code.putln("#define PY_SSIZE_T_CLEAN")
+        self._put_setup_code(code, "InitLimitedAPI")
 
         for inc in sorted(env.c_includes.values(), key=IncludeCode.sortkey):
             if inc.location == inc.INITIAL:
@@ -2458,10 +2460,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('int %s;' % Naming.clineno_cname)
         code.putln('const char *%s;' % Naming.filename_cname)
         code.putln('#ifdef __Pyx_CyFunction_USED')
-        code.putln('PyObject *%s;' % Naming.cyfunction_type_cname)
+        code.putln('PyTypeObject *%s;' % Naming.cyfunction_type_cname)
         code.putln('#endif')
         code.putln('#ifdef __Pyx_FusedFunction_USED')
-        code.putln('PyObject *%s;' % Naming.fusedfunction_type_cname)
+        code.putln('PyTypeObject *%s;' % Naming.fusedfunction_type_cname)
         code.putln('#endif')
 
     def generate_module_state_end(self, env, modules, globalstate):
@@ -3171,6 +3173,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 env.method_table_cname,
                 doc,
                 env.module_cname))
+        code.putln(code.error_goto_if_null(env.module_cname, self.pos))
         code.putln("#elif CYTHON_COMPILING_IN_LIMITED_API")
         module_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
         code.putln(
@@ -3188,8 +3191,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "%s = PyModule_Create(&%s);" % (
                 env.module_cname,
                 Naming.pymoduledef_cname))
-        code.putln("#endif")
         code.putln(code.error_goto_if_null(env.module_cname, self.pos))
+        code.putln("#endif")
         code.putln("#endif")  # CYTHON_PEP489_MULTI_PHASE_INIT
 
         code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")

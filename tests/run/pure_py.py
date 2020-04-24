@@ -537,3 +537,14 @@ def none_declare():
     f = None
     f2 = cython.declare(Foo, f)
     return f2
+
+def array_init_with_list():
+    """
+    >>> array_init_with_list()
+    [10, 42]
+    """
+    x = cython.declare(cython.int[20], list(range(20)))
+    x[12] = 42
+
+    return [x[10], x[12]]
+

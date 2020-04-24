@@ -169,7 +169,6 @@ class PostParse(ScopeTrackingTransform):
     reorganization that can be refactored into this transform
     if a more pure Abstract Syntax Tree is wanted.
     """
-
     def __init__(self, context):
         super(PostParse, self).__init__(context)
         self.specialattribute_handlers = {
@@ -630,6 +629,9 @@ class InterpretCompilerDirectives(CythonTransform):
     - Command-line arguments overriding these
     - @cython.directivename decorators
     - with cython.directivename: statements
+    - replaces "cython.compiled" with BoolNode(value=True)
+      allowing unreachable blocks to be removed at a fairly early stage
+      before cython typing rules are forced on applied
 
     This transform is responsible for interpreting these various sources
     and store the directive in two ways:
@@ -846,6 +848,16 @@ class InterpretCompilerDirectives(CythonTransform):
             directive = self.directive_names.get(node.name)
             if directive is not None:
                 node.cython_attribute = directive
+        if node.as_cython_attribute() == "compiled":
+            return ExprNodes.BoolNode(node.pos, value=True)  # replace early so unused branches can be dropped
+                # before they have a chance to cause compile-errors
+        return node
+
+    def visit_AttributeNode(self, node):
+        self.visitchildren(node)
+        if node.as_cython_attribute() == "compiled":
+            return ExprNodes.BoolNode(node.pos, value=True)  # replace early so unused branches can be dropped
+                # before they have a chance to cause compile-errors
         return node
 
     def visit_NewExprNode(self, node):
@@ -1910,6 +1922,8 @@ if VALUE is not None:
         for var, type_node in node.directive_locals.items():
             if not lenv.lookup_here(var):   # don't redeclare args
                 type = type_node.analyse_as_type(lenv)
+                if type and type.is_fused and lenv.fused_to_specific:
+                    type = type.specialize(lenv.fused_to_specific)
                 if type:
                     lenv.declare_var(var, type, type_node.pos)
                 else:
@@ -2221,7 +2235,7 @@ class CalculateQualifiedNamesTransform(EnvTransform):
     def visit_ClassDefNode(self, node):
         orig_qualified_name = self.qualified_name[:]
         entry = (getattr(node, 'entry', None) or             # PyClass
-                 self.current_env().lookup_here(node.name))  # CClass
+                 self.current_env().lookup_here(node.target.name))  # CClass
         self._append_entry(entry)
         self._super_visit_ClassDefNode(node)
         self.qualified_name = orig_qualified_name
@@ -3115,9 +3129,7 @@ class TransformBuiltinMethods(EnvTransform):
     def visit_cython_attribute(self, node):
         attribute = node.as_cython_attribute()
         if attribute:
-            if attribute == u'compiled':
-                node = ExprNodes.BoolNode(node.pos, value=True)
-            elif attribute == u'__version__':
+            if attribute == u'__version__':
                 from .. import __version__ as version
                 node = ExprNodes.StringNode(node.pos, value=EncodedString(version))
             elif attribute == u'NULL':

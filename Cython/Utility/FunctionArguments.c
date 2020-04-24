@@ -2,7 +2,7 @@
 
 
 #define __Pyx_ArgTypeTest(obj, type, none_allowed, name, exact) \
-    ((likely((Py_TYPE(obj) == type) | (none_allowed && (obj == Py_None)))) ? 1 : \
+    ((likely(__Pyx_IS_TYPE(obj, type) | (none_allowed && (obj == Py_None)))) ? 1 : \
         __Pyx__ArgTypeTest(obj, type, name, exact))
 
 static int __Pyx__ArgTypeTest(PyObject *obj, PyTypeObject *type, const char *name, int exact); /*proto*/
@@ -358,7 +358,7 @@ static int __Pyx_MergeKeywords(PyObject *kwdict, PyObject *source_mapping) {
     if (unlikely(!iter)) {
         // slow fallback: try converting to dict, then iterate
         PyObject *args;
-        if (!PyErr_ExceptionMatches(PyExc_AttributeError)) goto bad;
+        if (unlikely(!PyErr_ExceptionMatches(PyExc_AttributeError))) goto bad;
         PyErr_Clear();
         args = PyTuple_Pack(1, source_mapping);
         if (likely(args)) {
@@ -514,7 +514,6 @@ static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_ArgsSlice_VARARGS_struct(PyOb
 static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_FastcallTuple_FromTuple(PyObject* o);
 
 /////////////// FastcallTuple ///////////////
-//@requires: ObjectHandling.c::PyVectorcallNargs
 
 #if CYTHON_METH_FASTCALL
 static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_FastcallTuple_New(PyObject *const *args, Py_ssize_t nargs) {

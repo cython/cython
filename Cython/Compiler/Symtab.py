@@ -929,12 +929,14 @@ class Scope(object):
     def lookup(self, name):
         # Look up name in this scope or an enclosing one.
         # Return None if not found.
+        name = self.mangle_class_private_name(name)
         return (self.lookup_here(name)
             or (self.outer_scope and self.outer_scope.lookup(name))
             or None)
 
     def lookup_here(self, name):
         # Look up in this scope only, return None if not found.
+        name = self.mangle_class_private_name(name)
         return self.entries.get(name, None)
 
     def lookup_target(self, name):
@@ -1795,6 +1797,7 @@ class LocalScope(Scope):
 
     def declare_arg(self, name, type, pos):
         # Add an entry for an argument of a function.
+        name = self.mangle_class_private_name(name)
         cname = self.mangle(Naming.var_prefix, name)
         entry = self.declare(name, cname, type, pos, 'private')
         entry.is_variable = 1
@@ -1808,6 +1811,7 @@ class LocalScope(Scope):
     def declare_var(self, name, type, pos,
                     cname = None, visibility = 'private',
                     api = 0, in_pxd = 0, is_cdef = 0):
+        name = self.mangle_class_private_name(name)
         # Add an entry for a local variable.
         if visibility in ('public', 'readonly'):
             error(pos, "Local variable cannot be declared %s" % visibility)
@@ -1844,6 +1848,7 @@ class LocalScope(Scope):
     def lookup(self, name):
         # Look up name in this scope or an enclosing one.
         # Return None if not found.
+
         entry = Scope.lookup(self, name)
         if entry is not None:
             entry_scope = entry.scope
@@ -2005,6 +2010,17 @@ class ClassScope(Scope):
     #                          declared in the class
     #  doc    string or None   Doc string
 
+    def mangle_class_private_name(self, name):
+        # a few utilitycode names need to specifically be ignored
+        if name and name.lower().startswith("__pyx_"):
+            return name
+        return self.mangle_special_name(name)
+
+    def mangle_special_name(self, name):
+        if name and name.startswith('__') and not name.endswith('__'):
+            name = EncodedString('_%s%s' % (self.class_name.lstrip('_'), name))
+        return name
+
     def __init__(self, name, outer_scope):
         Scope.__init__(self, name, outer_scope, outer_scope)
         self.class_name = name
@@ -2037,18 +2053,6 @@ class PyClassScope(ClassScope):
     #  class_obj_cname     string   C variable holding class object
 
     is_py_class_scope = 1
-
-    def mangle_class_private_name(self, name):
-        return self.mangle_special_name(name)
-
-    def mangle_special_name(self, name):
-        if name and name.startswith('__') and not name.endswith('__'):
-            name = EncodedString('_%s%s' % (self.class_name.lstrip('_'), name))
-        return name
-
-    def lookup_here(self, name):
-        name = self.mangle_special_name(name)
-        return ClassScope.lookup_here(self, name)
 
     def declare_var(self, name, type, pos,
                     cname = None, visibility = 'private',
@@ -2183,6 +2187,7 @@ class CClassScope(ClassScope):
     def declare_var(self, name, type, pos,
                     cname = None, visibility = 'private',
                     api = 0, in_pxd = 0, is_cdef = 0):
+        name = self.mangle_special_name(name)
         if is_cdef:
             # Add an entry for an attribute.
             if self.defined:
@@ -2289,6 +2294,7 @@ class CClassScope(ClassScope):
     def declare_cfunction(self, name, type, pos,
                           cname=None, visibility='private', api=0, in_pxd=0,
                           defining=0, modifiers=(), utility_code=None, overridable=False):
+        name = self.mangle_class_private_name(name)
         if get_special_method_signature(name) and not self.parent_type.is_builtin_type:
             error(pos, "Special methods must be declared with 'def', not 'cdef'")
         args = type.args

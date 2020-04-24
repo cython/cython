@@ -178,7 +178,7 @@ class MarkParallelAssignments(EnvTransform):
         return node
 
     def visit_FromCImportStatNode(self, node):
-        pass # Can't be assigned to...
+        return node # Can't be assigned to...
 
     def visit_FromImportStatNode(self, node):
         for name, target in node.items:

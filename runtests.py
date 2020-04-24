@@ -3,6 +3,7 @@
 from __future__ import print_function
 
 import atexit
+import base64
 import os
 import sys
 import re
@@ -415,6 +416,7 @@ VER_DEP_MODULES = {
     (2,999): (operator.lt, lambda x: x in ['run.special_methods_T561_py3',
                                            'run.test_raisefrom',
                                            'run.different_package_names',
+                                           'run.unicode_imports',  # encoding problems on appveyor in Py2
                                            ]),
     (3,): (operator.ge, lambda x: x in ['run.non_future_division',
                                         'compile.extsetslice',
@@ -878,7 +880,13 @@ class CythonCompileTestCase(unittest.TestCase):
         from Cython.Compiler import Options
         self._saved_options = [
             (name, getattr(Options, name))
-            for name in ('warning_errors', 'clear_to_none', 'error_on_unknown_names', 'error_on_uninitialized')
+            for name in (
+                'warning_errors',
+                'clear_to_none',
+                'error_on_unknown_names',
+                'error_on_uninitialized',
+                # 'cache_builtins',  # not currently supported due to incorrect global caching
+            )
         ]
         self._saved_default_directives = list(Options.get_directive_defaults().items())
         Options.warning_errors = self.warning_errors
@@ -1237,11 +1245,14 @@ class CythonCompileTestCase(unittest.TestCase):
             finally:
                 if show_output:
                     stdout = get_stdout and get_stdout().strip()
+                    stderr = get_stderr and filter_stderr(get_stderr()).strip()
+                    if so_path and not stderr:
+                        # normal success case => ignore non-error compiler output
+                        stdout = None
                     if stdout:
                         print_bytes(
                             stdout, header_text="\n=== C/C++ compiler output: =========\n",
                             end=None, file=sys.__stderr__)
-                    stderr = get_stderr and filter_stderr(get_stderr()).strip()
                     if stderr:
                         print_bytes(
                             stderr, header_text="\n=== C/C++ compiler error output: ===\n",
@@ -1731,8 +1742,6 @@ class EndToEndTest(unittest.TestCase):
         _, self.commands = unpack_source_tree(self.treefile, self.workdir, self.cython_root)
         self.old_dir = os.getcwd()
         os.chdir(self.workdir)
-        if self.workdir not in sys.path:
-            sys.path.insert(0, self.workdir)
 
     def tearDown(self):
         if self.cleanup_workdir:
@@ -1757,8 +1766,10 @@ class EndToEndTest(unittest.TestCase):
         env = dict(os.environ)
         new_path = self.cython_syspath
         if old_path:
-            new_path = new_path + os.pathsep + old_path
+            new_path = new_path + os.pathsep + self.workdir + os.pathsep + old_path
         env['PYTHONPATH'] = new_path
+        if not env.get("PYTHONIOENCODING"):
+            env["PYTHONIOENCODING"] = sys.stdout.encoding or sys.getdefaultencoding()
         cmd = []
         out = []
         err = []
@@ -1819,12 +1830,20 @@ class EmbedTest(unittest.TestCase):
         if sys.version_info[0] >=3 and CY3_DIR:
             cython = os.path.join(CY3_DIR, cython)
         cython = os.path.abspath(os.path.join('..', '..', cython))
-        self.assertEqual(0, os.system(
-            "make PYTHON='%s' CYTHON='%s' LIBDIR1='%s' test > make.output" % (sys.executable, cython, libdir)))
+
         try:
-            os.remove('make.output')
-        except OSError:
-            pass
+            subprocess.check_output([
+                "make",
+                "PYTHON='%s'" % sys.executable,
+                "CYTHON='%s'" % cython,
+                "LIBDIR1='%s'" % libdir,
+                "paths", "test",
+            ])
+        except subprocess.CalledProcessError as err:
+            print(err.output.decode())
+            raise
+        self.assertTrue(True)  # :)
+
 
 def load_listfile(filename):
     # just re-use the FileListExclude implementation
@@ -1920,6 +1939,10 @@ class ShardExcludeSelector(object):
     # This is an exclude selector so it can override the (include) selectors.
     # It may not provide uniform distribution (in time or count), but is a
     # determanistic partition of the tests which is important.
+
+    # Random seed to improve the hash distribution.
+    _seed = base64.b64decode(b'2ged1EtsGz/GkisJr22UcLeP6n9XIaA5Vby2wM49Wvg=')
+
     def __init__(self, shard_num, shard_count):
         self.shard_num = shard_num
         self.shard_count = shard_count
@@ -1927,7 +1950,7 @@ class ShardExcludeSelector(object):
     def __call__(self, testname, tags=None, _hash=zlib.crc32, _is_py2=IS_PY2):
         # Cannot use simple hash() here as shard processes might use different hash seeds.
         # CRC32 is fast and simple, but might return negative values in Py2.
-        hashval = _hash(testname) & 0x7fffffff if _is_py2 else _hash(testname.encode())
+        hashval = _hash(self._seed + testname) & 0x7fffffff if _is_py2 else _hash(self._seed + testname.encode())
         return hashval % self.shard_count != self.shard_num
 
 
@@ -2176,6 +2199,9 @@ def main():
     else:
         keep_alive_interval = None
     if options.shard_count > 1 and options.shard_num == -1:
+        if "PYTHONIOENCODING" not in os.environ:
+            # Make sure subprocesses can print() Unicode text.
+            os.environ["PYTHONIOENCODING"] = sys.stdout.encoding or sys.getdefaultencoding()
         import multiprocessing
         pool = multiprocessing.Pool(options.shard_count)
         tasks = [(options, cmd_args, shard_num) for shard_num in range(options.shard_count)]
@@ -2319,6 +2345,14 @@ def runtests(options, cmd_args, coverage=None):
     else:
         faulthandler.enable()
 
+    if sys.platform == "win32" and sys.version_info < (3, 6):
+        # enable Unicode console output, if possible
+        try:
+            import win_unicode_console
+        except ImportError:
+            pass
+        else:
+            win_unicode_console.enable()
 
     WITH_CYTHON = options.with_cython
     ROOTDIR = os.path.abspath(options.root_dir)

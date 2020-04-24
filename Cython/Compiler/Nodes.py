@@ -39,6 +39,9 @@ else:
     _py_int_types = (int, long)
 
 
+IMPLICIT_CLASSMETHODS = {"__init_subclass__", "__class_getitem__"}
+
+
 def relative_position(pos):
     return (pos[0].get_filenametable_entry(), pos[1])
 
@@ -838,6 +841,16 @@ class CArgDeclNode(Node):
     @property
     def name_cstring(self):
         return self.name.as_c_string_literal()
+
+    @property
+    def hdr_cname(self):
+        # done lazily - needs self.entry to be set to get the class-mangled
+        # name, which means it has to be generated relatively late
+        if self.needs_conversion:
+            return punycodify_name(Naming.arg_prefix + self.entry.name)
+        else:
+            return punycodify_name(Naming.var_prefix + self.entry.name)
+
 
     def analyse(self, env, nonempty=0, is_self_arg=False):
         if is_self_arg:
@@ -1680,8 +1693,6 @@ class FuncDefNode(StatNode, BlockNode):
             return arg
         if other_type is None:
             error(type_node.pos, "Not a type")
-        elif other_type.is_fused and any(orig_type.same_as(t) for t in other_type.types):
-            pass # use specialized rather than fused type
         elif orig_type is not py_object_type and not orig_type.same_as(other_type):
             error(arg.base_type.pos, "Signature does not agree with previous declaration")
             error(type_node.pos, "Previous declaration here")
@@ -2440,7 +2451,7 @@ class CFuncDefNode(FuncDefNode):
             py_func_body = self.call_self_node(is_module_scope=env.is_module_scope)
             if self.is_static_method:
                 from .ExprNodes import NameNode
-                decorators = [DecoratorNode(self.pos, decorator=NameNode(self.pos, name='staticmethod'))]
+                decorators = [DecoratorNode(self.pos, decorator=NameNode(self.pos, name=EncodedString('staticmethod')))]
                 decorators[0].decorator.analyse_types(env)
             else:
                 decorators = []
@@ -2891,8 +2902,16 @@ class DefNode(FuncDefNode):
             # staticmethod() was overridden - not much we can do here ...
             self.is_staticmethod = False
 
-        if self.name == '__new__' and env.is_py_class_scope:
-            self.is_staticmethod = 1
+        if env.is_py_class_scope:
+            if self.name == '__new__':
+                self.is_staticmethod = True
+            elif not self.is_classmethod and self.name in IMPLICIT_CLASSMETHODS:
+                self.is_classmethod = True
+                # TODO: remove the need to generate a real decorator here, is_classmethod=True should suffice.
+                from .ExprNodes import NameNode
+                self.decorators = self.decorators or []
+                self.decorators.insert(0, DecoratorNode(
+                    self.pos, decorator=NameNode(self.pos, name=EncodedString('classmethod'))))
 
         self.analyse_argument_types(env)
         if self.name == '<lambda>':
@@ -3049,10 +3068,6 @@ class DefNode(FuncDefNode):
                         arg.needs_type_test = 1
                     else:
                         arg.needs_conversion = 1
-            if arg.needs_conversion:
-                arg.hdr_cname = punycodify_name(Naming.arg_prefix + arg.name)
-            else:
-                arg.hdr_cname = punycodify_name(Naming.var_prefix + arg.name)
 
         if nfixed > len(self.args):
             self.bad_signature()
@@ -3364,7 +3379,13 @@ class DefNodeWrapper(FuncDefNode):
         if self.signature.has_dummy_arg:
             args.append(Naming.self_cname)
         for arg in self.args:
-            if arg.hdr_type and not (arg.type.is_memoryviewslice or
+            if arg.hdr_type and arg.type.is_cpp_class:
+                # it's safe to move converted C++ types because they aren't
+                # used again afterwards
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("MoveIfSupported", "CppSupport.cpp"))
+                args.append("__PYX_STD_MOVE_IF_SUPPORTED(%s)" % arg.entry.cname)
+            elif arg.hdr_type and not (arg.type.is_memoryviewslice or
                                      arg.type.is_struct or
                                      arg.type.is_complex):
                 args.append(arg.type.cast_code(arg.entry.cname))
@@ -3776,7 +3797,7 @@ class DefNodeWrapper(FuncDefNode):
         all_args = tuple(positional_args) + tuple(kw_only_args)
         non_posonly_args = [arg for arg in all_args if not arg.pos_only]
         non_pos_args_id = ','.join(
-            ['&%s' % code.intern_identifier(arg.name) for arg in non_posonly_args] + ['0'])
+            ['&%s' % code.intern_identifier(arg.entry.name) for arg in non_posonly_args] + ['0'])
         code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
         code.putln("PyObject **%s[] = {%s};" % (
             Naming.pykwdlist_cname,
@@ -3856,7 +3877,7 @@ class DefNodeWrapper(FuncDefNode):
             code.putln('} else {')
             for i, arg in enumerate(kw_only_args):
                 if not arg.default:
-                    pystring_cname = code.intern_identifier(arg.name)
+                    pystring_cname = code.intern_identifier(arg.entry.name)
                     # required keyword-only argument missing
                     code.globalstate.use_utility_code(
                         UtilityCode.load_cached("RaiseKeywordRequired", "FunctionArguments.c"))
@@ -4080,7 +4101,7 @@ class DefNodeWrapper(FuncDefNode):
                         code.putln('default:')
                     else:
                         code.putln('case %2d:' % i)
-                pystring_cname = code.intern_identifier(arg.name)
+                pystring_cname = code.intern_identifier(arg.entry.name)
                 if arg.default:
                     if arg.kw_only:
                         # optional kw-only args are handled separately below
@@ -4758,7 +4779,9 @@ class PyClassDefNode(ClassDefNode):
             self.classobj = ExprNodes.Py3ClassNode(
                 pos, name=name, class_def_node=self, doc=doc_node,
                 calculate_metaclass=needs_metaclass_calculation,
-                allow_py2_metaclass=allow_py2_metaclass)
+                allow_py2_metaclass=allow_py2_metaclass,
+                force_type=force_py3_semantics,
+            )
         else:
             # no bases, no metaclass => old style class creation
             self.dict = ExprNodes.DictNode(pos, key_value_pairs=[])
@@ -5234,7 +5257,7 @@ class CClassDefNode(ClassDefNode):
                             func.name,
                             code.error_goto_if_null('wrapper', entry.pos)))
                     code.putln(
-                        "if (Py_TYPE(wrapper) == &PyWrapperDescr_Type) {")
+                        "if (__Pyx_IS_TYPE(wrapper, &PyWrapperDescr_Type)) {")
                     code.putln(
                         "%s = *((PyWrapperDescrObject *)wrapper)->d_base;" % (
                             func.wrapperbase_cname))
@@ -6584,14 +6607,18 @@ class IfStatNode(StatNode):
     def _set_branch_hint(self, clause, statements_node, inverse=False):
         if not statements_node.is_terminator:
             return
-        if not isinstance(statements_node, StatListNode) or not statements_node.stats:
-            return
+        if isinstance(statements_node, StatListNode):
+            if not statements_node.stats:
+                return
+            statements = statements_node.stats
+        else:
+            statements = [statements_node]
         # Anything that unconditionally raises exceptions should be considered unlikely.
-        if isinstance(statements_node.stats[-1], (RaiseStatNode, ReraiseStatNode)):
-            if len(statements_node.stats) > 1:
+        if isinstance(statements[-1], (RaiseStatNode, ReraiseStatNode)):
+            if len(statements) > 1:
                 # Allow simple statements before the 'raise', but no conditions, loops, etc.
                 non_branch_nodes = (ExprStatNode, AssignmentNode, DelStatNode, GlobalNode, NonlocalNode)
-                for node in statements_node.stats[:-1]:
+                for node in statements[:-1]:
                     if not isinstance(node, non_branch_nodes):
                         return
             clause.branch_hint = 'likely' if inverse else 'unlikely'
@@ -8224,6 +8251,33 @@ utility_code_for_imports = {
     'inspect': ("__Pyx_patch_inspect", "PatchInspect", "Coroutine.c"),
 }
 
+def cimport_numpy_check(node, code):
+    # shared code between CImportStatNode and FromCImportStatNode
+    # check to ensure that import_array is called
+    for mod in code.globalstate.module_node.scope.cimported_modules:
+        if mod.name != node.module_name:
+            continue
+        # there are sometimes several cimported modules with the same name
+        # so complete the loop if necessary
+        import_array = mod.lookup_here("import_array")
+        _import_array = mod.lookup_here("_import_array")
+        # at least one entry used
+        used = (import_array and import_array.used) or (_import_array and _import_array.used)
+        if ((import_array or _import_array) # at least one entry found
+                and not used):
+            # sanity check that this is actually numpy and not a user pxd called "numpy"
+            if _import_array and _import_array.type.is_cfunction:
+                # warning is mainly for the sake of testing
+                warning(node.pos, "'numpy.import_array()' has been added automatically "
+                        "since 'numpy' was cimported but 'numpy.import_array' was not called.", 0)
+                from .Code import TempitaUtilityCode
+                code.globalstate.use_utility_code(
+                         TempitaUtilityCode.load_cached("NumpyImportArray", "NumpyImportArray.c",
+                                            context = {'err_goto': code.error_goto(node.pos)})
+                    )
+                return # no need to continue once the utility code is added
+
+
 
 class CImportStatNode(StatNode):
     #  cimport statement
@@ -8265,7 +8319,8 @@ class CImportStatNode(StatNode):
         return self
 
     def generate_execution_code(self, code):
-        pass
+        if self.module_name == "numpy":
+            cimport_numpy_check(self, code)
 
 
 class FromCImportStatNode(StatNode):
@@ -8344,7 +8399,8 @@ class FromCImportStatNode(StatNode):
         return self
 
     def generate_execution_code(self, code):
-        pass
+        if self.module_name == "numpy":
+            cimport_numpy_check(self, code)
 
 
 class FromImportStatNode(StatNode):

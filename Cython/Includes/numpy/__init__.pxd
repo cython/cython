@@ -430,6 +430,9 @@ cdef extern from "numpy/arrayobject.h":
         int len
 
     int _import_array() except -1
+    # A second definition so _import_array isn't marked as used when we use it here.
+    # Do not use - subject to change any time.
+    int __pyx_import_array "_import_array"() except -1
 
     #
     # Macros from ndarrayobject.h
@@ -1046,7 +1049,7 @@ cdef inline object get_array_base(ndarray arr):
 # Cython code.
 cdef inline int import_array() except -1:
     try:
-        _import_array()
+        __pyx_import_array()
     except Exception:
         raise ImportError("numpy.core.multiarray failed to import")
 

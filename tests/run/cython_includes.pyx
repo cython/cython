@@ -28,6 +28,7 @@ cimport cpython.list
 cimport cpython.long
 cimport cpython.longintrepr
 cimport cpython.mapping
+cimport cpython.marshal
 cimport cpython.mem
 cimport cpython.memoryview
 cimport cpython.method

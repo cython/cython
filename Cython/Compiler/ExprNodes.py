@@ -448,6 +448,7 @@ class ExprNode(Node):
 
     saved_subexpr_nodes = None
     is_temp = False
+    has_temp_moved = False  # if True then attempting to do anything but free the temp is invalid
     is_target = False
     is_starred = False
 
@@ -497,6 +498,22 @@ class ExprNode(Node):
             return self.temp_code
         else:
             return self.calculate_result_code()
+
+    def _make_move_result_rhs(self, result, allow_move=True):
+        if (self.is_temp and allow_move and
+                self.type.is_cpp_class and not self.type.is_reference):
+            self.has_temp_moved = True
+            return "__PYX_STD_MOVE_IF_SUPPORTED({0})".format(result)
+        else:
+            return result
+
+    def move_result_rhs(self):
+        return self._make_move_result_rhs(self.result())
+
+    def move_result_rhs_as(self, type):
+        allow_move = (type and not type.is_reference and not type.needs_refcounting)
+        return self._make_move_result_rhs(self.result_as(type),
+                                          allow_move=allow_move)
 
     def pythran_result(self, type_=None):
         if is_pythran_supported_node_or_none(self):
@@ -655,6 +672,19 @@ class ExprNode(Node):
         # type, return that type, else None.
         return None
 
+    def analyse_as_specialized_type(self, env):
+        type = self.analyse_as_type(env)
+        if type and type.is_fused and env.fused_to_specific:
+            # while it would be nice to test "if entry.type in env.fused_to_specific"
+            # rather than try/catch this doesn't work reliably (mainly for nested fused types)
+            try:
+                return type.specialize(env.fused_to_specific)
+            except KeyError:
+                pass
+        if type and type.is_fused:
+            error(self.pos, "Type is not specific")
+        return type
+
     def analyse_as_extension_type(self, env):
         # If this node can be interpreted as a reference to an
         # extension type or builtin type, return its type, else None.
@@ -794,6 +824,9 @@ class ExprNode(Node):
             if self.result():
                 code.put_decref_clear(self.result(), self.ctype(),
                                         have_gil=not self.in_nogil_context)
+            if self.has_temp_moved:
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("MoveIfSupported", "CppSupport.cpp"))
         else:
             # Already done if self.is_temp
             self.generate_subexpr_disposal_code(code)
@@ -815,6 +848,10 @@ class ExprNode(Node):
             elif self.type.is_memoryviewslice:
                 code.putln("%s.memview = NULL;" % self.result())
                 code.putln("%s.data = NULL;" % self.result())
+
+            if self.has_temp_moved:
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("MoveIfSupported", "CppSupport.cpp"))
         else:
             self.generate_subexpr_disposal_code(code)
 
@@ -1960,6 +1997,8 @@ class NameNode(AtomicExprNode):
             _, atype = annotation.analyse_type_annotation(env)
         if atype is None:
             atype = unspecified_type if as_target and env.directives['infer_types'] != False else py_object_type
+        if atype.is_fused and env.fused_to_specific:
+            atype = atype.specialize(env.fused_to_specific)
         self.entry = env.declare_var(name, atype, self.pos, is_cdef=not as_target)
         self.entry.annotation = annotation.expr
 
@@ -2319,6 +2358,12 @@ class NameNode(AtomicExprNode):
             elif entry.scope.is_module_scope:
                 setter = 'PyDict_SetItem'
                 namespace = Naming.moddict_cname
+                code.putln("{")
+                code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+                # global module dict doesn't seems to exist in the limited API so create a temp variable
+                code.putln("PyObject *%s = PyModule_GetDict(%s); %s" % (
+                    namespace, Naming.module_cname, code.error_goto_if_null(namespace, self.pos)))
+                code.putln("#endif")
             elif entry.is_pyclass_attr:
                 # Special-case setting __new__
                 n = "SetNewInClass" if self.name == "__new__" else "SetNameInClass"
@@ -2326,14 +2371,6 @@ class NameNode(AtomicExprNode):
                 setter = '__Pyx_' + n
             else:
                 assert False, repr(entry)
-            code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-            code.put_incref(rhs.py_result(), py_object_type)
-            code.put_error_if_neg(self.pos, '%s(%s, %s, %s)' % (
-              "PyModule_AddObject",
-              Naming.module_cname,
-              code.get_string_const(self.entry.name),
-              rhs.py_result()))
-            code.putln("#else")
             code.put_error_if_neg(
                 self.pos,
                 '%s(%s, %s, %s)' % (
@@ -2341,7 +2378,6 @@ class NameNode(AtomicExprNode):
                     namespace,
                     interned_cname,
                     rhs.py_result()))
-            code.putln("#endif")
             if debug_disposal_code:
                 print("NameNode.generate_assignment_code:")
                 print("...generating disposal code for %s" % rhs)
@@ -2351,6 +2387,8 @@ class NameNode(AtomicExprNode):
                 # in Py2.6+, we need to invalidate the method cache
                 code.putln("PyType_Modified(%s);" %
                            entry.scope.parent_type.typeptr_cname)
+            elif entry.scope.is_module_scope:
+                code.putln("}")
         else:
             if self.type.is_memoryviewslice:
                 self.generate_acquire_memoryviewslice(rhs, code)
@@ -2394,7 +2432,7 @@ class NameNode(AtomicExprNode):
             if not self.type.is_memoryviewslice:
                 if not assigned:
                     if overloaded_assignment:
-                        result = rhs.result()
+                        result = rhs.move_result_rhs()
                         if exception_check == '+':
                             translate_cpp_exception(
                                 code, self.pos,
@@ -2404,7 +2442,7 @@ class NameNode(AtomicExprNode):
                         else:
                             code.putln('%s = %s;' % (self.result(), result))
                     else:
-                        result = rhs.result_as(self.ctype())
+                        result = rhs.move_result_rhs_as(self.ctype())
 
                         if is_pythran_expr(self.type):
                             code.putln('new (&%s) decltype(%s){%s};' % (self.result(), self.result(), result))
@@ -4286,6 +4324,9 @@ class BufferIndexNode(_IndexingBaseNode):
     # Whether we're assigning to a buffer (in that case it needs to be writable)
     writable_needed = False
 
+    # Any indexing temp variables that we need to clean up.
+    index_temps = ()
+
     def analyse_target_types(self, env):
         self.analyse_types(env, getting=False)
 
@@ -4370,7 +4411,7 @@ class BufferIndexNode(_IndexingBaseNode):
                     warning(self.pos, "Use boundscheck(False) for faster access", level=1)
 
         # Assign indices to temps of at least (s)size_t to allow further index calculations.
-        index_temps = [self.get_index_in_temp(code,ivar) for ivar in self.indices]
+        self.index_temps = index_temps = [self.get_index_in_temp(code,ivar) for ivar in self.indices]
 
         # Generate buffer access code using these temps
         from . import Buffer
@@ -4455,6 +4496,12 @@ class BufferIndexNode(_IndexingBaseNode):
             #       as PyObject *, so we need a cast
             code.putln("%s = (PyObject *) *%s;" % (self.result(), self.buffer_ptr_code))
             code.putln("__Pyx_INCREF((PyObject*)%s);" % self.result())
+
+    def free_temps(self, code):
+        for temp in self.index_temps:
+            code.funcstate.release_temp(temp)
+        self.index_temps = ()
+        super(BufferIndexNode, self).free_temps(code)
 
 
 class MemoryViewIndexNode(BufferIndexNode):
@@ -5674,6 +5721,7 @@ class SimpleCallNode(CallNode):
             self.analyse_c_function_call(env)
             if func_type.exception_check == '+':
                 self.is_temp = True
+
         return self
 
     def function_type(self):
@@ -5910,8 +5958,8 @@ class SimpleCallNode(CallNode):
         expected_nargs = max_nargs - func_type.optional_arg_count
         actual_nargs = len(self.args)
         for formal_arg, actual_arg in args[:expected_nargs]:
-                arg_code = actual_arg.result_as(formal_arg.type)
-                arg_list_code.append(arg_code)
+            arg_code = actual_arg.move_result_rhs_as(formal_arg.type)
+            arg_list_code.append(arg_code)
 
         if func_type.is_overridable:
             arg_list_code.append(str(int(self.wrapper_call or self.function.entry.is_unbound_cmethod)))
@@ -5924,7 +5972,7 @@ class SimpleCallNode(CallNode):
             arg_list_code.append(optional_args)
 
         for actual_arg in self.args[len(formal_args):]:
-            arg_list_code.append(actual_arg.result())
+            arg_list_code.append(actual_arg.move_result_rhs())
 
         result = "%s(%s)" % (self.function.result(), ', '.join(arg_list_code))
         return result
@@ -6177,6 +6225,7 @@ class PyMethodCallNode(SimpleCallNode):
 
         code.put_xdecref_clear(self_arg, py_object_type)
         code.funcstate.release_temp(self_arg)
+        code.funcstate.release_temp(arg_offset_cname)
         for arg in args:
             arg.generate_disposal_code(code)
             arg.free_temps(code)
@@ -6788,7 +6837,9 @@ class MergedDictNode(ExprNode):
 
         if item.type is not dict_type:
             code.putln('} else {')
-            code.putln("%s = PyObject_CallFunctionObjArgs((PyObject*)&PyDict_Type, %s, NULL); %s" % (
+            code.globalstate.use_utility_code(UtilityCode.load_cached(
+                "PyObjectCallOneArg", "ObjectHandling.c"))
+            code.putln("%s = __Pyx_PyObject_CallOneArg((PyObject*)&PyDict_Type, %s); %s" % (
                 self.result(),
                 item.py_result(),
                 code.error_goto_if_null(self.result(), self.pos)))
@@ -7396,7 +7447,7 @@ class AttributeNode(ExprNode):
                 code.putln(
                     "%s = %s;" % (
                         select_code,
-                        rhs.result_as(self.ctype())))
+                        rhs.move_result_rhs_as(self.ctype())))
                         #rhs.result()))
             rhs.generate_post_assignment_code(code)
             rhs.free_temps(code)
@@ -7966,8 +8017,11 @@ class SequenceNode(ExprNode):
 
         starred_target.allocate(code)
         target_list = starred_target.result()
-        code.putln("%s = PySequence_List(%s); %s" % (
+        code.putln("%s = %s(%s); %s" % (
             target_list,
+            "__Pyx_PySequence_ListKeepNew" if (
+                    not iterator_temp and rhs.is_temp and rhs.type in (py_object_type, list_type))
+                else "PySequence_List",
             iterator_temp or rhs.py_result(),
             code.error_goto_if_null(target_list, self.pos)))
         starred_target.generate_gotref(code)
@@ -8700,7 +8754,9 @@ class MergedSequenceNode(ExprNode):
         else:
             code.putln("%s = %s(%s); %s" % (
                 self.result(),
-                'PySet_New' if is_set else 'PySequence_List',
+                'PySet_New' if is_set
+                    else "__Pyx_PySequence_ListKeepNew" if item.is_temp and item.type in (py_object_type, list_type)
+                    else "PySequence_List",
                 item.py_result(),
                 code.error_goto_if_null(self.result(), self.pos)))
             self.generate_gotref(code)
@@ -9147,9 +9203,11 @@ class Py3ClassNode(ExprNode):
     #  class_def_node  PyClassDefNode  PyClassDefNode defining this class
     #  calculate_metaclass  bool       should call CalculateMetaclass()
     #  allow_py2_metaclass  bool       should look for Py2 metaclass
+    #  force_type           bool       always create a "new style" class, even with no bases
 
     subexprs = []
     type = py_object_type
+    force_type = False
     is_temp = True
 
     def infer_type(self, env):
@@ -9171,6 +9229,8 @@ class Py3ClassNode(ExprNode):
         mkw = class_def_node.mkw.py_result() if class_def_node.mkw else 'NULL'
         if class_def_node.metaclass:
             metaclass = class_def_node.metaclass.py_result()
+        elif self.force_type:
+            metaclass = "((PyObject*)&PyType_Type)"
         else:
             metaclass = "((PyObject*)&__Pyx_DefaultClassType)"
         code.putln(
@@ -9448,7 +9508,8 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                             value=arg.default)
                         for arg in default_kwargs])
                     self.defaults_kwdict = defaults_kwdict.analyse_types(env)
-            else:
+            elif not self.specialized_cpdefs:
+                # Fused dispatch functions do not support (dynamic) default arguments, only the specialisations do.
                 if default_args:
                     defaults_tuple = DefaultsTupleNode(
                         self.pos, default_args, self.defaults_struct)
@@ -9520,11 +9581,11 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         if self.specialized_cpdefs or self.is_specialization:
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("FusedFunction", "CythonFunction.c"))
-            constructor = "__pyx_FusedFunction_NewEx"
+            constructor = "__pyx_FusedFunction_New"
         else:
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("CythonFunction", "CythonFunction.c"))
-            constructor = "__Pyx_CyFunction_NewEx"
+            constructor = "__Pyx_CyFunction_New"
 
         if self.code_object:
             code_object_result = self.code_object.py_result()
@@ -9606,16 +9667,19 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         if self.defaults_tuple:
             code.putln('__Pyx_CyFunction_SetDefaultsTuple(%s, %s);' % (
                 self.result(), self.defaults_tuple.py_result()))
-        if self.defaults_kwdict:
-            code.putln('__Pyx_CyFunction_SetDefaultsKwDict(%s, %s);' % (
-                self.result(), self.defaults_kwdict.py_result()))
-        if def_node.defaults_getter and not self.specialized_cpdefs:
-            # Fused functions do not support dynamic defaults, only their specialisations can have them for now.
-            code.putln('__Pyx_CyFunction_SetDefaultsGetter(%s, %s);' % (
-                self.result(), def_node.defaults_getter.entry.pyfunc_cname))
-        if self.annotations_dict:
-            code.putln('__Pyx_CyFunction_SetAnnotationsDict(%s, %s);' % (
-                self.result(), self.annotations_dict.py_result()))
+        if not self.specialized_cpdefs:
+            # disable introspection functions for fused dispatcher function since the user never sees it
+            # TODO: this is mostly disabled because the attributes end up pointing to ones belonging
+            #  to the specializations - ideally this would be fixed instead
+            if self.defaults_kwdict:
+                code.putln('__Pyx_CyFunction_SetDefaultsKwDict(%s, %s);' % (
+                    self.result(), self.defaults_kwdict.py_result()))
+            if def_node.defaults_getter:
+                code.putln('__Pyx_CyFunction_SetDefaultsGetter(%s, %s);' % (
+                    self.result(), def_node.defaults_getter.entry.pyfunc_cname))
+            if self.annotations_dict:
+                code.putln('__Pyx_CyFunction_SetAnnotationsDict(%s, %s);' % (
+                    self.result(), self.annotations_dict.py_result()))
 
 
 class InnerFunctionNode(PyCFunctionNode):
@@ -11013,7 +11077,7 @@ class TypeidNode(ExprNode):
             self.error("The 'libcpp.typeinfo' module must be cimported to use the typeid() operator")
             return self
         self.type = type_info
-        as_type = self.operand.analyse_as_type(env)
+        as_type = self.operand.analyse_as_specialized_type(env)
         if as_type:
             self.arg_type = as_type
             self.is_type = True
@@ -11545,7 +11609,7 @@ class AddNode(NumBinopNode):
 
     def py_operation_function(self, code):
         type1, type2 = self.operand1.type, self.operand2.type
-
+        func = None
         if type1 is unicode_type or type2 is unicode_type:
             if type1 in (unicode_type, str_type) and type2 in (unicode_type, str_type):
                 is_unicode_concat = True
@@ -11557,10 +11621,22 @@ class AddNode(NumBinopNode):
                 is_unicode_concat = False
 
             if is_unicode_concat:
-                if self.operand1.may_be_none() or self.operand2.may_be_none():
-                    return '__Pyx_PyUnicode_ConcatSafe'
-                else:
-                    return '__Pyx_PyUnicode_Concat'
+                if self.inplace or self.operand1.is_temp:
+                    code.globalstate.use_utility_code(
+                        UtilityCode.load_cached("UnicodeConcatInPlace", "ObjectHandling.c"))
+                func = '__Pyx_PyUnicode_Concat'
+        elif type1 is str_type and type2 is str_type:
+            code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("StrConcatInPlace", "ObjectHandling.c"))
+            func = '__Pyx_PyStr_Concat'
+
+        if func:
+            # any necessary utility code will be got by "NumberAdd" in generate_evaluation_code
+            if self.inplace or self.operand1.is_temp:
+                func += 'InPlace'  # upper case to indicate unintuitive macro
+            if self.operand1.may_be_none() or self.operand2.may_be_none():
+                func += 'Safe'
+            return func
 
         return super(AddNode, self).py_operation_function(code)
 
@@ -13787,10 +13863,16 @@ class AnnotationNode(ExprNode):
     # 2. The Cython use where the annotation can indicate an
     #  object type
     #
-    # doesn't handle the pre PEP-563 version where the
-    # annotation is evaluated into a Python Object
+    # Doesn't handle the pre PEP-563 version where the
+    # annotation is evaluated into a Python Object.
 
     subexprs = []
+
+    # 'untyped' is set for fused specializations:
+    # Once a fused function has been created we don't want
+    # annotations to override an already set type.
+    untyped = False
+
     def __init__(self, pos, expr, string=None):
         """string is expected to already be a StringNode or None"""
         ExprNode.__init__(self, pos)
@@ -13811,13 +13893,16 @@ class AnnotationNode(ExprNode):
         return self.analyse_type_annotation(env)[1]
 
     def analyse_type_annotation(self, env, assigned_value=None):
+        if self.untyped:
+            # Already applied as a fused type, not re-evaluating it here.
+            return None, None
         annotation = self.expr
         base_type = None
         is_ambiguous = False
         explicit_pytype = explicit_ctype = False
         if annotation.is_dict_literal:
             warning(annotation.pos,
-                    "Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.")
+                    "Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.", level=1)
             for name, value in annotation.key_value_pairs:
                 if not name.is_string_literal:
                     continue
@@ -13829,7 +13914,7 @@ class AnnotationNode(ExprNode):
                     explicit_ctype = True
                     annotation = value
             if explicit_pytype and explicit_ctype:
-                warning(annotation.pos, "Duplicate type declarations found in signature annotation")
+                warning(annotation.pos, "Duplicate type declarations found in signature annotation", level=1)
         arg_type = annotation.analyse_as_type(env)
         if annotation.is_name and not annotation.cython_attribute and annotation.name in ('int', 'long', 'float'):
             # Map builtin numeric Python types to C types in safe cases.

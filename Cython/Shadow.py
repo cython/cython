@@ -1,7 +1,7 @@
 # cython.* namespace for pure mode.
 from __future__ import absolute_import
 
-__version__ = "3.0a0"
+__version__ = "3.0a2"
 
 try:
     from __builtin__ import basestring
@@ -271,8 +271,11 @@ class PointerType(CythonType):
 
 class ArrayType(PointerType):
 
-    def __init__(self):
-        self._items = [None] * self._n
+    def __init__(self, value=None):
+        if value is None:
+            self._items = [None] * self._n
+        else:
+            super(ArrayType, self).__init__(value)
 
 
 class StructType(CythonType):

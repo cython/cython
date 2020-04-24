@@ -12,6 +12,7 @@ memoryview_inplace_division
 
 run.unicodemethods
 run.unicode_imports
+run.test_genericclass
 run.tp_new
 run.test_fstring
 run.test_exceptions

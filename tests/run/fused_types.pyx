@@ -21,6 +21,7 @@ ctypedef double *p_double
 ctypedef int *p_int
 fused_type3 = cython.fused_type(int, double)
 fused_composite = cython.fused_type(fused_type2, fused_type3)
+just_float = cython.fused_type(float)
 
 def test_pure():
     """
@@ -453,3 +454,33 @@ def test_cdef_func_with_const_fused_arg():
     cdef int arg1 = 1
     cdef float arg2 = 2.0
     cdef_func_const_fused_arg(arg0, &arg1, &arg2)
+
+
+cdef in_check_1(just_float x):
+    return just_float in floating
+
+cdef in_check_2(just_float x, floating y):
+    # the "floating" on the right-hand side of the in statement should not be specialized
+    # - the test should still work.
+    return just_float in floating
+
+cdef in_check_3(floating x):
+    # the floating on the left-hand side of the in statement should be specialized
+    # but the one of the right-hand side should not (so that the test can still work).
+    return floating in floating
+
+def test_fused_in_check():
+    """
+    It should be possible to use fused types on in "x in ...fused_type" statements
+    even if that type is specialized in the function.
+
+    >>> test_fused_in_check()
+    True
+    True
+    True
+    True
+    """
+    print(in_check_1(1.0))
+    print(in_check_2(1.0, 2.0))
+    print(in_check_2[float, double](1.0, 2.0))
+    print(in_check_3[float](1.0))

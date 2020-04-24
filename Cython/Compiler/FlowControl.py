@@ -1322,7 +1322,7 @@ class ControlFlowAnalysis(CythonTransform):
         self.visitchildren(node, ('dict', 'metaclass',
                                   'mkw', 'bases', 'class_result'))
         self.flow.mark_assignment(node.target, node.classobj,
-                                  self.env.lookup(node.name))
+                                  self.env.lookup(node.target.name))
         self.env_stack.append(self.env)
         self.env = node.scope
         self.flow.nextblock()
