@@ -2403,9 +2403,6 @@ class NameNode(AtomicExprNode):
                 # per entry and coupled with it.
                 self.generate_acquire_buffer(rhs, code)
             assigned = False
-            # FIXME should this apply to memoryviews too given that
-            # decref_set etc should be implemented for them? - Probably not
-            # since they're very specialised
             if self.type.is_pyobject or self.type.is_fastcall_type:
                 #print "NameNode.generate_assignment_code: to", self.name ###
                 #print "...from", rhs ###
@@ -6472,19 +6469,16 @@ class GeneralCallNode(CallNode):
         kwds_is_fastcall = (self.keyword_args and
                                 (isinstance(self.keyword_args, CoerceToPyTypeNode) and
                                 self.keyword_args.arg.type.is_fastcall_dict))
-        kwds_is_none = self.keyword_args is None
 
-        if pos_is_fastcall or kwds_is_fastcall:
+        if pos_is_fastcall or (pos_is_empty and kwds_is_fastcall):
+            self.fastcallable_with_types = True
             # worth a go at converting to a fastcall call
-            if ((pos_is_fastcall or pos_is_empty) and
-                    (kwds_is_fastcall or kwds_is_none)):
-                self.fastcallable_with_types = True
-                if pos_is_fastcall:
-                    self.positional_args = self.positional_args.arg
-                    self.positional_args.type.coercion_count -= 1
-                if kwds_is_fastcall:
-                    self.keyword_args = self.keyword_args.arg
-                    self.keyword_args.type.coercion_count -= 1
+            if pos_is_fastcall:
+                self.positional_args = self.positional_args.arg
+                self.positional_args.type.coercion_count -= 1
+            if kwds_is_fastcall:
+                self.keyword_args = self.keyword_args.arg
+                self.keyword_args.type.coercion_count -= 1
 
         if not self.fastcallable_with_types:
             self.positional_args = \
@@ -6655,24 +6649,27 @@ class GeneralCallNode(CallNode):
         # use this path when we're mainly forwarding fastcall tuples and dicts
         args_empty = (isinstance(self.positional_args, TupleNode) and
                           len(self.positional_args.args) == 0)
-        if self.keyword_args and args_empty:
+        if self.keyword_args:
+            kwds_result = self.keyword_args.result()
+        if args_empty:
+            assert self.keyword_args.type.is_fastcall_dict
             code.globalstate.use_utility_code(UtilityCode.load_cached(
-                "PyObjectFastCall__Kwds_OptimizedStructs", "ObjectHandling.c"))
-            code.putln(
-                "%s = __Pyx_PyObject_FastCallKwds_structs(%s, %s); %s" % (
-                    self.result(),
-                    self.function.py_result(),
-                    self.keyword_args.result(),
-                    code.error_goto_if_null(self.result(), self.pos)))
-        elif self.keyword_args:  # both with args
+                "FastcallTuple", "FunctionArguments.c"))
+            pos_result = "__Pyx_FastcallTuple_New(%s->args, 0)" % kwds_result
+        else:
+            pos_result = self.positional_args.result()
+        if self.keyword_args:  # both with args
             code.globalstate.use_utility_code(UtilityCode.load_cached(
                 "PyObjectFastCall__ArgsKwds_OptimizedStructs", "ObjectHandling.c"))
+            func_name = "__Pyx_PyObject_FastCallArgs%s_structs" % (
+                "Kwds" if self.keyword_args.type.is_fastcall_dict else "Dict")
             code.putln(
-                "%s = __Pyx_PyObject_FastCallArgsKwds_structs(%s, %s, %s); %s" % (
+                "%s = %s(%s, %s, %s); %s" % (
                     self.result(),
+                    func_name,
                     self.function.py_result(),
-                    self.positional_args.result(),
-                    self.keyword_args.result(),
+                    pos_result,
+                    kwds_result,
                     code.error_goto_if_null(self.result(), self.pos)))
         else:
             code.globalstate.use_utility_code(UtilityCode.load_cached(
@@ -6682,7 +6679,7 @@ class GeneralCallNode(CallNode):
                 "%s = __Pyx_PyObject_FastCallArgs_structs(%s, %s); %s" % (
                     self.result(),
                     self.function.py_result(),
-                    self.positional_args.result(),
+                    pos_result,
                     code.error_goto_if_null(self.result(), self.pos)))
         self.generate_gotref(code)
         return

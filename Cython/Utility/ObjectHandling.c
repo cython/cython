@@ -2426,32 +2426,12 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallArgs_structs(PyObject* cal
 #endif
 }
 
-/////////////// PyObjectFastCall__Kwds_OptimizedStructs.proto ///////////////
-//@requires: FunctionArguments.c::FastcallDict
-
-static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallKwds_structs(PyObject* callable, __Pyx_FastcallDict_obj* kwds); /* proto */
-
-/////////////// PyObjectFastCall__Kwds_OptimizedStructs ///////////////
-//@requires:PyObjectCall
-//@requires:PyObjectFastCall
-//@substitute: naming
-
-static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallKwds_structs(PyObject* callable, __Pyx_FastcallDict_obj* kwds) {
-    if (kwds->object == NULL) {
-        return __Pyx_PyObject_Call(callable, $empty_tuple, NULL);
-    } else if (kwds->args) {
-        return __Pyx_PyObject_FastCallKwds(callable, (PyObject**)kwds->args, 0, kwds->object);
-    } else {
-        // kwds->object is just a dict
-        return __Pyx_PyObject_FastCallDict(callable, NULL, 0, kwds->object);
-    }
-}
-
 /////////////// PyObjectFastCall__ArgsKwds_OptimizedStructs.proto ///////////////
 //@requires: FunctionArguments.c::FastcallTuple
 //@requires: FunctionArguments.c::FastcallDict
 
 static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallArgsKwds_structs(PyObject* callable, __Pyx_FastcallTuple_obj args, __Pyx_FastcallDict_obj* kwds); /* proto */
+static CYTHON_INLINE PyObject* __Pyx_PyObject_FastcallArgsDict_structs(PyObject* callable, __Pyx_FastcallTuple_obj args, PyObject* kwds); /* proto */
 
 /////////////// PyObjectFastCall__ArgsKwds_OptimizedStructs.proto ///////////////
 //@requires:PyObjectCall
@@ -2494,37 +2474,18 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallArgsKwds_structs(PyObject*
     #endif
 }
 
-/////////////// PyObjectFastCall_OptimizedStructs_Method.proto ///////////////
-
-static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallMethod_structs(PyObject* callable, PyObject* self, __Pyx_FastcallTuple_obj args_struct); /* proto */
-
-/////////////// PyObjectFastCall_OptimizedStructs_Method.proto ///////////////
-//@requires:PyObjectFastCall
-
-// don't think this is actually used
-static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallMethod_structs(PyObject* callable, PyObject* self, __Pyx_FastcallTuple_obj args_struct) {
-    // require "self" is not NULLL
-    Py_ssize_t len = __Pyx_FastcallTuple_Len(args_struct);
-#if CYTHON_VECTORCALL
-    if (args_struct.nargs & PY_VECTORCALL_ARGUMENTS_OFFSET) {
-        // see if we can set up "self" without having to allocate
-        PyObject** args = args_struct.args - 1;
-        PyObject* old = args[0]
-        args[0] = self;
-        PyObject* result = __Pyx_PyObject_FastCall(callable, args, len+1);
-        args[0] = old;
-        return result;
-    }
-#endif
-    // need to allocate something
-    PyObject** args = (PyObject**)PyMem_RawMalloc((len+1)*sizeof(PyObject*));
-    args[0] = self;
-    memcpy(args+1, args_struct.args, (len+1)*sizeof(PyObject*));
-    PyObject* result = __Pyx_PyObject_FastCall(callable, args, len+1);
-    PyMem_RawFree(args);
+static CYTHON_INLINE PyObject* __Pyx_PyObject_FastcallArgsDict_structs(PyObject* callable, __Pyx_FastcallTuple_obj args, PyObject* kwds) {
+    #if CYTHON_METH_FASTCALL
+    return __Pyx_PyObject_FastCallDict(callable, (PyObject**)args.args, args.nargs, kwds);
+    #else
+    PyObject* result = NULL;
+    PyObject* tpl = __Pyx_FastcallTuple_ToTuple(args);
+    if (!tpl) return NULL;
+    result = __Pyx_PyObject_Call(callable, tpl, kwds);
+    Py_DECREF(tpl);
     return result;
-} // TODO? The not CYTHON_COMPILING_IN_CPYTHON version? - but probably isn't worth it unless actually used
-
+    #endif
+}
 
 /////////////// PyObjectCallMethod0.proto ///////////////
 
