@@ -1510,6 +1510,10 @@ class CnameDirectivesTransform(CythonTransform, SkipDeclarations):
 
 
 class ForwardDeclareTypes(CythonTransform):
+    """
+    Declare all global cdef names that we allow referencing in other places,
+    before declaring everything (else) in source code order.
+    """
 
     def visit_CompilerDirectivesNode(self, node):
         env = self.module_scope
@@ -1551,6 +1555,14 @@ class ForwardDeclareTypes(CythonTransform):
             for entry in scope.cfunc_entries:
                 if entry.type and entry.type.is_fused:
                     entry.type.get_all_specialized_function_types()
+        return node
+
+    def visit_FuncDefNode(self, node):
+        # no traversal needed
+        return node
+
+    def visit_PyClassDefNode(self, node):
+        # no traversal needed
         return node
 
 
