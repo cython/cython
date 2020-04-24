@@ -1046,6 +1046,7 @@ class IterationTransform(Visitor.EnvTransform):
             PyrexTypes.CFuncTypeArg("p_orig_length",  PyrexTypes.c_py_ssize_t_ptr_type, None),
             PyrexTypes.CFuncTypeArg("p_is_dict",  PyrexTypes.c_int_ptr_type, None),
             ])
+
     PyFastcallDict_Iterator_func_type = PyrexTypes.CFuncType(
         PyrexTypes.py_object_type, [
             PyrexTypes.CFuncTypeArg("dict",  PyrexTypes.FastcallDictType(), None),
@@ -2713,24 +2714,6 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             new_node = ExprNodes.PythonCapiCallNode(
                 node.pos, "__Pyx_MemoryView_Len", func_type,
                 args=[arg], is_temp=node.is_temp)
-        elif arg.type.is_fastcall_tuple:
-            func_type = PyrexTypes.CFuncType(
-                PyrexTypes.c_py_ssize_t_type, [
-                    PyrexTypes.CFuncTypeArg("fastcalltuple", arg.type, None)
-                ], nogil=True)
-            new_node = ExprNodes.PythonCapiCallNode(
-                node.pos, "__Pyx_FastcallTuple_Len", func_type,
-                args=[arg], is_temp=node.is_temp,
-                utility_code = UtilityCode.load_cached("FastcallTuple", "FunctionArguments.c"))
-        elif arg.type.is_fastcall_dict:
-            func_type = PyrexTypes.CFuncType(
-                PyrexTypes.c_py_ssize_t_type, [
-                    PyrexTypes.CFuncTypeArg("fastcalldict", arg.type, None)
-                ], nogil=True)
-            new_node = ExprNodes.PythonCapiCallNode(
-                node.pos, "__Pyx_FastcallDict_Len", func_type,
-                args=[arg], is_temp=node.is_temp,
-                )  # no utility code - it's included in the type definition
         elif arg.type.is_pyobject:
             cfunc_name = self._map_to_capi_len_function(arg.type)
             if cfunc_name is None:

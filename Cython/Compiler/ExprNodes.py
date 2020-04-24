@@ -5627,6 +5627,9 @@ class SimpleCallNode(CallNode):
         return self.args, None
 
     def analyse_types(self, env):
+        if self.function.is_attribute and self.function.attribute == "keys":
+            #import pdb; pdb.set_trace()
+            pass
         if self.analyse_as_type_constructor(env):
             return self
         if self.analysed:
@@ -13357,8 +13360,7 @@ class CoerceToPyTypeNode(CoercionNode):
             # therefore leave as py_object_type here (but set type)
             if arg.type.is_fastcall_type:
                 self.type = arg.type.nearest_python_type
-                if not arg.type.explicitly_requested:
-                    arg.type.coercion_count += 1
+                arg.type.coercion_count += 1
         elif arg.type.is_string or arg.type.is_cpp_string:
             if (type not in (bytes_type, bytearray_type)
                     and not env.directives['c_string_encoding']):

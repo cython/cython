@@ -301,7 +301,7 @@ def normalise_encoding_name(option_name, *values):
         from .Errors import CompileError
         raise CompileError(None,
                 'The %s directive takes one compile-time string argument' % name)
-    encoding = values[0]
+    encoding = str(values[0])
 
     if not encoding:
         return ''
@@ -312,6 +312,9 @@ def normalise_encoding_name(option_name, *values):
         decoder = codecs.getdecoder(encoding)
     except LookupError:
         return encoding  # may exists at runtime ...
+    except:
+        import pdb; pdb.set_trace()
+        raise
     for name in ('ascii', 'utf8'):
         if codecs.getdecoder(name) == decoder:
             return name
