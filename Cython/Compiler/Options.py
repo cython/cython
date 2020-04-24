@@ -272,7 +272,7 @@ def parse_fastcall_args(name, *values):
         raise CompileError(None,
                 "directive %s takes 1 or 2 True/False/None positional arguments" % name)
     def parse_value(value):
-        if hasattr(value, 'lower') and value.lower() == "none":
+        if hasattr(value, 'lower') and value.lower() == "py_none":
             return None
         return parse_directive_value(name, value, type=bool)
 
@@ -312,9 +312,6 @@ def normalise_encoding_name(option_name, *values):
         decoder = codecs.getdecoder(encoding)
     except LookupError:
         return encoding  # may exists at runtime ...
-    except:
-        import pdb; pdb.set_trace()
-        raise
     for name in ('ascii', 'utf8'):
         if codecs.getdecoder(name) == decoder:
             return name
@@ -447,12 +444,6 @@ def parse_directive_value(name, value, relaxed_bool=False, type=None):
                 name, orig_value))
     elif type is str:
         return str(value)
-    #elif name=="fastcall_args":
-    #    # FIXME - can only take single value argument in a comment
-    #    if value.lower() == "none":
-    #        return [None, None]
-    #    else:
-    #        return [parse_directive_value("", value, relaxed_bool, type=bool)]*2
     elif callable(type):
         return type(name, value)
     else:
