@@ -111,40 +111,103 @@ def for_char_in_enumerate_bytes(bytes s):
     else:
         return 'X'
 
-#### Py2 and Py3 behave differently here: Py2->bytes, Py3->integer
-##
-## @cython.test_assert_path_exists("//ForFromStatNode")
-## @cython.test_fail_if_path_exists("//ForInStatNode")
-## def for_pyvar_in_char_ptr(char* c_string):
-##     """
-##     >>> for_pyvar_in_char_ptr( (bytes_abc+bytes_ABC) * 2 )
-##     [True, True, True, False, False, False, True, True, True, False]
-##     >>> for_pyvar_in_char_ptr( bytes_abc_null * 2 )
-##     [True, False, True, False, True, True, False, True, False, True]
-##     """
-##     in_test = []
-##     cdef object c
-##     for c in c_string[:10]:
-##         in_test.append( c in b'abc' )
-##     return in_test
+#@cython.test_assert_path_exists("//ForFromStatNode")
+#@cython.test_fail_if_path_exists("//ForInStatNode")
+def for_pyvar_in_char_ptr(char* c_string):
+    """
+    >>> for_pyvar_in_char_ptr( (bytes_abc+bytes_ABC) * 2 )
+    [True, True, True, False, False, False, True, True, True, False, False, False]
+    >>> for_pyvar_in_char_ptr( bytes_abc_null * 2 )
+    [True]
+    """
+    in_test = []
+    cdef object c
+    for c in c_string:
+        in_test.append( c in b'abc' )
+    return in_test
 
-@cython.test_assert_path_exists("//ForFromStatNode")
-@cython.test_fail_if_path_exists("//ForInStatNode")
+@cython.test_assert_path_exists("//ForFromStatNode",
+                                "//ForFromStatNode//IndexNode")
+@cython.test_fail_if_path_exists("//ForInStatNode",
+                                 "//SliceIndexNode")
 def for_char_in_char_ptr(char* c_string):
     """
     >>> for_char_in_char_ptr( (bytes_abc+bytes_ABC) * 2 )
-    [True, True, True, False, False, False, True, True, True, False]
+    [True, True, True, False, False, False, True, True, True, False, False, False]
     >>> for_char_in_char_ptr( bytes_abc_null * 2 )
-    [True, False, True, False, True, True, False, True, False, True]
+    [True]
     """
     in_test = []
     cdef char c
-    for c in c_string[:10]:
+    for c in c_string:
         in_test.append( c in b'abc' )
     return in_test
 
 @cython.test_assert_path_exists("//ForFromStatNode")
 @cython.test_fail_if_path_exists("//ForInStatNode")
+def for_bytes_in_char_ptr(char* c_string):
+    """
+    >>> for_bytes_in_char_ptr( (bytes_abc+bytes_ABC) * 2 )
+    [True, True, True, False, False, False, True, True, True, False, False, False]
+    >>> for_bytes_in_char_ptr( bytes_abc_null * 2 )
+    [True]
+    """
+    in_test = []
+    cdef bytes c
+    for c in c_string:
+        in_test.append( c in b'abc' )
+    return in_test
+
+@cython.test_assert_path_exists("//ForFromStatNode")
+@cython.test_fail_if_path_exists("//ForInStatNode")
+def for_pyvar_in_char_ptr_slice(char* c_string):
+    """
+    >>> for_pyvar_in_char_ptr_slice( (bytes_abc+bytes_ABC) * 2 )
+    [True, False, False, False, True, True, True, False]
+    >>> for_pyvar_in_char_ptr_slice( bytes_abc_null * 2 )
+    [True, False, True, True, False, True, False, True]
+    """
+    in_test = []
+    cdef object c
+    for c in c_string[2:10]:
+        in_test.append( c in b'abc' )
+    return in_test
+
+@cython.test_assert_path_exists("//ForFromStatNode",
+                                "//ForFromStatNode//IndexNode")
+@cython.test_fail_if_path_exists("//ForInStatNode",
+                                 "//SliceIndexNode")
+def for_char_in_char_ptr_slice(char* c_string):
+    """
+    >>> for_char_in_char_ptr_slice( (bytes_abc+bytes_ABC) * 2 )
+    [True, False, False, False, True, True, True, False]
+    >>> for_char_in_char_ptr_slice( bytes_abc_null * 2 )
+    [True, False, True, True, False, True, False, True]
+    """
+    in_test = []
+    cdef char c
+    for c in c_string[2:10]:
+        in_test.append( c in b'abc' )
+    return in_test
+
+@cython.test_assert_path_exists("//ForFromStatNode")
+@cython.test_fail_if_path_exists("//ForInStatNode")
+def for_bytes_in_char_ptr_slice(char* c_string):
+    """
+    >>> for_bytes_in_char_ptr_slice( (bytes_abc+bytes_ABC) * 2 )
+    [True, False, False, False, True, True, True, False]
+    >>> for_bytes_in_char_ptr_slice( bytes_abc_null * 2 )
+    [True, False, True, True, False, True, False, True]
+    """
+    in_test = []
+    cdef bytes c
+    for c in c_string[2:10]:
+        in_test.append( c in b'abc' )
+    return in_test
+
+@cython.test_assert_path_exists("//ForFromStatNode")
+@cython.test_fail_if_path_exists("//ForInStatNode",
+                                 "//SliceIndexNode")
 def for_pyunicode_in_unicode(unicode s):
     """
     >>> for_pyunicode_in_unicode(unicode_abc)

@@ -222,7 +222,9 @@ class IterationTransform(Visitor.EnvTransform):
             return self._transform_set_iteration(node, iterable)
 
         # C array (slice) iteration?
-        if iterable.type.is_ptr or iterable.type.is_array:
+        # note that a slice of char* is typed as bytes, but we can still treat it as a ptr here
+        if iterable.type.is_ptr or iterable.type.is_array \
+                or isinstance(iterable, ExprNodes.SliceIndexNode) and iterable.base.type.is_string:
             return self._transform_carray_iteration(node, iterable, reversed=reversed)
         if iterable.type is Builtin.bytes_type:
             return self._transform_bytes_iteration(node, iterable, reversed=reversed)
