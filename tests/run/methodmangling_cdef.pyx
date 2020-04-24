@@ -3,6 +3,9 @@
 def call_cdt_private_cdef(CDefTest o):
     return o._CDefTest__private_cdef()
 
+cdef __c_func():
+    return "cdef function"
+
 cdef class CDefTest:
     """
     >>> cd = CDefTest()
@@ -47,6 +50,23 @@ cdef class CDefTest:
         def get(o):
             return o._CDefTest__x, o.__x, o.__private()
         return get(self)
+
+    def get_c_func(self):
+        """
+        Should still be able to access C function with __names
+        >>> CDefTest().get_c_func()
+        'cdef function'
+        """
+        return __c_func()
+
+    def get_c_func2(self):
+        """
+        Should find mangled name before C __name
+        >>> CDefTest().get_c_func2()
+        'lambda'
+        """
+        _CDefTest__c_func = lambda: "lambda"
+        return __c_func()
 
 def call_inpdx_private_cdef(InPxd o):
     return o._InPxd__private_cdef()
