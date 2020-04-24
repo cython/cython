@@ -4288,9 +4288,14 @@ class FastcallBaseType(PyrexType):
     # function. However, it's useful for looking up the type if they compare equal
     # (apart from the count there's no useful difference between instances)
     def __hash__(self):
-        return hash(type(self))
-    def __eq__(self, rhs):
-        return type(self) == type(rhs)
+        return hash((type(self), self.is_fastcall_tuple, self.is_fastcall_dict))
+    def __eq__(self, other):
+        return (self.is_fastcall_tuple == other.is_fastcall_tuple
+                and self.is_fastcall_dict == other.is_fastcall_dict
+                and type(self) == type(other)
+                )
+    def __ne__(self, other):
+        return not (self == other) # looks to be necessary for Py2
 
     def literal_code(self, value):
         assert value in ("0", "{}"), str(value)  # only know how to handle empty literals

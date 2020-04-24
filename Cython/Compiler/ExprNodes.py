@@ -5674,9 +5674,6 @@ class SimpleCallNode(CallNode):
         return self.args, None
 
     def analyse_types(self, env):
-        if self.function.is_attribute and self.function.attribute == "keys":
-            #import pdb; pdb.set_trace()
-            pass
         if self.analyse_as_type_constructor(env):
             return self
         if self.analysed:
