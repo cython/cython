@@ -937,9 +937,9 @@ class Scope(object):
             if entry:
                 if no_mangle and entry.is_pyglobal:
                     # warning points to the right place?
-                    warning(entry.pos, "Global name %s not matched because of Python "
-                            "'class private name' rules" % name, 1)
-                    return None
+                    warning(entry.pos, "Global name %s matched from within class scope "
+                            "in contradiction to to Python 'class private name' rules. "
+                            "This may change in a future release." % name, 1)
                 return entry
         return None
 
