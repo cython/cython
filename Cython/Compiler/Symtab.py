@@ -920,39 +920,47 @@ class Scope(object):
                 return None
         return scope
 
-    def lookup(self, name, _no_mangle=False):
+    def lookup(self, name):
         # Look up name in this scope or an enclosing one.
         # Return None if not found.
-        # _no_mangle is internal, used to have a second go at looking up without
-        # class private mangling
-        original_name = name
-        # https://github.com/cython/cython/issues/3544
-        # Have two goes at lookup, with or without class private mangling
-        names = [ name ] if _no_mangle else [ self.mangle_class_private_name(name), name ]
-        no_mangle_settings = [ True ] if _no_mangle else [ False, True ]
-        for name, no_mangle in zip(names, no_mangle_settings):
-            entry = (self.lookup_here(name, _no_mangle=no_mangle)
-                or (self.outer_scope and self.outer_scope.lookup(name, _no_mangle=no_mangle))
-                or None)
-            if entry:
-                if no_mangle and entry.is_pyglobal:
-                    # warning points to the right place?
-                    warning(entry.pos, "Global name %s matched from within class scope "
-                            "in contradiction to to Python 'class private name' rules. "
-                            "This may change in a future release." % name, 1)
-                return entry
-        return None
 
-    def lookup_here(self, name, _no_mangle=False):
+        mangled_name = self.mangle_class_private_name(name)
+        entry = (self.lookup_here(name)  # lookup here also does mangling
+                or (self.outer_scope and self.outer_scope.lookup(mangled_name))
+                or None)
+        if entry:
+            return entry
+
+        # look up the original name in the outer scope
+        # Not strictly Python behaviour but see https://github.com/cython/cython/issues/3544
+        entry = (self.outer_scope and self.outer_scope.lookup(name)) or None
+        if entry and entry.is_pyglobal:
+            self._lookup_python_mangled_warning(entry.pos, name)
+        return entry
+
+    def lookup_here(self, name):
         # Look up in this scope only, return None if not found.
-        if not _no_mangle:
-            name = self.mangle_class_private_name(name)
+
+        # if the name is already declared in the scope then return it, even if
+        # mangling should give us something else. This is to support things like
+        # global __foo which makes a declaration for __foo
+        entry = self.entries.get(name, None)
+        if entry:
+            return entry
+        name = self.mangle_class_private_name(name)
+        return self.entries.get(name, None)
+
+    def lookup_here_unmangled(self, name):
         return self.entries.get(name, None)
 
     def lookup_target(self, name):
         # Look up name in this scope only. Declare as Python
         # variable if not found.
         entry = self.lookup_here(name)
+        if not entry:
+            entry = self.lookup_here_unmangled(name)
+            if entry and entry.is_pyglobal:
+                self._lookup_python_mangled_warning(entry.pos, name)
         if not entry:
             entry = self.declare_var(name, py_object_type, None)
         return entry
@@ -1003,6 +1011,11 @@ class Scope(object):
             pass
         operands = [FakeOperand(pos, type=type) for type in types]
         return self.lookup_operator(operator, operands)
+
+    def _lookup_python_mangled_warning(self, pos, name):
+        warning(pos, "Global name %s matched from within class scope "
+                            "in contradiction to to Python 'class private name' rules. "
+                            "This may change in a future release." % name, 1)
 
     def use_utility_code(self, new_code):
         self.global_scope().use_utility_code(new_code)
@@ -1069,14 +1082,14 @@ class BuiltinScope(Scope):
             cname, type = definition
             self.declare_var(name, type, None, cname)
 
-    def lookup(self, name, language_level=None, str_is_str=None, _no_mangle=False):
+    def lookup(self, name, language_level=None, str_is_str=None):
         # 'language_level' and 'str_is_str' are passed by ModuleScope
         if name == 'str':
             if str_is_str is None:
                 str_is_str = language_level in (None, 2)
             if not str_is_str:
                 name = 'unicode'
-        return Scope.lookup(self, name, _no_mangle=_no_mangle)
+        return Scope.lookup(self, name)
 
     def declare_builtin(self, name, pos):
         if not hasattr(builtins, name):
@@ -1243,8 +1256,8 @@ class ModuleScope(Scope):
     def global_scope(self):
         return self
 
-    def lookup(self, name, language_level=None, str_is_str=None, _no_mangle=False):
-        entry = self.lookup_here(name, _no_mangle=_no_mangle)
+    def lookup(self, name, language_level=None, str_is_str=None):
+        entry = self.lookup_here(name)
         if entry is not None:
             return entry
 
@@ -1254,8 +1267,7 @@ class ModuleScope(Scope):
             str_is_str = language_level == 2 or (
                 self.context is not None and Future.unicode_literals not in self.context.future_directives)
 
-        return self.outer_scope.lookup(name, language_level=language_level, str_is_str=str_is_str,
-                                       _no_mangle=False)
+        return self.outer_scope.lookup(name, language_level=language_level, str_is_str=str_is_str)
 
     def declare_tuple_type(self, pos, components):
         components = tuple(components)
@@ -1856,11 +1868,11 @@ class LocalScope(Scope):
             if entry is None or not entry.from_closure:
                 error(pos, "no binding for nonlocal '%s' found" % name)
 
-    def lookup(self, name, _no_mangle=False):
+    def lookup(self, name):
         # Look up name in this scope or an enclosing one.
         # Return None if not found.
 
-        entry = Scope.lookup(self, name, _no_mangle=_no_mangle)
+        entry = Scope.lookup(self, name)
         if entry is not None:
             entry_scope = entry.scope
             while entry_scope.is_genexpr_scope:
@@ -2037,8 +2049,8 @@ class ClassScope(Scope):
         self.class_name = name
         self.doc = None
 
-    def lookup(self, name, _no_mangle=False):
-        entry = Scope.lookup(self, name, _no_mangle=_no_mangle)
+    def lookup(self, name):
+        entry = Scope.lookup(self, name)
         if entry:
             return entry
         if name == "classmethod":
@@ -2287,10 +2299,10 @@ class CClassScope(ClassScope):
         self.pyfunc_entries.append(entry)
         return entry
 
-    def lookup_here(self, name, _no_mangle=False):
+    def lookup_here(self, name):
         if not self.is_closure_class_scope and name == "__new__":
             name = EncodedString("__cinit__")
-        entry = ClassScope.lookup_here(self, name, _no_mangle=_no_mangle)
+        entry = ClassScope.lookup_here(self, name)
         if entry and entry.is_builtin_cmethod:
             if not self.parent_type.is_builtin_type:
                 # For subtypes of builtin types, we can only return
@@ -2630,8 +2642,8 @@ class CConstOrVolatileScope(Scope):
         self.is_const = is_const
         self.is_volatile = is_volatile
 
-    def lookup_here(self, name, _no_mangle=False):
-        entry = self.base_type_scope.lookup_here(name, _no_mangle=_no_mangle)
+    def lookup_here(self, name):
+        entry = self.base_type_scope.lookup_here(name)
         if entry is not None:
             entry = copy.copy(entry)
             entry.type = PyrexTypes.c_const_or_volatile_type(

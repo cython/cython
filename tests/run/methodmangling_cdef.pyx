@@ -6,6 +6,8 @@ def call_cdt_private_cdef(CDefTest o):
 cdef __c_func():
     return "cdef function"
 
+cdef __c_var = "Shouldn't see this"
+
 cdef class CDefTest:
     """
     >>> cd = CDefTest()
@@ -67,6 +69,15 @@ cdef class CDefTest:
         """
         _CDefTest__c_func = lambda: "lambda"
         return __c_func()
+
+    def get_c_var(self):
+        """
+        >>> CDefTest().get_c_var()
+        'c var'
+        """
+        global __c_var
+        __c_var = "c var"
+        return __c_var
 
 def call_inpdx_private_cdef(InPxd o):
     return o._InPxd__private_cdef()
