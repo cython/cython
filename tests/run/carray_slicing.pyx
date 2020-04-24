@@ -149,6 +149,104 @@ def slice_charptr_for_loop_c_enumerate():
     print [ (i,c) for i,c in enumerate(cstring[1:5]) ]
     print [ (i,c) for i,c in enumerate(cstring[4:9]) ]
 
+@cython.test_assert_path_exists("//ForFromStatNode",
+                                "//ForFromStatNode//IndexNode")
+@cython.test_fail_if_path_exists("//ForInStatNode")
+def omit_start_charptr():
+    """
+    >>> omit_start_charptr()
+    abcABCq
+    abcABCqt
+    ['a', 'b', 'c', 'A', 'B', 'C', 'q', 't', 'p']
+    """
+    cdef char c
+    print str(cstring[:7]).replace("b'", "").replace("'", "")
+    print cstring[:8].decode("utf8")
+    print [chr(c) for c in cstring[:9]]
+
+@cython.test_assert_path_exists("//ForFromStatNode",
+                                "//ForFromStatNode//IndexNode")
+@cython.test_fail_if_path_exists("//ForInStatNode")
+def explicit_none_start_charptr():
+    """
+    >>> explicit_none_start_charptr()
+    abcABCq
+    abcABCqt
+    ['a', 'b', 'c', 'A', 'B', 'C', 'q', 't', 'p']
+    """
+    cdef char c
+    print str(cstring[None:7]).replace("b'", "").replace("'", "")
+    print cstring[None:8].decode("utf8")
+    print [chr(c) for c in cstring[None:9]]
+
+@cython.test_assert_path_exists("//ForFromStatNode",
+                                "//ForFromStatNode//IndexNode")
+@cython.test_fail_if_path_exists("//ForInStatNode")
+def runtime_start_charptr(object o):
+    """
+    >>> runtime_start_charptr(None)
+    abcABCq
+    abcABCqt
+    ['a', 'b', 'c', 'A', 'B', 'C', 'q', 't', 'p']
+    >>> runtime_start_charptr(3)
+    ABCq
+    ABCqt
+    ['A', 'B', 'C', 'q', 't', 'p']
+    """
+    cdef char c
+    print str(cstring[o:7]).replace("b'", "").replace("'", "")
+    print cstring[o:8].decode("utf8")
+    print [chr(c) for c in cstring[o:9]]
+
+@cython.test_assert_path_exists("//ForFromStatNode",
+                                "//ForFromStatNode//IndexNode")
+@cython.test_fail_if_path_exists("//ForInStatNode")
+def omit_stop_charptr():
+    """
+    >>> omit_stop_charptr()
+    ABCqtp
+    BCqtp
+    ['C', 'q', 't', 'p']
+    """
+    cdef char c
+    print str(cstring[3:]).replace("b'", "").replace("'", "")
+    print cstring[4:].decode("utf8")
+    print [chr(c) for c in cstring[5:]]
+
+@cython.test_assert_path_exists("//ForFromStatNode",
+                                "//ForFromStatNode//IndexNode")
+@cython.test_fail_if_path_exists("//ForInStatNode")
+def explicit_none_stop_charptr():
+    """
+    >>> explicit_none_stop_charptr()
+    ABCqtp
+    BCqtp
+    ['C', 'q', 't', 'p']
+    """
+    cdef char c
+    print str(cstring[3:None]).replace("b'", "").replace("'", "")
+    print cstring[4:None].decode("utf8")
+    print [chr(c) for c in cstring[5:None]]
+
+@cython.test_assert_path_exists("//ForFromStatNode",
+                                "//ForFromStatNode//IndexNode")
+@cython.test_fail_if_path_exists("//ForInStatNode")
+def runtime_stop_charptr(object o):
+    """
+    >>> runtime_stop_charptr(None)
+    ABCqtp
+    BCqtp
+    ['C', 'q', 't', 'p']
+    >>> runtime_stop_charptr(7)
+    ABCq
+    BCq
+    ['C', 'q']
+    """
+    cdef char c
+    print str(cstring[3:o]).replace("b'", "").replace("'", "")
+    print cstring[4:o].decode("utf8")
+    print [chr(c) for c in cstring[5:o]]
+
 
 ############################################################
 # tests for int* slicing
