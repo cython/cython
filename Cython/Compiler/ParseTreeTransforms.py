@@ -2432,7 +2432,8 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
     @cython.ccall
     @cython.inline
     @cython.nogil
-    @@cython.fastcall_args - some of
+    @@cython.fastcall_args - handles case where they're explicitly turned on;
+                             otherwise done by control-flow
     """
 
     def visit_ModuleNode(self, node):
@@ -2483,15 +2484,15 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
             # TODO: turn this into a "with gil" declaration.
             error(node.pos, "Python functions cannot be declared 'nogil'")
         if fastcall_args:
-            # FIXME pointless now? Done in control-flow
             if fastcall_args[0] and node.star_arg:
                 if node.self_in_stararg:
                     error(node.pos, "Cannot use 'fastcall_args(\"*\")' on a function where the"
                           " self argument is included in *args")
                 #node.star_arg.type = PyrexTypes.FastcallTupleType(explicitly_requested=True)
+                pass # FIXME
             if fastcall_args[1] and node.starstar_arg:
-                pass
                 #node.starstar_arg.type = PyrexTypes.FastcallDictType(explicitly_requested=True)
+                pass # FIXME
 
         self.visitchildren(node)
         return node

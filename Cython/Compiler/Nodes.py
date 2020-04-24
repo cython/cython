@@ -2730,17 +2730,6 @@ class DecoratorNode(Node):
     # decorator    NameNode or CallNode or AttributeNode
     child_attrs = ['decorator']
 
-def _get_type_attr(arg, attr):
-    # really just a convenience function for
-    #  if type and type.attr
-    # TODO can probably be removed
-    for a in ["type", attr]:
-        try:
-            arg = getattr(arg, a)
-        except AttributeError:
-            break
-    else:
-        return arg
 
 class DefNode(FuncDefNode):
     # A Python function definition.
@@ -3100,9 +3089,10 @@ class DefNode(FuncDefNode):
             if not uses_args_tuple:
                 sig = self.entry.signature = sig.with_fastcall()
             if (not self.entry.signature.use_fastcall
-                    and _get_type_attr(self.starstar_arg, "is_fastcall_dict")):
+                    and self.starstar_arg and self.starstar_arg.type
+                    and self.starstar_arg.type.is_fastcall_dict):
                 # it's a failure of the inference if we end up here without asking
-                assert _get_type_attr(self.starstar_arg, "explicitly_requested")
+                assert self.starstar_arg.type.explicitly_requested
                 warning(self.pos, ("Request for **{0} to be a specialized "
                     "fastcall argument is pointless since the function itself is not fastcallable "
                     "and so this will only cause degrade performance."
@@ -3655,7 +3645,7 @@ class DefNodeWrapper(FuncDefNode):
                 bool(self.starstar_arg), self.error_value()))
 
         if self.starstar_arg and self.starstar_arg.entry.cf_used:
-            if _get_type_attr(self.starstar_arg, "is_fastcall_dict"):
+            if self.starstar_arg.type.is_fastcall_dict:
                 suffix = "_fastcallstruct"
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("FastcallDict_KwargsAsDict", "FunctionArguments.c"))
@@ -3682,7 +3672,7 @@ class DefNodeWrapper(FuncDefNode):
                 code.putln("%s = %s;" % (self.starstar_arg.entry.cname,
                                          self.starstar_arg.entry.type.literal_code(0)))
             else:
-                if _get_type_attr(self.starstar_arg, "is_fastcall_dict"):
+                if self.starstar_arg.type.is_fastcall_dict:
                     code.putln("%s[0] = __Pyx_FastcallDict_New();" % self.starstar_arg.entry.cname)
                 else:
                     code.putln("%s = PyDict_New();" % self.starstar_arg.entry.cname)
@@ -3727,7 +3717,7 @@ class DefNodeWrapper(FuncDefNode):
             self.star_arg.entry.xdecref_cleanup = 0
         elif self.star_arg:
             assert not self.signature.use_fastcall
-            if _get_type_attr(self.star_arg, "is_fastcall_tuple"):
+            if self.star_arg.type.is_fastcall_tuple:
                 # need a specific conversion
                 code.putln("%s = __Pyx_FastcallTuple_FromTuple(%s);" % (
                     self.star_arg.entry.cname,
@@ -3963,7 +3953,7 @@ class DefNodeWrapper(FuncDefNode):
         if self.starstar_arg:
             self.starstar_arg.entry.xdecref_cleanup = 0
 
-            if not _get_type_attr(self.starstar_arg, "is_fastcall_dict"):
+            if not self.starstar_arg.type.is_fastcall_dict:
                 code.putln('%s = PyDict_New(); if (unlikely(!%s)) return %s;' % (
                         self.starstar_arg.entry.cname,
                         self.starstar_arg.entry.cname,
@@ -3971,7 +3961,7 @@ class DefNodeWrapper(FuncDefNode):
             code.put_var_gotref(self.starstar_arg.entry)
 
         if self.star_arg:
-            is_fastcall_tuple = _get_type_attr(self.star_arg, 'is_fastcall_tuple')
+            is_fastcall_tuple = self.star_arg.type.is_fastcall_tuple
 
             postfix = "" if not is_fastcall_tuple else "_struct"
 
@@ -4182,10 +4172,10 @@ class DefNodeWrapper(FuncDefNode):
         else:
             values_array = 'values'
         starstar_cname = self.starstar_arg and self.starstar_arg.entry.cname or '0'
-        if not _get_type_attr(self.starstar_arg, "is_fastcall_dict"):
-            suffix = ""
-        else:
+        if self.starstar_arg and self.starstar_arg.type.is_fastcall_dict:
             suffix = "_fastcallstruct"
+        else:
+            suffix = ""
         code.globalstate.use_utility_code(
             UtilityCode.load_cached("ParseKeywords%s" % suffix, "FunctionArguments.c"))
         code.putln('if (unlikely(__Pyx_ParseOptionalKeywords%s(%s, %s, %s, %s, %s, %s, %s) < 0)) %s' % (

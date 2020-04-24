@@ -1900,8 +1900,6 @@ class CCodeWriter(object):
     # code generation
 
     def putln(self, code="", safe=False):
-        if code is None:
-            return
         if self.last_pos and self.bol:
             self.emit_marker()
         if self.code_config.emit_linenums and self.last_marked_pos:
