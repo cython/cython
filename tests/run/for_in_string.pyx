@@ -11,6 +11,11 @@ unicode_abc_null = u'a\0b\0c'
 unicode_ABC_null = u'A\0B\0C'
 
 
+# no optimization as Py2 and Py3 behave differently here: Py2->bytes, Py3->integer
+# @cython.test_assert_path_exists("//ForFromStatNode",
+#                                 "//ForFromStatNode//IndexNode")
+# @cython.test_fail_if_path_exists("//ForInStatNode",
+#                                  "//SliceIndexNode")
 def for_in_bytes(bytes s):
     """
     >>> for_in_bytes(bytes_abc)
@@ -29,8 +34,10 @@ def for_in_bytes(bytes s):
     else:
         return 'X'
 
-@cython.test_assert_path_exists("//ForFromStatNode")
-@cython.test_fail_if_path_exists("//ForInStatNode")
+@cython.test_assert_path_exists("//ForFromStatNode",
+                                "//ForFromStatNode//IndexNode")
+@cython.test_fail_if_path_exists("//ForInStatNode",
+                                 "//SliceIndexNode")
 def for_char_in_bytes(bytes s):
     """
     >>> for_char_in_bytes(bytes_abc)
@@ -49,29 +56,53 @@ def for_char_in_bytes(bytes s):
     else:
         return 'X'
 
-#### Py2 and Py3 behave differently here: Py2->bytes, Py3->integer
-##
-## @cython.test_assert_path_exists("//ForFromStatNode")
-## @cython.test_fail_if_path_exists("//ForInStatNode")
-## def for_obj_in_bytes_slice(bytes s):
-##     """
-##     >>> for_obj_in_bytes_slice(bytes_abc)
-##     'X'
-##     >>> for_obj_in_bytes_slice(bytes_ABC)
-##     'B'
-##     >>> for_obj_in_bytes_slice(bytes_abc_null)
-##     'X'
-##     >>> for_obj_in_bytes_slice(bytes_ABC_null)
-##     'B'
-##     """
-##     for c in s[1:-1]:
-##         if c == b'B':
-##             return 'B'
-##     else:
-##         return 'X'
-
 @cython.test_assert_path_exists("//ForFromStatNode")
 @cython.test_fail_if_path_exists("//ForInStatNode")
+def for_bytes_in_bytes(bytes s):
+    """
+    >>> for_bytes_in_bytes(bytes_abc)
+    'X'
+    >>> for_bytes_in_bytes(bytes_ABC)
+    'C'
+    >>> for_bytes_in_bytes(bytes_abc_null)
+    'X'
+    >>> for_bytes_in_bytes(bytes_ABC_null)
+    'C'
+    """
+    cdef bytes c
+    for c in s:
+        if c == b'C':
+            return 'C'
+    else:
+        return 'X'
+
+#### no optimization as Py2 and Py3 behave differently here: Py2->bytes, Py3->integer
+## @cython.test_assert_path_exists("//ForFromStatNode",
+##                                 "//ForFromStatNode//IndexNode")
+## @cython.test_fail_if_path_exists("//ForInStatNode",
+##                                  "//SliceIndexNode")
+def for_obj_in_bytes_slice(bytes s):
+    """
+    >>> for_obj_in_bytes_slice(bytes_abc)
+    'X'
+    >>> for_obj_in_bytes_slice(bytes_ABC)
+    'B'
+    >>> for_obj_in_bytes_slice(bytes_abc_null)
+    'X'
+    >>> for_obj_in_bytes_slice(bytes_ABC_null)
+    'B'
+    """
+    for c in s[1:-1]:
+        # Py2/Py3
+        if c == b'B' or c == c'B':
+            return 'B'
+    else:
+        return 'X'
+
+@cython.test_assert_path_exists("//ForFromStatNode",
+                                "//ForFromStatNode//IndexNode")
+@cython.test_fail_if_path_exists("//ForInStatNode",
+                                 "//SliceIndexNode")
 def for_char_in_bytes_slice(bytes s):
     """
     >>> for_char_in_bytes_slice(bytes_abc)
@@ -92,6 +123,28 @@ def for_char_in_bytes_slice(bytes s):
 
 @cython.test_assert_path_exists("//ForFromStatNode")
 @cython.test_fail_if_path_exists("//ForInStatNode")
+def for_bytes_in_bytes_slice(bytes s):
+    """
+    >>> for_char_in_bytes_slice(bytes_abc)
+    'X'
+    >>> for_char_in_bytes_slice(bytes_ABC)
+    'B'
+    >>> for_char_in_bytes_slice(bytes_abc_null)
+    'X'
+    >>> for_char_in_bytes_slice(bytes_ABC_null)
+    'B'
+    """
+    cdef bytes c
+    for c in s[1:-1]:
+        if c == b'B':
+            return 'B'
+    else:
+        return 'X'
+
+@cython.test_assert_path_exists("//ForFromStatNode",
+                                "//ForFromStatNode//IndexNode")
+@cython.test_fail_if_path_exists("//ForInStatNode",
+                                 "//SliceIndexNode")
 def for_char_in_enumerate_bytes(bytes s):
     """
     >>> for_char_in_enumerate_bytes(bytes_abc)
