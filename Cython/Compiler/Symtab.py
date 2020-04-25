@@ -2036,9 +2036,6 @@ class ClassScope(Scope):
         # a few utilitycode names need to specifically be ignored
         if name and name.lower().startswith("__pyx_"):
             return name
-        return self.mangle_special_name(name)
-
-    def mangle_special_name(self, name):
         if name and name.startswith('__') and not name.endswith('__'):
             name = EncodedString('_%s%s' % (self.class_name.lstrip('_'), name))
         return name
@@ -2079,7 +2076,7 @@ class PyClassScope(ClassScope):
     def declare_var(self, name, type, pos,
                     cname = None, visibility = 'private',
                     api = 0, in_pxd = 0, is_cdef = 0):
-        name = self.mangle_special_name(name)
+        name = self.mangle_class_private_name(name)
         if type is unspecified_type:
             type = py_object_type
         # Add an entry for a class attribute.
@@ -2209,7 +2206,7 @@ class CClassScope(ClassScope):
     def declare_var(self, name, type, pos,
                     cname = None, visibility = 'private',
                     api = 0, in_pxd = 0, is_cdef = 0):
-        name = self.mangle_special_name(name)
+        name = self.mangle_class_private_name(name)
         if is_cdef:
             # Add an entry for an attribute.
             if self.defined:
