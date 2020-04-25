@@ -373,32 +373,6 @@ static PyObject *__Pyx_PyDict_GetItem(PyObject *d, PyObject* key) {
 }
 #endif
 
-/////////////////// FastcallDictGetItem.proto ///////////////////////
-//@requires:FunctionArguments.c::FastcallDict
-
-static CYTHON_UNUSED PyObject* __Pyx_FastcallDict_GetItem(__Pyx_FastcallDict_obj* o, PyObject* key);
-
-/////////////////// FastcallDictGetItem //////////////////////////////
-//@requires:DictGetItem
-//@requires:FastcallDictContains
-
-static CYTHON_UNUSED PyObject* __Pyx_FastcallDict_GetItem(__Pyx_FastcallDict_obj* o, PyObject* key) {
-    if (o->object == NULL) {
-        // not found
-    } else if (o->args) {
-        Py_ssize_t idx = __Pyx_FastcallDict_Index_impl(o, key);
-        if (idx>=0) {
-            Py_INCREF(o->args[idx]);
-            return o->args[idx];
-        }
-    } else {
-        return __Pyx_PyDict_GetItem(o->object, key);
-    }
-    if (unlikely(PyErr_Occurred())) PyErr_Clear(); // set our own exception
-    PyErr_SetObject(PyExc_KeyError, key);
-    return NULL;
-}
-
 /////////////// FastcallTupleGetItemInt.proto ///////////////
 //@requires: FunctionArguments.c::FastcallTuple
 //@requires: GetItemInt
@@ -1453,93 +1427,6 @@ static CYTHON_INLINE int __Pyx_PySet_ContainsTF(PyObject* key, PyObject* set, in
 
 static CYTHON_INLINE int __Pyx_PySequence_ContainsTF(PyObject* item, PyObject* seq, int eq) {
     int result = PySequence_Contains(seq, item);
-    return unlikely(result < 0) ? result : (result == (eq == Py_EQ));
-}
-
-/////////////////// FastcallDictContains.proto //////////////////////
-//@requires:FunctionArguments.c::FastcallDict
-
-static CYTHON_UNUSED int __Pyx_FastcallDict_Index_impl(__Pyx_FastcallDict_obj* o, PyObject* key);
-static CYTHON_UNUSED int __Pyx_FastcallDict_Contains(__Pyx_FastcallDict_obj* o, PyObject* key);
-static CYTHON_INLINE int __Pyx_FastcallDict_ContainsTF(PyObject* item, __Pyx_FastcallDict_obj* dict, int eq);
-
-/////////////////// FastcallDictContains //////////////////////
-
-static CYTHON_UNUSED int __Pyx_FastcallDict_Index_impl(__Pyx_FastcallDict_obj* o, PyObject* key) {
-// returns -1 if not found otherwise the index
-// only to be used when we know o->object is a tuple
-#if (PY_MAJOR_VERSION >= 3)
-    const int is_unicode = PyUnicode_Check(key);
-#endif
-    Py_ssize_t idx;
-    const Py_ssize_t len =  PyTuple_GET_SIZE(o->object);
-    for (idx = 0; idx < len; ++idx) {
-        PyObject* lhs = PyTuple_GET_ITEM(o->object, idx);
-#if (PY_MAJOR_VERSION >= 3)
-        if (lhs == key) return idx;
-        if (likely((is_unicode) && PyUnicode_Check(lhs))) {
-            int cmp = PyUnicode_Compare(lhs, key);
-            if (cmp == 0) {
-                return idx;
-            } else if ((cmp < 0) && unlikely(PyErr_Occurred())) {
-                return -1;
-            } else {
-                continue; // FIXME? may fail with odd types that define an __eq__ function
-                    // but these should be in function arguments anyway...
-            }
-        }
-#endif
-        if (PyObject_RichCompareBool(lhs, key, Py_EQ)) return idx;
-    }
-    return -1;
-}
-
-static CYTHON_UNUSED int __Pyx_FastcallDict_Contains(__Pyx_FastcallDict_obj* o, PyObject* key) {
-    if (o->object == NULL) {
-        return 0;
-    } else if (o->args) {
-        //return PySequence_Contains(o->object, key);
-        int res = __Pyx_FastcallDict_Index_impl(o, key);
-        if (res == -1) {
-            return (unlikely(PyErr_Occurred())) ? -1 : 0;
-        } else {
-            return 1;
-        }
-    } else {
-        return PyDict_Contains(o->object, key);
-    }
-}
-
-static CYTHON_INLINE int __Pyx_FastcallDict_ContainsTF(PyObject* item, __Pyx_FastcallDict_obj* dict, int eq) {
-    int result = __Pyx_FastcallDict_Contains(dict, item);
-    return unlikely(result < 0) ? result : (result == (eq == Py_EQ));
-}
-
-/////////////////// FastcallTupleContains.proto //////////////////////
-//@requires:FunctionArguments.c::FastcallTuple
-
-#if CYTHON_METH_FASTCALL
-static CYTHON_UNUSED int __Pyx_FastcallTuple_Contains(__Pyx_FastcallTuple_obj o, PyObject* key);
-#else
-#define __Pyx_FastcallTuple_Contains PySequence_Contains
-#endif
-static CYTHON_INLINE int __Pyx_FastcallTuple_ContainsTF(PyObject* item, __Pyx_FastcallTuple_obj t, int eq);
-
-/////////////////// FastcallTupleContains //////////////////////
-
-#if CYTHON_METH_FASTCALL
-static CYTHON_UNUSED int __Pyx_FastcallTuple_Contains(__Pyx_FastcallTuple_obj o, PyObject* key) {
-    Py_ssize_t idx;
-    for (idx = 0; idx < o.nargs; ++idx) {
-        PyObject* val = o.args[idx];
-        return PyObject_RichCompareBool(val, key, Py_EQ);
-    }
-    return 0;
-}
-#endif
-
-static CYTHON_INLINE int __Pyx_FastcallTuple_ContainsTF(PyObject* item, __Pyx_FastcallTuple_obj t, int eq) {
-    int result = __Pyx_FastcallTuple_Contains(t, item);
     return unlikely(result < 0) ? result : (result == (eq == Py_EQ));
 }
 

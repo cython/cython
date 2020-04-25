@@ -662,7 +662,7 @@ static CYTHON_UNUSED PyObject* __Pyx_FastcallDict_ToDict_Explicit(__Pyx_Fastcall
 // an iterator would be dangerous since it might outlive the __Pyx_FastcallDict_obj
 static CYTHON_UNUSED PyObject* __Pyx_FastcallDict_Keys(__Pyx_FastcallDict_obj* o); /* proto */
 static CYTHON_UNUSED PyObject* __Pyx_FastcallDict_Values(__Pyx_FastcallDict_obj* o); /* proto */
-static CYTHON_UNUSED PyObject* __Pyx_FastcallDict_Items(__Pyx_FastcallDict_obj* o); /* proto */
+// Items is excluded since it's more complicated and performance wasn't great
 
 /////////////////// FastcallDictIter //////////////////////
 //@requires:ObjectHandling.c::TupleAndListFromArray
@@ -684,28 +684,6 @@ static CYTHON_UNUSED PyObject* __Pyx_FastcallDict_Values(__Pyx_FastcallDict_obj 
         return __Pyx_PyList_FromArray(o->args, __Pyx_FastcallDict_Len(o));  // a tuple
     } else {
         return PyDict_Values(o->object);
-    }
-}
-static CYTHON_UNUSED PyObject* __Pyx_FastcallDict_Items(__Pyx_FastcallDict_obj* o) {
-    if (o->object == NULL) {
-        return PyList_New(0);
-    } else if (o->args) {
-        PyObject* output = NULL;
-        Py_ssize_t len = PyTuple_GET_SIZE(o->object);
-        Py_ssize_t i;
-        output = PyTuple_New(len);
-        if (!output) return NULL;
-        for (i=0; i<len; ++i) {
-            PyObject* this_item = PyTuple_Pack(2, PyTuple_GET_ITEM(o->object, i), o->args[i]);
-            if (!this_item) {
-                Py_CLEAR(output);
-                break;
-            }
-            PyTuple_SET_ITEM(output, i, this_item);
-        }
-        return output;
-    } else {
-        return PyDict_Items(o->object);
     }
 }
 

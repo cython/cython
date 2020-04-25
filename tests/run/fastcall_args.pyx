@@ -173,7 +173,6 @@ def test_starargs_ops(*args):
     1
     2
     3
-    True
     3
     3
     """
@@ -206,8 +205,6 @@ def test_starargs_ops(*args):
     for arg in args:
         print(arg)
 
-    res = (1 in args)
-    print(True if res else False)  # do it this way to avoid coercion to Python
     res = len(args)
     print("3" if res==3 else "not 3")  # do it this way to avoid coercion to Python
     print(call_with_args(*args))  # should go directly to a fastcall call and not prepare a tuple
@@ -266,11 +263,6 @@ def test_starstarargs_ops(**kwds):
     3
     ['a', 'b', 'c']
     [1, 2, 3]
-    [('a', 1), ('b', 2), ('c', 3)]
-    True
-    1
-    294
-    590
     294
     6
     3
@@ -280,12 +272,6 @@ def test_starstarargs_ops(**kwds):
     print("3" if res==3 else "not 3")  # avoid coercion to python object
     print(sorted(kwds.keys()))
     print(sorted(kwds.values()))
-    print(sorted(kwds.items()))
-    res = "a" in kwds
-    print(True if res else False)  # avoid coercion to python object
-    print(kwds["a"])
-    print(sum([ ord_(k) for k in kwds ]))  # this way order doesn't matter
-    print(sum([ ord_(k)*v for k, v in kwds.items() ]))
     print(sum([ ord_(k) for k in kwds.keys() ]))
     print(sum([ v for v in kwds.values() ]))
     print(call_with_kwds(**kwds))  # should be able to convert directly to a fastcall call

@@ -2683,7 +2683,7 @@ class IteratorNode(ExprNode):
             self.type = self.sequence.type
         elif self.sequence.type.is_cpp_class:
             self.analyse_cpp_types(env)
-        elif self.sequence.type.is_fastcall_type:
+        elif self.sequence.type.is_fastcall_tuple:
             self.type = py_object_type
         else:
             self.sequence = self.sequence.coerce_to_pyobject(env)
@@ -3691,6 +3691,10 @@ class IndexNode(_IndexingBaseNode):
                      self.base.type.is_fastcall_type)):
                 self.base = self.base.coerce_to_pyobject(env)
 
+        if self.base.type.is_fastcall_dict:
+            # fastcall_dicts are mostly for forwarding. Not useful to index specially
+            self.base = self.base.coerce_to_pyobject(env)
+
         replacement_node = self.analyse_as_buffer_operation(env, getting)
         if replacement_node is not None:
             return replacement_node
@@ -3725,8 +3729,6 @@ class IndexNode(_IndexingBaseNode):
             return self.analyse_as_c_tuple(env, getting, setting)
         elif base_type.is_fastcall_tuple:
             return self.analyse_as_fastcall_tuple(env, is_slice, getting, setting)
-        elif base_type.is_fastcall_dict:
-            return self.analyse_as_fastcall_dict(env, is_slice, getting, setting)
         else:
             error(self.pos,
                   "Attempting to index non-array type '%s'" %
@@ -3930,16 +3932,6 @@ class IndexNode(_IndexingBaseNode):
         self.is_temp = True
         return self
 
-    def analyse_as_fastcall_dict(self, env, is_slice, getting, setting):
-        if setting:
-            self.base = self.base.coerce_to_pyobject(env)
-            return self.analyse_as_pyobject(env, is_slice, getting, setting)
-        if not self.index.type.is_pyobject:
-            self.index = self.index.coere_to_pyobject(env)
-        self.type = PyrexTypes.py_object_type
-        self.is_temp = True
-        return self
-
     def wrap_in_nonecheck_node(self, env, getting):
         if not env.directives['nonecheck'] or not self.base.may_be_none():
             return
@@ -4126,9 +4118,6 @@ class IndexNode(_IndexingBaseNode):
                     # obj[str] is probably doing a dict lookup
                     function = "__Pyx_PyObject_Dict_GetItem"
                     utility_code = UtilityCode.load_cached("DictGetItem", "ObjectHandling.c")
-                elif self.base.type.is_fastcall_dict:
-                    function = "__Pyx_FastcallDict_GetItem"
-                    utility_code = UtilityCode.load_cached("FastcallDictGetItem", "ObjectHandling.c")
                 else:
                     function = "__Pyx_PyObject_GetItem"
                     code.globalstate.use_utility_code(
@@ -12634,14 +12623,6 @@ class CmpNode(object):
                 self.special_bool_cmp_utility_code = UtilityCode.load_cached("PyUnicodeContains", "StringTools.c")
                 self.special_bool_cmp_function = "__Pyx_PyUnicode_ContainsTF"
                 return True
-            elif self.operand2.type.is_fastcall_tuple:
-                self.special_bool_cmp_utility_code = UtilityCode.load_cached(
-                    "FastcallTupleContains", "ObjectHandling.c")
-                self.special_bool_cmp_function = "__Pyx_FastcallTuple_ContainsTF"
-            elif self.operand2.type.is_fastcall_dict:
-                self.special_bool_cmp_utility_code = UtilityCode.load_cached(
-                    "FastcallDictContains", "ObjectHandling.c")
-                self.special_bool_cmp_function = "__Pyx_FastcallDict_ContainsTF"
             else:
                 if not self.operand2.type.is_pyobject:
                     self.operand2 = self.operand2.coerce_to_pyobject(env)

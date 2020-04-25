@@ -206,8 +206,7 @@ class IterationTransform(Visitor.EnvTransform):
                 elif annotation.name in ('Set', 'FrozenSet'):
                     annotation_type = Builtin.set_type
 
-        if (Builtin.dict_type in (iterable.type, annotation_type) or
-            iterable.type.is_fastcall_dict):
+        if Builtin.dict_type in (iterable.type, annotation_type):
             # like iterating over dict.keys()
             if reversed:
                 # CPython raises an error here: not a sequence
@@ -997,13 +996,6 @@ class IterationTransform(Visitor.EnvTransform):
             value = value and 1 or 0
             return ExprNodes.IntNode(node.pos, value=str(value), constant_result=value)
 
-        func_name = "__Pyx_dict_iterator"
-        utility_code = UtilityCode.load_cached("dict_iter", "Optimize.c")
-        func_type_for_assignment = self.PyDict_Iterator_func_type
-        if dict_obj.type.is_fastcall_dict:
-            func_name += "_fastcalldict"
-            utility_code = UtilityCode.load_cached("FastcallDictLoopIter", "Optimize.c")
-            func_type_for_assignment = self.PyFastcallDict_Iterator_func_type
         result_code = [
             Nodes.SingleAssignmentNode(
                 node.pos,
@@ -1015,9 +1007,9 @@ class IterationTransform(Visitor.EnvTransform):
                 lhs = dict_temp,
                 rhs = ExprNodes.PythonCapiCallNode(
                     dict_obj.pos,
-                    func_name,
-                    func_type_for_assignment,
-                    utility_code = utility_code,
+                    "__Pyx_dict_iterator",
+                    self.PyDict_Iterator_func_type,
+                    utility_code = UtilityCode.load_cached("dict_iter", "Optimize.c"),
                     args = [dict_obj, flag_node(dict_obj.type is Builtin.dict_type),
                             method_node, dict_len_temp_addr, is_dict_temp_addr,
                             ],
@@ -1041,15 +1033,6 @@ class IterationTransform(Visitor.EnvTransform):
     PyDict_Iterator_func_type = PyrexTypes.CFuncType(
         PyrexTypes.py_object_type, [
             PyrexTypes.CFuncTypeArg("dict",  PyrexTypes.py_object_type, None),
-            PyrexTypes.CFuncTypeArg("is_dict",  PyrexTypes.c_int_type, None),
-            PyrexTypes.CFuncTypeArg("method_name",  PyrexTypes.py_object_type, None),
-            PyrexTypes.CFuncTypeArg("p_orig_length",  PyrexTypes.c_py_ssize_t_ptr_type, None),
-            PyrexTypes.CFuncTypeArg("p_is_dict",  PyrexTypes.c_int_ptr_type, None),
-            ])
-
-    PyFastcallDict_Iterator_func_type = PyrexTypes.CFuncType(
-        PyrexTypes.py_object_type, [
-            PyrexTypes.CFuncTypeArg("dict",  PyrexTypes.FastcallDictType(), None),
             PyrexTypes.CFuncTypeArg("is_dict",  PyrexTypes.c_int_type, None),
             PyrexTypes.CFuncTypeArg("method_name",  PyrexTypes.py_object_type, None),
             PyrexTypes.CFuncTypeArg("p_orig_length",  PyrexTypes.c_py_ssize_t_ptr_type, None),
