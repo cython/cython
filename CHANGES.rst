@@ -23,6 +23,9 @@ Bugs fixed
 * Decoding an empty bytes/char* slice with large bounds could crash.
   Patch by Sam Sneddon.  (Github issue #3534)
 
+* Unused C-tuples could generate incorrect code in 0.29.16.
+  Patch by Kirk Meyer.  (Github issue #3543)
+
 * Creating a fused function attached it to the garbage collector before it
   was fully initialised, thus risking crashes in rare failure cases.
   Original patch by achernomorov.  (Github issue #3215)
