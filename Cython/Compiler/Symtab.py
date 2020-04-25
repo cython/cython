@@ -935,19 +935,18 @@ class Scope(object):
         # Not strictly Python behaviour but see https://github.com/cython/cython/issues/3544
         entry = (self.outer_scope and self.outer_scope.lookup(name)) or None
         if entry and entry.is_pyglobal:
-            self._lookup_python_mangled_warning(entry.pos, name)
+            self._emit_class_private_warning(entry.pos, name)
         return entry
 
     def lookup_here(self, name):
         # Look up in this scope only, return None if not found.
 
-        # if the name is already declared in the scope then return it, even if
-        # mangling should give us something else. This is to support things like
-        # global __foo which makes a declaration for __foo
-        entry = self.entries.get(name, None)
+        entry = self.entries.get(self.mangle_class_private_name(name), None)
         if entry:
             return entry
-        name = self.mangle_class_private_name(name)
+        # Also check the unmangled name in the current scope
+        # (even if mangling should give us something else).
+        # This is to support things like global __foo which makes a declaration for __foo
         return self.entries.get(name, None)
 
     def lookup_here_unmangled(self, name):
@@ -960,7 +959,7 @@ class Scope(object):
         if not entry:
             entry = self.lookup_here_unmangled(name)
             if entry and entry.is_pyglobal:
-                self._lookup_python_mangled_warning(entry.pos, name)
+                self._emit_class_private_warning(entry.pos, name)
         if not entry:
             entry = self.declare_var(name, py_object_type, None)
         return entry
@@ -1012,7 +1011,7 @@ class Scope(object):
         operands = [FakeOperand(pos, type=type) for type in types]
         return self.lookup_operator(operator, operands)
 
-    def _lookup_python_mangled_warning(self, pos, name):
+    def _emit_class_private_warning(self, pos, name):
         warning(pos, "Global name %s matched from within class scope "
                             "in contradiction to to Python 'class private name' rules. "
                             "This may change in a future release." % name, 1)
