@@ -2431,7 +2431,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallArgs_structs(PyObject* cal
 //@requires: FunctionArguments.c::FastcallDict
 
 static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallArgsKwds_structs(PyObject* callable, __Pyx_FastcallTuple_obj args, __Pyx_FastcallDict_obj* kwds); /* proto */
-static CYTHON_INLINE PyObject* __Pyx_PyObject_FastcallArgsDict_structs(PyObject* callable, __Pyx_FastcallTuple_obj args, PyObject* kwds); /* proto */
+static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallArgsDict_structs(PyObject* callable, __Pyx_FastcallTuple_obj args, PyObject* kwds); /* proto */
 
 /////////////// PyObjectFastCall__ArgsKwds_OptimizedStructs.proto ///////////////
 //@requires:PyObjectCall
@@ -2474,7 +2474,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallArgsKwds_structs(PyObject*
     #endif
 }
 
-static CYTHON_INLINE PyObject* __Pyx_PyObject_FastcallArgsDict_structs(PyObject* callable, __Pyx_FastcallTuple_obj args, PyObject* kwds) {
+static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallArgsDict_structs(PyObject* callable, __Pyx_FastcallTuple_obj args, PyObject* kwds) {
     #if CYTHON_METH_FASTCALL
     return __Pyx_PyObject_FastCallDict(callable, (PyObject**)args.args, args.nargs, kwds);
     #else

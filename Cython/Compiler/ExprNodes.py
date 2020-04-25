@@ -6655,7 +6655,7 @@ class GeneralCallNode(CallNode):
             assert self.keyword_args.type.is_fastcall_dict
             code.globalstate.use_utility_code(UtilityCode.load_cached(
                 "FastcallTuple", "FunctionArguments.c"))
-            pos_result = "__Pyx_FastcallTuple_New(%s->args, 0)" % kwds_result
+            pos_result = "__Pyx_FastcallTuple_BorrowedEmpty(%s->args)" % kwds_result
         else:
             pos_result = self.positional_args.result()
         if self.keyword_args:  # both with args

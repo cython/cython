@@ -1941,7 +1941,9 @@ if VALUE is not None:
 
     def visit_DefNode(self, node):
         node = self.visit_FuncDefNode(node)
-        fastcall_args = node.local_scope.directives.get('fastcall_args', [None, None])
+
+        local_scope = getattr(node, 'local_scope', None)  # fused function nodes don't have this
+        fastcall_args = local_scope.directives.get('fastcall_args', None) if local_scope else None
         if fastcall_args:
             if fastcall_args[0] and node.star_arg:
                 if node.self_in_stararg:

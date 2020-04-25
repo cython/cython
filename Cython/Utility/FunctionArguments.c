@@ -467,6 +467,7 @@ static CYTHON_INLINE PyObject * __Pyx_GetKwValue_FASTCALL(PyObject *kwnames, PyO
 #endif
 
 /////////////// FastcallTuple.proto ///////////////
+//@substitute: naming
 // A struct which can be created cheaply without needing to construct a Python object
 
 #if CYTHON_METH_FASTCALL
@@ -475,6 +476,8 @@ typedef struct {
     Py_ssize_t nargs;
 } __Pyx_FastcallTuple_obj;
 static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_FastcallTuple_New(PyObject *const *args, Py_ssize_t nargs);
+// BorrowedEmpty useful when calling a function with only fastcall keyword arguments
+#define __Pyx_FastcallTuple_BorrowedEmpty(args) __Pyx_FastcallTuple_New(args, 0)
 #define __Pyx_FastcallTuple_Empty {}
 // reference counting is all a no-op
 #define __Pyx_FastcallTuple_GOTREF(x)
@@ -490,6 +493,7 @@ static CYTHON_INLINE Py_ssize_t __Pyx_FastcallTuple_Len(__Pyx_FastcallTuple_obj 
 typedef PyObject* __Pyx_FastcallTuple_obj;
 #define __Pyx_FastcallTuple_Empty 0
 #define __Pyx_FastcallTuple_New PyTuple_GetSlice
+#define __Pyx_FastcallTuple_BorrowedEmpty(ignore) $empty_tuple
 #define __Pyx_FastcallTuple_GOTREF(x) __Pyx_GOTREF(x)
 #define __Pyx_FastcallTuple_CLEAR(x, nanny) if (nanny) { __Pyx_CLEAR(x); } else { Py_CLEAR(x); }
 #define __Pyx_FastcallTuple_XINCREF(x, nanny)  if (nanny) { __Pyx_XINCREF(x); } else { Py_XINCREF(x); }
