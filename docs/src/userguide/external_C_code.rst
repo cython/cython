@@ -17,7 +17,7 @@ to be less frequent, but you might want to do it, for example, if you are
 Cython module can be used as a bridge to allow Python code to call C code, it
 can also be used to allow C code to call Python code.
 
-.. _embedding Python: http://www.freenet.org.nz/python/embeddingpyrex/
+.. _embedding Python: https://web.archive.org/web/20120225082358/http://www.freenet.org.nz:80/python/embeddingpyrex/
 
 External declarations
 =======================
