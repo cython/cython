@@ -1,0 +1,38 @@
+# mode: run
+# tag: pep489
+
+"""
+PYTHON setup.py build_ext -i
+PYTHON tester.py
+"""
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+from distutils.core import setup
+
+setup(
+  ext_modules = cythonize("*.pyx"),
+)
+
+
+######## failure.pyx ########
+
+if globals():  # runtime True to confuse dead code removal
+    raise ImportError
+
+cdef class C:
+    cdef int a
+
+
+######## tester.py ########
+
+try:
+    try:
+        import failure  # 1
+    except ImportError:
+        import failure  # 2
+except ImportError:
+    pass
+else:
+    raise RuntimeError("ImportError was not raised on second import!")

@@ -132,6 +132,7 @@ static void __Pyx_call_next_tp_clear(PyObject* obj, inquiry current_tp_clear) {
 static int __Pyx_setup_reduce(PyObject* type_obj);
 
 /////////////// SetupReduce ///////////////
+//@requires: ObjectHandling.c::PyObjectGetAttrStrNoError
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
 //@substitute: naming
 
@@ -188,16 +189,28 @@ static int __Pyx_setup_reduce(PyObject* type_obj) {
         reduce = __Pyx_PyObject_GetAttrStr(type_obj, PYIDENT("__reduce__")); if (unlikely(!reduce)) goto __PYX_BAD;
 
         if (reduce == object_reduce || __Pyx_setup_reduce_is_named(reduce, PYIDENT("__reduce_cython__"))) {
-            reduce_cython = __Pyx_PyObject_GetAttrStr(type_obj, PYIDENT("__reduce_cython__")); if (unlikely(!reduce_cython)) goto __PYX_BAD;
-            ret = PyDict_SetItem(((PyTypeObject*)type_obj)->tp_dict, PYIDENT("__reduce__"), reduce_cython); if (unlikely(ret < 0)) goto __PYX_BAD;
-            ret = PyDict_DelItem(((PyTypeObject*)type_obj)->tp_dict, PYIDENT("__reduce_cython__")); if (unlikely(ret < 0)) goto __PYX_BAD;
+            reduce_cython = __Pyx_PyObject_GetAttrStrNoError(type_obj, PYIDENT("__reduce_cython__"));
+            if (likely(reduce_cython)) {
+                ret = PyDict_SetItem(((PyTypeObject*)type_obj)->tp_dict, PYIDENT("__reduce__"), reduce_cython); if (unlikely(ret < 0)) goto __PYX_BAD;
+                ret = PyDict_DelItem(((PyTypeObject*)type_obj)->tp_dict, PYIDENT("__reduce_cython__")); if (unlikely(ret < 0)) goto __PYX_BAD;
+            } else if (reduce == object_reduce || PyErr_Occurred()) {
+                // Ignore if we're done, i.e. if 'reduce' already has the right name and the original is gone.
+                // Otherwise: error.
+                goto __PYX_BAD;
+            }
 
             setstate = __Pyx_PyObject_GetAttrStr(type_obj, PYIDENT("__setstate__"));
             if (!setstate) PyErr_Clear();
             if (!setstate || __Pyx_setup_reduce_is_named(setstate, PYIDENT("__setstate_cython__"))) {
-                setstate_cython = __Pyx_PyObject_GetAttrStr(type_obj, PYIDENT("__setstate_cython__")); if (unlikely(!setstate_cython)) goto __PYX_BAD;
-                ret = PyDict_SetItem(((PyTypeObject*)type_obj)->tp_dict, PYIDENT("__setstate__"), setstate_cython); if (unlikely(ret < 0)) goto __PYX_BAD;
-                ret = PyDict_DelItem(((PyTypeObject*)type_obj)->tp_dict, PYIDENT("__setstate_cython__")); if (unlikely(ret < 0)) goto __PYX_BAD;
+                setstate_cython = __Pyx_PyObject_GetAttrStrNoError(type_obj, PYIDENT("__setstate_cython__"));
+                if (likely(setstate_cython)) {
+                    ret = PyDict_SetItem(((PyTypeObject*)type_obj)->tp_dict, PYIDENT("__setstate__"), setstate_cython); if (unlikely(ret < 0)) goto __PYX_BAD;
+                    ret = PyDict_DelItem(((PyTypeObject*)type_obj)->tp_dict, PYIDENT("__setstate_cython__")); if (unlikely(ret < 0)) goto __PYX_BAD;
+                } else if (!setstate || PyErr_Occurred()) {
+                    // Ignore if we're done, i.e. if 'setstate' already has the right name and the original is gone.
+                    // Otherwise: error.
+                    goto __PYX_BAD;
+                }
             }
             PyType_Modified((PyTypeObject*)type_obj);
         }

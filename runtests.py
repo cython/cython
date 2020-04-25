@@ -424,6 +424,7 @@ VER_DEP_MODULES = {
     # to be unsafe...
     (2,999): (operator.lt, lambda x: x in ['run.special_methods_T561_py3',
                                            'run.test_raisefrom',
+                                           'run.reimport_failure',  # reimports don't do anything in Py2
                                            ]),
     (3,): (operator.ge, lambda x: x in ['run.non_future_division',
                                         'compile.extsetslice',

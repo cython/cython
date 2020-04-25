@@ -11,6 +11,8 @@ sequential_parallel
 yield_from_pep380
 memoryview_inplace_division
 
+run.reimport_failure
+
 # gc issue?
 memoryview_in_subclasses
 external_ref_reassignment

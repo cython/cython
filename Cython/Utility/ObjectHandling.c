@@ -1361,6 +1361,41 @@ static PyObject* __Pyx_PyObject_GenericGetAttr(PyObject* obj, PyObject* attr_nam
 #endif
 
 
+/////////////// PyObjectGetAttrStrNoError.proto ///////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyObject_GetAttrStrNoError(PyObject* obj, PyObject* attr_name);/*proto*/
+
+/////////////// PyObjectGetAttrStrNoError ///////////////
+//@requires: PyObjectGetAttrStr
+//@requires: Exceptions.c::PyThreadStateGet
+//@requires: Exceptions.c::PyErrFetchRestore
+//@requires: Exceptions.c::PyErrExceptionMatches
+
+static void __Pyx_PyObject_GetAttrStr_ClearAttributeError(void) {
+    __Pyx_PyThreadState_declare
+    __Pyx_PyThreadState_assign
+    if (likely(__Pyx_PyErr_ExceptionMatches(PyExc_AttributeError)))
+        __Pyx_PyErr_Clear();
+}
+
+static CYTHON_INLINE PyObject* __Pyx_PyObject_GetAttrStrNoError(PyObject* obj, PyObject* attr_name) {
+    PyObject *result;
+#if CYTHON_COMPILING_IN_CPYTHON && CYTHON_USE_TYPE_SLOTS && PY_VERSION_HEX >= 0x030700B1
+    // _PyObject_GenericGetAttrWithDict() in CPython 3.7+ can avoid raising the AttributeError.
+    // See https://bugs.python.org/issue32544
+    PyTypeObject* tp = Py_TYPE(obj);
+    if (likely(tp->tp_getattro == PyObject_GenericGetAttr)) {
+        return _PyObject_GenericGetAttrWithDict(obj, attr_name, NULL, 1);
+    }
+#endif
+    result = __Pyx_PyObject_GetAttrStr(obj, attr_name);
+    if (unlikely(!result)) {
+        __Pyx_PyObject_GetAttrStr_ClearAttributeError();
+    }
+    return result;
+}
+
+
 /////////////// PyObjectGetAttrStr.proto ///////////////
 
 #if CYTHON_USE_TYPE_SLOTS
