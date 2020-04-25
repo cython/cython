@@ -417,6 +417,7 @@ VER_DEP_MODULES = {
                                            'run.test_raisefrom',
                                            'run.different_package_names',
                                            'run.unicode_imports',  # encoding problems on appveyor in Py2
+                                           'run.reimport_failure',  # reimports don't do anything in Py2
                                            ]),
     (3,): (operator.ge, lambda x: x in ['run.non_future_division',
                                         'compile.extsetslice',
