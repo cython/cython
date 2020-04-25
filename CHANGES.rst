@@ -310,6 +310,10 @@ Bugs fixed
 * Decoding an empty bytes/char* slice with large bounds could crash.
   Patch by Sam Sneddon.  (Github issue #3534)
 
+* Re-importing a Cython extension no longer raises the error
+  "``__reduce_cython__ not found``".
+  (Github issue #3545)
+
 * Unused C-tuples could generate incorrect code in 0.29.16.
   Patch by Kirk Meyer.  (Github issue #3543)
 
