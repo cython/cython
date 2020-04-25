@@ -580,7 +580,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             definition = module is env
             type_entries = []
             for entry in module.type_entries:
-                if entry.type.is_ctuple:
+                if entry.type.is_ctuple and entry.used:
                     if entry.name not in ctuple_names:
                         ctuple_names.add(entry.name)
                         type_entries.append(entry)
