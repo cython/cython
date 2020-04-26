@@ -2029,7 +2029,6 @@ class FuncDefNode(StatNode, BlockNode):
 
             if return_type.is_memoryviewslice:
                 from . import MemoryView
-                assure_gil('error')
                 MemoryView.put_init_entry(Naming.retval_cname, code)
                 err_val = Naming.retval_cname
             else:
@@ -2066,7 +2065,8 @@ class FuncDefNode(StatNode, BlockNode):
             # jump past it if we have an error. The if-test below determine
             # whether this section is used.
             if buffers_present or is_getbuffer_slot or return_type.is_memoryviewslice:
-                # In all three cases, we already called assure_gil('error') and own the GIL.
+                # In the buffer cases, we already called assure_gil('error') and own the GIL.
+                assert gil_owned['error'] or return_type.is_memoryviewslice
                 code.put_goto(code.return_from_error_cleanup_label)
             else:
                 # align error and success GIL state
@@ -2078,6 +2078,8 @@ class FuncDefNode(StatNode, BlockNode):
 
         # ----- Non-error return cleanup
         code.put_label(code.return_label)
+        assert gil_owned['error'] == gil_owned['success'], "%s != %s" % (gil_owned['error'], gil_owned['success'])
+
         for entry in used_buffer_entries:
             assure_gil('success')
             Buffer.put_release_buffer_code(code, entry)
@@ -2102,11 +2104,12 @@ class FuncDefNode(StatNode, BlockNode):
                 '}')
 
         # ----- Return cleanup for both error and no-error return
-        code.put_label(code.return_from_error_cleanup_label)
-        # If we jumped here from the error path, then we own the GIL.
-        # If we came through the success path, we took the same decisions as for jumping.
-        # If we came through the error path and did not jump, we aligned both paths above.
-        # In the end, all three paths are aligned from this point on.
+        if code.label_used(code.return_from_error_cleanup_label):
+            # If we came through the success path, then we took the same GIL decisions as for jumping here.
+            # If we came through the error path and did not jump, then we aligned both paths above.
+            # In the end, all paths are aligned from this point on.
+            assert gil_owned['error'] == gil_owned['success'], "%s != %s" % (gil_owned['error'], gil_owned['success'])
+            code.put_label(code.return_from_error_cleanup_label)
 
         for entry in lenv.var_entries:
             if not entry.used or entry.in_closure:
