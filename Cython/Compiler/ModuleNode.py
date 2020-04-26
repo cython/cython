@@ -1322,7 +1322,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     self.generate_method_table(scope, code)
                     self.generate_getset_table(scope, code)
                     code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-                    self.generate_typeobj_spec(full_module_name, entry, code)
+                    self.generate_typeobj_spec(entry, code)
                     code.putln("#else")
                     self.generate_typeobj_definition(full_module_name, entry, code)
                     code.putln("#endif")
@@ -2228,26 +2228,26 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(
             "}")
 
-    def generate_typeobj_spec(self, modname, entry, code):
-        type = entry.type
-        scope = type.scope
-        code.putln("static PyType_Slot %s_slots[] = {" % type.typeobj_cname)
+    def generate_typeobj_spec(self, entry, code):
+        ext_type = entry.type
+        scope = ext_type.scope
+        code.putln("static PyType_Slot %s_slots[] = {" % ext_type.typeobj_cname)
         for slot in TypeSlots.slot_table:
             slot.generate_spec(scope, code)
         code.putln("{0, 0},")
         code.putln("};")
 
-        if type.typedef_flag:
-            objstruct = type.objstruct_cname
+        if ext_type.typedef_flag:
+            objstruct = ext_type.objstruct_cname
         else:
-            objstruct = "struct %s" % type.objstruct_cname
+            objstruct = "struct %s" % ext_type.objstruct_cname
         classname = scope.class_name.as_c_string_literal()
-        code.putln("static PyType_Spec %s_spec = {" % type.typeobj_cname)
+        code.putln("static PyType_Spec %s_spec = {" % ext_type.typeobj_cname)
         code.putln('"%s.%s",' % (self.full_module_name, classname.replace('"', '')))
         code.putln("sizeof(%s)," % objstruct)
         code.putln("0,")
         code.putln("%s," % TypeSlots.get_slot_by_name("tp_flags").slot_code(scope))
-        code.putln("%s_slots," % type.typeobj_cname)
+        code.putln("%s_slots," % ext_type.typeobj_cname)
         code.putln("};")
 
     def generate_typeobj_definition(self, modname, entry, code):
