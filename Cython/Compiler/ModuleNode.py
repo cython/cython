@@ -2231,45 +2231,23 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_typeobj_spec(self, modname, entry, code):
         type = entry.type
         scope = type.scope
+        code.putln("static PyType_Slot %s_slots[] = {" % type.typeobj_cname)
+        for slot in TypeSlots.slot_table:
+            slot.generate_spec(scope, code)
+        code.putln("{0, 0},")
+        code.putln("};")
+
         if type.typedef_flag:
             objstruct = type.objstruct_cname
         else:
             objstruct = "struct %s" % type.objstruct_cname
         classname = scope.class_name.as_c_string_literal()
-        code.putln("static PyType_Slot %s_slots[] = {" % type.typeobj_cname)
-        has_tp_getattro = False
-        for slot in TypeSlots.slot_table:
-            if slot.slot_name == "tp_flags":
-                continue
-            if slot.slot_name == "tp_dealloc" and scope.lookup_here("__dealloc__") is None:
-                continue
-            if slot.slot_name == "tp_getattro":
-                has_tp_getattro = True
-            if slot.slot_name == "tp_as_number":
-                slot.generate_substructure_spec(scope, code)
-                continue
-            if slot.slot_name == "tp_as_sequence":
-                slot.generate_substructure_spec(scope, code)
-                continue
-            if slot.slot_name == "tp_as_mapping":
-                slot.generate_substructure_spec(scope, code)
-                continue
-            if slot.slot_name == "tp_as_buffer":  # Can't support tp_as_buffer
-                continue
-            v = TypeSlots.get_slot_by_name(slot.slot_name).spec_slot_value(scope)
-            if v is not None:
-                code.putln("    {Py_%s, (void *)%s}," % (slot.slot_name, v))
-        if not has_tp_getattro:
-            code.putln("    {Py_tp_getattro, __Pyx_PyObject_GenericGetAttr},")
-        code.putln("    {0, 0},")
-        code.putln("};")
-
         code.putln("static PyType_Spec %s_spec = {" % type.typeobj_cname)
-        code.putln("    \"%s.%s\"," % (self.full_module_name, classname.replace("\"", "")))
-        code.putln("    sizeof(%s)," % objstruct)
-        code.putln("    0,")
-        code.putln("    %s," % TypeSlots.get_slot_by_name("tp_flags").spec_slot_value(scope))
-        code.putln("    %s_slots," % type.typeobj_cname)
+        code.putln('"%s.%s",' % (self.full_module_name, classname.replace('"', '')))
+        code.putln("sizeof(%s)," % objstruct)
+        code.putln("0,")
+        code.putln("%s," % TypeSlots.get_slot_by_name("tp_flags").slot_code(scope))
+        code.putln("%s_slots," % type.typeobj_cname)
         code.putln("};")
 
     def generate_typeobj_definition(self, modname, entry, code):
