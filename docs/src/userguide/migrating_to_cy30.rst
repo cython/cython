@@ -159,5 +159,5 @@ a ``cdef class``:
 
 Here ``Base.__bar`` is mangled to ``_Base__bar`` and ``Derived.__bar``
 to ``_Derived__bar``. Therefore ``call_bar`` will always call 
-``_Base__bar``. This matches established Pythoon behaviour and applies
+``_Base__bar``. This matches established Python behaviour and applies
 for ``def``, ``cdef`` and ``cpdef`` methods and attributes.
