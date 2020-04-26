@@ -400,16 +400,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("/* Implementation of %s */" % env.qualified_name.as_c_string_literal())
 
         code = globalstate['late_includes']
-        code.putln("/* Late includes */")
         self.generate_includes(env, modules, code, early=False)
 
-        code = globalstate['all_the_rest']
+        code = globalstate['module_code']
 
         self.generate_cached_builtins_decls(env, code)
-        self.generate_lambda_definitions(env, code)
-        # generate normal variable and function definitions
-        self.generate_variable_definitions(env, code)
 
+        # generate normal variable and function definitions
+        self.generate_lambda_definitions(env, code)
+        self.generate_variable_definitions(env, code)
         self.body.generate_function_definitions(env, code)
 
         code.mark_pos(None)
@@ -417,7 +416,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_method_table(env, code)
         if env.has_import_star:
             self.generate_import_star(env, code)
-        self.generate_pymoduledef_struct(env, code)
 
         # initialise the macro to reduce the code size of one-time functionality
         code.putln(UtilityCode.load_as_string("SmallCodeConfig", "ModuleSetupCode.c")[0].strip())
@@ -2608,6 +2606,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_module_init_func(self, imported_modules, env, code):
         subfunction = self.mod_init_subfunction(self.scope, code)
+
+        self.generate_pymoduledef_struct(env, code)
 
         code.enter_cfunc_scope(self.scope)
         code.putln("")

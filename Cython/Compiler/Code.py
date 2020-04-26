@@ -1103,10 +1103,6 @@ class GlobalState(object):
         'complex_type_declarations', # as the proper solution is to make a full DAG...
         'type_declarations',         # More coarse-grained blocks would simply hide
         'utility_code_proto',        # the ugliness, not fix it
-        'module_state',
-        'module_state_clear',
-        'module_state_traverse',
-        'module_state_defines',
         'module_declarations',
         'typeinfo',
         'before_global_var',
@@ -1114,7 +1110,11 @@ class GlobalState(object):
         'string_decls',
         'decls',
         'late_includes',
-        'all_the_rest',
+        'module_state',
+        'module_state_clear',
+        'module_state_traverse',
+        'module_state_defines',  # redefines names used in module_state/_clear/_traverse
+        'module_code',  # user code goes here
         'pystring_table',
         'cached_builtins',
         'cached_constants',
@@ -1155,8 +1155,10 @@ class GlobalState(object):
 
     def initialize_main_c_code(self):
         rootwriter = self.rootwriter
-        for part in self.code_layout:
-            self.parts[part] = rootwriter.insertion_point()
+        for i, part in enumerate(self.code_layout):
+            w = self.parts[part] = rootwriter.insertion_point()
+            if i > 0:
+                w.putln("/* #### Code section: %s ### */" % part)
 
         if not Options.cache_builtins:
             del self.parts['cached_builtins']
