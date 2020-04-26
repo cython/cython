@@ -732,7 +732,7 @@ class ControlFlowAnalysis(CythonTransform):
                                         and use_fastcall_tuple != False):
                 star_arg_type = PyrexTypes.FastcallTupleType(explicitly_requested=use_fastcall_tuple)
             if star_arg_type.is_fastcall_tuple and not node.entry.signature.use_fastcall:
-                # Makes it a more favourable to fall back to a tuple later if the
+                # Makes it more favourable to fall back to a tuple later if the
                 # argument is passed to the function as a tuple anyway
                 star_arg_type.coercion_count += 1
             self.flow.mark_argument(node.star_arg,

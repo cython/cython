@@ -928,23 +928,6 @@ class InterpretCompilerDirectives(CythonTransform):
                 raise PostParseError(
                     pos, 'The exceptval directive takes 0 or 1 positional arguments and the boolean keyword "check"')
             return ('exceptval', (args[0] if args else None, check))
-        elif False and optname == "fastcall_args":
-            if len(args) not in [1, 2]:
-                raise PostParseError(
-                    pos, 'The fastcall_args directive takes 1 or 2 positional arguments')
-            elif len(args) == 1:
-                args = [args[0], args[0]]
-            def validate_fastcall_arg(arg):
-                if arg.is_none:
-                    value = None
-                elif isinstance(arg, ExprNodes.BoolNode):
-                    value = arg.value
-                else:
-                    raise PostParseError(
-                        pos, 'Arguments to the fastcall_args directives must be True, False or None'
-                        ' (Received %s)' % arg.value)
-                return value
-            return optname, [ validate_fastcall_arg(a) for a in args ]
 
         directivetype = Options.directive_types.get(optname)
         if len(args) == 1 and isinstance(args[0], ExprNodes.NoneNode):
@@ -2270,7 +2253,10 @@ def _star_arg_fastcall_coercions(node):
     if not star_arg.entry.type.is_fastcall_tuple:
         return 0
     else:
-        return node.star_arg.entry.type.coercion_count
+        if node.star_arg.entry.type.explicitly_requested:
+            return 0
+        else:
+            return node.star_arg.entry.type.coercion_count
 
 class _StripFastcallTupleTypes(CythonTransform):
     def visit_ExprNode(self, node):

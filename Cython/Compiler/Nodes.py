@@ -3110,7 +3110,7 @@ class DefNode(FuncDefNode):
                 assert self.starstar_arg.type.explicitly_requested
                 warning(self.pos, ("Request for **{0} to be a specialized "
                     "fastcall argument is pointless since the function itself is not fastcallable "
-                    "and so this will only cause degrade performance."
+                    "and so this will only cause degraded performance."
                     ).format(self.starstar_arg.name), 1)
 
     def bad_signature(self):
@@ -5648,8 +5648,6 @@ class SingleAssignmentNode(AssignmentNode):
                     env.use_utility_code(UtilityCode.load_cached("CppExceptionConversion", "CppSupport.cpp"))
             else:
                 rhs = self.rhs.coerce_to(self.lhs.type, env)
-        elif self.rhs.type.is_fastcall_tuple and isinstance(self.lhs, ExprNodes.TupleNode):
-            rhs = self.rhs
         else:
             rhs = self.rhs.coerce_to(self.lhs.type, env)
 

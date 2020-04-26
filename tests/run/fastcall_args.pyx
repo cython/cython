@@ -167,9 +167,6 @@ def test_starargs_ops(*args):
     1 2 3
     1 2
     Caught IndexError
-    1 2 3
-    Caught ValueError
-    Caught ValueError
     1
     2
     3
@@ -191,16 +188,6 @@ def test_starargs_ops(*args):
         args[4]
     except IndexError:
         print("Caught IndexError")
-    a, b, c = args
-    print(a, b, c)
-    try:
-        a, b, c, d = args
-    except ValueError:
-        print("Caught ValueError")
-    try:
-        a, b = args
-    except ValueError:
-        print("Caught ValueError")
 
     for arg in args:
         print(arg)

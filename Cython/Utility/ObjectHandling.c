@@ -924,6 +924,7 @@ static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_FastcallTuple_GetSlice(__Pyx_
 #if CYTHON_METH_FASTCALL
 static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_FastcallTuple_GetSlice(__Pyx_FastcallTuple_obj in, Py_ssize_t start, Py_ssize_t stop) {
     const int wraparound = 1;
+    Py_ssize_t out_len;
     if (stop < start) {
         return in;
     }
@@ -935,7 +936,7 @@ static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_FastcallTuple_GetSlice(__Pyx_
     if (start < 0) start = 0;
     if (stop < 0) stop = 0;
     if (stop > len_in) stop = len_in;
-    Py_ssize_t out_len = stop - start;
+    out_len = stop - start;
     if (stop < start) out_len = 0;
 
 #if CYTHON_VECTORCALL || CYTHON_BACKPORT_VECTORCALL
@@ -2327,6 +2328,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallArgsDict_structs(PyObject*
 
 static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallArgsKwds_structs(PyObject* callable, __Pyx_FastcallTuple_obj args, __Pyx_FastcallDict_obj* kwds) {
     #if CYTHON_METH_FASTCALL
+    PyObject *result = NULL, *tpl, *dict;
     if (kwds->object == NULL) {
         // no keywords
         return __Pyx_PyObject_FastCall(callable, (PyObject**)args.args, args.nargs);
@@ -2340,7 +2342,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallArgsKwds_structs(PyObject*
             // Might be better going straight to fallback, possibly?
             PyObject* kwds_as_dict = __Pyx_FastcallDict_ToDict_Explicit(kwds);
             if (!kwds_as_dict) return NULL;
-            PyObject* result = __Pyx_PyObject_FastCallDict(callable, (PyObject**)args.args, args.nargs, kwds_as_dict);
+            result = __Pyx_PyObject_FastCallDict(callable, (PyObject**)args.args, args.nargs, kwds_as_dict);
             Py_DECREF(kwds_as_dict);
             return result;
         }
@@ -2348,10 +2350,9 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallArgsKwds_structs(PyObject*
         return __Pyx_PyObject_FastCallKwds(callable, (PyObject**)args.args, args.nargs, kwds->object);
     }
     #else
-    PyObject* result = NULL;
-    PyObject* tpl = __Pyx_FastcallTuple_ToTuple(args);
+    tpl = __Pyx_FastcallTuple_ToTuple(args);
     if (!tpl) return NULL;
-    PyObject* dict = __Pyx_FastcallDict_ToDict_Explicit(kwds);
+    dict = __Pyx_FastcallDict_ToDict_Explicit(kwds);
     if (dict) {
         result = __Pyx_PyObject_Call(callable, tpl, dict);
         Py_DECREF(dict);

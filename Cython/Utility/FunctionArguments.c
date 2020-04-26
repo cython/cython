@@ -518,6 +518,7 @@ static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_ArgsSlice_VARARGS_struct(PyOb
 static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_FastcallTuple_FromTuple(PyObject* o);
 
 /////////////// FastcallTuple ///////////////
+//@requires: ObjectHandling.c::TupleAndListFromArray
 
 #if CYTHON_METH_FASTCALL
 static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_FastcallTuple_New(PyObject *const *args, Py_ssize_t nargs) {

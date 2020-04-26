@@ -4978,7 +4978,7 @@ def parse_basic_type(name):
     basic_type = simple_c_type(1, 0, name)
     if basic_type:
         return basic_type
-
+    #
     signed = 1
     longness = 0
     if name == 'Py_UNICODE':

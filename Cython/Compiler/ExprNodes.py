@@ -6401,7 +6401,6 @@ class GeneralCallNode(CallNode):
     #  keyword_args     ExprNode or None  Dict of keyword arguments
 
     type = py_object_type
-    fastcallable_with_types = False  # can use fastcall_dict and/or fastcall_tuple to call
 
     subexprs = ['function', 'positional_args', 'keyword_args']
 
@@ -6458,9 +6457,11 @@ class GeneralCallNode(CallNode):
         kwds_is_fastcall = (self.keyword_args and
                                 (isinstance(self.keyword_args, CoerceToPyTypeNode) and
                                 self.keyword_args.arg.type.is_fastcall_dict))
-
+        fastcallable_with_types = False
         if pos_is_fastcall or (pos_is_empty and kwds_is_fastcall):
-            self.fastcallable_with_types = True
+            fastcallable_with_types = True
+
+        if fastcallable_with_types:
             # worth a go at converting to a fastcall call
             if pos_is_fastcall:
                 self.positional_args = self.positional_args.arg
@@ -6469,7 +6470,7 @@ class GeneralCallNode(CallNode):
                 self.keyword_args = self.keyword_args.arg
                 self.keyword_args.type.coercion_count -= 1
 
-        if not self.fastcallable_with_types:
+        if not fastcallable_with_types:
             self.positional_args = \
                 self.positional_args.coerce_to_pyobject(env)
         self.set_py_result_type(self.function)
@@ -6616,7 +6617,10 @@ class GeneralCallNode(CallNode):
 
     def generate_result_code(self, code):
         if self.type.is_error: return
-        if self.fastcallable_with_types:
+        pos_is_empty = (isinstance(self.positional_args, TupleNode) and
+                            len(self.positional_args.args) == 0)
+        if (self.positional_args.type.is_fastcall_tuple
+            or (pos_is_empty and self.keyword_args and self.keyword_args.type.is_fastcall_dict)):
             return self.generate_fastcall_result_code(code)
 
         if self.keyword_args:
@@ -6636,7 +6640,7 @@ class GeneralCallNode(CallNode):
 
     def generate_fastcall_result_code(self, code):
         # use this path when we're mainly forwarding fastcall tuples and dicts
-        args_empty = (isinstance(self.positional_args, TupleNode) and
+        args_empty = (self.positional_args.is_sequence_constructor and
                           len(self.positional_args.args) == 0)
         if self.keyword_args:
             kwds_result = self.keyword_args.result()
@@ -7211,14 +7215,7 @@ class AttributeNode(ExprNode):
         # type, or it is an extension type and the attribute is either not
         # declared or is declared as a Python method. Treat it as a Python
         # attribute reference.
-        original_obj = self.obj
         self.analyse_as_python_attribute(env, obj_type, immutable_obj)
-        if (self.obj is not original_obj
-                and self.obj.type is not PyrexTypes.py_object_type):
-            # If it's emerged from the analysis changed, and a more specialised
-            # type (for example a builtin type)
-            # There may be more that can be done with it, so analyse again
-            self.analyse_attribute(env, self.obj.type)
 
     def analyse_as_python_attribute(self, env, obj_type=None, immutable_obj=False):
         if obj_type is None:
@@ -7234,11 +7231,14 @@ class AttributeNode(ExprNode):
             if (obj_type.is_string or obj_type.is_cpp_string
                 or obj_type.is_buffer or obj_type.is_memoryviewslice
                 or obj_type.is_numeric
-                or obj_type.is_fastcall_dict or obj_type.is_fastcall_tuple
+                or obj_type.is_fastcall_type
                 or (obj_type.is_ctuple and obj_type.can_coerce_to_pyobject(env))
                 or (obj_type.is_struct and obj_type.can_coerce_to_pyobject(env))):
                 if not immutable_obj:
                     self.obj = self.obj.coerce_to_pyobject(env)
+                    if self.obj.type is not py_object_type:
+                        # coercion has given a more specialized type, further analysis might be possible
+                        self.analyse_attribute(env, self.obj.type)
             elif (obj_type.is_cfunction and (self.obj.is_name or self.obj.is_attribute)
                   and self.obj.entry.as_variable
                   and self.obj.entry.as_variable.type.is_pyobject):
@@ -7779,10 +7779,7 @@ class SequenceNode(ExprNode):
                           or not rhs.type.is_builtin_type)
         long_enough_for_a_loop = len(self.unpacked_items) > 3
 
-        if rhs.type.is_fastcall_tuple:
-            self.generate_fastcall_tuple_parallel_unpacking_code(
-                code, rhs)
-        elif special_unpack:
+        if special_unpack:
             self.generate_special_parallel_unpacking_code(
                 code, rhs, use_loop=long_enough_for_a_loop)
         else:
@@ -7884,27 +7881,6 @@ class SequenceNode(ExprNode):
             self.generate_generic_parallel_unpacking_code(
                 code, rhs, self.unpacked_items, use_loop=use_loop)
             code.putln("}")
-
-    def generate_fastcall_tuple_parallel_unpacking_code(self, code, rhs):
-        result = rhs.result()
-        code.putln("{")
-        code.putln("Py_ssize_t size = __Pyx_FastcallTuple_Len(%s);" % result)
-        code.putln("if (unlikely(size != %d)) {" % len(self.args))
-        code.globalstate.use_utility_code(raise_too_many_values_to_unpack)
-        code.putln("if (size > %d) __Pyx_RaiseTooManyValuesError(%d);" % (
-            len(self.args), len(self.args)))
-        code.globalstate.use_utility_code(raise_need_more_values_to_unpack)
-        code.putln("else if (size >= 0) __Pyx_RaiseNeedMoreValuesError(size);")
-        # < 0 => exception
-        code.putln(code.error_goto(self.pos))
-        code.putln("}")
-        code.globalstate.use_utility_code(UtilityCode.load_cached(
-            "FastcallTupleGetItemInt", "ObjectHandling.c"))
-        for i, item in enumerate(self.unpacked_items):
-            code.putln("%s = __Pyx_GetItemInt_FastcallTuple_Fast(%s, %d, 0, 0);" % (
-                    item.result(), result, i))  # should not be able to fail
-            item.generate_gotref(code)
-        code.putln("}")
 
     def generate_generic_parallel_unpacking_code(self, code, rhs, unpacked_items, use_loop, terminate=True):
         code.globalstate.use_utility_code(raise_need_more_values_to_unpack)
