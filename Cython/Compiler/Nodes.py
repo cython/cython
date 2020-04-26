@@ -2066,14 +2066,15 @@ class FuncDefNode(StatNode, BlockNode):
             # jump past it if we have an error. The if-test below determine
             # whether this section is used.
             if buffers_present or is_getbuffer_slot or return_type.is_memoryviewslice:
+                # In all three cases, we already called assure_gil('error') and own the GIL.
                 code.put_goto(code.return_from_error_cleanup_label)
-
-            # align error and success state
-            if gil_owned['success']:
-                assure_gil('error')
-            elif gil_owned['error']:
-                code.put_release_ensured_gil()
-                gil_owned['error'] = False
+            else:
+                # align error and success GIL state
+                if gil_owned['success']:
+                    assure_gil('error')
+                elif gil_owned['error']:
+                    code.put_release_ensured_gil()
+                    gil_owned['error'] = False
 
         # ----- Non-error return cleanup
         code.put_label(code.return_label)
@@ -2102,6 +2103,10 @@ class FuncDefNode(StatNode, BlockNode):
 
         # ----- Return cleanup for both error and no-error return
         code.put_label(code.return_from_error_cleanup_label)
+        # If we jumped here from the error path, then we own the GIL.
+        # If we came through the success path, we took the same decisions as for jumping.
+        # If we came through the error path and did not jump, we aligned both paths above.
+        # In the end, all three paths are aligned from this point on.
 
         for entry in lenv.var_entries:
             if not entry.used or entry.in_closure:
