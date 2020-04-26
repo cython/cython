@@ -2287,6 +2287,7 @@ class _StripFastcallTupleTypes(CythonTransform):
             node = node.arg
         return node
 
+
 class AnalyseExpressionsTransform(CythonTransform):
     def visit_ModuleNode(self, node):
         node.scope.infer_types()

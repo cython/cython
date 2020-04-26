@@ -4260,6 +4260,7 @@ class ErrorType(PyrexType):
     def error_condition(self, result_code):
         return "dummy"
 
+
 class FastcallBaseType(PyrexType):
     # Convenience class for refcounting functions
     needs_refcounting = 1
@@ -4301,6 +4302,7 @@ class FastcallBaseType(PyrexType):
         assert value in ("0", "{}"), str(value)  # only know how to handle empty literals
         return self.declaration_value
 
+
 class FastcallTupleType(FastcallBaseType):
     """Represents an optimized tuple-like type for "*args"
 
@@ -4334,7 +4336,6 @@ class FastcallTupleType(FastcallBaseType):
         else:
             return "__Pyx_FastcallTuple_obj %s" % entity_code
 
-
     def create_to_py_utility_code(self, env):
         # code is in declaration code
         return True
@@ -4352,6 +4353,7 @@ class FastcallTupleType(FastcallBaseType):
             # tuple_type indicates that the conversion was requested by the user
         #    self.coercion_count += 1
         return "%s = __Pyx_FastcallTuple_ToTuple(%s)" % (result_code, source_code)
+
 
 class FastcallDictType(FastcallBaseType):
     """Represents an optimized dict-like type for "**kwds"

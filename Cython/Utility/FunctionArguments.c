@@ -240,7 +240,7 @@ static CYTHON_INLINE PyObject*** __Pyx_ParseOptionalKeywords_Impl_MatchName(PyOb
     // note that an error can be set on return from this function
 
     PyObject ***name = name_start;
-    #if PY_MAJOR_VERSION < 3
+#if PY_MAJOR_VERSION < 3
     if (likely(PyString_Check(key))) {
         while ((*name) && (name != name_end)) {
             if ((CYTHON_COMPILING_IN_PYPY || PyString_GET_SIZE(**name) == PyString_GET_SIZE(key))
@@ -508,7 +508,7 @@ typedef PyObject* __Pyx_FastcallTuple_obj;
 static CYTHON_INLINE PyObject *__Pyx_FastcallTuple_ToTuple(__Pyx_FastcallTuple_obj o);  /* proto */
 
 #if CYTHON_METH_FASTCALL
-    static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_ArgsSlice_FASTCALL_struct(PyObject *const *args, Py_ssize_t start, Py_ssize_t stop);
+static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_ArgsSlice_FASTCALL_struct(PyObject *const *args, Py_ssize_t start, Py_ssize_t stop);
 #else
 #define __Pyx_ArgsSlice_FASTCALL_struct(args, start, stop) __Pyx_ArgsSlice_VARARGS_struct(args, start, stop)
 #endif
@@ -542,7 +542,7 @@ static CYTHON_INLINE PyObject *__Pyx_FastcallTuple_ToTuple(__Pyx_FastcallTuple_o
 #if CYTHON_METH_FASTCALL
 static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_ArgsSlice_FASTCALL_struct(PyObject *const *args, Py_ssize_t start, Py_ssize_t stop) {
     Py_ssize_t nargs = (stop - start);
-    if (nargs < 0) nargs = 0;
+    if (stop < start) nargs = 0;
 #if CYTHON_VECTORCALL
     if (start > 0) {
         nargs |= PY_VECTORCALL_ARGUMENTS_OFFSET; // we know there's at least one space in front

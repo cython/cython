@@ -401,7 +401,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_FastcallTuple_Fast(__Pyx_Fastcal
         }
     }
     if (boundscheck) {
-        if ((i < 0) || (i >= len)) {
+        if (unlikely((i < 0) || (i >= len))) {
             PyErr_SetString(PyExc_IndexError, "tuple index out of range");
             return NULL;
         }
@@ -817,7 +817,7 @@ static CYTHON_INLINE void __Pyx_copy_object_array(PyObject *const *CYTHON_RESTRI
 static CYTHON_INLINE int __Pyx_fill_sequence_from_array(PyObject *const *src, PyObject* dest, Py_ssize_t length) {
     Py_ssize_t i;
     for (i = 0; i < length; i++) {
-        if (PySequence_SetItem(dest, i, src[i]) != 0) {
+        if (unlikely(PySequence_SetItem(dest, i, src[i]) != 0)) {
             return -1;
         }
     }
@@ -838,7 +838,7 @@ __Pyx_PyTuple_FromArray(PyObject *const *src, Py_ssize_t n)
 #if CYTHON_COMPILING_IN_CPYTHON
     __Pyx_copy_object_array(src, ((PyTupleObject*)res)->ob_item, n);
 #else
-    if (__Pyx_fill_sequence_from_array(src, res, n) != 0) {
+    if (unlikely(__Pyx_fill_sequence_from_array(src, res, n) != 0)) {
         Py_CLEAR(res);
     }
 #endif
@@ -857,7 +857,7 @@ __Pyx_PyList_FromArray(PyObject *const *src, Py_ssize_t n)
 #if CYTHON_COMPILING_IN_CPYTHON
     __Pyx_copy_object_array(src, ((PyListObject*)res)->ob_item, n);
 #else
-    if (__Pyx_fill_sequence_from_array(src, res, n) != 0) {
+    if (unlikely(__Pyx_fill_sequence_from_array(src, res, n) != 0)) {
         Py_CLEAR(res);
     }
 #endif
@@ -936,10 +936,10 @@ static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_FastcallTuple_GetSlice(__Pyx_
     if (stop < 0) stop = 0;
     if (stop > len_in) stop = len_in;
     Py_ssize_t out_len = stop - start;
-    if (out_len < 0) out_len = 0;
+    if (stop < start) out_len = 0;
 
-#if CYTHON_VECTORCALL
-    if ((start > 0) || (in.nargs & PY_VECTORCALL_ARGUMENTS_OFFSET)) {
+#if CYTHON_VECTORCALL || CYTHON_BACKPORT_VECTORCALL
+    if ((start > 0) || __Pyx_PyVectorcall_NARGS(in.nargs)) {
         out_len |= PY_VECTORCALL_ARGUMENTS_OFFSET;
     }
 #endif /* CYTHON_VECTORCALL */

@@ -3694,7 +3694,7 @@ class DefNodeWrapper(FuncDefNode):
                                          self.starstar_arg.entry.type.literal_code(0)))
             else:
                 if self.starstar_arg.type.is_fastcall_dict:
-                    code.putln("%s[0] = __Pyx_FastcallDict_New();" % self.starstar_arg.entry.cname)
+                    code.putln("*%s = __Pyx_FastcallDict_New();" % self.starstar_arg.entry.cname)
                 else:
                     code.putln("%s = PyDict_New();" % self.starstar_arg.entry.cname)
                 code.putln("if (unlikely(!%s)) return %s;" % (
