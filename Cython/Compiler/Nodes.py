@@ -1734,9 +1734,6 @@ class FuncDefNode(StatNode, BlockNode):
             # no code to generate
             return
 
-        if self.return_type.is_memoryviewslice:
-            from . import MemoryView
-
         lenv = self.local_scope
         if lenv.is_closure_scope and not lenv.is_passthrough:
             outer_scope_cname = "%s->%s" % (Naming.cur_scope_cname,
@@ -1810,14 +1807,15 @@ class FuncDefNode(StatNode, BlockNode):
 
         # Initialize the return variable __pyx_r
         init = ""
-        if not self.return_type.is_void:
-            if self.return_type.is_pyobject:
+        return_type = self.return_type
+        if not return_type.is_void:
+            if return_type.is_pyobject:
                 init = " = NULL"
-            elif self.return_type.is_memoryviewslice:
-                init = ' = ' + MemoryView.memslice_entry_init
+            elif return_type.is_memoryviewslice:
+                init = ' = ' + return_type.literal_code(return_type.default_value)
 
             code.putln("%s%s;" % (
-                self.return_type.declaration_code(Naming.retval_cname),
+                return_type.declaration_code(Naming.retval_cname),
                 init))
 
         tempvardecl_code = code.insertion_point()
@@ -1977,18 +1975,20 @@ class FuncDefNode(StatNode, BlockNode):
         code.putln("/* function exit code */")
 
         # ----- Default return value
+        return_type = self.return_type
         if not self.body.is_terminator:
-            if self.return_type.is_pyobject:
-                #if self.return_type.is_extension_type:
+            if return_type.is_pyobject:
+                #if return_type.is_extension_type:
                 #    lhs = "(PyObject *)%s" % Naming.retval_cname
                 #else:
                 lhs = Naming.retval_cname
-                code.put_init_to_py_none(lhs, self.return_type)
-            else:
-                val = self.return_type.default_value
+                code.put_init_to_py_none(lhs, return_type)
+            elif not return_type.is_memoryviewslice:
+                # memory view structs receive their default value on initialisation
+                val = return_type.default_value
                 if val:
                     code.putln("%s = %s;" % (Naming.retval_cname, val))
-                elif not self.return_type.is_void:
+                elif not return_type.is_void:
                     code.putln("__Pyx_pretend_to_initialize(&%s);" % Naming.retval_cname)
         # ----- Error cleanup
         if code.error_label in code.labels_used:
@@ -2013,7 +2013,8 @@ class FuncDefNode(StatNode, BlockNode):
                     #code.putln("%s = 0;" % entry.cname)
                 code.putln("__Pyx_ErrRestore(__pyx_type, __pyx_value, __pyx_tb);}")
 
-            if self.return_type.is_memoryviewslice:
+            if return_type.is_memoryviewslice:
+                from . import MemoryView
                 MemoryView.put_init_entry(Naming.retval_cname, code)
                 err_val = Naming.retval_cname
             else:
@@ -2039,13 +2040,13 @@ class FuncDefNode(StatNode, BlockNode):
                         "Unraisable exception in function '%s'." %
                         self.entry.qualified_name, 0)
                 code.put_unraisable(self.entry.qualified_name, lenv.nogil)
-            default_retval = self.return_type.default_value
+            default_retval = return_type.default_value
             if err_val is None and default_retval:
                 err_val = default_retval
             if err_val is not None:
                 if err_val != Naming.retval_cname:
                     code.putln("%s = %s;" % (Naming.retval_cname, err_val))
-            elif not self.return_type.is_void:
+            elif not return_type.is_void:
                 code.putln("__Pyx_pretend_to_initialize(&%s);" % Naming.retval_cname)
 
             if is_getbuffer_slot:
@@ -2054,7 +2055,7 @@ class FuncDefNode(StatNode, BlockNode):
             # If we are using the non-error cleanup section we should
             # jump past it if we have an error. The if-test below determine
             # whether this section is used.
-            if buffers_present or is_getbuffer_slot or self.return_type.is_memoryviewslice:
+            if buffers_present or is_getbuffer_slot or return_type.is_memoryviewslice:
                 code.put_goto(code.return_from_error_cleanup_label)
 
         # ----- Non-error return cleanup
@@ -2064,11 +2065,11 @@ class FuncDefNode(StatNode, BlockNode):
         if is_getbuffer_slot:
             self.getbuffer_normal_cleanup(code)
 
-        if self.return_type.is_memoryviewslice:
+        if return_type.is_memoryviewslice:
             # See if our return value is uninitialized on non-error return
             # from . import MemoryView
             # MemoryView.err_if_nogil_initialized_check(self.pos, env)
-            cond = code.unlikely(self.return_type.error_condition(Naming.retval_cname))
+            cond = code.unlikely(return_type.error_condition(Naming.retval_cname))
             code.putln(
                 'if (%s) {' % cond)
             if env.nogil:
@@ -2114,11 +2115,11 @@ class FuncDefNode(StatNode, BlockNode):
         # ----- Return
         # This code is duplicated in ModuleNode.generate_module_init_func
         if not lenv.nogil:
-            default_retval = self.return_type.default_value
+            default_retval = return_type.default_value
             err_val = self.error_value()
             if err_val is None and default_retval:
                 err_val = default_retval  # FIXME: why is err_val not used?
-            code.put_xgiveref(Naming.retval_cname, self.return_type)
+            code.put_xgiveref(Naming.retval_cname, return_type)
 
         if self.entry.is_special and self.entry.name == "__hash__":
             # Returning -1 for __hash__ is supposed to signal an error
@@ -2130,7 +2131,7 @@ class FuncDefNode(StatNode, BlockNode):
             code.funcstate.can_trace = False
             if not self.is_generator:
                 # generators are traced when iterated, not at creation
-                if self.return_type.is_pyobject:
+                if return_type.is_pyobject:
                     code.put_trace_return(
                         Naming.retval_cname, nogil=not code.funcstate.gil_owned)
                 else:
@@ -2146,7 +2147,7 @@ class FuncDefNode(StatNode, BlockNode):
             code.put_release_ensured_gil()
             code.funcstate.gil_owned = False
 
-        if not self.return_type.is_void:
+        if not return_type.is_void:
             code.putln("return %s;" % Naming.retval_cname)
 
         code.putln("}")

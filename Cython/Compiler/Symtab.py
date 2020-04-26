@@ -515,8 +515,7 @@ class Scope(object):
                 entries[name] = entry
 
         if type.is_memoryviewslice:
-            from . import MemoryView
-            entry.init = MemoryView.memslice_entry_init
+            entry.init = type.default_value
 
         entry.scope = self
         entry.visibility = visibility
