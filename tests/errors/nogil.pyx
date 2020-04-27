@@ -52,7 +52,7 @@ cdef object m():
         x, y = y, x
         obj[i] = x
         obj.fred = x
-        print obj
+        print obj  # allowed!
         del fred
         return obj
         raise obj  # allowed!
@@ -151,10 +151,10 @@ _ERRORS = u"""
 53:11: Indexing Python object not allowed without gil
 54:11: Accessing Python attribute not allowed without gil
 54:11: Assignment of Python object not allowed without gil
-55:8: Constructing Python tuple not allowed without gil
-55:8: Python print statement not allowed without gil
+
 56:8: Deleting Python object not allowed without gil
 57:8: Returning Python object not allowed without gil
+
 59:11: Truth-testing Python object not allowed without gil
 61:14: Truth-testing Python object not allowed without gil
 63:8: For-loop using object bounds or target not allowed without gil
