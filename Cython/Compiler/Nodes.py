@@ -1862,11 +1862,10 @@ class FuncDefNode(StatNode, BlockNode):
 
         use_refnanny = not lenv.nogil or lenv.has_with_gil_block
 
+        gilstate_decl = code.insertion_point()
         if acquire_gil or acquire_gil_for_var_decls_only:
             code.put_ensure_gil()
             code.funcstate.gil_owned = True
-        elif lenv.nogil and lenv.has_with_gil_block:
-            code.declare_gilstate()
 
         if profile or linetrace:
             if not self.is_generator:
@@ -1989,6 +1988,19 @@ class FuncDefNode(StatNode, BlockNode):
         code.putln("")
         code.putln("/* function exit code */")
 
+        gil_owned = {
+            'success': code.funcstate.gil_owned,
+            'error': code.funcstate.gil_owned,
+            'gil_state_declared': False,
+        }
+        def assure_gil(code_path):
+            if not gil_owned[code_path]:
+                if not gil_owned['gil_state_declared']:
+                    gilstate_decl.declare_gilstate()
+                    gil_owned['gil_state_declared'] = True
+                code.put_ensure_gil(declare_gilstate=False)
+                gil_owned[code_path] = True
+
         # ----- Default return value
         if not self.body.is_terminator:
             if self.return_type.is_pyobject:
@@ -1996,8 +2008,10 @@ class FuncDefNode(StatNode, BlockNode):
                 #    lhs = "(PyObject *)%s" % Naming.retval_cname
                 #else:
                 lhs = Naming.retval_cname
+                assure_gil('success')
                 code.put_init_to_py_none(lhs, self.return_type)
-            else:
+            elif not self.return_type.is_memoryviewslice:
+                # memory view structs receive their default value on initialisation
                 val = self.return_type.default_value
                 if val:
                     code.putln("%s = %s;" % (Naming.retval_cname, val))
@@ -2019,6 +2033,7 @@ class FuncDefNode(StatNode, BlockNode):
                 code.globalstate.use_utility_code(restore_exception_utility_code)
                 code.putln("{ PyObject *__pyx_type, *__pyx_value, *__pyx_tb;")
                 code.putln("__Pyx_PyThreadState_declare")
+                assure_gil('error')
                 code.putln("__Pyx_PyThreadState_assign")
                 code.putln("__Pyx_ErrFetch(&__pyx_type, &__pyx_value, &__pyx_tb);")
                 for entry in used_buffer_entries:
@@ -2038,20 +2053,14 @@ class FuncDefNode(StatNode, BlockNode):
                 # code.globalstate.use_utility_code(get_exception_tuple_utility_code)
                 # code.put_trace_exception()
 
-                if lenv.nogil and not lenv.has_with_gil_block:
-                    code.putln("{")
-                    code.put_ensure_gil()
-
+                assure_gil('error')
                 code.put_add_traceback(self.entry.qualified_name)
-
-                if lenv.nogil and not lenv.has_with_gil_block:
-                    code.put_release_ensured_gil()
-                    code.putln("}")
             else:
                 warning(self.entry.pos,
                         "Unraisable exception in function '%s'." %
                         self.entry.qualified_name, 0)
-                code.put_unraisable(self.entry.qualified_name, lenv.nogil)
+                assure_gil('error')
+                code.put_unraisable(self.entry.qualified_name)
             default_retval = self.return_type.default_value
             if err_val is None and default_retval:
                 err_val = default_retval
@@ -2062,19 +2071,33 @@ class FuncDefNode(StatNode, BlockNode):
                 code.putln("__Pyx_pretend_to_initialize(&%s);" % Naming.retval_cname)
 
             if is_getbuffer_slot:
+                assure_gil('error')
                 self.getbuffer_error_cleanup(code)
 
             # If we are using the non-error cleanup section we should
             # jump past it if we have an error. The if-test below determine
             # whether this section is used.
             if buffers_present or is_getbuffer_slot or self.return_type.is_memoryviewslice:
+                # In the buffer cases, we already called assure_gil('error') and own the GIL.
+                assert gil_owned['error'] or self.return_type.is_memoryviewslice
                 code.put_goto(code.return_from_error_cleanup_label)
+            else:
+                # align error and success GIL state
+                if gil_owned['success']:
+                    assure_gil('error')
+                elif gil_owned['error']:
+                    code.put_release_ensured_gil()
+                    gil_owned['error'] = False
 
         # ----- Non-error return cleanup
         code.put_label(code.return_label)
+        assert gil_owned['error'] == gil_owned['success'], "%s != %s" % (gil_owned['error'], gil_owned['success'])
+
         for entry in used_buffer_entries:
+            assure_gil('success')
             Buffer.put_release_buffer_code(code, entry)
         if is_getbuffer_slot:
+            assure_gil('success')
             self.getbuffer_normal_cleanup(code)
 
         if self.return_type.is_memoryviewslice:
@@ -2084,17 +2107,22 @@ class FuncDefNode(StatNode, BlockNode):
             cond = code.unlikely(self.return_type.error_condition(Naming.retval_cname))
             code.putln(
                 'if (%s) {' % cond)
-            if env.nogil:
+            if not gil_owned['success']:
                 code.put_ensure_gil()
             code.putln(
                 'PyErr_SetString(PyExc_TypeError, "Memoryview return value is not initialized");')
-            if env.nogil:
+            if not gil_owned['success']:
                 code.put_release_ensured_gil()
             code.putln(
                 '}')
 
         # ----- Return cleanup for both error and no-error return
-        code.put_label(code.return_from_error_cleanup_label)
+        if code.label_used(code.return_from_error_cleanup_label):
+            # If we came through the success path, then we took the same GIL decisions as for jumping here.
+            # If we came through the error path and did not jump, then we aligned both paths above.
+            # In the end, all paths are aligned from this point on.
+            assert gil_owned['error'] == gil_owned['success'], "%s != %s" % (gil_owned['error'], gil_owned['success'])
+            code.put_label(code.return_from_error_cleanup_label)
 
         for entry in lenv.var_entries:
             if not entry.used or entry.in_closure:
@@ -2121,6 +2149,7 @@ class FuncDefNode(StatNode, BlockNode):
                 code.put_xdecref_memoryviewslice(entry.cname,
                                                  have_gil=not lenv.nogil)
         if self.needs_closure:
+            assure_gil('success')
             code.put_decref(Naming.cur_scope_cname, lenv.scope_class.type)
 
         # ----- Return
@@ -2136,6 +2165,7 @@ class FuncDefNode(StatNode, BlockNode):
         if self.entry.is_special and self.entry.name == "__hash__":
             # Returning -1 for __hash__ is supposed to signal an error
             # We do as Python instances and coerce -1 into -2.
+            assure_gil('success')
             code.putln("if (unlikely(%s == -1) && !PyErr_Occurred()) %s = -2;" % (
                 Naming.retval_cname, Naming.retval_cname))
 
@@ -2145,16 +2175,16 @@ class FuncDefNode(StatNode, BlockNode):
                 # generators are traced when iterated, not at creation
                 if self.return_type.is_pyobject:
                     code.put_trace_return(
-                        Naming.retval_cname, nogil=not code.funcstate.gil_owned)
+                        Naming.retval_cname, nogil=not gil_owned['success'])
                 else:
                     code.put_trace_return(
-                        "Py_None", nogil=not code.funcstate.gil_owned)
+                        "Py_None", nogil=not gil_owned['success'])
 
         if not lenv.nogil:
             # GIL holding function
-            code.put_finish_refcount_context()
+            code.put_finish_refcount_context(nogil=not gil_owned['success'])
 
-        if acquire_gil or (lenv.nogil and lenv.has_with_gil_block):
+        if acquire_gil or (lenv.nogil and gil_owned['success']):
             # release the GIL (note that with-gil blocks acquire it on exit in their EnsureGILNode)
             code.put_release_ensured_gil()
             code.funcstate.gil_owned = False
