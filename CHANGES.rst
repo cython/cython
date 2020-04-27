@@ -2,7 +2,7 @@
 Cython Changelog
 ================
 
-3.0.0 alpha 3 (2020-0?-??)
+3.0.0 alpha 3 (2020-04-27)
 ==========================
 
 Features added
@@ -14,7 +14,7 @@ Features added
 
 * Python private name mangling now falls back to unmangled names for non-Python
   globals, since double-underscore names are not uncommon in C.  Unmangled Python
-  names are also still found as a fallback but produce a warning.
+  names are also still found as a legacy fallback but produce a warning.
   Patch by David Woods.  (Github issue #3548)
 
 Bugs fixed
