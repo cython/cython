@@ -725,6 +725,7 @@ class Scope(object):
         return entry
 
     def declare_builtin(self, name, pos):
+        name = self.mangle_class_private_name(name)
         return self.outer_scope.declare_builtin(name, pos)
 
     def _declare_pyfunction(self, name, pos, visibility='extern', entry=None):
@@ -921,20 +922,43 @@ class Scope(object):
     def lookup(self, name):
         # Look up name in this scope or an enclosing one.
         # Return None if not found.
-        name = self.mangle_class_private_name(name)
-        return (self.lookup_here(name)
-            or (self.outer_scope and self.outer_scope.lookup(name))
-            or None)
+
+        mangled_name = self.mangle_class_private_name(name)
+        entry = (self.lookup_here(name)  # lookup here also does mangling
+                or (self.outer_scope and self.outer_scope.lookup(mangled_name))
+                or None)
+        if entry:
+            return entry
+
+        # look up the original name in the outer scope
+        # Not strictly Python behaviour but see https://github.com/cython/cython/issues/3544
+        entry = (self.outer_scope and self.outer_scope.lookup(name)) or None
+        if entry and entry.is_pyglobal:
+            self._emit_class_private_warning(entry.pos, name)
+        return entry
 
     def lookup_here(self, name):
         # Look up in this scope only, return None if not found.
-        name = self.mangle_class_private_name(name)
+
+        entry = self.entries.get(self.mangle_class_private_name(name), None)
+        if entry:
+            return entry
+        # Also check the unmangled name in the current scope
+        # (even if mangling should give us something else).
+        # This is to support things like global __foo which makes a declaration for __foo
+        return self.entries.get(name, None)
+
+    def lookup_here_unmangled(self, name):
         return self.entries.get(name, None)
 
     def lookup_target(self, name):
         # Look up name in this scope only. Declare as Python
         # variable if not found.
         entry = self.lookup_here(name)
+        if not entry:
+            entry = self.lookup_here_unmangled(name)
+            if entry and entry.is_pyglobal:
+                self._emit_class_private_warning(entry.pos, name)
         if not entry:
             entry = self.declare_var(name, py_object_type, None)
         return entry
@@ -985,6 +1009,11 @@ class Scope(object):
             pass
         operands = [FakeOperand(pos, type=type) for type in types]
         return self.lookup_operator(operator, operands)
+
+    def _emit_class_private_warning(self, pos, name):
+        warning(pos, "Global name %s matched from within class scope "
+                            "in contradiction to to Python 'class private name' rules. "
+                            "This may change in a future release." % name, 1)
 
     def use_utility_code(self, new_code):
         self.global_scope().use_utility_code(new_code)
@@ -2006,9 +2035,6 @@ class ClassScope(Scope):
         # a few utilitycode names need to specifically be ignored
         if name and name.lower().startswith("__pyx_"):
             return name
-        return self.mangle_special_name(name)
-
-    def mangle_special_name(self, name):
         if name and name.startswith('__') and not name.endswith('__'):
             name = EncodedString('_%s%s' % (self.class_name.lstrip('_'), name))
         return name
@@ -2049,7 +2075,7 @@ class PyClassScope(ClassScope):
     def declare_var(self, name, type, pos,
                     cname = None, visibility = 'private',
                     api = 0, in_pxd = 0, is_cdef = 0):
-        name = self.mangle_special_name(name)
+        name = self.mangle_class_private_name(name)
         if type is unspecified_type:
             type = py_object_type
         # Add an entry for a class attribute.
@@ -2179,7 +2205,7 @@ class CClassScope(ClassScope):
     def declare_var(self, name, type, pos,
                     cname = None, visibility = 'private',
                     api = 0, in_pxd = 0, is_cdef = 0):
-        name = self.mangle_special_name(name)
+        name = self.mangle_class_private_name(name)
         if is_cdef:
             # Add an entry for an attribute.
             if self.defined:

@@ -121,3 +121,39 @@ without actually calling it, e.g.
 
     # Explicitly disable the automatic initialisation of NumPy's C-API.
     <void>import_array
+
+Class-private name mangling
+===========================
+
+Cython has been updated to follow the `Python rules for class-private names
+<https://docs.python.org/3/tutorial/classes.html#private-variables>`_
+more closely. Essentially any name that starts with and doesn't end with 
+``__`` within a class is mangled with the class name. Most user code
+should be unaffected -- unlike in Python unmangled global names will
+still be matched to ensure it is possible to access C names
+beginning with ``__``::
+
+     cdef extern void __foo()
+     
+     class C: # or "cdef class"
+        def call_foo(self):
+            return __foo() # still calls the global name
+            
+What will no-longer work is overriding methods starting with ``__`` in
+a ``cdef class``::
+
+    cdef class Base:
+        cdef __bar(self):
+            return 1
+
+        def call_bar(self):
+            return self.__bar()
+
+    cdef class Derived(Base):
+        cdef __bar(self):
+            return 2
+
+Here ``Base.__bar`` is mangled to ``_Base__bar`` and ``Derived.__bar``
+to ``_Derived__bar``. Therefore ``call_bar`` will always call 
+``_Base__bar``. This matches established Python behaviour and applies
+for ``def``, ``cdef`` and ``cpdef`` methods and attributes.
