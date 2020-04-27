@@ -128,12 +128,10 @@ Class-private name mangling
 Cython has been updated to follow the `Python rules for class-private names
 <https://docs.python.org/3/tutorial/classes.html#private-variables>`_
 more closely. Essentially any name that starts with and doesn't end with 
-``__`` within a class in mangled with the class name. Most user code
+``__`` within a class is mangled with the class name. Most user code
 should be unaffected -- unlike in Python unmangled global names will
-still be matched to ensure it is possible to use access C names
-beginning with ``__``:
-
-::
+still be matched to ensure it is possible to access C names
+beginning with ``__``::
 
      cdef extern void __foo()
      
@@ -142,9 +140,7 @@ beginning with ``__``:
             return __foo() # still calls the global name
             
 What will no-longer work is overriding methods starting with ``__`` in
-a ``cdef class``:
-
-::
+a ``cdef class``::
 
     cdef class Base:
         cdef __bar(self):
