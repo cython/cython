@@ -2,6 +2,27 @@
 Cython Changelog
 ================
 
+3.0.0 alpha 3 (2020-0?-??)
+==========================
+
+Features added
+--------------
+
+* ``nogil`` functions now avoid acquiring the GIL on function exit if possible
+  even if they contain ``with gil`` blocks.
+  (Github issue #3554)
+
+* Python private name mangling now falls back to unmangled names for non-Python
+  globals, since double-underscore names are not uncommon in C.  Unmangled Python
+  names are also still found as a fallback but produce a warning.
+  Patch by David Woods.  (Github issue #3548)
+
+Bugs fixed
+----------
+
+* Includes all bug-fixes from the 0.29.17 release.
+
+
 3.0.0 alpha 2 (2020-04-23)
 ==========================
 
