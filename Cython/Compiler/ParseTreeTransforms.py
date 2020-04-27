@@ -2805,20 +2805,21 @@ class InjectGilHandling(VisitorTransform, SkipDeclarations):
     Must run before the AnalyseDeclarationsTransform to make sure the GILStatNodes get
     set up, parallel sections know that the GIL is acquired inside of them, etc.
     """
-    def __call__(self, root):
-        self.nogil = False
-        return super(InjectGilHandling, self).__call__(root)
+    nogil = False
 
     # special node handling
 
-    def visit_RaiseStatNode(self, node):
-        """Allow raising exceptions in nogil sections by wrapping them in a 'with gil' block."""
+    def _inject_gil_in_nogil(self, node):
+        """Allow the (Python statement) node in nogil sections by wrapping it in a 'with gil' block."""
         if self.nogil:
             node = Nodes.GILStatNode(node.pos, state='gil', body=node)
         return node
 
+    visit_RaiseStatNode = _inject_gil_in_nogil
+    visit_PrintStatNode = _inject_gil_in_nogil  # sadly, not the function
+
     # further candidates:
-    # def visit_AssertStatNode(self, node):
+    # def visit_AssertStatNode(self, node):  # -> try to keep the condition GIL-free if possible
     # def visit_ReraiseStatNode(self, node):
 
     # nogil tracking
