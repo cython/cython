@@ -4893,29 +4893,32 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
         return node
 
     def _set_ifclause_branch_hint(self, clause, statements_node, inverse=False):
+        """Inject a branch hint if the if-clause unconditionally leads to a 'raise' statement.
+        """
         if not statements_node.is_terminator:
             return
-        if isinstance(statements_node, Nodes.StatListNode):
-            if not statements_node.stats:
-                return
-            statements = statements_node.stats
-        else:
-            statements = [statements_node]
-        # Anything that unconditionally raises exceptions should be considered unlikely.
-        if isinstance(statements[-1], (Nodes.RaiseStatNode, Nodes.ReraiseStatNode)):
-            if len(statements) > 1:
-                # Allow simple statements before the 'raise', but no conditions, loops, etc.
-                non_branch_nodes = (
-                    Nodes.ExprStatNode,
-                    Nodes.AssignmentNode,
-                    Nodes.DelStatNode,
-                    Nodes.GlobalNode,
-                    Nodes.NonlocalNode,
-                )
-                for node in statements[:-1]:
-                    if not isinstance(node, non_branch_nodes):
-                        return
-            clause.branch_hint = 'likely' if inverse else 'unlikely'
+        # Allow simple statements, but no conditions, loops, etc.
+        non_branch_nodes = (
+            Nodes.ExprStatNode,
+            Nodes.AssignmentNode,
+            Nodes.AssertStatNode,
+            Nodes.DelStatNode,
+            Nodes.GlobalNode,
+            Nodes.NonlocalNode,
+        )
+        statements = [statements_node]
+        for next_node_pos, node in enumerate(statements, 1):
+            if isinstance(node, Nodes.GILStatNode):
+                statements.insert(next_node_pos, node.body)
+                continue
+            if isinstance(node, Nodes.StatListNode):
+                statements[next_node_pos:next_node_pos] = node.stats
+                continue
+            if not isinstance(node, non_branch_nodes):
+                if next_node_pos == len(statements) and isinstance(node, (Nodes.RaiseStatNode, Nodes.ReraiseStatNode)):
+                    # Anything that unconditionally raises exceptions at the end should be considered unlikely.
+                    clause.branch_hint = 'likely' if inverse else 'unlikely'
+                break
 
 
 class ConsolidateOverflowCheck(Visitor.CythonTransform):
