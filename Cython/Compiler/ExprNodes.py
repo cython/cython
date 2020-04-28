@@ -3199,6 +3199,7 @@ class JoinedStrNode(ExprNode):
     #
     type = unicode_type
     is_temp = True
+    gil_message = "String concatenation"
 
     subexprs = ['values']
 
@@ -3301,6 +3302,7 @@ class FormattedValueNode(ExprNode):
     type = unicode_type
     is_temp = True
     c_format_spec = None
+    gil_message = "String formatting"
 
     find_conversion_func = {
         's': 'PyObject_Unicode',
