@@ -6469,6 +6469,7 @@ class ReraiseStatNode(StatNode):
                 UtilityCode.load_cached("ReRaiseException", "Exceptions.c"))
             code.putln("__Pyx_ReraiseException(); %s" % code.error_goto(self.pos))
 
+
 class AssertStatNode(StatNode):
     #  assert statement
     #
@@ -6490,9 +6491,6 @@ class AssertStatNode(StatNode):
                 self.value = value.coerce_to_pyobject(env)
         return self
 
-    nogil_check = Node.gil_error
-    gil_message = "Raising exception"
-
     def generate_execution_code(self, code):
         code.putln("#ifndef CYTHON_WITHOUT_ASSERTIONS")
         code.putln("if (unlikely(!Py_OptimizeFlag)) {")
@@ -6500,6 +6498,11 @@ class AssertStatNode(StatNode):
         self.cond.generate_evaluation_code(code)
         code.putln(
             "if (unlikely(!%s)) {" % self.cond.result())
+        in_nogil = not code.funcstate.gil_owned
+        if in_nogil:
+            # Apparently, evaluating condition and value does not require the GIL,
+            # but raising the exception now does.
+            code.put_ensure_gil()
         if self.value:
             self.value.generate_evaluation_code(code)
             code.putln(
@@ -6509,6 +6512,8 @@ class AssertStatNode(StatNode):
         else:
             code.putln(
                 "PyErr_SetNone(PyExc_AssertionError);")
+        if in_nogil:
+            code.put_release_ensured_gil()
         code.putln(
             code.error_goto(self.pos))
         code.putln(
