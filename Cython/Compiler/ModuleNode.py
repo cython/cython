@@ -987,7 +987,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                   if py_attrs:
                       code.put_ensure_gil()
                       for attr in py_attrs:
-                          code.put_init_var_to_py_none(attr, nanny=False);
+                          code.put_init_var_to_py_none(attr, nanny=False)
                   if constructor:
                       code.putln("%s(%s);" % (constructor.cname, ", ".join(arg_names)))
                   if py_attrs:
@@ -1006,7 +1006,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                       code.putln("%s();" % destructor.cname)
                   if py_attrs:
                       for attr in py_attrs:
-                          code.put_var_xdecref(attr, nanny=False);
+                          code.put_var_xdecref(attr, nanny=False)
                       code.put_release_ensured_gil()
                   code.putln("}")
                 else:
@@ -1027,7 +1027,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                   code.put_ensure_gil()
                   for attr in scope.var_entries:
                       if not attr.type.is_cfunction:
-                          code.put_var_xdecref(attr, nanny=False);
+                          code.put_var_xdecref(attr, nanny=False)
                           code.putln("%s = __Pyx_other.%s;" % (attr.cname, attr.cname))
                           code.put_var_incref(attr, nanny=False)
                   code.put_release_ensured_gil()
