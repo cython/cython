@@ -11,9 +11,10 @@ Features added
 * The ``print`` statement (not the ``print()`` function) is allowed in
   ``nogil`` code without an explicit ``with gil`` section.
 
-* The ``assert`` statement is allowed in ``nogil`` sections.  This excludes the
-  evaluation of the asserted condition (only C conditions are allowed), nor any
-  formatting of the assertion message (which can only be a simple string).
+* The ``assert`` statement is allowed in ``nogil`` sections.  Here, the GIL is
+  only acquired for raising the ``AssertionError``, which means that the evaluation
+  of the asserted condition only allows C conditions and the assertion message
+  can only be a simple string.
 
 * Cython generates C compiler branch hints for unlikely user defined if-clauses
   in more cases, when they end up raising exceptions.
