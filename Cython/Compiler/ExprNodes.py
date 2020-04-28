@@ -1167,6 +1167,7 @@ class PyConstNode(AtomicExprNode):
 
     is_literal = 1
     type = py_object_type
+    nogil_check = None
 
     def is_simple(self):
         return 1
@@ -1191,8 +1192,6 @@ class NoneNode(PyConstNode):
     value = "Py_None"
 
     constant_result = None
-
-    nogil_check = None
 
     def compile_time_value(self, denv):
         return None
