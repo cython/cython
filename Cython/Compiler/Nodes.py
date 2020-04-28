@@ -6559,13 +6559,9 @@ class IfStatNode(StatNode):
         code.mark_pos(self.pos)
         end_label = code.new_label()
         last = len(self.if_clauses)
-        if self.else_clause:
-            # If the 'else' clause is 'unlikely', then set the preceding 'if' clause to 'likely' to reflect that.
-            self._set_branch_hint(self.if_clauses[-1], self.else_clause, inverse=True)
-        else:
+        if not self.else_clause:
             last -= 1  # avoid redundant goto at end of last if-clause
         for i, if_clause in enumerate(self.if_clauses):
-            self._set_branch_hint(if_clause, if_clause.body)
             if_clause.generate_execution_code(code, end_label, is_last=i == last)
         if self.else_clause:
             code.mark_pos(self.else_clause.pos)
@@ -6573,25 +6569,6 @@ class IfStatNode(StatNode):
             self.else_clause.generate_execution_code(code)
             code.putln("}")
         code.put_label(end_label)
-
-    def _set_branch_hint(self, clause, statements_node, inverse=False):
-        if not statements_node.is_terminator:
-            return
-        if isinstance(statements_node, StatListNode):
-            if not statements_node.stats:
-                return
-            statements = statements_node.stats
-        else:
-            statements = [statements_node]
-        # Anything that unconditionally raises exceptions should be considered unlikely.
-        if isinstance(statements[-1], (RaiseStatNode, ReraiseStatNode)):
-            if len(statements) > 1:
-                # Allow simple statements before the 'raise', but no conditions, loops, etc.
-                non_branch_nodes = (ExprStatNode, AssignmentNode, DelStatNode, GlobalNode, NonlocalNode)
-                for node in statements[:-1]:
-                    if not isinstance(node, non_branch_nodes):
-                        return
-            clause.branch_hint = 'likely' if inverse else 'unlikely'
 
     def generate_function_definitions(self, env, code):
         for clause in self.if_clauses:

@@ -4779,6 +4779,7 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
         - isinstance -> typecheck for cdef types
         - eliminate checks for None and/or types that became redundant after tree changes
         - eliminate useless string formatting steps
+        - inject branch hints for unlikely if-cases that only raise exceptions
         - replace Python function calls that look like method calls by a faster PyMethodCallNode
     """
     in_loop = False
@@ -4876,6 +4877,45 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
         self.visitchildren(node)
         self.in_loop = old_val
         return node
+
+    def visit_IfStatNode(self, node):
+        """Assign 'unlikely' branch hints to if-clauses that only raise exceptions.
+        """
+        self.visitchildren(node)
+        last_non_unlikely_clause = None
+        for i, if_clause in enumerate(node.if_clauses):
+            self._set_ifclause_branch_hint(if_clause, if_clause.body)
+            if not if_clause.branch_hint:
+                last_non_unlikely_clause = if_clause
+        if node.else_clause and last_non_unlikely_clause:
+            # If the 'else' clause is 'unlikely', then set the preceding 'if' clause to 'likely' to reflect that.
+            self._set_ifclause_branch_hint(last_non_unlikely_clause, node.else_clause, inverse=True)
+        return node
+
+    def _set_ifclause_branch_hint(self, clause, statements_node, inverse=False):
+        if not statements_node.is_terminator:
+            return
+        if isinstance(statements_node, Nodes.StatListNode):
+            if not statements_node.stats:
+                return
+            statements = statements_node.stats
+        else:
+            statements = [statements_node]
+        # Anything that unconditionally raises exceptions should be considered unlikely.
+        if isinstance(statements[-1], (Nodes.RaiseStatNode, Nodes.ReraiseStatNode)):
+            if len(statements) > 1:
+                # Allow simple statements before the 'raise', but no conditions, loops, etc.
+                non_branch_nodes = (
+                    Nodes.ExprStatNode,
+                    Nodes.AssignmentNode,
+                    Nodes.DelStatNode,
+                    Nodes.GlobalNode,
+                    Nodes.NonlocalNode,
+                )
+                for node in statements[:-1]:
+                    if not isinstance(node, non_branch_nodes):
+                        return
+            clause.branch_hint = 'likely' if inverse else 'unlikely'
 
 
 class ConsolidateOverflowCheck(Visitor.CythonTransform):
