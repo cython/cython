@@ -1847,10 +1847,12 @@ class FuncDefNode(StatNode, BlockNode):
 
         use_refnanny = not lenv.nogil or lenv.has_with_gil_block
 
-        gilstate_decl = code.insertion_point()
+        gilstate_decl = None
         if acquire_gil or acquire_gil_for_var_decls_only:
             code.put_ensure_gil()
             code.funcstate.gil_owned = True
+        else:
+            gilstate_decl = code.insertion_point()
 
         if profile or linetrace:
             if not self.is_generator:
@@ -1976,7 +1978,7 @@ class FuncDefNode(StatNode, BlockNode):
         gil_owned = {
             'success': code.funcstate.gil_owned,
             'error': code.funcstate.gil_owned,
-            'gil_state_declared': False,
+            'gil_state_declared': gilstate_decl is None,
         }
         def assure_gil(code_path):
             if not gil_owned[code_path]:
