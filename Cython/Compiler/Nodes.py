@@ -2117,8 +2117,6 @@ class FuncDefNode(StatNode, BlockNode):
         # ----- Return cleanup for both error and no-error return
         if code.label_used(code.return_from_error_cleanup_label):
             align_error_path_gil_to_success_path()
-            assert gil_owned['error'] == gil_owned['success'], "%s: error path %s != success path %s" % (
-                self.pos, gil_owned['error'], gil_owned['success'])
             code.put_label(code.return_from_error_cleanup_label)
 
         for entry in lenv.var_entries:
