@@ -2080,7 +2080,8 @@ class FuncDefNode(StatNode, BlockNode):
 
         # ----- Non-error return cleanup
         code.put_label(code.return_label)
-        assert gil_owned['error'] == gil_owned['success'], "%s != %s" % (gil_owned['error'], gil_owned['success'])
+        assert gil_owned['error'] == gil_owned['success'], "%s: error path %s != success path %s" % (
+            self.pos, gil_owned['error'], gil_owned['success'])
 
         for entry in used_buffer_entries:
             assure_gil('success')
@@ -2110,7 +2111,8 @@ class FuncDefNode(StatNode, BlockNode):
             # If we came through the success path, then we took the same GIL decisions as for jumping here.
             # If we came through the error path and did not jump, then we aligned both paths above.
             # In the end, all paths are aligned from this point on.
-            assert gil_owned['error'] == gil_owned['success'], "%s != %s" % (gil_owned['error'], gil_owned['success'])
+            assert gil_owned['error'] == gil_owned['success'], "%s: error path %s != success path %s" % (
+                self.pos, gil_owned['error'], gil_owned['success'])
             code.put_label(code.return_from_error_cleanup_label)
 
         for entry in lenv.var_entries:
