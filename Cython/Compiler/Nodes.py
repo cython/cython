@@ -2077,11 +2077,11 @@ class FuncDefNode(StatNode, BlockNode):
                 elif gil_owned['error']:
                     code.put_release_ensured_gil()
                     gil_owned['error'] = False
+                assert gil_owned['error'] == gil_owned['success'], "%s: error path %s != success path %s" % (
+                    self.pos, gil_owned['error'], gil_owned['success'])
 
         # ----- Non-error return cleanup
         code.put_label(code.return_label)
-        assert gil_owned['error'] == gil_owned['success'], "%s: error path %s != success path %s" % (
-            self.pos, gil_owned['error'], gil_owned['success'])
 
         for entry in used_buffer_entries:
             assure_gil('success')
