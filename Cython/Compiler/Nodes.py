@@ -1980,7 +1980,7 @@ class FuncDefNode(StatNode, BlockNode):
             'error': code.funcstate.gil_owned,
             'gil_state_declared': gilstate_decl is None,
         }
-        def assure_gil(code_path):
+        def assure_gil(code_path, code=code):
             if not gil_owned[code_path]:
                 if not gil_owned['gil_state_declared']:
                     gilstate_decl.declare_gilstate()
@@ -2011,6 +2011,7 @@ class FuncDefNode(StatNode, BlockNode):
                 code.put_goto(code.return_label)
             code.put_label(code.error_label)
             for cname, type in code.funcstate.all_managed_temps():
+                assure_gil('error')
                 code.put_xdecref(cname, type, have_gil=not lenv.nogil)
 
             # Clean up buffers -- this calls a Python function
@@ -2063,6 +2064,16 @@ class FuncDefNode(StatNode, BlockNode):
                 assure_gil('error')
                 self.getbuffer_error_cleanup(code)
 
+            def align_error_path_gil_to_success_path(code=code.insertion_point()):
+                # align error and success GIL state when both join
+                if gil_owned['success']:
+                    assure_gil('error', code=code)
+                elif gil_owned['error']:
+                    code.put_release_ensured_gil()
+                    gil_owned['error'] = False
+                assert gil_owned['error'] == gil_owned['success'], "%s: error path %s != success path %s" % (
+                    self.pos, gil_owned['error'], gil_owned['success'])
+
             # If we are using the non-error cleanup section we should
             # jump past it if we have an error. The if-test below determine
             # whether this section is used.
@@ -2071,14 +2082,11 @@ class FuncDefNode(StatNode, BlockNode):
                 assert gil_owned['error'] or return_type.is_memoryviewslice
                 code.put_goto(code.return_from_error_cleanup_label)
             else:
-                # align error and success GIL state
-                if gil_owned['success']:
-                    assure_gil('error')
-                elif gil_owned['error']:
-                    code.put_release_ensured_gil()
-                    gil_owned['error'] = False
-                assert gil_owned['error'] == gil_owned['success'], "%s: error path %s != success path %s" % (
-                    self.pos, gil_owned['error'], gil_owned['success'])
+                # Adapt the GIL state to the success path right now.
+                align_error_path_gil_to_success_path()
+        else:
+            # No error path, no need to adapt the GIL state.
+            def align_error_path_gil_to_success_path(): pass
 
         # ----- Non-error return cleanup
         code.put_label(code.return_label)
@@ -2108,9 +2116,7 @@ class FuncDefNode(StatNode, BlockNode):
 
         # ----- Return cleanup for both error and no-error return
         if code.label_used(code.return_from_error_cleanup_label):
-            # If we came through the success path, then we took the same GIL decisions as for jumping here.
-            # If we came through the error path and did not jump, then we aligned both paths above.
-            # In the end, all paths are aligned from this point on.
+            align_error_path_gil_to_success_path()
             assert gil_owned['error'] == gil_owned['success'], "%s: error path %s != success path %s" % (
                 self.pos, gil_owned['error'], gil_owned['success'])
             code.put_label(code.return_from_error_cleanup_label)
