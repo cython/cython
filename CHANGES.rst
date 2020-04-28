@@ -2,6 +2,30 @@
 Cython Changelog
 ================
 
+3.0.0 alpha 4 (2020-0?-??)
+==========================
+
+Features added
+--------------
+
+* The ``print`` statement (not the ``print()`` function) is allowed in
+  ``nogil`` code without an explicit ``with gil`` section.
+
+* The ``assert`` statement is allowed in ``nogil`` sections.  This excludes the
+  evaluation of the asserted condition (only C conditions are allowed), nor any
+  formatting of the assertion message (which can only be a simple string).
+
+* Cython generates C compiler branch hints for unlikely user defined if-clauses
+  in more cases, when they end up raising exceptions.
+
+Bugs fixed
+----------
+
+* The improved GIL handling in ``nogil`` functions introduced in 3.0a2
+  could generate invalid C code.
+  (Github issue #3558)
+
+
 3.0.0 alpha 3 (2020-04-27)
 ==========================
 
