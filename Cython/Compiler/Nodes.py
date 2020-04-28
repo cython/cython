@@ -2268,7 +2268,7 @@ class FuncDefNode(StatNode, BlockNode):
     def getbuffer_check(self, code):
         py_buffer, _ = self._get_py_buffer_info()
         view = py_buffer.cname
-        code.putln("if (%s == NULL) {" % view)
+        code.putln("if (unlikely(%s == NULL)) {" % view)
         code.putln("PyErr_SetString(PyExc_BufferError, "
                    "\"PyObject_GetBuffer: view==NULL argument is obsolete\");")
         code.putln("return -1;")
