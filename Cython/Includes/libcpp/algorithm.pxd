@@ -73,6 +73,7 @@ cdef extern from "<algorithm>" namespace "std" nogil:
         InputIt first, InputIt last, OutputIt d_first, UnaryPred pred, const T& new_value) except +
 
     void swap[T](T& a, T& b) except +  # array overload also works
+    void swap[T, Compare](T& a, T& b, Compare comp) except +
     Iter2 swap_ranges[Iter1, Iter2](Iter1 first1, Iter1 last1, Iter2 first2) except +
     void iter_swap[Iter](Iter a, Iter b) except +
 
@@ -148,8 +149,21 @@ cdef extern from "<algorithm>" namespace "std" nogil:
     void sort_heap[Iter, Compare](Iter first, Iter last, Compare comp) except +
 
     # Minimum/maximum operations
+    T& min[T](T& a, T& b) except +
+    T& min[T, Compare](T& a, T& b, Compare comp) except +
+    T& max[T](T& a, T& b) except +
+    T& max[T, Compare](T& a, T& b, Compare comp) except +
+    pair[T&, T&] minmax[T](T& a, T& b) except +
+    pair[T&, T&] minmax[T, Compare](T& a, T& b, Compare comp) except +
     Iter min_element[Iter](Iter first, Iter last) except +
-
+    Iter min_element[Iter, Compare](Iter first, Iter last, Compare comp) except +
+    Iter max_element[Iter](Iter first, Iter last) except +
+    Iter max_element[Iter, Compare](Iter first, Iter last, Compare comp) except +
+    pair[Iter, Iter] minmax_element[Iter](Iter first, Iter last) except +
+    pair[Iter, Iter] minmax_element[Iter, Compare](Iter first, Iter last, Compare comp) except +
+    T& clamp[T](T& v, T& lo, T& hi) except +
+    T& clamp[T, Compare](T&v, T& lo, T& hi, Compare comp) except +
+    
     # Comparison operations
 
     # Permutation operations
