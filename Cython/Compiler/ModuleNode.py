@@ -2296,7 +2296,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.exit_cfunc_scope()  # done with labels
 
     def generate_module_init_func(self, imported_modules, env, code):
-        subfunction = self.mod_init_subfunction(self.scope, code)
+        subfunction = self.mod_init_subfunction(self.pos, self.scope, code)
 
         code.enter_cfunc_scope(self.scope)
         code.putln("")
@@ -2422,10 +2422,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         if Options.cache_builtins:
             code.putln("/*--- Builtin init code ---*/")
-            code.put_error_if_neg(None, "__Pyx_InitCachedBuiltins()")
+            code.put_error_if_neg(self.pos, "__Pyx_InitCachedBuiltins()")
 
         code.putln("/*--- Constants init code ---*/")
-        code.put_error_if_neg(None, "__Pyx_InitCachedConstants()")
+        code.put_error_if_neg(self.pos, "__Pyx_InitCachedConstants()")
 
         code.putln("/*--- Global type/function init code ---*/")
 
@@ -2516,7 +2516,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.exit_cfunc_scope()
 
-    def mod_init_subfunction(self, scope, orig_code):
+    def mod_init_subfunction(self, pos, scope, orig_code):
         """
         Return a context manager that allows deviating the module init code generation
         into a separate function and instead inserts a call to it.
@@ -2572,9 +2572,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("")
 
                 if needs_error_handling:
-                    self.call_code.use_label(orig_code.error_label)
-                    self.call_code.putln("if (unlikely(%s() != 0)) goto %s;" % (
-                        self.cfunc_name, orig_code.error_label))
+                    self.call_code.putln(
+                        self.call_code.error_goto_if_neg("%s()" % self.cfunc_name, pos))
                 else:
                     self.call_code.putln("(void)%s();" % self.cfunc_name)
                 self.call_code = None
