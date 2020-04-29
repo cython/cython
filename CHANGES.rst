@@ -12,15 +12,17 @@ Features added
   ``nogil`` code without an explicit ``with gil`` section.
 
 * The ``assert`` statement is allowed in ``nogil`` sections.  Here, the GIL is
-  only acquired for raising the ``AssertionError``, which means that the evaluation
-  of the asserted condition only allows C conditions and the assertion message
-  can only be a simple string.
+  only acquired if the ``AssertionError`` is really raised, which means that the
+  evaluation of the asserted condition only allows C expressions.
 
 * Cython generates C compiler branch hints for unlikely user defined if-clauses
   in more cases, when they end up raising exceptions.
 
 Bugs fixed
 ----------
+
+* Exception position reporting could run into race conditions on threaded code.
+  It now uses function-local variables again.
 
 * The improved GIL handling in ``nogil`` functions introduced in 3.0a2
   could generate invalid C code.
