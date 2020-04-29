@@ -2175,8 +2175,7 @@ class FuncDefNode(StatNode, BlockNode):
                     code.put_trace_return(
                         "Py_None", nogil=not gil_owned['success'])
 
-        if not lenv.nogil:
-            # GIL holding function
+        if use_refnanny:
             code.put_finish_refcount_context(nogil=not gil_owned['success'])
 
         if acquire_gil or (lenv.nogil and gil_owned['success']):
