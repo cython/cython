@@ -3721,12 +3721,8 @@ def p_module(s, pxd, full_module_name, ctx=Ctx):
                 stacklevel=1 if cython.compiled else 2,
             )
 
+    level = 'module_pxd' if pxd else 'module'
     doc = p_doc_string(s)
-    if pxd:
-        level = 'module_pxd'
-    else:
-        level = 'module'
-
     body = p_statement_list(s, ctx(level=level), first_statement = 1)
     if s.sy != 'EOF':
         s.error("Syntax error in statement [%s,%s]" % (
