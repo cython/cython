@@ -2,6 +2,16 @@
 Cython Changelog
 ================
 
+0.29.18 (2020-0?-??)
+====================
+
+Bugs fixed
+----------
+
+* Exception position reporting could run into race conditions on threaded code.
+  It now uses function-local variables again.
+
+
 0.29.17 (2020-04-26)
 ====================
 
