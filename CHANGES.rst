@@ -346,6 +346,8 @@ Bugs fixed
 * Exception position reporting could run into race conditions on threaded code.
   It now uses function-local variables again.
 
+* Error handling early in the module init code could lead to a crash.
+
 
 0.29.17 (2020-04-26)
 ====================
