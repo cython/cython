@@ -1832,7 +1832,7 @@ def p_assert_statement(s):
         value = p_test(s)
     else:
         value = None
-    return Nodes.AssertStatNode(pos, cond = cond, value = value)
+    return Nodes.AssertStatNode(pos, condition=cond, value=value)
 
 
 statement_terminators = cython.declare(set, set([';', 'NEWLINE', 'EOF']))

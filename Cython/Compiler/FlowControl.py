@@ -916,6 +916,26 @@ class ControlFlowAnalysis(CythonTransform):
             self.flow.block = None
         return node
 
+    def visit_AssertStatNode(self, node):
+        """Essentially an if-condition that wraps a RaiseStatNode.
+        """
+        self.mark_position(node)
+        next_block = self.flow.newblock()
+        parent = self.flow.block
+        # failure case
+        parent = self.flow.nextblock(parent)
+        self._visit(node.condition)
+        self.flow.nextblock()
+        self._visit(node.exception)
+        if self.flow.block:
+            self.flow.block.add_child(next_block)
+        parent.add_child(next_block)
+        if next_block.parents:
+            self.flow.block = next_block
+        else:
+            self.flow.block = None
+        return node
+
     def visit_WhileStatNode(self, node):
         condition_block = self.flow.nextblock()
         next_block = self.flow.newblock()

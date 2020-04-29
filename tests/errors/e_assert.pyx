@@ -6,13 +6,14 @@ def nontrivial_assert_in_nogil(int a, obj):
         # NOK
         assert obj
         assert a*obj
-        assert a, f"123{a}xyz"
+        assert obj, "abc"
 
         # OK
         assert a
         assert a*a
         assert a, "abc"
         assert a, u"abc"
+        assert a, f"123{a}xyz"
 
 
 _ERRORS = """
@@ -20,6 +21,5 @@ _ERRORS = """
 8:15: Converting to Python object not allowed without gil
 8:16: Operation not allowed without gil
 8:16: Truth-testing Python object not allowed without gil
-9:18: String concatenation not allowed without gil
-9:18: String formatting not allowed without gil
+9:15: Truth-testing Python object not allowed without gil
 """

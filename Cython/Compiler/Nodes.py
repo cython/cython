@@ -6094,6 +6094,8 @@ class RaiseStatNode(StatNode):
 
     child_attrs = ["exc_type", "exc_value", "exc_tb", "cause"]
     is_terminator = True
+    builtin_exc_name = None
+    wrap_tuple_value = False
 
     def analyse_expressions(self, env):
         if self.exc_type:
@@ -6101,6 +6103,12 @@ class RaiseStatNode(StatNode):
             self.exc_type = exc_type.coerce_to_pyobject(env)
         if self.exc_value:
             exc_value = self.exc_value.analyse_types(env)
+            if self.wrap_tuple_value:
+                if exc_value.type is Builtin.tuple_type or not exc_value.type.is_builtin_type:
+                    # prevent tuple values from being interpreted as argument value tuples
+                    from .ExprNodes import TupleNode
+                    exc_value = TupleNode(exc_value.pos, args=[exc_value.coerce_to_pyobject(env)], slow=True)
+                    exc_value = exc_value.analyse_types(env, skip_children=True)
             self.exc_value = exc_value.coerce_to_pyobject(env)
         if self.exc_tb:
             exc_tb = self.exc_tb.analyse_types(env)
@@ -6109,7 +6117,6 @@ class RaiseStatNode(StatNode):
             cause = self.cause.analyse_types(env)
             self.cause = cause.coerce_to_pyobject(env)
         # special cases for builtin exceptions
-        self.builtin_exc_name = None
         if self.exc_type and not self.exc_value and not self.exc_tb:
             exc = self.exc_type
             from . import ExprNodes
@@ -6222,66 +6229,50 @@ class ReraiseStatNode(StatNode):
 class AssertStatNode(StatNode):
     #  assert statement
     #
-    #  cond    ExprNode
-    #  value   ExprNode or None
+    #  condition    ExprNode
+    #  value        ExprNode or None
+    #  exception    (Raise/GIL)StatNode   created from 'value' in PostParse transform
 
-    child_attrs = ["cond", "value"]
+    child_attrs = ["condition", "value", "exception"]
+    exception = None
+
+    def analyse_declarations(self, env):
+        assert self.value is None, "Message should have been replaced in PostParse()"
+        assert self.exception is not None, "Message should have been replaced in PostParse()"
+        self.condition.analyse_declarations(env)
+        self.exception.analyse_declarations(env)
 
     def analyse_expressions(self, env):
-        self.cond = self.cond.analyse_boolean_expression(env)
-        if self.value:
-            value = self.value.analyse_types(env)
-            if value.type is Builtin.tuple_type or not value.type.is_builtin_type:
-                # prevent tuple values from being interpreted as argument value tuples
-                from .ExprNodes import TupleNode
-                value = TupleNode(value.pos, args=[value], slow=True)
-                self.value = value.analyse_types(env, skip_children=True).coerce_to_pyobject(env)
-            else:
-                self.value = value.coerce_to_pyobject(env)
+        self.condition = self.condition.analyse_boolean_expression(env)
+        self.exception = self.exception.analyse_expressions(env)
         return self
 
     def generate_execution_code(self, code):
         code.putln("#ifndef CYTHON_WITHOUT_ASSERTIONS")
         code.putln("if (unlikely(!Py_OptimizeFlag)) {")
         code.mark_pos(self.pos)
-        self.cond.generate_evaluation_code(code)
+        self.condition.generate_evaluation_code(code)
         code.putln(
-            "if (unlikely(!%s)) {" % self.cond.result())
-        in_nogil = not code.funcstate.gil_owned
-        if in_nogil:
-            # Apparently, evaluating condition and value does not require the GIL,
-            # but raising the exception now does.
-            code.put_ensure_gil()
-        if self.value:
-            self.value.generate_evaluation_code(code)
-            code.putln(
-                "PyErr_SetObject(PyExc_AssertionError, %s);" % self.value.py_result())
-            self.value.generate_disposal_code(code)
-            self.value.free_temps(code)
-        else:
-            code.putln(
-                "PyErr_SetNone(PyExc_AssertionError);")
-        if in_nogil:
-            code.put_release_ensured_gil()
-        code.putln(
-            code.error_goto(self.pos))
+            "if (unlikely(!%s)) {" % self.condition.result())
+        self.exception.generate_execution_code(code)
         code.putln(
             "}")
-        self.cond.generate_disposal_code(code)
-        self.cond.free_temps(code)
+        self.condition.generate_disposal_code(code)
+        self.condition.free_temps(code)
         code.putln(
             "}")
+        code.putln("#else")
+        # avoid unused labels etc.
+        code.putln("if ((1)); else %s" % code.error_goto(self.pos, used=False))
         code.putln("#endif")
 
     def generate_function_definitions(self, env, code):
-        self.cond.generate_function_definitions(env, code)
-        if self.value is not None:
-            self.value.generate_function_definitions(env, code)
+        self.condition.generate_function_definitions(env, code)
+        self.exception.generate_function_definitions(env, code)
 
     def annotate(self, code):
-        self.cond.annotate(code)
-        if self.value:
-            self.value.annotate(code)
+        self.condition.annotate(code)
+        self.exception.annotate(code)
 
 
 class IfStatNode(StatNode):

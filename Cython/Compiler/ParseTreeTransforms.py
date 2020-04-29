@@ -347,6 +347,23 @@ class PostParse(ScopeTrackingTransform):
         self.visitchildren(node)
         return node
 
+    def visit_AssertStatNode(self, node):
+        """Extract the exception raising into a RaiseStatNode to simplify GIL handling.
+        """
+        if node.exception is None:
+            node.exception = Nodes.RaiseStatNode(
+                node.pos,
+                exc_type=ExprNodes.NameNode(node.pos, name=EncodedString("AssertionError")),
+                exc_value=node.value,
+                exc_tb=None,
+                cause=None,
+                builtin_exc_name="AssertionError",
+                wrap_tuple_value=True,
+            )
+            node.value = None
+        self.visitchildren(node)
+        return node
+
 
 def eliminate_rhs_duplicates(expr_list_list, ref_node_sequence):
     """Replace rhs items by LetRefNodes if they appear more than once.
@@ -2819,7 +2836,6 @@ class InjectGilHandling(VisitorTransform, SkipDeclarations):
     visit_PrintStatNode = _inject_gil_in_nogil  # sadly, not the function
 
     # further candidates:
-    # def visit_AssertStatNode(self, node):  # -> try to keep the condition GIL-free if possible
     # def visit_ReraiseStatNode(self, node):
 
     # nogil tracking
