@@ -170,17 +170,17 @@ static CYTHON_INLINE {{INT}} __Pyx_add_const_{{NAME}}_checking_overflow({{INT}} 
     } else if (b < 0) {
         *overflow |= a < __PYX_MIN({{INT}}) - b;
     }
-    return a + b;
+    return ({{INT}}) ((unsigned {{INT}}) a + (unsigned {{INT}}) b);
 }
 
 static CYTHON_INLINE {{INT}} __Pyx_sub_{{NAME}}_checking_overflow({{INT}} a, {{INT}} b, int *overflow) {
     *overflow |= b == __PYX_MIN({{INT}});
-    return __Pyx_add_{{NAME}}_checking_overflow(a, -b, overflow);
+    return __Pyx_add_{{NAME}}_checking_overflow(a, ({{INT}}) -((unsigned {{INT}}) b), overflow);
 }
 
 static CYTHON_INLINE {{INT}} __Pyx_sub_const_{{NAME}}_checking_overflow({{INT}} a, {{INT}} b, int *overflow) {
     *overflow |= b == __PYX_MIN({{INT}});
-    return __Pyx_add_const_{{NAME}}_checking_overflow(a, -b, overflow);
+    return __Pyx_add_const_{{NAME}}_checking_overflow(a, ({{INT}}) -((unsigned {{INT}}) b), overflow);
 }
 
 static CYTHON_INLINE {{INT}} __Pyx_mul_{{NAME}}_checking_overflow({{INT}} a, {{INT}} b, int *overflow) {
@@ -197,12 +197,7 @@ static CYTHON_INLINE {{INT}} __Pyx_mul_{{NAME}}_checking_overflow({{INT}} a, {{I
         return ({{INT}}) r;
 #endif
     } else {
-        {{INT}} prod = a * b;
-        double dprod = ((double) a) * ((double) b);
-        // Overflow results in an error of at least 2^sizeof(INT),
-        // whereas rounding represents an error on the order of 2^(sizeof(INT)-53).
-        *overflow |= fabs(dprod - prod) > (__PYX_MAX({{INT}}) / 2);
-        return prod;
+        return __Pyx_mul_const_{{NAME}}_checking_overflow(a, b, overflow);
     }
 }
 
@@ -216,7 +211,7 @@ static CYTHON_INLINE {{INT}} __Pyx_mul_const_{{NAME}}_checking_overflow({{INT}} 
         *overflow |= a > __PYX_MIN({{INT}}) / b;
         *overflow |= a < __PYX_MAX({{INT}}) / b;
     }
-    return a * b;
+    return ({{INT}}) ((unsigned {{INT}}) a * (unsigned {{INT}}) b);
 }
 
 static CYTHON_INLINE {{INT}} __Pyx_div_{{NAME}}_checking_overflow({{INT}} a, {{INT}} b, int *overflow) {
@@ -225,7 +220,7 @@ static CYTHON_INLINE {{INT}} __Pyx_div_{{NAME}}_checking_overflow({{INT}} a, {{I
         return 0;
     }
     *overflow |= (a == __PYX_MIN({{INT}})) & (b == -1);
-    return a / b;
+    return ({{INT}}) ((unsigned {{INT}}) a / (unsigned {{INT}}) b);
 }
 
 
