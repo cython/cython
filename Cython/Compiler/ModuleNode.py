@@ -658,16 +658,19 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self._put_setup_code(code, "PythonCompatibility")
         self._put_setup_code(code, "MathInitCode")
 
+        # Using "(void)cname" to prevent "unused" warnings.
         if options.c_line_in_traceback:
-            cinfo = "%s = %s; " % (Naming.clineno_cname, Naming.line_c_macro)
+            cinfo = "%s = %s; (void)%s; " % (Naming.clineno_cname, Naming.line_c_macro, Naming.clineno_cname)
         else:
             cinfo = ""
-        code.put("""
-#define __PYX_ERR(f_index, lineno, Ln_error) \\
-{ \\
-  %s = %s[f_index]; %s = lineno; %sgoto Ln_error; \\
-}
-""" % (Naming.filename_cname, Naming.filetable_cname, Naming.lineno_cname, cinfo))
+        code.putln("#define __PYX_MARK_ERR_POS(f_index, lineno) \\")
+        code.putln("    { %s = %s[f_index]; (void)%s; %s = lineno; (void)%s; %s}" % (
+            Naming.filename_cname, Naming.filetable_cname, Naming.filename_cname,
+            Naming.lineno_cname, Naming.lineno_cname,
+            cinfo
+        ))
+        code.putln("#define __PYX_ERR(f_index, lineno, Ln_error) \\")
+        code.putln("    { __PYX_MARK_ERR_POS(f_index, lineno) goto Ln_error; }")
 
         code.putln("")
         self.generate_extern_c_macro_definition(code)
