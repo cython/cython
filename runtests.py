@@ -496,7 +496,7 @@ def parse_tags(filepath):
     return tags
 
 
-list_unchanging_dir = memoize(lambda x: os.listdir(x))
+list_unchanging_dir = memoize(lambda x: os.listdir(x))  # needs lambda to set function attribute
 
 
 @memoize
@@ -652,6 +652,7 @@ class TestBuilder(object):
         suite = unittest.TestSuite()
         filenames = os.listdir(self.rootdir)
         filenames.sort()
+        # TODO: parallelise I/O with a thread pool for the different directories once we drop Py2 support
         for filename in filenames:
             path = os.path.join(self.rootdir, filename)
             if os.path.isdir(path) and filename != TEST_SUPPORT_DIR:
