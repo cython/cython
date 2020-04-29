@@ -24,6 +24,8 @@ Bugs fixed
 * Exception position reporting could run into race conditions on threaded code.
   It now uses function-local variables again.
 
+* Error handling early in the module init code could lead to a crash.
+
 * The improved GIL handling in ``nogil`` functions introduced in 3.0a2
   could generate invalid C code.
   (Github issue #3558)
