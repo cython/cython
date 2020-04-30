@@ -718,3 +718,19 @@ def test_boundscheck_and_wraparound(double[:, :] x):
         x[i]
         x[i, ...]
         x[i, :]
+
+
+ctypedef struct SameTypeAfterArraysStruct:
+    double a[16]
+    double b[16]
+    double c
+
+@testcase
+def same_type_after_arrays():
+    """
+    >>> same_type_after_arrays()
+    """
+
+    cdef SameTypeAfterArraysStruct element
+    arr = np.ones(2, np.asarray(<SameTypeAfterArraysStruct[:1]>&element).dtype)
+    cdef SameTypeAfterArraysStruct[:] memview = arr
