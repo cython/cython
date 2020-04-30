@@ -37,7 +37,7 @@ run.longintrepr
 buffers.buffer
 buffers.userbuffer
 memoryview.cythonarray
-memoryview.memoryview_pep489_typing
+memoryview.memoryview_pep484_typing
 run.cpp_classes
 run.cpp_classes_def
 
