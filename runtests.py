@@ -70,7 +70,6 @@ CY3_DIR = None
 
 from distutils.command.build_ext import build_ext as _build_ext
 from distutils import sysconfig
-from distutils import ccompiler
 _to_clean = []
 
 @atexit.register
@@ -307,7 +306,8 @@ def get_cc_version(language):
     else:
         cc = sysconfig.get_config_var('CC')
     if not cc:
-       cc = ccompiler.get_default_compiler()
+        from distutils import ccompiler
+        cc = ccompiler.get_default_compiler()
 
     if not cc:
         return ''
