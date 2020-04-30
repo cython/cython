@@ -772,7 +772,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln('static int %s;' % Naming.lineno_cname)
         code.putln('static int %s = 0;' % Naming.clineno_cname)
-        code.putln('static const char * %s= %s;' % (Naming.cfilenm_cname, Naming.file_c_macro))
+        code.putln('static const char * %s = %s;' % (Naming.cfilenm_cname, Naming.file_c_macro))
         code.putln('static const char *%s;' % Naming.filename_cname)
 
         env.use_utility_code(UtilityCode.load_cached("FastTypeChecks", "ModuleSetupCode.c"))
