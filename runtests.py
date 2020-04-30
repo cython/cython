@@ -21,6 +21,7 @@ import warnings
 import zlib
 import glob
 from contextlib import contextmanager
+from collections import defaultdict
 
 try:
     import platform
@@ -45,26 +46,6 @@ try:
     import threading
 except ImportError: # No threads, no problems
     threading = None
-
-try:
-    from collections import defaultdict
-except ImportError:
-    class defaultdict(object):
-        def __init__(self, default_factory=lambda : None):
-            self._dict = {}
-            self.default_factory = default_factory
-        def __getitem__(self, key):
-            if key not in self._dict:
-                self._dict[key] = self.default_factory()
-            return self._dict[key]
-        def __setitem__(self, key, value):
-            self._dict[key] = value
-        def __contains__(self, key):
-            return key in self._dict
-        def __repr__(self):
-            return repr(self._dict)
-        def __nonzero__(self):
-            return bool(self._dict)
 
 try:
     from unittest import SkipTest
