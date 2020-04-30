@@ -9436,14 +9436,21 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         else:
             flags = '0'
 
-        code.putln('#if CYTHON_COMPILING_IN_LIMITED_API')
-        dict_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
-        code.putln('%s = PyDict_New(); %s' % (
-            dict_temp,
-            code.error_goto_if_null(dict_temp, self.pos)))
-        code.put_gotref(dict_temp, py_object_type)
+        borrowed_moddict_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=False)
+        code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+        code.putln('%s = PyModule_GetDict(%s); %s' % (
+            borrowed_moddict_temp,
+            Naming.module_cname,
+            code.error_goto_if_null(borrowed_moddict_temp, self.pos)))
+        code.putln("#else")
+        code.putln("%s = %s;  if ((1)); else %s;" % (
+            borrowed_moddict_temp,
+            Naming.moddict_cname,
+            code.error_goto(self.pos),
+        ))
+        code.putln("#endif")
         code.putln(
-            '%s = %s(&%s, %s, %s, %s, %s, %s, %s); %s' % (
+            '%s = %s(&%s, %s, %s, %s, %s, %s, %s); %s = NULL; %s' % (
                 self.result(),
                 constructor,
                 self.pymethdef_cname,
@@ -9451,25 +9458,11 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                 self.get_py_qualified_name(code),
                 self.closure_result_code(),
                 self.get_py_mod_name(code),
-                dict_temp,
+                borrowed_moddict_temp,
                 code_object_result,
+                borrowed_moddict_temp,
                 code.error_goto_if_null(self.result(), self.pos)))
-        code.put_decref_clear(dict_temp, type=py_object_type)
-        code.funcstate.release_temp(dict_temp)
-        code.putln('#else')
-        code.putln(
-            '%s = %s(&%s, %s, %s, %s, %s, %s, %s); %s' % (
-                self.result(),
-                constructor,
-                self.pymethdef_cname,
-                flags,
-                self.get_py_qualified_name(code),
-                self.closure_result_code(),
-                self.get_py_mod_name(code),
-                Naming.moddict_cname,
-                code_object_result,
-                code.error_goto_if_null(self.result(), self.pos)))
-        code.putln('#endif')
+        code.funcstate.release_temp(borrowed_moddict_temp)
 
         self.generate_gotref(code)
 
