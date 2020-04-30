@@ -709,6 +709,8 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
 static void __Pyx_AddTraceback(const char *funcname, int c_line,
                                int py_line, const char *filename) {
     if (c_line) {
+        // Avoid "unused" warning as long as we don't use this.
+        (void) $cfilenm_cname;
         c_line = __Pyx_CLineForTraceback(__Pyx_PyThreadState_Current, c_line);
     }
     _PyTraceback_Add(funcname, filename, c_line ? -c_line : py_line);
