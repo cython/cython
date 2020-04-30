@@ -42,8 +42,8 @@ py_reserved_words = [
     "global", "nonlocal", "def", "class", "print", "del", "pass", "break",
     "continue", "return", "raise", "import", "exec", "try",
     "except", "finally", "while", "if", "elif", "else", "for",
-    "in", "assert", "and", "or", "not", "is", "in", "lambda",
-    "from", "yield", "with", "nonlocal",
+    "in", "assert", "and", "or", "not", "is", "lambda",
+    "from", "yield", "with",
 ]
 
 pyx_reserved_words = py_reserved_words + [
