@@ -6495,11 +6495,10 @@ class AssertStatNode(StatNode):
     def analyse_declarations(self, env):
         assert self.value is None, "Message should have been replaced in PostParse()"
         assert self.exception is not None, "Message should have been replaced in PostParse()"
-        self.condition.analyse_declarations(env)
         self.exception.analyse_declarations(env)
 
     def analyse_expressions(self, env):
-        self.condition = self.condition.analyse_boolean_expression(env)
+        self.condition = self.condition.analyse_temp_boolean_expression(env)
         self.exception = self.exception.analyse_expressions(env)
         return self
 
