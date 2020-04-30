@@ -52,7 +52,7 @@ cdef object m():
         x, y = y, x
         obj[i] = x
         obj.fred = x
-        print obj
+        print obj  # allowed!
         del fred
         return obj
         raise obj  # allowed!
@@ -105,14 +105,10 @@ _ERRORS = u"""
 31:16: Constructing complex number not allowed without gil
 33:8: Assignment of Python object not allowed without gil
 33:14: Backquote expression not allowed without gil
-33:15: Operation not allowed without gil
 34:15: Assignment of Python object not allowed without gil
-34:15: Operation not allowed without gil
 34:15: Python import not allowed without gil
-35:8: Operation not allowed without gil
 35:13: Python import not allowed without gil
 35:25: Constructing Python list not allowed without gil
-35:25: Operation not allowed without gil
 36:17: Iterating over Python object not allowed without gil
 38:11: Discarding owned Python object not allowed without gil
 38:11: Indexing Python object not allowed without gil
@@ -151,10 +147,10 @@ _ERRORS = u"""
 53:11: Indexing Python object not allowed without gil
 54:11: Accessing Python attribute not allowed without gil
 54:11: Assignment of Python object not allowed without gil
-55:8: Constructing Python tuple not allowed without gil
-55:8: Python print statement not allowed without gil
+
 56:8: Deleting Python object not allowed without gil
 57:8: Returning Python object not allowed without gil
+
 59:11: Truth-testing Python object not allowed without gil
 61:14: Truth-testing Python object not allowed without gil
 63:8: For-loop using object bounds or target not allowed without gil

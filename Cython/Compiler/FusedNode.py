@@ -594,13 +594,13 @@ class FusedCFuncDefNode(StatListNode):
                 if not _fused_sigindex:
                     for sig in <dict>signatures:
                         sigindex_node = _fused_sigindex
-                        sig_series = sig.strip('()').split('|')
-                        for sig_type in sig_series[:-1]:
+                        *sig_series, last_type = sig.strip('()').split('|')
+                        for sig_type in sig_series:
                             if sig_type not in sigindex_node:
                                 sigindex_node[sig_type] = sigindex_node = {}
                             else:
                                 sigindex_node = sigindex_node[sig_type]
-                        sigindex_node[sig_series[-1]] = sig
+                        sigindex_node[last_type] = sig
             """
         )
 
@@ -640,7 +640,7 @@ class FusedCFuncDefNode(StatListNode):
 
         pyx_code.put_chunk(
             u"""
-                def __pyx_fused_cpdef(signatures, args, kwargs, defaults, *, _fused_sigindex={}):
+                def __pyx_fused_cpdef(signatures, args, kwargs, defaults, _fused_sigindex={}):
                     # FIXME: use a typed signature - currently fails badly because
                     #        default arguments inherit the types we specify here!
 
@@ -839,7 +839,8 @@ class FusedCFuncDefNode(StatListNode):
 
         for i, stat in enumerate(self.stats):
             stat = self.stats[i] = stat.analyse_expressions(env)
-            if isinstance(stat, FuncDefNode):
+            if isinstance(stat, FuncDefNode) and stat is not self.py_func:
+                # the dispatcher specifically doesn't want its defaults overriding
                 for arg, default in zip(stat.args, defaults):
                     if default is not None:
                         arg.default = CloneNode(default).coerce_to(arg.type, env)

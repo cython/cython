@@ -1,3 +1,16 @@
+/////////////// InitLimitedAPI ///////////////
+
+#if defined(CYTHON_LIMITED_API) && 0  /* disabled: enabling Py_LIMITED_API needs more work */
+  #ifndef Py_LIMITED_API
+    #if CYTHON_LIMITED_API+0 > 0x03030000
+      #define Py_LIMITED_API CYTHON_LIMITED_API
+    #else
+      #define Py_LIMITED_API 0x03030000
+    #endif
+  #endif
+#endif
+
+
 /////////////// CModulePreamble ///////////////
 
 #include <stddef.h> /* For offsetof */
@@ -78,6 +91,9 @@
   #define CYTHON_METH_FASTCALL 0
   #undef CYTHON_FAST_PYCALL
   #define CYTHON_FAST_PYCALL 0
+  #ifndef CYTHON_PEP487_INIT_SUBCLASS
+    #define CYTHON_PEP487_INIT_SUBCLASS (PY_MAJOR_VERSION >= 3)
+  #endif
   #undef CYTHON_PEP489_MULTI_PHASE_INIT
   #define CYTHON_PEP489_MULTI_PHASE_INIT 0
   #undef CYTHON_USE_TP_FINALIZE
@@ -126,6 +142,8 @@
   #define CYTHON_METH_FASTCALL 0
   #undef CYTHON_FAST_PYCALL
   #define CYTHON_FAST_PYCALL 0
+  #undef CYTHON_PEP487_INIT_SUBCLASS
+  #define CYTHON_PEP487_INIT_SUBCLASS 0
   #undef CYTHON_PEP489_MULTI_PHASE_INIT
   #define CYTHON_PEP489_MULTI_PHASE_INIT 0
   #undef CYTHON_USE_TP_FINALIZE
@@ -150,12 +168,14 @@
   #define CYTHON_USE_PYLIST_INTERNALS 0
   #undef CYTHON_USE_UNICODE_INTERNALS
   #define CYTHON_USE_UNICODE_INTERNALS 0
-  #undef CYTHON_USE_UNICODE_WRITER
-  #define CYTHON_USE_UNICODE_WRITER 1
+  #ifndef CYTHON_USE_UNICODE_WRITER
+    #define CYTHON_USE_UNICODE_WRITER 1
+  #endif
   #undef CYTHON_USE_PYLONG_INTERNALS
   #define CYTHON_USE_PYLONG_INTERNALS 0
-  #undef CYTHON_AVOID_BORROWED_REFS
-  #define CYTHON_AVOID_BORROWED_REFS 0
+  #ifndef CYTHON_AVOID_BORROWED_REFS
+    #define CYTHON_AVOID_BORROWED_REFS 0
+  #endif
   #undef CYTHON_ASSUME_SAFE_MACROS
   #define CYTHON_ASSUME_SAFE_MACROS 0
   #undef CYTHON_UNPACK_METHODS
@@ -168,10 +188,14 @@
   #define CYTHON_METH_FASTCALL 0
   #undef CYTHON_FAST_PYCALL
   #define CYTHON_FAST_PYCALL 0
+  #ifndef CYTHON_PEP487_INIT_SUBCLASS
+    #define CYTHON_PEP487_INIT_SUBCLASS 1
+  #endif
   #undef CYTHON_PEP489_MULTI_PHASE_INIT
   #define CYTHON_PEP489_MULTI_PHASE_INIT 0
-  #undef CYTHON_USE_TP_FINALIZE
-  #define CYTHON_USE_TP_FINALIZE 1
+  #ifndef CYTHON_USE_TP_FINALIZE
+    #define CYTHON_USE_TP_FINALIZE 1
+  #endif
   #undef CYTHON_USE_DICT_VERSIONS
   #define CYTHON_USE_DICT_VERSIONS 0
   #undef CYTHON_USE_EXC_INFO_STACK
@@ -233,6 +257,9 @@
   #endif
   #ifndef CYTHON_FAST_PYCALL
     #define CYTHON_FAST_PYCALL 1
+  #endif
+  #ifndef CYTHON_PEP487_INIT_SUBCLASS
+    #define CYTHON_PEP487_INIT_SUBCLASS 1
   #endif
   #ifndef CYTHON_PEP489_MULTI_PHASE_INIT
     #define CYTHON_PEP489_MULTI_PHASE_INIT (PY_VERSION_HEX >= 0x03050000)
@@ -471,6 +498,12 @@ class __Pyx_FakeReference {
 #endif
 #endif
 
+#if PY_VERSION_HEX >= 0x030900A4 || defined(Py_IS_TYPE)
+  #define __Pyx_IS_TYPE(ob, type) Py_IS_TYPE(ob, type)
+#else
+  #define __Pyx_IS_TYPE(ob, type) (((const PyObject*)ob)->ob_type == (type))
+#endif
+
 #ifndef Py_TPFLAGS_CHECKTYPES
   #define Py_TPFLAGS_CHECKTYPES 0
 #endif
@@ -519,9 +552,16 @@ class __Pyx_FakeReference {
 
 #if CYTHON_VECTORCALL
   #define __pyx_vectorcallfunc vectorcallfunc
+  #define __Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET  PY_VECTORCALL_ARGUMENTS_OFFSET
+  #define __Pyx_PyVectorcall_NARGS(n)  PyVectorcall_NARGS(n)
 #elif CYTHON_BACKPORT_VECTORCALL
   typedef PyObject *(*__pyx_vectorcallfunc)(PyObject *callable, PyObject *const *args,
                                             size_t nargsf, PyObject *kwnames);
+  #define __Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET  ((size_t)1 << (8 * sizeof(size_t) - 1))
+  #define __Pyx_PyVectorcall_NARGS(n)  ((n) & ~__Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET)
+#else
+  #define __Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET  0
+  #define __Pyx_PyVectorcall_NARGS(n)  (n)
 #endif
 
 #if CYTHON_COMPILING_IN_PYPY && !defined(PyObject_Malloc)
@@ -658,23 +698,17 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 #endif
 
 #if CYTHON_COMPILING_IN_LIMITED_API
-  #if !defined(PyUnicode_GET_SIZE)
-    #define PyUnicode_GET_SIZE(u)          PyUnicode_GetSize(u)
-  #endif
   #define CYTHON_PEP393_ENABLED 1
-  #define PyUnicode_1BYTE_KIND  1
-  #define PyUnicode_2BYTE_KIND  2
-  #define PyUnicode_4BYTE_KIND  4
   #define __Pyx_PyUnicode_READY(op)       (0)
-  #define __Pyx_PyUnicode_GET_LENGTH(u)   PyUnicode_GetSize(u)
-  #define __Pyx_PyUnicode_READ_CHAR(u, i) ((Py_UCS4)(PyUnicode_AsUnicode(u)[i]))
-  #define __Pyx_PyUnicode_MAX_CHAR_VALUE(u)   ((sizeof(wchar_t) == 2) ? 65535 : 1114111)
-  #define __Pyx_PyUnicode_KIND(u)         (sizeof(wchar_t))
-  #define __Pyx_PyUnicode_DATA(u)         ((void*)PyUnicode_AsUnicode(u))
-  /* (void)(k) => avoid unused variable warning due to macro: */
-  #define __Pyx_PyUnicode_READ(k, d, i)   ((void)(k), (Py_UCS4)(((wchar_t*)d)[i]))
-  #define __Pyx_PyUnicode_WRITE(k, d, i, ch)  (((void)(k)), ((wchar_t*)d)[i] = ch)
-  #define __Pyx_PyUnicode_IS_TRUE(u)      (0 != PyUnicode_GetSize(u))
+  #define __Pyx_PyUnicode_GET_LENGTH(u)   PyUnicode_GetLength(u)
+  #define __Pyx_PyUnicode_READ_CHAR(u, i) PyUnicode_ReadChar(u, i)
+  #define __Pyx_PyUnicode_MAX_CHAR_VALUE(u)   ((void)u, 1114111)
+  #define __Pyx_PyUnicode_KIND(u)         ((void)u, (0))
+  // __Pyx_PyUnicode_DATA() and __Pyx_PyUnicode_READ() must go together, e.g. for iteration.
+  #define __Pyx_PyUnicode_DATA(u)         ((void*)u)
+  #define __Pyx_PyUnicode_READ(k, d, i)   ((void)k, PyUnicode_ReadChar((PyObject*)(d), i))
+  //#define __Pyx_PyUnicode_WRITE(k, d, i, ch)  /* not available */
+  #define __Pyx_PyUnicode_IS_TRUE(u)      (0 != PyUnicode_GetLength(u))
 #elif PY_VERSION_HEX > 0x03030000 && defined(PyUnicode_KIND)
   /* new Py3.3 unicode type (PEP 393) */
   #define CYTHON_PEP393_ENABLED 1
@@ -699,7 +733,7 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define __Pyx_PyUnicode_MAX_CHAR_VALUE(u)   ((sizeof(Py_UNICODE) == 2) ? 65535 : 1114111)
   #define __Pyx_PyUnicode_KIND(u)         (sizeof(Py_UNICODE))
   #define __Pyx_PyUnicode_DATA(u)         ((void*)PyUnicode_AS_UNICODE(u))
-  /* (void)(k) => avoid unused variable warning due to macro: */
+  // (void)(k) => avoid unused variable warning due to macro:
   #define __Pyx_PyUnicode_READ(k, d, i)   ((void)(k), (Py_UCS4)(((Py_UNICODE*)d)[i]))
   #define __Pyx_PyUnicode_WRITE(k, d, i, ch)  (((void)(k)), ((Py_UNICODE*)d)[i] = ch)
   #define __Pyx_PyUnicode_IS_TRUE(u)      (0 != PyUnicode_GET_SIZE(u))
@@ -760,8 +794,15 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define __Pyx_PyBaseString_CheckExact(obj) (PyString_CheckExact(obj) || PyUnicode_CheckExact(obj))
 #endif
 
+#if CYTHON_COMPILING_IN_CPYTHON
+  #define __Pyx_PySequence_ListKeepNew(obj) \
+    (likely(PyList_CheckExact(obj) && Py_REFCNT(obj) == 1) ? __Pyx_NewRef(obj) : PySequence_List(obj))
+#else
+  #define __Pyx_PySequence_ListKeepNew(obj)  PySequence_List(obj)
+#endif
+
 #ifndef PySet_CheckExact
-  #define PySet_CheckExact(obj)        (Py_TYPE(obj) == &PySet_Type)
+  #define PySet_CheckExact(obj)        __Pyx_IS_TYPE(obj, &PySet_Type)
 #endif
 
 #if CYTHON_ASSUME_SAFE_MACROS
@@ -1333,6 +1374,11 @@ static CYTHON_INLINE int __Pyx_Is_Little_Endian(void)
   #define __Pyx_RefNannySetupContext(name, acquire_gil) \
           __pyx_refnanny = __Pyx_RefNanny->SetupContext((name), __LINE__, __FILE__)
 #endif
+  #define __Pyx_RefNannyFinishContextNogil() { \
+              PyGILState_STATE __pyx_gilstate_save = PyGILState_Ensure(); \
+              __Pyx_RefNannyFinishContext(); \
+              PyGILState_Release(__pyx_gilstate_save); \
+          }
   #define __Pyx_RefNannyFinishContext() \
           __Pyx_RefNanny->FinishContext(&__pyx_refnanny)
   #define __Pyx_INCREF(r)  __Pyx_RefNanny->INCREF(__pyx_refnanny, (PyObject *)(r), __LINE__)
@@ -1346,6 +1392,7 @@ static CYTHON_INLINE int __Pyx_Is_Little_Endian(void)
 #else
   #define __Pyx_RefNannyDeclarations
   #define __Pyx_RefNannySetupContext(name, acquire_gil)
+  #define __Pyx_RefNannyFinishContextNogil()
   #define __Pyx_RefNannyFinishContext()
   #define __Pyx_INCREF(r) Py_INCREF(r)
   #define __Pyx_DECREF(r) Py_DECREF(r)
@@ -1357,6 +1404,10 @@ static CYTHON_INLINE int __Pyx_Is_Little_Endian(void)
   #define __Pyx_XGIVEREF(r)
 #endif /* CYTHON_REFNANNY */
 
+#define __Pyx_Py_XDECREF_SET(r, v) do {                         \
+        PyObject *tmp = (PyObject *) r;                         \
+        r = v; Py_XDECREF(tmp);                                 \
+    } while (0)
 #define __Pyx_XDECREF_SET(r, v) do {                            \
         PyObject *tmp = (PyObject *) r;                         \
         r = v; __Pyx_XDECREF(tmp);                              \

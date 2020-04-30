@@ -593,6 +593,7 @@ class CTypedefType(BaseType):
 class MemoryViewSliceType(PyrexType):
 
     is_memoryviewslice = 1
+    default_value = "{ 0, 0, { 0 }, { 0 }, { 0 } }"
 
     has_attributes = 1
     needs_refcounting = 1  # Ideally this would be true and reference counting for

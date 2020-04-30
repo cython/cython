@@ -188,15 +188,10 @@ try:
 except ValueError:
     compile_cython_itself = True
 
-if compile_cython_itself and (is_cpython or cython_compile_more):
-    compile_cython_modules(cython_profile, cython_compile_more, cython_with_refnanny)
-
 setup_args.update(setuptools_extra_args)
 
-from Cython import __version__ as version
 
-
-def dev_status():
+def dev_status(version):
     if 'b' in version or 'c' in version:
         # 1b1, 1beta1, 2rc1, ...
         return 'Development Status :: 4 - Beta'
@@ -224,62 +219,73 @@ packages = [
     'pyximport',
 ]
 
-setup(
-    name='Cython',
-    version=version,
-    url='https://cython.org/',
-    author='Robert Bradshaw, Stefan Behnel, Dag Seljebotn, Greg Ewing, et al.',
-    author_email='cython-devel@python.org',
-    description="The Cython compiler for writing C extensions for the Python language.",
-    long_description=textwrap.dedent("""\
-    The Cython language makes writing C extensions for the Python language as
-    easy as Python itself.  Cython is a source code translator based on Pyrex_,
-    but supports more cutting edge functionality and optimizations.
 
-    The Cython language is a superset of the Python language (almost all Python
-    code is also valid Cython code), but Cython additionally supports optional
-    static typing to natively call C functions, operate with C++ classes and
-    declare fast C types on variables and class attributes.  This allows the
-    compiler to generate very efficient C code from Cython code.
+def run_build():
+    if compile_cython_itself and (is_cpython or cython_compile_more):
+        compile_cython_modules(cython_profile, cython_compile_more, cython_with_refnanny)
 
-    This makes Cython the ideal language for writing glue code for external
-    C/C++ libraries, and for fast C modules that speed up the execution of
-    Python code.
+    from Cython import __version__ as version
+    setup(
+        name='Cython',
+        version=version,
+        url='https://cython.org/',
+        author='Robert Bradshaw, Stefan Behnel, Dag Seljebotn, Greg Ewing, et al.',
+        author_email='cython-devel@python.org',
+        description="The Cython compiler for writing C extensions for the Python language.",
+        long_description=textwrap.dedent("""\
+        The Cython language makes writing C extensions for the Python language as
+        easy as Python itself.  Cython is a source code translator based on Pyrex_,
+        but supports more cutting edge functionality and optimizations.
+    
+        The Cython language is a superset of the Python language (almost all Python
+        code is also valid Cython code), but Cython additionally supports optional
+        static typing to natively call C functions, operate with C++ classes and
+        declare fast C types on variables and class attributes.  This allows the
+        compiler to generate very efficient C code from Cython code.
+    
+        This makes Cython the ideal language for writing glue code for external
+        C/C++ libraries, and for fast C modules that speed up the execution of
+        Python code.
+    
+        Note that for one-time builds, e.g. for CI/testing, on platforms that are not
+        covered by one of the wheel packages provided on PyPI *and* the pure Python wheel
+        that we provide is not used, it is substantially faster than a full source build
+        to install an uncompiled (slower) version of Cython with::
+    
+            pip install Cython --install-option="--no-cython-compile"
+    
+        .. _Pyrex: https://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/
+        """),
+        license='Apache',
+        classifiers=[
+            dev_status(version),
+            "Intended Audience :: Developers",
+            "License :: OSI Approved :: Apache Software License",
+            "Operating System :: OS Independent",
+            "Programming Language :: Python",
+            "Programming Language :: Python :: 2",
+            "Programming Language :: Python :: 2.7",
+            "Programming Language :: Python :: 3",
+            "Programming Language :: Python :: 3.4",
+            "Programming Language :: Python :: 3.5",
+            "Programming Language :: Python :: 3.6",
+            "Programming Language :: Python :: 3.7",
+            "Programming Language :: Python :: 3.8",
+            "Programming Language :: Python :: Implementation :: CPython",
+            "Programming Language :: Python :: Implementation :: PyPy",
+            "Programming Language :: C",
+            "Programming Language :: Cython",
+            "Topic :: Software Development :: Code Generators",
+            "Topic :: Software Development :: Compilers",
+            "Topic :: Software Development :: Libraries :: Python Modules"
+        ],
 
-    Note that for one-time builds, e.g. for CI/testing, on platforms that are not
-    covered by one of the wheel packages provided on PyPI, it is substantially faster
-    than a full source build to install an uncompiled (slower) version of Cython with::
+        scripts=scripts,
+        packages=packages,
+        py_modules=["cython"],
+        **setup_args
+    )
 
-        pip install Cython --install-option="--no-cython-compile"
 
-    .. _Pyrex: https://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/
-    """),
-    license='Apache',
-    classifiers=[
-        dev_status(),
-        "Intended Audience :: Developers",
-        "License :: OSI Approved :: Apache Software License",
-        "Operating System :: OS Independent",
-        "Programming Language :: Python",
-        "Programming Language :: Python :: 2",
-        "Programming Language :: Python :: 2.7",
-        "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.4",
-        "Programming Language :: Python :: 3.5",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: Implementation :: CPython",
-        "Programming Language :: Python :: Implementation :: PyPy",
-        "Programming Language :: C",
-        "Programming Language :: Cython",
-        "Topic :: Software Development :: Code Generators",
-        "Topic :: Software Development :: Compilers",
-        "Topic :: Software Development :: Libraries :: Python Modules"
-    ],
-
-    scripts=scripts,
-    packages=packages,
-    py_modules=["cython"],
-    **setup_args
-)
+if __name__ == '__main__':
+    run_build()

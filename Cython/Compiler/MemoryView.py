@@ -808,7 +808,7 @@ context = {
     'memview_struct_name': memview_objstruct_cname,
     'max_dims': Options.buffer_max_dims,
     'memviewslice_name': memviewslice_cname,
-    'memslice_init': memslice_entry_init,
+    'memslice_init': PyrexTypes.MemoryViewSliceType.default_value,
 }
 memviewslice_declare_code = load_memview_c_utility(
         "MemviewSliceStruct",

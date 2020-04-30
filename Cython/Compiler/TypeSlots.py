@@ -229,6 +229,12 @@ class SlotDescriptor(object):
         self.py3 = py3
         self.py2 = py2
 
+    def slot_code(self, scope):
+        raise NotImplemented()
+
+    def spec_value(self, scope):
+        return self.slot_code(scope)
+
     def preprocessor_guard_code(self):
         ifdef = self.ifdef
         py2 = self.py2
@@ -242,15 +248,20 @@ class SlotDescriptor(object):
             guard = ("#if PY_MAJOR_VERSION >= 3")
         return guard
 
-    def spec_slot_value(self, scope):
+    def generate_spec(self, scope, code):
         if self.is_initialised_dynamically:
-            return None
-        result = self.slot_code(scope)
-        if result == "0":
-            return None
-        return result
+            return
+        value = self.spec_value(scope)
+        if value == "0":
+            return
+        preprocessor_guard = self.preprocessor_guard_code()
+        if preprocessor_guard:
+            code.putln(preprocessor_guard)
+        code.putln("{Py_%s, (void *)%s}," % (self.slot_name, value))
+        if preprocessor_guard:
+            code.putln("#endif")
 
-    def generate(self, scope, code, spec=False):
+    def generate(self, scope, code):
         preprocessor_guard = self.preprocessor_guard_code()
         if preprocessor_guard:
             code.putln(preprocessor_guard)
@@ -279,11 +290,7 @@ class SlotDescriptor(object):
                     code.putln("#else")
                     end_pypy_guard = True
 
-        if spec:
-            if value != "0":
-                code.putln("{Py_%s, (void *)%s}," % (self.slot_name, value))
-        else:
-            code.putln("%s, /*%s*/" % (value, self.slot_name))
+        code.putln("%s, /*%s*/" % (value, self.slot_name))
 
         if end_pypy_guard:
             code.putln("#endif")
@@ -449,6 +456,11 @@ class ConstructorSlot(InternalMethodSlot):
             return slot_code or '0'
         return InternalMethodSlot.slot_code(self, scope)
 
+    def spec_value(self, scope):
+        if self.slot_name == "tp_dealloc" and not scope.lookup_here("__dealloc__"):
+            return "0"
+        return self.slot_code(scope)
+
     def generate_dynamic_init_code(self, scope, code):
         if self.slot_code(scope) != '0':
             return
@@ -484,6 +496,11 @@ class SyntheticSlot(InternalMethodSlot):
         else:
             return self.default_value
 
+    def spec_value(self, scope):
+        if self.slot_name == "tp_getattro" and not scope.defines_any_special(self.user_methods):
+            return "PyObject_GenericGetAttr"
+        return self.slot_code(scope)
+
 
 class RichcmpSlot(MethodSlot):
     def slot_code(self, scope):
@@ -513,6 +530,10 @@ class TypeFlagsSlot(SlotDescriptor):
         if scope.needs_gc():
             value += "|Py_TPFLAGS_HAVE_GC"
         return value
+
+    def generate_spec(self, scope, code):
+        # Flags are stored in the PyType_Spec, not in a PyType_Slot.
+        return
 
 
 class DocStringSlot(SlotDescriptor):
@@ -567,10 +588,12 @@ class SuiteSlot(SlotDescriptor):
             if self.ifdef:
                 code.putln("#endif")
 
-    def generate_substructure_spec(self, scope, code):
-        if not self.is_empty(scope):
-            for slot in self.sub_slots:
-                slot.generate(scope, code, spec=True)
+    def generate_spec(self, scope, code):
+        if self.slot_name == "tp_as_buffer":
+            # Cannot currently support the buffer protocol in the limited C-API.
+            return
+        for slot in self.sub_slots:
+            slot.generate_spec(scope, code)
 
 substructures = []   # List of all SuiteSlot instances
 
@@ -975,6 +998,8 @@ slot_table = (
     EmptySlot("tp_finalize", ifdef="PY_VERSION_HEX >= 0x030400a1"),
     EmptySlot("tp_vectorcall", ifdef="PY_VERSION_HEX >= 0x030800b1"),
     EmptySlot("tp_print", ifdef="PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000"),
+    # PyPy specific extension - only here to avoid C compiler warnings.
+    EmptySlot("tp_pypy_flags", ifdef="CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM+0 >= 0x06000000"),
 )
 
 #------------------------------------------------------------------------------------------

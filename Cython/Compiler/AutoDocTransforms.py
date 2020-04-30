@@ -3,12 +3,15 @@ from __future__ import absolute_import, print_function
 from .Visitor import CythonTransform
 from .StringEncoding import EncodedString
 from . import Options
-from . import PyrexTypes, ExprNodes
+from . import PyrexTypes
 from ..CodeWriter import ExpressionWriter
 from .Errors import warning
 
 
 class AnnotationWriter(ExpressionWriter):
+    """
+    A Cython code writer for Python expressions in argument/variable annotations.
+    """
     def __init__(self, description=None):
         """description is optional. If specified it is used in
         warning messages for the nodes that don't convert to string properly.

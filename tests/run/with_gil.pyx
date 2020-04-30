@@ -1,3 +1,6 @@
+# mode: run
+# tag: nogil, withgil
+
 """
 Test the 'with gil:' statement.
 """

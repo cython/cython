@@ -255,8 +255,12 @@ f'{a * x()}'"""
         width = 1
 
         # Test around 256.
-        for i in range(250, 260):
-            self.assertEqual(cy_eval(build_fstr(i), x=x, width=width), (x+' ')*i)
+        # for i in range(250, 260):
+        #     self.assertEqual(cy_eval(build_fstr(i), x=x, width=width), (x+' ')*i)
+        self.assertEqual(
+            cy_eval('[' + ', '.join(build_fstr(i) for i in range(250, 260)) + ']', x=x, width=width),
+            [(x+' ')*i for i in range(250, 260)],
+        )
 
         # Test concatenating 2 largs fstrings.
         self.assertEqual(cy_eval(build_fstr(255)*3, x=x, width=width), (x+' ')*(255*3))  # CPython uses 255*256

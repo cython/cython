@@ -2,7 +2,7 @@
 
 static PyTypeObject* __Pyx_FetchCommonType(PyTypeObject* type);
 #if CYTHON_COMPILING_IN_LIMITED_API
-static PyObject* __Pyx_FetchCommonTypeFromSpec(PyType_Spec *spec, PyObject *bases);
+static PyTypeObject* __Pyx_FetchCommonTypeFromSpec(PyType_Spec *spec, PyObject *bases);
 #endif
 
 /////////////// FetchCommonType ///////////////
@@ -70,8 +70,8 @@ bad:
 }
 
 #if CYTHON_COMPILING_IN_LIMITED_API
-static PyObject *__Pyx_FetchCommonTypeFromSpec(PyType_Spec *spec, PyObject *bases) {
-    PyObject *abi_module, *py_basicsize, *type, *cached_type = NULL;
+static PyTypeObject *__Pyx_FetchCommonTypeFromSpec(PyType_Spec *spec, PyObject *bases) {
+    PyObject *abi_module, *py_basicsize, *cached_type = NULL;
     Py_ssize_t basicsize;
 
     abi_module = __Pyx_FetchSharedCythonABIModule();
@@ -96,15 +96,15 @@ static PyObject *__Pyx_FetchCommonTypeFromSpec(PyType_Spec *spec, PyObject *base
 
     if (!PyErr_ExceptionMatches(PyExc_AttributeError)) goto bad;
     PyErr_Clear();
-    type = PyType_FromSpecWithBases(spec, bases);
-    if (unlikely(!type)) goto bad;
-    if (PyObject_SetAttrString(abi_module, spec->name, type) < 0) goto bad;
-    cached_type = type;
+    cached_type = PyType_FromSpecWithBases(spec, bases);
+    if (unlikely(!cached_type)) goto bad;
+    if (PyObject_SetAttrString(abi_module, spec->name, cached_type) < 0) goto bad;
 
 done:
     Py_DECREF(abi_module);
     // NOTE: always returns owned reference, or NULL on error
-    return cached_type;
+    assert(cached_type == NULL || PyType_Check(cached_type));
+    return (PyTypeObject *) cached_type;
 
 bad:
     Py_XDECREF(cached_type);

@@ -169,7 +169,6 @@ class PostParse(ScopeTrackingTransform):
     reorganization that can be refactored into this transform
     if a more pure Abstract Syntax Tree is wanted.
     """
-
     def __init__(self, context):
         super(PostParse, self).__init__(context)
         self.specialattribute_handlers = {
@@ -344,6 +343,23 @@ class PostParse(ScopeTrackingTransform):
                     finally_clause=Nodes.StatListNode(
                         node.pos,
                         stats=[del_target]))])
+        self.visitchildren(node)
+        return node
+
+    def visit_AssertStatNode(self, node):
+        """Extract the exception raising into a RaiseStatNode to simplify GIL handling.
+        """
+        if node.exception is None:
+            node.exception = Nodes.RaiseStatNode(
+                node.pos,
+                exc_type=ExprNodes.NameNode(node.pos, name=EncodedString("AssertionError")),
+                exc_value=node.value,
+                exc_tb=None,
+                cause=None,
+                builtin_exc_name="AssertionError",
+                wrap_tuple_value=True,
+            )
+            node.value = None
         self.visitchildren(node)
         return node
 
@@ -630,6 +646,9 @@ class InterpretCompilerDirectives(CythonTransform):
     - Command-line arguments overriding these
     - @cython.directivename decorators
     - with cython.directivename: statements
+    - replaces "cython.compiled" with BoolNode(value=True)
+      allowing unreachable blocks to be removed at a fairly early stage
+      before cython typing rules are forced on applied
 
     This transform is responsible for interpreting these various sources
     and store the directive in two ways:
@@ -846,6 +865,16 @@ class InterpretCompilerDirectives(CythonTransform):
             directive = self.directive_names.get(node.name)
             if directive is not None:
                 node.cython_attribute = directive
+        if node.as_cython_attribute() == "compiled":
+            return ExprNodes.BoolNode(node.pos, value=True)  # replace early so unused branches can be dropped
+                # before they have a chance to cause compile-errors
+        return node
+
+    def visit_AttributeNode(self, node):
+        self.visitchildren(node)
+        if node.as_cython_attribute() == "compiled":
+            return ExprNodes.BoolNode(node.pos, value=True)  # replace early so unused branches can be dropped
+                # before they have a chance to cause compile-errors
         return node
 
     def visit_NewExprNode(self, node):
@@ -1498,6 +1527,10 @@ class CnameDirectivesTransform(CythonTransform, SkipDeclarations):
 
 
 class ForwardDeclareTypes(CythonTransform):
+    """
+    Declare all global cdef names that we allow referencing in other places,
+    before declaring everything (else) in source code order.
+    """
 
     def visit_CompilerDirectivesNode(self, node):
         env = self.module_scope
@@ -1539,6 +1572,14 @@ class ForwardDeclareTypes(CythonTransform):
             for entry in scope.cfunc_entries:
                 if entry.type and entry.type.is_fused:
                     entry.type.get_all_specialized_function_types()
+        return node
+
+    def visit_FuncDefNode(self, node):
+        # no traversal needed
+        return node
+
+    def visit_PyClassDefNode(self, node):
+        # no traversal needed
         return node
 
 
@@ -1846,19 +1887,6 @@ if VALUE is not None:
 
         return node
 
-    def _handle_nogil_cleanup(self, lenv, node):
-        "Handle cleanup for 'with gil' blocks in nogil functions."
-        if lenv.nogil and lenv.has_with_gil_block:
-            # Acquire the GIL for cleanup in 'nogil' functions, by wrapping
-            # the entire function body in try/finally.
-            # The corresponding release will be taken care of by
-            # Nodes.FuncDefNode.generate_function_definitions()
-            node.body = Nodes.NogilTryFinallyStatNode(
-                node.body.pos,
-                body=node.body,
-                finally_clause=Nodes.EnsureGILNode(node.body.pos),
-                finally_except_clause=Nodes.EnsureGILNode(node.body.pos))
-
     def _handle_fused(self, node):
         if node.is_generator and node.has_fused_arguments:
             node.has_fused_arguments = False
@@ -1901,7 +1929,6 @@ if VALUE is not None:
             node = self._create_fused_function(env, node)
         else:
             node.body.analyse_declarations(lenv)
-            self._handle_nogil_cleanup(lenv, node)
             self._super_visit_FuncDefNode(node)
 
         self.seen_vars_stack.pop()
@@ -2203,7 +2230,7 @@ class CalculateQualifiedNamesTransform(EnvTransform):
     def visit_ClassDefNode(self, node):
         orig_qualified_name = self.qualified_name[:]
         entry = (getattr(node, 'entry', None) or             # PyClass
-                 self.current_env().lookup_here(node.name))  # CClass
+                 self.current_env().lookup_here(node.target.name))  # CClass
         self._append_entry(entry)
         self._super_visit_ClassDefNode(node)
         self.qualified_name = orig_qualified_name
@@ -2832,20 +2859,20 @@ class InjectGilHandling(VisitorTransform, SkipDeclarations):
     Must run before the AnalyseDeclarationsTransform to make sure the GILStatNodes get
     set up, parallel sections know that the GIL is acquired inside of them, etc.
     """
-    def __call__(self, root):
-        self.nogil = False
-        return super(InjectGilHandling, self).__call__(root)
+    nogil = False
 
     # special node handling
 
-    def visit_RaiseStatNode(self, node):
-        """Allow raising exceptions in nogil sections by wrapping them in a 'with gil' block."""
+    def _inject_gil_in_nogil(self, node):
+        """Allow the (Python statement) node in nogil sections by wrapping it in a 'with gil' block."""
         if self.nogil:
             node = Nodes.GILStatNode(node.pos, state='gil', body=node)
         return node
 
+    visit_RaiseStatNode = _inject_gil_in_nogil
+    visit_PrintStatNode = _inject_gil_in_nogil  # sadly, not the function
+
     # further candidates:
-    # def visit_AssertStatNode(self, node):
     # def visit_ReraiseStatNode(self, node):
 
     # nogil tracking
@@ -3031,9 +3058,7 @@ class TransformBuiltinMethods(EnvTransform):
     def visit_cython_attribute(self, node):
         attribute = node.as_cython_attribute()
         if attribute:
-            if attribute == u'compiled':
-                node = ExprNodes.BoolNode(node.pos, value=True)
-            elif attribute == u'__version__':
+            if attribute == u'__version__':
                 from .. import __version__ as version
                 node = ExprNodes.StringNode(node.pos, value=EncodedString(version))
             elif attribute == u'NULL':

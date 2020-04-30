@@ -779,10 +779,10 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t wid
         }
     } while (unlikely(remaining != 0));
 
-    if (last_one_off) {
-        assert(*dpos == '0');
-        dpos++;
-    }
+    // Correct dpos by 1 if we read an excess digit.
+    assert(!last_one_off || *dpos == '0');
+    dpos += last_one_off;
+
     length = end - dpos;
     ulength = length;
     prepend_sign = 0;

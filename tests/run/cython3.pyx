@@ -30,6 +30,18 @@ def locals_function(a, b=2):
     return locals()
 
 
+### "new style" classes
+
+class T:
+    """
+    >>> t = T()
+    >>> isinstance(t, T)
+    True
+    >>> isinstance(T, type)  # not a Py2 old style class!
+    True
+    """
+
+
 ### true division
 
 def truediv(x):

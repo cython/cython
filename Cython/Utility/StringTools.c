@@ -518,9 +518,9 @@ static CYTHON_INLINE PyObject* __Pyx_decode_c_string(
         if (stop < 0)
             stop += length;
     }
-    length = stop - start;
-    if (unlikely(length <= 0))
+    if (unlikely(stop <= start))
         return PyUnicode_FromUnicode(NULL, 0);
+    length = stop - start;
     cstring += start;
     if (decode_func) {
         return decode_func(cstring, length, errors);
@@ -554,9 +554,9 @@ static CYTHON_INLINE PyObject* __Pyx_decode_c_bytes(
     }
     if (stop > length)
         stop = length;
-    length = stop - start;
-    if (unlikely(length <= 0))
+    if (unlikely(stop <= start))
         return PyUnicode_FromUnicode(NULL, 0);
+    length = stop - start;
     cstring += start;
     if (decode_func) {
         return decode_func(cstring, length, errors);
@@ -595,6 +595,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Substring(
             PyObject* text, Py_ssize_t start, Py_ssize_t stop);
 
 /////////////// PyUnicode_Substring ///////////////
+//@substitute: naming
 
 static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Substring(
             PyObject* text, Py_ssize_t start, Py_ssize_t stop) {
@@ -610,9 +611,10 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Substring(
         stop += length;
     else if (stop > length)
         stop = length;
-    length = stop - start;
-    if (length <= 0)
-        return PyUnicode_FromUnicode(NULL, 0);
+    if (stop <= start)
+        return __Pyx_NewRef($empty_unicode);
+    if (start == 0 && stop == length)
+        return __Pyx_NewRef(text);
 #if CYTHON_PEP393_ENABLED
     return PyUnicode_FromKindAndData(PyUnicode_KIND(text),
         PyUnicode_1BYTE_DATA(text) + start*PyUnicode_KIND(text), stop-start);
@@ -1219,3 +1221,22 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Unicode(PyObject *obj) {
 #define __Pyx_PyObject_Unicode(obj) \
     (likely(PyUnicode_CheckExact(obj)) ? __Pyx_NewRef(obj) : PyObject_Unicode(obj))
 #endif
+
+
+//////////////////// PyStr_Str.proto ////////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyStr_Str(PyObject *obj);/*proto*/
+
+//////////////////// PyStr_Str ////////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyStr_Str(PyObject *obj) {
+    if (unlikely(obj == Py_None))
+        obj = PYIDENT("None");
+    return __Pyx_NewRef(obj);
+}
+
+
+//////////////////// PyObject_Str.proto ////////////////////
+
+#define __Pyx_PyObject_Str(obj) \
+    (likely(PyString_CheckExact(obj)) ? __Pyx_NewRef(obj) : PyObject_Str(obj))

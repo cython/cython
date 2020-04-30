@@ -94,7 +94,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyList_Pop(PyObject* L); /*proto*/
 //@requires: ObjectHandling.c::PyObjectCallMethod0
 
 static CYTHON_INLINE PyObject* __Pyx__PyObject_Pop(PyObject* L) {
-    if (Py_TYPE(L) == &PySet_Type) {
+    if (__Pyx_IS_TYPE(L, &PySet_Type)) {
         return PySet_Pop(L);
     }
     return __Pyx_PyObject_CallMethod0(L, PYIDENT("pop"));
@@ -596,11 +596,14 @@ static double __Pyx__PyObject_AsDouble(PyObject* obj); /* proto */
 #endif
 
 /////////////// pyobject_as_double ///////////////
+//@requires: ObjectHandling.c::PyObjectCallOneArg
 
 static double __Pyx__PyObject_AsDouble(PyObject* obj) {
     PyObject* float_value;
 #if !CYTHON_USE_TYPE_SLOTS
     float_value = PyNumber_Float(obj);  if ((0)) goto bad;
+    // avoid "unused" warnings
+    (void)__Pyx_PyObject_CallOneArg;
 #else
     PyNumberMethods *nb = Py_TYPE(obj)->tp_as_number;
     if (likely(nb) && likely(nb->nb_float)) {
@@ -619,12 +622,7 @@ static double __Pyx__PyObject_AsDouble(PyObject* obj) {
         float_value = PyFloat_FromString(obj, 0);
 #endif
     } else {
-        PyObject* args = PyTuple_New(1);
-        if (unlikely(!args)) goto bad;
-        PyTuple_SET_ITEM(args, 0, obj);
-        float_value = PyObject_Call((PyObject*)&PyFloat_Type, args, 0);
-        PyTuple_SET_ITEM(args, 0, 0);
-        Py_DECREF(args);
+        float_value = __Pyx_PyObject_CallOneArg((PyObject*)&PyFloat_Type, obj);
     }
 #endif
     if (likely(float_value)) {

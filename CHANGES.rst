@@ -2,8 +2,117 @@
 Cython Changelog
 ================
 
-3.0.0 (2020-??-??)
-==================
+3.0.0 alpha 4 (2020-0?-??)
+==========================
+
+Features added
+--------------
+
+* The ``print`` statement (not the ``print()`` function) is allowed in
+  ``nogil`` code without an explicit ``with gil`` section.
+
+* The ``assert`` statement is allowed in ``nogil`` sections.  Here, the GIL is
+  only acquired if the ``AssertionError`` is really raised, which means that the
+  evaluation of the asserted condition only allows C expressions.
+
+* Cython generates C compiler branch hints for unlikely user defined if-clauses
+  in more cases, when they end up raising exceptions.
+
+Bugs fixed
+----------
+
+* Exception position reporting could run into race conditions on threaded code.
+  It now uses function-local variables again.
+
+* Error handling early in the module init code could lead to a crash.
+
+* The improved GIL handling in ``nogil`` functions introduced in 3.0a2
+  could generate invalid C code.
+  (Github issue #3558)
+
+
+3.0.0 alpha 3 (2020-04-27)
+==========================
+
+Features added
+--------------
+
+* ``nogil`` functions now avoid acquiring the GIL on function exit if possible
+  even if they contain ``with gil`` blocks.
+  (Github issue #3554)
+
+* Python private name mangling now falls back to unmangled names for non-Python
+  globals, since double-underscore names are not uncommon in C.  Unmangled Python
+  names are also still found as a legacy fallback but produce a warning.
+  Patch by David Woods.  (Github issue #3548)
+
+Bugs fixed
+----------
+
+* Includes all bug-fixes from the 0.29.17 release.
+
+
+3.0.0 alpha 2 (2020-04-23)
+==========================
+
+Features added
+--------------
+
+* ``std::move()`` is now used in C++ mode for internal temp variables to
+  make them work without copying values.
+  Patch by David Woods.  (Github issues #3253, 1612)
+
+* ``__class_getitem__`` is supported for types on item access (PEP-560).
+  Patch by msg555.  (Github issue #2753)
+
+* The simplified Py3.6 customisation of class creation is implemented (PEP-487).
+  (Github issue #2781)
+
+* Conditional blocks in Python code that depend on ``cython.compiled`` are
+  eliminated at an earlier stage, which gives more freedom in writing
+  replacement Python code.
+  Patch by David Woods.  (Github issue #3507)
+
+* ``numpy.import_array()`` is automatically called if ``numpy`` has been cimported
+  and it has not been called in the module code.  This is intended as a hidden
+  fail-safe so user code should continue to call ``numpy.import_array``.
+  Patch by David Woods.  (Github issue #3524)
+
+* The Cython AST code serialiser class ``CodeWriter`` in ``Cython.CodeWriter``
+  supports more syntax nodes.
+
+* The fastcall/vectorcall protocols are used for several internal Python calls.
+  (Github issue #3540)
+
+Bugs fixed
+----------
+
+* With ``language_level=3/3str``, Python classes without explicit base class
+  are now new-style (type) classes also in Py2.  Previously, they were created
+  as old-style (non-type) classes.
+  (Github issue #3530)
+
+* C++ ``typeid()`` failed for fused types.
+  Patch by David Woods.  (Github issue #3203)
+
+* ``__arg`` argument names in methods were not mangled with the class name.
+  Patch by David Woods.  (Github issue #1382)
+
+* Creating an empty unicode slice with large bounds could crash.
+  Patch by Sam Sneddon.  (Github issue #3531)
+
+* Decoding an empty bytes/char* slice with large bounds could crash.
+  Patch by Sam Sneddon.  (Github issue #3534)
+
+* Temporary buffer indexing variables were not released and could show up in
+  C compiler warnings, e.g. in generators.
+  Patch by David Woods.  (Github issues #3430, #3522)
+
+* Several C compiler warnings were fixed.
+
+
+3.0.0 alpha 1 (2020-04-12)
+==========================
 
 Features added
 --------------
@@ -20,8 +129,10 @@ Features added
 * Annotations are no longer parsed, keeping them as strings following PEP-563.
   Patch by David Woods.  (Github issue #3285)
 
-* The ``LIMITED_API`` is supported by setting the ``CYTHON_LIMITED_API`` C macro.
-  Patches by Eddie Elizondo.  (Github issue #3223, #3311)
+* Preliminary support for the CPython's ``Py_LIMITED_API`` (stable ABI) is
+  available by setting the  ``CYTHON_LIMITED_API`` C macro.  Note that the
+  support is currently in an early stage and many features do not yet work.
+  Patches by Eddie Elizondo and David Woods.  (Github issues #3223, #3311, #3501)
 
 * The dispatch to fused functions is now linear in the number of arguments,
   which makes it much faster, often 2x or more, and several times faster for
@@ -51,8 +162,20 @@ Features added
 * Inlined properties can be defined for external extension types.
   Patch by Matti Picus.  (Github issue #2640)
 
+* The ``str()`` builtin now calls ``PyObject_Str()`` instead of going
+  through a Python call.
+  Patch by William Ayd.  (Github issue #3279)
+
+* String concatenation can now happen in place if possible, by extending the
+  existing string rather than always creating a new one.
+  Patch by David Woods.  (Github issue #3453)
+
 * Multiplication of Python numbers with small constant integers is faster.
   (Github issue #2808)
+
+* Some list copying is avoided internally when a new list needs to be created
+  but we already have a fresh one.
+  (Github issue #3494)
 
 * Extension types that do not need their own ``tp_new`` implementation (because
   they have no object attributes etc.) directly inherit the implementation of
@@ -64,12 +187,16 @@ Features added
   (Github issue #2306)
 
 * Several declarations in ``cpython.*``, ``libc.*`` and ``libcpp.*`` were added.
-  Patches by Jeroen Demeyer, Matthew Edwards, Chris Gyurgyik, Jerome Kieffer,
-  Omer Ozarslan and Zackery Spytz.
-  (Github issues #3468, #3358, #3332, #3179, #2891, #2826, #2713)
+  Patches by Jeroen Demeyer, Matthew Edwards, Chris Gyurgyik, Jerome Kieffer
+  and Zackery Spytz.
+  (Github issues #3468, #3332, #3202, #3188, #3179, #2891, #2826, #2713)
 
 * Deprecated NumPy API usages were removed from ``numpy.pxd``.
   Patch by Matti Picus.  (Github issue #3365)
+
+* ``cython.inline()`` now sets the ``NPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION``
+  C macro automatically when ``numpy`` is imported in the code, to avoid C compiler
+  warnings about deprecated NumPy C-API usage.
 
 * The builtin ``abs()`` function can now be used on C numbers in nogil code.
   Patch by Elliott Sales de Andrade.  (Github issue #2748)
@@ -91,10 +218,12 @@ Features added
 * ``--no-docstrings`` option added to ``cythonize`` script.
   Original patch by mo-han.  (Github issue #2889)
 
+* ``cygdb`` gives better error messages when it fails to initialise the
+  Python runtime support in gdb.
+  Patch by Volker Weissmann.  (Github issue #3489)
+
 * The Pythran ``shape`` attribute is supported.
   Patch by Serge Guelton.  (Github issue #3307)
-
-* The ``@cython.binding`` decorator is available in Python code.
 
 Bugs fixed
 ----------
@@ -176,6 +305,7 @@ Other changes
   but with ``str`` literals (also in Python 2.7).  This is a backwards incompatible
   change from the previous default of Python 2 semantics.  The previous behaviour
   is available through the directive ``language_level=2``.
+  (Github issue #2565)
 
 * Cython no longer generates ``__qualname__`` attributes for classes in Python
   2.x since they are problematic there and not correctly maintained for subclasses.
@@ -203,20 +333,66 @@ Other changes
   Use the normal Python package directory layout instead.
   (Github issue #2686)
 
+* Binary Linux wheels now follow the manylinux2010 standard.
+  Patch by Alexey Stepanov.  (Github issue #3355)
+
 * Support for Python 2.6 was removed.
 
 
-0.29.17 (2020-0?-??)
+0.29.18 (2020-0?-??)
 ====================
 
 Bugs fixed
 ----------
+
+* Exception position reporting could run into race conditions on threaded code.
+  It now uses function-local variables again.
+
+* Error handling early in the module init code could lead to a crash.
+
+
+0.29.17 (2020-04-26)
+====================
+
+Features added
+--------------
+
+* ``std::move()`` is now available from ``libcpp.utility``.
+  Patch by Omer Ozarslan.  (Github issue #2169)
+
+* The ``@cython.binding`` decorator is available in Python code.
+  (Github issue #3505)
+
+Bugs fixed
+----------
+
+* Creating an empty unicode slice with large bounds could crash.
+  Patch by Sam Sneddon.  (Github issue #3531)
+
+* Decoding an empty bytes/char* slice with large bounds could crash.
+  Patch by Sam Sneddon.  (Github issue #3534)
+
+* Re-importing a Cython extension no longer raises the error
+  "``__reduce_cython__ not found``".
+  (Github issue #3545)
+
+* Unused C-tuples could generate incorrect code in 0.29.16.
+  Patch by Kirk Meyer.  (Github issue #3543)
+
+* Creating a fused function attached it to the garbage collector before it
+  was fully initialised, thus risking crashes in rare failure cases.
+  Original patch by achernomorov.  (Github issue #3215)
+
+* Temporary buffer indexing variables were not released and could show up in
+  C compiler warnings, e.g. in generators.
+  Patch by David Woods.  (Github issues #3430, #3522)
 
 * The compilation cache in ``cython.inline("…")`` failed to take the language
   level into account.
   Patch by will-ca.  (Github issue #3419)
 
 * The deprecated ``PyUnicode_GET_SIZE()`` function is no longer used in Py3.
+
 
 0.29.16 (2020-03-24)
 ====================

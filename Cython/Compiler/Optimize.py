@@ -1753,7 +1753,11 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             # Interestingly, PySequence_List works on a lot of non-sequence
             # things as well.
             list_node = loop_node = ExprNodes.PythonCapiCallNode(
-                node.pos, "PySequence_List", self.PySequence_List_func_type,
+                node.pos,
+                "__Pyx_PySequence_ListKeepNew"
+                    if arg.is_temp and arg.type in (PyrexTypes.py_object_type, Builtin.list_type)
+                    else "PySequence_List",
+                self.PySequence_List_func_type,
                 args=pos_args, is_temp=True)
 
         result_node = UtilNodes.ResultRefNode(
@@ -2312,6 +2316,38 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         return ExprNodes.CachedBuiltinMethodCallNode(
             node, function.obj, attr_name, arg_list)
 
+    PyObject_String_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [  # Change this to Builtin.str_type when removing Py2 support.
+            PyrexTypes.CFuncTypeArg("obj", PyrexTypes.py_object_type, None)
+            ])
+
+    def _handle_simple_function_str(self, node, function, pos_args):
+        """Optimize single argument calls to str().
+        """
+        if len(pos_args) != 1:
+            if len(pos_args) == 0:
+                return ExprNodes.StringNode(node.pos, value=EncodedString(), constant_result='')
+            return node
+        arg = pos_args[0]
+
+        if arg.type is Builtin.str_type:
+            if not arg.may_be_none():
+                return arg
+
+            cname = "__Pyx_PyStr_Str"
+            utility_code = UtilityCode.load_cached('PyStr_Str', 'StringTools.c')
+        else:
+            cname = '__Pyx_PyObject_Str'
+            utility_code = UtilityCode.load_cached('PyObject_Str', 'StringTools.c')
+
+        return ExprNodes.PythonCapiCallNode(
+            node.pos, cname, self.PyObject_String_func_type,
+            args=pos_args,
+            is_temp=node.is_temp,
+            utility_code=utility_code,
+            py_name="str"
+        )
+
     PyObject_Unicode_func_type = PyrexTypes.CFuncType(
         Builtin.unicode_type, [
             PyrexTypes.CFuncTypeArg("obj", PyrexTypes.py_object_type, None)
@@ -2383,8 +2419,14 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             return node
         arg = pos_args[0]
         return ExprNodes.PythonCapiCallNode(
-            node.pos, "PySequence_List", self.PySequence_List_func_type,
-            args=pos_args, is_temp=node.is_temp)
+            node.pos,
+            "__Pyx_PySequence_ListKeepNew"
+                if node.is_temp and arg.is_temp and arg.type in (PyrexTypes.py_object_type, Builtin.list_type)
+                else "PySequence_List",
+            self.PySequence_List_func_type,
+            args=pos_args,
+            is_temp=node.is_temp,
+        )
 
     PyList_AsTuple_func_type = PyrexTypes.CFuncType(
         Builtin.tuple_type, [
@@ -4737,6 +4779,7 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
         - isinstance -> typecheck for cdef types
         - eliminate checks for None and/or types that became redundant after tree changes
         - eliminate useless string formatting steps
+        - inject branch hints for unlikely if-cases that only raise exceptions
         - replace Python function calls that look like method calls by a faster PyMethodCallNode
     """
     in_loop = False
@@ -4834,6 +4877,48 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
         self.visitchildren(node)
         self.in_loop = old_val
         return node
+
+    def visit_IfStatNode(self, node):
+        """Assign 'unlikely' branch hints to if-clauses that only raise exceptions.
+        """
+        self.visitchildren(node)
+        last_non_unlikely_clause = None
+        for i, if_clause in enumerate(node.if_clauses):
+            self._set_ifclause_branch_hint(if_clause, if_clause.body)
+            if not if_clause.branch_hint:
+                last_non_unlikely_clause = if_clause
+        if node.else_clause and last_non_unlikely_clause:
+            # If the 'else' clause is 'unlikely', then set the preceding 'if' clause to 'likely' to reflect that.
+            self._set_ifclause_branch_hint(last_non_unlikely_clause, node.else_clause, inverse=True)
+        return node
+
+    def _set_ifclause_branch_hint(self, clause, statements_node, inverse=False):
+        """Inject a branch hint if the if-clause unconditionally leads to a 'raise' statement.
+        """
+        if not statements_node.is_terminator:
+            return
+        # Allow simple statements, but no conditions, loops, etc.
+        non_branch_nodes = (
+            Nodes.ExprStatNode,
+            Nodes.AssignmentNode,
+            Nodes.AssertStatNode,
+            Nodes.DelStatNode,
+            Nodes.GlobalNode,
+            Nodes.NonlocalNode,
+        )
+        statements = [statements_node]
+        for next_node_pos, node in enumerate(statements, 1):
+            if isinstance(node, Nodes.GILStatNode):
+                statements.insert(next_node_pos, node.body)
+                continue
+            if isinstance(node, Nodes.StatListNode):
+                statements[next_node_pos:next_node_pos] = node.stats
+                continue
+            if not isinstance(node, non_branch_nodes):
+                if next_node_pos == len(statements) and isinstance(node, (Nodes.RaiseStatNode, Nodes.ReraiseStatNode)):
+                    # Anything that unconditionally raises exceptions at the end should be considered unlikely.
+                    clause.branch_hint = 'likely' if inverse else 'unlikely'
+                break
 
 
 class ConsolidateOverflowCheck(Visitor.CythonTransform):

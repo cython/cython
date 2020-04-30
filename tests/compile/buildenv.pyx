@@ -107,6 +107,15 @@ SIZEOF_VOID_P  {SIZEOF_VOID_P}  ({sizeof(void*)})
 SIZEOF_UINTPTR_T  {SIZEOF_UINTPTR_T}  ({sizeof(unsigned int *)})
 SIZEOF_OFF_T  {SIZEOF_OFF_T}
 
+Paths:
+sys.executable = {sys.executable}
+sys.exec_prefix = {sys.exec_prefix}
+sys.base_exec_prefix = {getattr(sys, 'base_exec_prefix', "")}
+sys.prefix = {sys.prefix}
+sys.path = {sys.path}
+PYTHONPATH (env) = {get_env('PYTHONPATH', '')}
+PYTHONHOME (env) = {get_env('PYTHONHOME', '')}
+
 Distutils:
 INCDIR = {sysconfig.get_python_inc()}
 LIBS = {config_var('LIBS')}
@@ -121,4 +130,11 @@ CFLAGS (distutils) = {config_var('CFLAGS')}
 CFLAGS (env) = {get_env('CFLAGS', '')}
 LINKCC (distutils) = {config_var('LINKCC')}
 LINKCC (env) = {get_env('LINKCC', '')}
+
+Encodings:
+LANG (env) = {get_env('LANG', '')}
+PYTHONIOENCODING (env) = {get_env('PYTHONIOENCODING', '')}
+sys stdout encoding = {sys.stdout.encoding}
+sys default encoding = {sys.getdefaultencoding()}
+sys FS encoding = {sys.getfilesystemencoding()}
 """)
