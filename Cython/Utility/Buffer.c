@@ -758,7 +758,7 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
       case 'f': case 'd': case 'g':
       case 'O': case 'p':
         if ((ctx->enc_type == *ts) && (got_Z == ctx->is_complex) &&
-            (ctx->enc_packmode == ctx->new_packmode) &! (ctx->is_valid_array)) {
+            (ctx->enc_packmode == ctx->new_packmode) && (!ctx->is_valid_array)) {
           /* Continue pooling same type */
           ctx->enc_count += ctx->new_count;
           ctx->new_count = 1;
