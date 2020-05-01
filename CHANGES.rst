@@ -13,6 +13,9 @@ Bugs fixed
 
 * Error handling early in the module init code could lead to a crash.
 
+* Complex buffer item types of structs of arrays could fail to validate.
+  Patch by Leo and smutch.  (Github issue #1407)
+
 * When importing the old Cython ``build_ext`` integration with distutils, the
   additional command line arguments leaked into the regular command.
   Patch by Kamekameha.  (Github issue #2209)
