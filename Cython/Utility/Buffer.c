@@ -602,9 +602,8 @@ static PyObject *
 __pyx_buffmt_parse_array(__Pyx_BufFmt_Context* ctx, const char** tsp)
 {
     const char *ts = *tsp;
-    int i = 0, number;
-    int ndim = ctx->head->field->type->ndim;
-;
+    int i = 0, number, ndim;
+
     ++ts;
     if (ctx->new_count != 1) {
         PyErr_SetString(PyExc_ValueError,
@@ -614,6 +613,9 @@ __pyx_buffmt_parse_array(__Pyx_BufFmt_Context* ctx, const char** tsp)
 
     /* Process the previous element */
     if (__Pyx_BufFmt_ProcessTypeChunk(ctx) == -1) return NULL;
+
+    // store ndim now, as field advanced by __Pyx_BufFmt_ProcessTypeChunk call
+    ndim = ctx->head->field->type->ndim;
 
     /* Parse all numbers in the format string */
     while (*ts && *ts != ')') {
@@ -659,7 +661,7 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
   int got_Z = 0;
 
   while (1) {
-    /* puts(ts); */
+    puts(ts);
     switch(*ts) {
       case 0:
         if (ctx->enc_type != 0 && ctx->head == NULL) {
