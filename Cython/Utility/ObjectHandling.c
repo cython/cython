@@ -1216,7 +1216,7 @@ done:
 static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObject *bases,
                                       PyObject *dict, PyObject *mkw,
                                       int calculate_metaclass, int allow_py2_metaclass) {
-    PyObject *result, *mc_kwargs;
+    PyObject *result;
     PyObject *owned_metaclass = NULL;
     PyObject *margs[4] = {NULL, name, bases, dict};
     if (allow_py2_metaclass) {
@@ -1237,10 +1237,14 @@ static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObj
             return NULL;
         owned_metaclass = metaclass;
     }
-    // Before PEP-487, type(a,b,c) did not accept any keyword arguments, so guard at least against that case.
-    mc_kwargs = (PY_VERSION_HEX >= 0x030600A4) ? mkw : (
-        (metaclass == (PyObject*)&PyType_Type) ? NULL : mkw);
-    result = __Pyx_PyObject_FastCallDict(metaclass, margs+1, 3 | __Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET, mc_kwargs);
+    result = __Pyx_PyObject_FastCallDict(metaclass, margs+1, 3 | __Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET,
+#if PY_VERSION_HEX < 0x030600A4
+        // Before PEP-487, type(a,b,c) did not accept any keyword arguments, so guard at least against that case.
+        (metaclass == (PyObject*)&PyType_Type) ? NULL : mkw
+#else
+        mkw
+#endif
+    );
     Py_XDECREF(owned_metaclass);
 
 #if PY_VERSION_HEX < 0x030600A4 && CYTHON_PEP487_INIT_SUBCLASS
