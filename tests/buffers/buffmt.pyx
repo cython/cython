@@ -415,7 +415,7 @@ ctypedef struct UnpackedStructWithArrays:
     int a
     float b[8]
     float c
-    unsigned long d
+    unsigned long long d
     int e[5]
     int f
     int g
@@ -442,7 +442,7 @@ def packed_struct_with_arrays(fmt):
 @testcase
 def unpacked_struct_with_arrays(fmt):
     """
-    >>> unpacked_struct_with_arrays("T{i:a:(8)f:b:f:c:L:d:(5)i:e:i:f:i:g:xxxx(4)d:h:i:i:}")
+    >>> unpacked_struct_with_arrays("T{i:a:(8)f:b:f:c:Q:d:(5)i:e:i:f:i:g:xxxx(4)d:h:i:i:}")
     """
 
     cdef object[UnpackedStructWithArrays] buf = MockBuffer(
