@@ -7250,8 +7250,8 @@ class AttributeNode(ExprNode):
                 code.put_incref_memoryviewslice(self.result(), self.type,
                                 have_gil=True)
 
-                T = "__pyx_memslice_transpose(&%s) == 0"
-                code.putln(code.error_goto_if(T % self.result(), self.pos))
+                T = "__pyx_memslice_transpose(&%s)" % self.result()
+                code.putln(code.error_goto_if_neg(T, self.pos))
             elif self.initialized_check:
                 code.putln(
                     'if (unlikely(!%s.memview)) {'

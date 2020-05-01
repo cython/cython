@@ -940,7 +940,7 @@ cdef char *pybuffer_index(Py_buffer *view, char *bufp, Py_ssize_t index,
 ### Transposing a memoryviewslice
 #
 @cname('__pyx_memslice_transpose')
-cdef int transpose_memslice({{memviewslice_name}} *memslice) nogil except 0:
+cdef int transpose_memslice({{memviewslice_name}} *memslice) nogil except -1:
     cdef int ndim = memslice.memview.view.ndim
 
     cdef Py_ssize_t *shape = memslice.shape
@@ -956,7 +956,7 @@ cdef int transpose_memslice({{memviewslice_name}} *memslice) nogil except 0:
         if memslice.suboffsets[i] >= 0 or memslice.suboffsets[j] >= 0:
             _err(PyExc_ValueError, "Cannot transpose memoryview with indirect dimensions")
 
-    return 1
+    return 0
 
 #
 ### Creating new memoryview objects from slices and memoryviews
