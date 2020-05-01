@@ -750,8 +750,8 @@ ctypedef struct SameTypeAfterArraysStructComposite:
 @testcase
 def same_type_after_arrays_composite():
     """
-    >>> same_type_after_arrays_composite() if sys.version_info >= (3, 5) else None
-    >>> same_type_after_arrays_composite() if sys.version_info == (2, 7) else None
+    >>> same_type_after_arrays_composite() if sys.version_info[:2] >= (3, 5) else None
+    >>> same_type_after_arrays_composite() if sys.version_info[:2] == (2, 7) else None
     """
 
     cdef SameTypeAfterArraysStructComposite element
