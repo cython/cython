@@ -669,33 +669,28 @@ cdef tuple _unellipsify(object index, int ndim):
     Replace all ellipses with full slices and fill incomplete indices with
     full slices.
     """
-    if not isinstance(index, tuple):
-        tup = (index,)
-    else:
-        tup = index
+    cdef Py_ssize_t idx
+    tup = <tuple>index if isinstance(index, tuple) else (index,)
 
-    result = []
+    result = [slice(None)] * ndim
     have_slices = False
     seen_ellipsis = False
-    for idx, item in enumerate(tup):
+    idx = 0
+    for item in tup:
         if item is Ellipsis:
             if not seen_ellipsis:
-                result.extend([slice(None)] * (ndim - len(tup) + 1))
+                idx += ndim - len(tup)
                 seen_ellipsis = True
-            else:
-                result.append(slice(None))
             have_slices = True
         else:
-            if not isinstance(item, slice) and not PyIndex_Check(item):
+            if isinstance(item, slice):
+                have_slices = True
+            elif not PyIndex_Check(item):
                 raise TypeError(f"Cannot index with type '{type(item)}'")
+            result[idx] = item
+        idx += 1
 
-            have_slices = have_slices or isinstance(item, slice)
-            result.append(item)
-
-    nslices = ndim - len(result)
-    if nslices:
-        result.extend([slice(None)] * nslices)
-
+    nslices = ndim - idx
     return have_slices or nslices, tuple(result)
 
 cdef assert_direct_dimensions(Py_ssize_t *suboffsets, int ndim):
