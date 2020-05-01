@@ -661,7 +661,7 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
   int got_Z = 0;
 
   while (1) {
-    puts(ts);
+    /* puts(ts); */
     switch(*ts) {
       case 0:
         if (ctx->enc_type != 0 && ctx->head == NULL) {
