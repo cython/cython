@@ -151,7 +151,7 @@ cdef class array:
         # cdef Py_ssize_t dim, stride
         for idx, dim in enumerate(shape):
             if dim <= 0:
-                raise ValueError("Invalid shape in axis %d: %d." % (idx, dim))
+                raise ValueError(f"Invalid shape in axis {idx}: {dim}.")
             self._shape[idx] = dim
 
         cdef char order
@@ -162,7 +162,7 @@ cdef class array:
             order = b'C'
             self.mode = u'c'
         else:
-            raise ValueError("Invalid mode, expected 'c' or 'fortran', got %s" % mode)
+            raise ValueError(f"Invalid mode, expected 'c' or 'fortran', got {mode}")
 
         self.len = fill_contig_strides_array(self._shape, self._strides,
                                              itemsize, self.ndim, order)
@@ -687,7 +687,7 @@ cdef tuple _unellipsify(object index, int ndim):
             have_slices = True
         else:
             if not isinstance(item, slice) and not PyIndex_Check(item):
-                raise TypeError("Cannot index with type '%s'" % type(item))
+                raise TypeError(f"Cannot index with type '{type(item)}'")
 
             have_slices = have_slices or isinstance(item, slice)
             result.append(item)
@@ -926,10 +926,10 @@ cdef char *pybuffer_index(Py_buffer *view, char *bufp, Py_ssize_t index,
     if index < 0:
         index += view.shape[dim]
         if index < 0:
-            raise IndexError("Out of bounds on buffer access (axis %d)" % dim)
+            raise IndexError(f"Out of bounds on buffer access (axis {dim})")
 
     if index >= shape:
-        raise IndexError("Out of bounds on buffer access (axis %d)" % dim)
+        raise IndexError(f"Out of bounds on buffer access (axis {dim})")
 
     resultp = bufp + index * stride
     if suboffset >= 0:
@@ -1251,8 +1251,7 @@ cdef void *copy_data_to_temp({{memviewslice_name}} *src,
 @cname('__pyx_memoryview_err_extents')
 cdef int _err_extents(int i, Py_ssize_t extent1,
                              Py_ssize_t extent2) except -1 with gil:
-    raise ValueError("got differing extents in dimension %d (got %d and %d)" %
-                                                        (i, extent1, extent2))
+    raise ValueError(f"got differing extents in dimension {i} (got {extent1} and {extent2})")
 
 @cname('__pyx_memoryview_err_dim')
 cdef int _err_dim(PyObject *error, char *msg, int dim) except -1 with gil:
@@ -1487,7 +1486,7 @@ cdef bytes format_from_typeinfo(__Pyx_TypeInfo *type):
         fmt = __Pyx_TypeInfoToFormat(type)
         if type.arraysize[0]:
             extents = [unicode(type.arraysize[i]) for i in range(type.ndim)]
-            result = (u"(%s)" % u','.join(extents)).encode('ascii') + fmt.string
+            result = f"({u','.join(extents)})".encode('ascii') + fmt.string
         else:
             result = fmt.string
 
