@@ -350,6 +350,10 @@ Bugs fixed
 
 * Error handling early in the module init code could lead to a crash.
 
+* When importing the old Cython ``build_ext`` integration with distutils, the
+  additional command line arguments leaked into the regular command.
+  Patch by Kamekameha.  (Github issue #2209)
+
 
 0.29.17 (2020-04-26)
 ====================
