@@ -442,10 +442,10 @@ cdef class memoryview:
     cdef setitem_slice_assignment(self, dst, src):
         cdef {{memviewslice_name}} dst_slice
         cdef {{memviewslice_name}} src_slice
+        cdef {{memviewslice_name}} msrc = get_slice_from_memview(src, &src_slice)[0]
+        cdef {{memviewslice_name}} mdst = get_slice_from_memview(dst, &dst_slice)[0]
 
-        memoryview_copy_contents(get_slice_from_memview(src, &src_slice)[0],
-                                 get_slice_from_memview(dst, &dst_slice)[0],
-                                 src.ndim, dst.ndim, self.dtype_is_object)
+        memoryview_copy_contents(msrc, mdst, src.ndim, dst.ndim, self.dtype_is_object)
 
     cdef setitem_slice_assign_scalar(self, memoryview dst, value):
         cdef int array[128]
@@ -739,15 +739,16 @@ cdef memoryview memview_slice(memoryview memview, object indices):
     #  may not be as expected"
     cdef {{memviewslice_name}} *p_dst = &dst
     cdef int *p_suboffset_dim = &suboffset_dim
-    cdef Py_ssize_t start, stop, step
+    cdef Py_ssize_t start, stop, step, cindex
     cdef bint have_start, have_stop, have_step
 
     for dim, index in enumerate(indices):
         if PyIndex_Check(index):
+            cindex = index
             slice_memviewslice(
                 p_dst, p_src.shape[dim], p_src.strides[dim], p_src.suboffsets[dim],
                 dim, new_ndim, p_suboffset_dim,
-                index, 0, 0, # start, stop, step
+                cindex, 0, 0, # start, stop, step
                 0, 0, 0, # have_{start,stop,step}
                 False)
         elif index is None:
