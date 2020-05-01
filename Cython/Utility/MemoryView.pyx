@@ -328,7 +328,7 @@ cdef PyThread_type_lock[THREAD_LOCKS_PREALLOCATED] __pyx_memoryview_thread_locks
 
 
 @cname('__pyx_memoryview')
-cdef class memoryview(object):
+cdef class memoryview:
 
     cdef object obj
     cdef object _size
@@ -558,6 +558,9 @@ cdef class memoryview(object):
 
     @property
     def base(self):
+        return self._get_base()
+
+    cdef _get_base(self):
         return self.obj
 
     @property
@@ -984,8 +987,7 @@ cdef class _memoryviewslice(memoryview):
         else:
             memoryview.assign_item_from_object(self, itemp, value)
 
-    @property
-    def base(self):
+    cdef _get_base(self):
         return self.from_object
 
     __pyx_getbuffer = capsule(<void *> &__pyx_memoryview_getbuffer, "getbuffer(obj, view, flags)")
@@ -1006,12 +1008,12 @@ cdef memoryview_fromslice({{memviewslice_name}} memviewslice,
     # assert 0 < ndim <= memviewslice.memview.view.ndim, (
     #                 ndim, memviewslice.memview.view.ndim)
 
-    result = _memoryviewslice(None, 0, dtype_is_object)
+    result = _memoryviewslice.__new__(_memoryviewslice, None, 0, dtype_is_object)
 
     result.from_slice = memviewslice
     __PYX_INC_MEMVIEW(&memviewslice, 1)
 
-    result.from_object = (<memoryview> memviewslice.memview).base
+    result.from_object = (<memoryview> memviewslice.memview)._get_base()
     result.typeinfo = memviewslice.memview.typeinfo
 
     result.view = memviewslice.memview.view
