@@ -1455,6 +1455,7 @@ cdef bytes format_from_typeinfo(__Pyx_TypeInfo *type):
     cdef __Pyx_StructField *field
     cdef __pyx_typeinfo_string fmt
     cdef bytes part, result
+    cdef Py_ssize_t i
 
     if type.typegroup == 'S':
         assert type.fields != NULL and type.fields.type != NULL
@@ -1475,10 +1476,9 @@ cdef bytes format_from_typeinfo(__Pyx_TypeInfo *type):
         result = alignment.join(parts) + b'}'
     else:
         fmt = __Pyx_TypeInfoToFormat(type)
+        result = fmt.string
         if type.arraysize[0]:
-            extents = [unicode(type.arraysize[i]) for i in range(type.ndim)]
-            result = f"({u','.join(extents)})".encode('ascii') + fmt.string
-        else:
-            result = fmt.string
+            extents = [f"{type.arraysize[i]}" for i in range(type.ndim)]
+            result = f"({u','.join(extents)})".encode('ascii') + result
 
     return result
