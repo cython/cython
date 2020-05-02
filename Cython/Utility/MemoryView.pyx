@@ -124,8 +124,7 @@ cdef class array:
                   mode="c", bint allocate_buffer=True):
 
         cdef int idx
-        cdef Py_ssize_t i, dim
-        cdef PyObject **p
+        cdef Py_ssize_t dim
 
         self.ndim = <int> len(shape)
         self.itemsize = itemsize
@@ -155,32 +154,22 @@ cdef class array:
             self._shape[idx] = dim
 
         cdef char order
-        if mode == 'fortran':
-            order = b'F'
-            self.mode = u'fortran'
-        elif mode == 'c':
+        if mode == 'c':
             order = b'C'
             self.mode = u'c'
+        elif mode == 'fortran':
+            order = b'F'
+            self.mode = u'fortran'
         else:
             raise ValueError(f"Invalid mode, expected 'c' or 'fortran', got {mode}")
 
-        self.len = fill_contig_strides_array(self._shape, self._strides,
-                                             itemsize, self.ndim, order)
+        self.len = fill_contig_strides_array(self._shape, self._strides, itemsize, self.ndim, order)
 
         self.free_data = allocate_buffer
         self.dtype_is_object = format == b'O'
-        if allocate_buffer:
-            # use malloc() for backwards compatibility
-            # in case external code wants to change the data pointer
-            self.data = <char *>malloc(self.len)
-            if not self.data:
-                raise MemoryError("unable to allocate array data.")
 
-            if self.dtype_is_object:
-                p = <PyObject **> self.data
-                for i in range(self.len // itemsize):
-                    p[i] = Py_None
-                    Py_INCREF(Py_None)
+        if allocate_buffer:
+            _allocate_buffer(self)
 
     @cname('getbuffer')
     def __getbuffer__(self, Py_buffer *info, int flags):
@@ -212,10 +201,9 @@ cdef class array:
     def __dealloc__(array self):
         if self.callback_free_data != NULL:
             self.callback_free_data(self.data)
-        elif self.free_data:
+        elif self.free_data and self.data is not NULL:
             if self.dtype_is_object:
-                refcount_objects_in_slice(self.data, self._shape,
-                                          self._strides, self.ndim, False)
+                refcount_objects_in_slice(self.data, self._shape, self._strides, self.ndim, inc=False)
             free(self.data)
         PyObject_Free(self._shape)
 
@@ -241,16 +229,35 @@ cdef class array:
         self.memview[item] = value
 
 
-@cname("__pyx_array_new")
-cdef array array_cwrapper(tuple shape, Py_ssize_t itemsize, char *format,
-                          char *mode, char *buf):
-    cdef array result
+@cname("__pyx_array_allocate_buffer")
+cdef int _allocate_buffer(array self) except -1:
+    # use malloc() for backwards compatibility
+    # in case external code wants to change the data pointer
+    cdef Py_ssize_t i
+    cdef PyObject **p
 
-    if buf == NULL:
-        result = array(shape, itemsize, format, mode.decode('ASCII'))
+    self.free_data = True
+    self.data = <char *>malloc(self.len)
+    if not self.data:
+        raise MemoryError("unable to allocate array data.")
+
+    if self.dtype_is_object:
+        p = <PyObject **> self.data
+        for i in range(self.len // self.itemsize):
+            p[i] = Py_None
+            Py_INCREF(Py_None)
+    return 0
+
+
+@cname("__pyx_array_new")
+cdef array array_cwrapper(tuple shape, Py_ssize_t itemsize, char *format, char *c_mode, char *buf):
+    cdef array result
+    cdef str mode = "fortran" if c_mode[0] == b'f' else "c"  # this often comes from a constant C string.
+
+    if buf is NULL:
+        result = array.__new__(array, shape, itemsize, format, mode)
     else:
-        result = array(shape, itemsize, format, mode.decode('ASCII'),
-                       allocate_buffer=False)
+        result = array.__new__(array, shape, itemsize, format, mode, allocate_buffer=False)
         result.data = buf
 
     return result
