@@ -8,7 +8,7 @@ def cython_modules(dist, attr, value):
     if not dist.ext_modules:
         dist.ext_modules = []
 
-    dist.ext_modules += cythonize(value, replace_extension=True)
+    dist.ext_modules += cythonize(value, auto_use_pyx=True)
 
 
 def cython_manual_modules(dist, attr, value):
@@ -30,7 +30,7 @@ class BuildPyx(Command):
         try:
             cythonize(
                 self.distribution.cython_manual_modules,
-                replace_extension=True
+                auto_use_pyx=True
             )
         except AttributeError:
             pass
