@@ -75,6 +75,14 @@ matrix:
       dist: xenial    # Required for Python 3.7
       sudo: required  # travis-ci/travis-ci#9069
       env: BACKEND=cpp
+    - python: 3.9-dev
+      dist: xenial    # Required for Python 3.7
+      sudo: required  # travis-ci/travis-ci#9069
+      env: BACKEND=c
+    - python: 3.9-dev
+      dist: xenial    # Required for Python 3.7
+      sudo: required  # travis-ci/travis-ci#9069
+      env: BACKEND=cpp
     - os: osx
       osx_image: xcode6.4
       env: PY=2
@@ -98,6 +106,7 @@ matrix:
     - env: STACKLESS=true BACKEND=c PY=3
       python: 3.6
   allow_failures:
+    - python: 3.9-dev
     - python: pypy
     - python: pypy3
 
