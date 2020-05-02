@@ -382,6 +382,7 @@ EXT_EXTRAS = {
     'tag:trace' : update_linetrace_extension,
     'tag:bytesformat':  exclude_extension_in_pyver((3, 3), (3, 4)),  # no %-bytes formatting
     'tag:no-macos':  exclude_extension_on_platform('darwin'),
+    'tag:py3only':  exclude_extension_in_pyver((2, 7)),
 }
 
 
