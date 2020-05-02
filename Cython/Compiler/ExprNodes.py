@@ -10729,17 +10729,20 @@ class CythonArrayNode(ExprNode):
             code.putln(code.error_goto(self.operand.pos))
             code.putln("}")
 
-        code.putln("%s = __pyx_format_from_typeinfo(&%s);" %
-                                                (format_temp, type_info))
-        buildvalue_fmt = " __PYX_BUILD_PY_SSIZE_T " * len(shapes)
-        code.putln('%s = Py_BuildValue((char*) "(" %s ")", %s);' % (
-            shapes_temp, buildvalue_fmt, ", ".join(shapes)))
-
-        err = "!%s || !%s || !PyBytes_AsString(%s)" % (format_temp,
-                                                       shapes_temp,
-                                                       format_temp)
-        code.putln(code.error_goto_if(err, self.pos))
+        code.putln("%s = __pyx_format_from_typeinfo(&%s); %s" % (
+            format_temp,
+            type_info,
+            code.error_goto_if_null(format_temp, self.pos),
+        ))
         code.put_gotref(format_temp, py_object_type)
+
+        buildvalue_fmt = " __PYX_BUILD_PY_SSIZE_T " * len(shapes)
+        code.putln('%s = Py_BuildValue((char*) "(" %s ")", %s); %s' % (
+            shapes_temp,
+            buildvalue_fmt,
+            ", ".join(shapes),
+            code.error_goto_if_null(shapes_temp, self.pos),
+        ))
         code.put_gotref(shapes_temp, py_object_type)
 
         tup = (self.result(), shapes_temp, itemsize, format_temp,
