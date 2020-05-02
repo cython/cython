@@ -13,6 +13,9 @@ Bugs fixed
 
 * Error handling early in the module init code could lead to a crash.
 
+* Error handling in ``cython.array`` creation was improved to avoid calling
+  C-API functions with and error held.
+
 * Complex buffer item types of structs of arrays could fail to validate.
   Patch by Leo and smutch.  (Github issue #1407)
 
