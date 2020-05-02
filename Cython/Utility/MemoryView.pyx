@@ -1220,7 +1220,7 @@ cdef void *copy_data_to_temp({{memviewslice_name}} *src,
 
     result = malloc(size)
     if not result:
-        _err(PyExc_MemoryError, NULL)
+        _err_no_memory()
 
     # tmpslice[0] = src
     tmpslice.data = <char *> result
@@ -1252,15 +1252,17 @@ cdef int _err_extents(int i, Py_ssize_t extent1,
     raise ValueError(f"got differing extents in dimension {i} (got {extent1} and {extent2})")
 
 @cname('__pyx_memoryview_err_dim')
-cdef int _err_dim(PyObject *error, char *msg, int dim) except -1 with gil:
-    raise (<object>error)(msg.decode('ascii') % dim)
+cdef int _err_dim(PyObject *error, str msg, int dim) except -1 with gil:
+    raise (<object>error)(msg % dim)
 
 @cname('__pyx_memoryview_err')
-cdef int _err(PyObject *error, char *msg) except -1 with gil:
-    if msg != NULL:
-        raise (<object>error)(msg.decode('ascii'))
-    else:
-        raise (<object>error)
+cdef int _err(PyObject *error, str msg) except -1 with gil:
+    raise (<object>error)(msg)
+
+@cname('__pyx_memoryview_err_no_memory')
+cdef int _err_no_memory() except -1 with gil:
+    raise MemoryError
+
 
 @cname('__pyx_memoryview_copy_contents')
 cdef int memoryview_copy_contents({{memviewslice_name}} src,
