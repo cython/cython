@@ -832,10 +832,13 @@ cdef int slice_memviewslice(
             _err_dim(PyExc_IndexError, "Index out of bounds (axis %d)", dim)
     else:
         # index is a slice
-        negative_step = have_step != 0 and step < 0
-
-        if have_step and step == 0:
-            _err_dim(PyExc_ValueError, "Step may not be zero (axis %d)", dim)
+        if have_step:
+            negative_step = step < 0
+            if step == 0:
+                _err_dim(PyExc_ValueError, "Step may not be zero (axis %d)", dim)
+        else:
+            negative_step = False
+            step = 1
 
         # check our bounds and set defaults
         if have_start:
@@ -866,9 +869,6 @@ cdef int slice_memviewslice(
                 stop = -1
             else:
                 stop = shape
-
-        if not have_step:
-            step = 1
 
         # len = ceil( (stop - start) / step )
         with cython.cdivision(True):
