@@ -1106,10 +1106,7 @@ cdef memoryview_copy_from_slice(memoryview memview, {{memviewslice_name}} *memvi
 ### Copy the contents of a memoryview slices
 #
 cdef Py_ssize_t abs_py_ssize_t(Py_ssize_t arg) nogil:
-    if arg < 0:
-        return -arg
-    else:
-        return arg
+    return -arg if arg < 0 else arg
 
 @cname('__pyx_get_best_slice_order')
 cdef char get_best_order({{memviewslice_name}} *mslice, int ndim) nogil:
@@ -1229,8 +1226,7 @@ cdef void *copy_data_to_temp({{memviewslice_name}} *src,
         tmpslice.shape[i] = src.shape[i]
         tmpslice.suboffsets[i] = -1
 
-    fill_contig_strides_array(&tmpslice.shape[0], &tmpslice.strides[0], itemsize,
-                              ndim, order)
+    fill_contig_strides_array(&tmpslice.shape[0], &tmpslice.strides[0], itemsize, ndim, order)
 
     # We need to broadcast strides again
     for i in range(ndim):
@@ -1317,9 +1313,9 @@ cdef int memoryview_copy_contents({{memviewslice_name}} src,
 
         if direct_copy:
             # Contiguous slices with same order
-            refcount_copying(&dst, dtype_is_object, ndim, False)
+            refcount_copying(&dst, dtype_is_object, ndim, inc=False)
             memcpy(dst.data, src.data, slice_get_size(&src, ndim))
-            refcount_copying(&dst, dtype_is_object, ndim, True)
+            refcount_copying(&dst, dtype_is_object, ndim, inc=True)
             free(tmpdata)
             return 0
 
@@ -1329,9 +1325,9 @@ cdef int memoryview_copy_contents({{memviewslice_name}} src,
         transpose_memslice(&src)
         transpose_memslice(&dst)
 
-    refcount_copying(&dst, dtype_is_object, ndim, False)
+    refcount_copying(&dst, dtype_is_object, ndim, inc=False)
     copy_strided_to_strided(&src, &dst, ndim, itemsize)
-    refcount_copying(&dst, dtype_is_object, ndim, True)
+    refcount_copying(&dst, dtype_is_object, ndim, inc=True)
 
     free(tmpdata)
     return 0
@@ -1359,13 +1355,10 @@ cdef void broadcast_leading({{memviewslice_name}} *mslice,
 #
 
 @cname('__pyx_memoryview_refcount_copying')
-cdef void refcount_copying({{memviewslice_name}} *dst, bint dtype_is_object,
-                           int ndim, bint inc) nogil:
-    # incref or decref the objects in the destination slice if the dtype is
-    # object
+cdef void refcount_copying({{memviewslice_name}} *dst, bint dtype_is_object, int ndim, bint inc) nogil:
+    # incref or decref the objects in the destination slice if the dtype is object
     if dtype_is_object:
-        refcount_objects_in_slice_with_gil(dst.data, dst.shape,
-                                           dst.strides, ndim, inc)
+        refcount_objects_in_slice_with_gil(dst.data, dst.shape, dst.strides, ndim, inc)
 
 @cname('__pyx_memoryview_refcount_objects_in_slice_with_gil')
 cdef void refcount_objects_in_slice_with_gil(char *data, Py_ssize_t *shape,
@@ -1377,6 +1370,7 @@ cdef void refcount_objects_in_slice_with_gil(char *data, Py_ssize_t *shape,
 cdef void refcount_objects_in_slice(char *data, Py_ssize_t *shape,
                                     Py_ssize_t *strides, int ndim, bint inc):
     cdef Py_ssize_t i
+    cdef Py_ssize_t stride = strides[0]
 
     for i in range(shape[0]):
         if ndim == 1:
@@ -1385,10 +1379,9 @@ cdef void refcount_objects_in_slice(char *data, Py_ssize_t *shape,
             else:
                 Py_DECREF((<PyObject **> data)[0])
         else:
-            refcount_objects_in_slice(data, shape + 1, strides + 1,
-                                      ndim - 1, inc)
+            refcount_objects_in_slice(data, shape + 1, strides + 1, ndim - 1, inc)
 
-        data += strides[0]
+        data += stride
 
 #
 ### Scalar to slice assignment
@@ -1397,10 +1390,9 @@ cdef void refcount_objects_in_slice(char *data, Py_ssize_t *shape,
 cdef void slice_assign_scalar({{memviewslice_name}} *dst, int ndim,
                               size_t itemsize, void *item,
                               bint dtype_is_object) nogil:
-    refcount_copying(dst, dtype_is_object, ndim, False)
-    _slice_assign_scalar(dst.data, dst.shape, dst.strides, ndim,
-                         itemsize, item)
-    refcount_copying(dst, dtype_is_object, ndim, True)
+    refcount_copying(dst, dtype_is_object, ndim, inc=False)
+    _slice_assign_scalar(dst.data, dst.shape, dst.strides, ndim, itemsize, item)
+    refcount_copying(dst, dtype_is_object, ndim, inc=True)
 
 
 @cname('__pyx_memoryview__slice_assign_scalar')
@@ -1417,8 +1409,7 @@ cdef void _slice_assign_scalar(char *data, Py_ssize_t *shape,
             data += stride
     else:
         for i in range(extent):
-            _slice_assign_scalar(data, shape + 1, strides + 1,
-                                ndim - 1, itemsize, item)
+            _slice_assign_scalar(data, shape + 1, strides + 1, ndim - 1, itemsize, item)
             data += stride
 
 
