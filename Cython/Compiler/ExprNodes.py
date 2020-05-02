@@ -10745,12 +10745,11 @@ class CythonArrayNode(ExprNode):
         ))
         code.put_gotref(shapes_temp, py_object_type)
 
-        tup = (self.result(), shapes_temp, itemsize, format_temp,
-               self.mode, self.operand.result())
-        code.putln('%s = __pyx_array_new('
-                            '%s, %s, PyBytes_AS_STRING(%s), '
-                            '(char *) "%s", (char *) %s);' % tup)
-        code.putln(code.error_goto_if_null(self.result(), self.pos))
+        code.putln('%s = __pyx_array_new(%s, %s, PyBytes_AS_STRING(%s), (char *) "%s", (char *) %s); %s' % (
+            self.result(),
+            shapes_temp, itemsize, format_temp, self.mode, self.operand.result(),
+            code.error_goto_if_null(self.result(), self.pos),
+        ))
         self.generate_gotref(code)
 
         def dispose(temp):
