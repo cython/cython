@@ -876,8 +876,7 @@ class Scope(object):
             entry.func_cname = cname
         return entry
 
-    def add_cfunction(self, name, type, pos, cname, visibility, modifiers,
-                      inherited=False):
+    def add_cfunction(self, name, type, pos, cname, visibility, modifiers, inherited=False):
         # Add a C function entry without giving it a func_cname.
         entry = self.declare(name, cname, type, pos, visibility)
         entry.is_cfunction = 1
@@ -2356,8 +2355,7 @@ class CClassScope(ClassScope):
                 error(pos,
                     "C method '%s' not previously declared in definition part of"
                     " extension type '%s'" % (name, self.class_name))
-            entry = self.add_cfunction(name, type, pos, cname, visibility,
-                                                 modifiers)
+            entry = self.add_cfunction(name, type, pos, cname, visibility, modifiers)
         if defining:
             entry.func_cname = self.mangle(Naming.func_prefix, name)
         entry.utility_code = utility_code
@@ -2373,13 +2371,11 @@ class CClassScope(ClassScope):
 
         return entry
 
-    def add_cfunction(self, name, type, pos, cname, visibility, modifiers,
-                                             inherited=False):
+    def add_cfunction(self, name, type, pos, cname, visibility, modifiers, inherited=False):
         # Add a cfunction entry without giving it a func_cname.
         prev_entry = self.lookup_here(name)
-        entry = ClassScope.add_cfunction(self, name, type, pos, cname,
-                                    visibility, modifiers,
-                                    inherited=inherited)
+        entry = ClassScope.add_cfunction(
+            self, name, type, pos, cname, visibility, modifiers, inherited=inherited)
         entry.is_cmethod = 1
         entry.prev_entry = prev_entry
         return entry
@@ -2439,9 +2435,9 @@ class CClassScope(ClassScope):
             is_builtin = var_entry and var_entry.is_builtin
             if not is_builtin:
                 cname = adapt(cname)
-            entry = self.add_cfunction(base_entry.name, base_entry.type,
-                                       base_entry.pos, cname,
-                                       base_entry.visibility, base_entry.func_modifiers, inherited=True)
+            entry = self.add_cfunction(
+                base_entry.name, base_entry.type, base_entry.pos, cname,
+                base_entry.visibility, base_entry.func_modifiers, inherited=True)
             entry.is_inherited = 1
             if base_entry.is_final_cmethod:
                 entry.is_final_cmethod = True
