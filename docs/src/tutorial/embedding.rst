@@ -19,11 +19,21 @@ This is a stub documentation page. PRs welcome.
 
 * `Embedding demo program <https://github.com/cython/cython/tree/master/Demos/embed>`_
 
-* The `PyImport_AppendInittab() <https://docs.python.org/3/c-api/import.html#c.PyImport_AppendInittab>`_
-  function in CPython allows registering statically (or dynamically) linked extension modules
-  for later imports.
 
-* Also see the documentation of the
-  `module init function <https://docs.python.org/3/extending/extending.html#the-module-s-method-table-and-initialization-function>`_
-  in CPython and `PEP 489 <https://www.python.org/dev/peps/pep-0489/>`_ regarding the module
-  initialisation mechanism in CPython 3.5 and later.
+Initialising your main module
+=============================
+
+Most importantly, DO NOT call the module init function instead of importing
+the module.  This is not the right way to initialise an extension module.
+(It was always wrong but used to work before, but since Python 3.5, it is
+wrong *and* no longer works.)
+
+For details, see the documentation of the
+`module init function <https://docs.python.org/3/extending/extending.html#the-module-s-method-table-and-initialization-function>`_
+in CPython and `PEP 489 <https://www.python.org/dev/peps/pep-0489/>`_ regarding the module
+initialisation mechanism in CPython 3.5 and later.
+
+The `PyImport_AppendInittab() <https://docs.python.org/3/c-api/import.html#c.PyImport_AppendInittab>`_
+function in CPython allows registering statically (or dynamically) linked extension
+modules for later imports.  An example is given in the documentation of the module
+init function that is linked above.
