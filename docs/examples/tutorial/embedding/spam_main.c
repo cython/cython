@@ -16,13 +16,7 @@ main(int argc, char *argv[])
     }
 
     /* Add a built-in module, before Py_Initialize */
-#if PY_MAJOR_VERSION == 2
-    /* Legacy Python 2.x version. */
-    if (PyImport_AppendInittab("spam", initspam) == -1)
-#else
-    if (PyImport_AppendInittab("spam", PyInit_spam) == -1)
-#endif
-    {
+    if (PyImport_AppendInittab("spam", PyInit_spam) == -1) {
         fprintf(stderr, "Error: could not extend in-built modules table\n");
         exit(1);
     }
