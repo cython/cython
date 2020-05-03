@@ -1597,7 +1597,7 @@ class TestCodeFormat(unittest.TestCase):
         import pycodestyle
         config_file = os.path.join(self.cython_dir, "setup.cfg")
         if not os.path.exists(config_file):
-            config_file=os.path.join(os.path.dirname(__file__), "setup.cfg")
+            config_file = os.path.join(os.path.dirname(__file__), "setup.cfg")
         paths = []
         for codedir in ['Cython', 'Demos', 'docs', 'pyximport', 'tests']:
             paths += glob.glob(os.path.join(self.cython_dir, codedir + "/**/*.py"), recursive=True)
@@ -1700,8 +1700,7 @@ class EndToEndTest(unittest.TestCase):
     """
     cython_root = os.path.dirname(os.path.abspath(__file__))
 
-    def __init__(self, treefile, workdir, cleanup_workdir=True, stats=None,
-                 capture=True):
+    def __init__(self, treefile, workdir, cleanup_workdir=True, stats=None, capture=True):
         self.name = os.path.splitext(os.path.basename(treefile))[0]
         self.treefile = treefile
         self.workdir = os.path.join(workdir, self.name)
