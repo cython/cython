@@ -922,7 +922,7 @@ typedef struct {PyObject **p; const char *s; const Py_ssize_t n; const char* enc
 
 /////////////// InitThreads.init ///////////////
 
-#ifdef WITH_THREAD
+#if defined(WITH_THREAD) && PY_VERSION_HEX < 0x030700F0
 PyEval_InitThreads();
 #endif
 
