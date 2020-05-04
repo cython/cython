@@ -593,14 +593,12 @@ class PxdPostParse(CythonTransform, SkipDeclarations):
         err = self.ERR_INLINE_ONLY
 
         if (isinstance(node, Nodes.DefNode) and self.scope_type == 'cclass'
-            and node.name in ('__getbuffer__', '__releasebuffer__')):
+                and node.name in ('__getbuffer__', '__releasebuffer__')):
             err = None # allow these slots
 
         if isinstance(node, Nodes.CFuncDefNode):
-            if node.decorators and self.scope_type == 'cclass':
-                err = None
-            elif (u'inline' in node.modifiers and
-                self.scope_type in ('pxd', 'cclass')):
+            if (u'inline' in node.modifiers and
+                    self.scope_type in ('pxd', 'cclass')):
                 node.inline_in_pxd = True
                 if node.visibility != 'private':
                     err = self.ERR_NOGO_WITH_INLINE % node.visibility
@@ -1365,7 +1363,7 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
         if self._properties is None:
             self._properties = []
         self._properties.append({})
-        super(DecoratorTransform, self).visit_CClassDefNode(node)
+        node = super(DecoratorTransform, self).visit_CClassDefNode(node)
         self._properties.pop()
         return node
 
@@ -1375,6 +1373,25 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
         warning(node.pos, "'property %s:' syntax is deprecated, use '@property'" % node.name, level)
         return node
 
+    def visit_CFuncDefNode(self, node):
+        node = self.visit_FuncDefNode(node)
+        if self.scope_type != 'cclass' or self.scope_node.visibility != "extern" or not node.decorators:
+            return node
+
+        ret_node = node
+        decorator_node = self._find_property_decorator(node)
+        if decorator_node:
+            if decorator_node.decorator.is_name:
+                name = node.declared_name()
+                if name:
+                    ret_node = self._add_property(node, name, decorator_node)
+            else:
+                error(decorator_node.pos, "C property decorator can only be @property")
+
+        if node.decorators:
+            return self._reject_decorated_property(node, node.decorators[0])
+        return ret_node
+
     def visit_DefNode(self, node):
         scope_type = self.scope_type
         node = self.visit_FuncDefNode(node)
@@ -1382,28 +1399,12 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
             return node
 
         # transform @property decorators
-        properties = self._properties[-1]
-        for decorator_node in node.decorators[::-1]:
+        decorator_node = self._find_property_decorator(node)
+        if decorator_node is not None:
             decorator = decorator_node.decorator
-            if decorator.is_name and decorator.name == 'property':
-                if len(node.decorators) > 1:
-                    return self._reject_decorated_property(node, decorator_node)
-                name = node.name
-                node.name = EncodedString('__get__')
-                node.decorators.remove(decorator_node)
-                stat_list = [node]
-                if name in properties:
-                    prop = properties[name]
-                    prop.pos = node.pos
-                    prop.doc = node.doc
-                    prop.body.stats = stat_list
-                    return []
-                prop = Nodes.PropertyNode(node.pos, name=name)
-                prop.doc = node.doc
-                prop.body = Nodes.StatListNode(node.pos, stats=stat_list)
-                properties[name] = prop
-                return [prop]
-            elif decorator.is_attribute and decorator.obj.name in properties:
+            if decorator.is_name:
+                return self._add_property(node, node.name, decorator_node)
+            else:
                 handler_name = self._map_property_attribute(decorator.attribute)
                 if handler_name:
                     if decorator.obj.name != node.name:
@@ -1414,7 +1415,7 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
                     elif len(node.decorators) > 1:
                         return self._reject_decorated_property(node, decorator_node)
                     else:
-                        return self._add_to_property(properties, node, handler_name, decorator_node)
+                        return self._add_to_property(node, handler_name, decorator_node)
 
         # we clear node.decorators, so we need to set the
         # is_staticmethod/is_classmethod attributes now
@@ -1429,6 +1430,18 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
         node.decorators = None
         return self.chain_decorators(node, decs, node.name)
 
+    def _find_property_decorator(self, node):
+        properties = self._properties[-1]
+        for decorator_node in node.decorators[::-1]:
+            decorator = decorator_node.decorator
+            if decorator.is_name and decorator.name == 'property':
+                # @property
+                return decorator_node
+            elif decorator.is_attribute and decorator.obj.name in properties:
+                # @prop.setter etc.
+                return decorator_node
+        return None
+
     @staticmethod
     def _reject_decorated_property(node, decorator_node):
         # restrict transformation to outermost decorator as wrapped properties will probably not work
@@ -1437,9 +1450,42 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
                 error(deco.pos, "Property methods with additional decorators are not supported")
         return node
 
-    @staticmethod
-    def _add_to_property(properties, node, name, decorator):
+    def _add_property(self, node, name, decorator_node):
+        if len(node.decorators) > 1:
+            return self._reject_decorated_property(node, decorator_node)
+        node.decorators.remove(decorator_node)
+        properties = self._properties[-1]
+        is_cproperty = isinstance(node, Nodes.CFuncDefNode)
+        body = Nodes.StatListNode(node.pos, stats=[node])
+        if is_cproperty:
+            if name in properties:
+                error(node.pos, "C property redeclared")
+            if 'inline' not in node.modifiers:
+                error(node.pos, "C property method must be declared 'inline'")
+            prop = Nodes.CPropertyNode(node.pos, doc=node.doc, name=name, body=body)
+        elif name in properties:
+            prop = properties[name]
+            if prop.is_cproperty:
+                error(node.pos, "C property redeclared")
+            else:
+                node.name = EncodedString("__get__")
+                prop.pos = node.pos
+                prop.doc = node.doc
+                prop.body.stats = [node]
+            return None
+        else:
+            node.name = EncodedString("__get__")
+            prop = Nodes.PropertyNode(
+                node.pos, name=name, doc=node.doc, body=body)
+        properties[name] = prop
+        return prop
+
+    def _add_to_property(self, node, name, decorator):
+        properties = self._properties[-1]
         prop = properties[node.name]
+        if prop.is_cproperty:
+            error(node.pos, "C property redeclared")
+            return None
         node.name = name
         node.decorators.remove(decorator)
         stats = prop.body.stats
@@ -1449,7 +1495,7 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
                 break
         else:
             stats.append(node)
-        return []
+        return None
 
     @staticmethod
     def chain_decorators(node, decorators, name):
@@ -2273,29 +2319,6 @@ class AnalyseExpressionsTransform(CythonTransform):
         if node.is_fused_index and not node.type.is_error:
             node = node.base
         return node
-
-class ReplacePropertyNode(CythonTransform):
-    def visit_CFuncDefNode(self, node):
-        if not node.decorators:
-            return node
-        decorator = self.find_first_decorator(node, 'property')
-        if decorator:
-            # transform class functions into c-getters
-            if len(node.decorators) > 1:
-                # raises
-                self._reject_decorated_property(node, decorator_node)
-            node.entry.is_cgetter = True
-            # Add a func_cname to be output instead of the attribute
-            node.entry.func_cname = node.body.stats[0].value.function.name
-            node.decorators.remove(decorator)
-        return node
-
-    def find_first_decorator(self, node, name):
-        for decorator_node in node.decorators[::-1]:
-            decorator = decorator_node.decorator
-            if decorator.is_name and decorator.name == name:
-                return decorator_node
-        return None
 
 
 class FindInvalidUseOfFusedTypes(CythonTransform):
