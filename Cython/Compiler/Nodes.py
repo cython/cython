@@ -71,6 +71,7 @@ def embed_position(pos, docstring):
     doc.encoding = encoding
     return doc
 
+
 def write_func_call(func, codewriter_class):
     def f(*args, **kwds):
         if len(args) > 1 and isinstance(args[1], codewriter_class):
@@ -81,19 +82,16 @@ def write_func_call(func, codewriter_class):
                 ' ' * code.call_level,
                 node.__class__.__name__,
                 func.__name__,
-                node.pos[1:])
-            pristine = code.buffer.stream.tell()
-            code.putln(marker)
+                node.pos[1:],
+            )
+            insertion_point = code.insertion_point()
             start = code.buffer.stream.tell()
             code.call_level += 4
             res = func(*args, **kwds)
             code.call_level -= 4
-            if start == code.buffer.stream.tell():
-                # no code written => undo writing marker
-                code.buffer.stream.truncate(pristine)
-            else:
-                marker = marker.replace('->', '<-', 1)
-                code.putln(marker)
+            if start != code.buffer.stream.tell():
+                code.putln(marker.replace('->', '<-', 1))
+                insertion_point.putln(marker)
             return res
         else:
             return func(*args, **kwds)
