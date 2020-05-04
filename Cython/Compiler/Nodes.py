@@ -5336,7 +5336,7 @@ class PropertyNode(StatNode):
     #
     #  name   string
     #  doc    EncodedString or None    Doc string
-    #  entry  Symtab.Entry
+    #  entry  Symtab.Entry             The Entry of the property attribute
     #  body   StatListNode
 
     child_attrs = ["body"]
@@ -5363,8 +5363,8 @@ class CPropertyNode(StatNode):
     """Definition of a C property, backed by a CFuncDefNode getter.
     """
     #  name   string
-    #  doc    EncodedString or None   Doc string
-    #  entry  Symtab.Entry
+    #  doc    EncodedString or None        Doc string of the property
+    #  entry  Symtab.Entry                 The Entry of the property attribute
     #  body   StatListNode[CFuncDefNode]   (for compatibility with PropertyNode)
 
     child_attrs = ["body"]
