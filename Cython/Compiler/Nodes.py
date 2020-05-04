@@ -21,7 +21,7 @@ from . import Naming
 from . import PyrexTypes
 from . import TypeSlots
 from .PyrexTypes import py_object_type, error_type
-from .Symtab import (ModuleScope, LocalScope, ClosureScope,
+from .Symtab import (ModuleScope, LocalScope, ClosureScope, PropertyScope,
                      StructOrUnionScope, PyClassScope, CppClassScope, TemplateScope,
                      punycodify_name)
 from .Code import UtilityCode
@@ -154,6 +154,7 @@ class Node(object):
     is_literal = 0
     is_terminator = 0
     is_wrapper = False  # is a DefNode wrapper for a C function
+    is_cproperty = False
     temps = None
 
     # All descendants should set child_attrs to a list of the attributes
@@ -453,7 +454,12 @@ class CDefExternNode(StatNode):
             env.add_include_file(self.include_file, self.verbatim_include, late)
 
     def analyse_expressions(self, env):
+        # Allow C properties, inline methods, etc. also in external types.
+        self.body = self.body.analyse_expressions(env)
         return self
+
+    def generate_function_definitions(self, env, code):
+        self.body.generate_function_definitions(env, code)
 
     def generate_execution_code(self, code):
         pass
@@ -479,6 +485,9 @@ class CDeclaratorNode(Node):
 
     calling_convention = ""
 
+    def declared_name(self):
+        return None
+
     def analyse_templates(self):
         # Only C++ functions have templates.
         return None
@@ -492,6 +501,9 @@ class CNameDeclaratorNode(CDeclaratorNode):
     child_attrs = ['default']
 
     default = None
+
+    def declared_name(self):
+        return self.name
 
     def analyse(self, base_type, env, nonempty=0, visibility=None, in_pxd=False):
         if nonempty and self.name == '':
@@ -516,6 +528,9 @@ class CPtrDeclaratorNode(CDeclaratorNode):
 
     child_attrs = ["base"]
 
+    def declared_name(self):
+        return self.base.declared_name()
+
     def analyse_templates(self):
         return self.base.analyse_templates()
 
@@ -530,6 +545,9 @@ class CReferenceDeclaratorNode(CDeclaratorNode):
     # base     CDeclaratorNode
 
     child_attrs = ["base"]
+
+    def declared_name(self):
+        return self.base.declared_name()
 
     def analyse_templates(self):
         return self.base.analyse_templates()
@@ -602,6 +620,9 @@ class CFuncDeclaratorNode(CDeclaratorNode):
     optional_arg_count = 0
     is_const_method = 0
     templates = None
+
+    def declared_name(self):
+        return self.base.declared_name()
 
     def analyse_templates(self):
         if isinstance(self.base, CArrayDeclaratorNode):
@@ -835,6 +856,9 @@ class CArgDeclNode(Node):
     default_value = None
     annotation = None
     is_dynamic = 0
+
+    def declared_name(self):
+        return self.declarator.declared_name()
 
     @property
     def name_cstring(self):
@@ -1728,10 +1752,6 @@ class FuncDefNode(StatNode, BlockNode):
     def generate_function_definitions(self, env, code):
         from . import Buffer
 
-        if self.entry.is_cgetter:
-            # no code to generate
-            return
-
         lenv = self.local_scope
         if lenv.is_closure_scope and not lenv.is_passthrough:
             outer_scope_cname = "%s->%s" % (Naming.cur_scope_cname,
@@ -2344,7 +2364,7 @@ class CFuncDefNode(FuncDefNode):
     #  is_static_method whether this is a static method
     #  is_c_class_method whether this is a cclass method
 
-    child_attrs = ["base_type", "declarator", "body", "py_func_stat", "decorators"]
+    child_attrs = ["base_type", "declarator", "body", "decorators", "py_func_stat"]
     outer_attrs = ["decorators", "py_func_stat"]
 
     inline_in_pxd = False
@@ -2359,27 +2379,15 @@ class CFuncDefNode(FuncDefNode):
     def unqualified_name(self):
         return self.entry.name
 
+    def declared_name(self):
+        return self.declarator.declared_name()
+
     @property
     def code_object(self):
         # share the CodeObject with the cpdef wrapper (if available)
         return self.py_func.code_object if self.py_func else None
 
     def analyse_declarations(self, env):
-        is_property = 0
-        if self.decorators:
-            for decorator in self.decorators:
-                func = decorator.decorator
-                if func.is_name:
-                    if func.name == 'property':
-                        is_property = 1
-                    elif func.name == 'staticmethod':
-                        pass
-                    else:
-                        error(self.pos, "Cannot handle %s decorators yet" % func.name)
-                else:
-                    error(self.pos,
-                          "Cannot handle %s decorators yet" % type(func).__name__)
-
         self.is_c_class_method = env.is_c_class_scope
         if self.directive_locals is None:
             self.directive_locals = {}
@@ -2458,10 +2466,6 @@ class CFuncDefNode(FuncDefNode):
             cname=cname, visibility=self.visibility, api=self.api,
             defining=self.body is not None, modifiers=self.modifiers,
             overridable=self.overridable)
-        if is_property:
-            self.entry.is_property = 1
-            env.property_entries.append(self.entry)
-            env.cfunc_entries.remove(self.entry)
         self.entry.inline_func_in_pxd = self.inline_in_pxd
         self.return_type = typ.return_type
         if self.return_type.is_array and self.visibility != 'extern':
@@ -2628,7 +2632,7 @@ class CFuncDefNode(FuncDefNode):
 
         header = self.return_type.declaration_code(entity, dll_linkage=dll_linkage)
         #print (storage_class, modifiers, header)
-        needs_proto = self.is_c_class_method
+        needs_proto = self.is_c_class_method or self.entry.is_cproperty
         if self.template_declaration:
             if needs_proto:
                 code.globalstate.parts['module_declarations'].putln(self.template_declaration)
@@ -5339,8 +5343,45 @@ class PropertyNode(StatNode):
 
     def analyse_declarations(self, env):
         self.entry = env.declare_property(self.name, self.doc, self.pos)
-        self.entry.scope.directives = env.directives
         self.body.analyse_declarations(self.entry.scope)
+
+    def analyse_expressions(self, env):
+        self.body = self.body.analyse_expressions(env)
+        return self
+
+    def generate_function_definitions(self, env, code):
+        self.body.generate_function_definitions(env, code)
+
+    def generate_execution_code(self, code):
+        pass
+
+    def annotate(self, code):
+        self.body.annotate(code)
+
+
+class CPropertyNode(StatNode):
+    """Definition of a C property, backed by a CFuncDefNode getter.
+    """
+    #  name   string
+    #  doc    EncodedString or None   Doc string
+    #  entry  Symtab.Entry
+    #  body   StatListNode[CFuncDefNode]   (for compatibility with PropertyNode)
+
+    child_attrs = ["body"]
+    is_cproperty = True
+
+    @property
+    def cfunc(self):
+        stats = self.body.stats
+        assert stats and isinstance(stats[0], CFuncDefNode), stats
+        return stats[0]
+
+    def analyse_declarations(self, env):
+        scope = PropertyScope(self.name, class_scope=env)
+        self.body.analyse_declarations(scope)
+        entry = self.entry = env.declare_property(
+            self.name, self.doc, self.pos, ctype=self.cfunc.return_type, property_scope=scope)
+        entry.getter_cname = self.cfunc.entry.cname
 
     def analyse_expressions(self, env):
         self.body = self.body.analyse_expressions(env)

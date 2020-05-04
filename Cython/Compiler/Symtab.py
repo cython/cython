@@ -109,6 +109,7 @@ class Entry(object):
     # doc_cname        string or None  C const holding the docstring
     # getter_cname     string          C func for getting property
     # setter_cname     string          C func for setting or deleting property
+    # is_cproperty     boolean         Is an inline property of an external type
     # is_self_arg      boolean    Is the "self" arg of an exttype method
     # is_arg           boolean    Is the arg of a method
     # is_local         boolean    Is a local variable
@@ -183,6 +184,7 @@ class Entry(object):
     is_cpp_class = 0
     is_const = 0
     is_property = 0
+    is_cproperty = 0
     doc_cname = None
     getter_cname = None
     setter_cname = None
@@ -2395,15 +2397,18 @@ class CClassScope(ClassScope):
         entry.as_variable = var_entry
         return entry
 
-    def declare_property(self, name, doc, pos):
+    def declare_property(self, name, doc, pos, ctype=None, property_scope=None):
         entry = self.lookup_here(name)
         if entry is None:
-            entry = self.declare(name, name, py_object_type, pos, 'private')
-        entry.is_property = 1
+            entry = self.declare(name, name, py_object_type if ctype is None else ctype, pos, 'private')
+        entry.is_property = True
+        if ctype is not None:
+            entry.is_cproperty = True
         entry.doc = doc
-        entry.scope = PropertyScope(name,
-            outer_scope = self.global_scope(), parent_scope = self)
-        entry.scope.parent_type = self.parent_type
+        if property_scope is None:
+            entry.scope = PropertyScope(name, class_scope=self)
+        else:
+            entry.scope = property_scope
         self.property_entries.append(entry)
         return entry
 
@@ -2606,6 +2611,31 @@ class PropertyScope(Scope):
     #  parent_type   PyExtensionType   The type to which the property belongs
 
     is_property_scope = 1
+
+    def __init__(self, name, class_scope):
+        # outer scope is None for some internal properties
+        outer_scope = class_scope.global_scope() if class_scope.outer_scope else None
+        Scope.__init__(self, name, outer_scope, parent_scope=class_scope)
+        self.parent_type = class_scope.parent_type
+        self.directives = class_scope.directives
+
+    def declare_cfunction(self, name, type, pos, *args, **kwargs):
+        """Declare a C property function.
+        """
+        if type.return_type.is_void:
+            error(pos, "C property method cannot return 'void'")
+
+        if type.args and type.args[0].type is py_object_type:
+            # Set 'self' argument type to extension type.
+            type.args[0].type = self.parent_scope.parent_type
+        elif len(type.args) != 1:
+            error(pos, "C property method must have a single (self) argument")
+        elif not (type.args[0].type.is_pyobject or type.args[0].type is self.parent_scope.parent_type):
+            error(pos, "C property method must have a single (object) argument")
+
+        entry = Scope.declare_cfunction(self, name, type, pos, *args, **kwargs)
+        entry.is_cproperty = True
+        return entry
 
     def declare_pyfunction(self, name, pos, allow_redefine=False):
         # Add an entry for a method.

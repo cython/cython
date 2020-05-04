@@ -1691,14 +1691,20 @@ class PythranExpr(CType):
             self.scope = scope = Symtab.CClassScope('', None, visibility="extern")
             scope.parent_type = self
             scope.directives = {}
-            scope.declare_cgetter(
-                "shape",
-                CPtrType(c_long_type),
-                pos=None,
-                cname="__Pyx_PythranShapeAccessor",
-                visibility="extern",
-                nogil=True)
+
             scope.declare_var("ndim", c_long_type, pos=None, cname="value", is_cdef=True)
+
+            shape_type = c_ptr_type(c_long_type)
+            shape_entry = scope.declare_property(
+                "shape", doc="Pythran array shape", ctype=shape_type, pos=None)
+            shape_entry.scope.declare_cfunction(
+                name="shape",
+                type=CFuncType(shape_type, [CFuncTypeArg("self", self, pos=None)], nogil=True),
+                cname="__Pyx_PythranShapeAccessor",
+                visibility='extern',
+                pos=None,
+            )
+
 
         return True
 

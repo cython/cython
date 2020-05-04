@@ -4024,12 +4024,9 @@ class IndexNode(_IndexingBaseNode):
             else:
                 assert False, "unexpected base type in indexing: %s" % self.base.type
         elif self.base.type.is_cfunction:
-            if self.base.entry.is_cgetter:
-                index_code = "(%s[%s])"
-            else:
-                return "%s<%s>" % (
-                    self.base.result(),
-                    ",".join([param.empty_declaration_code() for param in self.type_indices]))
+            return "%s<%s>" % (
+                self.base.result(),
+                ",".join([param.empty_declaration_code() for param in self.type_indices]))
         elif self.base.type.is_ctuple:
             index = self.index.constant_result
             if index < 0:
@@ -5594,6 +5591,16 @@ class SimpleCallNode(CallNode):
         except Exception as e:
             self.compile_time_value_error(e)
 
+    @classmethod
+    def for_cproperty(cls, pos, obj, entry):
+        # Create a call node for C property access.
+        property_scope = entry.scope
+        getter_entry = property_scope.lookup_here(entry.name)
+        assert getter_entry, "Getter not found in scope %s: %s" % (property_scope, property_scope.entries)
+        function = NameNode(pos, name=entry.name, entry=getter_entry, type=getter_entry.type)
+        node = cls(pos, function=function, args=[obj])
+        return node
+
     def analyse_as_type(self, env):
         attr = self.function.as_cython_attribute()
         if attr == 'pointer':
@@ -6789,27 +6796,13 @@ class AttributeNode(ExprNode):
     is_attribute = 1
     subexprs = ['obj']
 
-    _type = PyrexTypes.error_type
+    type = PyrexTypes.error_type
     entry = None
     is_called = 0
     needs_none_check = True
     is_memslice_transpose = False
     is_special_lookup = False
     is_py_attr = 0
-
-    @property
-    def type(self):
-        if self._type.is_cfunction and hasattr(self._type, 'entry') and self._type.entry.is_cgetter:
-            return self._type.return_type
-        return self._type
-
-    @type.setter
-    def type(self, value):
-        # XXX review where the attribute is set
-        # make sure it is not already a cgetter
-        if self._type.is_cfunction and hasattr(self._type, 'entry') and self._type.entry.is_cgetter:
-            error(self.pos, "%s.type already set" % self.__name__)
-        self._type = value
 
     def as_cython_attribute(self):
         if (isinstance(self.obj, NameNode) and
@@ -6896,7 +6889,7 @@ class AttributeNode(ExprNode):
         if node is None:
             node = self.analyse_as_ordinary_attribute_node(env, target)
             assert node is not None
-        if node.entry:
+        if (node.is_attribute or node.is_name) and node.entry:
             node.entry.used = True
         if node.is_attribute:
             node.wrap_obj_in_nonecheck(env)
@@ -7029,6 +7022,11 @@ class AttributeNode(ExprNode):
                 self.result_ctype = py_object_type
         elif target and self.obj.type.is_builtin_type:
             error(self.pos, "Assignment to an immutable object field")
+        elif self.entry and self.entry.is_cproperty:
+            if not target:
+                return SimpleCallNode.for_cproperty(self.pos, self.obj, self.entry).analyse_types(env)
+            # TODO: implement writable C-properties?
+            error(self.pos, "Assignment to a read-only property")
         #elif self.type.is_memoryviewslice and not target:
         #    self.is_temp = True
         return self
@@ -7085,8 +7083,11 @@ class AttributeNode(ExprNode):
                 # fused function go through assignment synthesis
                 # (foo = pycfunction(foo_func_obj)) and need to go through
                 # regular Python lookup as well
-                if (entry.is_variable and not entry.fused_cfunction) or entry.is_cmethod:
-                    self._type = entry.type
+                if entry.is_cproperty:
+                    self.type = entry.type
+                    return
+                elif (entry.is_variable and not entry.fused_cfunction) or entry.is_cmethod:
+                    self.type = entry.type
                     self.member = entry.cname
                     return
                 else:
@@ -7106,7 +7107,7 @@ class AttributeNode(ExprNode):
         # mangle private '__*' Python attributes used inside of a class
         self.attribute = env.mangle_class_private_name(self.attribute)
         self.member = self.attribute
-        self._type = py_object_type
+        self.type = py_object_type
         self.is_py_attr = 1
 
         if not obj_type.is_pyobject and not obj_type.is_error:
@@ -7188,8 +7189,6 @@ class AttributeNode(ExprNode):
         obj_code = obj.result_as(obj.type)
         #print "...obj_code =", obj_code ###
         if self.entry and self.entry.is_cmethod:
-            if self.entry.is_cgetter:
-                return "%s(%s)" % (self.entry.func_cname, obj_code)
             if obj.type.is_extension_type and not self.entry.is_builtin_cmethod:
                 if self.entry.final_func_cname:
                     return self.entry.final_func_cname

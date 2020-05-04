@@ -249,20 +249,20 @@ cdef extern from "numpy/arrayobject.h":
             PyObject* base
 
             @property
-            cdef int ndim(self):
+            cdef inline int ndim(self):
                 return PyArray_NDIM(self)
 
             @property
-            cdef npy_intp *shape(self):
+            cdef inline npy_intp *shape(self):
                 return PyArray_DIMS(self)
 
             @property
-            cdef npy_intp *strides(self):
+            cdef inline npy_intp *strides(self):
                 return PyArray_STRIDES(self)
 
             @property
-            cdef npy_intp size(self):
-                return PyArray_SIZE(ndarray)
+            cdef inline npy_intp size(self):
+                return PyArray_SIZE(self)
 
 
         # Note: This syntax (function definition in pxd files) is an
