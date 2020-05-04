@@ -244,9 +244,8 @@ cdef extern from "numpy/arrayobject.h":
 
         cdef:
             # Only taking a few of the most commonly used and stable fields.
-            char *data
-            dtype descr  # deprecated since NumPy 1.7 !
-            PyObject* base
+            dtype descr     # deprecated since NumPy 1.7 !
+            PyObject* base  # NOT PUBLIC, DO NOT USE !
 
             @property
             cdef inline int ndim(self):
@@ -263,6 +262,15 @@ cdef extern from "numpy/arrayobject.h":
             @property
             cdef inline npy_intp size(self):
                 return PyArray_SIZE(self)
+
+            @property
+            cdef inline char* data(self) nogil:
+                """The pointer to the data buffer as a char*.
+                This is provided for legacy reasons to avoid direct struct field access.
+                For new code that needs this access, you probably want to cast the result
+                of `PyArray_DATA()` instead.
+                """
+                return PyArray_BYTES(self)
 
 
         # Note: This syntax (function definition in pxd files) is an
@@ -449,8 +457,9 @@ cdef extern from "numpy/arrayobject.h":
     bint PyArray_ISFORTRAN(ndarray)
     int PyArray_FORTRANIF(ndarray)
 
-    void* PyArray_DATA(ndarray)
-    char* PyArray_BYTES(ndarray)
+    void* PyArray_DATA(ndarray) nogil
+    char* PyArray_BYTES(ndarray) nogil
+
     npy_intp* PyArray_DIMS(ndarray)
     npy_intp* PyArray_STRIDES(ndarray)
     npy_intp PyArray_DIM(ndarray, size_t)
