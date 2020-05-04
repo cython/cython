@@ -260,7 +260,7 @@ cdef extern from "numpy/arrayobject.h":
                 return PyArray_STRIDES(self)
 
             @property
-            cdef inline npy_intp size(self):
+            cdef inline npy_intp size(self) nogil:
                 return PyArray_SIZE(self)
 
             @property
@@ -560,7 +560,7 @@ cdef extern from "numpy/arrayobject.h":
     bint PyArray_CheckAnyScalar(object)
     ndarray PyArray_GETCONTIGUOUS(ndarray)
     bint PyArray_SAMESHAPE(ndarray, ndarray)
-    npy_intp PyArray_SIZE(ndarray)
+    npy_intp PyArray_SIZE(ndarray) nogil
     npy_intp PyArray_NBYTES(ndarray)
 
     object PyArray_FROM_O(object)
