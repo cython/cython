@@ -208,7 +208,7 @@ class Node(object):
 
 
     #
-    #  There are 3 phases of parse tree processing, applied in order to
+    #  There are 3 main phases of parse tree processing, applied in order to
     #  all the statements in a given scope-block:
     #
     #  (0) analyse_declarations
@@ -220,14 +220,14 @@ class Node(object):
     #         Determine the result types of expressions and fill in the
     #         'type' attribute of each ExprNode. Insert coercion nodes into the
     #         tree where needed to convert to and from Python objects.
-    #         Allocate temporary locals for intermediate results. Fill
-    #         in the 'result_code' attribute of each ExprNode with a C code
-    #         fragment.
+    #         Replace tree nodes with more appropriate implementations found by
+    #         the type analysis.
     #
     #  (2) generate_code
     #         Emit C code for all declarations, statements and expressions.
-    #         Recursively applies the 3 processing phases to the bodies of
-    #         functions.
+    #
+    #  These phases are triggered by tree transformations.
+    #  See the full pipeline in Pipeline.py.
     #
 
     def analyse_declarations(self, env):
