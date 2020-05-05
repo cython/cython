@@ -2023,8 +2023,9 @@ class FuncDefNode(StatNode, BlockNode):
                     code.putln("%s = %s;" % (Naming.retval_cname, val))
                 elif not return_type.is_void:
                     code.putln("__Pyx_pretend_to_initialize(&%s);" % Naming.retval_cname)
+
         # ----- Error cleanup
-        if code.error_label in code.labels_used:
+        if code.label_used(code.error_label):
             if not self.body.is_terminator:
                 code.put_goto(code.return_label)
             code.put_label(code.error_label)
@@ -2107,30 +2108,31 @@ class FuncDefNode(StatNode, BlockNode):
             def align_error_path_gil_to_success_path(): pass
 
         # ----- Non-error return cleanup
-        code.put_label(code.return_label)
+        if code.label_used(code.return_label) or not code.label_used(code.error_label):
+            code.put_label(code.return_label)
 
-        for entry in used_buffer_entries:
-            assure_gil('success')
-            Buffer.put_release_buffer_code(code, entry)
-        if is_getbuffer_slot:
-            assure_gil('success')
-            self.getbuffer_normal_cleanup(code)
+            for entry in used_buffer_entries:
+                assure_gil('success')
+                Buffer.put_release_buffer_code(code, entry)
+            if is_getbuffer_slot:
+                assure_gil('success')
+                self.getbuffer_normal_cleanup(code)
 
-        if return_type.is_memoryviewslice:
-            # See if our return value is uninitialized on non-error return
-            # from . import MemoryView
-            # MemoryView.err_if_nogil_initialized_check(self.pos, env)
-            cond = code.unlikely(return_type.error_condition(Naming.retval_cname))
-            code.putln(
-                'if (%s) {' % cond)
-            if not gil_owned['success']:
-                code.put_ensure_gil()
-            code.putln(
-                'PyErr_SetString(PyExc_TypeError, "Memoryview return value is not initialized");')
-            if not gil_owned['success']:
-                code.put_release_ensured_gil()
-            code.putln(
-                '}')
+            if return_type.is_memoryviewslice:
+                # See if our return value is uninitialized on non-error return
+                # from . import MemoryView
+                # MemoryView.err_if_nogil_initialized_check(self.pos, env)
+                cond = code.unlikely(return_type.error_condition(Naming.retval_cname))
+                code.putln(
+                    'if (%s) {' % cond)
+                if not gil_owned['success']:
+                    code.put_ensure_gil()
+                code.putln(
+                    'PyErr_SetString(PyExc_TypeError, "Memoryview return value is not initialized");')
+                if not gil_owned['success']:
+                    code.put_release_ensured_gil()
+                code.putln(
+                    '}')
 
         # ----- Return cleanup for both error and no-error return
         if code.label_used(code.return_from_error_cleanup_label):
