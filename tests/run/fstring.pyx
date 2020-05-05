@@ -574,6 +574,27 @@ def percent_s_unicode(u, int i):
     return u"%s-%d" % (u, i)
 
 
+@cython.test_assert_path_exists(
+    "//FormattedValueNode",
+)
+def sideeffect(l):
+    """
+    >>> class Listish(list):
+    ...     def __format__(self, format_spec):
+    ...         self.append("format called")
+    ...         return repr(self)
+    ...     def append(self, item):
+    ...         list.append(self, item)
+    ...         return self
+
+    >>> l = Listish()
+    >>> sideeffect(l)
+    [123, 'format called']
+    """
+    f"{l.append(123)}"  # unused f-string !
+    return list(l)
+
+
 ########################################
 # await inside f-string
 
