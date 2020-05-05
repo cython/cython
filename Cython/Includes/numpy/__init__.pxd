@@ -23,6 +23,15 @@ from cpython.object cimport PyObject, PyTypeObject
 from cpython.type cimport type
 cimport libc.stdio as stdio
 
+
+cdef extern from *:
+    # Leave a marker that the NumPy declarations came from Cython and not from NumPy itself.
+    # See https://github.com/cython/cython/issues/3573
+    """
+    /* Using NumPy API declarations from "Cython/Includes/numpy/" */
+    """
+
+
 cdef extern from "Python.h":
     ctypedef int Py_intptr_t
 
