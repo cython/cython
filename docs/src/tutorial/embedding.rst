@@ -50,18 +50,18 @@ Embedding example code
 ======================
 
 The following is a simple example that shows the main steps for embedding a
-Cython module (``spam.pyx``) in Python 3.x.
+Cython module (``embedded.pyx``) in Python 3.x.
 
 First, here is a Cython module that exports a C function to be called by external
 code.  Note that the ``say_hello_from_python()`` function is declared as ``public``
 to export it as a linker symbol that can be used by other C files, which in this
-case is ``spam_main.c``.
+case is ``embedded_main.c``.
 
-.. literalinclude:: ../../examples/tutorial/embedding/spam.pyx
+.. literalinclude:: ../../examples/tutorial/embedding/embedded.pyx
 
 The C ``main()`` function of your program could look like this:
 
-.. literalinclude:: ../../examples/tutorial/embedding/spam_main.c
+.. literalinclude:: ../../examples/tutorial/embedding/embedded_main.c
     :linenos:
     :language: c
 
