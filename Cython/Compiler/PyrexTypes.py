@@ -1693,18 +1693,12 @@ class PythranExpr(CType):
             scope.directives = {}
 
             scope.declare_var("ndim", c_long_type, pos=None, cname="value", is_cdef=True)
-
-            shape_type = c_ptr_type(c_long_type)
-            shape_entry = scope.declare_property(
-                "shape", doc="Pythran array shape", ctype=shape_type, pos=None)
-            shape_entry.scope.declare_cfunction(
-                name="shape",
-                type=CFuncType(shape_type, [CFuncTypeArg("self", self, pos=None)], nogil=True),
-                cname="__Pyx_PythranShapeAccessor",
-                visibility='extern',
-                pos=None,
+            scope.declare_cproperty(
+                "shape", c_ptr_type(c_long_type), "__Pyx_PythranShapeAccessor",
+                doc="Pythran array shape",
+                visibility="extern",
+                nogil=True,
             )
-
 
         return True
 

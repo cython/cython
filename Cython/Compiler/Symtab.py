@@ -2412,6 +2412,27 @@ class CClassScope(ClassScope):
         self.property_entries.append(entry)
         return entry
 
+    def declare_cproperty(self, name, type, cfunc_name, doc=None, pos=None, visibility='extern',
+                          nogil=False, with_gil=False, exception_value=None, exception_check=False):
+        """Internal convenience method to declare a C property function in one go.
+        """
+        property_entry = self.declare_property(name, doc=doc, ctype=type, pos=pos)
+        cfunc_entry = property_entry.scope.declare_cfunction(
+            name=name,
+            type=PyrexTypes.CFuncType(
+                type,
+                [PyrexTypes.CFuncTypeArg("self", self.parent_type, pos=None)],
+                nogil=nogil,
+                with_gil=with_gil,
+                exception_value=exception_value,
+                exception_check=exception_check,
+            ),
+            cname=cfunc_name,
+            visibility=visibility,
+            pos=pos,
+        )
+        return property_entry, cfunc_entry
+
     def declare_inherited_c_attributes(self, base_scope):
         # Declare entries for all the C attributes of an
         # inherited type, with cnames modified appropriately
