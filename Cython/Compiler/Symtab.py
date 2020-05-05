@@ -2413,7 +2413,8 @@ class CClassScope(ClassScope):
         return entry
 
     def declare_cproperty(self, name, type, cfunc_name, doc=None, pos=None, visibility='extern',
-                          nogil=False, with_gil=False, exception_value=None, exception_check=False):
+                          nogil=False, with_gil=False, exception_value=None, exception_check=False,
+                          utility_code=None):
         """Internal convenience method to declare a C property function in one go.
         """
         property_entry = self.declare_property(name, doc=doc, ctype=type, pos=pos)
@@ -2428,6 +2429,7 @@ class CClassScope(ClassScope):
                 exception_check=exception_check,
             ),
             cname=cfunc_name,
+            utility_code=utility_code,
             visibility=visibility,
             pos=pos,
         )
