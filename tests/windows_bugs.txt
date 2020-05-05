@@ -31,6 +31,3 @@ cpp_template_subclasses
 
 # MSVC lacks "complex.h"
 complex_numbers_cmath_T2891
-
-# Embedding seems to have a non-trivial setup on Windows
-embedded
