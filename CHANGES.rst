@@ -2,7 +2,7 @@
 Cython Changelog
 ================
 
-3.0.0 alpha 4 (2020-0?-??)
+3.0.0 alpha 4 (2020-05-??)
 ==========================
 
 Features added
@@ -16,7 +16,10 @@ Features added
   evaluation of the asserted condition only allows C expressions.
 
 * Cython generates C compiler branch hints for unlikely user defined if-clauses
-  in more cases, when they end up raising exceptions.
+  in more cases, when they end up raising exceptions unconditionally. This now
+  includes exceptions being raised in ``nogil``/``with gil`` sections.
+
+* Some internal memoryview functions were tuned to reduce object overhead.
 
 Bugs fixed
 ----------
@@ -26,9 +29,29 @@ Bugs fixed
 
 * Error handling early in the module init code could lead to a crash.
 
+* Error handling in ``cython.array`` creation was improved to avoid calling
+  C-API functions with an error held.
+
+* Complex buffer item types of structs of arrays could fail to validate.
+  Patch by Leo and smutch.  (Github issue #1407)
+
+* When importing the old Cython ``build_ext`` integration with distutils, the
+  additional command line arguments leaked into the regular command.
+  Patch by Kamekameha.  (Github issue #2209)
+
 * The improved GIL handling in ``nogil`` functions introduced in 3.0a2
   could generate invalid C code.
   (Github issue #3558)
+
+* ``PyEval_InitThreads()`` is no longer used in Py3.7+ where it is a no-op.
+
+* Parallel builds of Cython itself (``setup.py build_ext -j N``) failed on Windows.
+
+Other changes
+-------------
+
+* The C property feature has been rewritten and now requires C property methods
+  to be declared ``inline``.
 
 
 3.0.0 alpha 3 (2020-04-27)
