@@ -261,11 +261,11 @@ cdef extern from "numpy/arrayobject.h":
                 return PyArray_NDIM(self)
 
             @property
-            cdef inline npy_intp *shape(self):
+            cdef inline npy_intp *shape(self) nogil:
                 return PyArray_DIMS(self)
 
             @property
-            cdef inline npy_intp *strides(self):
+            cdef inline npy_intp *strides(self) nogil:
                 return PyArray_STRIDES(self)
 
             @property
