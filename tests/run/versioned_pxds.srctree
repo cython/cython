@@ -1,0 +1,77 @@
+# mode: run
+# tag: pxd
+
+"""
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import runner"
+"""
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+
+from distutils.core import setup, Extension
+
+setup(
+  ext_modules=cythonize([
+    Extension("nsp.m1.a", ["nsp/m1/a.pyx"]),
+    Extension("nsp.m2.b", ["nsp/m2/b.pyx"])
+  ]),
+)
+
+######## nsp/m1/__init__.py ########
+
+
+######## nsp/m1/a.pyx ########
+
+cdef class A:
+    def __init__(self):
+        self.x = 5
+
+######## nsp/m1/a.pxd ########
+
+to be ignored if there is a more specific file
+
+######## nsp/m1/a.cython-2.pxd ########
+
+very outdated, not to be picked up
+
+######## nsp/m1/a.cython-20.pxd ########
+
+outdated, not to be picked up
+
+######## nsp/m1/a.cython-29.pxd ########
+
+# closest version should get found!
+
+cdef class A:
+    cdef public float x
+
+######## nsp/m1/a.cython-300000.pxd ########
+
+Invalid distant future syntax right here!
+
+######## nsp/m1/a.cython-100000.pxd ########
+
+Invalid future syntax right here!
+
+
+######## nsp/m2/__init__.py ########
+
+######## nsp/m2/b.pyx ########
+
+from nsp.m1.a cimport A
+
+cdef class B(A):
+    pass
+
+######## runner.py ########
+
+from nsp.m1.a import A
+from nsp.m2.b import B
+
+a = A()
+b = B()
+
+assert a.x == 5
+assert isinstance(a.x, float), type(a.x)
