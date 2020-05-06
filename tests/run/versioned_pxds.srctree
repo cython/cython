@@ -14,61 +14,63 @@ from distutils.core import setup, Extension
 
 setup(
   ext_modules=cythonize([
-    Extension("nsp.m1.a", ["nsp/m1/a.pyx"]),
-    Extension("nsp.m2.b", ["nsp/m2/b.pyx"])
+    Extension("pkg.m1.a", ["pkg/m1/a.pyx"]),
+    Extension("pkg.m2.b", ["pkg/m2/b.pyx"])
   ]),
 )
 
-######## nsp/m1/__init__.py ########
+######## pkg/__init__.py ########
+
+######## pkg/m1/__init__.py ########
 
 
-######## nsp/m1/a.pyx ########
+######## pkg/m1/a.pyx ########
 
 cdef class A:
     def __init__(self):
         self.x = 5
 
-######## nsp/m1/a.pxd ########
+######## pkg/m1/a.pxd ########
 
 to be ignored if there is a more specific file
 
-######## nsp/m1/a.cython-2.pxd ########
+######## pkg/m1/a.cython-2.pxd ########
 
 very outdated, not to be picked up
 
-######## nsp/m1/a.cython-20.pxd ########
+######## pkg/m1/a.cython-20.pxd ########
 
 outdated, not to be picked up
 
-######## nsp/m1/a.cython-29.pxd ########
+######## pkg/m1/a.cython-29.pxd ########
 
 # closest version should get found!
 
 cdef class A:
     cdef public float x
 
-######## nsp/m1/a.cython-300000.pxd ########
+######## pkg/m1/a.cython-300000.pxd ########
 
 Invalid distant future syntax right here!
 
-######## nsp/m1/a.cython-100000.pxd ########
+######## pkg/m1/a.cython-100000.pxd ########
 
 Invalid future syntax right here!
 
 
-######## nsp/m2/__init__.py ########
+######## pkg/m2/__init__.py ########
 
-######## nsp/m2/b.pyx ########
+######## pkg/m2/b.pyx ########
 
-from nsp.m1.a cimport A
+from pkg.m1.a cimport A
 
 cdef class B(A):
     pass
 
 ######## runner.py ########
 
-from nsp.m1.a import A
-from nsp.m2.b import B
+from pkg.m1.a import A
+from pkg.m2.b import B
 
 a = A()
 b = B()
