@@ -1,6 +1,6 @@
 # cython: language_level=3, auto_pickle=False
 
-from cpython.ref cimport PyObject, Py_INCREF, Py_DECREF, Py_XDECREF, Py_XINCREF
+from cpython.ref cimport PyObject, Py_INCREF, Py_CLEAR, Py_XDECREF, Py_XINCREF
 from cpython.exc cimport PyErr_Fetch, PyErr_Restore
 from cpython.pystate cimport PyThreadState_Get
 
@@ -50,12 +50,11 @@ cdef class Context(object):
         if count == 0:
             self.errors.append(f"Too many decrefs on line {lineno}, reference acquired on lines {linenumbers!r}")
             return False
-        elif count == 1:
+        if count == 1:
             del self.refs[id_]
-            return True
         else:
             self.refs[id_] = (count - 1, linenumbers)
-            return True
+        return True
 
     cdef end(self):
         if self.refs:
@@ -63,10 +62,7 @@ cdef class Context(object):
             for count, linenos in self.refs.itervalues():
                 msg += f"\n  ({count}) acquired on lines: {u', '.join([f'{x}' for x in linenos])}"
             self.errors.append(msg)
-        if self.errors:
-            return u"\n".join([u'REFNANNY: '+error for error in self.errors])
-        else:
-            return None
+        return u"\n".join([f'REFNANNY: {error}' for error in self.errors]) if self.errors else None
 
 cdef void report_unraisable(object e=None):
     try:
@@ -74,8 +70,8 @@ cdef void report_unraisable(object e=None):
             import sys
             e = sys.exc_info()[1]
         print(f"refnanny raised an exception: {e}")
-    except:
-        pass # We absolutely cannot exit with an exception
+    finally:
+        return  # We absolutely cannot exit with an exception
 
 # All Python operations must happen after any existing
 # exception has been fetched, in case we are called from
@@ -88,7 +84,6 @@ cdef PyObject* SetupContext(char* funcname, int lineno, char* filename) except N
         # like caching and resetting exceptions.
         return NULL
     cdef (PyObject*) type = NULL, value = NULL, tb = NULL, result = NULL
-    PyThreadState_Get()
     PyErr_Fetch(&type, &value, &tb)
     try:
         ctx = Context(funcname, lineno, filename)
@@ -104,17 +99,16 @@ cdef void GOTREF(PyObject* ctx, PyObject* p_obj, int lineno):
     cdef (PyObject*) type = NULL, value = NULL, tb = NULL
     PyErr_Fetch(&type, &value, &tb)
     try:
-        try:
-            if p_obj is NULL:
-                (<Context>ctx).regref(None, lineno, True)
-            else:
-                (<Context>ctx).regref(<object>p_obj, lineno, False)
-        except:
-            report_unraisable()
+        (<Context>ctx).regref(
+            <object>p_obj if p_obj is not NULL else None,
+            lineno,
+            is_null=p_obj is NULL,
+        )
     except:
-        # __Pyx_GetException may itself raise errors
-        pass
-    PyErr_Restore(type, value, tb)
+        report_unraisable()
+    finally:
+        PyErr_Restore(type, value, tb)
+        return  # swallow any exceptions
 
 cdef int GIVEREF_and_report(PyObject* ctx, PyObject* p_obj, int lineno):
     if ctx == NULL: return 1
@@ -122,18 +116,16 @@ cdef int GIVEREF_and_report(PyObject* ctx, PyObject* p_obj, int lineno):
     cdef bint decref_ok = False
     PyErr_Fetch(&type, &value, &tb)
     try:
-        try:
-            if p_obj is NULL:
-                decref_ok = (<Context>ctx).delref(None, lineno, True)
-            else:
-                decref_ok = (<Context>ctx).delref(<object>p_obj, lineno, False)
-        except:
-            report_unraisable()
+        decref_ok = (<Context>ctx).delref(
+            <object>p_obj if p_obj is not NULL else None,
+            lineno,
+            is_null=p_obj is NULL,
+        )
     except:
-        # __Pyx_GetException may itself raise errors
-        pass
-    PyErr_Restore(type, value, tb)
-    return decref_ok
+        report_unraisable()
+    finally:
+        PyErr_Restore(type, value, tb)
+        return decref_ok  # swallow any exceptions
 
 cdef void GIVEREF(PyObject* ctx, PyObject* p_obj, int lineno):
     GIVEREF_and_report(ctx, p_obj, lineno)
@@ -153,24 +145,20 @@ cdef void FinishContext(PyObject** ctx):
     cdef (PyObject*) type = NULL, value = NULL, tb = NULL
     cdef object errors = None
     cdef Context context
-    PyThreadState_Get()
     PyErr_Fetch(&type, &value, &tb)
     try:
-        try:
-            context = <Context>ctx[0]
-            errors = context.end()
-            if errors:
-                print(f"{context.filename.decode('latin1')}: {context.name.decode('latin1')}()")
-                print(errors)
-            context = None
-        except:
-            report_unraisable()
+        context = <Context>ctx[0]
+        errors = context.end()
+        if errors:
+            print(f"{context.filename.decode('latin1')}: {context.name.decode('latin1')}()")
+            print(errors)
+        context = None
     except:
-        # __Pyx_GetException may itself raise errors
-        pass
-    Py_XDECREF(ctx[0])
-    ctx[0] = NULL
-    PyErr_Restore(type, value, tb)
+        report_unraisable()
+    finally:
+        Py_CLEAR(ctx[0])
+        PyErr_Restore(type, value, tb)
+        return  # swallow any exceptions
 
 ctypedef struct RefNannyAPIStruct:
   void (*INCREF)(PyObject*, PyObject*, int)
