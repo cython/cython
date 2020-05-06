@@ -290,7 +290,7 @@ class Context(object):
             if kind == "cimport":
                 dep_path = self.find_pxd_file(name, pos)
             elif kind == "include":
-                dep_path = self.search_include_directories(name, pos)
+                dep_path = self.search_include_directories(name, "", pos)
             else:
                 continue
             if dep_path and Utils.file_newer_than(dep_path, c_time):
