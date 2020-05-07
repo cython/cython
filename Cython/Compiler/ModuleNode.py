@@ -243,13 +243,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             h_code.putln("")
             h_code.putln("#if PY_MINOR_VERSION >= 5 && (defined(__GNUC__) || defined(__clang__) || defined(_MSC_VER))")
             h_code.putln("#if defined(__GNUC__) || defined(__clang__)")
-            h_code.putln('__attribute__ ((__deprecated__(%s" %s"), __unused__))' % (
+            h_code.putln('__attribute__ ((__deprecated__(%s" %s"), __unused__)) __inline__' % (
                 warning_string1.as_c_string_literal(), warning_string2))
             h_code.putln("#elif defined(_MSC_VER)")
-            h_code.putln('__declspec(deprecated(%s" %s"))' % (
+            h_code.putln('__declspec(deprecated(%s" %s")) __inline' % (
                 warning_string1.as_c_string_literal(), warning_string2))
             h_code.putln('#endif')
-            h_code.putln("inline PyObject* __PYX_WARN_IF_INIT_CALLED(PyObject* res) {")
+            h_code.putln("PyObject* __PYX_WARN_IF_INIT_CALLED(PyObject* res) {")
             h_code.putln("return res;")
             h_code.putln("}")
             # Function call is converted to warning macro; uncalled (pointer) is not
