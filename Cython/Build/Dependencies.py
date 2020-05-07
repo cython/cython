@@ -1021,7 +1021,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                 ext = '.pyx'
                 source = base + ext
             if ext in ('.pyx', '.py'):
-                if m.np_pythran:
+                if getattr(m, 'np_pythran', False):
                     c_file = base + '.cpp'
                     options = pythran_options
                 elif m.language == 'c++':
