@@ -647,7 +647,7 @@ class TestBuilder(object):
         if sys.platform not in ['win32'] and self.add_embedded_test:
             # Non-Windows makefile.
             if [1 for selector in self.selectors if selector("embedded")] \
-                and not [1 for selector in self.exclude_selectors if selector("embedded")]:
+                    and not [1 for selector in self.exclude_selectors if selector("embedded")]:
                 suite.addTest(unittest.makeSuite(EmbedTest))
         return suite
 
