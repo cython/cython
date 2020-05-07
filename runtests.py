@@ -66,7 +66,6 @@ except NameError:
     basestring = str
 
 WITH_CYTHON = True
-CY3_DIR = None
 
 from distutils.command.build_ext import build_ext as _build_ext
 from distutils import sysconfig
@@ -1809,10 +1808,7 @@ class EmbedTest(unittest.TestCase):
                 if not os.path.isdir(libdir) or libname not in os.listdir(libdir):
                     # report the error for the original directory
                     libdir = sysconfig.get_config_var('LIBDIR')
-        cython = 'cython.py'
-        if sys.version_info[0] >=3 and CY3_DIR:
-            cython = os.path.join(CY3_DIR, cython)
-        cython = os.path.abspath(os.path.join('..', '..', cython))
+        cython = os.path.abspath(os.path.join('..', '..', 'cython.py'))
 
         try:
             subprocess.check_output([
