@@ -234,22 +234,21 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             h_code.putln("PyMODINIT_FUNC init%s(void);" % py2_mod_name)
             h_code.putln("#else")
             py3_mod_func_name = self.mod_init_func_cname('PyInit', env)
-            warning_string1 = EncodedString('Use PyImport_AppendInittab("%s", %s)' % (
-                                    py2_mod_name, py3_mod_func_name))
-            warning_string2 = 'instead of calling %s directly.' % py3_mod_func_name
-            h_code.putln('/* WARNING: From Python 3.5 %s */' % warning_string1)
-            h_code.putln("/* %s */" % warning_string2)
+            warning_string = EncodedString(
+                'Use PyImport_AppendInittab("%s", %s) instead of calling %s directly.' % (
+                                    py2_mod_name, py3_mod_func_name, py3_mod_func_name))
+            h_code.putln('/* WARNING: From Python 3.5 %s */' % warning_string)
             h_code.putln("PyMODINIT_FUNC %s(void);" % py3_mod_func_name)
             h_code.putln("")
             h_code.putln("#if PY_MINOR_VERSION >= 5 && (defined(__GNUC__) || defined(__clang__) || defined(_MSC_VER))")
             h_code.putln("#if defined(__GNUC__) || defined(__clang__)")
-            h_code.putln('__attribute__ ((__deprecated__(%s" %s"), __unused__)) __inline__' % (
-                warning_string1.as_c_string_literal(), warning_string2))
+            h_code.putln('__attribute__ ((__deprecated__(%s), __unused__)) __inline__' % (
+                            warning_string.as_c_string_literal()))
             h_code.putln("#elif defined(_MSC_VER)")
-            h_code.putln('__declspec(deprecated(%s" %s")) __inline' % (
-                warning_string1.as_c_string_literal(), warning_string2))
+            h_code.putln('__declspec(deprecated(%s)) __inline' % (
+                            warning_string.as_c_string_literal()))
             h_code.putln('#endif')
-            h_code.putln("PyObject* __PYX_WARN_IF_INIT_CALLED(PyObject* res) {")
+            h_code.putln("static PyObject* __PYX_WARN_IF_INIT_CALLED(PyObject* res) {")
             h_code.putln("return res;")
             h_code.putln("}")
             # Function call is converted to warning macro; uncalled (pointer) is not
