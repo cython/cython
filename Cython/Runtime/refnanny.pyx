@@ -84,6 +84,7 @@ cdef PyObject* SetupContext(char* funcname, int lineno, char* filename) except N
         # like caching and resetting exceptions.
         return NULL
     cdef (PyObject*) type = NULL, value = NULL, tb = NULL, result = NULL
+    PyThreadState_Get()  # Check that we hold the GIL
     PyErr_Fetch(&type, &value, &tb)
     try:
         ctx = Context(funcname, lineno, filename)
@@ -132,19 +133,20 @@ cdef void GIVEREF(PyObject* ctx, PyObject* p_obj, int lineno):
 
 cdef void INCREF(PyObject* ctx, PyObject* obj, int lineno):
     Py_XINCREF(obj)
-    PyThreadState_Get()
+    PyThreadState_Get()  # Check that we hold the GIL
     GOTREF(ctx, obj, lineno)
 
 cdef void DECREF(PyObject* ctx, PyObject* obj, int lineno):
     if GIVEREF_and_report(ctx, obj, lineno):
         Py_XDECREF(obj)
-    PyThreadState_Get()
+    PyThreadState_Get()  # Check that we hold the GIL
 
 cdef void FinishContext(PyObject** ctx):
     if ctx == NULL or ctx[0] == NULL: return
     cdef (PyObject*) type = NULL, value = NULL, tb = NULL
     cdef object errors = None
     cdef Context context
+    PyThreadState_Get()  # Check that we hold the GIL
     PyErr_Fetch(&type, &value, &tb)
     try:
         context = <Context>ctx[0]
