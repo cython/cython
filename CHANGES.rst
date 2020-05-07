@@ -2,6 +2,30 @@
 Cython Changelog
 ================
 
+3.0.0 alpha 5 (2020-0?-??)
+==========================
+
+Features added
+--------------
+
+* ``.pxd`` files can now be versioned by adding an extension like "``.cython-30.pxd``"
+  to prevent older Cython versions (than 3.0 in this case) from picking them up.
+  (Github issue #3577)
+
+* Several macros/functions declared in the NumPy API are now usable without
+  holding the GIL.
+
+Bugs fixed
+----------
+
+* The outdated getbuffer/releasebuffer implementations in the NumPy
+  declarations were removed so that buffers declared as ``ndarray``
+  now use the normal implementation in NumPy.
+
+* The non-public NumPy array specific ``INCREF``/``XDECREF`` functions
+  were removed from the NumPy declarations.
+
+
 3.0.0 alpha 4 (2020-05-05)
 ==========================
 
