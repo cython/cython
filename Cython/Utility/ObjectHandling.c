@@ -1132,7 +1132,7 @@ static PyObject *__Pyx_InitSubclassPEP487(PyObject *type_obj, PyObject *mkw) {
     if (unlikely(!mro)) goto done;
 
     // avoid "unused" warning
-    (void) __Pyx_GetBuiltinName;
+    (void) &__Pyx_GetBuiltinName;
 
     Py_INCREF(mro);
     nbases = PyTuple_GET_SIZE(mro);
@@ -1183,7 +1183,7 @@ bad:
 #else
     super_type = (PyObject*) &PySuper_Type;
     // avoid "unused" warning
-    (void) __Pyx_GetBuiltinName;
+    (void) &__Pyx_GetBuiltinName;
 #endif
     super = likely(super_type) ? __Pyx_PyObject_Call2Args(super_type, type_obj, type_obj) : NULL;
 #if CYTHON_COMPILING_IN_PYPY && !defined(PySuper_Type)
@@ -1257,7 +1257,7 @@ static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObj
     }
 #else
     // avoid "unused" warning
-    (void) __Pyx_GetBuiltinName;
+    (void) &__Pyx_GetBuiltinName;
 #endif
     return result;
 }
