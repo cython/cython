@@ -667,42 +667,38 @@ def search_include_directories(dirs, qualified_name, suffix, pos, include=False)
         names = qualified_name.split('.')
         package_names = tuple(names[:-1])
         module_name = names[-1]
-        module_filename = module_name + suffix
-        package_filename = "__init__" + suffix
 
         # search for standard packages first - PEP420
         namespace_dirs = []
         for dirname in dirs:
             package_dir, is_namespace = Utils.check_package_dir(dirname, package_names)
             if package_dir is not None:
-
                 if is_namespace:
                     namespace_dirs.append(package_dir)
                     continue
-
-                # matches modules of the form: <dir>/foo/bar.pxd
-                path = os.path.join(package_dir, module_filename)
-                if os.path.exists(path):
-                    return path
-
-                # matches modules of the form: <dir>/foo/bar/__init__.pxd
-                path = os.path.join(package_dir, module_name, package_filename)
-                if os.path.exists(path):
+                path = search_module_in_dir(package_dir, module_name, suffix)
+                if path:
                     return path
 
         # search for namespaces second - PEP420
         for package_dir in namespace_dirs:
-            # matches modules of the form: <dir>/foo/bar.pxd
-            path = os.path.join(package_dir, module_filename)
-            if os.path.exists(path):
-                return path
-
-            # matches modules of the form: <dir>/foo/bar/__init__.pxd
-            path = os.path.join(package_dir, module_name, package_filename)
-            if os.path.exists(path):
+            path = search_module_in_dir(package_dir, module_name, suffix)
+            if path:
                 return path
 
     return None
+
+
+@Utils.cached_function
+def search_module_in_dir(package_dir, module_name, suffix):
+    # matches modules of the form: <dir>/foo/bar.pxd
+    path = Utils.find_versioned_file(package_dir, module_name, suffix)
+
+    # matches modules of the form: <dir>/foo/bar/__init__.pxd
+    if not path and suffix:
+        path = Utils.find_versioned_file(os.path.join(package_dir, module_name), "__init__", suffix)
+
+    return path
 
 
 # ------------------------------------------------------------------------
