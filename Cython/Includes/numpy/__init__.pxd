@@ -251,35 +251,57 @@ cdef extern from "numpy/arrayobject.h":
     ctypedef class numpy.ndarray [object PyArrayObject, check_size ignore]:
         cdef __cythonbufferdefaults__ = {"mode": "strided"}
 
-        cdef:
-            # Only taking a few of the most commonly used and stable fields.
-            dtype descr     # deprecated since NumPy 1.7 !
-            PyObject* base  # NOT PUBLIC, DO NOT USE !
+        # NOTE: no field declarations since direct access is deprecated since NumPy 1.7
+        # Instead, we use properties that map to the corresponding C-API functions.
 
-            @property
-            cdef inline int ndim(self):
-                return PyArray_NDIM(self)
+        @property
+        cdef inline PyObject* base(self) nogil:
+            """Returns a borrowed reference to the object owning the data/memory.
+            """
+            return PyArray_BASE(self)
 
-            @property
-            cdef inline npy_intp *shape(self) nogil:
-                return PyArray_DIMS(self)
+        @property
+        cdef inline dtype descr(self):
+            """Returns an owned reference to the dtype of the array.
+            """
+            return <dtype>PyArray_DESCR(self)
 
-            @property
-            cdef inline npy_intp *strides(self) nogil:
-                return PyArray_STRIDES(self)
+        @property
+        cdef inline int ndim(self) nogil:
+            """Returns the number of dimensions in the array.
+            """
+            return PyArray_NDIM(self)
 
-            @property
-            cdef inline npy_intp size(self) nogil:
-                return PyArray_SIZE(self)
+        @property
+        cdef inline npy_intp *shape(self) nogil:
+            """Returns a pointer to the dimensions/shape of the array.
+            The number of elements matches the number of dimensions of the array (ndim).
+            Can return NULL for 0-dimensional arrays.
+            """
+            return PyArray_DIMS(self)
 
-            @property
-            cdef inline char* data(self) nogil:
-                """The pointer to the data buffer as a char*.
-                This is provided for legacy reasons to avoid direct struct field access.
-                For new code that needs this access, you probably want to cast the result
-                of `PyArray_DATA()` instead.
-                """
-                return PyArray_BYTES(self)
+        @property
+        cdef inline npy_intp *strides(self) nogil:
+            """Returns a pointer to the strides of the array.
+            The number of elements matches the number of dimensions of the array (ndim).
+            """
+            return PyArray_STRIDES(self)
+
+        @property
+        cdef inline npy_intp size(self) nogil:
+            """Returns the total size (in number of elements) of the array.
+            """
+            return PyArray_SIZE(self)
+
+        @property
+        cdef inline char* data(self) nogil:
+            """The pointer to the data buffer as a char*.
+            This is provided for legacy reasons to avoid direct struct field access.
+            For new code that needs this access, you probably want to cast the result
+            of `PyArray_DATA()` instead, which returns a 'void*'.
+            """
+            return PyArray_BYTES(self)
+
 
     ctypedef unsigned char      npy_bool
 
@@ -363,17 +385,17 @@ cdef extern from "numpy/arrayobject.h":
     #
     # Macros from ndarrayobject.h
     #
-    bint PyArray_CHKFLAGS(ndarray m, int flags)
-    bint PyArray_IS_C_CONTIGUOUS(ndarray arr)
-    bint PyArray_IS_F_CONTIGUOUS(ndarray arr)
-    bint PyArray_ISCONTIGUOUS(ndarray m)
-    bint PyArray_ISWRITEABLE(ndarray m)
-    bint PyArray_ISALIGNED(ndarray m)
+    bint PyArray_CHKFLAGS(ndarray m, int flags) nogil
+    bint PyArray_IS_C_CONTIGUOUS(ndarray arr) nogil
+    bint PyArray_IS_F_CONTIGUOUS(ndarray arr) nogil
+    bint PyArray_ISCONTIGUOUS(ndarray m) nogil
+    bint PyArray_ISWRITEABLE(ndarray m) nogil
+    bint PyArray_ISALIGNED(ndarray m) nogil
 
-    int PyArray_NDIM(ndarray)
-    bint PyArray_ISONESEGMENT(ndarray)
-    bint PyArray_ISFORTRAN(ndarray)
-    int PyArray_FORTRANIF(ndarray)
+    int PyArray_NDIM(ndarray) nogil
+    bint PyArray_ISONESEGMENT(ndarray) nogil
+    bint PyArray_ISFORTRAN(ndarray) nogil
+    int PyArray_FORTRANIF(ndarray) nogil
 
     void* PyArray_DATA(ndarray) nogil
     char* PyArray_BYTES(ndarray) nogil
@@ -383,9 +405,12 @@ cdef extern from "numpy/arrayobject.h":
     npy_intp PyArray_DIM(ndarray, size_t) nogil
     npy_intp PyArray_STRIDE(ndarray, size_t) nogil
 
-    PyObject *PyArray_BASE(ndarray)  # returns borrowed reference!
-    PyArray_Descr *PyArray_DESCR(ndarray) # returns borrowed reference to dtype!
-    int PyArray_FLAGS(ndarray)
+    PyObject *PyArray_BASE(ndarray) nogil  # returns borrowed reference!
+    PyArray_Descr *PyArray_DESCR(ndarray) nogil # returns borrowed reference to dtype!
+    PyArray_Descr *PyArray_DTYPE(ndarray) nogil # returns borrowed reference to dtype! NP 1.7+ alias for descr.
+    int PyArray_FLAGS(ndarray) nogil
+    void PyArray_CLEARFLAGS(ndarray, int flags) nogil  # Added in NumPy 1.7
+    void PyArray_ENABLEFLAGS(ndarray, int flags) nogil  # Added in NumPy 1.7
     npy_intp PyArray_ITEMSIZE(ndarray) nogil
     int PyArray_TYPE(ndarray arr) nogil
 
@@ -471,13 +496,13 @@ cdef extern from "numpy/arrayobject.h":
     bint PyArray_IsZeroDim(object)
     # Cannot be supported due to ## ## in macro:
     # bint PyArray_IsScalar(object, verbatim work)
-    bint PyArray_CheckScalar(object) nogil
-    bint PyArray_IsPythonNumber(object) nogil
-    bint PyArray_IsPythonScalar(object) nogil
-    bint PyArray_IsAnyScalar(object) nogil
-    bint PyArray_CheckAnyScalar(object) nogil
+    bint PyArray_CheckScalar(object)
+    bint PyArray_IsPythonNumber(object)
+    bint PyArray_IsPythonScalar(object)
+    bint PyArray_IsAnyScalar(object)
+    bint PyArray_CheckAnyScalar(object)
 
-    ndarray PyArray_GETCONTIGUOUS(ndarray) nogil
+    ndarray PyArray_GETCONTIGUOUS(ndarray)
     bint PyArray_SAMESHAPE(ndarray, ndarray) nogil
     npy_intp PyArray_SIZE(ndarray) nogil
     npy_intp PyArray_NBYTES(ndarray) nogil
