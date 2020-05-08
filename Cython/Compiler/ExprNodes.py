@@ -3293,7 +3293,7 @@ class FormattedValueNode(ExprNode):
     # {}-delimited portions of an f-string
     #
     # value           ExprNode                The expression itself
-    # conversion_char str or None             Type conversion (!s, !r, !a, or none)
+    # conversion_char str or None             Type conversion (!s, !r, !a, or none, or 'd' for integer conversion)
     # format_spec     JoinedStrNode or None   Format string passed to __format__
     # c_format_spec   str or None             If not None, formatting can be done at the C level
 
@@ -3308,6 +3308,7 @@ class FormattedValueNode(ExprNode):
         's': 'PyObject_Unicode',
         'r': 'PyObject_Repr',
         'a': 'PyObject_ASCII',  # NOTE: mapped to PyObject_Repr() in Py2
+        'd': '__Pyx_PyNumber_IntOrLong',  # NOTE: internal mapping for '%d' formatting
     }.get
 
     def may_be_none(self):
