@@ -10,6 +10,9 @@ loglevel = 0
 reflog = []
 
 cdef log(level, action, obj, lineno):
+    if reflog is None:
+        # can happen during finalisation
+        return
     if loglevel >= level:
         reflog.append((lineno, action, id(obj)))
 
@@ -64,14 +67,16 @@ cdef class Context(object):
             self.errors.append(msg)
         return u"\n".join([f'REFNANNY: {error}' for error in self.errors]) if self.errors else None
 
-cdef void report_unraisable(object e=None):
+
+cdef void report_unraisable(filename, int lineno, object e=None):
     try:
         if e is None:
             import sys
             e = sys.exc_info()[1]
-        print(f"refnanny raised an exception: {e}")
+        print(f"refnanny raised an exception from {filename}:{lineno}: {e}")
     finally:
         return  # We absolutely cannot exit with an exception
+
 
 # All Python operations must happen after any existing
 # exception has been fetched, in case we are called from
@@ -91,7 +96,7 @@ cdef PyObject* SetupContext(char* funcname, int lineno, char* filename) except N
         Py_INCREF(ctx)
         result = <PyObject*>ctx
     except Exception, e:
-        report_unraisable(e)
+        report_unraisable(filename, lineno, e)
     PyErr_Restore(type, value, tb)
     return result
 
@@ -106,7 +111,7 @@ cdef void GOTREF(PyObject* ctx, PyObject* p_obj, int lineno):
             is_null=p_obj is NULL,
         )
     except:
-        report_unraisable()
+        report_unraisable((<Context>ctx).filename, lineno=(<Context>ctx).start)
     finally:
         PyErr_Restore(type, value, tb)
         return  # swallow any exceptions
@@ -123,7 +128,7 @@ cdef int GIVEREF_and_report(PyObject* ctx, PyObject* p_obj, int lineno):
             is_null=p_obj is NULL,
         )
     except:
-        report_unraisable()
+        report_unraisable((<Context>ctx).filename, lineno=(<Context>ctx).start)
     finally:
         PyErr_Restore(type, value, tb)
         return decref_ok  # swallow any exceptions
@@ -156,7 +161,10 @@ cdef void FinishContext(PyObject** ctx):
             print(errors)
         context = None
     except:
-        report_unraisable()
+        report_unraisable(
+            context.filename if context is not None else None,
+            lineno=context.start if context is not None else 0,
+        )
     finally:
         Py_CLEAR(ctx[0])
         PyErr_Restore(type, value, tb)
