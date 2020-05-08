@@ -676,7 +676,7 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStr(PyObject *dict, PyObject
 #define __Pyx_PyDict_GetItemStr           PyDict_GetItem
 #else
 static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict, PyObject *name) {
-    PyObject *res = PyObject_GetItem(dict, name);
+    PyObject *res = PyDict_GetItem(dict, name);
     if (res == NULL && PyErr_ExceptionMatches(PyExc_KeyError))
         PyErr_Clear();
     return res;
