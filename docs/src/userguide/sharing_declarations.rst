@@ -226,3 +226,18 @@ Some things to note about this example:
   ``egg`` file which will not work with ``cimport`` for ``pxd`` files
   when you try to use them from a dependent package.
   To prevent this, include ``zip_safe=False`` in the arguments to ``setup()``.
+
+Versioning
+==========
+  
+``.pxd`` files can be labelled with a minimum Cython version as part of
+their file name, similar to the version tagging of `.so` files in PEP 3149.
+For example a file called :file:`Shrubbing.cython-30.pxd` will only be
+found by ``cimport Shrubbing`` on Cython 3.0 and higher. Cython will use the
+file tagged with the highest compatible version number.
+ 
+The purpose of this feature is to allow third-party packages to release
+Cython interfaces to their packages that take advantage of the latest Cython
+features while not breaking compatibility for users with older versions of Cython.
+Users intending to use ``.pxd`` files solely within their own project
+need not produce these tagged files.
