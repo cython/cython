@@ -231,10 +231,14 @@ Versioning
 ==========
   
 ``.pxd`` files can be labelled with a minimum Cython version as part of
-their file name, similar to the version tagging of `.so` files in PEP 3149.
+their file name, similar to the version tagging of ``.so`` files in PEP 3149.
 For example a file called :file:`Shrubbing.cython-30.pxd` will only be
 found by ``cimport Shrubbing`` on Cython 3.0 and higher. Cython will use the
 file tagged with the highest compatible version number.
+ 
+Note that versioned files that are distributed across different directories
+will not be found. Only the first directory in the Python module search
+path in which a matching ``.pxd`` file is found will be considered.
  
 The purpose of this feature is to allow third-party packages to release
 Cython interfaces to their packages that take advantage of the latest Cython
