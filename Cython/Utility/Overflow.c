@@ -46,6 +46,14 @@ static int __Pyx_check_twos_complement(void) {
 #define __Pyx_div_no_overflow(a, b, overflow) ((a) / (b))
 #define __Pyx_div_const_no_overflow(a, b, overflow) ((a) / (b))
 
+#if defined(__GNUC__)
+#  define __Pyx_constant_p(x) (__builtin_constant_p(x))
+#elif (defined(__has_builtin) && __has_builtin(__builtin_constant_p))
+#  define __Pyx_constant_p(x) (__builtin_constant_p(x))
+#else
+#  define __Pyx_constant_p(x) (0)
+#endif
+
 /////////////// Common.init ///////////////
 //@substitute: naming
 
@@ -82,7 +90,12 @@ static CYTHON_INLINE {{UINT}} __Pyx_sub_{{NAME}}_checking_overflow({{UINT}} a, {
 }
 
 static CYTHON_INLINE {{UINT}} __Pyx_mul_{{NAME}}_checking_overflow({{UINT}} a, {{UINT}} b, int *overflow) {
-    if ((sizeof({{UINT}}) < sizeof(unsigned long))) {
+    // if we have a constant, use the constant version
+    if (__Pyx_constant_p(b)) {
+        return __Pyx_mul_const_{{NAME}}_checking_overflow(a, b, overflow);
+    } else if (__Pyx_constant_p(a)) {
+        return __Pyx_mul_const_{{NAME}}_checking_overflow(b, a, overflow);
+    } else if ((sizeof({{UINT}}) < sizeof(unsigned long))) {
         unsigned long big_r = ((unsigned long) a) * ((unsigned long) b);
         {{UINT}} r = ({{UINT}}) big_r;
         *overflow |= big_r != r;
@@ -95,20 +108,28 @@ static CYTHON_INLINE {{UINT}} __Pyx_mul_{{NAME}}_checking_overflow({{UINT}} a, {
         return r;
 #endif
     } else {
-        {{UINT}} prod = a * b;
-        double dprod = ((double) a) * ((double) b);
+        // somewhat surprisingly, at least on x86_64 it's quicker to use floats (c.f. the const
+        // variant below)
+        {{UINT}} r = a * b;
+        float fprod = ((float) a) * ((float) b);
         // Overflow results in an error of at least 2^sizeof(UINT),
-        // whereas rounding represents an error on the order of 2^(sizeof(UINT)-53).
-        *overflow |= fabs(dprod - prod) > (__PYX_MAX({{UINT}}) / 2);
-        return prod;
+        // whereas rounding represents an error on the order of 2^(sizeof(UINT)-23).
+        *overflow |= fabs(fprod - r) > ((float)(__PYX_MAX({{UINT}})) / 2);
+        return r;
     }
 }
 
 static CYTHON_INLINE {{UINT}} __Pyx_mul_const_{{NAME}}_checking_overflow({{UINT}} a, {{UINT}} b, int *overflow) {
-    if (b > 1) {
-        *overflow |= a > __PYX_MAX({{UINT}}) / b;
+    if (__Pyx_constant_p(a) && !__Pyx_constant_p(b)) {
+        // paranoia
+        {{UINT}} temp = b;
+        b = a;
+        a = temp;
     }
-    return a * b;
+    {{UINT}} prod = a * b;
+    if (b != 0)
+        *overflow |= a > (__PYX_MAX({{UINT}}) / b);
+    return prod;
 }
 
 
@@ -130,8 +151,8 @@ static CYTHON_INLINE {{INT}} __Pyx_div_{{NAME}}_checking_overflow({{INT}} a, {{I
 
 
 // Use when b is known at compile time.
-static CYTHON_INLINE {{INT}} __Pyx_add_const_{{NAME}}_checking_overflow({{INT}} a, {{INT}} b, int *overflow);
-static CYTHON_INLINE {{INT}} __Pyx_sub_const_{{NAME}}_checking_overflow({{INT}} a, {{INT}} b, int *overflow);
+#define __Pyx_add_const_{{NAME}}_checking_overflow __Pyx_add_{{NAME}}_checking_overflow
+#define __Pyx_sub_const_{{NAME}}_checking_overflow __Pyx_sub_{{NAME}}_checking_overflow
 static CYTHON_INLINE {{INT}} __Pyx_mul_const_{{NAME}}_checking_overflow({{INT}} a, {{INT}} constant, int *overflow);
 #define __Pyx_div_const_{{NAME}}_checking_overflow __Pyx_div_{{NAME}}_checking_overflow
 
@@ -152,39 +173,30 @@ static CYTHON_INLINE {{INT}} __Pyx_add_{{NAME}}_checking_overflow({{INT}} a, {{I
 #endif
     } else {
         // Signed overflow undefined, but unsigned overflow is well defined.
-        {{INT}} r = ({{INT}}) ((unsigned {{INT}}) a + (unsigned {{INT}}) b);
+        unsigned {{INT}} r = (unsigned {{INT}}) a + (unsigned {{INT}}) b;
         // Overflow happened if the operands have the same sign, but the result
         // has opposite sign.
-        // sign(a) == sign(b) != sign(r)
-        {{INT}} sign_a = __PYX_SIGN_BIT({{INT}}) & a;
-        {{INT}} sign_b = __PYX_SIGN_BIT({{INT}}) & b;
-        {{INT}} sign_r = __PYX_SIGN_BIT({{INT}}) & r;
-        *overflow |= (sign_a == sign_b) & (sign_a != sign_r);
-        return r;
+        *overflow |= (((unsigned {{INT}})a ^ r) & ((unsigned {{INT}})b ^ r)) >> (8 * sizeof({{INT}}) - 1);
+        return ({{INT}}) r;
     }
-}
-
-static CYTHON_INLINE {{INT}} __Pyx_add_const_{{NAME}}_checking_overflow({{INT}} a, {{INT}} b, int *overflow) {
-    if (b > 0) {
-        *overflow |= a > __PYX_MAX({{INT}}) - b;
-    } else if (b < 0) {
-        *overflow |= a < __PYX_MIN({{INT}}) - b;
-    }
-    return ({{INT}}) ((unsigned {{INT}}) a + (unsigned {{INT}}) b);
 }
 
 static CYTHON_INLINE {{INT}} __Pyx_sub_{{NAME}}_checking_overflow({{INT}} a, {{INT}} b, int *overflow) {
-    *overflow |= b == __PYX_MIN({{INT}});
-    return __Pyx_add_{{NAME}}_checking_overflow(a, ({{INT}}) -((unsigned {{INT}}) b), overflow);
-}
-
-static CYTHON_INLINE {{INT}} __Pyx_sub_const_{{NAME}}_checking_overflow({{INT}} a, {{INT}} b, int *overflow) {
-    *overflow |= b == __PYX_MIN({{INT}});
-    return __Pyx_add_const_{{NAME}}_checking_overflow(a, ({{INT}}) -((unsigned {{INT}}) b), overflow);
+    // Compilers don't handle widening as well in the subtraction case
+    unsigned {{INT}} r = (unsigned {{INT}}) a - (unsigned {{INT}}) b;
+    // Overflow happened if the operands differing signs, and the result
+    // has opposite sign to a.
+    *overflow |= (((unsigned {{INT}})a ^ (unsigned {{INT}})b) & ((unsigned {{INT}})a ^ r)) >> (8 * sizeof({{INT}}) - 1);
+    return ({{INT}}) r;
 }
 
 static CYTHON_INLINE {{INT}} __Pyx_mul_{{NAME}}_checking_overflow({{INT}} a, {{INT}} b, int *overflow) {
-    if ((sizeof({{INT}}) < sizeof(long))) {
+    // if we have a constant, use the constant version
+    if (__Pyx_constant_p(b)) {
+        return __Pyx_mul_const_{{NAME}}_checking_overflow(a, b, overflow);
+    } else if (__Pyx_constant_p(a)) {
+        return __Pyx_mul_const_{{NAME}}_checking_overflow(b, a, overflow);
+    } else if ((sizeof({{INT}}) < sizeof(long))) {
         long big_r = ((long) a) * ((long) b);
         {{INT}} r = ({{INT}}) big_r;
         *overflow |= big_r != r;
@@ -197,11 +209,27 @@ static CYTHON_INLINE {{INT}} __Pyx_mul_{{NAME}}_checking_overflow({{INT}} a, {{I
         return ({{INT}}) r;
 #endif
     } else {
-        return __Pyx_mul_const_{{NAME}}_checking_overflow(a, b, overflow);
+        // somewhat surprisingly, at least on x86_64 it's quicker to use floats (c.f. the const
+        // variant below)
+        {{INT}} r = ({{INT}}) (((unsigned {{INT}})a) * ((unsigned {{INT}}) b));
+        float fprod = ((float) a) * ((float) b);
+        // Overflow results in an error of at least 2^sizeof(UINT),
+        // whereas rounding represents an error on the order of 2^(sizeof(UINT)-23).
+        *overflow |= fabs(fprod - r) > ((float)(__PYX_MAX({{INT}})) / 2);
+        return r;
     }
 }
 
 static CYTHON_INLINE {{INT}} __Pyx_mul_const_{{NAME}}_checking_overflow({{INT}} a, {{INT}} b, int *overflow) {
+    // note that deliberately all these comparisons are written such that they divide by b; this
+    // function is used when b is a constant thus the compiler can eliminate the (very slow on most
+    // CPUs!) division operations
+    if (__Pyx_constant_p(a) && !__Pyx_constant_p(b)) {
+        // paranoia
+        {{INT}} temp = b;
+        b = a;
+        a = temp;
+    }
     if (b > 1) {
         *overflow |= a > __PYX_MAX({{INT}}) / b;
         *overflow |= a < __PYX_MIN({{INT}}) / b;
@@ -211,7 +239,7 @@ static CYTHON_INLINE {{INT}} __Pyx_mul_const_{{NAME}}_checking_overflow({{INT}} 
         *overflow |= a > __PYX_MIN({{INT}}) / b;
         *overflow |= a < __PYX_MAX({{INT}}) / b;
     }
-    return ({{INT}}) ((unsigned {{INT}}) a * (unsigned {{INT}}) b);
+    return ({{INT}}) (((unsigned {{INT}})a) * ((unsigned {{INT}}) b));
 }
 
 static CYTHON_INLINE {{INT}} __Pyx_div_{{NAME}}_checking_overflow({{INT}} a, {{INT}} b, int *overflow) {
@@ -219,7 +247,7 @@ static CYTHON_INLINE {{INT}} __Pyx_div_{{NAME}}_checking_overflow({{INT}} a, {{I
         *overflow |= 1;
         return 0;
     }
-    *overflow |= (a == __PYX_MIN({{INT}})) & (b == -1);
+    *overflow |= a == __PYX_MIN({{INT}}) && b == -1;
     return ({{INT}}) ((unsigned {{INT}}) a / (unsigned {{INT}}) b);
 }
 
