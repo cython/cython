@@ -676,10 +676,28 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStr(PyObject *dict, PyObject
 #define __Pyx_PyDict_GetItemStr           PyDict_GetItem
 #else
 static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict, PyObject *name) {
-    PyObject *res = PyObject_GetItem(dict, name);
-    if (res == NULL && PyErr_ExceptionMatches(PyExc_KeyError))
-        PyErr_Clear();
-    return res;
+    // This is tricky - we should return a borrowed reference but not swallow non-KeyError exceptions. 8-|
+    // But: this function is only used in Py2 and older PyPys,
+    // and currently only for argument parsing and other non-correctness-critical lookups
+    // and we know that 'name' is an interned 'str' with pre-calculated hash value (only comparisons can fail),
+    // thus, performance matters more than correctness here, especially in the "not found" case.
+#if CYTHON_COMPILING_IN_PYPY
+    // So we ignore any exceptions in old PyPys ...
+    return PyDict_GetItem(dict, name);
+#else
+    // and hack together a stripped-down and modified PyDict_GetItem() in CPython 2.
+    PyDictEntry *ep;
+    PyDictObject *mp = (PyDictObject*) dict;
+    long hash = ((PyStringObject *) name)->ob_shash;
+    assert(hash != -1); /* hash values of interned strings are always initialised */
+    ep = (mp->ma_lookup)(mp, name, hash);
+    if (ep == NULL) {
+        // error occurred
+        return NULL;
+    }
+    // found or not found
+    return ep->me_value;
+#endif
 }
 #define __Pyx_PyDict_GetItemStr           PyDict_GetItem
 #endif

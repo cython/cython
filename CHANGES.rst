@@ -25,6 +25,10 @@ Bugs fixed
   could fail to acquire the GIL in some cases on function exit.
   (Github issue #3590 etc.)
 
+* A reference leak when processing keyword arguments in Py2 was resolved,
+  that appeared in 3.0a1.
+  (Github issue #3578)
+
 * The outdated getbuffer/releasebuffer implementations in the NumPy
   declarations were removed so that buffers declared as ``ndarray``
   now use the normal implementation in NumPy.
