@@ -280,7 +280,8 @@ def for_pyunicode_in_unicode(unicode s):
         return 'X'
 
 @cython.test_assert_path_exists("//ForFromStatNode")
-@cython.test_fail_if_path_exists("//ForInStatNode")
+@cython.test_fail_if_path_exists("//ForInStatNode",
+                                 "//SliceIndexNode")
 def for_pyunicode_in_enumerate_unicode(unicode s):
     """
     >>> for_pyunicode_in_enumerate_unicode(unicode_abc)
@@ -301,7 +302,8 @@ def for_pyunicode_in_enumerate_unicode(unicode s):
         return 'X'
 
 @cython.test_assert_path_exists("//ForFromStatNode")
-@cython.test_fail_if_path_exists("//ForInStatNode")
+@cython.test_fail_if_path_exists("//ForInStatNode",
+                                 "//SliceIndexNode")
 def for_pyucs4_in_unicode(unicode s):
     """
     >>> for_pyucs4_in_unicode(unicode_abc)
@@ -321,7 +323,8 @@ def for_pyucs4_in_unicode(unicode s):
         return 'X'
 
 @cython.test_assert_path_exists("//ForFromStatNode")
-@cython.test_fail_if_path_exists("//ForInStatNode")
+@cython.test_fail_if_path_exists("//ForInStatNode",
+                                 "//SliceIndexNode")
 def for_pyucs4_in_enumerate_unicode(unicode s):
     """
     >>> for_pyucs4_in_enumerate_unicode(unicode_abc)
@@ -338,5 +341,47 @@ def for_pyucs4_in_enumerate_unicode(unicode s):
     for i, c in enumerate(s):
         if c == u'C':
             return i
+    else:
+        return 'X'
+
+@cython.test_assert_path_exists("//ForFromStatNode")
+@cython.test_fail_if_path_exists("//ForInStatNode",
+                                 "//SliceIndexNode")
+def for_unicode_in_unicode(unicode s):
+    """
+    >>> for_unicode_in_unicode(unicode_abc)
+    'X'
+    >>> for_unicode_in_unicode(unicode_ABC)
+    'C'
+    >>> for_unicode_in_unicode(unicode_abc_null)
+    'X'
+    >>> for_unicode_in_unicode(unicode_ABC_null)
+    'C'
+    """
+    cdef unicode c
+    for c in s:
+        if c == u'C':
+            return 'C'
+    else:
+        return 'X'
+
+@cython.test_assert_path_exists("//ForFromStatNode")
+@cython.test_fail_if_path_exists("//ForInStatNode",
+                                 "//SliceIndexNode")
+def for_unicode_in_unicode_slice(unicode s):
+    """
+    >>> for_unicode_in_unicode_slice(unicode_abc)
+    'X'
+    >>> for_unicode_in_unicode_slice(unicode_ABC)
+    'B'
+    >>> for_unicode_in_unicode_slice(unicode_abc_null)
+    'X'
+    >>> for_unicode_in_unicode_slice(unicode_ABC_null)
+    'B'
+    """
+    cdef unicode c
+    for c in s[1:-1]:
+        if c == u'B':
+            return 'B'
     else:
         return 'X'
