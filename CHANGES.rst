@@ -15,8 +15,15 @@ Features added
 * Several macros/functions declared in the NumPy API are now usable without
   holding the GIL.
 
+* ``libc.math`` was extended to include all C99 function declarations.
+  Patch by Dean Scarff.  (Github issue #3570)
+
 Bugs fixed
 ----------
+
+* The improved GIL handling in ``nogil`` functions introduced in 3.0a3
+  could fail to acquire the GIL in some cases on function exit.
+  (Github issue #3590 etc.)
 
 * The outdated getbuffer/releasebuffer implementations in the NumPy
   declarations were removed so that buffers declared as ``ndarray``
@@ -63,7 +70,7 @@ Bugs fixed
   additional command line arguments leaked into the regular command.
   Patch by Kamekameha.  (Github issue #2209)
 
-* The improved GIL handling in ``nogil`` functions introduced in 3.0a2
+* The improved GIL handling in ``nogil`` functions introduced in 3.0a3
   could generate invalid C code.
   (Github issue #3558)
 
