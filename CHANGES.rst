@@ -29,6 +29,12 @@ Bugs fixed
   that appeared in 3.0a1.
   (Github issue #3578)
 
+* Optimised ``%d`` string formatting into f-strings failed on float values.
+  (Github issue #3092)
+
+* Optimised aligned string formatting (``%05s``, ``%-5s``) failed.
+  (Github issue #3476)
+
 * The outdated getbuffer/releasebuffer implementations in the NumPy
   declarations were removed so that buffers declared as ``ndarray``
   now use the normal implementation in NumPy.
