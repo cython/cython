@@ -2031,7 +2031,7 @@ class FuncDefNode(StatNode, BlockNode):
             code.put_label(code.error_label)
             for cname, type in code.funcstate.all_managed_temps():
                 assure_gil('error')
-                code.put_xdecref(cname, type, have_gil=not lenv.nogil)
+                code.put_xdecref(cname, type, have_gil=gil_owned['error'])
 
             # Clean up buffers -- this calls a Python function
             # so need to save and restore error state
