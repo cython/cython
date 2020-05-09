@@ -19,6 +19,12 @@ Bugs fixed
 * Complex buffer item types of structs of arrays could fail to validate.
   Patch by Leo and smutch.  (Github issue #1407)
 
+* Optimised ``%d`` string formatting into f-strings failed on float values.
+  (Github issue #3092)
+
+* Optimised aligned string formatting (``%05s``, ``%-5s``) failed.
+  (Github issue #3476)
+
 * When importing the old Cython ``build_ext`` integration with distutils, the
   additional command line arguments leaked into the regular command.
   Patch by Kamekameha.  (Github issue #2209)
