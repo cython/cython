@@ -2146,6 +2146,7 @@ class FuncDefNode(StatNode, BlockNode):
             if entry.type.is_pyobject:
                 if entry.is_arg and not entry.cf_is_reassigned:
                     continue
+            if entry.type.needs_refcounting:
                 assure_gil('success')
             # FIXME ideally use entry.xdecref_cleanup but this currently isn't reliable
             code.put_var_xdecref(entry, have_gil=gil_owned['success'])
@@ -2162,6 +2163,8 @@ class FuncDefNode(StatNode, BlockNode):
                     continue
                 if not acquire_gil and not entry.cf_is_reassigned:
                     continue
+                if entry.type.needs_refcounting:
+                    assure_gil('success')
 
             # FIXME use entry.xdecref_cleanup - del arg seems to be the problem
             code.put_var_xdecref(entry, have_gil=gil_owned['success'])
