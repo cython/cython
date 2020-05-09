@@ -4347,10 +4347,10 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         return self.visit_BinopNode(node)
 
     _parse_string_format_regex = (
-        u'(%(?:'            # %...
-        u'(?:[0-9]+|[ ])?'  # width (optional) or space prefix fill character (optional)
-        u'(?:[.][0-9]+)?'   # precision (optional)
-        u')?.)'             # format type (or something different for unsupported formats)
+        u'(%(?:'              # %...
+        u'(?:[-0-9]+|[ ])?'   # width (optional) or space prefix fill character (optional)
+        u'(?:[.][0-9]+)?'     # precision (optional)
+        u')?.)'               # format type (or something different for unsupported formats)
     )
 
     def _build_fstring(self, pos, ustring, format_args):
@@ -4389,9 +4389,15 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                 elif format_type in u'ars':
                     format_spec = format_spec[:-1]
                     conversion_char = format_type
+                    if format_spec.startswith('0'):
+                        format_spec = '>' + format_spec[1:]  # right-alignment '%05s' spells '{:>5}'
                 elif format_type == u'd':
                     # '%d' formatting supports float, but '{obj:d}' does not => convert to int first.
                     conversion_char = 'd'
+
+                if format_spec.startswith('-'):
+                    format_spec = '<' + format_spec[1:]  # left-alignment '%-5s' spells '{:<5}'
+
                 substrings.append(ExprNodes.FormattedValueNode(
                     arg.pos, value=arg,
                     conversion_char=conversion_char,

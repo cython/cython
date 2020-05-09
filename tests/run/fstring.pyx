@@ -537,29 +537,29 @@ def generated_fstring(int i, float f, unicode u not None, o):
     """
     >>> i, f, u, o = 11, 1.3125, u'xyz', [1]
     >>> print(((
-    ...     u"(i) %s-%.3s-%r-%.3r-%d-%3d-%o-%04o-%x-%4x-%X-%03X-%.1f-%04.2f %% "
-    ...     u"(u) %s-%.2s-%r-%.7r %% "
+    ...     u"(i) %s-%.3s-%r-%.3r-%d-%3d-%-3d-%o-%04o-%x-%4x-%X-%03X-%.1f-%04.2f %% "
+    ...     u"(u) %s-%.2s-%r-%.7r-%05s-%-5s %% "
     ...     u"(o) %s-%.2s-%r-%.2r %% "
     ...     u"(f) %.2f-%d"
     ... ) % (
-    ...     i, i, i, i, i, i, i, i, i, i, i, i, i, i,
-    ...     u, u, u, u,
+    ...     i, i, i, i, i, i, i, i, i, i, i, i, i, i, i,
+    ...     u, u, u, u, u, u,
     ...     o, o, o, o,
     ...     f, f,
     ... )).replace("-u'xyz'", "-'xyz'"))
-    (i) 11-11-11-11-11- 11-13-0013-b-   b-B-00B-11.0-11.00 % (u) xyz-xy-'xyz'-'xyz' % (o) [1]-[1-[1]-[1 % (f) 1.31-1
+    (i) 11-11-11-11-11- 11-11 -13-0013-b-   b-B-00B-11.0-11.00 % (u) xyz-xy-'xyz'-'xyz'-  xyz-xyz   % (o) [1]-[1-[1]-[1 % (f) 1.31-1
 
     >>> print(generated_fstring(i, f, u, o).replace("-u'xyz'", "-'xyz'"))
-    (i) 11-11-11-11-11- 11-13-0013-b-   b-B-00B-11.0-11.00 % (u) xyz-xy-'xyz'-'xyz' % (o) [1]-[1-[1]-[1 % (f) 1.31-1
+    (i) 11-11-11-11-11- 11-11 -13-0013-b-   b-B-00B-11.0-11.00 % (u) xyz-xy-'xyz'-'xyz'-  xyz-xyz   % (o) [1]-[1-[1]-[1 % (f) 1.31-1
     """
     return (
-        u"(i) %s-%.3s-%r-%.3r-%d-%3d-%o-%04o-%x-%4x-%X-%03X-%.1f-%04.2f %% "
-        u"(u) %s-%.2s-%r-%.7r %% "
+        u"(i) %s-%.3s-%r-%.3r-%d-%3d-%-3d-%o-%04o-%x-%4x-%X-%03X-%.1f-%04.2f %% "
+        u"(u) %s-%.2s-%r-%.7r-%05s-%-5s %% "
         u"(o) %s-%.2s-%r-%.2r %% "
         u"(f) %.2f-%d"
     ) % (
-        i, i, i, i, i, i, i, i, i, i, i, i, i, i,
-        u, u, u, u,
+        i, i, i, i, i, i, i, i, i, i, i, i, i, i, i,
+        u, u, u, u, u, u,
         o, o, o, o,
         f, f,
     )
