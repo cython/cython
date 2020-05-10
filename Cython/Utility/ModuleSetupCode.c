@@ -96,6 +96,8 @@
   #endif
   #undef CYTHON_PEP489_MULTI_PHASE_INIT
   #define CYTHON_PEP489_MULTI_PHASE_INIT 0
+  #undef CYTHON_PEP573_PYCMETHOD
+  #define CYTHON_PEP573_PYCMETHOD 0
   #undef CYTHON_USE_TP_FINALIZE
   #define CYTHON_USE_TP_FINALIZE 0
   #undef CYTHON_USE_DICT_VERSIONS
@@ -146,6 +148,8 @@
   #define CYTHON_PEP487_INIT_SUBCLASS 0
   #undef CYTHON_PEP489_MULTI_PHASE_INIT
   #define CYTHON_PEP489_MULTI_PHASE_INIT 0
+  #undef CYTHON_PEP573_PYCMETHOD
+  #define CYTHON_PEP573_PYCMETHOD 0
   #undef CYTHON_USE_TP_FINALIZE
   #define CYTHON_USE_TP_FINALIZE 0
   #undef CYTHON_USE_DICT_VERSIONS
@@ -193,6 +197,10 @@
   #endif
   #undef CYTHON_PEP489_MULTI_PHASE_INIT
   #define CYTHON_PEP489_MULTI_PHASE_INIT 0
+  #ifndef CYTHON_PEP573_PYCMETHOD
+    #define CYTHON_PEP573_PYCMETHOD (PY_VERSION_HEX >= 0x030900B1)
+    // (!defined(Py_LIMITED_API) || Py_LIMITED_API+0 >= 0x03090000)
+  #endif
   #ifndef CYTHON_USE_TP_FINALIZE
     #define CYTHON_USE_TP_FINALIZE 1
   #endif
@@ -263,6 +271,10 @@
   #endif
   #ifndef CYTHON_PEP489_MULTI_PHASE_INIT
     #define CYTHON_PEP489_MULTI_PHASE_INIT (PY_VERSION_HEX >= 0x03050000)
+  #endif
+  #ifndef CYTHON_PEP573_PYCMETHOD
+    // Should CyFunction inherit from PyCMethod in Py3.9+ ?
+    #define CYTHON_PEP573_PYCMETHOD (PY_VERSION_HEX >= 0x030900B1)
   #endif
   #ifndef CYTHON_USE_TP_FINALIZE
     #define CYTHON_USE_TP_FINALIZE (PY_VERSION_HEX >= 0x030400a1)
@@ -569,6 +581,10 @@ class __Pyx_FakeReference {
   #define __PyType_FromModuleAndSpec(m, s, b)  PyType_FromModuleAndSpec(m, s, b)
 #else
   #define __PyType_FromModuleAndSpec(m, s, b)  ((void)m, PyType_FromSpecWithBases(s, b))
+#endif
+#ifndef METH_METHOD
+  // PEP-573: PyCFunction holds reference to defining class (PyCMethodObject)
+  #define METH_METHOD 0x200
 #endif
 
 #if CYTHON_COMPILING_IN_PYPY && !defined(PyObject_Malloc)
