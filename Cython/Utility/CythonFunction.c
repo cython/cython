@@ -950,7 +950,8 @@ static int __pyx_CyFunction_init(PyObject *module) {
     #else
     PyObject *bases = NULL;
     #endif
-    __pyx_CyFunctionType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_CyFunctionType_spec, bases);
+    (void) module;
+    __pyx_CyFunctionType = __Pyx_FetchCommonTypeFromSpec(&__pyx_CyFunctionType_spec, bases);
     Py_XDECREF(bases);
 #else
     (void) module;
@@ -1469,7 +1470,8 @@ static int __pyx_FusedFunction_init(PyObject *module) {
     if (unlikely(!bases)) {
         return -1;
     }
-    __pyx_FusedFunctionType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_FusedFunctionType_spec, bases);
+    (void) module;
+    __pyx_FusedFunctionType = __Pyx_FetchCommonTypeFromSpec(&__pyx_FusedFunctionType_spec, bases);
     Py_DECREF(bases);
 #else
     (void) module;
