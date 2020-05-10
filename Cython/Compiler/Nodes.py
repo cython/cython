@@ -9470,7 +9470,10 @@ class ParallelRangeNode(ParallelStatNode):
 
         # TODO: check if the step is 0 and if so, raise an exception in a
         # 'with gil' block. For now, just abort
-        code.putln("if ((%(step)s == 0)) abort();" % fmt_dict)
+        if self.step is not None and self.step.has_constant_result() and self.step.constant_result == 0:
+            error(node.pos, "Iteration with step 0 is invalid.")
+        elif not fmt_dict['step'].isdigit() or int(fmt_dict['step']) == 0:
+            code.putln("if (((%(step)s) == 0)) abort();" % fmt_dict)
 
         self.setup_parallel_control_flow_block(code) # parallel control flow block
 
