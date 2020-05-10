@@ -564,6 +564,13 @@ class __Pyx_FakeReference {
   #define __Pyx_PyVectorcall_NARGS(n)  (n)
 #endif
 
+// PEP-573
+#if PY_VERSION_HEX >= 0x030900B1
+  #define __PyType_FromModuleAndSpec(m, s, b)  PyType_FromModuleAndSpec(m, s, b)
+#else
+  #define __PyType_FromModuleAndSpec(m, s, b)  ((void)m, PyType_FromSpecWithBases(s, b))
+#endif
+
 #if CYTHON_COMPILING_IN_PYPY && !defined(PyObject_Malloc)
   #define PyObject_Malloc(s)   PyMem_Malloc(s)
   #define PyObject_Free(p)     PyMem_Free(p)

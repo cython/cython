@@ -5163,8 +5163,9 @@ class CClassDefNode(ClassDefNode):
                     code.error_goto_if_null(tuple_temp, entry.pos)))
                 code.put_gotref(tuple_temp, py_object_type)
                 code.putln(
-                    "%s = PyType_FromSpecWithBases(&%s_spec, %s); %s" % (
+                    "%s = __PyType_FromModuleAndSpec(%s, &%s_spec, %s); %s" % (
                         typeobj_cname,
+                        Naming.module_cname,
                         typeobj_cname,
                         tuple_temp,
                         code.error_goto_if_null(typeobj_cname, entry.pos)))
@@ -5172,8 +5173,9 @@ class CClassDefNode(ClassDefNode):
                 code.funcstate.release_temp(tuple_temp)
             else:
                 code.putln(
-                    "%s = PyType_FromSpec(&%s_spec); %s" % (
+                    "%s = PyType_FromModuleAndSpec(%s, &%s_spec, NULL); %s" % (
                         typeobj_cname,
+                        Naming.module_cname,
                         typeobj_cname,
                         code.error_goto_if_null(typeobj_cname, entry.pos)))
             code.putln("#else")

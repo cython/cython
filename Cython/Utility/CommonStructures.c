@@ -2,7 +2,7 @@
 
 static PyTypeObject* __Pyx_FetchCommonType(PyTypeObject* type);
 #if CYTHON_COMPILING_IN_LIMITED_API
-static PyTypeObject* __Pyx_FetchCommonTypeFromSpec(PyType_Spec *spec, PyObject *bases);
+static PyTypeObject* __Pyx_FetchCommonTypeFromSpec(PyObject *module, PyType_Spec *spec, PyObject *bases);
 #endif
 
 /////////////// FetchCommonType ///////////////
@@ -70,7 +70,7 @@ bad:
 }
 
 #if CYTHON_COMPILING_IN_LIMITED_API
-static PyTypeObject *__Pyx_FetchCommonTypeFromSpec(PyType_Spec *spec, PyObject *bases) {
+static PyTypeObject *__Pyx_FetchCommonTypeFromSpec(PyObject *module, PyType_Spec *spec, PyObject *bases) {
     PyObject *abi_module, *py_basicsize, *cached_type = NULL;
     Py_ssize_t basicsize;
 
@@ -96,7 +96,7 @@ static PyTypeObject *__Pyx_FetchCommonTypeFromSpec(PyType_Spec *spec, PyObject *
 
     if (!PyErr_ExceptionMatches(PyExc_AttributeError)) goto bad;
     PyErr_Clear();
-    cached_type = PyType_FromSpecWithBases(spec, bases);
+    cached_type = __Pyx_PyType_FromModuleAndSpec(module, spec, bases);
     if (unlikely(!cached_type)) goto bad;
     if (PyObject_SetAttrString(abi_module, spec->name, cached_type) < 0) goto bad;
 

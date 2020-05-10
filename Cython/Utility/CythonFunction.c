@@ -72,7 +72,7 @@ static CYTHON_INLINE void __Pyx_CyFunction_SetAnnotationsDict(PyObject *m,
                                                               PyObject *dict);
 
 
-static int __pyx_CyFunction_init(void);
+static int __pyx_CyFunction_init(PyObject *module);
 
 #if CYTHON_METH_FASTCALL
 static PyObject * __Pyx_CyFunction_Vectorcall_NOARGS(PyObject *func, PyObject *const *args, size_t nargsf, PyObject *kwnames);
@@ -903,10 +903,11 @@ static PyTypeObject __pyx_CyFunctionType_type = {
 #endif  /* CYTHON_COMPILING_IN_LIMITED_API */
 
 
-static int __pyx_CyFunction_init(void) {
+static int __pyx_CyFunction_init(PyObject *module) {
 #if CYTHON_COMPILING_IN_LIMITED_API
-    __pyx_CyFunctionType = __Pyx_FetchCommonTypeFromSpec(&__pyx_CyFunctionType_spec, NULL);
+    __pyx_CyFunctionType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_CyFunctionType_spec, NULL);
 #else
+    (void) module;
     __pyx_CyFunctionType = __Pyx_FetchCommonType(&__pyx_CyFunctionType_type);
 #endif
     if (unlikely(__pyx_CyFunctionType == NULL)) {
@@ -1015,7 +1016,7 @@ static int __pyx_FusedFunction_clear(__pyx_FusedFunctionObject *self);
 #if !CYTHON_COMPILING_IN_LIMITED_API
 static PyTypeObject *__pyx_FusedFunctionType = NULL;
 #endif
-static int __pyx_FusedFunction_init(void);
+static int __pyx_FusedFunction_init(PyObject *module);
 
 #define __Pyx_FusedFunction_USED
 
@@ -1420,15 +1421,16 @@ static PyTypeObject __pyx_FusedFunctionType_type = {
 };
 #endif
 
-static int __pyx_FusedFunction_init(void) {
+static int __pyx_FusedFunction_init(PyObject *module) {
 #if CYTHON_COMPILING_IN_LIMITED_API
     PyObject *bases = PyTuple_Pack(1, __pyx_CyFunctionType);
     if (unlikely(!bases)) {
         return -1;
     }
-    __pyx_FusedFunctionType = __Pyx_FetchCommonTypeFromSpec(&__pyx_FusedFunctionType_spec, bases);
+    __pyx_FusedFunctionType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_FusedFunctionType_spec, bases);
     Py_DECREF(bases);
 #else
+    (void) module;
     // Set base from __Pyx_FetchCommonTypeFromSpec, in case it's different from the local static value.
     __pyx_FusedFunctionType_type.tp_base = __pyx_CyFunctionType;
     __pyx_FusedFunctionType = __Pyx_FetchCommonType(&__pyx_FusedFunctionType_type);
