@@ -239,7 +239,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             h_code.putln('/* WARNING: %s from Python 3.5 */' % warning_string.rstrip('.'))
             h_code.putln("PyMODINIT_FUNC %s(void);" % py3_mod_func_name)
             h_code.putln("")
-            h_code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT "
+            h_code.putln("#if PY_VERSION_HEX >= 0x03050000 "
                 "&& (defined(__GNUC__) || defined(__clang__) || defined(_MSC_VER) "
                 "|| (defined(__cplusplus) && __cplusplus >= 201402L))")
             h_code.putln("#if defined(__cplusplus) && __cplusplus >= 201402L")
