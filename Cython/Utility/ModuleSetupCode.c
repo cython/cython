@@ -593,9 +593,9 @@ class __Pyx_FakeReference {
 
 // PEP-573
 #if PY_VERSION_HEX >= 0x030900B1
-  #define __PyType_FromModuleAndSpec(m, s, b)  PyType_FromModuleAndSpec(m, s, b)
+  #define __Pyx_PyType_FromModuleAndSpec(m, s, b)  PyType_FromModuleAndSpec(m, s, b)
 #else
-  #define __PyType_FromModuleAndSpec(m, s, b)  ((void)m, PyType_FromSpecWithBases(s, b))
+  #define __Pyx_PyType_FromModuleAndSpec(m, s, b)  ((void)m, PyType_FromSpecWithBases(s, b))
 #endif
 #ifndef METH_METHOD
   // PEP-573: PyCFunction holds reference to defining class (PyCMethodObject)
