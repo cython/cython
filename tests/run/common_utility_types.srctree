@@ -31,7 +31,7 @@ print("importing...")
 import a, b
 print(type(a.funcA))
 
-assert type(a.funcA).__name__ == 'cython_function_or_method'
+assert type(a.funcA).__name__ == 'cyfunction'
 assert type(a.funcA) is type(b.funcB)
 
 assert a.funcA.func_globals is a.__dict__

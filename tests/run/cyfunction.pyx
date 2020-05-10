@@ -109,6 +109,13 @@ def test_doc():
     'docstring'
     """
 
+class TestRepr:
+    """
+    >>> TestRepr.__dict__["meth"]  #doctest:+ELLIPSIS
+    <cyfunction TestRepr.meth at 0x...>
+    """
+    def meth(self): pass
+
 
 def test_hash():
     """

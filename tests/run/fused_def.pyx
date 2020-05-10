@@ -231,6 +231,14 @@ def args_kwargs(fused_t obj, cython.floating myf = 1.2, *args, **kwargs):
     print obj, "%.2f" % myf, "%.2f" % f, args, kwargs
 
 
+class TestRepr:
+    """
+    >>> TestRepr.__dict__["meth"]  #doctest:+ELLIPSIS
+    <fused_cyfunction TestRepr.meth at 0x...>
+    """
+    def meth(self, cython.integral foo): pass
+
+
 class BaseClass(object):
     """
     Test fused class/static/normal methods and super() without args
