@@ -240,8 +240,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             h_code.putln("PyMODINIT_FUNC %s(void);" % py3_mod_func_name)
             h_code.putln("")
             h_code.putln("#if PY_MAJOR_VERSION == 3 && PY_MINOR_VERSION >= 5 "
-                "&& (defined(__GNUC__) || defined(__clang__) || defined(_MSC_VER))")
-            h_code.putln("#if defined(__GNUC__) || defined(__clang__)")
+                "&& (defined(__GNUC__) || defined(__clang__) || defined(_MSC_VER) "
+                "|| (defined(__cplusplus) && __cplusplus >= 201402L))")
+            h_code.putln("#if defined(__cplusplus) && __cplusplus >= 201402L")
+            h_code.putln("[[deprecated(%s)]] inline" % warning_string.as_c_string_literal())
+            h_code.putln("#elif defined(__GNUC__) || defined(__clang__)")
             h_code.putln('__attribute__ ((__deprecated__(%s), __unused__)) __inline__' % (
                 warning_string.as_c_string_literal()))
             h_code.putln("#elif defined(_MSC_VER)")
