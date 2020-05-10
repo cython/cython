@@ -236,7 +236,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             py3_mod_func_name = self.mod_init_func_cname('PyInit', env)
             warning_string = EncodedString('Use PyImport_AppendInittab("%s", %s) instead of calling %s directly.' % (
                 py2_mod_name, py3_mod_func_name, py3_mod_func_name))
-            h_code.putln('/* WARNING: %s from Python 3.5 */' % warning_string[:-1])
+            h_code.putln('/* WARNING: %s from Python 3.5 */' % warning_string.rstrip('.'))
             h_code.putln("PyMODINIT_FUNC %s(void);" % py3_mod_func_name)
             h_code.putln("")
             h_code.putln("#if PY_MAJOR_VERSION == 3 && PY_MINOR_VERSION >= 5 "
