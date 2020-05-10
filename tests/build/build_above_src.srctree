@@ -1,0 +1,37 @@
+# Tests the out of place (ie with build_dir set) build when a src file is
+# "above" the setup.py (ie it's path begins with dots). 
+# For example, "../../../src/foo.pyx". See #2764 for details.
+
+cd a && cd b && cd c && cd d && PYTHON setup.py build_ext -b ../../pkg -t .
+PYTHON check_paths.py
+
+######## a/b/c/d/setup.py ########
+
+from distutils.core import setup
+from distutils.extension import Extension
+from Cython.Build import cythonize
+
+extensions = [
+    Extension(
+        'boolFunc',
+        ['../../../src/foo.pyx'],
+    )]
+
+setup(
+    ext_modules=cythonize(extensions,
+                          build_dir='build_dir'),
+)
+
+######## a/src/foo.pyx ########
+
+def hello():
+    return "hello world"
+
+######## a/b/pkg/__init__.py ########
+
+######## check_paths.py ########
+
+import os
+assert os.path.exists("a/b/c/d/build_dir/src/foo.c")
+assert os.path.exists("a/b/c/d/build_dir/src/foo.o")
+
