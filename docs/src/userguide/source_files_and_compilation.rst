@@ -133,6 +133,40 @@ documentation`_. To compile the extension for use in the current directory use:
 
     $ python setup.py build_ext --inplace
 
+Alternate setup.py
+------------------
+
+Alternatively, you can replace ``ext_modules=cythonize(...)`` with
+``cython_modules=...``::
+
+    from setuptools import setup
+
+    setup(
+        cython_modules="example.pyx",
+        setup_requires=['cython'],
+    )
+
+Keyword arguments to ``cythonize()`` are a shorthand for calling ``Extension()``,
+so calls like
+
+.. sourcecode:: python
+
+    setup(
+        ext_modules=cythonize("src/*.pyx", include_path=[...]),
+    )
+
+can be replaced by
+
+.. sourcecode:: python
+
+    setup(
+        cython_modules=Extension("src/*.pyx", include_path=[...]),
+        setup_requires=['cython'],
+    )
+
+This replacement can be done for all the following examples and has the advantage of
+PIP being able to automatically install Cython as a dependency.
+
 Configuring the C-Build
 ------------------------
 
@@ -742,7 +776,7 @@ Cython code.  Here is the list of currently supported directives:
     Default is True.
 
     .. versionchanged:: 3.0.0
-        Default changed from False to True 
+        Default changed from False to True
 
 ``boundscheck``  (True / False)
     If set to False, Cython is free to assume that indexing operations
@@ -887,7 +921,7 @@ Cython code.  Here is the list of currently supported directives:
     asyncio before Python 3.5.  This directive can be applied in modules or
     selectively as decorator on an async-def coroutine to make the affected
     coroutine(s) iterable and thus directly interoperable with yield-from.
-  
+
 ``annotation_typing`` (True / False)
     Uses function argument annotations to determine the type of variables. Default
     is True, but can be disabled. Since Python does not enforce types given in
