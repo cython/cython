@@ -20,6 +20,17 @@
 #endif
 
 
+/////////////// PyErrExceptionMatches2.proto ///////////////
+//@substitute: naming
+//@requires: ModuleSetupCode.c::FastTypeChecks
+
+#if CYTHON_FAST_THREAD_STATE
+#define __Pyx_PyErr_ExceptionMatches2(err1, err2) __Pyx_PyErr_ExceptionMatchesInState2($local_tstate_cname, err1, err2)
+#define __Pyx_PyErr_ExceptionMatchesInState2(tstate, err1, err2)  __Pyx_PyErr_GivenExceptionMatches2((tstate)->curexc_type, err1, err2)
+#else
+#define __Pyx_PyErr_ExceptionMatches2(err1, err2)  __Pyx_PyErr_GivenExceptionMatches2(PyErr_Occurred(), err1, err2)
+#endif
+
 /////////////// PyErrExceptionMatches.proto ///////////////
 //@substitute: naming
 

@@ -7701,17 +7701,40 @@ class ExceptClauseNode(Node):
                             for _ in range(3)]
                 code.globalstate.use_utility_code(UtilityCode.load_cached("PyErrFetchRestore", "Exceptions.c"))
                 code.putln("__Pyx_ErrFetch(&%s, &%s, &%s);" % tuple(exc_vars))
-                code.globalstate.use_utility_code(UtilityCode.load_cached("FastTypeChecks", "ModuleSetupCode.c"))
-                exc_test_func = "__Pyx_PyErr_GivenExceptionMatches(%s, %%s)" % exc_vars[0]
+                exc_type = exc_vars[0]
             else:
-                exc_vars = ()
-                code.globalstate.use_utility_code(UtilityCode.load_cached("PyErrExceptionMatches", "Exceptions.c"))
-                exc_test_func = "__Pyx_PyErr_ExceptionMatches(%s)"
+                exc_vars = exc_type = None
 
-            exc_tests = []
             for pattern in self.pattern:
                 pattern.generate_evaluation_code(code)
-                exc_tests.append(exc_test_func % pattern.py_result())
+            patterns = [pattern.py_result() for pattern in self.pattern]
+
+            exc_tests = []
+            if exc_type:
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("FastTypeChecks", "ModuleSetupCode.c"))
+                if len(patterns) == 2:
+                    exc_tests.append("__Pyx_PyErr_GivenExceptionMatches2(%s, %s, %s)" % (
+                        exc_type, patterns[0], patterns[1],
+                    ))
+                else:
+                    exc_tests.extend(
+                        "__Pyx_PyErr_GivenExceptionMatches(%s, %s)" % (exc_type, pattern)
+                        for pattern in patterns
+                    )
+            elif len(patterns) == 2:
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("PyErrExceptionMatches2", "Exceptions.c"))
+                exc_tests.append("__Pyx_PyErr_ExceptionMatches2(%s, %s)" % (
+                    patterns[0], patterns[1],
+                ))
+            else:
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("PyErrExceptionMatches", "Exceptions.c"))
+                exc_tests.extend(
+                    "__Pyx_PyErr_ExceptionMatches(%s)" % pattern
+                    for pattern in patterns
+                )
 
             match_flag = code.funcstate.allocate_temp(PyrexTypes.c_int_type, manage_ref=False)
             code.putln("%s = %s;" % (match_flag, ' || '.join(exc_tests)))
@@ -7719,7 +7742,7 @@ class ExceptClauseNode(Node):
                 pattern.generate_disposal_code(code)
                 pattern.free_temps(code)
 
-            if has_non_literals:
+            if exc_vars:
                 code.putln("__Pyx_ErrRestore(%s, %s, %s);" % tuple(exc_vars))
                 code.putln(' '.join(["%s = 0;" % var for var in exc_vars]))
                 for temp in exc_vars:
