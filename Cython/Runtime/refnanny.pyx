@@ -32,7 +32,7 @@ cdef class Context(object):
         self.refs = {} # id -> (count, [lineno])
         self.errors = []
 
-    cdef regref(self, obj, lineno, bint is_null):
+    cdef regref(self, obj, Py_ssize_t lineno, bint is_null):
         log(LOG_ALL, u'regref', u"<NULL>" if is_null else obj, lineno)
         if is_null:
             self.errors.append(f"NULL argument on line {lineno}")
@@ -42,7 +42,7 @@ cdef class Context(object):
         self.refs[id_] = (count + 1, linenumbers)
         linenumbers.append(lineno)
 
-    cdef bint delref(self, obj, lineno, bint is_null) except -1:
+    cdef bint delref(self, obj, Py_ssize_t lineno, bint is_null) except -1:
         # returns whether it is ok to do the decref operation
         log(LOG_ALL, u'delref', u"<NULL>" if is_null else obj, lineno)
         if is_null:
@@ -68,7 +68,7 @@ cdef class Context(object):
         return u"\n".join([f'REFNANNY: {error}' for error in self.errors]) if self.errors else None
 
 
-cdef void report_unraisable(filename, int lineno, object e=None):
+cdef void report_unraisable(filename, Py_ssize_t lineno, object e=None):
     try:
         if e is None:
             import sys
@@ -82,7 +82,7 @@ cdef void report_unraisable(filename, int lineno, object e=None):
 # exception has been fetched, in case we are called from
 # exception-handling code.
 
-cdef PyObject* SetupContext(char* funcname, int lineno, char* filename) except NULL:
+cdef PyObject* SetupContext(char* funcname, Py_ssize_t lineno, char* filename) except NULL:
     if Context is None:
         # Context may be None during finalize phase.
         # In that case, we don't want to be doing anything fancy
@@ -100,7 +100,7 @@ cdef PyObject* SetupContext(char* funcname, int lineno, char* filename) except N
     PyErr_Restore(type, value, tb)
     return result
 
-cdef void GOTREF(PyObject* ctx, PyObject* p_obj, int lineno):
+cdef void GOTREF(PyObject* ctx, PyObject* p_obj, Py_ssize_t lineno):
     if ctx == NULL: return
     cdef (PyObject*) type = NULL, value = NULL, tb = NULL
     PyErr_Fetch(&type, &value, &tb)
@@ -116,7 +116,7 @@ cdef void GOTREF(PyObject* ctx, PyObject* p_obj, int lineno):
         PyErr_Restore(type, value, tb)
         return  # swallow any exceptions
 
-cdef int GIVEREF_and_report(PyObject* ctx, PyObject* p_obj, int lineno):
+cdef bint GIVEREF_and_report(PyObject* ctx, PyObject* p_obj, Py_ssize_t lineno):
     if ctx == NULL: return 1
     cdef (PyObject*) type = NULL, value = NULL, tb = NULL
     cdef bint decref_ok = False
@@ -133,15 +133,15 @@ cdef int GIVEREF_and_report(PyObject* ctx, PyObject* p_obj, int lineno):
         PyErr_Restore(type, value, tb)
         return decref_ok  # swallow any exceptions
 
-cdef void GIVEREF(PyObject* ctx, PyObject* p_obj, int lineno):
+cdef void GIVEREF(PyObject* ctx, PyObject* p_obj, Py_ssize_t lineno):
     GIVEREF_and_report(ctx, p_obj, lineno)
 
-cdef void INCREF(PyObject* ctx, PyObject* obj, int lineno):
+cdef void INCREF(PyObject* ctx, PyObject* obj, Py_ssize_t lineno):
     Py_XINCREF(obj)
     PyThreadState_Get()  # Check that we hold the GIL
     GOTREF(ctx, obj, lineno)
 
-cdef void DECREF(PyObject* ctx, PyObject* obj, int lineno):
+cdef void DECREF(PyObject* ctx, PyObject* obj, Py_ssize_t lineno):
     if GIVEREF_and_report(ctx, obj, lineno):
         Py_XDECREF(obj)
     PyThreadState_Get()  # Check that we hold the GIL
@@ -171,11 +171,11 @@ cdef void FinishContext(PyObject** ctx):
         return  # swallow any exceptions
 
 ctypedef struct RefNannyAPIStruct:
-  void (*INCREF)(PyObject*, PyObject*, int)
-  void (*DECREF)(PyObject*, PyObject*, int)
-  void (*GOTREF)(PyObject*, PyObject*, int)
-  void (*GIVEREF)(PyObject*, PyObject*, int)
-  PyObject* (*SetupContext)(char*, int, char*) except NULL
+  void (*INCREF)(PyObject*, PyObject*, Py_ssize_t)
+  void (*DECREF)(PyObject*, PyObject*, Py_ssize_t)
+  void (*GOTREF)(PyObject*, PyObject*, Py_ssize_t)
+  void (*GIVEREF)(PyObject*, PyObject*, Py_ssize_t)
+  PyObject* (*SetupContext)(char*, Py_ssize_t, char*) except NULL
   void (*FinishContext)(PyObject**)
 
 cdef RefNannyAPIStruct api
