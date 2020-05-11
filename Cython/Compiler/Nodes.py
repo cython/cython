@@ -7724,7 +7724,7 @@ class ExceptClauseNode(Node):
                     )
             elif len(patterns) == 2:
                 code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("PyErrExceptionMatches2", "Exceptions.c"))
+                    UtilityCode.load_cached("FastTypeChecks", "ModuleSetupCode.c"))
                 exc_tests.append("__Pyx_PyErr_ExceptionMatches2(%s, %s)" % (
                     patterns[0], patterns[1],
                 ))
