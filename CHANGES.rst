@@ -415,10 +415,13 @@ Bugs fixed
 * Error handling early in the module init code could lead to a crash.
 
 * Error handling in ``cython.array`` creation was improved to avoid calling
-  C-API functions with and error held.
+  C-API functions with an error held.
 
 * Complex buffer item types of structs of arrays could fail to validate.
   Patch by Leo and smutch.  (Github issue #1407)
+
+* C-tuples could use invalid C struct casting.
+  Patch by MegaIng.  (Github issue #3038)
 
 * Optimised ``%d`` string formatting into f-strings failed on float values.
   (Github issue #3092)
