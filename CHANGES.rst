@@ -38,6 +38,9 @@ Bugs fixed
 * Optimised aligned string formatting (``%05s``, ``%-5s``) failed.
   (Github issue #3476)
 
+* Single argument funcions failed to accept keyword arguments.
+  (Github issue #3090)
+
 * The outdated getbuffer/releasebuffer implementations in the NumPy
   declarations were removed so that buffers declared as ``ndarray``
   now use the normal implementation in NumPy.

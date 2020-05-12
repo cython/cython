@@ -180,7 +180,7 @@ _directive_defaults = {
     'cdivision_warnings': False,
     'overflowcheck': False,
     'overflowcheck.fold': True,
-    'always_allow_keywords': False,
+    'always_allow_keywords': True,
     'allow_none_for_extension_args': True,
     'wraparound' : True,
     'ccomplex' : False,  # use C99/C++ for complex types and arith
