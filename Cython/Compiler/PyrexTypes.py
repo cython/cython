@@ -4034,6 +4034,9 @@ class CTupleType(CType):
         env.use_utility_code(self._convert_from_py_code)
         return True
 
+    def cast_code(self, expr_code):
+        return expr_code
+
 
 def c_tuple_type(components):
     components = tuple(components)
