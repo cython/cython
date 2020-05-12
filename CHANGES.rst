@@ -29,6 +29,9 @@ Bugs fixed
   that appeared in 3.0a1.
   (Github issue #3578)
 
+* C-tuples could use invalid C struct casting.
+  Patch by MegaIng.  (Github issue #3038)
+
 * Optimised ``%d`` string formatting into f-strings failed on float values.
   (Github issue #3092)
 
