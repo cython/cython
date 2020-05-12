@@ -19,6 +19,9 @@ Bugs fixed
 * Complex buffer item types of structs of arrays could fail to validate.
   Patch by Leo and smutch.  (Github issue #1407)
 
+* C-tuples could use invalid C struct casting.
+  Patch by MegaIng.  (Github issue #3038)
+
 * Optimised ``%d`` string formatting into f-strings failed on float values.
   (Github issue #3092)
 
