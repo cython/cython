@@ -183,6 +183,16 @@ class CmdLineParserTest(TestCase):
        self.check_default_global_options(['pre_import'])
        self.check_default_options(options)
 
+    def test_short_z2(self):
+       options, sources = parse_command_line([
+                '-z', 'my_preimport',
+                '-z', 'my_preimport2',
+                'source.pyx'
+       ])
+       self.assertEqual(Options.pre_import, 'my_preimport2')
+       self.check_default_global_options(['pre_import'])
+       self.check_default_options(options)
+
     def test_convert_range(self):
        options, sources = parse_command_line([
                 '--convert-range',
@@ -491,7 +501,10 @@ class CmdLineParserTest(TestCase):
                 '-X', 'c_string_type=bytes',
                 'source.pyx'
        ])
-       self.assertTrue(len(options.compiler_directives), len(Options.extra_warnings) + 1)
+       for key in Options.extra_warnings.keys():
+           self.assertEqual(options.compiler_directives[key], True)
+       self.assertEqual(options.compiler_directives['cdivision'], True)
+       self.assertEqual(options.compiler_directives['c_string_type'], 'bytes')
        self.check_default_global_options()
        self.check_default_options(options, ['compiler_directives'])
 
@@ -513,4 +526,5 @@ class CmdLineParserTest(TestCase):
         error('--verbose=1')
         error('--verbose=1')
         error('--cleanup')
+        error('--cleanup=3s', 'file.pyx')
         error('--debug-disposal-code-wrong-name', 'file3.pyx')

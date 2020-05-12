@@ -6,7 +6,37 @@ from __future__ import absolute_import
 
 import os
 from argparse import ArgumentParser, Action, SUPPRESS
-from . import Options
+from . import Options, DebugFlags
+
+try:
+    import multiprocessing
+    parallel_compiles = int(multiprocessing.cpu_count() * 1.5)
+except ImportError:
+    multiprocessing = None
+    parallel_compiles = 0
+
+
+GLOBAL_OPTIONS = 'global_options'
+DEBUG_FLAGS = 'debug_flags'
+LOCAL_OPTIONS = 'options'
+
+
+def set_values_to_subargument(namespace, subargument_name, value_map):
+        subarguments = getattr(namespace, subargument_name, {})
+        for key, val in value_map.items():
+            subarguments[key] = val
+        setattr(namespace, subargument_name, subarguments)
+
+
+class ParseDirectivesActionToLocal(Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        subarguments = getattr(namespace, LOCAL_OPTIONS, {})
+        old_directives = dict(subarguments.get(self.dest,
+                                      Options.get_directive_defaults()))
+        directives = Options.parse_directive_list(
+            values, relaxed_bool=True, current_settings=old_directives)
+        subarguments[self.dest] = directives
+        setattr(namespace, LOCAL_OPTIONS, subarguments)
 
 
 class ParseDirectivesAction(Action):
@@ -31,42 +61,146 @@ class ParseOptionsAction(Action):
         setattr(namespace, self.dest, options)
 
 
-class ParseCompileTimeEnvAction(Action):
+class ParseCompileTimeEnvActionToLocal(Action):
     def __call__(self, parser, namespace, values, option_string=None):
-        old_env = dict(getattr(namespace, self.dest, {}))
+        subarguments = getattr(namespace, LOCAL_OPTIONS, {})
+        old_env = dict(subarguments.get(self.dest, {}))
         new_env = Options.parse_compile_time_env(values, current_settings=old_env)
-        setattr(namespace, self.dest, new_env)
+        subarguments[self.dest] = new_env
+        setattr(namespace, LOCAL_OPTIONS, subarguments)
 
 
 class ActivateAllWarningsAction(Action):
     def __call__(self, parser, namespace, values, option_string=None):
-        directives = getattr(namespace, 'compiler_directives', {})
+        subarguments = getattr(namespace, LOCAL_OPTIONS, {})
+        directives = subarguments.get('compiler_directives', {})
         directives.update(Options.extra_warnings)
-        namespace.compiler_directives = directives
+        subarguments['compiler_directives'] = directives
+        setattr(namespace, LOCAL_OPTIONS, subarguments)
 
 
 class SetLenientAction(Action):
     def __call__(self, parser, namespace, values, option_string=None):
-        namespace.error_on_unknown_names = False
-        namespace.error_on_uninitialized = False
+        value_map = {'error_on_unknown_names': False,
+                     'error_on_uninitialized': False}
+        set_values_to_subargument(namespace, GLOBAL_OPTIONS, value_map)
 
 
 class SetGDBDebugAction(Action):
     def __call__(self, parser, namespace, values, option_string=None):
-        namespace.gdb_debug = True
-        namespace.output_dir = os.curdir
+        value_map = {'gdb_debug': True,
+                     'output_dir': os.curdir}
+        set_values_to_subargument(namespace, LOCAL_OPTIONS, value_map)
+
+
+class SetBuildInplace(Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        setattr(namespace, 'build', True)
+        setattr(namespace, 'build_inplace', True)
 
 
 class SetGDBDebugOutputAction(Action):
     def __call__(self, parser, namespace, values, option_string=None):
-        namespace.gdb_debug = True
-        namespace.output_dir = values
+        value_map = {'gdb_debug': True,
+                     'output_dir': values}
+        set_values_to_subargument(namespace, LOCAL_OPTIONS, value_map)
 
 
 class SetAnnotateCoverageAction(Action):
     def __call__(self, parser, namespace, values, option_string=None):
-        namespace.annotate = True
-        namespace.annotate_coverage_xml = values
+        value_map = {'annotate': True,
+                     'annotate_coverage_xml': values}
+        set_values_to_subargument(namespace, GLOBAL_OPTIONS, value_map)
+
+
+def StoreToSubargument(subargument_name, default_value=None):
+    class StoreToSubargumentClass(Action):
+        def __call__(self, parser, namespace, values, option_string=None):
+            if default_value is None:
+                opt_value = values[0]
+            else:
+                opt_value = default_value
+            set_values_to_subargument(namespace, subargument_name, {self.dest: opt_value})
+    return StoreToSubargumentClass
+
+
+def AppendToSubargument(subargument_name):
+    class AppendToSubargumentClass(Action):
+        def __call__(self, parser, namespace, values, option_string=None):
+            current_list = getattr(namespace, subargument_name, {}).get(self.dest, [])
+            set_values_to_subargument(namespace, subargument_name, {self.dest: current_list + values})
+    return AppendToSubargumentClass
+
+
+def CountToSubargument(subargument_name):
+    class CountToSubargumentClass(Action):
+        def __call__(self, parser, namespace, values, option_string=None):
+            current_value = getattr(namespace, subargument_name, {}).get(self.dest, 0)
+            set_values_to_subargument(namespace, subargument_name, {self.dest: current_value + 1})
+    return CountToSubargumentClass
+
+
+def fill_common_arguments(parser):
+    parser.add_argument('-X', '--directive', metavar='NAME=VALUE,...',
+                      dest='compiler_directives', type=str,
+                      action=ParseDirectivesActionToLocal,
+                      help='Overrides a compiler directive')
+    parser.add_argument('-E', '--compile-time-env', metavar='NAME=VALUE,...',
+                      dest='compile_time_env', type=str,
+                      action=ParseCompileTimeEnvActionToLocal,
+                      help='Provides compile time env like DEF would do.')
+    parser.add_argument('-2', dest='language_level',
+                      action=StoreToSubargument(LOCAL_OPTIONS, 2), nargs=0,
+                      help='Compile based on Python-2 syntax and code semantics.')
+    parser.add_argument('-3', dest='language_level',
+                      action=StoreToSubargument(LOCAL_OPTIONS, 3), nargs=0,
+                      help='Compile based on Python-3 syntax and code semantics.')
+    parser.add_argument('--3str', dest='language_level',
+                      action=StoreToSubargument(LOCAL_OPTIONS, '3str'), nargs=0,
+                      help='Compile based on Python-3 syntax and code semantics without '
+                           'assuming unicode by default for string literals under Python 2.')
+    parser.add_argument('-a', '--annotate', action=StoreToSubargument(GLOBAL_OPTIONS, 'default'), nargs=0, dest='annotate',
+                      help='Produce a colorized HTML version of the source.')
+    parser.add_argument('--annotate-fullc', action=StoreToSubargument(GLOBAL_OPTIONS, 'fullc'), nargs=0, dest='annotate',
+                      help='Produce a colorized HTML version of the source '
+                           'which includes entire generated C/C++-code.')
+    parser.add_argument("--lenient", action=SetLenientAction, nargs=0,
+                      help='Change some compile time errors to runtime errors to '
+                           'improve Python compatibility')
+    parser.add_argument("-D", "--no-docstrings", dest='docstrings',
+                      action=StoreToSubargument(GLOBAL_OPTIONS, False), nargs=0,
+                      help='Strip docstrings from the compiled module.')
+    parser.add_argument('sources', nargs='*', default=[])
+
+
+def create_cythonize_argparser():
+    parser = ArgumentParser()
+
+    fill_common_arguments(parser)
+
+    parser.add_argument('-s', '--option', metavar='NAME=VALUE',
+                      dest='options', default={}, type=str,
+                      action=ParseOptionsAction,
+                      help='set a cythonize option')
+    parser.add_argument('-x', '--exclude', metavar='PATTERN', dest='excludes',
+                      action='append', default=[],
+                      help='exclude certain file patterns from the compilation')
+
+    parser.add_argument('-b', '--build', dest='build', action='store_true', default=None,
+                      help='build extension modules using distutils')
+    parser.add_argument('-i', '--inplace', dest='build_inplace', action=SetBuildInplace, nargs=0,
+                      help='build extension modules in place using distutils (implies -b)')
+    parser.add_argument('-j', '--parallel', dest='parallel', metavar='N',
+                      type=int, default=parallel_compiles,
+                      help=('run builds in N parallel jobs (default: %d)' %
+                            parallel_compiles or 1))
+    parser.add_argument('-f', '--force', dest='force', action='store_true', default=None,
+                      help='force recompilation')
+    parser.add_argument('-q', '--quiet', dest='quiet', action='store_true', default=None,
+                      help='be less verbose during compilation')
+    parser.add_argument('-k', '--keep-going', dest='keep_going', action='store_true', default=None,
+                      help='compile as much as possible, ignore compilation failures')
+    return parser
 
 
 def create_cython_argparser():
@@ -75,96 +209,99 @@ def create_cython_argparser():
 
     parser = ArgumentParser(description=description, argument_default=SUPPRESS)
 
-    parser.add_argument("-V", "--version", dest='show_version', action='store_const', const=1,
+    fill_common_arguments(parser)
+
+    parser.add_argument("-V", "--version", dest='show_version',
+                      action=StoreToSubargument(LOCAL_OPTIONS, 1), nargs=0,
                       help='Display version number of cython compiler')
-    parser.add_argument("-l", "--create-listing", dest='use_listing_file', action='store_const', const=1,
+    parser.add_argument("-l", "--create-listing", dest='use_listing_file',
+                      action=StoreToSubargument(LOCAL_OPTIONS, 1), nargs=0,
                       help='Write error messages to a listing file')
-    parser.add_argument("-I", "--include-dir", dest='include_path', action='append',
+    parser.add_argument("-I", "--include-dir", dest='include_path',
+                      action=AppendToSubargument(LOCAL_OPTIONS), nargs=1,
                       help='Search for include files in named directory '
                            '(multiple include directories are allowed).')
-    parser.add_argument("-o", "--output-file", dest='output_file', action='store', type=str,
+    parser.add_argument("-o", "--output-file", dest='output_file',
+                      action=StoreToSubargument(LOCAL_OPTIONS), nargs=1, type=str,
                       help='Specify name of generated C file')
-    parser.add_argument("-t", "--timestamps", dest='timestamps', action='store_const', const=1,
+    parser.add_argument("-t", "--timestamps", dest='timestamps',
+                      action=StoreToSubargument(LOCAL_OPTIONS, 1), nargs=0,
                       help='Only compile newer source files')
-    parser.add_argument("-f", "--force", dest='timestamps', action='store_const', const=0,
+    parser.add_argument("-f", "--force", dest='timestamps',
+                      action=StoreToSubargument(LOCAL_OPTIONS, 0), nargs=0,
                       help='Compile all source files (overrides implied -t)')
-    parser.add_argument("-v", "--verbose", dest='verbose', action='count',
+    parser.add_argument("-v", "--verbose", dest='verbose',
+                      action=CountToSubargument(LOCAL_OPTIONS), nargs=0,
                       help='Be verbose, print file names on multiple compilation')
-    parser.add_argument("-p", "--embed-positions", dest='embed_pos_in_docstring', action='store_const', const=1,
+    parser.add_argument("-p", "--embed-positions", dest='embed_pos_in_docstring',
+                      action=StoreToSubargument(GLOBAL_OPTIONS, 1), nargs=0,
                       help='If specified, the positions in Cython files of each '
                            'function definition is embedded in its docstring.')
-    parser.add_argument("--cleanup", dest='generate_cleanup_code', action='store', type=int,
+    parser.add_argument("--cleanup", dest='generate_cleanup_code',
+                      action=StoreToSubargument(GLOBAL_OPTIONS), nargs=1, type=int,
                       help='Release interned objects on python exit, for memory debugging. '
                            'Level indicates aggressiveness, default 0 releases nothing.')
-    parser.add_argument("-w", "--working", dest='working_path', action='store', type=str,
+    parser.add_argument("-w", "--working", dest='working_path',
+                      action=StoreToSubargument(LOCAL_OPTIONS), nargs=1, type=str,
                       help='Sets the working directory for Cython (the directory modules are searched from)')
     parser.add_argument("--gdb", action=SetGDBDebugAction, nargs=0,
                       help='Output debug information for cygdb')
     parser.add_argument("--gdb-outdir", action=SetGDBDebugOutputAction, type=str,
                       help='Specify gdb debug information output directory. Implies --gdb.')
-    parser.add_argument("-D", "--no-docstrings", dest='docstrings', action='store_false',
-                      help='Strip docstrings from the compiled module.')
-    parser.add_argument('-a', '--annotate', action='store_const', const='default', dest='annotate',
-                      help='Produce a colorized HTML version of the source.')
-    parser.add_argument('--annotate-fullc', action='store_const', const='fullc', dest='annotate',
-                      help='Produce a colorized HTML version of the source '
-                           'which includes entire generated C/C++-code.')
     parser.add_argument("--annotate-coverage", dest='annotate_coverage_xml', action=SetAnnotateCoverageAction, type=str,
                       help='Annotate and include coverage information from cov.xml.')
-    parser.add_argument("--line-directives", dest='emit_linenums', action='store_true',
+    parser.add_argument("--line-directives", dest='emit_linenums',
+                      action=StoreToSubargument(LOCAL_OPTIONS, True), nargs=0,
                       help='Produce #line directives pointing to the .pyx source')
-    parser.add_argument("-+", "--cplus", dest='cplus', action='store_const', const=1,
+    parser.add_argument("-+", "--cplus", dest='cplus',
+                      action=StoreToSubargument(LOCAL_OPTIONS, 1), nargs=0,
                       help='Output a C++ rather than C file.')
     parser.add_argument('--embed', action='store_const', const='main',
                       help='Generate a main() function that embeds the Python interpreter. '
                            'Pass --embed=<method_name> for a name other than main().')
-    parser.add_argument('-2', dest='language_level', action='store_const', const=2,
-                      help='Compile based on Python-2 syntax and code semantics.')
-    parser.add_argument('-3', dest='language_level', action='store_const', const=3,
-                      help='Compile based on Python-3 syntax and code semantics.')
-    parser.add_argument('--3str', dest='language_level', action='store_const', const='3str',
-                      help='Compile based on Python-3 syntax and code semantics without '
-                           'assuming unicode by default for string literals under Python 2.')
-    parser.add_argument("--lenient", action=SetLenientAction, nargs=0,
-                      help='Change some compile time errors to runtime errors to '
-                           'improve Python compatibility')
-    parser.add_argument("--capi-reexport-cincludes", dest='capi_reexport_cincludes', action='store_true',
+    parser.add_argument("--capi-reexport-cincludes", dest='capi_reexport_cincludes',
+                      action=StoreToSubargument(LOCAL_OPTIONS, True), nargs=0,
                       help='Add cincluded headers to any auto-generated header files.')
-    parser.add_argument("--fast-fail", dest='fast_fail', action='store_true',
+    parser.add_argument("--fast-fail", dest='fast_fail',
+                      action=StoreToSubargument(GLOBAL_OPTIONS, True), nargs=0,
                       help='Abort the compilation on the first error')
-    parser.add_argument("-Werror", "--warning-errors", dest='warning_errors', action='store_true',
+    parser.add_argument("-Werror", "--warning-errors", dest='warning_errors',
+                      action=StoreToSubargument(GLOBAL_OPTIONS, True), nargs=0,
                       help='Make all warnings into errors')
     parser.add_argument("-Wextra", "--warning-extra", action=ActivateAllWarningsAction, nargs=0,
                       help='Enable extra warnings')
 
-    parser.add_argument('-X', '--directive', metavar='NAME=VALUE,...',
-                      dest='compiler_directives', type=str,
-                      action=ParseDirectivesAction,
-                      help='Overrides a compiler directive')
-    parser.add_argument('-E', '--compile-time-env', metavar='NAME=VALUE,...',
-                      dest='compile_time_env', type=str,
-                      action=ParseCompileTimeEnvAction,
-                      help='Provides compile time env like DEF would do.')
-    parser.add_argument('sources', nargs='*', default=[])
-
     # TODO: add help
-    parser.add_argument("-z", "--pre-import", dest='pre_import', action='store', type=str, help=SUPPRESS)
-    parser.add_argument("--convert-range", dest='convert_range', action='store_true', help=SUPPRESS)
-    parser.add_argument("--no-c-in-traceback", dest='c_line_in_traceback', action='store_false', help=SUPPRESS)
-    parser.add_argument("--cimport-from-pyx", dest='cimport_from_pyx', action='store_true', help=SUPPRESS)
-    parser.add_argument("--old-style-globals", dest='old_style_globals', action='store_true', help=SUPPRESS)
+    parser.add_argument("-z", "--pre-import", dest='pre_import', action=StoreToSubargument(GLOBAL_OPTIONS), nargs=1, help=SUPPRESS)
+    parser.add_argument("--convert-range", dest='convert_range', action=StoreToSubargument(GLOBAL_OPTIONS, True), nargs=0, help=SUPPRESS)
+    parser.add_argument("--no-c-in-traceback", dest='c_line_in_traceback', action=StoreToSubargument(LOCAL_OPTIONS, False), nargs=0, help=SUPPRESS)
+    parser.add_argument("--cimport-from-pyx", dest='cimport_from_pyx', action=StoreToSubargument(GLOBAL_OPTIONS, True), nargs=0, help=SUPPRESS)
+    parser.add_argument("--old-style-globals", dest='old_style_globals', action=StoreToSubargument(GLOBAL_OPTIONS, True), nargs=0, help=SUPPRESS)
 
     # debug stuff:
-    from . import DebugFlags
     for name in vars(DebugFlags):
         if name.startswith("debug"):
             option_name = name.replace('_', '-')
-            parser.add_argument("--" + option_name, action='store_true', help=SUPPRESS)
+            parser.add_argument("--" + option_name, action=StoreToSubargument(DEBUG_FLAGS, True), nargs=0, help=SUPPRESS)
 
     return parser
 
 
-def parse_command_line_raw(parser, args):
+def parse_args_raw(parser, args):
+    options, unknown = parser.parse_known_args(args)
+    sources = options.sources
+    # if positional arguments were interspersed
+    # some of them are in unknown
+    for option in unknown:
+        if option.startswith('-'):
+            parser.error("unknown option " + option)
+        else:
+            sources.append(option)
+    del options.sources
+    return (options, sources)
+
+
+def parse_args_raw_cython(parser, args):
     # special handling for --embed and --embed=xxxx as they aren't correctly parsed
     def filter_out_embed_options(args):
         with_embed, without_embed = [], []
@@ -177,17 +314,7 @@ def parse_command_line_raw(parser, args):
 
     with_embed, args_without_embed = filter_out_embed_options(args)
 
-    arguments, unknown = parser.parse_known_args(args_without_embed)
-
-    sources = arguments.sources
-    del arguments.sources
-
-    # unknown can be either debug, embed or input files or really unknown
-    for option in unknown:
-        if option.startswith('-'):
-            parser.error("unknown option " + option)
-        else:
-            sources.append(option)
+    arguments, sources = parse_args_raw(parser, args_without_embed)
 
     # embed-stuff must be handled extra:
     for x in with_embed:
@@ -195,28 +322,32 @@ def parse_command_line_raw(parser, args):
             name = 'main'  # default value
         else:
             name = x[len('--embed='):]
-        setattr(arguments, 'embed', name)
+        set_values_to_subargument(arguments, GLOBAL_OPTIONS, {'embed': name})
 
     return arguments, sources
 
 
+def apply_options(target, options):
+    for name, value in options.items():
+        if value is not None:
+            setattr(target, name, value)
+
+
 def parse_command_line(args):
     parser = create_cython_argparser()
-    arguments, sources = parse_command_line_raw(parser, args)
+    arguments, sources = parse_args_raw_cython(parser, args)
 
+    # handle local_options:
     options = Options.CompilationOptions(Options.default_options)
-    for name, value in vars(arguments).items():
-        if name.startswith('debug'):
-            from . import DebugFlags
-            if name in dir(DebugFlags):
-                setattr(DebugFlags, name, value)
-            else:
-                parser.error("Unknown debug flag: %s\n" % name)
-        elif hasattr(Options, name):
-            setattr(Options, name, value)
-        else:
-            setattr(options, name, value)
+    apply_options(options, getattr(arguments, LOCAL_OPTIONS, {}))
 
+    # handle global_options:
+    apply_options(Options, getattr(arguments, GLOBAL_OPTIONS, {}))
+
+    # handle debug flags
+    apply_options(DebugFlags, getattr(arguments, DEBUG_FLAGS, {}))
+
+    # additinal checks
     if options.use_listing_file and len(sources) > 1:
         parser.error("cython: Only one source file allowed when using -o\n")
     if len(sources) == 0 and not options.show_version:
@@ -224,3 +355,23 @@ def parse_command_line(args):
     if Options.embed and len(sources) > 1:
         parser.error("cython: Only one source file allowed when using -embed\n")
     return options, sources
+
+
+def parse_command_line_cythonize(args):
+    parser = create_cythonize_argparser()
+    options, args = parse_args_raw(parser, args)
+
+    if not args:
+        parser.error("no source files provided")
+    if multiprocessing is None:
+        options.parallel = 0
+
+    # handle global_options:
+    apply_options(Options, getattr(options, GLOBAL_OPTIONS, {}))
+    # no longer needed:
+    try:
+        delattr(options, GLOBAL_OPTIONS)
+    except AttributeError:
+        pass
+
+    return options, args
