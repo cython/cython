@@ -302,7 +302,6 @@ cdef extern from "numpy/arrayobject.h":
             """
             return PyArray_BYTES(self)
 
-
     ctypedef unsigned char      npy_bool
 
     ctypedef signed char      npy_byte
@@ -655,7 +654,7 @@ cdef extern from "numpy/arrayobject.h":
     object PyArray_Choose (ndarray, object, ndarray, NPY_CLIPMODE)
     int PyArray_Sort (ndarray, int, NPY_SORTKIND)
     object PyArray_ArgSort (ndarray, int, NPY_SORTKIND)
-    object PyArray_SearchSorted (ndarray, object, NPY_SEARCHSIDE)
+    object PyArray_SearchSorted (ndarray, object, NPY_SEARCHSIDE, PyObject*)
     object PyArray_ArgMax (ndarray, int, ndarray)
     object PyArray_ArgMin (ndarray, int, ndarray)
     object PyArray_Reshape (ndarray, object)
