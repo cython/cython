@@ -903,24 +903,24 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 
 /////////////// PyModInitFuncType.proto ///////////////
 
-#if PY_MAJOR_VERSION < 3
+#ifndef CYTHON_NO_PYINIT_EXPORT
+#define __Pyx_PyMODINIT_FUNC PyMODINIT_FUNC
 
-#ifdef CYTHON_NO_PYINIT_EXPORT
-// define this to void manually because PyMODINIT_FUNC adds __declspec(dllexport) to it's definition.
+#elif PY_MAJOR_VERSION < 3
+// Py2: define this to void manually because PyMODINIT_FUNC adds __declspec(dllexport) to it's definition.
+#ifdef __cplusplus
+#define __Pyx_PyMODINIT_FUNC extern "C" void
+#else
 #define __Pyx_PyMODINIT_FUNC void
-#else
-#define __Pyx_PyMODINIT_FUNC PyMODINIT_FUNC
 #endif
 
 #else
-
-#ifdef CYTHON_NO_PYINIT_EXPORT
-// define this to PyObject * manually because PyMODINIT_FUNC adds __declspec(dllexport) to it's definition.
+// Py3+: define this to PyObject * manually because PyMODINIT_FUNC adds __declspec(dllexport) to it's definition.
+#ifdef __cplusplus
+#define __Pyx_PyMODINIT_FUNC extern "C" PyObject *
+#else
 #define __Pyx_PyMODINIT_FUNC PyObject *
-#else
-#define __Pyx_PyMODINIT_FUNC PyMODINIT_FUNC
 #endif
-
 #endif
 
 
@@ -1085,7 +1085,7 @@ static CYTHON_INLINE int __Pyx_PyErr_GivenExceptionMatches2(PyObject *err, PyObj
 /////////////// MathInitCode ///////////////
 
 #if defined(WIN32) || defined(MS_WINDOWS)
-  #define _USE_MATH_DEFINES
+  #define _USE_MATH_DEFINESg
 #endif
 #include <math.h>
 

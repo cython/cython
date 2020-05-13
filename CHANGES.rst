@@ -436,6 +436,10 @@ Bugs fixed
   additional command line arguments leaked into the regular command.
   Patch by Kamekameha.  (Github issue #2209)
 
+* When using the ``CYTHON_NO_PYINIT_EXPORT`` option in C++, the module init function
+  was not declared as ``extern "C"``.
+  (Github issue #3414)
+
 
 0.29.17 (2020-04-26)
 ====================
