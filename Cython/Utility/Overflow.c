@@ -48,10 +48,10 @@ static int __Pyx_check_twos_complement(void) {
 
 #if defined(__has_builtin)
 #  if __has_builtin(__builtin_add_overflow) && !defined(__ibmxl__)
-#    define HAVE_BUILTIN_OVERFLOW
+#    define __PYX_HAVE_BUILTIN_OVERFLOW
 #  endif
 #elif defined(__GNUC__) && (__GNUC__ >= 5) && (!defined(__INTEL_COMPILER) || (__INTEL_COMPILER >= 1800))
-#  define HAVE_BUILTIN_OVERFLOW
+#  define __PYX_HAVE_BUILTIN_OVERFLOW
 #endif
 
 #if defined(__GNUC__)
@@ -80,7 +80,7 @@ static CYTHON_INLINE {{UINT}} __Pyx_div_{{NAME}}_checking_overflow({{UINT}} a, {
 // Use these when b is known at compile time.
 #define __Pyx_add_const_{{NAME}}_checking_overflow __Pyx_add_{{NAME}}_checking_overflow
 #define __Pyx_sub_const_{{NAME}}_checking_overflow __Pyx_sub_{{NAME}}_checking_overflow
-#if defined(HAVE_BUILTIN_OVERFLOW)
+#if defined(__PYX_HAVE_BUILTIN_OVERFLOW)
 #define __Pyx_mul_const_{{NAME}}_checking_overflow __Pyx_mul_{{NAME}}_checking_overflow
 #else
 static CYTHON_INLINE {{UINT}} __Pyx_mul_const_{{NAME}}_checking_overflow({{UINT}} a, {{UINT}} constant, int *overflow);
@@ -89,7 +89,7 @@ static CYTHON_INLINE {{UINT}} __Pyx_mul_const_{{NAME}}_checking_overflow({{UINT}
 
 /////////////// BaseCaseUnsigned ///////////////
 
-#if defined(HAVE_BUILTIN_OVERFLOW)
+#if defined(__PYX_HAVE_BUILTIN_OVERFLOW)
 
 static CYTHON_INLINE {{UINT}} __Pyx_add_{{NAME}}_checking_overflow({{UINT}} a, {{UINT}} b, int *overflow) {
     {{UINT}} result;
@@ -165,7 +165,7 @@ static CYTHON_INLINE {{UINT}} __Pyx_mul_const_{{NAME}}_checking_overflow({{UINT}
         *overflow |= a > (__PYX_MAX({{UINT}}) / b);
     return prod;
 }
-#endif // HAVE_BUILTIN_OVERFLOW
+#endif // __PYX_HAVE_BUILTIN_OVERFLOW
 
 
 static CYTHON_INLINE {{UINT}} __Pyx_div_{{NAME}}_checking_overflow({{UINT}} a, {{UINT}} b, int *overflow) {
@@ -188,7 +188,7 @@ static CYTHON_INLINE {{INT}} __Pyx_div_{{NAME}}_checking_overflow({{INT}} a, {{I
 // Use when b is known at compile time.
 #define __Pyx_add_const_{{NAME}}_checking_overflow __Pyx_add_{{NAME}}_checking_overflow
 #define __Pyx_sub_const_{{NAME}}_checking_overflow __Pyx_sub_{{NAME}}_checking_overflow
-#if defined(HAVE_BUILTIN_OVERFLOW)
+#if defined(__PYX_HAVE_BUILTIN_OVERFLOW)
 #define __Pyx_mul_const_{{NAME}}_checking_overflow __Pyx_mul_{{NAME}}_checking_overflow
 #else
 static CYTHON_INLINE {{INT}} __Pyx_mul_const_{{NAME}}_checking_overflow({{INT}} a, {{INT}} constant, int *overflow);
@@ -197,7 +197,7 @@ static CYTHON_INLINE {{INT}} __Pyx_mul_const_{{NAME}}_checking_overflow({{INT}} 
 
 /////////////// BaseCaseSigned ///////////////
 
-#if defined(HAVE_BUILTIN_OVERFLOW)
+#if defined(__PYX_HAVE_BUILTIN_OVERFLOW)
 
 static CYTHON_INLINE {{INT}} __Pyx_add_{{NAME}}_checking_overflow({{INT}} a, {{INT}} b, int *overflow) {
     {{INT}} result;
@@ -302,7 +302,7 @@ static CYTHON_INLINE {{INT}} __Pyx_mul_const_{{NAME}}_checking_overflow({{INT}} 
     }
     return ({{INT}}) (((unsigned {{INT}})a) * ((unsigned {{INT}}) b));
 }
-#endif  // defined(HAVE_BUILTIN_OVERFLOW)
+#endif  // defined(__PYX_HAVE_BUILTIN_OVERFLOW)
 
 static CYTHON_INLINE {{INT}} __Pyx_div_{{NAME}}_checking_overflow({{INT}} a, {{INT}} b, int *overflow) {
     if (b == 0) {
