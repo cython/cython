@@ -18,7 +18,7 @@ def func1(arg):
     """
     >>> func1(None)
     >>> func1(*[None])
-    >>> assert_typeerror_no_keywords(func1, arg=None)
+    >>> func1(arg=None)
     """
     pass
 
@@ -44,7 +44,7 @@ cdef class A:
     """
     >>> A().meth1(None)
     >>> A().meth1(*[None])
-    >>> assert_typeerror_no_keywords(A().meth1, arg=None)
+    >>> A().meth1(arg=None)
     >>> A().meth2(None)
     >>> A().meth2(*[None])
     >>> assert_typeerror_no_keywords(A().meth2, arg=None)
