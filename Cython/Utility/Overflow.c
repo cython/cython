@@ -55,11 +55,11 @@ static int __Pyx_check_twos_complement(void) {
 #endif
 
 #if defined(__GNUC__)
-#  define __Pyx_constant_p(x) (__builtin_constant_p(x))
+#  define __Pyx_is_constant(x) (__builtin_constant_p(x))
 #elif (defined(__has_builtin) && __has_builtin(__builtin_constant_p))
-#  define __Pyx_constant_p(x) (__builtin_constant_p(x))
+#  define __Pyx_is_constant(x) (__builtin_constant_p(x))
 #else
-#  define __Pyx_constant_p(x) (0)
+#  define __Pyx_is_constant(x) (0)
 #endif
 
 /////////////// Common.init ///////////////
@@ -125,9 +125,9 @@ static CYTHON_INLINE {{UINT}} __Pyx_sub_{{NAME}}_checking_overflow({{UINT}} a, {
 
 static CYTHON_INLINE {{UINT}} __Pyx_mul_{{NAME}}_checking_overflow({{UINT}} a, {{UINT}} b, int *overflow) {
     // if we have a constant, use the constant version
-    if (__Pyx_constant_p(b)) {
+    if (__Pyx_is_constant(b)) {
         return __Pyx_mul_const_{{NAME}}_checking_overflow(a, b, overflow);
-    } else if (__Pyx_constant_p(a)) {
+    } else if (__Pyx_is_constant(a)) {
         return __Pyx_mul_const_{{NAME}}_checking_overflow(b, a, overflow);
     } else if ((sizeof({{UINT}}) < sizeof(unsigned long))) {
         unsigned long big_r = ((unsigned long) a) * ((unsigned long) b);
@@ -154,7 +154,7 @@ static CYTHON_INLINE {{UINT}} __Pyx_mul_{{NAME}}_checking_overflow({{UINT}} a, {
 }
 
 static CYTHON_INLINE {{UINT}} __Pyx_mul_const_{{NAME}}_checking_overflow({{UINT}} a, {{UINT}} b, int *overflow) {
-    if (__Pyx_constant_p(a) && !__Pyx_constant_p(b)) {
+    if (__Pyx_is_constant(a) && !__Pyx_is_constant(b)) {
         // paranoia
         {{UINT}} temp = b;
         b = a;
@@ -253,9 +253,9 @@ static CYTHON_INLINE {{INT}} __Pyx_sub_{{NAME}}_checking_overflow({{INT}} a, {{I
 
 static CYTHON_INLINE {{INT}} __Pyx_mul_{{NAME}}_checking_overflow({{INT}} a, {{INT}} b, int *overflow) {
     // if we have a constant, use the constant version
-    if (__Pyx_constant_p(b)) {
+    if (__Pyx_is_constant(b)) {
         return __Pyx_mul_const_{{NAME}}_checking_overflow(a, b, overflow);
-    } else if (__Pyx_constant_p(a)) {
+    } else if (__Pyx_is_constant(a)) {
         return __Pyx_mul_const_{{NAME}}_checking_overflow(b, a, overflow);
     } else if ((sizeof({{INT}}) < sizeof(long))) {
         long big_r = ((long) a) * ((long) b);
@@ -285,7 +285,7 @@ static CYTHON_INLINE {{INT}} __Pyx_mul_const_{{NAME}}_checking_overflow({{INT}} 
     // note that deliberately all these comparisons are written such that they divide by b; this
     // function is used when b is a constant thus the compiler can eliminate the (very slow on most
     // CPUs!) division operations
-    if (__Pyx_constant_p(a) && !__Pyx_constant_p(b)) {
+    if (__Pyx_is_constant(a) && !__Pyx_is_constant(b)) {
         // paranoia
         {{INT}} temp = b;
         b = a;
