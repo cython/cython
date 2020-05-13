@@ -45,6 +45,10 @@ Bugs fixed
 * The non-public NumPy array specific ``INCREF``/``XDECREF`` functions
   were removed from the NumPy declarations.
 
+* When using the ``CYTHON_NO_PYINIT_EXPORT`` option in C++, the module init function
+  was not declared as ``extern "C"``.
+  (Github issue #3414)
+
 
 3.0.0 alpha 4 (2020-05-05)
 ==========================
