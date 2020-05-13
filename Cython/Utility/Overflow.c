@@ -149,8 +149,11 @@ static CYTHON_INLINE {{UINT}} __Pyx_mul_{{NAME}}_checking_overflow({{UINT}} a, {
 }
 
 static CYTHON_INLINE {{UINT}} __Pyx_mul_const_{{NAME}}_checking_overflow({{UINT}} a, {{UINT}} b, int *overflow) {
+    // note that deliberately the overflow check is written such that it divides by b; this
+    // function is used when b is a constant thus the compiler should be able to eliminate the
+    // (very slow on most CPUs!) division operation
     if (__Pyx_is_constant(a) && !__Pyx_is_constant(b)) {
-        // paranoia
+        // if a is a compile-time constant and b isn't, swap them
         {{UINT}} temp = b;
         b = a;
         a = temp;
@@ -271,10 +274,10 @@ static CYTHON_INLINE {{INT}} __Pyx_mul_{{NAME}}_checking_overflow({{INT}} a, {{I
 
 static CYTHON_INLINE {{INT}} __Pyx_mul_const_{{NAME}}_checking_overflow({{INT}} a, {{INT}} b, int *overflow) {
     // note that deliberately all these comparisons are written such that they divide by b; this
-    // function is used when b is a constant thus the compiler can eliminate the (very slow on most
-    // CPUs!) division operations
+    // function is used when b is a constant thus the compiler should be able to eliminate the
+    // (very slow on most CPUs!) division operations
     if (__Pyx_is_constant(a) && !__Pyx_is_constant(b)) {
-        // paranoia
+        // if a is a compile-time constant and b isn't, swap them
         {{INT}} temp = b;
         b = a;
         a = temp;
