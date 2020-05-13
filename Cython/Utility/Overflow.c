@@ -231,7 +231,9 @@ static CYTHON_INLINE {{INT}} __Pyx_add_{{NAME}}_checking_overflow({{INT}} a, {{I
         return r;
 #endif
     } else {
-        // Signed overflow undefined, but unsigned overflow is well defined.
+        // Signed overflow undefined, but unsigned overflow is well defined. Casting is
+        // implementation-defined, but we assume two's complement (see __Pyx_check_twos_complement
+        // above), and arithmetic in two's-complement is the same as unsigned arithmetic.
         unsigned {{INT}} r = (unsigned {{INT}}) a + (unsigned {{INT}}) b;
         // Overflow happened if the operands have the same sign, but the result
         // has opposite sign.
@@ -241,7 +243,7 @@ static CYTHON_INLINE {{INT}} __Pyx_add_{{NAME}}_checking_overflow({{INT}} a, {{I
 }
 
 static CYTHON_INLINE {{INT}} __Pyx_sub_{{NAME}}_checking_overflow({{INT}} a, {{INT}} b, int *overflow) {
-    // Compilers don't handle widening as well in the subtraction case
+    // Compilers don't handle widening as well in the subtraction case, so don't bother
     unsigned {{INT}} r = (unsigned {{INT}}) a - (unsigned {{INT}}) b;
     // Overflow happened if the operands differing signs, and the result
     // has opposite sign to a.
