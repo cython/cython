@@ -144,14 +144,7 @@ static CYTHON_INLINE {{UINT}} __Pyx_mul_{{NAME}}_checking_overflow({{UINT}} a, {
         return r;
 #endif
     } else {
-        // somewhat surprisingly, at least on x86_64 it's quicker to use floats (c.f. the const
-        // variant below)
-        {{UINT}} r = a * b;
-        float fprod = ((float) a) * ((float) b);
-        // Overflow results in an error of at least 2^sizeof(UINT),
-        // whereas rounding represents an error on the order of 2^(sizeof(UINT)-23).
-        *overflow |= fabs(fprod - r) > ((float)(__PYX_MAX({{UINT}})) / 2);
-        return r;
+        return __Pyx_mul_const_{{NAME}}_checking_overflow(a, b, overflow);
     }
 }
 
@@ -272,14 +265,7 @@ static CYTHON_INLINE {{INT}} __Pyx_mul_{{NAME}}_checking_overflow({{INT}} a, {{I
         return ({{INT}}) r;
 #endif
     } else {
-        // somewhat surprisingly, at least on x86_64 it's quicker to use floats (c.f. the const
-        // variant below)
-        {{INT}} r = ({{INT}}) (((unsigned {{INT}})a) * ((unsigned {{INT}}) b));
-        float fprod = ((float) a) * ((float) b);
-        // Overflow results in an error of at least 2^sizeof(UINT),
-        // whereas rounding represents an error on the order of 2^(sizeof(UINT)-23).
-        *overflow |= fabs(fprod - r) > ((float)(__PYX_MAX({{INT}})) / 2);
-        return r;
+        return __Pyx_mul_const_{{NAME}}_checking_overflow(a, b, overflow);
     }
 }
 
