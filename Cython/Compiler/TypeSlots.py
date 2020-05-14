@@ -460,9 +460,11 @@ class ConstructorSlot(InternalMethodSlot):
         return InternalMethodSlot.slot_code(self, scope)
 
     def spec_value(self, scope):
-        if self.slot_name == "tp_dealloc" and not scope.lookup_here("__dealloc__"):
+        slot_function = self.slot_code(scope)
+        if self.slot_name == "tp_dealloc" and slot_function != scope.mangle_internal("tp_dealloc"):
+            # Not used => inherit from base type.
             return "0"
-        return self.slot_code(scope)
+        return slot_function
 
     def generate_dynamic_init_code(self, scope, code):
         if self.slot_code(scope) != '0':
