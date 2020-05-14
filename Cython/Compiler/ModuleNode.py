@@ -790,7 +790,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put(Nodes.branch_prediction_macros)
         code.putln('static CYTHON_INLINE void __Pyx_pretend_to_initialize(void* ptr) { (void)ptr; }')
         code.putln('')
-        code.putln('#if !CYTHON_COMPILING_IN_LIMITED_API')
+        code.putln('#if !CYTHON_USE_MODULE_STATE')
         code.putln('static PyObject *%s = NULL;' % env.module_cname)
         code.putln('static PyObject *%s;' % env.module_dict_cname)
         code.putln('static PyObject *%s;' % Naming.builtins_cname)
@@ -1223,7 +1223,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state_defines = globalstate['module_state_defines']
         module_state_clear = globalstate['module_state_clear']
         module_state_traverse = globalstate['module_state_traverse']
-        code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
+        code.putln("#if !CYTHON_USE_MODULE_STATE")
         for entry in env.c_class_entries:
             if definition or entry.defined_in_pxd:
                 code.putln("static PyTypeObject *%s = 0;" % (
@@ -1357,7 +1357,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     self.generate_property_accessors(scope, code)
                     self.generate_method_table(scope, code)
                     self.generate_getset_table(scope, code)
-                    code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+                    code.putln("#if CYTHON_USE_TYPE_FROM_SPEC")
                     self.generate_typeobj_spec(entry, code)
                     code.putln("#else")
                     self.generate_typeobj_definition(full_module_name, entry, code)
@@ -2458,8 +2458,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.exit_cfunc_scope()  # done with labels
 
     def generate_module_state_start(self, env, code):
-        # TODO: Reactor LIMITED_API struct decl closer to the static decl
-        code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+        # TODO: Refactor to move module state struct decl closer to the static decl
+        code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln('typedef struct {')
         code.putln('PyObject *%s;' % Naming.builtins_cname)
         code.putln('PyObject *%s;' % Naming.cython_runtime_cname)
@@ -2512,7 +2512,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state_traverse.putln("#endif")
 
     def generate_module_state_defines(self, env, code):
-        code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+        code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln('#define %s %s->%s' % (
             Naming.builtins_cname,
             Naming.modulestateglobal_cname,
@@ -2552,7 +2552,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('#endif')
 
     def generate_module_state_clear(self, env, code):
-        code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+        code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln("static int %s_clear(PyObject *m) {" % Naming.module_cname)
         code.putln("%s *clear_module_state = %s(m);" % (
             Naming.modulestate_cname,
@@ -2578,7 +2578,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('#endif')
 
     def generate_module_state_traverse(self, env, code):
-        code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+        code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln("static int %s_traverse(PyObject *m, visitproc visit, void *arg) {" % Naming.module_cname)
         code.putln("%s *traverse_module_state = %s(m);" % (
             Naming.modulestate_cname,
@@ -3123,7 +3123,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("  %s, /* m_doc */" % doc)
         code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
         code.putln("  0, /* m_size */")
-        code.putln("#elif CYTHON_COMPILING_IN_LIMITED_API")
+        code.putln("#elif CYTHON_USE_MODULE_STATE")  # FIXME: should allow combination with PEP-489
         code.putln("  sizeof(%s), /* m_size */" % Naming.modulestate_cname)
         code.putln("#else")
         code.putln("  -1, /* m_size */")
@@ -3134,7 +3134,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#else")
         code.putln("  NULL, /* m_reload */")
         code.putln("#endif")
-        code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+        code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln("  %s_traverse, /* m_traverse */" % Naming.module_cname)
         code.putln("  %s_clear, /* m_clear */" % Naming.module_cname)
         code.putln("  %s /* m_free */" % cleanup_func)

@@ -1,11 +1,14 @@
 /////////////// PyType_Ready.proto ///////////////
 
+#if !CYTHON_USE_TYPE_FROM_SPEC
 static int __Pyx_PyType_Ready(PyTypeObject *t);
+#endif
 
 /////////////// PyType_Ready ///////////////
 
 // Wrapper around PyType_Ready() with some runtime checks and fixes
 // to deal with multiple inheritance.
+#if !CYTHON_USE_TYPE_FROM_SPEC
 static int __Pyx_PyType_Ready(PyTypeObject *t) {
     // Loop over all bases (except the first) and check that those
     // really are heap types. Otherwise, it would not be safe to
@@ -118,6 +121,7 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
 
     return r;
 }
+#endif
 
 /////////////// PyTrashcan.proto ///////////////
 

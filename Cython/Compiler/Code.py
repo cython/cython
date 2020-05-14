@@ -1445,7 +1445,7 @@ class GlobalState(object):
                   for c in self.py_constants]
         consts.sort()
         decls_writer = self.parts['decls']
-        decls_writer.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
+        decls_writer.putln("#if !CYTHON_USE_MODULE_STATE")
         for _, cname, c in consts:
             self.parts['module_state'].putln("%s;" % c.type.declaration_code(cname))
             self.parts['module_state_defines'].putln(
@@ -1520,16 +1520,16 @@ class GlobalState(object):
             w = self.parts['pystring_table']
             w.putln("")
             w.putln("static __Pyx_StringTabEntry %s[] = {" % Naming.stringtab_cname)
-            w.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-            w_limited_writer = w.insertion_point()
+            w.putln("#if CYTHON_USE_MODULE_STATE")
+            w_in_module_state = w.insertion_point()
             w.putln("#else")
-            w_not_limited_writer = w.insertion_point()
+            w_not_in_module_state = w.insertion_point()
             w.putln("#endif")
-            decls_writer.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
+            decls_writer.putln("#if !CYTHON_USE_MODULE_STATE")
             not_limited_api_decls_writer = decls_writer.insertion_point()
             decls_writer.putln("#endif")
-            init_globals.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-            init_globals_limited_api = init_globals.insertion_point()
+            init_globals.putln("#if CYTHON_USE_MODULE_STATE")
+            init_globals_in_module_state = init_globals.insertion_point()
             init_globals.putln("#endif")
             for idx, py_string_args in enumerate(py_strings):
                 c_cname, _, py_string = py_string_args
@@ -1552,16 +1552,16 @@ class GlobalState(object):
                 not_limited_api_decls_writer.putln(
                     "static PyObject *%s;" % py_string.cname)
                 if py_string.py3str_cstring:
-                    w_not_limited_writer.putln("#if PY_MAJOR_VERSION >= 3")
-                    w_not_limited_writer.putln("{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
+                    w_not_in_module_state.putln("#if PY_MAJOR_VERSION >= 3")
+                    w_not_in_module_state.putln("{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
                         py_string.cname,
                         py_string.py3str_cstring.cname,
                         py_string.py3str_cstring.cname,
                         '0', 1, 0,
                         py_string.intern
                         ))
-                    w_not_limited_writer.putln("#else")
-                w_not_limited_writer.putln("{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
+                    w_not_in_module_state.putln("#else")
+                w_not_in_module_state.putln("{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
                     py_string.cname,
                     c_cname,
                     c_cname,
@@ -1571,8 +1571,8 @@ class GlobalState(object):
                     py_string.intern
                     ))
                 if py_string.py3str_cstring:
-                    w_not_limited_writer.putln("#endif")
-                w_limited_writer.putln("{0, %s, sizeof(%s), %s, %d, %d, %d}," % (
+                    w_not_in_module_state.putln("#endif")
+                w_in_module_state.putln("{0, %s, sizeof(%s), %s, %d, %d, %d}," % (
                     c_cname if not py_string.py3str_cstring else py_string.py3str_cstring.cname,
                     c_cname if not py_string.py3str_cstring else py_string.py3str_cstring.cname,
                     encoding if not py_string.py3str_cstring else '0',
@@ -1580,7 +1580,7 @@ class GlobalState(object):
                     py_string.is_str,
                     py_string.intern
                     ))
-                init_globals_limited_api.putln("if (__Pyx_InitString(%s[%d], &%s) < 0) %s;" % (
+                init_globals_in_module_state.putln("if (__Pyx_InitString(%s[%d], &%s) < 0) %s;" % (
                     Naming.stringtab_cname,
                     idx,
                     py_string.cname,
@@ -1588,7 +1588,7 @@ class GlobalState(object):
             w.putln("{0, 0, 0, 0, 0, 0, 0}")
             w.putln("};")
 
-            init_globals.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
+            init_globals.putln("#if !CYTHON_USE_MODULE_STATE")
             init_globals.putln(
                 "if (__Pyx_InitStrings(%s) < 0) %s;" % (
                     Naming.stringtab_cname,
@@ -1600,7 +1600,7 @@ class GlobalState(object):
                   for c in self.num_const_index.values()]
         consts.sort()
         decls_writer = self.parts['decls']
-        decls_writer.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
+        decls_writer.putln("#if !CYTHON_USE_MODULE_STATE")
         init_globals = self.parts['init_globals']
         for py_type, _, _, value, value_code, c in consts:
             cname = c.cname

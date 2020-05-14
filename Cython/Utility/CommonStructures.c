@@ -1,7 +1,7 @@
 /////////////// FetchCommonType.proto ///////////////
 
 static PyTypeObject* __Pyx_FetchCommonType(PyTypeObject* type);
-#if CYTHON_COMPILING_IN_LIMITED_API
+#if CYTHON_USE_TYPE_FROM_SPEC
 static PyTypeObject* __Pyx_FetchCommonTypeFromSpec(PyType_Spec *spec, PyObject *bases);
 #endif
 
@@ -69,7 +69,7 @@ bad:
     goto done;
 }
 
-#if CYTHON_COMPILING_IN_LIMITED_API
+#if CYTHON_USE_TYPE_FROM_SPEC
 static PyTypeObject *__Pyx_FetchCommonTypeFromSpec(PyType_Spec *spec, PyObject *bases) {
     PyObject *abi_module, *py_basicsize, *cached_type = NULL;
     Py_ssize_t basicsize;

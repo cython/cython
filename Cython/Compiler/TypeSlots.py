@@ -980,7 +980,7 @@ slot_table = (
     SyntheticSlot("tp_descr_get", ["__get__"], "0"),
     SyntheticSlot("tp_descr_set", ["__set__", "__delete__"], "0"),
 
-    DictOffsetSlot("tp_dictoffset"),
+    DictOffsetSlot("tp_dictoffset", ifdef="!CYTHON_USE_TYPE_FROM_SPEC"),  # FIXME: always needs to be set
 
     MethodSlot(initproc, "tp_init", "__init__"),
     EmptySlot("tp_alloc"), #FixedSlot("tp_alloc", "PyType_GenericAlloc"),
