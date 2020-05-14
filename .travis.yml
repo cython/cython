@@ -33,6 +33,7 @@ env:
     - CCACHE_MAXSIZE=250M
     - PATH="/usr/lib/ccache:$HOME/miniconda/bin:$PATH"
     - BACKEND=c,cpp
+    - EXTRA_CFLAGS=
   matrix:
     - BACKEND=c
     - BACKEND=cpp
@@ -59,6 +60,18 @@ matrix:
 #      env: COVERAGE=1
     - python: 3.7
       env: TEST_CODE_STYLE=1
+    - python: 3.9-dev
+      env: EXTRA_CFLAGS="-DCYTHON_USE_TYPE_FROM_SPEC=1" BACKEND=c
+    - python: 3.8
+      env: EXTRA_CFLAGS="-DCYTHON_USE_TYPE_FROM_SPEC=1" BACKEND=c
+    - python: 3.7
+      env: EXTRA_CFLAGS="-DCYTHON_USE_TYPE_FROM_SPEC=1" BACKEND=c
+    - python: 3.6
+      env: EXTRA_CFLAGS="-DCYTHON_USE_TYPE_FROM_SPEC=1" BACKEND=c
+    - python: 3.5
+      env: EXTRA_CFLAGS="-DCYTHON_USE_TYPE_FROM_SPEC=1" BACKEND=c
+    - python: 3.4
+      env: EXTRA_CFLAGS="-DCYTHON_USE_TYPE_FROM_SPEC=1" BACKEND=c
     - python: 3.8
       env: LIMITED_API=--limited-api EXCLUDE=--no-file
     - python: 3.7
@@ -142,5 +155,5 @@ script:
 # Need to clear the ccache? Try something like this:
 #  - if [ -n "${BACKEND##*cpp*}" -a -z "${TRAVIS_PYTHON_VERSION##*3.4}" ]; then ccache -C || true; fi
   - if [ "$COVERAGE" != "1" ]; then CFLAGS="-O2 -ggdb -Wall -Wextra $(python -c 'import sys; print("-fno-strict-aliasing" if sys.version_info[0] == 2 else "")')" python setup.py build_ext -i $(python -c 'import sys; print("-j5" if sys.version_info >= (3,5) else "")'); fi
-  - CFLAGS="-O0 -ggdb -Wall -Wextra" python runtests.py -vv $STYLE_ARGS -x Debugger --backends=$BACKEND $LIMITED_API $EXCLUDE $(if [ "$COVERAGE" == "1" ]; then echo " --coverage"; fi) $(if [ -z "$TEST_CODE_STYLE" ]; then echo " -j7 "; fi)
+  - CFLAGS="-O0 -ggdb -Wall -Wextra $EXTRA_CFLAGS" python runtests.py -vv $STYLE_ARGS -x Debugger --backends=$BACKEND $LIMITED_API $EXCLUDE $(if [ "$COVERAGE" == "1" ]; then echo " --coverage"; fi) $(if [ -z "$TEST_CODE_STYLE" ]; then echo " -j7 "; fi)
   - ccache -s || true
