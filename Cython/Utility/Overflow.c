@@ -371,12 +371,18 @@ static CYTHON_INLINE {{TYPE}} __Pyx_{{BINOP}}_{{NAME}}_checking_overflow({{TYPE}
 /////////////// LeftShift.proto ///////////////
 
 static CYTHON_INLINE {{TYPE}} __Pyx_lshift_{{NAME}}_checking_overflow({{TYPE}} a, {{TYPE}} b, int *overflow) {
-    *overflow |=
+    int overflow_check =
 #if {{SIGNED}}
-        (b < 0) |
+        (a < 0) || (b < 0) ||
 #endif
-        (b > ({{TYPE}}) (8 * sizeof({{TYPE}}))) | (a > (__PYX_MAX({{TYPE}}) >> b));
-    return a << b;
+        // the following must be a _logical_ OR as the RHS is undefined if the LHS is true
+        (b >= ({{TYPE}}) (8 * sizeof({{TYPE}}))) || (a > (__PYX_MAX({{TYPE}}) >> b));
+    if (overflow_check) {
+        *overflow |= 1;
+        return 0;
+    } else {
+        return a << b;
+    }
 }
 #define __Pyx_lshift_const_{{NAME}}_checking_overflow __Pyx_lshift_{{NAME}}_checking_overflow
 
