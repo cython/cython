@@ -71,19 +71,25 @@ bad:
 
 #if CYTHON_USE_TYPE_FROM_SPEC
 static PyTypeObject *__Pyx_FetchCommonTypeFromSpec(PyType_Spec *spec, PyObject *bases) {
-    PyObject *abi_module, *py_basicsize, *cached_type = NULL;
-    Py_ssize_t basicsize;
+    PyObject *abi_module, *cached_type = NULL;
 
     abi_module = __Pyx_FetchSharedCythonABIModule();
     if (!abi_module) return NULL;
+
     cached_type = PyObject_GetAttrString(abi_module, spec->name);
     if (cached_type) {
+        Py_ssize_t basicsize;
+#if CYTHON_COMPILING_IN_LIMITED_API
+        PyObject *py_basicsize;
         py_basicsize = PyObject_GetAttrString(cached_type, "__basicsize__");
-        if (!py_basicsize) goto bad;
+        if (unlikely(!py_basicsize)) goto bad;
         basicsize = PyLong_AsSsize_t(py_basicsize);
         Py_DECREF(py_basicsize);
         py_basicsize = 0;
-        if (basicsize == (Py_ssize_t)-1 && PyErr_Occurred()) goto bad;
+        if (unlikely(basicsize == (Py_ssize_t)-1) && PyErr_Occurred()) goto bad;
+#else
+        basicsize = likely(PyType_Check(cached_type)) ? ((PyTypeObject*) cached_type)->tp_basicsize : -1;
+#endif
         if (__Pyx_VerifyCachedType(
               cached_type,
               spec->name,
