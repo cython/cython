@@ -908,6 +908,11 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 #endif
 
 
+/////////////// IncludeStructmemberH.proto ///////////////
+
+#include <structmember.h>
+
+
 /////////////// SmallCodeConfig.proto ///////////////
 
 #ifndef CYTHON_SMALL_CODE

@@ -616,7 +616,42 @@ class MemberTableSlot(SlotDescriptor):
     #  Slot descriptor for the table of Python-accessible attributes.
 
     def slot_code(self, scope):
+        # Only used in specs.
         return "0"
+
+    def get_member_specs(self, scope):
+        return [
+            get_slot_by_name("tp_dictoffset").members_slot_value(scope),
+            #get_slot_by_name("tp_weaklistoffset").spec_value(scope),
+        ]
+
+    def is_empty(self, scope):
+        for member_entry in self.get_member_specs(scope):
+            if member_entry:
+                return False
+        return True
+
+    def substructure_cname(self, scope):
+        return "%s%s_%s" % (Naming.pyrex_prefix, self.slot_name, scope.class_name)
+
+    def generate_substructure_spec(self, scope, code):
+        if self.is_empty(scope):
+            return
+        from .Code import UtilityCode
+        code.globalstate.use_utility_code(UtilityCode.load_cached("IncludeStructmemberH", "ModuleSetupCode.c"))
+
+        ext_type = scope.parent_type
+        code.putln("static struct PyMemberDef %s[] = {" % self.substructure_cname(scope))
+        for member_entry in self.get_member_specs(scope):
+            if member_entry:
+                code.putln(member_entry)
+        code.putln("{NULL, 0, 0, 0, NULL}")
+        code.putln("};")
+
+    def spec_value(self, scope):
+        if self.is_empty(scope):
+            return "0"
+        return self.substructure_cname(scope)
 
 
 class GetSetSlot(SlotDescriptor):
@@ -663,6 +698,13 @@ class DictOffsetSlot(SlotDescriptor):
                         dict_entry.cname))
         else:
             return "0"
+
+    def members_slot_value(self, scope):
+        dict_offset = self.slot_code(scope)
+        if dict_offset == "0":
+            return None
+        return '{"__dictoffset__", T_PYSSIZET, %s, READONLY, NULL},' % dict_offset
+
 
 
 # The following dictionary maps __xxx__ method names to slot descriptors.

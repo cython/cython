@@ -2267,6 +2267,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_typeobj_spec(self, entry, code):
         ext_type = entry.type
         scope = ext_type.scope
+
+        members_slot = TypeSlots.get_slot_by_name("tp_members")
+        members_slot.generate_substructure_spec(scope, code)
+
         code.putln("static PyType_Slot %s_slots[] = {" % ext_type.typeobj_cname)
         for slot in TypeSlots.slot_table:
             slot.generate_spec(scope, code)

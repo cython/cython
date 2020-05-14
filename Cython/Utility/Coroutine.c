@@ -493,8 +493,8 @@ static int __pyx_Generator_init(void); /*proto*/
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
 //@requires: ObjectHandling.c::PyObjectGetAttrStrNoError
 //@requires: CommonStructures.c::FetchCommonType
+//@requires: ModuleSetupCode.c::IncludeStructmemberH
 
-#include <structmember.h>
 #include <frameobject.h>
 
 #define __Pyx_Coroutine_Undelegate(gen) Py_CLEAR((gen)->yieldfrom)
