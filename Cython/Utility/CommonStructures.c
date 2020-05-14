@@ -1,5 +1,6 @@
 /////////////// FetchCommonType.proto ///////////////
 
+// TODO: Finish up conversion of internal types so that we can use both function alternatively.
 static PyTypeObject* __Pyx_FetchCommonType(PyTypeObject* type);
 #if CYTHON_USE_TYPE_SPECS
 static PyTypeObject* __Pyx_FetchCommonTypeFromSpec(PyType_Spec *spec, PyObject *bases);
