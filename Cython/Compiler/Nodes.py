@@ -5142,7 +5142,7 @@ class CClassDefNode(ClassDefNode):
                 self.type_init_args.generate_disposal_code(code)
                 self.type_init_args.free_temps(code)
 
-            self.generate_type_ready_code(self.entry, code, bases_tuple_cname=bases)
+            self.generate_type_ready_code(self.entry, code, bases_tuple_cname=bases, check_heap_type_bases=True)
             if bases is not None:
                 code.put_decref_clear(bases, PyrexTypes.py_object_type)
                 code.funcstate.release_temp(bases)
@@ -5152,7 +5152,7 @@ class CClassDefNode(ClassDefNode):
 
     # Also called from ModuleNode for early init types.
     @staticmethod
-    def generate_type_ready_code(entry, code, bases_tuple_cname=None):
+    def generate_type_ready_code(entry, code, bases_tuple_cname=None, check_heap_type_bases=False):
         # Generate a call to PyType_Ready for an extension
         # type defined in this module.
         type = entry.type
@@ -5220,7 +5220,7 @@ class CClassDefNode(ClassDefNode):
             code.putln("#endif")
 
             code.putln("#if !CYTHON_USE_TYPE_SPECS")
-            if bases_tuple_cname:
+            if check_heap_type_bases:
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached('PyType_Ready', 'ExtensionTypes.c'))
                 readyfunc = "__Pyx_PyType_Ready"
