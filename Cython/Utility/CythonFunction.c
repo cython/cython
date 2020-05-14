@@ -412,7 +412,7 @@ static PyGetSetDef __pyx_CyFunction_getsets[] = {
 
 static PyMemberDef __pyx_CyFunction_members[] = {
     {(char *) "__module__", T_OBJECT, offsetof(PyCFunctionObject, m_module), PY_WRITE_RESTRICTED, 0},
-#if CYTHON_USE_TYPE_FROM_SPEC
+#if CYTHON_USE_TYPE_SPECS
     {(char *) "__dictoffset__", T_PYSSIZET, offsetof(__pyx_CyFunctionObject, func_dict), READONLY, 0},
 #if PY_VERSION_HEX < 0x030500A0
     {(char *) "__weaklistoffset__", T_PYSSIZET, offsetof(__pyx_CyFunctionObject, func_weakreflist), READONLY, 0},
@@ -796,7 +796,7 @@ static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS(PyObject *func, 
 }
 #endif
 
-#if CYTHON_USE_TYPE_FROM_SPEC
+#if CYTHON_USE_TYPE_SPECS
 static PyType_Slot __pyx_CyFunctionType_slots[] = {
     {Py_tp_dealloc, (void *)__Pyx_CyFunction_dealloc},
     {Py_tp_repr, (void *)__Pyx_CyFunction_repr},
@@ -900,11 +900,11 @@ static PyTypeObject __pyx_CyFunctionType_type = {
     0,                                          /*tp_pypy_flags*/
 #endif
 };
-#endif  /* CYTHON_USE_TYPE_FROM_SPEC */
+#endif  /* CYTHON_USE_TYPE_SPECS */
 
 
 static int __pyx_CyFunction_init(void) {
-#if CYTHON_USE_TYPE_FROM_SPEC
+#if CYTHON_USE_TYPE_SPECS
     __pyx_CyFunctionType = __Pyx_FetchCommonTypeFromSpec(&__pyx_CyFunctionType_spec, NULL);
 #else
     __pyx_CyFunctionType = __Pyx_FetchCommonType(&__pyx_CyFunctionType_type);
@@ -1321,7 +1321,7 @@ static PyMemberDef __pyx_FusedFunction_members[] = {
     {0, 0, 0, 0, 0},
 };
 
-#if CYTHON_USE_TYPE_FROM_SPEC
+#if CYTHON_USE_TYPE_SPECS
 static PyType_Slot __pyx_FusedFunctionType_slots[] = {
     {Py_tp_dealloc, (void *)__pyx_FusedFunction_dealloc},
     {Py_tp_call, (void *)__pyx_FusedFunction_call},
@@ -1342,7 +1342,7 @@ static PyType_Spec __pyx_FusedFunctionType_spec = {
     __pyx_FusedFunctionType_slots
 };
 
-#else  /* !CYTHON_USE_TYPE_FROM_SPEC */
+#else  /* !CYTHON_USE_TYPE_SPECS */
 
 static PyMappingMethods __pyx_FusedFunction_mapping_methods = {
     0,
@@ -1421,7 +1421,7 @@ static PyTypeObject __pyx_FusedFunctionType_type = {
 #endif
 
 static int __pyx_FusedFunction_init(void) {
-#if CYTHON_USE_TYPE_FROM_SPEC
+#if CYTHON_USE_TYPE_SPECS
     PyObject *bases = PyTuple_Pack(1, __pyx_CyFunctionType);
     if (unlikely(!bases)) {
         return -1;

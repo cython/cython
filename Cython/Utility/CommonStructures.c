@@ -1,7 +1,7 @@
 /////////////// FetchCommonType.proto ///////////////
 
 static PyTypeObject* __Pyx_FetchCommonType(PyTypeObject* type);
-#if CYTHON_USE_TYPE_FROM_SPEC
+#if CYTHON_USE_TYPE_SPECS
 static PyTypeObject* __Pyx_FetchCommonTypeFromSpec(PyType_Spec *spec, PyObject *bases);
 #endif
 
@@ -69,7 +69,7 @@ bad:
     goto done;
 }
 
-#if CYTHON_USE_TYPE_FROM_SPEC
+#if CYTHON_USE_TYPE_SPECS
 static PyTypeObject *__Pyx_FetchCommonTypeFromSpec(PyType_Spec *spec, PyObject *bases) {
     PyObject *abi_module, *cached_type = NULL;
 

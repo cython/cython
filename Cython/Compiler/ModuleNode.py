@@ -1357,7 +1357,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     self.generate_property_accessors(scope, code)
                     self.generate_method_table(scope, code)
                     self.generate_getset_table(scope, code)
-                    code.putln("#if CYTHON_USE_TYPE_FROM_SPEC")
+                    code.putln("#if CYTHON_USE_TYPE_SPECS")
                     self.generate_typeobj_spec(entry, code)
                     code.putln("#else")
                     self.generate_typeobj_definition(full_module_name, entry, code)

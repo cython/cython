@@ -1,6 +1,6 @@
 /////////////// PyType_Ready.proto ///////////////
 
-#if !CYTHON_USE_TYPE_FROM_SPEC
+#if !CYTHON_USE_TYPE_SPECS
 static int __Pyx_PyType_Ready(PyTypeObject *t);
 #endif
 
@@ -8,7 +8,7 @@ static int __Pyx_PyType_Ready(PyTypeObject *t);
 
 // Wrapper around PyType_Ready() with some runtime checks and fixes
 // to deal with multiple inheritance.
-#if !CYTHON_USE_TYPE_FROM_SPEC
+#if !CYTHON_USE_TYPE_SPECS
 static int __Pyx_PyType_Ready(PyTypeObject *t) {
     // Loop over all bases (except the first) and check that those
     // really are heap types. Otherwise, it would not be safe to

@@ -314,11 +314,14 @@ class SlotDescriptor(object):
     def generate_set_slot_code(self, value, scope, code):
         if value == "0":
             return
-        code.putln("%s.%s = %s;" % (
-            scope.parent_type.typeobj_cname,
-            self.slot_name,
-            value,
-        ))
+
+        if scope.parent_type.typeptr_cname:
+            target = "%s->%s" % (scope.parent_type.typeptr_cname, self.slot_name)
+        else:
+            assert scope.parent_type.typeobj_cname
+            target = "%s.%s" % (scope.parent_type.typeobj_cname, self.slot_name)
+
+        code.putln("%s = %s;" % (target, value))
 
 
 class FixedSlot(SlotDescriptor):
@@ -467,10 +470,10 @@ class ConstructorSlot(InternalMethodSlot):
         # If we don't have our own slot function and don't know the
         # parent function statically, copy it dynamically.
         base_type = scope.parent_type.base_type
-        if base_type.is_extension_type and base_type.typeobj_cname:
-            src = '%s.%s' % (base_type.typeobj_cname, self.slot_name)
-        elif base_type.typeptr_cname:
+        if base_type.typeptr_cname:
             src = '%s->%s' % (base_type.typeptr_cname, self.slot_name)
+        elif base_type.is_extension_type and base_type.typeobj_cname:
+            src = '%s.%s' % (base_type.typeobj_cname, self.slot_name)
         else:
             return
 
@@ -633,8 +636,8 @@ class BaseClassSlot(SlotDescriptor):
     def generate_dynamic_init_code(self, scope, code):
         base_type = scope.parent_type.base_type
         if base_type:
-            code.putln("%s.%s = %s;" % (
-                scope.parent_type.typeobj_cname,
+            code.putln("%s->%s = %s;" % (
+                scope.parent_type.typeptr_cname,
                 self.slot_name,
                 base_type.typeptr_cname))
 
@@ -980,7 +983,7 @@ slot_table = (
     SyntheticSlot("tp_descr_get", ["__get__"], "0"),
     SyntheticSlot("tp_descr_set", ["__set__", "__delete__"], "0"),
 
-    DictOffsetSlot("tp_dictoffset", ifdef="!CYTHON_USE_TYPE_FROM_SPEC"),  # FIXME: always needs to be set
+    DictOffsetSlot("tp_dictoffset", ifdef="!CYTHON_USE_TYPE_SPECS"),  # FIXME: always needs to be set
 
     MethodSlot(initproc, "tp_init", "__init__"),
     EmptySlot("tp_alloc"), #FixedSlot("tp_alloc", "PyType_GenericAlloc"),

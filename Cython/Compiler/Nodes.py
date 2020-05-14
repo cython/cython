@@ -5112,12 +5112,18 @@ class CClassDefNode(ClassDefNode):
         # default values of method arguments.
         code.mark_pos(self.pos)
         if not self.entry.type.early_init:
+            bases = None
             if self.type_init_args:
+                # Extract bases tuple and validate 'best base' by actually calling 'type()'.
+                bases = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=True)
+
                 self.type_init_args.generate_evaluation_code(code)
-                bases = "PyTuple_GET_ITEM(%s, 1)" % self.type_init_args.result()
+                code.putln("%s = PyTuple_GET_ITEM(%s, 1);" % (bases, self.type_init_args.result()))
+                code.put_incref(bases, PyrexTypes.py_object_type)
+
                 first_base = "((PyTypeObject*)PyTuple_GET_ITEM(%s, 0))" % bases
                 # Let Python do the base types compatibility checking.
-                trial_type = code.funcstate.allocate_temp(PyrexTypes.py_object_type, True)
+                trial_type = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=True)
                 code.putln("%s = PyType_Type.tp_new(&PyType_Type, %s, NULL);" % (
                     trial_type, self.type_init_args.result()))
                 code.putln(code.error_goto_if_null(trial_type, self.pos))
@@ -5129,87 +5135,112 @@ class CClassDefNode(ClassDefNode):
                            trial_type, first_base))
                 code.putln(code.error_goto(self.pos))
                 code.putln("}")
-                code.funcstate.release_temp(trial_type)
-                code.put_incref(bases, PyrexTypes.py_object_type)
-                code.put_giveref(bases, py_object_type)
-                code.putln("%s.tp_bases = %s;" % (self.entry.type.typeobj_cname, bases))
+
                 code.put_decref_clear(trial_type, PyrexTypes.py_object_type)
+                code.funcstate.release_temp(trial_type)
+
                 self.type_init_args.generate_disposal_code(code)
                 self.type_init_args.free_temps(code)
 
-            self.generate_type_ready_code(self.entry, code, heap_type_bases=True)
+            self.generate_type_ready_code(self.entry, code, bases_tuple_cname=bases)
+            if bases is not None:
+                code.put_decref_clear(bases, PyrexTypes.py_object_type)
+                code.funcstate.release_temp(bases)
+
         if self.body:
             self.body.generate_execution_code(code)
 
     # Also called from ModuleNode for early init types.
     @staticmethod
-    def generate_type_ready_code(entry, code, heap_type_bases=False):
+    def generate_type_ready_code(entry, code, bases_tuple_cname=None):
         # Generate a call to PyType_Ready for an extension
         # type defined in this module.
         type = entry.type
-        typeobj_cname = type.typeobj_cname
+        typeptr_cname = type.typeptr_cname
         scope = type.scope
         if not scope:  # could be None if there was an error
             return
-        if entry.visibility != 'extern':
-            code.putln("#if CYTHON_USE_TYPE_FROM_SPEC")
-            tuple_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
-            base_type = scope.parent_type.base_type
-            if base_type:
-                code.putln(
-                    "%s = PyTuple_Pack(1, (PyObject *)%s); %s" % (
+        if entry.visibility == 'extern':
+            # Generate code to initialise the typeptr of an external extension
+            # type defined in this module to point to its type object.
+            if type.typeobj_cname:
+                # FIXME: this should not normally be set :-?
+                assert not type.typeobj_cname
+                code.putln("%s = &%s;" % (
+                    type.typeptr_cname,
+                    type.typeobj_cname,
+                ))
+            return
+        # TODO: remove 'else:' and dedent
+        else:
+            assert typeptr_cname
+            code.putln("#if CYTHON_USE_TYPE_SPECS")
+            tuple_temp = None
+            if not bases_tuple_cname and scope.parent_type.base_type:
+                tuple_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+                code.putln("%s = PyTuple_Pack(1, (PyObject *)%s); %s" % (
                     tuple_temp,
-                    base_type.typeptr_cname,
-                    code.error_goto_if_null(tuple_temp, entry.pos)))
+                    scope.parent_type.base_type.typeptr_cname,
+                    code.error_goto_if_null(tuple_temp, entry.pos),
+                ))
                 code.put_gotref(tuple_temp, py_object_type)
-                code.putln(
-                    "%s = PyType_FromSpecWithBases(&%s_spec, %s); %s" % (
-                        typeobj_cname,
-                        typeobj_cname,
-                        tuple_temp,
-                        code.error_goto_if_null(typeobj_cname, entry.pos)))
-                code.put_xdecref_clear(tuple_temp, type=py_object_type)
-                code.funcstate.release_temp(tuple_temp)
+
+            if bases_tuple_cname or tuple_temp:
+                code.putln("%s = (PyTypeObject *) PyType_FromSpecWithBases(&%s_spec, %s);" % (
+                    typeptr_cname,
+                    type.typeobj_cname,
+                    bases_tuple_cname or tuple_temp,
+                ))
+                if tuple_temp:
+                    code.put_xdecref_clear(tuple_temp, type=py_object_type)
+                    code.funcstate.release_temp(tuple_temp)
+                code.putln(code.error_goto_if_null(typeptr_cname, entry.pos))
             else:
                 code.putln(
-                    "%s = PyType_FromSpec(&%s_spec); %s" % (
-                        typeobj_cname,
-                        typeobj_cname,
-                        code.error_goto_if_null(typeobj_cname, entry.pos)))
-            code.putln("#endif")  # if CYTHON_USE_TYPE_FROM_SPEC
+                    "%s = (PyTypeObject *) PyType_FromSpec(&%s_spec); %s" % (
+                        typeptr_cname,
+                        type.typeobj_cname,
+                        code.error_goto_if_null(typeptr_cname, entry.pos),
+                    ))
+            code.putln("#else")
+            if bases_tuple_cname:
+                code.put_incref(bases_tuple_cname, py_object_type)
+                code.put_giveref(bases_tuple_cname, py_object_type)
+                code.putln("%s.tp_bases = %s;" % (type.typeobj_cname, bases_tuple_cname))
+            code.putln("%s = &%s;" % (
+                typeptr_cname,
+                type.typeobj_cname,
+            ))
+            code.putln("#endif")  # if CYTHON_USE_TYPE_SPECS
 
             code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
-            # FIXME: these still need to get initialised
+            # FIXME: these still need to get initialised even with the limited-API
             for slot in TypeSlots.slot_table:
                 slot.generate_dynamic_init_code(scope, code)
             code.putln("#endif")
 
-            code.putln("#if !CYTHON_USE_TYPE_FROM_SPEC")
-            if heap_type_bases:
+            code.putln("#if !CYTHON_USE_TYPE_SPECS")
+            if bases_tuple_cname:
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached('PyType_Ready', 'ExtensionTypes.c'))
                 readyfunc = "__Pyx_PyType_Ready"
             else:
                 readyfunc = "PyType_Ready"
-            code.putln(
-                "if (%s(&%s) < 0) %s" % (
-                    readyfunc,
-                    typeobj_cname,
-                    code.error_goto(entry.pos)))
+            code.put_error_if_neg(entry.pos, "%s(%s)" % (readyfunc, typeptr_cname))
             code.putln("#endif")
 
             # Don't inherit tp_print from builtin types in Python 2, restoring the
             # behavior of using tp_repr or tp_str instead.
             # ("tp_print" was renamed to "tp_vectorcall_offset" in Py3.8b1)
             code.putln("#if PY_MAJOR_VERSION < 3")
-            code.putln("%s.tp_print = 0;" % typeobj_cname)
+            code.putln("%s->tp_print = 0;" % typeptr_cname)
             code.putln("#endif")
 
             # Use specialised attribute lookup for types with generic lookup but no instance dict.
-            code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")  # FIXME
             getattr_slot_func = TypeSlots.get_slot_code_by_name(scope, 'tp_getattro')
             dictoffset_slot_func = TypeSlots.get_slot_code_by_name(scope, 'tp_dictoffset')
             if getattr_slot_func == '0' and dictoffset_slot_func == '0':
+                code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")  # FIXME
                 if type.is_final_type:
                     py_cfunc = "__Pyx_PyObject_GenericGetAttrNoDict"  # grepable
                     utility_func = "PyObject_GenericGetAttrNoDict"
@@ -5219,12 +5250,12 @@ class CClassDefNode(ClassDefNode):
                 code.globalstate.use_utility_code(UtilityCode.load_cached(utility_func, "ObjectHandling.c"))
 
                 code.putln("if ((CYTHON_USE_TYPE_SLOTS && CYTHON_USE_PYTYPE_LOOKUP) &&"
-                           " likely(!%s.tp_dictoffset && %s.tp_getattro == PyObject_GenericGetAttr)) {" % (
-                    typeobj_cname, typeobj_cname))
-                code.putln("%s.tp_getattro = %s;" % (
-                    typeobj_cname, py_cfunc))
+                           " likely(!%s->tp_dictoffset && %s->tp_getattro == PyObject_GenericGetAttr)) {" % (
+                    typeptr_cname, typeptr_cname))
+                code.putln("%s->tp_getattro = %s;" % (
+                    typeptr_cname, py_cfunc))
                 code.putln("}")
-            code.putln("#endif")  # if !CYTHON_COMPILING_IN_LIMITED_API
+                code.putln("#endif")  # if !CYTHON_COMPILING_IN_LIMITED_API
 
             # Fix special method docstrings. This is a bit of a hack, but
             # unless we let PyType_Ready create the slot wrappers we have
@@ -5240,8 +5271,8 @@ class CClassDefNode(ClassDefNode):
                     code.putln('#if CYTHON_COMPILING_IN_CPYTHON')
                     code.putln("{")
                     code.putln(
-                        'PyObject *wrapper = PyObject_GetAttrString((PyObject *)&%s, "%s"); %s' % (
-                            typeobj_cname,
+                        'PyObject *wrapper = PyObject_GetAttrString((PyObject *)%s, "%s"); %s' % (
+                            typeptr_cname,
                             func.name,
                             code.error_goto_if_null('wrapper', entry.pos)))
                     code.putln(
@@ -5265,21 +5296,21 @@ class CClassDefNode(ClassDefNode):
                 code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
                 code.putln(
                     "if (__Pyx_SetVtable(%s, %s) < 0) %s" % (
-                        typeobj_cname,
+                        typeptr_cname,
                         type.vtabptr_cname,
                         code.error_goto(entry.pos)))
                 code.putln("#else")
                 code.putln(
-                    "if (__Pyx_SetVtable(%s.tp_dict, %s) < 0) %s" % (
-                        typeobj_cname,
+                    "if (__Pyx_SetVtable(%s->tp_dict, %s) < 0) %s" % (
+                        typeptr_cname,
                         type.vtabptr_cname,
                         code.error_goto(entry.pos)))
                 code.putln("#endif")
-                if heap_type_bases:
+                if bases_tuple_cname:
                     code.globalstate.use_utility_code(
                         UtilityCode.load_cached('MergeVTables', 'ImportExport.c'))
-                    code.putln("if (__Pyx_MergeVtables(&%s) < 0) %s" % (
-                        typeobj_cname,
+                    code.putln("if (__Pyx_MergeVtables(%s) < 0) %s" % (
+                        typeptr_cname,
                         code.error_goto(entry.pos)))
             if not type.scope.is_internal and not type.scope.directives.get('internal'):
                 # scope.is_internal is set for types defined by
@@ -5290,20 +5321,20 @@ class CClassDefNode(ClassDefNode):
                     'if (PyObject_SetAttr(%s, %s, %s) < 0) %s' % (
                         Naming.module_cname,
                         code.intern_identifier(scope.class_name),
-                        typeobj_cname,
+                        typeptr_cname,
                         code.error_goto(entry.pos)))
                 code.putln("#else")
                 code.putln(
-                    'if (PyObject_SetAttr(%s, %s, (PyObject *)&%s) < 0) %s' % (
+                    'if (PyObject_SetAttr(%s, %s, (PyObject *)%s) < 0) %s' % (
                         Naming.module_cname,
                         code.intern_identifier(scope.class_name),
-                        typeobj_cname,
+                        typeptr_cname,
                         code.error_goto(entry.pos)))
                 code.putln("#endif")
             weakref_entry = scope.lookup_here("__weakref__") if not scope.is_closure_class_scope else None
             if weakref_entry:
                 if weakref_entry.type is py_object_type:
-                    tp_weaklistoffset = "%s.tp_weaklistoffset" % typeobj_cname
+                    tp_weaklistoffset = "%s->tp_weaklistoffset" % typeptr_cname
                     if type.typedef_flag:
                         objstruct = type.objstruct_cname
                     else:
@@ -5322,22 +5353,10 @@ class CClassDefNode(ClassDefNode):
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached('SetupReduce', 'ExtensionTypes.c'))
                 code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")  # FIXME
-                code.putln('if (__Pyx_setup_reduce((PyObject*)&%s) < 0) %s' % (
-                              typeobj_cname,
+                code.putln('if (__Pyx_setup_reduce((PyObject*)%s) < 0) %s' % (
+                              typeptr_cname,
                               code.error_goto(entry.pos)))
                 code.putln("#endif")
-        # Generate code to initialise the typeptr of an extension
-        # type defined in this module to point to its type object.
-        if type.typeobj_cname:
-            code.putln("#if CYTHON_USE_TYPE_FROM_SPEC")
-            code.putln(
-                "%s = (PyTypeObject *)%s;" % (
-                    type.typeptr_cname, type.typeobj_cname))
-            code.putln("#else")
-            code.putln(
-                "%s = &%s;" % (
-                    type.typeptr_cname, type.typeobj_cname))
-            code.putln("#endif")
 
     def annotate(self, code):
         if self.type_init_args:
