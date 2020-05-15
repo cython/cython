@@ -428,6 +428,9 @@ Bugs fixed
   impact the C compiler optimisations for parallel OpenMP code etc.
   (Github issue #2987)
 
+* Cython's built-in OpenMP functions were not translated inside of call arguments.
+  Original patch by Celelibi and David Woods.  (Github issue #3594)
+
 * Complex buffer item types of structs of arrays could fail to validate.
   Patch by Leo and smutch.  (Github issue #1407)
 
