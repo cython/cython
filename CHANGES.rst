@@ -424,6 +424,10 @@ Bugs fixed
 * Error handling in ``cython.array`` creation was improved to avoid calling
   C-API functions with an error held.
 
+* Memory view slicing generated unused error handling code which could negatively
+  impact the C compiler optimisations for parallel OpenMP code etc.
+  (Github issue #2987)
+
 * Complex buffer item types of structs of arrays could fail to validate.
   Patch by Leo and smutch.  (Github issue #1407)
 
