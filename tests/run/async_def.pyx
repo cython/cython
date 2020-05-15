@@ -1,4 +1,4 @@
-# cython: language_level=3, binding=True
+# cython: language_level=3str, binding=True
 # mode: run
 # tag: pep492, await, gh3337
 
