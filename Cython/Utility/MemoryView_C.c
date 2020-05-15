@@ -878,9 +878,6 @@ if (unlikely(__pyx_memoryview_slice_memviewslice(
 
             {{error_goto}}
         }
-    {{else}}
-        // make sure label is not un-used
-        if ((0)) {{error_goto}}
     {{endif}}
 
     {{if all_dimensions_direct}}
