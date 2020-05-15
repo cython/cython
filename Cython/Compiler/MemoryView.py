@@ -291,7 +291,6 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
 
             dim += 1
             access, packing = self.type.axes[dim]
-            error_goto = code.error_goto(index.pos)
 
             if isinstance(index, ExprNodes.SliceNode):
                 # slice, unspecified dimension, or part of ellipsis
@@ -308,6 +307,7 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
                     util_name = "SimpleSlice"
                 else:
                     util_name = "ToughSlice"
+                    d['error_goto'] = code.error_goto(index.pos)
 
                 new_ndim += 1
             else:
@@ -325,8 +325,10 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
                 d = dict(
                     locals(),
                     wraparound=int(directives['wraparound']),
-                    boundscheck=int(directives['boundscheck'])
+                    boundscheck=int(directives['boundscheck']),
                 )
+                if d['boundscheck']:
+                    d['error_goto'] = code.error_goto(index.pos)
                 util_name = "SliceIndex"
 
             _, impl = TempitaUtilityCode.load_as_string(util_name, "MemoryView_C.c", context=d)
