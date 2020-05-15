@@ -2237,7 +2237,7 @@ def p_statement(s, ctx, first_statement = 0):
             s.error('decorator not allowed here')
         s.level = ctx.level
         decorators = p_decorators(s)
-        if not ctx.allow_struct_enum_decorator and s.sy not in ('def', 'cdef', 'cpdef', 'class'):
+        if not ctx.allow_struct_enum_decorator and s.sy not in ('def', 'cdef', 'cpdef', 'class', 'async'):
             if s.sy == 'IDENT' and s.systring == 'async':
                 pass  # handled below
             else:

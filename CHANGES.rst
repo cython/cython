@@ -23,6 +23,9 @@ Bugs fixed
 * Complex buffer item types of structs of arrays could fail to validate.
   Patch by Leo and smutch.  (Github issue #1407)
 
+* Decorators were not allowed on nested `async def` functions.
+  (Github issue #1462)
+
 * C-tuples could use invalid C struct casting.
   Patch by MegaIng.  (Github issue #3038)
 
