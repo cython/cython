@@ -1190,6 +1190,7 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
     def visit_CallNode(self, node):
         self.visit(node.function)
         if not self.parallel_directive:
+            self.visitchildren(node, exclude=('function',))
             return node
 
         # We are a parallel directive, replace this node with the
