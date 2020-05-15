@@ -523,7 +523,8 @@ static CYTHON_INLINE void __Pyx_XDEC_MEMVIEW({{memviewslice_name}} *memslice,
 
     last_time = __pyx_sub_acquisition_count(memview) == 1;
     memslice->data = NULL;
-    if (last_time) {
+
+    if (unlikely(last_time)) {
         if (have_gil) {
             Py_CLEAR(memslice->memview);
         } else {
