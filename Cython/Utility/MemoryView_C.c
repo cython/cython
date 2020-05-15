@@ -485,7 +485,7 @@ __Pyx_INC_MEMVIEW({{memviewslice_name}} *memslice, int have_gil, int lineno)
 {
     int first_time;
     struct {{memview_struct_name}} *memview = memslice->memview;
-    if (!memview || (PyObject *) memview == Py_None)
+    if (unlikely(!memview || (PyObject *) memview == Py_None))
         return; /* allow uninitialized memoryview assignment */
 
     if (unlikely(__pyx_get_slice_count(memview) < 0))
@@ -510,9 +510,8 @@ static CYTHON_INLINE void __Pyx_XDEC_MEMVIEW({{memviewslice_name}} *memslice,
     int last_time;
     struct {{memview_struct_name}} *memview = memslice->memview;
 
-    if (!memview ) {
-        return;
-    } else if ((PyObject *) memview == Py_None) {
+    if (unlikely(!memview || (PyObject *) memview == Py_None)) {
+        // we do not ref-count None
         memslice->memview = NULL;
         return;
     }
