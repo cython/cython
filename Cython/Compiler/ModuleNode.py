@@ -1547,11 +1547,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         slot_func_cname = scope.mangle_internal("tp_dealloc")
         code.putln("")
-        cdealloc_func_entry = scope.lookup_here("__dealloc__")
-        if cdealloc_func_entry and not cdealloc_func_entry.is_special:
-            cdealloc_func_entry = None
-        if cdealloc_func_entry is None:
-            code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
         code.putln(
             "static void %s(PyObject *o) {" % slot_func_cname)
 
@@ -1681,8 +1676,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln(
             "}")
-        if cdealloc_func_entry is None:
-            code.putln("#endif")
 
     def generate_usr_dealloc_call(self, scope, code):
         entry = scope.lookup_here("__dealloc__")
