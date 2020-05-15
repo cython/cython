@@ -494,7 +494,7 @@ __Pyx_INC_MEMVIEW({{memviewslice_name}} *memslice, int have_gil, int lineno)
 
     first_time = __pyx_add_acquisition_count(memview) == 0;
 
-    if (first_time) {
+    if (unlikely(first_time)) {
         if (have_gil) {
             Py_INCREF((PyObject *) memview);
         } else {
