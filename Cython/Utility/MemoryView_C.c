@@ -517,7 +517,7 @@ static CYTHON_INLINE void __Pyx_XDEC_MEMVIEW({{memviewslice_name}} *memslice,
         return;
     }
 
-    if (__pyx_get_slice_count(memview) <= 0)
+    if (unlikely(__pyx_get_slice_count(memview) <= 0))
         __pyx_fatalerror("Acquisition count is %d (line %d)",
                          __pyx_get_slice_count(memview), lineno);
 
