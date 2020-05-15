@@ -2515,8 +2515,9 @@ def runtests(options, cmd_args, coverage=None):
                                 options.pythran_dir, add_embedded_test=True, stats=stats)
         test_suite.addTest(filetests.build_suite())
     if options.examples and languages:
+        examples_workdir = os.path.join(WORKDIR, 'examples')
         for subdirectory in glob.glob(os.path.join(options.examples_dir, "*/")):
-            filetests = TestBuilder(subdirectory, WORKDIR, selectors, exclude_selectors,
+            filetests = TestBuilder(subdirectory, examples_workdir, selectors, exclude_selectors,
                                     options, options.pyregr, languages, test_bugs,
                                     options.language_level, common_utility_dir,
                                     options.pythran_dir,
