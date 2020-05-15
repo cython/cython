@@ -23,7 +23,9 @@ def test_parallel():
 
     with nogil, cython.parallel.parallel():
         buf[threadid()] = threadid()
-        buf[forward(cython.parallel.threadid())] = forward(threadid()) # previously (GH3594) recognise threadid as a function argument
+        # Recognise threadid() also when it's used in a function argument.
+        # See https://github.com/cython/cython/issues/3594
+        buf[forward(cython.parallel.threadid())] = forward(threadid())
 
     for i in range(maxthreads):
         assert buf[i] == i
