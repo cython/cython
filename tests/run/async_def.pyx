@@ -33,3 +33,30 @@ async def test_async_temp_gh3337(x, y):
     ([], 0)
     """
     return min(x - y, 0)
+
+
+async def outer_with_nested(called):
+    """
+    >>> called = []
+    >>> _, inner = run_async(outer_with_nested(called))
+    >>> called  # after outer_with_nested()
+    ['outer', 'make inner', 'deco', 'return inner']
+    >>> _ = run_async(inner())
+    >>> called  # after inner()
+    ['outer', 'make inner', 'deco', 'return inner', 'inner']
+    """
+    called.append('outer')
+
+    def deco(f):
+        called.append('deco')
+        return f
+
+    called.append('make inner')
+
+    @deco
+    async def inner():
+        called.append('inner')
+        return 1
+
+    called.append('return inner')
+    return inner
