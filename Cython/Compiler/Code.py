@@ -280,7 +280,7 @@ class UtilityCodeBase(object):
         _, ext = os.path.splitext(path)
         if ext in ('.pyx', '.py', '.pxd', '.pxi'):
             comment = '#'
-            strip_comments = partial(re.compile(r'^\s*#.*').sub, '')
+            strip_comments = partial(re.compile(r'^\s*#(?!\s*cython\s*:).*').sub, '')
             rstrip = StringEncoding._unicode.rstrip
         else:
             comment = '/'
