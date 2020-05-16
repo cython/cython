@@ -17,7 +17,8 @@ Bugs fixed
   C-API functions with an error held.
 
 * Memory view slicing generated unused error handling code which could negatively
-  impact the C compiler optimisations for parallel OpenMP code etc.
+  impact the C compiler optimisations for parallel OpenMP code etc.  Also, it is
+  now helped by static branch hints.
   (Github issue #2987)
 
 * Cython's built-in OpenMP functions were not translated inside of call arguments.
