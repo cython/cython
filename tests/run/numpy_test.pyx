@@ -946,13 +946,15 @@ def test_broadcast_comparison(np.ndarray[double, ndim=1] a):
 
 
 @testcase
-def test_c_api_searchsorted():
-    cdef:
-        np.ndarray arr = np.random.randn(10)
-
-    other = np.random.randn(5)
-
+def test_c_api_searchsorted(np.ndarray arr, other):
+    """
+    >>> arr = np.random.randn(10)
+    >>> other = np.random.randn(5)
+    >>> result, expected = test_c_api_searchsorted(arr, other)
+    >>> (result == expected).all()
+    True
+    """
     result = np.PyArray_SearchSorted(arr, other, np.NPY_SEARCHRIGHT, NULL)
 
     expected = arr.searchsorted(other, side="right")
-    import (result == expected).all()
+    return result, expected
