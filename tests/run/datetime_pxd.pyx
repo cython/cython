@@ -4,7 +4,7 @@
 #from datetime import time, date, datetime, timedelta, tzinfo
 
 
-from cpython.datetime cimport import_datetime
+from cpython.datetime cimport import_datetime, timedelta
 from cpython.datetime cimport time_new, date_new, datetime_new, timedelta_new
 from cpython.datetime cimport time_tzinfo, datetime_tzinfo
 from cpython.datetime cimport time_hour, time_minute, time_second, time_microsecond
@@ -171,3 +171,17 @@ def do_datetime_tzinfo2(int year, int month, int day,
     r7 = (v2 == v)
     r8 = (v3 == v1)
     return r1, r2, r3, r4, r5, r6, r7, r8
+
+
+def test_timedelta_total_seconds():
+    """
+    >>> cytotal, pytotal = test_timedelta_total_seconds()
+    >>> cytotal == pytotal
+    True
+    """
+    cdef:
+        timedelta td = py_datetime.datetime.now() - py_datetime.datetime(1970, 1, 1)
+
+    pytd = py_datetime.datetime.now() - py_datetime.datetime(1970, 1, 1)
+
+    return td.total_seconds(), pytd.total_seconds()
