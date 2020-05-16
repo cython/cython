@@ -5202,6 +5202,20 @@ class CClassDefNode(ClassDefNode):
                         type.typeobj_cname,
                         code.error_goto_if_null(typeptr_cname, entry.pos),
                     ))
+
+            # The buffer interface is not currently supported by PyType_FromSpec().
+            buffer_slot = TypeSlots.get_slot_by_name("tp_as_buffer")
+            if not buffer_slot.is_empty(scope):
+                code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
+                code.putln("%s->%s = %s;" % (
+                    typeptr_cname,
+                    buffer_slot.slot_name,
+                    buffer_slot.slot_code(scope),
+                ))
+                code.putln("#else")
+                code.putln("#error The buffer protocol is not supported in the Limited C-API.")
+                code.putln("#endif")
+
             code.putln("#else")
             if bases_tuple_cname:
                 code.put_incref(bases_tuple_cname, py_object_type)

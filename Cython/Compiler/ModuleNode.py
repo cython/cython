@@ -2264,6 +2264,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         members_slot = TypeSlots.get_slot_by_name("tp_members")
         members_slot.generate_substructure_spec(scope, code)
 
+        buffer_slot = TypeSlots.get_slot_by_name("tp_as_buffer")
+        if not buffer_slot.is_empty(scope):
+            code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
+            buffer_slot.generate_substructure(scope, code)
+            code.putln("#endif")
+
         code.putln("static PyType_Slot %s_slots[] = {" % ext_type.typeobj_cname)
         for slot in TypeSlots.slot_table:
             slot.generate_spec(scope, code)
