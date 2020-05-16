@@ -7,6 +7,9 @@ cimport cython
 import re
 import sys
 
+# initialise NumPy C-API
+np.import_array()
+
 
 def little_endian():
     cdef int endian_detector = 1
@@ -182,7 +185,7 @@ try:
             ('a', np.dtype('i,i')),\
             ('b', np.dtype('i,i'))\
         ]))))                              # doctest: +NORMALIZE_WHITESPACE
-    array([((0, 0), (0, 0)), ((1, 2), (1, 4)), ((1, 2), (1, 4))], 
+    array([((0, 0), (0, 0)), ((1, 2), (1, 4)), ((1, 2), (1, 4))],
           dtype=[('a', [('f0', '!i4'), ('f1', '!i4')]), ('b', [('f0', '!i4'), ('f1', '!i4')])])
 
     >>> print(test_nested_dtypes(np.zeros((3,), dtype=np.dtype([\
@@ -235,7 +238,7 @@ try:
     8,16
 
     >>> test_point_record()         # doctest: +NORMALIZE_WHITESPACE
-    array([(0., 0.), (1., -1.), (2., -2.)], 
+    array([(0., 0.), (1., -1.), (2., -2.)],
           dtype=[('x', '!f8'), ('y', '!f8')])
 
 """
@@ -947,4 +950,16 @@ def test_broadcast_comparison(np.ndarray[double, ndim=1] a):
     return a == 0, obj == 0, a == 1, obj == 1
 
 
-include "numpy_common.pxi"
+@testcase
+def test_c_api_searchsorted(np.ndarray arr, other):
+    """
+    >>> arr = np.random.randn(10)
+    >>> other = np.random.randn(5)
+    >>> result, expected = test_c_api_searchsorted(arr, other)
+    >>> (result == expected).all()
+    True
+    """
+    result = np.PyArray_SearchSorted(arr, other, np.NPY_SEARCHRIGHT, NULL)
+
+    expected = arr.searchsorted(other, side="right")
+    return result, expected
