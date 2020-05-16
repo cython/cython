@@ -61,17 +61,17 @@ matrix:
     - python: 3.7
       env: TEST_CODE_STYLE=1
     - python: 3.9-dev
-      env: EXTRA_CFLAGS="-DCYTHON_USE_TYPE_FROM_SPEC=1" BACKEND=c
+      env: EXTRA_CFLAGS="-DCYTHON_USE_TYPE_SPECS=1" BACKEND=c
     - python: 3.8
-      env: EXTRA_CFLAGS="-DCYTHON_USE_TYPE_FROM_SPEC=1" BACKEND=c
+      env: EXTRA_CFLAGS="-DCYTHON_USE_TYPE_SPECS=1" BACKEND=c
     - python: 3.7
-      env: EXTRA_CFLAGS="-DCYTHON_USE_TYPE_FROM_SPEC=1" BACKEND=c
+      env: EXTRA_CFLAGS="-DCYTHON_USE_TYPE_SPECS=1" BACKEND=c
     - python: 3.6
-      env: EXTRA_CFLAGS="-DCYTHON_USE_TYPE_FROM_SPEC=1" BACKEND=c
+      env: EXTRA_CFLAGS="-DCYTHON_USE_TYPE_SPECS=1" BACKEND=c
     - python: 3.5
-      env: EXTRA_CFLAGS="-DCYTHON_USE_TYPE_FROM_SPEC=1" BACKEND=c
+      env: EXTRA_CFLAGS="-DCYTHON_USE_TYPE_SPECS=1" BACKEND=c
     - python: 3.4
-      env: EXTRA_CFLAGS="-DCYTHON_USE_TYPE_FROM_SPEC=1" BACKEND=c
+      env: EXTRA_CFLAGS="-DCYTHON_USE_TYPE_SPECS=1" BACKEND=c
     - python: 3.8
       env: LIMITED_API=--limited-api EXCLUDE=--no-file
     - python: 3.7
