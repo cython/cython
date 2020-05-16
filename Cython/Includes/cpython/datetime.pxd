@@ -90,9 +90,9 @@ cdef extern from "datetime.h":
     int PyDateTime_TIME_GET_MICROSECOND(object o)
 
     # Getters for timedelta (C macros).
-    #int PyDateTime_DELTA_GET_DAYS(object o)
-    #int PyDateTime_DELTA_GET_SECONDS(object o)
-    #int PyDateTime_DELTA_GET_MICROSECONDS(object o)
+    int PyDateTime_DELTA_GET_DAYS(object o)
+    int PyDateTime_DELTA_GET_SECONDS(object o)
+    int PyDateTime_DELTA_GET_MICROSECONDS(object o)
 
     # PyDateTime CAPI object.
     PyDateTime_CAPI *PyDateTimeAPI
