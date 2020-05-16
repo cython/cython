@@ -1466,6 +1466,29 @@ static PyMethodDef __pyx_CoroutineAwait_methods[] = {
     {0, 0, 0, 0}
 };
 
+#if CYTHON_USE_TYPE_SPECS
+static PyType_Slot __pyx_CoroutineAwaitType_slots[] = {
+    {Py_tp_dealloc, (void *)__Pyx_CoroutineAwait_dealloc},
+    {Py_tp_traverse, (void *)__Pyx_CoroutineAwait_traverse},
+    {Py_tp_clear, (void *)__Pyx_CoroutineAwait_clear},
+#if !CYTHON_COMPILING_IN_PYPY
+    {Py_tp_new, (void *)__Pyx_CoroutineAwait_no_new},
+#endif
+    {Py_tp_methods, (void *)__pyx_CoroutineAwait_methods},
+    {Py_tp_iter, (void *)__Pyx_CoroutineAwait_self},
+    {Py_tp_iternext, (void *)__Pyx_CoroutineAwait_Next},
+    {0, 0},
+};
+
+static PyType_Spec __pyx_CoroutineAwaitType_spec = {
+    "coroutine_wrapper",
+    sizeof(__pyx_CoroutineAwaitObject),
+    0,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC, /*tp_flags*/
+    __pyx_CoroutineAwaitType_slots
+};
+#else /* CYTHON_USE_TYPE_SPECS */
+
 static PyTypeObject __pyx_CoroutineAwaitType_type = {
     PyVarObject_HEAD_INIT(0, 0)
     __PYX_TYPE_MODULE_PREFIX "coroutine_wrapper", /*tp_name*/
@@ -1531,6 +1554,7 @@ static PyTypeObject __pyx_CoroutineAwaitType_type = {
     0,                                          /*tp_pypy_flags*/
 #endif
 };
+#endif  /* CYTHON_USE_TYPE_SPECS */
 
 #if PY_VERSION_HEX < 0x030500B1 || defined(__Pyx_IterableCoroutine_USED) || CYTHON_USE_ASYNC_SLOTS
 static CYTHON_INLINE PyObject *__Pyx__Coroutine_await(PyObject *coroutine) {
@@ -1593,6 +1617,9 @@ static PyMemberDef __pyx_Coroutine_memberlist[] = {
      (char*) PyDoc_STR("object being awaited, or None")},
     {(char*) "cr_code", T_OBJECT, offsetof(__pyx_CoroutineObject, gi_code), READONLY, NULL},
     {(char *) "__module__", T_OBJECT, offsetof(__pyx_CoroutineObject, gi_modulename), PY_WRITE_RESTRICTED, 0},
+#if CYTHON_USE_TYPE_SPECS
+    {(char *) "__weaklistoffset__", T_PYSSIZET, offsetof(__pyx_CoroutineObject, gi_weakreflist), READONLY, 0},
+#endif
     {0, 0, 0, 0, 0}
 };
 
@@ -1605,6 +1632,30 @@ static PyGetSetDef __pyx_Coroutine_getsets[] = {
      (char*) PyDoc_STR("Frame of the coroutine"), 0},
     {0, 0, 0, 0, 0}
 };
+
+#if CYTHON_USE_TYPE_SPECS
+static PyType_Slot __pyx_CoroutineType_slots[] = {
+    {Py_tp_dealloc, (void *)__Pyx_Coroutine_dealloc},
+    {Py_am_await, (void *)&__Pyx_Coroutine_await},
+    {Py_tp_traverse, (void *)__Pyx_Coroutine_traverse},
+    {Py_tp_methods, (void *)__pyx_Coroutine_methods},
+    {Py_tp_members, (void *)__pyx_Coroutine_memberlist},
+    {Py_tp_getset, (void *)__pyx_Coroutine_getsets},
+    {Py_tp_getattro, (void *) __Pyx_PyObject_GenericGetAttrNoDict},
+#if CYTHON_USE_TP_FINALIZE
+    {Py_tp_finalize, (void *)__Pyx_Coroutine_del},
+#endif
+    {0, 0},
+};
+
+static PyType_Spec __pyx_CoroutineType_spec = {
+    "coroutine",
+    sizeof(__pyx_CoroutineObject),
+    0,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_FINALIZE, /*tp_flags*/
+    __pyx_CoroutineType_slots
+};
+#else /* CYTHON_USE_TYPE_SPECS */
 
 #if CYTHON_USE_ASYNC_SLOTS
 static __Pyx_PyAsyncMethodsStruct __pyx_Coroutine_as_async = {
@@ -1691,11 +1742,16 @@ static PyTypeObject __pyx_CoroutineType_type = {
     0,                                          /*tp_pypy_flags*/
 #endif
 };
+#endif /* CYTHON_USE_TYPE_SPECS */
 
 static int __pyx_Coroutine_init(void) {
     // on Windows, C-API functions can't be used in slots statically
+#if CYTHON_USE_TYPE_SPECS
+    __pyx_CoroutineType = __Pyx_FetchCommonTypeFromSpec(&__pyx_CoroutineType_spec, NULL);
+#else
     __pyx_CoroutineType_type.tp_getattro = __Pyx_PyObject_GenericGetAttrNoDict;
     __pyx_CoroutineType = __Pyx_FetchCommonType(&__pyx_CoroutineType_type);
+#endif
     if (unlikely(!__pyx_CoroutineType))
         return -1;
 
@@ -1704,7 +1760,11 @@ static int __pyx_Coroutine_init(void) {
         return -1;
 #endif
 
+#if CYTHON_USE_TYPE_SPECS
+    __pyx_CoroutineAwaitType = __Pyx_FetchCommonTypeFromSpec(&__pyx_CoroutineAwaitType_spec, NULL);
+#else
     __pyx_CoroutineAwaitType = __Pyx_FetchCommonType(&__pyx_CoroutineAwaitType_type);
+#endif
     if (unlikely(!__pyx_CoroutineAwaitType))
         return -1;
     return 0;
@@ -1729,6 +1789,32 @@ static int __pyx_IterableCoroutine_init(void);/*proto*/
 //////////////////// IterableCoroutine ////////////////////
 //@requires: Coroutine
 //@requires: CommonStructures.c::FetchCommonType
+
+#if CYTHON_USE_TYPE_SPECS
+static PyType_Slot __pyx_CoroutineType_slots[] = {
+    {Py_tp_dealloc, (void *)__Pyx_Coroutine_dealloc},
+    {Py_am_await, (void *)&__Pyx_Coroutine_await},
+    {Py_tp_traverse, (void *)__Pyx_Coroutine_traverse},
+    {Py_tp_iter, (void *)__Pyx_Coroutine_await},
+    {Py_tp_iternext, (void *)__Pyx_Generator_Next},
+    {Py_tp_methods, (void *)__pyx_Coroutine_methods},
+    {Py_tp_members, (void *)__pyx_Coroutine_memberlist},
+    {Py_tp_getset, (void *)__pyx_Coroutine_getsets},
+    {Py_tp_getattro, (void *) __Pyx_PyObject_GenericGetAttrNoDict},
+#if CYTHON_USE_TP_FINALIZE
+    {Py_tp_finalize, (void *)__Pyx_Coroutine_del},
+#endif
+    {0, 0},
+};
+
+static PyType_Spec __pyx_CoroutineAwaitType_spec = {
+    "iterable_coroutine",
+    sizeof(__pyx_CoroutineObject),
+    0,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_FINALIZE, /*tp_flags*/
+    __pyx_CoroutineType_slots
+};
+#else /* CYTHON_USE_TYPE_SPECS */
 
 static PyTypeObject __pyx_IterableCoroutineType_type = {
     PyVarObject_HEAD_INIT(0, 0)
@@ -1805,11 +1891,16 @@ static PyTypeObject __pyx_IterableCoroutineType_type = {
     0,                                          /*tp_pypy_flags*/
 #endif
 };
+#endif /* CYTHON_USE_TYPE_SPECS */
 
 
 static int __pyx_IterableCoroutine_init(void) {
+#if CYTHON_USE_TYPE_SPECS
+    __pyx_IterableCoroutineType = __Pyx_FetchCommonTypeFromSpec(&__pyx_IterableCoroutineType_spec, NULL);
+#else
     __pyx_IterableCoroutineType_type.tp_getattro = __Pyx_PyObject_GenericGetAttrNoDict;
     __pyx_IterableCoroutineType = __Pyx_FetchCommonType(&__pyx_IterableCoroutineType_type);
+#endif
     if (unlikely(!__pyx_IterableCoroutineType))
         return -1;
     return 0;
@@ -1836,6 +1927,9 @@ static PyMemberDef __pyx_Generator_memberlist[] = {
     {(char*) "gi_yieldfrom", T_OBJECT, offsetof(__pyx_CoroutineObject, yieldfrom), READONLY,
      (char*) PyDoc_STR("object being iterated by 'yield from', or None")},
     {(char*) "gi_code", T_OBJECT, offsetof(__pyx_CoroutineObject, gi_code), READONLY, NULL},
+#if CYTHON_USE_TYPE_SPECS
+    {(char *) "__weaklistoffset__", T_PYSSIZET, offsetof(__pyx_CoroutineObject, gi_weakreflist), READONLY, 0},
+#endif
     {0, 0, 0, 0, 0}
 };
 
@@ -1849,6 +1943,31 @@ static PyGetSetDef __pyx_Generator_getsets[] = {
     {0, 0, 0, 0, 0}
 };
 
+#if CYTHON_USE_TYPE_SPECS
+static PyType_Slot __pyx_GeneratorType_slots[] = {
+    {Py_tp_dealloc, (void *)__Pyx_Coroutine_dealloc},
+    {Py_tp_traverse, (void *)__Pyx_Coroutine_traverse},
+    {Py_tp_iter, (void *)PyObject_SelfIter},
+    {Py_tp_iternext, (void *)__Pyx_Generator_Next},
+    {Py_tp_methods, (void *)__pyx_Generator_methods},
+    {Py_tp_members, (void *)__pyx_Generator_memberlist},
+    {Py_tp_getset, (void *)__pyx_Generator_getsets},
+    {Py_tp_getattro, (void *) __Pyx_PyObject_GenericGetAttrNoDict},
+#if CYTHON_USE_TP_FINALIZE
+    {Py_tp_finalize, (void *)__Pyx_Coroutine_del},
+#endif
+    {0, 0},
+};
+
+static PyType_Spec __pyx_GeneratorType_spec = {
+    "generator",
+    sizeof(__pyx_CoroutineObject),
+    0,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_FINALIZE, /*tp_flags*/
+    __pyx_GeneratorType_slots
+};
+#else /* CYTHON_USE_TYPE_SPECS */
+
 static PyTypeObject __pyx_GeneratorType_type = {
     PyVarObject_HEAD_INIT(0, 0)
     __PYX_TYPE_MODULE_PREFIX "generator", /*tp_name*/
@@ -1858,7 +1977,7 @@ static PyTypeObject __pyx_GeneratorType_type = {
     0,                                  /*tp_print*/
     0,                                  /*tp_getattr*/
     0,                                  /*tp_setattr*/
-    0,                                  /*tp_compare / tp_as_async*/
+    0,                                  /*tp_as_async*/
     0,                                  /*tp_repr*/
     0,                                  /*tp_as_number*/
     0,                                  /*tp_as_sequence*/
@@ -1916,13 +2035,17 @@ static PyTypeObject __pyx_GeneratorType_type = {
     0,                                          /*tp_pypy_flags*/
 #endif
 };
+#endif /* CYTHON_USE_TYPE_SPECS */
 
 static int __pyx_Generator_init(void) {
+#if CYTHON_USE_TYPE_SPECS
+    __pyx_GeneratorType = __Pyx_FetchCommonTypeFromSpec(&__pyx_GeneratorType_spec, NULL);
+#else
     // on Windows, C-API functions can't be used in slots statically
     __pyx_GeneratorType_type.tp_getattro = __Pyx_PyObject_GenericGetAttrNoDict;
     __pyx_GeneratorType_type.tp_iter = PyObject_SelfIter;
-
     __pyx_GeneratorType = __Pyx_FetchCommonType(&__pyx_GeneratorType_type);
+#endif
     if (unlikely(!__pyx_GeneratorType)) {
         return -1;
     }
@@ -2260,6 +2383,10 @@ static int __pyx_StopAsyncIteration_init(void); /*proto*/
 //////////////////// StopAsyncIteration ////////////////////
 
 #if PY_VERSION_HEX < 0x030500B1
+#if CYTHON_USE_TYPE_SPECS
+#error Using async coroutines with type specs requires Python 3.5 or later.
+#else
+
 static PyTypeObject __Pyx__PyExc_StopAsyncIteration_type = {
     PyVarObject_HEAD_INIT(0, 0)
     "StopAsyncIteration",               /*tp_name*/
@@ -2315,6 +2442,7 @@ static PyTypeObject __Pyx__PyExc_StopAsyncIteration_type = {
     0,                                          /*tp_pypy_flags*/
 #endif
 };
+#endif
 #endif
 
 static int __pyx_StopAsyncIteration_init(void) {

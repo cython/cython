@@ -1,8 +1,8 @@
 /////////////// FetchCommonType.proto ///////////////
 
-// TODO: Finish up conversion of internal types so that we can use both function alternatively.
+#if !CYTHON_USE_TYPE_SPECS
 static PyTypeObject* __Pyx_FetchCommonType(PyTypeObject* type);
-#if CYTHON_USE_TYPE_SPECS
+#else
 static PyTypeObject* __Pyx_FetchCommonTypeFromSpec(PyType_Spec *spec, PyObject *bases);
 #endif
 
@@ -33,6 +33,7 @@ static int __Pyx_VerifyCachedType(PyObject *cached_type,
     return 0;
 }
 
+#if !CYTHON_USE_TYPE_SPECS
 static PyTypeObject* __Pyx_FetchCommonType(PyTypeObject* type) {
     PyObject* abi_module;
     PyTypeObject *cached_type = NULL;
@@ -69,8 +70,12 @@ bad:
     cached_type = NULL;
     goto done;
 }
+#else
 
-#if CYTHON_USE_TYPE_SPECS
+#if PY_VERSION_HEX < 0x030900A1
+#include <string.h>
+#endif
+
 static PyTypeObject *__Pyx_FetchCommonTypeFromSpec(PyType_Spec *spec, PyObject *bases) {
     PyObject *abi_module, *cached_type = NULL;
 
@@ -105,6 +110,53 @@ static PyTypeObject *__Pyx_FetchCommonTypeFromSpec(PyType_Spec *spec, PyObject *
     PyErr_Clear();
     cached_type = PyType_FromSpecWithBases(spec, bases);
     if (unlikely(!cached_type)) goto bad;
+
+    #if PY_VERSION_HEX < 0x030900A1 && !CYTHON_COMPILING_IN_LIMITED_API
+    // Set tp_weakreflist, tp_dictoffset, tp_vectorcalloffset
+    // Copied and adapted from https://bugs.python.org/issue38140
+    {
+        const PyType_Slot *slot = spec->slots;
+        while (slot && slot->slot && slot->slot != Py_tp_members)
+            slot++;
+        if (slot && slot->slot == Py_tp_members) {
+            const PyMemberDef *memb = (PyMemberDef*) slot->pfunc;
+            while (memb && memb->name) {
+                if (memb->name[0] == '_' && memb->name[1] == '_') {
+                    if (strcmp(memb->name, "__weaklistoffset__") == 0) {
+                        printf("Setting tp_weaklistoffset for %s\n", spec->name);
+                        // The PyMemberDef must be a Py_ssize_t and readonly
+                        assert(memb->type == T_PYSSIZET);
+                        assert(memb->flags == READONLY);
+                        ((PyTypeObject *)cached_type)->tp_weaklistoffset = memb->offset;
+                        PyType_Modified(((PyTypeObject *)cached_type));
+                    }
+                    else if (strcmp(memb->name, "__dictoffset__") == 0) {
+                        printf("Setting tp_dictoffset for %s\n", spec->name);
+                        // The PyMemberDef must be a Py_ssize_t and readonly
+                        assert(memb->type == T_PYSSIZET);
+                        assert(memb->flags == READONLY);
+                        ((PyTypeObject *)cached_type)->tp_dictoffset = memb->offset;
+                        PyType_Modified(((PyTypeObject *)cached_type));
+                    }
+                    else if (strcmp(memb->name, "__vectorcalloffset__") == 0) {
+                        printf("Setting tp_vectorcall_offset for %s\n", spec->name);
+                        // The PyMemberDef must be a Py_ssize_t and readonly
+                        assert(memb->type == T_PYSSIZET);
+                        assert(memb->flags == READONLY);
+#if PY_VERSION_HEX >= 0x030800b4
+                        ((PyTypeObject *)cached_type)->tp_vectorcall_offset = memb->offset;
+#else
+                        ((PyTypeObject *)cached_type)->tp_print = (printfunc) memb->offset;
+#endif
+                        PyType_Modified(((PyTypeObject *)cached_type));
+                    }
+                }
+                memb++;
+            }
+        }
+    }
+    #endif
+
     if (PyObject_SetAttrString(abi_module, spec->name, cached_type) < 0) goto bad;
 
 done:
