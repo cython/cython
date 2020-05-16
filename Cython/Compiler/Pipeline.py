@@ -128,7 +128,7 @@ def inject_utility_code_stage_factory(context):
                         module_node.scope.utility_code_list.append(dep)
             tree = utilcode.get_tree(cython_scope=context.cython_scope)
             if tree:
-                module_node.merge_in(tree.to_compiler_directives_wrapped_body(),
+                module_node.merge_in(tree.with_compiler_directives(),
                                      tree.scope, merge_scope=True)
         return module_node
     return inject_utility_code_stage

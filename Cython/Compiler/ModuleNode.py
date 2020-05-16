@@ -122,13 +122,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
             self.scope.merge_in(scope)
 
-    def to_compiler_directives_wrapped_body(self):
-        # when merging a utility code module into the main one it's useful to preserve
-        # the compiler directives. This gets the body of the module node, wrapped in its
-        # directives
+    def with_compiler_directives(self):
+        # When merging a utility code module into the user code we need to preserve
+        # the original compiler directives. This returns the body of the module node,
+        # wrapped in its set of directives.
         body = Nodes.CompilerDirectivesNode(self.pos, directives=self.directives, body=self.body)
         return body
-
 
     def analyse_declarations(self, env):
         if has_np_pythran(env):
