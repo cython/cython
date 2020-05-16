@@ -455,6 +455,8 @@ Bugs fixed
   was not declared as ``extern "C"``.
   (Github issue #3414)
 
+* Three missing timedelta access macros were added in ``cpython.datetime``.
+
 
 0.29.17 (2020-04-26)
 ====================
