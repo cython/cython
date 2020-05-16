@@ -770,7 +770,7 @@ static CYTHON_INLINE PyObject *{{get_function}}(const char *itemp) {
 {{if from_py_function}}
 static CYTHON_INLINE int {{set_function}}(const char *itemp, PyObject *obj) {
     {{dtype}} value = {{from_py_function}}(obj);
-    if ({{error_condition}})
+    if (unlikely({{error_condition}}))
         return 0;
     *({{dtype}} *) itemp = value;
     return 1;
