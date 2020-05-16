@@ -817,7 +817,8 @@ static PyType_Spec __pyx_CyFunctionType_spec = {
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC, /*tp_flags*/
     __pyx_CyFunctionType_slots
 };
-#else
+#else /* CYTHON_USE_TYPE_SPECS */
+
 static PyTypeObject __pyx_CyFunctionType_type = {
     PyVarObject_HEAD_INIT(0, 0)
     __PYX_TYPE_MODULE_PREFIX "cython_function_or_method",  /*tp_name*/
