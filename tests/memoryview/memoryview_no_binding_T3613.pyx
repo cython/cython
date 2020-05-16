@@ -1,0 +1,11 @@
+# mode: compile
+# tag: memoryview
+
+# cython: binding=False
+
+# See GH 3613 - when memoryviews were compiled with binding off they ended up in an
+# inconsistent state where different directives were applied at different stages
+# of the pipeline
+
+def f(double[:] a):
+    pass
