@@ -814,7 +814,7 @@ static PyType_Spec __pyx_CyFunctionType_spec = {
     sizeof(__pyx_CyFunctionObject),
     0,
     // TODO: Support _Py_TPFLAGS_HAVE_VECTORCALL and _Py_TPFLAGS_HAVE_VECTORCALL
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC, /*tp_flags*/
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE, /*tp_flags*/
     __pyx_CyFunctionType_slots
 };
 #else /* CYTHON_USE_TYPE_SPECS */
