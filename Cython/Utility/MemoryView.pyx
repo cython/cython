@@ -1,5 +1,8 @@
 #################### View.MemoryView ####################
 
+# cython: language_level=3str
+# cython: binding=False
+
 # This utility provides cython.array and cython.view.memoryview
 
 from __future__ import absolute_import
