@@ -17,5 +17,5 @@ def g(double[:] a):
     pass
 
 @cython.binding(True)
-def g(double[:] a):
+def h(double[:] a):
     pass
