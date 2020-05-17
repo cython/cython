@@ -87,7 +87,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     child_attrs = ["body"]
     directives = None
 
-
     def merge_in(self, tree, scope, merge_scope=False):
         # Merges in the contents of another tree, and possibly scope. With the
         # current implementation below, this must be done right prior
@@ -122,6 +121,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 entry.type.scope.directives["internal"] = True
 
             self.scope.merge_in(scope)
+
+    def with_compiler_directives(self):
+        # When merging a utility code module into the user code we need to preserve
+        # the original compiler directives. This returns the body of the module node,
+        # wrapped in its set of directives.
+        body = Nodes.CompilerDirectivesNode(self.pos, directives=self.directives, body=self.body)
+        return body
 
     def analyse_declarations(self, env):
         if has_np_pythran(env):
