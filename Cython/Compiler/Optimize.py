@@ -341,8 +341,8 @@ class IterationTransform(Visitor.EnvTransform):
 
     def _transform_indexable_iteration(self, node, slice_node, reversed=False):
         unpack_temp_node = UtilNodes.LetRefNode(
-            slice_node.as_none_safe_node("'NoneType' is not iterable"))
-        unpack_temp_node.may_be_none = lambda: False
+            slice_node.as_none_safe_node("'NoneType' is not iterable"),
+            may_hold_none=False)
 
         start_node = ExprNodes.IntNode(
             node.pos, value='0', constant_result=0, type=PyrexTypes.c_py_ssize_t_type)
@@ -367,9 +367,7 @@ class IterationTransform(Visitor.EnvTransform):
         # analyse with boundscheck and wraparound
         # off (because we're confident we know the size)
         env = self.current_env()
-        new_directives = copy.copy(env.directives)
-        new_directives['boundscheck'] = False
-        new_directives['wraparound'] = False
+        new_directives = dict(env.directives, boundscheck=False, wraparound=False)
         target_assign = Nodes.CompilerDirectivesNode(target_assign.pos,
                                                         directives = new_directives,
                                                         body = target_assign)
