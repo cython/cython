@@ -261,7 +261,7 @@ def nested_struct(NestedStruct[:] mslice):
     """
     buf = mslice
     d = buf[0]
-    print d['x']['a'], d['x']['b'], d['y']['a'], d['y']['b'], d['z']
+    print d.x.a, d.x.b, d.y.a, d.y.b, d.z
 
 def packed_struct(PackedStruct[:] mslice):
     """
@@ -276,7 +276,7 @@ def packed_struct(PackedStruct[:] mslice):
 
     """
     buf = mslice
-    print buf[0]['a'], buf[0]['b']
+    print buf[0].a, buf[0].b
 
 def nested_packed_struct(NestedPackedStruct[:] mslice):
     """
@@ -291,7 +291,7 @@ def nested_packed_struct(NestedPackedStruct[:] mslice):
     """
     buf = mslice
     d = buf[0]
-    print d['a'], d['b'], d['sub']['a'], d['sub']['b'], d['c']
+    print d.a, d.b, d.sub.a, d.sub.b, d.c
 
 
 def complex_dtype(long double complex[:] mslice):
@@ -319,7 +319,7 @@ def complex_struct_dtype(LongComplex[:] mslice):
     0.0 -1.0
     """
     buf = mslice
-    print buf[0]['real'], buf[0]['imag']
+    print buf[0].real, buf[0].imag
 
 #
 # Getting items and index bounds checking
@@ -412,6 +412,43 @@ def set_int_2d(int[:, :] mslice, int i, int j, int value):
     buf = mslice
     buf[i, j] = value
 
+
+#
+# auto type inference
+# (note that for most numeric types "might_overflow" stops the type inference from working well)
+#
+def type_infer(double[:, :] arg):
+    """
+    type_infer(DoubleMockBuffer("C", range(6), (2,3)))
+    double
+    double[:]
+    double[:]
+    double[:,;]
+    """
+    a = arg[0,0]
+    print(cython.typeof(a))
+    b = arg[0]
+    print(cython.typeof(b))
+    c = arg[0,:]
+    print(cython.typeof(c))
+    d = arg[:,:]
+    print(cython.typeof(d))
+
+#
+# Loop optimization
+#
+@cython.test_fail_if_path_exists("//CoerceToPyTypeNode")
+def memview_iter(double[:, :] arg):
+    """
+    memview_iter(DoubleMockBuffer("C", range(6), (2,3)))
+    True
+    """
+    cdef double sum=0
+    for mview1d in arg:
+        for val in mview1d:
+            sum += val
+    if sum==15:
+        return True
 
 #
 # Test all kinds of indexing and flags

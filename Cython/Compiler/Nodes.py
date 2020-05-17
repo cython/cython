@@ -1803,6 +1803,10 @@ class FuncDefNode(StatNode, BlockNode):
 
         for entry in lenv.var_entries:
             if not (entry.in_closure or entry.is_arg):
+                if entry.type.is_memoryviewslice and not entry.init:
+                    # inferred memoryview slices don't get initialized anywhere otherwise
+                    # it's not clear where the best place to put this is
+                    entry.init = entry.type.default_value
                 code.put_var_declaration(entry)
 
         # Initialize the return variable __pyx_r

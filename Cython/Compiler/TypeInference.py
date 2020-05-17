@@ -140,7 +140,6 @@ class MarkParallelAssignments(EnvTransform):
                                                      '+',
                                                      sequence.args[0],
                                                      sequence.args[2]))
-
         if not is_special:
             # A for-loop basically translates to subsequent calls to
             # __getitem__(), so using an IndexNode here allows us to
@@ -583,6 +582,8 @@ def safe_spanning_type(types, might_overflow, pos, scope):
         return result_type
     elif (not result_type.can_coerce_to_pyobject(scope)
             and not result_type.is_error):
+        return result_type
+    elif result_type.is_memoryviewslice:
         return result_type
     return py_object_type
 

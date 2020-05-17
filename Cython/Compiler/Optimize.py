@@ -228,6 +228,12 @@ class IterationTransform(Visitor.EnvTransform):
             return self._transform_bytes_iteration(node, iterable, reversed=reversed)
         if iterable.type is Builtin.unicode_type:
             return self._transform_unicode_iteration(node, iterable, reversed=reversed)
+        if iterable.type in (Builtin.list_type, Builtin.tuple_type):
+            return self._transform_indexable_iteration(node, iterable, reversed=reversed)
+        if isinstance(iterable, ExprNodes.CoerceToPyTypeNode) and iterable.arg.type.is_memoryviewslice:
+            # TODO would it make sense to prevent the coercion? Or does it need to be there since
+            # this is only an optimization stage (so it should work without this set)
+            return self._transform_indexable_iteration(node, iterable.arg, reversed=reversed)
 
         # the rest is based on function calls
         if not isinstance(iterable, ExprNodes.SimpleCallNode):
@@ -332,6 +338,70 @@ class IterationTransform(Visitor.EnvTransform):
         PyrexTypes.c_py_ssize_t_type, [
             PyrexTypes.CFuncTypeArg("s", Builtin.bytes_type, None)
             ])
+
+    def _transform_indexable_iteration(self, node, slice_node, reversed=False):
+        unpack_temp_node = UtilNodes.LetRefNode(
+            slice_node.as_none_safe_node("'NoneType' is not iterable"))
+        unpack_temp_node.may_be_none = lambda: False
+
+        start_node = ExprNodes.IntNode(
+            node.pos, value='0', constant_result=0, type=PyrexTypes.c_py_ssize_t_type)
+        length_temp = UtilNodes.TempHandle(PyrexTypes.c_py_ssize_t_type)
+        end_node = length_temp.ref(node.pos)
+        if reversed:
+            relation1, relation2 = '>', '>='
+            start_node, end_node = end_node, start_node
+        else:
+            relation1, relation2 = '<=', '<'
+
+        counter_temp = UtilNodes.TempHandle(PyrexTypes.c_py_ssize_t_type)
+
+        target_value = ExprNodes.IndexNode(slice_node.pos, base=unpack_temp_node,
+                                           index=counter_temp.ref(node.pos))
+
+        target_assign = Nodes.SingleAssignmentNode(
+            pos = node.target.pos,
+            lhs = node.target,
+            rhs = target_value)
+
+        # analyse with boundscheck and wraparound
+        # off (because we're confident we know the size)
+        env = self.current_env()
+        new_directives = copy.copy(env.directives)
+        new_directives['boundscheck'] = False
+        new_directives['wraparound'] = False
+        target_assign = Nodes.CompilerDirectivesNode(target_assign.pos,
+                                                        directives = new_directives,
+                                                        body = target_assign)
+
+        target_assign = target_assign.analyse_expressions(env)
+        body = Nodes.StatListNode(
+            node.pos,
+            stats = [target_assign, node.body])
+
+        loop_node = Nodes.ForFromStatNode(
+            node.pos,
+            bound1=start_node, relation1=relation1,
+            target=counter_temp.ref(node.target.pos),
+            relation2=relation2, bound2=end_node,
+            step=None, body=body,
+            else_clause=node.else_clause,
+            from_range=True)
+
+        length_setup_node = Nodes.SingleAssignmentNode(node.pos,
+                                lhs = end_node,
+                                rhs = ExprNodes.SimpleCallNode(node.pos,
+                                    function = ExprNodes.NameNode(node.pos, name="len"),
+                                    args = [unpack_temp_node]
+                                    ),
+                                first = True)
+        length_setup_node = length_setup_node.analyse_expressions(env)
+
+        return UtilNodes.LetNode(
+            unpack_temp_node,
+            UtilNodes.TempsBlockNode(
+                node.pos, temps=[counter_temp, length_temp],
+                body=Nodes.StatListNode(node.pos, stats=[length_setup_node, loop_node])))
 
     def _transform_bytes_iteration(self, node, slice_node, reversed=False):
         target_type = node.target.type
