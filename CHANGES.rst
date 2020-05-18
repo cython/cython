@@ -424,6 +424,10 @@ Bugs fixed
 * Error handling in ``cython.array`` creation was improved to avoid calling
   C-API functions with an error held.
 
+* A memory corruption was fixed when garbage collection was triggered during calls
+  to ``PyType_Ready()`` of extension type subclasses.
+  (Github issue #3603)
+
 * Memory view slicing generated unused error handling code which could negatively
   impact the C compiler optimisations for parallel OpenMP code etc.  Also, it is
   now helped by static branch hints.
