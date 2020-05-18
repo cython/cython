@@ -340,24 +340,29 @@ class IterationTransform(Visitor.EnvTransform):
             ])
 
     def _transform_indexable_iteration(self, node, slice_node, reversed=False):
+        """In principle can handle any iterable that Cython has a len() for and knows how to index"""
         unpack_temp_node = UtilNodes.LetRefNode(
             slice_node.as_none_safe_node("'NoneType' is not iterable"),
-            may_hold_none=False)
+            may_hold_none=False
+            )
 
         start_node = ExprNodes.IntNode(
             node.pos, value='0', constant_result=0, type=PyrexTypes.c_py_ssize_t_type)
-        length_temp = UtilNodes.TempHandle(PyrexTypes.c_py_ssize_t_type)
-        end_node = length_temp.ref(node.pos)
+        length_temp = UtilNodes.LetRefNode(ExprNodes.SimpleCallNode(node.pos,
+                                    function = ExprNodes.NameNode(node.pos, name="len"),
+                                    args = [unpack_temp_node]
+                                    ), type=PyrexTypes.c_py_ssize_t_type)
+        end_node = length_temp
         if reversed:
             relation1, relation2 = '>', '>='
             start_node, end_node = end_node, start_node
         else:
             relation1, relation2 = '<=', '<'
 
-        counter_temp = UtilNodes.TempHandle(PyrexTypes.c_py_ssize_t_type)
+        counter_ref = UtilNodes.LetRefNode(pos=node.pos, type=PyrexTypes.c_py_ssize_t_type)
 
         target_value = ExprNodes.IndexNode(slice_node.pos, base=unpack_temp_node,
-                                           index=counter_temp.ref(node.pos))
+                                           index=counter_ref)
 
         target_assign = Nodes.SingleAssignmentNode(
             pos = node.target.pos,
@@ -372,7 +377,7 @@ class IterationTransform(Visitor.EnvTransform):
                                                         directives = new_directives,
                                                         body = target_assign)
 
-        target_assign = target_assign.analyse_expressions(env)
+        target_assign = target_assign
         body = Nodes.StatListNode(
             node.pos,
             stats = [target_assign, node.body])
@@ -380,26 +385,27 @@ class IterationTransform(Visitor.EnvTransform):
         loop_node = Nodes.ForFromStatNode(
             node.pos,
             bound1=start_node, relation1=relation1,
-            target=counter_temp.ref(node.target.pos),
+            target=counter_ref,
             relation2=relation2, bound2=end_node,
             step=None, body=body,
             else_clause=node.else_clause,
             from_range=True)
 
-        length_setup_node = Nodes.SingleAssignmentNode(node.pos,
-                                lhs = end_node,
-                                rhs = ExprNodes.SimpleCallNode(node.pos,
-                                    function = ExprNodes.NameNode(node.pos, name="len"),
-                                    args = [unpack_temp_node]
-                                    ),
-                                first = True)
-        length_setup_node = length_setup_node.analyse_expressions(env)
-
         return UtilNodes.LetNode(
-            unpack_temp_node,
-            UtilNodes.TempsBlockNode(
-                node.pos, temps=[counter_temp, length_temp],
-                body=Nodes.StatListNode(node.pos, stats=[length_setup_node, loop_node])))
+                    unpack_temp_node,
+                    UtilNodes.LetNode(
+                        length_temp,
+                        # we don't actually have any use for the result of "counter_ref"
+                        # but the TempResultFromStatNode UtilNode already exists and does
+                        # basically the right thing
+                        Nodes.ExprStatNode(node.pos,
+                            expr=UtilNodes.TempResultFromStatNode(
+                                    counter_ref,
+                                    loop_node
+                            )
+                        )
+                    )
+                ).analyse_expressions(env)
 
     def _transform_bytes_iteration(self, node, slice_node, reversed=False):
         target_type = node.target.type
