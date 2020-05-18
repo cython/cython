@@ -5224,7 +5224,7 @@ class CClassDefNode(ClassDefNode):
                     buffer_slot.slot_code(scope),
                 ))
                 code.putln("#else")
-                code.putln("#error The buffer protocol is not supported in the Limited C-API.")
+                code.putln("#warning The buffer protocol is not supported in the Limited C-API.")
                 code.putln("#endif")
 
             code.globalstate.use_utility_code(
