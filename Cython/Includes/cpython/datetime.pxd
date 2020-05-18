@@ -16,13 +16,7 @@ cdef extern from "datetime.h":
         pass
 
     ctypedef extern class datetime.timedelta[object PyDateTime_Delta]:
-        cdef inline float total_seconds(self):
-            cdef:
-                float days, seconds, micros
-            days = <float>PyDateTime_DELTA_GET_DAYS(self)
-            seconds = <float>PyDateTime_DELTA_GET_SECONDS(self)
-            micros = <float>PyDateTime_DELTA_GET_MICROSECONDS(self)
-            return days * 24 * 3600 + seconds + micros / 1_000_000
+        pass
 
     ctypedef extern class datetime.tzinfo[object PyDateTime_TZInfo]:
         pass
@@ -216,3 +210,12 @@ cdef inline int timedelta_seconds(object o):
 # Get microseconds of timedelta
 cdef inline int timedelta_microseconds(object o):
     return (<PyDateTime_Delta*>o).microseconds
+
+cdef inline double total_seconds(timedelta obj):
+    # Mirrors the timedelta.total_seconds method
+    cdef:
+        float days, seconds, micros
+    days = <float>PyDateTime_DELTA_GET_DAYS(obj)
+    seconds = <float>PyDateTime_DELTA_GET_SECONDS(obj)
+    micros = <float>PyDateTime_DELTA_GET_MICROSECONDS(obj)
+    return days * 24 * 3600 + seconds + micros / 1_000_000

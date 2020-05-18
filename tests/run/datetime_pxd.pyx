@@ -12,6 +12,7 @@ from cpython.datetime cimport date_day, date_month, date_year
 from cpython.datetime cimport datetime_day, datetime_month, datetime_year
 from cpython.datetime cimport datetime_hour, datetime_minute, datetime_second, \
                               datetime_microsecond
+from cpython.datetime cimport datetime, total_seconds
 
 import datetime as py_datetime
 
@@ -176,12 +177,14 @@ def do_datetime_tzinfo2(int year, int month, int day,
 def test_timedelta_total_seconds():
     """
     >>> cytotal, pytotal = test_timedelta_total_seconds()
+    >>> assert cytotal == pytotal, (cytotal, pytotal)
     >>> cytotal == pytotal
     True
     """
     cdef:
-        timedelta td = py_datetime.datetime.now() - py_datetime.datetime(1970, 1, 1)
+        datetime now = py_datetime.datetime.now()
+        timedelta td = now - py_datetime.datetime(1970, 1, 1)
 
-    pytd = py_datetime.datetime.now() - py_datetime.datetime(1970, 1, 1)
+    pytd = now - py_datetime.datetime(1970, 1, 1)
 
-    return td.total_seconds(), pytd.total_seconds()
+    return total_seconds(td), pytd.total_seconds()
