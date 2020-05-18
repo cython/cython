@@ -29,25 +29,11 @@ Bugs fixed
   that appeared in 3.0a1.
   (Github issue #3578)
 
-* C-tuples could use invalid C struct casting.
-  Patch by MegaIng.  (Github issue #3038)
-
-* Optimised ``%d`` string formatting into f-strings failed on float values.
-  (Github issue #3092)
-
-* Optimised aligned string formatting (``%05s``, ``%-5s``) failed.
-  (Github issue #3476)
-
 * The outdated getbuffer/releasebuffer implementations in the NumPy
   declarations were removed so that buffers declared as ``ndarray``
   now use the normal implementation in NumPy.
 
-* The non-public NumPy array specific ``INCREF``/``XDECREF`` functions
-  were removed from the NumPy declarations.
-
-* When using the ``CYTHON_NO_PYINIT_EXPORT`` option in C++, the module init function
-  was not declared as ``extern "C"``.
-  (Github issue #3414)
+* Includes all bug-fixes from the 0.29.18 release.
 
 
 3.0.0 alpha 4 (2020-05-05)
