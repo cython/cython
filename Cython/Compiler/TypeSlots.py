@@ -893,7 +893,7 @@ PyNumberMethods = (
     MethodSlot(unaryfunc, "nb_negative", "__neg__"),
     MethodSlot(unaryfunc, "nb_positive", "__pos__"),
     MethodSlot(unaryfunc, "nb_absolute", "__abs__"),
-    MethodSlot(inquiry, "nb_nonzero", "__nonzero__", py3 = ("nb_bool", "__bool__")),
+    MethodSlot(inquiry, "nb_bool", "__bool__", py2 = ("nb_nonzero", "__nonzero__")),
     MethodSlot(unaryfunc, "nb_invert", "__invert__"),
     MethodSlot(binaryfunc, "nb_lshift", "__lshift__"),
     MethodSlot(binaryfunc, "nb_rshift", "__rshift__"),
