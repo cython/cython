@@ -8,7 +8,7 @@ static void __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObjec
 
 #if CYTHON_USE_TYPE_SPECS
 static void __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject *type) {
-#if PY_VERSION_HEX >= 0x030900A1 || CYTHON_COMPILING_IN_LIMITED_API
+#if PY_VERSION_HEX >= 0x030900B1 || CYTHON_COMPILING_IN_LIMITED_API
     (void) spec;
     (void) type;
 #else
@@ -18,6 +18,7 @@ static void __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObjec
     while (slot && slot->slot && slot->slot != Py_tp_members)
         slot++;
     if (slot && slot->slot == Py_tp_members) {
+        int changed = 0;
         const PyMemberDef *memb = (PyMemberDef*) slot->pfunc;
         while (memb && memb->name) {
             if (memb->name[0] == '_' && memb->name[1] == '_') {
@@ -26,14 +27,14 @@ static void __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObjec
                     assert(memb->type == T_PYSSIZET);
                     assert(memb->flags == READONLY);
                     type->tp_weaklistoffset = memb->offset;
-                    PyType_Modified(type);
+                    changed = 1;
                 }
                 else if (strcmp(memb->name, "__dictoffset__") == 0) {
                     // The PyMemberDef must be a Py_ssize_t and readonly
                     assert(memb->type == T_PYSSIZET);
                     assert(memb->flags == READONLY);
                     type->tp_dictoffset = memb->offset;
-                    PyType_Modified(type);
+                    changed = 1;
                 }
 #if CYTHON_METH_FASTCALL
                 else if (strcmp(memb->name, "__vectorcalloffset__") == 0) {
@@ -45,12 +46,15 @@ static void __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObjec
 #else
                     type->tp_print = (printfunc) memb->offset;
 #endif
-                    PyType_Modified(type);
+                    changed = 1;
                 }
 #endif
             }
             memb++;
         }
+        // FIXME: is it even worth calling PyType_Modified() here?
+        if (changed)
+            PyType_Modified(type);
     }
 #endif
 }
