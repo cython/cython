@@ -73,10 +73,6 @@ bad:
 }
 #else
 
-#if PY_VERSION_HEX < 0x030900A1
-#include <string.h>
-#endif
-
 static PyTypeObject *__Pyx_FetchCommonTypeFromSpec(PyType_Spec *spec, PyObject *bases) {
     PyObject *abi_module, *cached_type = NULL;
 

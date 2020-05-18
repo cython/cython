@@ -5226,6 +5226,8 @@ class CClassDefNode(ClassDefNode):
                 code.putln("#error The buffer protocol is not supported in the Limited C-API.")
                 code.putln("#endif")
 
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("FixUpExtensionType", "ExtensionTypes.c"))
             code.putln("__Pyx_fix_up_extension_type_from_spec(&%s, %s);" % (typespec_cname, typeptr_cname))
 
             code.putln("#else")

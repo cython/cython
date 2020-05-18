@@ -5,6 +5,8 @@ static void __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObjec
 #endif
 
 /////////////// FixUpExtensionType ///////////////
+//@requires:ModuleSetupCode.c::IncludeStructmemberH
+//@requires:StringTools.c::IncludeStringH
 
 #if CYTHON_USE_TYPE_SPECS
 static void __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject *type) {
