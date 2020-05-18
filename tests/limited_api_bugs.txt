@@ -7,4 +7,5 @@ not_none
 queue3
 test_queue
 memoryview
-buffers
+memview
+buffer
