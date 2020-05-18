@@ -16,7 +16,7 @@ cdef extern from "datetime.h":
         pass
 
     ctypedef extern class datetime.timedelta[object PyDateTime_Delta]:
-        cdef float total_seconds(self):
+        cdef inline float total_seconds(self):
             cdef:
                 float days, seconds, micros
             days = <float>PyDateTime_DELTA_GET_DAYS(self)
