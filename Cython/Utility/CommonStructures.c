@@ -138,6 +138,7 @@ static PyTypeObject *__Pyx_FetchCommonTypeFromSpec(PyType_Spec *spec, PyObject *
                         ((PyTypeObject *)cached_type)->tp_dictoffset = memb->offset;
                         PyType_Modified(((PyTypeObject *)cached_type));
                     }
+#if CYTHON_METH_FASTCALL
                     else if (strcmp(memb->name, "__vectorcalloffset__") == 0) {
                         printf("Setting tp_vectorcall_offset for %s\n", spec->name);
                         // The PyMemberDef must be a Py_ssize_t and readonly
@@ -150,6 +151,7 @@ static PyTypeObject *__Pyx_FetchCommonTypeFromSpec(PyType_Spec *spec, PyObject *
 #endif
                         PyType_Modified(((PyTypeObject *)cached_type));
                     }
+#endif
                 }
                 memb++;
             }
