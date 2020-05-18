@@ -53,6 +53,9 @@ Bugs fixed
 
 * Three missing timedelta access macros were added in ``cpython.datetime``.
 
+* The signature of the NumPy C-API function ``PyArray_SearchSorted()`` was fixed.
+  Patch by Brock Mendel.  (Github issue #3606)
+
 
 0.29.17 (2020-04-26)
 ====================
