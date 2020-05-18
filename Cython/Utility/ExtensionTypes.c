@@ -1,15 +1,69 @@
-/////////////// PyType_Ready.proto ///////////////
+/////////////// FixUpExtensionType.proto ///////////////
 
-#if !CYTHON_USE_TYPE_SPECS
-static int __Pyx_PyType_Ready(PyTypeObject *t);
+#if CYTHON_USE_TYPE_SPECS
+static void __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject *type); /*proto*/
 #endif
 
-/////////////// PyType_Ready ///////////////
+/////////////// FixUpExtensionType ///////////////
 
-// Wrapper around PyType_Ready() with some runtime checks and fixes
-// to deal with multiple inheritance.
-#if !CYTHON_USE_TYPE_SPECS
-static int __Pyx_PyType_Ready(PyTypeObject *t) {
+#if CYTHON_USE_TYPE_SPECS
+static void __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject *type) {
+#if PY_VERSION_HEX >= 0x030900A1 || CYTHON_COMPILING_IN_LIMITED_API
+    (void) spec;
+    (void) type;
+#else
+    // Set tp_weakreflist, tp_dictoffset, tp_vectorcalloffset
+    // Copied and adapted from https://bugs.python.org/issue38140
+    const PyType_Slot *slot = spec->slots;
+    while (slot && slot->slot && slot->slot != Py_tp_members)
+        slot++;
+    if (slot && slot->slot == Py_tp_members) {
+        const PyMemberDef *memb = (PyMemberDef*) slot->pfunc;
+        while (memb && memb->name) {
+            if (memb->name[0] == '_' && memb->name[1] == '_') {
+                if (strcmp(memb->name, "__weaklistoffset__") == 0) {
+                    // The PyMemberDef must be a Py_ssize_t and readonly
+                    assert(memb->type == T_PYSSIZET);
+                    assert(memb->flags == READONLY);
+                    type->tp_weaklistoffset = memb->offset;
+                    PyType_Modified(type);
+                }
+                else if (strcmp(memb->name, "__dictoffset__") == 0) {
+                    // The PyMemberDef must be a Py_ssize_t and readonly
+                    assert(memb->type == T_PYSSIZET);
+                    assert(memb->flags == READONLY);
+                    type->tp_dictoffset = memb->offset;
+                    PyType_Modified(type);
+                }
+#if CYTHON_METH_FASTCALL
+                else if (strcmp(memb->name, "__vectorcalloffset__") == 0) {
+                    // The PyMemberDef must be a Py_ssize_t and readonly
+                    assert(memb->type == T_PYSSIZET);
+                    assert(memb->flags == READONLY);
+#if PY_VERSION_HEX >= 0x030800b4
+                    type->tp_vectorcall_offset = memb->offset;
+#else
+                    type->tp_print = (printfunc) memb->offset;
+#endif
+                    PyType_Modified(type);
+                }
+#endif
+            }
+            memb++;
+        }
+    }
+#endif
+}
+#endif
+
+
+/////////////// ValidateBasesTuple.proto ///////////////
+
+static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffset, PyObject *bases); /*proto*/
+
+/////////////// ValidateBasesTuple ///////////////
+
+static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffset, PyObject *bases) {
     // Loop over all bases (except the first) and check that those
     // really are heap types. Otherwise, it would not be safe to
     // subclass them.
@@ -20,42 +74,57 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
     // tp_dictoffset (i.e. there is no __dict__ attribute in the object
     // structure), we need to check that none of the base classes sets
     // it either.
-    int r;
-    PyObject *bases = t->tp_bases;
-    if (bases)
+    Py_ssize_t i, n = PyTuple_GET_SIZE(bases);
+    for (i = 1; i < n; i++)  /* Skip first base */
     {
-        Py_ssize_t i, n = PyTuple_GET_SIZE(bases);
-        for (i = 1; i < n; i++)  /* Skip first base */
-        {
-            PyObject *b0 = PyTuple_GET_ITEM(bases, i);
-            PyTypeObject *b;
+        PyObject *b0 = PyTuple_GET_ITEM(bases, i);
+        PyTypeObject *b;
 #if PY_MAJOR_VERSION < 3
-            /* Disallow old-style classes */
-            if (PyClass_Check(b0))
-            {
-                PyErr_Format(PyExc_TypeError, "base class '%.200s' is an old-style class",
-                             PyString_AS_STRING(((PyClassObject*)b0)->cl_name));
-                return -1;
-            }
+        /* Disallow old-style classes */
+        if (PyClass_Check(b0))
+        {
+            PyErr_Format(PyExc_TypeError, "base class '%.200s' is an old-style class",
+                         PyString_AS_STRING(((PyClassObject*)b0)->cl_name));
+            return -1;
+        }
 #endif
-            b = (PyTypeObject*)b0;
-            if (!PyType_HasFeature(b, Py_TPFLAGS_HEAPTYPE))
-            {
-                PyErr_Format(PyExc_TypeError, "base class '%.200s' is not a heap type",
-                             b->tp_name);
-                return -1;
-            }
-            if (t->tp_dictoffset == 0 && b->tp_dictoffset)
-            {
-                PyErr_Format(PyExc_TypeError,
-                    "extension type '%.200s' has no __dict__ slot, but base type '%.200s' has: "
-                    "either add 'cdef dict __dict__' to the extension type "
-                    "or add '__slots__ = [...]' to the base type",
-                    t->tp_name, b->tp_name);
-                return -1;
-            }
+        b = (PyTypeObject*)b0;
+        if (!PyType_HasFeature(b, Py_TPFLAGS_HEAPTYPE))
+        {
+            PyErr_Format(PyExc_TypeError, "base class '%.200s' is not a heap type",
+                         b->tp_name);
+            return -1;
+        }
+        if (dictoffset == 0 && b->tp_dictoffset)
+        {
+            PyErr_Format(PyExc_TypeError,
+                "extension type '%.200s' has no __dict__ slot, but base type '%.200s' has: "
+                "either add 'cdef dict __dict__' to the extension type "
+                "or add '__slots__ = [...]' to the base type",
+                type_name, b->tp_name);
+            return -1;
         }
     }
+    return 0;
+}
+
+
+/////////////// PyType_Ready.proto ///////////////
+
+#if !CYTHON_USE_TYPE_SPECS
+static int __Pyx_PyType_Ready(PyTypeObject *t);
+#endif
+
+/////////////// PyType_Ready ///////////////
+//@requires: ValidateBasesTuple
+
+// Wrapper around PyType_Ready() with some runtime checks and fixes
+// to deal with multiple inheritance.
+#if !CYTHON_USE_TYPE_SPECS
+static int __Pyx_PyType_Ready(PyTypeObject *t) {
+    int r;
+    if (t->tp_bases && unlikely(__Pyx_validate_bases_tuple(t->tp_name, t->tp_dictoffset, t->tp_bases) == -1))
+        return -1;
 
 #if PY_VERSION_HEX >= 0x03050000
     {

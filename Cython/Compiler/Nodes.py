@@ -5174,6 +5174,8 @@ class CClassDefNode(ClassDefNode):
         # TODO: remove 'else:' and dedent
         else:
             assert typeptr_cname
+            assert type.typeobj_cname
+            typespec_cname = "%s_spec" % type.typeobj_cname
             code.putln("#if CYTHON_USE_TYPE_SPECS")
             tuple_temp = None
             if not bases_tuple_cname and scope.parent_type.base_type:
@@ -5186,9 +5188,17 @@ class CClassDefNode(ClassDefNode):
                 code.put_gotref(tuple_temp, py_object_type)
 
             if bases_tuple_cname or tuple_temp:
-                code.putln("%s = (PyTypeObject *) PyType_FromSpecWithBases(&%s_spec, %s);" % (
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached('ValidateBasesTuple', 'ExtensionTypes.c'))
+                code.put_error_if_neg(entry.pos, "__Pyx_validate_bases_tuple(%s.name, %s, %s)" % (
+                    typespec_cname,
+                    TypeSlots.get_slot_by_name("tp_dictoffset").slot_code(scope),
+                    bases_tuple_cname or tuple_temp,
+                ))
+
+                code.putln("%s = (PyTypeObject *) PyType_FromSpecWithBases(&%s, %s);" % (
                     typeptr_cname,
-                    type.typeobj_cname,
+                    typespec_cname,
                     bases_tuple_cname or tuple_temp,
                 ))
                 if tuple_temp:
@@ -5197,9 +5207,9 @@ class CClassDefNode(ClassDefNode):
                 code.putln(code.error_goto_if_null(typeptr_cname, entry.pos))
             else:
                 code.putln(
-                    "%s = (PyTypeObject *) PyType_FromSpec(&%s_spec); %s" % (
+                    "%s = (PyTypeObject *) PyType_FromSpec(&%s); %s" % (
                         typeptr_cname,
-                        type.typeobj_cname,
+                        typespec_cname,
                         code.error_goto_if_null(typeptr_cname, entry.pos),
                     ))
 
@@ -5215,6 +5225,8 @@ class CClassDefNode(ClassDefNode):
                 code.putln("#else")
                 code.putln("#error The buffer protocol is not supported in the Limited C-API.")
                 code.putln("#endif")
+
+            code.putln("__Pyx_fix_up_extension_type_from_spec(&%s, %s);" % (typespec_cname, typeptr_cname))
 
             code.putln("#else")
             if bases_tuple_cname:
