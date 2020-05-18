@@ -5188,13 +5188,14 @@ class CClassDefNode(ClassDefNode):
                 code.put_gotref(tuple_temp, py_object_type)
 
             if bases_tuple_cname or tuple_temp:
-                code.globalstate.use_utility_code(
-                    UtilityCode.load_cached('ValidateBasesTuple', 'ExtensionTypes.c'))
-                code.put_error_if_neg(entry.pos, "__Pyx_validate_bases_tuple(%s.name, %s, %s)" % (
-                    typespec_cname,
-                    TypeSlots.get_slot_by_name("tp_dictoffset").slot_code(scope),
-                    bases_tuple_cname or tuple_temp,
-                ))
+                if check_heap_type_bases:
+                    code.globalstate.use_utility_code(
+                        UtilityCode.load_cached('ValidateBasesTuple', 'ExtensionTypes.c'))
+                    code.put_error_if_neg(entry.pos, "__Pyx_validate_bases_tuple(%s.name, %s, %s)" % (
+                        typespec_cname,
+                        TypeSlots.get_slot_by_name("tp_dictoffset").slot_code(scope),
+                        bases_tuple_cname or tuple_temp,
+                    ))
 
                 code.putln("%s = (PyTypeObject *) PyType_FromSpecWithBases(&%s, %s);" % (
                     typeptr_cname,
