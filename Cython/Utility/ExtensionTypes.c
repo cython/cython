@@ -57,6 +57,7 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
 #if PY_VERSION_HEX >= 0x03050000
     {
         // Make sure GC does not pick up our non-heap type as heap type with this hack!
+        // For details, see https://github.com/cython/cython/issues/3603
         PyObject *ret, *py_status;
         int gc_was_enabled;
         PyObject *gc = PyImport_Import(PYUNICODE("gc"));
