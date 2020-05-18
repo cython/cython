@@ -820,7 +820,12 @@ static PyType_Spec __pyx_CyFunctionType_spec = {
     __PYX_TYPE_MODULE_PREFIX "cython_function_or_method",
     sizeof(__pyx_CyFunctionObject),
     0,
-    // TODO: Support _Py_TPFLAGS_HAVE_VECTORCALL and _Py_TPFLAGS_HAVE_VECTORCALL
+#ifdef Py_TPFLAGS_METHOD_DESCRIPTOR
+    Py_TPFLAGS_METHOD_DESCRIPTOR |
+#endif
+#ifdef _Py_TPFLAGS_HAVE_VECTORCALL
+    _Py_TPFLAGS_HAVE_VECTORCALL |
+#endif
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE, /*tp_flags*/
     __pyx_CyFunctionType_slots
 };
@@ -862,7 +867,7 @@ static PyTypeObject __pyx_CyFunctionType_type = {
 #ifdef _Py_TPFLAGS_HAVE_VECTORCALL
     _Py_TPFLAGS_HAVE_VECTORCALL |
 #endif
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC, /*tp_flags*/
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE, /*tp_flags*/
     0,                                  /*tp_doc*/
     (traverseproc) __Pyx_CyFunction_traverse,   /*tp_traverse*/
     (inquiry) __Pyx_CyFunction_clear,   /*tp_clear*/
