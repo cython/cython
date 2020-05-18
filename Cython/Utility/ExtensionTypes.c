@@ -55,20 +55,64 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
     }
 
 #if PY_VERSION_HEX >= 0x03050000
-    // As of https://bugs.python.org/issue22079
-    // PyType_Ready enforces that all bases of a non-heap type are
-    // non-heap. We know that this is the case for the solid base but
-    // other bases are heap allocated and are kept alive through the
-    // tp_bases reference.
-    // Other than this check, the Py_TPFLAGS_HEAPTYPE flag is unused
-    // in PyType_Ready().
-    t->tp_flags |= Py_TPFLAGS_HEAPTYPE;
+    {
+        // Make sure GC does not pick up our non-heap type as heap type with this hack!
+        PyObject *ret, *py_status;
+        int gc_was_enabled;
+        PyObject *gc = PyImport_Import(PYUNICODE("gc"));
+        if (unlikely(!gc)) return -1;
+        py_status = PyObject_CallMethodObjArgs(gc, PYUNICODE("isenabled"), NULL);
+        if (unlikely(!py_status)) {
+            Py_DECREF(gc);
+            return -1;
+        }
+        gc_was_enabled = __Pyx_PyObject_IsTrue(py_status);
+        Py_DECREF(py_status);
+        if (gc_was_enabled > 0) {
+            ret = PyObject_CallMethodObjArgs(gc, PYUNICODE("disable"), NULL);
+            if (unlikely(!ret)) {
+                Py_DECREF(gc);
+                return -1;
+            }
+            Py_DECREF(ret);
+        } else if (unlikely(gc_was_enabled == -1)) {
+            Py_DECREF(gc);
+            return -1;
+        }
+
+        // As of https://bugs.python.org/issue22079
+        // PyType_Ready enforces that all bases of a non-heap type are
+        // non-heap. We know that this is the case for the solid base but
+        // other bases are heap allocated and are kept alive through the
+        // tp_bases reference.
+        // Other than this check, the Py_TPFLAGS_HEAPTYPE flag is unused
+        // in PyType_Ready().
+        t->tp_flags |= Py_TPFLAGS_HEAPTYPE;
 #endif
 
     r = PyType_Ready(t);
 
 #if PY_VERSION_HEX >= 0x03050000
-    t->tp_flags &= ~Py_TPFLAGS_HEAPTYPE;
+        t->tp_flags &= ~Py_TPFLAGS_HEAPTYPE;
+
+        if (gc_was_enabled) {
+            PyObject *t, *v, *tb;
+            PyErr_Fetch(&t, &v, &tb);
+            ret = PyObject_CallMethodObjArgs(gc, PYUNICODE("enable"), NULL);
+            if (likely(ret || r == -1)) {
+                Py_XDECREF(ret);
+                // do not overwrite exceptions raised by PyType_Ready() above
+                PyErr_Restore(t, v, tb);
+            } else {
+                // PyType_Ready() succeeded, but gc.enable() failed.
+                Py_XDECREF(t);
+                Py_XDECREF(v);
+                Py_XDECREF(tb);
+                r = -1;
+            }
+        }
+        Py_DECREF(gc);
+    }
 #endif
 
     return r;
