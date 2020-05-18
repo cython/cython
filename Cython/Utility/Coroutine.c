@@ -1791,7 +1791,7 @@ static int __pyx_IterableCoroutine_init(void);/*proto*/
 //@requires: CommonStructures.c::FetchCommonType
 
 #if CYTHON_USE_TYPE_SPECS
-static PyType_Slot __pyx_CoroutineType_slots[] = {
+static PyType_Slot __pyx_IterableCoroutineType_slots[] = {
     {Py_tp_dealloc, (void *)__Pyx_Coroutine_dealloc},
     {Py_am_await, (void *)&__Pyx_Coroutine_await},
     {Py_tp_traverse, (void *)__Pyx_Coroutine_traverse},
@@ -1807,12 +1807,12 @@ static PyType_Slot __pyx_CoroutineType_slots[] = {
     {0, 0},
 };
 
-static PyType_Spec __pyx_CoroutineAwaitType_spec = {
+static PyType_Spec __pyx_IterableCoroutineType_spec = {
     "iterable_coroutine",
     sizeof(__pyx_CoroutineObject),
     0,
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_FINALIZE, /*tp_flags*/
-    __pyx_CoroutineType_slots
+    __pyx_IterableCoroutineType_slots
 };
 #else /* CYTHON_USE_TYPE_SPECS */
 
