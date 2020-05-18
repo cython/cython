@@ -21,6 +21,10 @@ Features added
 Bugs fixed
 ----------
 
+* Several issues with arithmetic overflow handling were resolved, including
+  undefined behaviour in C.
+  Patch by Sam Sneddon.  (Github issue #3588)
+
 * The improved GIL handling in ``nogil`` functions introduced in 3.0a3
   could fail to acquire the GIL in some cases on function exit.
   (Github issue #3590 etc.)
