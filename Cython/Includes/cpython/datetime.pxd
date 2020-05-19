@@ -214,8 +214,8 @@ cdef inline int timedelta_microseconds(object o):
 cdef inline double total_seconds(timedelta obj):
     # Mirrors the timedelta.total_seconds method
     cdef:
-        float days, seconds, micros
-    days = <float>PyDateTime_DELTA_GET_DAYS(obj)
-    seconds = <float>PyDateTime_DELTA_GET_SECONDS(obj)
-    micros = <float>PyDateTime_DELTA_GET_MICROSECONDS(obj)
+        double days, seconds, micros
+    days = <double>PyDateTime_DELTA_GET_DAYS(obj)
+    seconds = <double>PyDateTime_DELTA_GET_SECONDS(obj)
+    micros = <double>PyDateTime_DELTA_GET_MICROSECONDS(obj)
     return days * 24 * 3600 + seconds + micros / 1_000_000
