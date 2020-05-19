@@ -2,7 +2,7 @@
 Cython Changelog
 ================
 
-3.0.0 alpha 5 (2020-0?-??)
+3.0.0 alpha 5 (2020-05-19)
 ==========================
 
 Features added
@@ -21,6 +21,10 @@ Features added
 Bugs fixed
 ----------
 
+* Several issues with arithmetic overflow handling were resolved, including
+  undefined behaviour in C.
+  Patch by Sam Sneddon.  (Github issue #3588)
+
 * The improved GIL handling in ``nogil`` functions introduced in 3.0a3
   could fail to acquire the GIL in some cases on function exit.
   (Github issue #3590 etc.)
@@ -29,25 +33,11 @@ Bugs fixed
   that appeared in 3.0a1.
   (Github issue #3578)
 
-* C-tuples could use invalid C struct casting.
-  Patch by MegaIng.  (Github issue #3038)
-
-* Optimised ``%d`` string formatting into f-strings failed on float values.
-  (Github issue #3092)
-
-* Optimised aligned string formatting (``%05s``, ``%-5s``) failed.
-  (Github issue #3476)
-
 * The outdated getbuffer/releasebuffer implementations in the NumPy
   declarations were removed so that buffers declared as ``ndarray``
   now use the normal implementation in NumPy.
 
-* The non-public NumPy array specific ``INCREF``/``XDECREF`` functions
-  were removed from the NumPy declarations.
-
-* When using the ``CYTHON_NO_PYINIT_EXPORT`` option in C++, the module init function
-  was not declared as ``extern "C"``.
-  (Github issue #3414)
+* Includes all bug-fixes from the 0.29.18 release.
 
 
 3.0.0 alpha 4 (2020-05-05)
@@ -410,7 +400,7 @@ Other changes
 * Support for Python 2.6 was removed.
 
 
-0.29.18 (2020-0?-??)
+0.29.18 (2020-05-18)
 ====================
 
 Bugs fixed
@@ -423,6 +413,10 @@ Bugs fixed
 
 * Error handling in ``cython.array`` creation was improved to avoid calling
   C-API functions with an error held.
+
+* A memory corruption was fixed when garbage collection was triggered during calls
+  to ``PyType_Ready()`` of extension type subclasses.
+  (Github issue #3603)
 
 * Memory view slicing generated unused error handling code which could negatively
   impact the C compiler optimisations for parallel OpenMP code etc.  Also, it is
@@ -456,6 +450,9 @@ Bugs fixed
   (Github issue #3414)
 
 * Three missing timedelta access macros were added in ``cpython.datetime``.
+
+* The signature of the NumPy C-API function ``PyArray_SearchSorted()`` was fixed.
+  Patch by Brock Mendel.  (Github issue #3606)
 
 
 0.29.17 (2020-04-26)

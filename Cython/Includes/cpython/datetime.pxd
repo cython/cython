@@ -5,6 +5,17 @@ cdef extern from "Python.h":
         pass
 
 cdef extern from "datetime.h":
+    """
+    #if PY_MAJOR_VERSION < 3 && !defined(PyDateTime_DELTA_GET_DAYS)
+    #define PyDateTime_DELTA_GET_DAYS(o)         (((PyDateTime_Delta*)o)->days)
+    #endif
+    #if PY_MAJOR_VERSION < 3 && !defined(PyDateTime_DELTA_GET_SECONDS)
+    #define PyDateTime_DELTA_GET_SECONDS(o)      (((PyDateTime_Delta*)o)->seconds)
+    #endif
+    #if PY_MAJOR_VERSION < 3 && !defined(PyDateTime_DELTA_GET_MICROSECONDS)
+    #define PyDateTime_DELTA_GET_MICROSECONDS(o)   (((PyDateTime_Delta*)o)->microseconds)
+    #endif
+    """
 
     ctypedef extern class datetime.date[object PyDateTime_Date]:
         pass

@@ -1723,7 +1723,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
 
         arg = pos_args[0]
         if isinstance(arg, ExprNodes.ComprehensionNode) and arg.type is Builtin.list_type:
-            list_node = pos_args[0]
+            list_node = arg
             loop_node = list_node.loop
 
         elif isinstance(arg, ExprNodes.GeneratorExpressionNode):

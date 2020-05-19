@@ -483,47 +483,49 @@ __pyx_sub_acquisition_count_locked(__pyx_atomic_int *acquisition_count,
 static CYTHON_INLINE void
 __Pyx_INC_MEMVIEW({{memviewslice_name}} *memslice, int have_gil, int lineno)
 {
-    int first_time;
+    __pyx_atomic_int_type old_acquisition_count;
     struct {{memview_struct_name}} *memview = memslice->memview;
-    if (unlikely(!memview || (PyObject *) memview == Py_None))
-        return; /* allow uninitialized memoryview assignment */
+    if (unlikely(!memview || (PyObject *) memview == Py_None)) {
+        // Allow uninitialized memoryview assignment and do not ref-count None.
+        return;
+    }
 
-    if (unlikely(__pyx_get_slice_count(memview) < 0))
-        __pyx_fatalerror("Acquisition count is %d (line %d)",
-                         __pyx_get_slice_count(memview), lineno);
-
-    first_time = __pyx_add_acquisition_count(memview) == 0;
-
-    if (unlikely(first_time)) {
-        if (have_gil) {
-            Py_INCREF((PyObject *) memview);
+    old_acquisition_count = __pyx_add_acquisition_count(memview);
+    if (unlikely(old_acquisition_count <= 0)) {
+        if (likely(old_acquisition_count == 0)) {
+            // First acquisition => keep the memoryview object alive.
+            if (have_gil) {
+                Py_INCREF((PyObject *) memview);
+            } else {
+                PyGILState_STATE _gilstate = PyGILState_Ensure();
+                Py_INCREF((PyObject *) memview);
+                PyGILState_Release(_gilstate);
+            }
         } else {
-            PyGILState_STATE _gilstate = PyGILState_Ensure();
-            Py_INCREF((PyObject *) memview);
-            PyGILState_Release(_gilstate);
+            __pyx_fatalerror("Acquisition count is %d (line %d)",
+                             __pyx_get_slice_count(memview), lineno);
         }
     }
 }
 
 static CYTHON_INLINE void __Pyx_XDEC_MEMVIEW({{memviewslice_name}} *memslice,
                                              int have_gil, int lineno) {
-    int last_time;
+    __pyx_atomic_int_type old_acquisition_count;
     struct {{memview_struct_name}} *memview = memslice->memview;
 
     if (unlikely(!memview || (PyObject *) memview == Py_None)) {
-        // we do not ref-count None
+        // Do not ref-count None.
         memslice->memview = NULL;
         return;
     }
 
-    if (unlikely(__pyx_get_slice_count(memview) <= 0))
-        __pyx_fatalerror("Acquisition count is %d (line %d)",
-                         __pyx_get_slice_count(memview), lineno);
-
-    last_time = __pyx_sub_acquisition_count(memview) == 1;
+    old_acquisition_count = __pyx_sub_acquisition_count(memview);
     memslice->data = NULL;
-
-    if (unlikely(last_time)) {
+    if (likely(old_acquisition_count > 1)) {
+        // Still other slices out there => we do not own the reference.
+        memslice->memview = NULL;
+    } else if (likely(old_acquisition_count == 1)) {
+        // Last slice => discard owned Python reference to memoryview object.
         if (have_gil) {
             Py_CLEAR(memslice->memview);
         } else {
@@ -532,7 +534,8 @@ static CYTHON_INLINE void __Pyx_XDEC_MEMVIEW({{memviewslice_name}} *memslice,
             PyGILState_Release(_gilstate);
         }
     } else {
-        memslice->memview = NULL;
+        __pyx_fatalerror("Acquisition count is %d (line %d)",
+                         __pyx_get_slice_count(memview), lineno);
     }
 }
 
