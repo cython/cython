@@ -4,7 +4,7 @@
 #from datetime import time, date, datetime, timedelta, tzinfo
 
 
-from cpython.datetime cimport import_datetime
+from cpython.datetime cimport import_datetime, timedelta
 from cpython.datetime cimport time_new, date_new, datetime_new, timedelta_new
 from cpython.datetime cimport time_tzinfo, datetime_tzinfo
 from cpython.datetime cimport time_hour, time_minute, time_second, time_microsecond
@@ -12,6 +12,8 @@ from cpython.datetime cimport date_day, date_month, date_year
 from cpython.datetime cimport datetime_day, datetime_month, datetime_year
 from cpython.datetime cimport datetime_hour, datetime_minute, datetime_second, \
                               datetime_microsecond
+from cpython.datetime cimport datetime, total_seconds
+
 # These were added in Py3, make sure that their backport works.
 from cpython.datetime cimport (
     timedelta as timedelta_ext_type,
@@ -194,3 +196,19 @@ def do_datetime_tzinfo2(int year, int month, int day,
     r7 = (v2 == v)
     r8 = (v3 == v1)
     return r1, r2, r3, r4, r5, r6, r7, r8
+
+
+def test_timedelta_total_seconds():
+    """
+    >>> cytotal, pytotal = test_timedelta_total_seconds()
+    >>> assert cytotal == pytotal, (cytotal, pytotal)
+    >>> cytotal == pytotal
+    True
+    """
+    cdef:
+        datetime now = py_datetime.datetime.now()
+        timedelta td = now - py_datetime.datetime(1970, 1, 1)
+
+    pytd = now - py_datetime.datetime(1970, 1, 1)
+
+    return total_seconds(td), pytd.total_seconds()
