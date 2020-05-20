@@ -811,7 +811,7 @@ static PyType_Slot __pyx_CyFunctionType_slots[] = {
 };
 
 static PyType_Spec __pyx_CyFunctionType_spec = {
-    "cython_function_or_method",
+    __PYX_TYPE_MODULE_PREFIX "cython_function_or_method",
     sizeof(__pyx_CyFunctionObject),
     0,
     // TODO: Support _Py_TPFLAGS_HAVE_VECTORCALL and _Py_TPFLAGS_HAVE_VECTORCALL
@@ -821,7 +821,7 @@ static PyType_Spec __pyx_CyFunctionType_spec = {
 #else
 static PyTypeObject __pyx_CyFunctionType_type = {
     PyVarObject_HEAD_INIT(0, 0)
-    "cython_function_or_method",      /*tp_name*/
+    __PYX_TYPE_MODULE_PREFIX "cython_function_or_method",  /*tp_name*/
     sizeof(__pyx_CyFunctionObject),   /*tp_basicsize*/
     0,                                  /*tp_itemsize*/
     (destructor) __Pyx_CyFunction_dealloc, /*tp_dealloc*/
@@ -1335,7 +1335,7 @@ static PyType_Slot __pyx_FusedFunctionType_slots[] = {
 };
 
 static PyType_Spec __pyx_FusedFunctionType_spec = {
-    "fused_cython_function",
+    __PYX_TYPE_MODULE_PREFIX "fused_cython_function",
     sizeof(__pyx_FusedFunctionObject),
     0,
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE, /*tp_flags*/
@@ -1352,7 +1352,7 @@ static PyMappingMethods __pyx_FusedFunction_mapping_methods = {
 
 static PyTypeObject __pyx_FusedFunctionType_type = {
     PyVarObject_HEAD_INIT(0, 0)
-    "fused_cython_function",           /*tp_name*/
+    __PYX_TYPE_MODULE_PREFIX "fused_cython_function",  /*tp_name*/
     sizeof(__pyx_FusedFunctionObject), /*tp_basicsize*/
     0,                                  /*tp_itemsize*/
     (destructor) __pyx_FusedFunction_dealloc, /*tp_dealloc*/

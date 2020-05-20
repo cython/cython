@@ -1648,7 +1648,7 @@ static void __Pyx_FastGilFuncInit(void);
 
 #if CYTHON_FAST_GIL
 
-#define __Pyx_FastGIL_ABI_module "_cython_" CYTHON_ABI
+#define __Pyx_FastGIL_ABI_module __PYX_ABI_MODULE_NAME
 #define __Pyx_FastGIL_PyCapsuleName "FastGilFuncs"
 #define __Pyx_FastGIL_PyCapsule \
     __Pyx_FastGIL_ABI_module "." __Pyx_FastGIL_PyCapsuleName

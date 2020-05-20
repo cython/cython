@@ -143,7 +143,7 @@ def run_cyfunction_check():
     fused_cython_function
     1
     """
-    print(type(opt_func).__name__)
+    print(type(opt_func).__name__.rsplit('.', 1)[-1])
     print(__Pyx_CyFunction_Check(opt_func))  # should be True
 
 def test_opt_func():
