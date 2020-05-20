@@ -373,6 +373,8 @@ class IterationTransform(Visitor.EnvTransform):
         # off (because we're confident we know the size)
         env = self.current_env()
         new_directives = dict(env.directives, boundscheck=False, wraparound=False)
+        new_directives.pop('test_assert_path_exists', None)
+        new_directives.pop('test_fail_if_path_exists', None)
         target_assign = Nodes.CompilerDirectivesNode(target_assign.pos,
                                                         directives = new_directives,
                                                         body = target_assign)
