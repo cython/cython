@@ -131,7 +131,7 @@ class CythonUtilityCode(Code.UtilityCodeBase):
             p = []
             for t in pipeline:
                 p.append(t)
-                if isinstance(p, ParseTreeTransforms.AnalyseDeclarationsTransform):
+                if isinstance(t, ParseTreeTransforms.AnalyseDeclarationsTransform):
                     break
 
             pipeline = p

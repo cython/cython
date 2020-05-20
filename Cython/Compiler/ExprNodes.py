@@ -3293,7 +3293,7 @@ class FormattedValueNode(ExprNode):
     # {}-delimited portions of an f-string
     #
     # value           ExprNode                The expression itself
-    # conversion_char str or None             Type conversion (!s, !r, !a, or none)
+    # conversion_char str or None             Type conversion (!s, !r, !a, or none, or 'd' for integer conversion)
     # format_spec     JoinedStrNode or None   Format string passed to __format__
     # c_format_spec   str or None             If not None, formatting can be done at the C level
 
@@ -3308,6 +3308,7 @@ class FormattedValueNode(ExprNode):
         's': 'PyObject_Unicode',
         'r': 'PyObject_Repr',
         'a': 'PyObject_ASCII',  # NOTE: mapped to PyObject_Repr() in Py2
+        'd': '__Pyx_PyNumber_IntOrLong',  # NOTE: internal mapping for '%d' formatting
     }.get
 
     def may_be_none(self):
@@ -4043,12 +4044,9 @@ class IndexNode(_IndexingBaseNode):
             else:
                 assert False, "unexpected base type in indexing: %s" % self.base.type
         elif self.base.type.is_cfunction:
-            if self.base.entry.is_cgetter:
-                index_code = "(%s[%s])"
-            else:
-                return "%s<%s>" % (
-                    self.base.result(),
-                    ",".join([param.empty_declaration_code() for param in self.type_indices]))
+            return "%s<%s>" % (
+                self.base.result(),
+                ",".join([param.empty_declaration_code() for param in self.type_indices]))
         elif self.base.type.is_ctuple:
             index = self.index.constant_result
             if index < 0:
@@ -5613,6 +5611,16 @@ class SimpleCallNode(CallNode):
         except Exception as e:
             self.compile_time_value_error(e)
 
+    @classmethod
+    def for_cproperty(cls, pos, obj, entry):
+        # Create a call node for C property access.
+        property_scope = entry.scope
+        getter_entry = property_scope.lookup_here(entry.name)
+        assert getter_entry, "Getter not found in scope %s: %s" % (property_scope, property_scope.entries)
+        function = NameNode(pos, name=entry.name, entry=getter_entry, type=getter_entry.type)
+        node = cls(pos, function=function, args=[obj])
+        return node
+
     def analyse_as_type(self, env):
         attr = self.function.as_cython_attribute()
         if attr == 'pointer':
@@ -6808,27 +6816,13 @@ class AttributeNode(ExprNode):
     is_attribute = 1
     subexprs = ['obj']
 
-    _type = PyrexTypes.error_type
+    type = PyrexTypes.error_type
     entry = None
     is_called = 0
     needs_none_check = True
     is_memslice_transpose = False
     is_special_lookup = False
     is_py_attr = 0
-
-    @property
-    def type(self):
-        if self._type.is_cfunction and hasattr(self._type, 'entry') and self._type.entry.is_cgetter:
-            return self._type.return_type
-        return self._type
-
-    @type.setter
-    def type(self, value):
-        # XXX review where the attribute is set
-        # make sure it is not already a cgetter
-        if self._type.is_cfunction and hasattr(self._type, 'entry') and self._type.entry.is_cgetter:
-            error(self.pos, "%s.type already set" % self.__name__)
-        self._type = value
 
     def as_cython_attribute(self):
         if (isinstance(self.obj, NameNode) and
@@ -6915,7 +6909,7 @@ class AttributeNode(ExprNode):
         if node is None:
             node = self.analyse_as_ordinary_attribute_node(env, target)
             assert node is not None
-        if node.entry:
+        if (node.is_attribute or node.is_name) and node.entry:
             node.entry.used = True
         if node.is_attribute:
             node.wrap_obj_in_nonecheck(env)
@@ -7048,6 +7042,11 @@ class AttributeNode(ExprNode):
                 self.result_ctype = py_object_type
         elif target and self.obj.type.is_builtin_type:
             error(self.pos, "Assignment to an immutable object field")
+        elif self.entry and self.entry.is_cproperty:
+            if not target:
+                return SimpleCallNode.for_cproperty(self.pos, self.obj, self.entry).analyse_types(env)
+            # TODO: implement writable C-properties?
+            error(self.pos, "Assignment to a read-only property")
         #elif self.type.is_memoryviewslice and not target:
         #    self.is_temp = True
         return self
@@ -7104,8 +7103,11 @@ class AttributeNode(ExprNode):
                 # fused function go through assignment synthesis
                 # (foo = pycfunction(foo_func_obj)) and need to go through
                 # regular Python lookup as well
-                if (entry.is_variable and not entry.fused_cfunction) or entry.is_cmethod:
-                    self._type = entry.type
+                if entry.is_cproperty:
+                    self.type = entry.type
+                    return
+                elif (entry.is_variable and not entry.fused_cfunction) or entry.is_cmethod:
+                    self.type = entry.type
                     self.member = entry.cname
                     return
                 else:
@@ -7125,7 +7127,7 @@ class AttributeNode(ExprNode):
         # mangle private '__*' Python attributes used inside of a class
         self.attribute = env.mangle_class_private_name(self.attribute)
         self.member = self.attribute
-        self._type = py_object_type
+        self.type = py_object_type
         self.is_py_attr = 1
 
         if not obj_type.is_pyobject and not obj_type.is_error:
@@ -7207,8 +7209,6 @@ class AttributeNode(ExprNode):
         obj_code = obj.result_as(obj.type)
         #print "...obj_code =", obj_code ###
         if self.entry and self.entry.is_cmethod:
-            if self.entry.is_cgetter:
-                return "%s(%s)" % (self.entry.func_cname, obj_code)
             if obj.type.is_extension_type and not self.entry.is_builtin_cmethod:
                 if self.entry.final_func_cname:
                     return self.entry.final_func_cname
@@ -7269,8 +7269,8 @@ class AttributeNode(ExprNode):
                 code.put_incref_memoryviewslice(self.result(), self.type,
                                 have_gil=True)
 
-                T = "__pyx_memslice_transpose(&%s) == 0"
-                code.putln(code.error_goto_if(T % self.result(), self.pos))
+                T = "__pyx_memslice_transpose(&%s)" % self.result()
+                code.putln(code.error_goto_if_neg(T, self.pos))
             elif self.initialized_check:
                 code.putln(
                     'if (unlikely(!%s.memview)) {'
@@ -9455,14 +9455,21 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         else:
             flags = '0'
 
-        code.putln('#if CYTHON_COMPILING_IN_LIMITED_API')
-        dict_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
-        code.putln('%s = PyDict_New(); %s' % (
-            dict_temp,
-            code.error_goto_if_null(dict_temp, self.pos)))
-        code.put_gotref(dict_temp, py_object_type)
+        borrowed_moddict_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=False)
+        code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+        code.putln('%s = PyModule_GetDict(%s); %s' % (
+            borrowed_moddict_temp,
+            Naming.module_cname,
+            code.error_goto_if_null(borrowed_moddict_temp, self.pos)))
+        code.putln("#else")
+        code.putln("%s = %s;  if ((1)); else %s;" % (
+            borrowed_moddict_temp,
+            Naming.moddict_cname,
+            code.error_goto(self.pos),
+        ))
+        code.putln("#endif")
         code.putln(
-            '%s = %s(&%s, %s, %s, %s, %s, %s, %s); %s' % (
+            '%s = %s(&%s, %s, %s, %s, %s, %s, %s); %s = NULL; %s' % (
                 self.result(),
                 constructor,
                 self.pymethdef_cname,
@@ -9470,25 +9477,11 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                 self.get_py_qualified_name(code),
                 self.closure_result_code(),
                 self.get_py_mod_name(code),
-                dict_temp,
+                borrowed_moddict_temp,
                 code_object_result,
+                borrowed_moddict_temp,
                 code.error_goto_if_null(self.result(), self.pos)))
-        code.put_decref_clear(dict_temp, type=py_object_type)
-        code.funcstate.release_temp(dict_temp)
-        code.putln('#else')
-        code.putln(
-            '%s = %s(&%s, %s, %s, %s, %s, %s, %s); %s' % (
-                self.result(),
-                constructor,
-                self.pymethdef_cname,
-                flags,
-                self.get_py_qualified_name(code),
-                self.closure_result_code(),
-                self.get_py_mod_name(code),
-                Naming.moddict_cname,
-                code_object_result,
-                code.error_goto_if_null(self.result(), self.pos)))
-        code.putln('#endif')
+        code.funcstate.release_temp(borrowed_moddict_temp)
 
         self.generate_gotref(code)
 
@@ -10755,25 +10748,27 @@ class CythonArrayNode(ExprNode):
             code.putln(code.error_goto(self.operand.pos))
             code.putln("}")
 
-        code.putln("%s = __pyx_format_from_typeinfo(&%s);" %
-                                                (format_temp, type_info))
-        buildvalue_fmt = " __PYX_BUILD_PY_SSIZE_T " * len(shapes)
-        code.putln('%s = Py_BuildValue((char*) "(" %s ")", %s);' % (
-            shapes_temp, buildvalue_fmt, ", ".join(shapes)))
-
-        err = "!%s || !%s || !PyBytes_AsString(%s)" % (format_temp,
-                                                       shapes_temp,
-                                                       format_temp)
-        code.putln(code.error_goto_if(err, self.pos))
+        code.putln("%s = __pyx_format_from_typeinfo(&%s); %s" % (
+            format_temp,
+            type_info,
+            code.error_goto_if_null(format_temp, self.pos),
+        ))
         code.put_gotref(format_temp, py_object_type)
+
+        buildvalue_fmt = " __PYX_BUILD_PY_SSIZE_T " * len(shapes)
+        code.putln('%s = Py_BuildValue((char*) "(" %s ")", %s); %s' % (
+            shapes_temp,
+            buildvalue_fmt,
+            ", ".join(shapes),
+            code.error_goto_if_null(shapes_temp, self.pos),
+        ))
         code.put_gotref(shapes_temp, py_object_type)
 
-        tup = (self.result(), shapes_temp, itemsize, format_temp,
-               self.mode, self.operand.result())
-        code.putln('%s = __pyx_array_new('
-                            '%s, %s, PyBytes_AS_STRING(%s), '
-                            '(char *) "%s", (char *) %s);' % tup)
-        code.putln(code.error_goto_if_null(self.result(), self.pos))
+        code.putln('%s = __pyx_array_new(%s, %s, PyBytes_AS_STRING(%s), (char *) "%s", (char *) %s); %s' % (
+            self.result(),
+            shapes_temp, itemsize, format_temp, self.mode, self.operand.result(),
+            code.error_goto_if_null(self.result(), self.pos),
+        ))
         self.generate_gotref(code)
 
         def dispose(temp):

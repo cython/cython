@@ -296,7 +296,7 @@ class UtilityCodeBase(object):
         _, ext = os.path.splitext(path)
         if ext in ('.pyx', '.py', '.pxd', '.pxi'):
             comment = '#'
-            strip_comments = partial(re.compile(r'^\s*#.*').sub, '')
+            strip_comments = partial(re.compile(r'^\s*#(?!\s*cython\s*:).*').sub, '')
             rstrip = StringEncoding._unicode.rstrip
         else:
             comment = '/'
@@ -408,7 +408,7 @@ class UtilityCodeBase(object):
         """
         Calls .load(), but using a per-type cache based on utility name and file name.
         """
-        key = (cls, from_file, utility_code_name)
+        key = (utility_code_name, from_file, cls)
         try:
             return __cache[key]
         except KeyError:
@@ -2353,24 +2353,18 @@ class CCodeWriter(object):
         self.funcstate.should_declare_error_indicator = True
         if used:
             self.funcstate.uses_error_indicator = True
-        if self.code_config.c_line_in_traceback:
-            cinfo = " %s = %s;" % (Naming.clineno_cname, Naming.line_c_macro)
-        else:
-            cinfo = ""
-
-        return "%s = %s[%s]; %s = %s;%s" % (
-            Naming.filename_cname,
-            Naming.filetable_cname,
+        return "__PYX_MARK_ERR_POS(%s, %s)" % (
             self.lookup_filename(pos[0]),
-            Naming.lineno_cname,
-            pos[1],
-            cinfo)
+            pos[1])
 
-    def error_goto(self, pos):
+    def error_goto(self, pos, used=True):
         lbl = self.funcstate.error_label
         self.funcstate.use_label(lbl)
         if pos is None:
             return 'goto %s;' % lbl
+        self.funcstate.should_declare_error_indicator = True
+        if used:
+            self.funcstate.uses_error_indicator = True
         return "__PYX_ERR(%s, %s, %s)" % (
             self.lookup_filename(pos[0]),
             pos[1],

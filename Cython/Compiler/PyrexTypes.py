@@ -1691,14 +1691,14 @@ class PythranExpr(CType):
             self.scope = scope = Symtab.CClassScope('', None, visibility="extern")
             scope.parent_type = self
             scope.directives = {}
-            scope.declare_cgetter(
-                "shape",
-                CPtrType(c_long_type),
-                pos=None,
-                cname="__Pyx_PythranShapeAccessor",
-                visibility="extern",
-                nogil=True)
+
             scope.declare_var("ndim", c_long_type, pos=None, cname="value", is_cdef=True)
+            scope.declare_cproperty(
+                "shape", c_ptr_type(c_long_type), "__Pyx_PythranShapeAccessor",
+                doc="Pythran array shape",
+                visibility="extern",
+                nogil=True,
+            )
 
         return True
 
@@ -4206,6 +4206,9 @@ class CTupleType(CType):
 
         env.use_utility_code(self._convert_from_py_code)
         return True
+
+    def cast_code(self, expr_code):
+        return expr_code
 
 
 def c_tuple_type(components):

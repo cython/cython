@@ -463,6 +463,35 @@ def test_nogil_try_finally_error_label():
         print e.args[0]
 
 
+def void_with_python_objects():
+    """
+    >>> void_with_python_objects()
+    """
+    with nogil:
+        _void_with_python_objects()
+
+
+cdef void _void_with_python_objects() nogil:
+    c = 123
+    with gil:
+        obj1 = [123]
+        obj2 = [456]
+
+
+def void_with_py_arg_reassigned(x):
+    """
+    >>> void_with_py_arg_reassigned(123)
+    """
+    with nogil:
+        _void_with_py_arg_reassigned(x)
+
+
+cdef void _void_with_py_arg_reassigned(x) nogil:
+    c = 123
+    with gil:
+        x = [456]
+
+
 cdef void test_timing_callback() with gil:
   pass
 

@@ -2,7 +2,45 @@
 Cython Changelog
 ================
 
-3.0.0 alpha 4 (2020-0?-??)
+3.0.0 alpha 5 (2020-05-19)
+==========================
+
+Features added
+--------------
+
+* ``.pxd`` files can now be versioned by adding an extension like "``.cython-30.pxd``"
+  to prevent older Cython versions (than 3.0 in this case) from picking them up.
+  (Github issue #3577)
+
+* Several macros/functions declared in the NumPy API are now usable without
+  holding the GIL.
+
+* ``libc.math`` was extended to include all C99 function declarations.
+  Patch by Dean Scarff.  (Github issue #3570)
+
+Bugs fixed
+----------
+
+* Several issues with arithmetic overflow handling were resolved, including
+  undefined behaviour in C.
+  Patch by Sam Sneddon.  (Github issue #3588)
+
+* The improved GIL handling in ``nogil`` functions introduced in 3.0a3
+  could fail to acquire the GIL in some cases on function exit.
+  (Github issue #3590 etc.)
+
+* A reference leak when processing keyword arguments in Py2 was resolved,
+  that appeared in 3.0a1.
+  (Github issue #3578)
+
+* The outdated getbuffer/releasebuffer implementations in the NumPy
+  declarations were removed so that buffers declared as ``ndarray``
+  now use the normal implementation in NumPy.
+
+* Includes all bug-fixes from the 0.29.18 release.
+
+
+3.0.0 alpha 4 (2020-05-05)
 ==========================
 
 Features added
@@ -11,19 +49,47 @@ Features added
 * The ``print`` statement (not the ``print()`` function) is allowed in
   ``nogil`` code without an explicit ``with gil`` section.
 
-* The ``assert`` statement is allowed in ``nogil`` sections.  This excludes the
-  evaluation of the asserted condition (only C conditions are allowed), nor any
-  formatting of the assertion message (which can only be a simple string).
+* The ``assert`` statement is allowed in ``nogil`` sections.  Here, the GIL is
+  only acquired if the ``AssertionError`` is really raised, which means that the
+  evaluation of the asserted condition only allows C expressions.
 
 * Cython generates C compiler branch hints for unlikely user defined if-clauses
-  in more cases, when they end up raising exceptions.
+  in more cases, when they end up raising exceptions unconditionally. This now
+  includes exceptions being raised in ``nogil``/``with gil`` sections.
+
+* Some internal memoryview functions were tuned to reduce object overhead.
 
 Bugs fixed
 ----------
 
-* The improved GIL handling in ``nogil`` functions introduced in 3.0a2
+* Exception position reporting could run into race conditions on threaded code.
+  It now uses function-local variables again.
+
+* Error handling early in the module init code could lead to a crash.
+
+* Error handling in ``cython.array`` creation was improved to avoid calling
+  C-API functions with an error held.
+
+* Complex buffer item types of structs of arrays could fail to validate.
+  Patch by Leo and smutch.  (Github issue #1407)
+
+* When importing the old Cython ``build_ext`` integration with distutils, the
+  additional command line arguments leaked into the regular command.
+  Patch by Kamekameha.  (Github issue #2209)
+
+* The improved GIL handling in ``nogil`` functions introduced in 3.0a3
   could generate invalid C code.
   (Github issue #3558)
+
+* ``PyEval_InitThreads()`` is no longer used in Py3.7+ where it is a no-op.
+
+* Parallel builds of Cython itself (``setup.py build_ext -j N``) failed on Windows.
+
+Other changes
+-------------
+
+* The C property feature has been rewritten and now requires C property methods
+  to be declared ``inline``.
 
 
 3.0.0 alpha 3 (2020-04-27)
@@ -332,6 +398,61 @@ Other changes
   Patch by Alexey Stepanov.  (Github issue #3355)
 
 * Support for Python 2.6 was removed.
+
+
+0.29.18 (2020-05-18)
+====================
+
+Bugs fixed
+----------
+
+* Exception position reporting could run into race conditions on threaded code.
+  It now uses function-local variables again.
+
+* Error handling early in the module init code could lead to a crash.
+
+* Error handling in ``cython.array`` creation was improved to avoid calling
+  C-API functions with an error held.
+
+* A memory corruption was fixed when garbage collection was triggered during calls
+  to ``PyType_Ready()`` of extension type subclasses.
+  (Github issue #3603)
+
+* Memory view slicing generated unused error handling code which could negatively
+  impact the C compiler optimisations for parallel OpenMP code etc.  Also, it is
+  now helped by static branch hints.
+  (Github issue #2987)
+
+* Cython's built-in OpenMP functions were not translated inside of call arguments.
+  Original patch by Celelibi and David Woods.  (Github issue #3594)
+
+* Complex buffer item types of structs of arrays could fail to validate.
+  Patch by Leo and smutch.  (Github issue #1407)
+
+* Decorators were not allowed on nested `async def` functions.
+  (Github issue #1462)
+
+* C-tuples could use invalid C struct casting.
+  Patch by MegaIng.  (Github issue #3038)
+
+* Optimised ``%d`` string formatting into f-strings failed on float values.
+  (Github issue #3092)
+
+* Optimised aligned string formatting (``%05s``, ``%-5s``) failed.
+  (Github issue #3476)
+
+* When importing the old Cython ``build_ext`` integration with distutils, the
+  additional command line arguments leaked into the regular command.
+  Patch by Kamekameha.  (Github issue #2209)
+
+* When using the ``CYTHON_NO_PYINIT_EXPORT`` option in C++, the module init function
+  was not declared as ``extern "C"``.
+  (Github issue #3414)
+
+* Three missing timedelta access macros were added in ``cpython.datetime``.
+
+* The signature of the NumPy C-API function ``PyArray_SearchSorted()`` was fixed.
+  Patch by Brock Mendel.  (Github issue #3606)
 
 
 0.29.17 (2020-04-26)

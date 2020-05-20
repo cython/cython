@@ -87,7 +87,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     child_attrs = ["body"]
     directives = None
 
-
     def merge_in(self, tree, scope, merge_scope=False):
         # Merges in the contents of another tree, and possibly scope. With the
         # current implementation below, this must be done right prior
@@ -122,6 +121,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 entry.type.scope.directives["internal"] = True
 
             self.scope.merge_in(scope)
+
+    def with_compiler_directives(self):
+        # When merging a utility code module into the user code we need to preserve
+        # the original compiler directives. This returns the body of the module node,
+        # wrapped in its set of directives.
+        body = Nodes.CompilerDirectivesNode(self.pos, directives=self.directives, body=self.body)
+        return body
 
     def analyse_declarations(self, env):
         if has_np_pythran(env):
@@ -233,8 +239,32 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 h_code.putln('#error "Unicode module names are not supported in Python 2";')
             h_code.putln("PyMODINIT_FUNC init%s(void);" % py2_mod_name)
             h_code.putln("#else")
-            h_code.putln("PyMODINIT_FUNC %s(void);" % self.mod_init_func_cname('PyInit', env))
-            h_code.putln("#endif")
+            py3_mod_func_name = self.mod_init_func_cname('PyInit', env)
+            warning_string = EncodedString('Use PyImport_AppendInittab("%s", %s) instead of calling %s directly.' % (
+                py2_mod_name, py3_mod_func_name, py3_mod_func_name))
+            h_code.putln('/* WARNING: %s from Python 3.5 */' % warning_string.rstrip('.'))
+            h_code.putln("PyMODINIT_FUNC %s(void);" % py3_mod_func_name)
+            h_code.putln("")
+            h_code.putln("#if PY_VERSION_HEX >= 0x03050000 "
+                "&& (defined(__GNUC__) || defined(__clang__) || defined(_MSC_VER) "
+                "|| (defined(__cplusplus) && __cplusplus >= 201402L))")
+            h_code.putln("#if defined(__cplusplus) && __cplusplus >= 201402L")
+            h_code.putln("[[deprecated(%s)]] inline" % warning_string.as_c_string_literal())
+            h_code.putln("#elif defined(__GNUC__) || defined(__clang__)")
+            h_code.putln('__attribute__ ((__deprecated__(%s), __unused__)) __inline__' % (
+                warning_string.as_c_string_literal()))
+            h_code.putln("#elif defined(_MSC_VER)")
+            h_code.putln('__declspec(deprecated(%s)) __inline' % (
+                warning_string.as_c_string_literal()))
+            h_code.putln('#endif')
+            h_code.putln("static PyObject* __PYX_WARN_IF_INIT_CALLED(PyObject* res) {")
+            h_code.putln("return res;")
+            h_code.putln("}")
+            # Function call is converted to warning macro; uncalled (pointer) is not
+            h_code.putln('#define %s() __PYX_WARN_IF_INIT_CALLED(%s())' % (
+                py3_mod_func_name, py3_mod_func_name))
+            h_code.putln('#endif')
+            h_code.putln('#endif')
             h_code.putln("")
             h_code.putln("#endif /* !%s */" % h_guard)
 
@@ -693,16 +723,19 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self._put_setup_code(code, "PythonCompatibility")
         self._put_setup_code(code, "MathInitCode")
 
+        # Using "(void)cname" to prevent "unused" warnings.
         if options.c_line_in_traceback:
-            cinfo = "%s = %s; " % (Naming.clineno_cname, Naming.line_c_macro)
+            cinfo = "%s = %s; (void)%s; " % (Naming.clineno_cname, Naming.line_c_macro, Naming.clineno_cname)
         else:
             cinfo = ""
-        code.put("""
-#define __PYX_ERR(f_index, lineno, Ln_error) \\
-{ \\
-  %s = %s[f_index]; %s = lineno; %sgoto Ln_error; \\
-}
-""" % (Naming.filename_cname, Naming.filetable_cname, Naming.lineno_cname, cinfo))
+        code.putln("#define __PYX_MARK_ERR_POS(f_index, lineno) \\")
+        code.putln("    { %s = %s[f_index]; (void)%s; %s = lineno; (void)%s; %s}" % (
+            Naming.filename_cname, Naming.filetable_cname, Naming.filename_cname,
+            Naming.lineno_cname, Naming.lineno_cname,
+            cinfo
+        ))
+        code.putln("#define __PYX_ERR(f_index, lineno, Ln_error) \\")
+        code.putln("    { __PYX_MARK_ERR_POS(f_index, lineno) goto Ln_error; }")
 
         code.putln("")
         self.generate_extern_c_macro_definition(code)
@@ -765,11 +798,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('static PyObject *%s;' % Naming.empty_unicode)
         if Options.pre_import is not None:
             code.putln('static PyObject *%s;' % Naming.preimport_cname)
+        code.putln('#endif')
+
         code.putln('static int %s;' % Naming.lineno_cname)
         code.putln('static int %s = 0;' % Naming.clineno_cname)
-        code.putln('static const char * %s= %s;' % (Naming.cfilenm_cname, Naming.file_c_macro))
+        code.putln('static const char * %s = %s;' % (Naming.cfilenm_cname, Naming.file_c_macro))
         code.putln('static const char *%s;' % Naming.filename_cname)
-        code.putln('#endif')
 
         env.use_utility_code(UtilityCode.load_cached("FastTypeChecks", "ModuleSetupCode.c"))
         if has_np_pythran(env):
@@ -2432,9 +2466,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('PyObject *%s;' % Naming.empty_unicode)
         if Options.pre_import is not None:
             code.putln('PyObject *%s;' % Naming.preimport_cname)
-        code.putln('int %s;' % Naming.lineno_cname)
-        code.putln('int %s;' % Naming.clineno_cname)
-        code.putln('const char *%s;' % Naming.filename_cname)
         code.putln('#ifdef __Pyx_CyFunction_USED')
         code.putln('PyTypeObject *%s;' % Naming.cyfunction_type_cname)
         code.putln('#endif')
@@ -2505,18 +2536,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 Naming.preimport_cname,
                 Naming.modulestateglobal_cname,
                 Naming.preimport_cname))
-        code.putln('#define %s %s->%s' % (
-            Naming.lineno_cname,
-            Naming.modulestateglobal_cname,
-            Naming.lineno_cname))
-        code.putln('#define %s %s->%s' % (
-            Naming.clineno_cname,
-            Naming.modulestateglobal_cname,
-            Naming.clineno_cname))
-        code.putln('#define %s %s->%s' % (
-            Naming.filename_cname,
-            Naming.modulestateglobal_cname,
-            Naming.filename_cname))
         code.putln('#ifdef __Pyx_CyFunction_USED')
         code.putln('#define %s %s->%s' % (
             Naming.cyfunction_type_cname,
@@ -2583,7 +2602,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('#endif')
 
     def generate_module_init_func(self, imported_modules, env, code):
-        subfunction = self.mod_init_subfunction(self.scope, code)
+        subfunction = self.mod_init_subfunction(self.pos, self.scope, code)
 
         self.generate_pymoduledef_struct(env, code)
 
@@ -2707,7 +2726,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.put_error_if_neg(self.pos, "_import_array()")
 
         code.putln("/*--- Threads initialization code ---*/")
-        code.putln("#if defined(WITH_THREAD) && defined(__PYX_FORCE_INIT_THREADS) && __PYX_FORCE_INIT_THREADS")
+        code.putln("#if defined(WITH_THREAD) && PY_VERSION_HEX < 0x030700F0 "
+                   "&& defined(__PYX_FORCE_INIT_THREADS) && __PYX_FORCE_INIT_THREADS")
         code.putln("PyEval_InitThreads();")
         code.putln("#endif")
 
@@ -2731,10 +2751,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         if Options.cache_builtins:
             code.putln("/*--- Builtin init code ---*/")
-            code.put_error_if_neg(None, "__Pyx_InitCachedBuiltins()")
+            code.put_error_if_neg(self.pos, "__Pyx_InitCachedBuiltins()")
 
         code.putln("/*--- Constants init code ---*/")
-        code.put_error_if_neg(None, "__Pyx_InitCachedConstants()")
+        code.put_error_if_neg(self.pos, "__Pyx_InitCachedConstants()")
 
         code.putln("/*--- Global type/function init code ---*/")
 
@@ -2830,7 +2850,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.exit_cfunc_scope()
 
-    def mod_init_subfunction(self, scope, orig_code):
+    def mod_init_subfunction(self, pos, scope, orig_code):
         """
         Return a context manager that allows deviating the module init code generation
         into a separate function and instead inserts a call to it.
@@ -2886,9 +2906,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("")
 
                 if needs_error_handling:
-                    self.call_code.use_label(orig_code.error_label)
-                    self.call_code.putln("if (unlikely(%s() != 0)) goto %s;" % (
-                        self.cfunc_name, orig_code.error_label))
+                    self.call_code.putln(
+                        self.call_code.error_goto_if_neg("%s()" % self.cfunc_name, pos))
                 else:
                     self.call_code.putln("(void)%s();" % self.cfunc_name)
                 self.call_code = None

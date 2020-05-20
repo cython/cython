@@ -1797,7 +1797,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
 
         arg = pos_args[0]
         if isinstance(arg, ExprNodes.ComprehensionNode) and arg.type is Builtin.list_type:
-            list_node = pos_args[0]
+            list_node = arg
             loop_node = list_node.loop
 
         elif isinstance(arg, ExprNodes.GeneratorExpressionNode):
@@ -4421,10 +4421,10 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         return self.visit_BinopNode(node)
 
     _parse_string_format_regex = (
-        u'(%(?:'            # %...
-        u'(?:[0-9]+|[ ])?'  # width (optional) or space prefix fill character (optional)
-        u'(?:[.][0-9]+)?'   # precision (optional)
-        u')?.)'             # format type (or something different for unsupported formats)
+        u'(%(?:'              # %...
+        u'(?:[-0-9]+|[ ])?'   # width (optional) or space prefix fill character (optional)
+        u'(?:[.][0-9]+)?'     # precision (optional)
+        u')?.)'               # format type (or something different for unsupported formats)
     )
 
     def _build_fstring(self, pos, ustring, format_args):
@@ -4456,14 +4456,25 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                 break
             if format_type in u'asrfdoxX':
                 format_spec = s[1:]
+                conversion_char = None
                 if format_type in u'doxX' and u'.' in format_spec:
                     # Precision is not allowed for integers in format(), but ok in %-formatting.
                     can_be_optimised = False
                 elif format_type in u'ars':
                     format_spec = format_spec[:-1]
+                    conversion_char = format_type
+                    if format_spec.startswith('0'):
+                        format_spec = '>' + format_spec[1:]  # right-alignment '%05s' spells '{:>5}'
+                elif format_type == u'd':
+                    # '%d' formatting supports float, but '{obj:d}' does not => convert to int first.
+                    conversion_char = 'd'
+
+                if format_spec.startswith('-'):
+                    format_spec = '<' + format_spec[1:]  # left-alignment '%-5s' spells '{:<5}'
+
                 substrings.append(ExprNodes.FormattedValueNode(
                     arg.pos, value=arg,
-                    conversion_char=format_type if format_type in u'ars' else None,
+                    conversion_char=conversion_char,
                     format_spec=ExprNodes.UnicodeNode(
                         pos, value=EncodedString(format_spec), constant_result=format_spec)
                         if format_spec else None,

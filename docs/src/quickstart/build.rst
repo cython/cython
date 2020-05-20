@@ -35,7 +35,7 @@ The other methods are described in more detail in the :ref:`compilation` section
 
 
 Building a Cython module using setuptools
-----------------------------------------
+-----------------------------------------
 
 Imagine a simple "hello world" script in a file ``hello.pyx``:
 

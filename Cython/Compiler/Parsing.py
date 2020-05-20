@@ -1814,7 +1814,7 @@ def p_assert_statement(s):
         value = p_test(s)
     else:
         value = None
-    return Nodes.AssertStatNode(pos, cond = cond, value = value)
+    return Nodes.AssertStatNode(pos, condition=cond, value=value)
 
 
 statement_terminators = cython.declare(set, set([';', 'NEWLINE', 'EOF']))
@@ -2239,7 +2239,7 @@ def p_statement(s, ctx, first_statement = 0):
             s.error('decorator not allowed here')
         s.level = ctx.level
         decorators = p_decorators(s)
-        if not ctx.allow_struct_enum_decorator and s.sy not in ('def', 'cdef', 'cpdef', 'class'):
+        if not ctx.allow_struct_enum_decorator and s.sy not in ('def', 'cdef', 'cpdef', 'class', 'async'):
             if s.sy == 'IDENT' and s.systring == 'async':
                 pass  # handled below
             else:
@@ -3721,12 +3721,8 @@ def p_module(s, pxd, full_module_name, ctx=Ctx):
                 stacklevel=1 if cython.compiled else 2,
             )
 
+    level = 'module_pxd' if pxd else 'module'
     doc = p_doc_string(s)
-    if pxd:
-        level = 'module_pxd'
-    else:
-        level = 'module'
-
     body = p_statement_list(s, ctx(level=level), first_statement = 1)
     if s.sy != 'EOF':
         s.error("Syntax error in statement [%s,%s]" % (
