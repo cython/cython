@@ -400,6 +400,19 @@ Other changes
 * Support for Python 2.6 was removed.
 
 
+0.29.19 (2020-05-20)
+====================
+
+Bugs fixed
+----------
+
+* A typo in Windows specific code in 0.29.18 was fixed that broke "libc.math".
+  (Github issue #3622)
+
+* A platform specific test failure in 0.29.18 was fixed.
+  Patch by smutch.  (Github issue #3620)
+
+
 0.29.18 (2020-05-18)
 ====================
 
