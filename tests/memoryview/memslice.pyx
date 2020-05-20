@@ -1524,7 +1524,7 @@ def test_index_slicing_away_direct_indirect():
     All dimensions preceding dimension 1 must be indexed and not sliced
     """
     cdef int[:, ::view.indirect, :] a = TestIndexSlicingDirectIndirectDims()
-    a_obj = a
+    cdef a_obj = a
 
     print a[1][2][3]
     print a[1, 2, 3]

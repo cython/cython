@@ -13511,6 +13511,9 @@ class CoerceToTempNode(CoercionNode):
                 code.put_incref_memoryviewslice(self.result(), self.type,
                                             have_gil=not self.in_nogil_context)
 
+    def may_be_none(self):
+        return self.arg.may_be_none()
+
 class ProxyNode(CoercionNode):
     """
     A node that should not be replaced by transforms or other means,

@@ -222,7 +222,6 @@ class ResultRefNode(AtomicExprNode):
 class LetNodeMixin:
     def set_temp_expr(self, lazy_temp):
         self.lazy_temp = lazy_temp
-        self.lazy_temp.is_temp = True
         self.temp_expression = lazy_temp.expression
 
     def setup_temp_expr(self, code):

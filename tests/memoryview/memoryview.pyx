@@ -781,7 +781,7 @@ def test_generic_slicing(arg, indirect=False):
 
     """
     cdef int[::view.generic, ::view.generic, :] _a = arg
-    a = _a
+    cdef a = _a
     b = a[2:8:2, -4:1:-1, 1:3]
 
     print b.shape
@@ -864,7 +864,7 @@ def test_direct_slicing(arg):
     released A
     """
     cdef int[:, :, :] _a = arg
-    a = _a
+    cdef a = _a
     b = a[2:8:2, -4:1:-1, 1:3]
 
     print b.shape
@@ -892,7 +892,7 @@ def test_slicing_and_indexing(arg):
     released A
     """
     cdef int[:, :, :] _a = arg
-    a = _a
+    cdef a = _a
     b = a[-5:, 1, 1::2]
     c = b[4:1:-1, ::-1]
     d = c[2, 1:2]
