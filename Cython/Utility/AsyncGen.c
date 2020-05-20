@@ -370,7 +370,7 @@ static PyType_Slot __pyx_AsyncGenType_slots[] = {
 };
 
 static PyType_Spec __pyx_AsyncGenType_spec = {
-    "async_generator",
+    __PYX_TYPE_MODULE_PREFIX "async_generator",
     sizeof(__pyx_PyAsyncGenObject),
     0,
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_FINALIZE, /*tp_flags*/
@@ -644,7 +644,7 @@ static PyType_Slot __pyx__PyAsyncGenASendType_slots[] = {
 };
 
 static PyType_Spec __pyx__PyAsyncGenASendType_spec = {
-    "async_generator_asend",
+    __PYX_TYPE_MODULE_PREFIX "async_generator_asend",
     sizeof(__pyx_PyAsyncGenASend),
     0,
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC, /*tp_flags*/
@@ -796,7 +796,7 @@ static PyType_Slot __pyx__PyAsyncGenWrappedValueType_slots[] = {
 };
 
 static PyType_Spec __pyx__PyAsyncGenWrappedValueType_spec = {
-    "async_generator_wrapped_value",
+    __PYX_TYPE_MODULE_PREFIX "async_generator_wrapped_value",
     sizeof(__pyx__PyAsyncGenWrappedValue),
     0,
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC, /*tp_flags*/
@@ -1117,7 +1117,7 @@ static PyType_Slot __pyx__PyAsyncGenAThrowType_slots[] = {
 };
 
 static PyType_Spec __pyx__PyAsyncGenAThrowType_spec = {
-    "async_generator_athrow",
+    __PYX_TYPE_MODULE_PREFIX "async_generator_athrow",
     sizeof(__pyx_PyAsyncGenAThrow),
     0,
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC, /*tp_flags*/
