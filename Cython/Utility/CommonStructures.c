@@ -107,7 +107,7 @@ static PyTypeObject *__Pyx_FetchCommonTypeFromSpec(PyType_Spec *spec, PyObject *
     PyErr_Clear();
     cached_type = PyType_FromSpecWithBases(spec, bases);
     if (unlikely(!cached_type)) goto bad;
-    __Pyx_fix_up_extension_type_from_spec(spec, (PyTypeObject *) cached_type);
+    if (unlikely(__Pyx_fix_up_extension_type_from_spec(spec, (PyTypeObject *) cached_type) < 0)) goto bad;
     if (PyObject_SetAttrString(abi_module, spec->name, cached_type) < 0) goto bad;
 
 done:

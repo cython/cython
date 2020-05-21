@@ -1,7 +1,7 @@
 /////////////// FixUpExtensionType.proto ///////////////
 
 #if CYTHON_USE_TYPE_SPECS
-static void __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject *type); /*proto*/
+static int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject *type); /*proto*/
 #endif
 
 /////////////// FixUpExtensionType ///////////////
@@ -9,7 +9,7 @@ static void __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObjec
 //@requires:StringTools.c::IncludeStringH
 
 #if CYTHON_USE_TYPE_SPECS
-static void __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject *type) {
+static int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject *type) {
 #if PY_VERSION_HEX >= 0x030900B1 || CYTHON_COMPILING_IN_LIMITED_API
     (void) spec;
     (void) type;
@@ -21,26 +21,31 @@ static void __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObjec
         slot++;
     if (slot && slot->slot == Py_tp_members) {
         int changed = 0;
-        const PyMemberDef *memb = (PyMemberDef*) slot->pfunc;
+#if !(PY_VERSION_HEX <= 0x030900b1 && CYTHON_COMPILING_IN_CPYTHON)
+        const
+#endif
+            PyMemberDef *memb = (PyMemberDef*) slot->pfunc;
         while (memb && memb->name) {
             if (memb->name[0] == '_' && memb->name[1] == '_') {
                 if (strcmp(memb->name, "__weaklistoffset__") == 0) {
-                    // The PyMemberDef must be a Py_ssize_t and readonly
+                    // The PyMemberDef must be a Py_ssize_t and readonly.
                     assert(memb->type == T_PYSSIZET);
                     assert(memb->flags == READONLY);
                     type->tp_weaklistoffset = memb->offset;
+                    // FIXME: is it even worth calling PyType_Modified() here?
                     changed = 1;
                 }
                 else if (strcmp(memb->name, "__dictoffset__") == 0) {
-                    // The PyMemberDef must be a Py_ssize_t and readonly
+                    // The PyMemberDef must be a Py_ssize_t and readonly.
                     assert(memb->type == T_PYSSIZET);
                     assert(memb->flags == READONLY);
                     type->tp_dictoffset = memb->offset;
+                    // FIXME: is it even worth calling PyType_Modified() here?
                     changed = 1;
                 }
 #if CYTHON_METH_FASTCALL
                 else if (strcmp(memb->name, "__vectorcalloffset__") == 0) {
-                    // The PyMemberDef must be a Py_ssize_t and readonly
+                    // The PyMemberDef must be a Py_ssize_t and readonly.
                     assert(memb->type == T_PYSSIZET);
                     assert(memb->flags == READONLY);
 #if PY_VERSION_HEX >= 0x030800b4
@@ -48,17 +53,37 @@ static void __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObjec
 #else
                     type->tp_print = (printfunc) memb->offset;
 #endif
+                    // FIXME: is it even worth calling PyType_Modified() here?
+                    changed = 1;
+                }
+#endif
+#if PY_VERSION_HEX <= 0x030900b1 && CYTHON_COMPILING_IN_CPYTHON
+                else if (strcmp(memb->name, "__module__") == 0) {
+                    // PyType_FromSpec() in CPython <= 3.9b1 overwrites this field with a constant string.
+                    // See https://bugs.python.org/issue40703
+                    PyObject *descr;
+                    // The PyMemberDef must be an object and normally readable, possibly writable.
+                    assert(memb->type == T_OBJECT);
+                    assert(memb->flags == 0 || memb->flags == READONLY);
+                    descr = PyDescr_NewMember(type, memb);
+                    if (unlikely(!descr))
+                        return -1;
+                    if (unlikely(PyDict_SetItem(type->tp_dict, PyDescr_NAME(descr), descr) < 0)) {
+                        Py_DECREF(descr);
+                        return -1;
+                    }
+                    Py_DECREF(descr);
                     changed = 1;
                 }
 #endif
             }
             memb++;
         }
-        // FIXME: is it even worth calling PyType_Modified() here?
         if (changed)
             PyType_Modified(type);
     }
 #endif
+    return 0;
 }
 #endif
 

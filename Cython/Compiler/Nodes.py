@@ -5229,7 +5229,8 @@ class CClassDefNode(ClassDefNode):
 
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("FixUpExtensionType", "ExtensionTypes.c"))
-            code.putln("__Pyx_fix_up_extension_type_from_spec(&%s, %s);" % (typespec_cname, typeptr_cname))
+            code.put_error_if_neg(entry.pos, "__Pyx_fix_up_extension_type_from_spec(&%s, %s)" % (
+                typespec_cname, typeptr_cname))
 
             code.putln("#else")
             if bases_tuple_cname:
