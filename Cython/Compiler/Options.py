@@ -316,6 +316,7 @@ directive_types = {
     'c_string_type': one_of('bytes', 'bytearray', 'str', 'unicode'),
     'c_string_encoding': normalise_encoding_name,
     'trashcan': bool,
+    'total_ordering': bool,
 }
 
 for key, val in _directive_defaults.items():
@@ -359,6 +360,7 @@ directive_scopes = {  # defaults to available everywhere
     'fast_gil': ('module',),
     'iterable_coroutine': ('module', 'function'),
     'trashcan' : ('cclass',),
+    'total_ordering': ('cclass', ),
 }
 
 
