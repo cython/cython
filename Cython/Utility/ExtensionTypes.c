@@ -10,7 +10,7 @@ static int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject
 
 #if CYTHON_USE_TYPE_SPECS
 static int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject *type) {
-#if PY_VERSION_HEX >= 0x030900B1 || CYTHON_COMPILING_IN_LIMITED_API
+#if PY_VERSION_HEX > 0x030900B1 || CYTHON_COMPILING_IN_LIMITED_API
     (void) spec;
     (void) type;
 #else
@@ -27,6 +27,7 @@ static int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject
             PyMemberDef *memb = (PyMemberDef*) slot->pfunc;
         while (memb && memb->name) {
             if (memb->name[0] == '_' && memb->name[1] == '_') {
+#if PY_VERSION_HEX < 0x030900b1
                 if (strcmp(memb->name, "__weaklistoffset__") == 0) {
                     // The PyMemberDef must be a Py_ssize_t and readonly.
                     assert(memb->type == T_PYSSIZET);
@@ -56,6 +57,9 @@ static int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject
                     // FIXME: is it even worth calling PyType_Modified() here?
                     changed = 1;
                 }
+#endif
+#else
+                if ((0));
 #endif
 #if PY_VERSION_HEX <= 0x030900b1 && CYTHON_COMPILING_IN_CPYTHON
                 else if (strcmp(memb->name, "__module__") == 0) {
