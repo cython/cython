@@ -88,7 +88,7 @@ TOTAL_ORDERING = {
     # a >= b from (not a <= b) or (a == b)
     ('__le__', '__ge__'): (True, '||', False),
     # a < b, from (a <= b) and (a != b)
-    ('__le__', '__lt__'): (True, '&&', True),
+    ('__le__', '__lt__'): (False, '&&', True),
     # a > b from (not a <= b)
     ('__le__', '__gt__'): (True, '', None),
 
@@ -2034,14 +2034,20 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             # Check this is valid - we must have at least 1 operation defined.
             comp_names = [from_name for from_name, to_name in TOTAL_ORDERING if from_name in comp_entry]
             if not comp_names:
-                warning(self.pos,
-                    "total_ordering directive used, but no comparison "
-                    "methods defined.", 1)
+                if '__eq__' not in comp_entry:
+                    warning(scope.parent_type.pos,
+                        "total_ordering directive used, but no comparison and equality methods defined.")
+                else:
+                    warning(scope.parent_type.pos,
+                          "total_ordering directive used, but no comparison methods defined.")
                 total_ordering = False
             else:
                 # Same priority as functools, prefers
                 # __lt__ to __le__ to __gt__ to __ge__
                 ordering_source = max(comp_names)
+                if '__eq__' not in comp_entry:
+                    warning(scope.parent_type.pos, "total_ordering directive used, but no equality method defined.")
+                    total_ordering = False
 
         for cmp_method in TypeSlots.richcmp_special_methods:
             cmp_type = cmp_method.strip('_').upper()  # e.g. "__eq__" -> EQ
