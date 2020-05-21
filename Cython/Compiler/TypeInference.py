@@ -499,7 +499,6 @@ class SimpleAssignmentTypeInferer(object):
                 types = inferred_types(entry)
                 new_type = spanning_type(types, entry.might_overflow, entry.pos, scope)
                 if new_type != entry.type:
-                    print(new_type, entry.type)
                     self.set_entry_type(entry, new_type)
                     dirty = True
             return dirty

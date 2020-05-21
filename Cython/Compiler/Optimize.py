@@ -382,7 +382,7 @@ class IterationTransform(Visitor.EnvTransform):
         target_assign = target_assign
         body = Nodes.StatListNode(
             node.pos,
-            stats = [target_assign, node.body])
+            stats = [target_assign]) # exclude node.body for now to not reanalyse it
 
         loop_node = Nodes.ForFromStatNode(
             node.pos,
@@ -393,7 +393,7 @@ class IterationTransform(Visitor.EnvTransform):
             else_clause=node.else_clause,
             from_range=True)
 
-        return UtilNodes.LetNode(
+        ret = UtilNodes.LetNode(
                     unpack_temp_node,
                     UtilNodes.LetNode(
                         length_temp,
@@ -408,6 +408,8 @@ class IterationTransform(Visitor.EnvTransform):
                         )
                     )
                 ).analyse_expressions(env)
+        body.stats.append(node.body)
+        return ret
 
     def _transform_bytes_iteration(self, node, slice_node, reversed=False):
         target_type = node.target.type

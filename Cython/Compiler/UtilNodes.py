@@ -360,3 +360,6 @@ class TempResultFromStatNode(ExprNodes.ExprNode):
     def generate_result_code(self, code):
         self.result_ref.result_code = self.result()
         self.body.generate_execution_code(code)
+
+    def generate_function_definitions(self, env, code):
+        self.body.generate_function_definitions(env, code)
