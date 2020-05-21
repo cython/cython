@@ -1389,6 +1389,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         self.generate_dict_getter_function(scope, code)
                     if scope.defines_any_special(TypeSlots.richcmp_special_methods):
                         self.generate_richcmp_function(scope, code)
+                    elif scope.directives.get('total_ordering'):
+                        # Warn if this is used when it can't have any effect.
+                        warning(scope.parent_type.pos,
+                                "total_ordering directive used, but no comparison and equality methods defined")
                     self.generate_property_accessors(scope, code)
                     self.generate_method_table(scope, code)
                     self.generate_getset_table(scope, code)
@@ -2042,12 +2046,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                           "total_ordering directive used, but no comparison methods defined")
                 total_ordering = False
             else:
-                # Same priority as functools, prefers
-                # __lt__ to __le__ to __gt__ to __ge__
-                ordering_source = max(comp_names)
                 if '__eq__' not in comp_entry and '__ne__' not in comp_entry:
                     warning(scope.parent_type.pos, "total_ordering directive used, but no equality method defined")
                     total_ordering = False
+
+                # Same priority as functools, prefers
+                # __lt__ to __le__ to __gt__ to __ge__
+                ordering_source = max(comp_names)
 
         for cmp_method in TypeSlots.richcmp_special_methods:
             cmp_type = cmp_method.strip('_').upper()  # e.g. "__eq__" -> EQ
