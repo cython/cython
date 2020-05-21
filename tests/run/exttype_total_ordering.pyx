@@ -17,7 +17,8 @@ import functools
 import operator
 
 COMPARISONS = [
-    ('==', operator.__eq__),
+    # Don't test equals, the directive doesn't add that.
+    # ('==', operator.__eq__),
     ('!=', operator.__ne__),
     ('<',  operator.__lt__),
     ('>',  operator.__gt__),
@@ -27,25 +28,24 @@ COMPARISONS = [
 
 def test_all_comp(cls):
     """Check every combination of comparison operators."""
-    a, b = 10, 15
+    a, b, c = 10, 15, 20
     succeeded = True
     for comp, func in COMPARISONS:
-        for left, right in [
-            (cls(a), ValueHolder(b)),
-            (cls(b), ValueHolder(a)),
-            (cls(a), ValueHolder(a)),
-            (ValueHolder(a), cls(a)),
-        ]:
-            expected = func(left.value, right.value)
-            try:
-                result = func(left, right)
-            except TypeError:
-                print("TypeError:", left.value, comp, right.value)
-                succeeded = False
-            else:
-                if expected != result:
-                    print(left.value, comp, right.value, "expected:", expected, "got:", result)
+        for left in [cls(a), cls(b), cls(c)]:
+            for right in [ValueHolder(a), ValueHolder(b), ValueHolder(c)]:
+                expected = func(left.value, right.value)
+                try:
+                    result = func(left, right)
+                except TypeError:
+                    print("TypeError:", left.value, comp, right.value)
                     succeeded = False
+                else:
+                    if expected != result:
+                        print(
+                            left.value, comp, right.value,
+                            "expected:", expected, "got:", result
+                        )
+                        succeeded = False
     return succeeded
 
 class ValueHolder:

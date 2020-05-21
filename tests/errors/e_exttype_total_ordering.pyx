@@ -1,9 +1,7 @@
 # mode: error
+# tag: warnings
 cimport cython
 
-@cython.total_ordering("blah")
-cdef class ExtBadParameter:
-    pass
 
 # Test all combinations with not enough methods.
 
@@ -156,25 +154,24 @@ cdef class ExtEqNe:
         return False
 
 
-_ERRORS = """
-4:0: The total_ordering directive takes one compile-time boolean argument
-10:0: total_ordering requires either ne or eq method, and any of lt/gt/le/ne
-14:0: total_ordering requires either ne or eq method
-20:0: total_ordering requires either ne or eq method
-24:0: total_ordering requires either ne or eq method
-32:0: total_ordering requires either ne or eq method
-37:0: total_ordering requires either ne or eq method
-45:0: total_ordering requires either ne or eq method
-53:0: total_ordering requires either ne or eq method
-64:0: total_ordering requires either ne or eq method
-69:0: total_ordering requires either ne or eq method
-78:0: total_ordering requires either ne or eq method
-85:0: total_ordering requires either ne or eq method
-96:0: total_ordering requires either ne or eq method
-104:0: total_ordering requires either ne or eq method
-115:0: total_ordering requires either ne or eq method
-126:0: total_ordering requires either ne or eq method
-140:0: total_ordering requires any of lt/gt/le/ne
-145:0: total_ordering requires any of lt/gt/le/ne
-150:0: total_ordering requires any of lt/gt/le/ne
+_WARNINGS = """
+9:5: total_ordering directive used, but no comparison and equality methods defined
+13:5: total_ordering directive used, but no equality method defined
+18:5: total_ordering directive used, but no equality method defined
+23:5: total_ordering directive used, but no equality method defined
+31:5: total_ordering directive used, but no equality method defined
+36:5: total_ordering directive used, but no equality method defined
+44:5: total_ordering directive used, but no equality method defined
+52:5: total_ordering directive used, but no equality method defined
+63:5: total_ordering directive used, but no equality method defined
+18:5: total_ordering directive used, but no equality method defined
+76:5: total_ordering directive used, but no equality method defined
+84:5: total_ordering directive used, but no equality method defined
+95:5: total_ordering directive used, but no equality method defined
+103:5: total_ordering directive used, but no equality method defined
+114:5: total_ordering directive used, but no equality method defined
+125:5: total_ordering directive used, but no equality method defined
+139:5: total_ordering directive used, but no comparison methods defined
+171:5: total_ordering directive used, but no comparison methods defined
+149:5: total_ordering directive used, but no comparison methods defined
 """
