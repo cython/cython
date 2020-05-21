@@ -38,8 +38,6 @@ _ERRORS = u'''
 16:5: Return not inside a function body
 19:5: Return not inside a function body
 23:4: Return not inside a function body
-# duplicated because of loop optimization
-23:4: Return not inside a function body
 26:4: Return not inside a function body
 29:4: Return not inside a function body
 31:4: Return not inside a function body
