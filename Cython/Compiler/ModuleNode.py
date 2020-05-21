@@ -72,6 +72,41 @@ def generate_c_code_config(env, options):
         emit_code_comments=env.directives['emit_code_comments'],
         c_line_in_traceback=options.c_line_in_traceback)
 
+# The code required to generate one comparison from another.
+# The keys are (from, to).
+# The comparison operator always goes first, with equality possibly second.
+# The first value specifies if the comparison is inverted. The second is the
+# logic op to use, and the third is if the equality is inverted or not.
+TOTAL_ORDERING = {
+    # a > b from (not a < b) and (a != b)
+    ('__lt__', '__gt__'): (True, '&&', True),
+    # a <= b from (a < b) or (a == b)
+    ('__lt__', '__le__'): (False, '||', False),
+    # a >= b from (not a < b).
+    ('__lt__', '__ge__'): (True, '', None),
+
+    # a >= b from (not a <= b) or (a == b)
+    ('__le__', '__ge__'): (True, '||', False),
+    # a < b, from (a <= b) and (a != b)
+    ('__le__', '__lt__'): (True, '&&', True),
+    # a > b from (not a <= b)
+    ('__le__', '__gt__'): (True, '', None),
+
+    # a < b from (not a > b) and (a != b)
+    ('__gt__', '__lt__'): (True, '&&', True),
+    # a >= b from (a > b) or (a == b)
+    ('__gt__', '__ge__'): (False, '||', False),
+    # a <= b from (not a > b)
+    ('__gt__', '__le__'): (True, '', None),
+
+    # Return a <= b from (not a >= b) or (a == b)
+    ('__ge__', '__le__'): (True, '||', False),
+    # a > b from (a >= b) and (a != b)
+    ('__ge__', '__gt__'): (False, '&&', True),
+    # a < b from (not a >= b)
+    ('__ge__', '__lt__'): (True, '', None),
+}
+
 
 class ModuleNode(Nodes.Node, Nodes.BlockNode):
     #  doc       string or None
@@ -1982,35 +2017,101 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             # need to call up into base classes as we may not know all implemented comparison methods
             extern_parent = cls if cls.typeptr_cname else scope.parent_type.base_type
 
-        eq_entry = None
-        has_ne = False
+        total_ordering = scope.directives.get('total_ordering', False)
+
+        comp_entry = {}
+
         for cmp_method in TypeSlots.richcmp_special_methods:
             for class_scope in class_scopes:
                 entry = class_scope.lookup_here(cmp_method)
                 if entry is not None:
+                    comp_entry[cmp_method] = entry
                     break
             else:
                 continue
 
-            cmp_type = cmp_method.strip('_').upper()  # e.g. "__eq__" -> EQ
-            code.putln("case Py_%s: {" % cmp_type)
-            if cmp_method == '__eq__':
-                eq_entry = entry
-                # Python itself does not do this optimisation, it seems...
-                #code.putln("if (o1 == o2) return __Pyx_NewRef(Py_True);")
-            elif cmp_method == '__ne__':
-                has_ne = True
-                # Python itself does not do this optimisation, it seems...
-                #code.putln("if (o1 == o2) return __Pyx_NewRef(Py_False);")
-            code.putln("return %s(o1, o2);" % entry.func_cname)
-            code.putln("}")
+        if total_ordering:
+            # Check this is valid - we must have at least 1 operation defined.
+            comp_names = [from_name for from_name, to_name in TOTAL_ORDERING if from_name in comp_entry]
+            if not comp_names:
+                warning(self.pos,
+                    "total_ordering directive used, but no comparison "
+                    "methods defined.", 1)
+                total_ordering = False
+            else:
+                # Same priority as functools, prefers
+                # __lt__ to __le__ to __gt__ to __ge__
+                ordering_source = max(comp_names)
 
-        if eq_entry and not has_ne and not extern_parent:
+        for cmp_method in TypeSlots.richcmp_special_methods:
+            cmp_type = cmp_method.strip('_').upper()  # e.g. "__eq__" -> EQ
+            entry = comp_entry.get(cmp_method)
+            if entry is None and (not total_ordering or cmp_type in ('NE', 'EQ')):
+                # No definition, fall back to superclasses.
+                # eq/ne methods shouldn't use the total_ordering code.
+                continue
+
+            code.putln("case Py_%s: {" % cmp_type)
+            if entry is None:
+                assert total_ordering
+                # We need to generate this from the other methods.
+                invert_comp, comp_op, invert_equals = TOTAL_ORDERING[ordering_source, cmp_method]
+
+                # First we always do the comparison.
+                code.putln("PyObject *ret;")
+                code.putln("ret = %s(o1, o2);" % comp_entry[ordering_source].func_cname)
+                code.putln("if (likely(ret && ret != Py_NotImplemented)) {")
+                code.putln("int order_res = __Pyx_PyObject_IsTrue(ret); Py_DECREF(ret);")
+                code.putln("if (unlikely(order_res < 0)) return NULL;")
+                # We may need to check equality too. For some combos it's not
+                # ever required.
+                if invert_equals is not None:
+                    # Implement the and/or check with an if.
+                    if comp_op == '&&':
+                        if invert_comp:
+                            code.putln("if (order_res) {")
+                        else:
+                            code.putln("if (!order_res) {")
+                        code.putln("ret = Py_False;")
+                        code.putln("} else {")
+                    elif comp_op == '||':
+                        if invert_comp:
+                            code.putln("if (!order_res) {")
+                        else:
+                            code.putln("if (order_res) {")
+                        code.putln("ret = Py_True;")
+                        code.putln("} else {")
+                    else:
+                        raise AssertionError('Unknown op %s' % (comp_op, ))
+                    code.putln("ret = %s(o1, o2);" % comp_entry['__eq__'].func_cname)
+                    code.putln("if (likely(ret && ret != Py_NotImplemented)) {")
+                    code.putln("int eq_res = __Pyx_PyObject_IsTrue(ret); Py_DECREF(ret);")
+                    code.putln("if (unlikely(eq_res < 0)) return NULL;")
+                    if invert_equals:
+                        code.putln("ret = eq_res ? Py_False : Py_True;")
+                    else:
+                        code.putln("ret = eq_res ? Py_True : Py_False;")
+                    code.putln("}") # equals success
+                    code.putln("}") # Needs to try equals
+                else:
+                    # Convert direct to a string.
+                    if invert_comp:
+                        code.putln("ret = order_res ? Py_False : Py_True;")
+                    else:
+                        code.putln("ret = order_res ? Py_True : Py_False;")
+                code.putln("Py_INCREF(ret);")
+                code.putln("}")  # comp_op
+                code.putln("return ret;")
+            else:
+                code.putln("return %s(o1, o2);" % entry.func_cname)
+            code.putln("}")  # Case
+
+        if '__eq__' in comp_entry and '__ne__' not in comp_entry and not extern_parent:
             code.putln("case Py_NE: {")
             code.putln("PyObject *ret;")
             # Python itself does not do this optimisation, it seems...
             #code.putln("if (o1 == o2) return __Pyx_NewRef(Py_False);")
-            code.putln("ret = %s(o1, o2);" % eq_entry.func_cname)
+            code.putln("ret = %s(o1, o2);" % comp_entry['__eq__'].func_cname)
             code.putln("if (likely(ret && ret != Py_NotImplemented)) {")
             code.putln("int b = __Pyx_PyObject_IsTrue(ret); Py_DECREF(ret);")
             code.putln("if (unlikely(b < 0)) return NULL;")
