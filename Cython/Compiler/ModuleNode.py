@@ -2034,19 +2034,19 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             # Check this is valid - we must have at least 1 operation defined.
             comp_names = [from_name for from_name, to_name in TOTAL_ORDERING if from_name in comp_entry]
             if not comp_names:
-                if '__eq__' not in comp_entry:
+                if '__eq__' not in comp_entry and '__ne__' not in comp_entry:
                     warning(scope.parent_type.pos,
-                        "total_ordering directive used, but no comparison and equality methods defined.")
+                        "total_ordering directive used, but no comparison and equality methods defined")
                 else:
                     warning(scope.parent_type.pos,
-                          "total_ordering directive used, but no comparison methods defined.")
+                          "total_ordering directive used, but no comparison methods defined")
                 total_ordering = False
             else:
                 # Same priority as functools, prefers
                 # __lt__ to __le__ to __gt__ to __ge__
                 ordering_source = max(comp_names)
-                if '__eq__' not in comp_entry:
-                    warning(scope.parent_type.pos, "total_ordering directive used, but no equality method defined.")
+                if '__eq__' not in comp_entry and '__ne__' not in comp_entry:
+                    warning(scope.parent_type.pos, "total_ordering directive used, but no equality method defined")
                     total_ordering = False
 
         for cmp_method in TypeSlots.richcmp_special_methods:
@@ -2089,7 +2089,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         code.putln("} else {")
                     else:
                         raise AssertionError('Unknown op %s' % (comp_op, ))
-                    code.putln("ret = %s(o1, o2);" % comp_entry['__eq__'].func_cname)
+                    if '__eq__' in comp_entry:
+                        eq_func = '__eq__'
+                    else:
+                        # Fall back to NE, which is defined here.
+                        eq_func = '__ne__'
+                        invert_equals = not invert_equals
+
+                    code.putln("ret = %s(o1, o2);" % comp_entry[eq_func].func_cname)
                     code.putln("if (likely(ret && ret != Py_NotImplemented)) {")
                     code.putln("int eq_res = __Pyx_PyObject_IsTrue(ret); Py_DECREF(ret);")
                     code.putln("if (unlikely(eq_res < 0)) return NULL;")
