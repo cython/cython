@@ -611,14 +611,15 @@ class __Pyx_FakeReference {
   #define __Pyx_PyVectorcall_NARGS(n)  (n)
 #endif
 
-// PEP-573
-#if PY_VERSION_HEX >= 0x030900B1
-  #define __Pyx_PyType_FromModuleAndSpec(m, s, b)  PyType_FromModuleAndSpec(m, s, b)
-#else
+// PEP-573: PyCFunction holds reference to defining class (PyCMethodObject)
+#if PY_VERSION_HEX < 0x030900B1
   #define __Pyx_PyType_FromModuleAndSpec(m, s, b)  ((void)m, PyType_FromSpecWithBases(s, b))
+  typedef PyObject *(*__Pyx_PyCMethod)(PyObject *, PyTypeObject *, PyObject *const *, size_t, PyObject *);
+#else
+  #define __Pyx_PyType_FromModuleAndSpec(m, s, b)  PyType_FromModuleAndSpec(m, s, b)
+  #define __Pyx_PyCMethod  PyCMethod
 #endif
 #ifndef METH_METHOD
-  // PEP-573: PyCFunction holds reference to defining class (PyCMethodObject)
   #define METH_METHOD 0x200
 #endif
 
