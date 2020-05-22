@@ -5197,8 +5197,9 @@ class CClassDefNode(ClassDefNode):
                         bases_tuple_cname or tuple_temp,
                     ))
 
-                code.putln("%s = (PyTypeObject *) PyType_FromSpecWithBases(&%s, %s);" % (
+                code.putln("%s = (PyTypeObject *) __Pyx_PyType_FromModuleAndSpec(%s, &%s, %s);" % (
                     typeptr_cname,
+                    Naming.module_cname,
                     typespec_cname,
                     bases_tuple_cname or tuple_temp,
                 ))
@@ -5208,8 +5209,9 @@ class CClassDefNode(ClassDefNode):
                 code.putln(code.error_goto_if_null(typeptr_cname, entry.pos))
             else:
                 code.putln(
-                    "%s = (PyTypeObject *) PyType_FromSpec(&%s); %s" % (
+                    "%s = (PyTypeObject *) __Pyx_PyType_FromModuleAndSpec(%s, &%s, NULL); %s" % (
                         typeptr_cname,
+                        Naming.module_cname,
                         typespec_cname,
                         code.error_goto_if_null(typeptr_cname, entry.pos),
                     ))

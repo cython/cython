@@ -3,7 +3,7 @@
 #if !CYTHON_USE_TYPE_SPECS
 static PyTypeObject* __Pyx_FetchCommonType(PyTypeObject* type);
 #else
-static PyTypeObject* __Pyx_FetchCommonTypeFromSpec(PyType_Spec *spec, PyObject *bases);
+static PyTypeObject* __Pyx_FetchCommonTypeFromSpec(PyObject *module, PyType_Spec *spec, PyObject *bases);
 #endif
 
 /////////////// FetchCommonType ///////////////
@@ -73,7 +73,7 @@ bad:
 }
 #else
 
-static PyTypeObject *__Pyx_FetchCommonTypeFromSpec(PyType_Spec *spec, PyObject *bases) {
+static PyTypeObject *__Pyx_FetchCommonTypeFromSpec(PyObject *module, PyType_Spec *spec, PyObject *bases) {
     PyObject *abi_module, *cached_type = NULL;
 
     abi_module = __Pyx_FetchSharedCythonABIModule();
@@ -105,7 +105,9 @@ static PyTypeObject *__Pyx_FetchCommonTypeFromSpec(PyType_Spec *spec, PyObject *
 
     if (!PyErr_ExceptionMatches(PyExc_AttributeError)) goto bad;
     PyErr_Clear();
-    cached_type = PyType_FromSpecWithBases(spec, bases);
+    // We pass the ABI module reference to avoid keeping the user module alive by foreign type usages.
+    (void) module;
+    cached_type = __Pyx_PyType_FromModuleAndSpec(abi_module, spec, bases);
     if (unlikely(!cached_type)) goto bad;
     if (unlikely(__Pyx_fix_up_extension_type_from_spec(spec, (PyTypeObject *) cached_type) < 0)) goto bad;
     if (PyObject_SetAttrString(abi_module, spec->name, cached_type) < 0) goto bad;

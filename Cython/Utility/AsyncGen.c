@@ -47,7 +47,7 @@ static __pyx_CoroutineObject *__Pyx_AsyncGen_New(
     return __Pyx__Coroutine_NewInit((__pyx_CoroutineObject*)gen, body, code, closure, name, qualname, module_name);
 }
 
-static int __pyx_AsyncGen_init(void);
+static int __pyx_AsyncGen_init(PyObject *module);
 static void __Pyx_PyAsyncGen_Fini(void);
 
 //////////////////// AsyncGenerator.cleanup ////////////////////
@@ -1227,10 +1227,11 @@ __Pyx_async_gen_athrow_new(__pyx_PyAsyncGenObject *gen, PyObject *args)
 
 /* ---------- global type sharing ------------ */
 
-static int __pyx_AsyncGen_init(void) {
+static int __pyx_AsyncGen_init(PyObject *module) {
 #if CYTHON_USE_TYPE_SPECS
-    __pyx_AsyncGenType = __Pyx_FetchCommonTypeFromSpec(&__pyx_AsyncGenType_spec, NULL);
+    __pyx_AsyncGenType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_AsyncGenType_spec, NULL);
 #else
+    (void) module;
     // on Windows, C-API functions can't be used in slots statically
     __pyx_AsyncGenType_type.tp_getattro = __Pyx_PyObject_GenericGetAttrNoDict;
     __pyx_AsyncGenType = __Pyx_FetchCommonType(&__pyx_AsyncGenType_type);
@@ -1239,7 +1240,7 @@ static int __pyx_AsyncGen_init(void) {
         return -1;
 
 #if CYTHON_USE_TYPE_SPECS
-    __pyx__PyAsyncGenAThrowType = __Pyx_FetchCommonTypeFromSpec(&__pyx__PyAsyncGenAThrowType_spec, NULL);
+    __pyx__PyAsyncGenAThrowType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx__PyAsyncGenAThrowType_spec, NULL);
 #else
     __pyx__PyAsyncGenAThrowType_type.tp_getattro = __Pyx_PyObject_GenericGetAttrNoDict;
     __pyx__PyAsyncGenAThrowType = __Pyx_FetchCommonType(&__pyx__PyAsyncGenAThrowType_type);
@@ -1248,7 +1249,7 @@ static int __pyx_AsyncGen_init(void) {
         return -1;
 
 #if CYTHON_USE_TYPE_SPECS
-    __pyx__PyAsyncGenWrappedValueType = __Pyx_FetchCommonTypeFromSpec(&__pyx__PyAsyncGenWrappedValueType_spec, NULL);
+    __pyx__PyAsyncGenWrappedValueType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx__PyAsyncGenWrappedValueType_spec, NULL);
 #else
     __pyx__PyAsyncGenWrappedValueType_type.tp_getattro = __Pyx_PyObject_GenericGetAttrNoDict;
     __pyx__PyAsyncGenWrappedValueType = __Pyx_FetchCommonType(&__pyx__PyAsyncGenWrappedValueType_type);
@@ -1257,7 +1258,7 @@ static int __pyx_AsyncGen_init(void) {
         return -1;
 
 #if CYTHON_USE_TYPE_SPECS
-    __pyx__PyAsyncGenASendType = __Pyx_FetchCommonTypeFromSpec(&__pyx__PyAsyncGenASendType_spec, NULL);
+    __pyx__PyAsyncGenASendType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx__PyAsyncGenASendType_spec, NULL);
 #else
     __pyx__PyAsyncGenASendType_type.tp_getattro = __Pyx_PyObject_GenericGetAttrNoDict;
     __pyx__PyAsyncGenASendType = __Pyx_FetchCommonType(&__pyx__PyAsyncGenASendType_type);
