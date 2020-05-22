@@ -275,7 +275,7 @@ class SlotDescriptor(object):
                 # PyPy currently has a broken PyType_Ready() that fails to
                 # inherit some slots.  To work around this, we explicitly
                 # set inherited slots here, but only in PyPy since CPython
-                # handles this better than we do.
+                # handles this better than we do (except for buffer slots in type specs).
                 inherited_value = value
                 current_scope = scope
                 while (inherited_value == "0"
@@ -285,7 +285,9 @@ class SlotDescriptor(object):
                     current_scope = current_scope.parent_type.base_type.scope
                     inherited_value = self.slot_code(current_scope)
                 if inherited_value != "0":
-                    code.putln("#if CYTHON_COMPILING_IN_PYPY")
+                    # we always need inherited buffer slots for the type spec
+                    is_buffer_slot = int(self.slot_name in ("bf_getbuffer", "bf_releasebuffer"))
+                    code.putln("#if CYTHON_COMPILING_IN_PYPY || %d" % is_buffer_slot)
                     code.putln("%s, /*%s*/" % (inherited_value, self.slot_name))
                     code.putln("#else")
                     end_pypy_guard = True
@@ -747,7 +749,7 @@ def get_base_slot_function(scope, slot):
     #  This is useful for enabling the compiler to optimize calls
     #  that recursively climb the class hierarchy.
     base_type = scope.parent_type.base_type
-    if scope.parent_scope is base_type.scope.parent_scope:
+    if base_type and scope.parent_scope is base_type.scope.parent_scope:
         parent_slot = slot.slot_code(base_type.scope)
         if parent_slot != '0':
             entry = scope.parent_scope.lookup_here(scope.parent_type.base_type.name)
@@ -774,6 +776,11 @@ def get_slot_by_name(slot_name):
         if slot.slot_name == slot_name:
             return slot
     assert False, "Slot not found: %s" % slot_name
+
+
+def get_slot_by_method_name(method_name):
+    # For now, only search the type struct, no referenced sub-structs.
+    return method_name_to_slot[method_name]
 
 
 def get_slot_code_by_name(scope, slot_name):
