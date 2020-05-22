@@ -8,7 +8,7 @@ static PyTypeObject* __Pyx_FetchCommonTypeFromSpec(PyType_Spec *spec, PyObject *
 /////////////// FetchCommonType ///////////////
 
 static PyObject *__Pyx_FetchSharedCythonABIModule(void) {
-    PyObject *abi_module = PyImport_AddModule((char*) "_cython_" CYTHON_ABI);
+    PyObject *abi_module = PyImport_AddModule((char*) __PYX_ABI_MODULE_NAME);
     if (!abi_module) return NULL;
     Py_INCREF(abi_module);
     return abi_module;
@@ -126,7 +126,7 @@ static void* __Pyx_FetchCommonPointer(void* pointer, const char* name) {
     PyObject* capsule = NULL;
     void* value = NULL;
 
-    abi_module = PyImport_AddModule((char*) "_cython_" CYTHON_ABI);
+    abi_module = PyImport_AddModule((char*) __PYX_ABI_MODULE_NAME);
     if (!abi_module) return NULL;
     Py_INCREF(abi_module);
 

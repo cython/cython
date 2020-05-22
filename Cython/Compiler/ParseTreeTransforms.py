@@ -993,6 +993,10 @@ class InterpretCompilerDirectives(CythonTransform):
 
         old_directives = self.directives
         new_directives = dict(old_directives)
+        # test_assert_path_exists and test_fail_if_path_exists should not be inherited
+        # otherwise they can produce very misleading test failures
+        new_directives.pop('test_assert_path_exists', None)
+        new_directives.pop('test_fail_if_path_exists', None)
         new_directives.update(directives)
 
         if new_directives == old_directives:
@@ -1190,6 +1194,7 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
     def visit_CallNode(self, node):
         self.visit(node.function)
         if not self.parallel_directive:
+            self.visitchildren(node, exclude=('function',))
             return node
 
         # We are a parallel directive, replace this node with the
@@ -1661,7 +1666,7 @@ cdef class NAME:
         count = 0
         INIT_ASSIGNMENTS
         if IS_UNION and count > 1:
-            raise ValueError("At most one union member should be specified.")
+            raise ValueError, "At most one union member should be specified."
     def __str__(self):
         return STR_FORMAT % MEMBER_TUPLE
     def __repr__(self):
@@ -1774,9 +1779,9 @@ if VALUE is not None:
 
             pickle_func = TreeFragment(u"""
                 def __reduce_cython__(self):
-                    raise TypeError("%(msg)s")
+                    raise TypeError, "%(msg)s"
                 def __setstate_cython__(self, __pyx_state):
-                    raise TypeError("%(msg)s")
+                    raise TypeError, "%(msg)s"
                 """ % {'msg': msg},
                 level='c_class', pipeline=[NormalizeTree(None)]).substitute({})
             pickle_func.analyse_declarations(node.scope)
@@ -1800,7 +1805,7 @@ if VALUE is not None:
                     cdef object __pyx_result
                     if __pyx_checksum != %(checksum)s:
                         from pickle import PickleError as __pyx_PickleError
-                        raise __pyx_PickleError("Incompatible checksums (%%s vs %(checksum)s = (%(members)s))" %% __pyx_checksum)
+                        raise __pyx_PickleError, "Incompatible checksums (%%s vs %(checksum)s = (%(members)s))" %% __pyx_checksum
                     __pyx_result = %(class_name)s.__new__(__pyx_type)
                     if __pyx_state is not None:
                         %(unpickle_func_name)s__set_state(<%(class_name)s> __pyx_result, __pyx_state)

@@ -169,7 +169,7 @@ def get_directive_defaults():
 
 # Declare compiler directives
 _directive_defaults = {
-    'binding': True,
+    'binding': True,  # was False before 3.0
     'boundscheck' : True,
     'nonecheck' : False,
     'initializedcheck' : True,

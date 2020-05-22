@@ -165,6 +165,13 @@ Static typing
 
   .. literalinclude:: ../../examples/tutorial/pure/exceptval.py
 
+  Note that the default exception handling behaviour when returning C numeric types
+  is to check for ``-1``, and if that was returned, check Python's error indicator
+  for an exception.  This means, if no ``@exceptval`` decorator is provided, and the
+  return type is a numeric type, then the default with type annotations is
+  ``@exceptval(-1, check=True)``, in order to make sure that exceptions are correctly
+  and efficiently reported to the caller.
+
   Since version 0.27, Cython also supports the variable annotations defined
   in `PEP 526 <https://www.python.org/dev/peps/pep-0526/>`_. This allows to
   declare types of variables in a Python 3.6 compatible way as follows:
