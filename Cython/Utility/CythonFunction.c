@@ -119,14 +119,6 @@ static CYTHON_INLINE void __Pyx__CyFunction_SetClassObj(__pyx_CyFunctionObject* 
 #endif
             ((classobj) ? __Pyx_NewRef(classobj) : NULL)
     );
-
-#if CYTHON_PEP573_PYCMETHOD
-    if (classobj) {
-        ((PyCFunctionObject*)f)->m_ml->ml_flags |= METH_METHOD;
-    } else {
-        ((PyCFunctionObject*)f)->m_ml->ml_flags &= ~METH_METHOD;
-    }
-#endif
 }
 
 static PyObject *
@@ -962,11 +954,7 @@ static PyTypeObject __pyx_CyFunctionType_type = {
     __pyx_CyFunction_methods,           /*tp_methods*/
     __pyx_CyFunction_members,           /*tp_members*/
     __pyx_CyFunction_getsets,           /*tp_getset*/
-#if CYTHON_PEP573_PYCMETHOD
-    &PyCMethod_Type,                    /*tp_base*/
-#else
     0,                                  /*tp_base*/
-#endif
     0,                                  /*tp_dict*/
     __Pyx_PyMethod_New,                 /*tp_descr_get*/
     0,                                  /*tp_descr_set*/
@@ -1001,15 +989,7 @@ static PyTypeObject __pyx_CyFunctionType_type = {
 
 static int __pyx_CyFunction_init(PyObject *module) {
 #if CYTHON_USE_TYPE_SPECS
-    #if CYTHON_PEP573_PYCMETHOD
-    PyObject *bases = PyTuple_Pack(1, &PyCMethod_Type);
-    if (unlikely(!bases))
-        return -1;
-    #else
-    PyObject *bases = NULL;
-    #endif
-    __pyx_CyFunctionType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_CyFunctionType_spec, bases);
-    Py_XDECREF(bases);
+    __pyx_CyFunctionType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_CyFunctionType_spec, NULL);
 #else
     (void) module;
     __pyx_CyFunctionType = __Pyx_FetchCommonType(&__pyx_CyFunctionType_type);
