@@ -276,6 +276,9 @@ def cascade():
     assert typeof(e) == "double"
 
 def cascaded_assignment():
+    """
+    >>> cascaded_assignment()
+    """
     a = b = c = d = 1.0
     assert typeof(a) == "double"
     assert typeof(b) == "double"
