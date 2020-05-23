@@ -53,7 +53,9 @@ typedef struct {
 static PyTypeObject *__pyx_CyFunctionType = 0;
 #endif
 
-#define __Pyx_CyFunction_Check(obj)  (__Pyx_TypeCheck(obj, __pyx_CyFunctionType))
+#define __Pyx_CyFunction_Check(obj)  __Pyx_TypeCheck(obj, __pyx_CyFunctionType)
+#define __Pyx_IsCyOrPyCFunction(obj)  __Pyx_TypeCheck2(obj, __pyx_CyFunctionType, &PyCFunction_Type)
+#define __Pyx_CyFunction_CheckExact(obj)  __Pyx_IS_TYPE(obj, __pyx_CyFunctionType)
 
 static PyObject *__Pyx_CyFunction_Init(__pyx_CyFunctionObject* op, PyMethodDef *ml,
                                       int flags, PyObject* qualname,
@@ -1482,14 +1484,14 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
         // python classes
         return PyClassMethod_New(PyMethod_GET_FUNCTION(method));
     }
-    else if (PyCFunction_Check(method)) {
-        return PyClassMethod_New(method);
-    }
 #ifdef __Pyx_CyFunction_USED
-    else if (__Pyx_CyFunction_Check(method)) {
+    else if (__Pyx_IsCyOrPyCFunction(method))
+#else
+    else if (PyCFunction_Check(method))
+#endif
+    {
         return PyClassMethod_New(method);
     }
-#endif
     PyErr_SetString(PyExc_TypeError,
                    "Class-level classmethod() can only be called on "
                    "a method_descriptor or instance method.");

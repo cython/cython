@@ -2109,7 +2109,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
 #if CYTHON_COMPILING_IN_CPYTHON
     if (nargs == 0 && kwargs == NULL) {
 #ifdef __Pyx_CyFunction_USED
-        if (PyCFunction_Check(func) || __Pyx_CyFunction_Check(func))
+        if (__Pyx_IsCyOrPyCFunction(func))
 #else
         if (PyCFunction_Check(func))
 #endif
@@ -2158,7 +2158,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
     }
     #elif __Pyx_CyFunction_USED && CYTHON_BACKPORT_VECTORCALL
     // exclude fused functions for now
-    if (__Pyx_IS_TYPE(func, __pyx_CyFunctionType)) {
+    if (__Pyx_CyFunction_CheckExact(func)) {
         __pyx_vectorcallfunc f = __Pyx_CyFunction_func_vectorcall(func);
         if (f) return f(func, args, nargs, kwargs);
     }
