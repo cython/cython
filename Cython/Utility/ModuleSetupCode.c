@@ -715,6 +715,12 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define __Pyx_PyType_GetFlags(tp)   (((PyTypeObject *)tp)->tp_flags)
 #endif
 
+#if CYTHON_USE_TYPE_SLOTS
+  #define __Pyx_PyType_HasFeature(type, feature)  ((__Pyx_PyType_GetFlags(type) & (feature)) != 0)
+#else
+  #define __Pyx_PyType_HasFeature(type, feature)  PyType_HasFeature(type, feature)
+#endif
+
 #if CYTHON_COMPILING_IN_LIMITED_API
   #define CYTHON_PEP393_ENABLED 1
   #define __Pyx_PyUnicode_READY(op)       (0)

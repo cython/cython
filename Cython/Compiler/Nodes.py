@@ -4601,8 +4601,8 @@ class OverrideCheckNode(StatNode):
         if self.py_func.is_module_scope:
             code.putln("else {")
         else:
-            code.putln("else if (unlikely((Py_TYPE(%s)->tp_dictoffset != 0)"
-                       " || (Py_TYPE(%s)->tp_flags & (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)))) {" % (
+            code.putln("else if (unlikely((Py_TYPE(%s)->tp_dictoffset != 0) || "
+                       "__Pyx_PyType_HasFeature(Py_TYPE(%s), (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)))) {" % (
                 self_arg, self_arg))
 
         code.putln("#if CYTHON_USE_DICT_VERSIONS && CYTHON_USE_PYTYPE_LOOKUP && CYTHON_USE_TYPE_SLOTS")

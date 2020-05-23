@@ -36,7 +36,7 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
             }
 #endif
             b = (PyTypeObject*)b0;
-            if (!PyType_HasFeature(b, Py_TPFLAGS_HEAPTYPE))
+            if (!__Pyx_PyType_HasFeature(b, Py_TPFLAGS_HEAPTYPE))
             {
                 PyErr_Format(PyExc_TypeError, "base class '%.200s' is not a heap type",
                              b->tp_name);

@@ -1763,7 +1763,7 @@ static int __Pyx_PyObject_GetMethod(PyObject *obj, PyObject *name, PyObject **me
     if (likely(descr != NULL)) {
         Py_INCREF(descr);
 #if defined(Py_TPFLAGS_METHOD_DESCRIPTOR) && Py_TPFLAGS_METHOD_DESCRIPTOR
-        if (PyType_HasFeature(Py_TYPE(descr), Py_TPFLAGS_METHOD_DESCRIPTOR))
+        if (__Pyx_PyType_HasFeature(Py_TYPE(descr), Py_TPFLAGS_METHOD_DESCRIPTOR))
 #elif PY_MAJOR_VERSION >= 3
         // Repeating the condition below accommodates for MSVC's inability to test macros inside of macro expansions.
         #ifdef __Pyx_CyFunction_USED
