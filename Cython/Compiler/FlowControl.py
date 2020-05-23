@@ -804,7 +804,7 @@ class ControlFlowAnalysis(CythonTransform):
         return node
 
     def visit_AssignmentNode(self, node):
-        raise InternalError("Unhandled assignment node")
+        raise InternalError("Unhandled assignment node %s" % type(node))
 
     def visit_SingleAssignmentNode(self, node):
         self._visit(node.rhs)
