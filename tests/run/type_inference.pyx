@@ -292,11 +292,12 @@ def unpacking(x):
     """
     >>> unpacking(0)
     """
-    a, b, c, d = x, 1, 2.0, [3]
+    a, b, c, (d, e) = x, 1, 2.0, [3, [5, 6]]
     assert typeof(a) == "Python object", typeof(a)
     assert typeof(b) == "long", typeof(b)
     assert typeof(c) == "double", typeof(c)
-    assert typeof(d) == "list object", typeof(d)
+    assert typeof(d) == "long", typeof(d)
+    assert typeof(e) == "list object", typeof(e)
 
 
 def star_unpacking(*x):
