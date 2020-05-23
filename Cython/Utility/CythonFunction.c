@@ -1227,7 +1227,7 @@ __pyx_FusedFunction_callfunction(PyObject *func, PyObject *args, PyObject *kw)
     int static_specialized = (cyfunc->flags & __Pyx_CYFUNCTION_STATICMETHOD &&
                               !((__pyx_FusedFunctionObject *) func)->__signatures__);
 
-    if (cyfunc->flags & __Pyx_CYFUNCTION_CCLASS && !static_specialized) {
+    if ((cyfunc->flags & __Pyx_CYFUNCTION_CCLASS) && !static_specialized) {
         return __Pyx_CyFunction_CallAsMethod(func, args, kw);
     } else {
         return __Pyx_CyFunction_Call(func, args, kw);
