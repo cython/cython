@@ -375,11 +375,12 @@ class IterationTransform(Visitor.EnvTransform):
         new_directives = dict(env.directives, boundscheck=False, wraparound=False)
         new_directives.pop('test_assert_path_exists', None)
         new_directives.pop('test_fail_if_path_exists', None)
-        target_assign = Nodes.CompilerDirectivesNode(target_assign.pos,
-                                                        directives = new_directives,
-                                                        body = target_assign)
+        target_assign = Nodes.CompilerDirectivesNode(
+            target_assign.pos,
+            directives=new_directives,
+            body=target_assign,
+        )
 
-        target_assign = target_assign
         body = Nodes.StatListNode(
             node.pos,
             stats = [target_assign]) # exclude node.body for now to not reanalyse it

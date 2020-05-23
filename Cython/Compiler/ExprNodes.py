@@ -3632,8 +3632,8 @@ class IndexNode(_IndexingBaseNode):
                     break  # something's gone wrong
                 inferred_type = IndexNode(self.pos, base=ExprNode(self.base.pos, type=inferred_type),
                                           index=a).infer_type(env)
-
-            return inferred_type # error checking is probably unnecessary since it'll default to pyobject
+            else:
+                return inferred_type
 
         if base_type.is_cpp_class:
             class FakeOperand:

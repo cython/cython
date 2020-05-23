@@ -443,11 +443,11 @@ def memview_iter(double[:, :] arg):
     memview_iter(DoubleMockBuffer("C", range(6), (2,3)))
     True
     """
-    cdef double sum=0
+    cdef double sum = 0
     for mview1d in arg:
         for val in mview1d:
             sum += val
-    if sum==15:
+    if sum == 15:
         return True
 
 #
