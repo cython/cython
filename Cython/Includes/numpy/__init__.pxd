@@ -19,7 +19,7 @@ DEF _buffer_format_string_len = 255
 cimport cpython.buffer as pybuf
 from cpython.ref cimport Py_INCREF
 from cpython.mem cimport PyObject_Malloc, PyObject_Free
-from cpython.object cimport PyObject, PyTypeObject
+from cpython.object cimport PyObject, PyTypeObject, PyObject_TypeCheck
 from cpython.type cimport type
 cimport libc.stdio as stdio
 
@@ -34,7 +34,6 @@ cdef extern from *:
 
 cdef extern from "Python.h":
     ctypedef int Py_intptr_t
-    bint PyObject_TypeCheck(object obj, PyTypeObject* type)
 
 cdef extern from "numpy/arrayobject.h":
     ctypedef Py_intptr_t npy_intp
