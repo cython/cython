@@ -885,6 +885,12 @@ class ControlFlowAnalysis(CythonTransform):
         self.mark_position(node)
         return node
 
+    def visit_SizeofVarNode(self, node):
+        return node
+
+    def visit_TypeidNode(self, node):
+        return node
+
     def visit_IfStatNode(self, node):
         next_block = self.flow.newblock()
         parent = self.flow.block
