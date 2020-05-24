@@ -278,3 +278,59 @@ __PYX_GOOD:
     Py_XDECREF(setstate_cython);
     return ret;
 }
+
+/////////////// BinopSlot ///////////////
+
+static CYTHON_INLINE PyObject *{{func_name}}_maybe_call_super(PyObject *self, PyObject *other, PyObject* name) {
+    PyObject *res;
+    PyObject *method;
+    if (!Py_TYPE(self)->tp_base) {
+        return Py_INCREF(Py_NotImplemented), Py_NotImplemented;
+    }
+    // TODO: Use _PyType_LookupId or similar.
+    method = PyObject_GetAttr((PyObject*) Py_TYPE(self)->tp_base, name);
+    if (!method) {
+        PyErr_Clear();
+        return Py_INCREF(Py_NotImplemented), Py_NotImplemented;
+    }
+    res = __Pyx_PyObject_Call2Args(method, self, other);
+    Py_DECREF(method);
+    if (!res) {
+        return Py_INCREF(Py_NotImplemented), Py_NotImplemented;
+    }
+    return res;
+}
+
+static PyObject *{{func_name}}(PyObject *left, PyObject *right) {
+    PyObject *res;
+    int maybe_self_is_left, maybe_self_is_right = 0;
+    maybe_self_is_left = Py_TYPE(left) == Py_TYPE(right)
+            || (Py_TYPE(left)->tp_as_number && Py_TYPE(left)->tp_as_number->{{slot_name}} == &{{func_name}})
+            || PyType_IsSubtype(Py_TYPE(left), {{type_cname}});
+    // Optimize for the common case where the left operation is defined (and successful).
+    if (!{{overloads_left}}) {
+        maybe_self_is_right = Py_TYPE(left) == Py_TYPE(right)
+                || (Py_TYPE(right)->tp_as_number && Py_TYPE(right)->tp_as_number->{{slot_name}} == &{{func_name}})
+                || PyType_IsSubtype(Py_TYPE(right), {{type_cname}});
+    }
+    if (maybe_self_is_left) {
+        if (maybe_self_is_right && !{{overloads_left}}) {
+            res = {{call_right}};
+            if (res != Py_NotImplemented) return res;
+            Py_DECREF(res);
+            maybe_self_is_right = 0;  // Don't bother calling it again.
+        }
+        res = {{call_left}};
+        if (res != Py_NotImplemented) return res;
+        Py_DECREF(res);
+    }
+    if ({{overloads_left}}) {
+        maybe_self_is_right = Py_TYPE(left) == Py_TYPE(right)
+                || (Py_TYPE(right)->tp_as_number && Py_TYPE(right)->tp_as_number->{{slot_name}} == &{{func_name}})
+                || PyType_IsSubtype(Py_TYPE(right), {{type_cname}});
+    }
+    if (maybe_self_is_right) {
+        return {{call_right}};
+    }
+    return Py_INCREF(Py_NotImplemented), Py_NotImplemented;
+}

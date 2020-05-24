@@ -180,13 +180,14 @@ class SlotDescriptor(object):
     #  ifdef                         Full #ifdef string that slot is wrapped in. Using this causes py3, py2 and flags to be ignored.)
 
     def __init__(self, slot_name, dynamic=False, inherited=False,
-                 py3=True, py2=True, ifdef=None):
+                 py3=True, py2=True, ifdef=None, is_binop=False):
         self.slot_name = slot_name
         self.is_initialised_dynamically = dynamic
         self.is_inherited = inherited
         self.ifdef = ifdef
         self.py3 = py3
         self.py2 = py2
+        self.is_binop = is_binop
 
     def preprocessor_guard_code(self):
         ifdef = self.ifdef
@@ -403,6 +404,17 @@ class SyntheticSlot(InternalMethodSlot):
             return InternalMethodSlot.slot_code(self, scope)
         else:
             return self.default_value
+
+
+class BinopSlot(SyntheticSlot):
+    def __init__(self, signature, slot_name, left_method, **kargs):
+        assert left_method.startswith('__')
+        right_method = '__r' + left_method[2:]
+        SyntheticSlot.__init__(
+                self, slot_name, [left_method, right_method], "0", is_binop=True, **kargs)
+        # MethodSlot causes special method registration.
+        self.left_slot = MethodSlot(signature, "", left_method)
+        self.right_slot = MethodSlot(signature, "", right_method)
 
 
 class RichcmpSlot(MethodSlot):
@@ -728,23 +740,23 @@ property_accessor_signatures = {
 PyNumberMethods_Py3_GUARD = "PY_MAJOR_VERSION < 3 || (CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX < 0x03050000)"
 
 PyNumberMethods = (
-    MethodSlot(binaryfunc, "nb_add", "__add__"),
-    MethodSlot(binaryfunc, "nb_subtract", "__sub__"),
-    MethodSlot(binaryfunc, "nb_multiply", "__mul__"),
-    MethodSlot(binaryfunc, "nb_divide", "__div__", ifdef = PyNumberMethods_Py3_GUARD),
-    MethodSlot(binaryfunc, "nb_remainder", "__mod__"),
-    MethodSlot(binaryfunc, "nb_divmod", "__divmod__"),
-    MethodSlot(ternaryfunc, "nb_power", "__pow__"),
+    BinopSlot(binaryfunc, "nb_add", "__add__"),
+    BinopSlot(binaryfunc, "nb_subtract", "__sub__"),
+    BinopSlot(binaryfunc, "nb_multiply", "__mul__"),
+    BinopSlot(binaryfunc, "nb_divide", "__div__", ifdef = PyNumberMethods_Py3_GUARD),
+    BinopSlot(binaryfunc, "nb_remainder", "__mod__"),
+    BinopSlot(binaryfunc, "nb_divmod", "__divmod__"),
+    BinopSlot(ternaryfunc, "nb_power", "__pow__"),
     MethodSlot(unaryfunc, "nb_negative", "__neg__"),
     MethodSlot(unaryfunc, "nb_positive", "__pos__"),
     MethodSlot(unaryfunc, "nb_absolute", "__abs__"),
     MethodSlot(inquiry, "nb_nonzero", "__nonzero__", py3 = ("nb_bool", "__bool__")),
     MethodSlot(unaryfunc, "nb_invert", "__invert__"),
-    MethodSlot(binaryfunc, "nb_lshift", "__lshift__"),
-    MethodSlot(binaryfunc, "nb_rshift", "__rshift__"),
-    MethodSlot(binaryfunc, "nb_and", "__and__"),
-    MethodSlot(binaryfunc, "nb_xor", "__xor__"),
-    MethodSlot(binaryfunc, "nb_or", "__or__"),
+    BinopSlot(binaryfunc, "nb_lshift", "__lshift__"),
+    BinopSlot(binaryfunc, "nb_rshift", "__rshift__"),
+    BinopSlot(binaryfunc, "nb_and", "__and__"),
+    BinopSlot(binaryfunc, "nb_xor", "__xor__"),
+    BinopSlot(binaryfunc, "nb_or", "__or__"),
     EmptySlot("nb_coerce", ifdef = PyNumberMethods_Py3_GUARD),
     MethodSlot(unaryfunc, "nb_int", "__int__", fallback="__long__"),
     MethodSlot(unaryfunc, "nb_long", "__long__", fallback="__int__", py3 = "<RESERVED>"),
@@ -767,8 +779,8 @@ PyNumberMethods = (
 
     # Added in release 2.2
     # The following require the Py_TPFLAGS_HAVE_CLASS flag
-    MethodSlot(binaryfunc, "nb_floor_divide", "__floordiv__"),
-    MethodSlot(binaryfunc, "nb_true_divide", "__truediv__"),
+    BinopSlot(binaryfunc, "nb_floor_divide", "__floordiv__"),
+    BinopSlot(binaryfunc, "nb_true_divide", "__truediv__"),
     MethodSlot(ibinaryfunc, "nb_inplace_floor_divide", "__ifloordiv__"),
     MethodSlot(ibinaryfunc, "nb_inplace_true_divide", "__itruediv__"),
 
@@ -776,7 +788,7 @@ PyNumberMethods = (
     MethodSlot(unaryfunc, "nb_index", "__index__"),
 
     # Added in release 3.5
-    MethodSlot(binaryfunc, "nb_matrix_multiply", "__matmul__", ifdef="PY_VERSION_HEX >= 0x03050000"),
+    BinopSlot(binaryfunc, "nb_matrix_multiply", "__matmul__", ifdef="PY_VERSION_HEX >= 0x03050000"),
     MethodSlot(ibinaryfunc, "nb_inplace_matrix_multiply", "__imatmul__", ifdef="PY_VERSION_HEX >= 0x03050000"),
 )
 
