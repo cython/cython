@@ -8,7 +8,7 @@ Cython Changelog
 Bugs fixed
 ----------
 
-* Single argument funcions failed to accept keyword arguments.
+* Single argument functions did not accept keyword arguments.
   (Github issue #3090)
 
 
