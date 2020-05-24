@@ -281,30 +281,6 @@ __PYX_GOOD:
 
 /////////////// BinopSlot ///////////////
 
-static CYTHON_INLINE PyObject *{{func_name}}_maybe_call_super(PyObject *self, PyObject *other, PyObject* name {{extra_arg_decl}}) {
-    PyObject *res;
-    PyObject *method;
-    if (!Py_TYPE(self)->tp_base) {
-        return Py_INCREF(Py_NotImplemented), Py_NotImplemented;
-    }
-    // TODO: Use _PyType_LookupId or similar.
-    method = PyObject_GetAttr((PyObject*) Py_TYPE(self)->tp_base, name);
-    if (!method) {
-        PyErr_Clear();
-        return Py_INCREF(Py_NotImplemented), Py_NotImplemented;
-    }
-    #if {{int(not extra_arg)}}
-    res = __Pyx_PyObject_Call2Args(method, self, other);
-    #else
-    res = PyObject_CallFunctionObjArgs(method, self, other {{extra_arg}}, NULL);
-    #endif
-    Py_DECREF(method);
-    if (!res) {
-        return Py_INCREF(Py_NotImplemented), Py_NotImplemented;
-    }
-    return res;
-}
-
 static PyObject *{{func_name}}(PyObject *left, PyObject *right {{extra_arg_decl}}) {
     PyObject *res;
     int maybe_self_is_left, maybe_self_is_right = 0;
