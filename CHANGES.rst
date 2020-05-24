@@ -2,6 +2,16 @@
 Cython Changelog
 ================
 
+3.0.0 alpha 6 (2020-0?-??)
+==========================
+
+Bugs fixed
+----------
+
+* Single argument functions did not accept keyword arguments.
+  (Github issue #3090)
+
+
 3.0.0 alpha 5 (2020-05-19)
 ==========================
 
