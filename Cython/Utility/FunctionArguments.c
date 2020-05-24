@@ -144,8 +144,10 @@ static int __Pyx_CheckKeywordStrings(
     if (CYTHON_METH_FASTCALL && likely(PyTuple_Check(kw))) {
         if (unlikely(PyTuple_GET_SIZE(kw) == 0))
             return 1;
-        if (!kw_allowed)
+        if (!kw_allowed) {
+            key = PyTuple_GET_ITEM(kw, 0);
             goto invalid_keyword;
+        }
 #if PY_VERSION_HEX < 0x03090000
         // On CPython >= 3.9, the FASTCALL protocol guarantees that keyword
         // names are strings (see https://bugs.python.org/issue37540)
