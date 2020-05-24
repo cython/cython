@@ -70,6 +70,12 @@ except ImportError:
         return (<PyObject*>obj).ob_refcnt
 
 
+def no_pypy(f):
+    import platform
+    if platform.python_implementation() == 'PyPy':
+        return unittest.skip("excluded in PyPy")
+
+
 # compiled exec()
 def exec(code_string, l, g):
     from Cython.Shadow import inline
@@ -2406,6 +2412,7 @@ class CoroutineTest(unittest.TestCase):
         finally:
             aw.close()
 
+    @no_pypy
     def test_fatal_coro_warning(self):
         # Issue 27811
         async def func(): pass
