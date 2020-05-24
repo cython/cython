@@ -8,12 +8,25 @@ class Base(object):
     'Base.__add__(Base(), 2)'
     >>> 2 + Base()
     'Base.__radd__(Base(), 2)'
+
+    >>> Base() ** 2
+    'Base.__pow__(Base(), 2, None)'
+    >>> 2 ** Base()
+    'Base.__rpow__(Base(), 2, None)'
+    >>> pow(Base(), 2, 100)
+    'Base.__pow__(Base(), 2, 100)'
     """
     def __add__(self, other):
         return "Base.__add__(%s, %s)" % (self, other)
 
     def __radd__(self, other):
         return "Base.__radd__(%s, %s)" % (self, other)
+
+    def __pow__(self, other, mod):
+        return "Base.__pow__(%s, %s, %s)" % (self, other, mod)
+
+    def __rpow__(self, other, mod):
+        return "Base.__rpow__(%s, %s, %s)" % (self, other, mod)
 
     def __repr__(self):
         return "%s()" % (self.__class__.__name__)

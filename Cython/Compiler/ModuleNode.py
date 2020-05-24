@@ -1904,6 +1904,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if scope.directives['c_api_binop_methods']:
             code.putln('#define %s %s' % (func_name, slot.left_slot.slot_code(scope)))
         else:
+            if slot.left_slot.signature == TypeSlots.binaryfunc:
+                extra_arg = extra_arg_decl = ''
+            elif slot.left_slot.signature == TypeSlots.ternaryfunc:
+                extra_arg = ', extra_arg'
+                extra_arg_decl = ', PyObject* extra_arg'
+            else:
+                error(entry.pos, "Unexpected type lost signature: %s" % slot)
             def has_slot_method(method_name):
                 entry = scope.lookup(method_name)
                 return bool(entry and entry.is_special and entry.func_cname)
@@ -1914,7 +1921,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 else:
                     operands = "left, right"
                 if entry and entry.is_special and entry.func_cname:
-                    return "%s(%s)" % (entry.func_cname, operands)
+                    return "%s(%s%s)" % (entry.func_cname, operands, extra_arg)
                 else:
                     py_ident = code.intern_identifier(EncodedString(method_name))
                     return "%s_maybe_call_super(%s, %s)" % (func_name, operands, py_ident)
@@ -1928,6 +1935,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         "call_left": call_slot_method(slot.left_slot.method_name, reverse=False),
                         "call_right": call_slot_method(slot.right_slot.method_name, reverse=True),
                         "type_cname": '((PyTypeObject*) %s)' % scope.namespace_cname,
+                        "extra_arg": extra_arg,
+                        "extra_arg_decl": extra_arg_decl,
                         }).impl.strip())
             code.putln()
         if preprocessor_guard:
