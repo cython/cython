@@ -259,7 +259,7 @@ def nested_struct(NestedStruct[:] mslice):
     >>> nested_struct(NestedStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="T{ii}T{2i}i"))
     1 2 3 4 5
     """
-    cdef object cdef object buf = mslice
+    cdef object buf = mslice
     d = buf[0]
     print d['x']['a'], d['x']['b'], d['y']['a'], d['y']['b'], d['z']
 
@@ -275,7 +275,7 @@ def packed_struct(PackedStruct[:] mslice):
     1 2
 
     """
-    cdef object cdef object buf = mslice
+    cdef object buf = mslice
     print buf[0]['a'], buf[0]['b']
 
 def nested_packed_struct(NestedPackedStruct[:] mslice):
@@ -289,7 +289,7 @@ def nested_packed_struct(NestedPackedStruct[:] mslice):
     >>> nested_packed_struct(NestedPackedStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="^c@i^ci@i"))
     1 2 3 4 5
     """
-    cdef object cdef object buf = mslice
+    cdef object buf = mslice
     d = buf[0]
     print d['a'], d['b'], d['sub']['a'], d['sub']['b'], d['c']
 
@@ -299,7 +299,7 @@ def complex_dtype(long double complex[:] mslice):
     >>> complex_dtype(LongComplexMockBuffer(None, [(0, -1)]))
     -1j
     """
-    cdef object cdef object buf = mslice
+    cdef object buf = mslice
     print buf[0]
 
 def complex_inplace(long double complex[:] mslice):

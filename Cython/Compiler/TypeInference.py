@@ -359,7 +359,7 @@ class SimpleAssignmentTypeInferer(object):
     applies to nested scopes in top-down order.
     """
     def set_entry_type(self, entry, entry_type):
-        for e in [entry] + entry.all_entries():
+        for e in entry.all_entries():
             e.type = entry_type
             if not e.init and e.type.default_value:
                 # This is specifically for memoryview slices which crash if they don't get

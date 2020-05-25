@@ -992,8 +992,7 @@ class InterpretCompilerDirectives(CythonTransform):
             return self.visit_Node(node)
 
         old_directives = self.directives
-        new_directives = Options.copy_inherited_directives(old_directives)
-        new_directives.update(directives)
+        new_directives = Options.copy_inherited_directives(old_directives, **directives)
 
         if new_directives == old_directives:
             return self.visit_Node(node)
