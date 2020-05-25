@@ -361,9 +361,8 @@ class SimpleAssignmentTypeInferer(object):
     def set_entry_type(self, entry, entry_type):
         for e in entry.all_entries():
             e.type = entry_type
-            if not e.init and e.type.default_value:
-                # This is specifically for memoryview slices which crash if they don't get
-                # initialized, but makes sense to apply generally
+            if e.type.is_memoryviewslice and not e.init and e.type.default_value:
+                # memoryview slices crash if they don't get initialized
                 e.init = e.type.default_value
 
     def infer_types(self, scope):
