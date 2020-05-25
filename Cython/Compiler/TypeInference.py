@@ -361,7 +361,7 @@ class SimpleAssignmentTypeInferer(object):
     def set_entry_type(self, entry, entry_type):
         for e in entry.all_entries():
             e.type = entry_type
-            if e.type.is_memoryviewslice and not e.init and e.type.default_value:
+            if e.type.is_memoryviewslice:
                 # memoryview slices crash if they don't get initialized
                 e.init = e.type.default_value
 
