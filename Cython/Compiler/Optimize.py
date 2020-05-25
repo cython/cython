@@ -228,11 +228,11 @@ class IterationTransform(Visitor.EnvTransform):
             return self._transform_bytes_iteration(node, iterable, reversed=reversed)
         if iterable.type is Builtin.unicode_type:
             return self._transform_unicode_iteration(node, iterable, reversed=reversed)
-        if iterable.type in (Builtin.list_type, Builtin.tuple_type):
+        # in principle _transform_indexable_iteration would work on most of the above, and
+        # also tuple and list. However, it probably isn't quite as optimized
+        if iterable.type is Builtin.bytearray_type:
             return self._transform_indexable_iteration(node, iterable, reversed=reversed)
         if isinstance(iterable, ExprNodes.CoerceToPyTypeNode) and iterable.arg.type.is_memoryviewslice:
-            # TODO would it make sense to prevent the coercion? Or does it need to be there since
-            # this is only an optimization stage (so it should work without this set)
             return self._transform_indexable_iteration(node, iterable.arg, reversed=reversed)
 
         # the rest is based on function calls
@@ -372,14 +372,12 @@ class IterationTransform(Visitor.EnvTransform):
         # analyse with boundscheck and wraparound
         # off (because we're confident we know the size)
         env = self.current_env()
-        new_directives = dict(env.directives, boundscheck=False, wraparound=False)
-        new_directives.pop('test_assert_path_exists', None)
-        new_directives.pop('test_fail_if_path_exists', None)
+        new_directives = Options.copy_inherited_directives(env.directives)
+        new_directives.update(boundscheck=False, wraparound=False)
         target_assign = Nodes.CompilerDirectivesNode(
             target_assign.pos,
             directives=new_directives,
             body=target_assign,
-        )
 
         body = Nodes.StatListNode(
             node.pos,
@@ -398,9 +396,9 @@ class IterationTransform(Visitor.EnvTransform):
                     unpack_temp_node,
                     UtilNodes.LetNode(
                         length_temp,
-                        # we don't actually have any use for the result of "counter_ref"
-                        # but the TempResultFromStatNode UtilNode already exists and does
-                        # basically the right thing
+                        # TempResultFromStatNode provides the framework where the "counter_ref"
+                        # temp is set up and can be assigned to. However, we don't need the
+                        # result it returns so wrap it in an ExprStatNode.
                         Nodes.ExprStatNode(node.pos,
                             expr=UtilNodes.TempResultFromStatNode(
                                     counter_ref,

@@ -186,7 +186,7 @@ def test_transpose():
     numpy_obj = np.arange(4 * 3, dtype=np.int32).reshape(4, 3)
 
     a = numpy_obj
-    cdef a_obj = a
+    cdef object a_obj = a
 
     cdef dtype_t[:, :] b = a.T
     print a.T.shape[0], a.T.shape[1]
@@ -244,7 +244,7 @@ def test_copy_and_contig_attributes(a):
     >>> test_copy_and_contig_attributes(a)
     """
     cdef np.int32_t[:, :] mslice = a
-    cdef m = mslice  #  object copy
+    cdef object m = mslice  #  object copy
 
     # Test object copy attributes
     assert np.all(a == np.array(m.copy()))

@@ -13491,6 +13491,9 @@ class CoerceToTempNode(CoercionNode):
         # The arg is always already analysed
         return self
 
+    def may_be_none(self):
+        return self.arg.may_be_none()
+
     def coerce_to_boolean(self, env):
         self.arg = self.arg.coerce_to_boolean(env)
         if self.arg.is_simple():
@@ -13510,9 +13513,6 @@ class CoerceToTempNode(CoercionNode):
             else:
                 code.put_incref_memoryviewslice(self.result(), self.type,
                                             have_gil=not self.in_nogil_context)
-
-    def may_be_none(self):
-        return self.arg.may_be_none()
 
 class ProxyNode(CoercionNode):
     """

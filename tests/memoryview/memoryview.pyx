@@ -247,7 +247,7 @@ def basic_struct(MyStruct[:] mslice):
     >>> basic_struct(MyStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="ccqii"))
     [('a', 1), ('b', 2), ('c', 3), ('d', 4), ('e', 5)]
     """
-    buf = mslice
+    cdef object buf = mslice
     print sorted([(k, int(v)) for k, v in buf[0].items()])
 
 def nested_struct(NestedStruct[:] mslice):
@@ -259,9 +259,9 @@ def nested_struct(NestedStruct[:] mslice):
     >>> nested_struct(NestedStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="T{ii}T{2i}i"))
     1 2 3 4 5
     """
-    buf = mslice
+    cdef object cdef object buf = mslice
     d = buf[0]
-    print d.x.a, d.x.b, d.y.a, d.y.b, d.z
+    print d['x']['a'], d['x']['b'], d['y']['a'], d['y']['b'], d['z']
 
 def packed_struct(PackedStruct[:] mslice):
     """
@@ -275,8 +275,8 @@ def packed_struct(PackedStruct[:] mslice):
     1 2
 
     """
-    buf = mslice
-    print buf[0].a, buf[0].b
+    cdef object cdef object buf = mslice
+    print buf[0]['a'], buf[0]['b']
 
 def nested_packed_struct(NestedPackedStruct[:] mslice):
     """
@@ -289,9 +289,9 @@ def nested_packed_struct(NestedPackedStruct[:] mslice):
     >>> nested_packed_struct(NestedPackedStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="^c@i^ci@i"))
     1 2 3 4 5
     """
-    buf = mslice
+    cdef object cdef object buf = mslice
     d = buf[0]
-    print d.a, d.b, d.sub.a, d.sub.b, d.c
+    print d['a'], d['b'], d['sub']['a'], d['sub']['b'], d['c']
 
 
 def complex_dtype(long double complex[:] mslice):
@@ -299,7 +299,7 @@ def complex_dtype(long double complex[:] mslice):
     >>> complex_dtype(LongComplexMockBuffer(None, [(0, -1)]))
     -1j
     """
-    buf = mslice
+    cdef object cdef object buf = mslice
     print buf[0]
 
 def complex_inplace(long double complex[:] mslice):
@@ -307,7 +307,7 @@ def complex_inplace(long double complex[:] mslice):
     >>> complex_inplace(LongComplexMockBuffer(None, [(0, -1)]))
     (1+1j)
     """
-    buf = mslice
+    cdef object buf = mslice
     buf[0] = buf[0] + 1 + 2j
     print buf[0]
 
@@ -318,8 +318,8 @@ def complex_struct_dtype(LongComplex[:] mslice):
     >>> complex_struct_dtype(LongComplexMockBuffer(None, [(0, -1)]))
     0.0 -1.0
     """
-    buf = mslice
-    print buf[0].real, buf[0].imag
+    cdef object buf = mslice
+    print buf[0]['real'], buf[0]['imag']
 
 #
 # Getting items and index bounds checking
@@ -356,7 +356,7 @@ def get_int_2d(int[:, :] mslice, int i, int j):
         ...
     IndexError: Out of bounds on buffer access (axis 1)
     """
-    buf = mslice
+    cdef object buf = mslice
     return buf[i, j]
 
 def set_int_2d(int[:, :] mslice, int i, int j, int value):
@@ -409,7 +409,7 @@ def set_int_2d(int[:, :] mslice, int i, int j, int value):
     IndexError: Out of bounds on buffer access (axis 1)
 
     """
-    buf = mslice
+    cdef object buf = mslice
     buf[i, j] = value
 
 
@@ -463,7 +463,7 @@ def writable(unsigned short int[:, :, :] mslice):
     >>> [str(x) for x in R.received_flags] # Py2/3
     ['FORMAT', 'ND', 'STRIDES', 'WRITABLE']
     """
-    buf = mslice
+    cdef object buf = mslice
     buf[2, 2, 1] = 23
 
 def strided(int[:] mslice):
@@ -478,7 +478,7 @@ def strided(int[:] mslice):
     >>> A.release_ok
     True
     """
-    buf = mslice
+    cdef object buf = mslice
     return buf[2]
 
 def c_contig(int[::1] mslice):
@@ -487,7 +487,7 @@ def c_contig(int[::1] mslice):
     >>> c_contig(A)
     2
     """
-    buf = mslice
+    cdef object buf = mslice
     return buf[2]
 
 def c_contig_2d(int[:, ::1] mslice):
@@ -498,7 +498,7 @@ def c_contig_2d(int[:, ::1] mslice):
     >>> c_contig_2d(A)
     7
     """
-    buf = mslice
+    cdef object buf = mslice
     return buf[1, 3]
 
 def f_contig(int[::1, :] mslice):
@@ -507,7 +507,7 @@ def f_contig(int[::1, :] mslice):
     >>> f_contig(A)
     2
     """
-    buf = mslice
+    cdef object buf = mslice
     return buf[0, 1]
 
 def f_contig_2d(int[::1, :] mslice):
@@ -518,7 +518,7 @@ def f_contig_2d(int[::1, :] mslice):
     >>> f_contig_2d(A)
     7
     """
-    buf = mslice
+    cdef object buf = mslice
     return buf[3, 1]
 
 def generic(int[::view.generic, ::view.generic] mslice1,
@@ -589,7 +589,7 @@ def printbuf_td_cy_int(td_cy_int[:] mslice, shape):
        ...
     ValueError: Buffer dtype mismatch, expected 'td_cy_int' but got 'short'
     """
-    buf = mslice
+    cdef object buf = mslice
     cdef int i
     for i in range(shape[0]):
         print buf[i],
@@ -604,7 +604,7 @@ def printbuf_td_h_short(td_h_short[:] mslice, shape):
        ...
     ValueError: Buffer dtype mismatch, expected 'td_h_short' but got 'int'
     """
-    buf = mslice
+    cdef object buf = mslice
     cdef int i
     for i in range(shape[0]):
         print buf[i],
@@ -619,7 +619,7 @@ def printbuf_td_h_cy_short(td_h_cy_short[:] mslice, shape):
        ...
     ValueError: Buffer dtype mismatch, expected 'td_h_cy_short' but got 'int'
     """
-    buf = mslice
+    cdef object buf = mslice
     cdef int i
     for i in range(shape[0]):
         print buf[i],
@@ -634,7 +634,7 @@ def printbuf_td_h_ushort(td_h_ushort[:] mslice, shape):
        ...
     ValueError: Buffer dtype mismatch, expected 'td_h_ushort' but got 'short'
     """
-    buf = mslice
+    cdef object buf = mslice
     cdef int i
     for i in range(shape[0]):
         print buf[i],
@@ -649,7 +649,7 @@ def printbuf_td_h_double(td_h_double[:] mslice, shape):
        ...
     ValueError: Buffer dtype mismatch, expected 'td_h_double' but got 'float'
     """
-    buf = mslice
+    cdef object buf = mslice
     cdef int i
     for i in range(shape[0]):
         print buf[i],
@@ -685,7 +685,7 @@ def printbuf_object(object[:] mslice, shape):
     {4: 23} 2
     [34, 3] 2
     """
-    buf = mslice
+    cdef object buf = mslice
     cdef int i
     for i in range(shape[0]):
         print repr(buf[i]), (<PyObject*>buf[i]).ob_refcnt
@@ -706,7 +706,7 @@ def assign_to_object(object[:] mslice, int idx, obj):
     (2, 3)
     >>> decref(b)
     """
-    buf = mslice
+    cdef object buf = mslice
     buf[idx] = obj
 
 def assign_temporary_to_object(object[:] mslice):
@@ -733,7 +733,7 @@ def assign_temporary_to_object(object[:] mslice):
     >>> assign_to_object(A, 1, a)
     >>> decref(a)
     """
-    buf = mslice
+    cdef object buf = mslice
     buf[1] = {3-2: 2+(2*4)-2}
 
 
@@ -781,7 +781,7 @@ def test_generic_slicing(arg, indirect=False):
 
     """
     cdef int[::view.generic, ::view.generic, :] _a = arg
-    cdef a = _a
+    cdef object a = _a
     b = a[2:8:2, -4:1:-1, 1:3]
 
     print b.shape
@@ -864,7 +864,7 @@ def test_direct_slicing(arg):
     released A
     """
     cdef int[:, :, :] _a = arg
-    cdef a = _a
+    cdef object a = _a
     b = a[2:8:2, -4:1:-1, 1:3]
 
     print b.shape
@@ -892,7 +892,7 @@ def test_slicing_and_indexing(arg):
     released A
     """
     cdef int[:, :, :] _a = arg
-    cdef a = _a
+    cdef object a = _a
     b = a[-5:, 1, 1::2]
     c = b[4:1:-1, ::-1]
     d = c[2, 1:2]

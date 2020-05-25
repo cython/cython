@@ -305,10 +305,9 @@ def for_in_empty_nested_listcomp():
 
 @cython.test_fail_if_path_exists(
     "//ForInStatNode//ForInStatNode",
-    "//ForFromStatNode//ForFromStatNode",
 )
 @cython.test_assert_path_exists(
-    "//ForFromStatNode",
+    "//ForInStatNode",
     "//ComprehensionNode",
 )
 def for_in_nested_listcomp():
