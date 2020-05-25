@@ -2049,6 +2049,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 extra_arg_decl = ', PyObject* extra_arg'
             else:
                 error(entry.pos, "Unexpected type lost signature: %s" % slot)
+
             def has_slot_method(method_name):
                 entry = scope.lookup(method_name)
                 return bool(entry and entry.is_special and entry.func_cname)
@@ -2062,6 +2063,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                             ' ? %s->tp_as_number->%s(left, right %s)'
                             ' : (Py_INCREF(Py_NotImplemented), Py_NotImplemented)') % (
                         super, super, slot.slot_name, super, slot.slot_name, extra_arg)
+
             code.putln(
                 TempitaUtilityCode.load_cached(
                     "BinopSlot", "ExtensionTypes.c",
