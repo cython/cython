@@ -377,6 +377,7 @@ class IterationTransform(Visitor.EnvTransform):
             target_assign.pos,
             directives=new_directives,
             body=target_assign,
+        )
 
         body = Nodes.StatListNode(
             node.pos,

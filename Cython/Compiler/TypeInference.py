@@ -364,7 +364,7 @@ class SimpleAssignmentTypeInferer(object):
             if not e.init and e.type.default_value:
                 # This is specifically for memoryview slices which crash if they don't get
                 # initialized, but makes sense to apply generally
-                e.init = entry.type.default_value
+                e.init = e.type.default_value
 
     def infer_types(self, scope):
         enabled = scope.directives['infer_types']

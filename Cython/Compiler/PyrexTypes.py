@@ -2523,6 +2523,7 @@ class CPointerBaseType(CType):
         if self.is_string:
             assert isinstance(value, str)
             return '"%s"' % StringEncoding.escape_byte_string(value)
+        return str(value)
 
 
 class CArrayType(CPointerBaseType):
