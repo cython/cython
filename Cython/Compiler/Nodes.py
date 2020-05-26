@@ -22,7 +22,7 @@ from . import PyrexTypes
 from . import TypeSlots
 from .PyrexTypes import py_object_type, error_type
 from .Symtab import (ModuleScope, LocalScope, ClosureScope,
-                     StructOrUnionScope, PyClassScope, CppClassScope, TemplateScope,
+                     StructOrUnionScope, PyClassScope, CppClassScope, TemplateScope, ScopedEnumScope,
                      punycodify_name)
 from .Code import UtilityCode
 from .StringEncoding import EncodedString
@@ -1608,6 +1608,70 @@ class CEnumDefItemNode(StatNode):
             if not self.value.type.is_int:
                 self.value = self.value.coerce_to(PyrexTypes.c_int_type, env)
                 self.value = self.value.analyse_const_expression(env)
+        entry = env.declare_const(
+            self.name, enum_entry.type,
+            self.value, self.pos, cname=self.cname,
+            visibility=enum_entry.visibility, api=enum_entry.api,
+            create_wrapper=enum_entry.create_wrapper and enum_entry.name is None)
+        enum_entry.enum_values.append(entry)
+        if enum_entry.name:
+            enum_entry.type.values.append(entry.name)
+
+
+class ScopedEnumDefNode(StatNode):
+    #  name           string or None
+    #  cname          string or None
+    #  items          [ScopedEnumDefItemNode]
+    #  in_pxd         boolean
+    #  create_wrapper boolean
+    #  entry          Entry
+
+    child_attrs = ["items"]
+
+    def declare(self, env):
+        self.entry = env.declare_scoped_enum(
+            self.name, self.pos,
+            cname=self.cname,
+            create_wrapper=self.create_wrapper
+        )
+
+    def analyse_declarations(self, env):
+        scope = None
+        if self.items is not None:
+            scope = ScopedEnumScope(self.name, env)
+        self.entry = env.declare_scoped_enum(
+            self.name, self.pos,
+            cname=self.cname,
+            create_wrapper=self.create_wrapper
+        )
+        if self.entry is None:
+            return
+        if scope is not None:
+            scope.type = self.entry.type
+        if self.items is not None:
+            if self.in_pxd and not env.in_cinclude:
+                self.entry.defined_in_pxd = 1
+            for item in self.items:
+                item.analyse_declarations(scope, self.entry)
+        self.scope = scope
+
+    def analyse_expressions(self, env):
+        return self
+
+    def generate_execution_code(self, code):
+        pass
+
+
+class ScopedEnumDefItemNode(StatNode):
+    #  name     string
+    #  cname    string or None
+    #  value    ExprNode or None
+
+    child_attrs = ["value"]
+
+    def analyse_declarations(self, env, enum_entry):
+        if self.value:
+            self.value = self.value.analyse_const_expression(env)
         entry = env.declare_const(
             self.name, enum_entry.type,
             self.value, self.pos, cname=self.cname,

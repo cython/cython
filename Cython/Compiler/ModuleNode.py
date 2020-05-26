@@ -145,7 +145,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.create_import_star_conversion_utility_code(env)
         for name, entry in sorted(env.entries.items()):
             if (entry.create_wrapper and entry.scope is env
-                and entry.is_type and entry.type.is_enum):
+                and entry.is_type and (entry.type.is_enum or entry.type.is_scoped_enum)):
                     entry.type.create_type_wrapper(env)
 
     def process_implementation(self, options, result):
@@ -831,6 +831,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     self.generate_typedef(entry, code)
                 elif type.is_enum:
                     self.generate_enum_definition(entry, code)
+                elif type.is_scoped_enum:
+                    self.generate_scoped_enum_definition(entry, code)
                 elif type.is_struct_or_union:
                     self.generate_struct_union_definition(entry, code)
                 elif type.is_ctuple and entry.used:
@@ -1054,6 +1056,34 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if entry.type.typedef_flag:
             # Not pre-declared.
             code.putln("typedef enum %s %s;" % (name, name))
+
+    def generate_scoped_enum_definition(self, entry, code):
+        code.mark_pos(entry.pos)
+        type = entry.type
+        name = entry.cname or entry.name or ""
+        header, footer = self.sue_header_footer(type, "enum class", name)
+        code.putln(header)
+        enum_values = entry.enum_values
+        if not enum_values:
+            error(entry.pos, "Empty enum definition not allowed outside a 'cdef extern from' block")
+        else:
+            last_entry = enum_values[-1]
+            # this does not really generate code, just builds the result value
+            for value_entry in enum_values:
+                if value_entry.value_node is not None:
+                    value_entry.value_node.generate_evaluation_code(code)
+
+            for value_entry in enum_values:
+                if value_entry.value_node is None:
+                    value_code = value_entry.cname.split("::")[-1]
+                else:
+                    value_code = ("%s = %s" % (
+                        value_entry.cname.split("::")[-1],
+                        value_entry.value_node.result()))
+                if value_entry is not last_entry:
+                    value_code += ","
+                code.putln(value_code)
+        code.putln(footer)
 
     def generate_typeobj_predeclaration(self, entry, code):
         code.putln("")

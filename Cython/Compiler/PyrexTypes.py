@@ -182,6 +182,7 @@ class PyrexType(BaseType):
     #  is_struct_or_union    boolean     Is a C struct or union type
     #  is_struct             boolean     Is a C struct type
     #  is_enum               boolean     Is a C enum type
+    #  is_scoped_enum        boolean     Is a C++ scoped enum type
     #  is_typedef            boolean     Is a typedef type
     #  is_string             boolean     Is a C char * type
     #  is_pyunicode_ptr      boolean     Is a C PyUNICODE * type
@@ -245,6 +246,7 @@ class PyrexType(BaseType):
     is_cpp_string = 0
     is_struct = 0
     is_enum = 0
+    is_scoped_enum = 0
     is_typedef = 0
     is_string = 0
     is_pyunicode_ptr = 0
@@ -3875,6 +3877,104 @@ class CppClassType(CType):
         constructor = self.scope.lookup(u'<init>')
         if constructor is not None and best_match([], constructor.all_alternatives()) is None:
             error(pos, "C++ class must have a nullary constructor to be %s" % msg)
+
+class ScopedEnumType(CType):
+    # name    string
+    # cname   string
+
+    is_scoped_enum = 1
+
+    def __init__(self, name, cname, namespace=None):
+        self.name = name
+        self.cname = cname
+        self.values = []
+        self.namespace = namespace
+
+    def __str__(self):
+        return self.name
+
+    def declaration_code(self, entity_code,
+                        for_display=0, dll_linkage=None, pyrex=0):
+        if pyrex or for_display:
+            base_code = self.name
+        else:
+            if self.namespace:
+                base_code = "%s::%s" % (
+                    self.namespace.empty_declaration_code(),
+                    self.cname
+                )
+            else:
+                base_code = "enum %s" % self.cname
+            base_code = public_decl(base_code, dll_linkage)
+        return self.base_declaration_code(base_code, entity_code)
+
+    def create_from_py_utility_code(self, env):
+        if self.from_py_function is not None:
+            return True
+        context = {}
+        cname = "__pyx_convert_%s_from_%s" % (
+            type_identifier(self),
+            "PyObject"
+        )
+        context.update({
+            "cname": cname,
+            "TYPE": self.name,
+            self.name: self
+        })
+        from .UtilityCode import CythonUtilityCode
+        env.use_utility_code(CythonUtilityCode.load(
+            "enum.from_py",
+            "CppConvert.pyx",
+            context=context,
+            outer_module_scope=env.global_scope(),  # need access to types declared in module
+            compiler_directives=env.directives
+        ))
+        self.from_py_function = cname
+        return True
+
+    def create_to_py_utility_code(self, env):
+        if self.to_py_function is not None:
+            return True
+        context = {}
+        cname = "__pyx_convert_%s_from_%s" % (
+            "PyObject",
+            type_identifier(self)
+        )
+        context.update({
+            "cname": cname,
+            "TYPE": self.name,
+            self.name: self
+        })
+        from .UtilityCode import CythonUtilityCode
+        env.use_utility_code(CythonUtilityCode.load(
+            "enum.to_py",
+            "CppConvert.pyx",
+            context=context,
+            outer_module_scope=env.global_scope(),  # need access to types declared in module
+            compiler_directives=env.directives
+        ))
+        self.to_py_function = cname
+        return True
+
+    def create_type_wrapper(self, env):
+        from .UtilityCode import CythonUtilityCode
+        rst = CythonUtilityCode.load(
+            "ScopedEnumType", "CpdefEnums.pyx",
+            context={"name": self.name,
+                     "cname": self.cname.split("::")[-1],
+                     "items": tuple(self.values)},
+            outer_module_scope=env.global_scope())
+
+        env.use_utility_code(rst)
+
+        # context.update({
+        #     'cname':
+
+        # from .UtilityCode import CythonUtilityCode
+        # env.use_utility_code(CythonUtilityCode.load(
+        #     cls.replace('unordered_', '') + ".from_py", "CppConvert.pyx",
+        #     context=context, compiler_directives=env.directives))
+        # self.from_py_function = cname
 
 
 class TemplatePlaceholderType(CType):

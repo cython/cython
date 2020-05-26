@@ -697,6 +697,25 @@ class Scope(object):
         self.sue_entries.append(entry)
         return entry
 
+    def declare_scoped_enum(self, name, pos, cname, create_wrapper = 0):
+        if name:
+            if not cname:
+                cname = name
+        if self.is_cpp_class_scope:
+            namespace = self.outer_scope.lookup(self.name).type
+        else:
+            namespace = None
+
+        entry = self.lookup_here(name)
+        if not entry:
+            type = PyrexTypes.ScopedEnumType(
+                name, cname, namespace
+            )
+            entry = self.declare_type(name, type, pos, cname = cname)
+            entry.enum_values = []
+        entry.create_wrapper = create_wrapper
+        return entry
+
     def declare_tuple_type(self, pos, components):
         return self.outer_scope.declare_tuple_type(pos, components)
 
@@ -2549,6 +2568,22 @@ class CppClassScope(Scope):
                                   entry.visibility)
 
         return scope
+
+
+class ScopedEnumScope(Scope):
+    #  Namespace of a ScopedEnum
+
+    def __init__(self, name, outer_scope):
+        Scope.__init__(self, name, outer_scope, None)
+
+    def declare_var(self, name, type, pos,
+                    cname = None, visibility = 'extern'):
+        # Add an entry for an attribute.
+        if not cname:
+            cname = name
+        entry = self.declare(name, cname, type, pos, visibility)
+        entry.is_variable = 1
+        return entry
 
 
 class PropertyScope(Scope):

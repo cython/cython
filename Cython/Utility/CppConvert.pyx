@@ -235,3 +235,23 @@ cdef object {{cname}}(const std_complex[X]& z):
     tmp.real = <double>z.real()
     tmp.imag = <double>z.imag()
     return tmp
+
+#################### enum.from_py ####################
+
+cdef extern from "<type_traits>" namespace "std":
+    cdef cppclass underlying_type_t[T]:
+        pass
+
+@cname("{{cname}}")
+cdef {{TYPE}} {{cname}}(object o) except *:
+    return <{{TYPE}}><underlying_type_t[{{TYPE}}]><int>(o)
+
+
+#################### enum.to_py ####################
+cdef extern from "<type_traits>" namespace "std":
+    cdef cppclass underlying_type_t[T]:
+        pass
+
+@cname("{{cname}}")
+cdef object {{cname}}(const {{TYPE}}& x):
+    return <int><underlying_type_t[{{TYPE}}]>(x)

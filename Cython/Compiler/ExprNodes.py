@@ -2092,7 +2092,7 @@ class NameNode(AtomicExprNode):
         entry = self.entry
         if entry.is_type and entry.type.is_extension_type:
             self.type_entry = entry
-        if entry.is_type and entry.type.is_enum:
+        if entry.is_type and (entry.type.is_enum or entry.type.is_scoped_enum):
             py_entry = Symtab.Entry(self.name, None, py_object_type)
             py_entry.is_pyglobal = True
             py_entry.scope = self.entry.scope
@@ -6889,10 +6889,11 @@ class AttributeNode(ExprNode):
                         ubcm_entry.is_unbound_cmethod = 1
                         ubcm_entry.scope = entry.scope
                     return self.as_name_node(env, ubcm_entry, target=False)
-            elif type.is_enum:
+            elif type.is_enum or type.is_scoped_enum:
                 if self.attribute in type.values:
                     for entry in type.entry.enum_values:
                         if entry.name == self.attribute:
+
                             return self.as_name_node(env, entry, target=False)
                     else:
                         error(self.pos, "%s not a known value of %s" % (self.attribute, type))
