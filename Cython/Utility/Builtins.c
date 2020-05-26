@@ -257,7 +257,7 @@ static PyObject *__Pyx_PyLong_AbsNeg(PyObject *n) {
     {
         PyObject *copy = _PyLong_Copy((PyLongObject*)n);
         if (likely(copy)) {
-            Py_SIZE(copy) = -(Py_SIZE(copy));
+            __Pyx_SET_SIZE(copy, -Py_SIZE(copy));
         }
         return copy;
     }
