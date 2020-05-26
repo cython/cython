@@ -441,6 +441,24 @@ Other changes
 * Support for Python 2.6 was removed.
 
 
+0.29.20 (2020-0?-??)
+====================
+
+Bugs fixed
+----------
+
+* The built-in ``abs()`` function could lead to undefined behaviour when used on
+  the negative-most value of a signed C integer type.
+  Patch by Serge Guelton.  (Github issue #1911)
+
+* Usages of ``sizeof()`` and ``typeid()`` on uninitialised variables no longer
+  produce a warning.
+  Patch by Celelibi.  (Github issue #3575)
+
+* The C++ ``typeid()`` function was allowed in C mode.
+  Patch by Celelibi.  (Github issue #3637)
+
+
 0.29.19 (2020-05-20)
 ====================
 
@@ -507,6 +525,12 @@ Bugs fixed
 
 * The signature of the NumPy C-API function ``PyArray_SearchSorted()`` was fixed.
   Patch by Brock Mendel.  (Github issue #3606)
+
+* Added support for Python binary operator semantics.
+  One can now define, e.g. both ``__add__`` and ``__radd__`` for cdef classes
+  as for standard Python classes rather than a single ``__add__`` method where
+  self can be either the first or second argument. (Github issue #2056)
+  This behavior is guarded by the c_api_binop_methods directive.
 
 
 0.29.17 (2020-04-26)
