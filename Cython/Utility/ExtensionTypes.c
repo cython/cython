@@ -123,11 +123,10 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
             return -1;
         }
 #endif
-        b = (PyTypeObject*)b0;
-        if (!PyType_HasFeature(b, Py_TPFLAGS_HEAPTYPE))
+        b = (PyTypeObject*) b0;
+        if (!__Pyx_PyType_HasFeature(b, Py_TPFLAGS_HEAPTYPE))
         {
-            PyErr_Format(PyExc_TypeError, "base class '%.200s' is not a heap type",
-                         b->tp_name);
+            PyErr_Format(PyExc_TypeError, "base class '%.200s' is not a heap type", __Pyx_PyType_Name(b));
             return -1;
         }
         if (dictoffset == 0 && b->tp_dictoffset)
@@ -136,7 +135,7 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
                 "extension type '%.200s' has no __dict__ slot, but base type '%.200s' has: "
                 "either add 'cdef dict __dict__' to the extension type "
                 "or add '__slots__ = [...]' to the base type",
-                type_name, b->tp_name);
+                type_name, __Pyx_PyType_Name(b));
             return -1;
         }
     }
@@ -433,3 +432,57 @@ __PYX_GOOD:
     return ret;
 }
 #endif
+
+
+/////////////// BinopSlot ///////////////
+
+static CYTHON_INLINE PyObject *{{func_name}}_maybe_call_slot(PyTypeObject* type, PyObject *left, PyObject *right {{extra_arg_decl}}) {
+    {{slot_type}} slot;
+#if CYTHON_USE_TYPE_SLOTS
+    slot = type->tp_as_number ? type->tp_as_number->{{slot_name}} : NULL;
+#else
+    slot = ({{slot_type}}) PyType_GetSlot(type, Py_{{slot_name}});
+#endif
+    return slot ? slot(left, right {{extra_arg}}) : __Pyx_NewRef(Py_NotImplemented);
+}
+
+static PyObject *{{func_name}}(PyObject *left, PyObject *right {{extra_arg_decl}}) {
+    PyObject *res;
+    int maybe_self_is_left, maybe_self_is_right = 0;
+    maybe_self_is_left = Py_TYPE(left) == Py_TYPE(right)
+#if CYTHON_USE_TYPE_SLOTS
+            || (Py_TYPE(left)->tp_as_number && Py_TYPE(left)->tp_as_number->{{slot_name}} == &{{func_name}})
+#endif
+            || __Pyx_TypeCheck(left, {{type_cname}});
+    // Optimize for the common case where the left operation is defined (and successful).
+    if (!{{overloads_left}}) {
+        maybe_self_is_right = Py_TYPE(left) == Py_TYPE(right)
+#if CYTHON_USE_TYPE_SLOTS
+                || (Py_TYPE(right)->tp_as_number && Py_TYPE(right)->tp_as_number->{{slot_name}} == &{{func_name}})
+#endif
+                || __Pyx_TypeCheck(right, {{type_cname}});
+    }
+    if (maybe_self_is_left) {
+        if (maybe_self_is_right && !{{overloads_left}}) {
+            res = {{call_right}};
+            if (res != Py_NotImplemented) return res;
+            Py_DECREF(res);
+            // Don't bother calling it again.
+            maybe_self_is_right = 0;
+        }
+        res = {{call_left}};
+        if (res != Py_NotImplemented) return res;
+        Py_DECREF(res);
+    }
+    if ({{overloads_left}}) {
+        maybe_self_is_right = Py_TYPE(left) == Py_TYPE(right)
+#if CYTHON_USE_TYPE_SLOTS
+                || (Py_TYPE(right)->tp_as_number && Py_TYPE(right)->tp_as_number->{{slot_name}} == &{{func_name}})
+#endif
+                || PyType_IsSubtype(Py_TYPE(right), {{type_cname}});
+    }
+    if (maybe_self_is_right) {
+        return {{call_right}};
+    }
+    return __Pyx_NewRef(Py_NotImplemented);
+}

@@ -5934,6 +5934,17 @@ class SimpleCallNode(CallNode):
         if function.is_name or function.is_attribute:
             code.globalstate.use_entry_utility_code(function.entry)
 
+        abs_function_cnames = ('abs', 'labs', '__Pyx_abs_longlong')
+        is_signed_int = self.type.is_int and self.type.signed
+        if self.overflowcheck and is_signed_int and function.result() in abs_function_cnames:
+            code.globalstate.use_utility_code(UtilityCode.load_cached("Common", "Overflow.c"))
+            code.putln('if (unlikely(%s == __PYX_MIN(%s))) {\
+                PyErr_SetString(PyExc_OverflowError,\
+                                "Trying to take the absolute value of the most negative integer is not defined."); %s; }' % (
+                            self.args[0].result(),
+                            self.args[0].type.empty_declaration_code(),
+                            code.error_goto(self.pos)))
+
         if not function.type.is_pyobject or len(self.arg_tuple.args) > 1 or (
                 self.arg_tuple.args and self.arg_tuple.is_literal):
             super(SimpleCallNode, self).generate_evaluation_code(code)
@@ -6036,13 +6047,7 @@ class SimpleCallNode(CallNode):
                                             self.result() if self.type.is_pyobject else None,
                                             func_type.exception_value, self.nogil)
                 else:
-                    if (self.overflowcheck
-                        and self.type.is_int
-                        and self.type.signed
-                        and self.function.result() in ('abs', 'labs', '__Pyx_abs_longlong')):
-                        goto_error = 'if (unlikely(%s < 0)) { PyErr_SetString(PyExc_OverflowError, "value too large"); %s; }' % (
-                            self.result(), code.error_goto(self.pos))
-                    elif exc_checks:
+                    if exc_checks:
                         goto_error = code.error_goto_if(" && ".join(exc_checks), self.pos)
                     else:
                         goto_error = ""
@@ -10896,7 +10901,10 @@ class TypeidNode(ExprNode):
         typeinfo_entry = typeinfo_module.lookup('type_info')
         return PyrexTypes.CFakeReferenceType(PyrexTypes.c_const_type(typeinfo_entry.type))
 
+    cpp_message = 'typeid operator'
+
     def analyse_types(self, env):
+        self.cpp_check(env)
         type_info = self.get_type_info_type(env)
         if not type_info:
             self.error("The 'libcpp.typeinfo' module must be cimported to use the typeid() operator")

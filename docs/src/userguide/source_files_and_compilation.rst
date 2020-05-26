@@ -819,10 +819,10 @@ Cython code.  Here is the list of currently supported directives:
     False.
 
 ``always_allow_keywords`` (True / False)
-    Avoid the ``METH_NOARGS`` and ``METH_O`` when constructing
-    functions/methods which take zero or one arguments. Has no effect
-    on special methods and functions with more than one argument. The
-    ``METH_NOARGS`` and ``METH_O`` signatures provide faster
+    When disabled, uses the ``METH_NOARGS`` and ``METH_O`` signatures when
+    constructing functions/methods which take zero or one arguments. Has no
+    effect on special methods and functions with more than one argument. The
+    ``METH_NOARGS`` and ``METH_O`` signatures provide slightly faster
     calling conventions but disallow the use of keywords.
 
 ``profile`` (True / False)

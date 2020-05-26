@@ -1764,7 +1764,7 @@ static int __Pyx_PyObject_GetMethod(PyObject *obj, PyObject *name, PyObject **me
     if (likely(descr != NULL)) {
         Py_INCREF(descr);
 #if defined(Py_TPFLAGS_METHOD_DESCRIPTOR) && Py_TPFLAGS_METHOD_DESCRIPTOR
-        if (PyType_HasFeature(Py_TYPE(descr), Py_TPFLAGS_METHOD_DESCRIPTOR))
+        if (__Pyx_PyType_HasFeature(Py_TYPE(descr), Py_TPFLAGS_METHOD_DESCRIPTOR))
 #elif PY_MAJOR_VERSION >= 3
         // Repeating the condition below accommodates for MSVC's inability to test macros inside of macro expansions.
         #ifdef __Pyx_CyFunction_USED
@@ -2110,7 +2110,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
 #if CYTHON_COMPILING_IN_CPYTHON
     if (nargs == 0 && kwargs == NULL) {
 #ifdef __Pyx_CyFunction_USED
-        if (PyCFunction_Check(func) || __Pyx_CyFunction_Check(func))
+        if (__Pyx_IsCyOrPyCFunction(func))
 #else
         if (PyCFunction_Check(func))
 #endif
@@ -2159,7 +2159,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
     }
     #elif __Pyx_CyFunction_USED && CYTHON_BACKPORT_VECTORCALL
     // exclude fused functions for now
-    if (__Pyx_IS_TYPE(func, __pyx_CyFunctionType)) {
+    if (__Pyx_CyFunction_CheckExact(func)) {
         __pyx_vectorcallfunc f = __Pyx_CyFunction_func_vectorcall(func);
         if (f) return f(func, args, nargs, kwargs);
     }

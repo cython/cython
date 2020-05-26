@@ -30,7 +30,7 @@ from . import Pythran
 from .Errors import error, warning
 from .PyrexTypes import py_object_type
 from ..Utils import open_new_file, replace_suffix, decode_filename, build_hex_version
-from .Code import UtilityCode, IncludeCode
+from .Code import UtilityCode, IncludeCode, TempitaUtilityCode
 from .StringEncoding import EncodedString, encoded_string_or_bytes_literal
 from .Pythran import has_np_pythran
 
@@ -1354,6 +1354,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         self.generate_dict_getter_function(scope, code)
                     if scope.defines_any_special(TypeSlots.richcmp_special_methods):
                         self.generate_richcmp_function(scope, code)
+                    for slot in TypeSlots.PyNumberMethods:
+                        if slot.is_binop and scope.defines_any_special(slot.user_methods):
+                            self.generate_binop_function(scope, slot, code)
                     self.generate_property_accessors(scope, code)
                     self.generate_method_table(scope, code)
                     self.generate_getset_table(scope, code)
@@ -1454,7 +1457,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 if is_final_type:
                     type_safety_check = ''
                 else:
-                    type_safety_check = ' & ((t->tp_flags & (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)) == 0)'
+                    type_safety_check = ' & (!__Pyx_PyType_HasFeature(t, (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)))'
                 obj_struct = type.declaration_code("", deref=True)
                 code.putln(
                     "if (CYTHON_COMPILING_IN_CPYTHON && likely((%s > 0) & (t->tp_basicsize == sizeof(%s))%s)) {" % (
@@ -1467,7 +1470,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     code.putln("PyObject_GC_Track(o);")
                 code.putln("} else {")
             if not is_final_type:
-                code.putln("if (likely((t->tp_flags & Py_TPFLAGS_IS_ABSTRACT) == 0)) {")
+                code.putln("if (likely(!__Pyx_PyType_HasFeature(t, Py_TPFLAGS_IS_ABSTRACT))) {")
             code.putln("o = (*t->tp_alloc)(t, 0);")
             if not is_final_type:
                 code.putln("} else {")
@@ -1579,7 +1582,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     '(!PyType_IS_GC(Py_TYPE(o)) || !_PyGC_FINALIZED(o))')
             code.putln(
                 "if (unlikely("
-                "(PY_VERSION_HEX >= 0x03080000 || PyType_HasFeature(Py_TYPE(o), Py_TPFLAGS_HAVE_FINALIZE))"
+                "(PY_VERSION_HEX >= 0x03080000 || __Pyx_PyType_HasFeature(Py_TYPE(o), Py_TPFLAGS_HAVE_FINALIZE))"
                 " && Py_TYPE(o)->tp_finalize) && %s) {" % finalised_check)
             # if instance was resurrected by finaliser, return
             code.putln("if (PyObject_CallFinalizerFromDealloc(o)) return;")
@@ -1655,7 +1658,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     type_safety_check = ''
                 else:
                     type_safety_check = (
-                        ' & ((Py_TYPE(o)->tp_flags & (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)) == 0)')
+                        ' & (!__Pyx_PyType_HasFeature(Py_TYPE(o), (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)))')
 
                 type = scope.parent_type
                 code.putln(
@@ -2022,6 +2025,60 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln("}")  # switch
         code.putln("}")
+
+    def generate_binop_function(self, scope, slot, code):
+        func_name = scope.mangle_internal(slot.slot_name)
+        if scope.directives['c_api_binop_methods']:
+            code.putln('#define %s %s' % (func_name, slot.left_slot.slot_code(scope)))
+            return
+
+        code.putln()
+        preprocessor_guard = slot.preprocessor_guard_code()
+        if preprocessor_guard:
+            code.putln(preprocessor_guard)
+
+        if slot.left_slot.signature == TypeSlots.binaryfunc:
+            slot_type = 'binaryfunc'
+            extra_arg = extra_arg_decl = ''
+        elif slot.left_slot.signature == TypeSlots.ternaryfunc:
+            slot_type = 'ternaryfunc'
+            extra_arg = ', extra_arg'
+            extra_arg_decl = ', PyObject* extra_arg'
+        else:
+            error(entry.pos, "Unexpected type lost signature: %s" % slot)
+
+        def has_slot_method(method_name):
+            entry = scope.lookup(method_name)
+            return bool(entry and entry.is_special and entry.func_cname)
+        def call_slot_method(method_name, reverse):
+            entry = scope.lookup(method_name)
+            if entry and entry.is_special and entry.func_cname:
+                return "%s(%s%s)" % (
+                    entry.func_cname,
+                    "right, left" if reverse else "left, right",
+                    extra_arg)
+            else:
+                return '%s_maybe_call_slot(%s, left, right %s)' % (
+                    func_name,
+                    'Py_TYPE(right)->tp_base' if reverse else 'Py_TYPE(left)->tp_base',
+                    extra_arg)
+
+        code.putln(
+            TempitaUtilityCode.load_as_string(
+                "BinopSlot", "ExtensionTypes.c",
+                context={
+                    "func_name": func_name,
+                    "slot_name": slot.slot_name,
+                    "overloads_left": int(has_slot_method(slot.left_slot.method_name)),
+                    "call_left": call_slot_method(slot.left_slot.method_name, reverse=False),
+                    "call_right": call_slot_method(slot.right_slot.method_name, reverse=True),
+                    "type_cname": scope.parent_type.typeptr_cname,
+                    "slot_type": slot_type,
+                    "extra_arg": extra_arg,
+                    "extra_arg_decl": extra_arg_decl,
+                    })[1])
+        if preprocessor_guard:
+            code.putln("#endif")
 
     def generate_getattro_function(self, scope, code):
         # First try to get the attribute using __getattribute__, if defined, or

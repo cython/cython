@@ -2,6 +2,47 @@
 Cython Changelog
 ================
 
+3.0.0 alpha 6 (2020-0?-??)
+==========================
+
+Features added
+--------------
+
+* No/single argument functions now accept keyword arguments by default in order
+  to comply with Python semantics.  The marginally faster calling conventions
+  ``METH_NOARGS`` and ``METH_O`` that reject keyword arguments are still available
+  with the directive ``@cython.always_allow_keywords(False)``.
+  (Github issue #3090)
+
+* A low-level inline function ``total_seconds(timedelta)`` was added to
+  ``cpython.datetime`` to bypass the Python method call.  Note that this function
+  is not guaranteed to give exactly the same results for very large time intervals.
+  Patch by Brock Mendel.  (Github issue #3616)
+
+* Type inference now understands that ``a, *b = x`` assigns a list to ``b``.
+
+Bugs fixed
+----------
+
+* The C++ ``typeid()`` function was allowed in C mode.
+  Patch by Celelibi.  (Github issue #3637)
+
+* Includes all bug-fixes from the 0.29.19 release.
+
+Other changes
+-------------
+
+* The ``numpy`` declarations were updated.
+  Patch by Brock Mendel.  (Github issue #3630)
+
+* The names of Cython's internal types (functions, generator, coroutine, etc.)
+  are now qualified with the module name of the internal Cython module that is
+  used for sharing them across Cython implemented modules, for example
+  ``_cython_3_0a5.coroutine``.  This was done to avoid making them look like
+  homeless builtins, to help with debugging, and in order to avoid a CPython
+  warning according to https://bugs.python.org/issue20204
+
+
 3.0.0 alpha 5 (2020-05-19)
 ==========================
 
@@ -398,6 +439,47 @@ Other changes
   Patch by Alexey Stepanov.  (Github issue #3355)
 
 * Support for Python 2.6 was removed.
+
+
+0.29.20 (2020-0?-??)
+====================
+
+Features added
+--------------
+
+* Added support for Python binary operator semantics.
+  One can now define, e.g. both ``__add__`` and ``__radd__`` for cdef classes
+  as for standard Python classes rather than a single ``__add__`` method where
+  self can be either the first or second argument.  This behavior is guarded
+  by the ``c_api_binop_methods`` directive.
+  (Github issue #2056)
+
+Bugs fixed
+----------
+
+* The built-in ``abs()`` function could lead to undefined behaviour when used on
+  the negative-most value of a signed C integer type.
+  Patch by Serge Guelton.  (Github issue #1911)
+
+* Usages of ``sizeof()`` and ``typeid()`` on uninitialised variables no longer
+  produce a warning.
+  Patch by Celelibi.  (Github issue #3575)
+
+* The C++ ``typeid()`` function was allowed in C mode.
+  Patch by Celelibi.  (Github issue #3637)
+
+
+0.29.19 (2020-05-20)
+====================
+
+Bugs fixed
+----------
+
+* A typo in Windows specific code in 0.29.18 was fixed that broke "libc.math".
+  (Github issue #3622)
+
+* A platform specific test failure in 0.29.18 was fixed.
+  Patch by smutch.  (Github issue #3620)
 
 
 0.29.18 (2020-05-18)
