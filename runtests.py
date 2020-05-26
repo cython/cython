@@ -734,12 +734,15 @@ class TestBuilder(object):
         else:
             languages = self.languages
 
-        if skip_c(tags) and 'c' in languages:
+        if 'c' in languages and skip_c(tags):
             languages = list(languages)
             languages.remove('c')
-        elif 'no-cpp' in tags['tag'] and 'cpp' in self.languages:
+        if 'cpp' in languages and 'no-cpp' in tags['tag']:
             languages = list(languages)
             languages.remove('cpp')
+        if not languages:
+            return []
+
         language_levels = [2, 3] if 'all_language_levels' in tags['tag'] else [None]
 
         pythran_dir = self.pythran_dir
