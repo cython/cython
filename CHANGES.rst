@@ -5,6 +5,16 @@ Cython Changelog
 0.29.20 (2020-0?-??)
 ====================
 
+Features added
+--------------
+
+* Added support for Python binary operator semantics.
+  One can now define, e.g. both ``__add__`` and ``__radd__`` for cdef classes
+  as for standard Python classes rather than a single ``__add__`` method where
+  self can be either the first or second argument.  This behavior is guarded
+  by the ``c_api_binop_methods`` directive.
+  (Github issue #2056)
+
 Bugs fixed
 ----------
 
@@ -86,12 +96,6 @@ Bugs fixed
 
 * The signature of the NumPy C-API function ``PyArray_SearchSorted()`` was fixed.
   Patch by Brock Mendel.  (Github issue #3606)
-
-* Added support for Python binary operator semantics.
-  One can now define, e.g. both ``__add__`` and ``__radd__`` for cdef classes
-  as for standard Python classes rather than a single ``__add__`` method where
-  self can be either the first or second argument. (Github issue #2056)
-  This behavior is guarded by the c_api_binop_methods directive.
 
 
 0.29.17 (2020-04-26)
