@@ -2,6 +2,17 @@
 Cython Changelog
 ================
 
+0.29.20 (2020-0?-??)
+====================
+
+Bugs fixed
+----------
+
+* Usages of ``sizeof()`` and ``typeid()`` on uninitialised variables no longer
+  produce a warning.
+  Patch by Celelibi.  (Github issue #3575)
+
+
 0.29.19 (2020-05-20)
 ====================
 
