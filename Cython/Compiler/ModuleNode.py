@@ -1897,47 +1897,55 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_binop_function(self, scope, slot, code):
         func_name = scope.mangle_internal(slot.slot_name)
+        if scope.directives['c_api_binop_methods']:
+            code.putln('#define %s %s' % (func_name, slot.left_slot.slot_code(scope)))
+            return
+
         code.putln()
         preprocessor_guard = slot.preprocessor_guard_code()
         if preprocessor_guard:
             code.putln(preprocessor_guard)
-        if scope.directives['c_api_binop_methods']:
-            code.putln('#define %s %s' % (func_name, slot.left_slot.slot_code(scope)))
+
+        if slot.left_slot.signature == TypeSlots.binaryfunc:
+            slot_type = 'binaryfunc'
+            extra_arg = extra_arg_decl = ''
+        elif slot.left_slot.signature == TypeSlots.ternaryfunc:
+            slot_type = 'ternaryfunc'
+            extra_arg = ', extra_arg'
+            extra_arg_decl = ', PyObject* extra_arg'
         else:
-            if slot.left_slot.signature == TypeSlots.binaryfunc:
-                extra_arg = extra_arg_decl = ''
-            elif slot.left_slot.signature == TypeSlots.ternaryfunc:
-                extra_arg = ', extra_arg'
-                extra_arg_decl = ', PyObject* extra_arg'
+            error(entry.pos, "Unexpected type lost signature: %s" % slot)
+
+        def has_slot_method(method_name):
+            entry = scope.lookup(method_name)
+            return bool(entry and entry.is_special and entry.func_cname)
+        def call_slot_method(method_name, reverse):
+            entry = scope.lookup(method_name)
+            if entry and entry.is_special and entry.func_cname:
+                return "%s(%s%s)" % (
+                    entry.func_cname,
+                    "right, left" if reverse else "left, right",
+                    extra_arg)
             else:
-                error(entry.pos, "Unexpected type lost signature: %s" % slot)
-            def has_slot_method(method_name):
-                entry = scope.lookup(method_name)
-                return bool(entry and entry.is_special and entry.func_cname)
-            def call_slot_method(method_name, reverse):
-                entry = scope.lookup(method_name)
-                if entry and entry.is_special and entry.func_cname:
-                    return "%s(%s%s)" % (entry.func_cname, "right, left" if reverse else "left, right", extra_arg)
-                else:
-                    super = 'Py_TYPE(right)->tp_base' if reverse else 'Py_TYPE(left)->tp_base'
-                    return ('(%s->tp_as_number && %s->tp_as_number->%s)'
-                            ' ? %s->tp_as_number->%s(left, right %s)'
-                            ' : (Py_INCREF(Py_NotImplemented), Py_NotImplemented)') % (
-                        super, super, slot.slot_name, super, slot.slot_name, extra_arg)
-            code.putln(
-                TempitaUtilityCode.load_cached(
-                    "BinopSlot", "ExtensionTypes.c",
-                    context={
-                        "func_name": func_name,
-                        "slot_name": slot.slot_name,
-                        "overloads_left": int(has_slot_method(slot.left_slot.method_name)),
-                        "call_left": call_slot_method(slot.left_slot.method_name, reverse=False),
-                        "call_right": call_slot_method(slot.right_slot.method_name, reverse=True),
-                        "type_cname": scope.parent_type.typeptr_cname,
-                        "extra_arg": extra_arg,
-                        "extra_arg_decl": extra_arg_decl,
-                        }).impl.strip())
-            code.putln()
+                return '%s_maybe_call_slot(%s, left, right %s)' % (
+                    func_name,
+                    'Py_TYPE(right)->tp_base' if reverse else 'Py_TYPE(left)->tp_base',
+                    extra_arg)
+
+        code.putln(
+            TempitaUtilityCode.load_as_string(
+                "BinopSlot", "ExtensionTypes.c",
+                context={
+                    "func_name": func_name,
+                    "slot_name": slot.slot_name,
+                    "overloads_left": int(has_slot_method(slot.left_slot.method_name)),
+                    "call_left": call_slot_method(slot.left_slot.method_name, reverse=False),
+                    "call_right": call_slot_method(slot.right_slot.method_name, reverse=True),
+                    "type_cname": scope.parent_type.typeptr_cname,
+                    "slot_type": slot_type,
+                    "extra_arg": extra_arg,
+                    "extra_arg_decl": extra_arg_decl,
+                    })[1])
         if preprocessor_guard:
             code.putln("#endif")
 
