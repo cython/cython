@@ -1,5 +1,6 @@
 # mode: run
 # ticket: 698
+# distutils: extra_compile_args=-fwrapv
 
 cdef extern from *:
     int INT_MAX
