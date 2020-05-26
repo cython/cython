@@ -25,7 +25,7 @@ cdef class C:
 
 cdef extern from "Python.h":
     """
-    #define my_SET_SIZE(obj, size)  Py_SIZE((obj)) = (size)
+    #define my_SET_SIZE(obj, size)  __Pyx_SET_SIZE(obj, size)
     """
     void my_SET_SIZE(object, Py_ssize_t)
 
