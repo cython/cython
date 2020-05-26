@@ -8,9 +8,16 @@ Cython Changelog
 Bugs fixed
 ----------
 
+* The built-in ``abs()`` function could lead to undefined behaviour when used on
+  the negative-most value of a signed C integer type.
+  Patch by Serge Guelton.  (Github issue #1911)
+
 * Usages of ``sizeof()`` and ``typeid()`` on uninitialised variables no longer
   produce a warning.
   Patch by Celelibi.  (Github issue #3575)
+
+* The C++ ``typeid()`` function was allowed in C mode.
+  Patch by Celelibi.  (Github issue #3637)
 
 
 0.29.19 (2020-05-20)
