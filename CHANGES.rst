@@ -5,18 +5,12 @@ Cython Changelog
 0.29.20 (2020-0?-??)
 ====================
 
-Features added
---------------
-
-* Added support for Python binary operator semantics.
-  One can now define, e.g. both ``__add__`` and ``__radd__`` for cdef classes
-  as for standard Python classes rather than a single ``__add__`` method where
-  self can be either the first or second argument.  This behavior is guarded
-  by the ``c_api_binop_methods`` directive.
-  (Github issue #2056)
-
 Bugs fixed
 ----------
+
+* Now uses ``Py_SET_SIZE()`` and ``Py_SET_REFCNT()`` in Py3.9+ to avoid low-level
+  write access to these object fields.
+  Patch by Victor Stinner.  (Github issue #3639)
 
 * The built-in ``abs()`` function could lead to undefined behaviour when used on
   the negative-most value of a signed C integer type.
