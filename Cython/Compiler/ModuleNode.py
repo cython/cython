@@ -2040,6 +2040,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if scope.directives['c_api_binop_methods']:
             code.putln('#define %s %s' % (func_name, slot.left_slot.slot_code(scope)))
             return
+        else:
+            error(self.pos,
+                  "The 'c_api_binop_methods' directive is only supported for forward compatibility"
+                  " and must be True.")
 
         code.putln()
         preprocessor_guard = slot.preprocessor_guard_code()

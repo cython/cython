@@ -454,6 +454,10 @@ Other changes
 Bugs fixed
 ----------
 
+* Now uses ``Py_SET_SIZE()`` and ``Py_SET_REFCNT()`` in Py3.9+ to avoid low-level
+  write access to these object fields.
+  Patch by Victor Stinner.  (Github issue #3639)
+
 * The built-in ``abs()`` function could lead to undefined behaviour when used on
   the negative-most value of a signed C integer type.
   Patch by Serge Guelton.  (Github issue #1911)
