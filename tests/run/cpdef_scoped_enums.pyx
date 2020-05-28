@@ -8,7 +8,7 @@ cdef extern from *:
         Item2 = 2
     };
     """
-    cpdef enumclass Enum1:
+    cpdef enum class Enum1:
         Item1
         Item2
 

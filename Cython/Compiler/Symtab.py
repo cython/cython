@@ -707,6 +707,7 @@ class Scope(object):
             namespace = None
 
         entry = self.lookup_here(name)
+        
         if not entry:
             type = PyrexTypes.ScopedEnumType(
                 name, cname, namespace
@@ -714,6 +715,7 @@ class Scope(object):
             entry = self.declare_type(name, type, pos, cname = cname)
             entry.enum_values = []
         entry.create_wrapper = create_wrapper
+
         return entry
 
     def declare_tuple_type(self, pos, components):

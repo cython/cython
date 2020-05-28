@@ -31,7 +31,7 @@ cdef extern from * namespace "Namespace":
         };
     }
     """
-    cpdef enumclass Cheese:
+    cpdef enum class Cheese:
         cheddar
         camembert
 

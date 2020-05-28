@@ -8,7 +8,7 @@ cdef extern from *:
         Item2
     };
     """
-    cdef enumclass Enum1:
+    cdef enum class Enum1:
         Item1
         Item2
 
@@ -40,7 +40,7 @@ cdef extern from * namespace "Namespace1":
         };
     }
     """
-    cdef enumclass Enum2:
+    cdef enum class Enum2:
         Item1
         Item2
 
