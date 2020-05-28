@@ -408,7 +408,7 @@ Cython's build_ext module which runs ``cythonize`` as part of the build process:
 
     setup(
         extensions = [Extension("*", ["*.pyx"])],
-        cmdclass={'build_ext': Cython.Build.new_build_ext},
+        cmdclass={'build_ext': Cython.Distutils.build_ext.new_build_ext},
         ...
     )
 
