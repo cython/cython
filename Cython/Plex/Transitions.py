@@ -5,12 +5,18 @@ This version represents state sets directly as dicts for speed.
 """
 from __future__ import absolute_import
 
+import cython
+
+cython.declare(maxint=cython.long)
+
 try:
     from sys import maxsize as maxint
 except ImportError:
     from sys import maxint
 
 
+@cython.final
+@cython.cclass
 class TransitionMap(object):
     """
     A TransitionMap maps an input event to a set of states.
@@ -39,23 +45,22 @@ class TransitionMap(object):
     kept separately in a dictionary.
     """
 
-    map = None      # The list of codes and states
-    special = None  # Mapping for special events
+    cython.declare(map=list, special=dict)
 
     def __init__(self, map=None, special=None):
         if not map:
             map = [-maxint, {}, maxint]
         if not special:
             special = {}
-        self.map = map
-        self.special = special
+        self.map = map          # The list of codes and states
+        self.special = special  # Mapping for special events
 
-    def add(self, event, new_state,
-            TupleType=tuple):
+    @cython.locals(i=cython.Py_ssize_t, j=cython.Py_ssize_t, map=list)
+    def add(self, event, new_state):
         """
         Add transition to |new_state| on |event|.
         """
-        if type(event) is TupleType:
+        if type(event) is tuple:
             code0, code1 = event
             i = self.split(code0)
             j = self.split(code1)
@@ -66,12 +71,12 @@ class TransitionMap(object):
         else:
             self.get_special(event)[new_state] = 1
 
-    def add_set(self, event, new_set,
-                TupleType=tuple):
+    @cython.locals(i=cython.Py_ssize_t, j=cython.Py_ssize_t, map=list)
+    def add_set(self, event, new_set):
         """
         Add transitions to the states in |new_set| on |event|.
         """
-        if type(event) is TupleType:
+        if type(event) is tuple:
             code0, code1 = event
             i = self.split(code0)
             j = self.split(code1)
@@ -88,8 +93,8 @@ class TransitionMap(object):
         """
         return self.special.get('')
 
-    def iteritems(self,
-                  len=len):
+    @cython.locals(map=list, i=cython.Py_ssize_t, n=cython.Py_ssize_t, else_set=cython.bint)
+    def iteritems(self):
         """
         Return the mapping as an iterable of ((code1, code2), state_set) and
         (special_event, state_set) pairs.
@@ -116,8 +121,9 @@ class TransitionMap(object):
 
     # ------------------- Private methods --------------------
 
-    def split(self, code,
-              len=len, maxint=maxint):
+    @cython.ccall
+    @cython.locals(map=list, lo=cython.Py_ssize_t, mid=cython.Py_ssize_t, hi=cython.Py_ssize_t, code=cython.long)
+    def split(self, code):
         """
         Search the list for the position of the split point for |code|,
         inserting a new split point if necessary. Returns index |i| such

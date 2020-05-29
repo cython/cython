@@ -85,6 +85,7 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
         "Cython.Plex.Scanners",
         "Cython.Plex.Actions",
         "Cython.Plex.Machines",
+        "Cython.Plex.Transitions",
         "Cython.Compiler.Scanning",
         "Cython.Compiler.Visitor",
         "Cython.Compiler.FlowControl",
