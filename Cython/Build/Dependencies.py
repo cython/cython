@@ -322,7 +322,8 @@ def strip_string_literals(code, prefix='__Pyx_L'):
     in_quote = False
     hash_mark = single_q = double_q = -1
     code_len = len(code)
-    quote_type = quote_len = None
+    quote_type = None
+    quote_len = -1
 
     while True:
         if hash_mark < q:
