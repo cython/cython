@@ -2961,7 +2961,9 @@ class GilCheck(VisitorTransform):
             self.visitchildren(node, outer_attrs)
 
         self.nogil = gil_state
-        self.visitchildren(node, exclude=outer_attrs)
+        # FIXME: attrs needs to be passed explicitly to avoid "C function call is missing argument 'attrs'".
+        # This looks like a bug
+        self.visitchildren(node, attrs=None, exclude=outer_attrs)
         self.nogil = was_nogil
 
     def visit_FuncDefNode(self, node):
