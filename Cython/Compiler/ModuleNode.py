@@ -1356,7 +1356,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         self.generate_richcmp_function(scope, code)
                     for slot in TypeSlots.PyNumberMethods:
                         if slot.is_binop and scope.defines_any_special(slot.user_methods):
-                            self.generate_binop_function(scope, slot, code)
+                            self.generate_binop_function(scope, slot, code, entry.pos)
                     self.generate_property_accessors(scope, code)
                     self.generate_method_table(scope, code)
                     self.generate_getset_table(scope, code)
@@ -2035,7 +2035,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("}")  # switch
         code.putln("}")
 
-    def generate_binop_function(self, scope, slot, code):
+    def generate_binop_function(self, scope, slot, code, pos):
         func_name = scope.mangle_internal(slot.slot_name)
         if scope.directives['c_api_binop_methods']:
             code.putln('#define %s %s' % (func_name, slot.left_slot.slot_code(scope)))
@@ -2054,7 +2054,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             extra_arg = ', extra_arg'
             extra_arg_decl = ', PyObject* extra_arg'
         else:
-            error(entry.pos, "Unexpected type lost signature: %s" % slot)
+            error(pos, "Unexpected type lost signature: %s" % slot)
 
         def has_slot_method(method_name):
             entry = scope.lookup(method_name)
