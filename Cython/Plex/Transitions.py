@@ -153,6 +153,7 @@ class TransitionMap(object):
             map[hi:hi] = [code, map[hi - 1].copy()]
             return hi
 
+    @cython.ccall
     def get_special(self, event):
         """
         Get state set for special event, adding a new entry if necessary.

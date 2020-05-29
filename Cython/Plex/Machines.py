@@ -68,17 +68,15 @@ class Machine(object):
 
 class Node(object):
     """A state of an NFA or DFA."""
-    transitions = None      # TransitionMap
-    action = None           # Action
-    action_priority = None  # integer
-    number = 0              # for debug output
-    epsilon_closure = None  # used by nfa_to_dfa()
 
     def __init__(self):
         # Preinitialise the list of empty transitions, because
         # the nfa-to-dfa algorithm needs it
-        self.transitions = TransitionMap()
-        self.action_priority = LOWEST_PRIORITY
+        self.transitions = TransitionMap()      # TransitionMap
+        self.action_priority = LOWEST_PRIORITY  # integer
+        self.action = None  # Action
+        self.number = 0     # for debug output
+        self.epsilon_closure = None  # used by nfa_to_dfa()
 
     def destroy(self):
         self.transitions = None
@@ -126,6 +124,9 @@ class Node(object):
 
     def __lt__(self, other):
         return self.number < other.number
+
+    def __hash__(self):
+        return id(self)
 
 
 class FastMachine(object):
