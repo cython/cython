@@ -5,6 +5,7 @@ Classes for building NFAs and DFAs
 """
 from __future__ import absolute_import
 
+import cython
 from .Transitions import TransitionMap
 
 try:
@@ -12,10 +13,11 @@ try:
 except ImportError:
     from sys import maxint
 
-try:
-    unichr
-except NameError:
-    unichr = chr
+if not cython.compiled:
+    try:
+        unichr
+    except NameError:
+        unichr = chr
 
 LOWEST_PRIORITY = -maxint
 
@@ -131,17 +133,13 @@ class FastMachine(object):
     FastMachine is a deterministic machine represented in a way that
     allows fast scanning.
     """
-    initial_states = None  # {state_name:state}
-    states = None          # [state]  where state = {event:state, 'else':state, 'action':Action}
-    next_number = 1        # for debugging
-
-    new_state_template = {
-        '': None, 'bol': None, 'eol': None, 'eof': None, 'else': None
-    }
-
     def __init__(self):
-        self.initial_states = {}
-        self.states = []
+        self.initial_states = {}  # {state_name:state}
+        self.states = []          # [state]  where state = {event:state, 'else':state, 'action':Action}
+        self.next_number = 1      # for debugging
+        self.new_state_template = {
+            '': None, 'bol': None, 'eol': None, 'eof': None, 'else': None
+        }
 
     def __del__(self):
         for state in self.states:
@@ -159,6 +157,7 @@ class FastMachine(object):
     def make_initial_state(self, name, state):
         self.initial_states[name] = state
 
+    @cython.locals(code0=cython.long, code1=cython.long, maxint=cython.long, state=dict)
     def add_transitions(self, state, event, new_state, maxint=maxint):
         if type(event) is tuple:
             code0, code1 = event
@@ -210,9 +209,7 @@ class FastMachine(object):
             if char_list:
                 ranges = self.chars_to_ranges(char_list)
                 ranges_to_state[ranges] = state
-        ranges_list = ranges_to_state.keys()
-        ranges_list.sort()
-        for ranges in ranges_list:
+        for ranges in sorted(ranges_to_state):
             key = self.ranges_to_string(ranges)
             state = ranges_to_state[ranges]
             file.write("      %s --> State %d\n" % (key, state['number']))
@@ -221,6 +218,7 @@ class FastMachine(object):
             if state:
                 file.write("      %s --> State %d\n" % (key, state['number']))
 
+    @cython.locals(char_list=list, i=cython.Py_ssize_t, n=cython.Py_ssize_t, c1=cython.long, c2=cython.long)
     def chars_to_ranges(self, char_list):
         char_list.sort()
         i = 0
