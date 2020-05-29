@@ -160,16 +160,7 @@ class FastMachine(object):
         self.initial_states[name] = state
 
     def add_transitions(self, state, event, new_state, maxint=maxint):
-        if type(event) is tuple:
-            code0, code1 = event
-            if code0 == -maxint:
-                state['else'] = new_state
-            elif code1 != maxint:
-                while code0 < code1:
-                    state[unichr(code0)] = new_state
-                    code0 += 1
-        else:
-            state[event] = new_state
+        _add_transitions(state, event, new_state, maxint)
 
     def get_initial_state(self, name):
         return self.initial_states[name]
@@ -245,3 +236,17 @@ class FastMachine(object):
             return repr(c1)
         else:
             return "%s..%s" % (repr(c1), repr(c2))
+
+# moved out of class to make it easier to accelerate
+def _add_transitions(state, event, new_state, maxint):
+    if isinstance(event, tuple):
+        code0, code1 = event
+        if code0 == -maxint:
+            state['else'] = new_state
+        elif code1 != maxint:
+            _unichr = unichr
+            while code0 < code1:
+                state[_unichr(code0)] = new_state
+                code0 += 1
+    else:
+        state[event] = new_state
