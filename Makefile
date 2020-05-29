@@ -12,6 +12,9 @@ all:    local
 local:
 	${PYTHON} setup.py build_ext --inplace
 
+plocal:
+	${PYTHON} setup.py build_ext --inplace --cython-profile
+
 sdist: dist/$(PACKAGENAME)-$(VERSION).tar.gz
 
 dist/$(PACKAGENAME)-$(VERSION).tar.gz:
