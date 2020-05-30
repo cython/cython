@@ -1,3 +1,4 @@
+# cython: auto_pickle=False
 """
 Plex - Transition Maps
 

@@ -163,7 +163,6 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
         language_level=2,
         binding=False,
         always_allow_keywords=False,
-        auto_pickle=False,
         autotestdict=False,
     )
     if profile:

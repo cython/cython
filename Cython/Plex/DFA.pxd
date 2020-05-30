@@ -1,4 +1,4 @@
-# cython:
+# cython: auto_pickle=False
 
 cimport cython
 
