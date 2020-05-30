@@ -24,13 +24,10 @@ LOWEST_PRIORITY = -maxint
 
 class Machine(object):
     """A collection of Nodes representing an NFA or DFA."""
-    states = None          # [Node]
-    next_state_number = 1
-    initial_states = None  # {(name, bol): Node}
-
     def __init__(self):
-        self.states = []
-        self.initial_states = {}
+        self.states = []  # [Node]
+        self.initial_states = {}  # {(name, bol): Node}
+        self.next_state_number = 1
 
     def __del__(self):
         for state in self.states:
