@@ -971,7 +971,7 @@ class InterpretCompilerDirectives(CythonTransform):
                 return (optname, directivetype(optname, *[arg.value for arg in args]))
             except CompileError as e:
                 # convert to postparse error, make sure pos it set, re-raise
-                raise PostParseError(pos, e.message)
+                raise PostParseError(pos, *e.args[1:])
         else:
             assert False
 
@@ -1925,16 +1925,15 @@ if VALUE is not None:
     def visit_DefNode(self, node):
         node = self.visit_FuncDefNode(node)
 
-        local_scope = getattr(node, 'local_scope', None)  # fused function nodes don't have this
-        fastcall_args = local_scope.directives.get('fastcall_args', None) if local_scope else None
-        if fastcall_args:
-            if fastcall_args[0] and node.star_arg:
-                if node.self_in_stararg:
-                    error(node.pos, "Cannot use 'fastcall_args(\"*\")' on a function where the"
-                          " self argument is included in *args")
+        fastcall_args_tuple = self.current_directives['fastcall_args.tuple']
+        fastcall_args_dict = self.current_directives['fastcall_args.dict']
+        if fastcall_args_tuple and node.star_arg:
+            if node.self_in_stararg:
+                error(node.pos, "Cannot use 'fastcall_args(\"*\")' on a function where the"
+                        " self argument is included in *args")
                 node.star_arg.entry.type = PyrexTypes.FastcallTupleType(explicitly_requested=True)
-            if fastcall_args[1] and node.starstar_arg:
-                node.starstar_arg.entry.type = PyrexTypes.FastcallDictType(explicitly_requested=True)
+        if fastcall_args_dict and node.starstar_arg:
+            node.starstar_arg.entry.type = PyrexTypes.FastcallDictType(explicitly_requested=True)
 
         env = self.current_env()
         if isinstance(node, Nodes.DefNode) and node.is_wrapper:

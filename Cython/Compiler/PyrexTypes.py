@@ -194,7 +194,7 @@ class PyrexType(BaseType):
     #  is_numpy_buffer       boolean     Is Numpy array buffer
     #  is_fastcall_tuple     boolean     Optimized stararg
     #  is_fastcall_dict      boolean     Optimized starstararg
-    #  is_fastcall_type      boolean     Either of fastcall_tuple or fastcall_dict
+    #  is_fastcall_tuple_or_dict      boolean     Either of fastcall_tuple or fastcall_dict
     #  has_attributes        boolean     Has C dot-selectable attributes
     #  needs_refcounting          boolean     Needs code to be generated similar to incref/gotref/decref.
     #                                    Largely used internally.
@@ -344,7 +344,7 @@ class PyrexType(BaseType):
             code.error_goto_if(error_condition or self.error_condition(result_code), error_pos))
 
     @property
-    def is_fastcall_type(self):
+    def is_fastcall_tuple_or_dict(self):
         return self.is_fastcall_tuple or self.is_fastcall_dict
 
     def _generate_dummy_refcounting(self, code, *ignored_args, **ignored_kwds):
@@ -4291,9 +4291,9 @@ class FastcallBaseType(PyrexType):
     def __hash__(self):
         return hash((type(self), self.is_fastcall_tuple, self.is_fastcall_dict))
     def __eq__(self, other):
-        return (self.is_fastcall_tuple == other.is_fastcall_tuple
+        return (type(self) == type(other)
+                and self.is_fastcall_tuple == other.is_fastcall_tuple
                 and self.is_fastcall_dict == other.is_fastcall_dict
-                and type(self) == type(other)
                 )
     def __ne__(self, other):
         return not (self == other) # looks to be necessary for Py2
@@ -4317,7 +4317,6 @@ class FastcallTupleType(FastcallBaseType):
 
     @property
     def nearest_python_type(self):
-        # used when infer types is turned right down
         from .Builtin import tuple_type
         return tuple_type
 
@@ -4372,22 +4371,10 @@ class FastcallDictType(FastcallBaseType):
 
     @property
     def nearest_python_type(self):
-        # used when infer types is turned right down
         from .Builtin import dict_type
         return dict_type
 
     declaration_value = "{{}}" # Can only be used for the array version defined in the wrapper
-
-    @classmethod
-    def _get_methods(self):
-        from .Builtin import BuiltinMethod
-        uc = UtilityCode.load_cached("FastcallDictIter", "FunctionArguments.c")
-        return [
-            BuiltinMethod("keys", "T", "O", "__Pyx_FastcallDict_Keys",
-                utility_code=uc),
-            BuiltinMethod("values", "T", "O", "__Pyx_FastcallDict_Values",
-                utility_code=uc),
-        ]
 
     def __init__(self, explicitly_requested=False):
         from .Symtab import CClassScope
@@ -4397,9 +4384,6 @@ class FastcallDictType(FastcallBaseType):
         self.scope.directives = {}
         self.coercion_count = 0
         self.explicitly_requested = explicitly_requested
-
-        for m in self._get_methods():
-            m.declare_in_type(self)
 
     def attributes_known(self):
         return True
@@ -4896,7 +4880,7 @@ def _spanning_type(type1, type2):
         return widest_numeric_type(type1, c_double_type)
     elif type1.is_extension_type and type2.is_extension_type:
         return widest_extension_type(type1, type2)
-    elif type1.is_fastcall_type or type2.is_fastcall_type:
+    elif type1.is_fastcall_tuple_or_dict or type2.is_fastcall_tuple_or_dict:
         return _fastcall_spanning_types(type1, type2)
     elif type1.is_pyobject or type2.is_pyobject:
         return py_object_type
@@ -4950,10 +4934,9 @@ def widest_cpp_type(type1, type2):
         return None
 
 def _fastcall_spanning_types(type1, type2):
-    from .Builtin import dict_type, tuple_type
-    if type1.is_fastcall_type and type2 is type1.nearest_python_type:
+    if type1.is_fastcall_tuple_or_dict and type2 is type1.nearest_python_type:
         return type1.nearest_python_type
-    elif type2.is_fastcall_type and type1 is type2.nearest_python_type:
+    elif type2.is_fastcall_tuple_or_dict and type1 is type2.nearest_python_type:
         return type2.nearest_python_type
     else:
         return py_object_type

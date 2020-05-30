@@ -1028,7 +1028,7 @@ class ExprNode(Node):
               and src_type != dst_type
               and dst_type.assignable_from(src_type)):
             src = CoerceToComplexNode(src, dst_type, env)
-        elif (src.type.is_fastcall_type
+        elif (src.type.is_fastcall_tuple_or_dict
                 and src_type != dst_type):
             # These can always be coerced to a PyObject as a fallback option.
             # It may not be efficient but they're only intended to cover a
@@ -1076,7 +1076,7 @@ class ExprNode(Node):
         if type.is_enum or type.is_error:
             return self
         elif (type.is_pyobject or type.is_int or type.is_ptr or type.is_float or
-                type.is_fastcall_type):
+                type.is_fastcall_tuple_or_dict):
             return CoerceToBooleanNode(self, env)
         elif type.is_cpp_class:
             return SimpleCallNode(
@@ -2403,7 +2403,7 @@ class NameNode(AtomicExprNode):
                 # per entry and coupled with it.
                 self.generate_acquire_buffer(rhs, code)
             assigned = False
-            if self.type.is_pyobject or self.type.is_fastcall_type:
+            if self.type.is_pyobject or self.type.is_fastcall_tuple_or_dict:
                 #print "NameNode.generate_assignment_code: to", self.name ###
                 #print "...from", rhs ###
                 #print "...LHS type", self.type, "ctype", self.ctype() ###
@@ -3688,7 +3688,7 @@ class IndexNode(_IndexingBaseNode):
         if not is_memslice and (isinstance(self.base, BytesNode) or is_slice):
             if (self.base.type.is_string or
                 not (self.base.type.is_ptr or self.base.type.is_array or
-                     self.base.type.is_fastcall_type)):
+                     self.base.type.is_fastcall_tuple_or_dict)):
                 self.base = self.base.coerce_to_pyobject(env)
 
         if self.base.type.is_fastcall_dict:
@@ -4158,7 +4158,7 @@ class IndexNode(_IndexingBaseNode):
                 "%s = %s(%s, %s%s); %s" % (
                     self.result(),
                     function,
-                    self.base.py_result() if not self.base.type.is_fastcall_type else self.base.result(),
+                    self.base.py_result() if not self.base.type.is_fastcall_tuple_or_dict else self.base.result(),
                     index_code,
                     self.extra_index_params(code),
                     code.error_goto_if(error_check % self.result(), self.pos)))
@@ -6452,7 +6452,7 @@ class GeneralCallNode(CallNode):
 
         pos_is_fastcall = (isinstance(self.positional_args, CoerceToPyTypeNode) and
                             self.positional_args.arg.type.is_fastcall_tuple)
-        pos_is_empty = (isinstance(self.positional_args, TupleNode) and
+        pos_is_empty = (self.positional_args.is_sequence_constructor and
                             len(self.positional_args.args) == 0)
         kwds_is_fastcall = (self.keyword_args and
                                 (isinstance(self.keyword_args, CoerceToPyTypeNode) and
@@ -7231,7 +7231,7 @@ class AttributeNode(ExprNode):
             if (obj_type.is_string or obj_type.is_cpp_string
                 or obj_type.is_buffer or obj_type.is_memoryviewslice
                 or obj_type.is_numeric
-                or obj_type.is_fastcall_type
+                or obj_type.is_fastcall_tuple_or_dict
                 or (obj_type.is_ctuple and obj_type.can_coerce_to_pyobject(env))
                 or (obj_type.is_struct and obj_type.can_coerce_to_pyobject(env))):
                 if not immutable_obj:
@@ -12793,7 +12793,7 @@ class PrimaryCmpNode(ExprNode, CmpNode):
                 common_type = None  # if coercion needed, the method call above has already done it
                 self.is_pycmp = False  # result is bint
             else:
-                if not self.operand2.type.is_fastcall_type:
+                if not self.operand2.type.is_fastcall_tuple_or_dict:
                     common_type = py_object_type
                 else:
                     if not self.operand1.type.is_pyobject:
@@ -13385,7 +13385,7 @@ class CoerceToPyTypeNode(CoercionNode):
             # In the fastcall_tuple and _dict conversions self.target_type
             # is used to indicate if it's an explicitly requested conversion
             # therefore leave as py_object_type here (but set type)
-            if arg.type.is_fastcall_type:
+            if arg.type.is_fastcall_tuple_or_dict:
                 self.type = arg.type.nearest_python_type
                 arg.type.coercion_count += 1
         elif arg.type.is_string or arg.type.is_cpp_string:
@@ -13536,7 +13536,7 @@ class CoerceToBooleanNode(CoercionNode):
 
     def __init__(self, arg, env):
         CoercionNode.__init__(self, arg)
-        if arg.type.is_pyobject or arg.type.is_fastcall_type:
+        if arg.type.is_pyobject or arg.type.is_fastcall_tuple_or_dict:
             self.is_temp = 1
 
     def nogil_check(self, env):
@@ -13559,7 +13559,7 @@ class CoerceToBooleanNode(CoercionNode):
             return
         test_func = self._special_builtins.get(self.arg.type)
         if test_func is not None:
-            arg_result = (self.arg.py_result() if not self.arg.type.is_fastcall_type
+            arg_result = (self.arg.py_result() if not self.arg.type.is_fastcall_tuple_or_dict
                             else self.arg.result())
             checks = ["(%s != Py_None)" % self.arg.py_result()] if self.arg.may_be_none() else []
             checks.append("(%s(%s) != 0)" % (test_func, arg_result))

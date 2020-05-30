@@ -320,6 +320,8 @@ class Scope(object):
     # is_py_class_scope boolean            Is a Python class scope
     # is_c_class_scope  boolean            Is an extension type scope
     # is_closure_scope  boolean            Is a closure scope
+    # is_local_scope    boolean            Is a function local scope
+    # is_struct_or_union_scope boolean     Is a C struct/union scope
     # is_passthrough    boolean            Outer scope is passed directly
     # is_cpp_class_scope  boolean          Is a C++ class scope
     # is_property_scope boolean            Is a extension type property scope
@@ -341,6 +343,8 @@ class Scope(object):
     is_cpp_class_scope = 0
     is_property_scope = 0
     is_module_scope = 0
+    is_local_scope = 0
+    is_struct_or_union_scope = 0
     is_internal = 0
     scope_prefix = ""
     in_cinclude = 0
@@ -467,10 +471,10 @@ class Scope(object):
         # Create new entry, and add to dictionary if
         # name is not None. Reports a warning if already
         # declared.
-        if type.is_buffer and not isinstance(self, LocalScope): # and not is_type:
+        if type.is_buffer and not self.is_local_scope: # and not is_type:
             error(pos, 'Buffer types only allowed as function local variables')
-        elif (type.is_fastcall_type and
-              not isinstance(self, (LocalScope, StructOrUnionScope))):
+        elif (type.is_fastcall_tuple_or_dict and
+              not (self.is_local_scope or self.is_struct_or_union_scope)):
             # (allow StructOrUnionScope since this is generated in TupleNode.analyse_types
             #  but shouldn't be able to propagate out further hopefully)
             error(pos, 'Fastcall-argument tuples and dicts only allowed as function local variables. '+
@@ -1780,6 +1784,7 @@ class ModuleScope(Scope):
 
 
 class LocalScope(Scope):
+    is_local_scope = True
 
     # Does the function have a 'with gil:' block?
     has_with_gil_block = False
@@ -1965,6 +1970,7 @@ class ClosureScope(LocalScope):
 
 class StructOrUnionScope(Scope):
     #  Namespace of a C struct or union.
+    is_struct_or_union_scope = True
 
     def __init__(self, name="?"):
         Scope.__init__(self, name, None, None)

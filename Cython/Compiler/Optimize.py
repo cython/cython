@@ -229,6 +229,7 @@ class IterationTransform(Visitor.EnvTransform):
         if iterable.type is Builtin.unicode_type:
             return self._transform_unicode_iteration(node, iterable, reversed=reversed)
         if iterable.type.is_fastcall_tuple:
+            # FIXME - https://github.com/cython/cython/pull/3617 can handle this
             return self._transform_fastcall_tuple_iteration(node, iterable, reversed=reversed)
 
         # the rest is based on function calls
@@ -244,11 +245,7 @@ class IterationTransform(Visitor.EnvTransform):
 
         function = iterable.function
         # dict iteration?
-        if (function.is_attribute and not reversed and not arg_count
-                and not function.obj.type.is_fastcall_dict
-                # fastcall dicts should already have got an iterable (probably a list or tuple)
-                # from these attributes and currently isn't faster to just use that object.
-                ):
+        if (function.is_attribute and not reversed and not arg_count):
             base_obj = iterable.self or function.obj
             method = function.attribute
             # in Py3, items() is equivalent to Py2's iteritems()

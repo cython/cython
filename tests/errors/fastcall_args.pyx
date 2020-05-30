@@ -3,7 +3,7 @@
 
 import cython
 
-@cython.fastcall_args(True)
+@cython.fastcall_args(tuple=True, dict=True)
 def cant_put_in_closure(dummy, *args, **kwds):
     def inner():
         return args, kwds

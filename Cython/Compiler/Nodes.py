@@ -2087,7 +2087,7 @@ class FuncDefNode(StatNode, BlockNode):
             if not entry.used or entry.in_closure:
                 continue
 
-            if entry.type.is_pyobject or entry.type.is_fastcall_type:
+            if entry.type.is_pyobject or entry.type.is_fastcall_tuple_or_dict:
                 if entry.is_arg and not entry.cf_is_reassigned:
                     continue
             # FIXME ideally use entry.xdecref_cleanup but this currently isn't reliable
@@ -3273,7 +3273,7 @@ class DefNode(FuncDefNode):
         dc = self.return_type.declaration_code(self.entry.pyfunc_cname)
 
         for arg in [self.star_arg, self.starstar_arg]:
-            if arg and arg.entry.type.is_fastcall_type:
+            if arg and arg.entry.type.is_fastcall_tuple_or_dict:
                 arg.entry.type.create_declaration_utility_code(code.globalstate)
 
         decls_code = code.globalstate['decls']
@@ -3667,19 +3667,17 @@ class DefNodeWrapper(FuncDefNode):
 
         if self.starstar_arg and self.starstar_arg.entry.cf_used:
             if self.starstar_arg.type.is_fastcall_dict:
-                suffix = "_fastcallstruct"
+                lhs = "*%s" % self.starstar_arg.entry.cname
+                kwargsasdict = "__Pyx_KwargsAsDict_%s_fastcallstruct" % self.signature.fastvar
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("FastcallDict_KwargsAsDict", "FunctionArguments.c"))
-                assign_index = "[0]"
             else:
-                suffix = ""
-                assign_index = ""
+                lhs = self.starstar_arg.entry.cname
+                kwargsasdict = "__Pyx_KwargsAsDict_%s" % self.signature.fastvar
             code.putln("if (%s) {" % kwarg_check)
-            code.putln("%s%s = __Pyx_KwargsAsDict_%s%s(%s, %s);" % (
-                self.starstar_arg.entry.cname,
-                assign_index,
-                self.signature.fastvar,
-                suffix,
+            code.putln("%s = %s(%s, %s);" % (
+                lhs,
+                kwargsasdict,
                 Naming.kwds_cname,
                 Naming.kwvalues_cname))
 
@@ -4194,13 +4192,16 @@ class DefNodeWrapper(FuncDefNode):
             values_array = 'values'
         starstar_cname = self.starstar_arg and self.starstar_arg.entry.cname or '0'
         if self.starstar_arg and self.starstar_arg.type.is_fastcall_dict:
-            suffix = "_fastcallstruct"
+            parseoptionalkeywords = "__Pyx_ParseOptionalKeywords_fastcallstruct"
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("ParseKeywords_fastcallstruct", "FunctionArguments.c"))
         else:
-            suffix = ""
-        code.globalstate.use_utility_code(
-            UtilityCode.load_cached("ParseKeywords%s" % suffix, "FunctionArguments.c"))
-        code.putln('if (unlikely(__Pyx_ParseOptionalKeywords%s(%s, %s, %s, %s, %s, %s, %s) < 0)) %s' % (
-            suffix,
+            parseoptionalkeywords = "__Pyx_ParseOptionalKeywords"
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("ParseKeywords", "FunctionArguments.c"))
+
+        code.putln('if (unlikely(%s(%s, %s, %s, %s, %s, %s, %s) < 0)) %s' % (
+            parseoptionalkeywords,
             Naming.kwds_cname,
             Naming.kwvalues_cname,
             Naming.pykwdlist_cname,

@@ -656,38 +656,6 @@ static CYTHON_UNUSED PyObject* __Pyx_FastcallDict_ToDict_Explicit(__Pyx_Fastcall
     }
 }
 
-/////////////////// FastcallDictIter.proto //////////////////////
-
-// These methods behaves slightly differently from the regular dict methods
-// in that they just return a list rather than an iterator. For most of them
-// an iterator would be dangerous since it might outlive the __Pyx_FastcallDict_obj
-static CYTHON_UNUSED PyObject* __Pyx_FastcallDict_Keys(__Pyx_FastcallDict_obj* o); /* proto */
-static CYTHON_UNUSED PyObject* __Pyx_FastcallDict_Values(__Pyx_FastcallDict_obj* o); /* proto */
-// Items is excluded since it's more complicated and performance wasn't great
-
-/////////////////// FastcallDictIter //////////////////////
-//@requires:ObjectHandling.c::TupleAndListFromArray
-
-static CYTHON_UNUSED PyObject* __Pyx_FastcallDict_Keys(__Pyx_FastcallDict_obj *o) {
-    if (o->object == NULL) {
-        return PyList_New(0);
-    } else if (o->args) {
-        Py_INCREF(o->object);
-        return o->object;  // a tuple
-    } else {
-        return PyDict_Keys(o->object);
-    }
-}
-static CYTHON_UNUSED PyObject* __Pyx_FastcallDict_Values(__Pyx_FastcallDict_obj *o) {
-    if (o->object == NULL) {
-        return PyList_New(0);
-    } else if (o->args) {
-        return __Pyx_PyList_FromArray(o->args, __Pyx_FastcallDict_Len(o));  // a tuple
-    } else {
-        return PyDict_Values(o->object);
-    }
-}
-
 /////////////// ParseKeywords_fastcallstruct.proto ///////////////
 //@requires: FastcallDict
 

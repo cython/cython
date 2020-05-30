@@ -207,8 +207,9 @@ _directive_defaults = {
     'old_style_globals': False,
     'np_pythran': False,
     'fast_gil': False,
-    'fastcall_args': [None, None],  # two values for tuple and dict. True/False sets it explicitly.
-                                # None lets Cython decide.
+
+    'fastcall_args.tuple': None,  # True/False sets it explicitly. None let's Cython decide
+    'fastcall_args.dict': None,  # True/False sets it explicitly. None let's Cython decide
 
     # set __file__ and/or __path__ to known source/target path at import time (instead of not having them available)
     'set_initial_path' : None,  # SOURCEFILE or "/full/path/to/module"
@@ -264,19 +265,20 @@ def one_of(*args):
             return value
     return validate
 
-def parse_fastcall_args(name, *values):
-    if len(values) == 1:
-        values = [values[0], values[0]]
-    elif len(values) != 2:
+
+def parse_truefalsenone(name, *values):
+    if len(values) != 1:
         from .Errors import CompileError
         raise CompileError(None,
-                "directive %s takes 1 or 2 True/False/None positional arguments" % name)
-    def parse_value(value):
-        if hasattr(value, 'lower') and value.lower() == "py_none":
-            return None
-        return parse_directive_value(name, value, type=bool)
+                "directive %s takes a single True/False/None positional argument" % name)
+    value = values[0]
+    if hasattr(value, 'lower') and value.lower() == "py_none":
+        return None
+    return parse_directive_value(name, value, type=bool)
 
-    return [parse_value(v) for v in values]
+def parse_fastcall_args(name, *values):
+    from .Errors import CompileError
+    raise CompileError(None, "directive %s should be set with arguments 'tuple' or 'dict'" % name)
 
 def normalise_encoding_name(option_name, *values):
     """
@@ -342,7 +344,9 @@ directive_types = {
     'c_string_type': one_of('bytes', 'bytearray', 'str', 'unicode'),
     'c_string_encoding': normalise_encoding_name,
     'trashcan': bool,
-    'fastcall_args': parse_fastcall_args,
+    'fastcall_args.dict': parse_truefalsenone,
+    'fastcall_args.tuple': parse_truefalsenone,
+    'fastcall_args': parse_fastcall_args, # largely a dummy, just so it gets recognised as a directive
 }
 
 for key, val in _directive_defaults.items():

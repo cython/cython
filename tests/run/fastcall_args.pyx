@@ -9,7 +9,7 @@ cimport cython
 # test mainly basic compilation - these are mostly copied from
 # fastcall.pyx
 @cython.binding(False)
-@cython.fastcall_args(True)
+@cython.fastcall_args(tuple=True, dict=True)
 def fastcall_function(**kw):
     """
     >>> fastcall_function(a=1, b=2)
@@ -18,7 +18,7 @@ def fastcall_function(**kw):
     return len(kw)
 
 @cython.binding(True)
-@cython.fastcall_args(True)
+@cython.fastcall_args(tuple=True, dict=True)
 def fastcall_cyfunction(**kw):
     """
     >>> fastcall_cyfunction(a=1, b=2)
@@ -27,7 +27,7 @@ def fastcall_cyfunction(**kw):
     return len(kw)
 
 @cython.binding(False)
-@cython.fastcall_args(True)
+@cython.fastcall_args(tuple=True, dict=True)
 def no_special_args_function(a, b):
     """
     >>> no_special_args_function(1, 2)
@@ -35,7 +35,7 @@ def no_special_args_function(a, b):
     pass
 
 @cython.binding(True)
-@cython.fastcall_args(True)
+@cython.fastcall_args(tuple=True, dict=True)
 def no_special_args_cyfunction(a, b):
     """
     >>> no_special_args_cyfunction(1, 2)
@@ -44,7 +44,7 @@ def no_special_args_cyfunction(a, b):
 
 cdef class Dummy:
     @cython.binding(False)
-    @cython.fastcall_args(True)
+    @cython.fastcall_args(tuple=True, dict=True)
     def fastcall_method1(self, x, *args, **kw):
         """
         >>> Dummy().fastcall_method1(1, 2, 3, a=1, b=2)
@@ -53,7 +53,7 @@ cdef class Dummy:
         return len(args) + len(kw)
 
     @cython.binding(False)
-    @cython.fastcall_args(True, False)
+    @cython.fastcall_args(tuple=True, dict=False)
     def fastcall_method2(self, x, *args, **kw):
         """
         >>> Dummy().fastcall_method2(1, 2, 3, a=1, b=2)
@@ -62,7 +62,7 @@ cdef class Dummy:
         return len(args) + len(kw)
 
     @cython.binding(False)
-    @cython.fastcall_args(False, True)
+    @cython.fastcall_args(tuple=False, dict=True)
     def fastcall_method3(self, x, *args, **kw):
         """
         >>> Dummy().fastcall_method3(1, 2, 3, a=1, b=2)
@@ -71,7 +71,7 @@ cdef class Dummy:
         return len(args) + len(kw)
 
     @cython.binding(False)
-    @cython.fastcall_args(True)
+    @cython.fastcall_args(tuple=True, dict=True)
     def probably_not_fastcall_method(self, *args, **kw):
         """
         Should generate a warning about ignored kw. If this method
@@ -85,7 +85,7 @@ cdef class Dummy:
 
 cdef class CyDummy:
     @cython.binding(True)
-    @cython.fastcall_args(True)
+    @cython.fastcall_args(tuple=True, dict=True)
     def fastcall_method1(self, x, *args, **kw):
         """
         >>> CyDummy().fastcall_method1(1, 2, 3, a=1, b=2)
@@ -94,7 +94,7 @@ cdef class CyDummy:
         return len(args) + len(kw)
 
     @cython.binding(True)
-    @cython.fastcall_args(True, False)
+    @cython.fastcall_args(tuple=True, dict=False)
     def fastcall_method2(self, x, *args, **kw):
         """
         >>> CyDummy().fastcall_method2(1, 2, 3, a=1, b=2)
@@ -103,7 +103,7 @@ cdef class CyDummy:
         return len(args) + len(kw)
 
     @cython.binding(True)
-    @cython.fastcall_args(False, True)
+    @cython.fastcall_args(tuple=False, dict=True)
     def fastcall_method3(self, x, *args, **kw):
         """
         >>> CyDummy().fastcall_method3(1, 2, 3, a=1, b=2)
@@ -112,7 +112,7 @@ cdef class CyDummy:
         return len(args) + len(kw)
 
     @cython.binding(False)
-    @cython.fastcall_args(True, False)
+    @cython.fastcall_args(tuple=True, dict=False)
     def probably_not_fastcall_method(self, *args, **kw):
         """
         >>> CyDummy().probably_not_fastcall_method(1, 2, 3, a=1, b=2)
@@ -121,7 +121,7 @@ cdef class CyDummy:
         return len(args) + len(kw)
 
 class PyDummy:
-    @cython.fastcall_args(True)
+    @cython.fastcall_args(tuple=True, dict=True)
     def fastcall_method1(self, x, *args, **kw):
         """
         >>> PyDummy().fastcall_method1(1, 2, 3, a=1, b=2)
@@ -129,7 +129,7 @@ class PyDummy:
         """
         return len(args) + len(kw)
 
-    @cython.fastcall_args(True, False)
+    @cython.fastcall_args(tuple=True, dict=False)
     def fastcall_method2(self, x, *args, **kw):
         """
         >>> PyDummy().fastcall_method2(1, 2, 3, a=1, b=2)
@@ -137,7 +137,7 @@ class PyDummy:
         """
         return len(args) + len(kw)
 
-    @cython.fastcall_args(False, True)
+    @cython.fastcall_args(tuple=False, dict=True)
     def fastcall_method3(self, x, *args, **kw):
         """
         >>> PyDummy().fastcall_method3(1, 2, 3, a=1, b=2)
@@ -146,7 +146,7 @@ class PyDummy:
         return len(args) + len(kw)
 
     # FIXME should be generating warning
-    @cython.fastcall_args(True, False)
+    @cython.fastcall_args(tuple=True, dict=False)
     def probably_not_fastcall_method(self, *args, **kw):
         """
         >>> PyDummy().probably_not_fastcall_method(1, 2, 3, a=1, b=2)
@@ -159,7 +159,7 @@ def call_with_args(*args):
 
 # all of these operations should be supported without coercion
 @cython.test_fail_if_path_exists("//CoerceToPyTypeNode")
-@cython.fastcall_args(True, False)
+@cython.fastcall_args(tuple=True, dict=False)
 def test_starargs_ops(*args):
     """
     >>> test_starargs_ops(1, 2, 3)
@@ -197,7 +197,7 @@ def test_starargs_ops(*args):
     print(call_with_args(*args))  # should go directly to a fastcall call and not prepare a tuple
 
 @cython.test_fail_if_path_exists("//CoerceToPyTypeNode")
-@cython.fastcall_args(True)
+@cython.fastcall_args(tuple=True, dict=True)
 def conversion_to_bool_good(dummy, *args, **kwds):
     """
     Specifically test for this to check both true and false cases
@@ -217,7 +217,7 @@ def conversion_to_bool_good(dummy, *args, **kwds):
     if kwds:
         print("kwds")
 
-@cython.fastcall_args(True, False)
+@cython.fastcall_args(tuple=True, dict=False)
 def test_starargs_ops_explicit_conversion(*args):
     """
     >>> test_starargs_ops_explicit_conversion(1, 2, 3)
@@ -236,34 +236,23 @@ def test_starargs_coercion(*args):
 
     return args.index(1), args, cython.typeof(args)
 
-cdef ord_(x):
-    return ord(x)  # keeps the CoerceToPyTypeNode out of the main function
-
 def call_with_kwds(**kwds):
     return len(kwds)
 
 @cython.test_fail_if_path_exists("//CoerceToPyTypeNode")
-@cython.fastcall_args(False, True)
+@cython.fastcall_args(tuple=False, dict=True)
 def test_starstarargs_ops(**kwds):
     """
     >>> test_starstarargs_ops(a=1, b=2, c=3)
     3
-    ['a', 'b', 'c']
-    [1, 2, 3]
-    294
-    6
     3
     """
     cdef int res
     res = len(kwds)
     print("3" if res==3 else "not 3")  # avoid coercion to python object
-    print(sorted(kwds.keys()))
-    print(sorted(kwds.values()))
-    print(sum([ ord_(k) for k in kwds.keys() ]))
-    print(sum([ v for v in kwds.values() ]))
     print(call_with_kwds(**kwds))  # should be able to convert directly to a fastcall call
 
-@cython.fastcall_args(False, True)
+@cython.fastcall_args(tuple=False, dict=True)
 def test_starstarargs_ops_changes(**kwds):
     """
     Changes to kwds need to be preserved after coercion
