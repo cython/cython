@@ -38,6 +38,7 @@ run.index
 run.pyclass_special_methods
 run.reimport_from_package
 run.reimport_from_subinterpreter
+run.reimport_failure
 pkg.cimportfrom
 embedded
 TestCyCache

@@ -36,7 +36,7 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
             }
 #endif
             b = (PyTypeObject*)b0;
-            if (!PyType_HasFeature(b, Py_TPFLAGS_HEAPTYPE))
+            if (!__Pyx_PyType_HasFeature(b, Py_TPFLAGS_HEAPTYPE))
             {
                 PyErr_Format(PyExc_TypeError, "base class '%.200s' is not a heap type",
                              b->tp_name);
@@ -55,20 +55,65 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
     }
 
 #if PY_VERSION_HEX >= 0x03050000
-    // As of https://bugs.python.org/issue22079
-    // PyType_Ready enforces that all bases of a non-heap type are
-    // non-heap. We know that this is the case for the solid base but
-    // other bases are heap allocated and are kept alive through the
-    // tp_bases reference.
-    // Other than this check, the Py_TPFLAGS_HEAPTYPE flag is unused
-    // in PyType_Ready().
-    t->tp_flags |= Py_TPFLAGS_HEAPTYPE;
+    {
+        // Make sure GC does not pick up our non-heap type as heap type with this hack!
+        // For details, see https://github.com/cython/cython/issues/3603
+        PyObject *ret, *py_status;
+        int gc_was_enabled;
+        PyObject *gc = PyImport_Import(PYUNICODE("gc"));
+        if (unlikely(!gc)) return -1;
+        py_status = PyObject_CallMethodObjArgs(gc, PYUNICODE("isenabled"), NULL);
+        if (unlikely(!py_status)) {
+            Py_DECREF(gc);
+            return -1;
+        }
+        gc_was_enabled = __Pyx_PyObject_IsTrue(py_status);
+        Py_DECREF(py_status);
+        if (gc_was_enabled > 0) {
+            ret = PyObject_CallMethodObjArgs(gc, PYUNICODE("disable"), NULL);
+            if (unlikely(!ret)) {
+                Py_DECREF(gc);
+                return -1;
+            }
+            Py_DECREF(ret);
+        } else if (unlikely(gc_was_enabled == -1)) {
+            Py_DECREF(gc);
+            return -1;
+        }
+
+        // As of https://bugs.python.org/issue22079
+        // PyType_Ready enforces that all bases of a non-heap type are
+        // non-heap. We know that this is the case for the solid base but
+        // other bases are heap allocated and are kept alive through the
+        // tp_bases reference.
+        // Other than this check, the Py_TPFLAGS_HEAPTYPE flag is unused
+        // in PyType_Ready().
+        t->tp_flags |= Py_TPFLAGS_HEAPTYPE;
 #endif
 
     r = PyType_Ready(t);
 
 #if PY_VERSION_HEX >= 0x03050000
-    t->tp_flags &= ~Py_TPFLAGS_HEAPTYPE;
+        t->tp_flags &= ~Py_TPFLAGS_HEAPTYPE;
+
+        if (gc_was_enabled) {
+            PyObject *t, *v, *tb;
+            PyErr_Fetch(&t, &v, &tb);
+            ret = PyObject_CallMethodObjArgs(gc, PYUNICODE("enable"), NULL);
+            if (likely(ret || r == -1)) {
+                Py_XDECREF(ret);
+                // do not overwrite exceptions raised by PyType_Ready() above
+                PyErr_Restore(t, v, tb);
+            } else {
+                // PyType_Ready() succeeded, but gc.enable() failed.
+                Py_XDECREF(t);
+                Py_XDECREF(v);
+                Py_XDECREF(tb);
+                r = -1;
+            }
+        }
+        Py_DECREF(gc);
+    }
 #endif
 
     return r;
@@ -235,16 +280,28 @@ static int __Pyx_setup_reduce(PyObject* type_obj) {
         reduce = __Pyx_PyObject_GetAttrStr(type_obj, PYIDENT("__reduce__")); if (unlikely(!reduce)) goto __PYX_BAD;
 
         if (reduce == object_reduce || __Pyx_setup_reduce_is_named(reduce, PYIDENT("__reduce_cython__"))) {
-            reduce_cython = __Pyx_PyObject_GetAttrStr(type_obj, PYIDENT("__reduce_cython__")); if (unlikely(!reduce_cython)) goto __PYX_BAD;
-            ret = PyDict_SetItem(((PyTypeObject*)type_obj)->tp_dict, PYIDENT("__reduce__"), reduce_cython); if (unlikely(ret < 0)) goto __PYX_BAD;
-            ret = PyDict_DelItem(((PyTypeObject*)type_obj)->tp_dict, PYIDENT("__reduce_cython__")); if (unlikely(ret < 0)) goto __PYX_BAD;
+            reduce_cython = __Pyx_PyObject_GetAttrStrNoError(type_obj, PYIDENT("__reduce_cython__"));
+            if (likely(reduce_cython)) {
+                ret = PyDict_SetItem(((PyTypeObject*)type_obj)->tp_dict, PYIDENT("__reduce__"), reduce_cython); if (unlikely(ret < 0)) goto __PYX_BAD;
+                ret = PyDict_DelItem(((PyTypeObject*)type_obj)->tp_dict, PYIDENT("__reduce_cython__")); if (unlikely(ret < 0)) goto __PYX_BAD;
+            } else if (reduce == object_reduce || PyErr_Occurred()) {
+                // Ignore if we're done, i.e. if 'reduce' already has the right name and the original is gone.
+                // Otherwise: error.
+                goto __PYX_BAD;
+            }
 
             setstate = __Pyx_PyObject_GetAttrStrNoError(type_obj, PYIDENT("__setstate__"));
             if (!setstate) PyErr_Clear();
             if (!setstate || __Pyx_setup_reduce_is_named(setstate, PYIDENT("__setstate_cython__"))) {
-                setstate_cython = __Pyx_PyObject_GetAttrStr(type_obj, PYIDENT("__setstate_cython__")); if (unlikely(!setstate_cython)) goto __PYX_BAD;
-                ret = PyDict_SetItem(((PyTypeObject*)type_obj)->tp_dict, PYIDENT("__setstate__"), setstate_cython); if (unlikely(ret < 0)) goto __PYX_BAD;
-                ret = PyDict_DelItem(((PyTypeObject*)type_obj)->tp_dict, PYIDENT("__setstate_cython__")); if (unlikely(ret < 0)) goto __PYX_BAD;
+                setstate_cython = __Pyx_PyObject_GetAttrStrNoError(type_obj, PYIDENT("__setstate_cython__"));
+                if (likely(setstate_cython)) {
+                    ret = PyDict_SetItem(((PyTypeObject*)type_obj)->tp_dict, PYIDENT("__setstate__"), setstate_cython); if (unlikely(ret < 0)) goto __PYX_BAD;
+                    ret = PyDict_DelItem(((PyTypeObject*)type_obj)->tp_dict, PYIDENT("__setstate_cython__")); if (unlikely(ret < 0)) goto __PYX_BAD;
+                } else if (!setstate || PyErr_Occurred()) {
+                    // Ignore if we're done, i.e. if 'setstate' already has the right name and the original is gone.
+                    // Otherwise: error.
+                    goto __PYX_BAD;
+                }
             }
             PyType_Modified((PyTypeObject*)type_obj);
         }
@@ -268,3 +325,57 @@ __PYX_GOOD:
     return ret;
 }
 #endif
+
+
+/////////////// BinopSlot ///////////////
+
+static CYTHON_INLINE PyObject *{{func_name}}_maybe_call_slot(PyTypeObject* type, PyObject *left, PyObject *right {{extra_arg_decl}}) {
+    {{slot_type}} slot;
+#if !CYTHON_COMPILING_IN_LIMITED_API
+    slot = type->tp_as_number ? type->tp_as_number->{{slot_name}} : NULL;
+#else
+    slot = ({{slot_type}}) PyType_GetSlot(type, Py_{{slot_name}});
+#endif
+    return slot ? slot(left, right {{extra_arg}}) : __Pyx_NewRef(Py_NotImplemented);
+}
+
+static PyObject *{{func_name}}(PyObject *left, PyObject *right {{extra_arg_decl}}) {
+    PyObject *res;
+    int maybe_self_is_left, maybe_self_is_right = 0;
+    maybe_self_is_left = Py_TYPE(left) == Py_TYPE(right)
+#if CYTHON_USE_TYPE_SLOTS
+            || (Py_TYPE(left)->tp_as_number && Py_TYPE(left)->tp_as_number->{{slot_name}} == &{{func_name}})
+#endif
+            || __Pyx_TypeCheck(left, {{type_cname}});
+    // Optimize for the common case where the left operation is defined (and successful).
+    if (!{{overloads_left}}) {
+        maybe_self_is_right = Py_TYPE(left) == Py_TYPE(right)
+#if CYTHON_USE_TYPE_SLOTS
+                || (Py_TYPE(right)->tp_as_number && Py_TYPE(right)->tp_as_number->{{slot_name}} == &{{func_name}})
+#endif
+                || __Pyx_TypeCheck(right, {{type_cname}});
+    }
+    if (maybe_self_is_left) {
+        if (maybe_self_is_right && !{{overloads_left}}) {
+            res = {{call_right}};
+            if (res != Py_NotImplemented) return res;
+            Py_DECREF(res);
+            // Don't bother calling it again.
+            maybe_self_is_right = 0;
+        }
+        res = {{call_left}};
+        if (res != Py_NotImplemented) return res;
+        Py_DECREF(res);
+    }
+    if ({{overloads_left}}) {
+        maybe_self_is_right = Py_TYPE(left) == Py_TYPE(right)
+#if CYTHON_USE_TYPE_SLOTS
+                || (Py_TYPE(right)->tp_as_number && Py_TYPE(right)->tp_as_number->{{slot_name}} == &{{func_name}})
+#endif
+                || PyType_IsSubtype(Py_TYPE(right), {{type_cname}});
+    }
+    if (maybe_self_is_right) {
+        return {{call_right}};
+    }
+    return __Pyx_NewRef(Py_NotImplemented);
+}

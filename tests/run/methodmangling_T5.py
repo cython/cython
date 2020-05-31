@@ -4,6 +4,7 @@
 # A small number of extra tests checking:
 # 1) this works correctly with pure-Python-mode decorators - methodmangling_pure.py.
 # 2) this works correctly with cdef classes - methodmangling_cdef.pyx
+# 3) with "error_on_unknown_names" - methodmangling_unknown_names.py
 
 class CyTest(object):
     """

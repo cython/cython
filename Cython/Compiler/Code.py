@@ -296,7 +296,7 @@ class UtilityCodeBase(object):
         _, ext = os.path.splitext(path)
         if ext in ('.pyx', '.py', '.pxd', '.pxi'):
             comment = '#'
-            strip_comments = partial(re.compile(r'^\s*#.*').sub, '')
+            strip_comments = partial(re.compile(r'^\s*#(?!\s*cython\s*:).*').sub, '')
             rstrip = StringEncoding._unicode.rstrip
         else:
             comment = '/'
@@ -408,7 +408,7 @@ class UtilityCodeBase(object):
         """
         Calls .load(), but using a per-type cache based on utility name and file name.
         """
-        key = (cls, from_file, utility_code_name)
+        key = (utility_code_name, from_file, cls)
         try:
             return __cache[key]
         except KeyError:
@@ -543,7 +543,7 @@ class UtilityCode(UtilityCodeBase):
 
         impl = re.sub(r'PY(IDENT|UNICODE)\("([^"]+)"\)', externalise, impl)
         assert 'PYIDENT(' not in impl and 'PYUNICODE(' not in impl
-        return bool(replacements), impl
+        return True, impl
 
     def inject_unbound_methods(self, impl, output):
         """Replace 'UNBOUND_METHOD(type, "name")' by a constant Python identifier cname.
@@ -551,7 +551,6 @@ class UtilityCode(UtilityCodeBase):
         if 'CALL_UNBOUND_METHOD(' not in impl:
             return False, impl
 
-        utility_code = set()
         def externalise(matchobj):
             type_cname, method_name, obj_cname, args = matchobj.groups()
             args = [arg.strip() for arg in args[1:].split(',')] if args else []
@@ -567,9 +566,7 @@ class UtilityCode(UtilityCodeBase):
             r'\)', externalise, impl)
         assert 'CALL_UNBOUND_METHOD(' not in impl
 
-        for helper in sorted(utility_code):
-            output.use_utility_code(UtilityCode.load_cached(helper, "ObjectHandling.c"))
-        return bool(utility_code), impl
+        return True, impl
 
     def wrap_c_strings(self, impl):
         """Replace CSTRING('''xyz''') by a C compatible string
@@ -1103,10 +1100,6 @@ class GlobalState(object):
         'complex_type_declarations', # as the proper solution is to make a full DAG...
         'type_declarations',         # More coarse-grained blocks would simply hide
         'utility_code_proto',        # the ugliness, not fix it
-        'module_state',
-        'module_state_clear',
-        'module_state_traverse',
-        'module_state_defines',
         'module_declarations',
         'typeinfo',
         'before_global_var',
@@ -1114,7 +1107,11 @@ class GlobalState(object):
         'string_decls',
         'decls',
         'late_includes',
-        'all_the_rest',
+        'module_state',
+        'module_state_clear',
+        'module_state_traverse',
+        'module_state_defines',  # redefines names used in module_state/_clear/_traverse
+        'module_code',  # user code goes here
         'pystring_table',
         'cached_builtins',
         'cached_constants',
@@ -1155,8 +1152,10 @@ class GlobalState(object):
 
     def initialize_main_c_code(self):
         rootwriter = self.rootwriter
-        for part in self.code_layout:
-            self.parts[part] = rootwriter.insertion_point()
+        for i, part in enumerate(self.code_layout):
+            w = self.parts[part] = rootwriter.insertion_point()
+            if i > 0:
+                w.putln("/* #### Code section: %s ### */" % part)
 
         if not Options.cache_builtins:
             del self.parts['cached_builtins']
@@ -2049,8 +2048,7 @@ class CCodeWriter(object):
             if type.is_pyobject:
                 self.putln("%s = NULL;" % decl)
             elif type.is_memoryviewslice:
-                from . import MemoryView
-                self.putln("%s = %s;" % (decl, MemoryView.memslice_entry_init))
+                self.putln("%s = %s;" % (decl, type.literal_code(type.default_value)))
             else:
                 self.putln("%s%s;" % (static and "static " or "", decl))
 
@@ -2354,24 +2352,18 @@ class CCodeWriter(object):
         self.funcstate.should_declare_error_indicator = True
         if used:
             self.funcstate.uses_error_indicator = True
-        if self.code_config.c_line_in_traceback:
-            cinfo = " %s = %s;" % (Naming.clineno_cname, Naming.line_c_macro)
-        else:
-            cinfo = ""
-
-        return "%s = %s[%s]; %s = %s;%s" % (
-            Naming.filename_cname,
-            Naming.filetable_cname,
+        return "__PYX_MARK_ERR_POS(%s, %s)" % (
             self.lookup_filename(pos[0]),
-            Naming.lineno_cname,
-            pos[1],
-            cinfo)
+            pos[1])
 
-    def error_goto(self, pos):
+    def error_goto(self, pos, used=True):
         lbl = self.funcstate.error_label
         self.funcstate.use_label(lbl)
         if pos is None:
             return 'goto %s;' % lbl
+        self.funcstate.should_declare_error_indicator = True
+        if used:
+            self.funcstate.uses_error_indicator = True
         return "__PYX_ERR(%s, %s, %s)" % (
             self.lookup_filename(pos[0]),
             pos[1],
@@ -2402,8 +2394,8 @@ class CCodeWriter(object):
                 UtilityCode.load_cached("ForceInitThreads", "ModuleSetupCode.c"))
         self.putln('__Pyx_RefNannySetupContext(%s, %d);' % (name, acquire_gil and 1 or 0))
 
-    def put_finish_refcount_context(self):
-        self.putln("__Pyx_RefNannyFinishContext();")
+    def put_finish_refcount_context(self, nogil=False):
+        self.putln("__Pyx_RefNannyFinishContextNogil()" if nogil else "__Pyx_RefNannyFinishContext();")
 
     def put_add_traceback(self, qualified_name, include_cline=True):
         """

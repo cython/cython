@@ -17,7 +17,7 @@ This can lead to really interesting speedup in some cases, going from 2 up to
 Please note that this feature is experimental.
 
 Usage example with setuptools
-----------------------------
+-----------------------------
 
 You first need to install Pythran. See its `documentation
 <https://pythran.readthedocs.io/>`_ for more information.

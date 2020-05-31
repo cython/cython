@@ -276,6 +276,9 @@ def cascade():
     assert typeof(e) == "double"
 
 def cascaded_assignment():
+    """
+    >>> cascaded_assignment()
+    """
     a = b = c = d = 1.0
     assert typeof(a) == "double"
     assert typeof(b) == "double"
@@ -283,6 +286,36 @@ def cascaded_assignment():
     assert typeof(d) == "double"
     e = a + b + c + d
     assert typeof(e) == "double"
+
+
+def unpacking(x):
+    """
+    >>> unpacking(0)
+    """
+    a, b, c, (d, e) = x, 1, 2.0, [3, [5, 6]]
+    assert typeof(a) == "Python object", typeof(a)
+    assert typeof(b) == "long", typeof(b)
+    assert typeof(c) == "double", typeof(c)
+    assert typeof(d) == "long", typeof(d)
+    assert typeof(e) == "list object", typeof(e)
+
+
+def star_unpacking(*x):
+    """
+    >>> star_unpacking(1, 2)
+    """
+    a, b = x
+    c, *d = x
+    *e, f = x
+    *g, g = x  # re-assignment
+    assert typeof(a) == "Python object", typeof(a)
+    assert typeof(b) == "Python object", typeof(b)
+    assert typeof(c) == "Python object", typeof(c)
+    assert typeof(d) == "list object", typeof(d)
+    assert typeof(e) == "list object", typeof(e)
+    assert typeof(f) == "Python object", typeof(f)
+    assert typeof(g) == "Python object", typeof(f)
+
 
 def increment():
     """

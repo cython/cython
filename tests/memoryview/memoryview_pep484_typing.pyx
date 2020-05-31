@@ -1,5 +1,5 @@
 # mode: run
-# tag: pep489, memoryview
+# tag: pep484, memoryview
 
 cimport cython
 

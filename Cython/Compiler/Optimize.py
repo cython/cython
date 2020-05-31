@@ -1776,7 +1776,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
 
         arg = pos_args[0]
         if isinstance(arg, ExprNodes.ComprehensionNode) and arg.type is Builtin.list_type:
-            list_node = pos_args[0]
+            list_node = arg
             loop_node = list_node.loop
 
         elif isinstance(arg, ExprNodes.GeneratorExpressionNode):
@@ -4413,10 +4413,10 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         return self.visit_BinopNode(node)
 
     _parse_string_format_regex = (
-        u'(%(?:'            # %...
-        u'(?:[0-9]+|[ ])?'  # width (optional) or space prefix fill character (optional)
-        u'(?:[.][0-9]+)?'   # precision (optional)
-        u')?.)'             # format type (or something different for unsupported formats)
+        u'(%(?:'              # %...
+        u'(?:[-0-9]+|[ ])?'   # width (optional) or space prefix fill character (optional)
+        u'(?:[.][0-9]+)?'     # precision (optional)
+        u')?.)'               # format type (or something different for unsupported formats)
     )
 
     def _build_fstring(self, pos, ustring, format_args):
@@ -4448,14 +4448,25 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                 break
             if format_type in u'asrfdoxX':
                 format_spec = s[1:]
+                conversion_char = None
                 if format_type in u'doxX' and u'.' in format_spec:
                     # Precision is not allowed for integers in format(), but ok in %-formatting.
                     can_be_optimised = False
                 elif format_type in u'ars':
                     format_spec = format_spec[:-1]
+                    conversion_char = format_type
+                    if format_spec.startswith('0'):
+                        format_spec = '>' + format_spec[1:]  # right-alignment '%05s' spells '{:>5}'
+                elif format_type == u'd':
+                    # '%d' formatting supports float, but '{obj:d}' does not => convert to int first.
+                    conversion_char = 'd'
+
+                if format_spec.startswith('-'):
+                    format_spec = '<' + format_spec[1:]  # left-alignment '%-5s' spells '{:<5}'
+
                 substrings.append(ExprNodes.FormattedValueNode(
                     arg.pos, value=arg,
-                    conversion_char=format_type if format_type in u'ars' else None,
+                    conversion_char=conversion_char,
                     format_spec=ExprNodes.UnicodeNode(
                         pos, value=EncodedString(format_spec), constant_result=format_spec)
                         if format_spec else None,
@@ -4845,6 +4856,7 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
         - isinstance -> typecheck for cdef types
         - eliminate checks for None and/or types that became redundant after tree changes
         - eliminate useless string formatting steps
+        - inject branch hints for unlikely if-cases that only raise exceptions
         - replace Python function calls that look like method calls by a faster PyMethodCallNode
     """
     in_loop = False
@@ -4942,6 +4954,48 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
         self.visitchildren(node)
         self.in_loop = old_val
         return node
+
+    def visit_IfStatNode(self, node):
+        """Assign 'unlikely' branch hints to if-clauses that only raise exceptions.
+        """
+        self.visitchildren(node)
+        last_non_unlikely_clause = None
+        for i, if_clause in enumerate(node.if_clauses):
+            self._set_ifclause_branch_hint(if_clause, if_clause.body)
+            if not if_clause.branch_hint:
+                last_non_unlikely_clause = if_clause
+        if node.else_clause and last_non_unlikely_clause:
+            # If the 'else' clause is 'unlikely', then set the preceding 'if' clause to 'likely' to reflect that.
+            self._set_ifclause_branch_hint(last_non_unlikely_clause, node.else_clause, inverse=True)
+        return node
+
+    def _set_ifclause_branch_hint(self, clause, statements_node, inverse=False):
+        """Inject a branch hint if the if-clause unconditionally leads to a 'raise' statement.
+        """
+        if not statements_node.is_terminator:
+            return
+        # Allow simple statements, but no conditions, loops, etc.
+        non_branch_nodes = (
+            Nodes.ExprStatNode,
+            Nodes.AssignmentNode,
+            Nodes.AssertStatNode,
+            Nodes.DelStatNode,
+            Nodes.GlobalNode,
+            Nodes.NonlocalNode,
+        )
+        statements = [statements_node]
+        for next_node_pos, node in enumerate(statements, 1):
+            if isinstance(node, Nodes.GILStatNode):
+                statements.insert(next_node_pos, node.body)
+                continue
+            if isinstance(node, Nodes.StatListNode):
+                statements[next_node_pos:next_node_pos] = node.stats
+                continue
+            if not isinstance(node, non_branch_nodes):
+                if next_node_pos == len(statements) and isinstance(node, (Nodes.RaiseStatNode, Nodes.ReraiseStatNode)):
+                    # Anything that unconditionally raises exceptions at the end should be considered unlikely.
+                    clause.branch_hint = 'likely' if inverse else 'unlikely'
+                break
 
 
 class ConsolidateOverflowCheck(Visitor.CythonTransform):

@@ -718,3 +718,42 @@ def test_boundscheck_and_wraparound(double[:, :] x):
         x[i]
         x[i, ...]
         x[i, :]
+
+
+ctypedef struct SameTypeAfterArraysStructSimple:
+    double a[16]
+    double b[16]
+    double c
+
+@testcase
+def same_type_after_arrays_simple():
+    """
+    >>> same_type_after_arrays_simple()
+    """
+
+    cdef SameTypeAfterArraysStructSimple element
+    arr = np.ones(2, np.asarray(<SameTypeAfterArraysStructSimple[:1]>&element).dtype)
+    cdef SameTypeAfterArraysStructSimple[:] memview = arr
+
+
+ctypedef struct SameTypeAfterArraysStructComposite:
+    int a
+    float b[8]
+    float c
+    unsigned long d
+    int e[5]
+    int f
+    int g
+    double h[4]
+    int i
+
+@testcase
+def same_type_after_arrays_composite():
+    """
+    >>> same_type_after_arrays_composite() if sys.version_info[:2] >= (3, 5) else None
+    >>> same_type_after_arrays_composite() if sys.version_info[:2] == (2, 7) else None
+    """
+
+    cdef SameTypeAfterArraysStructComposite element
+    arr = np.ones(2, np.asarray(<SameTypeAfterArraysStructComposite[:1]>&element).dtype)
+    cdef SameTypeAfterArraysStructComposite[:] memview = arr

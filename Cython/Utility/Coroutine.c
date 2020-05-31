@@ -1468,7 +1468,7 @@ static PyMethodDef __pyx_CoroutineAwait_methods[] = {
 
 static PyTypeObject __pyx_CoroutineAwaitType_type = {
     PyVarObject_HEAD_INIT(0, 0)
-    "coroutine_wrapper",                /*tp_name*/
+    __PYX_TYPE_MODULE_PREFIX "coroutine_wrapper", /*tp_name*/
     sizeof(__pyx_CoroutineAwaitObject), /*tp_basicsize*/
     0,                                  /*tp_itemsize*/
     (destructor) __Pyx_CoroutineAwait_dealloc,/*tp_dealloc*/
@@ -1616,7 +1616,7 @@ static __Pyx_PyAsyncMethodsStruct __pyx_Coroutine_as_async = {
 
 static PyTypeObject __pyx_CoroutineType_type = {
     PyVarObject_HEAD_INIT(0, 0)
-    "coroutine",                        /*tp_name*/
+    __PYX_TYPE_MODULE_PREFIX "coroutine", /*tp_name*/
     sizeof(__pyx_CoroutineObject),      /*tp_basicsize*/
     0,                                  /*tp_itemsize*/
     (destructor) __Pyx_Coroutine_dealloc,/*tp_dealloc*/
@@ -1732,7 +1732,7 @@ static int __pyx_IterableCoroutine_init(void);/*proto*/
 
 static PyTypeObject __pyx_IterableCoroutineType_type = {
     PyVarObject_HEAD_INIT(0, 0)
-    "iterable_coroutine",               /*tp_name*/
+    __PYX_TYPE_MODULE_PREFIX "iterable_coroutine", /*tp_name*/
     sizeof(__pyx_CoroutineObject),      /*tp_basicsize*/
     0,                                  /*tp_itemsize*/
     (destructor) __Pyx_Coroutine_dealloc,/*tp_dealloc*/
@@ -1851,7 +1851,7 @@ static PyGetSetDef __pyx_Generator_getsets[] = {
 
 static PyTypeObject __pyx_GeneratorType_type = {
     PyVarObject_HEAD_INIT(0, 0)
-    "generator",                        /*tp_name*/
+    __PYX_TYPE_MODULE_PREFIX "generator", /*tp_name*/
     sizeof(__pyx_CoroutineObject),      /*tp_basicsize*/
     0,                                  /*tp_itemsize*/
     (destructor) __Pyx_Coroutine_dealloc,/*tp_dealloc*/

@@ -128,7 +128,8 @@ def inject_utility_code_stage_factory(context):
                         module_node.scope.utility_code_list.append(dep)
             tree = utilcode.get_tree(cython_scope=context.cython_scope)
             if tree:
-                module_node.merge_in(tree.body, tree.scope, merge_scope=True)
+                module_node.merge_in(tree.with_compiler_directives(),
+                                     tree.scope, merge_scope=True)
         return module_node
     return inject_utility_code_stage
 
@@ -146,7 +147,7 @@ def create_pipeline(context, mode, exclude_classes=()):
     from .ParseTreeTransforms import CreateClosureClasses, MarkClosureVisitor, DecoratorTransform
     from .ParseTreeTransforms import TrackNumpyAttributes, InterpretCompilerDirectives, TransformBuiltinMethods
     from .ParseTreeTransforms import ExpandInplaceOperators, ParallelRangeTransform
-    from .ParseTreeTransforms import CalculateQualifiedNamesTransform, ReplacePropertyNode
+    from .ParseTreeTransforms import CalculateQualifiedNamesTransform
     from .TypeInference import MarkParallelAssignments, MarkOverflowingArithmetic
     from .ParseTreeTransforms import AdjustDefByDirectives, AlignFunctionDefinitions
     from .ParseTreeTransforms import RemoveUnreachableCode, GilCheck
@@ -198,7 +199,6 @@ def create_pipeline(context, mode, exclude_classes=()):
         AnalyseDeclarationsTransform(context),
         AutoTestDictTransform(context),
         EmbedSignature(context),
-        ReplacePropertyNode(context),
         EarlyReplaceBuiltinCalls(context),  ## Necessary?
         TransformBuiltinMethods(context),
         MarkParallelAssignments(context),

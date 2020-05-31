@@ -122,8 +122,7 @@ class ResultRefNode(AtomicExprNode):
         self.may_hold_none = may_hold_none
         if expression is not None:
             self.pos = expression.pos
-            if hasattr(expression, "type"):
-                self.type = expression.type
+            self.type = getattr(expression, "type", None)
         if pos is not None:
             self.pos = pos
         if type is not None:
@@ -144,8 +143,9 @@ class ResultRefNode(AtomicExprNode):
 
     def update_expression(self, expression):
         self.expression = expression
-        if hasattr(expression, "type"):
-            self.type = expression.type
+        type = getattr(expression, "type", None)
+        if type:
+            self.type = type
 
     def analyse_types(self, env):
         if self.expression is not None:

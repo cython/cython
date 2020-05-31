@@ -1,4 +1,5 @@
 # cython: language_level=3str
+# cython: auto_pickle=True
 
 from __future__ import absolute_import
 
@@ -808,8 +809,11 @@ class ControlFlowAnalysis(CythonTransform):
             self.flow.mark_assignment(lhs, rhs, entry)
         elif lhs.is_sequence_constructor:
             for i, arg in enumerate(lhs.args):
-                if not rhs or arg.is_starred:
-                    item_node = None
+                if arg.is_starred:
+                    # "a, *b = x" assigns a list to "b"
+                    item_node = TypedExprNode(Builtin.list_type, may_be_none=False, pos=arg.pos)
+                elif rhs is self.object_expr:
+                    item_node = rhs
                 else:
                     item_node = rhs.inferable_item_node(i)
                 self.mark_assignment(arg, item_node)
@@ -834,7 +838,7 @@ class ControlFlowAnalysis(CythonTransform):
         return node
 
     def visit_AssignmentNode(self, node):
-        raise InternalError("Unhandled assignment node")
+        raise InternalError("Unhandled assignment node %s" % type(node))
 
     def visit_SingleAssignmentNode(self, node):
         self._visit(node.rhs)
@@ -912,6 +916,12 @@ class ControlFlowAnalysis(CythonTransform):
         self.mark_position(node)
         return node
 
+    def visit_SizeofVarNode(self, node):
+        return node
+
+    def visit_TypeidNode(self, node):
+        return node
+
     def visit_IfStatNode(self, node):
         next_block = self.flow.newblock()
         parent = self.flow.block
@@ -932,6 +942,26 @@ class ControlFlowAnalysis(CythonTransform):
         else:
             parent.add_child(next_block)
 
+        if next_block.parents:
+            self.flow.block = next_block
+        else:
+            self.flow.block = None
+        return node
+
+    def visit_AssertStatNode(self, node):
+        """Essentially an if-condition that wraps a RaiseStatNode.
+        """
+        self.mark_position(node)
+        next_block = self.flow.newblock()
+        parent = self.flow.block
+        # failure case
+        parent = self.flow.nextblock(parent)
+        self._visit(node.condition)
+        self.flow.nextblock()
+        self._visit(node.exception)
+        if self.flow.block:
+            self.flow.block.add_child(next_block)
+        parent.add_child(next_block)
         if next_block.parents:
             self.flow.block = next_block
         else:

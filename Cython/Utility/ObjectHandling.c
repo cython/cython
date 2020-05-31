@@ -1234,7 +1234,7 @@ static PyObject *__Pyx_InitSubclassPEP487(PyObject *type_obj, PyObject *mkw) {
     if (unlikely(!mro)) goto done;
 
     // avoid "unused" warning
-    (void) __Pyx_GetBuiltinName;
+    (void) &__Pyx_GetBuiltinName;
 
     Py_INCREF(mro);
     nbases = PyTuple_GET_SIZE(mro);
@@ -1285,7 +1285,7 @@ bad:
 #else
     super_type = (PyObject*) &PySuper_Type;
     // avoid "unused" warning
-    (void) __Pyx_GetBuiltinName;
+    (void) &__Pyx_GetBuiltinName;
 #endif
     super = likely(super_type) ? __Pyx_PyObject_Call2Args(super_type, type_obj, type_obj) : NULL;
 #if CYTHON_COMPILING_IN_PYPY && !defined(PySuper_Type)
@@ -1318,7 +1318,7 @@ done:
 static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObject *bases,
                                       PyObject *dict, PyObject *mkw,
                                       int calculate_metaclass, int allow_py2_metaclass) {
-    PyObject *result, *mc_kwargs;
+    PyObject *result;
     PyObject *owned_metaclass = NULL;
     PyObject *margs[4] = {NULL, name, bases, dict};
     if (allow_py2_metaclass) {
@@ -1339,10 +1339,14 @@ static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObj
             return NULL;
         owned_metaclass = metaclass;
     }
-    // Before PEP-487, type(a,b,c) did not accept any keyword arguments, so guard at least against that case.
-    mc_kwargs = (PY_VERSION_HEX >= 0x030600A4) ? mkw : (
-        (metaclass == (PyObject*)&PyType_Type) ? NULL : mkw);
-    result = __Pyx_PyObject_FastCallDict(metaclass, margs+1, 3 | __Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET, mc_kwargs);
+    result = __Pyx_PyObject_FastCallDict(metaclass, margs+1, 3 | __Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET,
+#if PY_VERSION_HEX < 0x030600A4
+        // Before PEP-487, type(a,b,c) did not accept any keyword arguments, so guard at least against that case.
+        (metaclass == (PyObject*)&PyType_Type) ? NULL : mkw
+#else
+        mkw
+#endif
+    );
     Py_XDECREF(owned_metaclass);
 
 #if PY_VERSION_HEX < 0x030600A4 && CYTHON_PEP487_INIT_SUBCLASS
@@ -1355,7 +1359,7 @@ static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObj
     }
 #else
     // avoid "unused" warning
-    (void) __Pyx_GetBuiltinName;
+    (void) &__Pyx_GetBuiltinName;
 #endif
     return result;
 }
@@ -1861,7 +1865,7 @@ static int __Pyx_PyObject_GetMethod(PyObject *obj, PyObject *name, PyObject **me
     if (likely(descr != NULL)) {
         Py_INCREF(descr);
 #if defined(Py_TPFLAGS_METHOD_DESCRIPTOR) && Py_TPFLAGS_METHOD_DESCRIPTOR
-        if (PyType_HasFeature(Py_TYPE(descr), Py_TPFLAGS_METHOD_DESCRIPTOR))
+        if (__Pyx_PyType_HasFeature(Py_TYPE(descr), Py_TPFLAGS_METHOD_DESCRIPTOR))
 #elif PY_MAJOR_VERSION >= 3
         // Repeating the condition below accommodates for MSVC's inability to test macros inside of macro expansions.
         #ifdef __Pyx_CyFunction_USED
@@ -2226,7 +2230,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallKwds_Impl(PyObject *func, 
 #if CYTHON_COMPILING_IN_CPYTHON
     if (nargs == 0 && kwds == NULL) {
 #ifdef __Pyx_CyFunction_USED
-        if (PyCFunction_Check(func) || __Pyx_CyFunction_Check(func))
+        if (__Pyx_IsCyOrPyCFunction(func))
 #else
         if (PyCFunction_Check(func))
 #endif
@@ -2280,13 +2284,12 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallKwds_Impl(PyObject *func, 
         }
         #elif __Pyx_CyFunction_USED && CYTHON_BACKPORT_VECTORCALL
         // exclude fused functions for now
-        if (__Pyx_IS_TYPE(func, __pyx_CyFunctionType)) {
+        if (__Pyx_CyFunction_CheckExact(func)) {
             __pyx_vectorcallfunc f = __Pyx_CyFunction_func_vectorcall(func);
             if (f) return f(func, args, nargs, kwds);
         }
         #endif
     }
-
     if (nargs == 0 && kwds_in_dict) {
         return __Pyx_PyObject_Call(func, $empty_tuple, kwds);
     }
