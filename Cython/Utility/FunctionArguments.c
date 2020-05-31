@@ -471,7 +471,7 @@ static CYTHON_INLINE PyObject * __Pyx_GetKwValue_FASTCALL(PyObject *kwnames, PyO
 // A struct which can be created cheaply without needing to construct a Python object
 
 #if CYTHON_METH_FASTCALL
-typedef PyObject* __Pyx_FastcallTupleCoerced;
+typedef CYTHON_UNUSED PyObject* __Pyx_FastcallTupleCoerced;
 #define __Pyx_FastcallTupleCoerced_XDECREF(x) Py_XDECREF(x) // no refnanny for this because it's set oddly
 typedef struct {
     PyObject *const *args;
@@ -492,7 +492,7 @@ static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_FastcallTuple_New(PyObject *c
 #define __Pyx_FastcallTuple_NULLCHECK(x) x.args
 static CYTHON_INLINE Py_ssize_t __Pyx_FastcallTuple_Len(__Pyx_FastcallTuple_obj o); /* proto */
 #else
-typedef void* __Pyx_FastcallTupleCoerced;
+typedef CYTHON_UNUSED void* __Pyx_FastcallTupleCoerced;
 #define __Pyx_FastcallTupleCoerced_XDECREF(x)
 typedef PyObject* __Pyx_FastcallTuple_obj;
 #define __Pyx_FastcallTuple_Empty 0

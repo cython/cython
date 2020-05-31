@@ -2350,6 +2350,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallArgsKwds_structs(PyObject*
         return __Pyx_PyObject_FastCallKwds(callable, (PyObject**)args.args, args.nargs, kwds->object);
     }
     #else
+    PyObject *tpl = NULL, *dict = NULL, *result = NULL;;
     tpl = __Pyx_FastcallTuple_ToTuple(args);
     if (!tpl) return NULL;
     dict = __Pyx_FastcallDict_ToDict_Explicit(kwds);
