@@ -4285,19 +4285,6 @@ class FastcallBaseType(PyrexType):
     def nullcheck_string(self, cname):
         return "__Pyx_%s_NULLCHECK(%s)" % (self.name, cname)
 
-    # different instances are created just to hold a different "coercion_count" for each
-    # function. However, it's useful for looking up the type if they compare equal
-    # (apart from the count there's no useful difference between instances)
-    def __hash__(self):
-        return hash((type(self), self.is_fastcall_tuple, self.is_fastcall_dict))
-    def __eq__(self, other):
-        return (type(self) == type(other)
-                and self.is_fastcall_tuple == other.is_fastcall_tuple
-                and self.is_fastcall_dict == other.is_fastcall_dict
-                )
-    def __ne__(self, other):
-        return not (self == other) # looks to be necessary for Py2
-
     def literal_code(self, value):
         assert value in ("0", "{}"), str(value)  # only know how to handle empty literals
         return self.declaration_value
@@ -4319,11 +4306,6 @@ class FastcallTupleType(FastcallBaseType):
     def nearest_python_type(self):
         from .Builtin import tuple_type
         return tuple_type
-
-    def __init__(self, explicitly_requested=False):
-        super(FastcallTupleType, self).__init__()
-        self.coercion_count = 0
-        self.explicitly_requested = explicitly_requested
 
     def create_declaration_utility_code(self, env):
         env.use_utility_code(UtilityCode.load_cached('FastcallTuple', 'FunctionArguments.c'))
@@ -4347,11 +4329,25 @@ class FastcallTupleType(FastcallBaseType):
 
     def to_py_call_code(self, source_code, result_code, result_type, to_py_function=None):
         # TODO maybe something cleverer with result_type
-        from .Builtin import tuple_type
-        #if (result_type is not tuple_type) and (not self.explicitly_requested):
-            # tuple_type indicates that the conversion was requested by the user
-        #    self.coercion_count += 1
-        return "%s = __Pyx_FastcallTuple_ToTuple(%s)" % (result_code, source_code)
+        # TODO passing two arguments in source_code feels hacky
+        return "%s = __Pyx_FastcallTuple_ToTupleCoerced(%s)" % (result_code, source_code)
+
+class FastcallTupleCoercionType(PyrexType):
+    """Type used internally for cached coercions of fastcall tuples."""
+    needs_refcounting = 1
+    declaration_value = "NULL"
+
+    def declaration_code(self, entity_code,
+            for_display = 0, dll_linkage = None, pyrex = 0):
+        if for_display:
+            return "__Pyx_FastcallTupleCoerced"
+        else:
+            return "__Pyx_FastcallTupleCoerced %s" % entity_code
+
+    # because this is used in very limited places, xdecref is the only reference counting operation generated
+    def generate_xdecref(self, code, cname, nanny, have_gil):
+        code.putln("__Pyx_FastcallTupleCoerced_XDECREF(%s);" % cname)
+
 
 
 class FastcallDictType(FastcallBaseType):
@@ -4364,7 +4360,6 @@ class FastcallDictType(FastcallBaseType):
     """
 
     is_fastcall_dict = 1
-    has_attributes = 1
     name = "FastcallDict"
     exception_check = None
     needs_refcounting = 1
@@ -4375,15 +4370,6 @@ class FastcallDictType(FastcallBaseType):
         return dict_type
 
     declaration_value = "{{}}" # Can only be used for the array version defined in the wrapper
-
-    def __init__(self, explicitly_requested=False):
-        from .Symtab import CClassScope
-        super(FastcallDictType, self).__init__()
-        self.scope = CClassScope("fastcalldicttype", None, "extern")
-        self.scope.parent_type = self
-        self.scope.directives = {}
-        self.coercion_count = 0
-        self.explicitly_requested = explicitly_requested
 
     def attributes_known(self):
         return True
@@ -4418,7 +4404,6 @@ class FastcallDictType(FastcallBaseType):
         if result_type is dict_type:
             return "%s = __Pyx_FastcallDict_ToDict_Explicit(%s)" % (result_code, source_code)
         else:
-            self.coercion_count += 1
             return "%s = __Pyx_FastcallDict_ToDict(%s)" % (result_code, source_code)
 
 rank_to_type_name = (
@@ -4538,6 +4523,9 @@ cython_memoryview_type = CStructOrUnionType("__pyx_memoryview_obj", "struct",
 
 memoryviewslice_type = CStructOrUnionType("memoryviewslice", "struct",
                                           None, 1, "__Pyx_memviewslice")
+
+fastcalltuple_type = FastcallTupleType()
+fastcalldict_type = FastcallDictType()
 
 modifiers_and_name_to_type = {
     #(signed, longness, name) : type

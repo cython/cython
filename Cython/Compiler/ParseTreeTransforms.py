@@ -1931,9 +1931,9 @@ if VALUE is not None:
             if node.self_in_stararg:
                 error(node.pos, "Cannot use 'fastcall_args(\"*\")' on a function where the"
                         " self argument is included in *args")
-                node.star_arg.entry.type = PyrexTypes.FastcallTupleType(explicitly_requested=True)
+                node.star_arg.entry.type = PyrexTypes.fastcalltuple_type
         if fastcall_args_dict and node.starstar_arg:
-            node.starstar_arg.entry.type = PyrexTypes.FastcallDictType(explicitly_requested=True)
+            node.starstar_arg.entry.type = PyrexTypes.fastcalldict_type
 
         env = self.current_env()
         if isinstance(node, Nodes.DefNode) and node.is_wrapper:
@@ -2235,43 +2235,6 @@ class CalculateQualifiedNamesTransform(EnvTransform):
         self.qualified_name = orig_qualified_name
         return node
 
-def _star_arg_maybe_fastcall_tuple(node):
-    star_arg = getattr(node, "star_arg", None)
-    if not star_arg:
-        return False
-    from .FlowControl import Argument
-    for assignment in node.star_arg.entry.cf_assignments:
-        if isinstance(assignment, Argument) and assignment.rhs.type.is_fastcall_tuple:
-            return True
-    return False
-
-def _star_arg_fastcall_coercions(node):
-    star_arg = getattr(node, "star_arg", None)
-    if not star_arg:
-        return 0
-    if not star_arg.entry.type.is_fastcall_tuple:
-        return 0
-    else:
-        if node.star_arg.entry.type.explicitly_requested:
-            return 0
-        else:
-            return node.star_arg.entry.type.coercion_count
-
-class _StripFastcallTupleTypes(CythonTransform):
-    def visit_ExprNode(self, node):
-        if node.type and node.type.is_fastcall_tuple:
-            node.type = Builtin.tuple_type
-        if getattr(getattr(node, "inferred_type", None), "is_fastcall_tuple", None):
-            node.inferred_type = Builtin.tuple_type
-        self.visitchildren(node)
-        return node
-
-    def visit_CoerceToPyTypeNode(self, node):
-        self.visitchildren(node)
-        if node.arg.type.is_pyobject:
-            node = node.arg
-        return node
-
 
 class AnalyseExpressionsTransform(CythonTransform):
     def visit_ModuleNode(self, node):
@@ -2282,28 +2245,8 @@ class AnalyseExpressionsTransform(CythonTransform):
 
     def visit_FuncDefNode(self, node):
         node.local_scope.infer_types()
-        for n in range(2):
-            # potentially have two goes - replacing a fastcall tuple star_arg
-            # if too many coercions are generated. Check after each step
-            # (the fastcall dict type is almost free to coerce the second time
-            # so don't replace it)
-            #
-            # TODO I really don't like this but can't think of a better way
-            if n>0:
-                node = _StripFastcallTupleTypes(self.context)(node)
-                for entry in node.local_scope.entries.values():
-                    if entry.type.is_fastcall_tuple:
-                        entry.type = Builtin.tuple_type
-
-            node.body = node.body.analyse_expressions(node.local_scope)
-            if _star_arg_fastcall_coercions(node) > 1:
-                assert n==0
-                continue
-            self.visitchildren(node)
-            if _star_arg_fastcall_coercions(node) > 1:
-                assert n==0
-                continue
-            break
+        node.body = node.body.analyse_expressions(node.local_scope)
+        self.visitchildren(node)
         return node
 
     def visit_ScopedExprNode(self, node):

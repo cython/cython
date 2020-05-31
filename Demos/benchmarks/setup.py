@@ -1,5 +1,9 @@
+import sys; sys.path.insert(0, '../../Cython')
+
 from distutils.core import setup
 from Cython.Build import cythonize
+import Cython
+print(Cython.__version__)
 
 directives = {
     'optimize.inline_defnode_calls': True

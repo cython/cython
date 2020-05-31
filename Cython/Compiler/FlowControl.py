@@ -761,11 +761,8 @@ class ControlFlowAnalysis(CythonTransform):
             # rules
             if use_fastcall_tuple or (not node.needs_closure and not node.self_in_stararg
                                         and use_fastcall_tuple != False):
-                star_arg_type = PyrexTypes.FastcallTupleType(explicitly_requested=use_fastcall_tuple)
-            if star_arg_type.is_fastcall_tuple and not node.entry.signature.use_fastcall:
-                # Makes it more favourable to fall back to a tuple later if the
-                # argument is passed to the function as a tuple anyway
-                star_arg_type.coercion_count += 1
+                star_arg_type = PyrexTypes.fastcalltuple_type
+
             mark_call(node.star_arg, TypedExprNode(star_arg_type, may_be_none=False))
             # if the user has specifically requested the fastcall type it's set in AdjustDefByDirectives
         if node.starstar_arg:
@@ -777,7 +774,7 @@ class ControlFlowAnalysis(CythonTransform):
             if (use_fastcall_dict or (not node.needs_closure
                                         and use_fastcall_dict != False
                                         and node.entry.signature.use_fastcall)):
-                starstar_arg_type = PyrexTypes.FastcallDictType(explicitly_requested=use_fastcall_dict)
+                starstar_arg_type = PyrexTypes.fastcalldict_type
 
             mark_call(node.starstar_arg, TypedExprNode(starstar_arg_type, may_be_none=False))
 

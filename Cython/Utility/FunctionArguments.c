@@ -471,6 +471,8 @@ static CYTHON_INLINE PyObject * __Pyx_GetKwValue_FASTCALL(PyObject *kwnames, PyO
 // A struct which can be created cheaply without needing to construct a Python object
 
 #if CYTHON_METH_FASTCALL
+typedef PyObject* __Pyx_FastcallTupleCoerced;
+#define __Pyx_FastcallTupleCoerced_XDECREF(x) Py_XDECREF(x) // no refnanny for this because it's set oddly
 typedef struct {
     PyObject *const *args;
     Py_ssize_t nargs;
@@ -490,6 +492,8 @@ static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_FastcallTuple_New(PyObject *c
 #define __Pyx_FastcallTuple_NULLCHECK(x) x.args
 static CYTHON_INLINE Py_ssize_t __Pyx_FastcallTuple_Len(__Pyx_FastcallTuple_obj o); /* proto */
 #else
+typedef void* __Pyx_FastcallTupleCoerced;
+#define __Pyx_FastcallTupleCoerced_XDECREF(x)
 typedef PyObject* __Pyx_FastcallTuple_obj;
 #define __Pyx_FastcallTuple_Empty 0
 #define __Pyx_FastcallTuple_New PyTuple_GetSlice
@@ -506,6 +510,7 @@ typedef PyObject* __Pyx_FastcallTuple_obj;
 #endif
 
 static CYTHON_INLINE PyObject *__Pyx_FastcallTuple_ToTuple(__Pyx_FastcallTuple_obj o);  /* proto */
+static CYTHON_INLINE PyObject *__Pyx_FastcallTuple_ToTupleCoerced(__Pyx_FastcallTuple_obj o, __Pyx_FastcallTupleCoerced* coerced_var);  /* proto */
 
 #if CYTHON_METH_FASTCALL
 static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_ArgsSlice_FASTCALL_struct(PyObject *const *args, Py_ssize_t start, Py_ssize_t stop);
@@ -537,6 +542,23 @@ static CYTHON_INLINE PyObject *__Pyx_FastcallTuple_ToTuple(__Pyx_FastcallTuple_o
 #else
     Py_INCREF(o);
     return o;
+#endif
+}
+
+static CYTHON_INLINE PyObject *__Pyx_FastcallTuple_ToTupleCoerced(__Pyx_FastcallTuple_obj o, CYTHON_UNUSED __Pyx_FastcallTupleCoerced* coerced_var) {
+#if CYTHON_METH_FASTCALL
+    if (coerced_var && *coerced_var) {
+        Py_INCREF(*coerced_var);
+        return *coerced_var;
+    }
+    PyObject* out = __Pyx_FastcallTuple_ToTuple(o);
+    if (coerced_var && out) {
+        *coerced_var = out;
+        Py_INCREF(*coerced_var);
+    }
+    return out;
+#else
+    return __Pyx_FastcallTuple_ToTuple(o);
 #endif
 }
 

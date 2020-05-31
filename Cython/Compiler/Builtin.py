@@ -175,7 +175,7 @@ builtin_function_table = [
                             PyrexTypes.c_py_ssize_t_type,
                             [PyrexTypes.CFuncTypeArg("arg", tp, None)],
                             nogil=True))
-        for tp in (PyrexTypes.FastcallDictType(), PyrexTypes.FastcallTupleType())
+        for tp in (PyrexTypes.fastcalltuple_type, PyrexTypes.fastcalldict_type)
 ] + [
     BuiltinFunction('locals',     "",     "O",     "__pyx_locals"),
     #('map',       "",     "",      ""),

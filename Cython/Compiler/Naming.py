@@ -62,6 +62,7 @@ lambda_func_prefix = pyrex_prefix + "lambda_"
 module_is_main   = pyrex_prefix + "module_is_main"
 defaults_struct_prefix = pyrex_prefix + "defaults"
 dynamic_args_cname = pyrex_prefix + "dynamic_args"
+fastcall_coercion_prefix = pyrex_prefix + "fc_coercion_"
 
 interned_prefixes = {
     'str': pyrex_prefix + "n_",

@@ -220,7 +220,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         ConsolidateOverflowCheck(context),
         DropRefcountingTransform(),
         FinalOptimizePhase(context),
-        GilCheck(),
+        GilCheck()
         ]
     filtered_stages = []
     for s in stages:

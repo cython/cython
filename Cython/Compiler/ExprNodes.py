@@ -6465,10 +6465,8 @@ class GeneralCallNode(CallNode):
             # worth a go at converting to a fastcall call
             if pos_is_fastcall:
                 self.positional_args = self.positional_args.arg
-                self.positional_args.type.coercion_count -= 1
             if kwds_is_fastcall:
                 self.keyword_args = self.keyword_args.arg
-                self.keyword_args.type.coercion_count -= 1
 
         if not fastcallable_with_types:
             self.positional_args = \
@@ -13387,7 +13385,16 @@ class CoerceToPyTypeNode(CoercionNode):
             # therefore leave as py_object_type here (but set type)
             if arg.type.is_fastcall_tuple_or_dict:
                 self.type = arg.type.nearest_python_type
-                arg.type.coercion_count += 1
+                if arg.type.is_fastcall_tuple and arg.entry:
+                    # where an entry exists, create a variable to save the coercion in
+                    # (to lower the cost of repeated coercions)
+                    name = env.mangle(Naming.fastcall_coercion_prefix, arg.entry.name)
+                    coerced_entry = env.lookup(name)
+                    if not coerced_entry:
+                        coerced_entry = env.declare_var(name, PyrexTypes.FastcallTupleCoercionType(),
+                                                        arg.entry.pos, cname = name)
+                        coerced_entry.used = True
+                    arg.entry.coerced_entry = coerced_entry
         elif arg.type.is_string or arg.type.is_cpp_string:
             if (type not in (bytes_type, bytearray_type)
                     and not env.directives['c_string_encoding']):
@@ -13425,9 +13432,14 @@ class CoerceToPyTypeNode(CoercionNode):
         return self
 
     def generate_result_code(self, code):
+        if self.arg.type.is_fastcall_tuple:
+            arg_result = "%s, %s" % (self.arg.result(),
+                                     "&"+self.arg.entry.coerced_entry.cname if self.arg.entry else "NULL")
+        else:
+            arg_result = self.arg.result()
         code.putln('%s; %s' % (
             self.arg.type.to_py_call_code(
-                self.arg.result(),
+                arg_result,
                 self.result(),
                 self.target_type),
             code.error_goto_if_null(self.result(), self.pos)))
@@ -13530,8 +13542,8 @@ class CoerceToBooleanNode(CoercionNode):
         Builtin.bytes_type:      'PyBytes_GET_SIZE',
         Builtin.bytearray_type:  'PyByteArray_GET_SIZE',
         Builtin.unicode_type:    '__Pyx_PyUnicode_IS_TRUE',
-        PyrexTypes.FastcallTupleType(): '__Pyx_FastcallTuple_Len',
-        PyrexTypes.FastcallDictType(): '__Pyx_FastcallDict_Len'
+        PyrexTypes.fastcalltuple_type: '__Pyx_FastcallTuple_Len',
+        PyrexTypes.fastcalldict_type: '__Pyx_FastcallDict_Len'
     }
 
     def __init__(self, arg, env):

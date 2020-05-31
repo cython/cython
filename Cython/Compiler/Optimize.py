@@ -688,7 +688,7 @@ class IterationTransform(Visitor.EnvTransform):
             bound1=bound1, relation1=relation1,
             target=counter_temp,
             relation2=relation2, bound2=bound2,
-            step=ExprNodes.IntNode(pos=None, value="1"), body=body,
+            step=ExprNodes.IntNode(pos=node.pos, value="1"), body=body,
             else_clause=node.else_clause,
             from_range=True)
 
@@ -2453,10 +2453,6 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             return node
         arg = pos_args[0]
         if arg.type is Builtin.dict_type:
-            if (isinstance(arg, ExprNodes.CoerceToPyTypeNode) and
-                arg.arg.type.is_fastcall_dict):
-                arg.target_type = Builtin.dict_type  # used to flag an explicit conversion
-
             arg = arg.as_none_safe_node("'NoneType' is not iterable")
             return ExprNodes.PythonCapiCallNode(
                 node.pos, "PyDict_Copy", self.PyDict_Copy_func_type,
@@ -2465,11 +2461,9 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 )
         elif (isinstance(arg, ExprNodes.CoerceToPyTypeNode) and
                 arg.arg.type.is_fastcall_dict):
-            # this gets rid of the coercion_count increase
-            # and avoids changing the internals of the fastcall_dict
             func_type = PyrexTypes.CFuncType(
-                Builtin.tuple_type, [
-                    PyrexTypes.CFuncTypeArg("fastcalltuple", arg.arg.type, None)
+                Builtin.dict_type, [
+                    PyrexTypes.CFuncTypeArg("fastcalldict", arg.arg.type, None)
             ])
             return ExprNodes.PythonCapiCallNode(
                 node.pos, "__Pyx_FastcallDict_ToDict_Explicit", func_type,
