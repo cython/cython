@@ -13385,7 +13385,7 @@ class CoerceToPyTypeNode(CoercionNode):
             # therefore leave as py_object_type here (but set type)
             if arg.type.is_fastcall_tuple_or_dict:
                 self.type = arg.type.nearest_python_type
-                if arg.type.is_fastcall_tuple and arg.entry:
+                if arg.type.is_fastcall_tuple and getattr(arg, "entry", None):
                     # where an entry exists, create a variable to save the coercion in
                     # (to lower the cost of repeated coercions)
                     name = env.mangle(Naming.fastcall_coercion_prefix, arg.entry.name)
@@ -13433,8 +13433,10 @@ class CoerceToPyTypeNode(CoercionNode):
 
     def generate_result_code(self, code):
         if self.arg.type.is_fastcall_tuple:
-            arg_result = "%s, %s" % (self.arg.result(),
-                                     "&"+self.arg.entry.coerced_entry.cname if self.arg.entry else "NULL")
+            arg_result = "%s, %s" % (
+                self.arg.result(),
+                "&"+self.arg.entry.coerced_entry.cname if getattr(self.arg, "entry", None) else "NULL"
+            )
         else:
             arg_result = self.arg.result()
         code.putln('%s; %s' % (

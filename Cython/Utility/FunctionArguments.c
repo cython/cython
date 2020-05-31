@@ -581,7 +581,7 @@ static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_ArgsSlice_VARARGS_struct(PyOb
 #if CYTHON_METH_FASTCALL
     __Pyx_FastcallTuple_obj out = __Pyx_FastcallTuple_FromTuple(args);
     out.args += start;
-    out.nargs = stop-start;
+    out.nargs = (stop-start) >= 0 ? (stop-start) : 0;
     return out;
 #else
     return PyTuple_GetSlice(args, start, stop);
