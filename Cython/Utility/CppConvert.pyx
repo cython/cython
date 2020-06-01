@@ -239,19 +239,28 @@ cdef object {{cname}}(const std_complex[X]& z):
 #################### enum.from_py ####################
 
 cdef extern from "<type_traits>" namespace "std":
-    cdef cppclass underlying_type_t[T]:
+    cdef cppclass underlying_type_t "std::underlying_type<{{TYPE}}>::type":
+        pass
+
+cdef extern from *:
+    cdef enum class enumtype "{{TYPE}}":
         pass
 
 @cname("{{cname}}")
-cdef {{TYPE}} {{cname}}(object o) except *:
-    return <{{TYPE}}><underlying_type_t[{{TYPE}}]><int>(o)
+cdef enumtype {{cname}}(object o) except *:
+    return <enumtype><underlying_type_t><int>(o)
 
 
 #################### enum.to_py ####################
+
 cdef extern from "<type_traits>" namespace "std":
-    cdef cppclass underlying_type_t[T]:
+    cdef cppclass underlying_type_t "std::underlying_type<{{TYPE}}>::type":
+        pass
+
+cdef extern from *:
+    cdef enum class enumtype "{{TYPE}}":
         pass
 
 @cname("{{cname}}")
-cdef object {{cname}}(const {{TYPE}}& x):
-    return <int><underlying_type_t[{{TYPE}}]>(x)
+cdef object {{cname}}(const enumtype& x):
+    return <int><underlying_type_t>(x)

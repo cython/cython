@@ -3918,9 +3918,9 @@ class ScopedEnumType(CType):
         )
         context.update({
             "cname": cname,
-            "TYPE": self.name,
-            self.name: self
+            "TYPE": self.cname,
         })
+
         from .UtilityCode import CythonUtilityCode
         env.use_utility_code(CythonUtilityCode.load(
             "enum.from_py",
@@ -3942,9 +3942,9 @@ class ScopedEnumType(CType):
         )
         context.update({
             "cname": cname,
-            "TYPE": self.name,
-            self.name: self
+            "TYPE": self.cname,
         })
+
         from .UtilityCode import CythonUtilityCode
         env.use_utility_code(CythonUtilityCode.load(
             "enum.to_py",
