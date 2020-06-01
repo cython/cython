@@ -404,7 +404,8 @@ def test_composite(fused_composite x):
 
 ### see GH3642 - presence of cdef inside "unrelated" caused a type to be incorrectly inferred
 cdef unrelated(cython.floating x):
-    cdef cython.floating t
+    cdef cython.floating t = 1
+    return t
 
 cdef handle_float(float* x): return 'float'
 
