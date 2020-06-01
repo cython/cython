@@ -21,6 +21,9 @@ setup(
 )
 
 ######## cheese.pxd ########
+# distutils: language = c++
+# distutils: extra_compile_args = -std=c++11
+
 
 cdef extern from * namespace "Namespace":
     """
@@ -36,10 +39,14 @@ cdef extern from * namespace "Namespace":
         camembert
 
 ######## cheese.pyx ########
+# distutils: language = c++
+# distutils: extra_compile_args = -std=c++11
 
 pass
 
 ######## import_scoped_enum_test.pyx ########
+# distutils: language = c++
+# distutils: extra_compile_args = -std=c++11
 
 from cheese import Cheese
 from cheese cimport Cheese
@@ -48,6 +55,9 @@ cdef Cheese c = Cheese.cheddar
 assert list(Cheese) == [1, 2]
 
 ######## dotted_import_scoped_enum_test.pyx ########
+# distutils: language = c++
+# distutils: extra_compile_args = -std=c++11
+
 
 cimport cheese
 

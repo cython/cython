@@ -1,4 +1,4 @@
-# tag: cpp
+# tag: cpp,cpp11
 # mode: run
 
 

@@ -1,8 +1,8 @@
 # mode: compile
-# tag: cpp
+# tag: cpp,cpp11
 
 
-cpdef enumclass Spam:
+cpdef enum class Spam:
     a
     b
     c
