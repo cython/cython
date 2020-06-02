@@ -1484,16 +1484,8 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
         // python classes
         return PyClassMethod_New(PyMethod_GET_FUNCTION(method));
     }
-#ifdef __Pyx_CyFunction_USED
-    else if (__Pyx_IsCyOrPyCFunction(method))
-#else
-    else if (PyCFunction_Check(method))
-#endif
+    else
     {
         return PyClassMethod_New(method);
     }
-    PyErr_SetString(PyExc_TypeError,
-                   "Class-level classmethod() can only be called on "
-                   "a method_descriptor or instance method.");
-    return NULL;
 }
