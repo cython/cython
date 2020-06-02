@@ -5471,7 +5471,7 @@ class CallNode(ExprNode):
         func_type = self.function_type()
         if func_type.is_pyobject:
             self.gil_error()
-        elif not getattr(func_type, 'nogil', False):
+        elif not func_type.is_error and not getattr(func_type, 'nogil', False):
             self.gil_error()
 
     gil_message = "Calling gil-requiring function"
