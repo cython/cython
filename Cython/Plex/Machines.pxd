@@ -3,6 +3,8 @@ cimport cython
 from .Actions cimport Action
 from .Transitions cimport TransitionMap
 
+cdef long maxint
+
 
 @cython.final
 cdef class Machine:

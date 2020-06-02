@@ -4,12 +4,8 @@ Plex - Transition Maps
 
 This version represents state sets directly as dicts for speed.
 """
-from __future__ import absolute_import
 
-try:
-    from sys import maxsize as maxint
-except ImportError:
-    from sys import maxint
+maxint = 2**31-1  # sentinel value
 
 
 class TransitionMap(object):
