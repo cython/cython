@@ -543,7 +543,7 @@ class UtilityCode(UtilityCodeBase):
 
         impl = re.sub(r'PY(IDENT|UNICODE)\("([^"]+)"\)', externalise, impl)
         assert 'PYIDENT(' not in impl and 'PYUNICODE(' not in impl
-        return bool(replacements), impl
+        return True, impl
 
     def inject_unbound_methods(self, impl, output):
         """Replace 'UNBOUND_METHOD(type, "name")' by a constant Python identifier cname.
@@ -551,7 +551,6 @@ class UtilityCode(UtilityCodeBase):
         if 'CALL_UNBOUND_METHOD(' not in impl:
             return False, impl
 
-        utility_code = set()
         def externalise(matchobj):
             type_cname, method_name, obj_cname, args = matchobj.groups()
             args = [arg.strip() for arg in args[1:].split(',')] if args else []
@@ -567,9 +566,7 @@ class UtilityCode(UtilityCodeBase):
             r'\)', externalise, impl)
         assert 'CALL_UNBOUND_METHOD(' not in impl
 
-        for helper in sorted(utility_code):
-            output.use_utility_code(UtilityCode.load_cached(helper, "ObjectHandling.c"))
-        return bool(utility_code), impl
+        return True, impl
 
     def wrap_c_strings(self, impl):
         """Replace CSTRING('''xyz''') by a C compatible string

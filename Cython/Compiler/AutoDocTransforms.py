@@ -217,8 +217,9 @@ class EmbedSignature(CythonTransform):
                 old_doc = None
             new_doc = self._embed_signature(signature, old_doc)
             node.entry.doc = EncodedString(new_doc)
-            if hasattr(node, 'py_func') and node.py_func is not None:
-                node.py_func.entry.doc = EncodedString(new_doc)
+            py_func = getattr(node, 'py_func', None)
+            if py_func is not None:
+                py_func.entry.doc = EncodedString(new_doc)
         return node
 
     def visit_PropertyNode(self, node):

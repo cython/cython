@@ -895,8 +895,9 @@ class CArgDeclNode(Node):
                 could_be_name = False
             self.base_type.is_arg = True
             base_type = self.base_type.analyse(env, could_be_name=could_be_name)
-            if hasattr(self.base_type, 'arg_name') and self.base_type.arg_name:
-                self.declarator.name = self.base_type.arg_name
+            base_arg_name = getattr(self.base_type, 'arg_name', None)
+            if base_arg_name:
+                self.declarator.name = base_arg_name
 
             # The parser is unable to resolve the ambiguity of [] as part of the
             # type (e.g. in buffers) or empty declarator (as with arrays).
@@ -9372,9 +9373,6 @@ class ParallelRangeNode(ParallelStatNode):
         else:
             self.start, self.stop, self.step = self.args
 
-        if hasattr(self.schedule, 'decode'):
-            self.schedule = self.schedule.decode('ascii')
-
         if self.schedule not in (None, 'static', 'dynamic', 'guided', 'runtime'):
             error(self.pos, "Invalid schedule argument to prange: %s" % (self.schedule,))
 
@@ -9433,7 +9431,8 @@ class ParallelRangeNode(ParallelStatNode):
         # ensure lastprivate behaviour and propagation. If the target index is
         # not a NameNode, it won't have an entry, and an error was issued by
         # ParallelRangeTransform
-        if hasattr(self.target, 'entry'):
+        target_entry = getattr(self.target, 'entry', None)
+        if target_entry:
             self.assignments[self.target.entry] = self.target.pos, None
 
         node = super(ParallelRangeNode, self).analyse_expressions(env)

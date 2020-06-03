@@ -631,7 +631,7 @@ class ExprNode(Node):
     def type_dependencies(self, env):
         # Returns the list of entries whose types must be determined
         # before the type of self can be inferred.
-        if hasattr(self, 'type') and self.type is not None:
+        if getattr(self, 'type', None) is not None:
             return ()
         return sum([node.type_dependencies(env) for node in self.subexpr_nodes()], ())
 
@@ -640,12 +640,13 @@ class ExprNode(Node):
         # Differs from analyse_types as it avoids unnecessary
         # analysis of subexpressions, but can assume everything
         # in self.type_dependencies() has been resolved.
-        if hasattr(self, 'type') and self.type is not None:
-            return self.type
-        elif hasattr(self, 'entry') and self.entry is not None:
-            return self.entry.type
-        else:
-            self.not_implemented("infer_type")
+        type = getattr(self, 'type', None)
+        if type is not None:
+            return type
+        entry = getattr(self, 'entry', None)
+        if entry is not None:
+            return entry.type
+        self.not_implemented("infer_type")
 
     def nonlocally_immutable(self):
         # Returns whether this variable is a safe reference, i.e.
@@ -2243,7 +2244,6 @@ class NameNode(AtomicExprNode):
         return entry.cname
 
     def generate_result_code(self, code):
-        assert hasattr(self, 'entry')
         entry = self.entry
         if entry is None:
             return # There was an error earlier
@@ -2533,7 +2533,7 @@ class NameNode(AtomicExprNode):
             error(self.pos, "Deletion of C names not supported")
 
     def annotate(self, code):
-        if hasattr(self, 'is_called') and self.is_called:
+        if getattr(self, 'is_called', False):
             pos = (self.pos[0], self.pos[1], self.pos[2] - len(self.name) - 1)
             if self.type.is_pyobject:
                 style, text = 'py_call', 'python function (%s)'
@@ -5555,7 +5555,7 @@ class CallNode(ExprNode):
         func_type = self.function_type()
         if func_type.is_pyobject:
             self.gil_error()
-        elif not getattr(func_type, 'nogil', False):
+        elif not func_type.is_error and not getattr(func_type, 'nogil', False):
             self.gil_error()
 
     gil_message = "Calling gil-requiring function"
@@ -6977,7 +6977,7 @@ class AttributeNode(ExprNode):
             return module_scope.lookup_type(self.attribute)
         if not self.obj.is_string_literal:
             base_type = self.obj.analyse_as_type(env)
-            if base_type and hasattr(base_type, 'scope') and base_type.scope is not None:
+            if base_type and getattr(base_type, 'scope', None) is not None:
                 return base_type.scope.lookup_type(self.attribute)
         return None
 
@@ -13525,11 +13525,13 @@ class ProxyNode(CoercionNode):
         return self.arg.infer_type(env)
 
     def _proxy_type(self):
-        if hasattr(self.arg, 'type'):
-            self.type = self.arg.type
+        type = getattr(self.arg, 'type', None)
+        if type:
+            self.type = type
             self.result_ctype = self.arg.result_ctype
-        if hasattr(self.arg, 'entry'):
-            self.entry = self.arg.entry
+        arg_entry = getattr(self.arg, 'entry', None)
+        if arg_entry:
+            self.entry = arg_entry
 
     def generate_result_code(self, code):
         self.arg.generate_result_code(code)
@@ -13566,11 +13568,13 @@ class CloneNode(CoercionNode):
     def __init__(self, arg):
         CoercionNode.__init__(self, arg)
         self.constant_result = arg.constant_result
-        if hasattr(arg, 'type'):
-            self.type = arg.type
+        type = getattr(arg, 'type', None)
+        if type:
+            self.type = type
             self.result_ctype = arg.result_ctype
-        if hasattr(arg, 'entry'):
-            self.entry = arg.entry
+        arg_entry = getattr(arg, 'entry', None)
+        if arg_entry:
+            self.entry = arg_entry
 
     def result(self):
         return self.arg.result()
@@ -13588,8 +13592,9 @@ class CloneNode(CoercionNode):
         self.type = self.arg.type
         self.result_ctype = self.arg.result_ctype
         self.is_temp = 1
-        if hasattr(self.arg, 'entry'):
-            self.entry = self.arg.entry
+        arg_entry = getattr(self.arg, 'entry', None)
+        if arg_entry:
+            self.entry = arg_entry
         return self
 
     def coerce_to(self, dest_type, env):

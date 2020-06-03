@@ -56,8 +56,8 @@ static int __Pyx_check_twos_complement(void) {
 
 #if defined(__GNUC__)
 #  define __Pyx_is_constant(x) (__builtin_constant_p(x))
-#elif (defined(__has_builtin))
-#  if __has_builtin(__builtin_constant_p))
+#elif defined(__has_builtin)
+#  if __has_builtin(__builtin_constant_p)
 #    define __Pyx_is_constant(x) (__builtin_constant_p(x))
 #  endif
 #else

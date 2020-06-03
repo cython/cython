@@ -8,6 +8,13 @@ Cython Changelog
 Features added
 --------------
 
+* Added support for Python binary operator semantics.
+  One can now define, e.g. both ``__add__`` and ``__radd__`` for cdef classes
+  as for standard Python classes rather than a single ``__add__`` method where
+  self can be either the first or second argument.  This behavior can be disabled
+  with the ``c_api_binop_methods`` directive.
+  (Github issue #2056)
+
 * No/single argument functions now accept keyword arguments by default in order
   to comply with Python semantics.  The marginally faster calling conventions
   ``METH_NOARGS`` and ``METH_O`` that reject keyword arguments are still available
@@ -444,18 +451,12 @@ Other changes
 0.29.20 (2020-0?-??)
 ====================
 
-Features added
---------------
-
-* Added support for Python binary operator semantics.
-  One can now define, e.g. both ``__add__`` and ``__radd__`` for cdef classes
-  as for standard Python classes rather than a single ``__add__`` method where
-  self can be either the first or second argument.  This behavior is guarded
-  by the ``c_api_binop_methods`` directive.
-  (Github issue #2056)
-
 Bugs fixed
 ----------
+
+* Now uses ``Py_SET_SIZE()`` and ``Py_SET_REFCNT()`` in Py3.9+ to avoid low-level
+  write access to these object fields.
+  Patch by Victor Stinner.  (Github issue #3639)
 
 * The built-in ``abs()`` function could lead to undefined behaviour when used on
   the negative-most value of a signed C integer type.
@@ -467,6 +468,9 @@ Bugs fixed
 
 * The C++ ``typeid()`` function was allowed in C mode.
   Patch by Celelibi.  (Github issue #3637)
+
+* The new ``c_api_binop_methods`` directive was added for forward compatibility, but can
+  only be set to True (the current default value).  It can be disabled in Cython 3.0.
 
 
 0.29.19 (2020-05-20)
