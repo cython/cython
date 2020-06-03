@@ -10,7 +10,7 @@ Cython code must, unlike Python, be compiled. This happens in two stages:
    ``import``-ed directly into a Python session.
    `setuptools <https://setuptools.readthedocs.io/>`_ takes care of this part.
    Although Cython can call them for you in certain cases.
-   
+
 To understand fully the Cython + setuptools build process,
 one may want to read more about
 `distributing Python modules <https://docs.python.org/3/distributing/index.html>`_.
@@ -53,6 +53,20 @@ One caveat: the default action when running ``python setup.py install`` is to
 create a zipped ``egg`` file which will not work with ``cimport`` for ``pxd``
 files when you try to use them from a dependent package.  To prevent this,
 include ``zip_safe=False`` in the arguments to ``setup()``.
+
+Alternate method using setuptools
+---------------------------------
+
+Alternatively, for a simple "hello world" script in ``hello.pyx``:
+
+.. literalinclude:: ../../examples/quickstart/build_alternate/hello.pyx
+
+You can define a ``setup.py``:
+
+.. literalinclude:: ../../examples/quickstart/build_alternate/setup.py
+
+which works the same as the method above, but has the advantage of
+PIP being able to automatically install Cython as a dependency.
 
 .. _jupyter-notebook:
 

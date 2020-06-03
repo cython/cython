@@ -882,7 +882,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
 
 # This is the user-exposed entry point.
 def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, force=False, language=None,
-              exclude_failures=False, **options):
+              exclude_failures=False, auto_use_pyx=False, **options):
     """
     Compile a set of source modules into C/C++ files and return a list of distutils
     Extension objects for them.
@@ -931,6 +931,11 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                              pass ``exclude_failures=True``. Note that this only
                              really makes sense for compiling ``.py`` files which can also
                              be used without compilation.
+
+    :param auto_use_pyx: Automatically detect ``.pyx`` files, even if a ``.c`` file was passed.
+                         This allows the user to pass their ``Extension()`` to both ``ext_modules``
+                         and ``cython_modules`` in their ``setup.py``. The ``.pyx`` files will then
+                         only be re-compiled if they were changed and if cython was installed.
 
     :param annotate: If ``True``, will produce a HTML file for each of the ``.pyx`` or ``.py``
                      files compiled. The HTML file gives an indication
@@ -1010,8 +1015,14 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
         new_sources = []
         for source in m.sources:
             base, ext = os.path.splitext(source)
+            # Change Extension in case we were given a .c file but a corresponding .pyx file exists
+            # This allows cythonize() to run on *.pyx and *.c files and decide automatically if
+            # re-cythonization is necessary.
+            if auto_use_pyx and os.path.isfile(base + '.pyx'):
+                ext = '.pyx'
+                source = base + ext
             if ext in ('.pyx', '.py'):
-                if m.np_pythran:
+                if getattr(m, 'np_pythran', False):
                     c_file = base + '.cpp'
                     options = pythran_options
                 elif m.language == 'c++':

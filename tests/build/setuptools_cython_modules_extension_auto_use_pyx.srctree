@@ -1,0 +1,13 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import a"
+
+######## setup.py ########
+
+from setuptools import setup, Extension
+
+setup(
+  setup_requires=['cython'],
+  cython_modules = [Extension("a", ["a.c"])],
+)
+
+######## a.pyx ########
