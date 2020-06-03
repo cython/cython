@@ -916,7 +916,7 @@ static PyTypeObject __pyx_CyFunctionType_type = {
 #elif CYTHON_BACKPORT_VECTORCALL
     (printfunc)offsetof(__pyx_CyFunctionObject, func_vectorcall), /*tp_vectorcall_offset backported into tp_print*/
 #else
-    offsetof(__pyx_CyFunctionObject, func.vectorcall), /*tp_vectorcall_offset*/
+    offsetof(PyCFunctionObject, vectorcall), /*tp_vectorcall_offset*/
 #endif
     0,                                  /*tp_getattr*/
     0,                                  /*tp_setattr*/
