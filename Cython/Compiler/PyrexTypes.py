@@ -3972,15 +3972,6 @@ class ScopedEnumType(CType):
 
         env.use_utility_code(rst)
 
-        # context.update({
-        #     'cname':
-
-        # from .UtilityCode import CythonUtilityCode
-        # env.use_utility_code(CythonUtilityCode.load(
-        #     cls.replace('unordered_', '') + ".from_py", "CppConvert.pyx",
-        #     context=context, compiler_directives=env.directives))
-        # self.from_py_function = cname
-
 
 class TemplatePlaceholderType(CType):
 
