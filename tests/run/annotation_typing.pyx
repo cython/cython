@@ -205,7 +205,7 @@ def call_exception_default(raise_exc=False):
 @cython.ccall
 def exception_default_uint(raise_exc : cython.bint = False) -> cython.uint:
     """
-    >>> exception_default_uint(raise_exc=False)
+    >>> print(exception_default_uint(raise_exc=False))
     10
     >>> exception_default_uint(raise_exc=True)
     Traceback (most recent call last):
@@ -218,7 +218,7 @@ def exception_default_uint(raise_exc : cython.bint = False) -> cython.uint:
 
 def call_exception_default_uint(raise_exc=False):
     """
-    >>> call_exception_default_uint(raise_exc=False)
+    >>> print(call_exception_default_uint(raise_exc=False))
     10
     >>> call_exception_default_uint(raise_exc=True)
     Traceback (most recent call last):
