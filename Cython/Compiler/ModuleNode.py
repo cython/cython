@@ -1060,9 +1060,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_scoped_enum_definition(self, entry, code):
         code.mark_pos(entry.pos)
         type = entry.type
-        name = entry.cname or entry.name or ""
-        header, footer = self.sue_header_footer(type, "enum class", name)
-        code.putln(header)
+        code.putln(
+            "enum class %s : %s {" %
+            (type.cname, type.underlying_type.empty_declaration_code())
+        )
         enum_values = entry.enum_values
         if not enum_values:
             error(entry.pos, "Empty enum definition not allowed outside a 'cdef extern from' block")
@@ -1083,7 +1084,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 if value_entry is not last_entry:
                     value_code += ","
                 code.putln(value_code)
-        code.putln(footer)
+        code.putln("};")
 
     def generate_typeobj_predeclaration(self, entry, code):
         code.putln("")
