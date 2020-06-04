@@ -1065,24 +1065,22 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             (type.cname, type.underlying_type.empty_declaration_code())
         )
         enum_values = entry.enum_values
-        if not enum_values:
-            error(entry.pos, "Empty enum definition not allowed outside a 'cdef extern from' block")
-        else:
-            last_entry = enum_values[-1]
-            # this does not really generate code, just builds the result value
-            for value_entry in enum_values:
-                if value_entry.value_node is not None:
-                    value_entry.value_node.generate_evaluation_code(code)
 
-            for value_entry in enum_values:
-                if value_entry.value_node is None:
-                    value_code = value_entry.cname.split("::")[-1]
-                else:
-                    value_code = ("%s = %s" % (
-                        value_entry.cname.split("::")[-1],
-                        value_entry.value_node.result()))
-                if value_entry is not last_entry:
-                    value_code += ","
+        last_entry = enum_values[-1]
+        # this does not really generate code, just builds the result value
+        for value_entry in enum_values:
+            if value_entry.value_node is not None:
+                value_entry.value_node.generate_evaluation_code(code)
+
+        for value_entry in enum_values:
+            if value_entry.value_node is None:
+                value_code = value_entry.cname.split("::")[-1]
+            else:
+                value_code = ("%s = %s" % (
+                    value_entry.cname.split("::")[-1],
+                    value_entry.value_node.result()))
+            if value_entry is not last_entry:
+                value_code += ","
                 code.putln(value_code)
         code.putln("};")
 
