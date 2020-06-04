@@ -196,6 +196,37 @@ def call_exception_default(raise_exc=False):
     return exception_default(raise_exc)
 
 
+@cython.test_assert_path_exists(
+    "//CFuncDefNode",
+    "//CFuncDefNode//DefNode",
+    "//CFuncDefNode[@return_type]",
+    "//CFuncDefNode[@return_type.is_int = True]",
+)
+@cython.ccall
+def exception_default_uint(raise_exc : cython.bint = False) -> cython.uint:
+    """
+    >>> exception_default_uint(raise_exc=False)
+    10
+    >>> exception_default_uint(raise_exc=True)
+    Traceback (most recent call last):
+    ValueError: huhu!
+    """
+    if raise_exc:
+        raise ValueError("huhu!")
+    return 10
+
+
+def call_exception_default_uint(raise_exc=False):
+    """
+    >>> call_exception_default_uint(raise_exc=False)
+    10
+    >>> call_exception_default_uint(raise_exc=True)
+    Traceback (most recent call last):
+    ValueError: huhu!
+    """
+    return exception_default_uint(raise_exc)
+
+
 class EarlyClass(object):
     """
     >>> a = EarlyClass(1)
@@ -238,11 +269,12 @@ _WARNINGS = """
 8:77: Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.
 8:85: Python type declaration in signature annotation does not refer to a Python type
 8:85: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
-211:44: Unknown type declaration in annotation, ignoring
-218:29: Ambiguous types in annotation, ignoring
+242:44: Unknown type declaration in annotation, ignoring
+249:29: Ambiguous types in annotation, ignoring
 # BUG:
 46:6: 'pytypes_cpdef' redeclared
 120:0: 'struct_io' redeclared
 149:0: 'struct_convert' redeclared
 168:0: 'exception_default' redeclared
+199:0: 'exception_default_uint' redeclared
 """
