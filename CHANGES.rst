@@ -8,6 +8,12 @@ Cython Changelog
 Bugs fixed
 ----------
 
+* The ``@classmethod`` decorator no longer rejects unknown input from other decorators.
+  Patch by David Woods.  (Github issue #3660)
+
+* Fused types could leak into unrelated usages.
+  Patch by David Woods.  (Github issue #3642)
+
 * Now uses ``Py_SET_SIZE()`` and ``Py_SET_REFCNT()`` in Py3.9+ to avoid low-level
   write access to these object fields.
   Patch by Victor Stinner.  (Github issue #3639)
