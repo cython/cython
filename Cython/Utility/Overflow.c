@@ -158,13 +158,14 @@ static CYTHON_INLINE {{UINT}} __Pyx_mul_const_{{NAME}}_checking_overflow({{UINT}
     // note that deliberately the overflow check is written such that it divides by b; this
     // function is used when b is a constant thus the compiler should be able to eliminate the
     // (very slow on most CPUs!) division operation
+    {{UINT}} prod;
     if (__Pyx_is_constant(a) && !__Pyx_is_constant(b)) {
         // if a is a compile-time constant and b isn't, swap them
         {{UINT}} temp = b;
         b = a;
         a = temp;
     }
-    {{UINT}} prod = a * b;
+    prod = a * b;
     if (b != 0)
         *overflow |= a > (__PYX_MAX({{UINT}}) / b);
     return prod;
