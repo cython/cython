@@ -1484,8 +1484,7 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
         // python classes
         return PyClassMethod_New(PyMethod_GET_FUNCTION(method));
     }
-    else
-    {
+    else {
         return PyClassMethod_New(method);
     }
 }
