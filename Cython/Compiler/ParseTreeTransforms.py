@@ -2441,7 +2441,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
         return_type_node = self.directives.get('returns')
         if return_type_node is None and self.directives['annotation_typing']:
             return_type_node = node.return_type_annotation
-            # for Python anntations, prefer safe exception handling by default
+            # for Python annotations, prefer safe exception handling by default
             if return_type_node is not None and except_val is None:
                 except_val = (None, True)  # except *
         elif except_val is None:
