@@ -265,24 +265,24 @@ static CYTHON_INLINE {{TYPE}} __Pyx_{{BINOP}}_{{NAME}}_checking_overflow({{TYPE}
         return __Pyx_{{BINOP}}_no_overflow(a, b, overflow);
     } else if (__PYX_IS_UNSIGNED({{TYPE}})) {
         if ((sizeof({{TYPE}}) == sizeof(unsigned int))) {
-            return __Pyx_{{BINOP}}_unsigned_int_checking_overflow(a, b, overflow);
+            return ({{TYPE}}) __Pyx_{{BINOP}}_unsigned_int_checking_overflow(a, b, overflow);
         } else if ((sizeof({{TYPE}}) == sizeof(unsigned long))) {
-            return __Pyx_{{BINOP}}_unsigned_long_checking_overflow(a, b, overflow);
+            return ({{TYPE}}) __Pyx_{{BINOP}}_unsigned_long_checking_overflow(a, b, overflow);
 #ifdef HAVE_LONG_LONG
         } else if ((sizeof({{TYPE}}) == sizeof(unsigned PY_LONG_LONG))) {
-            return __Pyx_{{BINOP}}_unsigned_long_long_checking_overflow(a, b, overflow);
+            return ({{TYPE}}) __Pyx_{{BINOP}}_unsigned_long_long_checking_overflow(a, b, overflow);
 #endif
         } else {
             abort(); return 0; /* handled elsewhere */
         }
     } else {
         if ((sizeof({{TYPE}}) == sizeof(int))) {
-            return __Pyx_{{BINOP}}_int_checking_overflow(a, b, overflow);
+            return ({{TYPE}}) __Pyx_{{BINOP}}_int_checking_overflow(a, b, overflow);
         } else if ((sizeof({{TYPE}}) == sizeof(long))) {
-            return __Pyx_{{BINOP}}_long_checking_overflow(a, b, overflow);
+            return ({{TYPE}}) __Pyx_{{BINOP}}_long_checking_overflow(a, b, overflow);
 #ifdef HAVE_LONG_LONG
         } else if ((sizeof({{TYPE}}) == sizeof(PY_LONG_LONG))) {
-            return __Pyx_{{BINOP}}_long_long_checking_overflow(a, b, overflow);
+            return ({{TYPE}}) __Pyx_{{BINOP}}_long_long_checking_overflow(a, b, overflow);
 #endif
         } else {
             abort(); return 0; /* handled elsewhere */
