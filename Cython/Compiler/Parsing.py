@@ -3188,6 +3188,22 @@ def p_cpp_scoped_enum_definition(s, pos, ctx):
     else:
         name = None
         cname = None
+
+    if s.sy == '(':
+        s.next()
+        underlying_type = p_c_base_type(s)
+        s.expect(')')
+    else:
+        underlying_type = Nodes.CSimpleBaseTypeNode(
+            pos,
+            name="int",
+            module_path = [],
+            is_basic_c_type = 1,
+            signed = 1,
+            complex = 0,
+            longness = 0
+        )
+
     items = None
     s.expect(":")
     items = []
@@ -3208,7 +3224,9 @@ def p_cpp_scoped_enum_definition(s, pos, ctx):
         s.expect_dedent()
 
     return Nodes.ScopedEnumDefNode(
-        pos, name=name, cname=cname, items=items, typedef_flag=ctx.typedef_flag,
+        pos, name=name, cname=cname, items=items,
+        underlying_type=underlying_type,
+        typedef_flag=ctx.typedef_flag,
         visibility = ctx.visibility,
         create_wrapper = ctx.overridable,
         api = ctx.api, in_pxd = ctx.level == 'module_pxd'

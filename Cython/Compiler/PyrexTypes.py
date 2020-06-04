@@ -3884,10 +3884,11 @@ class ScopedEnumType(CType):
 
     is_scoped_enum = 1
 
-    def __init__(self, name, cname, namespace=None):
+    def __init__(self, name, cname, underlying_type, namespace=None):
         self.name = name
         self.cname = cname
         self.values = []
+        self.underlying_type = underlying_type
         self.namespace = namespace
 
     def __str__(self):
@@ -3918,7 +3919,8 @@ class ScopedEnumType(CType):
         )
         context.update({
             "cname": cname,
-            "TYPE": self.cname,
+            "type": self.cname,
+            "underlying_type": self.underlying_type.empty_declaration_code()
         })
 
         from .UtilityCode import CythonUtilityCode
@@ -3942,7 +3944,8 @@ class ScopedEnumType(CType):
         )
         context.update({
             "cname": cname,
-            "TYPE": self.cname,
+            "type": self.cname,
+            "underlying_type": self.underlying_type.empty_declaration_code()
         })
 
         from .UtilityCode import CythonUtilityCode
@@ -3962,7 +3965,9 @@ class ScopedEnumType(CType):
             "ScopedEnumType", "CpdefEnums.pyx",
             context={"name": self.name,
                      "cname": self.cname.split("::")[-1],
-                     "items": tuple(self.values)},
+                     "items": tuple(self.values),
+                     "underlying_type": self.underlying_type.empty_declaration_code()
+            },
             outer_module_scope=env.global_scope())
 
         env.use_utility_code(rst)

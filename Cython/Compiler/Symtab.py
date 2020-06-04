@@ -697,7 +697,7 @@ class Scope(object):
         self.sue_entries.append(entry)
         return entry
 
-    def declare_scoped_enum(self, name, pos, cname, create_wrapper = 0):
+    def declare_scoped_enum(self, name, pos, cname, underlying_type = None, create_wrapper = 0):
         if name:
             if not cname:
                 cname = name
@@ -707,13 +707,23 @@ class Scope(object):
             namespace = None
 
         entry = self.lookup_here(name)
-        
+
         if not entry:
             type = PyrexTypes.ScopedEnumType(
-                name, cname, namespace
+                name, cname, underlying_type, namespace
             )
             entry = self.declare_type(name, type, pos, cname = cname)
             entry.enum_values = []
+        else:
+            if (
+                entry.type.underlying_type
+                and entry.type.underlying_type != underlying_type
+            ):
+                error(pos, "Underlying type does not match previous declaration")
+                entry.already_declared_here()
+            else:
+                entry.type.underlying_type = underlying_type
+
         entry.create_wrapper = create_wrapper
 
         return entry

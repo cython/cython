@@ -1626,7 +1626,7 @@ class ScopedEnumDefNode(StatNode):
     #  create_wrapper boolean
     #  entry          Entry
 
-    child_attrs = ["items"]
+    child_attrs = ["items", "underlying_type"]
 
     def declare(self, env):
         self.entry = env.declare_scoped_enum(
@@ -1637,11 +1637,20 @@ class ScopedEnumDefNode(StatNode):
 
     def analyse_declarations(self, env):
         scope = None
+        underlying_type = self.underlying_type.analyse(env)
+
+        if not underlying_type.is_int:
+            error(
+                self.underlying_type.pos,
+                "underlying type is not an integral type"
+            )
+
         if self.items is not None:
             scope = ScopedEnumScope(self.name, env)
         self.entry = env.declare_scoped_enum(
             self.name, self.pos,
             cname=self.cname,
+            underlying_type=underlying_type,
             create_wrapper=self.create_wrapper
         )
         if self.entry is None:
