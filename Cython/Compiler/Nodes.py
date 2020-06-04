@@ -1032,8 +1032,6 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
                 if scope is None:
                     # Maybe it's a cimport.
                     scope = env.find_imported_module(self.module_path, self.pos)
-                    if scope:
-                        scope.fused_to_specific = env.fused_to_specific
             else:
                 scope = env
 
