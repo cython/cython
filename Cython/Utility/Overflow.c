@@ -74,6 +74,8 @@ if (unlikely(__Pyx_check_twos_complement())) {
 
 /////////////// BaseCaseUnsigned.proto ///////////////
 
+{{if UINT == "long long"}}#ifdef HAVE_LONG_LONG{{endif}}
+
 static CYTHON_INLINE {{UINT}} __Pyx_add_{{NAME}}_checking_overflow({{UINT}} a, {{UINT}} b, int *overflow);
 static CYTHON_INLINE {{UINT}} __Pyx_sub_{{NAME}}_checking_overflow({{UINT}} a, {{UINT}} b, int *overflow);
 static CYTHON_INLINE {{UINT}} __Pyx_mul_{{NAME}}_checking_overflow({{UINT}} a, {{UINT}} b, int *overflow);
@@ -89,7 +91,11 @@ static CYTHON_INLINE {{UINT}} __Pyx_mul_const_{{NAME}}_checking_overflow({{UINT}
 #endif
 #define __Pyx_div_const_{{NAME}}_checking_overflow __Pyx_div_{{NAME}}_checking_overflow
 
+{{if UINT == "long long"}}#endif{{endif}}
+
 /////////////// BaseCaseUnsigned ///////////////
+
+{{if UINT == "long long"}}#ifdef HAVE_LONG_LONG{{endif}}
 
 #if defined(__PYX_HAVE_BUILTIN_OVERFLOW)
 
@@ -174,8 +180,12 @@ static CYTHON_INLINE {{UINT}} __Pyx_div_{{NAME}}_checking_overflow({{UINT}} a, {
     return a / b;
 }
 
+{{if UINT == "long long"}}#endif{{endif}}
+
 
 /////////////// BaseCaseSigned.proto ///////////////
+
+{{if INT == "long long"}}#ifdef HAVE_LONG_LONG{{endif}}
 
 static CYTHON_INLINE {{INT}} __Pyx_add_{{NAME}}_checking_overflow({{INT}} a, {{INT}} b, int *overflow);
 static CYTHON_INLINE {{INT}} __Pyx_sub_{{NAME}}_checking_overflow({{INT}} a, {{INT}} b, int *overflow);
@@ -193,7 +203,11 @@ static CYTHON_INLINE {{INT}} __Pyx_mul_const_{{NAME}}_checking_overflow({{INT}} 
 #endif
 #define __Pyx_div_const_{{NAME}}_checking_overflow __Pyx_div_{{NAME}}_checking_overflow
 
+{{if INT == "long long"}}#endif{{endif}}
+
 /////////////// BaseCaseSigned ///////////////
+
+{{if INT == "long long"}}#ifdef HAVE_LONG_LONG{{endif}}
 
 #if defined(__PYX_HAVE_BUILTIN_OVERFLOW)
 
@@ -305,6 +319,8 @@ static CYTHON_INLINE {{INT}} __Pyx_div_{{NAME}}_checking_overflow({{INT}} a, {{I
     *overflow |= a == __PYX_MIN({{INT}}) && b == -1;
     return ({{INT}}) ((unsigned {{INT}}) a / (unsigned {{INT}}) b);
 }
+
+{{if INT == "long long"}}#endif{{endif}}
 
 
 /////////////// SizeCheck.init ///////////////
