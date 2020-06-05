@@ -3186,8 +3186,7 @@ def p_cpp_scoped_enum_definition(s, pos, ctx):
         if cname is None and ctx.namespace is not None:
             cname = ctx.namespace + "::" + name
     else:
-        name = None
-        cname = None
+        s.error("Unnamed scoped enum not allowed")
 
     if s.sy == '(':
         s.next()
@@ -3224,9 +3223,9 @@ def p_cpp_scoped_enum_definition(s, pos, ctx):
         s.expect_dedent()
 
     if not items and ctx.visibility != "extern":
-        error(
-            s.position(),
-            "Empty enum definition not allowed outside a 'cdef extern from' block"
+        s.error(
+            "Empty enum definition not allowed outside a "
+            "'cdef extern from' block"
         )
 
     return Nodes.ScopedEnumDefNode(
