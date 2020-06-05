@@ -69,7 +69,7 @@ if PY_VERSION_HEX >= 0x03040000:
     # create new IntEnum()
     __Pyx_globals["{{name}}"] = __Pyx_EnumBase('{{name}}', __Pyx_OrderedDict([
         {{for item in items}}
-        ('{{item}}', <{{underlying_type}}>({{cname}}.{{item}})),
+        ('{{item}}', <{{underlying_type}}>({{name}}.{{item}})),
         {{endfor}}
     ]))
 else:

@@ -3214,10 +3214,11 @@ def p_cpp_scoped_enum_definition(s, pos, ctx):
         s.next()
         s.expect_indent()
 
-        if ctx.namespace:
-            enum_ctx_namespace = ctx.namespace + "::" + name
+        if cname is not None:
+            enum_ctx_namespace = cname
         else:
             enum_ctx_namespace = name
+
         enum_ctx = Ctx(namespace=enum_ctx_namespace)
         while s.sy not in ('DEDENT', 'EOF'):
             p_cpp_scoped_enum_line(s, enum_ctx, items)
