@@ -454,6 +454,10 @@ Other changes
 Bugs fixed
 ----------
 
+* Nested try-except statements with multiple ``return`` statements could crash
+  due to incorrect deletion of the ``except as`` target variable.
+  (Github issue #3666)
+
 * The ``@classmethod`` decorator no longer rejects unknown input from other decorators.
   Patch by David Woods.  (Github issue #3660)
 
