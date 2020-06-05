@@ -3204,7 +3204,6 @@ def p_cpp_scoped_enum_definition(s, pos, ctx):
             longness = 0
         )
 
-    items = None
     s.expect(":")
     items = []
 
@@ -3223,6 +3222,12 @@ def p_cpp_scoped_enum_definition(s, pos, ctx):
         while s.sy not in ('DEDENT', 'EOF'):
             p_cpp_scoped_enum_line(s, enum_ctx, items)
         s.expect_dedent()
+
+    if not items and ctx.visibility != "extern":
+        error(
+            s.position(),
+            "Empty enum definition not allowed outside a 'cdef extern from' block"
+        )
 
     return Nodes.ScopedEnumDefNode(
         pos, name=name, cname=cname, items=items,
