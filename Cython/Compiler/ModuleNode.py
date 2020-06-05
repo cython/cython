@@ -1081,7 +1081,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     value_entry.value_node.result()))
             if value_entry is not last_entry:
                 value_code += ","
-                code.putln(value_code)
+            code.putln(value_code)
         code.putln("};")
 
     def generate_typeobj_predeclaration(self, entry, code):
