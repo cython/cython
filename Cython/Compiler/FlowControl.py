@@ -1198,8 +1198,6 @@ class ControlFlowAnalysis(CythonTransform):
         if self.flow.loops:
             self.flow.loops[-1].exceptions.append(descr)
         self.flow.block = body_block
-        ## XXX: Is it still required
-        body_block.add_child(entry_point)
         self.flow.nextblock()
         self._visit(node.body)
         self.flow.exceptions.pop()
@@ -1233,11 +1231,18 @@ class ControlFlowAnalysis(CythonTransform):
         self.mark_position(node)
         self.visitchildren(node)
 
-        for exception in self.flow.exceptions[::-1]:
-            if exception.finally_enter:
-                self.flow.block.add_child(exception.finally_enter)
-                if exception.finally_exit:
-                    exception.finally_exit.add_child(self.flow.exit_point)
+        outer_exception_handlers = iter(self.flow.exceptions[::-1])
+        for handler in outer_exception_handlers:
+            if handler.finally_enter:
+                self.flow.block.add_child(handler.finally_enter)
+                if handler.finally_exit:
+                    # 'return' goes to function exit, or to the next outer 'finally' clause
+                    exit_point = self.flow.exit_point
+                    for next_handler in outer_exception_handlers:
+                        if next_handler.finally_enter:
+                            exit_point = next_handler.finally_enter
+                            break
+                    handler.finally_exit.add_child(exit_point)
                 break
         else:
             if self.flow.block:
