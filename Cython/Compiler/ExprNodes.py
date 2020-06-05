@@ -2661,7 +2661,8 @@ class IteratorNode(ExprNode):
     type = py_object_type
     iter_func_ptr = None
     counter_cname = None
-    cpp_iterator_cname = None
+    cpp_sequence_cname = None
+    cpp_attribute_op = "."
     reversed = False      # currently only used for list/tuple types (see Optimize.py)
     is_async = False
 
@@ -2752,16 +2753,33 @@ class IteratorNode(ExprNode):
     def generate_result_code(self, code):
         sequence_type = self.sequence.type
         if sequence_type.is_cpp_class:
-            if self.sequence.is_name:
-                # safe: C++ won't allow you to reassign to class references
-                begin_func = "%s.begin" % self.sequence.result()
+            # essentially 3 options:
+            if self.sequence.is_name or self.sequence.is_attribute:
+                # 1) is a name and can be accessed directly;
+                #    assigning to it may break the container, but that's the responsibility
+                #    of the user
+                code.putln("%s = %s%sbegin();" % (self.result(),
+                                                  self.sequence.result(),
+                                                  self.cpp_attribute_op))
             else:
-                sequence_type = PyrexTypes.c_ptr_type(sequence_type)
-                self.cpp_iterator_cname = code.funcstate.allocate_temp(sequence_type, manage_ref=False)
-                code.putln("%s = &%s;" % (self.cpp_iterator_cname, self.sequence.result()))
-                begin_func = "%s->begin" % self.cpp_iterator_cname
-            # TODO: Limit scope.
-            code.putln("%s = %s();" % (self.result(), begin_func))
+                # TODO: Limit scope.
+                temp_type = sequence_type
+                if temp_type.is_reference:
+                    # 2) Sequence is a reference (often obtained by dereferencing a pointer);
+                    #    make the temp a pointer so we are not sensitive to users reassigning
+                    #    the pointer than it came from
+                    temp_type = PyrexTypes.CPtrType(sequence_type.ref_base_type)
+                if temp_type.is_ptr:
+                    self.cpp_attribute_op = "->"
+                # 3) (otherwise) sequence comes from a function call or similar, so we must
+                #    create a temp to store it in
+                self.cpp_sequence_cname = code.funcstate.allocate_temp(temp_type, manage_ref=False)
+                # FIXME move?
+                code.putln("%s = %s%s;" % (self.cpp_sequence_cname,
+                                           "&" if temp_type.is_ptr else "",
+                                           self.sequence.move_result_rhs()))
+                code.putln("%s = %s%sbegin();" % (self.result(), self.cpp_sequence_cname,
+                                                  self.cpp_attribute_op))
             return
         if sequence_type.is_array or sequence_type.is_ptr:
             raise InternalError("for in carray slice not transformed")
@@ -2859,14 +2877,12 @@ class IteratorNode(ExprNode):
         if self.reversed:
             code.putln("if (%s < 0) break;" % self.counter_cname)
         if sequence_type.is_cpp_class:
-            if self.cpp_iterator_cname:
-                end_func = "%s->end" % self.cpp_iterator_cname
-            else:
-                end_func = "%s.end" % self.sequence.result()
-            # TODO: Cache end() call?
-            code.putln("if (!(%s != %s())) break;" % (
+            # end call isn't cached to support containers that allow adding while iterating
+            # (much as this is usually a bad idea)
+            code.putln("if (!(%s != %s%send())) break;" % (
                             self.result(),
-                            end_func))
+                            self.cpp_sequence_cname if self.cpp_sequence_cname else self.sequence.result(),
+                            self.cpp_attribute_op))
             code.putln("%s = *%s;" % (
                             result_name,
                             self.result()))
@@ -2911,8 +2927,8 @@ class IteratorNode(ExprNode):
         if self.iter_func_ptr:
             code.funcstate.release_temp(self.iter_func_ptr)
             self.iter_func_ptr = None
-        if self.cpp_iterator_cname:
-            code.funcstate.release_temp(self.cpp_iterator_cname)
+        if self.cpp_sequence_cname:
+            code.funcstate.release_temp(self.cpp_sequence_cname)
         ExprNode.free_temps(self, code)
 
 
@@ -3777,6 +3793,8 @@ class IndexNode(_IndexingBaseNode):
     def analyse_as_c_array(self, env, is_slice):
         base_type = self.base.type
         self.type = base_type.base_type
+        if self.type.is_cpp_class:
+            self.type = PyrexTypes.CReferenceType(self.type)
         if is_slice:
             self.type = base_type
         elif self.index.type.is_pyobject:
@@ -10313,7 +10331,7 @@ class DereferenceNode(CUnopNode):
 
     def analyse_c_operation(self, env):
         if self.operand.type.is_ptr:
-            self.type = self.operand.type.base_type
+            self.type = PyrexTypes.CReferenceType(self.operand.type.base_type)
         else:
             self.type_error()
 
