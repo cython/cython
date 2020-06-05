@@ -10,9 +10,18 @@ cpdef enum class Spam:
     e
     f = 42
 
+
+cpdef enum class Cheese(unsigned int):
+    x = 1
+    y = 2
+
+
 cdef void eggs():
     cdef Spam s1
     s1 = Spam.a
     s2 = Spam.b
+
+    cdef Cheese c1
+    c1 = Cheese.x
 
 eggs()

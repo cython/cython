@@ -1,6 +1,7 @@
 # tag: cpp,cpp11
 # mode: run
 
+from libcpp.limits cimport numeric_limits
 
 cdef extern from *:
     """
@@ -12,24 +13,6 @@ cdef extern from *:
     cdef enum class Enum1:
         Item1
         Item2
-
-
-cdef Enum1 x, y
-x = Enum1.Item1
-y = Enum1.Item2
-
-
-def compare_enums():
-    """
-    >>> compare_enums()
-    (True, True, False, False)
-    """
-    return (
-        x == Enum1.Item1,
-        y == Enum1.Item2,
-        x == Enum1.Item2,
-        y == Enum1.Item1
-    )
 
 
 cdef extern from * namespace "Namespace1":
@@ -46,19 +29,94 @@ cdef extern from * namespace "Namespace1":
         Item2
 
 
-cdef Enum2 z, w
-z = Enum2.Item1
-w = Enum2.Item2
+cdef enum class Enum3(int):
+    a = 1
+    b = 2
 
 
-def compare_namespace_enums():
+cdef extern from *:
     """
-    >>> compare_enums()
+    enum class sorted
+    {
+        a = 1,
+        b = 0
+    };
+    """
+    cdef enum class Enum4 "sorted":
+        a
+        b
+
+
+cdef extern from *:
+    """
+    #include <limits>
+
+    enum class LongIntEnum : long int {
+        val = std::numeric_limits<long int>::max(),
+    };
+    """
+    enum class LongIntEnum(long int):
+        val
+
+
+def test_compare_enums():
+    """
+    >>> test_compare_enums()
     (True, True, False, False)
     """
+    cdef Enum1 x, y
+    x = Enum1.Item1
+    y = Enum1.Item2
+
+    return (
+        x == Enum1.Item1,
+        y == Enum1.Item2,
+        x == Enum1.Item2,
+        y == Enum1.Item1
+    )
+
+        
+def test_compare_namespace_enums():
+    """
+    >>> test_compare_enums()
+    (True, True, False, False)
+    """
+    cdef Enum2 z, w
+    
+    z = Enum2.Item1
+    w = Enum2.Item2
+
     return (
         z == Enum2.Item1,
         w == Enum2.Item2,
         z == Enum2.Item2,
         w == Enum2.Item1
     )
+
+
+def test_coerce_to_from_py_value():
+    """
+    >>> test_coerce_to_from_py_value()
+    """
+    y = Enum3.b
+    assert y == 2
+
+    cdef Enum3 x = Enum3.a
+    x = int(1)
+    assert x == Enum3.a
+
+
+def test_reserved_cname():
+    """
+    >>> test_reserved_cname()
+    """
+    cdef Enum4 x = Enum4.a
+    assert Enum4.a == int(1)
+
+
+def test_large_enum():
+    """
+    >>> test_large_enum()
+    """
+    long_max = int(numeric_limits[long].max())
+    assert LongIntEnum.val == long_max

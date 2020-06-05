@@ -715,14 +715,11 @@ class Scope(object):
             entry = self.declare_type(name, type, pos, cname = cname)
             entry.enum_values = []
         else:
-            if (
-                entry.type.underlying_type
-                and entry.type.underlying_type != underlying_type
-            ):
-                error(pos, "Underlying type does not match previous declaration")
-                entry.already_declared_here()
-            else:
+            if entry.type.underlying_type is None:
                 entry.type.underlying_type = underlying_type
+            else:
+                error(pos, "'%s' redeclared " % name)
+                entry.already_declared_here()
 
         entry.create_wrapper = create_wrapper
 
