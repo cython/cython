@@ -272,12 +272,12 @@ def except_as_deletes_target_in_gen(x, a):
 
 def nested_except_gh3666(a=False, b=False):
     """
-    >>> nested_except_gh3666()
-    'A'
-    >>> nested_except_gh3666(a=True)
-    'B-V'
-    >>> nested_except_gh3666(a=True, b=True)
-    'B-V-T'
+    >>> print(nested_except_gh3666())
+    A
+    >>> print(nested_except_gh3666(a=True))
+    B-V
+    >>> print(nested_except_gh3666(a=True, b=True))
+    B-V-T
     """
     try:
         if a:
