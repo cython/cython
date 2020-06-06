@@ -61,7 +61,7 @@ else:
     __Pyx_globals['{{item}}'] = {{name}}({{item}}, '{{item}}')
     {{endfor}}
 
-#################### ScopedEnumType ####################
+#################### CppScopedEnumType ####################
 #@requires: EnumBase
 cdef dict __Pyx_globals = globals()
 

@@ -4068,7 +4068,7 @@ class CppScopedEnumType(CType):
 
         from .UtilityCode import CythonUtilityCode
         env.use_utility_code(CythonUtilityCode.load(
-            "enum.from_py",
+            "enum_class.from_py",
             "CppConvert.pyx",
             context=context,
             outer_module_scope=env.global_scope(),  # need access to types declared in module
@@ -4093,7 +4093,7 @@ class CppScopedEnumType(CType):
 
         from .UtilityCode import CythonUtilityCode
         env.use_utility_code(CythonUtilityCode.load(
-            "enum.to_py",
+            "enum_class.to_py",
             "CppConvert.pyx",
             context=context,
             outer_module_scope=env.global_scope(),  # need access to types declared in module
@@ -4105,7 +4105,7 @@ class CppScopedEnumType(CType):
     def create_type_wrapper(self, env):
         from .UtilityCode import CythonUtilityCode
         rst = CythonUtilityCode.load(
-            "ScopedEnumType", "CpdefEnums.pyx",
+            "CppScopedEnumType", "CpdefEnums.pyx",
             context={"name": self.name,
                      "cname": self.cname.split("::")[-1],
                      "items": tuple(self.values),
