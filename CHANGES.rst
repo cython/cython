@@ -21,6 +21,10 @@ Features added
   with the directive ``@cython.always_allow_keywords(False)``.
   (Github issue #3090)
 
+* The ``@returns()`` decorator propagates exceptions by default for suitable C
+  return types when no ``@exceptval()`` is defined.
+  (Github issue #3664)
+
 * A low-level inline function ``total_seconds(timedelta)`` was added to
   ``cpython.datetime`` to bypass the Python method call.  Note that this function
   is not guaranteed to give exactly the same results for very large time intervals.
