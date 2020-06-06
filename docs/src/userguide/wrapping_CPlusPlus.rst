@@ -97,7 +97,7 @@ We use the lines::
         pass
 
 to include the C++ code from :file:`Rectangle.cpp`. It is also possible to specify to
-distutils that :file:`Rectangle.cpp` is a source. To do that, you can add this directive at the
+setuptools that :file:`Rectangle.cpp` is a source. To do that, you can add this directive at the
 top of the ``.pyx`` (not ``.pxd``) file::
 
     # distutils: sources = Rectangle.cpp
@@ -554,7 +554,7 @@ Specify C++ language in setup.py
 Instead of specifying the language and the sources in the source files, it is
 possible to declare them in the :file:`setup.py` file::
 
-   from distutils.core import setup
+   from setuptools import setup
    from Cython.Build import cythonize
 
    setup(ext_modules = cythonize(
@@ -580,7 +580,7 @@ recognize the ``language`` option and it needs to be specified as an
 option to an :class:`Extension` that describes your extension and that
 is then handled by ``cythonize()`` as follows::
 
-   from distutils.core import setup, Extension
+   from setuptools import Extension, setup
    from Cython.Build import cythonize
 
    setup(ext_modules = cythonize(Extension(
@@ -595,7 +595,7 @@ often preferable (and overrides any global option).  Starting with
 version 0.17, Cython also allows passing external source files into the
 ``cythonize()`` command this way.  Here is a simplified setup.py file::
 
-   from distutils.core import setup
+   from setuptools import setup
    from Cython.Build import cythonize
 
    setup(
@@ -613,8 +613,8 @@ any source code, to compile it in C++ mode and link it statically against the
 .. note::
 
      When using distutils directives, the paths are relative to the working
-     directory of the distutils run (which is usually the
-     project root where the :file:`setup.py` resides).
+     directory of the setuptools run (which is usually the project root where
+     the :file:`setup.py` resides).
 
 To compile manually (e.g. using ``make``), the ``cython`` command-line
 utility can be used to generate a C++ ``.cpp`` file, and then compile it

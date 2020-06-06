@@ -19,6 +19,10 @@ for fast C modules that speed up the execution of Python code.
 * Github repository: https://github.com/cython/cython
 * Wiki: https://github.com/cython/cython/wiki
 
+You can **support the Cython project** via
+`Github Sponsors <https://github.com/users/scoder/sponsorship>`_ or
+`Tidelift <https://tidelift.com/subscription/pkg/pypi-cython>`_.
+
 
 Installation:
 -------------
@@ -55,8 +59,9 @@ Get the full source history:
 
 Note that Cython used to ship the full version control repository in its source
 distribution, but no longer does so due to space constraints.  To get the
-full source history, make sure you have git installed, then step into the
-base directory of the Cython source distribution and type::
+full source history from a downloaded source archive, make sure you have git
+installed, then step into the base directory of the Cython source distribution
+and type::
 
     make repo
 

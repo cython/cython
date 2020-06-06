@@ -68,9 +68,18 @@ class TestCodeWriter(CythonTest):
                     else:
                         print(43)
                 """)
+        self.t(u"""
+                    for abc in (1, 2, 3):
+                        print(x, y, z)
+                    else:
+                        print(43)
+                """)
 
     def test_inplace_assignment(self):
         self.t(u"x += 43")
+
+    def test_cascaded_assignment(self):
+        self.t(u"x = y = z = abc = 43")
 
     def test_attribute(self):
         self.t(u"a.x")

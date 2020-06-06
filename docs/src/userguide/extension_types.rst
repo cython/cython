@@ -327,7 +327,8 @@ when it is deleted.::
 Subclassing
 =============
 
-An extension type may inherit from a built-in type or another extension type::
+If an extension type inherits from other types, the first base class must be
+a built-in type or another extension type::
 
     cdef class Parrot:
         ...
@@ -342,7 +343,9 @@ extern extension type. If the base type is defined in another Cython module, it
 must either be declared as an extern extension type or imported using the
 :keyword:`cimport` statement.
 
-An extension type can only have one base class (no multiple inheritance).
+Multiple inheritance is supported, however the second and subsequent base 
+classes must be an ordinary Python class (not an extension type or a built-in
+type).
 
 Cython extension types can also be subclassed in Python. A Python class can
 inherit from multiple extension types provided that the usual Python rules for

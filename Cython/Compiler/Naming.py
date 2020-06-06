@@ -96,6 +96,8 @@ clineno_cname    = pyrex_prefix + "clineno"
 cfilenm_cname    = pyrex_prefix + "cfilenm"
 local_tstate_cname = pyrex_prefix + "tstate"
 module_cname     = pyrex_prefix + "m"
+modulestate_cname = pyrex_prefix + "mstate"
+modulestateglobal_cname = pyrex_prefix + "mstate_global"
 moddoc_cname     = pyrex_prefix + "mdoc"
 methtable_cname  = pyrex_prefix + "methods"
 retval_cname     = pyrex_prefix + "r"
@@ -132,6 +134,8 @@ tp_dict_version_temp = pyrex_prefix + "tp_dict_version"
 obj_dict_version_temp = pyrex_prefix + "obj_dict_version"
 type_dict_guard_temp = pyrex_prefix + "type_dict_guard"
 cython_runtime_cname   = pyrex_prefix + "cython_runtime"
+cyfunction_type_cname = pyrex_prefix + "CyFunctionType"
+fusedfunction_type_cname = pyrex_prefix + "FusedFunctionType"
 
 global_code_object_cache_find = pyrex_prefix + 'find_code_object'
 global_code_object_cache_insert = pyrex_prefix + 'insert_code_object'

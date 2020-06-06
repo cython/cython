@@ -20,47 +20,15 @@ static PyObject* __Pyx_Globals(void); /*proto*/
 // access requires a rewrite as a dedicated class.
 
 static PyObject* __Pyx_Globals(void) {
-    Py_ssize_t i;
-    PyObject *names;
-    PyObject *globals = $moddict_cname;
-    Py_INCREF(globals);
-    names = PyObject_Dir($module_cname);
-    if (!names)
-        goto bad;
-    for (i = PyList_GET_SIZE(names)-1; i >= 0; i--) {
-#if CYTHON_COMPILING_IN_PYPY
-        PyObject* name = PySequence_ITEM(names, i);
-        if (!name)
-            goto bad;
+    PyObject *globals;
+#if CYTHON_COMPILING_IN_LIMITED_API
+    globals = PyModule_GetDict($module_cname);
+    if (unlikely(!globals)) return NULL;
 #else
-        PyObject* name = PyList_GET_ITEM(names, i);
+    globals = $moddict_cname;
 #endif
-        if (!PyDict_Contains(globals, name)) {
-            PyObject* value = __Pyx_GetAttr($module_cname, name);
-            if (!value) {
-#if CYTHON_COMPILING_IN_PYPY
-                Py_DECREF(name);
-#endif
-                goto bad;
-            }
-            if (PyDict_SetItem(globals, name, value) < 0) {
-#if CYTHON_COMPILING_IN_PYPY
-                Py_DECREF(name);
-#endif
-                Py_DECREF(value);
-                goto bad;
-            }
-        }
-#if CYTHON_COMPILING_IN_PYPY
-        Py_DECREF(name);
-#endif
-    }
-    Py_DECREF(names);
+    Py_INCREF(globals);
     return globals;
-bad:
-    Py_XDECREF(names);
-    Py_XDECREF(globals);
-    return NULL;
 }
 
 //////////////////// PyExecGlobals.proto ////////////////////
@@ -100,7 +68,7 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
 
     if (!globals || globals == Py_None) {
         globals = $moddict_cname;
-    } else if (!PyDict_Check(globals)) {
+    } else if (unlikely(!PyDict_Check(globals))) {
         PyErr_Format(PyExc_TypeError, "exec() arg 2 must be a dict, not %.200s",
                      Py_TYPE(globals)->tp_name);
         goto bad;
@@ -110,12 +78,12 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
     }
 
     if (__Pyx_PyDict_GetItemStr(globals, PYIDENT("__builtins__")) == NULL) {
-        if (PyDict_SetItem(globals, PYIDENT("__builtins__"), PyEval_GetBuiltins()) < 0)
+        if (unlikely(PyDict_SetItem(globals, PYIDENT("__builtins__"), PyEval_GetBuiltins()) < 0))
             goto bad;
     }
 
     if (PyCode_Check(o)) {
-        if (__Pyx_PyCode_HasFreeVars((PyCodeObject *)o)) {
+        if (unlikely(__Pyx_PyCode_HasFreeVars((PyCodeObject *)o))) {
             PyErr_SetString(PyExc_TypeError,
                 "code object passed to exec() may not contain free variables");
             goto bad;
@@ -131,12 +99,12 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
         if (PyUnicode_Check(o)) {
             cf.cf_flags = PyCF_SOURCE_IS_UTF8;
             s = PyUnicode_AsUTF8String(o);
-            if (!s) goto bad;
+            if (unlikely(!s)) goto bad;
             o = s;
         #if PY_MAJOR_VERSION >= 3
-        } else if (!PyBytes_Check(o)) {
+        } else if (unlikely(!PyBytes_Check(o))) {
         #else
-        } else if (!PyString_Check(o)) {
+        } else if (unlikely(!PyString_Check(o))) {
         #endif
             PyErr_Format(PyExc_TypeError,
                 "exec: arg 1 must be string, bytes or code object, got %.200s",
@@ -212,7 +180,7 @@ static CYTHON_INLINE int __Pyx_HasAttr(PyObject *o, PyObject *n) {
         return -1;
     }
     r = __Pyx_GetAttr(o, n);
-    if (unlikely(!r)) {
+    if (!r) {
         PyErr_Clear();
         return 0;
     } else {
@@ -228,7 +196,7 @@ static PyObject* __Pyx_Intern(PyObject* s); /* proto */
 //////////////////// Intern ////////////////////
 
 static PyObject* __Pyx_Intern(PyObject* s) {
-    if (!(likely(PyString_CheckExact(s)))) {
+    if (unlikely(!PyString_CheckExact(s))) {
         PyErr_Format(PyExc_TypeError, "Expected %.16s, got %.200s", "str", Py_TYPE(s)->tp_name);
         return 0;
     }
@@ -289,7 +257,8 @@ static PyObject *__Pyx_PyLong_AbsNeg(PyObject *n) {
     {
         PyObject *copy = _PyLong_Copy((PyLongObject*)n);
         if (likely(copy)) {
-            Py_SIZE(copy) = -(Py_SIZE(copy));
+            // negate the size to swap the sign
+            __Pyx_SET_SIZE(copy, -Py_SIZE(copy));
         }
         return copy;
     }

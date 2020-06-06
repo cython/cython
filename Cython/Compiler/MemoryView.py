@@ -101,7 +101,8 @@ def put_acquire_memoryviewslice(lhs_cname, lhs_type, lhs_pos, rhs, code,
 def put_assign_to_memviewslice(lhs_cname, rhs, rhs_cname, memviewslicetype, code,
                                have_gil=False, first_assignment=False):
     if not first_assignment:
-        code.put_xdecref_memoryviewslice(lhs_cname, have_gil=have_gil)
+        code.put_xdecref(lhs_cname, memviewslicetype,
+                         have_gil=have_gil)
 
     if not rhs.result_in_temp():
         rhs.make_owned_memoryviewslice(code)
@@ -248,7 +249,7 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
 
         return bufp
 
-    def generate_buffer_slice_code(self, code, indices, dst, have_gil,
+    def generate_buffer_slice_code(self, code, indices, dst, dst_type, have_gil,
                                    have_slices, directives):
         """
         Slice a memoryviewslice.
@@ -265,7 +266,7 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
 
         code.putln("%(dst)s.data = %(src)s.data;" % locals())
         code.putln("%(dst)s.memview = %(src)s.memview;" % locals())
-        code.put_incref_memoryviewslice(dst)
+        code.put_incref_memoryviewslice(dst, dst_type, have_gil=have_gil)
 
         all_dimensions_direct = all(access == 'direct' for access, packing in self.type.axes)
         suboffset_dim_temp = []
@@ -291,7 +292,6 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
 
             dim += 1
             access, packing = self.type.axes[dim]
-            error_goto = code.error_goto(index.pos)
 
             if isinstance(index, ExprNodes.SliceNode):
                 # slice, unspecified dimension, or part of ellipsis
@@ -308,6 +308,7 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
                     util_name = "SimpleSlice"
                 else:
                     util_name = "ToughSlice"
+                    d['error_goto'] = code.error_goto(index.pos)
 
                 new_ndim += 1
             else:
@@ -325,8 +326,10 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
                 d = dict(
                     locals(),
                     wraparound=int(directives['wraparound']),
-                    boundscheck=int(directives['boundscheck'])
+                    boundscheck=int(directives['boundscheck']),
                 )
+                if d['boundscheck']:
+                    d['error_goto'] = code.error_goto(index.pos)
                 util_name = "SliceIndex"
 
             _, impl = TempitaUtilityCode.load_as_string(util_name, "MemoryView_C.c", context=d)
@@ -807,7 +810,7 @@ context = {
     'memview_struct_name': memview_objstruct_cname,
     'max_dims': Options.buffer_max_dims,
     'memviewslice_name': memviewslice_cname,
-    'memslice_init': memslice_entry_init,
+    'memslice_init': PyrexTypes.MemoryViewSliceType.default_value,
 }
 memviewslice_declare_code = load_memview_c_utility(
         "MemviewSliceStruct",

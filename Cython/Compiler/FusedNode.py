@@ -220,6 +220,10 @@ class FusedCFuncDefNode(StatListNode):
                 arg.type = arg.type.specialize(fused_to_specific)
                 if arg.type.is_memoryviewslice:
                     arg.type.validate_memslice_dtype(arg.pos)
+                if arg.annotation:
+                    # TODO might be nice if annotations were specialized instead?
+                    # (Or might be hard to do reliably)
+                    arg.annotation.untyped = True
 
     def create_new_local_scope(self, node, env, f2s):
         """
@@ -507,20 +511,22 @@ class FusedCFuncDefNode(StatListNode):
                 ndarray = __Pyx_ImportNumPyArrayTypeIfAvailable()
             """)
 
+        seen_typedefs = set()
         seen_int_dtypes = set()
         for buffer_type in all_buffer_types:
             dtype = buffer_type.dtype
+            dtype_name = self._dtype_name(dtype)
             if dtype.is_typedef:
-                 #decl_code.putln("ctypedef %s %s" % (dtype.resolve(),
-                 #                                    self._dtype_name(dtype)))
-                decl_code.putln('ctypedef %s %s "%s"' % (dtype.resolve(),
-                                                         self._dtype_name(dtype),
-                                                         dtype.empty_declaration_code()))
+                if dtype_name not in seen_typedefs:
+                    seen_typedefs.add(dtype_name)
+                    decl_code.putln(
+                        'ctypedef %s %s "%s"' % (dtype.resolve(), dtype_name,
+                                                 dtype.empty_declaration_code()))
 
             if buffer_type.dtype.is_int:
                 if str(dtype) not in seen_int_dtypes:
                     seen_int_dtypes.add(str(dtype))
-                    pyx_code.context.update(dtype_name=self._dtype_name(dtype),
+                    pyx_code.context.update(dtype_name=dtype_name,
                                             dtype_type=self._dtype_type(dtype))
                     pyx_code.local_variable_declarations.put_chunk(
                         u"""
@@ -578,6 +584,26 @@ class FusedCFuncDefNode(StatListNode):
                 {{endif}}
             """)
 
+    def _fused_signature_index(self, pyx_code):
+        """
+        Generate Cython code for constructing a persistent nested dictionary index of
+        fused type specialization signatures.
+        """
+        pyx_code.put_chunk(
+            u"""
+                if not _fused_sigindex:
+                    for sig in <dict>signatures:
+                        sigindex_node = _fused_sigindex
+                        *sig_series, last_type = sig.strip('()').split('|')
+                        for sig_type in sig_series:
+                            if sig_type not in sigindex_node:
+                                sigindex_node[sig_type] = sigindex_node = {}
+                            else:
+                                sigindex_node = sigindex_node[sig_type]
+                        sigindex_node[last_type] = sig
+            """
+        )
+
     def make_fused_cpdef(self, orig_py_func, env, is_def):
         """
         This creates the function that is indexable from Python and does
@@ -614,9 +640,13 @@ class FusedCFuncDefNode(StatListNode):
 
         pyx_code.put_chunk(
             u"""
-                def __pyx_fused_cpdef(signatures, args, kwargs, defaults):
+                def __pyx_fused_cpdef(signatures, args, kwargs, defaults, _fused_sigindex={}):
                     # FIXME: use a typed signature - currently fails badly because
                     #        default arguments inherit the types we specify here!
+
+                    cdef list search_list
+
+                    cdef dict sn, sigindex_node
 
                     dest_sig = [None] * {{n_fused}}
 
@@ -685,23 +715,36 @@ class FusedCFuncDefNode(StatListNode):
             env.use_utility_code(Code.UtilityCode.load_cached("Import", "ImportExport.c"))
             env.use_utility_code(Code.UtilityCode.load_cached("ImportNumPyArray", "ImportExport.c"))
 
+        self._fused_signature_index(pyx_code)
+
         pyx_code.put_chunk(
             u"""
-                candidates = []
-                for sig in <dict>signatures:
-                    match_found = False
-                    src_sig = sig.strip('()').split('|')
-                    for i in range(len(dest_sig)):
-                        dst_type = dest_sig[i]
-                        if dst_type is not None:
-                            if src_sig[i] == dst_type:
-                                match_found = True
-                            else:
-                                match_found = False
-                                break
+                sigindex_matches = []
+                sigindex_candidates = [_fused_sigindex]
 
-                    if match_found:
-                        candidates.append(sig)
+                for dst_type in dest_sig:
+                    found_matches = []
+                    found_candidates = []
+                    # Make two seperate lists: One for signature sub-trees
+                    #        with at least one definite match, and another for
+                    #        signature sub-trees with only ambiguous matches
+                    #        (where `dest_sig[i] is None`).
+                    if dst_type is None:
+                        for sn in sigindex_matches:
+                            found_matches.extend(sn.values())
+                        for sn in sigindex_candidates:
+                            found_candidates.extend(sn.values())
+                    else:
+                        for search_list in (sigindex_matches, sigindex_candidates):
+                            for sn in search_list:
+                                if dst_type in sn:
+                                    found_matches.append(sn[dst_type])
+                    sigindex_matches = found_matches
+                    sigindex_candidates = found_candidates
+                    if not (found_matches or found_candidates):
+                        break
+
+                candidates = sigindex_matches
 
                 if not candidates:
                     raise TypeError("No matching signature found")
@@ -796,7 +839,8 @@ class FusedCFuncDefNode(StatListNode):
 
         for i, stat in enumerate(self.stats):
             stat = self.stats[i] = stat.analyse_expressions(env)
-            if isinstance(stat, FuncDefNode):
+            if isinstance(stat, FuncDefNode) and stat is not self.py_func:
+                # the dispatcher specifically doesn't want its defaults overriding
                 for arg, default in zip(stat.args, defaults):
                     if default is not None:
                         arg.default = CloneNode(default).coerce_to(arg.type, env)
@@ -879,7 +923,7 @@ class FusedCFuncDefNode(StatListNode):
                 "((__pyx_FusedFunctionObject *) %s)->__signatures__ = %s;" %
                                     (self.resulting_fused_function.result(),
                                      self.__signatures__.result()))
-            code.put_giveref(self.__signatures__.result())
+            self.__signatures__.generate_giveref(code)
 
             self.fused_func_assignment.generate_execution_code(code)
 

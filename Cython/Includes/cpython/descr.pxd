@@ -21,6 +21,6 @@ cdef extern from "Python.h":
         cdef wrapperbase* d_base
         cdef void* d_wrapped
 
-    PyDescr_NewWrapper(PyTypeObject* cls, wrapperbase* wrapper, void* wrapped)
+    object PyDescr_NewWrapper(PyTypeObject* cls, wrapperbase* wrapper, void* wrapped)
 
     int PyDescr_IsData(descr)

@@ -211,7 +211,7 @@ builtin_function_table = [
     #('sum',       "",     "",      ""),
     #('sorted',    "",     "",      ""),
     #('type',       "O",    "O",     "PyObject_Type"),
-    #('unichr',    "",     "",      ""),
+    BuiltinFunction('unichr',     "l",    "O",      "PyUnicode_FromOrdinal", builtin_return_type='unicode'),
     #('unicode',   "",     "",      ""),
     #('vars',      "",     "",      ""),
     #('zip',       "",     "",      ""),

@@ -52,11 +52,6 @@ docstrings = True
 #: Embed the source code position in the docstrings of functions and classes.
 embed_pos_in_docstring = False
 
-#: Copy the original source code line by line into C code comments
-#: in the generated code file to help with understanding the output.
-#: This is also required for coverage analysis.
-emit_code_comments = True
-
 # undocumented
 pre_import = None
 
@@ -174,6 +169,7 @@ def get_directive_defaults():
 
 # Declare compiler directives
 _directive_defaults = {
+    'binding': True,  # was False before 3.0
     'boundscheck' : True,
     'nonecheck' : False,
     'initializedcheck' : True,
@@ -182,9 +178,10 @@ _directive_defaults = {
     'auto_pickle': None,
     'cdivision': False,  # was True before 0.12
     'cdivision_warnings': False,
+    'c_api_binop_methods': True,  # Change for 3.0
     'overflowcheck': False,
     'overflowcheck.fold': True,
-    'always_allow_keywords': False,
+    'always_allow_keywords': True,
     'allow_none_for_extension_args': True,
     'wraparound' : True,
     'ccomplex' : False,  # use C99/C++ for complex types and arith
@@ -242,8 +239,6 @@ _directive_defaults = {
     'test_fail_if_path_exists' : [],
 
 # experimental, subject to change
-    'binding': None,
-
     'formal_grammar': False,
 }
 

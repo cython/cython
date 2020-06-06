@@ -55,3 +55,15 @@ def test_syntax():
     y = 0 if 1.0else 1
     z = 0 if 1.else 1
     return x, y, z
+
+
+from libc cimport math
+
+def test_cfunc_ptrs(double x, bint round_down):
+    """
+    >>> test_cfunc_ptrs(2.5, round_down=True)
+    2.0
+    >>> test_cfunc_ptrs(2.5, round_down=False)
+    3.0
+    """
+    return (math.floor if round_down else math.ceil)(x)

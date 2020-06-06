@@ -194,6 +194,8 @@ class PyrexType(BaseType):
     #  is_pythran_expr       boolean     Is Pythran expr
     #  is_numpy_buffer       boolean     Is Numpy array buffer
     #  has_attributes        boolean     Has C dot-selectable attributes
+    #  needs_refcounting          boolean     Needs code to be generated similar to incref/gotref/decref.
+    #                                    Largely used internally.
     #  default_value         string      Initial value that can be assigned before first user assignment.
     #  declaration_value     string      The value statically assigned on declaration (if any).
     #  entry                 Entry       The Entry for this type
@@ -228,6 +230,7 @@ class PyrexType(BaseType):
     is_extension_type = 0
     is_final_type = 0
     is_builtin_type = 0
+    is_cython_builtin_type = 0
     is_numeric = 0
     is_int = 0
     is_float = 0
@@ -259,6 +262,7 @@ class PyrexType(BaseType):
     is_pythran_expr = 0
     is_numpy_buffer = 0
     has_attributes = 0
+    needs_refcounting = 0
     default_value = ""
     declaration_value = ""
 
@@ -335,6 +339,31 @@ class PyrexType(BaseType):
             result_code,
             convert_call,
             code.error_goto_if(error_condition or self.error_condition(result_code), error_pos))
+
+    def _generate_dummy_refcounting(self, code, *ignored_args, **ignored_kwds):
+        if self.needs_refcounting:
+            raise NotImplementedError("Ref-counting operation not yet implemented for type %s" %
+                                      self)
+
+    def _generate_dummy_refcounting_assignment(self, code, cname, rhs_cname, *ignored_args, **ignored_kwds):
+        if self.needs_refcounting:
+            raise NotImplementedError("Ref-counting operation not yet implemented for type %s" %
+                                      self)
+        code.putln("%s = %s" % (cname, rhs_cname))
+
+    generate_incref = generate_xincref = generate_decref = generate_xdecref \
+        = generate_decref_clear = generate_xdecref_clear \
+        = generate_gotref = generate_xgotref = generate_giveref = generate_xgiveref \
+            = _generate_dummy_refcounting
+
+    generate_decref_set = generate_xdecref_set = _generate_dummy_refcounting_assignment
+
+    def nullcheck_string(self, code, cname):
+        if self.needs_refcounting:
+            raise NotImplementedError("Ref-counting operation not yet implemented for type %s" %
+                                      self)
+        code.putln("1")
+
 
 
 def public_decl(base_code, dll_linkage):
@@ -566,8 +595,13 @@ class CTypedefType(BaseType):
 class MemoryViewSliceType(PyrexType):
 
     is_memoryviewslice = 1
+    default_value = "{ 0, 0, { 0 }, { 0 }, { 0 } }"
 
     has_attributes = 1
+    needs_refcounting = 1  # Ideally this would be true and reference counting for
+        # memoryview and pyobject code could be generated in the same way.
+        # However, memoryviews are sufficiently specialized that this doesn't
+        # seem practical. Implement a limited version of it for now
     scope = None
 
     # These are special cased in Defnode
@@ -596,7 +630,7 @@ class MemoryViewSliceType(PyrexType):
         'ptr' -- Pointer stored in this dimension.
         'full' -- Check along this dimension, don't assume either.
 
-        the packing specifiers specify how the array elements are layed-out
+        the packing specifiers specify how the array elements are laid-out
         in memory.
 
         'contig' -- The data is contiguous in memory along this dimension.
@@ -658,7 +692,8 @@ class MemoryViewSliceType(PyrexType):
         assert not pyrex
         assert not dll_linkage
         from . import MemoryView
-        base_code = str(self) if for_display else MemoryView.memviewslice_cname
+        base_code = StringEncoding.EncodedString(
+                        (str(self)) if for_display else MemoryView.memviewslice_cname)
         return self.base_declaration_code(
                 base_code,
                 entity_code)
@@ -1040,6 +1075,36 @@ class MemoryViewSliceType(PyrexType):
     def cast_code(self, expr_code):
         return expr_code
 
+    # When memoryviews are increfed currently seems heavily special-cased.
+    # Therefore, use our own function for now
+    def generate_incref(self, code, name, **kwds):
+        pass
+
+    def generate_incref_memoryviewslice(self, code, slice_cname, have_gil):
+        # TODO ideally would be done separately
+        code.putln("__PYX_INC_MEMVIEW(&%s, %d);" % (slice_cname, int(have_gil)))
+
+    # decref however did look to always apply for memoryview slices
+    # with "have_gil" set to True by default
+    def generate_xdecref(self, code, cname, nanny, have_gil):
+        code.putln("__PYX_XDEC_MEMVIEW(&%s, %d);" % (cname, int(have_gil)))
+
+    def generate_decref(self, code, cname, nanny, have_gil):
+        # Fall back to xdecref since we don't care to have a separate decref version for this.
+        self.generate_xdecref(code, cname, nanny, have_gil)
+
+    def generate_xdecref_clear(self, code, cname, clear_before_decref, **kwds):
+        self.generate_xdecref(code, cname, **kwds)
+        code.putln("%s.memview = NULL; %s.data = NULL;" % (cname, cname))
+
+    def generate_decref_clear(self, code, cname, **kwds):
+        # memoryviews don't currently distinguish between xdecref and decref
+        self.generate_xdecref_clear(code, cname, **kwds)
+
+    # memoryviews don't participate in giveref/gotref
+    generate_gotref = generate_xgotref = generate_xgiveref = generate_giveref = lambda *args: None
+
+
 
 class BufferType(BaseType):
     #
@@ -1138,6 +1203,7 @@ class PyObjectType(PyrexType):
     is_subclassed = False
     is_gc_simple = False
     builtin_trashcan = False  # builtin type using trashcan
+    needs_refcounting = True
 
     def __str__(self):
         return "Python object"
@@ -1188,6 +1254,76 @@ class PyObjectType(PyrexType):
         code.put_init_var_to_py_none(entry, nanny=False)
 
     def check_for_null_code(self, cname):
+        return cname
+
+    def generate_incref(self, code, cname, nanny):
+        if nanny:
+            code.putln("__Pyx_INCREF(%s);" % self.as_pyobject(cname))
+        else:
+            code.putln("Py_INCREF(%s);" % self.as_pyobject(cname))
+
+    def generate_xincref(self, code, cname, nanny):
+        if nanny:
+            code.putln("__Pyx_XINCREF(%s);" % self.as_pyobject(cname))
+        else:
+            code.putln("Py_XINCREF(%s);" % self.as_pyobject(cname))
+
+    def generate_decref(self, code, cname, nanny, have_gil):
+        # have_gil is for the benefit of memoryviewslice - it's ignored here
+        assert have_gil
+        self._generate_decref(code, cname, nanny, null_check=False, clear=False)
+
+    def generate_xdecref(self, code, cname, nanny, have_gil):
+        # in this (and other) PyObjectType functions, have_gil is being
+        # passed to provide a common interface with MemoryviewSlice.
+        # It's ignored here
+        self._generate_decref(code, cname, nanny, null_check=True,
+                         clear=False)
+
+    def generate_decref_clear(self, code, cname, clear_before_decref, nanny, have_gil):
+        self._generate_decref(code, cname, nanny, null_check=False,
+                         clear=True, clear_before_decref=clear_before_decref)
+
+    def generate_xdecref_clear(self, code, cname, clear_before_decref=False, nanny=True, have_gil=None):
+        self._generate_decref(code, cname, nanny, null_check=True,
+                         clear=True, clear_before_decref=clear_before_decref)
+
+    def generate_gotref(self, code, cname):
+        code.putln("__Pyx_GOTREF(%s);" % self.as_pyobject(cname))
+
+    def generate_xgotref(self, code, cname):
+        code.putln("__Pyx_XGOTREF(%s);" % self.as_pyobject(cname))
+
+    def generate_giveref(self, code, cname):
+        code.putln("__Pyx_GIVEREF(%s);" % self.as_pyobject(cname))
+
+    def generate_xgiveref(self, code, cname):
+        code.putln("__Pyx_XGIVEREF(%s);" % self.as_pyobject(cname))
+
+    def generate_decref_set(self, code, cname, rhs_cname):
+        code.putln("__Pyx_DECREF_SET(%s, %s);" % (cname, rhs_cname))
+
+    def generate_xdecref_set(self, code, cname, rhs_cname):
+        code.putln("__Pyx_XDECREF_SET(%s, %s);" % (cname, rhs_cname))
+
+    def _generate_decref(self, code, cname, nanny, null_check=False,
+                    clear=False, clear_before_decref=False):
+        prefix = '__Pyx' if nanny else 'Py'
+        X = 'X' if null_check else ''
+
+        if clear:
+            if clear_before_decref:
+                if not nanny:
+                    X = ''  # CPython doesn't have a Py_XCLEAR()
+                code.putln("%s_%sCLEAR(%s);" % (prefix, X, cname))
+            else:
+                code.putln("%s_%sDECREF(%s); %s = 0;" % (
+                    prefix, X, self.as_pyobject(cname), cname))
+        else:
+            code.putln("%s_%sDECREF(%s);" % (
+                prefix, X, self.as_pyobject(cname)))
+
+    def nullcheck_string(self, cname):
         return cname
 
 
@@ -1311,7 +1447,7 @@ class BuiltinObjectType(PyObjectType):
             name = '"%s"' % self.name
             # avoid wasting too much space but limit number of different format strings
             space_for_name = (len(self.name) // 16 + 1) * 16
-        error = '(PyErr_Format(PyExc_TypeError, "Expected %%.%ds, got %%.200s", %s, Py_TYPE(%s)->tp_name), 0)' % (
+        error = '(PyErr_Format(PyExc_TypeError, "Expected %%.%ds, got %%.200s", %s, __Pyx_PyType_Name(Py_TYPE(%s))), 0)' % (
             space_for_name, name, arg)
         return check + '||' + error
 
@@ -1557,8 +1693,14 @@ class PythranExpr(CType):
             self.scope = scope = Symtab.CClassScope('', None, visibility="extern")
             scope.parent_type = self
             scope.directives = {}
-            scope.declare_var("shape", CPtrType(c_long_type), None, cname="_shape", is_cdef=True)
-            scope.declare_var("ndim", c_long_type, None, cname="value", is_cdef=True)
+
+            scope.declare_var("ndim", c_long_type, pos=None, cname="value", is_cdef=True)
+            scope.declare_cproperty(
+                "shape", c_ptr_type(c_long_type), "__Pyx_PythranShapeAccessor",
+                doc="Pythran array shape",
+                visibility="extern",
+                nogil=True,
+            )
 
         return True
 
@@ -1769,6 +1911,7 @@ class CNumericType(CType):
             base_code = type_name.replace('PY_LONG_LONG', 'long long')
         else:
             base_code = public_decl(type_name, dll_linkage)
+        base_code = StringEncoding.EncodedString(base_code)
         return self.base_declaration_code(base_code, entity_code)
 
     def attributes_known(self):
@@ -4159,6 +4302,9 @@ class CTupleType(CType):
 
         env.use_utility_code(self._convert_from_py_code)
         return True
+
+    def cast_code(self, expr_code):
+        return expr_code
 
 
 def c_tuple_type(components):
