@@ -73,4 +73,7 @@ if PY_VERSION_HEX >= 0x03040000:
         {{endfor}}
     ]))
 else:
-    __Pyx_globals["{{name}}"] = type({{name}}, (__Pyx_EnumBase,), {})
+    __Pyx_globals["{{name}}"] = type('{{name}}', (__Pyx_EnumBase,), {})
+    {{for item in items}}
+    {{name}}(<{{underlying_type}}>({{name}}.{{item}}), '{{item}}')
+    {{endfor}}
