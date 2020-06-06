@@ -97,26 +97,31 @@ def test_compare_namespace_enums():
 def test_coerce_to_from_py_value():
     """
     >>> test_coerce_to_from_py_value()
+    (True, True)
     """
+    cdef Enum3 x = int(1)
     y = Enum3.b
-    assert y == 2
 
-    cdef Enum3 x = Enum3.a
-    x = int(1)
-    assert x == Enum3.a
+
+    return (
+        x == Enum3.a,
+        y == int(2)
+    )
 
 
 def test_reserved_cname():
     """
     >>> test_reserved_cname()
+    True
     """
     cdef Enum4 x = Enum4.a
-    assert Enum4.a == int(1)
+    return Enum4.a == int(1)
 
 
 def test_large_enum():
     """
     >>> test_large_enum()
+    True
     """
     long_max = int(numeric_limits[long].max())
-    assert LongIntEnum.val == long_max
+    return LongIntEnum.val == long_max
