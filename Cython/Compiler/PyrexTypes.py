@@ -3878,7 +3878,7 @@ class CppClassType(CType):
         if constructor is not None and best_match([], constructor.all_alternatives()) is None:
             error(pos, "C++ class must have a nullary constructor to be %s" % msg)
 
-class ScopedEnumType(CType):
+class CppScopedEnumType(CType):
     # name    string
     # cname   string
 

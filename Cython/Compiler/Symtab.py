@@ -709,7 +709,7 @@ class Scope(object):
         entry = self.lookup_here(name)
 
         if not entry:
-            type = PyrexTypes.ScopedEnumType(
+            type = PyrexTypes.CppScopedEnumType(
                 name, cname, underlying_type, namespace
             )
             entry = self.declare_type(name, type, pos, cname = cname)
