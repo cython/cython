@@ -2445,8 +2445,8 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
             if return_type_node is not None and except_val is None:
                 except_val = (None, True)  # except *
         elif except_val is None:
-            # backward compatible default: no exception check
-            except_val = (None, False)
+            # backward compatible default: no exception check, unless there's also a "@returns" declaration
+            except_val = (None, True if return_type_node else False)
         if 'ccall' in self.directives:
             node = node.as_cfunction(
                 overridable=True, modifiers=modifiers, nogil=nogil,
