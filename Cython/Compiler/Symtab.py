@@ -715,7 +715,7 @@ class Scope(object):
             entry = self.declare_type(name, type, pos, cname = cname)
             entry.enum_values = []
         else:
-            if entry.type.underlying_type is None:
+            if entry.type.is_scoped_enum and not entry.type.entry.type.underlying_type:
                 entry.type.underlying_type = underlying_type
             else:
                 error(pos, "'%s' redeclared " % name)
