@@ -3228,7 +3228,7 @@ def p_cpp_scoped_enum_definition(s, pos, ctx):
             "'cdef extern from' block"
         )
 
-    return Nodes.ScopedEnumDefNode(
+    return Nodes.CppScopedEnumDefNode(
         pos, name=name, cname=cname, items=items,
         underlying_type=underlying_type,
         typedef_flag=ctx.typedef_flag,
@@ -3254,7 +3254,7 @@ def p_cpp_scoped_enum_item(s, ctx, items):
     if s.sy == '=':
         s.next()
         value = p_test(s)
-    items.append(Nodes.ScopedEnumDefItemNode(
+    items.append(Nodes.CppScopedEnumDefItemNode(
         pos, name=name, cname=cname, value=value
     ))
 

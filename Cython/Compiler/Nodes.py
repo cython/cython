@@ -23,7 +23,7 @@ from . import TypeSlots
 from .PyrexTypes import py_object_type, error_type
 from .Symtab import (ModuleScope, LocalScope, ClosureScope, PropertyScope,
                      StructOrUnionScope, PyClassScope, CppClassScope, TemplateScope,
-                     ScopedEnumScope, punycodify_name)
+                     CppScopedEnumScope, punycodify_name)
 from .Code import UtilityCode
 from .StringEncoding import EncodedString
 from . import Future
@@ -1606,10 +1606,10 @@ class CEnumDefItemNode(StatNode):
             enum_entry.type.values.append(entry.name)
 
 
-class ScopedEnumDefNode(StatNode):
+class CppScopedEnumDefNode(StatNode):
     #  name           string or None
     #  cname          string or None
-    #  items          [ScopedEnumDefItemNode]
+    #  items          [CppScopedEnumDefItemNode]
     #  in_pxd         boolean
     #  create_wrapper boolean
     #  entry          Entry
@@ -1634,7 +1634,7 @@ class ScopedEnumDefNode(StatNode):
             )
 
         if self.items is not None:
-            scope = ScopedEnumScope(self.name, env)
+            scope = CppScopedEnumScope(self.name, env)
         self.entry = env.declare_scoped_enum(
             self.name, self.pos,
             cname=self.cname,
@@ -1659,7 +1659,7 @@ class ScopedEnumDefNode(StatNode):
         pass
 
 
-class ScopedEnumDefItemNode(StatNode):
+class CppScopedEnumDefItemNode(StatNode):
     #  name     string
     #  cname    string or None
     #  value    ExprNode or None

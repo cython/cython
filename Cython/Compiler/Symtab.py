@@ -2655,7 +2655,7 @@ class CppClassScope(Scope):
         return scope
 
 
-class ScopedEnumScope(Scope):
+class CppScopedEnumScope(Scope):
     #  Namespace of a ScopedEnum
 
     def __init__(self, name, outer_scope):
