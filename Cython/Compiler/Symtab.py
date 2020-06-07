@@ -2366,10 +2366,14 @@ class CClassScope(ClassScope):
         if u'inline' in modifiers:
             entry.is_inline_cmethod = True
 
+        entry.vtab_type = entry.type
         if (self.parent_type.is_final_type or entry.is_inline_cmethod or
             self.directives.get('final')):
             entry.is_final_cmethod = True
             entry.final_func_cname = entry.func_cname
+            if not type.is_static_method:
+                entry.type = copy.copy(entry.type)
+                entry.type.args = [type.args[0]] + [a for a in entry.type.args[1:]]
 
         return entry
 
