@@ -1901,8 +1901,13 @@ class FuncDefNode(StatNode, BlockNode):
             if not self.is_generator:
                 # generators are traced when iterated, not at creation
                 tempvardecl_code.put_trace_declarations()
-                code_object = self.code_object.calculate_result_code(code) if self.code_object else None
-                code.put_trace_frame_init(code_object)
+
+                # for linetrace CFunDefNode and his wrapper must have one code_object with py_wrapper
+                # for normal profiling CFunDefNode and py_wrapper must have two separated code objects
+                # which will be created automatically
+                if linetrace:
+                    code_object = self.code_object.calculate_result_code(code) if self.code_object else None
+                    code.put_trace_frame_init(code_object)
 
         # ----- Special check for getbuffer
         if is_getbuffer_slot:
