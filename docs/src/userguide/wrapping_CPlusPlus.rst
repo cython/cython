@@ -489,7 +489,7 @@ Cython supports scoped enumerations (:keyword:`enum class`) in C++ mode::
 
     cdef enum class Cheese:
         cheddar = 1
-	camembert = 2
+        camembert = 2
 
 As with "plain" enums, you may access the enumerators as attributes of the type.
 Unlike plain enums however, the enumerators are not visible to the
