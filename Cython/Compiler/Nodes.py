@@ -1535,52 +1535,75 @@ class CppClassNode(CStructOrUnionDefNode, BlockNode):
 
 
 class CEnumDefNode(StatNode):
-    #  name           string or None
-    #  cname          string or None
-    #  items          [CEnumDefItemNode]
-    #  typedef_flag   boolean
-    #  visibility     "public" or "private" or "extern"
-    #  api            boolean
-    #  in_pxd         boolean
-    #  create_wrapper boolean
-    #  entry          Entry
+    #  name               string or None
+    #  cname              string or None
+    #  scoped             boolean
+    #  underlying_type    CSimpleBaseTypeNode
+    #  items              [CEnumDefItemNode]
+    #  typedef_flag       boolean
+    #  visibility         "public" or "private" or "extern"
+    #  api                boolean
+    #  in_pxd             boolean
+    #  create_wrapper     boolean
+    #  entry              Entry
 
-    child_attrs = ["items"]
+    child_attrs = ["items", "underlying_type"]
 
     def declare(self, env):
          self.entry = env.declare_enum(
              self.name, self.pos,
-             cname=self.cname, typedef_flag=self.typedef_flag,
+             cname=self.cname,
+             scoped=self.scoped,
+             underlying_type=self.underlying_type,
+             typedef_flag=self.typedef_flag,
              visibility=self.visibility, api=self.api,
              create_wrapper=self.create_wrapper)
 
     def analyse_declarations(self, env):
+        scope = None
+        underlying_type = self.underlying_type.analyse(env)
+
+        if not underlying_type.is_int:
+            error(
+                self.underlying_type.pos,
+                "underlying type is not an integral type"
+            )
+
+        self.entry.type.underlying_type = underlying_type
+
+        if self.scoped and self.items is not None:
+            scope = CppScopedEnumScope(self.name, env)
+            scope.type = self.entry.type
+        else:
+            scope = env
+
         if self.items is not None:
             if self.in_pxd and not env.in_cinclude:
                 self.entry.defined_in_pxd = 1
             for item in self.items:
-                item.analyse_declarations(env, self.entry)
+                item.analyse_declarations(scope, self.entry)
 
     def analyse_expressions(self, env):
         return self
 
     def generate_execution_code(self, code):
-        if self.visibility == 'public' or self.api:
-            code.mark_pos(self.pos)
-            temp = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=True)
-            for item in self.entry.enum_values:
-                code.putln("%s = PyInt_FromLong(%s); %s" % (
-                    temp,
-                    item.cname,
-                    code.error_goto_if_null(temp, item.pos)))
-                code.put_gotref(temp, PyrexTypes.py_object_type)
-                code.putln('if (PyDict_SetItemString(%s, "%s", %s) < 0) %s' % (
-                    Naming.moddict_cname,
-                    item.name,
-                    temp,
-                    code.error_goto(item.pos)))
-                code.put_decref_clear(temp, PyrexTypes.py_object_type)
-            code.funcstate.release_temp(temp)
+        if not self.scoped:
+            if self.visibility == 'public' or self.api:
+                code.mark_pos(self.pos)
+                temp = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=True)
+                for item in self.entry.enum_values:
+                    code.putln("%s = PyInt_FromLong(%s); %s" % (
+                        temp,
+                        item.cname,
+                        code.error_goto_if_null(temp, item.pos)))
+                    code.put_gotref(temp, PyrexTypes.py_object_type)
+                    code.putln('if (PyDict_SetItemString(%s, "%s", %s) < 0) %s' % (
+                        Naming.moddict_cname,
+                        item.name,
+                        temp,
+                        code.error_goto(item.pos)))
+                    code.put_decref_clear(temp, PyrexTypes.py_object_type)
+                code.funcstate.release_temp(temp)
 
 
 class CEnumDefItemNode(StatNode):
@@ -1596,82 +1619,15 @@ class CEnumDefItemNode(StatNode):
             if not self.value.type.is_int:
                 self.value = self.value.coerce_to(PyrexTypes.c_int_type, env)
                 self.value = self.value.analyse_const_expression(env)
+
+        if enum_entry.type.is_scoped_enum:
+            cname = "%s::%s" % (enum_entry.cname, self.name)
+        else:
+            cname = self.cname
+
         entry = env.declare_const(
             self.name, enum_entry.type,
-            self.value, self.pos, cname=self.cname,
-            visibility=enum_entry.visibility, api=enum_entry.api,
-            create_wrapper=enum_entry.create_wrapper and enum_entry.name is None)
-        enum_entry.enum_values.append(entry)
-        if enum_entry.name:
-            enum_entry.type.values.append(entry.name)
-
-
-class CppScopedEnumDefNode(StatNode):
-    #  name           string or None
-    #  cname          string or None
-    #  items          [CppScopedEnumDefItemNode]
-    #  in_pxd         boolean
-    #  create_wrapper boolean
-    #  entry          Entry
-
-    child_attrs = ["items", "underlying_type"]
-
-    def declare(self, env):
-        self.entry = env.declare_scoped_enum(
-            self.name, self.pos,
-            cname=self.cname,
-            create_wrapper=self.create_wrapper
-        )
-
-    def analyse_declarations(self, env):
-        scope = None
-        underlying_type = self.underlying_type.analyse(env)
-
-        if not underlying_type.is_int:
-            error(
-                self.underlying_type.pos,
-                "underlying type is not an integral type"
-            )
-
-        if self.items is not None:
-            scope = CppScopedEnumScope(self.name, env)
-        self.entry = env.declare_scoped_enum(
-            self.name, self.pos,
-            cname=self.cname,
-            underlying_type=underlying_type,
-            create_wrapper=self.create_wrapper
-        )
-        if self.entry is None:
-            return
-        if scope is not None:
-            scope.type = self.entry.type
-        if self.items is not None:
-            if self.in_pxd and not env.in_cinclude:
-                self.entry.defined_in_pxd = 1
-            for item in self.items:
-                item.analyse_declarations(scope, self.entry)
-        self.scope = scope
-
-    def analyse_expressions(self, env):
-        return self
-
-    def generate_execution_code(self, code):
-        pass
-
-
-class CppScopedEnumDefItemNode(StatNode):
-    #  name     string
-    #  cname    string or None
-    #  value    ExprNode or None
-
-    child_attrs = ["value"]
-
-    def analyse_declarations(self, env, enum_entry):
-        if self.value:
-            self.value = self.value.analyse_const_expression(env)
-        entry = env.declare_const(
-            self.name, enum_entry.type,
-            self.value, self.pos, cname=self.cname,
+            self.value, self.pos, cname=cname,
             visibility=enum_entry.visibility, api=enum_entry.api,
             create_wrapper=enum_entry.create_wrapper and enum_entry.name is None)
         enum_entry.enum_values.append(entry)

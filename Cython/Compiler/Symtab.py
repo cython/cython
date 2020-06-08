@@ -679,7 +679,7 @@ class Scope(object):
             error(pos, "'%s' previously declared as '%s'" % (
                 entry.name, entry.visibility))
 
-    def declare_enum(self, name, pos, cname, typedef_flag,
+    def declare_enum(self, name, pos, cname, scoped, underlying_type, typedef_flag,
             visibility = 'private', api = 0, create_wrapper = 0):
         if name:
             if not cname:
@@ -692,42 +692,21 @@ class Scope(object):
                 namespace = self.outer_scope.lookup(self.name).type
             else:
                 namespace = None
-            type = PyrexTypes.CEnumType(name, cname, typedef_flag, namespace)
+
+            if scoped:
+                type = PyrexTypes.CppScopedEnumType(
+                    name, cname, underlying_type, namespace
+                )
+            else:
+                type = PyrexTypes.CEnumType(name, cname, typedef_flag, namespace)
         else:
             type = PyrexTypes.c_anon_enum_type
         entry = self.declare_type(name, type, pos, cname = cname,
             visibility = visibility, api = api)
         entry.create_wrapper = create_wrapper
         entry.enum_values = []
+
         self.sue_entries.append(entry)
-        return entry
-
-    def declare_scoped_enum(self, name, pos, cname, underlying_type = None, create_wrapper = 0):
-        if name:
-            if not cname:
-                cname = name
-        if self.is_cpp_class_scope:
-            namespace = self.outer_scope.lookup(self.name).type
-        else:
-            namespace = None
-
-        entry = self.lookup_here(name)
-
-        if not entry:
-            type = PyrexTypes.CppScopedEnumType(
-                name, cname, underlying_type, namespace
-            )
-            entry = self.declare_type(name, type, pos, cname = cname)
-            entry.enum_values = []
-        else:
-            if entry.type.is_scoped_enum and not entry.type.entry.type.underlying_type:
-                entry.type.underlying_type = underlying_type
-            else:
-                error(pos, "'%s' redeclared " % name)
-                entry.already_declared_here()
-
-        entry.create_wrapper = create_wrapper
-
         return entry
 
     def declare_tuple_type(self, pos, components):

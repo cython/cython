@@ -1577,6 +1577,7 @@ class CnameDirectivesTransform(CythonTransform, SkipDeclarations):
     visit_FuncDefNode = handle_function
     visit_CClassDefNode = handle_function
     visit_CEnumDefNode = handle_function
+    visit_CppScopedEnumDefNode = handle_function
     visit_CStructOrUnionDefNode = handle_function
 
 

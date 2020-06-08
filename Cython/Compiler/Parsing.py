@@ -3121,6 +3121,13 @@ def p_cdef_extern_block(s, pos, ctx):
 def p_c_enum_definition(s, pos, ctx):
     # s.sy == ident 'enum'
     s.next()
+
+    scoped = False
+
+    if s.sy in ('class', 'struct'):
+        scoped = True
+        s.next()
+
     if s.sy == 'IDENT':
         name = s.systring
         s.next()
@@ -3128,25 +3135,62 @@ def p_c_enum_definition(s, pos, ctx):
         if cname is None and ctx.namespace is not None:
             cname = ctx.namespace + "::" + name
     else:
-        name = None
-        cname = None
+        if scoped:
+            s.error("Unnamed scoped enum not allowed")
+        else:
+            name = None
+            cname = None
+
+    if s.sy == '(':
+        s.next()
+        underlying_type = p_c_base_type(s)
+        s.expect(')')
+    else:
+        underlying_type = Nodes.CSimpleBaseTypeNode(
+            pos,
+            name="int",
+            module_path = [],
+            is_basic_c_type = 1,
+            signed = 1,
+            complex = 0,
+            longness = 0
+        )
+
     items = None
     s.expect(':')
     items = []
+
     if s.sy != 'NEWLINE':
         p_c_enum_line(s, ctx, items)
     else:
         s.next() # 'NEWLINE'
         s.expect_indent()
+
+        namespace = None
+        if scoped:
+            if cname is not None:
+                namespace = cname
+            else:
+                namespace = name
+
         while s.sy not in ('DEDENT', 'EOF'):
             p_c_enum_line(s, ctx, items)
+
         s.expect_dedent()
+
+    if not items and ctx.visibility != "extern":
+        s.error(
+            "Empty enum definition not allowed outside a "
+            "'cdef extern from' block"
+        )
+
     return Nodes.CEnumDefNode(
-        pos, name = name, cname = cname, items = items,
+        pos, name = name, cname = cname,
+        scoped = scoped, items = items,
+        underlying_type = underlying_type,
         typedef_flag = ctx.typedef_flag, visibility = ctx.visibility,
         create_wrapper = ctx.overridable,
         api = ctx.api, in_pxd = ctx.level == 'module_pxd')
-
 
 def p_c_enum_line(s, ctx, items):
     if s.sy != 'pass':
@@ -3172,91 +3216,6 @@ def p_c_enum_item(s, ctx, items):
         value = p_test(s)
     items.append(Nodes.CEnumDefItemNode(pos,
         name = name, cname = cname, value = value))
-
-def p_cpp_scoped_enum_definition(s, pos, ctx):
-    # s.sy == ident 'enum'
-    s.next()
-    # s.sy == ident 'class' or 'struct'
-    s.next()
-
-    if s.sy == 'IDENT':
-        name = s.systring
-        s.next()
-        cname = p_opt_cname(s)
-        if cname is None and ctx.namespace is not None:
-            cname = ctx.namespace + "::" + name
-    else:
-        s.error("Unnamed scoped enum not allowed")
-
-    if s.sy == '(':
-        s.next()
-        underlying_type = p_c_base_type(s)
-        s.expect(')')
-    else:
-        underlying_type = Nodes.CSimpleBaseTypeNode(
-            pos,
-            name="int",
-            module_path = [],
-            is_basic_c_type = 1,
-            signed = 1,
-            complex = 0,
-            longness = 0
-        )
-
-    s.expect(":")
-    items = []
-
-    if s.sy != "NEWLINE":
-        error(pos, "Syntax error in C++ enum definition")
-    else:
-        s.next()
-        s.expect_indent()
-
-        if cname is not None:
-            enum_ctx_namespace = cname
-        else:
-            enum_ctx_namespace = name
-
-        enum_ctx = Ctx(namespace=enum_ctx_namespace)
-        while s.sy not in ('DEDENT', 'EOF'):
-            p_cpp_scoped_enum_line(s, enum_ctx, items)
-        s.expect_dedent()
-
-    if not items and ctx.visibility != "extern":
-        s.error(
-            "Empty enum definition not allowed outside a "
-            "'cdef extern from' block"
-        )
-
-    return Nodes.CppScopedEnumDefNode(
-        pos, name=name, cname=cname, items=items,
-        underlying_type=underlying_type,
-        typedef_flag=ctx.typedef_flag,
-        visibility = ctx.visibility,
-        create_wrapper = ctx.overridable,
-        api = ctx.api, in_pxd = ctx.level == 'module_pxd'
-    )
-
-def p_cpp_scoped_enum_line(s, ctx, items):
-    if s.sy != 'pass':
-        p_cpp_scoped_enum_item(s, ctx, items)
-    else:
-        s.next()
-    s.expect_newline("Syntax error in enum item list")
-
-def p_cpp_scoped_enum_item(s, ctx, items):
-    pos = s.position()
-    name = p_ident(s)
-    cname = p_opt_cname(s)
-    if cname is None and ctx.namespace is not None:
-        cname = ctx.namespace + "::" + name
-    value = None
-    if s.sy == '=':
-        s.next()
-        value = p_test(s)
-    items.append(Nodes.CppScopedEnumDefItemNode(
-        pos, name=name, cname=cname, value=value
-    ))
 
 def p_c_struct_or_union_definition(s, pos, ctx):
     packed = False
@@ -3334,10 +3293,7 @@ def p_fused_definition(s, pos, ctx):
 
 def p_struct_enum(s, pos, ctx):
     if s.systring == 'enum':
-        if s.peek()[1] in ('class', 'struct'):
-            return p_cpp_scoped_enum_definition(s, pos, ctx)
-        else:
-            return p_c_enum_definition(s, pos, ctx)
+        return p_c_enum_definition(s, pos, ctx)
     else:
         return p_c_struct_or_union_definition(s, pos, ctx)
 
