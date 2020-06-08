@@ -43,11 +43,8 @@ def _find_dep_file_path(main_file, file_path, relative_path_search=False):
             abs_path = os.path.abspath(rel_file_path)
 
         # if file_path matches the main_file ending, that's it:
-        matching_abs_path = ''.join([os.path.splitext(main_file)[0], os.path.splitext(file_path)[1]])
-        if (
-                matching_abs_path.endswith(file_path)
-                and os.path.exists(matching_abs_path)
-        ):
+        matching_abs_path = os.path.splitext(main_file)[0] + os.path.splitext(file_path)[1]
+        if matching_abs_path.endswith(file_path) and os.path.exists(matching_abs_path):
             return matching_abs_path
 
     # search sys.path for external locations if a valid file hasn't been found
