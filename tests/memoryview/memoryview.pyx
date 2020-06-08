@@ -419,7 +419,7 @@ def set_int_2d(int[:, :] mslice, int i, int j, int value):
 #
 def type_infer(double[:, :] arg):
     """
-    >>> type_infer(DoubleMockBuffer("C", range(6), (2,3)))
+    >>> type_infer(DoubleMockBuffer(None, range(6), (2,3)))
     double
     double[:]
     double[:]
