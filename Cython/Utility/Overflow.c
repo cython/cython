@@ -74,6 +74,8 @@ if (unlikely(__Pyx_check_twos_complement())) {
 
 /////////////// BaseCaseUnsigned.proto ///////////////
 
+{{if UINT == "long long"}}#ifdef HAVE_LONG_LONG{{endif}}
+
 static CYTHON_INLINE {{UINT}} __Pyx_add_{{NAME}}_checking_overflow({{UINT}} a, {{UINT}} b, int *overflow);
 static CYTHON_INLINE {{UINT}} __Pyx_sub_{{NAME}}_checking_overflow({{UINT}} a, {{UINT}} b, int *overflow);
 static CYTHON_INLINE {{UINT}} __Pyx_mul_{{NAME}}_checking_overflow({{UINT}} a, {{UINT}} b, int *overflow);
@@ -89,7 +91,11 @@ static CYTHON_INLINE {{UINT}} __Pyx_mul_const_{{NAME}}_checking_overflow({{UINT}
 #endif
 #define __Pyx_div_const_{{NAME}}_checking_overflow __Pyx_div_{{NAME}}_checking_overflow
 
+{{if UINT == "long long"}}#endif{{endif}}
+
 /////////////// BaseCaseUnsigned ///////////////
+
+{{if UINT == "long long"}}#ifdef HAVE_LONG_LONG{{endif}}
 
 #if defined(__PYX_HAVE_BUILTIN_OVERFLOW)
 
@@ -152,13 +158,14 @@ static CYTHON_INLINE {{UINT}} __Pyx_mul_const_{{NAME}}_checking_overflow({{UINT}
     // note that deliberately the overflow check is written such that it divides by b; this
     // function is used when b is a constant thus the compiler should be able to eliminate the
     // (very slow on most CPUs!) division operation
+    {{UINT}} prod;
     if (__Pyx_is_constant(a) && !__Pyx_is_constant(b)) {
         // if a is a compile-time constant and b isn't, swap them
         {{UINT}} temp = b;
         b = a;
         a = temp;
     }
-    {{UINT}} prod = a * b;
+    prod = a * b;
     if (b != 0)
         *overflow |= a > (__PYX_MAX({{UINT}}) / b);
     return prod;
@@ -174,8 +181,12 @@ static CYTHON_INLINE {{UINT}} __Pyx_div_{{NAME}}_checking_overflow({{UINT}} a, {
     return a / b;
 }
 
+{{if UINT == "long long"}}#endif{{endif}}
+
 
 /////////////// BaseCaseSigned.proto ///////////////
+
+{{if INT == "long long"}}#ifdef HAVE_LONG_LONG{{endif}}
 
 static CYTHON_INLINE {{INT}} __Pyx_add_{{NAME}}_checking_overflow({{INT}} a, {{INT}} b, int *overflow);
 static CYTHON_INLINE {{INT}} __Pyx_sub_{{NAME}}_checking_overflow({{INT}} a, {{INT}} b, int *overflow);
@@ -193,7 +204,11 @@ static CYTHON_INLINE {{INT}} __Pyx_mul_const_{{NAME}}_checking_overflow({{INT}} 
 #endif
 #define __Pyx_div_const_{{NAME}}_checking_overflow __Pyx_div_{{NAME}}_checking_overflow
 
+{{if INT == "long long"}}#endif{{endif}}
+
 /////////////// BaseCaseSigned ///////////////
+
+{{if INT == "long long"}}#ifdef HAVE_LONG_LONG{{endif}}
 
 #if defined(__PYX_HAVE_BUILTIN_OVERFLOW)
 
@@ -306,6 +321,8 @@ static CYTHON_INLINE {{INT}} __Pyx_div_{{NAME}}_checking_overflow({{INT}} a, {{I
     return ({{INT}}) ((unsigned {{INT}}) a / (unsigned {{INT}}) b);
 }
 
+{{if INT == "long long"}}#endif{{endif}}
+
 
 /////////////// SizeCheck.init ///////////////
 //@substitute: naming
@@ -343,24 +360,24 @@ static CYTHON_INLINE {{TYPE}} __Pyx_{{BINOP}}_{{NAME}}_checking_overflow({{TYPE}
         return __Pyx_{{BINOP}}_no_overflow(a, b, overflow);
     } else if (__PYX_IS_UNSIGNED({{TYPE}})) {
         if ((sizeof({{TYPE}}) == sizeof(unsigned int))) {
-            return __Pyx_{{BINOP}}_unsigned_int_checking_overflow(a, b, overflow);
+            return ({{TYPE}}) __Pyx_{{BINOP}}_unsigned_int_checking_overflow(a, b, overflow);
         } else if ((sizeof({{TYPE}}) == sizeof(unsigned long))) {
-            return __Pyx_{{BINOP}}_unsigned_long_checking_overflow(a, b, overflow);
+            return ({{TYPE}}) __Pyx_{{BINOP}}_unsigned_long_checking_overflow(a, b, overflow);
 #ifdef HAVE_LONG_LONG
         } else if ((sizeof({{TYPE}}) == sizeof(unsigned PY_LONG_LONG))) {
-            return __Pyx_{{BINOP}}_unsigned_long_long_checking_overflow(a, b, overflow);
+            return ({{TYPE}}) __Pyx_{{BINOP}}_unsigned_long_long_checking_overflow(a, b, overflow);
 #endif
         } else {
             abort(); return 0; /* handled elsewhere */
         }
     } else {
         if ((sizeof({{TYPE}}) == sizeof(int))) {
-            return __Pyx_{{BINOP}}_int_checking_overflow(a, b, overflow);
+            return ({{TYPE}}) __Pyx_{{BINOP}}_int_checking_overflow(a, b, overflow);
         } else if ((sizeof({{TYPE}}) == sizeof(long))) {
-            return __Pyx_{{BINOP}}_long_checking_overflow(a, b, overflow);
+            return ({{TYPE}}) __Pyx_{{BINOP}}_long_checking_overflow(a, b, overflow);
 #ifdef HAVE_LONG_LONG
         } else if ((sizeof({{TYPE}}) == sizeof(PY_LONG_LONG))) {
-            return __Pyx_{{BINOP}}_long_long_checking_overflow(a, b, overflow);
+            return ({{TYPE}}) __Pyx_{{BINOP}}_long_long_checking_overflow(a, b, overflow);
 #endif
         } else {
             abort(); return 0; /* handled elsewhere */

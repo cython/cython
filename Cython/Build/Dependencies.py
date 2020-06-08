@@ -45,6 +45,7 @@ except:
 from .. import Utils
 from ..Utils import (cached_function, cached_method, path_exists,
     safe_makedirs, copy_file_to_dir_if_newer, is_package_dir, replace_suffix)
+from ..Compiler import Errors
 from ..Compiler.Main import Context
 from ..Compiler.Options import CompilationOptions, default_options
 
@@ -882,7 +883,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
 
 # This is the user-exposed entry point.
 def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, force=False, language=None,
-              exclude_failures=False, **options):
+              exclude_failures=False, show_all_warnings=False, **options):
     """
     Compile a set of source modules into C/C++ files and return a list of distutils
     Extension objects for them.
@@ -931,6 +932,9 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                              pass ``exclude_failures=True``. Note that this only
                              really makes sense for compiling ``.py`` files which can also
                              be used without compilation.
+
+    :param show_all_warnings: By default, not all Cython warnings are printed.
+                              Set to true to show all warnings.
 
     :param annotate: If ``True``, will produce a HTML file for each of the ``.pyx`` or ``.py``
                      files compiled. The HTML file gives an indication
@@ -1058,7 +1062,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                     to_compile.append((
                         priority, source, c_file, fingerprint, quiet,
                         options, not exclude_failures, module_metadata.get(m.name),
-                        full_module_name))
+                        full_module_name, show_all_warnings))
                 new_sources.append(c_file)
                 modules_by_cfile[c_file].append(m)
             else:
@@ -1101,7 +1105,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
             pool.terminate()
             raise
         pool.join()
-    if not nthreads:
+    else:
         for args in to_compile:
             cythonize_one(*args)
 
@@ -1206,7 +1210,8 @@ else:
 # TODO: Share context? Issue: pyx processing leaks into pxd module
 @record_results
 def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None,
-                  raise_on_failure=True, embedded_metadata=None, full_module_name=None,
+                  raise_on_failure=True, embedded_metadata=None,
+                  full_module_name=None, show_all_warnings=False,
                   progress=""):
     from ..Compiler.Main import compile_single, default_options
     from ..Compiler.Errors import CompileError, PyrexError
@@ -1242,6 +1247,10 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None,
     options.output_file = c_file
     options.embedded_metadata = embedded_metadata
 
+    old_warning_level = Errors.LEVEL
+    if show_all_warnings:
+        Errors.LEVEL = 0
+
     any_failures = 0
     try:
         result = compile_single(pyx_file, options, full_module_name=full_module_name)
@@ -1259,6 +1268,10 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None,
         import traceback
         traceback.print_exc()
         any_failures = 1
+    finally:
+        if show_all_warnings:
+            Errors.LEVEL = old_warning_level
+
     if any_failures:
         if raise_on_failure:
             raise CompileError(None, pyx_file)

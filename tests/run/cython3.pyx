@@ -270,6 +270,32 @@ def except_as_deletes_target_in_gen(x, a):
         yield 6
 
 
+def nested_except_gh3666(a=False, b=False):
+    """
+    >>> print(nested_except_gh3666())
+    A
+    >>> print(nested_except_gh3666(a=True))
+    B-V
+    >>> print(nested_except_gh3666(a=True, b=True))
+    B-V-T
+    """
+    try:
+        if a:
+            raise ValueError
+        return "A"
+    except TypeError as exc:
+        return "A-T"
+    except ValueError as exc:
+        try:
+            if b:
+                raise TypeError
+            return "B-V"
+        except ValueError as exc:
+            return "B-V-V"
+        except TypeError as exc:
+            return "B-V-T"
+
+
 ### Py3 feature tests
 
 def print_function(*args):

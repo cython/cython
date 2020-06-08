@@ -217,6 +217,8 @@ def test_declare_c_types(n):
 @cython.ccall
 @cython.returns(cython.double)
 def c_call(x):
+    if x == -2.0:
+        raise RuntimeError("huhu!")
     return x
 
 
@@ -235,6 +237,10 @@ def call_ccall(x):
     1.0
     >>> (is_compiled and 1) or result
     1
+
+    >>> call_ccall(-2)
+    Traceback (most recent call last):
+    RuntimeError: huhu!
     """
     ret = c_call(x)
     return ret, cython.typeof(ret)
@@ -244,6 +250,8 @@ def call_ccall(x):
 @cython.inline
 @cython.returns(cython.double)
 def cdef_inline(x):
+    if x == -2.0:
+        raise RuntimeError("huhu!")
     return x + 1
 
 
@@ -258,6 +266,10 @@ def call_cdef_inline(x):
     'int'
     >>> result == 2.0  or  result
     True
+
+    >>> call_cdef_inline(-2)
+    Traceback (most recent call last):
+    RuntimeError: huhu!
     """
     ret = cdef_inline(x)
     return ret, cython.typeof(ret)
@@ -386,6 +398,23 @@ def ccall_except_check_always(x):
     >>> ccall_except_check_always(0)
     Traceback (most recent call last):
     ValueError
+    """
+    if x == 0:
+        raise ValueError
+    return x+1
+
+
+@cython.test_fail_if_path_exists("//CFuncDeclaratorNode//IntNode[@value = '-1']")
+@cython.test_assert_path_exists("//CFuncDeclaratorNode")
+@cython.ccall
+@cython.returns(cython.long)
+@cython.exceptval(check=False)
+def ccall_except_no_check(x):
+    """
+    >>> ccall_except_no_check(41)
+    42
+    >>> try: _ = ccall_except_no_check(0)  # no exception propagated!
+    ... except ValueError: assert not is_compiled
     """
     if x == 0:
         raise ValueError

@@ -21,6 +21,10 @@ Features added
   with the directive ``@cython.always_allow_keywords(False)``.
   (Github issue #3090)
 
+* The ``@returns()`` decorator propagates exceptions by default for suitable C
+  return types when no ``@exceptval()`` is defined.
+  (Github issue #3664)
+
 * A low-level inline function ``total_seconds(timedelta)`` was added to
   ``cpython.datetime`` to bypass the Python method call.  Note that this function
   is not guaranteed to give exactly the same results for very large time intervals.
@@ -453,6 +457,16 @@ Other changes
 
 Bugs fixed
 ----------
+
+* Nested try-except statements with multiple ``return`` statements could crash
+  due to incorrect deletion of the ``except as`` target variable.
+  (Github issue #3666)
+
+* The ``@classmethod`` decorator no longer rejects unknown input from other decorators.
+  Patch by David Woods.  (Github issue #3660)
+
+* Fused types could leak into unrelated usages.
+  Patch by David Woods.  (Github issue #3642)
 
 * Now uses ``Py_SET_SIZE()`` and ``Py_SET_REFCNT()`` in Py3.9+ to avoid low-level
   write access to these object fields.
