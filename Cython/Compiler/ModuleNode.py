@@ -3241,6 +3241,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             doc = "0"
 
+        module_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
         code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
         code.putln("%s = %s;" % (
             env.module_cname,
@@ -3250,32 +3251,28 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#if PY_MAJOR_VERSION < 3")
         code.putln(
             '%s = Py_InitModule4(%s, %s, %s, 0, PYTHON_API_VERSION); Py_XINCREF(%s);' % (
-                env.module_cname,
+                module_temp,
                 env.module_name.as_c_string_literal(),
                 env.method_table_cname,
                 doc,
-                env.module_cname))
-        code.putln(code.error_goto_if_null(env.module_cname, self.pos))
-        code.putln("#elif CYTHON_COMPILING_IN_LIMITED_API")
-        module_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
-        code.putln(
-            "%s = PyModule_Create(&%s); %s" % (
-                module_temp,
-                Naming.pymoduledef_cname,
-                code.error_goto_if_null(module_temp, self.pos)))
-        code.put_gotref(module_temp, py_object_type)
-        code.putln(code.error_goto_if_neg("PyState_AddModule(%s, &%s)" % (
-            module_temp, Naming.pymoduledef_cname), self.pos))
-        code.put_decref_clear(module_temp, type=py_object_type)
-        code.funcstate.release_temp(module_temp)
+                module_temp))
         code.putln('#else')
         code.putln(
             "%s = PyModule_Create(&%s);" % (
-                env.module_cname,
+                module_temp,
                 Naming.pymoduledef_cname))
-        code.putln(code.error_goto_if_null(env.module_cname, self.pos))
         code.putln("#endif")
-        code.putln("#endif")  # CYTHON_PEP489_MULTI_PHASE_INIT
+        code.putln(code.error_goto_if_null(module_temp, self.pos))
+
+        code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
+        code.putln("%s = %s;" % (Naming.module_cname, module_temp))
+        code.putln("#else")
+        code.putln(code.error_goto_if_neg("PyState_AddModule(%s, &%s)" % (
+            module_temp, Naming.pymoduledef_cname), self.pos))
+        code.putln("#endif")
+        code.putln("%s = NULL;" % module_temp)
+
+        code.putln("#endif /* !CYTHON_PEP489_MULTI_PHASE_INIT */")
 
         code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
         code.putln(
