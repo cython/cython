@@ -159,7 +159,8 @@ def _inline_key(orig_code, arg_sigs, language_level):
 def cython_inline(code, get_type=unsafe_type,
                   lib_dir=os.path.join(get_cython_cache_dir(), 'inline'),
                   cython_include_dirs=None, cython_compiler_directives=None,
-                  force=False, quiet=False, locals=None, globals=None, language_level=None, **kwds):
+                  force=False, quiet=False, locals=None, globals=None, language_level=None,
+                  __fn_name=None, **kwds):
 
     if get_type is None:
         get_type = lambda x: 'object'
@@ -206,6 +207,11 @@ def cython_inline(code, get_type=unsafe_type,
         if arg is cython_module:
             cimports.append('\ncimport cython as %s' % name)
             del kwds[name]
+        # Import any missing Cython function and decorator dependencies
+        if callable(arg) and arg in cython_module.__dict__.values():
+            cimports.append('\nfrom cython cimport %s' % name)
+            del kwds[name]
+
     arg_names = sorted(kwds)
     arg_sigs = tuple([(get_type(kwds[arg], ctx), arg) for arg in arg_names])
     if key_hash is None:
@@ -226,6 +232,11 @@ def cython_inline(code, get_type=unsafe_type,
 
         if not os.path.exists(lib_dir):
             os.makedirs(lib_dir)
+
+        # If this keyword was specified, then we're dealing with function code
+        # and we do not need to manipulate it.
+        fn_name = __fn_name or '__invoke'
+
         if force or not os.path.isfile(module_path):
             cflags = []
             define_macros = []
@@ -241,17 +252,27 @@ def cython_inline(code, get_type=unsafe_type,
                         c_include_dirs.append(numpy.get_include())
                         define_macros.append(("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION"))
                         # cflags.append('-Wno-unused')
-            module_body, func_body = extract_func_code(code)
             params = ', '.join(['%s %s' % a for a in arg_sigs])
-            module_code = """
+
+            module_format = """
 %(module_body)s
 %(cimports)s
+%(func_body)s
+            """
+
+            if __fn_name:
+                module_body, func_body = '', code
+            else:
+                module_body, func_body = extract_func_code(code)
+                func_body = """
 def __invoke(%(params)s):
 %(func_body)s
     return locals()
-            """ % {'cimports': '\n'.join(cimports),
+                """ % {'func_body': func_body,
+                       'params': params}
+
+            module_code = module_format % {'cimports': '\n'.join(cimports),
                    'module_body': module_body,
-                   'params': params,
                    'func_body': func_body }
             for key, value in literals.items():
                 module_code = module_code.replace(key, value)
@@ -281,9 +302,10 @@ def __invoke(%(params)s):
 
         module = load_dynamic(module_name, module_path)
 
-    _cython_inline_cache[orig_code, arg_sigs, key_hash] = module.__invoke
+    function = getattr(module, fn_name)
+    _cython_inline_cache[orig_code, arg_sigs, key_hash] = function
     arg_list = [kwds[arg] for arg in arg_names]
-    return module.__invoke(*arg_list)
+    return function(*arg_list)
 
 
 # Cached suffix used by cython_inline above.  None should get

@@ -139,8 +139,25 @@ def inline(f, *args, **kwds):
 
 
 def compile(f):
-    from Cython.Build.Inline import RuntimeCompiledFunction
-    return RuntimeCompiledFunction(f)
+    import inspect
+    from functools import wraps
+    from Cython.Build.Inline import cython_inline, IS_PY3
+
+    # We need to strip this decorator from the source
+    code = ''.join(inspect.getsourcelines(f)[0][1:])
+    if not IS_PY3:
+        _locals = f.func_globals
+        _globals = f.func_globals
+    else:
+        _locals = f.__globals__
+        _globals = f.__globals__
+
+    @wraps(f)
+    def wrapped_f(*args, **kwargs):
+        all = inspect.getcallargs(f, *args, **kwargs)
+        return cython_inline(code, __fn_name=f.__name__, locals=_locals, globals=_globals, **all)
+
+    return wrapped_f
 
 
 # Special functions

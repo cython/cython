@@ -1,7 +1,9 @@
 import os
+import sys
 import tempfile
+import textwrap
 import unittest
-from Cython.Shadow import inline
+from Cython.Shadow import inline, compile as cython_compile, boundscheck
 from Cython.Build.Inline import safe_type
 from Cython.TestUtils import CythonTest
 
@@ -15,9 +17,9 @@ test_kwds = dict(force=True, quiet=True)
 
 global_value = 100
 
-class TestInline(CythonTest):
+class CythonInlineTest(CythonTest):
     def setUp(self):
-        CythonTest.setUp(self)
+        super(CythonInlineTest, self).setUp()
         self.test_kwds = dict(test_kwds)
         if os.path.isdir('TEST_TMP'):
             lib_dir = os.path.join('TEST_TMP','inline')
@@ -25,6 +27,8 @@ class TestInline(CythonTest):
             lib_dir = tempfile.mkdtemp(prefix='cython_inline_')
         self.test_kwds['lib_dir'] = lib_dir
 
+
+class TestInline(CythonInlineTest):
     def test_simple(self):
         self.assertEqual(inline("return 1+2", **self.test_kwds), 3)
 
@@ -110,3 +114,42 @@ class TestInline(CythonTest):
         a[0,0] = 10
         self.assertEqual(safe_type(a), 'numpy.ndarray[numpy.float64_t, ndim=2]')
         self.assertEqual(inline("return a[0,0]", a=a, **self.test_kwds), 10.0)
+
+
+class TestCompileDecorator(CythonInlineTest):
+    def test_basics(self):
+
+        @cython_compile
+        def test_fn(x=":"):
+            return x + 1
+
+        self.assertEqual(test_fn(1), 2)
+
+    @unittest.skipIf(sys.version_info < (3, 6), "Requires Py3.6+")
+    def test_type_hints(self):
+        fd, tmp_code_file = tempfile.mkstemp(suffix='.py', text=True)
+        with os.fdopen(fd, 'w') as f:
+            tmp_code = textwrap.dedent("""
+            @cython_compile
+            def test_fn(x: int, y: float) -> int:
+                b: int = 1
+                return x + int(y) + b
+            """)
+            f.write(tmp_code)
+
+        locals = {}
+        exec(compile(tmp_code, tmp_code_file, 'exec'), None, locals)
+
+        assert 'test_fn' in locals
+        test_fn = locals['test_fn']
+
+        self.assertEqual(test_fn(1, 2), 4)
+
+    def test_decorator_with_decorator(self):
+
+        @cython_compile
+        @boundscheck(False)
+        def test_fn(x):
+            return x[0]
+
+        self.assertEqual(test_fn([0]), 0)
