@@ -1554,7 +1554,6 @@ class CEnumDefNode(StatNode):
              self.name, self.pos,
              cname=self.cname,
              scoped=self.scoped,
-             underlying_type=self.underlying_type,
              typedef_flag=self.typedef_flag,
              visibility=self.visibility, api=self.api,
              create_wrapper=self.create_wrapper)
