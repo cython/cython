@@ -30,6 +30,7 @@ run.extern_builtins_T258
 run.line_trace
 run.line_profile_test
 run.pstats_profile_test
+run.profiling_when_binding_enabled
 run.longintrepr
 
 # tests probably rely on immediate GC (although maybe the tests could be tweaked so
