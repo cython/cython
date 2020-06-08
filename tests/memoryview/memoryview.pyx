@@ -423,7 +423,7 @@ def type_infer(double[:, :] arg):
     double
     double[:]
     double[:]
-    double[:,;]
+    double[:, :]
     """
     a = arg[0,0]
     print(cython.typeof(a))
