@@ -3166,13 +3166,6 @@ def p_c_enum_definition(s, pos, ctx):
         s.next() # 'NEWLINE'
         s.expect_indent()
 
-        namespace = None
-        if scoped:
-            if cname is not None:
-                namespace = cname
-            else:
-                namespace = name
-
         while s.sy not in ('DEDENT', 'EOF'):
             p_c_enum_line(s, ctx, items)
 
