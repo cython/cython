@@ -1537,8 +1537,8 @@ class CppClassNode(CStructOrUnionDefNode, BlockNode):
 class CEnumDefNode(StatNode):
     #  name               string or None
     #  cname              string or None
-    #  scoped             boolean
-    #  underlying_type    CSimpleBaseTypeNode
+    #  scoped             boolean                Is a C++ scoped enum
+    #  underlying_type    CSimpleBaseTypeNode    The underlying value type (int or C++ type)
     #  items              [CEnumDefItemNode]
     #  typedef_flag       boolean
     #  visibility         "public" or "private" or "extern"
