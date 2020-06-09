@@ -4076,10 +4076,11 @@ class CppScopedEnumType(CType):
         from .UtilityCode import CythonUtilityCode
         rst = CythonUtilityCode.load(
             "CppScopedEnumType", "CpdefEnums.pyx",
-            context={"name": self.name,
-                     "cname": self.cname.split("::")[-1],
-                     "items": tuple(self.values),
-                     "underlying_type": self.underlying_type.empty_declaration_code()
+            context={
+                "name": self.name,
+                "cname": self.cname.split("::")[-1],
+                "items": tuple(self.values),
+                "underlying_type": self.underlying_type.empty_declaration_code(),
             },
             outer_module_scope=env.global_scope())
 
