@@ -108,9 +108,6 @@ class NormalizeTree(CythonTransform):
     def visit_CEnumDefNode(self, node):
         return self.visit_StatNode(node, True)
 
-    def visit_CppScopedEnumDefNode(self, node):
-        return self.visit_StatNode(node, True)
-
     def visit_CStructOrUnionDefNode(self, node):
         return self.visit_StatNode(node, True)
 
@@ -1577,7 +1574,6 @@ class CnameDirectivesTransform(CythonTransform, SkipDeclarations):
     visit_FuncDefNode = handle_function
     visit_CClassDefNode = handle_function
     visit_CEnumDefNode = handle_function
-    visit_CppScopedEnumDefNode = handle_function
     visit_CStructOrUnionDefNode = handle_function
 
 
@@ -1609,10 +1605,6 @@ class ForwardDeclareTypes(CythonTransform):
         return node
 
     def visit_CEnumDefNode(self, node):
-        node.declare(self.module_scope)
-        return node
-
-    def visit_CppScopedEnumDefNode(self, node):
         node.declare(self.module_scope)
         return node
 
@@ -2168,9 +2160,6 @@ if VALUE is not None:
             return node
         else:
             return None
-
-    def visit_CppScopedEnumDefNode(self, node):
-        return node
 
     def visit_CNameDeclaratorNode(self, node):
         if node.name in self.seen_vars_stack[-1]:
