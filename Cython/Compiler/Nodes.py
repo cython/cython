@@ -1583,23 +1583,24 @@ class CEnumDefNode(StatNode):
         return self
 
     def generate_execution_code(self, code):
-        if not self.scoped:
-            if self.visibility == 'public' or self.api:
-                code.mark_pos(self.pos)
-                temp = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=True)
-                for item in self.entry.enum_values:
-                    code.putln("%s = PyInt_FromLong(%s); %s" % (
-                        temp,
-                        item.cname,
-                        code.error_goto_if_null(temp, item.pos)))
-                    code.put_gotref(temp, PyrexTypes.py_object_type)
-                    code.putln('if (PyDict_SetItemString(%s, "%s", %s) < 0) %s' % (
-                        Naming.moddict_cname,
-                        item.name,
-                        temp,
-                        code.error_goto(item.pos)))
-                    code.put_decref_clear(temp, PyrexTypes.py_object_type)
-                code.funcstate.release_temp(temp)
+        if self.scoped:
+            return  # nothing to do here for C++ enums
+        if self.visibility == 'public' or self.api:
+            code.mark_pos(self.pos)
+            temp = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=True)
+            for item in self.entry.enum_values:
+                code.putln("%s = PyInt_FromLong(%s); %s" % (
+                    temp,
+                    item.cname,
+                    code.error_goto_if_null(temp, item.pos)))
+                code.put_gotref(temp, PyrexTypes.py_object_type)
+                code.putln('if (PyDict_SetItemString(%s, "%s", %s) < 0) %s' % (
+                    Naming.moddict_cname,
+                    item.name,
+                    temp,
+                    code.error_goto(item.pos)))
+                code.put_decref_clear(temp, PyrexTypes.py_object_type)
+            code.funcstate.release_temp(temp)
 
 
 class CEnumDefItemNode(StatNode):
