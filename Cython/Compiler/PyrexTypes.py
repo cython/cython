@@ -249,7 +249,7 @@ class PyrexType(BaseType):
     is_cpp_string = 0
     is_struct = 0
     is_enum = 0
-    is_cpp_enum = 0
+    is_cpp_enum = False
     is_typedef = 0
     is_string = 0
     is_pyunicode_ptr = 0
