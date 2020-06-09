@@ -1465,7 +1465,7 @@ class ModuleScope(Scope):
         # object type, and not declared with cdef, it will live
         # in the module dictionary, otherwise it will be a C
         # global variable.
-        if not visibility in ('private', 'public', 'extern'):
+        if visibility not in ('private', 'public', 'extern'):
             error(pos, "Module-level variable cannot be declared %s" % visibility)
         if not is_cdef:
             if type is unspecified_type:

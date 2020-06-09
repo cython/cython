@@ -455,7 +455,7 @@ class GVContext(object):
         start = min(block.positions)
         stop = max(block.positions)
         srcdescr = start[0]
-        if not srcdescr in self.sources:
+        if srcdescr not in self.sources:
             self.sources[srcdescr] = list(srcdescr.get_lines())
         lines = self.sources[srcdescr]
         return '\\n'.join([l.strip() for l in lines[start[1] - 1:stop[1]]])

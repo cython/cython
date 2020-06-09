@@ -2654,7 +2654,7 @@ def p_memoryviewslice_access(s, base_type_node):
     return result
 
 def looking_at_name(s):
-    return s.sy == 'IDENT' and not s.systring in calling_convention_words
+    return s.sy == 'IDENT' and s.systring not in calling_convention_words
 
 def looking_at_expr(s):
     if s.systring in base_type_start_words:
@@ -2914,7 +2914,7 @@ def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
                             fatal=False)
                 name += op
             elif op == 'IDENT':
-                op = s.systring;
+                op = s.systring
                 if op not in supported_overloaded_operators:
                     s.error("Overloading operator '%s' not yet supported." % op,
                             fatal=False)

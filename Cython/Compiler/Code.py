@@ -891,7 +891,7 @@ class FunctionState(object):
         """
         return [(name, type)
                 for name, type, manage_ref in self.temps_in_use()
-                if manage_ref  and type.is_pyobject]
+                if manage_ref and type.is_pyobject]
 
     def all_managed_temps(self):
         """Return a list of (cname, type) tuples of refcount-managed Python objects.

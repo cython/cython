@@ -146,12 +146,12 @@ def analyse_buffer_options(globalpos, env, posargs, dictargs, defaults=None, nee
 
     options = {}
     for name, (value, pos) in dictargs.items():
-        if not name in buffer_options:
+        if name not in buffer_options:
             raise CompileError(pos, ERR_BUF_OPTION_UNKNOWN % name)
         options[name] = value
 
     for name, (value, pos) in zip(buffer_options, posargs):
-        if not name in buffer_options:
+        if name not in buffer_options:
             raise CompileError(pos, ERR_BUF_OPTION_UNKNOWN % name)
         if name in options:
             raise CompileError(pos, ERR_BUF_DUP % name)
@@ -159,7 +159,7 @@ def analyse_buffer_options(globalpos, env, posargs, dictargs, defaults=None, nee
 
     # Check that they are all there and copy defaults
     for name in buffer_options:
-        if not name in options:
+        if name not in options:
             try:
                 options[name] = defaults[name]
             except KeyError:

@@ -2539,7 +2539,7 @@ class AlignFunctionDefinitions(CythonTransform):
                 return None
             node = node.as_cfunction(pxd_def)
         elif (self.scope.is_module_scope and self.directives['auto_cpdef']
-              and not node.name in self.imported_names
+              and node.name not in self.imported_names
               and node.is_cdef_func_compatible()):
             # FIXME: cpdef-ing should be done in analyse_declarations()
             node = node.as_cfunction(scope=self.scope)

@@ -11330,8 +11330,8 @@ class NumBinopNode(BinopNode):
 
     def c_types_okay(self, type1, type2):
         #print "NumBinopNode.c_types_okay:", type1, type2 ###
-        return (type1.is_numeric  or type1.is_enum) \
-            and (type2.is_numeric  or type2.is_enum)
+        return (type1.is_numeric or type1.is_enum) \
+            and (type2.is_numeric or type2.is_enum)
 
     def generate_evaluation_code(self, code):
         if self.overflow_check:

@@ -242,7 +242,7 @@ class old_build_ext(_build_ext.build_ext):
         includes = list(self.cython_include_dirs)
         try:
             for i in extension.cython_include_dirs:
-                if not i in includes:
+                if i not in includes:
                     includes.append(i)
         except AttributeError:
             pass
@@ -251,7 +251,7 @@ class old_build_ext(_build_ext.build_ext):
         # result
         extension.include_dirs = list(extension.include_dirs)
         for i in extension.include_dirs:
-            if not i in includes:
+            if i not in includes:
                 includes.append(i)
 
         # Set up Cython compiler directives:

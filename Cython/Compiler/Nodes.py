@@ -1052,7 +1052,7 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
                     self.arg_name = EncodedString(self.name)
                 else:
                     if self.templates:
-                        if not self.name in self.templates:
+                        if self.name not in self.templates:
                             error(self.pos, "'%s' is not a type identifier" % self.name)
                         type = PyrexTypes.TemplatePlaceholderType(self.name)
                     else:
