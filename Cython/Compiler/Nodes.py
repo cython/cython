@@ -1563,10 +1563,7 @@ class CEnumDefNode(StatNode):
         underlying_type = self.underlying_type.analyse(env)
 
         if not underlying_type.is_int:
-            error(
-                self.underlying_type.pos,
-                "underlying type is not an integral type"
-            )
+            error(self.underlying_type.pos, "underlying type is not an integral type")
 
         self.entry.type.underlying_type = underlying_type
 
