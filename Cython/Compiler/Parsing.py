@@ -3172,7 +3172,7 @@ def p_c_enum_definition(s, pos, ctx):
         s.expect_dedent()
 
     if not items and ctx.visibility != "extern":
-        s.error(
+        error(s.position(),
             "Empty enum definition not allowed outside a "
             "'cdef extern from' block"
         )
@@ -3245,6 +3245,14 @@ def p_c_struct_or_union_definition(s, pos, ctx):
             s.expect_dedent()
     else:
         s.expect_newline("Syntax error in struct or union definition")
+
+
+    if not attributes and ctx.visibility != "extern":
+        error(s.position(),
+            "Empty struct or union definition not allowed outside a "
+            "'cdef extern from' block"
+        )
+
     return Nodes.CStructOrUnionDefNode(pos,
         name = name, cname = cname, kind = kind, attributes = attributes,
         typedef_flag = ctx.typedef_flag, visibility = ctx.visibility,

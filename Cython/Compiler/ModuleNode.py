@@ -958,9 +958,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("  #pragma pack(push, 1)")
                 code.putln("#endif")
             code.putln(header)
-            var_entries = scope.var_entries
-            if not var_entries:
-                error(entry.pos, "Empty struct or union definition not allowed outside a 'cdef extern from' block")
             for attr in var_entries:
                 code.putln(
                     "%s;" % attr.type.declaration_code(attr.cname))
