@@ -3134,11 +3134,9 @@ def p_c_enum_definition(s, pos, ctx):
         if cname is None and ctx.namespace is not None:
             cname = ctx.namespace + "::" + name
     else:
+        name = cname = None
         if scoped:
             s.error("Unnamed scoped enum not allowed")
-        else:
-            name = None
-            cname = None
 
     if s.sy == '(':
         s.next()
