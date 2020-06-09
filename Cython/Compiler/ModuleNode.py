@@ -958,6 +958,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("  #pragma pack(push, 1)")
                 code.putln("#endif")
             code.putln(header)
+            var_entries = scope.var_entries
             for attr in var_entries:
                 code.putln(
                     "%s;" % attr.type.declaration_code(attr.cname))
