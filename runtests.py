@@ -617,6 +617,7 @@ class TestBuilder(object):
         self.cleanup_failures = options.cleanup_failures
         self.with_pyregr = with_pyregr
         self.cython_only = options.cython_only
+        self.doctest_selector = re.compile(options.only_pattern).search if options.only_pattern else None
         self.languages = languages
         self.test_bugs = test_bugs
         self.fork = options.fork
@@ -774,6 +775,7 @@ class TestBuilder(object):
                           cleanup_sharedlibs=self.cleanup_sharedlibs,
                           cleanup_failures=self.cleanup_failures,
                           cython_only=self.cython_only,
+                          doctest_selector=self.doctest_selector,
                           fork=self.fork,
                           language_level=self.language_level,
                           warning_errors=warning_errors,
@@ -814,7 +816,7 @@ def filter_stderr(stderr_bytes):
 class CythonCompileTestCase(unittest.TestCase):
     def __init__(self, test_directory, workdir, module, tags, language='c', preparse='id',
                  expect_errors=False, expect_warnings=False, annotate=False, cleanup_workdir=True,
-                 cleanup_sharedlibs=True, cleanup_failures=True, cython_only=False,
+                 cleanup_sharedlibs=True, cleanup_failures=True, cython_only=False, doctest_selector=None,
                  fork=True, language_level=2, warning_errors=False,
                  test_determinism=False,
                  common_utility_dir=None, pythran_dir=None, stats=None):
@@ -832,6 +834,7 @@ class CythonCompileTestCase(unittest.TestCase):
         self.cleanup_sharedlibs = cleanup_sharedlibs
         self.cleanup_failures = cleanup_failures
         self.cython_only = cython_only
+        self.doctest_selector = doctest_selector
         self.fork = fork
         self.language_level = language_level
         self.warning_errors = warning_errors
@@ -1278,6 +1281,8 @@ class CythonRunTestCase(CythonCompileTestCase):
             else:
                 module = module_or_name
             tests = doctest.DocTestSuite(module)
+            if self.doctest_selector is not None:
+                tests._tests[:] = [test for test in tests._tests if self.doctest_selector(test.id())]
             with self.stats.time(self.name, self.language, 'run'):
                 tests.run(result)
         run_forked_test(result, run_test, self.shortDescription(), self.fork)
@@ -2060,6 +2065,8 @@ def main():
     parser.add_option("-T", "--ticket", dest="tickets",
                       action="append",
                       help="a bug ticket number to run the respective test in 'tests/*'")
+    parser.add_option("-k", dest="only_pattern",
+                      help="a regex pattern for selecting doctests and test functions in the test modules")
     parser.add_option("-3", dest="language_level",
                       action="store_const", const=3, default=2,
                       help="set language level to Python 3 (useful for running the CPython regression tests)'")
