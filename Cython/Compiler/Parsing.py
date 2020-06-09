@@ -3239,13 +3239,13 @@ def p_c_struct_or_union_definition(s, pos, ctx):
                     s.next()
                     s.expect_newline("Expected a newline")
             s.expect_dedent()
+
+        if not attributes and ctx.visibility != "extern":
+            error(pos,
+                  "Empty struct or union definition not allowed outside a 'cdef extern from' block"
+            )
     else:
         s.expect_newline("Syntax error in struct or union definition")
-
-    if not attributes and ctx.visibility != "extern":
-        error(pos,
-            "Empty struct or union definition not allowed outside a 'cdef extern from' block"
-        )
 
     return Nodes.CStructOrUnionDefNode(pos,
         name = name, cname = cname, kind = kind, attributes = attributes,
