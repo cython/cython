@@ -348,11 +348,15 @@ class IterationTransform(Visitor.EnvTransform):
 
         start_node = ExprNodes.IntNode(
             node.pos, value='0', constant_result=0, type=PyrexTypes.c_py_ssize_t_type)
-        length_call = ExprNodes.SimpleCallNode(node.pos,
-                                    function = ExprNodes.NameNode(node.pos, name="len"),
-                                    args = [unpack_temp_node]
+        def make_length_call():
+            # helper function since we need to create this node for a couple of places
+            builtin_len = ExprNodes.NameNode(node.pos, name="len",
+                                             entry=Builtin.builtin_scope.lookup("len"))
+            return ExprNodes.SimpleCallNode(node.pos,
+                                    function=builtin_len,
+                                    args=[unpack_temp_node]
                                     )
-        length_temp = UtilNodes.LetRefNode(length_call, type=PyrexTypes.c_py_ssize_t_type, is_temp=True)
+        length_temp = UtilNodes.LetRefNode(make_length_call(), type=PyrexTypes.c_py_ssize_t_type, is_temp=True)
         end_node = length_temp
 
         if reversed:
@@ -391,7 +395,7 @@ class IterationTransform(Visitor.EnvTransform):
             # If this starts to fail then we could insert an "if out_of_bounds: break" instead
             loop_length_reassign = Nodes.SingleAssignmentNode(node.pos,
                                                         lhs = length_temp,
-                                                        rhs = copy.copy(length_call))
+                                                        rhs = make_length_call())
             body.stats.append(loop_length_reassign)
 
         loop_node = Nodes.ForFromStatNode(
