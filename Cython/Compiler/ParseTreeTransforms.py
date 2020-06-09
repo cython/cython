@@ -463,7 +463,7 @@ def flatten_parallel_assignments(input, output):
     #  recursively, so that nested structures get matched as well.
     rhs = input[-1]
     if (not (rhs.is_sequence_constructor or isinstance(rhs, ExprNodes.UnicodeNode))
-        or not sum([lhs.is_sequence_constructor for lhs in input[:-1]])):
+            or not sum([lhs.is_sequence_constructor for lhs in input[:-1]])):
         output.append(input)
         return
 
@@ -1724,8 +1724,8 @@ if VALUE is not None:
             if stats:
                 node.body.stats += stats
             if (node.visibility != 'extern'
-                and not node.scope.lookup('__reduce__')
-                and not node.scope.lookup('__reduce_ex__')):
+                    and not node.scope.lookup('__reduce__')
+                    and not node.scope.lookup('__reduce_ex__')):
                 self._inject_pickle_methods(node)
         return node
 
@@ -1873,8 +1873,8 @@ if VALUE is not None:
         for decorator in old_decorators:
             func = decorator.decorator
             if (not func.is_name or
-                func.name not in ('staticmethod', 'classmethod') or
-                env.lookup_here(func.name)):
+                    func.name not in ('staticmethod', 'classmethod') or
+                    env.lookup_here(func.name)):
                 # not a static or classmethod
                 decorators.append(decorator)
 
@@ -2165,7 +2165,7 @@ if VALUE is not None:
         if node.name in self.seen_vars_stack[-1]:
             entry = self.current_env().lookup(node.name)
             if (entry is None or entry.visibility != 'extern'
-                and not entry.scope.is_c_class_scope):
+                    and not entry.scope.is_c_class_scope):
                 warning(node.pos, "cdef variable '%s' declared after it is used" % node.name, 2)
         self.visitchildren(node)
         return node
@@ -3186,8 +3186,7 @@ class TransformBuiltinMethods(EnvTransform):
             return node
         # Inject no-args super
         def_node = self.current_scope_node()
-        if (not isinstance(def_node, Nodes.DefNode) or not def_node.args or
-            len(self.env_stack) < 2):
+        if not isinstance(def_node, Nodes.DefNode) or not def_node.args or len(self.env_stack) < 2:
             return node
         class_node, class_scope = self.env_stack[-2]
         if class_scope.is_py_class_scope:
@@ -3335,8 +3334,8 @@ class ReplaceFusedTypeChecks(VisitorTransform):
 
     def visit_PrimaryCmpNode(self, node):
         with Errors.local_errors(ignore=True):
-          type1 = node.operand1.analyse_as_type(self.local_scope)
-          type2 = node.operand2.analyse_as_type(self.local_scope)
+            type1 = node.operand1.analyse_as_type(self.local_scope)
+            type2 = node.operand2.analyse_as_type(self.local_scope)
 
         if type1 and type2:
             false_node = ExprNodes.BoolNode(node.pos, value=False)
@@ -3502,10 +3501,10 @@ class DebugTransform(CythonTransform):
 
     def visit_NameNode(self, node):
         if (self.register_stepinto and
-            node.type is not None and
-            node.type.is_cfunction and
-            getattr(node, 'is_called', False) and
-            node.entry.func_cname is not None):
+                node.type is not None and
+                node.type.is_cfunction and
+                getattr(node, 'is_called', False) and
+                node.entry.func_cname is not None):
             # don't check node.entry.in_cinclude, as 'cdef extern: ...'
             # declared functions are not 'in_cinclude'.
             # This means we will list called 'cdef' functions as

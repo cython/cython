@@ -67,7 +67,7 @@ class NN(object):
         for j in range(self.nh):
             sum = 0.0
             for i in range(self.ni):
-                 sum = sum + self.ai[i] * self.wi[i][j]
+                sum = sum + self.ai[i] * self.wi[i][j]
             self.ah[j] = 1.0/(1.0+math.exp(-sum))
 
         # output activations

@@ -235,11 +235,11 @@ class Node(object):
         pass
 
     def analyse_expressions(self, env):
-        raise InternalError("analyse_expressions not implemented for %s" % \
+        raise InternalError("analyse_expressions not implemented for %s" %
             self.__class__.__name__)
 
     def generate_code(self, code):
-        raise InternalError("generate_code not implemented for %s" % \
+        raise InternalError("generate_code not implemented for %s" %
             self.__class__.__name__)
 
     def annotate(self, code):
@@ -424,7 +424,7 @@ class StatNode(Node):
         pass
 
     def generate_execution_code(self, code):
-        raise InternalError("generate_execution_code not implemented for %s" % \
+        raise InternalError("generate_execution_code not implemented for %s" %
             self.__class__.__name__)
 
 
@@ -1548,11 +1548,11 @@ class CEnumDefNode(StatNode):
     child_attrs = ["items"]
 
     def declare(self, env):
-         self.entry = env.declare_enum(
-             self.name, self.pos,
-             cname=self.cname, typedef_flag=self.typedef_flag,
-             visibility=self.visibility, api=self.api,
-             create_wrapper=self.create_wrapper)
+        self.entry = env.declare_enum(
+            self.name, self.pos,
+            cname=self.cname, typedef_flag=self.typedef_flag,
+            visibility=self.visibility, api=self.api,
+            create_wrapper=self.create_wrapper)
 
     def analyse_declarations(self, env):
         if self.items is not None:
@@ -7557,7 +7557,7 @@ class TryExceptStatNode(StatNode):
         else:
             # try block cannot raise exceptions, but we had to allocate the temps above,
             # so just keep the C compiler from complaining about them being unused
-            mark_vars_used =  ["(void)%s;" % var for var in exc_save_vars]
+            mark_vars_used = ["(void)%s;" % var for var in exc_save_vars]
             save_exc.putln("%s /* mark used */" % ' '.join(mark_vars_used))
 
             def restore_saved_exception():
@@ -8607,7 +8607,7 @@ class ParallelStatNode(StatNode, ParallelNode):
                 seen.add(dictitem.key.value)
                 if dictitem.key.value == 'num_threads':
                     if not dictitem.value.is_none:
-                       self.num_threads = dictitem.value
+                        self.num_threads = dictitem.value
                 elif self.is_prange and dictitem.key.value == 'chunksize':
                     if not dictitem.value.is_none:
                         self.chunksize = dictitem.value

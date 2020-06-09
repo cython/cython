@@ -621,7 +621,7 @@ def check_definitions(flow, compiler_directives):
     # Unused result
     for assmt in assignments:
         if (not assmt.refs and not assmt.entry.is_pyclass_attr
-            and not assmt.entry.in_closure):
+                and not assmt.entry.in_closure):
             if assmt.entry.cf_references and warn_unused_result:
                 if assmt.is_arg:
                     messages.warning(assmt.pos, "Unused argument value '%s'" %

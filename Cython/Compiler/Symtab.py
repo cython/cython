@@ -684,7 +684,7 @@ class Scope(object):
         if name:
             if not cname:
                 if (self.in_cinclude or visibility == 'public'
-                    or visibility == 'extern' or api):
+                        or visibility == 'extern' or api):
                     cname = name
                 else:
                     cname = self.mangle(Naming.type_prefix, name)
@@ -2340,13 +2340,14 @@ class CClassScope(ClassScope):
                     entry.type = entry.type.with_with_gil(type.with_gil)
                 elif type.compatible_signature_with(entry.type, as_cmethod = 1) and type.nogil == entry.type.nogil:
                     if (self.defined and not in_pxd
-                        and not type.same_c_signature_as_resolved_type(entry.type, as_cmethod = 1, as_pxd_definition = 1)):
+                            and not type.same_c_signature_as_resolved_type(
+                                entry.type, as_cmethod=1, as_pxd_definition=1)):
                         # TODO(robertwb): Make this an error.
                         warning(pos,
                             "Compatible but non-identical C method '%s' not redeclared "
                             "in definition part of extension type '%s'.  "
                             "This may cause incorrect vtables to be generated." % (
-                                    name, self.class_name), 2)
+                                name, self.class_name), 2)
                         warning(entry.pos, "Previous declaration is here", 2)
                     entry = self.add_cfunction(name, type, pos, cname, visibility='ignore', modifiers=modifiers)
                 else:
@@ -2366,8 +2367,7 @@ class CClassScope(ClassScope):
         if u'inline' in modifiers:
             entry.is_inline_cmethod = True
 
-        if (self.parent_type.is_final_type or entry.is_inline_cmethod or
-            self.directives.get('final')):
+        if self.parent_type.is_final_type or entry.is_inline_cmethod or self.directives.get('final'):
             entry.is_final_cmethod = True
             entry.final_func_cname = entry.func_cname
 
@@ -2573,19 +2573,18 @@ class CppClassScope(Scope):
         # Declare entries for all the C++ attributes of an
         # inherited type, with cnames modified appropriately
         # to work with this type.
-        for base_entry in \
-            base_scope.inherited_var_entries + base_scope.var_entries:
-                #constructor/destructor is not inherited
-                if base_entry.name in ("<init>", "<del>"):
-                    continue
-                #print base_entry.name, self.entries
-                if base_entry.name in self.entries:
-                    base_entry.name    # FIXME: is there anything to do in this case?
-                entry = self.declare(base_entry.name, base_entry.cname,
-                    base_entry.type, None, 'extern')
-                entry.is_variable = 1
-                entry.is_inherited = 1
-                self.inherited_var_entries.append(entry)
+        for base_entry in base_scope.inherited_var_entries + base_scope.var_entries:
+            #constructor/destructor is not inherited
+            if base_entry.name in ("<init>", "<del>"):
+                continue
+            #print base_entry.name, self.entries
+            if base_entry.name in self.entries:
+                base_entry.name    # FIXME: is there anything to do in this case?
+            entry = self.declare(base_entry.name, base_entry.cname,
+                base_entry.type, None, 'extern')
+            entry.is_variable = 1
+            entry.is_inherited = 1
+            self.inherited_var_entries.append(entry)
         for base_entry in base_scope.cfunc_entries:
             entry = self.declare_cfunction(base_entry.name, base_entry.type,
                                            base_entry.pos, base_entry.cname,

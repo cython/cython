@@ -48,12 +48,11 @@ vtable_prefix     = pyrex_prefix + "vtable_"
 vtabptr_prefix    = pyrex_prefix + "vtabptr_"
 vtabstruct_prefix = pyrex_prefix + "vtabstruct_"
 unicode_vtabentry_prefix  = pyrex_prefix + "Uvtabentry_"
- # vtab entries aren't  normally manged,
- # but punycode names sometimes start with numbers leading
- # to a C syntax error
+# vtab entries aren't normally mangled,
+# but punycode names sometimes start with numbers leading to a C syntax error
 unicode_structmember_prefix = pyrex_prefix + "Umember_"
- # as above -
- # not normally manged but punycode names cause specific problems
+# as above -
+# not normally mangled but punycode names cause specific problems
 opt_arg_prefix    = pyrex_prefix + "opt_args_"
 convert_func_prefix = pyrex_prefix + "convert_"
 closure_scope_prefix = pyrex_prefix + "scope_"
@@ -110,7 +109,7 @@ gilstate_cname   = pyrex_prefix + "state"
 skip_dispatch_cname = pyrex_prefix + "skip_dispatch"
 empty_tuple      = pyrex_prefix + "empty_tuple"
 empty_bytes      = pyrex_prefix + "empty_bytes"
-empty_unicode	 = pyrex_prefix + "empty_unicode"
+empty_unicode    = pyrex_prefix + "empty_unicode"
 print_function   = pyrex_prefix + "print"
 print_function_kwargs   = pyrex_prefix + "print_kwargs"
 cleanup_cname    = pyrex_prefix + "module_cleanup"

@@ -99,7 +99,7 @@ class TestBufferOptions(CythonTest):
 
     # add exotic and impossible combinations as they come along...
 
+
 if __name__ == '__main__':
     import unittest
     unittest.main()
-

@@ -22,7 +22,7 @@ from .. import Utils
 
 
 class AnnotationCCodeWriter(CCodeWriter):
- 
+
     # also used as marker for detection of complete code emission in tests
     COMPLETE_CODE_TITLE = "Complete cythonized code"
 

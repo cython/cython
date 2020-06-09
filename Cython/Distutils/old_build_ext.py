@@ -26,17 +26,18 @@ except ImportError:
 
 
 def _check_stack(path):
-  try:
-    for frame in inspect.getouterframes(inspect.currentframe(), 0):
-      if path in frame[1].replace(os.sep, '/'):
-        return True
-  except Exception:
-    pass
-  return False
+    try:
+        for frame in inspect.getouterframes(inspect.currentframe(), 0):
+            if path in frame[1].replace(os.sep, '/'):
+                return True
+    except Exception:
+        pass
+    return False
+
 
 if (not _check_stack('setuptools/extensions.py')
-    and not _check_stack('pyximport/pyxbuild.py')
-    and not _check_stack('Cython/Distutils/build_ext.py')):
+        and not _check_stack('pyximport/pyxbuild.py')
+        and not _check_stack('Cython/Distutils/build_ext.py')):
     warnings.warn(
         "Cython.Distutils.old_build_ext does not properly handle dependencies "
         "and is deprecated.")

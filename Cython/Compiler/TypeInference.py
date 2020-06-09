@@ -308,10 +308,10 @@ class MarkOverflowingArithmetic(CythonTransform):
 
     def visit_SimpleCallNode(self, node):
         if node.function.is_name and node.function.name == 'abs':
-          # Overflows for minimum value of fixed size ints.
-          return self.visit_dangerous_node(node)
+            # Overflows for minimum value of fixed size ints.
+            return self.visit_dangerous_node(node)
         else:
-          return self.visit_neutral_node(node)
+            return self.visit_neutral_node(node)
 
     visit_UnopNode = visit_neutral_node
 

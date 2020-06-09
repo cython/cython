@@ -1819,7 +1819,7 @@ class GrammarTests(unittest.TestCase):
         self.assertEqual(sum(b), sum([x for x in range(10)]))
 
         self.assertEqual(sum(x**2 for x in range(10)), sum([x**2 for x in range(10)]))
-        self.assertEqual(sum(x*x for x in range(10) if x%2), sum([x*x for x in range(10) if x%2]))
+        self.assertEqual(sum(x*x for x in range(10) if x % 2), sum([x*x for x in range(10) if x % 2]))
         self.assertEqual(sum(x for x in (y for y in range(10))), sum([x for x in range(10)]))
         self.assertEqual(sum(x for x in (y for y in (z for z in range(10)))), sum([x for x in range(10)]))
         self.assertEqual(sum(x for x in [y for y in (z for z in range(10))]), sum([x for x in range(10)]))

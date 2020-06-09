@@ -576,4 +576,3 @@ def array_init_with_list():
     x[12] = 42
 
     return [x[10], x[12]]
-

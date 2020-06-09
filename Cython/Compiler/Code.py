@@ -2084,7 +2084,7 @@ class CCodeWriter(object):
     def entry_as_pyobject(self, entry):
         type = entry.type
         if (not entry.is_self_arg and not entry.type.is_complete()
-            or entry.type.is_extension_type):
+                or entry.type.is_extension_type):
             return "(PyObject *)" + entry.cname
         else:
             return entry.cname

@@ -2669,7 +2669,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             if cfunc_name is None:
                 arg_type = arg.type
                 if ((arg_type.is_extension_type or arg_type.is_builtin_type)
-                    and arg_type.entry.qualified_name in self._ext_types_with_pysize):
+                        and arg_type.entry.qualified_name in self._ext_types_with_pysize):
                     cfunc_name = 'Py_SIZE'
                 else:
                     return node

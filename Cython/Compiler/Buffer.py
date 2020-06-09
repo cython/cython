@@ -298,9 +298,10 @@ def put_unpack_buffer_aux_into_scope(buf_entry, code):
     ln = []
     for i in range(buf_entry.type.ndim):
         for fldname in fldnames:
-            ln.append("%s.diminfo[%d].%s = %s.rcbuffer->pybuffer.%s[%d];" % \
-                    (pybuffernd_struct, i, fldname,
-                     pybuffernd_struct, fldname, i))
+            ln.append("%s.diminfo[%d].%s = %s.rcbuffer->pybuffer.%s[%d];" % (
+                pybuffernd_struct, i, fldname,
+                pybuffernd_struct, fldname, i,
+            ))
     code.putln(' '.join(ln))
 
 def put_init_vars(entry, code):

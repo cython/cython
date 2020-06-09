@@ -237,6 +237,7 @@ def get_exception_handler(exception_value):
                 exception_value.entry.cname),
             False)
 
+
 def maybe_check_py_error(code, check_py_exception, pos, nogil):
     if check_py_exception:
         if nogil:
@@ -244,12 +245,13 @@ def maybe_check_py_error(code, check_py_exception, pos, nogil):
         else:
             code.putln(code.error_goto_if("PyErr_Occurred()", pos))
 
+
 def translate_cpp_exception(code, pos, inside, py_result, exception_value, nogil):
     raise_py_exception, check_py_exception = get_exception_handler(exception_value)
     code.putln("try {")
     code.putln("%s" % inside)
     if py_result:
-      code.putln(code.error_goto_if_null(py_result, pos))
+        code.putln(code.error_goto_if_null(py_result, pos))
     maybe_check_py_error(code, check_py_exception, pos, nogil)
     code.putln("} catch(...) {")
     if nogil:
@@ -260,10 +262,10 @@ def translate_cpp_exception(code, pos, inside, py_result, exception_value, nogil
     code.putln(code.error_goto(pos))
     code.putln("}")
 
+
 # Used to handle the case where an lvalue expression and an overloaded assignment
 # both have an exception declaration.
-def translate_double_cpp_exception(code, pos, lhs_type, lhs_code, rhs_code,
-    lhs_exc_val, assign_exc_val, nogil):
+def translate_double_cpp_exception(code, pos, lhs_type, lhs_code, rhs_code, lhs_exc_val, assign_exc_val, nogil):
     handle_lhs_exc, lhc_check_py_exc = get_exception_handler(lhs_exc_val)
     handle_assignment_exc, assignment_check_py_exc = get_exception_handler(assign_exc_val)
     code.putln("try {")
@@ -857,7 +859,7 @@ class ExprNode(Node):
             self.generate_subexpr_disposal_code(code)
 
     def generate_assignment_code(self, rhs, code, overloaded_assignment=False,
-        exception_check=None, exception_value=None):
+                                 exception_check=None, exception_value=None):
         #  Stub method for nodes which are not legal as
         #  the LHS of an assignment. An error will have
         #  been reported earlier.
@@ -2326,7 +2328,7 @@ class NameNode(AtomicExprNode):
                 code.put_error_if_unbound(self.pos, entry, self.in_nogil_context)
 
     def generate_assignment_code(self, rhs, code, overloaded_assignment=False,
-        exception_check=None, exception_value=None):
+                                 exception_check=None, exception_value=None):
         #print "NameNode.generate_assignment_code:", self.name ###
         entry = self.entry
         if entry is None:
@@ -2711,14 +2713,14 @@ class IteratorNode(ExprNode):
         begin = sequence_type.scope.lookup("begin")
         end = sequence_type.scope.lookup("end")
         if (begin is None
-            or not begin.type.is_cfunction
-            or begin.type.args):
+                or not begin.type.is_cfunction
+                or begin.type.args):
             error(self.pos, "missing begin() on %s" % self.sequence.type)
             self.type = error_type
             return
         if (end is None
-            or not end.type.is_cfunction
-            or end.type.args):
+                or not end.type.is_cfunction
+                or end.type.args):
             error(self.pos, "missing end() on %s" % self.sequence.type)
             self.type = error_type
             return
@@ -4162,7 +4164,7 @@ class IndexNode(_IndexingBaseNode):
             self.pos))
 
     def generate_assignment_code(self, rhs, code, overloaded_assignment=False,
-        exception_check=None, exception_value=None):
+                                 exception_check=None, exception_value=None):
         self.generate_subexpr_evaluation_code(code)
 
         if self.type.is_pyobject:
@@ -4171,8 +4173,7 @@ class IndexNode(_IndexingBaseNode):
             value_code = self._check_byte_value(code, rhs)
             self.generate_setitem_code(value_code, code)
         elif self.base.type.is_cpp_class and self.exception_check and self.exception_check == '+':
-            if overloaded_assignment and exception_check and \
-                self.exception_value != exception_value:
+            if overloaded_assignment and exception_check and self.exception_value != exception_value:
                 # Handle the case that both the index operator and the assignment
                 # operator have a c++ exception handler and they are not the same.
                 translate_double_cpp_exception(code, self.pos, self.type,
@@ -5133,12 +5134,11 @@ class SliceIndexNode(ExprNode):
         self.generate_gotref(code)
 
     def generate_assignment_code(self, rhs, code, overloaded_assignment=False,
-        exception_check=None, exception_value=None):
+                                 exception_check=None, exception_value=None):
         self.generate_subexpr_evaluation_code(code)
         if self.type.is_pyobject:
             code.globalstate.use_utility_code(self.set_slice_utility_code)
-            (has_c_start, has_c_stop, c_start, c_stop,
-             py_start, py_stop, py_slice) = self.get_slice_config()
+            has_c_start, has_c_stop, c_start, c_stop, py_start, py_stop, py_slice = self.get_slice_config()
             code.put_error_if_neg(self.pos,
                 "__Pyx_PyObject_SetSlice(%s, %s, %s, %s, %s, %s, %s, %d, %d, %d)" % (
                     self.base.py_result(),
@@ -5880,8 +5880,8 @@ class SimpleCallNode(CallNode):
         # Called in 'nogil' context?
         self.nogil = env.nogil
         if (self.nogil and
-            func_type.exception_check and
-            func_type.exception_check != '+'):
+                func_type.exception_check and
+                func_type.exception_check != '+'):
             env.use_utility_code(pyerr_occurred_withgil_utility_code)
         # C++ exception handler
         if func_type.exception_check == '+':
@@ -7119,15 +7119,15 @@ class AttributeNode(ExprNode):
         if not obj_type.is_pyobject and not obj_type.is_error:
             # Expose python methods for immutable objects.
             if (obj_type.is_string or obj_type.is_cpp_string
-                or obj_type.is_buffer or obj_type.is_memoryviewslice
-                or obj_type.is_numeric
-                or (obj_type.is_ctuple and obj_type.can_coerce_to_pyobject(env))
-                or (obj_type.is_struct and obj_type.can_coerce_to_pyobject(env))):
+                    or obj_type.is_buffer or obj_type.is_memoryviewslice
+                    or obj_type.is_numeric
+                    or (obj_type.is_ctuple and obj_type.can_coerce_to_pyobject(env))
+                    or (obj_type.is_struct and obj_type.can_coerce_to_pyobject(env))):
                 if not immutable_obj:
                     self.obj = self.obj.coerce_to_pyobject(env)
             elif (obj_type.is_cfunction and (self.obj.is_name or self.obj.is_attribute)
-                  and self.obj.entry.as_variable
-                  and self.obj.entry.as_variable.type.is_pyobject):
+                    and self.obj.entry.as_variable
+                    and self.obj.entry.as_variable.type.is_pyobject):
                 # might be an optimised builtin function => unpack it
                 if not immutable_obj:
                     self.obj = self.obj.coerce_to_pyobject(env)
@@ -7281,7 +7281,7 @@ class AttributeNode(ExprNode):
             ExprNode.generate_disposal_code(self, code)
 
     def generate_assignment_code(self, rhs, code, overloaded_assignment=False,
-        exception_check=None, exception_value=None):
+                                 exception_check=None, exception_value=None):
         self.obj.generate_evaluation_code(code)
         if self.is_py_attr:
             code.globalstate.use_utility_code(
@@ -7629,7 +7629,7 @@ class SequenceNode(ExprNode):
                 self.mult_factor.generate_disposal_code(code)
 
     def generate_assignment_code(self, rhs, code, overloaded_assignment=False,
-        exception_check=None, exception_value=None):
+                                 exception_check=None, exception_value=None):
         if self.starred_assignment:
             self.generate_starred_assignment_code(rhs, code)
         else:
@@ -13271,7 +13271,7 @@ class CoerceToPyTypeNode(CoercionNode):
     def coerce_to_boolean(self, env):
         arg_type = self.arg.type
         if (arg_type == PyrexTypes.c_bint_type or
-            (arg_type.is_pyobject and arg_type.name == 'bool')):
+                (arg_type.is_pyobject and arg_type.name == 'bool')):
             return self.arg.coerce_to_temp(env)
         else:
             return CoerceToBooleanNode(self, env)
