@@ -4064,9 +4064,6 @@ class CppScopedEnumType(CType):
     def create_to_py_utility_code(self, env):
         if self.to_py_function is not None:
             return True
-        context = {}
-        if self.from_py_function:
-            return True
         if self.underlying_type.create_to_py_utility_code(env):
             self.to_py_function = '[](const %s& x){return %s((%s)x);}' % (
                 self.cname,
