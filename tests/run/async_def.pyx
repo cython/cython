@@ -1,13 +1,12 @@
 # cython: language_level=3, binding=True
 # mode: run
-# tag: pep492, await, gh3337, gh2273
+# tag: pep492, await, gh3337
 
 """
 Cython specific tests in addition to "test_coroutines_pep492.pyx"
 (which is copied from CPython).
 """
 
-import asyncio
 import sys
 
 
@@ -34,47 +33,3 @@ async def test_async_temp_gh3337(x, y):
     ([], 0)
     """
     return min(x - y, 0)
-
-# Test iscoroutinefunction()
-def func_def_example():
-    return 1
-
-def func_gen_example():
-    yield 1
-
-async def func_async_def_example():
-    return 1
-
-async def func_async_gen_example():
-    yield 1
-
-class ExampleClass:
-    async def method_async_def_example(self):
-        return 1
-
-    async def method_async_gen_example(self):
-        yield 1
-
-example_obj = ExampleClass()
-
-
-def test_asyncio_iscoroutinefunction_gh2273(func):
-    """
-    >>> test_asyncio_iscoroutinefunction_gh2273(func_def_example)
-    False
-    >>> test_asyncio_iscoroutinefunction_gh2273(func_gen_example)
-    False
-    >>> test_asyncio_iscoroutinefunction_gh2273(func_async_def_example)
-    True
-    >>> test_asyncio_iscoroutinefunction_gh2273(func_async_gen_example)
-    True
-    >>> test_asyncio_iscoroutinefunction_gh2273(ExampleClass.method_async_def_example)
-    True
-    >>> test_asyncio_iscoroutinefunction_gh2273(ExampleClass.method_async_gen_example)
-    True
-    >>> test_asyncio_iscoroutinefunction_gh2273(example_obj.method_async_def_example)
-    True
-    >>> test_asyncio_iscoroutinefunction_gh2273(example_obj.method_async_gen_example)
-    True
-    """
-    return asyncio.iscoroutinefunction(func)
