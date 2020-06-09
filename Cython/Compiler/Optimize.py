@@ -231,9 +231,9 @@ class IterationTransform(Visitor.EnvTransform):
         # in principle _transform_indexable_iteration would work on most of the above, and
         # also tuple and list. However, it probably isn't quite as optimized
         if iterable.type is Builtin.bytearray_type:
-            return self._transform_indexable_iteration(node, iterable, reversed=reversed)
+            return self._transform_indexable_iteration(node, iterable, is_mutable=True, reversed=reversed)
         if isinstance(iterable, ExprNodes.CoerceToPyTypeNode) and iterable.arg.type.is_memoryviewslice:
-            return self._transform_indexable_iteration(node, iterable.arg, reversed=reversed)
+            return self._transform_indexable_iteration(node, iterable.arg, is_mutable=False, reversed=reversed)
 
         # the rest is based on function calls
         if not isinstance(iterable, ExprNodes.SimpleCallNode):
@@ -339,20 +339,22 @@ class IterationTransform(Visitor.EnvTransform):
             PyrexTypes.CFuncTypeArg("s", Builtin.bytes_type, None)
             ])
 
-    def _transform_indexable_iteration(self, node, slice_node, reversed=False):
+    def _transform_indexable_iteration(self, node, slice_node, is_mutable, reversed=False):
         """In principle can handle any iterable that Cython has a len() for and knows how to index"""
         unpack_temp_node = UtilNodes.LetRefNode(
             slice_node.as_none_safe_node("'NoneType' is not iterable"),
-            may_hold_none=False
+            may_hold_none=False, is_temp=True
             )
 
         start_node = ExprNodes.IntNode(
             node.pos, value='0', constant_result=0, type=PyrexTypes.c_py_ssize_t_type)
-        length_temp = UtilNodes.LetRefNode(ExprNodes.SimpleCallNode(node.pos,
+        length_call = ExprNodes.SimpleCallNode(node.pos,
                                     function = ExprNodes.NameNode(node.pos, name="len"),
                                     args = [unpack_temp_node]
-                                    ), type=PyrexTypes.c_py_ssize_t_type)
+                                    )
+        length_temp = UtilNodes.LetRefNode(length_call, type=PyrexTypes.c_py_ssize_t_type, is_temp=True)
         end_node = length_temp
+
         if reversed:
             relation1, relation2 = '>', '>='
             start_node, end_node = end_node, start_node
@@ -382,6 +384,15 @@ class IterationTransform(Visitor.EnvTransform):
         body = Nodes.StatListNode(
             node.pos,
             stats = [target_assign]) # exclude node.body for now to not reanalyse it
+        if is_mutable:
+            # We need to be slightly careful here that we are actually modifying the loop
+            # bounds and not a temp copy of it. Setting is_temp=True on length_temp seems
+            # to ensure this.
+            # If this starts to fail then we could insert an "if out_of_bounds: break" instead
+            loop_length_reassign = Nodes.SingleAssignmentNode(node.pos,
+                                                        lhs = length_temp,
+                                                        rhs = copy.copy(length_call))
+            body.stats.append(loop_length_reassign)
 
         loop_node = Nodes.ForFromStatNode(
             node.pos,
@@ -407,7 +418,7 @@ class IterationTransform(Visitor.EnvTransform):
                         )
                     )
                 ).analyse_expressions(env)
-        body.stats.append(node.body)
+        body.stats.insert(1, node.body)
         return ret
 
     def _transform_bytes_iteration(self, node, slice_node, reversed=False):
