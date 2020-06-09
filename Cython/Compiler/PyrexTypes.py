@@ -4025,7 +4025,7 @@ class CppScopedEnumType(CType):
     # name    string
     # cname   string
 
-    is_cpp_enum = 1
+    is_cpp_enum = True
 
     def __init__(self, name, cname, underlying_type, namespace=None):
         self.name = name
