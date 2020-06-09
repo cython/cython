@@ -18,5 +18,3 @@ def test_enum_to_list():
     >>> test_enum_to_list()
     """
     assert list(Enum1) == [1, 2]
-
-
