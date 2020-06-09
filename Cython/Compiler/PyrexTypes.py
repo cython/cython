@@ -182,7 +182,7 @@ class PyrexType(BaseType):
     #  is_struct_or_union    boolean     Is a C struct or union type
     #  is_struct             boolean     Is a C struct type
     #  is_enum               boolean     Is a C enum type
-    #  is_cpp_enum        boolean     Is a C++ scoped enum type
+    #  is_cpp_enum           boolean     Is a C++ scoped enum type
     #  is_typedef            boolean     Is a typedef type
     #  is_string             boolean     Is a C char * type
     #  is_pyunicode_ptr      boolean     Is a C PyUNICODE * type
