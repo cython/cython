@@ -3172,8 +3172,7 @@ def p_c_enum_definition(s, pos, ctx):
 
     if not items and ctx.visibility != "extern":
         error(s.position(),
-            "Empty enum definition not allowed outside a "
-            "'cdef extern from' block"
+            "Empty enum definition not allowed outside a 'cdef extern from' block"
         )
 
     return Nodes.CEnumDefNode(
