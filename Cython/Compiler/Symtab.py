@@ -680,7 +680,7 @@ class Scope(object):
                 entry.name, entry.visibility))
 
     def declare_enum(self, name, pos, cname, scoped, typedef_flag,
-            visibility = 'private', api = 0, create_wrapper = 0):
+            visibility='private', api=0, create_wrapper=0):
         if name:
             if not cname:
                 if (self.in_cinclude or visibility == 'public'

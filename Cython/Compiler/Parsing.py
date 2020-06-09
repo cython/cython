@@ -3176,12 +3176,12 @@ def p_c_enum_definition(s, pos, ctx):
         )
 
     return Nodes.CEnumDefNode(
-        pos, name = name, cname = cname,
-        scoped = scoped, items = items,
-        underlying_type = underlying_type,
-        typedef_flag = ctx.typedef_flag, visibility = ctx.visibility,
-        create_wrapper = ctx.overridable,
-        api = ctx.api, in_pxd = ctx.level == 'module_pxd')
+        pos, name=name, cname=cname,
+        scoped=scoped, items=items,
+        underlying_type=underlying_type,
+        typedef_flag=ctx.typedef_flag, visibility=ctx.visibility,
+        create_wrapper=ctx.overridable,
+        api=ctx.api, in_pxd=ctx.level == 'module_pxd')
 
 def p_c_enum_line(s, ctx, items):
     if s.sy != 'pass':
