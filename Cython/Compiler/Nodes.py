@@ -1619,7 +1619,7 @@ class CEnumDefItemNode(StatNode):
                 self.value = self.value.coerce_to(PyrexTypes.c_int_type, env)
                 self.value = self.value.analyse_const_expression(env)
 
-        if enum_entry.type.is_scoped_enum:
+        if enum_entry.type.is_cpp_enum:
             cname = "%s::%s" % (enum_entry.cname, self.name)
         else:
             cname = self.cname
