@@ -4,7 +4,7 @@ def test(**kw):
     >>> d = {1 : 2}
     >>> test(**d)       # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: ...keywords must be strings
+    TypeError: ...keywords must be strings...
     >>> d
     {1: 2}
     >>> d = {}

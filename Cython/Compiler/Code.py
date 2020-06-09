@@ -296,7 +296,7 @@ class UtilityCodeBase(object):
         _, ext = os.path.splitext(path)
         if ext in ('.pyx', '.py', '.pxd', '.pxi'):
             comment = '#'
-            strip_comments = partial(re.compile(r'^\s*#.*').sub, '')
+            strip_comments = partial(re.compile(r'^\s*#(?!\s*cython\s*:).*').sub, '')
             rstrip = StringEncoding._unicode.rstrip
         else:
             comment = '/'
@@ -408,7 +408,7 @@ class UtilityCodeBase(object):
         """
         Calls .load(), but using a per-type cache based on utility name and file name.
         """
-        key = (cls, from_file, utility_code_name)
+        key = (utility_code_name, from_file, cls)
         try:
             return __cache[key]
         except KeyError:
@@ -543,7 +543,7 @@ class UtilityCode(UtilityCodeBase):
 
         impl = re.sub(r'PY(IDENT|UNICODE)\("([^"]+)"\)', externalise, impl)
         assert 'PYIDENT(' not in impl and 'PYUNICODE(' not in impl
-        return bool(replacements), impl
+        return True, impl
 
     def inject_unbound_methods(self, impl, output):
         """Replace 'UNBOUND_METHOD(type, "name")' by a constant Python identifier cname.
@@ -551,7 +551,6 @@ class UtilityCode(UtilityCodeBase):
         if 'CALL_UNBOUND_METHOD(' not in impl:
             return False, impl
 
-        utility_code = set()
         def externalise(matchobj):
             type_cname, method_name, obj_cname, args = matchobj.groups()
             args = [arg.strip() for arg in args[1:].split(',')] if args else []
@@ -567,9 +566,7 @@ class UtilityCode(UtilityCodeBase):
             r'\)', externalise, impl)
         assert 'CALL_UNBOUND_METHOD(' not in impl
 
-        for helper in sorted(utility_code):
-            output.use_utility_code(UtilityCode.load_cached(helper, "ObjectHandling.c"))
-        return bool(utility_code), impl
+        return True, impl
 
     def wrap_c_strings(self, impl):
         """Replace CSTRING('''xyz''') by a C compatible string
@@ -832,6 +829,9 @@ class FunctionState(object):
             type = type.cv_base_type
         elif type.is_reference and not type.is_fake_reference:
             type = type.ref_base_type
+        elif type.is_cfunction:
+            from . import PyrexTypes
+            type = PyrexTypes.c_ptr_type(type)  # A function itself isn't an l-value
         if not type.is_pyobject and not type.is_memoryviewslice:
             # Make manage_ref canonical, so that manage_ref will always mean
             # a decref is needed.
@@ -1100,10 +1100,6 @@ class GlobalState(object):
         'complex_type_declarations', # as the proper solution is to make a full DAG...
         'type_declarations',         # More coarse-grained blocks would simply hide
         'utility_code_proto',        # the ugliness, not fix it
-        'module_state',
-        'module_state_clear',
-        'module_state_traverse',
-        'module_state_defines',
         'module_declarations',
         'typeinfo',
         'before_global_var',
@@ -1111,7 +1107,11 @@ class GlobalState(object):
         'string_decls',
         'decls',
         'late_includes',
-        'all_the_rest',
+        'module_state',
+        'module_state_clear',
+        'module_state_traverse',
+        'module_state_defines',  # redefines names used in module_state/_clear/_traverse
+        'module_code',  # user code goes here
         'pystring_table',
         'cached_builtins',
         'cached_constants',
@@ -1152,8 +1152,10 @@ class GlobalState(object):
 
     def initialize_main_c_code(self):
         rootwriter = self.rootwriter
-        for part in self.code_layout:
-            self.parts[part] = rootwriter.insertion_point()
+        for i, part in enumerate(self.code_layout):
+            w = self.parts[part] = rootwriter.insertion_point()
+            if i > 0:
+                w.putln("/* #### Code section: %s ### */" % part)
 
         if not Options.cache_builtins:
             del self.parts['cached_builtins']
@@ -1463,11 +1465,14 @@ class GlobalState(object):
         for (type_cname, method_name), cname in sorted(self.cached_cmethods.items()):
             cnames.append(cname)
             method_name_cname = self.get_interned_identifier(StringEncoding.EncodedString(method_name)).cname
-            decl.putln('static __Pyx_CachedCFunction %s = {0, &%s, 0, 0, 0};' % (
-                cname, method_name_cname))
+            decl.putln('static __Pyx_CachedCFunction %s = {0, 0, 0, 0, 0};' % (
+                cname))
             # split type reference storage as it might not be static
             init.putln('%s.type = (PyObject*)&%s;' % (
                 cname, type_cname))
+            # method name string isn't static in limited api
+            init.putln('%s.method_name = &%s;' % (
+                cname, method_name_cname))
 
         if Options.generate_cleanup_code:
             cleanup = self.parts['cleanup_globals']
@@ -1512,6 +1517,17 @@ class GlobalState(object):
             w = self.parts['pystring_table']
             w.putln("")
             w.putln("static __Pyx_StringTabEntry %s[] = {" % Naming.stringtab_cname)
+            w.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+            w_limited_writer = w.insertion_point()
+            w.putln("#else")
+            w_not_limited_writer = w.insertion_point()
+            w.putln("#endif")
+            decls_writer.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
+            not_limited_api_decls_writer = decls_writer.insertion_point()
+            decls_writer.putln("#endif")
+            init_globals.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+            init_globals_limited_api = init_globals.insertion_point()
+            init_globals.putln("#endif")
             for idx, py_string_args in enumerate(py_strings):
                 c_cname, _, py_string = py_string_args
                 if not py_string.is_str or not py_string.encoding or \
@@ -1530,32 +1546,19 @@ class GlobalState(object):
                     py_string.cname)
                 self.parts['module_state_traverse'].putln("Py_VISIT(traverse_module_state->%s);" %
                     py_string.cname)
-                decls_writer.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
-                decls_writer.putln(
+                not_limited_api_decls_writer.putln(
                     "static PyObject *%s;" % py_string.cname)
-                decls_writer.putln("#endif")
                 if py_string.py3str_cstring:
-                    w.putln("#if PY_MAJOR_VERSION >= 3")
-                    w.putln("{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
+                    w_not_limited_writer.putln("#if PY_MAJOR_VERSION >= 3")
+                    w_not_limited_writer.putln("{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
                         py_string.cname,
                         py_string.py3str_cstring.cname,
                         py_string.py3str_cstring.cname,
                         '0', 1, 0,
                         py_string.intern
                         ))
-                    w.putln("#else")
-
-                w.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-                w.putln("{0, %s, sizeof(%s), %s, %d, %d, %d}," % (
-                    c_cname,
-                    c_cname,
-                    encoding,
-                    py_string.is_unicode,
-                    py_string.is_str,
-                    py_string.intern
-                    ))
-                w.putln("#else")
-                w.putln("{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
+                    w_not_limited_writer.putln("#else")
+                w_not_limited_writer.putln("{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
                     py_string.cname,
                     c_cname,
                     c_cname,
@@ -1564,16 +1567,21 @@ class GlobalState(object):
                     py_string.is_str,
                     py_string.intern
                     ))
-                w.putln("#endif")
-                init_globals.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-                init_globals.putln("if (__Pyx_InitString(%s[%d], &%s) < 0) %s;" % (
+                if py_string.py3str_cstring:
+                    w_not_limited_writer.putln("#endif")
+                w_limited_writer.putln("{0, %s, sizeof(%s), %s, %d, %d, %d}," % (
+                    c_cname if not py_string.py3str_cstring else py_string.py3str_cstring.cname,
+                    c_cname if not py_string.py3str_cstring else py_string.py3str_cstring.cname,
+                    encoding if not py_string.py3str_cstring else '0',
+                    py_string.is_unicode,
+                    py_string.is_str,
+                    py_string.intern
+                    ))
+                init_globals_limited_api.putln("if (__Pyx_InitString(%s[%d], &%s) < 0) %s;" % (
                     Naming.stringtab_cname,
                     idx,
                     py_string.cname,
                     init_globals.error_goto(self.module_pos)))
-                init_globals.putln("#endif")
-                if py_string.py3str_cstring:
-                    w.putln("#endif")
             w.putln("{0, 0, 0, 0, 0, 0, 0}")
             w.putln("};")
 
@@ -2038,8 +2046,7 @@ class CCodeWriter(object):
             if type.is_pyobject:
                 self.putln("%s = NULL;" % decl)
             elif type.is_memoryviewslice:
-                from . import MemoryView
-                self.putln("%s = %s;" % (decl, MemoryView.memslice_entry_init))
+                self.putln("%s = %s;" % (decl, type.literal_code(type.default_value)))
             else:
                 self.putln("%s%s;" % (static and "static " or "", decl))
 
@@ -2086,123 +2093,89 @@ class CCodeWriter(object):
         from .PyrexTypes import py_object_type, typecast
         return typecast(py_object_type, type, cname)
 
-    def put_gotref(self, cname):
-        self.putln("__Pyx_GOTREF(%s);" % cname)
+    def put_gotref(self, cname, type):
+        type.generate_gotref(self, cname)
 
-    def put_giveref(self, cname):
-        self.putln("__Pyx_GIVEREF(%s);" % cname)
+    def put_giveref(self, cname, type):
+        type.generate_giveref(self, cname)
 
-    def put_xgiveref(self, cname):
-        self.putln("__Pyx_XGIVEREF(%s);" % cname)
+    def put_xgiveref(self, cname, type):
+        type.generate_xgiveref(self, cname)
 
-    def put_xgotref(self, cname):
-        self.putln("__Pyx_XGOTREF(%s);" % cname)
+    def put_xgotref(self, cname, type):
+        type.generate_xgotref(self, cname)
 
     def put_incref(self, cname, type, nanny=True):
-        if nanny:
-            self.putln("__Pyx_INCREF(%s);" % self.as_pyobject(cname, type))
-        else:
-            self.putln("Py_INCREF(%s);" % self.as_pyobject(cname, type))
+        # Note: original put_Memslice_Incref/Decref also added in some utility code
+        # this is unnecessary since the relevant utility code is loaded anyway if a memoryview is used
+        # and so has been removed. However, it's potentially a feature that might be useful here
+        type.generate_incref(self, cname, nanny=nanny)
 
-    def put_decref(self, cname, type, nanny=True):
-        self._put_decref(cname, type, nanny, null_check=False, clear=False)
+    def put_xincref(self, cname, type, nanny=True):
+        type.generate_xincref(self, cname, nanny=nanny)
 
-    def put_var_gotref(self, entry):
-        if entry.type.is_pyobject:
-            self.putln("__Pyx_GOTREF(%s);" % self.entry_as_pyobject(entry))
-
-    def put_var_giveref(self, entry):
-        if entry.type.is_pyobject:
-            self.putln("__Pyx_GIVEREF(%s);" % self.entry_as_pyobject(entry))
-
-    def put_var_xgotref(self, entry):
-        if entry.type.is_pyobject:
-            self.putln("__Pyx_XGOTREF(%s);" % self.entry_as_pyobject(entry))
-
-    def put_var_xgiveref(self, entry):
-        if entry.type.is_pyobject:
-            self.putln("__Pyx_XGIVEREF(%s);" % self.entry_as_pyobject(entry))
-
-    def put_var_incref(self, entry, nanny=True):
-        if entry.type.is_pyobject:
-            if nanny:
-                self.putln("__Pyx_INCREF(%s);" % self.entry_as_pyobject(entry))
-            else:
-                self.putln("Py_INCREF(%s);" % self.entry_as_pyobject(entry))
-
-    def put_var_xincref(self, entry):
-        if entry.type.is_pyobject:
-            self.putln("__Pyx_XINCREF(%s);" % self.entry_as_pyobject(entry))
-
-    def put_decref_clear(self, cname, type, nanny=True, clear_before_decref=False):
-        self._put_decref(cname, type, nanny, null_check=False,
-                         clear=True, clear_before_decref=clear_before_decref)
+    def put_decref(self, cname, type, nanny=True, have_gil=True):
+        type.generate_decref(self, cname, nanny=nanny, have_gil=have_gil)
 
     def put_xdecref(self, cname, type, nanny=True, have_gil=True):
-        self._put_decref(cname, type, nanny, null_check=True,
-                         have_gil=have_gil, clear=False)
+        type.generate_xdecref(self, cname, nanny=nanny, have_gil=have_gil)
 
-    def put_xdecref_clear(self, cname, type, nanny=True, clear_before_decref=False):
-        self._put_decref(cname, type, nanny, null_check=True,
-                         clear=True, clear_before_decref=clear_before_decref)
+    def put_decref_clear(self, cname, type, clear_before_decref=False, nanny=True, have_gil=True):
+        type.generate_decref_clear(self, cname, clear_before_decref=clear_before_decref,
+                              nanny=nanny, have_gil=have_gil)
 
-    def _put_decref(self, cname, type, nanny=True, null_check=False,
-                    have_gil=True, clear=False, clear_before_decref=False):
-        if type.is_memoryviewslice:
-            self.put_xdecref_memoryviewslice(cname, have_gil=have_gil)
-            return
+    def put_xdecref_clear(self, cname, type, clear_before_decref=False, nanny=True, have_gil=True):
+        type.generate_xdecref_clear(self, cname, clear_before_decref=clear_before_decref,
+                              nanny=nanny, have_gil=have_gil)
 
-        prefix = '__Pyx' if nanny else 'Py'
-        X = 'X' if null_check else ''
+    def put_decref_set(self, cname, type, rhs_cname):
+        type.generate_decref_set(self, cname, rhs_cname)
 
-        if clear:
-            if clear_before_decref:
-                if not nanny:
-                    X = ''  # CPython doesn't have a Py_XCLEAR()
-                self.putln("%s_%sCLEAR(%s);" % (prefix, X, cname))
-            else:
-                self.putln("%s_%sDECREF(%s); %s = 0;" % (
-                    prefix, X, self.as_pyobject(cname, type), cname))
-        else:
-            self.putln("%s_%sDECREF(%s);" % (
-                prefix, X, self.as_pyobject(cname, type)))
+    def put_xdecref_set(self, cname, type, rhs_cname):
+        type.generate_xdecref_set(self, cname, rhs_cname)
 
-    def put_decref_set(self, cname, rhs_cname):
-        self.putln("__Pyx_DECREF_SET(%s, %s);" % (cname, rhs_cname))
+    def put_incref_memoryviewslice(self, slice_cname, type, have_gil):
+        # TODO ideally this would just be merged into "put_incref"
+        type.generate_incref_memoryviewslice(self, slice_cname, have_gil=have_gil)
 
-    def put_xdecref_set(self, cname, rhs_cname):
-        self.putln("__Pyx_XDECREF_SET(%s, %s);" % (cname, rhs_cname))
+    def put_var_incref_memoryviewslice(self, entry, have_gil):
+        self.put_incref_memoryviewslice(entry.cname, entry.type, have_gil=have_gil)
 
-    def put_var_decref(self, entry):
-        if entry.type.is_pyobject:
-            self.putln("__Pyx_XDECREF(%s);" % self.entry_as_pyobject(entry))
+    def put_var_gotref(self, entry):
+        self.put_gotref(entry.cname, entry.type)
 
-    def put_var_xdecref(self, entry, nanny=True):
-        if entry.type.is_pyobject:
-            if nanny:
-                self.putln("__Pyx_XDECREF(%s);" % self.entry_as_pyobject(entry))
-            else:
-                self.putln("Py_XDECREF(%s);" % self.entry_as_pyobject(entry))
+    def put_var_giveref(self, entry):
+        self.put_giveref(entry.cname, entry.type)
 
-    def put_var_decref_clear(self, entry):
-        self._put_var_decref_clear(entry, null_check=False)
+    def put_var_xgotref(self, entry):
+        self.put_xgotref(entry.cname, entry.type)
 
-    def put_var_xdecref_clear(self, entry):
-        self._put_var_decref_clear(entry, null_check=True)
+    def put_var_xgiveref(self, entry):
+        self.put_xgiveref(entry.cname, entry.type)
 
-    def _put_var_decref_clear(self, entry, null_check):
-        if entry.type.is_pyobject:
-            if entry.in_closure:
-                # reset before DECREF to make sure closure state is
-                # consistent during call to DECREF()
-                self.putln("__Pyx_%sCLEAR(%s);" % (
-                    null_check and 'X' or '',
-                    entry.cname))
-            else:
-                self.putln("__Pyx_%sDECREF(%s); %s = 0;" % (
-                    null_check and 'X' or '',
-                    self.entry_as_pyobject(entry),
-                    entry.cname))
+    def put_var_incref(self, entry, **kwds):
+        self.put_incref(entry.cname, entry.type, **kwds)
+
+    def put_var_xincref(self, entry, **kwds):
+        self.put_xincref(entry.cname, entry.type, **kwds)
+
+    def put_var_decref(self, entry, **kwds):
+        self.put_decref(entry.cname, entry.type, **kwds)
+
+    def put_var_xdecref(self, entry, **kwds):
+        self.put_xdecref(entry.cname, entry.type, **kwds)
+
+    def put_var_decref_clear(self, entry, **kwds):
+        self.put_decref_clear(entry.cname, entry.type, clear_before_decref=entry.in_closure, **kwds)
+
+    def put_var_decref_set(self, entry, rhs_cname, **kwds):
+        self.put_decref_set(entry.cname, entry.type, rhs_cname, **kwds)
+
+    def put_var_xdecref_set(self, entry, rhs_cname, **kwds):
+        self.put_xdecref_set(entry.cname, entry.type, rhs_cname, **kwds)
+
+    def put_var_xdecref_clear(self, entry, **kwds):
+        self.put_xdecref_clear(entry.cname, entry.type, clear_before_decref=entry.in_closure, **kwds)
 
     def put_var_decrefs(self, entries, used_only = 0):
         for entry in entries:
@@ -2219,19 +2192,6 @@ class CCodeWriter(object):
     def put_var_xdecrefs_clear(self, entries):
         for entry in entries:
             self.put_var_xdecref_clear(entry)
-
-    def put_incref_memoryviewslice(self, slice_cname, have_gil=False):
-        from . import MemoryView
-        self.globalstate.use_utility_code(MemoryView.memviewslice_init_code)
-        self.putln("__PYX_INC_MEMVIEW(&%s, %d);" % (slice_cname, int(have_gil)))
-
-    def put_xdecref_memoryviewslice(self, slice_cname, have_gil=False):
-        from . import MemoryView
-        self.globalstate.use_utility_code(MemoryView.memviewslice_init_code)
-        self.putln("__PYX_XDEC_MEMVIEW(&%s, %d);" % (slice_cname, int(have_gil)))
-
-    def put_xgiveref_memoryviewslice(self, slice_cname):
-        self.put_xgiveref("%s.memview" % slice_cname)
 
     def put_init_to_py_none(self, cname, type, nanny=True):
         from .PyrexTypes import py_object_type, typecast
@@ -2390,24 +2350,18 @@ class CCodeWriter(object):
         self.funcstate.should_declare_error_indicator = True
         if used:
             self.funcstate.uses_error_indicator = True
-        if self.code_config.c_line_in_traceback:
-            cinfo = " %s = %s;" % (Naming.clineno_cname, Naming.line_c_macro)
-        else:
-            cinfo = ""
-
-        return "%s = %s[%s]; %s = %s;%s" % (
-            Naming.filename_cname,
-            Naming.filetable_cname,
+        return "__PYX_MARK_ERR_POS(%s, %s)" % (
             self.lookup_filename(pos[0]),
-            Naming.lineno_cname,
-            pos[1],
-            cinfo)
+            pos[1])
 
-    def error_goto(self, pos):
+    def error_goto(self, pos, used=True):
         lbl = self.funcstate.error_label
         self.funcstate.use_label(lbl)
         if pos is None:
             return 'goto %s;' % lbl
+        self.funcstate.should_declare_error_indicator = True
+        if used:
+            self.funcstate.uses_error_indicator = True
         return "__PYX_ERR(%s, %s, %s)" % (
             self.lookup_filename(pos[0]),
             pos[1],
@@ -2438,8 +2392,8 @@ class CCodeWriter(object):
                 UtilityCode.load_cached("ForceInitThreads", "ModuleSetupCode.c"))
         self.putln('__Pyx_RefNannySetupContext(%s, %d);' % (name, acquire_gil and 1 or 0))
 
-    def put_finish_refcount_context(self):
-        self.putln("__Pyx_RefNannyFinishContext();")
+    def put_finish_refcount_context(self, nogil=False):
+        self.putln("__Pyx_RefNannyFinishContextNogil()" if nogil else "__Pyx_RefNannyFinishContext();")
 
     def put_add_traceback(self, qualified_name, include_cline=True):
         """

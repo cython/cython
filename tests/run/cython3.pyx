@@ -30,6 +30,18 @@ def locals_function(a, b=2):
     return locals()
 
 
+### "new style" classes
+
+class T:
+    """
+    >>> t = T()
+    >>> isinstance(t, T)
+    True
+    >>> isinstance(T, type)  # not a Py2 old style class!
+    True
+    """
+
+
 ### true division
 
 def truediv(x):
@@ -256,6 +268,32 @@ def except_as_deletes_target_in_gen(x, a):
         yield (5, b)
     except UnboundLocalError:
         yield 6
+
+
+def nested_except_gh3666(a=False, b=False):
+    """
+    >>> print(nested_except_gh3666())
+    A
+    >>> print(nested_except_gh3666(a=True))
+    B-V
+    >>> print(nested_except_gh3666(a=True, b=True))
+    B-V-T
+    """
+    try:
+        if a:
+            raise ValueError
+        return "A"
+    except TypeError as exc:
+        return "A-T"
+    except ValueError as exc:
+        try:
+            if b:
+                raise TypeError
+            return "B-V"
+        except ValueError as exc:
+            return "B-V-V"
+        except TypeError as exc:
+            return "B-V-T"
 
 
 ### Py3 feature tests

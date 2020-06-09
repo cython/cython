@@ -433,7 +433,7 @@ static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject* b) {
 
 static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject* o) {
   if (sizeof(Py_hash_t) == sizeof(Py_ssize_t)) {
-    return __Pyx_PyIndex_AsSsize_t(o);
+    return (Py_hash_t) __Pyx_PyIndex_AsSsize_t(o);
 #if PY_MAJOR_VERSION < 3
   } else if (likely(PyInt_CheckExact(o))) {
     return PyInt_AS_LONG(o);
@@ -779,10 +779,10 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t wid
         }
     } while (unlikely(remaining != 0));
 
-    if (last_one_off) {
-        assert(*dpos == '0');
-        dpos++;
-    }
+    // Correct dpos by 1 if we read an excess digit.
+    assert(!last_one_off || *dpos == '0');
+    dpos += last_one_off;
+
     length = end - dpos;
     ulength = length;
     prepend_sign = 0;

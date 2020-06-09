@@ -48,6 +48,7 @@ cdef class X(Base, Py):
     pass
 
 ######## oldstyle.pyx ########
+# cython: language_level=2
 
 cdef class Base:
     cdef dict __dict__
