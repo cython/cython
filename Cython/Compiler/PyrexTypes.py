@@ -4053,53 +4053,26 @@ class CppScopedEnumType(CType):
         return self.base_declaration_code(base_code, entity_code)
 
     def create_from_py_utility_code(self, env):
-        if self.from_py_function is not None:
+        if self.from_py_function:
             return True
-        context = {}
-        cname = "__pyx_convert_%s_from_%s" % (
-            type_identifier(self),
-            "PyObject"
-        )
-        context.update({
-            "cname": cname,
-            "type": self.cname,
-            "underlying_type": self.underlying_type.empty_declaration_code()
-        })
-
-        from .UtilityCode import CythonUtilityCode
-        env.use_utility_code(CythonUtilityCode.load(
-            "enum_class.from_py",
-            "CppConvert.pyx",
-            context=context,
-            outer_module_scope=env.global_scope(),  # need access to types declared in module
-            compiler_directives=env.directives
-        ))
-        self.from_py_function = cname
+        if self.underlying_type.create_from_py_utility_code(env):
+            self.from_py_function = '(%s)%s' % (
+                self.cname, self.underlying_type.from_py_function
+            )
         return True
 
     def create_to_py_utility_code(self, env):
         if self.to_py_function is not None:
             return True
         context = {}
-        cname = "__pyx_convert_%s_from_%s" % (
-            "PyObject",
-            type_identifier(self)
-        )
-        context.update({
-            "cname": cname,
-            "type": self.cname,
-            "underlying_type": self.underlying_type.empty_declaration_code()
-        })
-
-        from .UtilityCode import CythonUtilityCode
-        env.use_utility_code(CythonUtilityCode.load(
-            "enum_class.to_py",
-            "CppConvert.pyx",
-            context=context,
-            outer_module_scope=env.global_scope(),  # need access to types declared in module
-            compiler_directives=env.directives
-        ))
-        self.to_py_function = cname
+        if self.from_py_function:
+            return True
+        if self.underlying_type.create_to_py_utility_code(env):
+            self.to_py_function = '[](const %s& x){return %s((%s)x);}' % (
+                self.cname,
+                self.underlying_type.to_py_function,
+                self.underlying_type.empty_declaration_code()
+            )
         return True
 
     def create_type_wrapper(self, env):
