@@ -505,8 +505,6 @@ class SyntheticSlot(InternalMethodSlot):
             return self.default_value
 
     def spec_value(self, scope):
-        if self.slot_name == "tp_getattro" and not scope.defines_any_special(self.user_methods):
-            return "PyObject_GenericGetAttr"
         return self.slot_code(scope)
 
 
