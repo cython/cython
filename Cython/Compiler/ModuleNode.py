@@ -155,7 +155,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.create_import_star_conversion_utility_code(env)
         for name, entry in sorted(env.entries.items()):
             if (entry.create_wrapper and entry.scope is env
-                and entry.is_type and (entry.type.is_enum or entry.type.is_scoped_enum)):
+                and entry.is_type and (entry.type.is_enum or entry.type.is_cpp_enum)):
                     entry.type.create_type_wrapper(env)
 
     def process_implementation(self, options, result):
@@ -882,7 +882,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     self.generate_typedef(entry, code)
                 elif type.is_enum:
                     self.generate_enum_definition(entry, code)
-                elif type.is_scoped_enum:
+                elif type.is_cpp_enum:
                     self.generate_scoped_enum_definition(entry, code)
                 elif type.is_struct_or_union:
                     self.generate_struct_union_definition(entry, code)

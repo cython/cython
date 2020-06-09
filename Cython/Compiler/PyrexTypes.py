@@ -182,7 +182,7 @@ class PyrexType(BaseType):
     #  is_struct_or_union    boolean     Is a C struct or union type
     #  is_struct             boolean     Is a C struct type
     #  is_enum               boolean     Is a C enum type
-    #  is_scoped_enum        boolean     Is a C++ scoped enum type
+    #  is_cpp_enum           boolean     Is a C++ scoped enum type
     #  is_typedef            boolean     Is a typedef type
     #  is_string             boolean     Is a C char * type
     #  is_pyunicode_ptr      boolean     Is a C PyUNICODE * type
@@ -249,7 +249,7 @@ class PyrexType(BaseType):
     is_cpp_string = 0
     is_struct = 0
     is_enum = 0
-    is_scoped_enum = 0
+    is_cpp_enum = 0
     is_typedef = 0
     is_string = 0
     is_pyunicode_ptr = 0
@@ -4025,7 +4025,7 @@ class CppScopedEnumType(CType):
     # name    string
     # cname   string
 
-    is_scoped_enum = 1
+    is_cpp_enum = 1
 
     def __init__(self, name, cname, underlying_type, namespace=None):
         self.name = name
@@ -4063,9 +4063,6 @@ class CppScopedEnumType(CType):
 
     def create_to_py_utility_code(self, env):
         if self.to_py_function is not None:
-            return True
-        context = {}
-        if self.from_py_function:
             return True
         if self.underlying_type.create_to_py_utility_code(env):
             self.to_py_function = '[](const %s& x){return %s((%s)x);}' % (

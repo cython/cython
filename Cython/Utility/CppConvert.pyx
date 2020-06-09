@@ -236,23 +236,3 @@ cdef object {{cname}}(const std_complex[X]& z):
     tmp.imag = <double>z.imag()
     return tmp
 
-#################### enum_class.from_py ####################
-
-cdef extern from *:
-    cdef enum class enumtype "{{type}}":
-        pass
-
-@cname("{{cname}}")
-cdef enumtype {{cname}}(object o) except *:
-    return <enumtype><{{underlying_type}}>(o)
-
-
-#################### enum_class.to_py ####################
-
-cdef extern from *:
-    cdef enum class enumtype "{{type}}":
-        pass
-
-@cname("{{cname}}")
-cdef object {{cname}}(const enumtype& x):
-    return <{{underlying_type}}>(x)
