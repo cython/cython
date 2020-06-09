@@ -168,7 +168,7 @@ def valid_memslice_dtype(dtype, i=0):
          valid_memslice_dtype(dtype.base_type, i + 1)) or
         dtype.is_numeric or
         dtype.is_pyobject or
-        dtype.is_fused or # accept this as it will be replaced by specializations later
+        dtype.is_fused or  # accept this as it will be replaced by specializations later
         (dtype.is_typedef and valid_memslice_dtype(dtype.typedef_base_type))
     )
 
@@ -836,7 +836,7 @@ overlapping_utility = load_memview_c_utility("OverlappingSlices", context)
 copy_contents_new_utility = load_memview_c_utility(
     "MemviewSliceCopyTemplate",
     context,
-    requires=[], # require cython_array_utility_code
+    requires=[],  # require cython_array_utility_code
 )
 
 view_utility_code = load_memview_cy_utility(

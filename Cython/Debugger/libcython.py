@@ -334,7 +334,7 @@ class CythonBase(object):
 
             func_name = cyfunc.name
             func_cname = cyfunc.cname
-            func_args = [] # [(arg, f(arg)) for arg in cyfunc.arguments]
+            func_args = []  # [(arg, f(arg)) for arg in cyfunc.arguments]
         else:
             source_desc, lineno = self.get_source_desc(frame)
             func_name = frame.name()

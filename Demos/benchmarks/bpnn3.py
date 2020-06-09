@@ -29,7 +29,7 @@ class NN(object):
 #    print 'class NN'
     def __init__(self, ni, nh, no):
         # number of input, hidden, and output nodes
-        self.ni = ni + 1 # +1 for bias node
+        self.ni = ni + 1  # +1 for bias node
         self.nh = nh
         self.no = no
 

@@ -121,7 +121,7 @@ def pyx_to_dll(filename, ext=None, force_rebuild=0, build_in_temp=False, pyxbuil
                     r_path = os.path.join(obj_build_ext.build_lib,
                                           basename + '.reload%s' % count)
                     try:
-                        import shutil # late import / reload_support is: debugging
+                        import shutil  # late import / reload_support is: debugging
                         try:
                             # Try to unlink first --- if the .so file
                             # is mmapped by another process,

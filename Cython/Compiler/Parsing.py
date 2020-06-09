@@ -103,7 +103,7 @@ def p_binop_expr(s, ops, p_sub_expr):
             if Future.division in s.context.future_directives:
                 n1.truedivision = True
             else:
-                n1.truedivision = None # unknown
+                n1.truedivision = None  # unknown
     return n1
 
 #lambdef: 'lambda' [varargslist] ':' test
@@ -442,7 +442,7 @@ def p_trailer(s, node1):
         return p_call(s, node1)
     elif s.sy == '[':
         return p_index(s, node1)
-    else: # s.sy == '.'
+    else:  # s.sy == '.'
         s.next()
         name = p_ident(s)
         return ExprNodes.AttributeNode(pos,
@@ -2017,7 +2017,7 @@ def p_except_clause(s):
 
 def p_include_statement(s, ctx):
     pos = s.position()
-    s.next() # 'include'
+    s.next()  # 'include'
     unicode_include_file_name = p_string_literal(s, 'u')[2]
     s.expect_newline("Syntax error in include statement")
     if s.compile_time_eval:
@@ -2183,7 +2183,7 @@ def p_compile_time_expr(s):
 def p_DEF_statement(s):
     pos = s.position()
     denv = s.compile_time_env
-    s.next() # 'DEF'
+    s.next()  # 'DEF'
     name = p_ident(s)
     s.expect('=')
     expr = p_compile_time_expr(s)
@@ -2201,7 +2201,7 @@ def p_IF_statement(s, ctx):
     denv = s.compile_time_env
     result = None
     while 1:
-        s.next() # 'IF' or 'ELIF'
+        s.next()  # 'IF' or 'ELIF'
         expr = p_compile_time_expr(s)
         s.compile_time_eval = current_eval and bool(expr.compile_time_value(denv))
         body = p_suite(s, ctx)
@@ -2387,7 +2387,7 @@ def p_positional_and_keyword_args(s, end_sy_set, templates = None):
         parsed_type = False
         if s.sy == 'IDENT' and s.peek()[0] == '=':
             ident = s.systring
-            s.next() # s.sy is '='
+            s.next()  # s.sy is '='
             s.next()
             if looking_at_expr(s):
                 arg = p_test(s)
@@ -2801,7 +2801,7 @@ def p_c_declarator(s, ctx = Ctx(), empty = 0, is_type = 0, cmethod_flag = 0,
         pos = s.position()
         if s.sy == '[':
             result = p_c_array_declarator(s, result)
-        else: # sy == '('
+        else:  # sy == '('
             s.next()
             result = p_c_func_declarator(s, pos, ctx, result, cmethod_flag)
         cmethod_flag = 0
@@ -2809,7 +2809,7 @@ def p_c_declarator(s, ctx = Ctx(), empty = 0, is_type = 0, cmethod_flag = 0,
 
 def p_c_array_declarator(s, base):
     pos = s.position()
-    s.next() # '['
+    s.next()  # '['
     if s.sy != ']':
         dim = p_testlist(s)
     else:
@@ -2818,7 +2818,7 @@ def p_c_array_declarator(s, base):
     return Nodes.CArrayDeclaratorNode(pos, base = base, dimension = dim)
 
 def p_c_func_declarator(s, pos, ctx, base, cmethod_flag):
-    #  Opening paren has already been skipped
+    # Opening paren has already been skipped
     args = p_c_arg_list(s, ctx, cmethod_flag = cmethod_flag,
                         nonempty_declarators = 0)
     ellipsis = p_optional_ellipsis(s)
@@ -2860,7 +2860,7 @@ def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
                                   assignable = assignable, nonempty = nonempty)
         result = Nodes.CPtrDeclaratorNode(pos,
             base = base)
-    elif s.sy == '**': # scanner returns this as a single token
+    elif s.sy == '**':  # scanner returns this as a single token
         s.next()
         base = p_c_declarator(s, ctx, empty = empty, is_type = is_type,
                               cmethod_flag = cmethod_flag,
@@ -3136,7 +3136,7 @@ def p_c_enum_definition(s, pos, ctx):
     if s.sy != 'NEWLINE':
         p_c_enum_line(s, ctx, items)
     else:
-        s.next() # 'NEWLINE'
+        s.next()  # 'NEWLINE'
         s.expect_indent()
         while s.sy not in ('DEDENT', 'EOF'):
             p_c_enum_line(s, ctx, items)
@@ -3233,7 +3233,7 @@ def p_fused_definition(s, pos, ctx):
     while s.sy != 'DEDENT':
         if s.sy != 'pass':
             #types.append(p_c_declarator(s))
-            types.append(p_c_base_type(s)) #, nonempty=1))
+            types.append(p_c_base_type(s))  #, nonempty=1))
         else:
             s.next()
 

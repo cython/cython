@@ -625,7 +625,7 @@ class PyCFunctionObjectPtr(PyObjectPtr):
     _typename = 'PyCFunctionObject'
 
     def proxyval(self, visited):
-        m_ml = self.field('m_ml') # m_ml is a (PyMethodDef*)
+        m_ml = self.field('m_ml')  # m_ml is a (PyMethodDef*)
         try:
             ml_name = m_ml['ml_name'].string()
         except UnicodeDecodeError:

@@ -112,8 +112,8 @@ class TestCythonizeArgsParser(TestCase):
 
     def test_directives_wrong(self):
         directives = {
-                'auto_pickle': 42,       # for bool type
-                'auto_pickle': 'NONONO', # for bool type
+                'auto_pickle': 42,        # for bool type
+                'auto_pickle': 'NONONO',  # for bool type
                 'c_string_type': 'bites',
                 #'c_string_encoding' : 'a',
                 #'language_level' : 4,
@@ -167,14 +167,14 @@ class TestCythonizeArgsParser(TestCase):
         self.assertFalse(args)
         self.assertTrue(self.are_default(options, ['options']))
         self.assertEqual(options.options['docstrings'], True)
-        self.assertEqual(options.options['buffer_max_dims'], True) #  really?
+        self.assertEqual(options.options['buffer_max_dims'], True)  #  really?
 
     def test_option_multiple_v2(self):
         options, args =  self.parse_args(['-s', 'docstrings=True,buffer_max_dims=8'])
         self.assertFalse(args)
         self.assertTrue(self.are_default(options, ['options']))
         self.assertEqual(options.options['docstrings'], True)
-        self.assertEqual(options.options['buffer_max_dims'], True) #  really?
+        self.assertEqual(options.options['buffer_max_dims'], True)  #  really?
 
     def test_option_value_yes(self):
         options, args =  self.parse_args(['-s', 'docstrings=YeS'])

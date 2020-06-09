@@ -469,7 +469,7 @@ class Scope(object):
         # Create new entry, and add to dictionary if
         # name is not None. Reports a warning if already
         # declared.
-        if type.is_buffer and not isinstance(self, LocalScope): # and not is_type:
+        if type.is_buffer and not isinstance(self, LocalScope):  # and not is_type:
             error(pos, 'Buffer types only allowed as function local variables')
         if not self.in_cinclude and cname and re.match("^_[_A-Z]+$", cname):
             # See https://www.gnu.org/software/libc/manual/html_node/Reserved-Names.html#Reserved-Names
@@ -749,7 +749,7 @@ class Scope(object):
                 entry.type = py_object_type
             elif entry.type is not py_object_type:
                 return self._declare_pyfunction(name, pos, visibility=visibility, entry=entry)
-        else: # declare entry stub
+        else:  # declare entry stub
             self.declare_var(name, py_object_type, pos, visibility=visibility)
         entry = self.declare_var(None, py_object_type, pos,
                                  cname=name, visibility='private')
@@ -817,7 +817,7 @@ class Scope(object):
                         # it's safe to allow signature overrides
                         for alt_entry in entry.all_alternatives():
                             if not alt_entry.cname or cname == alt_entry.cname:
-                                break # cname not unique!
+                                break  # cname not unique!
                         else:
                             can_override = True
                     if can_override:
@@ -987,7 +987,7 @@ class Scope(object):
 
         # look-up nonmember methods listed within a class
         method_alternatives = []
-        if len(operands)==2: # binary operators only
+        if len(operands) == 2:  # binary operators only
             for n in range(2):
                 if operands[n].type.is_cpp_class:
                     obj_type = operands[n].type
@@ -1131,10 +1131,12 @@ class BuiltinScope(Scope):
         entry = self.declare_type(name, type, None, visibility='extern')
         entry.utility_code = utility_code
 
-        var_entry = Entry(name = entry.name,
-            type = self.lookup('type').type, # make sure "type" is the first type declared...
-            pos = entry.pos,
-            cname = entry.type.typeptr_cname)
+        var_entry = Entry(
+            name=entry.name,
+            type=self.lookup('type').type,  # make sure "type" is the first type declared...
+            pos=entry.pos,
+            cname=entry.type.typeptr_cname,
+        )
         var_entry.qualified_name = self.qualify_name(name)
         var_entry.is_variable = 1
         var_entry.is_cglobal = 1
@@ -1180,7 +1182,7 @@ class BuiltinScope(Scope):
         "True":   ["Py_True", py_object_type],
     }
 
-const_counter = 1 # As a temporary solution for compiling code in pxds
+const_counter = 1  # As a temporary solution for compiling code in pxds
 
 class ModuleScope(Scope):
     # module_name          string             Python name of the module
@@ -1314,7 +1316,7 @@ class ModuleScope(Scope):
             entry = self.declare(None, None, py_object_type, pos, 'private')
         if Options.cache_builtins and name not in Code.uncachable_builtins:
             entry.is_builtin = 1
-            entry.is_const = 1 # cached
+            entry.is_const = 1  # cached
             entry.name = name
             entry.cname = Naming.builtin_prefix + name
             self.cached_builtins.append(entry)
@@ -1439,7 +1441,7 @@ class ModuleScope(Scope):
         entry = self.lookup_here(name)
         if entry:
             if entry.is_pyglobal and entry.as_module is scope:
-                return entry # Already declared as the same module
+                return entry  # Already declared as the same module
             if not (entry.is_pyglobal and not entry.as_module):
                 # SAGE -- I put this here so Pyrex
                 # cimport's work across directories.
@@ -1580,7 +1582,7 @@ class ModuleScope(Scope):
         if entry and not shadow:
             type = entry.type
             if not (entry.is_type and type.is_extension_type):
-                entry = None # Will cause redeclaration and produce an error
+                entry = None  # Will cause redeclaration and produce an error
             else:
                 scope = type.scope
                 if typedef_flag and (not scope or scope.defined):
@@ -1938,7 +1940,7 @@ class GeneratorExpressionScope(Scope):
             # if the outer scope defines a type for this variable, inherit it
             outer_entry = self.outer_scope.lookup(name)
             if outer_entry and outer_entry.is_variable:
-                type = outer_entry.type # may still be 'unspecified_type' !
+                type = outer_entry.type  # may still be 'unspecified_type' !
         # the parent scope needs to generate code for the variable, but
         # this scope must hold its name exclusively
         cname = '%s%s' % (self.genexp_prefix, self.parent_scope.mangle(Naming.var_prefix, name or self.next_id()))
@@ -2261,9 +2263,9 @@ class CClassScope(ClassScope):
                                       cname=cname, visibility=visibility,
                                       api=api, in_pxd=in_pxd, is_cdef=is_cdef)
             entry.is_member = 1
-            entry.is_pyglobal = 1 # xxx: is_pyglobal changes behaviour in so many places that
-                                  # I keep it in for now. is_member should be enough
-                                  # later on
+            # xxx: is_pyglobal changes behaviour in so many places that I keep it in for now.
+            # is_member should be enough later on
+            entry.is_pyglobal = 1
             self.namespace_cname = "(PyObject *)%s" % self.parent_type.typeptr_cname
 
             return entry

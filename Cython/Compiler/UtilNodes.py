@@ -45,7 +45,7 @@ class TempRefNode(AtomicExprNode):
 
     def calculate_result_code(self):
         result = self.handle.temp
-        if result is None: result = "<error>" # might be called and overwritten
+        if result is None: result = "<error>"  # might be called and overwritten
         return result
 
     def generate_result_code(self, code):
@@ -175,7 +175,7 @@ class ResultRefNode(AtomicExprNode):
             return self.expression.may_be_none()
         if self.type is not None:
             return self.type.is_pyobject
-        return True # play safe
+        return True  # play it safe
 
     def is_simple(self):
         return True

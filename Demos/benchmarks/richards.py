@@ -333,7 +333,7 @@ class WorkTask(Task):
         pkt.ident = dest
         pkt.datum = 0
 
-        for i in BUFSIZE_RANGE: # range(BUFSIZE)
+        for i in BUFSIZE_RANGE:  # range(BUFSIZE)
             w.count += 1
             if w.count > 26:
                 w.count = 1

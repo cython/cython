@@ -865,7 +865,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if not entry.in_cinclude:
                 #print "generate_type_header_code:", entry.name, repr(entry.type) ###
                 type = entry.type
-                if type.is_typedef: # Must test this first!
+                if type.is_typedef:  # Must test this first!
                     pass
                 elif type.is_struct_or_union or type.is_cpp_class:
                     self.generate_struct_union_predeclaration(entry, code)
@@ -878,7 +878,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if not entry.in_cinclude:
                 #print "generate_type_header_code:", entry.name, repr(entry.type) ###
                 type = entry.type
-                if type.is_typedef: # Must test this first!
+                if type.is_typedef:  # Must test this first!
                     self.generate_typedef(entry, code)
                 elif type.is_enum:
                     self.generate_enum_definition(entry, code)
@@ -1183,7 +1183,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # Generate object struct definition for an
         # extension type.
         if not type.scope:
-            return # Forward declared but never defined
+            return  # Forward declared but never defined
         header, footer = \
             self.sue_header_footer(type, "struct", type.objstruct_cname)
         code.putln(header)
@@ -1321,7 +1321,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if entry.visibility != 'extern':
                 type = entry.type
                 scope = type.scope
-                if scope: # could be None if there was an error
+                if scope:  # could be None if there was an error
                     self.generate_exttype_vtable(scope, code)
                     self.generate_new_function(scope, code, entry)
                     self.generate_dealloc_function(scope, code)
@@ -1769,7 +1769,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         slot_func = scope.mangle_internal("tp_clear")
         base_type = scope.parent_type.base_type
         if tp_slot.slot_code(scope) != slot_func:
-            return # never used
+            return  # never used
 
         have_entries, (py_attrs, py_buffers, memoryview_slices) = (
             scope.get_refcounted_entries(include_gc_simple=False))

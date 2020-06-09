@@ -217,7 +217,7 @@ class ControlFlow(object):
         visited.remove(self.entry_point)
         for block in visited:
             if block.empty():
-                for parent in block.parents: # Re-parent
+                for parent in block.parents:  # Re-parent
                     for child in block.children:
                         parent.add_child(child)
                 block.detach()
@@ -774,7 +774,7 @@ class ControlFlowAnalysis(CythonTransform):
                 entry = lhs.entry
             else:
                 entry = self.env.lookup(lhs.name)
-            if entry is None: # TODO: This shouldn't happen...
+            if entry is None:  # TODO: This shouldn't happen...
                 return
             self.flow.mark_assignment(lhs, rhs, entry)
         elif lhs.is_sequence_constructor:
@@ -1035,7 +1035,7 @@ class ControlFlowAnalysis(CythonTransform):
         elif isinstance(node, Nodes.AsyncForStatNode):
             # not entirely correct, but good enough for now
             self.mark_assignment(node.target, node.item)
-        else: # Parallel
+        else:  # Parallel
             self.mark_assignment(node.target)
 
         # Body block

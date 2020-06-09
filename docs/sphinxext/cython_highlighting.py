@@ -128,7 +128,7 @@ class CythonLexer(RegexLexer):
             (r'(\s+)(as)(\s+)', bygroups(Text, Keyword, Text)),
             (r'[a-zA-Z_][a-zA-Z0-9_.]*', Name.Namespace),
             (r'(\s*)(,)(\s*)', bygroups(Text, Operator, Text)),
-            (r'', Text, '#pop') # all else: go back
+            (r'', Text, '#pop')  # all else: go back
         ],
         'fromimport': [
             (r'(\s+)(c?import)\b', bygroups(Text, Keyword), '#pop'),
@@ -155,12 +155,12 @@ class CythonLexer(RegexLexer):
         ],
         'dqs': [
             (r'"', String, '#pop'),
-            (r'\\\\|\\"|\\\n', String.Escape), # included here again for raw strings
+            (r'\\\\|\\"|\\\n', String.Escape),  # included here again for raw strings
             include('strings')
         ],
         'sqs': [
             (r"'", String, '#pop'),
-            (r"\\\\|\\'|\\\n", String.Escape), # included here again for raw strings
+            (r"\\\\|\\'|\\\n", String.Escape),  # included here again for raw strings
             include('strings')
         ],
         'tdqs': [

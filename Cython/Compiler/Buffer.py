@@ -85,7 +85,7 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
                 aux_var = scope.declare_var(name=None, cname=cname,
                                             type=type, pos=node.pos)
                 if entry.is_arg:
-                    aux_var.used = True # otherwise, NameNode will mark whether it is used
+                    aux_var.used = True  # otherwise, NameNode will mark whether it is used
 
                 return aux_var
 
@@ -111,9 +111,9 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
 #
 # Analysis
 #
-buffer_options = ("dtype", "ndim", "mode", "negative_indices", "cast") # ordered!
+buffer_options = ("dtype", "ndim", "mode", "negative_indices", "cast")  # ordered!
 buffer_defaults = {"ndim": 1, "mode": "full", "negative_indices": True, "cast": False}
-buffer_positional_options_count = 1 # anything beyond this needs keyword argument
+buffer_positional_options_count = 1  # anything beyond this needs keyword argument
 
 ERR_BUF_OPTION_UNKNOWN = '"%s" is not a buffer option'
 ERR_BUF_TOO_MANY = 'Too many buffer options'
@@ -374,7 +374,7 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buf_entry,
     code.putln("{")  # Set up necessary stack for getbuffer
     code.putln("__Pyx_BufFmt_StackElem __pyx_stack[%d];" % buffer_type.dtype.struct_nesting_depth())
 
-    getbuffer = get_getbuffer_call(code, "%s", buffer_aux, buffer_type) # fill in object below
+    getbuffer = get_getbuffer_call(code, "%s", buffer_aux, buffer_type)  # fill in object below
 
     if is_initialized:
         # Release any existing buffer
@@ -420,7 +420,7 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buf_entry,
         put_unpack_buffer_aux_into_scope(buf_entry, code)
         code.putln('}')
 
-    code.putln("}") # Release stack
+    code.putln("}")  # Release stack
 
 
 def put_buffer_lookup_code(entry, index_signeds, index_cnames, directives,

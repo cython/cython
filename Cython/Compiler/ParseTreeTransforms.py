@@ -243,7 +243,7 @@ class PostParse(ScopeTrackingTransform):
                                     if decl is not declbase:
                                         raise PostParseError(decl.pos, ERR_INVALID_SPECIALATTR_TYPE)
                                     handler(decl)
-                                    continue # Remove declaration
+                                    continue  # Remove declaration
                             raise PostParseError(decl.pos, ERR_CDEF_INCLASS)
                         first_assignment = self.scope_type != 'module'
                         stats.append(Nodes.SingleAssignmentNode(node.pos,
@@ -433,7 +433,7 @@ def sort_common_subsequences(items):
         return b.is_sequence_constructor and contains(b.args, a)
 
     for pos, item in enumerate(items):
-        key = item[1] # the ResultRefNode which has already been injected into the sequences
+        key = item[1]  # the ResultRefNode which has already been injected into the sequences
         new_pos = pos
         for i in range(pos-1, -1, -1):
             if lower_than(key, items[i][0]):
@@ -547,7 +547,7 @@ def map_starred_assignment(lhs_targets, starred_assignments, lhs_args, rhs_args)
         targets.append(expr)
 
     # the starred target itself, must be assigned a (potentially empty) list
-    target = lhs_args[starred].target # unpack starred node
+    target = lhs_args[starred].target  # unpack starred node
     starred_rhs = rhs_args[starred:]
     if lhs_remaining:
         starred_rhs = starred_rhs[:-lhs_remaining]
@@ -594,7 +594,7 @@ class PxdPostParse(CythonTransform, SkipDeclarations):
 
         if (isinstance(node, Nodes.DefNode) and self.scope_type == 'cclass'
                 and node.name in ('__getbuffer__', '__releasebuffer__')):
-            err = None # allow these slots
+            err = None  # allow these slots
 
         if isinstance(node, Nodes.CFuncDefNode):
             if (u'inline' in node.modifiers and
@@ -605,7 +605,7 @@ class PxdPostParse(CythonTransform, SkipDeclarations):
                 elif node.api:
                     err = self.ERR_NOGO_WITH_INLINE % 'api'
                 else:
-                    err = None # allow inline function
+                    err = None  # allow inline function
             else:
                 err = self.ERR_INLINE_ONLY
 
@@ -2073,7 +2073,7 @@ if VALUE is not None:
         # (so it can't happen later).
         # Note that we don't return the original node, as it is
         # never used after this phase.
-        if True: # private (default)
+        if True:  # private (default)
             return None
 
         self_value = ExprNodes.AttributeNode(
@@ -2179,7 +2179,7 @@ if VALUE is not None:
         child_node = self.visit(node.node)
         if not child_node:
             return None
-        if type(child_node) is list: # Assignment synthesized
+        if type(child_node) is list:  # Assignment synthesized
             node.child_node = child_node[0]
             return [node] + child_node[1:]
         node.node = child_node
@@ -3131,9 +3131,9 @@ class TransformBuiltinMethods(EnvTransform):
                     error(self.pos, "Builtin 'vars()' called with wrong number of args, expected 0-1, got %d"
                           % len(node.args))
                 if len(node.args) > 0:
-                    return node # nothing to do
+                    return node  # nothing to do
             return ExprNodes.LocalsExprNode(pos, self.current_scope_node(), lenv)
-        else: # dir()
+        else:  # dir()
             if len(node.args) > 1:
                 error(self.pos, "Builtin 'dir()' called with wrong number of args, expected 0-1, got %d"
                       % len(node.args))

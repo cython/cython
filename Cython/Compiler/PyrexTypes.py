@@ -479,9 +479,9 @@ class CTypedefType(BaseType):
                                  "TO_PY_FUNCTION": self.to_py_function}))
                     return True
                 elif base_type.is_float:
-                    pass # XXX implement!
+                    pass  # XXX implement!
                 elif base_type.is_complex:
-                    pass # XXX implement!
+                    pass  # XXX implement!
                     pass
                 elif base_type.is_cpp_string:
                     cname = "__pyx_convert_PyObject_string_to_py_%s" % type_identifier(self)
@@ -512,9 +512,9 @@ class CTypedefType(BaseType):
                                  "FROM_PY_FUNCTION": self.from_py_function}))
                     return True
                 elif base_type.is_float:
-                    pass # XXX implement!
+                    pass  # XXX implement!
                 elif base_type.is_complex:
-                    pass # XXX implement!
+                    pass  # XXX implement!
                 elif base_type.is_cpp_string:
                     cname = '__pyx_convert_string_from_py_%s' % type_identifier(self)
                     context = {
@@ -1466,7 +1466,7 @@ class BuiltinObjectType(PyObjectType):
 
     def cast_code(self, expr_code, to_object_struct = False):
         return "((%s*)%s)" % (
-            to_object_struct and self.objstruct_cname or self.decl_type, # self.objstruct_cname may be None
+            to_object_struct and self.objstruct_cname or self.decl_type,  # self.objstruct_cname may be None
             expr_code)
 
     def py_type_name(self):
@@ -2538,7 +2538,7 @@ class CArrayType(CPointerBaseType):
         return False
 
     def __hash__(self):
-        return hash(self.base_type) + 28 # arbitrarily chosen offset
+        return hash(self.base_type) + 28  # arbitrarily chosen offset
 
     def __repr__(self):
         return "<CArrayType %s %s>" % (self.size, repr(self.base_type))
@@ -2670,7 +2670,7 @@ class CPtrType(CPointerBaseType):
     default_value = "0"
 
     def __hash__(self):
-        return hash(self.base_type) + 27 # arbitrarily chosen offset
+        return hash(self.base_type) + 27  # arbitrarily chosen offset
 
     def __eq__(self, other):
         if isinstance(other, CType) and other.is_ptr:
@@ -3415,7 +3415,7 @@ class CFuncTypeArg(BaseType):
             self.annotation = annotation
         self.type = type
         self.pos = pos
-        self.needs_type_test = False # TODO: should these defaults be set in analyse_types()?
+        self.needs_type_test = False  # TODO: should these defaults be set in analyse_types()?
 
     def __repr__(self):
         return "%s:%s" % (self.name, repr(self.type))
@@ -4075,7 +4075,7 @@ class CEnumType(CIntLike, CType):
 
     is_enum = 1
     signed = 1
-    rank = -1 # Ranks below any integer type
+    rank = -1  # Ranks below any integer type
 
     def __init__(self, name, cname, typedef_flag, namespace=None):
         self.name = name
@@ -4258,14 +4258,14 @@ class ErrorType(PyrexType):
 
 
 rank_to_type_name = (
-    "char",         # 0
-    "short",        # 1
-    "int",          # 2
-    "long",         # 3
-    "PY_LONG_LONG", # 4
-    "float",        # 5
-    "double",       # 6
-    "long double",  # 7
+    "char",          # 0
+    "short",         # 1
+    "int",           # 2
+    "long",          # 3
+    "PY_LONG_LONG",  # 4
+    "float",         # 5
+    "double",        # 6
+    "long double",   # 7
 )
 
 _rank_to_type_name = list(rank_to_type_name)

@@ -455,7 +455,7 @@ def run_pipeline(source, options, full_module_name=None, context=None):
             full_module_name = Utils.decode_filename(full_module_name)
 
     source_ext = os.path.splitext(source)[1]
-    options.configure_language_defaults(source_ext[1:]) # py/pyx
+    options.configure_language_defaults(source_ext[1:])  # py/pyx
     if context is None:
         context = Context.from_options(options)
 
@@ -470,7 +470,7 @@ def run_pipeline(source, options, full_module_name=None, context=None):
     if options.relative_path_in_code_position_comments:
         rel_path = full_module_name.replace('.', os.sep) + source_ext
         if not abs_path.endswith(rel_path):
-            rel_path = source # safety measure to prevent printing incorrect paths
+            rel_path = source  # safety measure to prevent printing incorrect paths
     else:
         rel_path = abs_path
     source_desc = FileSourceDescriptor(abs_path, rel_path)

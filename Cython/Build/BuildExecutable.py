@@ -28,7 +28,7 @@ if PYLIB_DYN == PYLIB:
     # no shared library
     PYLIB_DYN = ''
 else:
-    PYLIB_DYN = os.path.splitext(PYLIB_DYN[3:])[0] # 'lib(XYZ).so' -> XYZ
+    PYLIB_DYN = os.path.splitext(PYLIB_DYN[3:])[0]  # 'lib(XYZ).so' -> XYZ
 
 CC = get_config_var('CC', os.environ.get('CC', ''))
 CFLAGS = get_config_var('CFLAGS') + ' ' + os.environ.get('CFLAGS', '')
@@ -65,12 +65,8 @@ def runcmd(cmd, shell=True):
     else:
         _debug(' '.join(cmd))
 
-    try:
-        import subprocess
-    except ImportError: # Python 2.3 ...
-        returncode = os.system(cmd)
-    else:
-        returncode = subprocess.call(cmd, shell=shell)
+    import subprocess
+    returncode = subprocess.call(cmd, shell=shell)
 
     if returncode:
         sys.exit(returncode)

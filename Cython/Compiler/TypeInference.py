@@ -178,7 +178,7 @@ class MarkParallelAssignments(EnvTransform):
         return node
 
     def visit_FromCImportStatNode(self, node):
-        return node # Can't be assigned to...
+        return node  # Can't be assigned to...
 
     def visit_FromImportStatNode(self, node):
         for name, target in node.items:
@@ -370,7 +370,7 @@ class SimpleAssignmentTypeInferer(object):
 
         if enabled == True:
             spanning_type = aggressive_spanning_type
-        elif enabled is None: # safe mode
+        elif enabled is None:  # safe mode
             spanning_type = safe_spanning_type
         else:
             for entry in scope.entries.values():
