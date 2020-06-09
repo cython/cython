@@ -235,4 +235,3 @@ cdef object {{cname}}(const std_complex[X]& z):
     tmp.real = <double>z.real()
     tmp.imag = <double>z.imag()
     return tmp
-
