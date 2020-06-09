@@ -419,11 +419,11 @@ def set_int_2d(int[:, :] mslice, int i, int j, int value):
 #
 def type_infer(double[:, :] arg):
     """
-    type_infer(DoubleMockBuffer("C", range(6), (2,3)))
+    >>> type_infer(DoubleMockBuffer(None, range(6), (2,3)))
     double
     double[:]
     double[:]
-    double[:,;]
+    double[:, :]
     """
     a = arg[0,0]
     print(cython.typeof(a))
@@ -443,11 +443,11 @@ def memview_iter(double[:, :] arg):
     memview_iter(DoubleMockBuffer("C", range(6), (2,3)))
     True
     """
-    cdef double sum = 0
+    cdef double total = 0
     for mview1d in arg:
         for val in mview1d:
-            sum += val
-    if sum == 15:
+            total += val
+    if total == 15:
         return True
 
 #
