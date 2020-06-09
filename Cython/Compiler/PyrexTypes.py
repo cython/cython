@@ -249,7 +249,7 @@ class PyrexType(BaseType):
     is_cpp_string = 0
     is_struct = 0
     is_enum = 0
-    is_cpp_enum = 0
+    is_cpp_enum = False
     is_typedef = 0
     is_string = 0
     is_pyunicode_ptr = 0
@@ -4025,7 +4025,7 @@ class CppScopedEnumType(CType):
     # name    string
     # cname   string
 
-    is_cpp_enum = 1
+    is_cpp_enum = True
 
     def __init__(self, name, cname, underlying_type, namespace=None):
         self.name = name
@@ -4076,10 +4076,11 @@ class CppScopedEnumType(CType):
         from .UtilityCode import CythonUtilityCode
         rst = CythonUtilityCode.load(
             "CppScopedEnumType", "CpdefEnums.pyx",
-            context={"name": self.name,
-                     "cname": self.cname.split("::")[-1],
-                     "items": tuple(self.values),
-                     "underlying_type": self.underlying_type.empty_declaration_code()
+            context={
+                "name": self.name,
+                "cname": self.cname.split("::")[-1],
+                "items": tuple(self.values),
+                "underlying_type": self.underlying_type.empty_declaration_code(),
             },
             outer_module_scope=env.global_scope())
 

@@ -694,9 +694,7 @@ class Scope(object):
                 namespace = None
 
             if scoped:
-                type = PyrexTypes.CppScopedEnumType(
-                    name, cname, namespace
-                )
+                type = PyrexTypes.CppScopedEnumType(name, cname, namespace)
             else:
                 type = PyrexTypes.CEnumType(name, cname, typedef_flag, namespace)
         else:

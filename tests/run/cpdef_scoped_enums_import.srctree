@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp
+# tag: cpp, cpp11
 
 """
 PYTHON setup.py build_ext --inplace
