@@ -8,11 +8,12 @@ Cython Changelog
 Features added
 --------------
 
-* Added support for Python binary operator semantics.
-  One can now define, e.g. both ``__add__`` and ``__radd__`` for cdef classes
-  as for standard Python classes rather than a single ``__add__`` method where
-  self can be either the first or second argument.  This behavior can be disabled
-  with the ``c_api_binop_methods`` directive.
+* Special methods for binary operators now follow Python semantics.
+  Rather than e.g. a single ``__add__`` method for cdef classes, where
+  "self" can be either the first or second argument, one can now define
+  both ``__add__`` and ``__radd__`` as for standard Python classes .
+  This behavior can be disabled with the ``c_api_binop_methods`` directive
+  to return to the previous semantics in Cython code.
   (Github issue #2056)
 
 * No/single argument functions now accept keyword arguments by default in order
