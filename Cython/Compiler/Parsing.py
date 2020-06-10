@@ -1103,7 +1103,6 @@ def p_f_string_expr(s, unicode_value, pos, starting_index, is_raw):
 
         if quote_char != NO_CHAR:
             if c == '\\':
-                print(pos, i)
                 error_pos = (pos[0], pos[1], pos[2] + i)  # FIXME: handle newlines in string
                 error(error_pos, "backslashes not allowed in f-strings")
             elif c == quote_char:
