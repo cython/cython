@@ -6,6 +6,8 @@
 #define __Pyx_CYFUNCTION_STATICMETHOD  0x01
 #define __Pyx_CYFUNCTION_CLASSMETHOD   0x02
 #define __Pyx_CYFUNCTION_CCLASS        0x04
+#define __Pyx_CYFUNCTION_COROUTINE     0x08
+#define __Pyx_CYFUNCTION_ASYNCGEN      0x16
 
 #define __Pyx_CyFunction_GetClosure(f) \
     (((__pyx_CyFunctionObject *) (f))->func_closure)
@@ -362,6 +364,20 @@ __Pyx_CyFunction_get_annotations(__pyx_CyFunctionObject *op, CYTHON_UNUSED void 
     return result;
 }
 
+static PyObject *
+__Pyx_CyFunction_get_coroutine(__pyx_CyFunctionObject *op, CYTHON_UNUSED void *context) {
+    PyObject* result = (op->flags & __Pyx_CYFUNCTION_COROUTINE) ? Py_True : Py_False;
+    Py_INCREF(result);
+    return result;
+}
+
+static PyObject *
+__Pyx_CyFunction_get_asyncgen(__pyx_CyFunctionObject *op, CYTHON_UNUSED void *context) {
+    PyObject* result = (op->flags & __Pyx_CYFUNCTION_ASYNCGEN) ? Py_True : Py_False;
+    Py_INCREF(result);
+    return result;
+}
+
 //#if PY_VERSION_HEX >= 0x030400C1
 //static PyObject *
 //__Pyx_CyFunction_get_signature(__pyx_CyFunctionObject *op, CYTHON_UNUSED void *context) {
@@ -406,6 +422,8 @@ static PyGetSetDef __pyx_CyFunction_getsets[] = {
     {(char *) "__defaults__", (getter)__Pyx_CyFunction_get_defaults, (setter)__Pyx_CyFunction_set_defaults, 0, 0},
     {(char *) "__kwdefaults__", (getter)__Pyx_CyFunction_get_kwdefaults, (setter)__Pyx_CyFunction_set_kwdefaults, 0, 0},
     {(char *) "__annotations__", (getter)__Pyx_CyFunction_get_annotations, (setter)__Pyx_CyFunction_set_annotations, 0, 0},
+    {(char *) "func_cy_coroutine", (getter)__Pyx_CyFunction_get_coroutine, 0, 0, 0},
+    {(char *) "func_cy_asyncgen", (getter)__Pyx_CyFunction_get_asyncgen, 0, 0, 0},
 //#if PY_VERSION_HEX >= 0x030400C1
 //    {(char *) "__signature__", (getter)__Pyx_CyFunction_get_signature, 0, 0, 0},
 //#endif

@@ -2225,7 +2225,9 @@ static PyObject* __Pyx_patch_inspect(PyObject* module); /*proto*/
 //@requires: PatchModuleWithCoroutine
 
 static PyObject* __Pyx_patch_inspect(PyObject* module) {
-#if defined(__Pyx_Generator_USED) && (!defined(CYTHON_PATCH_INSPECT) || CYTHON_PATCH_INSPECT)
+#if (defined(__Pyx_Coroutine_USED) || defined(__Pyx_AsyncGen_USED) || defined(__Pyx_Generator_USED)) && \
+        (!defined(CYTHON_PATCH_INSPECT) || CYTHON_PATCH_INSPECT)
+
     static int inspect_patched = 0;
     if (unlikely((!inspect_patched) && module)) {
         module = __Pyx_Coroutine_patch_module(
@@ -2233,12 +2235,23 @@ static PyObject* __Pyx_patch_inspect(PyObject* module) {
 old_types = getattr(_module.isgenerator, '_cython_generator_types', None)
 if old_types is None or not isinstance(old_types, set):
     old_types = set()
-    def cy_wrap(orig_func, type=type, cython_generator_types=old_types):
+    def cy_isgenerator_wrap(orig_func, type=type, cython_generator_types=old_types):
         def cy_isgenerator(obj): return type(obj) in cython_generator_types or orig_func(obj)
         cy_isgenerator._cython_generator_types = cython_generator_types
         return cy_isgenerator
-    _module.isgenerator = cy_wrap(_module.isgenerator)
+    _module.isgenerator = cy_isgenerator_wrap(_module.isgenerator)
 old_types.add(_cython_generator_type)
+
+def cy_iscoroutinefunction_wrap(orig_func):
+    def cy_iscoroutinefunction(obj): return getattr(obj, 'func_cy_coroutine', None) or orig_func(obj)
+    return cy_iscoroutinefunction
+_module.iscoroutinefunction = cy_iscoroutinefunction_wrap(_module.iscoroutinefunction)
+
+def cy_isasyncgenfunction_wrap(orig_func):
+    def cy_isasyncgenfunction(obj): return getattr(obj, 'func_cy_asyncgen', None) or orig_func(obj)
+    return cy_isasyncgenfunction
+_module.isasyncgenfunction = cy_isasyncgenfunction_wrap(_module.isasyncgenfunction)
+print('HELLO')
 """)
         );
         inspect_patched = 1;

@@ -1,5 +1,5 @@
 # mode: run
-# tag: asyncio, gh1685
+# tag: asyncio, gh1685, gh2273
 
 PYTHON setup.py build_ext -i
 PYTHON main.py
@@ -18,7 +18,9 @@ setup(
 ######## main.py ########
 
 import asyncio
+import inspect
 import cy_test
+import py_test
 from contextlib import closing
 
 async def main():
@@ -31,6 +33,11 @@ with closing(asyncio.get_event_loop()) as loop:
     print("Running Cython coroutine ...")
     loop.run_until_complete(cy_test.say())
 
+# Check if we're patching inspect correctly
+assert inspect.iscoroutinefunction(cy_test.cy_async_def_example) == True
+assert inspect.isasyncgenfunction(cy_test.cy_async_gen_example) == True
+assert inspect.iscoroutinefunction(py_test.py_async_def_example) == True
+assert inspect.isasyncgenfunction(py_test.py_async_gen_example) == True
 
 ######## cy_test.pyx ########
 
@@ -51,8 +58,19 @@ async def cb():
     await asyncio.sleep(0.5)
     print("done!")
 
+async def cy_async_def_example():
+    return 1
+
+async def cy_async_gen_example():
+    yield 1
 
 ######## py_test.py ########
 
 async def py_async():
     print("- and this one is from Python")
+
+async def py_async_def_example():
+    return 1
+
+async def py_async_gen_example():
+    yield 1
