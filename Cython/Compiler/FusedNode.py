@@ -658,7 +658,7 @@ class FusedCFuncDefNode(StatListNode):
                     # instance check body
             """)
 
-        pyx_code.indent() # indent following code to function body
+        pyx_code.indent()  # indent following code to function body
         pyx_code.named_insertion_point("imports")
         pyx_code.named_insertion_point("func_defs")
         pyx_code.named_insertion_point("local_variable_declarations")
