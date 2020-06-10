@@ -33,6 +33,9 @@ Bugs fixed
 * The C++ ``typeid()`` function was allowed in C mode.
   Patch by Celelibi.  (Github issue #3637)
 
+* The error position reported for errors found in f-strings was misleading.
+  (Github issue #3674)
+
 * The new ``c_api_binop_methods`` directive was added for forward compatibility, but can
   only be set to True (the current default value).  It can be disabled in Cython 3.0.
 
