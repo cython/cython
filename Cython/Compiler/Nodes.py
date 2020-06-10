@@ -1550,13 +1550,13 @@ class CEnumDefNode(StatNode):
     child_attrs = ["items", "underlying_type"]
 
     def declare(self, env):
-         self.entry = env.declare_enum(
-             self.name, self.pos,
-             cname=self.cname,
-             scoped=self.scoped,
-             typedef_flag=self.typedef_flag,
-             visibility=self.visibility, api=self.api,
-             create_wrapper=self.create_wrapper)
+        self.entry = env.declare_enum(
+            self.name, self.pos,
+            cname=self.cname,
+            scoped=self.scoped,
+            typedef_flag=self.typedef_flag,
+            visibility=self.visibility, api=self.api,
+            create_wrapper=self.create_wrapper)
 
     def analyse_declarations(self, env):
         scope = None
