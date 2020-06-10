@@ -217,7 +217,7 @@ class ControlFlow(object):
         visited.remove(self.entry_point)
         for block in visited:
             if block.empty():
-                for parent in block.parents: # Re-parent
+                for parent in block.parents:  # Re-parent
                     for child in block.children:
                         parent.add_child(child)
                 block.detach()
@@ -455,7 +455,7 @@ class GVContext(object):
         start = min(block.positions)
         stop = max(block.positions)
         srcdescr = start[0]
-        if not srcdescr in self.sources:
+        if srcdescr not in self.sources:
             self.sources[srcdescr] = list(srcdescr.get_lines())
         lines = self.sources[srcdescr]
         return '\\n'.join([l.strip() for l in lines[start[1] - 1:stop[1]]])
@@ -621,7 +621,7 @@ def check_definitions(flow, compiler_directives):
     # Unused result
     for assmt in assignments:
         if (not assmt.refs and not assmt.entry.is_pyclass_attr
-            and not assmt.entry.in_closure):
+                and not assmt.entry.in_closure):
             if assmt.entry.cf_references and warn_unused_result:
                 if assmt.is_arg:
                     messages.warning(assmt.pos, "Unused argument value '%s'" %
@@ -774,7 +774,7 @@ class ControlFlowAnalysis(CythonTransform):
                 entry = lhs.entry
             else:
                 entry = self.env.lookup(lhs.name)
-            if entry is None: # TODO: This shouldn't happen...
+            if entry is None:  # TODO: This shouldn't happen...
                 return
             self.flow.mark_assignment(lhs, rhs, entry)
         elif lhs.is_sequence_constructor:
@@ -1035,7 +1035,7 @@ class ControlFlowAnalysis(CythonTransform):
         elif isinstance(node, Nodes.AsyncForStatNode):
             # not entirely correct, but good enough for now
             self.mark_assignment(node.target, node.item)
-        else: # Parallel
+        else:  # Parallel
             self.mark_assignment(node.target)
 
         # Body block

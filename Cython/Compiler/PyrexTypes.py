@@ -479,9 +479,9 @@ class CTypedefType(BaseType):
                                  "TO_PY_FUNCTION": self.to_py_function}))
                     return True
                 elif base_type.is_float:
-                    pass # XXX implement!
+                    pass  # XXX implement!
                 elif base_type.is_complex:
-                    pass # XXX implement!
+                    pass  # XXX implement!
                     pass
                 elif base_type.is_cpp_string:
                     cname = "__pyx_convert_PyObject_string_to_py_%s" % type_identifier(self)
@@ -512,9 +512,9 @@ class CTypedefType(BaseType):
                                  "FROM_PY_FUNCTION": self.from_py_function}))
                     return True
                 elif base_type.is_float:
-                    pass # XXX implement!
+                    pass  # XXX implement!
                 elif base_type.is_complex:
-                    pass # XXX implement!
+                    pass  # XXX implement!
                 elif base_type.is_cpp_string:
                     cname = '__pyx_convert_string_from_py_%s' % type_identifier(self)
                     context = {
@@ -1466,7 +1466,7 @@ class BuiltinObjectType(PyObjectType):
 
     def cast_code(self, expr_code, to_object_struct = False):
         return "((%s*)%s)" % (
-            to_object_struct and self.objstruct_cname or self.decl_type, # self.objstruct_cname may be None
+            to_object_struct and self.objstruct_cname or self.decl_type,  # self.objstruct_cname may be None
             expr_code)
 
     def py_type_name(self):
@@ -2342,8 +2342,8 @@ class CComplexType(CNumericType):
     def assignable_from(self, src_type):
         # Temporary hack/feature disabling, see #441
         if (not src_type.is_complex and src_type.is_numeric and src_type.is_typedef
-            and src_type.typedef_is_external):
-             return False
+                and src_type.typedef_is_external):
+            return False
         elif src_type.is_pyobject:
             return True
         else:
@@ -2351,8 +2351,8 @@ class CComplexType(CNumericType):
 
     def assignable_from_resolved_type(self, src_type):
         return (src_type.is_complex and self.real_type.assignable_from_resolved_type(src_type.real_type)
-                    or src_type.is_numeric and self.real_type.assignable_from_resolved_type(src_type)
-                    or src_type is error_type)
+            or src_type.is_numeric and self.real_type.assignable_from_resolved_type(src_type)
+            or src_type is error_type)
 
     def attributes_known(self):
         if self.scope is None:
@@ -2538,7 +2538,7 @@ class CArrayType(CPointerBaseType):
         return False
 
     def __hash__(self):
-        return hash(self.base_type) + 28 # arbitrarily chosen offset
+        return hash(self.base_type) + 28  # arbitrarily chosen offset
 
     def __repr__(self):
         return "<CArrayType %s %s>" % (self.size, repr(self.base_type))
@@ -2670,7 +2670,7 @@ class CPtrType(CPointerBaseType):
     default_value = "0"
 
     def __hash__(self):
-        return hash(self.base_type) + 27 # arbitrarily chosen offset
+        return hash(self.base_type) + 27  # arbitrarily chosen offset
 
     def __eq__(self, other):
         if isinstance(other, CType) and other.is_ptr:
@@ -2965,8 +2965,8 @@ class CFuncType(CType):
         # is performed elsewhere).
         for i in range(as_cmethod, len(other_type.args)):
             if not self.args[i].type.same_as(
-                other_type.args[i].type):
-                    return 0
+                    other_type.args[i].type):
+                return 0
         if self.has_varargs != other_type.has_varargs:
             return 0
         if not self.return_type.subtype_of_resolved_type(other_type.return_type):
@@ -3415,7 +3415,7 @@ class CFuncTypeArg(BaseType):
             self.annotation = annotation
         self.type = type
         self.pos = pos
-        self.needs_type_test = False # TODO: should these defaults be set in analyse_types()?
+        self.needs_type_test = False  # TODO: should these defaults be set in analyse_types()?
 
     def __repr__(self):
         return "%s:%s" % (self.name, repr(self.type))
@@ -3867,18 +3867,18 @@ class CppClassType(CType):
             specialized.namespace = self.namespace.specialize(values)
         specialized.scope = self.scope.specialize(values, specialized)
         if self.cname == 'std::vector':
-          # vector<bool> is special cased in the C++ standard, and its
-          # accessors do not necessarily return references to the underlying
-          # elements (which may be bit-packed).
-          # http://www.cplusplus.com/reference/vector/vector-bool/
-          # Here we pretend that the various methods return bool values
-          # (as the actual returned values are coercable to such, and
-          # we don't support call expressions as lvalues).
-          T = values.get(self.templates[0], None)
-          if T and not T.is_fused and T.empty_declaration_code() == 'bool':
-            for bit_ref_returner in ('at', 'back', 'front'):
-              if bit_ref_returner in specialized.scope.entries:
-                specialized.scope.entries[bit_ref_returner].type.return_type = T
+            # vector<bool> is special cased in the C++ standard, and its
+            # accessors do not necessarily return references to the underlying
+            # elements (which may be bit-packed).
+            # http://www.cplusplus.com/reference/vector/vector-bool/
+            # Here we pretend that the various methods return bool values
+            # (as the actual returned values are coercable to such, and
+            # we don't support call expressions as lvalues).
+            T = values.get(self.templates[0], None)
+            if T and not T.is_fused and T.empty_declaration_code() == 'bool':
+                for bit_ref_returner in ('at', 'back', 'front'):
+                    if bit_ref_returner in specialized.scope.entries:
+                        specialized.scope.entries[bit_ref_returner].type.return_type = T
         return specialized
 
     def deduce_template_params(self, actual):
@@ -4075,7 +4075,7 @@ class CEnumType(CIntLike, CType):
 
     is_enum = 1
     signed = 1
-    rank = -1 # Ranks below any integer type
+    rank = -1  # Ranks below any integer type
 
     def __init__(self, name, cname, typedef_flag, namespace=None):
         self.name = name
@@ -4258,14 +4258,14 @@ class ErrorType(PyrexType):
 
 
 rank_to_type_name = (
-    "char",         # 0
-    "short",        # 1
-    "int",          # 2
-    "long",         # 3
-    "PY_LONG_LONG", # 4
-    "float",        # 5
-    "double",       # 6
-    "long double",  # 7
+    "char",          # 0
+    "short",         # 1
+    "int",           # 2
+    "long",          # 3
+    "PY_LONG_LONG",  # 4
+    "float",         # 5
+    "double",        # 6
+    "long double",   # 7
 )
 
 _rank_to_type_name = list(rank_to_type_name)
@@ -4475,8 +4475,7 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
         # Check no. of args
         max_nargs = len(func_type.args)
         min_nargs = max_nargs - func_type.optional_arg_count
-        if actual_nargs < min_nargs or \
-            (not func_type.has_varargs and actual_nargs > max_nargs):
+        if actual_nargs < min_nargs or (not func_type.has_varargs and actual_nargs > max_nargs):
             if max_nargs == min_nargs and not func_type.has_varargs:
                 expectation = max_nargs
             elif actual_nargs < min_nargs:

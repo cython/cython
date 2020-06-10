@@ -238,7 +238,7 @@ C.class_assigned_function = free_function1
 __global_arg = True
 
 _D__arg1 = None
-_D__global_arg = False # define these because otherwise Cython gives a compile-time error
+_D__global_arg = False  # define these because otherwise Cython gives a compile-time error
        # while Python gives a runtime error (which is difficult to test)
 def can_find_global_arg():
     """
@@ -389,4 +389,4 @@ class CallsRegularFunction:
         >>> CallsRegularFunction().call()
         1
         """
-        return regular_function(__x=1) # __x shouldn't be mangled as an argument elsewhere
+        return regular_function(__x=1)  # __x shouldn't be mangled as an argument elsewhere

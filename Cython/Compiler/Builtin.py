@@ -56,7 +56,7 @@ class BuiltinAttribute(object):
     def __init__(self, py_name, cname=None, field_type=None, field_type_name=None):
         self.py_name = py_name
         self.cname = cname or py_name
-        self.field_type_name = field_type_name # can't do the lookup before the type is declared!
+        self.field_type_name = field_type_name  # can't do the lookup before the type is declared!
         self.field_type = field_type
 
     def declare_in_type(self, self_type):

@@ -235,11 +235,11 @@ class Node(object):
         pass
 
     def analyse_expressions(self, env):
-        raise InternalError("analyse_expressions not implemented for %s" % \
+        raise InternalError("analyse_expressions not implemented for %s" %
             self.__class__.__name__)
 
     def generate_code(self, code):
-        raise InternalError("generate_code not implemented for %s" % \
+        raise InternalError("generate_code not implemented for %s" %
             self.__class__.__name__)
 
     def annotate(self, code):
@@ -424,7 +424,7 @@ class StatNode(Node):
         pass
 
     def generate_execution_code(self, code):
-        raise InternalError("generate_execution_code not implemented for %s" % \
+        raise InternalError("generate_execution_code not implemented for %s" %
             self.__class__.__name__)
 
 
@@ -1052,7 +1052,7 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
                     self.arg_name = EncodedString(self.name)
                 else:
                     if self.templates:
-                        if not self.name in self.templates:
+                        if self.name not in self.templates:
                             error(self.pos, "'%s' is not a type identifier" % self.name)
                         type = PyrexTypes.TemplatePlaceholderType(self.name)
                     else:
@@ -1548,11 +1548,11 @@ class CEnumDefNode(StatNode):
     child_attrs = ["items"]
 
     def declare(self, env):
-         self.entry = env.declare_enum(
-             self.name, self.pos,
-             cname=self.cname, typedef_flag=self.typedef_flag,
-             visibility=self.visibility, api=self.api,
-             create_wrapper=self.create_wrapper)
+        self.entry = env.declare_enum(
+            self.name, self.pos,
+            cname=self.cname, typedef_flag=self.typedef_flag,
+            visibility=self.visibility, api=self.api,
+            create_wrapper=self.create_wrapper)
 
     def analyse_declarations(self, env):
         if self.items is not None:
@@ -2307,7 +2307,7 @@ class FuncDefNode(StatNode, BlockNode):
         view = py_buffer.cname
         if obj_type and obj_type.is_pyobject:
             code.put_init_to_py_none("%s->obj" % view, obj_type)
-            code.put_giveref("%s->obj" % view, obj_type) # Do not refnanny object within structs
+            code.put_giveref("%s->obj" % view, obj_type)  # Do not refnanny object within structs
         else:
             code.putln("%s->obj = NULL;" % view)
 
@@ -2818,7 +2818,7 @@ class DefNode(FuncDefNode):
     self_in_stararg = 0
     py_cfunc_node = None
     requires_classobj = False
-    defaults_struct = None # Dynamic kwrds structure name
+    defaults_struct = None  # Dynamic kwrds structure name
     doc = None
 
     fused_py_func = False
@@ -3026,7 +3026,7 @@ class DefNode(FuncDefNode):
                     # probably just a plain 'object'
                     arg.accept_none = True
             else:
-                arg.accept_none = True # won't be used, but must be there
+                arg.accept_none = True  # won't be used, but must be there
                 if arg.not_none:
                     error(arg.pos, "Only Python type arguments can have 'not None'")
                 if arg.or_none:
@@ -3070,7 +3070,7 @@ class DefNode(FuncDefNode):
             # this is the only case where a diverging number of
             # arguments is not an error - when we have no explicit
             # 'self' parameter as in method(*args)
-            sig = self.entry.signature = TypeSlots.pyfunction_signature # self is not 'really' used
+            sig = self.entry.signature = TypeSlots.pyfunction_signature  # self is not 'really' used
             self.self_in_stararg = 1
             nfixed = 0
 
@@ -3341,7 +3341,7 @@ class DefNodeWrapper(FuncDefNode):
     # DefNode python wrapper code generator
 
     defnode = None
-    target = None # Target DefNode
+    target = None  # Target DefNode
 
     def __init__(self, *args, **kwargs):
         FuncDefNode.__init__(self, *args, **kwargs)
@@ -3371,10 +3371,10 @@ class DefNodeWrapper(FuncDefNode):
         for arg in self.args:
             if not arg.type.is_pyobject:
                 if not arg.type.create_from_py_utility_code(env):
-                    pass # will fail later
+                    pass  # will fail later
             elif arg.hdr_type and not arg.hdr_type.is_pyobject:
                 if not arg.hdr_type.create_to_py_utility_code(env):
-                    pass # will fail later
+                    pass  # will fail later
 
         if self.starstar_arg and not self.starstar_arg.entry.cf_used:
             # we will set the kwargs argument to NULL instead of a new dict
@@ -3915,7 +3915,7 @@ class DefNodeWrapper(FuncDefNode):
                     code.put_goto(argtuple_error_label)
                 code.putln('}')
 
-        code.putln('}') # end of the conditional unpacking blocks
+        code.putln('}')  # end of the conditional unpacking blocks
 
         # Convert arg values to their final type and assign them.
         # Also inject non-Python default arguments, which do cannot
@@ -3923,7 +3923,7 @@ class DefNodeWrapper(FuncDefNode):
         for i, arg in enumerate(all_args):
             self.generate_arg_assignment(arg, "values[%d]" % i, code)
 
-        code.putln('}') # end of the whole argument unpacking block
+        code.putln('}')  # end of the whole argument unpacking block
 
         if code.label_used(argtuple_error_label):
             code.put_goto(success_label)
@@ -4051,7 +4051,7 @@ class DefNodeWrapper(FuncDefNode):
             # catch-all for not enough pos-only args passed
             code.put_goto(argtuple_error_label)
         if not self.star_arg:
-            code.put('default: ') # more arguments than allowed
+            code.put('default: ')  # more arguments than allowed
             code.put_goto(argtuple_error_label)
         code.putln('}')
 
@@ -5025,7 +5025,7 @@ class CClassDefNode(ClassDefNode):
         if self.visibility == 'extern':
             if (self.module_name == '__builtin__' and
                     self.class_name in Builtin.builtin_types and
-                    env.qualified_name[:8] != 'cpython.'): # allow overloaded names for cimporting from cpython
+                    env.qualified_name[:8] != 'cpython.'):  # allow overloaded names for cimporting from cpython
                 warning(self.pos, "%s already a builtin Cython type" % self.class_name, 1)
 
         self.entry = home_scope.declare_c_class(
@@ -6426,7 +6426,7 @@ class RaiseStatNode(StatNode):
             if exc.is_name and exc.entry.is_builtin:
                 self.builtin_exc_name = exc.name
                 if self.builtin_exc_name == 'MemoryError':
-                    self.exc_type = None # has a separate implementation
+                    self.exc_type = None  # has a separate implementation
         return self
 
     nogil_check = Node.gil_error
@@ -7557,7 +7557,7 @@ class TryExceptStatNode(StatNode):
         else:
             # try block cannot raise exceptions, but we had to allocate the temps above,
             # so just keep the C compiler from complaining about them being unused
-            mark_vars_used =  ["(void)%s;" % var for var in exc_save_vars]
+            mark_vars_used = ["(void)%s;" % var for var in exc_save_vars]
             save_exc.putln("%s /* mark used */" % ' '.join(mark_vars_used))
 
             def restore_saved_exception():
@@ -8272,7 +8272,7 @@ def cimport_numpy_check(node, code):
         _import_array = mod.lookup_here("_import_array")
         # at least one entry used
         used = (import_array and import_array.used) or (_import_array and _import_array.used)
-        if ((import_array or _import_array) # at least one entry found
+        if ((import_array or _import_array)  # at least one entry found
                 and not used):
             # sanity check that this is actually numpy and not a user pxd called "numpy"
             if _import_array and _import_array.type.is_cfunction:
@@ -8284,7 +8284,7 @@ def cimport_numpy_check(node, code):
                          TempitaUtilityCode.load_cached("NumpyImportArray", "NumpyImportArray.c",
                                             context = {'err_goto': code.error_goto(node.pos)})
                     )
-                return # no need to continue once the utility code is added
+                return  # no need to continue once the utility code is added
 
 
 
@@ -8382,7 +8382,7 @@ class FromCImportStatNode(StatNode):
                     local_name = as_name or name
                     env.add_imported_entry(local_name, entry, pos)
 
-        if module_name.startswith('cpython') or module_name.startswith('cython'): # enough for now
+        if module_name.startswith('cpython') or module_name.startswith('cython'):  # enough for now
             if module_name in utility_code_for_cimports:
                 env.use_utility_code(utility_code_for_cimports[module_name]())
             for _, name, _, _ in self.imported_names:
@@ -8607,7 +8607,7 @@ class ParallelStatNode(StatNode, ParallelNode):
                 seen.add(dictitem.key.value)
                 if dictitem.key.value == 'num_threads':
                     if not dictitem.value.is_none:
-                       self.num_threads = dictitem.value
+                        self.num_threads = dictitem.value
                 elif self.is_prange and dictitem.key.value == 'chunksize':
                     if not dictitem.value.is_none:
                         self.chunksize = dictitem.value
@@ -8901,7 +8901,7 @@ class ParallelStatNode(StatNode, ParallelNode):
         self.old_return_label = code.return_label
         code.return_label = code.new_label(name="return")
 
-        code.begin_block() # parallel control flow block
+        code.begin_block()  # parallel control flow block
         self.begin_of_parallel_control_block_point = code.insertion_point()
         self.begin_of_parallel_control_block_point_after_decls = code.insertion_point()
 
@@ -9031,7 +9031,7 @@ class ParallelStatNode(StatNode, ParallelNode):
         code.putln_openmp("#pragma omp critical(%s)" % section_name)
         ParallelStatNode.critical_section_counter += 1
 
-        code.begin_block() # begin critical section
+        code.begin_block()  # begin critical section
 
         c = self.begin_of_parallel_control_block_point
 
@@ -9059,7 +9059,7 @@ class ParallelStatNode(StatNode, ParallelNode):
 
             self.parallel_private_temps.append((temp_cname, private_cname))
 
-        code.end_block() # end critical section
+        code.end_block()  # end critical section
 
     def fetch_parallel_exception(self, code):
         """
@@ -9195,11 +9195,11 @@ class ParallelStatNode(StatNode, ParallelNode):
                 self.restore_parallel_exception(code)
                 code.put_goto(code.error_label)
 
-            code.putln("}") # end switch
+            code.putln("}")  # end switch
             code.putln(
-                "}") # end if
+                "}")  # end if
 
-        code.end_block() # end parallel control flow block
+        code.end_block()  # end parallel control flow block
         self.redef_builtin_expect_apple_gcc_bug(code)
 
     # FIXME: improve with version number for OS X Lion
@@ -9495,7 +9495,7 @@ class ParallelRangeNode(ParallelStatNode):
         elif not fmt_dict['step'].isdigit() or int(fmt_dict['step']) == 0:
             code.putln("if (((%(step)s) == 0)) abort();" % fmt_dict)
 
-        self.setup_parallel_control_flow_block(code) # parallel control flow block
+        self.setup_parallel_control_flow_block(code)  # parallel control flow block
 
         # Note: nsteps is private in an outer scope if present
         code.putln("%(nsteps)s = (%(stop)s - %(start)s + %(step)s - %(step)s/abs(%(step)s)) / %(step)s;" % fmt_dict)
@@ -9507,9 +9507,9 @@ class ParallelRangeNode(ParallelStatNode):
         # erroneously believes that nsteps may be <= 0, leaving the private
         # target index uninitialized
         code.putln("if (%(nsteps)s > 0)" % fmt_dict)
-        code.begin_block() # if block
+        code.begin_block()  # if block
         self.generate_loop(code, fmt_dict)
-        code.end_block() # end if block
+        code.end_block()  # end if block
 
         self.restore_labels(code)
 
@@ -9517,13 +9517,13 @@ class ParallelRangeNode(ParallelStatNode):
             if self.breaking_label_used:
                 code.put("if (%s < 2)" % Naming.parallel_why)
 
-            code.begin_block() # else block
+            code.begin_block()  # else block
             code.putln("/* else */")
             self.else_clause.generate_execution_code(code)
-            code.end_block() # end else block
+            code.end_block()  # end else block
 
         # ------ cleanup ------
-        self.end_parallel_control_flow_block(code) # end parallel control flow block
+        self.end_parallel_control_flow_block(code)  # end parallel control flow block
 
         # And finally, release our privates and write back any closure
         # variables
@@ -9554,7 +9554,7 @@ class ParallelRangeNode(ParallelStatNode):
             code.putln("")
             code.putln("#endif /* _OPENMP */")
 
-            code.begin_block() # pragma omp parallel begin block
+            code.begin_block()  # pragma omp parallel begin block
 
             # Initialize the GIL if needed for this thread
             self.begin_parallel_block(code)

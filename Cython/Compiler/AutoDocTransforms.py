@@ -201,7 +201,7 @@ class EmbedSignature(CythonTransform):
     def visit_CFuncDefNode(self, node):
         if not self.current_directives['embedsignature']:
             return node
-        if not node.overridable: # not cpdef FOO(...):
+        if not node.overridable:  # not cpdef FOO(...):
             return node
 
         signature = self._fmt_signature(
