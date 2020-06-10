@@ -2881,7 +2881,7 @@ class IteratorNode(ExprNode):
             # (much as this is usually a bad idea)
             code.putln("if (!(%s != %s%send())) break;" % (
                             self.result(),
-                            self.cpp_sequence_cname if self.cpp_sequence_cname else self.sequence.result(),
+                            self.cpp_sequence_cname or self.sequence.result(),
                             self.cpp_attribute_op))
             code.putln("%s = *%s;" % (
                             result_name,
