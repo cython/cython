@@ -2251,7 +2251,6 @@ def cy_isasyncgenfunction_wrap(orig_func):
     def cy_isasyncgenfunction(obj): return getattr(obj, 'func_cy_asyncgen', None) or orig_func(obj)
     return cy_isasyncgenfunction
 _module.isasyncgenfunction = cy_isasyncgenfunction_wrap(_module.isasyncgenfunction)
-print('HELLO')
 """)
         );
         inspect_patched = 1;
