@@ -39,7 +39,7 @@ Bugs fixed
 * The C++ ``typeid()`` function was allowed in C mode.
   Patch by Celelibi.  (Github issue #3637)
 
-* Includes all bug-fixes from the 0.29.19 release.
+* Includes all bug-fixes from the 0.29.20 release.
 
 Other changes
 -------------
