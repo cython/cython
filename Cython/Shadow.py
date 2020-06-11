@@ -138,26 +138,45 @@ def inline(f, *args, **kwds):
         return f
 
 
-def compile(f):
+def compile(*args, **kwargs):
+    import re
     import inspect
-    from functools import wraps
+    from functools import wraps, partial
     from Cython.Build.Inline import cython_inline, IS_PY3
 
-    # We need to strip this decorator from the source
-    code = ''.join(inspect.getsourcelines(f)[0][1:])
-    if not IS_PY3:
-        _locals = f.func_globals
-        _globals = f.func_globals
-    else:
-        _locals = f.__globals__
-        _globals = f.__globals__
+    f_locals = inspect.currentframe().f_back.f_locals
+    _cython_inline = partial(cython_inline, locals=f_locals, **kwargs)
 
-    @wraps(f)
-    def wrapped_f(*args, **kwargs):
-        all = inspect.getcallargs(f, *args, **kwargs)
-        return cython_inline(code, __fn_name=f.__name__, locals=_locals, globals=_globals, **all)
+    decorator_pat = re.compile(r'@([.\w]+)[\(]?')
 
-    return wrapped_f
+    def decorator(f):
+        if not IS_PY3:
+            f_globals = f.func_globals
+        else:
+            f_globals = f.__globals__
+
+        code = inspect.getsourcelines(f)[0]
+
+        # We need to search for this decorator and strip it from the source
+        m = decorator_pat.match(code[0].strip())
+        if m:
+            compile_fn_name = m.groups()[0]
+            decorator_obj = f_locals.get(compile_fn_name) or f_globals.get(compile_fn_name)
+            if decorator_obj and decorator_obj.__name__ == 'compile':
+                code = code[1:]
+
+        code = ''.join(code)
+
+        @wraps(f)
+        def wrapped_f(*args, **kwargs):
+            all = inspect.getcallargs(f, *args, **kwargs)
+            return _cython_inline(code, __fn_name=f.__name__, globals=f_globals, **all)
+        return wrapped_f
+
+    if len(args) == 1 and callable(args[0]):
+        return decorator(args[0])
+
+    return decorator
 
 
 # Special functions

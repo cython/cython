@@ -117,11 +117,44 @@ class TestInline(CythonInlineTest):
 
 
 class TestCompileDecorator(CythonInlineTest):
-    def test_basics(self):
+    def test_no_kwargs(self):
+        old_cache_dir = os.environ.get('CYTHON_CACHE_DIR', '')
+        os.environ['CYTHON_CACHE_DIR'] = self.test_kwds['lib_dir']
+        try:
+            # We need to make sure that compilation works when there are no
+            # arguments to the decorator
+            @cython_compile
+            def test_fn(x):
+                return x + 1
+        finally:
+            os.environ['CYTHON_CACHE_DIR'] = old_cache_dir
 
-        @cython_compile
+        self.assertEqual(test_fn(1), 2)
+
+    def test_kwargs(self):
+
+        @cython_compile(**self.test_kwds)
         def test_fn(x=":"):
             return x + 1
+
+        self.assertEqual(test_fn(1), 2)
+
+    def test_no_decorator(self):
+
+        def test_fn(x):
+            return x + 1
+
+        # The decorator should work as a normal function, too
+        test_fn = cython_compile(**self.test_kwds)(test_fn)
+
+        self.assertEqual(test_fn(1), 2)
+
+        # It should also work when there's another decorator
+        @boundscheck(False)
+        def test_fn(x):
+            return x + 1
+
+        test_fn = cython_compile(**self.test_kwds)(test_fn)
 
         self.assertEqual(test_fn(1), 2)
 
@@ -130,7 +163,6 @@ class TestCompileDecorator(CythonInlineTest):
         fd, tmp_code_file = tempfile.mkstemp(suffix='.py', text=True)
         with os.fdopen(fd, 'w') as f:
             tmp_code = textwrap.dedent("""
-            @cython_compile
             def test_fn(x: int, y: float) -> int:
                 b: int = 1
                 return x + int(y) + b
@@ -143,11 +175,13 @@ class TestCompileDecorator(CythonInlineTest):
         assert 'test_fn' in locals
         test_fn = locals['test_fn']
 
+        test_fn = cython_compile(**self.test_kwds)(test_fn)
+
         self.assertEqual(test_fn(1, 2), 4)
 
     def test_decorator_with_decorator(self):
 
-        @cython_compile
+        @cython_compile(**self.test_kwds)
         @boundscheck(False)
         def test_fn(x):
             return x[0]
