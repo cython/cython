@@ -2640,7 +2640,7 @@ class CppScopedEnumScope(Scope):
         Scope.__init__(self, name, outer_scope, None)
 
     def declare_var(self, name, type, pos,
-                    cname = None, visibility = 'extern'):
+                    cname=None, visibility='extern'):
         # Add an entry for an attribute.
         if not cname:
             cname = name
