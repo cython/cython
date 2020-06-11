@@ -443,7 +443,7 @@ VER_DEP_MODULES = {
                                          'run.mod__spec__',
                                          'run.pep526_variable_annotations',  # typing module
                                          'run.test_exceptions',  # copied from Py3.7+
-                                         'run.cpython_capi',
+                                         'run.cpython_capi_py35',
                                          ]),
 }
 
