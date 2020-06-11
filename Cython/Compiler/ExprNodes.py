@@ -1651,12 +1651,9 @@ class UnicodeNode(ConstNode):
             if dst_type.is_string and self.bytes_value is not None:
                 # special case: '-3' enforced unicode literal used in a
                 # C char* context
-                return BytesNode(self.pos, value=self.bytes_value
-                    ).coerce_to(dst_type, env)
+                return BytesNode(self.pos, value=self.bytes_value).coerce_to(dst_type, env)
             if dst_type.is_pyunicode_ptr:
-                node = UnicodeNode(self.pos, value=self.value)
-                node.type = dst_type
-                return node
+                return UnicodeNode(self.pos, value=self.value, type=dst_type)
             error(self.pos,
                   "Unicode literals do not support coercion to C types other "
                   "than Py_UNICODE/Py_UCS4 (for characters) or Py_UNICODE* "
