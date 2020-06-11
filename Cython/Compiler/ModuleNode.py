@@ -154,11 +154,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if env.has_import_star:
             self.create_import_star_conversion_utility_code(env)
         for name, entry in sorted(env.entries.items()):
-            if (
-                entry.create_wrapper and entry.scope is env
-                and entry.is_type
-                and (entry.type.is_enum or entry.type.is_cpp_enum)
-            ):
+            if (entry.create_wrapper and entry.scope is env
+                    and entry.is_type and (entry.type.is_enum or entry.type.is_cpp_enum)):
                 entry.type.create_type_wrapper(env)
 
     def process_implementation(self, options, result):
@@ -1112,10 +1109,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_scoped_enum_definition(self, entry, code):
         code.mark_pos(entry.pos)
         type = entry.type
-        code.putln(
-            "enum class %s : %s {" %
-            (type.cname, type.underlying_type.empty_declaration_code())
-        )
+        code.putln("enum class %s : %s {" % (
+            type.cname,
+            type.underlying_type.empty_declaration_code(),
+        ))
         enum_values = entry.enum_values
 
         last_entry = enum_values[-1]
@@ -1128,9 +1125,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if value_entry.value_node is None:
                 value_code = value_entry.cname.split("::")[-1]
             else:
-                value_code = ("%s = %s" % (
+                value_code = "%s = %s" % (
                     value_entry.cname.split("::")[-1],
-                    value_entry.value_node.result()))
+                    value_entry.value_node.result(),
+                )
             if value_entry is not last_entry:
                 value_code += ","
             code.putln(value_code)
