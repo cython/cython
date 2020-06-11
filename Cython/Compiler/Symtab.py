@@ -2645,7 +2645,7 @@ class CppScopedEnumScope(Scope):
         if not cname:
             cname = name
         entry = self.declare(name, cname, type, pos, visibility)
-        entry.is_variable = 1
+        entry.is_variable = True
         return entry
 
 

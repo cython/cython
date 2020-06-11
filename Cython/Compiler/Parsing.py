@@ -3165,7 +3165,6 @@ def p_c_enum_definition(s, pos, ctx):
             longness = 0
         )
 
-    items = None
     s.expect(':')
     items = []
 
@@ -3181,9 +3180,7 @@ def p_c_enum_definition(s, pos, ctx):
         s.expect_dedent()
 
     if not items and ctx.visibility != "extern":
-        error(pos,
-            "Empty enum definition not allowed outside a 'cdef extern from' block"
-        )
+        error(pos, "Empty enum definition not allowed outside a 'cdef extern from' block")
 
     return Nodes.CEnumDefNode(
         pos, name=name, cname=cname,
@@ -3253,9 +3250,7 @@ def p_c_struct_or_union_definition(s, pos, ctx):
             s.expect_dedent()
 
         if not attributes and ctx.visibility != "extern":
-            error(pos,
-                  "Empty struct or union definition not allowed outside a 'cdef extern from' block"
-            )
+            error(pos, "Empty struct or union definition not allowed outside a 'cdef extern from' block")
     else:
         s.expect_newline("Syntax error in struct or union definition")
 

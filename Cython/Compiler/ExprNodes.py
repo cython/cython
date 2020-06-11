@@ -6964,7 +6964,6 @@ class AttributeNode(ExprNode):
                 if self.attribute in type.values:
                     for entry in type.entry.enum_values:
                         if entry.name == self.attribute:
-
                             return self.as_name_node(env, entry, target=False)
                     else:
                         error(self.pos, "%s not a known value of %s" % (self.attribute, type))
