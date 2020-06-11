@@ -4065,6 +4065,8 @@ class CppScopedEnumType(CType):
         if self.to_py_function is not None:
             return True
         if self.underlying_type.create_to_py_utility_code(env):
+            # Using a C++11 lambda here, which is fine since
+            # scoped enums are a C++11 feature
             self.to_py_function = '[](const %s& x){return %s((%s)x);}' % (
                 self.cname,
                 self.underlying_type.to_py_function,
