@@ -883,10 +883,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 type = entry.type
                 if type.is_typedef:  # Must test this first!
                     self.generate_typedef(entry, code)
-                elif type.is_enum:
+                elif type.is_enum or type.is_cpp_enum:
                     self.generate_enum_definition(entry, code)
-                elif type.is_cpp_enum:
-                    self.generate_scoped_enum_definition(entry, code)
                 elif type.is_struct_or_union:
                     self.generate_struct_union_definition(entry, code)
                 elif type.is_ctuple and entry.used:
@@ -1082,7 +1080,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.mark_pos(entry.pos)
         type = entry.type
         name = entry.cname or entry.name or ""
-        header, footer = self.sue_header_footer(type, "enum", name)
+
+        kind = "enum class" if entry.type.is_cpp_enum else "enum"
+        header, footer = self.sue_header_footer(type, kind, name)
         code.putln(header)
         enum_values = entry.enum_values
         if not enum_values:
@@ -1096,45 +1096,20 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
             for value_entry in enum_values:
                 if value_entry.value_node is None:
-                    value_code = value_entry.cname
+                    value_code = value_entry.cname.split("::")[-1]
                 else:
                     value_code = ("%s = %s" % (
-                        value_entry.cname,
+                        value_entry.cname.split("::")[-1],
                         value_entry.value_node.result()))
                 if value_entry is not last_entry:
                     value_code += ","
                 code.putln(value_code)
         code.putln(footer)
-        if entry.type.typedef_flag:
-            # Not pre-declared.
-            code.putln("typedef enum %s %s;" % (name, name))
 
-    def generate_scoped_enum_definition(self, entry, code):
-        code.mark_pos(entry.pos)
-        type = entry.type
-        code.putln(
-            "enum class %s : %s {" %
-            (type.cname, type.underlying_type.empty_declaration_code())
-        )
-        enum_values = entry.enum_values
-
-        last_entry = enum_values[-1]
-        # this does not really generate code, just builds the result value
-        for value_entry in enum_values:
-            if value_entry.value_node is not None:
-                value_entry.value_node.generate_evaluation_code(code)
-
-        for value_entry in enum_values:
-            if value_entry.value_node is None:
-                value_code = value_entry.cname.split("::")[-1]
-            else:
-                value_code = ("%s = %s" % (
-                    value_entry.cname.split("::")[-1],
-                    value_entry.value_node.result()))
-            if value_entry is not last_entry:
-                value_code += ","
-            code.putln(value_code)
-        code.putln("};")
+        if entry.type.is_enum:
+            if entry.type.typedef_flag:
+                # Not pre-declared.
+                code.putln("typedef enum %s %s;" % (name, name))
 
     def generate_typeobj_predeclaration(self, entry, code):
         code.putln("")
