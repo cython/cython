@@ -218,9 +218,11 @@ class Plugin(CoveragePlugin):
             r'(?:struct|union|enum|class)'
             r'(\s+[^:]+|)\s*:'
         ).match
+        no_cover = re.compile(r'#\s*pragma:\s*no\s+cover').match
 
         code_lines = defaultdict(dict)
         executable_lines = defaultdict(set)
+        no_cover_lines = defaultdict(set)
         current_filename = None
 
         with open(c_file) as lines:
@@ -240,6 +242,9 @@ class Plugin(CoveragePlugin):
                     match = match_current_code_line(comment_line)
                     if match:
                         code_line = match.group(1).rstrip()
+                        if no_cover(code_line):
+                            no_cover_lines[current_filename].add(lineno)
+                            break
                         if not_executable(code_line):
                             break
                         code_lines[filename][lineno] = code_line
@@ -250,7 +255,12 @@ class Plugin(CoveragePlugin):
 
         # Remove lines that generated code but are not traceable.
         for filename, lines in code_lines.items():
-            dead_lines = set(lines).difference(executable_lines.get(filename, ()))
+            dead_lines = set(lines).difference(
+                executable_lines.get(filename, frozenset())
+                .union(
+                    no_cover_lines.get(filename, ())
+                )
+            )
             for lineno in dead_lines:
                 del lines[lineno]
         return code_lines
