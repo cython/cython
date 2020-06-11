@@ -453,6 +453,16 @@ Other changes
 * Support for Python 2.6 was removed.
 
 
+0.29.21 (2020-0?-??)
+====================
+
+Bugs fixed
+----------
+
+* The deprecated C-API function ``PyUnicode_FromUnicode()`` is no longer usd.
+  Original patch by Inada Naoki.  (Github issue #3677)
+
+
 0.29.20 (2020-06-10)
 ====================
 

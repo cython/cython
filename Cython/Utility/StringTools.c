@@ -495,6 +495,7 @@ static CYTHON_INLINE PyObject* __Pyx_decode_c_string(
 /////////////// decode_c_string ///////////////
 //@requires: IncludeStringH
 //@requires: decode_c_string_utf16
+//@substitute: naming
 
 /* duplicate code to avoid calling strlen() if start >= 0 and stop >= 0 */
 static CYTHON_INLINE PyObject* __Pyx_decode_c_string(
@@ -519,7 +520,7 @@ static CYTHON_INLINE PyObject* __Pyx_decode_c_string(
             stop += length;
     }
     if (unlikely(stop <= start))
-        return PyUnicode_FromUnicode(NULL, 0);
+        return __Pyx_NewRef($empty_unicode);
     length = stop - start;
     cstring += start;
     if (decode_func) {
@@ -538,6 +539,7 @@ static CYTHON_INLINE PyObject* __Pyx_decode_c_bytes(
 
 /////////////// decode_c_bytes ///////////////
 //@requires: decode_c_string_utf16
+//@substitute: naming
 
 static CYTHON_INLINE PyObject* __Pyx_decode_c_bytes(
          const char* cstring, Py_ssize_t length, Py_ssize_t start, Py_ssize_t stop,
@@ -555,7 +557,7 @@ static CYTHON_INLINE PyObject* __Pyx_decode_c_bytes(
     if (stop > length)
         stop = length;
     if (unlikely(stop <= start))
-        return PyUnicode_FromUnicode(NULL, 0);
+        return __Pyx_NewRef($empty_unicode);
     length = stop - start;
     cstring += start;
     if (decode_func) {
