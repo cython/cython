@@ -519,7 +519,11 @@ static CYTHON_INLINE PyObject* __Pyx_decode_c_string(
             stop += length;
     }
     if (unlikely(stop <= start))
+#if CYTHON_PEP393_ENABLED
+        return PyUnicode_New(0, 0);
+#else
         return PyUnicode_FromUnicode(NULL, 0);
+#endif
     length = stop - start;
     cstring += start;
     if (decode_func) {
@@ -555,7 +559,11 @@ static CYTHON_INLINE PyObject* __Pyx_decode_c_bytes(
     if (stop > length)
         stop = length;
     if (unlikely(stop <= start))
+#if CYTHON_PEP393_ENABLED
+        return PyUnicode_New(0, 0);
+#else
         return PyUnicode_FromUnicode(NULL, 0);
+#endif
     length = stop - start;
     cstring += start;
     if (decode_func) {
