@@ -2806,6 +2806,8 @@ class DefNode(FuncDefNode):
 
     is_staticmethod = False
     is_classmethod = False
+    is_coroutine = False
+    is_asyncgen = False
 
     lambda_name = None
     reqd_kw_flags_cname = "0"

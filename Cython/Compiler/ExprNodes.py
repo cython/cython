@@ -9436,10 +9436,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         if def_node.local_scope.parent_scope.is_c_class_scope and not def_node.entry.is_anonymous:
             flags.append('__Pyx_CYFUNCTION_CCLASS')
 
-        # mutually exclusive as far as "inspect" is concerned
-        if getattr(def_node, "is_asyncgen", None):
-            flags.append('__Pyx_CYFUNCTION_ASYNCGEN')
-        elif getattr(def_node, "is_coroutine", None):
+        if def_node.is_coroutine:
             flags.append('__Pyx_CYFUNCTION_COROUTINE')
 
         if flags:
