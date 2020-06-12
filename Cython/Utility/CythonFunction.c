@@ -365,15 +365,13 @@ __Pyx_CyFunction_get_annotations(__pyx_CyFunctionObject *op, CYTHON_UNUSED void 
 }
 
 static PyObject *
-__Pyx_CyFunction_get_coroutine(__pyx_CyFunctionObject *op, CYTHON_UNUSED void *context) {
-    PyObject* result = (op->flags & __Pyx_CYFUNCTION_COROUTINE) ? Py_True : Py_False;
-    Py_INCREF(result);
-    return result;
-}
-
-static PyObject *
-__Pyx_CyFunction_get_asyncgen(__pyx_CyFunctionObject *op, CYTHON_UNUSED void *context) {
-    PyObject* result = (op->flags & __Pyx_CYFUNCTION_ASYNCGEN) ? Py_True : Py_False;
+__Pyx_CyFunction_get_is_coroutine(__pyx_CyFunctionObject *op, CYTHON_UNUSED void *context) {
+    PyObject* result = Py_None;
+    if (op->flags & __Pyx_CYFUNCTION_COROUTINE) {
+        PyObject *module = PyImport_ImportModule("asyncio.coroutines");
+        result = PyObject_GetAttrString(module, "_is_coroutine");
+        Py_DECREF(module);
+    }
     Py_INCREF(result);
     return result;
 }
@@ -422,8 +420,7 @@ static PyGetSetDef __pyx_CyFunction_getsets[] = {
     {(char *) "__defaults__", (getter)__Pyx_CyFunction_get_defaults, (setter)__Pyx_CyFunction_set_defaults, 0, 0},
     {(char *) "__kwdefaults__", (getter)__Pyx_CyFunction_get_kwdefaults, (setter)__Pyx_CyFunction_set_kwdefaults, 0, 0},
     {(char *) "__annotations__", (getter)__Pyx_CyFunction_get_annotations, (setter)__Pyx_CyFunction_set_annotations, 0, 0},
-    {(char *) "func_cy_coroutine", (getter)__Pyx_CyFunction_get_coroutine, 0, 0, 0},
-    {(char *) "func_cy_asyncgen", (getter)__Pyx_CyFunction_get_asyncgen, 0, 0, 0},
+    {(char *) "_is_coroutine", (getter)__Pyx_CyFunction_get_is_coroutine, 0, 0, 0},
 //#if PY_VERSION_HEX >= 0x030400C1
 //    {(char *) "__signature__", (getter)__Pyx_CyFunction_get_signature, 0, 0, 0},
 //#endif

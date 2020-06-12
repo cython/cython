@@ -18,7 +18,6 @@ setup(
 ######## main.py ########
 
 import asyncio
-import inspect
 import cy_test
 import py_test
 from contextlib import closing
@@ -33,11 +32,10 @@ with closing(asyncio.get_event_loop()) as loop:
     print("Running Cython coroutine ...")
     loop.run_until_complete(cy_test.say())
 
-# Check if we're patching inspect correctly
-assert inspect.iscoroutinefunction(cy_test.cy_async_def_example) == True
-assert inspect.isasyncgenfunction(cy_test.cy_async_gen_example) == True
-assert inspect.iscoroutinefunction(py_test.py_async_def_example) == True
-assert inspect.isasyncgenfunction(py_test.py_async_gen_example) == True
+assert asyncio.iscoroutinefunction(cy_test.cy_async_def_example) == True
+assert asyncio.iscoroutinefunction(py_test.py_async_def_example) == True
+assert asyncio.iscoroutinefunction(cy_test.cy_def_example) == False
+assert asyncio.iscoroutinefunction(py_test.py_def_example) == False
 
 ######## cy_test.pyx ########
 
@@ -61,8 +59,8 @@ async def cb():
 async def cy_async_def_example():
     return 1
 
-async def cy_async_gen_example():
-    yield 1
+def cy_def_example():
+    return 1
 
 ######## py_test.py ########
 
@@ -72,5 +70,5 @@ async def py_async():
 async def py_async_def_example():
     return 1
 
-async def py_async_gen_example():
-    yield 1
+def py_def_example():
+    return 1
