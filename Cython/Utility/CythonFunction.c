@@ -367,6 +367,7 @@ __Pyx_CyFunction_get_annotations(__pyx_CyFunctionObject *op, CYTHON_UNUSED void 
     return result;
 }
 
+#if PY_VERSION_HEX >= 0x030402C1
 static PyObject *
 __Pyx_CyFunction_get_is_coroutine(__pyx_CyFunctionObject *op, CYTHON_UNUSED void *context) {
 #if PY_VERSION_HEX >= 0x030503C1
@@ -396,6 +397,7 @@ __Pyx_CyFunction_get_is_coroutine(__pyx_CyFunctionObject *op, CYTHON_UNUSED void
     return result;
 #endif
 }
+#endif
 
 //#if PY_VERSION_HEX >= 0x030400C1
 //static PyObject *
