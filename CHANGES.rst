@@ -462,9 +462,6 @@ Bugs fixed
 * The deprecated C-API function ``PyUnicode_FromUnicode()`` is no longer used.
   Original patch by Inada Naoki.  (Github issue #3677)
 
-* Binding staticmethods of Cython functions were not behaving like Python methods.
-  Patch by Jeroen Demeyer.  (Github issue #3106)
-
 
 0.29.20 (2020-06-10)
 ====================
