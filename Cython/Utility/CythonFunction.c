@@ -96,7 +96,7 @@ static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS(PyObject *func, 
 //@requires: CommonStructures.c::FetchCommonType
 //@requires: ObjectHandling.c::PyMethodNew
 //@requires: ObjectHandling.c::PyVectorcallFastCallDict
-//@requires: ObjectHandling.c::PyObjectGetAttrStr
+//@requires: ObjectHandling.c::PyObjectGetAttrStrNoError
 
 #include <structmember.h>
 
@@ -367,37 +367,33 @@ __Pyx_CyFunction_get_annotations(__pyx_CyFunctionObject *op, CYTHON_UNUSED void 
     return result;
 }
 
-#if PY_VERSION_HEX >= 0x030402C1
 static PyObject *
 __Pyx_CyFunction_get_is_coroutine(__pyx_CyFunctionObject *op, CYTHON_UNUSED void *context) {
-#if PY_VERSION_HEX >= 0x030503C1
+#if PY_VERSION_HEX >= 0x03050000
     // on v3.5.3rc1 the marker object was introduced
-    if (!op->func_is_coroutine) {
-        if (op->flags & __Pyx_CYFUNCTION_COROUTINE) {
-            PyObject *module, *fromlist, *marker = PYIDENT("_is_coroutine");
-            fromlist = PyList_New(1);
-            if (unlikely(!fromlist)) goto ignore;
-            PyList_SET_ITEM(fromlist, 0, marker);
-            module = PyImport_ImportModuleLevelObject(PYIDENT("asyncio.coroutines"), NULL, NULL, fromlist, 0);
-            Py_DECREF(fromlist);
-            if (unlikely(!module)) goto ignore;
-            op->func_is_coroutine = __Pyx_PyObject_GetAttrStr(module, marker);
-            Py_DECREF(module);
-            if (unlikely(!op->func_is_coroutine)) goto ignore;
-            return op->func_is_coroutine;
-        }
-    ignore:
-        op->func_is_coroutine = Py_None;
+    if (op->func_is_coroutine)
+        return __Pyx_NewRef(op->func_is_coroutine);
+    if (op->flags & __Pyx_CYFUNCTION_COROUTINE) {
+        PyObject *module, *fromlist, *marker = PYIDENT("_is_coroutine");
+        fromlist = PyList_New(1);
+        if (unlikely(!fromlist)) return NULL;
+        PyList_SET_ITEM(fromlist, 0, marker);
+        module = PyImport_ImportModuleLevelObject(PYIDENT("asyncio.coroutines"), NULL, NULL, fromlist, 0);
+        Py_DECREF(fromlist);
+        if (unlikely(!module)) goto ignore;
+        op->func_is_coroutine = __Pyx_PyObject_GetAttrStrNoError(module, marker);
+        Py_DECREF(module);
+        if (unlikely(!op->func_is_coroutine)) goto ignore;
+        return __Pyx_NewRef(op->func_is_coroutine);
     }
-    Py_INCREF(op->func_is_coroutine);
-    return op->func_is_coroutine;
+ignore:
+    op->func_is_coroutine = Py_None;
+    return __Pyx_NewRef(op->func_is_coroutine);
 #else
     PyObject *result = (op->flags & __Pyx_CYFUNCTION_COROUTINE) ? Py_True : Py_False;
-    Py_INCREF(result);
-    return result;
+    return __Py_NewRef(result);
 #endif
 }
-#endif
 
 //#if PY_VERSION_HEX >= 0x030400C1
 //static PyObject *
@@ -443,9 +439,7 @@ static PyGetSetDef __pyx_CyFunction_getsets[] = {
     {(char *) "__defaults__", (getter)__Pyx_CyFunction_get_defaults, (setter)__Pyx_CyFunction_set_defaults, 0, 0},
     {(char *) "__kwdefaults__", (getter)__Pyx_CyFunction_get_kwdefaults, (setter)__Pyx_CyFunction_set_kwdefaults, 0, 0},
     {(char *) "__annotations__", (getter)__Pyx_CyFunction_get_annotations, (setter)__Pyx_CyFunction_set_annotations, 0, 0},
-#if PY_VERSION_HEX >= 0x030402C1
     {(char *) "_is_coroutine", (getter)__Pyx_CyFunction_get_is_coroutine, 0, 0, 0},
-#endif
 //#if PY_VERSION_HEX >= 0x030400C1
 //    {(char *) "__signature__", (getter)__Pyx_CyFunction_get_signature, 0, 0, 0},
 //#endif
