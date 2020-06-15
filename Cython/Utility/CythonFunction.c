@@ -391,7 +391,7 @@ ignore:
     return __Pyx_NewRef(op->func_is_coroutine);
 #else
     PyObject *result = (op->flags & __Pyx_CYFUNCTION_COROUTINE) ? Py_True : Py_False;
-    return __Py_NewRef(result);
+    return __Pyx_NewRef(result);
 #endif
 }
 
