@@ -4040,17 +4040,17 @@ class CppScopedEnumType(CType):
     def declaration_code(self, entity_code,
                         for_display=0, dll_linkage=None, pyrex=0):
         if pyrex or for_display:
-            base_code = self.name
+            type_name = self.name
         else:
             if self.namespace:
-                base_code = "%s::%s" % (
+                type_name = "%s::%s" % (
                     self.namespace.empty_declaration_code(),
                     self.cname
                 )
             else:
-                base_code = "enum %s" % self.cname
-            base_code = public_decl(base_code, dll_linkage)
-        return self.base_declaration_code(base_code, entity_code)
+                type_name = "enum %s" % self.cname
+            type_name = public_decl(type_name, dll_linkage)
+        return self.base_declaration_code(type_name, entity_code)
 
     def create_from_py_utility_code(self, env):
         if self.from_py_function:
