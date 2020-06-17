@@ -2521,8 +2521,13 @@ class CFuncDefNode(FuncDefNode):
         env.entries[name] = self.entry
         if (not self.entry.is_final_cmethod and
                 (not env.is_module_scope or Options.lookup_module_cpdef)):
-            self.override = OverrideCheckNode(self.pos, py_func=self.py_func)
-            self.body = StatListNode(self.pos, stats=[self.override, self.body])
+            if self.override:
+                # This is a hack: we shouldn't create the wrapper twice, but we do for fused functions.
+                assert self.entry.is_fused_specialized  # should not happen for non-fused cpdef functions
+                self.override.py_func = self.py_func
+            else:
+                self.override = OverrideCheckNode(self.pos, py_func=self.py_func)
+                self.body = StatListNode(self.pos, stats=[self.override, self.body])
 
     def _validate_type_visibility(self, type, pos, env):
         """
