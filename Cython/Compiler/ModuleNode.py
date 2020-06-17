@@ -1223,6 +1223,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 type = entry.type
                 scope = type.scope
                 if scope: # could be None if there was an error
+                    if not scope.directives['c_api_binop_methods']:
+                        error(self.pos,
+                              "The 'c_api_binop_methods' directive is only supported for forward compatibility"
+                              " and must be True.")
                     self.generate_exttype_vtable(scope, code)
                     self.generate_new_function(scope, code, entry)
                     self.generate_dealloc_function(scope, code)

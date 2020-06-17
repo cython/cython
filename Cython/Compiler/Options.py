@@ -178,6 +178,7 @@ _directive_defaults = {
     'auto_pickle': None,
     'cdivision': False,  # was True before 0.12
     'cdivision_warnings': False,
+    'c_api_binop_methods': True,
     'overflowcheck': False,
     'overflowcheck.fold': True,
     'always_allow_keywords': False,
