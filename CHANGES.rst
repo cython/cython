@@ -11,6 +11,9 @@ Bugs fixed
 * Fix a regression in 0.29.20 where ``__div__`` failed to be found in extension types.
   (Github issue #3688)
 
+* Binding staticmethods of Cython functions were not behaving like Python methods in Py3.
+  Patch by Jeroen Demeyer and Michał Górny.  (Github issue #3106)
+
 * The deprecated C-API function ``PyUnicode_FromUnicode()`` is no longer used.
   Original patch by Inada Naoki.  (Github issue #3677)
 
