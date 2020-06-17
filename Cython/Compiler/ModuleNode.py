@@ -29,7 +29,7 @@ from . import Pythran
 from .Errors import error, warning
 from .PyrexTypes import py_object_type
 from ..Utils import open_new_file, replace_suffix, decode_filename, build_hex_version
-from .Code import UtilityCode, IncludeCode, TempitaUtilityCode
+from .Code import UtilityCode, IncludeCode
 from .StringEncoding import EncodedString
 from .Pythran import has_np_pythran
 
@@ -1255,9 +1255,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         self.generate_dict_getter_function(scope, code)
                     if scope.defines_any_special(TypeSlots.richcmp_special_methods):
                         self.generate_richcmp_function(scope, code)
-                    for slot in TypeSlots.PyNumberMethods:
-                        if slot.is_binop and scope.defines_any_special(slot.user_methods):
-                            self.generate_binop_function(scope, slot, code)
                     self.generate_property_accessors(scope, code)
                     self.generate_method_table(scope, code)
                     self.generate_getset_table(scope, code)
@@ -1896,44 +1893,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln("}")  # switch
         code.putln("}")
-
-    def generate_binop_function(self, scope, slot, code):
-        func_name = scope.mangle_internal(slot.slot_name)
-        code.putln()
-        preprocessor_guard = slot.preprocessor_guard_code()
-        if preprocessor_guard:
-            code.putln(preprocessor_guard)
-        if scope.directives['c_api_binop_methods']:
-            code.putln('#define %s %s' % (func_name, slot.left_slot.slot_code(scope)))
-        else:
-            def has_slot_method(method_name):
-                entry = scope.lookup(method_name)
-                return bool(entry and entry.is_special and entry.func_cname)
-            def call_slot_method(method_name, reverse):
-                entry = scope.lookup(method_name)
-                if reverse:
-                    operands = "right, left"
-                else:
-                    operands = "left, right"
-                if entry and entry.is_special and entry.func_cname:
-                    return "%s(%s)" % (entry.func_cname, operands)
-                else:
-                    py_ident = code.intern_identifier(EncodedString(method_name))
-                    return "%s_maybe_call_super(%s, %s)" % (func_name, operands, py_ident)
-            code.putln(
-                TempitaUtilityCode.load_cached(
-                    "BinopSlot", "ExtensionTypes.c",
-                    context={
-                        "func_name": func_name,
-                        "slot_name": slot.slot_name,
-                        "overloads_left": int(has_slot_method(slot.left_slot.method_name)),
-                        "call_left": call_slot_method(slot.left_slot.method_name, reverse=False),
-                        "call_right": call_slot_method(slot.right_slot.method_name, reverse=True),
-                        "type_cname": '((PyTypeObject*) %s)' % scope.namespace_cname,
-                        }).impl.strip())
-            code.putln()
-        if preprocessor_guard:
-            code.putln("#endif")
 
     def generate_getattro_function(self, scope, code):
         # First try to get the attribute using __getattribute__, if defined, or
