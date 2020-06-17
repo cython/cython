@@ -1918,14 +1918,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 return bool(entry and entry.is_special and entry.func_cname)
             def call_slot_method(method_name, reverse):
                 entry = scope.lookup(method_name)
-                if entry and entry.is_special and entry.func_cname:
-                    return "%s(%s%s)" % (entry.func_cname, "right, left" if reverse else "left, right", extra_arg)
+                if reverse:
+                    operands = "right, left"
                 else:
-                    super = 'Py_TYPE(right)->tp_base' if reverse else 'Py_TYPE(left)->tp_base'
-                    return ('(%s->tp_as_number && %s->tp_as_number->%s)'
-                            ' ? %s->tp_as_number->%s(left, right %s)'
-                            ' : (Py_INCREF(Py_NotImplemented), Py_NotImplemented)') % (
-                        super, super, slot.slot_name, super, slot.slot_name, extra_arg)
+                    operands = "left, right"
+                if entry and entry.is_special and entry.func_cname:
+                    return "%s(%s%s)" % (entry.func_cname, operands, extra_arg)
+                else:
+                    py_ident = code.intern_identifier(EncodedString(method_name))
+                    return "%s_maybe_call_super(%s, %s)" % (func_name, operands, py_ident)
             code.putln(
                 TempitaUtilityCode.load_cached(
                     "BinopSlot", "ExtensionTypes.c",
@@ -1935,7 +1936,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         "overloads_left": int(has_slot_method(slot.left_slot.method_name)),
                         "call_left": call_slot_method(slot.left_slot.method_name, reverse=False),
                         "call_right": call_slot_method(slot.right_slot.method_name, reverse=True),
-                        "type_cname": scope.parent_type.typeptr_cname,
+                        "type_cname": '((PyTypeObject*) %s)' % scope.namespace_cname,
                         "extra_arg": extra_arg,
                         "extra_arg_decl": extra_arg_decl,
                         }).impl.strip())
