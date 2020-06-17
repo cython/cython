@@ -3150,7 +3150,7 @@ def p_c_enum_definition(s, pos, ctx):
         if scoped:
             s.error("Unnamed scoped enum not allowed")
 
-    if s.sy == '(':
+    if scoped and s.sy == '(':
         s.next()
         underlying_type = p_c_base_type(s)
         s.expect(')')
