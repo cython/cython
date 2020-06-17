@@ -3136,7 +3136,7 @@ def p_c_enum_definition(s, pos, ctx):
 
     scoped = False
 
-    if s.systring in ('class', 'struct'):
+    if s.sy == 'class' or (s.sy == 'IDENT' and s.systring == 'struct'):
         scoped = True
         s.next()
 
