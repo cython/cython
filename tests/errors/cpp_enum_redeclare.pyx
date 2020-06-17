@@ -1,4 +1,5 @@
 # mode: error
+# tag: cpp
 
 cdef enum class Spam:
     a
