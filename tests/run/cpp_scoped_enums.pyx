@@ -1,5 +1,5 @@
-# tag: cpp,cpp11
 # mode: run
+# tag: cpp, cpp11
 
 from libcpp.limits cimport numeric_limits
 
