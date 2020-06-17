@@ -347,7 +347,7 @@ static PyObject *{{func_name}}(PyObject *left, PyObject *right {{extra_arg_decl}
 #endif
             || __Pyx_TypeCheck(left, {{type_cname}});
     // Optimize for the common case where the left operation is defined (and successful).
-    if (!{{overloads_left}}) {
+    if (!({{overloads_left}})) {
         maybe_self_is_right = Py_TYPE(left) == Py_TYPE(right)
 #if CYTHON_USE_TYPE_SLOTS
                 || (Py_TYPE(right)->tp_as_number && Py_TYPE(right)->tp_as_number->{{slot_name}} == &{{func_name}})
