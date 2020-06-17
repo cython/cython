@@ -3,8 +3,7 @@
 
 
 cpdef enum class Spam:
-    a
-    b
+    a, b
     c
     d
     e
@@ -14,6 +13,11 @@ cpdef enum class Spam:
 cpdef enum class Cheese(unsigned int):
     x = 1
     y = 2
+
+
+cdef enum struct parrot_state:
+    alive = 1
+    dead = 0
 
 
 cdef void eggs():
