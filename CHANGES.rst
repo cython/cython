@@ -459,6 +459,9 @@ Other changes
 Bugs fixed
 ----------
 
+* Fix a regression in 0.29.20 where ``__div__`` failed to be found in extension types.
+  (Github issue #3688)
+
 * The deprecated C-API function ``PyUnicode_FromUnicode()`` is no longer used.
   Original patch by Inada Naoki.  (Github issue #3677)
 
