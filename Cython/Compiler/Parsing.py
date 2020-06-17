@@ -3756,7 +3756,6 @@ def p_template_definition(s):
 def p_cpp_class_definition(s, pos,  ctx):
     # s.sy == 'cppclass'
     s.next()
-    module_path = []
     class_name = p_ident(s)
     cname = p_opt_cname(s)
     if cname is None and ctx.namespace is not None:
