@@ -588,7 +588,8 @@ def check_definitions(flow, compiler_directives):
             if not entry.from_closure and len(node.cf_state) == 1:
                 node.cf_is_null = True
             if (node.allow_null or entry.from_closure
-                    or entry.is_pyclass_attr or entry.type.is_error):
+                    or entry.is_pyclass_attr or entry.type.is_error
+                    or entry.is_walrus_assigned_in_genexpr):
                 pass  # Can be uninitialized here
             elif node.cf_is_null:
                 if entry.error_on_uninitialized or (

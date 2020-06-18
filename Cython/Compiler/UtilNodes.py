@@ -147,6 +147,16 @@ class ResultRefNode(AtomicExprNode):
         if type:
             self.type = type
 
+    def analyse_target_declaration(self, env):
+        return  # because it can be the left-hand side
+
+    def analyse_target_expression(self, env, rhs):
+        print("XX") # FIXME this is never called?
+        if not self.type:
+            # only set the type if it hasn't been explicitly set
+            self.type = rhs.type
+        return self.analyse_target_types(env)
+
     def analyse_types(self, env):
         if self.expression is not None:
             if not self.expression.type:
@@ -201,7 +211,7 @@ class ResultRefNode(AtomicExprNode):
         if self.type.is_pyobject:
             rhs.make_owned_reference(code)
             if not self.lhs_of_first_assignment:
-                code.put_decref(self.result(), self.ctype())
+                code.put_xdecref(self.result(), self.ctype())
         code.putln('%s = %s;' % (
             self.result(),
             rhs.result() if overloaded_assignment else rhs.result_as(self.ctype()),
@@ -352,6 +362,8 @@ class TempResultFromStatNode(ExprNodes.ExprNode):
 
     def analyse_types(self, env):
         self.body = self.body.analyse_expressions(env)
+        if self.type is None:
+            self.type = self.result_ref.type
         return self
 
     def may_be_none(self):

@@ -1894,6 +1894,7 @@ class NameNode(AtomicExprNode):
     allow_null = False
     nogil = False
     inferred_type = None
+    walrus_target = False  # this affects what scope it's declared in
 
     def as_cython_attribute(self):
         return self.cython_attribute
@@ -2032,7 +2033,12 @@ class NameNode(AtomicExprNode):
 
     def analyse_target_declaration(self, env):
         if not self.entry:
-            self.entry = env.lookup_here(self.name)
+            lookup_in = env
+            if self.walrus_target:
+                while lookup_in.is_genexpr_scope or (lookup_in.is_closure_scope and lookup_in.is_genexpr_closure):
+                    # This logic possibly should be in the scope?
+                    lookup_in = lookup_in.parent_scope
+            self.entry = lookup_in.lookup_here(self.name)
         if not self.entry and self.annotation is not None:
             # name : type = ...
             self.declare_from_annotation(env, as_target=True)
@@ -2043,7 +2049,7 @@ class NameNode(AtomicExprNode):
                 type = unspecified_type
             else:
                 type = py_object_type
-            self.entry = env.declare_var(self.name, type, self.pos)
+            self.entry = env.declare_var(self.name, type, self.pos, walrus_target=self.walrus_target)
         if self.entry.is_declared_generic:
             self.result_ctype = py_object_type
         if self.entry.as_module:
@@ -13754,6 +13760,24 @@ class AnnotationNode(ExprNode):
         else:
             warning(annotation.pos, "Unknown type declaration in annotation, ignoring")
         return base_type, arg_type
+
+def WalrusNode(pos, lhs, rhs, **kwds):
+    """
+    An assignment expression
+
+    Defined as a function that constructs a composite node. However, has an interface designed to
+    look like a node so it can easily be replaced if needed
+    """
+    from .UtilNodes import TempResultFromStatNode, ResultRefNode
+    lhs.walrus_target = True
+    lhs.allow_null = True  # at least if it's from a generator, it's very hard to tell if it's initialized
+    temp = ResultRefNode(pos=pos, type=PyrexTypes.py_object_type)
+    assignment = Nodes.CascadedAssignmentNode(pos=pos, lhs_list=[lhs, temp], rhs=rhs)
+    #body = Nodes.StatListNode(pos=pos, stats=[
+    #    Nodes.SingleAssignmentNode(pos, lhs=lhs, rhs=rhs),
+    #    Nodes.SingleAssignmentNode(pos, lhs=temp, rhs=lhs),
+    #    ])
+    return TempResultFromStatNode(result_ref=temp, body=assignment)
 
 #------------------------------------------------------------------------------------
 #

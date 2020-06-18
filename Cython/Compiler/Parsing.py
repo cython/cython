@@ -139,10 +139,10 @@ def p_test(s):
     if s.sy == 'lambda':
         return p_lambdef(s)
     pos = s.position()
-    expr = p_or_test(s)
+    expr = p_walrus_test(s)
     if s.sy == 'if':
         s.next()
-        test = p_or_test(s)
+        test = p_walrus_test(s)
         s.expect('else')
         other = p_test(s)
         return ExprNodes.CondExprNode(pos, test=test, true_val=expr, false_val=other)
@@ -155,7 +155,20 @@ def p_test_nocond(s):
     if s.sy == 'lambda':
         return p_lambdef_nocond(s)
     else:
-        return p_or_test(s)
+        return p_walrus_test(s)
+
+# walrurus_test: IDENT := test | or_test
+
+def p_walrus_test(s):
+    if s.peek()[0] == ':=':
+        if s.sy != 'IDENT':
+            s.error("Left-hand side of assignment expression must be an identifier")
+        lhs = p_name(s, s.systring)
+        s.next()
+        s.next()
+        rhs = p_test(s)
+        return ExprNodes.WalrusNode(s.position(), lhs=lhs, rhs=rhs)
+    return p_or_test(s)
 
 #or_test: and_test ('or' and_test)*
 
@@ -1966,7 +1979,7 @@ def p_for_iterator(s, allow_testlist=True, is_async=False):
     if allow_testlist:
         expr = p_testlist(s)
     else:
-        expr = p_or_test(s)
+        expr = p_or_test(s)  # FIXME walrus?
     return (ExprNodes.AsyncIteratorNode if is_async else ExprNodes.IteratorNode)(pos, sequence=expr)
 
 
