@@ -29,9 +29,8 @@ class ShouldBeFromDirective(object):
         raise RuntimeError(repr(self))
 
     def __repr__(self):
-        return (
-        "Illegal access of '%s' from Options module rather than directive '%s'"
-        % (self.options_name, self.directive_name))
+        return "Illegal access of '%s' from Options module rather than directive '%s'" % (
+            self.options_name, self.directive_name)
 
 
 """
@@ -178,7 +177,7 @@ _directive_defaults = {
     'auto_pickle': None,
     'cdivision': False,  # was True before 0.12
     'cdivision_warnings': False,
-    'c_api_binop_methods': True,  # Change for 3.0
+    'c_api_binop_methods': False,  # was True before 3.0
     'overflowcheck': False,
     'overflowcheck.fold': True,
     'always_allow_keywords': True,

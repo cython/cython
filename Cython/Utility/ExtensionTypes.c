@@ -447,7 +447,6 @@ static CYTHON_INLINE PyObject *{{func_name}}_maybe_call_slot(PyTypeObject* type,
 }
 
 static PyObject *{{func_name}}(PyObject *left, PyObject *right {{extra_arg_decl}}) {
-    PyObject *res;
     int maybe_self_is_left, maybe_self_is_right = 0;
     maybe_self_is_left = Py_TYPE(left) == Py_TYPE(right)
 #if CYTHON_USE_TYPE_SLOTS
@@ -455,7 +454,7 @@ static PyObject *{{func_name}}(PyObject *left, PyObject *right {{extra_arg_decl}
 #endif
             || __Pyx_TypeCheck(left, {{type_cname}});
     // Optimize for the common case where the left operation is defined (and successful).
-    if (!{{overloads_left}}) {
+    if (!({{overloads_left}})) {
         maybe_self_is_right = Py_TYPE(left) == Py_TYPE(right)
 #if CYTHON_USE_TYPE_SLOTS
                 || (Py_TYPE(right)->tp_as_number && Py_TYPE(right)->tp_as_number->{{slot_name}} == &{{func_name}})
@@ -463,6 +462,7 @@ static PyObject *{{func_name}}(PyObject *left, PyObject *right {{extra_arg_decl}
                 || __Pyx_TypeCheck(right, {{type_cname}});
     }
     if (maybe_self_is_left) {
+        PyObject *res;
         if (maybe_self_is_right && !{{overloads_left}}) {
             res = {{call_right}};
             if (res != Py_NotImplemented) return res;

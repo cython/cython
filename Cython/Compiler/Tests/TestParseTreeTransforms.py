@@ -89,7 +89,7 @@ class TestNormalizeTree(TransformTest):
         t = self.run_pipeline([NormalizeTree(None)], u"pass")
         self.assertTrue(len(t.stats) == 0)
 
-class TestWithTransform(object): # (TransformTest): # Disabled!
+class TestWithTransform(object):  # (TransformTest): # Disabled!
 
     def test_simplified(self):
         t = self.run_pipeline([WithTransform(None)], u"""

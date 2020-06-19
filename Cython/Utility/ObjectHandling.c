@@ -2747,10 +2747,8 @@ static CYTHON_INLINE int __Pyx_object_dict_version_matches(PyObject* obj, PY_UIN
 // This should be an actual function (not a macro), such that we can put it
 // directly in a tp_descr_get slot.
 static PyObject *__Pyx_PyMethod_New(PyObject *func, PyObject *self, CYTHON_UNUSED PyObject *typ) {
-    if (!self) {
-        Py_INCREF(func);
-        return func;
-    }
+    if (!self)
+        return __Pyx_NewRef(func);
     return PyMethod_New(func, self);
 }
 #else

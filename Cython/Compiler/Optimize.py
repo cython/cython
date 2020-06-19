@@ -41,7 +41,7 @@ except ImportError:
 try:
     from __builtin__ import basestring
 except ImportError:
-    basestring = str # Python 3
+    basestring = str  # Python 3
 
 
 def load_c_utility(name):
@@ -1569,7 +1569,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             utility_code = utility_code)
 
     def _error_wrong_arg_count(self, function_name, node, args, expected=None):
-        if not expected: # None or 0
+        if not expected:  # None or 0
             arg_str = ''
         elif isinstance(expected, basestring) or expected > 1:
             arg_str = '...'
@@ -1803,7 +1803,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
                 if not yield_expression.is_literal or not yield_expression.type.is_int:
                     return node
             except AttributeError:
-                return node # in case we don't have a type yet
+                return node  # in case we don't have a type yet
             # special case: old Py2 backwards compatible "sum([int_const for ...])"
             # can safely be unpacked into a genexpr
 
@@ -2236,7 +2236,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         return node
 
     def _error_wrong_arg_count(self, function_name, node, args, expected=None):
-        if not expected: # None or 0
+        if not expected:  # None or 0
             arg_str = ''
         elif isinstance(expected, basestring) or expected > 1:
             arg_str = '...'
@@ -2669,7 +2669,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             if cfunc_name is None:
                 arg_type = arg.type
                 if ((arg_type.is_extension_type or arg_type.is_builtin_type)
-                    and arg_type.entry.qualified_name in self._ext_types_with_pysize):
+                        and arg_type.entry.qualified_name in self._ext_types_with_pysize):
                     cfunc_name = 'Py_SIZE'
                 else:
                     return node
@@ -3839,7 +3839,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             if not stop:
                 # use strlen() to find the string length, just as CPython would
                 if not string_node.is_name:
-                    string_node = UtilNodes.LetRefNode(string_node) # used twice
+                    string_node = UtilNodes.LetRefNode(string_node)  # used twice
                     temps.append(string_node)
                 stop = ExprNodes.PythonCapiCallNode(
                     string_node.pos, "strlen", self.Pyx_strlen_func_type,

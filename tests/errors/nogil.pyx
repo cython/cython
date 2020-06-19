@@ -166,7 +166,7 @@ _ERRORS = u"""
 86:8: For-loop using object bounds or target not allowed without gil
 
 97:4: Discarding owned Python object not allowed without gil
-97:4: String formatting not allowed without gil
+97:6: String formatting not allowed without gil
 98:4: Discarding owned Python object not allowed without gil
-98:4: String formatting not allowed without gil
+98:6: String formatting not allowed without gil
 """

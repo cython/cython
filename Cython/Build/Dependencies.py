@@ -1028,7 +1028,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                 # setup for out of place build directory if enabled
                 if build_dir:
                     if os.path.isabs(c_file):
-                      warnings.warn("build_dir has no effect for absolute source paths")
+                        warnings.warn("build_dir has no effect for absolute source paths")
                     c_file = os.path.join(build_dir, c_file)
                     dir = os.path.dirname(c_file)
                     safe_makedirs_once(dir)
@@ -1289,7 +1289,7 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None,
         else:
             fingerprint_file = zip_fingerprint_file
             with contextlib.closing(zipfile.ZipFile(
-                fingerprint_file + '.tmp', 'w', zipfile_compression_mode)) as zip:
+                    fingerprint_file + '.tmp', 'w', zipfile_compression_mode)) as zip:
                 for artifact in artifacts:
                     zip.write(artifact, os.path.basename(artifact))
         os.rename(fingerprint_file + '.tmp', fingerprint_file)
