@@ -11,7 +11,7 @@ cdef extern from *:
     # Return the size of the object. o has to be a PyUnicodeObject
     # (not checked).
     #
-    # Deprecated since version 3.3, will be removed in version 4.0:
+    # Deprecated since version 3.3, will be removed in version 3.10:
     # Part of the old-style Unicode API, please migrate to using
     # PyUnicode_GET_LENGTH().
     Py_ssize_t PyUnicode_GET_SIZE(object o)
