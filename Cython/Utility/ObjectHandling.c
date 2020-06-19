@@ -2157,7 +2157,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
     if (f) {
         return f(func, args, nargs, kwargs);
     }
-    #elif __Pyx_CyFunction_USED && CYTHON_BACKPORT_VECTORCALL
+    #elif defined(__Pyx_CyFunction_USED) && CYTHON_BACKPORT_VECTORCALL
     // exclude fused functions for now
     if (__Pyx_CyFunction_CheckExact(func)) {
         __pyx_vectorcallfunc f = __Pyx_CyFunction_func_vectorcall(func);

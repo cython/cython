@@ -1,7 +1,7 @@
 
 //////////////////// CythonFunctionShared.proto ////////////////////
 
-#define __Pyx_CyFunction_USED 1
+#define __Pyx_CyFunction_USED
 
 #define __Pyx_CYFUNCTION_STATICMETHOD  0x01
 #define __Pyx_CYFUNCTION_CLASSMETHOD   0x02
