@@ -155,7 +155,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.create_import_star_conversion_utility_code(env)
         for name, entry in sorted(env.entries.items()):
             if (entry.create_wrapper and entry.scope is env
-                    and entry.is_type and entry.type.is_enum):
+                    and entry.is_type and (entry.type.is_enum or entry.type.is_cpp_enum)):
                 entry.type.create_type_wrapper(env)
 
     def process_implementation(self, options, result):
@@ -880,7 +880,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 type = entry.type
                 if type.is_typedef:  # Must test this first!
                     self.generate_typedef(entry, code)
-                elif type.is_enum:
+                elif type.is_enum or type.is_cpp_enum:
                     self.generate_enum_definition(entry, code)
                 elif type.is_struct_or_union:
                     self.generate_struct_union_definition(entry, code)
@@ -957,8 +957,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("#endif")
             code.putln(header)
             var_entries = scope.var_entries
-            if not var_entries:
-                error(entry.pos, "Empty struct or union definition not allowed outside a 'cdef extern from' block")
             for attr in var_entries:
                 code.putln(
                     "%s;" % attr.type.declaration_code(attr.cname))
@@ -1079,7 +1077,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.mark_pos(entry.pos)
         type = entry.type
         name = entry.cname or entry.name or ""
-        header, footer = self.sue_header_footer(type, "enum", name)
+
+        kind = "enum class" if entry.type.is_cpp_enum else "enum"
+        header, footer = self.sue_header_footer(type, kind, name)
         code.putln(header)
         enum_values = entry.enum_values
         if not enum_values:
@@ -1093,18 +1093,20 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
             for value_entry in enum_values:
                 if value_entry.value_node is None:
-                    value_code = value_entry.cname
+                    value_code = value_entry.cname.split("::")[-1]
                 else:
                     value_code = ("%s = %s" % (
-                        value_entry.cname,
+                        value_entry.cname.split("::")[-1],
                         value_entry.value_node.result()))
                 if value_entry is not last_entry:
                     value_code += ","
                 code.putln(value_code)
         code.putln(footer)
-        if entry.type.typedef_flag:
-            # Not pre-declared.
-            code.putln("typedef enum %s %s;" % (name, name))
+
+        if entry.type.is_enum:
+            if entry.type.typedef_flag:
+                # Not pre-declared.
+                code.putln("typedef enum %s %s;" % (name, name))
 
     def generate_typeobj_predeclaration(self, entry, code):
         code.putln("")

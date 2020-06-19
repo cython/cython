@@ -679,8 +679,8 @@ class Scope(object):
             error(pos, "'%s' previously declared as '%s'" % (
                 entry.name, entry.visibility))
 
-    def declare_enum(self, name, pos, cname, typedef_flag,
-            visibility = 'private', api = 0, create_wrapper = 0):
+    def declare_enum(self, name, pos, cname, scoped, typedef_flag,
+            visibility='private', api=0, create_wrapper=0):
         if name:
             if not cname:
                 if (self.in_cinclude or visibility == 'public'
@@ -692,13 +692,18 @@ class Scope(object):
                 namespace = self.outer_scope.lookup(self.name).type
             else:
                 namespace = None
-            type = PyrexTypes.CEnumType(name, cname, typedef_flag, namespace)
+
+            if scoped:
+                type = PyrexTypes.CppScopedEnumType(name, cname, namespace)
+            else:
+                type = PyrexTypes.CEnumType(name, cname, typedef_flag, namespace)
         else:
             type = PyrexTypes.c_anon_enum_type
         entry = self.declare_type(name, type, pos, cname = cname,
             visibility = visibility, api = api)
         entry.create_wrapper = create_wrapper
         entry.enum_values = []
+
         self.sue_entries.append(entry)
         return entry
 
@@ -2626,6 +2631,22 @@ class CppClassScope(Scope):
                                   entry.visibility)
 
         return scope
+
+
+class CppScopedEnumScope(Scope):
+    #  Namespace of a ScopedEnum
+
+    def __init__(self, name, outer_scope):
+        Scope.__init__(self, name, outer_scope, None)
+
+    def declare_var(self, name, type, pos,
+                    cname=None, visibility='extern'):
+        # Add an entry for an attribute.
+        if not cname:
+            cname = name
+        entry = self.declare(name, cname, type, pos, visibility)
+        entry.is_variable = True
+        return entry
 
 
 class PropertyScope(Scope):
