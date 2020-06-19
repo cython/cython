@@ -156,7 +156,7 @@ __Pyx_import_all_from(PyObject *locals, PyObject *v)
             PyString_AS_STRING(name)[0] == '_')
 #else
             PyUnicode_Check(name) &&
-            PyUnicode_AS_UNICODE(name)[0] == '_')
+            __Pyx_PyUnicode_READ_CHAR(name, 0) == '_')
 #endif
         {
             Py_DECREF(name);
