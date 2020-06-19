@@ -13111,6 +13111,8 @@ class PyTypeTestNode(CoercionNode):
                 type_test = self.type.type_test_code(
                     self.arg.py_result(),
                     self.notnone, exact=self.exact_builtin_type)
+                code.globalstate.use_utility_code(UtilityCode.load_cached(
+                    "RaiseUnexpectedTypeError", "ObjectHandling.c"))
             else:
                 type_test = self.type.type_test_code(
                     self.arg.py_result(), self.notnone)
