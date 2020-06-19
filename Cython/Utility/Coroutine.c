@@ -6,7 +6,7 @@ static CYTHON_INLINE PyObject* __Pyx_Generator_Yield_From(__pyx_CoroutineObject 
 //@requires: Generator
 
 #if CYTHON_USE_TYPE_SLOTS
-static void __PyxPyIter_CheckErrorAndDecref(PyObject *source) {
+static void __Pyx_PyIter_CheckErrorAndDecref(PyObject *source) {
     PyErr_Format(PyExc_TypeError,
                  "iter() returned non-iterator of type '%.100s'",
                  Py_TYPE(source)->tp_name);
@@ -31,7 +31,7 @@ static CYTHON_INLINE PyObject* __Pyx_Generator_Yield_From(__pyx_CoroutineObject 
             if (unlikely(!source_gen))
                 return NULL;
             if (unlikely(!PyIter_Check(source_gen))) {
-                __PyxPyIter_CheckErrorAndDecref(source_gen);
+                __Pyx_PyIter_CheckErrorAndDecref(source_gen);
                 return NULL;
             }
         } else
