@@ -152,10 +152,11 @@ __Pyx_import_all_from(PyObject *locals, PyObject *v)
         }
         if (skip_leading_underscores &&
 #if PY_MAJOR_VERSION < 3
-            PyString_Check(name) &&
+            likely(PyString_Check(name)) &&
             PyString_AS_STRING(name)[0] == '_')
 #else
-            PyUnicode_Check(name) &&
+            likely(PyUnicode_Check(name)) &&
+            likely(__Pyx_PyUnicode_GET_LENGTH(name)) &&
             __Pyx_PyUnicode_READ_CHAR(name, 0) == '_')
 #endif
         {
