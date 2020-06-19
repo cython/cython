@@ -1,110 +1,119 @@
-# copied from cpython
+# copied from cpython with minimal modifications (mainly exec->cython.inline, and a exception strings)
 
 import os
 import unittest
+import cython
+from Cython.Build.Inline import cython_inline
+from Cython.Compiler.Main import CompileError
 
-# TODO invalid to be moved to tests/errors
+if cython.compiled:
+    def exec_(code, locals_, globals_):
+        try:
+            return cython_inline(code, locals=locals_, globals=globals_)
+        except CompileError as exc:
+            raise SyntaxError(str(exc))
+
 class NamedExpressionInvalidTest(unittest.TestCase):
 
     def test_named_expression_invalid_01(self):
         code = """x := 0"""
 
         with self.assertRaisesRegex(SyntaxError, "invalid syntax"):
-            exec(code, {}, {})
+            exec_(code, {}, {})
 
     def test_named_expression_invalid_02(self):
         code = """x = y := 0"""
 
         with self.assertRaisesRegex(SyntaxError, "invalid syntax"):
-            exec(code, {}, {})
+            exec_(code, {}, {})
 
     def test_named_expression_invalid_03(self):
         code = """y := f(x)"""
 
         with self.assertRaisesRegex(SyntaxError, "invalid syntax"):
-            exec(code, {}, {})
+            exec_(code, {}, {})
 
     def test_named_expression_invalid_04(self):
         code = """y0 = y1 := f(x)"""
 
         with self.assertRaisesRegex(SyntaxError, "invalid syntax"):
-            exec(code, {}, {})
+            exec_(code, {}, {})
 
     def test_named_expression_invalid_06(self):
         code = """((a, b) := (1, 2))"""
 
         with self.assertRaisesRegex(SyntaxError, "cannot use named assignment with tuple"):
-            exec(code, {}, {})
+            exec_(code, {}, {})
 
     def test_named_expression_invalid_07(self):
         code = """def spam(a = b := 42): pass"""
 
         with self.assertRaisesRegex(SyntaxError, "invalid syntax"):
-            exec(code, {}, {})
+            exec_(code, {}, {})
 
     def test_named_expression_invalid_08(self):
         code = """def spam(a: b := 42 = 5): pass"""
 
         with self.assertRaisesRegex(SyntaxError, "invalid syntax"):
-            exec(code, {}, {})
+            exec_(code, {}, {})
 
     def test_named_expression_invalid_09(self):
         code = """spam(a=b := 'c')"""
 
         with self.assertRaisesRegex(SyntaxError, "invalid syntax"):
-            exec(code, {}, {})
+            exec_(code, {}, {})
 
     def test_named_expression_invalid_10(self):
         code = """spam(x = y := f(x))"""
 
         with self.assertRaisesRegex(SyntaxError, "invalid syntax"):
-            exec(code, {}, {})
+            exec_(code, {}, {})
 
     def test_named_expression_invalid_11(self):
         code = """spam(a=1, b := 2)"""
 
         with self.assertRaisesRegex(SyntaxError,
-            "positional argument follows keyword argument"):
-            exec(code, {}, {})
+            "follow.* keyword arg"):
+            exec_(code, {}, {})
 
     def test_named_expression_invalid_12(self):
         code = """spam(a=1, (b := 2))"""
 
         with self.assertRaisesRegex(SyntaxError,
-            "positional argument follows keyword argument"):
-            exec(code, {}, {})
+            "follow.* keyword arg"):
+            exec_(code, {}, {})
 
     def test_named_expression_invalid_13(self):
         code = """spam(a=1, (b := 2))"""
 
         with self.assertRaisesRegex(SyntaxError,
-            "positional argument follows keyword argument"):
-            exec(code, {}, {})
+            "follow.* keyword arg"):
+            exec_(code, {}, {})
 
     def test_named_expression_invalid_14(self):
         code = """(x := lambda: y := 1)"""
 
         with self.assertRaisesRegex(SyntaxError, "invalid syntax"):
-            exec(code, {}, {})
+            exec_(code, {}, {})
 
     def test_named_expression_invalid_15(self):
         code = """(lambda: x := 1)"""
 
         with self.assertRaisesRegex(SyntaxError,
             "cannot use named assignment with lambda"):
-            exec(code, {}, {})
+            exec_(code, {}, {})
 
     def test_named_expression_invalid_16(self):
         code = "[i + 1 for i in i := [1,2]]"
 
         with self.assertRaisesRegex(SyntaxError, "invalid syntax"):
-            exec(code, {}, {})
+            exec_(code, {}, {})
 
     def test_named_expression_invalid_17(self):
         code = "[i := 0, j := 1 for i, j in [(1, 2), (3, 4)]]"
 
         with self.assertRaisesRegex(SyntaxError, "invalid syntax"):
-            exec(code, {}, {})
+            exec_(code, {}, {})
 
     def test_named_expression_invalid_in_class_body(self):
         code = """class Foo():
@@ -113,7 +122,7 @@ class NamedExpressionInvalidTest(unittest.TestCase):
 
         with self.assertRaisesRegex(SyntaxError,
             "assignment expression within a comprehension cannot be used in a class body"):
-            exec(code, {}, {})
+            exec_(code, {}, {})
 
     def test_named_expression_invalid_rebinding_comprehension_iteration_variable(self):
         cases = [
@@ -130,7 +139,7 @@ class NamedExpressionInvalidTest(unittest.TestCase):
             msg = f"assignment expression cannot rebind comprehension iteration variable '{target}'"
             with self.subTest(case=case):
                 with self.assertRaisesRegex(SyntaxError, msg):
-                    exec(code, {}, {})
+                    exec_(code, {}, {})
 
     def test_named_expression_invalid_rebinding_comprehension_inner_loop(self):
         cases = [
@@ -141,11 +150,11 @@ class NamedExpressionInvalidTest(unittest.TestCase):
             msg = f"comprehension inner loop cannot rebind assignment expression target '{target}'"
             with self.subTest(case=case):
                 with self.assertRaisesRegex(SyntaxError, msg):
-                    exec(code, {}) # Module scope
+                    exec_(code, {}) # Module scope
                 with self.assertRaisesRegex(SyntaxError, msg):
-                    exec(code, {}, {}) # Class scope
+                    exec_(code, {}, {}) # Class scope
                 with self.assertRaisesRegex(SyntaxError, msg):
-                    exec(f"lambda: {code}", {}) # Function scope
+                    exec_(f"lambda: {code}", {}) # Function scope
 
     def test_named_expression_invalid_comprehension_iterable_expression(self):
         cases = [
@@ -163,11 +172,11 @@ class NamedExpressionInvalidTest(unittest.TestCase):
         for case, code in cases:
             with self.subTest(case=case):
                 with self.assertRaisesRegex(SyntaxError, msg):
-                    exec(code, {}) # Module scope
+                    exec_(code, {}) # Module scope
                 with self.assertRaisesRegex(SyntaxError, msg):
-                    exec(code, {}, {}) # Class scope
+                    exec_(code, {}, {}) # Class scope
                 with self.assertRaisesRegex(SyntaxError, msg):
-                    exec(f"lambda: {code}", {}) # Function scope
+                    exec_(f"lambda: {code}", {}) # Function scope
 
 
 class NamedExpressionAssignmentTest(unittest.TestCase):
@@ -282,7 +291,7 @@ class NamedExpressionScopeTest(unittest.TestCase):
 print(a)"""
 
         with self.assertRaisesRegex(NameError, "name 'a' is not defined"):
-            exec(code, {}, {})
+            exec_(code, {}, {})
 
     def test_named_expression_scope_02(self):
         total = 0
@@ -440,7 +449,7 @@ def spam():
     (a := 20)
 spam()"""
 
-        exec(code, ns, {})
+        exec_(code, ns, {})
 
         self.assertEqual(ns["a"], 20)
 
@@ -468,7 +477,7 @@ spam()"""
         for case, code in cases:
             with self.subTest(case=case):
                 ns = {}
-                exec(code, ns)
+                exec_(code, ns)
                 self.assertEqual(ns["x"], 2)
                 self.assertEqual(ns["result"], [0, 1, 2])
 

@@ -357,6 +357,9 @@ class TempResultFromStatNode(ExprNodes.ExprNode):
         self.type = result_ref.type
         self.is_temp = 1
 
+    def infer_type(self, env):
+        return self.result_ref.infer_type(env)
+
     def analyse_declarations(self, env):
         self.body.analyse_declarations(env)
 

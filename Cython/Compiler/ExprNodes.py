@@ -13766,17 +13766,14 @@ def WalrusNode(pos, lhs, rhs, **kwds):
     An assignment expression
 
     Defined as a function that constructs a composite node. However, has an interface designed to
-    look like a node so it can easily be replaced if needed
+    look like a node so it can easily be replaced if needed.
+    (e.g. for conversion back to Py code.) FIXME!
     """
     from .UtilNodes import TempResultFromStatNode, ResultRefNode
     lhs.walrus_target = True
-    lhs.allow_null = True  # at least if it's from a generator, it's very hard to tell if it's initialized
-    temp = ResultRefNode(pos=pos, type=PyrexTypes.py_object_type)
+    temp = ResultRefNode(pos=pos, expression=rhs)  # assigning expression lets it work out the type
+                        # (but feels a bit like mixing the two uses of ResultRefNode)
     assignment = Nodes.CascadedAssignmentNode(pos=pos, lhs_list=[lhs, temp], rhs=rhs)
-    #body = Nodes.StatListNode(pos=pos, stats=[
-    #    Nodes.SingleAssignmentNode(pos, lhs=lhs, rhs=rhs),
-    #    Nodes.SingleAssignmentNode(pos, lhs=temp, rhs=lhs),
-    #    ])
     return TempResultFromStatNode(result_ref=temp, body=assignment)
 
 #------------------------------------------------------------------------------------
