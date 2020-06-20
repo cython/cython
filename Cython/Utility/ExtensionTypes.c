@@ -123,27 +123,26 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
             return -1;
         }
 #endif
-            b = (PyTypeObject*) b0;
-            if (!__Pyx_PyType_HasFeature(b, Py_TPFLAGS_HEAPTYPE))
-            {
-                __Pyx_TypeName b_name = __Pyx_PyType_GetName(b);
-                PyErr_Format(PyExc_TypeError,
-                    "base class '" __Pyx_FMT_TYPENAME "' is not a heap type", b_name);
-                __Pyx_DECREF_TypeName(b_name);
-                return -1;
-            }
-            if (tp_dictoffset == 0 && b->tp_dictoffset)
-            {
-                __Pyx_TypeName b_name = __Pyx_PyType_GetName(b);
-                PyErr_Format(PyExc_TypeError,
-                    "extension type '%.200s' has no __dict__ slot, "
-                    "but base type '" __Pyx_FMT_TYPENAME "' has: "
-                    "either add 'cdef dict __dict__' to the extension type "
-                    "or add '__slots__ = [...]' to the base type",
-                    type_name, b_name);
-                __Pyx_DECREF_TypeName(b_name);
-                return -1;
-            }
+        b = (PyTypeObject*) b0;
+        if (!__Pyx_PyType_HasFeature(b, Py_TPFLAGS_HEAPTYPE))
+        {
+            __Pyx_TypeName b_name = __Pyx_PyType_GetName(b);
+            PyErr_Format(PyExc_TypeError,
+                "base class '" __Pyx_FMT_TYPENAME "' is not a heap type", b_name);
+            __Pyx_DECREF_TypeName(b_name);
+            return -1;
+        }
+        if (dictoffset == 0 && b->tp_dictoffset)
+        {
+            __Pyx_TypeName b_name = __Pyx_PyType_GetName(b);
+            PyErr_Format(PyExc_TypeError,
+                "extension type '%.200s' has no __dict__ slot, "
+                "but base type '" __Pyx_FMT_TYPENAME "' has: "
+                "either add 'cdef dict __dict__' to the extension type "
+                "or add '__slots__ = [...]' to the base type",
+                type_name, b_name);
+            __Pyx_DECREF_TypeName(b_name);
+            return -1;
         }
     }
     return 0;
