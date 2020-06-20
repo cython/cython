@@ -1166,7 +1166,7 @@ static void __Pyx_Coroutine_dealloc(PyObject *self) {
     }
 #endif
     __Pyx_Coroutine_clear(self);
-    PyObject_GC_Del(gen);
+    __Pyx_PyHeapTypeObject_GC_Del(gen);
 }
 
 static void __Pyx_Coroutine_del(PyObject *self) {
@@ -1425,7 +1425,7 @@ static __pyx_CoroutineObject *__Pyx__Coroutine_NewInit(
 static void __Pyx_CoroutineAwait_dealloc(PyObject *self) {
     PyObject_GC_UnTrack(self);
     Py_CLEAR(((__pyx_CoroutineAwaitObject*)self)->coroutine);
-    PyObject_GC_Del(self);
+    __Pyx_PyHeapTypeObject_GC_Del(self);
 }
 
 static int __Pyx_CoroutineAwait_traverse(__pyx_CoroutineAwaitObject *self, visitproc visit, void *arg) {

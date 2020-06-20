@@ -759,6 +759,19 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define __Pyx_PyType_HasFeature(type, feature)  PyType_HasFeature(type, feature)
 #endif
 
+#if CYTHON_USE_TYPE_SPECS && PY_VERSION_HEX >= 0x03080000
+// In Py3.8+, instances of heap types need to decref their type on deallocation.
+// https://bugs.python.org/issue35810
+#define __Pyx_PyHeapTypeObject_GC_Del(obj)  { \
+    PyTypeObject *type = Py_TYPE(obj); \
+    assert(__Pyx_PyType_HasFeature(type, Py_TPFLAGS_HEAPTYPE)); \
+    PyObject_GC_Del(obj); \
+    Py_DECREF(type); \
+}
+#else
+#define __Pyx_PyHeapTypeObject_GC_Del(obj)  PyObject_GC_Del(obj)
+#endif
+
 #if CYTHON_COMPILING_IN_LIMITED_API
   #define CYTHON_PEP393_ENABLED 1
   #define __Pyx_PyUnicode_READY(op)       (0)

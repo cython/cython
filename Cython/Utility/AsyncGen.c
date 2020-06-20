@@ -476,14 +476,14 @@ __Pyx_PyAsyncGen_ClearFreeLists(void)
         __pyx__PyAsyncGenWrappedValue *o;
         o = __Pyx_ag_value_freelist[--__Pyx_ag_value_freelist_free];
         assert(__pyx__PyAsyncGenWrappedValue_CheckExact(o));
-        PyObject_GC_Del(o);
+        __Pyx_PyHeapTypeObject_GC_Del(o);
     }
 
     while (__Pyx_ag_asend_freelist_free) {
         __pyx_PyAsyncGenASend *o;
         o = __Pyx_ag_asend_freelist[--__Pyx_ag_asend_freelist_free];
         assert(__Pyx_IS_TYPE(o, __pyx__PyAsyncGenASendType));
-        PyObject_GC_Del(o);
+        __Pyx_PyHeapTypeObject_GC_Del(o);
     }
 
     return ret;
@@ -537,7 +537,7 @@ __Pyx_async_gen_asend_dealloc(__pyx_PyAsyncGenASend *o)
         assert(__pyx_PyAsyncGenASend_CheckExact(o));
         __Pyx_ag_asend_freelist[__Pyx_ag_asend_freelist_free++] = o;
     } else {
-        PyObject_GC_Del(o);
+        __Pyx_PyHeapTypeObject_GC_Del(o);
     }
 }
 
@@ -775,7 +775,7 @@ __Pyx_async_gen_wrapped_val_dealloc(__pyx__PyAsyncGenWrappedValue *o)
         assert(__pyx__PyAsyncGenWrappedValue_CheckExact(o));
         __Pyx_ag_value_freelist[__Pyx_ag_value_freelist_free++] = o;
     } else {
-        PyObject_GC_Del(o);
+        __Pyx_PyHeapTypeObject_GC_Del(o);
     }
 }
 
@@ -905,7 +905,7 @@ __Pyx_async_gen_athrow_dealloc(__pyx_PyAsyncGenAThrow *o)
     PyObject_GC_UnTrack((PyObject *)o);
     Py_CLEAR(o->agt_gen);
     Py_CLEAR(o->agt_args);
-    PyObject_GC_Del(o);
+    __Pyx_PyHeapTypeObject_GC_Del(o);
 }
 
 
