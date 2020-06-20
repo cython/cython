@@ -133,7 +133,7 @@ static int __Pyx_unpack_tuple2_generic(PyObject* tuple, PyObject** pvalue1, PyOb
     if (unlikely(!iter)) goto bad;
     if (decref_tuple) { Py_DECREF(tuple); tuple = NULL; }
 
-    iternext = Py_TYPE(iter)->tp_iternext;
+    iternext = __Pyx_PyObject_GetIterNext(iter);
     value1 = iternext(iter); if (unlikely(!value1)) { index = 0; goto unpacking_failed; }
     value2 = iternext(iter); if (unlikely(!value2)) { index = 1; goto unpacking_failed; }
     if (!has_known_size && unlikely(__Pyx_IternextUnpackEndCheck(iternext(iter), 2))) goto bad;

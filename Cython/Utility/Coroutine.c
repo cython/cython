@@ -44,11 +44,7 @@ static CYTHON_INLINE PyObject* __Pyx_Generator_Yield_From(__pyx_CoroutineObject 
                 return NULL;
         }
         // source_gen is now the iterator, make the first next() call
-#if CYTHON_USE_TYPE_SLOTS
-        retval = Py_TYPE(source_gen)->tp_iternext(source_gen);
-#else
-        retval = PyIter_Next(source_gen);
-#endif
+        retval = __Pyx_PyObject_GetIterNext(source_gen)(source_gen);
     }
     if (likely(retval)) {
         gen->yieldfrom = source_gen;
@@ -77,11 +73,7 @@ static PyObject* __Pyx__Coroutine_Yield_From_Generic(__pyx_CoroutineObject *gen,
     if (__Pyx_Coroutine_Check(source_gen)) {
         retval = __Pyx_Generator_Next(source_gen);
     } else {
-#if CYTHON_USE_TYPE_SLOTS
-        retval = Py_TYPE(source_gen)->tp_iternext(source_gen);
-#else
-        retval = PyIter_Next(source_gen);
-#endif
+        retval = __Pyx_PyObject_GetIterNext(source_gen)(source_gen);
     }
     if (retval) {
         gen->yieldfrom = source_gen;
@@ -857,7 +849,7 @@ static PyObject *__Pyx_Coroutine_Send(PyObject *self, PyObject *value) {
         #endif
         {
             if (value == Py_None)
-                ret = Py_TYPE(yf)->tp_iternext(yf);
+                ret = __Pyx_PyObject_GetIterNext(yf)(yf);
             else
                 ret = __Pyx_PyObject_CallMethod1(yf, PYIDENT("send"), value);
         }
@@ -955,7 +947,7 @@ static PyObject *__Pyx_Generator_Next(PyObject *self) {
             ret = __Pyx_Coroutine_Send(yf, Py_None);
         } else
         #endif
-            ret = Py_TYPE(yf)->tp_iternext(yf);
+            ret = __Pyx_PyObject_GetIterNext(yf)(yf);
         gen->is_running = 0;
         //Py_DECREF(yf);
         if (likely(ret)) {
