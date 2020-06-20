@@ -319,7 +319,9 @@ static PyObject* __Pyx_PyNumber_IntOrLongWrongResultType(PyObject* result, const
     if (PyLong_Check(result)) {
         // CPython issue #17576: warn if 'result' not of exact type int.
         if (PyErr_WarnFormat(PyExc_DeprecationWarning, 1,
-                "__int__ returned non-int (type " __Pyx_FMT_TYPENAME ").  The ability to return an instance of a strict subclass of int is deprecated, and may be removed in a future version of Python.",
+                "__int__ returned non-int (type " __Pyx_FMT_TYPENAME ").  "
+                "The ability to return an instance of a strict subclass of int is deprecated, "
+                "and may be removed in a future version of Python.",
                 result_type_name)) {
             __Pyx_DECREF_TypeName(result_type_name);
             Py_DECREF(result);
