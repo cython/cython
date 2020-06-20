@@ -462,6 +462,10 @@ Bugs fixed
 * Fix a regression in 0.29.20 where ``__div__`` failed to be found in extension types.
   (Github issue #3688)
 
+* ``exec()`` did not allow recent Python syntax features in Py3.8+ due to
+  https://bugs.python.org/issue35975.
+  (Github issue #3695)
+
 * Binding staticmethods of Cython functions were not behaving like Python methods in Py3.
   Patch by Jeroen Demeyer and Michał Górny.  (Github issue #3106)
 

@@ -49,7 +49,10 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
                 __Pyx_TypeName t_name = __Pyx_PyType_GetName(t);
                 __Pyx_TypeName b_name = __Pyx_PyType_GetName(b);
                 PyErr_Format(PyExc_TypeError,
-                    "extension type '" __Pyx_FMT_TYPENAME "' has no __dict__ slot, but base type '" __Pyx_FMT_TYPENAME "' has: either add 'cdef dict __dict__' to the extension type or add '__slots__ = [...]' to the base type",
+                    "extension type '" __Pyx_FMT_TYPENAME "' has no __dict__ slot, "
+                    "but base type '" __Pyx_FMT_TYPENAME "' has: "
+                    "either add 'cdef dict __dict__' to the extension type "
+                    "or add '__slots__ = [...]' to the base type",
                     t_name, b_name);
                 __Pyx_DECREF_TypeName(t_name);
                 __Pyx_DECREF_TypeName(b_name);
