@@ -476,22 +476,28 @@ class Scope(object):
             warning(pos, "'%s' is a reserved name in C." % cname, -1)
 
         entries = self.entries
-        old_index = -1
+        entry = None
+        cpp_already_overridden = False
         if name and name in entries and not shadow:
             old_entry = entries[name]
 
             # Reject redeclared C++ functions only if they have the same type signature.
             cpp_override_allowed = False
             if type.is_cfunction and old_entry.type.is_cfunction and self.is_cpp():
-                for index, alt_entry in enumerate(old_entry.all_alternatives()):
+                for alt_entry in old_entry.all_alternatives():
                     if type.compatible_signature_with(alt_entry.type):
                         if name == '<init>' and not type.args:
                             # Cython pre-declares the no-args constructor - allow later user definitions.
-                            old_index = index
                             cpp_override_allowed = True
                         elif alt_entry.is_inherited:
-                            old_index = index
                             cpp_override_allowed = True
+                        if cpp_override_allowed:
+                            alt_entry.type = type
+                            alt_entry.is_inherited = False
+                            alt_entry.cname = cname
+                            alt_entry.pos = pos
+                            cpp_already_overridden = True
+                            entry = alt_entry
                         break
                 else:
                     cpp_override_allowed = True
@@ -509,24 +515,18 @@ class Scope(object):
             elif visibility != 'ignore':
                 error(pos, "'%s' redeclared " % name)
                 entries[name].already_declared_here()
-        entry = Entry(name, cname, type, pos = pos)
-        entry.in_cinclude = self.in_cinclude
-        entry.create_wrapper = create_wrapper
-        if name:
-            entry.qualified_name = self.qualify_name(name)
-            if not shadow:
-                if name in entries and self.is_cpp() and type.is_cfunction and not entries[name].is_cmethod:
-                    # Which means: already present function or cppclass method
-                    if old_index > -1:
-                        if old_index > 0:
-                            entries[name].overloaded_alternatives[old_index-1] = entry
-                        else:
-                            entry.overloaded_alternatives = entries[name].overloaded_alternatives
-                            entries[name] = entry
-                    else:
+        if not cpp_already_overridden:
+            entry = Entry(name, cname, type, pos = pos)
+            entry.in_cinclude = self.in_cinclude
+            entry.create_wrapper = create_wrapper
+            if name:
+                entry.qualified_name = self.qualify_name(name)
+                if not shadow:
+                    if name in entries and self.is_cpp() and type.is_cfunction and not entries[name].is_cmethod:
+                        # Which means: already present function or cppclass method
                         entries[name].overloaded_alternatives.append(entry)
-                else:
-                    entries[name] = entry
+                    else:
+                        entries[name] = entry
 
         if type.is_memoryviewslice:
             entry.init = type.default_value
