@@ -647,7 +647,7 @@ class __Pyx_FakeReference {
 #endif
 
 #if CYTHON_COMPILING_IN_LIMITED_API
-static inline void *__Pyx_PyModule_GetState(PyObject *op)
+static CYTHON_INLINE void *__Pyx_PyModule_GetState(PyObject *op)
 {
     void *result;
 
