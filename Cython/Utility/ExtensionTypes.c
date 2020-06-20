@@ -38,17 +38,24 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
             b = (PyTypeObject*)b0;
             if (!__Pyx_PyType_HasFeature(b, Py_TPFLAGS_HEAPTYPE))
             {
-                PyErr_Format(PyExc_TypeError, "base class '%.200s' is not a heap type",
-                             b->tp_name);
+                __Pyx_TypeName b_name = __Pyx_PyType_GetName(b);
+                PyErr_Format(PyExc_TypeError,
+                    "base class '" __Pyx_FMT_TYPENAME "' is not a heap type", b_name);
+                __Pyx_DECREF_TypeName(b_name);
                 return -1;
             }
             if (t->tp_dictoffset == 0 && b->tp_dictoffset)
             {
+                __Pyx_TypeName t_name = __Pyx_PyType_GetName(t);
+                __Pyx_TypeName b_name = __Pyx_PyType_GetName(b);
                 PyErr_Format(PyExc_TypeError,
-                    "extension type '%.200s' has no __dict__ slot, but base type '%.200s' has: "
+                    "extension type '" __Pyx_FMT_TYPENAME "' has no __dict__ slot, "
+                    "but base type '" __Pyx_FMT_TYPENAME "' has: "
                     "either add 'cdef dict __dict__' to the extension type "
                     "or add '__slots__ = [...]' to the base type",
-                    t->tp_name, b->tp_name);
+                    t_name, b_name);
+                __Pyx_DECREF_TypeName(t_name);
+                __Pyx_DECREF_TypeName(b_name);
                 return -1;
             }
         }
@@ -309,8 +316,13 @@ static int __Pyx_setup_reduce(PyObject* type_obj) {
     goto __PYX_GOOD;
 
 __PYX_BAD:
-    if (!PyErr_Occurred())
-        PyErr_Format(PyExc_RuntimeError, "Unable to initialize pickling for %s", __Pyx_PyType_Name(type_obj));
+    if (!PyErr_Occurred()) {
+        __Pyx_TypeName type_obj_name =
+            __Pyx_PyType_GetName((PyTypeObject*)type_obj);
+        PyErr_Format(PyExc_RuntimeError,
+            "Unable to initialize pickling for " __Pyx_FMT_TYPENAME, type_obj_name);
+        __Pyx_DECREF_TypeName(type_obj_name);
+    }
     ret = -1;
 __PYX_GOOD:
 #if !CYTHON_USE_PYTYPE_LOOKUP

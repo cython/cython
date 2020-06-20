@@ -1442,14 +1442,9 @@ class BuiltinObjectType(PyObjectType):
             check += '||((%s) == Py_None)' % arg
         if self.name == 'basestring':
             name = '(PY_MAJOR_VERSION < 3 ? "basestring" : "str")'
-            space_for_name = 16
         else:
             name = '"%s"' % self.name
-            # avoid wasting too much space but limit number of different format strings
-            space_for_name = (len(self.name) // 16 + 1) * 16
-        error = '(PyErr_Format(PyExc_TypeError, "Expected %%.%ds, got %%.200s", %s, __Pyx_PyType_Name(Py_TYPE(%s))), 0)' % (
-            space_for_name, name, arg)
-        return check + '||' + error
+        return check + ' || __Pyx_RaiseUnexpectedTypeError(%s, %s)' % (name, arg)
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
@@ -3587,6 +3582,7 @@ class CStructOrUnionType(CType):
                 var_entries=self.scope.var_entries,
                 funcname=self.from_py_function,
             )
+            env.use_utility_code(UtilityCode.load_cached("RaiseUnexpectedTypeError", "ObjectHandling.c"))
             from .UtilityCode import CythonUtilityCode
             self._convert_from_py_code = CythonUtilityCode.load(
                 "FromPyStructUtility" if self.is_struct else "FromPyUnionUtility",

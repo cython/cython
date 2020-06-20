@@ -781,6 +781,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('#define __Pyx_PyObject_FromString __Pyx_Py%s_FromString' % c_string_func_name)
         code.putln('#define __Pyx_PyObject_FromStringAndSize __Pyx_Py%s_FromStringAndSize' % c_string_func_name)
         code.put(UtilityCode.load_as_string("TypeConversions", "TypeConversion.c")[0])
+        env.use_utility_code(UtilityCode.load_cached("FormatTypeName", "ObjectHandling.c"))
 
         # These utility functions are assumed to exist and used elsewhere.
         PyrexTypes.c_long_type.create_to_py_utility_code(env)
@@ -1866,6 +1867,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "static int %s(PyObject *o, PyObject *i, PyObject *v) {" % (
                 scope.mangle_internal("mp_ass_subscript")))
         code.putln(
+            "__Pyx_TypeName o_type_name;")
+        code.putln(
             "if (v) {")
         if set_entry:
             code.putln("return %s(o, i, v);" % set_entry.func_cname)
@@ -1873,9 +1876,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.generate_guarded_basetype_call(
                 base_type, "tp_as_mapping", "mp_ass_subscript", "o, i, v", code)
             code.putln(
+                "o_type_name = __Pyx_PyType_GetName(Py_TYPE(o));")
+            code.putln(
                 "PyErr_Format(PyExc_NotImplementedError,")
             code.putln(
-                '  "Subscript assignment not supported by %.200s", Py_TYPE(o)->tp_name);')
+                '  "Subscript assignment not supported by " __Pyx_FMT_TYPENAME, o_type_name);')
+            code.putln(
+                "__Pyx_DECREF_TypeName(o_type_name);")
             code.putln(
                 "return -1;")
         code.putln(
@@ -1890,9 +1897,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.generate_guarded_basetype_call(
                 base_type, "tp_as_mapping", "mp_ass_subscript", "o, i, v", code)
             code.putln(
+                "o_type_name = __Pyx_PyType_GetName(Py_TYPE(o));")
+            code.putln(
                 "PyErr_Format(PyExc_NotImplementedError,")
             code.putln(
-                '  "Subscript deletion not supported by %.200s", Py_TYPE(o)->tp_name);')
+                '  "Subscript deletion not supported by " __Pyx_FMT_TYPENAME, o_type_name);')
+            code.putln(
+                "__Pyx_DECREF_TypeName(o_type_name);")
             code.putln(
                 "return -1;")
         code.putln(
@@ -1931,6 +1942,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "static int %s(PyObject *o, Py_ssize_t i, Py_ssize_t j, PyObject *v) {" % (
                 scope.mangle_internal("sq_ass_slice")))
         code.putln(
+            "__Pyx_TypeName o_type_name;")
+        code.putln(
             "if (v) {")
         if set_entry:
             code.putln(
@@ -1940,9 +1953,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.generate_guarded_basetype_call(
                 base_type, "tp_as_sequence", "sq_ass_slice", "o, i, j, v", code)
             code.putln(
+                "o_type_name = __Pyx_PyType_GetName(Py_TYPE(o));")
+            code.putln(
                 "PyErr_Format(PyExc_NotImplementedError,")
             code.putln(
-                '  "2-element slice assignment not supported by %.200s", Py_TYPE(o)->tp_name);')
+                '  "2-element slice assignment not supported by " __Pyx_FMT_TYPENAME, o_type_name);')
+            code.putln(
+                "__Pyx_DECREF_TypeName(o_type_name);")
             code.putln(
                 "return -1;")
         code.putln(
@@ -1957,9 +1974,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.generate_guarded_basetype_call(
                 base_type, "tp_as_sequence", "sq_ass_slice", "o, i, j, v", code)
             code.putln(
+                "o_type_name = __Pyx_PyType_GetName(Py_TYPE(o));")
+            code.putln(
                 "PyErr_Format(PyExc_NotImplementedError,")
             code.putln(
-                '  "2-element slice deletion not supported by %.200s", Py_TYPE(o)->tp_name);')
+                '  "2-element slice deletion not supported by " __Pyx_FMT_TYPENAME, o_type_name);')
+            code.putln(
+                "__Pyx_DECREF_TypeName(o_type_name);")
             code.putln(
                 "return -1;")
         code.putln(

@@ -7,9 +7,10 @@ static CYTHON_INLINE PyObject* __Pyx_Generator_Yield_From(__pyx_CoroutineObject 
 
 #if CYTHON_USE_TYPE_SLOTS
 static void __Pyx_PyIter_CheckErrorAndDecref(PyObject *source) {
+    __Pyx_TypeName source_type_name = __Pyx_PyType_GetName(Py_TYPE(source));
     PyErr_Format(PyExc_TypeError,
-                 "iter() returned non-iterator of type '%.100s'",
-                 Py_TYPE(source)->tp_name);
+        "iter() returned non-iterator of type '" __Pyx_FMT_TYPENAME "'", source_type_name);
+    __Pyx_DECREF_TypeName(source_type_name);
     Py_DECREF(source);
 }
 #endif
@@ -138,13 +139,13 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAwaitableIter(PyObject *o) {
 
 static void __Pyx_Coroutine_AwaitableIterError(PyObject *source) {
 #if PY_VERSION_HEX >= 0x030600B3 || defined(_PyErr_FormatFromCause)
-    _PyErr_FormatFromCause(
-        PyExc_TypeError,
-        "'async for' received an invalid object "
-        "from __anext__: %.100s",
-        Py_TYPE(source)->tp_name);
+    __Pyx_TypeName source_type_name = __Pyx_PyType_GetName(Py_TYPE(source));
+    _PyErr_FormatFromCause(PyExc_TypeError,
+        "'async for' received an invalid object from __anext__: " __Pyx_FMT_TYPENAME, source_type_name);
+    __Pyx_DECREF_TypeName(source_type_name);
 #elif PY_MAJOR_VERSION >= 3
     PyObject *exc, *val, *val2, *tb;
+    __Pyx_TypeName source_type_name = __Pyx_PyType_GetName(Py_TYPE(source));
     assert(PyErr_Occurred());
     PyErr_Fetch(&exc, &val, &tb);
     PyErr_NormalizeException(&exc, &val, &tb);
@@ -154,11 +155,9 @@ static void __Pyx_Coroutine_AwaitableIterError(PyObject *source) {
     }
     Py_DECREF(exc);
     assert(!PyErr_Occurred());
-    PyErr_Format(
-        PyExc_TypeError,
-        "'async for' received an invalid object "
-        "from __anext__: %.100s",
-        Py_TYPE(source)->tp_name);
+    PyErr_Format(PyExc_TypeError,
+        "'async for' received an invalid object from __anext__: " __Pyx_FMT_TYPENAME, source_type_name);
+    __Pyx_DECREF_TypeName(source_type_name);
 
     PyErr_Fetch(&exc, &val2, &tb);
     PyErr_NormalizeException(&exc, &val2, &tb);
@@ -209,9 +208,10 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
         goto bad;
     }
     if (unlikely(!PyIter_Check(res))) {
+        __Pyx_TypeName res_type_name = __Pyx_PyType_GetName(Py_TYPE(res));
         PyErr_Format(PyExc_TypeError,
-                     "__await__() returned non-iterator of type '%.100s'",
-                     Py_TYPE(res)->tp_name);
+            "__await__() returned non-iterator of type '" __Pyx_FMT_TYPENAME "'", res_type_name);
+        __Pyx_DECREF_TypeName(res_type_name);
         Py_CLEAR(res);
     } else {
         int is_coroutine = 0;
@@ -231,9 +231,12 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
     }
     return res;
 slot_error:
-    PyErr_Format(PyExc_TypeError,
-                 "object %.100s can't be used in 'await' expression",
-                 Py_TYPE(obj)->tp_name);
+    {
+        __Pyx_TypeName obj_type_name = __Pyx_PyType_GetName(Py_TYPE(obj));
+        PyErr_Format(PyExc_TypeError,
+            "object " __Pyx_FMT_TYPENAME " can't be used in 'await' expression", obj_type_name);
+        __Pyx_DECREF_TypeName(obj_type_name);
+    }
 bad:
     return NULL;
 }
@@ -249,6 +252,7 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_AsyncIterNext(PyObject *o); /*pro
 //@requires: ObjectHandling.c::PyObjectCallMethod0
 
 static PyObject *__Pyx_Coroutine_GetAsyncIter_Generic(PyObject *obj) {
+    __Pyx_TypeName obj_type_name;
 #if PY_VERSION_HEX < 0x030500B1
     {
         PyObject *iter = __Pyx_PyObject_CallMethod0(obj, PYIDENT("__aiter__"));
@@ -263,8 +267,10 @@ static PyObject *__Pyx_Coroutine_GetAsyncIter_Generic(PyObject *obj) {
     if ((0)) (void) __Pyx_PyObject_CallMethod0(obj, PYIDENT("__aiter__"));
 #endif
 
-    PyErr_Format(PyExc_TypeError, "'async for' requires an object with __aiter__ method, got %.100s",
-                 Py_TYPE(obj)->tp_name);
+    obj_type_name = __Pyx_PyType_GetName(Py_TYPE(obj));
+    PyErr_Format(PyExc_TypeError,
+                 "'async for' requires an object with __aiter__ method, got " __Pyx_FMT_TYPENAME, obj_type_name);
+    __Pyx_DECREF_TypeName(obj_type_name);
     return NULL;
 }
 
@@ -297,8 +303,12 @@ static PyObject *__Pyx__Coroutine_AsyncIterNext(PyObject *obj) {
     // FIXME: for the sake of a nicely conforming exception message, assume any AttributeError meant '__anext__'
     if (PyErr_ExceptionMatches(PyExc_AttributeError))
 #endif
-        PyErr_Format(PyExc_TypeError, "'async for' requires an object with __anext__ method, got %.100s",
-                     Py_TYPE(obj)->tp_name);
+    {
+        __Pyx_TypeName obj_type_name = __Pyx_PyType_GetName(Py_TYPE(obj));
+        PyErr_Format(PyExc_TypeError,
+            "'async for' requires an object with __anext__ method, got " __Pyx_FMT_TYPENAME, obj_type_name);
+        __Pyx_DECREF_TypeName(obj_type_name);
+    }
     return NULL;
 }
 
