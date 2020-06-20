@@ -748,14 +748,8 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 
 /* Type slots */
 #if CYTHON_COMPILING_IN_LIMITED_API
-  #if defined(_PyType_Name)
-    #define __Pyx_PyType_Name(tp)     (_PyType_Name((PyTypeObject *)tp))
-  #else
-    #define __Pyx_PyType_Name(tp)     (((PyTypeObject *)tp)->tp_name)
-  #endif
   #define __Pyx_PyType_GetFlags(tp)   (PyType_GetFlags((PyTypeObject *)tp))
 #else
-  #define __Pyx_PyType_Name(tp)       (((PyTypeObject *)tp)->tp_name)
   #define __Pyx_PyType_GetFlags(tp)   (((PyTypeObject *)tp)->tp_flags)
 #endif
 

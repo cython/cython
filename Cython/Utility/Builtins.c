@@ -69,8 +69,12 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
     if (!globals || globals == Py_None) {
         globals = $moddict_cname;
     } else if (unlikely(!PyDict_Check(globals))) {
-        PyErr_Format(PyExc_TypeError, "exec() arg 2 must be a dict, not %.200s",
-                     Py_TYPE(globals)->tp_name);
+        __Pyx_TypeName globals_type_name =
+            __Pyx_PyType_GetName(Py_TYPE(globals));
+        PyErr_Format(PyExc_TypeError,
+                     "exec() arg 2 must be a dict, not " __Pyx_FMT_TYPENAME,
+                     globals_type_name);
+        __Pyx_DECREF_TypeName(globals_type_name);
         goto bad;
     }
     if (!locals || locals == Py_None) {
@@ -106,9 +110,11 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
         #else
         } else if (unlikely(!PyString_Check(o))) {
         #endif
+            __Pyx_TypeName o_type_name = __Pyx_PyType_GetName(Py_TYPE(o));
             PyErr_Format(PyExc_TypeError,
-                "exec: arg 1 must be string, bytes or code object, got %.200s",
-                Py_TYPE(o)->tp_name);
+                "exec: arg 1 must be string, bytes or code object, got " __Pyx_FMT_TYPENAME,
+                o_type_name);
+            __Pyx_DECREF_TypeName(o_type_name);
             goto bad;
         }
         #if PY_MAJOR_VERSION >= 3
@@ -194,11 +200,12 @@ static CYTHON_INLINE int __Pyx_HasAttr(PyObject *o, PyObject *n) {
 static PyObject* __Pyx_Intern(PyObject* s); /* proto */
 
 //////////////////// Intern ////////////////////
+//@requires: ObjectHandling.c::RaiseUnexpectedTypeError
 
 static PyObject* __Pyx_Intern(PyObject* s) {
     if (unlikely(!PyString_CheckExact(s))) {
-        PyErr_Format(PyExc_TypeError, "Expected %.16s, got %.200s", "str", Py_TYPE(s)->tp_name);
-        return 0;
+        __Pyx_RaiseUnexpectedTypeError("str", s);
+        return NULL;
     }
     Py_INCREF(s);
     #if PY_MAJOR_VERSION >= 3
@@ -307,8 +314,11 @@ static long __Pyx__PyObject_Ord(PyObject* c) {
 #endif
     } else {
         // FIXME: support character buffers - but CPython doesn't support them either
+        __Pyx_TypeName c_type_name = __Pyx_PyType_GetName(Py_TYPE(c));
         PyErr_Format(PyExc_TypeError,
-            "ord() expected string of length 1, but %.200s found", c->ob_type->tp_name);
+            "ord() expected string of length 1, but " __Pyx_FMT_TYPENAME " found",
+            c_type_name);
+        __Pyx_DECREF_TypeName(c_type_name);
         return (long)(Py_UCS4)-1;
     }
     PyErr_Format(PyExc_TypeError,
