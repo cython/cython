@@ -2033,12 +2033,20 @@ class NameNode(AtomicExprNode):
 
     def analyse_target_declaration(self, env):
         if not self.entry:
-            lookup_in = env
             if self.walrus_target:
+                lookup_in = env
                 while lookup_in.is_genexpr_scope or (lookup_in.is_closure_scope and lookup_in.is_genexpr_closure):
                     # This logic possibly should be in the scope?
+                    if lookup_in.lookup_here(self.name):
+                        break
                     lookup_in = lookup_in.parent_scope
-            self.entry = lookup_in.lookup_here(self.name)
+                self.entry = lookup_in.lookup_here(self.name)
+                if self.entry and self.entry.is_scoped_iteration_target:
+                    error(self.pos,
+                            "assignment expression cannot rebind comprehension iteration variable '%s'" %
+                            self.name)
+            else:
+                self.entry = env.lookup_here(self.name)
         if not self.entry and self.annotation is not None:
             # name : type = ...
             self.declare_from_annotation(env, as_target=True)
@@ -8311,6 +8319,14 @@ class ScopedExprNode(ExprNode):
             else:
                 code.put_var_xdecref_clear(entry)
 
+def mark_all_entries_as_scoped_target(target):
+    if target.is_name:
+        target.entry.is_scoped_iteration_target = True
+    elif target.is_sequence_constructor:
+        for arg in target.args:
+            mark_all_entries_as_scoped_target(arg)
+    # other targets are possible, but this is only for error checking on assignment expressions
+    # and they are irrelevant for that
 
 class ComprehensionNode(ScopedExprNode):
     # A list/set/dict comprehension
@@ -8324,11 +8340,15 @@ class ComprehensionNode(ScopedExprNode):
         return self.type
 
     def analyse_declarations(self, env):
+        #import pdb; pdb.set_trace()
+        #if getattr(self.target, "entry", None):
+        #    self.target.entry.is_iteration_target = True
         self.append.target = self  # this is used in the PyList_Append of the inner loop
         self.init_scope(env)
 
     def analyse_scoped_declarations(self, env):
         self.loop.analyse_declarations(env)
+        mark_all_entries_as_scoped_target(self.loop.target)
 
     def analyse_types(self, env):
         if not self.has_local_scope:
@@ -13761,20 +13781,58 @@ class AnnotationNode(ExprNode):
             warning(annotation.pos, "Unknown type declaration in annotation, ignoring")
         return base_type, arg_type
 
-def WalrusNode(pos, lhs, rhs, **kwds):
+class AssignmentExpressionNode(ExprNode):
     """
-    An assignment expression
+    Also known as a named expression or the walrus operator
 
-    Defined as a function that constructs a composite node. However, has an interface designed to
-    look like a node so it can easily be replaced if needed.
-    (e.g. for conversion back to Py code.) FIXME!
+    Arguments
+    lhs - NameNode
+    rhs - ExprNode  (not stored as an attribute because it is likely to be heavily transformed)
+
+    internally uses
+    impl - UtilNodes.TempResultFromStatNode
     """
-    from .UtilNodes import TempResultFromStatNode, ResultRefNode
-    lhs.walrus_target = True
-    temp = ResultRefNode(pos=pos, expression=rhs)  # assigning expression lets it work out the type
-                        # (but feels a bit like mixing the two uses of ResultRefNode)
-    assignment = Nodes.CascadedAssignmentNode(pos=pos, lhs_list=[lhs, temp], rhs=rhs)
-    return TempResultFromStatNode(result_ref=temp, body=assignment)
+    # unusually, child_attrs and subexprs are deliberately not the same because it's
+    # sort of a hybrid node
+    subexprs = ["impl"]
+
+    impl = None
+    is_temp = True
+
+    def __init__(self, pos, lhs, rhs, **kwds):
+        from .UtilNodes import TempResultFromStatNode, ResultRefNode
+        super(AssignmentExpressionNode, self).__init__(pos, lhs=lhs, **kwds)
+        lhs.walrus_target = True
+
+        class WalrusResultRefNode(ResultRefNode):
+            @property
+            def type(self_):
+                if self.impl:
+                    return self.impl.body.stats[0].rhs.type
+            def infer_type(self_, env):
+                return self.impl.body.stats[0].rhs.infer_type(env)
+
+        temp = WalrusResultRefNode(pos=pos)
+        assignment1 = Nodes.SingleAssignmentNode(pos=pos, lhs=temp, rhs=rhs, first=True)
+        assignment2 = Nodes.SingleAssignmentNode(pos=pos, lhs=lhs, rhs=temp, first=True)
+
+        self.impl = TempResultFromStatNode(result_ref=temp, body=Nodes.StatListNode(pos,
+            stats=[assignment1, assignment2]))
+
+    def infer_type(self, env):
+        return self.impl.infer_type(env)
+
+    def analyse_types(self, env):
+        self.impl = self.impl.analyse_types(env)
+        self.type = self.impl.type
+        return self
+
+    def generate_result_code(self, code):
+        # TODO: There's almost certainly some shuffling to be done to take ownership of impl's result
+        code.putln("%s = %s;" % (
+            self.result(), self.impl.result()))
+        code.put_incref(self.result(), self.type)
+        #self.impl.generate_execution_code(code)
 
 #------------------------------------------------------------------------------------
 #

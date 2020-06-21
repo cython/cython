@@ -168,6 +168,8 @@ class PostParse(ScopeTrackingTransform):
     Note: Currently Parsing.py does a lot of interpretation and
     reorganization that can be refactored into this transform
     if a more pure Abstract Syntax Tree is wanted.
+
+    - Some invalid uses of := assignment expressions are detected
     """
     def __init__(self, context):
         super(PostParse, self).__init__(context)
@@ -201,6 +203,7 @@ class PostParse(ScopeTrackingTransform):
             node.pos, name=node.name, doc=None,
             args=[], star_arg=None, starstar_arg=None,
             body=node.loop, is_async_def=collector.has_await)
+        self.check_loop_iterator_for_assignment_expressions(node.loop)
         self.visitchildren(node)
         return node
 
@@ -211,8 +214,16 @@ class PostParse(ScopeTrackingTransform):
             collector.visitchildren(node.loop)
             if collector.has_await:
                 node.has_local_scope = True
+        self.check_loop_iterator_for_assignment_expressions(node.loop)
         self.visitchildren(node)
         return node
+
+    def check_loop_iterator_for_assignment_expressions(self, node):
+        # these are disallowed in both generator expression and comprehension iterators
+        finder = _AssignmentExpressionFinder()
+        finder.visit(node.iterator)
+        if finder.found:
+            error(node.iterator.pos, "assignment expression cannot be used in a comprehension iterable expression")
 
     # cdef variables
     def handle_bufferdefaults(self, decl):
@@ -362,6 +373,18 @@ class PostParse(ScopeTrackingTransform):
             node.value = None
         self.visitchildren(node)
         return node
+
+class _AssignmentExpressionFinder(TreeVisitor):
+    found = False
+
+    def visit_Node(self, node):
+        if self.found == True:
+            pass # short-circuit
+        else:
+            self.visitchildren(node)
+
+    def visit_AssignmentExpressionNode(self, node):
+        self.found = True
 
 
 def eliminate_rhs_duplicates(expr_list_list, ref_node_sequence):
@@ -1708,6 +1731,8 @@ if VALUE is not None:
         self.in_lambda += 1
         node.analyse_declarations(self.current_env())
         self.visitchildren(node)
+        if isinstance(node, ExprNodes.GeneratorExpressionNode):
+            ExprNodes.mark_all_entries_as_scoped_target(node.loop.target)
         self.in_lambda -= 1
         return node
 

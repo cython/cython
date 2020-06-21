@@ -148,14 +148,7 @@ class ResultRefNode(AtomicExprNode):
             self.type = type
 
     def analyse_target_declaration(self, env):
-        return  # because it can be the left-hand side
-
-    def analyse_target_expression(self, env, rhs):
-        print("XX") # FIXME this is never called?
-        if not self.type:
-            # only set the type if it hasn't been explicitly set
-            self.type = rhs.type
-        return self.analyse_target_types(env)
+        return  # because it can be the left-hand sides
 
     def analyse_types(self, env):
         if self.expression is not None:

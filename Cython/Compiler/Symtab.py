@@ -159,6 +159,7 @@ class Entry(object):
     #                              is a specialization
     # is_cgetter       boolean    Is a c-level getter function
     # is_walrus_assigned_in_genexpr   boolean
+    # is_scoped_iteration_target  boolean     E.g. comprehension or generator expression
 
     # TODO: utility_code and utility_code_definition serves the same purpose...
 
@@ -231,6 +232,7 @@ class Entry(object):
     outer_entry = None
     is_cgetter = False
     is_walrus_assigned_in_genexpr = False
+    is_scoped_iteration_target = False
 
     def __init__(self, name, cname, type, pos = None, init = None):
         self.name = name

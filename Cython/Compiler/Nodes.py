@@ -5824,6 +5824,8 @@ class SingleAssignmentNode(AssignmentNode):
         return self.unroll_assignments(refs, check_node, self.lhs.args, rhs, env)
 
     def unroll_lhs(self, env):
+        if self.lhs.type is None:
+            import pdb; pdb.set_trace()
         if self.lhs.type.is_ctuple:
             # Handled directly.
             return
