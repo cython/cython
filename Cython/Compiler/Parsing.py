@@ -135,11 +135,11 @@ def p_lambdef_nocond(s):
 
 #test: or_test ['if' or_test 'else' test] | lambdef
 
-def p_test(s, allow_walrus=True):
+def p_test(s, allow_assignment_expression=True):
     if s.sy == 'lambda':
         return p_lambdef(s)
     pos = s.position()
-    expr = p_walrus_test(s, allow_walrus)
+    expr = p_walrus_test(s, allow_assignment_expression)
     if s.sy == 'if':
         s.next()
         test = p_walrus_test(s)  # don't think this should be affected by the general rule
@@ -151,18 +151,18 @@ def p_test(s, allow_walrus=True):
 
 #test_nocond: or_test | lambdef_nocond
 
-def p_test_nocond(s, allow_walrus=True):
+def p_test_nocond(s, allow_assignment_expression=True):
     if s.sy == 'lambda':
         return p_lambdef_nocond(s)
     else:
-        return p_walrus_test(s, allow_walrus)
+        return p_walrus_test(s, allow_assignment_expression)
 
 # walrurus_test: IDENT := test | or_test
 
-def p_walrus_test(s, allow_walrus=True):
+def p_walrus_test(s, allow_assignment_expression=True):
     lhs = p_or_test(s)
     if s.sy == ':=':
-        if not allow_walrus:
+        if not allow_assignment_expression:
             s.error("invalid syntax: assignment expression not allowed in this context")
         elif not lhs.is_name:
             s.error("Left-hand side of assignment expression must be an identifier")
