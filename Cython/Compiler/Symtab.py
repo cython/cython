@@ -2607,8 +2607,8 @@ class CppClassScope(Scope):
                 base_entry.type, None, 'extern')
             entry.is_variable = 1
             entry.is_inherited = 1
-            entry.is_cfunction = base_entry.is_cfunction
-            if entry.is_cfunction:
+            if base_entry.is_cfunction:
+                entry.is_cfunction = 1
                 entry.func_cname = base_entry.func_cname
             self.inherited_var_entries.append(entry)
         for base_entry in base_scope.cfunc_entries:
