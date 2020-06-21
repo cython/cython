@@ -96,7 +96,7 @@ static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS(PyObject *func, 
 //@requires: CommonStructures.c::FetchCommonType
 //@requires: ObjectHandling.c::PyMethodNew
 //@requires: ObjectHandling.c::PyVectorcallFastCallDict
-//@requires: ObjectHandling.c::PyObjectGetAttrStrNoError
+//@requires: ObjectHandling.c::PyObjectGetAttrStr
 
 #include <structmember.h>
 
@@ -381,17 +381,17 @@ __Pyx_CyFunction_get_is_coroutine(__pyx_CyFunctionObject *op, CYTHON_UNUSED void
         module = PyImport_ImportModuleLevelObject(PYIDENT("asyncio.coroutines"), NULL, NULL, fromlist, 0);
         Py_DECREF(fromlist);
         if (unlikely(!module)) goto ignore;
-        op->func_is_coroutine = __Pyx_PyObject_GetAttrStrNoError(module, marker);
+        op->func_is_coroutine = __Pyx_PyObject_GetAttrStr(module, marker);
         Py_DECREF(module);
         if (unlikely(!op->func_is_coroutine)) goto ignore;
         return __Pyx_NewRef(op->func_is_coroutine);
     }
 ignore:
-    op->func_is_coroutine = Py_None;
+    PyErr_Clear();
+    op->func_is_coroutine = __Pyx_NewRef(Py_None);
     return __Pyx_NewRef(op->func_is_coroutine);
 #else
-    PyObject *result = (op->flags & __Pyx_CYFUNCTION_COROUTINE) ? Py_True : Py_False;
-    return __Pyx_NewRef(result);
+    return __Pyx_PyBool_FromLong(op->flags & __Pyx_CYFUNCTION_COROUTINE);
 #endif
 }
 
