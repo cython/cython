@@ -587,6 +587,9 @@ class ExprNode(Node):
     def analyse_target_declaration(self, env):
         error(self.pos, "Cannot assign to or delete this")
 
+    def analyse_assignment_expression_target_declaration(self, env):
+        error(self.pos, "Cannot use anything except a name in an assignment expression")
+
     # ------------- Expression Analysis ----------------
 
     def analyse_const_expression(self, env):
@@ -1894,7 +1897,6 @@ class NameNode(AtomicExprNode):
     allow_null = False
     nogil = False
     inferred_type = None
-    walrus_target = False  # this affects what scope it's declared in
 
     def as_cython_attribute(self):
         return self.cython_attribute
@@ -2032,15 +2034,15 @@ class NameNode(AtomicExprNode):
         return None
 
     def analyse_target_declaration(self, env):
+        return self.analyse_target_declaration_shared(env, False)
+
+    def analyse_assignment_expression_target_declaration(self, env):
+        return self.analyse_target_declaration_shared(env, True)
+
+    def analyse_target_declaration_shared(self, env, is_assignment_expression):
         if not self.entry:
-            if self.walrus_target:
-                lookup_in = env
-                while lookup_in.is_genexpr_scope or (lookup_in.is_closure_scope and lookup_in.is_genexpr_closure):
-                    # This logic possibly should be in the scope?
-                    if lookup_in.lookup_here(self.name):
-                        break
-                    lookup_in = lookup_in.parent_scope
-                self.entry = lookup_in.lookup_here(self.name)
+            if is_assignment_expression:
+                self.entry = env.lookup_here_assignment_expression(self.name)
             else:
                 self.entry = env.lookup_here(self.name)
         if not self.entry and self.annotation is not None:
@@ -2053,7 +2055,10 @@ class NameNode(AtomicExprNode):
                 type = unspecified_type
             else:
                 type = py_object_type
-            self.entry = env.declare_var(self.name, type, self.pos, walrus_target=self.walrus_target)
+            if is_assignment_expression:
+                self.entry = env.declare_var_assignment_expression(self.name, type, self.pos)
+            else:
+                self.entry = env.declare_var(self.name, type, self.pos)
         if self.entry.is_declared_generic:
             self.result_ctype = py_object_type
         if self.entry.as_module:
@@ -13785,7 +13790,6 @@ class AssignmentExpressionNode(ExprNode):
     def __init__(self, pos, lhs, rhs, **kwds):
         from .UtilNodes import TempResultFromStatNode, ResultRefNode
         super(AssignmentExpressionNode, self).__init__(pos, lhs=lhs, **kwds)
-        lhs.walrus_target = True
 
         class WalrusResultRefNode(ResultRefNode):
             @property
@@ -13797,7 +13801,8 @@ class AssignmentExpressionNode(ExprNode):
 
         temp = WalrusResultRefNode(pos=pos)
         assignment1 = Nodes.SingleAssignmentNode(pos=pos, lhs=temp, rhs=rhs, first=True)
-        assignment2 = Nodes.SingleAssignmentNode(pos=pos, lhs=lhs, rhs=temp, first=True)
+        assignment2 = Nodes.SingleAssignmentNode(pos=pos, lhs=lhs, rhs=temp, first=True,
+                                                 is_assignment_expression=True)
 
         self.impl = TempResultFromStatNode(result_ref=temp, body=Nodes.StatListNode(pos,
             stats=[assignment1, assignment2]))

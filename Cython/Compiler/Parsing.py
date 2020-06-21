@@ -160,17 +160,16 @@ def p_test_nocond(s, allow_walrus=True):
 # walrurus_test: IDENT := test | or_test
 
 def p_walrus_test(s, allow_walrus=True):
-    if s.peek()[0] == ':=':
+    lhs = p_or_test(s)
+    if s.sy == ':=':
         if not allow_walrus:
-            s.error("Assignment expression not allowed in this context - invalid syntax")
-        if s.sy != 'IDENT':
+            s.error("invalid syntax: assignment expression not allowed in this context")
+        elif not lhs.is_name:
             s.error("Left-hand side of assignment expression must be an identifier")
-        lhs = p_name(s, s.systring)
-        s.next()
         s.next()
         rhs = p_test(s)
         return ExprNodes.AssignmentExpressionNode(s.position(), lhs=lhs, rhs=rhs)
-    return p_or_test(s)
+    return lhs
 
 #or_test: and_test ('or' and_test)*
 

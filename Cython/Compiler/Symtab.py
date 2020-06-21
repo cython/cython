@@ -158,7 +158,6 @@ class Entry(object):
     # is_fused_specialized boolean Whether this entry of a cdef or def function
     #                              is a specialization
     # is_cgetter       boolean    Is a c-level getter function
-    # is_walrus_assigned_in_genexpr   boolean
 
     # TODO: utility_code and utility_code_definition serves the same purpose...
 
@@ -230,7 +229,6 @@ class Entry(object):
     cf_used = True
     outer_entry = None
     is_cgetter = False
-    is_walrus_assigned_in_genexpr = False
 
     def __init__(self, name, cname, type, pos = None, init = None):
         self.name = name
@@ -714,8 +712,7 @@ class Scope(object):
 
     def declare_var(self, name, type, pos,
                     cname = None, visibility = 'private',
-                    api = 0, in_pxd = 0, is_cdef = 0,
-                    walrus_target = False):
+                    api = 0, in_pxd = 0, is_cdef = 0):
         # Add an entry for a variable.
         if not cname:
             if visibility != 'private' or api:
@@ -733,6 +730,11 @@ class Scope(object):
             entry.api = 1
             entry.used = 1
         return entry
+
+    def declare_var_assignment_expression(self, name, type, pos):
+        # In most cases declares the variable as normal.
+        # For generator expressions and comprehensions the variable is declared in their parent
+        return self.declare_var(name, type, pos)
 
     def declare_builtin(self, name, pos):
         name = self.mangle_class_private_name(name)
@@ -959,6 +961,11 @@ class Scope(object):
 
     def lookup_here_unmangled(self, name):
         return self.entries.get(name, None)
+
+    def lookup_here_assignment_expression(self, name):
+        # For most cases behaves like "lookup_here".
+        # However, it does look outwards for comprehension and generator expression scopes
+        return self.lookup_here(name)
 
     def lookup_target(self, name):
         # Look up name in this scope only. Declare as Python
@@ -1468,8 +1475,7 @@ class ModuleScope(Scope):
 
     def declare_var(self, name, type, pos,
                     cname = None, visibility = 'private',
-                    api = 0, in_pxd = 0, is_cdef = 0,
-                    walrus_target = False):
+                    api = 0, in_pxd = 0, is_cdef = 0):
         # Add an entry for a global variable. If it is a Python
         # object type, and not declared with cdef, it will live
         # in the module dictionary, otherwise it will be a C
@@ -1843,8 +1849,7 @@ class LocalScope(Scope):
 
     def declare_var(self, name, type, pos,
                     cname = None, visibility = 'private',
-                    api = 0, in_pxd = 0, is_cdef = 0,
-                    walrus_target = False):
+                    api = 0, in_pxd = 0, is_cdef = 0):
         name = self.mangle_class_private_name(name)
         # Add an entry for a local variable.
         if visibility in ('public', 'readonly'):
@@ -1945,16 +1950,7 @@ class GeneratorExpressionScope(Scope):
 
     def declare_var(self, name, type, pos,
                     cname = None, visibility = 'private',
-                    api = 0, in_pxd = 0, is_cdef = True,
-                    walrus_target = False):
-        if walrus_target:
-            # should be declared in the parent scope instead
-            entry = self.parent_scope.declare_var(name, type, pos,
-                                                  cname=cname, visibility=visibility,
-                                                  api=api, in_pxd=in_pxd, is_cdef=is_cdef,
-                                                  walrus_target=walrus_target)
-            entry.is_walrus_assigned_in_genexpr = True
-            return entry
+                    api = 0, in_pxd = 0, is_cdef = True):
         if type is unspecified_type:
             # if the outer scope defines a type for this variable, inherit it
             outer_entry = self.outer_scope.lookup(name)
@@ -1974,6 +1970,10 @@ class GeneratorExpressionScope(Scope):
         self.entries[name] = entry
         return entry
 
+    def declare_var_assignment_expression(self, name, type, pos):
+        # should be declared in the parent scope instead
+        return self.parent_scope.declare_var(name, type, pos)
+
     def declare_pyfunction(self, name, pos, allow_redefine=False):
         return self.outer_scope.declare_pyfunction(
             name, pos, allow_redefine)
@@ -1983,6 +1983,12 @@ class GeneratorExpressionScope(Scope):
 
     def add_lambda_def(self, def_node):
         return self.outer_scope.add_lambda_def(def_node)
+
+    def lookup_here_assignment_expression(self, name):
+        entry = self.lookup_here(name)
+        if not entry:
+            entry = self.parent_scope.lookup_here_assignment_expression(name)
+        return entry
 
 
 class ClosureScope(LocalScope):
@@ -2007,26 +2013,26 @@ class ClosureScope(LocalScope):
     def declare_pyfunction(self, name, pos, allow_redefine=False):
         return LocalScope.declare_pyfunction(self, name, pos, allow_redefine, visibility='private')
 
-    def declare_var(self, name, type, pos,
-                    cname = None, visibility = 'private',
-                    api = 0, in_pxd = 0, is_cdef = True,
-                    walrus_target = False):
-        if walrus_target and self.is_genexpr_closure:
-            # := assignments go outside the closure
-            call_from = self.parent_scope
-        else:
-            call_from = super(ClosureScope, self)
-        entry =  call_from.declare_var(name, type, pos,
-                                        cname=cname, visibility=visibility,
-                                        api=api, in_pxd=in_pxd, is_cdef=is_cdef,
-                                        walrus_target=walrus_target)
-        if walrus_target and self.is_genexpr_closure:
-            entry.is_walrus_assigned_in_genexpr = True
+    def declare_var_assignment_expression(self, name, type, pos):
+        if self.is_genexpr_closure:
+            entry = self.parent_scope.declare_var(name, type, pos)
             entry.in_closure = True
             inner_entry = InnerEntry(entry, self)
             inner_entry.is_variable = True
             self.entries[name] = inner_entry
             return inner_entry
+        return self.declare_var(name, type, pos)
+
+    def lookup_here_assignment_expression(self, name):
+        entry = self.lookup_here(name)
+        if not entry and self.is_genexpr_closure:
+            entry = self.parent_scope.lookup_here_assignment_expression(name)
+            if entry:
+                entry.in_closure = True
+                inner_entry = InnerEntry(entry, self)
+                inner_entry.is_variable = True
+                self.entries[name] = inner_entry
+                return inner_entry
         return entry
 
 
@@ -2039,8 +2045,7 @@ class StructOrUnionScope(Scope):
     def declare_var(self, name, type, pos,
                     cname = None, visibility = 'private',
                     api = 0, in_pxd = 0, is_cdef = 0,
-                    allow_pyobject=False, allow_memoryview=False,
-                    walrus_target = False):
+                    allow_pyobject=False, allow_memoryview=False,):
         # Add an entry for an attribute.
         if not cname:
             cname = name
@@ -2121,8 +2126,7 @@ class PyClassScope(ClassScope):
 
     def declare_var(self, name, type, pos,
                     cname = None, visibility = 'private',
-                    api = 0, in_pxd = 0, is_cdef = 0,
-                    walrus_target = False):
+                    api = 0, in_pxd = 0, is_cdef = 0):
         name = self.mangle_class_private_name(name)
         if type is unspecified_type:
             type = py_object_type
@@ -2252,8 +2256,7 @@ class CClassScope(ClassScope):
 
     def declare_var(self, name, type, pos,
                     cname = None, visibility = 'private',
-                    api = 0, in_pxd = 0, is_cdef = 0,
-                    walrus_target = False):
+                    api = 0, in_pxd = 0, is_cdef = 0):
         name = self.mangle_class_private_name(name)
         if is_cdef:
             # Add an entry for an attribute.
@@ -2548,8 +2551,7 @@ class CppClassScope(Scope):
 
     def declare_var(self, name, type, pos,
                     cname = None, visibility = 'extern',
-                    api = 0, in_pxd = 0, is_cdef = 0, defining = 0,
-                    walrus_target = False):
+                    api = 0, in_pxd = 0, is_cdef = 0, defining = 0):
         # Add an entry for an attribute.
         if not cname:
             cname = name

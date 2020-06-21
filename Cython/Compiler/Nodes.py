@@ -5564,12 +5564,14 @@ class SingleAssignmentNode(AssignmentNode):
     #  rhs                      ExprNode      Right hand side
     #  first                    bool          Is this guaranteed the first assignment to lhs?
     #  is_overloaded_assignment bool          Is this assignment done via an overloaded operator=
+    #  is_assignment_expression bool          Internally SingleAssignmentNode is used to implement assignment expressions
     #  exception_check
     #  exception_value
 
     child_attrs = ["lhs", "rhs"]
     first = False
     is_overloaded_assignment = False
+    is_assignment_expression = False
     declaration_only = False
 
     def analyse_declarations(self, env):
@@ -5654,7 +5656,10 @@ class SingleAssignmentNode(AssignmentNode):
         if self.declaration_only:
             return
         else:
-            self.lhs.analyse_target_declaration(env)
+            if self.is_assignment_expression:
+                self.lhs.analyse_assignment_expression_target_declaration(env)
+            else:
+                self.lhs.analyse_target_declaration(env)
 
     def analyse_types(self, env, use_temp=0):
         from . import ExprNodes

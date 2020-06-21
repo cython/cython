@@ -588,10 +588,9 @@ def check_definitions(flow, compiler_directives):
             if not entry.from_closure and len(node.cf_state) == 1:
                 node.cf_is_null = True
             if (node.allow_null or entry.from_closure
-                    or entry.is_pyclass_attr or entry.type.is_error
-                    or entry.is_walrus_assigned_in_genexpr):
+                    or entry.is_pyclass_attr or entry.type.is_error):
                 pass  # Can be uninitialized here
-            elif node.cf_is_null:
+            elif node.cf_is_null and not entry.in_closure:
                 if entry.error_on_uninitialized or (
                         Options.error_on_uninitialized and (
                         entry.type.is_pyobject or entry.type.is_unspecified)):
@@ -605,10 +604,13 @@ def check_definitions(flow, compiler_directives):
                         "local variable '%s' referenced before assignment"
                         % entry.name)
             elif warn_maybe_uninitialized:
+                msg = ("local variable '%s' might be referenced before assignment"
+                        % entry.name)
+                if entry.in_closure:
+                    msg += " (maybe initialized inside a closure)"
                 messages.warning(
                     node.pos,
-                    "local variable '%s' might be referenced before assignment"
-                    % entry.name)
+                    msg)
         elif Unknown in node.cf_state:
             # TODO: better cross-closure analysis to know when inner functions
             #       are being called before a variable is being set, and when
