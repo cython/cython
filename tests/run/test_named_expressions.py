@@ -1,4 +1,9 @@
-# copied from cpython with minimal modifications (mainly exec->cython.inline, and a exception strings)
+# mode: run
+# tag: pure38, no-cpp
+
+# copied from cpython with minimal modifications (mainly exec->cython_inline, and a few exception strings)
+# This is not currently run in C++ because all the cython_inline compilations fail for reasons that are unclear
+# FIXME pure38 seems to be ignored
 # cython: language_level=3
 
 import os
@@ -51,12 +56,15 @@ if cython.compiled:
             raised_message = str(exc)
             if raised_message.endswith(".pyx"):
                 # unhelpfully Cython sometimes raises a compile error and sometimes just raises the filename
+                raised_message = []
                 for line in err_messages.split("\n"):
                     line = line.split(":",3)
                     # a usable error message with be filename:line:char: message
                     if len(line) == 4 and line[0].endswith(".pyx"):
-                        raised_message = line[-1]
-                        break
+                        raised_message.append(line[-1])
+                # output all the errors - we aren't worried about reproducing the exact order CPython
+                # emits errors in
+                raised_message = "; ".join(raised_message)
             raise SyntaxError(raised_message) from None
 
 class NamedExpressionInvalidTest(unittest.TestCase):
@@ -182,9 +190,8 @@ class NamedExpressionInvalidTest(unittest.TestCase):
             ("Unpacking reuse", 'i', "[i := 0 for i, j in [(0, 1)]]"),
             ("Reuse in loop condition", 'i', "[i+1 for i in range(5) if (i := 0)]"),
             ("Unreachable reuse", 'i', "[False or (i:=0) for i in range(5)]"),
-            # FIXME (maybe) in Cython the (i:=10) is dropped too early to produce an error
-            #("Unreachable nested reuse", 'i',
-            #    "[(i, j) for i in range(5) for j in range(5) if True or (i:=10)]"),
+            ("Unreachable nested reuse", 'i',
+                "[(i, j) for i in range(5) for j in range(5) if True or (i:=10)]"),
         ]
         for case, target, code in cases:
             msg = f"assignment expression cannot rebind comprehension iteration variable '{target}'"
@@ -223,7 +230,7 @@ class NamedExpressionInvalidTest(unittest.TestCase):
         for case, code in cases:
             with self.subTest(case=case):
                 with self.assertRaisesRegex(SyntaxError, msg):
-                    exec(code, {}) # Module scope
+                    exec(code, {}) # Module scope - FIXME this test puts it in __invoke in cython_inline
                 with self.assertRaisesRegex(SyntaxError, msg):
                     exec(code, {}, {}) # Class scope
                 with self.assertRaisesRegex(SyntaxError, msg):

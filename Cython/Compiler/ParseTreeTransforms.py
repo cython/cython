@@ -203,7 +203,7 @@ class PostParse(ScopeTrackingTransform):
             node.pos, name=node.name, doc=None,
             args=[], star_arg=None, starstar_arg=None,
             body=node.loop, is_async_def=collector.has_await)
-        self.check_loop_iterator_for_assignment_expressions(node.loop)
+        _AssignmentExpressionChecker.do_checks(node.loop, self.scope_type in ("pyclass", "cclass"))
         self.visitchildren(node)
         return node
 
@@ -214,16 +214,9 @@ class PostParse(ScopeTrackingTransform):
             collector.visitchildren(node.loop)
             if collector.has_await:
                 node.has_local_scope = True
-        self.check_loop_iterator_for_assignment_expressions(node.loop)
+        _AssignmentExpressionChecker.do_checks(node.loop, self.scope_type in ("pyclass", "cclass"))
         self.visitchildren(node)
         return node
-
-    def check_loop_iterator_for_assignment_expressions(self, node):
-        # these are disallowed in both generator expression and comprehension iterators
-        finder = _AssignmentExpressionFinder()
-        finder.visit(node.iterator)
-        if finder.found:
-            error(node.iterator.pos, "assignment expression cannot be used in a comprehension iterable expression")
 
     # cdef variables
     def handle_bufferdefaults(self, decl):
@@ -374,17 +367,102 @@ class PostParse(ScopeTrackingTransform):
         self.visitchildren(node)
         return node
 
-class _AssignmentExpressionFinder(TreeVisitor):
-    found = False
+class _AssignmentExpressionTargetNameFinder(TreeVisitor):
+    def __init__(self):
+        super(_AssignmentExpressionTargetNameFinder, self).__init__()
+        self.target_names = {}
+
+    def find_target_names(self, target):
+        if target.is_name:
+            return [target.name]
+        elif target.is_sequence_constructor:
+            names = []
+            for arg in target.args:
+                names.extend(self.find_target_names(arg))
+            return names
+        # other targets are possible, but since it isn't necessary to investigate them here
+        return []
+
+    def visit_ForInStatNode(self, node):
+        self.target_names[node] = tuple(self.find_target_names(node.target))
+        self.visitchildren(node)
+
+    def visit_ComprehensionNode(self, node):
+        pass  # don't recurse into nested comprehensions
+
+    def visit_LambdaNode(self, node):
+        pass  # don't recurse into nested lambdas/generator expressions
 
     def visit_Node(self, node):
-        if self.found == True:
-            pass # short-circuit
+        self.visitchildren(node)
+
+
+class _AssignmentExpressionChecker(TreeVisitor):
+    """
+    Enforces rules on AssignmentExpressions within generator expressions and comprehensions
+    """
+    def __init__(self, loop_node, scope_is_class):
+        super(_AssignmentExpressionChecker, self).__init__()
+
+        target_name_finder = _AssignmentExpressionTargetNameFinder()
+        target_name_finder.visit(loop_node)
+        self.target_names_dict = target_name_finder.target_names
+
+        self.in_nested_generator = False
+        self.scope_is_class = scope_is_class
+        self.current_target_names = ()
+        self.all_target_names = sum(self.target_names_dict.values(), ())
+
+    @staticmethod
+    def do_checks(loop_node, scope_is_class):
+        checker = _AssignmentExpressionChecker(loop_node, scope_is_class)
+        checker.visit(loop_node)
+
+    def visit_ForInStatNode(self, node):
+        if self.in_nested_generator:
+            self.visitchildren(node)  # once nested, don't do anything special
         else:
-            self.visitchildren(node)
+            current_target_names = self.current_target_names
+            self.current_target_names += self.target_names_dict.get(node, None)
+
+            self.in_iterator = True
+            self.visit(node.iterator)
+            self.in_iterator = False
+            self.visitchildren(node, attrs=[attr for attr in node.child_attrs if attr!="iterator"])
+
+            self.current_target_names = current_target_names
+
+    def visit_Node(self, node):
+        self.visitchildren(node)
 
     def visit_AssignmentExpressionNode(self, node):
-        self.found = True
+        if self.in_iterator:
+            error(node.pos, "assignment expression cannot be used in a comprehension iterable expression")
+        if self.scope_is_class:
+            error(node.pos, "assignment expression within a comprehension cannot be used in a class body")
+        if node.lhs.name in self.current_target_names:
+            error(node.pos, "assignment expression cannot rebind comprehension iteration variable '%s'" %
+                    node.lhs.name)
+        elif node.lhs.name in self.all_target_names:
+            error(node.pos, "comprehension inner loop cannot rebind assignment expression target '%s'" %
+                    node.lhs.name)
+
+    def visit_LambdaNode(self, node):
+        self.visit(node.result_expr)  # lambda node `def_node` isn't set up here
+            # so we need to recurse into it explicitly
+
+    def visit_ComprehensionNode(self, node):
+        in_nested_generator = self.in_nested_generator
+        self.in_nested_generator = True
+        self.visitchildren(node)
+        self.in_nested_generator = in_nested_generator
+
+    def visit_GeneratorExpressionNode(self, node):
+        in_nested_generator = self.in_nested_generator
+        self.in_nested_generator = True
+        self.visit(node.loop)  # like lambda node, this has to be done explicitly because def_node isn't set up
+        self.in_nested_generator = in_nested_generator
+
 
 
 def eliminate_rhs_duplicates(expr_list_list, ref_node_sequence):
@@ -1731,8 +1809,6 @@ if VALUE is not None:
         self.in_lambda += 1
         node.analyse_declarations(self.current_env())
         self.visitchildren(node)
-        if isinstance(node, ExprNodes.GeneratorExpressionNode):
-            ExprNodes.mark_all_entries_as_scoped_target(node.loop.target)
         self.in_lambda -= 1
         return node
 

@@ -2041,10 +2041,6 @@ class NameNode(AtomicExprNode):
                         break
                     lookup_in = lookup_in.parent_scope
                 self.entry = lookup_in.lookup_here(self.name)
-                if self.entry and self.entry.is_scoped_iteration_target:
-                    error(self.pos,
-                            "assignment expression cannot rebind comprehension iteration variable '%s'" %
-                            self.name)
             else:
                 self.entry = env.lookup_here(self.name)
         if not self.entry and self.annotation is not None:
@@ -8319,15 +8315,6 @@ class ScopedExprNode(ExprNode):
             else:
                 code.put_var_xdecref_clear(entry)
 
-def mark_all_entries_as_scoped_target(target):
-    if target.is_name:
-        target.entry.is_scoped_iteration_target = True
-    elif target.is_sequence_constructor:
-        for arg in target.args:
-            mark_all_entries_as_scoped_target(arg)
-    # other targets are possible, but this is only for error checking on assignment expressions
-    # and they are irrelevant for that
-
 class ComprehensionNode(ScopedExprNode):
     # A list/set/dict comprehension
 
@@ -8340,15 +8327,11 @@ class ComprehensionNode(ScopedExprNode):
         return self.type
 
     def analyse_declarations(self, env):
-        #import pdb; pdb.set_trace()
-        #if getattr(self.target, "entry", None):
-        #    self.target.entry.is_iteration_target = True
         self.append.target = self  # this is used in the PyList_Append of the inner loop
         self.init_scope(env)
 
     def analyse_scoped_declarations(self, env):
         self.loop.analyse_declarations(env)
-        mark_all_entries_as_scoped_target(self.loop.target)
 
     def analyse_types(self, env):
         if not self.has_local_scope:
