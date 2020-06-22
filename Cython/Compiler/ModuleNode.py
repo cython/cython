@@ -1867,12 +1867,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "static int %s(PyObject *o, PyObject *i, PyObject *v) {" % (
                 scope.mangle_internal("mp_ass_subscript")))
         code.putln(
-            "__Pyx_TypeName o_type_name;")
-        code.putln(
             "if (v) {")
         if set_entry:
             code.putln("return %s(o, i, v);" % set_entry.func_cname)
         else:
+            code.putln(
+                "__Pyx_TypeName o_type_name;")
             self.generate_guarded_basetype_call(
                 base_type, "tp_as_mapping", "mp_ass_subscript", "o, i, v", code)
             code.putln(
@@ -1894,6 +1894,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 "return %s(o, i);" % (
                     del_entry.func_cname))
         else:
+            code.putln(
+                "__Pyx_TypeName o_type_name;")
             self.generate_guarded_basetype_call(
                 base_type, "tp_as_mapping", "mp_ass_subscript", "o, i, v", code)
             code.putln(
