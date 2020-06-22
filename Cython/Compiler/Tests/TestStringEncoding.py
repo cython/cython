@@ -19,6 +19,7 @@ class StringEncodingTest(unittest.TestCase):
         # but it seems to be a parser bug in Py2, which doesn't hurt us in Cython.
         if sys.version_info[0] != 2:
             self.assertTrue(StringEncoding.string_contains_lone_surrogates(u"\uD800\uDFFF"))
+        self.assertTrue(StringEncoding.string_contains_lone_surrogates(u"\uDFFF\uD800"[::-1]))
 
         self.assertTrue(StringEncoding.string_contains_lone_surrogates(u"\uD800"))
         self.assertTrue(StringEncoding.string_contains_lone_surrogates(u"\uDFFF"))
