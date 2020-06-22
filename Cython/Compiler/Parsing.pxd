@@ -23,7 +23,7 @@ cdef p_lambdef(PyrexScanner s, bint allow_conditional=*)
 cdef p_lambdef_nocond(PyrexScanner s)
 cdef p_test(PyrexScanner s, bint allow_assignment_expression=*)
 cdef p_test_nocond(PyrexScanner s, bint allow_assignment_expression=*)
-cdef p_walrus_test(PyrexScanner s, bint allow_assignment_expression=*):
+cdef p_walrus_test(PyrexScanner s, bint allow_assignment_expression=*)
 cdef p_or_test(PyrexScanner s)
 cdef p_rassoc_binop_expr(PyrexScanner s, ops, p_sub_expr_func p_subexpr)
 cdef p_and_test(PyrexScanner s)

@@ -120,9 +120,9 @@ def p_lambdef(s, allow_conditional=True):
             s, terminator=':', annotated=False)
     s.expect(':')
     if allow_conditional:
-        expr = p_test(s, False)
+        expr = p_test(s, allow_assignment_expression=False)
     else:
-        expr = p_test_nocond(s, False)
+        expr = p_test_nocond(s, allow_assignment_expression=False)
     return ExprNodes.LambdaNode(
         pos, args = args,
         star_arg = star_arg, starstar_arg = starstar_arg,
@@ -221,7 +221,7 @@ def p_test_or_starred_expr(s, is_expression=False):
     if s.sy == '*':
         return p_starred_expr(s)
     else:
-        return p_test(s, is_expression)
+        return p_test(s, allow_assignment_expression=is_expression)
 
 def p_starred_expr(s):
     pos = s.position()
@@ -501,7 +501,7 @@ def p_call_parse_args(s, allow_genexp=True):
                 encoded_name = s.context.intern_ustring(arg.name)
                 keyword = ExprNodes.IdentifierStringNode(
                     arg.pos, value=encoded_name)
-                arg = p_test(s, False)
+                arg = p_test(s, allow_assignment_expression=False)
                 keyword_args.append((keyword, arg))
             else:
                 if keyword_args:
@@ -679,7 +679,7 @@ def p_atom(s):
         elif s.sy == 'yield':
             result = p_yield_expression(s)
         else:
-            result = p_testlist_comp(s, True)
+            result = p_testlist_comp(s, is_expression=True)
         s.expect(')')
         return result
     elif sy == '[':
@@ -1239,7 +1239,7 @@ def p_list_maker(s):
         s.expect(']')
         return ExprNodes.ListNode(pos, args=[])
 
-    expr = p_test_or_starred_expr(s, True)
+    expr = p_test_or_starred_expr(s, is_expression=True)
     if s.sy in ('for', 'async'):
         if expr.is_starred:
             s.error("iterable unpacking cannot be used in comprehension")
@@ -1439,7 +1439,7 @@ def p_simple_expr_list(s, expr=None):
 def p_test_or_starred_expr_list(s, expr=None):
     exprs = expr is not None and [expr] or []
     while s.sy not in expr_terminators:
-        exprs.append(p_test_or_starred_expr(s, expr is not None))
+        exprs.append(p_test_or_starred_expr(s, is_expression=(expr is not None)))
         if s.sy != ',':
             break
         s.next()
@@ -1980,7 +1980,7 @@ def p_for_iterator(s, allow_testlist=True, is_async=False):
     if allow_testlist:
         expr = p_testlist(s)
     else:
-        expr = p_or_test(s)  # FIXME walrus?
+        expr = p_or_test(s)
     return (ExprNodes.AsyncIteratorNode if is_async else ExprNodes.IteratorNode)(pos, sequence=expr)
 
 
@@ -3054,11 +3054,11 @@ def p_c_arg_decl(s, ctx, in_pyfunc, cmethod_flag = 0, nonempty = 0,
                 default = ExprNodes.NoneNode(pos)
                 s.next()
             elif 'inline' in ctx.modifiers:
-                default = p_test(s, False)
+                default = p_test(s, allow_assignment_expression=False)
             else:
                 error(pos, "default values cannot be specified in pxd files, use ? or *")
         else:
-            default = p_test(s, False)
+            default = p_test(s, allow_assignment_expression=False)
     return Nodes.CArgDeclNode(pos,
         base_type = base_type,
         declarator = declarator,
@@ -3934,5 +3934,5 @@ def p_annotation(s):
     then it is not a bug.
     """
     pos = s.position()
-    expr = p_test(s, False)
+    expr = p_test(s, allow_assignment_expression=False)
     return ExprNodes.AnnotationNode(pos, expr=expr)
