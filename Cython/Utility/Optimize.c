@@ -229,7 +229,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *ke
 static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *default_value,
                                                        CYTHON_UNUSED int is_safe_type) {
     PyObject* value;
-#if PY_VERSION_HEX >= 0x030400A0
+#if PY_VERSION_HEX >= 0x030400A0 && !CYTHON_COMPILING_IN_LIMITED_API
     // we keep the method call at the end to avoid "unused" C compiler warnings
     if ((1)) {
         value = PyDict_SetDefault(d, key, default_value);
