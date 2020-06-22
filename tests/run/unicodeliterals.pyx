@@ -21,6 +21,10 @@ __doc__ = br"""
     u'\udc00'
     >>> h
     u'\ud800'
+    >>> p
+    u'\ud800\udc00'
+    >>> q
+    u'\udc00\ud800'
     >>> add
     u'S\xf8k ik\xfc\xd6\xe4abc'
     >>> null
@@ -75,6 +79,10 @@ __doc__ = br"""
     True
     >>> h == u'\\ud800' # unescaped by Python (required by doctest)
     True
+    >>> p == u'\\ud800\\udc00' # unescaped by Python (required by doctest)
+    True
+    >>> q == u'\\udc00\\ud800' # unescaped by Python (required by doctest)
+    True
     >>> k == u'\\N{SNOWMAN}' == u'\\u2603'
     True
     >>> m == u'abc\\\\xf8\\\\t\\u00f8\\U000000f8'  # unescaped by Python (required by doctest)
@@ -111,6 +119,8 @@ g = u'\udc00'   # lone trail surrogate
 h = u'\ud800'   # lone lead surrogate
 k = u'\N{SNOWMAN}'
 m = ur'abc\xf8\t\u00f8\U000000f8'
+p = u'\ud800\udc00'  # surrogate pair
+q = u'\udc00\ud800'  # reversed surrogate pair
 
 add = u'Søk ik' + u'üÖä' + u'abc'
 null = u'\x00'
