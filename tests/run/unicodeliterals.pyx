@@ -51,6 +51,10 @@ __doc__ = br"""
     1
     >>> len(h)
     1
+    >>> len(q)
+    2
+    >>> len(q)
+    2
     >>> len(add)
     12
     >>> len(null)
