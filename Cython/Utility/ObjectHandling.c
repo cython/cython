@@ -1765,8 +1765,8 @@ static int __Pyx_PyObject_GetMethod(PyObject *obj, PyObject *name, PyObject **me
 
 static int __Pyx_PyObject_GetMethod(PyObject *obj, PyObject *name, PyObject **method) {
     PyObject *attr;
-    __Pyx_TypeName type_name;
 #if CYTHON_UNPACK_METHODS && CYTHON_COMPILING_IN_CPYTHON && CYTHON_USE_PYTYPE_LOOKUP
+    __Pyx_TypeName type_name;
     // Copied from _PyObject_GetMethod() in CPython 3.7
     PyTypeObject *tp = Py_TYPE(obj);
     PyObject *descr;
