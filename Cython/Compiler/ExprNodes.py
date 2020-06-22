@@ -2811,9 +2811,6 @@ class IteratorNode(ExprNode):
             code.putln("%s = __Pyx_PyObject_GetIterNextFunc(%s); %s" % (
                 self.iter_func_ptr, self.py_result(),
                 code.error_goto_if_null(self.iter_func_ptr, self.pos)))
-            code.putln("#else")
-            code.putln("%s = PyIter_Next;" % (self.iter_func_ptr,))
-            code.putln("#endif")
         if self.may_be_a_sequence:
             code.putln("}")
 
