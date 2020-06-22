@@ -368,3 +368,17 @@ class TempResultFromStatNode(ExprNodes.ExprNode):
     def generate_result_code(self, code):
         self.result_ref.result_code = self.result()
         self.body.generate_execution_code(code)
+
+class ResultRefWithTypePropertyNode(ResultRefNode):
+    # it's occasionally useful to have a ResultRefNode
+    # where the type is auto-calculated from some other class.
+    def __init__(self, type_getter, **kwds):
+        super(ResultRefWithTypePropertyNode, self).__init__(**kwds)
+        self.type_getter = type_getter
+
+    @property
+    def type(self):
+        return self.type_getter()
+
+    def infer_type(self, env):
+        return self.type

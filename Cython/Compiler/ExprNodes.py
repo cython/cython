@@ -13788,18 +13788,11 @@ class AssignmentExpressionNode(ExprNode):
     is_temp = True
 
     def __init__(self, pos, lhs, rhs, **kwds):
-        from .UtilNodes import TempResultFromStatNode, ResultRefNode
+        from .UtilNodes import TempResultFromStatNode, ResultRefWithTypePropertyNode
         super(AssignmentExpressionNode, self).__init__(pos, lhs=lhs, **kwds)
 
-        class WalrusResultRefNode(ResultRefNode):
-            @property
-            def type(self_):
-                if self.impl:
-                    return self.impl.body.stats[0].rhs.type
-            def infer_type(self_, env):
-                return self.impl.body.stats[0].rhs.infer_type(env)
-
-        temp = WalrusResultRefNode(pos=pos)
+        temp = ResultRefWithTypePropertyNode(pos=pos,
+                    type_getter = lambda: self.impl.body.stats[0].rhs.type if self.impl else None)
         assignment1 = Nodes.SingleAssignmentNode(pos=pos, lhs=temp, rhs=rhs, first=True)
         assignment2 = Nodes.SingleAssignmentNode(pos=pos, lhs=lhs, rhs=temp, first=True,
                                                  is_assignment_expression=True)
