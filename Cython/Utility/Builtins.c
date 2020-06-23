@@ -20,15 +20,7 @@ static PyObject* __Pyx_Globals(void); /*proto*/
 // access requires a rewrite as a dedicated class.
 
 static PyObject* __Pyx_Globals(void) {
-    PyObject *globals;
-#if CYTHON_COMPILING_IN_LIMITED_API
-    globals = PyModule_GetDict($module_cname);
-    if (unlikely(!globals)) return NULL;
-#else
-    globals = $moddict_cname;
-#endif
-    Py_INCREF(globals);
-    return globals;
+    return __Pyx_NewRef($moddict_cname);
 }
 
 //////////////////// PyExecGlobals.proto ////////////////////
@@ -36,17 +28,11 @@ static PyObject* __Pyx_Globals(void) {
 static PyObject* __Pyx_PyExecGlobals(PyObject*);
 
 //////////////////// PyExecGlobals ////////////////////
-//@requires: Globals
+//@substitute: naming
 //@requires: PyExec
 
 static PyObject* __Pyx_PyExecGlobals(PyObject* code) {
-    PyObject* result;
-    PyObject* globals = __Pyx_Globals();
-    if (unlikely(!globals))
-        return NULL;
-    result = __Pyx_PyExec2(code, globals);
-    Py_DECREF(globals);
-    return result;
+    return __Pyx_PyExec2(code, $moddict_cname);
 }
 
 //////////////////// PyExec.proto ////////////////////

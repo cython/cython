@@ -2543,6 +2543,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # TODO: Reactor LIMITED_API struct decl closer to the static decl
         code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
         code.putln('typedef struct {')
+        code.putln('PyObject *%s;' % env.module_dict_cname)
         code.putln('PyObject *%s;' % Naming.builtins_cname)
         code.putln('PyObject *%s;' % Naming.cython_runtime_cname)
         code.putln('PyObject *%s;' % Naming.empty_tuple)
@@ -2596,6 +2597,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_module_state_defines(self, env, code):
         code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
         code.putln('#define %s %s->%s' % (
+            env.module_dict_cname,
+            Naming.modulestateglobal_cname,
+            env.module_dict_cname))
+        code.putln('#define %s %s->%s' % (
             Naming.builtins_cname,
             Naming.modulestateglobal_cname,
             Naming.builtins_cname))
@@ -2641,6 +2646,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             Naming.modulestate_cname))
         code.putln("if (!clear_module_state) return 0;")
         code.putln('Py_CLEAR(clear_module_state->%s);' %
+            env.module_dict_cname)
+        code.putln('Py_CLEAR(clear_module_state->%s);' %
             Naming.builtins_cname)
         code.putln('Py_CLEAR(clear_module_state->%s);' %
             Naming.cython_runtime_cname)
@@ -2666,6 +2673,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             Naming.modulestate_cname,
             Naming.modulestate_cname))
         code.putln("if (!traverse_module_state) return 0;")
+        code.putln('Py_VISIT(traverse_module_state->%s);' %
+            env.module_dict_cname)
         code.putln('Py_VISIT(traverse_module_state->%s);' %
             Naming.builtins_cname)
         code.putln('Py_VISIT(traverse_module_state->%s);' %
@@ -2899,9 +2908,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for cname, type in code.funcstate.all_managed_temps():
             code.put_xdecref(cname, type)
         code.putln('if (%s) {' % env.module_cname)
-        code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
         code.putln('if (%s) {' % env.module_dict_cname)
-        code.putln("#endif")
         code.put_add_traceback(EncodedString("init %s" % env.qualified_name))
         code.globalstate.use_utility_code(Nodes.traceback_utility_code)
         # Module reference and module dict are in global variables which might still be needed
@@ -2909,8 +2916,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # At least clearing the module dict here might be a good idea, but could still break
         # user code in atexit or other global registries.
         ##code.put_decref_clear(env.module_dict_cname, py_object_type, nanny=False)
-        code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
         code.putln('}')
+        code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
         code.put_decref_clear(env.module_cname, py_object_type, nanny=False, clear_before_decref=True)
         code.putln("#endif")
         code.putln('} else if (!PyErr_Occurred()) {')
@@ -3133,9 +3140,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                                   nanny=False, clear_before_decref=True)
         for cname in [Naming.cython_runtime_cname, Naming.builtins_cname]:
             code.put_decref_clear(cname, py_object_type, nanny=False, clear_before_decref=True)
-        code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
         code.put_decref_clear(env.module_dict_cname, py_object_type, nanny=False, clear_before_decref=True)
-        code.putln("#endif")
 
     def generate_main_method(self, env, code):
         module_is_main = self.is_main_module_flag_cname()
@@ -3275,13 +3280,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#endif")
         code.putln("#endif")  # CYTHON_PEP489_MULTI_PHASE_INIT
 
-        code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
         code.putln(
             "%s = PyModule_GetDict(%s); %s" % (
                 env.module_dict_cname, env.module_cname,
                 code.error_goto_if_null(env.module_dict_cname, self.pos)))
         code.put_incref(env.module_dict_cname, py_object_type, nanny=False)
-        code.putln("#endif")
 
         code.putln(
             '%s = PyImport_AddModule(__Pyx_BUILTIN_MODULE_NAME); %s' % (
