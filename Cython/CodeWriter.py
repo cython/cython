@@ -84,6 +84,11 @@ class DeclarationWriter(TreeVisitor):
                 self.put(u" = ")
                 self.visit(items[-1].default)
 
+    def visit_indented(self, node):
+        self.indent()
+        self.visit(node)
+        self.dedent()
+
     def visit_Node(self, node):
         raise AssertionError("Node not handled by serializer: %r" % node)
 
@@ -99,9 +104,7 @@ class DeclarationWriter(TreeVisitor):
         else:
             file = u'"%s"' % node.include_file
         self.putline(u"cdef extern from %s:" % file)
-        self.indent()
-        self.visit(node.body)
-        self.dedent()
+        self.visit_indented(node.body)
 
     def visit_CPtrDeclaratorNode(self, node):
         self.put('*')
@@ -140,10 +143,8 @@ class DeclarationWriter(TreeVisitor):
             self.put(node.name)
 
     def visit_CComplexBaseTypeNode(self, node):
-        self.put(u'(')
         self.visit(node.base_type)
         self.visit(node.declarator)
-        self.put(u')')
 
     def visit_CNestedBaseTypeNode(self, node):
         self.visit(node.base_type)
@@ -229,9 +230,7 @@ class DeclarationWriter(TreeVisitor):
             self.put(node.base_class_name)
             self.put(u")")
         self.endline(u":")
-        self.indent()
-        self.visit(node.body)
-        self.dedent()
+        self.visit_indented(node.body)
 
     def visit_CTypeDefNode(self, node):
         self.startline(u"ctypedef ")
@@ -245,9 +244,7 @@ class DeclarationWriter(TreeVisitor):
         self.startline(u"def %s(" % node.name)
         self.comma_separated_list(node.args)
         self.endline(u"):")
-        self.indent()
-        self.visit(node.body)
-        self.dedent()
+        self.visit_indented(node.body)
 
     def visit_CFuncDefNode(self, node):
         if node.overridable:
@@ -274,18 +271,15 @@ class DeclarationWriter(TreeVisitor):
         self.comma_separated_list(node.declarator.args)
         self.endline(u'):')
 
-        self.indent()
-        self.visit(node.body)
-        self.dedent()
+        self.visit_indented(node.body)
 
     def visit_CArgDeclNode(self, node):
-        if node.base_type.name is not None:
-            self.visit(node.base_type)
-            # a special case: if `node.declarator` is a `CNameDeclaratorNode`,
-            # its "name" might be empty string, for example, for `cdef f(x)`.
-            if not isinstance(node.declarator, CNameDeclaratorNode) or \
-                    node.declarator.name:
-                self.put(u" ")
+        self.visit(node.base_type)
+        # a special case: if `node.declarator` is a `CNameDeclaratorNode`,
+        # its "name" might be empty string, for example, for `cdef f(x)`.
+        if not isinstance(node.declarator, CNameDeclaratorNode) or \
+                node.declarator.name:
+            self.put(u" ")
         self.visit(node.declarator)
         if node.default is not None:
             self.put(u" = ")
@@ -387,27 +381,19 @@ class StatementWriter(DeclarationWriter):
             self.startline("elif ")
             self.visit(clause.condition)
             self.endline(":")
-            self.indent()
-            self.visit(clause.body)
-            self.dedent()
+            self.visit_indented(clause.body)
         if node.else_clause is not None:
             self.line("else:")
-            self.indent()
-            self.visit(node.else_clause)
-            self.dedent()
+            self.visit_indented(node.else_clause)
 
     def visit_WhileStatNode(self, node):
         self.startline(u"while ")
         self.visit(node.condition)
         self.endline(u":")
-        self.indent()
-        self.visit(node.body)
-        self.dedent()
+        self.visit_indented(node.body)
         if node.else_clause is not None:
             self.line("else:")
-            self.indent()
-            self.visit(node.else_clause)
-            self.dedent()
+            self.visit_indented(node.else_clause)
 
     def visit_ContinueStatNode(self, node):
         self.line(u"continue")
@@ -438,9 +424,7 @@ class StatementWriter(DeclarationWriter):
             self.put(u" as ")
             self.visit(node.target)
         self.endline(u":")
-        self.indent()
-        self.visit(node.body)
-        self.dedent()
+        self.visit_indented(node.body)
 
     def visit_TryFinallyStatNode(self, node):
         self.line(u"try:")
@@ -448,9 +432,7 @@ class StatementWriter(DeclarationWriter):
         self.visit(node.body)
         self.dedent()
         self.line(u"finally:")
-        self.indent()
-        self.visit(node.finally_clause)
-        self.dedent()
+        self.visit_indented(node.finally_clause)
 
     def visit_TryExceptStatNode(self, node):
         self.line(u"try:")
@@ -471,9 +453,7 @@ class StatementWriter(DeclarationWriter):
             self.put(u", ")
             self.visit(node.target)
         self.endline(":")
-        self.indent()
-        self.visit(node.body)
-        self.dedent()
+        self.visit_indented(node.body)
 
     def visit_ReturnStatNode(self, node):
         self.startline("return ")
