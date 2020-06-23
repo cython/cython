@@ -48,12 +48,11 @@ vtable_prefix     = pyrex_prefix + "vtable_"
 vtabptr_prefix    = pyrex_prefix + "vtabptr_"
 vtabstruct_prefix = pyrex_prefix + "vtabstruct_"
 unicode_vtabentry_prefix  = pyrex_prefix + "Uvtabentry_"
- # vtab entries aren't  normally manged,
- # but punycode names sometimes start with numbers leading
- # to a C syntax error
+# vtab entries aren't normally mangled,
+# but punycode names sometimes start with numbers leading to a C syntax error
 unicode_structmember_prefix = pyrex_prefix + "Umember_"
- # as above -
- # not normally manged but punycode names cause specific problems
+# as above -
+# not normally mangled but punycode names cause specific problems
 opt_arg_prefix    = pyrex_prefix + "opt_args_"
 convert_func_prefix = pyrex_prefix + "convert_"
 closure_scope_prefix = pyrex_prefix + "scope_"
@@ -111,7 +110,7 @@ gilstate_cname   = pyrex_prefix + "state"
 skip_dispatch_cname = pyrex_prefix + "skip_dispatch"
 empty_tuple      = pyrex_prefix + "empty_tuple"
 empty_bytes      = pyrex_prefix + "empty_bytes"
-empty_unicode	 = pyrex_prefix + "empty_unicode"
+empty_unicode    = pyrex_prefix + "empty_unicode"
 print_function   = pyrex_prefix + "print"
 print_function_kwargs   = pyrex_prefix + "print_kwargs"
 cleanup_cname    = pyrex_prefix + "module_cleanup"
@@ -130,7 +129,7 @@ frame_cname      = pyrex_prefix + "frame"
 frame_code_cname = pyrex_prefix + "frame_code"
 binding_cfunc    = pyrex_prefix + "binding_PyCFunctionType"
 fused_func_prefix = pyrex_prefix + 'fuse_'
-quick_temp_cname = pyrex_prefix + "temp" # temp variable for quick'n'dirty temping
+quick_temp_cname = pyrex_prefix + "temp"  # temp variable for quick'n'dirty temping
 tp_dict_version_temp = pyrex_prefix + "tp_dict_version"
 obj_dict_version_temp = pyrex_prefix + "obj_dict_version"
 type_dict_guard_temp = pyrex_prefix + "type_dict_guard"

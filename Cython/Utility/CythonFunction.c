@@ -1,7 +1,7 @@
 
 //////////////////// CythonFunctionShared.proto ////////////////////
 
-#define __Pyx_CyFunction_USED 1
+#define __Pyx_CyFunction_USED
 
 #define __Pyx_CYFUNCTION_STATICMETHOD  0x01
 #define __Pyx_CYFUNCTION_CLASSMETHOD   0x02
@@ -652,7 +652,13 @@ static PyObject *__Pyx_CyFunction_CallAsMethod(PyObject *func, PyObject *args, P
     // CPython would normally use vectorcall directly instead of tp_call.
      __pyx_vectorcallfunc vc = __Pyx_CyFunction_func_vectorcall(cyfunc);
     if (vc) {
+#if CYTHON_ASSUME_SAFE_MACROS
         return __Pyx_PyVectorcall_FastCallDict(func, vc, &PyTuple_GET_ITEM(args, 0), PyTuple_GET_SIZE(args), kw);
+#else
+        // avoid unused function warning
+        (void) &__Pyx_PyVectorcall_FastCallDict;
+        return PyVectorcall_Call(func, args, kw);
+#endif
     }
 #endif
 
@@ -1459,7 +1465,8 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
     // special C-API function only in Pyston and PyPy >= 5.9
     if (PyMethodDescr_Check(method))
 #else
-    // It appears that PyMethodDescr_Type is not exposed anywhere in the CPython C-API
+    #if PY_MAJOR_VERSION == 2
+    // PyMethodDescr_Type is not exposed in the CPython C-API in Py2.
     static PyTypeObject *methoddescr_type = NULL;
     if (unlikely(methoddescr_type == NULL)) {
        PyObject *meth = PyObject_GetAttrString((PyObject*)&PyList_Type, "append");
@@ -1467,6 +1474,9 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
        methoddescr_type = Py_TYPE(meth);
        Py_DECREF(meth);
     }
+    #else
+    PyTypeObject *methoddescr_type = &PyMethodDescr_Type;
+    #endif
     if (__Pyx_TypeCheck(method, methoddescr_type))
 #endif
     {
@@ -1484,16 +1494,7 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
         // python classes
         return PyClassMethod_New(PyMethod_GET_FUNCTION(method));
     }
-#ifdef __Pyx_CyFunction_USED
-    else if (__Pyx_IsCyOrPyCFunction(method))
-#else
-    else if (PyCFunction_Check(method))
-#endif
-    {
+    else {
         return PyClassMethod_New(method);
     }
-    PyErr_SetString(PyExc_TypeError,
-                   "Class-level classmethod() can only be called on "
-                   "a method_descriptor or instance method.");
-    return NULL;
 }

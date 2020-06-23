@@ -153,6 +153,10 @@ Static typing
     @exceptval(-1, check=False)  # cdef int func() except -1:
     @exceptval(check=True)       # cdef int func() except *:
     @exceptval(-1, check=True)   # cdef int func() except? -1:
+    @exceptval(check=False)      # no exception checking/propagation
+
+  If exception propagation is disabled, any Python exceptions that are raised
+  inside of the function will be printed and ignored.
 
 * Python annotations can be used to declare argument types, as shown in the
   following example.  To avoid conflicts with other kinds of annotation
@@ -170,7 +174,9 @@ Static typing
   for an exception.  This means, if no ``@exceptval`` decorator is provided, and the
   return type is a numeric type, then the default with type annotations is
   ``@exceptval(-1, check=True)``, in order to make sure that exceptions are correctly
-  and efficiently reported to the caller.
+  and efficiently reported to the caller.  Exception propagation can be disabled
+  explicitly with ``@exceptval(check=False)``, in which case any Python exceptions
+  raised inside of the function will be printed and ignored.
 
   Since version 0.27, Cython also supports the variable annotations defined
   in `PEP 526 <https://www.python.org/dev/peps/pep-0526/>`_. This allows to

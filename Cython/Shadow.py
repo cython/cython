@@ -170,7 +170,7 @@ def cast(t, *args, **kwargs):
 
     if isinstance(t, typedef):
         return t(*args)
-    elif isinstance(t, type): #Doesn't work with old-style classes of Python 2.x
+    elif isinstance(t, type):  # Doesn't work with old-style classes of Python 2.x
         if len(args) != 1 or not (args[0] is None or isinstance(args[0], t)):
             return t(*args)
 
@@ -286,7 +286,7 @@ class StructType(CythonType):
             if len(data) > 0:
                 raise ValueError('Cannot accept keyword arguments when casting.')
             if type(cast_from) is not type(self):
-                raise ValueError('Cannot cast from %s'%cast_from)
+                raise ValueError('Cannot cast from %s' % cast_from)
             for key, value in cast_from.__dict__.items():
                 setattr(self, key, value)
         else:
@@ -312,7 +312,7 @@ class UnionType(CythonType):
             elif type(cast_from) is type(self):
                 datadict = cast_from.__dict__
             else:
-                raise ValueError('Cannot cast from %s'%cast_from)
+                raise ValueError('Cannot cast from %s' % cast_from)
         else:
             datadict = data
         if len(datadict) > 1:

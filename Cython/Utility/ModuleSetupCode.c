@@ -704,21 +704,17 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 
 /* Type slots */
 #if CYTHON_COMPILING_IN_LIMITED_API
-  #if defined(_PyType_Name)
-    #define __Pyx_PyType_Name(tp)     (_PyType_Name((PyTypeObject *)tp))
-  #else
-    #define __Pyx_PyType_Name(tp)     (((PyTypeObject *)tp)->tp_name)
-  #endif
   #define __Pyx_PyType_GetFlags(tp)   (PyType_GetFlags((PyTypeObject *)tp))
 #else
-  #define __Pyx_PyType_Name(tp)       (((PyTypeObject *)tp)->tp_name)
   #define __Pyx_PyType_GetFlags(tp)   (((PyTypeObject *)tp)->tp_flags)
 #endif
 
 #if CYTHON_USE_TYPE_SLOTS
   #define __Pyx_PyType_HasFeature(type, feature)  ((__Pyx_PyType_GetFlags(type) & (feature)) != 0)
+  #define __Pyx_PyObject_GetIterNextFunc(obj)  (Py_TYPE(obj)->tp_iternext)
 #else
   #define __Pyx_PyType_HasFeature(type, feature)  PyType_HasFeature(type, feature)
+  #define __Pyx_PyObject_GetIterNextFunc(obj)  PyIter_Next
 #endif
 
 #if CYTHON_COMPILING_IN_LIMITED_API
@@ -829,16 +825,6 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define PySet_CheckExact(obj)        __Pyx_IS_TYPE(obj, &PySet_Type)
 #endif
 
-
-#if PY_VERSION_HEX >= 0x030900A4
-  #define __Pyx_SET_REFCNT(obj, refcnt) Py_SET_REFCNT(obj, refcnt)
-  #define __Pyx_SET_SIZE(obj, size) Py_SET_SIZE(obj, size)
-#else
-  #define __Pyx_SET_REFCNT(obj, refcnt) Py_REFCNT(obj) = (refcnt)
-  #define __Pyx_SET_SIZE(obj, size) Py_SIZE(obj) = (size)
-#endif
-
-
 #if PY_VERSION_HEX >= 0x030900A4
   #define __Pyx_SET_REFCNT(obj, refcnt) Py_SET_REFCNT(obj, refcnt)
   #define __Pyx_SET_SIZE(obj, size) Py_SET_SIZE(obj, size)
@@ -910,7 +896,6 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
         unaryfunc am_anext;
     } __Pyx_PyAsyncMethodsStruct;
 #endif
-
 
 /////////////// SmallCodeConfig.proto ///////////////
 

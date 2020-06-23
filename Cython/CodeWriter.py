@@ -360,7 +360,7 @@ class StatementWriter(DeclarationWriter):
             self.dedent()
 
     def visit_SequenceNode(self, node):
-        self.comma_separated_list(node.args) # Might need to discover whether we need () around tuples...hmm...
+        self.comma_separated_list(node.args)  # Might need to discover whether we need () around tuples...hmm...
 
     def visit_ExprStatNode(self, node):
         self.startline()

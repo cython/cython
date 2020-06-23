@@ -22,7 +22,7 @@ from .. import Utils
 
 
 class AnnotationCCodeWriter(CCodeWriter):
- 
+
     # also used as marker for detection of complete code emission in tests
     COMPLETE_CODE_TITLE = "Complete cythonized code"
 
@@ -294,7 +294,7 @@ class AnnotationCCodeWriter(CCodeWriter):
         # now the whole c-code if needed:
         if self.show_entire_c_code:
             outlist.append(u'<p><div class="cython">')
-            onclick_title = u"<pre class='cython line'{onclick}>+ {title}</pre>\n";
+            onclick_title = u"<pre class='cython line'{onclick}>+ {title}</pre>\n"
             outlist.append(onclick_title.format(
                               onclick=self._onclick_attr,
                               title=AnnotationCCodeWriter.COMPLETE_CODE_TITLE,

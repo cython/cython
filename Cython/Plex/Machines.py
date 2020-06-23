@@ -9,10 +9,7 @@ from __future__ import absolute_import
 import cython
 from .Transitions import TransitionMap
 
-try:
-    from sys import maxsize as maxint
-except ImportError:
-    from sys import maxint
+maxint = 2**31-1  # sentinel value
 
 if not cython.compiled:
     try:

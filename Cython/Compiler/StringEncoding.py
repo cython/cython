@@ -292,7 +292,7 @@ def escape_byte_string(s):
     """
     s = _replace_specials(s)
     try:
-        return s.decode("ASCII") # trial decoding: plain ASCII => done
+        return s.decode("ASCII")  #  trial decoding: plain ASCII => done
     except UnicodeDecodeError:
         pass
     if IS_PYTHON3:
@@ -325,7 +325,7 @@ def split_string_literal(s, limit=2000):
         while start < len(s):
             end = start + limit
             if len(s) > end-4 and '\\' in s[end-4:end]:
-                end -= 4 - s[end-4:end].find('\\') # just before the backslash
+                end -= 4 - s[end-4:end].find('\\')  # just before the backslash
                 while s[end-1] == '\\':
                     end -= 1
                     if end == start:
