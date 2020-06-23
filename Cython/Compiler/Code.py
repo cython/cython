@@ -1462,18 +1462,38 @@ class GlobalState(object):
         decl = self.parts['decls']
         init = self.parts['init_globals']
         cnames = []
+
+        decl.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
+        init.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
+        mod_global = Naming.modulestateglobal_cname
+        mod = self.parts['module_state']
+        mod_clear = self.parts['module_state_clear']
+        mod_define = self.parts['module_state_defines']
+        mod_traverse = self.parts['module_state_traverse']
         for (type_cname, method_name), cname in sorted(self.cached_cmethods.items()):
             cnames.append(cname)
             method_name_cname = self.get_interned_identifier(StringEncoding.EncodedString(method_name)).cname
+            # Non-Limited API
             decl.putln('static __Pyx_CachedCFunction %s = {0, 0, 0, 0, 0};' % (
                 cname))
             # split type reference storage as it might not be static
-            init.putln('%s.type = (PyObject*)&%s;' % (
-                cname, type_cname))
+            init.putln('%s.type = (PyObject*)&%s;' % (cname, type_cname))
             # method name string isn't static in limited api
-            init.putln('%s.method_name = &%s;' % (
-                cname, method_name_cname))
+            init.putln('%s.method_name = &%s;' % (cname, method_name_cname))
 
+            # Limited API
+            mod.putln("__Pyx_CachedCFunction %s;" % cname)
+            mod_clear.putln("Py_CLEAR(clear_module_state->%s.type);" % cname)
+            mod_clear.putln("Py_CLEAR(clear_module_state->%s.method);" % cname)
+            mod_clear.putln("Py_CLEAR(*(clear_module_state->%s.method_name));" % cname)
+            mod_define.putln("#define %s %s->%s" % (cname, mod_global, cname))
+            mod_traverse.putln("Py_VISIT(traverse_module_state->%s.type);" % cname)
+            mod_traverse.putln("Py_VISIT(traverse_module_state->%s.method);" % cname)
+            mod_traverse.putln("Py_VISIT(*(traverse_module_state->%s.method_name));" % cname)
+        decl.putln("#endif")
+        init.putln("#endif")
+
+        # TODO(tekknolagi): Figure out how to do cleanup in Limited API mode
         if Options.generate_cleanup_code:
             cleanup = self.parts['cleanup_globals']
             for cname in cnames:

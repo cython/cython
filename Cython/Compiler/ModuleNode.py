@@ -456,7 +456,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_module_state_traverse(env, globalstate['module_state_traverse'])
 
         # init_globals is inserted before this
-        self.generate_module_init_func(modules[:-1], env, globalstate['init_module'])
+        self.generate_module_init_func(modules[:-1], env, globalstate, globalstate['init_module'])
         self.generate_module_cleanup_func(env, globalstate['cleanup_module'])
         if Options.embed:
             self.generate_main_method(env, globalstate['main_method'])
@@ -2685,7 +2685,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             Naming.fusedfunction_type_cname)
         code.putln('#endif')
 
-    def generate_module_init_func(self, imported_modules, env, code):
+    def generate_cached_methods_initializers(self, globalstate, code):
+        code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+        for (type_cname, method_name), cname in sorted(globalstate.cached_cmethods.items()):
+            method_name_cname = globalstate.get_interned_identifier(EncodedString(method_name)).cname
+            code.putln('%s.type = (PyObject*)&%s;' % (cname, type_cname))
+            code.putln('%s.method_name = &%s;' % (cname, method_name_cname))
+        code.putln("#endif")
+
+    def generate_module_init_func(self, imported_modules, env, globalstate, code):
         subfunction = self.mod_init_subfunction(self.pos, self.scope, code)
 
         self.generate_pymoduledef_struct(env, code)
@@ -2866,6 +2874,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             for module in imported_modules:
                 self.specialize_fused_types(module)
                 self.generate_c_function_import_code_for_module(module, env, inner_code)
+
+        with subfunction("Initialize module state") as inner_code:
+            self.generate_cached_methods_initializers(globalstate, inner_code)
 
         code.putln("/*--- Execution code ---*/")
         code.mark_pos(None)
