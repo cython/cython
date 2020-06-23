@@ -486,7 +486,8 @@ typedef CYTHON_UNUSED PyObject* __Pyx_FastcallTupleCoerced;
 #define __Pyx_FastcallTupleCoerced_XDECREF(x) Py_XDECREF(x) // no refnanny for this because it's set oddly
 typedef struct {
     PyObject *const *args;
-    Py_ssize_t nargs;
+    Py_ssize_t nargs;  // utility code is written as if this could be combined with PY_VECTORCALL_ARGUMENTS_OFFSET
+        // however, knowing that this is safe is difficult where things might be multithreaded so we never set it
 } __Pyx_FastcallTuple_obj;
 static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_FastcallTuple_New(PyObject *const *args, Py_ssize_t nargs);
 // BorrowedEmpty useful when calling a function with only fastcall keyword arguments
@@ -577,11 +578,9 @@ static CYTHON_INLINE PyObject *__Pyx_FastcallTuple_ToTupleCoerced(__Pyx_Fastcall
 static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_ArgsSlice_FASTCALL_struct(PyObject *const *args, Py_ssize_t start, Py_ssize_t stop) {
     Py_ssize_t nargs = (stop - start);
     if (stop < start) nargs = 0;
-#if CYTHON_VECTORCALL
-    if (start > 0) {
-        nargs |= PY_VECTORCALL_ARGUMENTS_OFFSET; // we know there's at least one space in front
-    }
-#endif
+    // for (start >0 ) it might be tempting to add PY_VECTORCALL_ARGUMENTS_OFFSET
+    // it's difficult to know that it's actually safe to do if things might be running
+    // multithreaded etc.
     return __Pyx_FastcallTuple_New(args+start, nargs);
 }
 #endif // CYTHON_METH_FASTCALL
