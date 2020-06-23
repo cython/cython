@@ -73,6 +73,23 @@ interned_prefixes = {
     'umethod': pyrex_prefix + "umethod_",
 }
 
+
+class Global:
+    def __init__(self, cname):
+        self._cname = cname
+        self._expr = "__Pyx_CGlobal(%s)" % self._cname
+
+    @property
+    def cname(self):
+        return self._cname
+
+    def __str__(self):
+        return self._expr
+
+    def __repr__(self):
+        return "Global(%s)" % self._cname
+
+
 ctuple_type_prefix = pyrex_prefix + "ctuple_"
 args_cname       = pyrex_prefix + "args"
 nargs_cname      = pyrex_prefix + "nargs"
@@ -81,9 +98,9 @@ generator_cname  = pyrex_prefix + "generator"
 sent_value_cname = pyrex_prefix + "sent_value"
 pykwdlist_cname  = pyrex_prefix + "pyargnames"
 obj_base_cname   = pyrex_prefix + "base"
-builtins_cname   = pyrex_prefix + "b"
-preimport_cname  = pyrex_prefix + "i"
-moddict_cname    = pyrex_prefix + "d"
+builtins_cname   = Global("b")
+preimport_cname  = Global("i")
+moddict_cname    = Global("d")
 dummy_cname      = pyrex_prefix + "dummy"
 filename_cname   = pyrex_prefix + "filename"
 modulename_cname = pyrex_prefix + "modulename"
@@ -95,8 +112,8 @@ clineno_cname    = pyrex_prefix + "clineno"
 cfilenm_cname    = pyrex_prefix + "cfilenm"
 local_tstate_cname = pyrex_prefix + "tstate"
 module_cname     = pyrex_prefix + "m"
-modulestate_cname = pyrex_prefix + "mstate"
-modulestateglobal_cname = pyrex_prefix + "mstate_global"
+cglobals_type_cname = pyrex_prefix + "CGlobalsType"
+cglobals_cname = pyrex_prefix + "cglobals"
 moddoc_cname     = pyrex_prefix + "mdoc"
 methtable_cname  = pyrex_prefix + "methods"
 retval_cname     = pyrex_prefix + "r"
@@ -107,9 +124,9 @@ vtabslot_cname   = pyrex_prefix + "vtab"
 c_api_tab_cname  = pyrex_prefix + "c_api_tab"
 gilstate_cname   = pyrex_prefix + "state"
 skip_dispatch_cname = pyrex_prefix + "skip_dispatch"
-empty_tuple      = pyrex_prefix + "empty_tuple"
-empty_bytes      = pyrex_prefix + "empty_bytes"
-empty_unicode    = pyrex_prefix + "empty_unicode"
+empty_tuple      = Global("empty_tuple")
+empty_bytes      = Global("empty_bytes")
+empty_unicode    = Global("empty_unicode")
 print_function   = pyrex_prefix + "print"
 print_function_kwargs   = pyrex_prefix + "print_kwargs"
 cleanup_cname    = pyrex_prefix + "module_cleanup"
@@ -132,7 +149,7 @@ quick_temp_cname = pyrex_prefix + "temp"  # temp variable for quick'n'dirty temp
 tp_dict_version_temp = pyrex_prefix + "tp_dict_version"
 obj_dict_version_temp = pyrex_prefix + "obj_dict_version"
 type_dict_guard_temp = pyrex_prefix + "typedict_guard"
-cython_runtime_cname   = pyrex_prefix + "cython_runtime"
+cython_runtime_cname = Global("cython_runtime")
 cyfunction_type_cname = pyrex_prefix + "CyFunctionType"
 fusedfunction_type_cname = pyrex_prefix + "FusedFunctionType"
 

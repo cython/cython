@@ -1467,7 +1467,7 @@ class GlobalState(object):
         for _, cname, c in consts:
             self.parts['module_state'].putln("%s;" % c.type.declaration_code(cname))
             self.parts['module_state_defines'].putln(
-                "#define %s %s->%s" % (cname, Naming.modulestateglobal_cname, cname))
+                "#define %s __Pyx_CGlobal(%s)" % (cname, cname))
             self.parts['module_state_clear'].putln(
                 "Py_CLEAR(clear_module_state->%s);" % cname)
             self.parts['module_state_traverse'].putln(
@@ -1559,9 +1559,8 @@ class GlobalState(object):
                     encoding = '"%s"' % py_string.encoding.lower()
 
                 self.parts['module_state'].putln("PyObject *%s;" % py_string.cname)
-                self.parts['module_state_defines'].putln("#define %s %s->%s" % (
+                self.parts['module_state_defines'].putln("#define %s __Pyx_CGlobal(%s)" % (
                     py_string.cname,
-                    Naming.modulestateglobal_cname,
                     py_string.cname))
                 self.parts['module_state_clear'].putln("Py_CLEAR(clear_module_state->%s);" %
                     py_string.cname)
@@ -1623,8 +1622,8 @@ class GlobalState(object):
         for py_type, _, _, value, value_code, c in consts:
             cname = c.cname
             self.parts['module_state'].putln("PyObject *%s;" % cname)
-            self.parts['module_state_defines'].putln("#define %s %s->%s" % (
-                cname, Naming.modulestateglobal_cname, cname))
+            self.parts['module_state_defines'].putln("#define %s __Pyx_CGlobal(%s)" % (
+                cname, cname))
             self.parts['module_state_clear'].putln(
                 "Py_CLEAR(clear_module_state->%s);" % cname)
             self.parts['module_state_traverse'].putln(

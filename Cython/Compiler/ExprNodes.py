@@ -8032,7 +8032,7 @@ class TupleNode(SequenceNode):
         if len(self.args) > 0:
             return self.result_code
         else:
-            return Naming.empty_tuple
+            return str(Naming.empty_tuple)
 
     def calculate_constant_result(self):
         self.constant_result = tuple([
