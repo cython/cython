@@ -450,10 +450,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # initialise the macro to reduce the code size of one-time functionality
         code.putln(UtilityCode.load_as_string("SmallCodeConfig", "ModuleSetupCode.c")[0].strip())
 
-        self.generate_module_state_start(env, globalstate['module_state'])
-        self.generate_module_state_defines(env, globalstate['module_state_defines'])
-        self.generate_module_state_clear(env, globalstate['module_state_clear'])
-        self.generate_module_state_traverse(env, globalstate['module_state_traverse'])
+        self.generate_module_state_begin(env, globalstate['module_state'])
+        self.generate_module_state_defines_begin(env, globalstate['module_state_defines'])
+        self.generate_module_state_clear_begin(env, globalstate['module_state_clear'])
+        self.generate_module_state_traverse_begin(env, globalstate['module_state_traverse'])
 
         # init_globals is inserted before this
         self.generate_module_init_func(modules[:-1], env, globalstate['init_module'])
@@ -469,7 +469,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             globalstate.use_utility_code(utilcode)
         globalstate.finalize_main_c_code()
 
-        self.generate_module_state_end(env, modules, globalstate)
+        self.generate_module_state_end(env, globalstate['module_state'])
+        self.generate_module_state_defines_end(env, globalstate['module_state_defines'])
+        self.generate_module_state_clear_end(env, globalstate['module_state_clear'])
+        self.generate_module_state_traverse_end(env, globalstate['module_state_traverse'])
 
         f = open_new_file(result.c_file)
         try:
@@ -2542,7 +2545,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(UtilityCode.load_as_string("ImportStar", "ImportExport.c")[1])
         code.exit_cfunc_scope()  # done with labels
 
-    def generate_module_state_start(self, env, code):
+    def generate_module_state_begin(self, env, code):
         # TODO: Refactor to move module state struct decl closer to the static decl
         code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln('typedef struct {')
@@ -2561,43 +2564,32 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('PyTypeObject *%s;' % Naming.fusedfunction_type_cname)
         code.putln('#endif')
 
-    def generate_module_state_end(self, env, modules, globalstate):
-        module_state = globalstate['module_state']
-        module_state_defines = globalstate['module_state_defines']
-        module_state_clear = globalstate['module_state_clear']
-        module_state_traverse = globalstate['module_state_traverse']
-        module_state.putln('} %s;' % Naming.modulestate_cname)
-        module_state.putln('')
-        module_state.putln('#ifdef __cplusplus')
-        module_state.putln('namespace {')
-        module_state.putln('extern struct PyModuleDef %s;' % Naming.pymoduledef_cname)
-        module_state.putln('} /* anonymous namespace */')
-        module_state.putln('#else')
-        module_state.putln('static struct PyModuleDef %s;' % Naming.pymoduledef_cname)
-        module_state.putln('#endif')
-        module_state.putln('')
-        module_state.putln('#define %s(o) ((%s *)__Pyx_PyModule_GetState(o))' % (
+    def generate_module_state_end(self, env, code):
+        code.putln('} %s;' % Naming.modulestate_cname)
+        code.putln('')
+        code.putln('#ifdef __cplusplus')
+        code.putln('namespace {')
+        code.putln('extern struct PyModuleDef %s;' % Naming.pymoduledef_cname)
+        code.putln('} /* anonymous namespace */')
+        code.putln('#else')
+        code.putln('static struct PyModuleDef %s;' % Naming.pymoduledef_cname)
+        code.putln('#endif')
+        code.putln('')
+        code.putln('#define %s(o) ((%s *)__Pyx_PyModule_GetState(o))' % (
             Naming.modulestate_cname,
             Naming.modulestate_cname))
-        module_state.putln('')
-        module_state.putln('#define %s (%s(PyState_FindModule(&%s)))' % (
+        code.putln('')
+        code.putln('#define %s (%s(PyState_FindModule(&%s)))' % (
             Naming.modulestateglobal_cname,
             Naming.modulestate_cname,
             Naming.pymoduledef_cname))
-        module_state.putln('')
-        module_state.putln('#define %s (PyState_FindModule(&%s))' % (
+        code.putln('')
+        code.putln('#define %s (PyState_FindModule(&%s))' % (
             env.module_cname,
             Naming.pymoduledef_cname))
-        module_state.putln("#endif")
-        module_state_defines.putln("#endif")
-        module_state_clear.putln("return 0;")
-        module_state_clear.putln("}")
-        module_state_clear.putln("#endif")
-        module_state_traverse.putln("return 0;")
-        module_state_traverse.putln("}")
-        module_state_traverse.putln("#endif")
+        code.putln('#endif /* CYTHON_USE_MODULE_STATE */')
 
-    def generate_module_state_defines(self, env, code):
+    def generate_module_state_defines_begin(self, env, code):
         code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln('#define %s %s->%s' % (
             env.module_dict_cname,
@@ -2641,7 +2633,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             Naming.fusedfunction_type_cname))
         code.putln('#endif')
 
-    def generate_module_state_clear(self, env, code):
+    def generate_module_state_defines_end(self, env, code):
+        code.putln("#endif /* CYTHON_USE_MODULE_STATE */")
+
+    def generate_module_state_clear_begin(self, env, code):
         code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln("static int %s_clear(PyObject *m) {" % Naming.module_cname)
         code.putln("%s *clear_module_state = %s(m);" % (
@@ -2669,7 +2664,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             Naming.fusedfunction_type_cname)
         code.putln('#endif')
 
-    def generate_module_state_traverse(self, env, code):
+    def generate_module_state_clear_end(self, env, code):
+        code.putln("return 0;")
+        code.putln("}")
+        code.putln("#endif /* CYTHON_USE_MODULE_STATE */")
+
+    def generate_module_state_traverse_begin(self, env, code):
         code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln("static int %s_traverse(PyObject *m, visitproc visit, void *arg) {" % Naming.module_cname)
         code.putln("%s *traverse_module_state = %s(m);" % (
@@ -2696,6 +2696,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('Py_VISIT(traverse_module_state->%s);' %
             Naming.fusedfunction_type_cname)
         code.putln('#endif')
+
+    def generate_module_state_traverse_end(self, env, code):
+        code.putln("return 0;")
+        code.putln("}")
+        code.putln("#endif /* CYTHON_USE_MODULE_STATE */")
 
     def generate_module_init_func(self, imported_modules, env, code):
         subfunction = self.mod_init_subfunction(self.pos, self.scope, code)
