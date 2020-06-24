@@ -9,7 +9,7 @@ from __future__ import absolute_import, print_function
 
 from .Compiler.Visitor import TreeVisitor
 from .Compiler.ExprNodes import *
-from .Compiler.Nodes import CNameDeclaratorNode
+from .Compiler.Nodes import CNameDeclaratorNode, CSimpleBaseTypeNode
 
 
 class LinesResult(object):
@@ -274,12 +274,19 @@ class DeclarationWriter(TreeVisitor):
         self.visit_indented(node.body)
 
     def visit_CArgDeclNode(self, node):
-        self.visit(node.base_type)
-        # a special case: if `node.declarator` is a `CNameDeclaratorNode`,
-        # its "name" might be empty string, for example, for `cdef f(x)`.
-        if not isinstance(node.declarator, CNameDeclaratorNode) or \
-                node.declarator.name:
-            self.put(u" ")
+        # for `CSimpleBaseTypeNode`, the variable type may been parsed as type.
+        # for other types node, its `name` is always None.
+        if not isinstance(node.base_type, CSimpleBaseTypeNode) or \
+                node.base_type.name is not None:
+            self.visit(node.base_type)
+
+            # once we print something for node.base_type, we may need to print
+            # an extra ` `.
+            #
+            # a special case: if `node.declarator` is a `CNameDeclaratorNode`,
+            # its "name" might be empty string, for example, for `cdef f(x)`.
+            if node.declarator.declared_name():
+                self.put(u" ")
         self.visit(node.declarator)
         if node.default is not None:
             self.put(u" = ")
