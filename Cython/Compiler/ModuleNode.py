@@ -1245,18 +1245,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 module_state_traverse.putln(
                     "Py_VISIT(traverse_module_state->%s);" %
                     entry.type.typeptr_cname)
-                if entry.type.typeobj_cname is not None:
-                    module_state.putln("PyObject *%s;" % entry.type.typeobj_cname)
-                    module_state_defines.putln("#define %s %s->%s" % (
-                        entry.type.typeobj_cname,
-                        Naming.modulestateglobal_cname,
-                        entry.type.typeobj_cname))
-                    module_state_clear.putln(
-                        "Py_CLEAR(clear_module_state->%s);" % (
-                        entry.type.typeobj_cname))
-                    module_state_traverse.putln(
-                        "Py_VISIT(traverse_module_state->%s);" % (
-                        entry.type.typeobj_cname))
         code.putln("#endif")
 
     def generate_cvariable_declarations(self, env, code, definition):
