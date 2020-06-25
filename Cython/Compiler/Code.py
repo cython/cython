@@ -735,6 +735,20 @@ class FunctionState(object):
         self.should_declare_error_indicator = False
         self.uses_error_indicator = False
 
+    # safety checks
+
+    def validate_exit(self):
+        # validate that all allocated temps have been freed
+        if self.temps_allocated:
+            leftovers = set(self.all_managed_temps()).difference(self.all_free_managed_temps())
+            if leftovers:
+                msg = "Temps left over at end of '%s': %s" % (
+                    self.scope.name,
+                    ', '.join(map(str, sorted(leftovers, key=operator.itemgetter(0)))),
+                )
+                print(msg)
+                #raise RuntimeError(msg)
+
     # labels
 
     def new_label(self, name=None):
@@ -1860,6 +1874,7 @@ class CCodeWriter(object):
         self.funcstate = FunctionState(self, scope=scope)
 
     def exit_cfunc_scope(self):
+        self.funcstate.validate_exit()
         self.funcstate = None
 
     # constant handling
