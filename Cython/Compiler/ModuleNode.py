@@ -2532,13 +2532,26 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('PyObject *%s;' % Naming.empty_unicode.cname)
         if Options.pre_import is not None:
             code.putln('PyObject *%s;' % Naming.preimport_cname.cname)
-        code.putln("#if CYTHON_USE_MODULE_STATE")
+        code.putln('#ifdef __Pyx_AsyncGen_USED')
+        code.putln('PyTypeObject *%s;' % Naming.asyncgen_type_cname.cname)
+        code.putln('PyTypeObject *%s;' % Naming.asyncgen_asend_type_cname.cname)
+        code.putln('PyTypeObject *%s;' % Naming.asyncgen_athrow_type_cname.cname)
+        code.putln('PyTypeObject *%s;' % Naming.asyncgen_wrapped_value_type_cname.cname)
+        code.putln('#endif')
+        code.putln('#ifdef __Pyx_Coroutine_USED')
+        code.putln('PyTypeObject *%s;' % Naming.coroutine_type_cname.cname)
+        code.putln('PyTypeObject *%s;' % Naming.coroutine_await_type_cname.cname)
+        code.putln('#endif')
         code.putln('#ifdef __Pyx_CyFunction_USED')
-        code.putln('PyTypeObject *%s;' % Naming.cyfunction_type_cname)
+        code.putln('PyTypeObject *%s;' % Naming.cyfunction_type_cname.cname)
         code.putln('#endif')
         code.putln('#ifdef __Pyx_FusedFunction_USED')
-        code.putln('PyTypeObject *%s;' % Naming.fusedfunction_type_cname)
+        code.putln('PyTypeObject *%s;' % Naming.fusedfunction_type_cname.cname)
         code.putln('#endif')
+        code.putln('#ifdef __Pyx_Generator_USED')
+        code.putln('PyTypeObject *%s;' % Naming.generator_type_cname.cname)
+        code.putln('#endif')
+        code.putln("#if CYTHON_USE_MODULE_STATE")
 
     def generate_module_state_end(self, env, code):
         code.putln('#endif /* CYTHON_USE_MODULE_STATE */')
@@ -2557,16 +2570,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_module_state_defines_begin(self, env, code):
         code.putln("#if CYTHON_USE_MODULE_STATE")
-        code.putln('#ifdef __Pyx_CyFunction_USED')
-        code.putln('#define %s __Pyx_CGlobal(%s)' % (
-            Naming.cyfunction_type_cname,
-            Naming.cyfunction_type_cname))
-        code.putln('#endif')
-        code.putln('#ifdef __Pyx_FusedFunction_USED')
-        code.putln('#define %s __Pyx_CGlobal(%s)' %
-            (Naming.fusedfunction_type_cname,
-            Naming.fusedfunction_type_cname))
-        code.putln('#endif')
 
     def generate_module_state_defines_end(self, env, code):
         code.putln("#endif /* CYTHON_USE_MODULE_STATE */")
@@ -2591,13 +2594,33 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if Options.pre_import is not None:
             code.putln('Py_CLEAR(clear_module_state->%s);' %
                 Naming.preimport_cname.cname)
+        code.putln('#ifdef __Pyx_AsyncGen_USED')
+        code.putln('Py_CLEAR(clear_module_state->%s);' %
+            Naming.asyncgen_type_cname.cname)
+        code.putln('Py_CLEAR(clear_module_state->%s);' %
+            Naming.asyncgen_asend_type_cname.cname)
+        code.putln('Py_CLEAR(clear_module_state->%s);' %
+            Naming.asyncgen_athrow_type_cname.cname)
+        code.putln('Py_CLEAR(clear_module_state->%s);' %
+            Naming.asyncgen_wrapped_value_type_cname.cname)
+        code.putln('#endif')
+        code.putln('#ifdef __Pyx_Coroutine_USED')
+        code.putln('Py_CLEAR(clear_module_state->%s);' %
+            Naming.coroutine_type_cname.cname)
+        code.putln('Py_CLEAR(clear_module_state->%s);' %
+            Naming.coroutine_await_type_cname.cname)
+        code.putln('#endif')
         code.putln('#ifdef __Pyx_CyFunction_USED')
         code.putln('Py_CLEAR(clear_module_state->%s);' %
-            Naming.cyfunction_type_cname)
+            Naming.cyfunction_type_cname.cname)
         code.putln('#endif')
         code.putln('#ifdef __Pyx_FusedFunction_USED')
         code.putln('Py_CLEAR(clear_module_state->%s);' %
-            Naming.fusedfunction_type_cname)
+            Naming.fusedfunction_type_cname.cname)
+        code.putln('#endif')
+        code.putln('#ifdef __Pyx_Generator_USED')
+        code.putln('Py_CLEAR(clear_module_state->%s);' %
+            Naming.generator_type_cname.cname)
         code.putln('#endif')
 
     def generate_module_state_clear_end(self, env, code):
@@ -2625,13 +2648,33 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if Options.pre_import is not None:
             code.putln('Py_VISIT(clear_module_state->%s);' %
                 Naming.preimport_cname.cname)
+        code.putln('#ifdef __Pyx_AsyncGen_USED')
+        code.putln('Py_VISIT(traverse_module_state->%s);' %
+            Naming.asyncgen_type_cname.cname)
+        code.putln('Py_VISIT(traverse_module_state->%s);' %
+            Naming.asyncgen_asend_type_cname.cname)
+        code.putln('Py_VISIT(traverse_module_state->%s);' %
+            Naming.asyncgen_athrow_type_cname.cname)
+        code.putln('Py_VISIT(traverse_module_state->%s);' %
+            Naming.asyncgen_wrapped_value_type_cname.cname)
+        code.putln('#endif')
+        code.putln('#ifdef __Pyx_Coroutine_USED')
+        code.putln('Py_VISIT(traverse_module_state->%s);' %
+            Naming.coroutine_type_cname.cname)
+        code.putln('Py_VISIT(traverse_module_state->%s);' %
+            Naming.coroutine_await_type_cname.cname)
+        code.putln('#endif')
         code.putln('#ifdef __Pyx_CyFunction_USED')
         code.putln('Py_VISIT(traverse_module_state->%s);' %
-            Naming.cyfunction_type_cname)
+            Naming.cyfunction_type_cname.cname)
         code.putln('#endif')
         code.putln('#ifdef __Pyx_FusedFunction_USED')
         code.putln('Py_VISIT(traverse_module_state->%s);' %
-            Naming.fusedfunction_type_cname)
+            Naming.fusedfunction_type_cname.cname)
+        code.putln('#endif')
+        code.putln('#ifdef __Pyx_Generator_USED')
+        code.putln('Py_VISIT(traverse_module_state->%s);' %
+            Naming.generator_type_cname.cname)
         code.putln('#endif')
 
     def generate_module_state_traverse_end(self, env, code):

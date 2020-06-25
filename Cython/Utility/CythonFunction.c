@@ -63,13 +63,9 @@ typedef struct {
     PyObject *func_annotations; /* function annotations dict */
 } __pyx_CyFunctionObject;
 
-#if !CYTHON_USE_MODULE_STATE
-static PyTypeObject *__pyx_CyFunctionType = 0;
-#endif
-
-#define __Pyx_CyFunction_Check(obj)  __Pyx_TypeCheck(obj, __pyx_CyFunctionType)
-#define __Pyx_IsCyOrPyCFunction(obj)  __Pyx_TypeCheck2(obj, __pyx_CyFunctionType, &PyCFunction_Type)
-#define __Pyx_CyFunction_CheckExact(obj)  __Pyx_IS_TYPE(obj, __pyx_CyFunctionType)
+#define __Pyx_CyFunction_Check(obj)  __Pyx_TypeCheck(obj, __Pyx_CGlobal(CyFunctionType))
+#define __Pyx_IsCyOrPyCFunction(obj)  __Pyx_TypeCheck2(obj, __Pyx_CGlobal(CyFunctionType), &PyCFunction_Type)
+#define __Pyx_CyFunction_CheckExact(obj)  __Pyx_IS_TYPE(obj, __Pyx_CGlobal(CyFunctionType))
 
 static PyObject *__Pyx_CyFunction_Init(__pyx_CyFunctionObject* op, PyMethodDef *ml,
                                       int flags, PyObject* qualname,
@@ -996,15 +992,17 @@ static PyTypeObject __pyx_CyFunctionType_type = {
 
 
 static int __pyx_CyFunction_init(PyObject *module) {
+    PyTypeObject *type;
 #if CYTHON_USE_TYPE_SPECS
-    __pyx_CyFunctionType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_CyFunctionType_spec, NULL);
+    type = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_CyFunctionType_spec, NULL);
 #else
     (void) module;
-    __pyx_CyFunctionType = __Pyx_FetchCommonType(&__pyx_CyFunctionType_type);
+    type = __Pyx_FetchCommonType(&__pyx_CyFunctionType_type);
 #endif
-    if (unlikely(__pyx_CyFunctionType == NULL)) {
+    if (unlikely(type == NULL)) {
         return -1;
     }
+    __Pyx_CGlobal(CyFunctionType) = type;
     return 0;
 }
 
@@ -1053,7 +1051,7 @@ static PyObject *__Pyx_CyFunction_New(PyMethodDef *ml,
 static PyObject *__Pyx_CyFunction_New(PyMethodDef *ml, int flags, PyObject* qualname,
                                       PyObject *closure, PyObject *module, PyObject* globals, PyObject* code) {
     PyObject *op = __Pyx_CyFunction_Init(
-        PyObject_GC_New(__pyx_CyFunctionObject, __pyx_CyFunctionType),
+        PyObject_GC_New(__pyx_CyFunctionObject, __Pyx_CGlobal(CyFunctionType)),
         ml, flags, qualname, closure, module, globals, code
     );
     if (likely(op)) {
@@ -1104,9 +1102,6 @@ static PyObject *__pyx_FusedFunction_New(PyMethodDef *ml, int flags,
                                          PyObject *code);
 
 static int __pyx_FusedFunction_clear(__pyx_FusedFunctionObject *self);
-#if !CYTHON_USE_MODULE_STATE
-static PyTypeObject *__pyx_FusedFunctionType = NULL;
-#endif
 static int __pyx_FusedFunction_init(PyObject *module);
 
 #define __Pyx_FusedFunction_USED
@@ -1122,7 +1117,7 @@ __pyx_FusedFunction_New(PyMethodDef *ml, int flags,
 {
     PyObject *op = __Pyx_CyFunction_Init(
         // __pyx_CyFunctionObject is correct below since that's the cast that we want.
-        PyObject_GC_New(__pyx_CyFunctionObject, __pyx_FusedFunctionType),
+        PyObject_GC_New(__pyx_CyFunctionObject, __Pyx_CGlobal(FusedFunctionType)),
         ml, flags, qualname, closure, module, globals, code
     );
     if (likely(op)) {
@@ -1510,22 +1505,25 @@ static PyTypeObject __pyx_FusedFunctionType_type = {
 #endif
 
 static int __pyx_FusedFunction_init(PyObject *module) {
+    PyTypeObject *cyfunction_type = __Pyx_CGlobal(CyFunctionType);
+    PyTypeObject *type;
 #if CYTHON_USE_TYPE_SPECS
-    PyObject *bases = PyTuple_Pack(1, __pyx_CyFunctionType);
+    PyObject *bases = PyTuple_Pack(1, (PyObject*)cyfunction_type);
     if (unlikely(!bases)) {
         return -1;
     }
-    __pyx_FusedFunctionType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_FusedFunctionType_spec, bases);
+    type = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_FusedFunctionType_spec, bases);
     Py_DECREF(bases);
 #else
     (void) module;
     // Set base from __Pyx_FetchCommonTypeFromSpec, in case it's different from the local static value.
-    __pyx_FusedFunctionType_type.tp_base = __pyx_CyFunctionType;
-    __pyx_FusedFunctionType = __Pyx_FetchCommonType(&__pyx_FusedFunctionType_type);
+    __pyx_FusedFunctionType_type.tp_base = cyfunction_type;
+    type = __Pyx_FetchCommonType(&__pyx_FusedFunctionType_type);
 #endif
-    if (unlikely(__pyx_FusedFunctionType == NULL)) {
+    if (unlikely(type == NULL)) {
         return -1;
     }
+    __Pyx_CGlobal(FusedFunctionType) = type;
     return 0;
 }
 

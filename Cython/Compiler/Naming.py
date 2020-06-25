@@ -150,8 +150,15 @@ tp_dict_version_temp = pyrex_prefix + "tp_dict_version"
 obj_dict_version_temp = pyrex_prefix + "obj_dict_version"
 type_dict_guard_temp = pyrex_prefix + "typedict_guard"
 cython_runtime_cname = Global("cython_runtime")
-cyfunction_type_cname = pyrex_prefix + "CyFunctionType"
-fusedfunction_type_cname = pyrex_prefix + "FusedFunctionType"
+asyncgen_type_cname = Global("AsyncGenType")
+asyncgen_asend_type_cname = Global("AsyncGenASendType")
+asyncgen_athrow_type_cname = Global("AsyncGenAThrowType")
+asyncgen_wrapped_value_type_cname = Global("AsyncGenWrappedValueType")
+coroutine_type_cname = Global("CoroutineType")
+coroutine_await_type_cname = Global("CoroutineAwaitType")
+cyfunction_type_cname = Global("CyFunctionType")
+fusedfunction_type_cname = Global("FusedFunctionType")
+generator_type_cname = Global("GeneratorType")
 
 global_code_object_cache_find = pyrex_prefix + 'find_code_object'
 global_code_object_cache_insert = pyrex_prefix + 'insert_code_object'

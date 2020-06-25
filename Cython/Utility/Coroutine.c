@@ -442,15 +442,13 @@ static CYTHON_INLINE void __Pyx_Coroutine_ResetFrameBackpointer(__Pyx_ExcInfoStr
 //////////////////// Coroutine.proto ////////////////////
 
 #define __Pyx_Coroutine_USED
-static PyTypeObject *__pyx_CoroutineType = 0;
-static PyTypeObject *__pyx_CoroutineAwaitType = 0;
-#define __Pyx_Coroutine_CheckExact(obj) __Pyx_IS_TYPE(obj, __pyx_CoroutineType)
+#define __Pyx_Coroutine_CheckExact(obj) __Pyx_IS_TYPE(obj, __Pyx_CGlobal(CoroutineType))
 // __Pyx_Coroutine_Check(obj): see override for IterableCoroutine below
 #define __Pyx_Coroutine_Check(obj) __Pyx_Coroutine_CheckExact(obj)
-#define __Pyx_CoroutineAwait_CheckExact(obj) __Pyx_IS_TYPE(obj, __pyx_CoroutineAwaitType)
+#define __Pyx_CoroutineAwait_CheckExact(obj) __Pyx_IS_TYPE(obj, __Pyx_CGlobal(CoroutineAwaitType))
 
 #define __Pyx_Coroutine_New(body, code, closure, name, qualname, module_name)  \
-    __Pyx__Coroutine_New(__pyx_CoroutineType, body, code, closure, name, qualname, module_name)
+    __Pyx__Coroutine_New(__Pyx_CGlobal(CoroutineType), body, code, closure, name, qualname, module_name)
 
 static int __pyx_Coroutine_init(PyObject *module); /*proto*/
 static PyObject *__Pyx__Coroutine_await(PyObject *coroutine); /*proto*/
@@ -467,11 +465,10 @@ static PyObject *__Pyx_CoroutineAwait_Throw(__pyx_CoroutineAwaitObject *self, Py
 //////////////////// Generator.proto ////////////////////
 
 #define __Pyx_Generator_USED
-static PyTypeObject *__pyx_GeneratorType = 0;
-#define __Pyx_Generator_CheckExact(obj) __Pyx_IS_TYPE(obj, __pyx_GeneratorType)
+#define __Pyx_Generator_CheckExact(obj) __Pyx_IS_TYPE(obj, __Pyx_CGlobal(GeneratorType))
 
 #define __Pyx_Generator_New(body, code, closure, name, qualname, module_name)  \
-    __Pyx__Coroutine_New(__pyx_GeneratorType, body, code, closure, name, qualname, module_name)
+    __Pyx__Coroutine_New(__Pyx_CGlobal(GeneratorType), body, code, closure, name, qualname, module_name)
 
 static PyObject *__Pyx_Generator_Next(PyObject *self);
 static int __pyx_Generator_init(PyObject *module); /*proto*/
@@ -1560,7 +1557,7 @@ static PyTypeObject __pyx_CoroutineAwaitType_type = {
 
 #if PY_VERSION_HEX < 0x030500B1 || defined(__Pyx_IterableCoroutine_USED) || CYTHON_USE_ASYNC_SLOTS
 static CYTHON_INLINE PyObject *__Pyx__Coroutine_await(PyObject *coroutine) {
-    __pyx_CoroutineAwaitObject *await = PyObject_GC_New(__pyx_CoroutineAwaitObject, __pyx_CoroutineAwaitType);
+    __pyx_CoroutineAwaitObject *await = PyObject_GC_New(__pyx_CoroutineAwaitObject, __Pyx_CGlobal(CoroutineAwaitType));
     if (unlikely(!await)) return NULL;
     Py_INCREF(coroutine);
     await->coroutine = coroutine;
@@ -1747,16 +1744,18 @@ static PyTypeObject __pyx_CoroutineType_type = {
 #endif /* CYTHON_USE_TYPE_SPECS */
 
 static int __pyx_Coroutine_init(PyObject *module) {
+    PyTypeObject *type;
     // on Windows, C-API functions can't be used in slots statically
 #if CYTHON_USE_TYPE_SPECS
-    __pyx_CoroutineType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_CoroutineType_spec, NULL);
+    type = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_CoroutineType_spec, NULL);
 #else
     (void) module;
     __pyx_CoroutineType_type.tp_getattro = __Pyx_PyObject_GenericGetAttrNoDict;
-    __pyx_CoroutineType = __Pyx_FetchCommonType(&__pyx_CoroutineType_type);
+    type = __Pyx_FetchCommonType(&__pyx_CoroutineType_type);
 #endif
-    if (unlikely(!__pyx_CoroutineType))
+    if (unlikely(!type))
         return -1;
+    __Pyx_CGlobal(CoroutineType) = type;
 
 #ifdef __Pyx_IterableCoroutine_USED
     if (unlikely(__pyx_IterableCoroutine_init(module) == -1))
@@ -1764,12 +1763,13 @@ static int __pyx_Coroutine_init(PyObject *module) {
 #endif
 
 #if CYTHON_USE_TYPE_SPECS
-    __pyx_CoroutineAwaitType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_CoroutineAwaitType_spec, NULL);
+    type = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_CoroutineAwaitType_spec, NULL);
 #else
-    __pyx_CoroutineAwaitType = __Pyx_FetchCommonType(&__pyx_CoroutineAwaitType_type);
+    type = __Pyx_FetchCommonType(&__pyx_CoroutineAwaitType_type);
 #endif
-    if (unlikely(!__pyx_CoroutineAwaitType))
+    if (unlikely(!type))
         return -1;
+    __Pyx_CGlobal(CoroutineAwaitType) = type;
     return 0;
 }
 
@@ -2043,18 +2043,20 @@ static PyTypeObject __pyx_GeneratorType_type = {
 #endif /* CYTHON_USE_TYPE_SPECS */
 
 static int __pyx_Generator_init(PyObject *module) {
+    PyTypeObject *type;
 #if CYTHON_USE_TYPE_SPECS
-    __pyx_GeneratorType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_GeneratorType_spec, NULL);
+    type = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_GeneratorType_spec, NULL);
 #else
     (void) module;
     // on Windows, C-API functions can't be used in slots statically
     __pyx_GeneratorType_type.tp_getattro = __Pyx_PyObject_GenericGetAttrNoDict;
     __pyx_GeneratorType_type.tp_iter = PyObject_SelfIter;
-    __pyx_GeneratorType = __Pyx_FetchCommonType(&__pyx_GeneratorType_type);
+    type = __Pyx_FetchCommonType(&__pyx_GeneratorType_type);
 #endif
-    if (unlikely(!__pyx_GeneratorType)) {
+    if (unlikely(!type)) {
         return -1;
     }
+    __Pyx_CGlobal(GeneratorType) = type;
     return 0;
 }
 
@@ -2134,14 +2136,14 @@ static PyObject* __Pyx_Coroutine_patch_module(PyObject* module, const char* py_c
     globals = PyDict_New();  if (unlikely(!globals)) goto ignore;
     result = PyDict_SetItemString(globals, "_cython_coroutine_type",
     #ifdef __Pyx_Coroutine_USED
-        (PyObject*)__pyx_CoroutineType);
+        (PyObject*)__Pyx_CGlobal(CoroutineType));
     #else
         Py_None);
     #endif
     if (unlikely(result < 0)) goto ignore;
     result = PyDict_SetItemString(globals, "_cython_generator_type",
     #ifdef __Pyx_Generator_USED
-        (PyObject*)__pyx_GeneratorType);
+        (PyObject*)__Pyx_CGlobal(GeneratorType));
     #else
         Py_None);
     #endif
