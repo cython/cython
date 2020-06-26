@@ -1197,7 +1197,14 @@ class CythonCompileTestCase(unittest.TestCase):
                     self.fail('Nondeterministic file generation: %s' % ', '.join(diffs))
 
         tostderr = sys.__stderr__.write
-        if expected_warnings or (expect_warnings and warnings):
+        if 'ignore_cwarnings' in self.tags['tag']:
+            if errors:
+                tostderr("\n=== Expected C compile warnings ===\n")
+                tostderr("\n=== Got Cython errors: ===\n")
+                tostderr('\n'.join(errors))
+                tostderr('\n\n')
+                raise RuntimeError('should have generated extension code')
+        elif expected_warnings or (expect_warnings and warnings):
             self._match_output(expected_warnings, warnings, tostderr)
         if 'cerror' in self.tags['tag']:
             if errors:
