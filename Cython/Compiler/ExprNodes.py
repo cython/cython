@@ -8154,6 +8154,15 @@ class ListNode(SequenceNode):
         else:
             SequenceNode.allocate_temp_result(self, code)
 
+    def release_temp_result(self, env):
+        if self.type.is_array:
+            # To be valid C++, we must allocate the memory on the stack
+            # manually and be sure not to reuse it for something else.
+            # Yes, this means that we leak a temp array variable.
+            pass
+        else:
+            SequenceNode.release_temp_result(self, env)
+
     def calculate_constant_result(self):
         if self.mult_factor:
             raise ValueError()  # may exceed the compile time memory
