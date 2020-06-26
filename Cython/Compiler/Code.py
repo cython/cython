@@ -743,9 +743,9 @@ class FunctionState(object):
         if self.temps_allocated:
             leftovers = self.temps_in_use()
             if leftovers:
-                msg = "Temps left over at end of '%s': %s" % (self.scope.name, ', '.join([
+                msg = "TEMPGUARD: Temps left over at end of '%s': %s" % (self.scope.name, ', '.join([
                     '%s [%s]' % (name, ctype)
-                    for name, ctype, is_pytemp in sorted(leftovers, key=operator.itemgetter(0))]),
+                    for name, ctype, is_pytemp in sorted(leftovers)]),
                 )
                 #print(msg)
                 raise RuntimeError(msg)
