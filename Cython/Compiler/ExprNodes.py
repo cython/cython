@@ -8148,20 +8148,18 @@ class ListNode(SequenceNode):
         return t
 
     def allocate_temp_result(self, code):
-        if self.type.is_array and self.in_module_scope:
-            self.temp_code = code.funcstate.allocate_temp(
-                self.type, manage_ref=False, static=True)
+        if self.type.is_array:
+            if self.in_module_scope:
+                self.temp_code = code.funcstate.allocate_temp(
+                    self.type, manage_ref=False, static=True, reusable=False)
+            else:
+                # To be valid C++, we must allocate the memory on the stack
+                # manually and be sure not to reuse it for something else.
+                # Yes, this means that we leak a temp array variable.
+                self.temp_code = code.funcstate.allocate_temp(
+                    self.type, manage_ref=False, reusable=False)
         else:
             SequenceNode.allocate_temp_result(self, code)
-
-    def release_temp_result(self, env):
-        if self.type.is_array:
-            # To be valid C++, we must allocate the memory on the stack
-            # manually and be sure not to reuse it for something else.
-            # Yes, this means that we leak a temp array variable.
-            pass
-        else:
-            SequenceNode.release_temp_result(self, env)
 
     def calculate_constant_result(self):
         if self.mult_factor:

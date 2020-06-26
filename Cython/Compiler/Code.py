@@ -721,6 +721,7 @@ class FunctionState(object):
         self.temps_allocated = []  # of (name, type, manage_ref, static)
         self.temps_free = {}  # (type, manage_ref) -> list of free vars with same type/managed status
         self.temps_used_type = {}  # name -> (type, manage_ref)
+        self.zombie_temps = set()  # temps that must not be reused after release
         self.temp_counter = 0
         self.closure_temps = None
 
@@ -818,7 +819,7 @@ class FunctionState(object):
 
     # temp handling
 
-    def allocate_temp(self, type, manage_ref, static=False):
+    def allocate_temp(self, type, manage_ref, static=False, reusable=True):
         """
         Allocates a temporary (which may create a new one or get a previously
         allocated and released one of the same type). Type is simply registered
@@ -837,6 +838,8 @@ class FunctionState(object):
         This is only used when allocating backing store for a module-level
         C array literals.
 
+        if reusable=False, the temp will not be reused after release.
+
         A C string referring to the variable is returned.
         """
         if type.is_cv_qualified and not type.is_reference:
@@ -852,7 +855,7 @@ class FunctionState(object):
             manage_ref = False
 
         freelist = self.temps_free.get((type, manage_ref))
-        if freelist is not None and freelist[0]:
+        if reusable and freelist is not None and freelist[0]:
             result = freelist[0].pop()
             freelist[1].remove(result)
         else:
@@ -861,9 +864,11 @@ class FunctionState(object):
                 result = "%s%d" % (Naming.codewriter_temp_prefix, self.temp_counter)
                 if result not in self.names_taken: break
             self.temps_allocated.append((result, type, manage_ref, static))
+            if not reusable:
+                self.zombie_temps.add(result)
         self.temps_used_type[result] = (type, manage_ref)
         if DebugFlags.debug_temp_code_comments:
-            self.owner.putln("/* %s allocated (%s) */" % (result, type))
+            self.owner.putln("/* %s allocated (%s)%s */" % (result, type, "" if reusable else " - zombie"))
 
         if self.collect_temps_stack:
             self.collect_temps_stack[-1].add((result, type))
@@ -882,8 +887,9 @@ class FunctionState(object):
             self.temps_free[(type, manage_ref)] = freelist
         if name in freelist[1]:
             raise RuntimeError("Temp %s freed twice!" % name)
-        freelist[0].append(name)
-        freelist[1].add(name)
+        if name not in self.zombie_temps:
+            freelist[0].append(name)
+            freelist[1].add(name)
         if DebugFlags.debug_temp_code_comments:
             self.owner.putln("/* %s released */" % name)
 
