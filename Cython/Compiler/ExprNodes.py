@@ -2349,12 +2349,6 @@ class NameNode(AtomicExprNode):
             elif entry.scope.is_module_scope:
                 setter = 'PyDict_SetItem'
                 namespace = Naming.moddict_cname
-                code.putln("{")
-                code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-                # global module dict doesn't seems to exist in the limited API so create a temp variable
-                code.putln("PyObject *%s = PyModule_GetDict(%s); %s" % (
-                    namespace, Naming.module_cname, code.error_goto_if_null(namespace, self.pos)))
-                code.putln("#endif")
             elif entry.is_pyclass_attr:
                 # Special-case setting __new__
                 n = "SetNewInClass" if self.name == "__new__" else "SetNameInClass"
@@ -2378,8 +2372,6 @@ class NameNode(AtomicExprNode):
                 # in Py2.6+, we need to invalidate the method cache
                 code.putln("PyType_Modified(%s);" %
                            entry.scope.parent_type.typeptr_cname)
-            elif entry.scope.is_module_scope:
-                code.putln("}")
         else:
             if self.type.is_memoryviewslice:
                 self.generate_acquire_memoryviewslice(rhs, code)
@@ -9438,21 +9430,8 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         else:
             flags = '0'
 
-        borrowed_moddict_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=False)
-        code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-        code.putln('%s = PyModule_GetDict(%s); %s' % (
-            borrowed_moddict_temp,
-            Naming.module_cname,
-            code.error_goto_if_null(borrowed_moddict_temp, self.pos)))
-        code.putln("#else")
-        code.putln("%s = %s;  if ((1)); else %s;" % (
-            borrowed_moddict_temp,
-            Naming.moddict_cname,
-            code.error_goto(self.pos),
-        ))
-        code.putln("#endif")
         code.putln(
-            '%s = %s(&%s, %s, %s, %s, %s, %s, %s); %s = NULL; %s' % (
+            '%s = %s(&%s, %s, %s, %s, %s, %s, %s); %s' % (
                 self.result(),
                 constructor,
                 self.pymethdef_cname,
@@ -9460,11 +9439,9 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                 self.get_py_qualified_name(code),
                 self.closure_result_code(),
                 self.get_py_mod_name(code),
-                borrowed_moddict_temp,
+                Naming.moddict_cname,
                 code_object_result,
-                borrowed_moddict_temp,
                 code.error_goto_if_null(self.result(), self.pos)))
-        code.funcstate.release_temp(borrowed_moddict_temp)
 
         self.generate_gotref(code)
 
