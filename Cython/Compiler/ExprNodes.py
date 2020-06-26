@@ -7295,6 +7295,8 @@ class AttributeNode(ExprNode):
                 self.member.upper(),
                 self.obj.result_as(self.obj.type),
                 rhs.result_as(self.ctype())))
+            rhs.generate_disposal_code(code)
+            rhs.free_temps(code)
         else:
             select_code = self.result()
             if self.type.is_pyobject and self.use_managed_ref:
