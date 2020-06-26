@@ -9180,6 +9180,11 @@ class ParallelStatNode(StatNode, ParallelNode):
         self.begin_of_parallel_control_block_point = None
         self.begin_of_parallel_control_block_point_after_decls = None
 
+        if self.num_threads is not None:
+            # FIXME: is it the right place? should not normally produce code.
+            self.num_threads.generate_disposal_code(code)
+            self.num_threads.free_temps(code)
+
         # Firstly, always prefer errors over returning, continue or break
         if self.error_label_used:
             c.putln("const char *%s = NULL; int %s = 0, %s = 0;" % self.parallel_pos_info)
@@ -9560,7 +9565,7 @@ class ParallelRangeNode(ParallelStatNode):
 
         # And finally, release our privates and write back any closure
         # variables
-        for temp in start_stop_step + (self.chunksize, self.num_threads):
+        for temp in start_stop_step + (self.chunksize,):
             if temp is not None:
                 temp.generate_disposal_code(code)
                 temp.free_temps(code)
