@@ -1,3 +1,5 @@
+# tag: ignore_cwarnings
+
 cimport cython
 
 @cython.c_api_binop_methods(False)

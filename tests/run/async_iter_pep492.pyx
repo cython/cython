@@ -1,5 +1,5 @@
 # mode: run
-# tag: pep492, asyncfor, await
+# tag: pep492, asyncfor, await, ignore_cwarnings
 
 import sys
 

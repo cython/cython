@@ -1,4 +1,5 @@
 # ticket: 589
+# tag: ignore_cwarnings
 
 cimport cython
 

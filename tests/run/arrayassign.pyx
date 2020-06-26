@@ -1,4 +1,5 @@
 # mode: run
+# tag: ignore_cwarnings
 
 cimport cython
 

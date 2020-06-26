@@ -1,5 +1,5 @@
 # mode: compile
-# tag: pep492
+# tag: pep492, ignore_cwarnings
 
 # make sure async iterators also compile correctly without using 'await'
 

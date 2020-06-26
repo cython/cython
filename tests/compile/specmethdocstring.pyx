@@ -1,4 +1,5 @@
 # mode: compile
+# tag: ignore_cwarnings
 
 cdef class C:
     def __cinit__(self):
