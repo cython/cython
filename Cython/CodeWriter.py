@@ -84,7 +84,7 @@ class DeclarationWriter(TreeVisitor):
                 self.put(u" = ")
                 self.visit(items[-1].default)
 
-    def visit_indented(self, node):
+    def _visit_indented(self, node):
         self.indent()
         self.visit(node)
         self.dedent()
@@ -104,7 +104,7 @@ class DeclarationWriter(TreeVisitor):
         else:
             file = u'"%s"' % node.include_file
         self.putline(u"cdef extern from %s:" % file)
-        self.visit_indented(node.body)
+        self._visit_indented(node.body)
 
     def visit_CPtrDeclaratorNode(self, node):
         self.put('*')
@@ -230,7 +230,7 @@ class DeclarationWriter(TreeVisitor):
             self.put(node.base_class_name)
             self.put(u")")
         self.endline(u":")
-        self.visit_indented(node.body)
+        self._visit_indented(node.body)
 
     def visit_CTypeDefNode(self, node):
         self.startline(u"ctypedef ")
@@ -244,13 +244,10 @@ class DeclarationWriter(TreeVisitor):
         self.startline(u"def %s(" % node.name)
         self.comma_separated_list(node.args)
         self.endline(u"):")
-        self.visit_indented(node.body)
+        self._visit_indented(node.body)
 
     def visit_CFuncDefNode(self, node):
-        if node.overridable:
-            self.startline(u'cpdef ')
-        else:
-            self.startline(u'cdef ')
+        self.startline(u'cpdef ' if node.overridable else u'cdef ')
         if node.modifiers:
             self.put(' '.join(node.modifiers))
             self.put(' ')
@@ -271,20 +268,19 @@ class DeclarationWriter(TreeVisitor):
         self.comma_separated_list(node.declarator.args)
         self.endline(u'):')
 
-        self.visit_indented(node.body)
+        self._visit_indented(node.body)
 
     def visit_CArgDeclNode(self, node):
-        # for `CSimpleBaseTypeNode`, the variable type may been parsed as type.
-        # for other types node, its `name` is always None.
+        # For "CSimpleBaseTypeNode", the variable type may have been parsed as type.
+        # For other node types, the "name" is always None.
         if not isinstance(node.base_type, CSimpleBaseTypeNode) or \
                 node.base_type.name is not None:
             self.visit(node.base_type)
 
-            # once we print something for node.base_type, we may need to print
-            # an extra ` `.
+            # If we printed something for "node.base_type", we may need to print an extra ' '.
             #
-            # a special case: if `node.declarator` is a `CNameDeclaratorNode`,
-            # its "name" might be empty string, for example, for `cdef f(x)`.
+            # Special case: if "node.declarator" is a "CNameDeclaratorNode",
+            # its "name" might be an empty string, for example, for "cdef f(x)".
             if node.declarator.declared_name():
                 self.put(u" ")
         self.visit(node.declarator)
@@ -366,9 +362,7 @@ class StatementWriter(DeclarationWriter):
         self.put(u" in ")
         self.visit(node.iterator.sequence)
         self.endline(u":")
-        self.indent()
-        self.visit(node.body)
-        self.dedent()
+        self._visit_indented(node.body)
         if node.else_clause is not None:
             self.line(u"else:")
             self.indent()
@@ -388,19 +382,19 @@ class StatementWriter(DeclarationWriter):
             self.startline("elif ")
             self.visit(clause.condition)
             self.endline(":")
-            self.visit_indented(clause.body)
+            self._visit_indented(clause.body)
         if node.else_clause is not None:
             self.line("else:")
-            self.visit_indented(node.else_clause)
+            self._visit_indented(node.else_clause)
 
     def visit_WhileStatNode(self, node):
         self.startline(u"while ")
         self.visit(node.condition)
         self.endline(u":")
-        self.visit_indented(node.body)
+        self._visit_indented(node.body)
         if node.else_clause is not None:
             self.line("else:")
-            self.visit_indented(node.else_clause)
+            self._visit_indented(node.else_clause)
 
     def visit_ContinueStatNode(self, node):
         self.line(u"continue")
@@ -431,7 +425,7 @@ class StatementWriter(DeclarationWriter):
             self.put(u" as ")
             self.visit(node.target)
         self.endline(u":")
-        self.visit_indented(node.body)
+        self._visit_indented(node.body)
 
     def visit_TryFinallyStatNode(self, node):
         self.line(u"try:")
@@ -439,7 +433,7 @@ class StatementWriter(DeclarationWriter):
         self.visit(node.body)
         self.dedent()
         self.line(u"finally:")
-        self.visit_indented(node.finally_clause)
+        self._visit_indented(node.finally_clause)
 
     def visit_TryExceptStatNode(self, node):
         self.line(u"try:")
@@ -460,7 +454,7 @@ class StatementWriter(DeclarationWriter):
             self.put(u", ")
             self.visit(node.target)
         self.endline(":")
-        self.visit_indented(node.body)
+        self._visit_indented(node.body)
 
     def visit_ReturnStatNode(self, node):
         self.startline("return ")
