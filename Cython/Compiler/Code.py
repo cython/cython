@@ -889,9 +889,10 @@ class FunctionState(object):
             raise RuntimeError("Temp %s freed twice!" % name)
         if name not in self.zombie_temps:
             freelist[0].append(name)
-            freelist[1].add(name)
+        freelist[1].add(name)
         if DebugFlags.debug_temp_code_comments:
-            self.owner.putln("/* %s released */" % name)
+            self.owner.putln("/* %s released %s*/" % (
+                name, " - zombie" if name in self.zombie_temps else ""))
 
     def temps_in_use(self):
         """Return a list of (cname,type,manage_ref) tuples of temp names and their type
