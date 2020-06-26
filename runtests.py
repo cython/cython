@@ -1202,7 +1202,6 @@ class CythonCompileTestCase(unittest.TestCase):
                     self.fail('Nondeterministic file generation: %s' % ', '.join(diffs))
 
         tostderr = sys.__stderr__.write
-
         if expected_warnings or (expect_warnings and warnings):
             self._match_output(expected_warnings, warnings, tostderr)
         if 'cerror' in self.tags['tag']:
