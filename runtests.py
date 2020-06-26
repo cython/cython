@@ -1206,6 +1206,7 @@ class CythonCompileTestCase(unittest.TestCase):
                 raise RuntimeError('should have generated extension code')
         elif expected_warnings or (expect_warnings and warnings):
             self._match_output(expected_warnings, warnings, tostderr)
+            return None
         if 'cerror' in self.tags['tag']:
             if errors:
                 tostderr("\n=== Expected C compile error ===\n")

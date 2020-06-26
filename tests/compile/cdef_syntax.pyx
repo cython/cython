@@ -1,4 +1,5 @@
 # mode: compile
+# tag: ignore_cwarnings
 
 # the following are valid syntax constructs and should not produce errors
 
