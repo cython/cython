@@ -4725,6 +4725,7 @@ class MemoryCopyNode(ExprNode):
         self.dst.generate_evaluation_code(code)
         self._generate_assignment_code(rhs, code)
         self.dst.generate_disposal_code(code)
+        self.dst.free_temps(code)
         rhs.generate_disposal_code(code)
         rhs.free_temps(code)
 
