@@ -746,8 +746,8 @@ class FunctionState(object):
                     '%s [%s]' % (name, ctype)
                     for name, ctype, is_pytemp in sorted(leftovers, key=operator.itemgetter(0))]),
                 )
-                print(msg)
-                #raise RuntimeError(msg)
+                #print(msg)
+                raise RuntimeError(msg)
 
     # labels
 
