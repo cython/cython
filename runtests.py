@@ -1090,6 +1090,11 @@ class CythonCompileTestCase(unittest.TestCase):
                 ext_compile_flags.append('-Wno-format')
             if extra_extension_args is None:
                 extra_extension_args = {}
+            if 'ignore_cwarnings' not in self.tags['tag']:
+                if build_extension.compiler == 'msvc':
+                    ext_compile_flags.append('/WX')
+                else:
+                    ext_compile_flags.append("-Werror")
 
             related_files = self.related_files(test_directory, module)
             self.copy_files(test_directory, workdir, related_files)
@@ -1197,16 +1202,9 @@ class CythonCompileTestCase(unittest.TestCase):
                     self.fail('Nondeterministic file generation: %s' % ', '.join(diffs))
 
         tostderr = sys.__stderr__.write
-        if 'ignore_cwarnings' in self.tags['tag']:
-            if errors:
-                tostderr("\n=== Expected C compile warnings ===\n")
-                tostderr("\n=== Got Cython errors: ===\n")
-                tostderr('\n'.join(errors))
-                tostderr('\n\n')
-                raise RuntimeError('should have generated extension code')
-        elif expected_warnings or (expect_warnings and warnings):
+
+        if expected_warnings or (expect_warnings and warnings):
             self._match_output(expected_warnings, warnings, tostderr)
-            return None
         if 'cerror' in self.tags['tag']:
             if errors:
                 tostderr("\n=== Expected C compile error ===\n")
