@@ -2551,6 +2551,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('#ifdef __Pyx_Generator_USED')
         code.putln('PyTypeObject *%s;' % Naming.generator_type_cname.cname)
         code.putln('#endif')
+        code.putln('PyObject *%s[%s];' % (Naming.string_consts_cname.cname, Naming.string_tab_length_cname))
         code.putln("#if CYTHON_USE_MODULE_STATE")
 
     def generate_module_state_end(self, env, code):
@@ -2577,6 +2578,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_module_state_clear_begin(self, env, code):
         code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln("static int %s_clear(PyObject *m) {" % Naming.module_cname)
+        code.putln("int i;")
         code.putln("%s *clear_module_state = __Pyx_ModuleState(m);" % Naming.cglobals_type_cname)
         code.putln("if (!clear_module_state) return 0;")
         code.putln('Py_CLEAR(clear_module_state->%s);' %
@@ -2622,6 +2624,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('Py_CLEAR(clear_module_state->%s);' %
             Naming.generator_type_cname.cname)
         code.putln('#endif')
+        code.putln('for (i = 0; i < %s; i++) {' % Naming.string_tab_length_cname)
+        code.putln('Py_CLEAR(clear_module_state->%s[i]);' % Naming.string_consts_cname.cname)
+        code.putln('}')
 
     def generate_module_state_clear_end(self, env, code):
         code.putln("return 0;")
@@ -2631,6 +2636,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_module_state_traverse_begin(self, env, code):
         code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln("static int %s_traverse(PyObject *m, visitproc visit, void *arg) {" % Naming.module_cname)
+        code.putln("int i;")
         code.putln("%s *traverse_module_state = __Pyx_ModuleState(m);" % Naming.cglobals_type_cname)
         code.putln("if (!traverse_module_state) return 0;")
         code.putln('Py_VISIT(traverse_module_state->%s);' %
@@ -2676,6 +2682,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('Py_VISIT(traverse_module_state->%s);' %
             Naming.generator_type_cname.cname)
         code.putln('#endif')
+        code.putln('for (i = 0; i < %s; i++) {' % Naming.string_tab_length_cname)
+        code.putln('Py_VISIT(traverse_module_state->%s[i]);' % Naming.string_consts_cname.cname)
+        code.putln('}')
 
     def generate_module_state_traverse_end(self, env, code):
         code.putln("return 0;")
@@ -3000,8 +3009,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln('if (!CYTHON_PEP489_MULTI_PHASE_INIT) {')
             code.putln('if (PyObject_SetAttrString(%s, "__file__", %s) < 0) %s;' % (
                 env.module_cname,
-                code.globalstate.get_py_string_const(
-                    EncodedString(decode_filename(module_path))).cname,
+                code.globalstate.get_py_string_cexpr(
+                    EncodedString(decode_filename(module_path))),
                 code.error_goto(self.pos)))
             code.putln("}")
 
@@ -3011,9 +3020,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 temp = code.funcstate.allocate_temp(py_object_type, True)
                 code.putln('%s = Py_BuildValue("[O]", %s); %s' % (
                     temp,
-                    code.globalstate.get_py_string_const(
+                    code.globalstate.get_py_string_cexpr(
                         EncodedString(decode_filename(
-                            os.path.dirname(module_path)))).cname,
+                            os.path.dirname(module_path)))),
                     code.error_goto_if_null(temp, self.pos)))
                 code.put_gotref(temp, py_object_type)
                 code.putln(
@@ -3037,8 +3046,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(code.error_goto_if_neg(
                 '__Pyx_SetPackagePathFromImportLib(%s, %s)' % (
                     parent_name,
-                    code.globalstate.get_py_string_const(
-                        EncodedString(env.module_name)).cname),
+                    code.globalstate.get_py_string_cexpr(
+                        EncodedString(env.module_name))),
                 self.pos))
             code.putln("}")
 

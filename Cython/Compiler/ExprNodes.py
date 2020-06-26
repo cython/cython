@@ -1585,7 +1585,7 @@ class BytesNode(ConstNode):
 
     def generate_evaluation_code(self, code):
         if self.type.is_pyobject:
-            result = code.get_py_string_const(self.value)
+            result = code.get_py_string_cexpr(self.value)
         elif self.type.is_const:
             result = code.get_string_const(self.value)
         else:
@@ -1700,7 +1700,7 @@ class UnicodeNode(ConstNode):
                 const_code.put_error_if_neg(
                     self.pos, "__Pyx_PyUnicode_READY(%s)" % self.result_code)
             else:
-                self.result_code = code.get_py_string_const(self.value)
+                self.result_code = code.get_py_string_cexpr(self.value)
         else:
             self.result_code = code.get_pyunicode_ptr_const(self.value)
 
@@ -1762,7 +1762,7 @@ class StringNode(PyConstNode):
         return not self.is_identifier and len(self.value) == 1
 
     def generate_evaluation_code(self, code):
-        self.result_code = code.get_py_string_const(
+        self.result_code = code.get_py_string_cexpr(
             self.value, identifier=self.is_identifier, is_str=True,
             unicode_value=self.unicode_value)
 
@@ -8979,11 +8979,11 @@ class SortedDictKeysNode(ExprNode):
 
 class ModuleNameMixin(object):
     def get_py_mod_name(self, code):
-        return code.get_py_string_const(
+        return code.get_py_string_cexpr(
             self.module_name, identifier=True)
 
     def get_py_qualified_name(self, code):
-        return code.get_py_string_const(
+        return code.get_py_string_cexpr(
             self.qualname, identifier=True)
 
 
@@ -9560,11 +9560,11 @@ class CodeObjectNode(ExprNode):
             return  # already initialised
         code.mark_pos(self.pos)
         func = self.def_node
-        func_name = code.get_py_string_const(
+        func_name = code.get_py_string_cexpr(
             func.name, identifier=True, is_str=False, unicode_value=func.name)
         # FIXME: better way to get the module file path at module init time? Encoding to use?
         file_path = StringEncoding.bytes_literal(func.pos[0].get_filenametable_entry().encode('utf8'), 'utf8')
-        file_path_const = code.get_py_string_const(file_path, identifier=False, is_str=True)
+        file_path_const = code.get_py_string_cexpr(file_path, identifier=False, is_str=True)
 
         # This combination makes CPython create a new dict for "frame.f_locals" (see GH #1836).
         flags = ['CO_OPTIMIZED', 'CO_NEWLOCALS']

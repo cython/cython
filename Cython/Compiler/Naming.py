@@ -90,6 +90,9 @@ class Global:
         return "Global(%s)" % self._cname
 
 
+string_tab_length_cname = pyrex_prefix + "string_tab_length"
+string_consts_cname = Global("string_consts")
+
 ctuple_type_prefix = pyrex_prefix + "ctuple_"
 args_cname       = pyrex_prefix + "args"
 nargs_cname      = pyrex_prefix + "nargs"

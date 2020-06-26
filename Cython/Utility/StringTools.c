@@ -43,60 +43,49 @@ static CYTHON_INLINE Py_ssize_t __Pyx_Py_UNICODE_ssize_strlen(const Py_UNICODE *
 
 //////////////////// InitStrings.proto ////////////////////
 
-#if CYTHON_COMPILING_IN_LIMITED_API
-static int __Pyx_InitString(__Pyx_StringTabEntry t, PyObject **str); /*proto*/
-#else
-static int __Pyx_InitStrings(__Pyx_StringTabEntry *t); /*proto*/
-#endif
+static int __Pyx_InitStrings(const __Pyx_StringTabEntry *string_tab,
+                             int string_tab_length, PyObject **string_consts); /*proto*/
 
 //////////////////// InitStrings ////////////////////
 
-#if PY_MAJOR_VERSION >= 3
-static int __Pyx_InitString(__Pyx_StringTabEntry t, PyObject **str) {
-    if (t.is_unicode | t.is_str) {
-        if (t.intern) {
-            *str = PyUnicode_InternFromString(t.s);
-        } else if (t.encoding) {
-            *str = PyUnicode_Decode(t.s, t.n - 1, t.encoding, NULL);
+static int __Pyx_InitStrings(const __Pyx_StringTabEntry *string_tab,
+                             int string_tab_length, PyObject **string_consts) {
+    int i;
+    for (i = 0; i < string_tab_length; i++) {
+        const __Pyx_StringTabEntry *t = &string_tab[i];
+        PyObject *string;
+#if PY_MAJOR_VERSION >= 3  /* Python 3+ has unicode identifiers */
+        if (t->is_unicode | t->is_str) {
+            if (t->intern) {
+                string = PyUnicode_InternFromString(t->s);
+            } else if (t->encoding) {
+                string = PyUnicode_Decode(t->s, t->n - 1, t->encoding, NULL);
+            } else {
+                string = PyUnicode_FromStringAndSize(t->s, t->n - 1);
+            }
         } else {
-            *str = PyUnicode_FromStringAndSize(t.s, t.n - 1);
+            string = PyBytes_FromStringAndSize(t->s, t->n - 1);
         }
-    } else {
-        *str = PyBytes_FromStringAndSize(t.s, t.n - 1);
-    }
-    if (!*str)
-        return -1;
-    // initialise cached hash value
-    if (PyObject_Hash(*str) == -1)
-        return -1;
-    return 0;
-}
-#endif
-
-#if !CYTHON_COMPILING_IN_LIMITED_API
-static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
-    while (t->p) {
-        #if PY_MAJOR_VERSION >= 3  /* Python 3+ has unicode identifiers */
-        __Pyx_InitString(*t, t->p);
-        #else
+#else
         if (t->is_unicode) {
-            *t->p = PyUnicode_DecodeUTF8(t->s, t->n - 1, NULL);
+            string = PyUnicode_DecodeUTF8(t->s, t->n - 1, NULL);
         } else if (t->intern) {
-            *t->p = PyString_InternFromString(t->s);
+            string = PyString_InternFromString(t->s);
         } else {
-            *t->p = PyString_FromStringAndSize(t->s, t->n - 1);
+            string = PyString_FromStringAndSize(t->s, t->n - 1);
         }
-        if (!*t->p)
+#endif
+        if (string == NULL)
             return -1;
         // initialise cached hash value
-        if (PyObject_Hash(*t->p) == -1)
+        if (PyObject_Hash(string) == -1) {
+            Py_DECREF(string);
             return -1;
-        #endif
-        ++t;
+        }
+        string_consts[i] = string;
     }
     return 0;
 }
-#endif
 
 //////////////////// BytesContains.proto ////////////////////
 

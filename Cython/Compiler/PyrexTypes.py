@@ -2127,7 +2127,7 @@ class CReturnCodeType(CIntType):
         return not format_spec
 
     def convert_to_pystring(self, cvalue, code, format_spec=None):
-        return "__Pyx_NewRef(%s)" % code.globalstate.get_py_string_const(StringEncoding.EncodedString("None")).cname
+        return "__Pyx_NewRef(%s)" % code.globalstate.get_py_string_cexpr(StringEncoding.EncodedString("None"))
 
 
 class CBIntType(CIntType):
@@ -2147,8 +2147,8 @@ class CBIntType(CIntType):
         utility_code_name = "__Pyx_PyUnicode_FromBInt_" + self.specialization_name()
         to_pyunicode_utility = TempitaUtilityCode.load_cached(
             "CBIntToPyUnicode", "TypeConversion.c", context={
-                "TRUE_CONST":  code.globalstate.get_py_string_const(StringEncoding.EncodedString("True")).cname,
-                "FALSE_CONST": code.globalstate.get_py_string_const(StringEncoding.EncodedString("False")).cname,
+                "TRUE_CONST":  code.globalstate.get_py_string_cexpr(StringEncoding.EncodedString("True")),
+                "FALSE_CONST": code.globalstate.get_py_string_cexpr(StringEncoding.EncodedString("False")),
                 "TO_PY_FUNCTION": utility_code_name,
             })
         code.globalstate.use_utility_code(to_pyunicode_utility)
@@ -3459,7 +3459,7 @@ class ToPyStructUtilityCode(object):
         code.putln("res = __Pyx_PyDict_NewPresized(%d); if (unlikely(!res)) return NULL;" %
                    len(self.type.scope.var_entries))
         for member in self.type.scope.var_entries:
-            nameconst_cname = code.get_py_string_const(member.name, identifier=True)
+            nameconst_cname = code.get_py_string_cexpr(member.name, identifier=True)
             code.putln("%s; if (unlikely(!member)) goto bad;" % (
                 member.type.to_py_call_code('s.%s' % member.cname, 'member', member.type)))
             code.putln("if (unlikely(PyDict_SetItem(res, %s, member) < 0)) goto bad;" % nameconst_cname)
