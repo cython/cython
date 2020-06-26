@@ -13118,8 +13118,17 @@ class PyTypeTestNode(CoercionNode):
     def generate_post_assignment_code(self, code):
         self.arg.generate_post_assignment_code(code)
 
+    def allocate_temp_result(self, code):
+        pass
+
+    def release_temp_result(self, code):
+        pass
+
     def free_temps(self, code):
         self.arg.free_temps(code)
+
+    def free_subexpr_temps(self, code):
+        self.arg.free_subexpr_temps(code)
 
 
 class NoneCheckNode(CoercionNode):
