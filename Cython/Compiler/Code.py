@@ -740,11 +740,11 @@ class FunctionState(object):
     def validate_exit(self):
         # validate that all allocated temps have been freed
         if self.temps_allocated:
-            leftovers = set(self.all_managed_temps()).difference(self.all_free_managed_temps())
+            leftovers = self.temps_in_use()
             if leftovers:
-                msg = "Temps left over at end of '%s': %s" % (
-                    self.scope.name,
-                    ', '.join(map(str, sorted(leftovers, key=operator.itemgetter(0)))),
+                msg = "Temps left over at end of '%s': %s" % (self.scope.name, ', '.join([
+                    '%s [%s]' % (name, ctype)
+                    for name, ctype, is_pytemp in sorted(leftovers, key=operator.itemgetter(0))]),
                 )
                 print(msg)
                 #raise RuntimeError(msg)

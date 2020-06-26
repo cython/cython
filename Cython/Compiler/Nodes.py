@@ -5182,9 +5182,9 @@ class CClassDefNode(ClassDefNode):
             return
         if entry.visibility != 'extern':
             code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-            tuple_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
             base_type = scope.parent_type.base_type
             if base_type:
+                tuple_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
                 code.putln(
                     "%s = PyTuple_Pack(1, (PyObject *)%s); %s" % (
                     tuple_temp,
