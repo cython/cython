@@ -8046,9 +8046,10 @@ class TryFinallyStatNode(StatNode):
                     if self.func_return_type.is_pyobject:
                         code.putln("%s = 0;" % ret_temp)
                     code.funcstate.release_temp(ret_temp)
-                    ret_temp = None
                 if self.in_generator:
                     self.put_error_uncatcher(code, exc_vars)
+                    for cname in exc_vars:
+                        code.funcstate.release_temp(cname)
 
             if not self.finally_clause.is_terminator:
                 code.put_goto(old_label)
