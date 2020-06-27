@@ -749,32 +749,32 @@ class ControlFlowAnalysis(CythonTransform):
         # handles star and starstar arg types
         # This is separated out so it can be re-used by MarkParallel too
 
-        # each can be True, False, or None
-        use_fastcall_tuple = node.local_scope.directives['fastcall_args.tuple']
-        use_fastcall_dict = node.local_scope.directives['fastcall_args.dict']
+        if node.star_arg or node.starstar_arg:
+            # If the wrapping function doesn't have a fastcall signature there's
+            # no value in using FastcallDictType - it only adds a layer of indirection
+            # (it's less clear for FastcallTupleType, but follow the same rules)
+            fastcall_sig = node.entry.signature.use_fastcall
+
+            # each can be True, False, or None
+            use_fastcall_tuple = node.local_scope.directives['fastcall_args.tuple']
+            use_fastcall_dict = node.local_scope.directives['fastcall_args.dict']
         # TODO a better version would try to identify if the argument makes it into the closure,
         # but for now just block using the fastcall types on any function with a closure
         if node.star_arg:
             # self_in_stararg needs to build a new tuple containing self and so can't easily
             # be made to work
             star_arg_type = Builtin.tuple_type
-            # FIXME - this doesn't explicitly force it. Need to change argument overriding
-            # rules
             if use_fastcall_tuple or (not node.needs_closure and not node.self_in_stararg
-                                        and use_fastcall_tuple != False):
+                                        and fastcall_sig  and use_fastcall_tuple != False):
                 star_arg_type = PyrexTypes.fastcalltuple_type
 
             mark_call(node.star_arg, TypedExprNode(star_arg_type, may_be_none=False))
             # if the user has specifically requested the fastcall type it's set in AdjustDefByDirectives
         if node.starstar_arg:
-            # If the wrapping function doesn't have a fastcall signature there's
-            # no value in using FastcallDictType - it only adds a layer of indirection
-            # (this doesn't apply for FastcallTupleType, which might offer small benefits
-            # however called)
             starstar_arg_type = Builtin.dict_type
             if (use_fastcall_dict or (not node.needs_closure
                                         and use_fastcall_dict != False
-                                        and node.entry.signature.use_fastcall)):
+                                        and fastcall_sig)):
                 starstar_arg_type = PyrexTypes.fastcalldict_type
 
             mark_call(node.starstar_arg, TypedExprNode(starstar_arg_type, may_be_none=False))
