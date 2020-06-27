@@ -33,6 +33,8 @@ with closing(asyncio.get_event_loop()) as loop:
     loop.run_until_complete(cy_test.say())
 
 assert asyncio.iscoroutinefunction(cy_test.cy_async_def_example) == True
+assert asyncio.iscoroutinefunction(cy_test.cy_async_def_example) == True
+assert asyncio.iscoroutinefunction(py_test.py_async_def_example) == True
 assert asyncio.iscoroutinefunction(py_test.py_async_def_example) == True
 assert asyncio.iscoroutinefunction(cy_test.cy_def_example) == False
 assert asyncio.iscoroutinefunction(py_test.py_def_example) == False

@@ -369,12 +369,13 @@ __Pyx_CyFunction_get_annotations(__pyx_CyFunctionObject *op, CYTHON_UNUSED void 
 
 static PyObject *
 __Pyx_CyFunction_get_is_coroutine(__pyx_CyFunctionObject *op, CYTHON_UNUSED void *context) {
-#if PY_VERSION_HEX >= 0x03050000
-    // on v3.5.3rc1 the marker object was introduced
     if (op->func_is_coroutine)
         return __Pyx_NewRef(op->func_is_coroutine);
 
-    if (op->flags & __Pyx_CYFUNCTION_COROUTINE) {
+    int is_coroutine = op->flags & __Pyx_CYFUNCTION_COROUTINE;
+
+#if PY_VERSION_HEX >= 0x03050000
+    if (is_coroutine) {
         PyObject *module, *fromlist, *marker = PYIDENT("_is_coroutine");
         fromlist = PyList_New(1);
         if (unlikely(!fromlist)) return NULL;
@@ -386,12 +387,13 @@ __Pyx_CyFunction_get_is_coroutine(__pyx_CyFunctionObject *op, CYTHON_UNUSED void
         Py_DECREF(module);
         if (unlikely(!op->func_is_coroutine)) goto ignore;
         return __Pyx_NewRef(op->func_is_coroutine);
-
-    ignore:
-        PyErr_Clear();
     }
+ignore:
+    PyErr_Clear();
 #endif
-    return __Pyx_PyBool_FromLong(op->flags & __Pyx_CYFUNCTION_COROUTINE);
+
+    op->func_is_coroutine = __Pyx_PyBool_FromLong(is_coroutine);
+    return __Pyx_NewRef(op->func_is_coroutine);
 }
 
 //#if PY_VERSION_HEX >= 0x030400C1
