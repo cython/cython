@@ -949,14 +949,14 @@ class FunctionState(object):
 class NumConst(object):
     """Global info about a Python number constant held by GlobalState.
 
-    cname       string
+    globl       Global
     value       string
     py_type     string     int, long, float
     value_code  string     evaluation code if different from value
     """
 
-    def __init__(self, cname, value, py_type, value_code=None):
-        self.cname = cname
+    def __init__(self, globl, value, py_type, value_code=None):
+        self.globl = globl
         self.value = value
         self.py_type = py_type
         self.value_code = value_code or value
@@ -965,11 +965,11 @@ class NumConst(object):
 class PyObjectConst(object):
     """Global info about a generic constant held by GlobalState.
     """
-    # cname       string
+    # globl       Global
     # type        PyrexType
 
-    def __init__(self, cname, type):
-        self.cname = cname
+    def __init__(self, globl, type):
+        self.globl = globl
         self.type = type
 
 
@@ -1049,7 +1049,7 @@ class StringConst(object):
         else:
             encoding_prefix = ''
 
-        pystring_cname = encoding_prefix + self.cname[len(Naming.const_prefix):] + intern_suffix
+        pystring_cname = encoding_prefix + self.cname[len(Naming.pyrex_prefix) + len(Naming.const_prefix):] + intern_suffix
 
         py_string = PyStringConst(
             pystring_cname, encoding, is_unicode, is_str, py3str_cstring, intern)
@@ -1327,7 +1327,7 @@ class GlobalState(object):
         if cleanup_level is not None \
                 and cleanup_level <= Options.generate_cleanup_code:
             cleanup_writer = self.parts['cleanup_globals']
-            cleanup_writer.putln('Py_CLEAR(%s);' % const.cname)
+            cleanup_writer.putln('Py_CLEAR(%s);' % const.globl)
         if dedup_key is not None:
             self.dedup_const_index[dedup_key] = const
         return const
@@ -1378,14 +1378,14 @@ class GlobalState(object):
         return c
 
     def new_num_const(self, value, py_type, value_code=None):
-        cname = self.new_num_const_cname(value, py_type)
-        c = NumConst(cname, value, py_type, value_code)
+        globl = self.new_num_const_global(value, py_type)
+        c = NumConst(globl, value, py_type, value_code)
         self.num_const_index[(value, py_type)] = c
         return c
 
     def new_py_const(self, type, prefix=''):
-        cname = self.new_const_cname(prefix)
-        c = PyObjectConst(cname, type)
+        globl = self.new_const_global(prefix)
+        c = PyObjectConst(globl, type)
         self.py_constants.append(c)
         return c
 
@@ -1394,16 +1394,16 @@ class GlobalState(object):
         value = bytes_value.decode('ASCII', 'ignore')
         return self.new_const_cname(value=value)
 
-    def new_num_const_cname(self, value, py_type):
+    def new_num_const_global(self, value, py_type):
         if py_type == 'long':
             value += 'L'
             py_type = 'int'
         prefix = Naming.interned_prefixes[py_type]
         cname = "%s%s" % (prefix, value)
         cname = cname.replace('+', '_').replace('-', 'neg_').replace('.', '_')
-        return cname
+        return Naming.Global(cname)
 
-    def new_const_cname(self, prefix='', value=''):
+    def new_const_cname(self, prefix='', value='', add_pyrex_prefix=True):
         value = replace_identifier('_', value)[:32].strip('_')
         used = self.const_cnames_used
         name_suffix = value
@@ -1411,11 +1411,19 @@ class GlobalState(object):
             counter = used[value] = used[value] + 1
             name_suffix = '%s_%d' % (value, counter)
         used[name_suffix] = 1
-        if prefix:
-            prefix = Naming.interned_prefixes[prefix]
+        if add_pyrex_prefix:
+            pyrex_prefix = Naming.pyrex_prefix
         else:
-            prefix = Naming.const_prefix
+            pyrex_prefix = ""
+        if prefix:
+            prefix = pyrex_prefix + Naming.interned_prefixes[prefix]
+        else:
+            prefix = pyrex_prefix + Naming.const_prefix
         return "%s%s" % (prefix, name_suffix)
+
+    def new_const_global(self, prefix='', value=''):
+        cname = self.new_const_cname(prefix, value, add_pyrex_prefix=False)
+        return Naming.Global(cname)
 
     def get_cached_unbound_method(self, type_cname, method_name):
         key = (type_cname, method_name)
@@ -1475,22 +1483,18 @@ class GlobalState(object):
         self.generate_object_constant_decls()
 
     def generate_object_constant_decls(self):
-        consts = [(len(c.cname), c.cname, c)
+        consts = [(len(c.globl.cname), c.globl.cname, c)
                   for c in self.py_constants]
         consts.sort()
-        decls_writer = self.parts['decls']
-        decls_writer.putln("#if !CYTHON_USE_MODULE_STATE")
+        module_state = self.parts['module_state']
+        module_state_clear = self.parts['module_state_clear']
+        module_state_traverse = self.parts['module_state_traverse']
         for _, cname, c in consts:
-            self.parts['module_state'].putln("%s;" % c.type.declaration_code(cname))
-            self.parts['module_state_defines'].putln(
-                "#define %s __Pyx_CGlobal(%s)" % (cname, cname))
-            self.parts['module_state_clear'].putln(
+            module_state.putln("%s;" % c.type.declaration_code(cname))
+            module_state_clear.putln(
                 "Py_CLEAR(clear_module_state->%s);" % cname)
-            self.parts['module_state_traverse'].putln(
+            module_state_traverse.putln(
                 "Py_VISIT(traverse_module_state->%s);" % cname)
-            decls_writer.putln(
-                "static %s;" % c.type.declaration_code(cname))
-        decls_writer.putln("#endif")
 
     def generate_cached_methods_decls(self):
         if not self.cached_cmethods:
@@ -1607,19 +1611,15 @@ class GlobalState(object):
         consts = [(c.py_type, c.value[0] == '-', len(c.value), c.value, c.value_code, c)
                   for c in self.num_const_index.values()]
         consts.sort()
-        decls_writer = self.parts['decls']
-        decls_writer.putln("#if !CYTHON_USE_MODULE_STATE")
         init_globals = self.parts['init_globals']
+        module_state = self.parts['module_state']
+        module_state_clear = self.parts['module_state_clear']
+        module_state_traverse = self.parts['module_state_traverse']
         for py_type, _, _, value, value_code, c in consts:
-            cname = c.cname
-            self.parts['module_state'].putln("PyObject *%s;" % cname)
-            self.parts['module_state_defines'].putln("#define %s __Pyx_CGlobal(%s)" % (
-                cname, cname))
-            self.parts['module_state_clear'].putln(
-                "Py_CLEAR(clear_module_state->%s);" % cname)
-            self.parts['module_state_traverse'].putln(
-                "Py_VISIT(traverse_module_state->%s);" % cname)
-            decls_writer.putln("static PyObject *%s;" % cname)
+            cname = c.globl.cname
+            module_state.putln("PyObject *%s;" % cname)
+            module_state_clear.putln("Py_CLEAR(clear_module_state->%s);" % cname)
+            module_state_traverse.putln("Py_VISIT(traverse_module_state->%s);" % cname)
             if py_type == 'float':
                 function = 'PyFloat_FromDouble(%s)'
             elif py_type == 'long':
@@ -1631,9 +1631,8 @@ class GlobalState(object):
             else:
                 function = "PyInt_FromLong(%s)"
             init_globals.putln('%s = %s; %s' % (
-                cname, function % value_code,
-                init_globals.error_goto_if_null(cname, self.module_pos)))
-        decls_writer.putln("#endif")
+                c.globl, function % value_code,
+                init_globals.error_goto_if_null(c.globl, self.module_pos)))
 
     # The functions below are there in a transition phase only
     # and will be deprecated. They are called from Nodes.BlockNode.
@@ -1877,13 +1876,13 @@ class CCodeWriter(object):
     # constant handling
 
     def get_py_int(self, str_value, longness):
-        return self.globalstate.get_int_const(str_value, longness).cname
+        return str(self.globalstate.get_int_const(str_value, longness).globl)
 
     def get_py_float(self, str_value, value_code):
-        return self.globalstate.get_float_const(str_value, value_code).cname
+        return str(self.globalstate.get_float_const(str_value, value_code).globl)
 
     def get_py_const(self, type, prefix='', cleanup_level=None, dedup_key=None):
-        return self.globalstate.get_py_const(type, prefix, cleanup_level, dedup_key).cname
+        return str(self.globalstate.get_py_const(type, prefix, cleanup_level, dedup_key).globl)
 
     def get_string_const(self, text):
         return self.globalstate.get_string_const(text).cname
@@ -1896,7 +1895,7 @@ class CCodeWriter(object):
         return self.globalstate.get_py_string_cexpr(text, identifier, is_str, unicode_value)
 
     def get_argument_default_const(self, type):
-        return self.globalstate.get_py_const(type).cname
+        return str(self.globalstate.get_py_const(type).globl)
 
     def intern(self, text):
         return self.get_py_string_cexpr(text)

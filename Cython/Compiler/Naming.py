@@ -26,7 +26,6 @@ pywrap_prefix     = pyrex_prefix + "pw_"
 genbody_prefix    = pyrex_prefix + "gb_"
 gstab_prefix      = pyrex_prefix + "getsets_"
 prop_get_prefix   = pyrex_prefix + "getprop_"
-const_prefix      = pyrex_prefix + "k_"
 py_const_prefix   = pyrex_prefix + "kp_"
 label_prefix      = pyrex_prefix + "L"
 pymethdef_prefix  = pyrex_prefix + "mdef_"
@@ -66,14 +65,16 @@ str_prefix = pyrex_prefix + "s_"
 unicode_prefix = pyrex_prefix + "u_"
 bytes_prefix = pyrex_prefix + "b_"
 
+const_prefix = "k_"
+
 interned_prefixes = {
-    'int': pyrex_prefix + "int_",
-    'float': pyrex_prefix + "float_",
-    'tuple': pyrex_prefix + "tuple_",
-    'codeobj': pyrex_prefix + "codeobj_",
-    'slice': pyrex_prefix + "slice_",
-    'ustring': pyrex_prefix + "ustring_",
-    'umethod': pyrex_prefix + "umethod_",
+    'int': "int_",
+    'float': "float_",
+    'tuple': "tuple_",
+    'codeobj': "codeobj_",
+    'slice': "slice_",
+    'ustring': "ustring_",
+    'umethod': "umethod_",
 }
 
 

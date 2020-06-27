@@ -2552,10 +2552,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('PyTypeObject *%s;' % Naming.generator_type_cname.cname)
         code.putln('#endif')
         code.putln('PyObject *%s[%s];' % (Naming.string_consts_cname.cname, Naming.string_tab_length_cname))
-        code.putln("#if CYTHON_USE_MODULE_STATE")
 
     def generate_module_state_end(self, env, code):
-        code.putln('#endif /* CYTHON_USE_MODULE_STATE */')
         code.putln('} %s;' % Naming.cglobals_type_cname)
         code.putln('')
         code.putln('#if !CYTHON_USE_MODULE_STATE')
