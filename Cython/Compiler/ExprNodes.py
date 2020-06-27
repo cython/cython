@@ -4404,6 +4404,7 @@ class BufferIndexNode(_IndexingBaseNode):
                 pythran_indexing_code(self.indices),
                 op,
                 rhs.pythran_result()))
+            code.funcstate.release_temp(obj)
             return
 
         # Used from generate_assignment_code and InPlaceAssignmentNode
