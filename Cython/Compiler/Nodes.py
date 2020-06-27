@@ -6238,6 +6238,7 @@ class DelStatNode(StatNode):
                 arg.generate_evaluation_code(code)
                 code.putln("delete %s;" % arg.result())
                 arg.generate_disposal_code(code)
+                arg.free_temps(code)
             # else error reported earlier
 
     def annotate(self, code):
