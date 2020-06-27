@@ -951,11 +951,8 @@ static CYTHON_INLINE __Pyx_FastcallTuple_obj __Pyx_FastcallTuple_GetSlice(__Pyx_
     out_len = stop - start;
     if (stop < start) out_len = 0;
 
-#if CYTHON_VECTORCALL || CYTHON_BACKPORT_VECTORCALL
-    if ((start > 0) || __Pyx_PyVectorcall_NARGS(in.nargs)) {
-        out_len |= PY_VECTORCALL_ARGUMENTS_OFFSET;
-    }
-#endif /* CYTHON_VECTORCALL */
+    // don't attempt to set out_len with PY_VECTORCALL_ARGUMENTS_OFFSET
+    // because it isn't obvious that this is safe to do in multithreading code
     return __Pyx_FastcallTuple_New(in.args + start, out_len);
 }
 #endif
