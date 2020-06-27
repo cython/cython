@@ -2504,7 +2504,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         arg = pos_args[0]
         if arg.type is Builtin.tuple_type and not arg.may_be_none():
             if (isinstance(arg, ExprNodes.CoerceToPyTypeNode) and
-                arg.arg.type.is_fastcall_tuple):
+                    arg.arg.type.is_fastcall_tuple):
                 arg.target_type = Builtin.tuple_type  # used to flag an explicit conversion
             return arg
         if arg.type is Builtin.list_type:

@@ -6629,7 +6629,7 @@ class GeneralCallNode(CallNode):
         pos_is_empty = (isinstance(self.positional_args, TupleNode) and
                             len(self.positional_args.args) == 0)
         if (self.positional_args.type.is_fastcall_tuple
-            or (pos_is_empty and self.keyword_args and self.keyword_args.type.is_fastcall_dict)):
+                or (pos_is_empty and self.keyword_args and self.keyword_args.type.is_fastcall_dict)):
             return self.generate_fastcall_result_code(code)
 
         if self.keyword_args:

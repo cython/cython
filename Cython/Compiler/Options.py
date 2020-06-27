@@ -346,7 +346,7 @@ directive_types = {
     'trashcan': bool,
     'fastcall_args.dict': parse_truefalsenone,
     'fastcall_args.tuple': parse_truefalsenone,
-    'fastcall_args': parse_fastcall_args, # largely a dummy, just so it gets recognised as a directive
+    'fastcall_args': parse_fastcall_args,  # largely a dummy, just so it gets recognised as a directive
 }
 
 for key, val in _directive_defaults.items():

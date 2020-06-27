@@ -4438,7 +4438,7 @@ class FastcallDictType(FastcallBaseType):
         from .Builtin import dict_type
         return dict_type
 
-    declaration_value = "{{}}" # Can only be used for the array version defined in the wrapper
+    declaration_value = "{{}}"  # Can only be used for the array version defined in the wrapper
 
     def attributes_known(self):
         return True
