@@ -5651,7 +5651,7 @@ class SimpleCallNode(CallNode):
             env.add_include_file(pythran_get_func_include_file(function))
             return NumPyMethodCallNode.from_node(
                 self,
-                function=function,
+                function_cname=pythran_functor(function),
                 arg_tuple=self.arg_tuple,
                 type=PythranExpr(pythran_func_type(function, self.arg_tuple.args)),
             )
@@ -6057,13 +6057,13 @@ class SimpleCallNode(CallNode):
                 code.funcstate.release_temp(self.opt_arg_struct)
 
 
-class NumPyMethodCallNode(SimpleCallNode):
+class NumPyMethodCallNode(ExprNode):
     # Pythran call to a NumPy function or method.
     #
-    # function    ExprNode      the function/method to call
-    # arg_tuple   TupleNode     the arguments as an args tuple
+    # function_cname  string      the function/method to call
+    # arg_tuple       TupleNode   the arguments as an args tuple
 
-    subexprs = ['function', 'arg_tuple']
+    subexprs = ['arg_tuple']
     is_temp = True
     may_return_none = True
 
@@ -6071,7 +6071,6 @@ class NumPyMethodCallNode(SimpleCallNode):
         code.mark_pos(self.pos)
         self.allocate_temp_result(code)
 
-        self.function.generate_evaluation_code(code)
         assert self.arg_tuple.mult_factor is None
         args = self.arg_tuple.args
         for arg in args:
@@ -6082,7 +6081,7 @@ class NumPyMethodCallNode(SimpleCallNode):
         code.putln("new (&%s) decltype(%s){%s{}(%s)};" % (
             self.result(),
             self.result(),
-            pythran_functor(self.function),
+            self.function_cname,
             ", ".join(a.pythran_result() for a in args)))
 
 
