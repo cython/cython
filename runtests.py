@@ -2185,7 +2185,7 @@ def main():
         for listfile in options.listfile:
             cmd_args.extend(load_listfile(listfile))
 
-    if options.capture:
+    if options.capture and not options.for_debugging:
         keep_alive_interval = 10
     else:
         keep_alive_interval = None
