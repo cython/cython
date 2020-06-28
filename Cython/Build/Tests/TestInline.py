@@ -158,6 +158,18 @@ class TestCompileDecorator(CythonInlineTest):
 
         self.assertEqual(test_fn(1), 2)
 
+    @unittest.skipIf(not has_numpy, "NumPy is not available")
+    def test_numpy(self):
+
+        import numpy as np
+
+        # Make sure the aliased module dependency is handled properly
+        @cython_compile(**self.test_kwds)
+        def test_fn(x):
+            return np.add(x, 1)
+
+        self.assertEqual(test_fn(1), 2)
+
     @unittest.skipIf(sys.version_info < (3, 6), "Requires Py3.6+")
     def test_type_hints(self):
         fd, tmp_code_file = tempfile.mkstemp(suffix='.py', text=True)

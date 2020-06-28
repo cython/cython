@@ -203,12 +203,23 @@ def cython_inline(code, get_type=unsafe_type,
             print("Could not parse code as a string (to extract unbound symbols).")
 
     cimports = []
-    for name, arg in list(kwds.items()):
-        if arg is cython_module:
+    for name, obj in list(kwds.items()):
+        if obj is cython_module:
             cimports.append('\ncimport cython as %s' % name)
             del kwds[name]
-        # Import any missing Cython function and decorator dependencies
-        if callable(arg) and arg in cython_module.__dict__.values():
+        elif inspect.ismodule(obj):
+            # Check for module references
+            module_name = obj.__name__
+            if module_name != name:
+                cimports.append('\nimport %(module)s as %(symbol)s' % {
+                    'module': module_name,
+                    'symbol': name
+                })
+            else:
+                cimports.append('\nimport %s' % name)
+            del kwds[name]
+        elif callable(obj) and obj in cython_module.__dict__.values():
+            # Import any missing Cython function and decorator dependencies
             cimports.append('\nfrom cython cimport %s' % name)
             del kwds[name]
 
@@ -268,12 +279,14 @@ def cython_inline(code, get_type=unsafe_type,
 def __invoke(%(params)s):
 %(func_body)s
     return locals()
-                """ % {'func_body': func_body,
-                       'params': params}
+                """ % {'func_body': func_body, 'params': params}
 
-            module_code = module_format % {'cimports': '\n'.join(cimports),
-                   'module_body': module_body,
-                   'func_body': func_body }
+            module_code = module_format % {
+                'cimports': '\n'.join(cimports),
+                'module_body': module_body,
+                'func_body': func_body
+            }
+
             for key, value in literals.items():
                 module_code = module_code.replace(key, value)
             pyx_file = os.path.join(lib_dir, module_name + '.pyx')
