@@ -1747,6 +1747,8 @@ class EndToEndTest(unittest.TestCase):
                 out.append(_out)
                 err.append(_err)
             res = p.returncode
+            if res == 0 and b'REFNANNY: ' in _out:
+                res = -1
             if res != 0:
                 for c, o, e in zip(cmd, out, err):
                     sys.stderr.write("%s\n%s\n%s\n\n" % (
