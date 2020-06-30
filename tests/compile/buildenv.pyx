@@ -121,4 +121,12 @@ CFLAGS (distutils) = {config_var('CFLAGS')}
 CFLAGS (env) = {get_env('CFLAGS', '')}
 LINKCC (distutils) = {config_var('LINKCC')}
 LINKCC (env) = {get_env('LINKCC', '')}
+
+Encodings:
+sys maxunicode = {sys.maxunicode}
+LANG (env) = {get_env('LANG', '')}
+PYTHONIOENCODING (env) = {get_env('PYTHONIOENCODING', '')}
+sys stdout encoding = {sys.stdout.encoding}
+sys default encoding = {sys.getdefaultencoding()}
+sys FS encoding = {sys.getfilesystemencoding()}
 """)

@@ -154,6 +154,34 @@ def string_contains_surrogates(ustring):
     return False
 
 
+def string_contains_lone_surrogates(ustring):
+    """
+    Check if the unicode string contains lone surrogate code points
+    on a CPython platform with wide (UCS-4) or narrow (UTF-16)
+    Unicode, i.e. characters that would be spelled as two
+    separate code units on a narrow platform, but that do not form a pair.
+    """
+    last_was_start = False
+    unicode_uses_surrogate_encoding = sys.maxunicode == 65535
+    for c in map(ord, ustring):
+        # surrogates tend to be rare
+        if c < 0xD800 or c > 0xDFFF:
+            if last_was_start:
+                return True
+        elif not unicode_uses_surrogate_encoding:
+            # on 32bit Unicode platforms, there is never a pair
+            return True
+        elif c <= 0xDBFF:
+            if last_was_start:
+                return True  # lone start
+            last_was_start = True
+        else:
+            if not last_was_start:
+                return True  # lone end
+            last_was_start = False
+    return last_was_start
+
+
 class BytesLiteral(_bytes):
     # bytes subclass that is compatible with EncodedString
     encoding = None
