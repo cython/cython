@@ -3564,6 +3564,8 @@ class IndexNode(_IndexingBaseNode):
                                bytearray_type, list_type, tuple_type):
                 # slicing these returns the same type
                 return base_type
+            elif base_type.is_memoryviewslice:
+                return base_type
             else:
                 # TODO: Handle buffers (hopefully without too much redundancy).
                 return py_object_type
@@ -3606,6 +3608,23 @@ class IndexNode(_IndexingBaseNode):
                         index += base_type.size
                     if 0 <= index < base_type.size:
                         return base_type.components[index]
+            elif base_type.is_memoryviewslice:
+                if base_type.ndim == 0:
+                    pass  # probably an error, but definitely don't know what to do - return pyobject for now
+                if base_type.ndim == 1:
+                    return base_type.dtype
+                else:
+                    return PyrexTypes.MemoryViewSliceType(base_type.dtype, base_type.axes[1:])
+
+        if self.index.is_sequence_constructor and base_type.is_memoryviewslice:
+            inferred_type = base_type
+            for a in self.index.args:
+                if not inferred_type.is_memoryviewslice:
+                    break  # something's gone wrong
+                inferred_type = IndexNode(self.pos, base=ExprNode(self.base.pos, type=inferred_type),
+                                          index=a).infer_type(env)
+            else:
+                return inferred_type
 
         if base_type.is_cpp_class:
             class FakeOperand:
@@ -13465,6 +13484,9 @@ class CoerceToTempNode(CoercionNode):
     def analyse_types(self, env):
         # The arg is always already analysed
         return self
+
+    def may_be_none(self):
+        return self.arg.may_be_none()
 
     def coerce_to_boolean(self, env):
         self.arg = self.arg.coerce_to_boolean(env)
