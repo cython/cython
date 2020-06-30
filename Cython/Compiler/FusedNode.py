@@ -878,17 +878,23 @@ class FusedCFuncDefNode(StatListNode):
                                     (self.resulting_fused_function.result(),
                                      self.__signatures__.result()))
             code.put_giveref(self.__signatures__.result())
+            self.__signatures__.generate_post_assignment_code(code)
+            self.__signatures__.free_temps(code)
 
             self.fused_func_assignment.generate_execution_code(code)
 
             # Dispose of results
             self.resulting_fused_function.generate_disposal_code(code)
+            self.resulting_fused_function.free_temps(code)
             self.defaults_tuple.generate_disposal_code(code)
+            self.defaults_tuple.free_temps(code)
             self.code_object.generate_disposal_code(code)
+            self.code_object.free_temps(code)
 
         for default in self.defaults:
             if default is not None:
                 default.generate_disposal_code(code)
+                default.free_temps(code)
 
     def annotate(self, code):
         for stat in self.stats:

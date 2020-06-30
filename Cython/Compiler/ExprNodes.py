@@ -4334,6 +4334,7 @@ class BufferIndexNode(_IndexingBaseNode):
                 pythran_indexing_code(self.indices),
                 op,
                 rhs.pythran_result()))
+            code.funcstate.release_temp(obj)
             return
 
         # Used from generate_assignment_code and InPlaceAssignmentNode
@@ -4374,11 +4375,11 @@ class BufferIndexNode(_IndexingBaseNode):
             code.putln("%s = (PyObject *) *%s;" % (self.result(), self.buffer_ptr_code))
             code.putln("__Pyx_INCREF((PyObject*)%s);" % self.result())
 
-    def free_temps(self, code):
+    def free_subexpr_temps(self, code):
         for temp in self.index_temps:
             code.funcstate.release_temp(temp)
         self.index_temps = ()
-        super(BufferIndexNode, self).free_temps(code)
+        super(BufferIndexNode, self).free_subexpr_temps(code)
 
 
 class MemoryViewIndexNode(BufferIndexNode):
@@ -4655,6 +4656,7 @@ class MemoryCopyNode(ExprNode):
         self.dst.generate_evaluation_code(code)
         self._generate_assignment_code(rhs, code)
         self.dst.generate_disposal_code(code)
+        self.dst.free_temps(code)
         rhs.generate_disposal_code(code)
         rhs.free_temps(code)
 
@@ -5558,7 +5560,7 @@ class SimpleCallNode(CallNode):
             env.add_include_file(pythran_get_func_include_file(function))
             return NumPyMethodCallNode.from_node(
                 self,
-                function=function,
+                function_cname=pythran_functor(function),
                 arg_tuple=self.arg_tuple,
                 type=PythranExpr(pythran_func_type(function, self.arg_tuple.args)),
             )
@@ -5963,13 +5965,13 @@ class SimpleCallNode(CallNode):
                 code.funcstate.release_temp(self.opt_arg_struct)
 
 
-class NumPyMethodCallNode(SimpleCallNode):
+class NumPyMethodCallNode(ExprNode):
     # Pythran call to a NumPy function or method.
     #
-    # function    ExprNode      the function/method to call
-    # arg_tuple   TupleNode     the arguments as an args tuple
+    # function_cname  string      the function/method to call
+    # arg_tuple       TupleNode   the arguments as an args tuple
 
-    subexprs = ['function', 'arg_tuple']
+    subexprs = ['arg_tuple']
     is_temp = True
     may_return_none = True
 
@@ -5977,7 +5979,6 @@ class NumPyMethodCallNode(SimpleCallNode):
         code.mark_pos(self.pos)
         self.allocate_temp_result(code)
 
-        self.function.generate_evaluation_code(code)
         assert self.arg_tuple.mult_factor is None
         args = self.arg_tuple.args
         for arg in args:
@@ -5988,7 +5989,7 @@ class NumPyMethodCallNode(SimpleCallNode):
         code.putln("new (&%s) decltype(%s){%s{}(%s)};" % (
             self.result(),
             self.result(),
-            pythran_functor(self.function),
+            self.function_cname,
             ", ".join(a.pythran_result() for a in args)))
 
 
@@ -7277,6 +7278,8 @@ class AttributeNode(ExprNode):
                 self.member.upper(),
                 self.obj.result_as(self.obj.type),
                 rhs.result_as(self.ctype())))
+            rhs.generate_disposal_code(code)
+            rhs.free_temps(code)
         else:
             select_code = self.result()
             if self.type.is_pyobject and self.use_managed_ref:
@@ -8127,20 +8130,18 @@ class ListNode(SequenceNode):
         return t
 
     def allocate_temp_result(self, code):
-        if self.type.is_array and self.in_module_scope:
-            self.temp_code = code.funcstate.allocate_temp(
-                self.type, manage_ref=False, static=True)
+        if self.type.is_array:
+            if self.in_module_scope:
+                self.temp_code = code.funcstate.allocate_temp(
+                    self.type, manage_ref=False, static=True, reusable=False)
+            else:
+                # To be valid C++, we must allocate the memory on the stack
+                # manually and be sure not to reuse it for something else.
+                # Yes, this means that we leak a temp array variable.
+                self.temp_code = code.funcstate.allocate_temp(
+                    self.type, manage_ref=False, reusable=False)
         else:
             SequenceNode.allocate_temp_result(self, code)
-
-    def release_temp_result(self, env):
-        if self.type.is_array:
-            # To be valid C++, we must allocate the memory on the stack
-            # manually and be sure not to reuse it for something else.
-            # Yes, this means that we leak a temp array variable.
-            pass
-        else:
-            SequenceNode.release_temp_result(self, env)
 
     def calculate_constant_result(self):
         if self.mult_factor:
@@ -13076,8 +13077,17 @@ class PyTypeTestNode(CoercionNode):
     def generate_post_assignment_code(self, code):
         self.arg.generate_post_assignment_code(code)
 
+    def allocate_temp_result(self, code):
+        pass
+
+    def release_temp_result(self, code):
+        pass
+
     def free_temps(self, code):
         self.arg.free_temps(code)
+
+    def free_subexpr_temps(self, code):
+        self.arg.free_subexpr_temps(code)
 
 
 class NoneCheckNode(CoercionNode):
