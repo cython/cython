@@ -22,6 +22,9 @@ Features added
   with the directive ``@cython.always_allow_keywords(False)``.
   (Github issue #3090)
 
+* For-in-loop iteration over ``bytearray`` and memory views is optimised.
+  Patch by David Woods.  (Github issue #2227)
+
 * The ``@returns()`` decorator propagates exceptions by default for suitable C
   return types when no ``@exceptval()`` is defined.
   (Github issue #3664)
