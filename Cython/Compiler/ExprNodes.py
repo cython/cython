@@ -3619,7 +3619,7 @@ class IndexNode(_IndexingBaseNode):
                         return base_type.components[index]
             elif base_type.is_memoryviewslice:
                 if base_type.ndim == 0:
-                    pass # probably an error, but definitely don't know what to do - return pyobject for now
+                    pass  # probably an error, but definitely don't know what to do - return pyobject for now
                 if base_type.ndim == 1:
                     return base_type.dtype
                 else:

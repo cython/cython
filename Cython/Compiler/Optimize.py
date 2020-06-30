@@ -387,7 +387,7 @@ class IterationTransform(Visitor.EnvTransform):
 
         body = Nodes.StatListNode(
             node.pos,
-            stats = [target_assign]) # exclude node.body for now to not reanalyse it
+            stats = [target_assign])  # exclude node.body for now to not reanalyse it
         if is_mutable:
             # We need to be slightly careful here that we are actually modifying the loop
             # bounds and not a temp copy of it. Setting is_temp=True on length_temp seems
