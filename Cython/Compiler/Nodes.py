@@ -5866,6 +5866,7 @@ class DelStatNode(StatNode):
                 arg.generate_evaluation_code(code)
                 code.putln("delete %s;" % arg.result())
                 arg.generate_disposal_code(code)
+                arg.free_temps(code)
             # else error reported earlier
 
     def annotate(self, code):
@@ -6410,6 +6411,8 @@ class SwitchStatNode(StatNode):
             # generate the switch statement, so shouldn't be bothered).
             code.putln("default: break;")
         code.putln("}")
+        self.test.generate_disposal_code(code)
+        self.test.free_temps(code)
 
     def generate_function_definitions(self, env, code):
         self.test.generate_function_definitions(env, code)
@@ -7673,9 +7676,10 @@ class TryFinallyStatNode(StatNode):
                     if self.func_return_type.is_pyobject:
                         code.putln("%s = 0;" % ret_temp)
                     code.funcstate.release_temp(ret_temp)
-                    ret_temp = None
                 if self.in_generator:
                     self.put_error_uncatcher(code, exc_vars)
+                    for cname in exc_vars:
+                        code.funcstate.release_temp(cname)
 
             if not self.finally_clause.is_terminator:
                 code.put_goto(old_label)
@@ -8772,6 +8776,11 @@ class ParallelStatNode(StatNode, ParallelNode):
         self.begin_of_parallel_control_block_point = None
         self.begin_of_parallel_control_block_point_after_decls = None
 
+        if self.num_threads is not None:
+            # FIXME: is it the right place? should not normally produce code.
+            self.num_threads.generate_disposal_code(code)
+            self.num_threads.free_temps(code)
+
         # Firstly, always prefer errors over returning, continue or break
         if self.error_label_used:
             c.putln("const char *%s = NULL; int %s = 0, %s = 0;" % self.parallel_pos_info)
@@ -9151,7 +9160,7 @@ class ParallelRangeNode(ParallelStatNode):
 
         # And finally, release our privates and write back any closure
         # variables
-        for temp in start_stop_step + (self.chunksize, self.num_threads):
+        for temp in start_stop_step + (self.chunksize,):
             if temp is not None:
                 temp.generate_disposal_code(code)
                 temp.free_temps(code)
