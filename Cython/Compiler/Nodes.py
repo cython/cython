@@ -4621,7 +4621,10 @@ class OverrideCheckNode(StatNode):
         return self
 
     def generate_execution_code(self, code):
-        interned_attr_cname = code.intern_identifier(self.py_func.entry.name)
+        # For fused functions, look up the dispatch function, not the specialisation.
+        method_entry = self.py_func.fused_py_func.entry if self.py_func.fused_py_func else self.py_func.entry
+        interned_attr_cname = code.intern_identifier(method_entry.name)
+
         # Check to see if we are an extension type
         if self.py_func.is_module_scope:
             self_arg = "((PyObject *)%s)" % Naming.module_cname
@@ -4664,7 +4667,7 @@ class OverrideCheckNode(StatNode):
 
         is_builtin_function_or_method = "PyCFunction_Check(%s)" % func_node_temp
         is_overridden = "(PyCFunction_GET_FUNCTION(%s) != (PyCFunction)(void*)%s)" % (
-            func_node_temp, self.py_func.entry.func_cname)
+            func_node_temp, method_entry.func_cname)
         code.putln("if (!%s || %s) {" % (is_builtin_function_or_method, is_overridden))
         self.body.generate_execution_code(code)
         code.putln("}")
