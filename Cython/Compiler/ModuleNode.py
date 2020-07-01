@@ -2949,7 +2949,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     module.qualified_name,
                     temp,
                     code.error_goto(self.pos)))
-            code.put_gotref(temp, py_object_type)
+            code.put_gotref(temp)
             for entry in entries:
                 if env is module:
                     cname = entry.cname
@@ -2979,7 +2979,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     module.qualified_name,
                     temp,
                     code.error_goto(self.pos)))
-            code.put_gotref(temp, py_object_type)
+            code.put_gotref(temp)
             for entry in entries:
                 code.putln(
                     'if (__Pyx_ImportFunction(%s, "%s", (void (**)(void))&%s, "%s") < 0) %s' % (
