@@ -140,7 +140,6 @@ class MarkParallelAssignments(EnvTransform):
                                                      '+',
                                                      sequence.args[0],
                                                      sequence.args[2]))
-
         if not is_special:
             # A for-loop basically translates to subsequent calls to
             # __getitem__(), so using an IndexNode here allows us to
@@ -360,9 +359,11 @@ class SimpleAssignmentTypeInferer(object):
     applies to nested scopes in top-down order.
     """
     def set_entry_type(self, entry, entry_type):
-        entry.type = entry_type
         for e in entry.all_entries():
             e.type = entry_type
+            if e.type.is_memoryviewslice:
+                # memoryview slices crash if they don't get initialized
+                e.init = e.type.default_value
 
     def infer_types(self, scope):
         enabled = scope.directives['infer_types']
@@ -576,6 +577,8 @@ def safe_spanning_type(types, might_overflow, pos, scope):
         # Though we have struct -> object for some structs, this is uncommonly
         # used, won't arise in pure Python, and there shouldn't be side
         # effects, so I'm declaring this safe.
+        return result_type
+    elif result_type.is_memoryviewslice:
         return result_type
     # TODO: double complex should be OK as well, but we need
     # to make sure everything is supported.

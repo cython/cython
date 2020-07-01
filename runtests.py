@@ -1777,6 +1777,8 @@ class EndToEndTest(unittest.TestCase):
                 cmd.append(command)
                 out.append(_out)
                 err.append(_err)
+            if res == 0 and b'REFNANNY: ' in _out:
+                res = -1
             if res != 0:
                 for c, o, e in zip(cmd, out, err):
                     sys.stderr.write("%s\n%s\n%s\n\n" % (
@@ -2183,7 +2185,7 @@ def main():
         for listfile in options.listfile:
             cmd_args.extend(load_listfile(listfile))
 
-    if options.capture:
+    if options.capture and not options.for_debugging:
         keep_alive_interval = 10
     else:
         keep_alive_interval = None

@@ -22,6 +22,9 @@ Features added
   with the directive ``@cython.always_allow_keywords(False)``.
   (Github issue #3090)
 
+* For-in-loop iteration over ``bytearray`` and memory views is optimised.
+  Patch by David Woods.  (Github issue #2227)
+
 * The ``@returns()`` decorator propagates exceptions by default for suitable C
   return types when no ``@exceptval()`` is defined.
   (Github issue #3664)
@@ -469,7 +472,8 @@ Bugs fixed
 * Binding staticmethods of Cython functions were not behaving like Python methods in Py3.
   Patch by Jeroen Demeyer and Michał Górny.  (Github issue #3106)
 
-* The deprecated C-API function ``PyUnicode_FromUnicode()`` is no longer used.
+* The deprecated C-API functions ``PyUnicode_FromUnicode()`` and ``PyUnicode_AS_UNICODE()``
+  are no longer used.
   Original patch by Inada Naoki.  (Github issue #3677)
 
 
