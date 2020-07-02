@@ -164,7 +164,7 @@ class DeclarationWriter(TreeVisitor):
         self.comma_separated_list(node.declarators, output_rhs=True)
         self.endline()
 
-    def visit_container_node(self, node, decl, extras, attributes):
+    def _visit_container_node(self, node, decl, extras, attributes):
         # TODO: visibility
         self.startline(decl)
         if node.name:
@@ -193,7 +193,7 @@ class DeclarationWriter(TreeVisitor):
         if node.packed:
             decl += u'packed '
         decl += node.kind
-        self.visit_container_node(node, decl, None, node.attributes)
+        self._visit_container_node(node, decl, None, node.attributes)
 
     def visit_CppClassNode(self, node):
         extras = ""
@@ -201,10 +201,10 @@ class DeclarationWriter(TreeVisitor):
             extras = u"[%s]" % ", ".join(node.templates)
         if node.base_classes:
             extras += "(%s)" % ", ".join(node.base_classes)
-        self.visit_container_node(node, u"cdef cppclass", extras, node.attributes)
+        self._visit_container_node(node, u"cdef cppclass", extras, node.attributes)
 
     def visit_CEnumDefNode(self, node):
-        self.visit_container_node(node, u"cdef enum", None, node.items)
+        self._visit_container_node(node, u"cdef enum", None, node.items)
 
     def visit_CEnumDefItemNode(self, node):
         self.startline(node.name)
@@ -365,9 +365,7 @@ class StatementWriter(DeclarationWriter):
         self._visit_indented(node.body)
         if node.else_clause is not None:
             self.line(u"else:")
-            self.indent()
-            self.visit(node.else_clause)
-            self.dedent()
+            self._visit_indented(node.else_clause)
 
     def visit_IfStatNode(self, node):
         # The IfClauseNode is handled directly without a separate match
@@ -375,9 +373,7 @@ class StatementWriter(DeclarationWriter):
         self.startline(u"if ")
         self.visit(node.if_clauses[0].condition)
         self.endline(":")
-        self.indent()
-        self.visit(node.if_clauses[0].body)
-        self.dedent()
+        self._visit_indented(node.if_clauses[0].body)
         for clause in node.if_clauses[1:]:
             self.startline("elif ")
             self.visit(clause.condition)
@@ -429,17 +425,13 @@ class StatementWriter(DeclarationWriter):
 
     def visit_TryFinallyStatNode(self, node):
         self.line(u"try:")
-        self.indent()
-        self.visit(node.body)
-        self.dedent()
+        self._visit_indented(node.body)
         self.line(u"finally:")
         self._visit_indented(node.finally_clause)
 
     def visit_TryExceptStatNode(self, node):
         self.line(u"try:")
-        self.indent()
-        self.visit(node.body)
-        self.dedent()
+        self._visit_indented(node.body)
         for x in node.except_clauses:
             self.visit(x)
         if node.else_clause is not None:
