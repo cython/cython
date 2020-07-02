@@ -39,7 +39,7 @@ class StringParseContext(Main.Context):
 
 
 def parse_from_strings(name, code, pxds=None, level=None, initial_pos=None,
-                       context=None, allow_struct_enum_decorator=False):
+                       context=None, allow_struct_enum_decorator=False, fault_tolerant=False):
     """
     Utility method to parse a (unicode) string of code. This is mostly
     used for internal Cython compiler purposes (creating code snippets
@@ -72,7 +72,7 @@ def parse_from_strings(name, code, pxds=None, level=None, initial_pos=None,
     buf = StringIO(code)
 
     scanner = PyrexScanner(buf, code_source, source_encoding = encoding,
-                     scope = scope, context = context, initial_pos = initial_pos)
+                     scope = scope, context = context, initial_pos = initial_pos, fault_tolerant=fault_tolerant)
     ctx = Parsing.Ctx(allow_struct_enum_decorator=allow_struct_enum_decorator)
 
     if level is None:

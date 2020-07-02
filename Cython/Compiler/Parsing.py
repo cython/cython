@@ -7,6 +7,7 @@ from __future__ import absolute_import
 
 # This should be done automatically
 import cython
+
 cython.declare(Nodes=object, ExprNodes=object, EncodedString=object,
                bytes_literal=object, StringEncoding=object,
                FileSourceDescriptor=object, lookup_unicodechar=object, unicode_category=object,
@@ -14,13 +15,14 @@ cython.declare(Nodes=object, ExprNodes=object, EncodedString=object,
                Builtin=object, ModuleNode=object, Utils=object, _unicode=object, _bytes=object,
                re=object, sys=object, _parse_escape_sequences=object, _parse_escape_sequences_raw=object,
                partial=object, reduce=object, _IS_PY3=cython.bint, _IS_2BYTE_UNICODE=cython.bint,
-               _CDEF_MODIFIERS=tuple)
+               _CDEF_MODIFIERS=tuple, report_error=object, CompileError=object)
 
 from io import StringIO
 import re
 import sys
 from unicodedata import lookup as lookup_unicodechar, category as unicode_category
 from functools import partial, reduce
+from Cython.Compiler.Errors import report_error, CompileError
 
 from .Scanning import PyrexScanner, FileSourceDescriptor, StringSourceDescriptor
 from . import Nodes
@@ -2340,7 +2342,25 @@ def p_statement_list(s, ctx, first_statement = 0):
     pos = s.position()
     stats = []
     while s.sy not in ('DEDENT', 'EOF'):
-        stat = p_statement(s, ctx, first_statement = first_statement)
+        try:
+            stat = p_statement(s, ctx, first_statement = first_statement)
+        except Exception as exc:
+            if s.fault_tolerant:
+                # When processing statements in a fault-tolerant mode, it's
+                # possible that because some Node isn't properly constructed,
+                # internal errors happen (for instance if the right hand side of
+                # an assignment would be `None`, trying to access its `pos`
+                # would throw an AttributeError). For the fault-tolerant mode
+                # this is ok (we don't want to change the whole parser to
+                # accommodate that use-case, so, just report that as a
+                # `CompileError` so that it can be seen and proceed as usual).
+                if not isinstance(exc, CompileError):
+                    exc = CompileError(pos, "Internal Error: "+ str(exc))
+                report_error(exc)
+                s.next()
+                continue
+            else:
+                raise exc
         if isinstance(stat, Nodes.PassStatNode):
             continue
         stats.append(stat)

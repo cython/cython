@@ -302,7 +302,7 @@ class PyrexScanner(Scanner):
     #  compile_time_expr  boolean  In a compile-time expression context
 
     def __init__(self, file, filename, parent_scanner=None,
-                 scope=None, context=None, source_encoding=None, parse_comments=True, initial_pos=None):
+                 scope=None, context=None, source_encoding=None, parse_comments=True, initial_pos=None, fault_tolerant=False):
         Scanner.__init__(self, get_lexicon(), file, filename, initial_pos)
 
         if filename.is_python_file():
@@ -341,6 +341,8 @@ class PyrexScanner(Scanner):
         self.begin('INDENT')
         self.sy = ''
         self.next()
+
+        self.fault_tolerant = fault_tolerant
 
     def normalize_ident(self, text):
         try:
@@ -478,6 +480,8 @@ class PyrexScanner(Scanner):
         self.queue.insert(0, (token, value))
 
     def error(self, message, pos=None, fatal=True):
+        if self.fault_tolerant:
+            fatal = False
         if pos is None:
             pos = self.position()
         if self.sy == 'INDENT':
