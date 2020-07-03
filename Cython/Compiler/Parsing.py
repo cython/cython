@@ -7,6 +7,7 @@ from __future__ import absolute_import
 
 # This should be done automatically
 import cython
+
 cython.declare(Nodes=object, ExprNodes=object, EncodedString=object,
                bytes_literal=object, StringEncoding=object,
                FileSourceDescriptor=object, lookup_unicodechar=object, unicode_category=object,
@@ -14,13 +15,14 @@ cython.declare(Nodes=object, ExprNodes=object, EncodedString=object,
                Builtin=object, ModuleNode=object, Utils=object, _unicode=object, _bytes=object,
                re=object, sys=object, _parse_escape_sequences=object, _parse_escape_sequences_raw=object,
                partial=object, reduce=object, _IS_PY3=cython.bint, _IS_2BYTE_UNICODE=cython.bint,
-               _CDEF_MODIFIERS=tuple)
+               _CDEF_MODIFIERS=tuple, report_error=object, CompileError=object)
 
 from io import StringIO
 import re
 import sys
 from unicodedata import lookup as lookup_unicodechar, category as unicode_category
 from functools import partial, reduce
+from Cython.Compiler.Errors import report_error, CompileError
 
 from .Scanning import PyrexScanner, FileSourceDescriptor, StringSourceDescriptor
 from . import Nodes
@@ -946,9 +948,11 @@ def p_string_literal(s, kind_override=None):
             break
         elif sy == 'EOF':
             s.error("Unclosed string literal", pos=pos)
+            break  # Important for fault-tolerant mode (don't recurse forever).
         else:
             s.error("Unexpected token %r:%r in string literal" % (
                 sy, s.systring))
+            break # Important for fault-tolerant mode (don't recurse forever).
 
     if kind == 'c':
         unicode_value = None
@@ -1503,6 +1507,7 @@ def p_nonlocal_statement(s):
 
 def p_expression_or_assignment(s):
     expr = p_testlist_star_expr(s)
+    eq_pos = None
     if s.sy == ':' and (expr.is_name or expr.is_subscript or expr.is_attribute):
         s.next()
         expr.annotation = p_annotation(s)
@@ -1514,6 +1519,7 @@ def p_expression_or_assignment(s):
                 pos=expr.pos)
     expr_list = [expr]
     while s.sy == '=':
+        eq_pos = s.position()
         s.next()
         if s.sy == 'yield':
             expr = p_yield_expression(s)
@@ -1539,9 +1545,23 @@ def p_expression_or_assignment(s):
                 rhs = p_testlist(s)
             return Nodes.InPlaceAssignmentNode(lhs.pos, operator=operator, lhs=lhs, rhs=rhs)
         expr = expr_list[0]
-        return Nodes.ExprStatNode(expr.pos, expr=expr)
+        if expr is None:
+            # i.e.: This should never happen unless we're in fault-tolerant mode.
+            # Change for an ellipsis so that other places expecting the expression
+            # work later on.
+            assert s.fault_tolerant
+            expr = ExprNodes.EllipsisNode(s.position())
+        else:
+            pos = expr.pos
+        return Nodes.ExprStatNode(expr, expr=expr)
 
     rhs = expr_list[-1]
+    if rhs is None:
+        # i.e.: This should never happen unless we're in fault-tolerant mode.
+        # Change for an ellipsis so that other places expecting the rhs
+        # work later on.
+        assert s.fault_tolerant
+        rhs = ExprNodes.EllipsisNode(eq_pos or s.position())
     if len(expr_list) == 2:
         return Nodes.SingleAssignmentNode(rhs.pos, lhs=expr_list[0], rhs=rhs)
     else:

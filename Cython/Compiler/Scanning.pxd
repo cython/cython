@@ -36,6 +36,7 @@ cdef class PyrexScanner(Scanner):
     cdef readonly bint async_enabled
     cdef public sy
     cdef public systring
+    cdef public bint fault_tolerant
 
     cdef long current_level(self)
     #cpdef commentline(self, text)
