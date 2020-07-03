@@ -8,11 +8,12 @@ Cython Changelog
 Features added
 --------------
 
-* Added support for Python binary operator semantics.
-  One can now define, e.g. both ``__add__`` and ``__radd__`` for cdef classes
-  as for standard Python classes rather than a single ``__add__`` method where
-  self can be either the first or second argument.  This behavior can be disabled
-  with the ``c_api_binop_methods`` directive.
+* Special methods for binary operators now follow Python semantics.
+  Rather than e.g. a single ``__add__`` method for cdef classes, where
+  "self" can be either the first or second argument, one can now define
+  both ``__add__`` and ``__radd__`` as for standard Python classes .
+  This behavior can be disabled with the ``c_api_binop_methods`` directive
+  to return to the previous semantics in Cython code.
   (Github issue #2056)
 
 * No/single argument functions now accept keyword arguments by default in order
@@ -20,6 +21,10 @@ Features added
   ``METH_NOARGS`` and ``METH_O`` that reject keyword arguments are still available
   with the directive ``@cython.always_allow_keywords(False)``.
   (Github issue #3090)
+
+* The ``@returns()`` decorator propagates exceptions by default for suitable C
+  return types when no ``@exceptval()`` is defined.
+  (Github issue #3664)
 
 * A low-level inline function ``total_seconds(timedelta)`` was added to
   ``cpython.datetime`` to bypass the Python method call.  Note that this function
@@ -34,7 +39,7 @@ Bugs fixed
 * The C++ ``typeid()`` function was allowed in C mode.
   Patch by Celelibi.  (Github issue #3637)
 
-* Includes all bug-fixes from the 0.29.19 release.
+* Includes all bug-fixes from the 0.29.20 release.
 
 Other changes
 -------------
@@ -448,11 +453,41 @@ Other changes
 * Support for Python 2.6 was removed.
 
 
-0.29.20 (2020-0?-??)
+0.29.21 (2020-0?-??)
 ====================
 
 Bugs fixed
 ----------
+
+* Fix a regression in 0.29.20 where ``__div__`` failed to be found in extension types.
+  (Github issue #3688)
+
+* ``exec()`` did not allow recent Python syntax features in Py3.8+ due to
+  https://bugs.python.org/issue35975.
+  (Github issue #3695)
+
+* Binding staticmethods of Cython functions were not behaving like Python methods in Py3.
+  Patch by Jeroen Demeyer and Michał Górny.  (Github issue #3106)
+
+* The deprecated C-API function ``PyUnicode_FromUnicode()`` is no longer used.
+  Original patch by Inada Naoki.  (Github issue #3677)
+
+
+0.29.20 (2020-06-10)
+====================
+
+Bugs fixed
+----------
+
+* Nested try-except statements with multiple ``return`` statements could crash
+  due to incorrect deletion of the ``except as`` target variable.
+  (Github issue #3666)
+
+* The ``@classmethod`` decorator no longer rejects unknown input from other decorators.
+  Patch by David Woods.  (Github issue #3660)
+
+* Fused types could leak into unrelated usages.
+  Patch by David Woods.  (Github issue #3642)
 
 * Now uses ``Py_SET_SIZE()`` and ``Py_SET_REFCNT()`` in Py3.9+ to avoid low-level
   write access to these object fields.
@@ -468,6 +503,9 @@ Bugs fixed
 
 * The C++ ``typeid()`` function was allowed in C mode.
   Patch by Celelibi.  (Github issue #3637)
+
+* The error position reported for errors found in f-strings was misleading.
+  (Github issue #3674)
 
 * The new ``c_api_binop_methods`` directive was added for forward compatibility, but can
   only be set to True (the current default value).  It can be disabled in Cython 3.0.

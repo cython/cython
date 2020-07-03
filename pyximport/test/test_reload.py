@@ -22,8 +22,8 @@ def test():
     import hello
     assert hello.x == 1
 
-    time.sleep(1) # sleep to make sure that new "hello.pyx" has later
-              # timestamp than object file.
+    time.sleep(1)  # sleep to make sure that new "hello.pyx" has later
+                   # timestamp than object file.
 
     open(hello_file, "w").write("x = 2; print x; after = 'after'\n")
     reload(hello)

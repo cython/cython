@@ -66,7 +66,7 @@ def make_ext(name, filename):
     assert len(pyximport._test_files)==1, pyximport._test_files
     reload(dummy)
 
-    time.sleep(1) # sleep a second to get safer mtimes
+    time.sleep(1)  # sleep a second to get safer mtimes
     open(os.path.join(tempdir, "abc.txt"), "w").write(" ")
     print("Here goes the reload")
     reload(dummy)

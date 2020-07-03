@@ -543,7 +543,7 @@ class UtilityCode(UtilityCodeBase):
 
         impl = re.sub(r'PY(IDENT|UNICODE)\("([^"]+)"\)', externalise, impl)
         assert 'PYIDENT(' not in impl and 'PYUNICODE(' not in impl
-        return bool(replacements), impl
+        return True, impl
 
     def inject_unbound_methods(self, impl, output):
         """Replace 'UNBOUND_METHOD(type, "name")' by a constant Python identifier cname.
@@ -551,7 +551,6 @@ class UtilityCode(UtilityCodeBase):
         if 'CALL_UNBOUND_METHOD(' not in impl:
             return False, impl
 
-        utility_code = set()
         def externalise(matchobj):
             type_cname, method_name, obj_cname, args = matchobj.groups()
             args = [arg.strip() for arg in args[1:].split(',')] if args else []
@@ -567,9 +566,7 @@ class UtilityCode(UtilityCodeBase):
             r'\)', externalise, impl)
         assert 'CALL_UNBOUND_METHOD(' not in impl
 
-        for helper in sorted(utility_code):
-            output.use_utility_code(UtilityCode.load_cached(helper, "ObjectHandling.c"))
-        return bool(utility_code), impl
+        return True, impl
 
     def wrap_c_strings(self, impl):
         """Replace CSTRING('''xyz''') by a C compatible string
@@ -721,9 +718,9 @@ class FunctionState(object):
         self.can_trace = False
         self.gil_owned = True
 
-        self.temps_allocated = [] # of (name, type, manage_ref, static)
-        self.temps_free = {} # (type, manage_ref) -> list of free vars with same type/managed status
-        self.temps_used_type = {} # name -> (type, manage_ref)
+        self.temps_allocated = []  # of (name, type, manage_ref, static)
+        self.temps_free = {}  # (type, manage_ref) -> list of free vars with same type/managed status
+        self.temps_used_type = {}  # name -> (type, manage_ref)
         self.temp_counter = 0
         self.closure_temps = None
 
@@ -894,7 +891,7 @@ class FunctionState(object):
         """
         return [(name, type)
                 for name, type, manage_ref in self.temps_in_use()
-                if manage_ref  and type.is_pyobject]
+                if manage_ref and type.is_pyobject]
 
     def all_managed_temps(self):
         """Return a list of (cname, type) tuples of refcount-managed Python objects.
@@ -1099,10 +1096,10 @@ class GlobalState(object):
         'h_code',
         'filename_table',
         'utility_code_proto_before_types',
-        'numeric_typedefs',          # Let these detailed individual parts stay!,
-        'complex_type_declarations', # as the proper solution is to make a full DAG...
-        'type_declarations',         # More coarse-grained blocks would simply hide
-        'utility_code_proto',        # the ugliness, not fix it
+        'numeric_typedefs',           # Let these detailed individual parts stay!,
+        'complex_type_declarations',  # as the proper solution is to make a full DAG...
+        'type_declarations',          # More coarse-grained blocks would simply hide
+        'utility_code_proto',         # the ugliness, not fix it
         'module_declarations',
         'typeinfo',
         'before_global_var',
@@ -1138,8 +1135,8 @@ class GlobalState(object):
         self.code_config = code_config
         self.common_utility_include_dir = common_utility_include_dir
         self.parts = {}
-        self.module_node = module_node # because some utility code generation needs it
-                                       # (generating backwards-compatible Get/ReleaseBuffer
+        self.module_node = module_node  # because some utility code generation needs it
+                                        # (generating backwards-compatible Get/ReleaseBuffer
 
         self.const_cnames_used = {}
         self.string_const_index = {}
@@ -2087,7 +2084,7 @@ class CCodeWriter(object):
     def entry_as_pyobject(self, entry):
         type = entry.type
         if (not entry.is_self_arg and not entry.type.is_complete()
-            or entry.type.is_extension_type):
+                or entry.type.is_extension_type):
             return "(PyObject *)" + entry.cname
         else:
             return entry.cname
@@ -2389,7 +2386,7 @@ class CCodeWriter(object):
         self.putln('__Pyx_RefNannyDeclarations')
 
     def put_setup_refcount_context(self, name, acquire_gil=False):
-        name = name.as_c_string_literal() # handle unicode names
+        name = name.as_c_string_literal()  # handle unicode names
         if acquire_gil:
             self.globalstate.use_utility_code(
                 UtilityCode.load_cached("ForceInitThreads", "ModuleSetupCode.c"))
@@ -2404,7 +2401,7 @@ class CCodeWriter(object):
 
         qualified_name should be the qualified name of the function.
         """
-        qualified_name = qualified_name.as_c_string_literal() # handle unicode names
+        qualified_name = qualified_name.as_c_string_literal()  # handle unicode names
         format_tuple = (
             qualified_name,
             Naming.clineno_cname if include_cline else 0,

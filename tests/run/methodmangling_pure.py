@@ -73,4 +73,4 @@ else:
     __doc__ = """
     >>> True
     True
-    """ # stops Python2 from failing
+    """  # stops Python2 from failing
