@@ -2896,7 +2896,7 @@ class CppIteratorNode(IteratorNode):
         return self
 
     def generate_result_code(self, code):
-        sequence_type = self.sequence.type;
+        sequence_type = self.sequence.type
         # essentially 3 options:
         if self.sequence.is_name or self.sequence.is_attribute:
             # 1) is a name and can be accessed directly;
