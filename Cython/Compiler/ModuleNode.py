@@ -434,6 +434,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code = globalstate['module_code']
 
+        self.generate_method_table(env, code)
+        self.generate_pymoduledef_struct(env, code)
         self.generate_cached_builtins_decls(env, code)
 
         # generate normal variable and function definitions
@@ -443,7 +445,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.mark_pos(None)
         self.generate_typeobj_definitions(env, code)
-        self.generate_method_table(env, code)
         if env.has_import_star:
             self.generate_import_star(env, code)
 
@@ -2555,14 +2556,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_module_state_end(self, env, code):
         code.putln('} %s;' % Naming.modulestate_cname)
         code.putln('')
-        code.putln('#ifdef __cplusplus')
-        code.putln('namespace {')
-        code.putln('extern struct PyModuleDef %s;' % Naming.pymoduledef_cname)
-        code.putln('} /* anonymous namespace */')
-        code.putln('#else')
-        code.putln('static struct PyModuleDef %s;' % Naming.pymoduledef_cname)
-        code.putln('#endif')
-        code.putln('')
         code.putln('#define %s(o) ((%s *)__Pyx_PyModule_GetState(o))' % (
             Naming.modulestate_cname,
             Naming.modulestate_cname))
@@ -2692,8 +2685,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_module_init_func(self, imported_modules, env, code):
         subfunction = self.mod_init_subfunction(self.pos, self.scope, code)
-
-        self.generate_pymoduledef_struct(env, code)
 
         code.enter_cfunc_scope(self.scope)
         code.putln("")
@@ -3196,13 +3187,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#endif")
 
         code.putln("")
-        code.putln('#ifdef __cplusplus')
-        code.putln('namespace {')
-        code.putln("struct PyModuleDef %s =" % Naming.pymoduledef_cname)
-        code.putln('#else')
-        code.putln("static struct PyModuleDef %s =" % Naming.pymoduledef_cname)
-        code.putln('#endif')
-        code.putln('{')
+        code.putln("static struct PyModuleDef %s = {" % Naming.pymoduledef_cname)
         code.putln("  PyModuleDef_HEAD_INIT,")
         code.putln('  %s,' % env.module_name.as_c_string_literal())
         code.putln("  %s, /* m_doc */" % doc)
@@ -3229,9 +3214,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("  %s /* m_free */" % cleanup_func)
         code.putln("#endif")
         code.putln("};")
-        code.putln('#ifdef __cplusplus')
-        code.putln('} /* anonymous namespace */')
-        code.putln('#endif')
         code.putln("#endif")
 
     def generate_module_creation_code(self, env, code):
