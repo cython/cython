@@ -347,17 +347,22 @@ static int __Pyx_ValidateAndInit_memviewslice(
     }
 
     /* Check axes */
-    for (i = 0; i < ndim; i++) {
-        spec = axes_specs[i];
-        if (unlikely(!__pyx_check_strides(buf, i, ndim, spec)))
-            goto fail;
-        if (unlikely(!__pyx_check_suboffsets(buf, i, ndim, spec)))
+    if (buf->len > 0) {
+        /* 0-sized arrays do not undergo these checks since their strides are
+         * irrelevant and they are always both C- and F-contiguous
+         */
+        for (i = 0; i < ndim; i++) {
+            spec = axes_specs[i];
+            if (unlikely(!__pyx_check_strides(buf, i, ndim, spec)))
+                goto fail;
+            if (unlikely(!__pyx_check_suboffsets(buf, i, ndim, spec)))
+                goto fail;
+        }
+
+        /* Check contiguity */
+        if (unlikely(buf->strides && !__pyx_verify_contig(buf, ndim, c_or_f_flag)))
             goto fail;
     }
-
-    /* Check contiguity */
-    if (unlikely(buf->strides && !__pyx_verify_contig(buf, ndim, c_or_f_flag)))
-        goto fail;
 
     /* Initialize */
     if (unlikely(__Pyx_init_memviewslice(memview, ndim, memviewslice,
