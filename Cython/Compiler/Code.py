@@ -1038,21 +1038,18 @@ class StringConst(object):
                 intern = bool(possible_unicode_identifier(text))
         else:
             intern = False
+
         if intern:
-            prefix = Naming.interned_prefixes['str']
+            intern_suffix = "_i"
         else:
-            prefix = Naming.py_const_prefix
+            intern_suffix = "_s"
 
         if encoding_key:
-            encoding_prefix = '_%s' % encoding_key
+            encoding_prefix = '%s_' % encoding_key
         else:
             encoding_prefix = ''
 
-        pystring_cname = "%s%s%s_%s" % (
-            prefix,
-            (is_str and 's') or (is_unicode and 'u') or 'b',
-            encoding_prefix,
-            self.cname[len(Naming.const_prefix):])
+        pystring_cname = encoding_prefix + self.cname[len(Naming.const_prefix):] + intern_suffix
 
         py_string = PyStringConst(
             pystring_cname, encoding, is_unicode, is_str, py3str_cstring, intern)
@@ -1080,6 +1077,25 @@ class PyStringConst(object):
 
     def __lt__(self, other):
         return self.cname < other.cname
+
+    @property
+    def index_cname(self):
+        if self.is_str:
+            prefix = Naming.str_prefix
+        elif self.is_unicode:
+            prefix = Naming.unicode_prefix
+        else:
+            prefix = Naming.bytes_prefix
+        return prefix + self.cname
+
+    @property
+    def cexpr(self):
+        if self.is_str:
+            return "__Pyx_Str(%s)" % self.cname
+        elif self.is_unicode:
+            return "__Pyx_U(%s)" % self.cname
+        else:
+            return "__Pyx_Bytes(%s)" % self.cname
 
 
 class GlobalState(object):
@@ -1348,9 +1364,9 @@ class GlobalState(object):
             c_string = self.get_string_const(text, py_version=2)
         else:
             c_string = self.get_string_const(text)
-        string_index = c_string.get_py_string_const(
-            text.encoding, identifier, is_str, py3str_cstring).cname
-        return "(%s[%s])" % (Naming.string_consts_cname, string_index)
+        py_string_const = c_string.get_py_string_const(
+            text.encoding, identifier, is_str, py3str_cstring)
+        return py_string_const.cexpr
 
     def get_interned_identifier(self, text):
         return self.get_py_string_cexpr(text, identifier=True)
@@ -1537,9 +1553,13 @@ class GlobalState(object):
             py_strings.sort()
 
             decls_writer.putln("/* String Constant Indexes */")
+            decls_writer.putln("#define __Pyx_Str(x) (%s[%s ## x])" % (Naming.string_consts_cname, Naming.str_prefix))
+            decls_writer.putln("#define __Pyx_U(x) (%s[%s ## x])" % (Naming.string_consts_cname, Naming.unicode_prefix))
+            decls_writer.putln("#define __Pyx_Bytes(x) (%s[%s ## x])" % (Naming.string_consts_cname, Naming.bytes_prefix))
+
             decls_writer.putln("enum {")
             for _, _, py_string in py_strings:
-                decls_writer.putln("%s," % py_string.cname)
+                decls_writer.putln("%s," % py_string.index_cname)
             decls_writer.putln("%s" % Naming.string_tab_length_cname)
             decls_writer.putln("};")
 

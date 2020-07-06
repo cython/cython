@@ -62,8 +62,11 @@ module_is_main   = pyrex_prefix + "module_is_main"
 defaults_struct_prefix = pyrex_prefix + "defaults"
 dynamic_args_cname = pyrex_prefix + "dynamic_args"
 
+str_prefix = pyrex_prefix + "s_"
+unicode_prefix = pyrex_prefix + "u_"
+bytes_prefix = pyrex_prefix + "b_"
+
 interned_prefixes = {
-    'str': pyrex_prefix + "n_",
     'int': pyrex_prefix + "int_",
     'float': pyrex_prefix + "float_",
     'tuple': pyrex_prefix + "tuple_",
