@@ -86,15 +86,15 @@ __doc__ = br"""
     True
     >>> h == u'\\ud800' # unescaped by Python (required by doctest)
     True
-    >>> p == (u'\\ud800\\udc00' if sys.maxunicode == 1114111 else u'\\U00010000')  # unescaped by Python (required by doctest)
+    >>> p == (u'\\ud800\\udc00' if sys.maxunicode == 1114111 else u'\\U00010000')  or  p  # unescaped by Python (required by doctest)
     True
-    >>> q == u'\\udc00\\ud800' # unescaped by Python (required by doctest)
+    >>> q == u'\\udc00\\ud800'  or  q  # unescaped by Python (required by doctest)
     True
-    >>> k == u'\\N{SNOWMAN}' == u'\\u2603'
+    >>> k == u'\\N{SNOWMAN}' == u'\\u2603'  or  k
     True
-    >>> m == u'abc\\\\xf8\\\\t\\u00f8\\U000000f8'  # unescaped by Python (required by doctest)
+    >>> m == u'abc\\\\xf8\\\\t\\u00f8\\U000000f8'  or  m  # unescaped by Python (required by doctest)
     True
-    >>> add == u'Søk ik' + u'üÖä' + 'abc'
+    >>> add == u'Søk ik' + u'üÖä' + 'abc'  or  add
     True
     >>> null == u'\\x00' # unescaped by Python (required by doctest)
     True
