@@ -35,6 +35,9 @@ Bugs fixed
   (such as MS-Windows).  Generating the C code on Python 3.x is recommended in this case.
   Original patches by Inada Naoki and Victor Stinner.  (Github issues #3677, #3721, #3697)
 
+* Some template parameters were missing from the C++ ``std::unordered_map`` declaration.
+  Patch by will.  (Github issue #3685)
+
 * Several internal code generation issues regarding temporary variables were resolved.
   (Github issue #3708)
 
