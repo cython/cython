@@ -26,9 +26,11 @@ Bugs fixed
 * The ``PyUnicode_GET_LENGTH()`` macro was missing from the ``cpython.*`` declarations.
   Patch by Thomas Caswell.  (Github issue #3692)
 
-* The deprecated C-API functions ``PyUnicode_FromUnicode()`` and ``PyUnicode_AS_UNICODE()``
-  are no longer used.
-  Patches by Inada Naoki and Victor Stinner.  (Github issues #3677, #3721)
+* The deprecated ``PyUnicode_*()`` C-API functions are no longer used, except for Unicode
+  strings that contain lone surrogates.  Unicode strings that contain non-BMP characters
+  or surrogate pairs now generate different C code on 16-bit Python 2.x Unicode deployments
+  (such as MS-Windows).  Generating the C code on Python 3.x is recommended in this case.
+  Original patches by Inada Naoki and Victor Stinner.  (Github issues #3677, #3721, #3697)
 
 * Several internal code generation issues regarding temporary variables were resolved.
   (Github issue #3708)
