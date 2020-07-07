@@ -14,6 +14,9 @@ Bugs fixed
 * Fix a regression in 0.29.20 where a call inside of a finally clause could fail to compile.
   Patch by David Woods.  (Github issue #3712)
 
+* Zero-sized buffers could fail to validate as C/Fortran-contiguous.
+  Patch by Clemens Hofreither.  (Github issue #2093)
+
 * ``exec()`` did not allow recent Python syntax features in Py3.8+ due to
   https://bugs.python.org/issue35975.
   (Github issue #3695)
