@@ -86,7 +86,7 @@ __doc__ = br"""
     True
     >>> h == u'\\ud800' # unescaped by Python (required by doctest)
     True
-    >>> p == u'\\ud800\\udc00' # unescaped by Python (required by doctest)
+    >>> p == (u'\\ud800\\udc00' if sys.maxunicode == 1114111 else u'\\U00010000')  # unescaped by Python (required by doctest)
     True
     >>> q == u'\\udc00\\ud800' # unescaped by Python (required by doctest)
     True
