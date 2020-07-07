@@ -348,9 +348,8 @@ static int __Pyx_ValidateAndInit_memviewslice(
 
     /* Check axes */
     if (buf->len > 0) {
-        /* 0-sized arrays do not undergo these checks since their strides are
-         * irrelevant and they are always both C- and F-contiguous
-         */
+        // 0-sized arrays do not undergo these checks since their strides are
+        // irrelevant and they are always both C- and F-contiguous.
         for (i = 0; i < ndim; i++) {
             spec = axes_specs[i];
             if (unlikely(!__pyx_check_strides(buf, i, ndim, spec)))
