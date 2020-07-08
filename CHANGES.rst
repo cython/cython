@@ -456,7 +456,7 @@ Other changes
 * Support for Python 2.6 was removed.
 
 
-0.29.21 (2020-0?-??)
+0.29.21 (2020-07-09)
 ====================
 
 Bugs fixed
@@ -465,6 +465,12 @@ Bugs fixed
 * Fix a regression in 0.29.20 where ``__div__`` failed to be found in extension types.
   (Github issue #3688)
 
+* Fix a regression in 0.29.20 where a call inside of a finally clause could fail to compile.
+  Patch by David Woods.  (Github issue #3712)
+
+* Zero-sized buffers could fail to validate as C/Fortran-contiguous.
+  Patch by Clemens Hofreither.  (Github issue #2093)
+
 * ``exec()`` did not allow recent Python syntax features in Py3.8+ due to
   https://bugs.python.org/issue35975.
   (Github issue #3695)
@@ -472,9 +478,22 @@ Bugs fixed
 * Binding staticmethods of Cython functions were not behaving like Python methods in Py3.
   Patch by Jeroen Demeyer and Michał Górny.  (Github issue #3106)
 
-* The deprecated C-API functions ``PyUnicode_FromUnicode()`` and ``PyUnicode_AS_UNICODE()``
-  are no longer used.
-  Original patch by Inada Naoki.  (Github issue #3677)
+* Pythran calls to NumPy methods no longer generate useless method lookup code.
+
+* The ``PyUnicode_GET_LENGTH()`` macro was missing from the ``cpython.*`` declarations.
+  Patch by Thomas Caswell.  (Github issue #3692)
+
+* The deprecated ``PyUnicode_*()`` C-API functions are no longer used, except for Unicode
+  strings that contain lone surrogates.  Unicode strings that contain non-BMP characters
+  or surrogate pairs now generate different C code on 16-bit Python 2.x Unicode deployments
+  (such as MS-Windows).  Generating the C code on Python 3.x is recommended in this case.
+  Original patches by Inada Naoki and Victor Stinner.  (Github issues #3677, #3721, #3697)
+
+* Some template parameters were missing from the C++ ``std::unordered_map`` declaration.
+  Patch by will.  (Github issue #3685)
+
+* Several internal code generation issues regarding temporary variables were resolved.
+  (Github issue #3708)
 
 
 0.29.20 (2020-06-10)
