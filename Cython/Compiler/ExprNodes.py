@@ -1632,13 +1632,14 @@ class UnicodeNode(ConstNode):
                 # lone (unpaired) surrogates are not really portable and cannot be
                 # decoded by the UTF-8 codec in Py3.3
                 self.result_code = code.get_py_const(py_object_type, 'ustring')
-                data_cname = code.get_pyunicode_ptr_const(self.value)
+                data_cname = code.get_string_const(
+                    StringEncoding.BytesLiteral(self.value.encode('unicode_escape')))
                 const_code = code.get_cached_constants_writer(self.result_code)
                 if const_code is None:
                     return  # already initialised
                 const_code.mark_pos(self.pos)
                 const_code.putln(
-                    "%s = PyUnicode_FromUnicode(%s, (sizeof(%s) / sizeof(Py_UNICODE))-1); %s" % (
+                    "%s = PyUnicode_DecodeUnicodeEscape(%s, sizeof(%s) - 1, NULL); %s" % (
                         self.result_code,
                         data_cname,
                         data_cname,
