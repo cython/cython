@@ -37,6 +37,13 @@ NUMPY_HAS_RELAXED_STRIDES = (
     np.ones((10, 1), order="C").flags.f_contiguous)
 
 
+def not_py26(f):
+    import sys
+    if sys.version_info < (2, 7):
+        return lambda a: None
+    return f
+
+
 def test_one_sized(array):
     """
     >>> contig = np.ascontiguousarray(np.arange(10, dtype=np.double)[::100])
@@ -74,6 +81,7 @@ def test_zero_sized_multidim_ccontig(array):
     cdef double[:, :, ::1] a = array
     return a
 
+@not_py26
 def test_zero_sized_multidim_fcontig(array):
     """
     >>> contig = np.ascontiguousarray(np.zeros((4,4,4))[::2, 2:2, ::2])
