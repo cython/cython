@@ -959,6 +959,18 @@ code. No changes to Python need be made to achieve significant speedups, even
 though the field names in Python and C are different. Of course, one should
 make sure the fields are equivalent.
 
+C inline properties
+-------------------
+
+Similar to Python property attributes, Cython provides a way to declare C-level
+properties on external extension types.  This is often used to shadow Python
+attributes through faster C level data access, but can also be used to add certain
+functionality to existing types when using them from Cython.
+
+For example, the above ``complex`` type could also be declared like this:
+
+.. literalinclude:: ../../examples/userguide/extension_types/c_property.pyx
+
 Implicit importing
 ------------------
 
