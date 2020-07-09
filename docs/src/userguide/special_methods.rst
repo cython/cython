@@ -148,6 +148,9 @@ with ``self`` as first argument and will be ignored by older Cython versions, wh
 Cython 3.x and later will only call the normal method with the expected argument order,
 and otherwise call the reversed method instead.
 
+Alternatively, the old Cython 0.x (or native C-API) behaviour is still available with
+the directive ``c_api_binop_methods=True``.
+
 If you can't handle the combination of types you've been given, you should return
 `NotImplemented`.  This will let Python's operator implementation first try to apply
 the reversed operator to the second operand, and failing that as well, report an
