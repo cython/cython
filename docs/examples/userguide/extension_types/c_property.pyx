@@ -17,4 +17,4 @@ cdef extern from "complexobject.h":
 
 
 def cprint(complex c):
-    print(f"{c.real}+{c.imag}j")  # uses C calls to the above property methods.
+    print(f"{c.real :.4f}{c.imag :+.4f}j")  # uses C calls to the above property methods.
