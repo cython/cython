@@ -2077,7 +2077,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             extra_arg = ', extra_arg'
             extra_arg_decl = ', PyObject* extra_arg'
         else:
-            error(pos, "Unexpected type lost signature: %s" % slot)
+            error(pos, "Unexpected type slot signature: %s" % slot)
 
         def has_slot_method(method_name):
             entry = scope.lookup(method_name)
