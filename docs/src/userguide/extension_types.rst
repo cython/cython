@@ -897,8 +897,7 @@ write ``dtype.itemsize`` in Cython code which will be compiled into direct
 access of the C struct field, without going through a C-API equivalent of
 ``dtype.__getattr__('itemsize')``.
 
-For example we may have an extension
-module ``foo_extension``::
+For example, we may have an extension module ``foo_extension``::
 
     cdef class Foo:
         cdef public int field0, field1, field2;
