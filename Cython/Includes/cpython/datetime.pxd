@@ -24,7 +24,33 @@ cdef extern from "datetime.h":
         pass
 
     ctypedef extern class datetime.datetime[object PyDateTime_DateTime]:
-        pass
+        @property
+        cdef int year(self):
+            return PyDateTime_GET_YEAR(self)
+
+        @property
+        cdef int month(self):
+            return PyDateTime_GET_MONTH(self)
+
+        @property
+        cdef int day(self):
+            return PyDateTime_GET_DAY(self)
+
+        @property
+        cdef int hour(self):
+            return PyDateTime_DATE_GET_HOUR(self)
+
+        @property
+        cdef int minute(self):
+            return PyDateTime_DATE_GET_MINUTE(self)
+
+        @property
+        cdef int second(self):
+            return PyDateTime_DATE_GET_SECOND(self)
+
+        @property
+        cdef int microsecond(self):
+            return PyDateTime_DATE_GET_MICROSECOND(self)
 
     ctypedef extern class datetime.timedelta[object PyDateTime_Delta]:
         pass
