@@ -456,6 +456,16 @@ Other changes
 * Support for Python 2.6 was removed.
 
 
+0.29.22 (2020-??-??)
+====================
+
+Bugs fixed
+----------
+
+* ``repr()`` was assumed to return ``str`` instead of ``unicode`` with ``language_level=3``.
+  (Github issue #3736)
+
+
 0.29.21 (2020-07-09)
 ====================
 
