@@ -11,9 +11,12 @@ Features added
 * Special methods for binary operators now follow Python semantics.
   Rather than e.g. a single ``__add__`` method for cdef classes, where
   "self" can be either the first or second argument, one can now define
-  both ``__add__`` and ``__radd__`` as for standard Python classes .
+  both ``__add__`` and ``__radd__`` as for standard Python classes.
   This behavior can be disabled with the ``c_api_binop_methods`` directive
-  to return to the previous semantics in Cython code.
+  to return to the previous semantics in Cython code (available from Cython
+  0.29.20), or the reversed method (``__radd__``) can be implemented in
+  addition to an existing two-sided operator method (``__add__``) to get a
+  backwards compatible implementation.
   (Github issue #2056)
 
 * No/single argument functions now accept keyword arguments by default in order
