@@ -814,7 +814,7 @@ class AsyncGenAsyncioTest(unittest.TestCase):
             await g.__anext__()
             del g
 
-            await asyncio.sleep(0.1, loop=self.loop)
+            await asyncio.sleep(0.2, loop=self.loop)
 
         self.loop.run_until_complete(run())
         self.assertEqual(DONE, 1)

@@ -296,11 +296,12 @@ __Pyx_import_all_from(PyObject *locals, PyObject *v)
         }
         if (skip_leading_underscores &&
 #if PY_MAJOR_VERSION < 3
-            PyString_Check(name) &&
+            likely(PyString_Check(name)) &&
             PyString_AS_STRING(name)[0] == '_')
 #else
-            PyUnicode_Check(name) &&
-            PyUnicode_AS_UNICODE(name)[0] == '_')
+            likely(PyUnicode_Check(name)) &&
+            likely(__Pyx_PyUnicode_GET_LENGTH(name)) &&
+            __Pyx_PyUnicode_READ_CHAR(name, 0) == '_')
 #endif
         {
             Py_DECREF(name);
@@ -755,6 +756,8 @@ static int __Pyx_MergeVtables(PyTypeObject *type); /*proto*/
 static int __Pyx_MergeVtables(PyTypeObject *type) {
     int i;
     void** base_vtables;
+    __Pyx_TypeName tp_base_name;
+    __Pyx_TypeName base_name;
     void* unknown = (void*)-1;
     PyObject* bases = type->tp_bases;
     int base_depth = 0;
@@ -797,10 +800,12 @@ static int __Pyx_MergeVtables(PyTypeObject *type) {
     free(base_vtables);
     return 0;
 bad:
-    PyErr_Format(
-        PyExc_TypeError,
-        "multiple bases have vtable conflict: '%s' and '%s'",
-        type->tp_base->tp_name, ((PyTypeObject*)PyTuple_GET_ITEM(bases, i))->tp_name);
+    tp_base_name = __Pyx_PyType_GetName(type->tp_base);
+    base_name = __Pyx_PyType_GetName((PyTypeObject*)PyTuple_GET_ITEM(bases, i));
+    PyErr_Format(PyExc_TypeError,
+        "multiple bases have vtable conflict: '" __Pyx_FMT_TYPENAME "' and '" __Pyx_FMT_TYPENAME "'", tp_base_name, base_name);
+    __Pyx_DECREF_TypeName(tp_base_name);
+    __Pyx_DECREF_TypeName(base_name);
     free(base_vtables);
     return -1;
 }

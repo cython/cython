@@ -6,10 +6,11 @@ static CYTHON_INLINE PyObject* __Pyx_Generator_Yield_From(__pyx_CoroutineObject 
 //@requires: Generator
 
 #if CYTHON_USE_TYPE_SLOTS
-static void __PyxPyIter_CheckErrorAndDecref(PyObject *source) {
+static void __Pyx_PyIter_CheckErrorAndDecref(PyObject *source) {
+    __Pyx_TypeName source_type_name = __Pyx_PyType_GetName(Py_TYPE(source));
     PyErr_Format(PyExc_TypeError,
-                 "iter() returned non-iterator of type '%.100s'",
-                 Py_TYPE(source)->tp_name);
+        "iter() returned non-iterator of type '" __Pyx_FMT_TYPENAME "'", source_type_name);
+    __Pyx_DECREF_TypeName(source_type_name);
     Py_DECREF(source);
 }
 #endif
@@ -31,7 +32,7 @@ static CYTHON_INLINE PyObject* __Pyx_Generator_Yield_From(__pyx_CoroutineObject 
             if (unlikely(!source_gen))
                 return NULL;
             if (unlikely(!PyIter_Check(source_gen))) {
-                __PyxPyIter_CheckErrorAndDecref(source_gen);
+                __Pyx_PyIter_CheckErrorAndDecref(source_gen);
                 return NULL;
             }
         } else
@@ -43,11 +44,7 @@ static CYTHON_INLINE PyObject* __Pyx_Generator_Yield_From(__pyx_CoroutineObject 
                 return NULL;
         }
         // source_gen is now the iterator, make the first next() call
-#if CYTHON_USE_TYPE_SLOTS
-        retval = Py_TYPE(source_gen)->tp_iternext(source_gen);
-#else
-        retval = PyIter_Next(source_gen);
-#endif
+        retval = __Pyx_PyObject_GetIterNextFunc(source_gen)(source_gen);
     }
     if (likely(retval)) {
         gen->yieldfrom = source_gen;
@@ -76,11 +73,7 @@ static PyObject* __Pyx__Coroutine_Yield_From_Generic(__pyx_CoroutineObject *gen,
     if (__Pyx_Coroutine_Check(source_gen)) {
         retval = __Pyx_Generator_Next(source_gen);
     } else {
-#if CYTHON_USE_TYPE_SLOTS
-        retval = Py_TYPE(source_gen)->tp_iternext(source_gen);
-#else
-        retval = PyIter_Next(source_gen);
-#endif
+        retval = __Pyx_PyObject_GetIterNextFunc(source_gen)(source_gen);
     }
     if (retval) {
         gen->yieldfrom = source_gen;
@@ -138,13 +131,13 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAwaitableIter(PyObject *o) {
 
 static void __Pyx_Coroutine_AwaitableIterError(PyObject *source) {
 #if PY_VERSION_HEX >= 0x030600B3 || defined(_PyErr_FormatFromCause)
-    _PyErr_FormatFromCause(
-        PyExc_TypeError,
-        "'async for' received an invalid object "
-        "from __anext__: %.100s",
-        Py_TYPE(source)->tp_name);
+    __Pyx_TypeName source_type_name = __Pyx_PyType_GetName(Py_TYPE(source));
+    _PyErr_FormatFromCause(PyExc_TypeError,
+        "'async for' received an invalid object from __anext__: " __Pyx_FMT_TYPENAME, source_type_name);
+    __Pyx_DECREF_TypeName(source_type_name);
 #elif PY_MAJOR_VERSION >= 3
     PyObject *exc, *val, *val2, *tb;
+    __Pyx_TypeName source_type_name = __Pyx_PyType_GetName(Py_TYPE(source));
     assert(PyErr_Occurred());
     PyErr_Fetch(&exc, &val, &tb);
     PyErr_NormalizeException(&exc, &val, &tb);
@@ -154,11 +147,9 @@ static void __Pyx_Coroutine_AwaitableIterError(PyObject *source) {
     }
     Py_DECREF(exc);
     assert(!PyErr_Occurred());
-    PyErr_Format(
-        PyExc_TypeError,
-        "'async for' received an invalid object "
-        "from __anext__: %.100s",
-        Py_TYPE(source)->tp_name);
+    PyErr_Format(PyExc_TypeError,
+        "'async for' received an invalid object from __anext__: " __Pyx_FMT_TYPENAME, source_type_name);
+    __Pyx_DECREF_TypeName(source_type_name);
 
     PyErr_Fetch(&exc, &val2, &tb);
     PyErr_NormalizeException(&exc, &val2, &tb);
@@ -209,9 +200,10 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
         goto bad;
     }
     if (unlikely(!PyIter_Check(res))) {
+        __Pyx_TypeName res_type_name = __Pyx_PyType_GetName(Py_TYPE(res));
         PyErr_Format(PyExc_TypeError,
-                     "__await__() returned non-iterator of type '%.100s'",
-                     Py_TYPE(res)->tp_name);
+            "__await__() returned non-iterator of type '" __Pyx_FMT_TYPENAME "'", res_type_name);
+        __Pyx_DECREF_TypeName(res_type_name);
         Py_CLEAR(res);
     } else {
         int is_coroutine = 0;
@@ -231,9 +223,12 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
     }
     return res;
 slot_error:
-    PyErr_Format(PyExc_TypeError,
-                 "object %.100s can't be used in 'await' expression",
-                 Py_TYPE(obj)->tp_name);
+    {
+        __Pyx_TypeName obj_type_name = __Pyx_PyType_GetName(Py_TYPE(obj));
+        PyErr_Format(PyExc_TypeError,
+            "object " __Pyx_FMT_TYPENAME " can't be used in 'await' expression", obj_type_name);
+        __Pyx_DECREF_TypeName(obj_type_name);
+    }
 bad:
     return NULL;
 }
@@ -249,6 +244,7 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_AsyncIterNext(PyObject *o); /*pro
 //@requires: ObjectHandling.c::PyObjectCallMethod0
 
 static PyObject *__Pyx_Coroutine_GetAsyncIter_Generic(PyObject *obj) {
+    __Pyx_TypeName obj_type_name;
 #if PY_VERSION_HEX < 0x030500B1
     {
         PyObject *iter = __Pyx_PyObject_CallMethod0(obj, PYIDENT("__aiter__"));
@@ -263,8 +259,10 @@ static PyObject *__Pyx_Coroutine_GetAsyncIter_Generic(PyObject *obj) {
     if ((0)) (void) __Pyx_PyObject_CallMethod0(obj, PYIDENT("__aiter__"));
 #endif
 
-    PyErr_Format(PyExc_TypeError, "'async for' requires an object with __aiter__ method, got %.100s",
-                 Py_TYPE(obj)->tp_name);
+    obj_type_name = __Pyx_PyType_GetName(Py_TYPE(obj));
+    PyErr_Format(PyExc_TypeError,
+                 "'async for' requires an object with __aiter__ method, got " __Pyx_FMT_TYPENAME, obj_type_name);
+    __Pyx_DECREF_TypeName(obj_type_name);
     return NULL;
 }
 
@@ -297,8 +295,12 @@ static PyObject *__Pyx__Coroutine_AsyncIterNext(PyObject *obj) {
     // FIXME: for the sake of a nicely conforming exception message, assume any AttributeError meant '__anext__'
     if (PyErr_ExceptionMatches(PyExc_AttributeError))
 #endif
-        PyErr_Format(PyExc_TypeError, "'async for' requires an object with __anext__ method, got %.100s",
-                     Py_TYPE(obj)->tp_name);
+    {
+        __Pyx_TypeName obj_type_name = __Pyx_PyType_GetName(Py_TYPE(obj));
+        PyErr_Format(PyExc_TypeError,
+            "'async for' requires an object with __anext__ method, got " __Pyx_FMT_TYPENAME, obj_type_name);
+        __Pyx_DECREF_TypeName(obj_type_name);
+    }
     return NULL;
 }
 
@@ -847,7 +849,7 @@ static PyObject *__Pyx_Coroutine_Send(PyObject *self, PyObject *value) {
         #endif
         {
             if (value == Py_None)
-                ret = Py_TYPE(yf)->tp_iternext(yf);
+                ret = __Pyx_PyObject_GetIterNextFunc(yf)(yf);
             else
                 ret = __Pyx_PyObject_CallMethod1(yf, PYIDENT("send"), value);
         }
@@ -945,7 +947,7 @@ static PyObject *__Pyx_Generator_Next(PyObject *self) {
             ret = __Pyx_Coroutine_Send(yf, Py_None);
         } else
         #endif
-            ret = Py_TYPE(yf)->tp_iternext(yf);
+            ret = __Pyx_PyObject_GetIterNextFunc(yf)(yf);
         gen->is_running = 0;
         //Py_DECREF(yf);
         if (likely(ret)) {
@@ -1468,7 +1470,7 @@ static PyMethodDef __pyx_CoroutineAwait_methods[] = {
 
 static PyTypeObject __pyx_CoroutineAwaitType_type = {
     PyVarObject_HEAD_INIT(0, 0)
-    "coroutine_wrapper",                /*tp_name*/
+    __PYX_TYPE_MODULE_PREFIX "coroutine_wrapper", /*tp_name*/
     sizeof(__pyx_CoroutineAwaitObject), /*tp_basicsize*/
     0,                                  /*tp_itemsize*/
     (destructor) __Pyx_CoroutineAwait_dealloc,/*tp_dealloc*/
@@ -1616,7 +1618,7 @@ static __Pyx_PyAsyncMethodsStruct __pyx_Coroutine_as_async = {
 
 static PyTypeObject __pyx_CoroutineType_type = {
     PyVarObject_HEAD_INIT(0, 0)
-    "coroutine",                        /*tp_name*/
+    __PYX_TYPE_MODULE_PREFIX "coroutine", /*tp_name*/
     sizeof(__pyx_CoroutineObject),      /*tp_basicsize*/
     0,                                  /*tp_itemsize*/
     (destructor) __Pyx_Coroutine_dealloc,/*tp_dealloc*/
@@ -1732,7 +1734,7 @@ static int __pyx_IterableCoroutine_init(void);/*proto*/
 
 static PyTypeObject __pyx_IterableCoroutineType_type = {
     PyVarObject_HEAD_INIT(0, 0)
-    "iterable_coroutine",               /*tp_name*/
+    __PYX_TYPE_MODULE_PREFIX "iterable_coroutine", /*tp_name*/
     sizeof(__pyx_CoroutineObject),      /*tp_basicsize*/
     0,                                  /*tp_itemsize*/
     (destructor) __Pyx_Coroutine_dealloc,/*tp_dealloc*/
@@ -1851,7 +1853,7 @@ static PyGetSetDef __pyx_Generator_getsets[] = {
 
 static PyTypeObject __pyx_GeneratorType_type = {
     PyVarObject_HEAD_INIT(0, 0)
-    "generator",                        /*tp_name*/
+    __PYX_TYPE_MODULE_PREFIX "generator", /*tp_name*/
     sizeof(__pyx_CoroutineObject),      /*tp_basicsize*/
     0,                                  /*tp_itemsize*/
     (destructor) __Pyx_Coroutine_dealloc,/*tp_dealloc*/

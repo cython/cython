@@ -290,7 +290,7 @@ class Context(object):
             if kind == "cimport":
                 dep_path = self.find_pxd_file(name, pos)
             elif kind == "include":
-                dep_path = self.search_include_directories(name, pos)
+                dep_path = self.search_include_directories(name, "", pos)
             else:
                 continue
             if dep_path and Utils.file_newer_than(dep_path, c_time):
@@ -455,7 +455,7 @@ def run_pipeline(source, options, full_module_name=None, context=None):
             full_module_name = Utils.decode_filename(full_module_name)
 
     source_ext = os.path.splitext(source)[1]
-    options.configure_language_defaults(source_ext[1:]) # py/pyx
+    options.configure_language_defaults(source_ext[1:])  # py/pyx
     if context is None:
         context = Context.from_options(options)
 
@@ -470,7 +470,7 @@ def run_pipeline(source, options, full_module_name=None, context=None):
     if options.relative_path_in_code_position_comments:
         rel_path = full_module_name.replace('.', os.sep) + source_ext
         if not abs_path.endswith(rel_path):
-            rel_path = source # safety measure to prevent printing incorrect paths
+            rel_path = source  # safety measure to prevent printing incorrect paths
     else:
         rel_path = abs_path
     source_desc = FileSourceDescriptor(abs_path, rel_path)
@@ -667,42 +667,38 @@ def search_include_directories(dirs, qualified_name, suffix, pos, include=False)
         names = qualified_name.split('.')
         package_names = tuple(names[:-1])
         module_name = names[-1]
-        module_filename = module_name + suffix
-        package_filename = "__init__" + suffix
 
         # search for standard packages first - PEP420
         namespace_dirs = []
         for dirname in dirs:
             package_dir, is_namespace = Utils.check_package_dir(dirname, package_names)
             if package_dir is not None:
-
                 if is_namespace:
                     namespace_dirs.append(package_dir)
                     continue
-
-                # matches modules of the form: <dir>/foo/bar.pxd
-                path = os.path.join(package_dir, module_filename)
-                if os.path.exists(path):
-                    return path
-
-                # matches modules of the form: <dir>/foo/bar/__init__.pxd
-                path = os.path.join(package_dir, module_name, package_filename)
-                if os.path.exists(path):
+                path = search_module_in_dir(package_dir, module_name, suffix)
+                if path:
                     return path
 
         # search for namespaces second - PEP420
         for package_dir in namespace_dirs:
-            # matches modules of the form: <dir>/foo/bar.pxd
-            path = os.path.join(package_dir, module_filename)
-            if os.path.exists(path):
-                return path
-
-            # matches modules of the form: <dir>/foo/bar/__init__.pxd
-            path = os.path.join(package_dir, module_name, package_filename)
-            if os.path.exists(path):
+            path = search_module_in_dir(package_dir, module_name, suffix)
+            if path:
                 return path
 
     return None
+
+
+@Utils.cached_function
+def search_module_in_dir(package_dir, module_name, suffix):
+    # matches modules of the form: <dir>/foo/bar.pxd
+    path = Utils.find_versioned_file(package_dir, module_name, suffix)
+
+    # matches modules of the form: <dir>/foo/bar/__init__.pxd
+    if not path and suffix:
+        path = Utils.find_versioned_file(os.path.join(package_dir, module_name), "__init__", suffix)
+
+    return path
 
 
 # ------------------------------------------------------------------------

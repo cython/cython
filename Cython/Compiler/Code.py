@@ -296,7 +296,7 @@ class UtilityCodeBase(object):
         _, ext = os.path.splitext(path)
         if ext in ('.pyx', '.py', '.pxd', '.pxi'):
             comment = '#'
-            strip_comments = partial(re.compile(r'^\s*#.*').sub, '')
+            strip_comments = partial(re.compile(r'^\s*#(?!\s*cython\s*:).*').sub, '')
             rstrip = StringEncoding._unicode.rstrip
         else:
             comment = '/'
@@ -408,7 +408,7 @@ class UtilityCodeBase(object):
         """
         Calls .load(), but using a per-type cache based on utility name and file name.
         """
-        key = (cls, from_file, utility_code_name)
+        key = (utility_code_name, from_file, cls)
         try:
             return __cache[key]
         except KeyError:
@@ -543,7 +543,7 @@ class UtilityCode(UtilityCodeBase):
 
         impl = re.sub(r'PY(IDENT|UNICODE)\("([^"]+)"\)', externalise, impl)
         assert 'PYIDENT(' not in impl and 'PYUNICODE(' not in impl
-        return bool(replacements), impl
+        return True, impl
 
     def inject_unbound_methods(self, impl, output):
         """Replace 'UNBOUND_METHOD(type, "name")' by a constant Python identifier cname.
@@ -551,7 +551,6 @@ class UtilityCode(UtilityCodeBase):
         if 'CALL_UNBOUND_METHOD(' not in impl:
             return False, impl
 
-        utility_code = set()
         def externalise(matchobj):
             type_cname, method_name, obj_cname, args = matchobj.groups()
             args = [arg.strip() for arg in args[1:].split(',')] if args else []
@@ -567,9 +566,7 @@ class UtilityCode(UtilityCodeBase):
             r'\)', externalise, impl)
         assert 'CALL_UNBOUND_METHOD(' not in impl
 
-        for helper in sorted(utility_code):
-            output.use_utility_code(UtilityCode.load_cached(helper, "ObjectHandling.c"))
-        return bool(utility_code), impl
+        return True, impl
 
     def wrap_c_strings(self, impl):
         """Replace CSTRING('''xyz''') by a C compatible string
@@ -721,9 +718,10 @@ class FunctionState(object):
         self.can_trace = False
         self.gil_owned = True
 
-        self.temps_allocated = [] # of (name, type, manage_ref, static)
-        self.temps_free = {} # (type, manage_ref) -> list of free vars with same type/managed status
-        self.temps_used_type = {} # name -> (type, manage_ref)
+        self.temps_allocated = []  # of (name, type, manage_ref, static)
+        self.temps_free = {}  # (type, manage_ref) -> list of free vars with same type/managed status
+        self.temps_used_type = {}  # name -> (type, manage_ref)
+        self.zombie_temps = set()  # temps that must not be reused after release
         self.temp_counter = 0
         self.closure_temps = None
 
@@ -737,6 +735,20 @@ class FunctionState(object):
         # sections, in which case we introduce a race condition.
         self.should_declare_error_indicator = False
         self.uses_error_indicator = False
+
+    # safety checks
+
+    def validate_exit(self):
+        # validate that all allocated temps have been freed
+        if self.temps_allocated:
+            leftovers = self.temps_in_use()
+            if leftovers:
+                msg = "TEMPGUARD: Temps left over at end of '%s': %s" % (self.scope.name, ', '.join([
+                    '%s [%s]' % (name, ctype)
+                    for name, ctype, is_pytemp in sorted(leftovers)]),
+                )
+                #print(msg)
+                raise RuntimeError(msg)
 
     # labels
 
@@ -807,7 +819,7 @@ class FunctionState(object):
 
     # temp handling
 
-    def allocate_temp(self, type, manage_ref, static=False):
+    def allocate_temp(self, type, manage_ref, static=False, reusable=True):
         """
         Allocates a temporary (which may create a new one or get a previously
         allocated and released one of the same type). Type is simply registered
@@ -826,6 +838,8 @@ class FunctionState(object):
         This is only used when allocating backing store for a module-level
         C array literals.
 
+        if reusable=False, the temp will not be reused after release.
+
         A C string referring to the variable is returned.
         """
         if type.is_cv_qualified and not type.is_reference:
@@ -841,7 +855,7 @@ class FunctionState(object):
             manage_ref = False
 
         freelist = self.temps_free.get((type, manage_ref))
-        if freelist is not None and freelist[0]:
+        if reusable and freelist is not None and freelist[0]:
             result = freelist[0].pop()
             freelist[1].remove(result)
         else:
@@ -850,9 +864,11 @@ class FunctionState(object):
                 result = "%s%d" % (Naming.codewriter_temp_prefix, self.temp_counter)
                 if result not in self.names_taken: break
             self.temps_allocated.append((result, type, manage_ref, static))
+            if not reusable:
+                self.zombie_temps.add(result)
         self.temps_used_type[result] = (type, manage_ref)
         if DebugFlags.debug_temp_code_comments:
-            self.owner.putln("/* %s allocated (%s) */" % (result, type))
+            self.owner.putln("/* %s allocated (%s)%s */" % (result, type, "" if reusable else " - zombie"))
 
         if self.collect_temps_stack:
             self.collect_temps_stack[-1].add((result, type))
@@ -871,10 +887,12 @@ class FunctionState(object):
             self.temps_free[(type, manage_ref)] = freelist
         if name in freelist[1]:
             raise RuntimeError("Temp %s freed twice!" % name)
-        freelist[0].append(name)
+        if name not in self.zombie_temps:
+            freelist[0].append(name)
         freelist[1].add(name)
         if DebugFlags.debug_temp_code_comments:
-            self.owner.putln("/* %s released */" % name)
+            self.owner.putln("/* %s released %s*/" % (
+                name, " - zombie" if name in self.zombie_temps else ""))
 
     def temps_in_use(self):
         """Return a list of (cname,type,manage_ref) tuples of temp names and their type
@@ -894,7 +912,7 @@ class FunctionState(object):
         """
         return [(name, type)
                 for name, type, manage_ref in self.temps_in_use()
-                if manage_ref  and type.is_pyobject]
+                if manage_ref and type.is_pyobject]
 
     def all_managed_temps(self):
         """Return a list of (cname, type) tuples of refcount-managed Python objects.
@@ -1099,10 +1117,10 @@ class GlobalState(object):
         'h_code',
         'filename_table',
         'utility_code_proto_before_types',
-        'numeric_typedefs',          # Let these detailed individual parts stay!,
-        'complex_type_declarations', # as the proper solution is to make a full DAG...
-        'type_declarations',         # More coarse-grained blocks would simply hide
-        'utility_code_proto',        # the ugliness, not fix it
+        'numeric_typedefs',           # Let these detailed individual parts stay!,
+        'complex_type_declarations',  # as the proper solution is to make a full DAG...
+        'type_declarations',          # More coarse-grained blocks would simply hide
+        'utility_code_proto',         # the ugliness, not fix it
         'module_declarations',
         'typeinfo',
         'before_global_var',
@@ -1138,8 +1156,8 @@ class GlobalState(object):
         self.code_config = code_config
         self.common_utility_include_dir = common_utility_include_dir
         self.parts = {}
-        self.module_node = module_node # because some utility code generation needs it
-                                       # (generating backwards-compatible Get/ReleaseBuffer
+        self.module_node = module_node  # because some utility code generation needs it
+                                        # (generating backwards-compatible Get/ReleaseBuffer
 
         self.const_cnames_used = {}
         self.string_const_index = {}
@@ -1863,6 +1881,7 @@ class CCodeWriter(object):
         self.funcstate = FunctionState(self, scope=scope)
 
     def exit_cfunc_scope(self):
+        self.funcstate.validate_exit()
         self.funcstate = None
 
     # constant handling
@@ -2087,7 +2106,7 @@ class CCodeWriter(object):
     def entry_as_pyobject(self, entry):
         type = entry.type
         if (not entry.is_self_arg and not entry.type.is_complete()
-            or entry.type.is_extension_type):
+                or entry.type.is_extension_type):
             return "(PyObject *)" + entry.cname
         else:
             return entry.cname
@@ -2389,7 +2408,7 @@ class CCodeWriter(object):
         self.putln('__Pyx_RefNannyDeclarations')
 
     def put_setup_refcount_context(self, name, acquire_gil=False):
-        name = name.as_c_string_literal() # handle unicode names
+        name = name.as_c_string_literal()  # handle unicode names
         if acquire_gil:
             self.globalstate.use_utility_code(
                 UtilityCode.load_cached("ForceInitThreads", "ModuleSetupCode.c"))
@@ -2404,7 +2423,7 @@ class CCodeWriter(object):
 
         qualified_name should be the qualified name of the function.
         """
-        qualified_name = qualified_name.as_c_string_literal() # handle unicode names
+        qualified_name = qualified_name.as_c_string_literal()  # handle unicode names
         format_tuple = (
             qualified_name,
             Naming.clineno_cname if include_cline else 0,

@@ -1059,6 +1059,7 @@ def decref(*args):
     for item in args: Py_DECREF(item)
 
 @cython.binding(False)
+@cython.always_allow_keywords(False)
 def get_refcount(x):
     return (<PyObject*>x).ob_refcnt
 
@@ -1524,7 +1525,7 @@ def test_index_slicing_away_direct_indirect():
     All dimensions preceding dimension 1 must be indexed and not sliced
     """
     cdef int[:, ::view.indirect, :] a = TestIndexSlicingDirectIndirectDims()
-    a_obj = a
+    cdef object a_obj = a
 
     print a[1][2][3]
     print a[1, 2, 3]

@@ -1,7 +1,7 @@
 
 //////////////////// CythonFunctionShared.proto ////////////////////
 
-#define __Pyx_CyFunction_USED 1
+#define __Pyx_CyFunction_USED
 
 #define __Pyx_CYFUNCTION_STATICMETHOD  0x01
 #define __Pyx_CYFUNCTION_CLASSMETHOD   0x02
@@ -53,7 +53,9 @@ typedef struct {
 static PyTypeObject *__pyx_CyFunctionType = 0;
 #endif
 
-#define __Pyx_CyFunction_Check(obj)  (__Pyx_TypeCheck(obj, __pyx_CyFunctionType))
+#define __Pyx_CyFunction_Check(obj)  __Pyx_TypeCheck(obj, __pyx_CyFunctionType)
+#define __Pyx_IsCyOrPyCFunction(obj)  __Pyx_TypeCheck2(obj, __pyx_CyFunctionType, &PyCFunction_Type)
+#define __Pyx_CyFunction_CheckExact(obj)  __Pyx_IS_TYPE(obj, __pyx_CyFunctionType)
 
 static PyObject *__Pyx_CyFunction_Init(__pyx_CyFunctionObject* op, PyMethodDef *ml,
                                       int flags, PyObject* qualname,
@@ -494,6 +496,7 @@ static PyObject *__Pyx_CyFunction_Init(__pyx_CyFunctionObject *op, PyMethodDef *
         break;
     default:
         PyErr_SetString(PyExc_SystemError, "Bad call flags for CyFunction");
+        Py_DECREF(op);
         return NULL;
     }
 #endif
@@ -649,7 +652,13 @@ static PyObject *__Pyx_CyFunction_CallAsMethod(PyObject *func, PyObject *args, P
     // CPython would normally use vectorcall directly instead of tp_call.
      __pyx_vectorcallfunc vc = __Pyx_CyFunction_func_vectorcall(cyfunc);
     if (vc) {
+#if CYTHON_ASSUME_SAFE_MACROS
         return __Pyx_PyVectorcall_FastCallDict(func, vc, &PyTuple_GET_ITEM(args, 0), PyTuple_GET_SIZE(args), kw);
+#else
+        // avoid unused function warning
+        (void) &__Pyx_PyVectorcall_FastCallDict;
+        return PyVectorcall_Call(func, args, kw);
+#endif
     }
 #endif
 
@@ -810,7 +819,7 @@ static PyType_Slot __pyx_CyFunctionType_slots[] = {
 };
 
 static PyType_Spec __pyx_CyFunctionType_spec = {
-    "cython_function_or_method",
+    __PYX_TYPE_MODULE_PREFIX "cython_function_or_method",
     sizeof(__pyx_CyFunctionObject),
     0,
     // TODO: Support _Py_TPFLAGS_HAVE_VECTORCALL and _Py_TPFLAGS_HAVE_VECTORCALL
@@ -820,7 +829,7 @@ static PyType_Spec __pyx_CyFunctionType_spec = {
 #else
 static PyTypeObject __pyx_CyFunctionType_type = {
     PyVarObject_HEAD_INIT(0, 0)
-    "cython_function_or_method",      /*tp_name*/
+    __PYX_TYPE_MODULE_PREFIX "cython_function_or_method",  /*tp_name*/
     sizeof(__pyx_CyFunctionObject),   /*tp_basicsize*/
     0,                                  /*tp_itemsize*/
     (destructor) __Pyx_CyFunction_dealloc, /*tp_dealloc*/
@@ -1226,7 +1235,7 @@ __pyx_FusedFunction_callfunction(PyObject *func, PyObject *args, PyObject *kw)
     int static_specialized = (cyfunc->flags & __Pyx_CYFUNCTION_STATICMETHOD &&
                               !((__pyx_FusedFunctionObject *) func)->__signatures__);
 
-    if (cyfunc->flags & __Pyx_CYFUNCTION_CCLASS && !static_specialized) {
+    if ((cyfunc->flags & __Pyx_CYFUNCTION_CCLASS) && !static_specialized) {
         return __Pyx_CyFunction_CallAsMethod(func, args, kw);
     } else {
         return __Pyx_CyFunction_Call(func, args, kw);
@@ -1334,7 +1343,7 @@ static PyType_Slot __pyx_FusedFunctionType_slots[] = {
 };
 
 static PyType_Spec __pyx_FusedFunctionType_spec = {
-    "fused_cython_function",
+    __PYX_TYPE_MODULE_PREFIX "fused_cython_function",
     sizeof(__pyx_FusedFunctionObject),
     0,
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE, /*tp_flags*/
@@ -1351,7 +1360,7 @@ static PyMappingMethods __pyx_FusedFunction_mapping_methods = {
 
 static PyTypeObject __pyx_FusedFunctionType_type = {
     PyVarObject_HEAD_INIT(0, 0)
-    "fused_cython_function",           /*tp_name*/
+    __PYX_TYPE_MODULE_PREFIX "fused_cython_function",  /*tp_name*/
     sizeof(__pyx_FusedFunctionObject), /*tp_basicsize*/
     0,                                  /*tp_itemsize*/
     (destructor) __pyx_FusedFunction_dealloc, /*tp_dealloc*/
@@ -1456,7 +1465,8 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
     // special C-API function only in Pyston and PyPy >= 5.9
     if (PyMethodDescr_Check(method))
 #else
-    // It appears that PyMethodDescr_Type is not exposed anywhere in the CPython C-API
+    #if PY_MAJOR_VERSION == 2
+    // PyMethodDescr_Type is not exposed in the CPython C-API in Py2.
     static PyTypeObject *methoddescr_type = NULL;
     if (unlikely(methoddescr_type == NULL)) {
        PyObject *meth = PyObject_GetAttrString((PyObject*)&PyList_Type, "append");
@@ -1464,6 +1474,9 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
        methoddescr_type = Py_TYPE(meth);
        Py_DECREF(meth);
     }
+    #else
+    PyTypeObject *methoddescr_type = &PyMethodDescr_Type;
+    #endif
     if (__Pyx_TypeCheck(method, methoddescr_type))
 #endif
     {
@@ -1481,16 +1494,7 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
         // python classes
         return PyClassMethod_New(PyMethod_GET_FUNCTION(method));
     }
-    else if (PyCFunction_Check(method)) {
+    else {
         return PyClassMethod_New(method);
     }
-#ifdef __Pyx_CyFunction_USED
-    else if (__Pyx_CyFunction_Check(method)) {
-        return PyClassMethod_New(method);
-    }
-#endif
-    PyErr_SetString(PyExc_TypeError,
-                   "Class-level classmethod() can only be called on "
-                   "a method_descriptor or instance method.");
-    return NULL;
 }
