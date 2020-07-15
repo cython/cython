@@ -324,7 +324,7 @@ class TestPrint(DebugTestCase):
         result = gdb.execute('cy print b', to_string=True)
         self.assertEqual('b = (int) 1\n', result)
         result = gdb.execute('cy print python_var', to_string=True)
-        self.assertEqual('python_var = (int) 13\n', result)
+        self.assertEqual('python_var = 13\n', result)
         result = gdb.execute('cy print c_var', to_string=True)
         self.assertEqual('c_var = (int) 12\n', result)
 
