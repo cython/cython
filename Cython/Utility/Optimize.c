@@ -35,7 +35,7 @@ static CYTHON_INLINE int __Pyx_PyList_Append(PyObject* list, PyObject* x) {
     if (likely(L->allocated > len) & likely(len > (L->allocated >> 1))) {
         Py_INCREF(x);
         PyList_SET_ITEM(list, len, x);
-        Py_SIZE(list) = len+1;
+        __Pyx_SET_SIZE(list, len + 1);
         return 0;
     }
     return PyList_Append(list, x);
@@ -53,7 +53,7 @@ static CYTHON_INLINE int __Pyx_ListComp_Append(PyObject* list, PyObject* x) {
     if (likely(L->allocated > len)) {
         Py_INCREF(x);
         PyList_SET_ITEM(list, len, x);
-        Py_SIZE(list) = len+1;
+        __Pyx_SET_SIZE(list, len + 1);
         return 0;
     }
     return PyList_Append(list, x);
@@ -94,7 +94,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyList_Pop(PyObject* L); /*proto*/
 //@requires: ObjectHandling.c::PyObjectCallMethod0
 
 static CYTHON_INLINE PyObject* __Pyx__PyObject_Pop(PyObject* L) {
-    if (Py_TYPE(L) == &PySet_Type) {
+    if (__Pyx_IS_TYPE(L, &PySet_Type)) {
         return PySet_Pop(L);
     }
     return __Pyx_PyObject_CallMethod0(L, PYIDENT("pop"));
@@ -104,7 +104,7 @@ static CYTHON_INLINE PyObject* __Pyx__PyObject_Pop(PyObject* L) {
 static CYTHON_INLINE PyObject* __Pyx_PyList_Pop(PyObject* L) {
     /* Check that both the size is positive and no reallocation shrinking needs to be done. */
     if (likely(PyList_GET_SIZE(L) > (((PyListObject*)L)->allocated >> 1))) {
-        Py_SIZE(L) -= 1;
+        __Pyx_SET_SIZE(L, Py_SIZE(L) - 1);
         return PyList_GET_ITEM(L, PyList_GET_SIZE(L));
     }
     return CALL_UNBOUND_METHOD(PyList_Type, "pop", L);
@@ -167,7 +167,7 @@ static PyObject* __Pyx__PyList_PopIndex(PyObject* L, PyObject* py_ix, Py_ssize_t
         }
         if (likely(__Pyx_is_valid_index(cix, size))) {
             PyObject* v = PyList_GET_ITEM(L, cix);
-            Py_SIZE(L) -= 1;
+            __Pyx_SET_SIZE(L, Py_SIZE(L) - 1);
             size -= 1;
             memmove(&PyList_GET_ITEM(L, cix), &PyList_GET_ITEM(L, cix+1), (size_t)(size-cix)*sizeof(PyObject*));
             return v;
@@ -596,19 +596,24 @@ static double __Pyx__PyObject_AsDouble(PyObject* obj); /* proto */
 #endif
 
 /////////////// pyobject_as_double ///////////////
+//@requires: ObjectHandling.c::PyObjectCallOneArg
 
 static double __Pyx__PyObject_AsDouble(PyObject* obj) {
     PyObject* float_value;
 #if !CYTHON_USE_TYPE_SLOTS
     float_value = PyNumber_Float(obj);  if ((0)) goto bad;
+    // avoid "unused" warnings
+    (void)__Pyx_PyObject_CallOneArg;
 #else
     PyNumberMethods *nb = Py_TYPE(obj)->tp_as_number;
     if (likely(nb) && likely(nb->nb_float)) {
         float_value = nb->nb_float(obj);
         if (likely(float_value) && unlikely(!PyFloat_Check(float_value))) {
+            __Pyx_TypeName float_value_type_name = __Pyx_PyType_GetName(Py_TYPE(float_value));
             PyErr_Format(PyExc_TypeError,
-                "__float__ returned non-float (type %.200s)",
-                Py_TYPE(float_value)->tp_name);
+                "__float__ returned non-float (type " __Pyx_FMT_TYPENAME ")",
+                float_value_type_name);
+            __Pyx_DECREF_TypeName(float_value_type_name);
             Py_DECREF(float_value);
             goto bad;
         }
@@ -619,12 +624,7 @@ static double __Pyx__PyObject_AsDouble(PyObject* obj) {
         float_value = PyFloat_FromString(obj, 0);
 #endif
     } else {
-        PyObject* args = PyTuple_New(1);
-        if (unlikely(!args)) goto bad;
-        PyTuple_SET_ITEM(args, 0, obj);
-        float_value = PyObject_Call((PyObject*)&PyFloat_Type, args, 0);
-        PyTuple_SET_ITEM(args, 0, 0);
-        Py_DECREF(args);
+        float_value = __Pyx_PyObject_CallOneArg((PyObject*)&PyFloat_Type, obj);
     }
 #endif
     if (likely(float_value)) {

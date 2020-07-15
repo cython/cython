@@ -54,9 +54,13 @@ f = 5.6
 i = 9
 
 
-def opt_func(fused_t obj, cython.floating myf = 1.2, cython.integral myi = 7):
+def opt_func(fused_t obj, cython.floating myf = 1.2, cython.integral myi = 7,
+             another_opt = 2, yet_another_opt=3):
     """
-    Test runtime dispatch, indexing of various kinds and optional arguments
+    Test runtime dispatch, indexing of various kinds and optional arguments.
+    Use 5 arguments because at one point the optional argument from the
+    5th argument was overwriting that of the __pyx_fused dispatcher.
+    https://github.com/cython/cython/issues/3511
 
     >>> opt_func("spam", f, i)
     str object double long
@@ -121,9 +125,9 @@ def opt_func(fused_t obj, cython.floating myf = 1.2, cython.integral myi = 7):
     >>> opt_func()
     Traceback (most recent call last):
     TypeError: Expected at least 1 argument, got 0
-    >>> opt_func("abc", f, i, 5)  # doctest: +ELLIPSIS
+    >>> opt_func("abc", f, i, 5, 5, 5)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: ...at most 3...
+    TypeError: ...at most 5...
     >>> opt_func[ExtClassA, cy.float, cy.long](object(), f)
     Traceback (most recent call last):
     TypeError: Argument 'obj' has incorrect type (expected fused_def.ExtClassA, got object)
@@ -139,7 +143,7 @@ def run_cyfunction_check():
     fused_cython_function
     1
     """
-    print(type(opt_func).__name__)
+    print(type(opt_func).__name__.rsplit('.', 1)[-1])
     print(__Pyx_CyFunction_Check(opt_func))  # should be True
 
 def test_opt_func():
@@ -154,19 +158,19 @@ def test_opt_func():
 def test_opt_func_introspection():
     """
     >>> opt_func.__defaults__
-    (1.2, 7)
+    (1.2, 7, 2, 3)
     >>> opt_func.__kwdefaults__
     >>> opt_func.__annotations__
     {}
 
     >>> opt_func[str, float, int].__defaults__
-    (1.2, 7)
+    (1.2, 7, 2, 3)
     >>> opt_func[str, float, int].__kwdefaults__
     >>> opt_func[str, float, int].__annotations__
     {}
 
     >>> opt_func[str, cy.double, cy.long].__defaults__
-    (1.2, 7)
+    (1.2, 7, 2, 3)
     >>> opt_func[str, cy.double, cy.long].__kwdefaults__
     >>> opt_func[str, cy.double, cy.long].__annotations__
     {}

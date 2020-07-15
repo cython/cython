@@ -168,7 +168,7 @@ def valid_memslice_dtype(dtype, i=0):
          valid_memslice_dtype(dtype.base_type, i + 1)) or
         dtype.is_numeric or
         dtype.is_pyobject or
-        dtype.is_fused or # accept this as it will be replaced by specializations later
+        dtype.is_fused or  # accept this as it will be replaced by specializations later
         (dtype.is_typedef and valid_memslice_dtype(dtype.typedef_base_type))
     )
 
@@ -292,7 +292,6 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
 
             dim += 1
             access, packing = self.type.axes[dim]
-            error_goto = code.error_goto(index.pos)
 
             if isinstance(index, ExprNodes.SliceNode):
                 # slice, unspecified dimension, or part of ellipsis
@@ -309,6 +308,7 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
                     util_name = "SimpleSlice"
                 else:
                     util_name = "ToughSlice"
+                    d['error_goto'] = code.error_goto(index.pos)
 
                 new_ndim += 1
             else:
@@ -326,8 +326,10 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
                 d = dict(
                     locals(),
                     wraparound=int(directives['wraparound']),
-                    boundscheck=int(directives['boundscheck'])
+                    boundscheck=int(directives['boundscheck']),
                 )
+                if d['boundscheck']:
+                    d['error_goto'] = code.error_goto(index.pos)
                 util_name = "SliceIndex"
 
             _, impl = TempitaUtilityCode.load_as_string(util_name, "MemoryView_C.c", context=d)
@@ -653,13 +655,13 @@ def is_cf_contig(specs):
         is_c_contig = True
 
     elif (specs[-1] == ('direct','contig') and
-          all(axis == ('direct','follow') for axis in specs[:-1])):
+            all(axis == ('direct','follow') for axis in specs[:-1])):
         # c_contiguous: 'follow', 'follow', ..., 'follow', 'contig'
         is_c_contig = True
 
     elif (len(specs) > 1 and
-        specs[0] == ('direct','contig') and
-        all(axis == ('direct','follow') for axis in specs[1:])):
+            specs[0] == ('direct','contig') and
+            all(axis == ('direct','follow') for axis in specs[1:])):
         # f_contiguous: 'contig', 'follow', 'follow', ..., 'follow'
         is_f_contig = True
 
@@ -808,7 +810,7 @@ context = {
     'memview_struct_name': memview_objstruct_cname,
     'max_dims': Options.buffer_max_dims,
     'memviewslice_name': memviewslice_cname,
-    'memslice_init': memslice_entry_init,
+    'memslice_init': PyrexTypes.MemoryViewSliceType.default_value,
 }
 memviewslice_declare_code = load_memview_c_utility(
         "MemviewSliceStruct",
@@ -834,7 +836,7 @@ overlapping_utility = load_memview_c_utility("OverlappingSlices", context)
 copy_contents_new_utility = load_memview_c_utility(
     "MemviewSliceCopyTemplate",
     context,
-    requires=[], # require cython_array_utility_code
+    requires=[],  # require cython_array_utility_code
 )
 
 view_utility_code = load_memview_cy_utility(

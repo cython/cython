@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+import struct
 
 # Tests buffer format string parsing.
 
@@ -404,6 +405,62 @@ def packed_struct_with_strings(fmt):
     """
     cdef object[PackedStructWithCharArrays] buf = MockBuffer(
         fmt, sizeof(PackedStructWithCharArrays))
+
+
+ctypedef struct PackedStructWithArrays:
+    double a[16]
+    double b[16]
+    double c
+
+ctypedef struct UnpackedStructWithArrays:
+    int a
+    float b[8]
+    float c
+    unsigned long long d
+    int e[5]
+    int f
+    int g
+    double h[4]
+    int i
+
+ctypedef struct PackedStructWithNDArrays:
+    double a
+    double b[2][2]
+    float c
+    float d
+
+
+@testcase
+def packed_struct_with_arrays(fmt):
+    """
+    >>> packed_struct_with_arrays("T{(16)d:a:(16)d:b:d:c:}")
+    """
+
+    cdef object[PackedStructWithArrays] buf = MockBuffer(
+        fmt, sizeof(PackedStructWithArrays))
+
+
+@testcase
+def unpacked_struct_with_arrays(fmt):
+    """
+    >>> if struct.calcsize('P') == 8:  # 64 bit
+    ...     unpacked_struct_with_arrays("T{i:a:(8)f:b:f:c:Q:d:(5)i:e:i:f:i:g:xxxx(4)d:h:i:i:}")
+    ... elif struct.calcsize('P') == 4:  # 32 bit
+    ...     unpacked_struct_with_arrays("T{i:a:(8)f:b:f:c:Q:d:(5)i:e:i:f:i:g:(4)d:h:i:i:}")
+    """
+
+    cdef object[UnpackedStructWithArrays] buf = MockBuffer(
+        fmt, sizeof(UnpackedStructWithArrays))
+
+
+@testcase
+def packed_struct_with_ndarrays(fmt):
+    """
+    >>> packed_struct_with_ndarrays("T{d:a:(2,2)d:b:f:c:f:d:}")
+    """
+
+    cdef object[PackedStructWithNDArrays] buf = MockBuffer(
+        fmt, sizeof(PackedStructWithNDArrays))
 
 
 # TODO: empty struct

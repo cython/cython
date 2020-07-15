@@ -320,7 +320,7 @@ class CythonBase(object):
 
             func_name = cyfunc.name
             func_cname = cyfunc.cname
-            func_args = [] # [(arg, f(arg)) for arg in cyfunc.arguments]
+            func_args = []  # [(arg, f(arg)) for arg in cyfunc.arguments]
         else:
             source_desc, lineno = self.get_source_desc(frame)
             func_name = frame.name()
@@ -1204,9 +1204,9 @@ class EvaluateOrExecuteCodeMixin(object):
         "Fill a remotely allocated dict with values from the Cython C stack"
         cython_func = self.get_cython_function()
 
-        for name, cyvar in cython_func.locals.items():
-            if (cyvar.type == PythonObject and
-                self.is_initialized(cython_func, name)):
+        for name, cyvar in cython_func.locals.iteritems():
+            if (cyvar.type == PythonObject
+                    and self.is_initialized(cython_func, name)):
 
                 try:
                     val = gdb.parse_and_eval(cyvar.cname)
@@ -1235,8 +1235,8 @@ class EvaluateOrExecuteCodeMixin(object):
     def _find_first_cython_or_python_frame(self):
         frame = gdb.selected_frame()
         while frame:
-            if (self.is_cython_function(frame) or
-                self.is_python_function(frame)):
+            if (self.is_cython_function(frame)
+                    or self.is_python_function(frame)):
                 frame.select()
                 return frame
 

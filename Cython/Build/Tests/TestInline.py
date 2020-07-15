@@ -1,4 +1,6 @@
-import os, tempfile
+import os
+import tempfile
+import unittest
 from Cython.Shadow import inline
 from Cython.Build.Inline import safe_type
 from Cython.TestUtils import CythonTest
@@ -85,12 +87,26 @@ class TestInline(CythonTest):
             inline(inline_divcode, language_level=3)['f'](5,2),
             2.5
         )
+        self.assertEqual(
+            inline(inline_divcode, language_level=2)['f'](5,2),
+            2
+        )
 
-    if has_numpy:
+    def test_repeated_use(self):
+        inline_mulcode = "def f(int a, int b): return a * b"
+        self.assertEqual(inline(inline_mulcode)['f'](5, 2), 10)
+        self.assertEqual(inline(inline_mulcode)['f'](5, 3), 15)
+        self.assertEqual(inline(inline_mulcode)['f'](6, 2), 12)
+        self.assertEqual(inline(inline_mulcode)['f'](5, 2), 10)
 
-        def test_numpy(self):
-            import numpy
-            a = numpy.ndarray((10, 20))
-            a[0,0] = 10
-            self.assertEqual(safe_type(a), 'numpy.ndarray[numpy.float64_t, ndim=2]')
-            self.assertEqual(inline("return a[0,0]", a=a, **self.test_kwds), 10.0)
+        f = inline(inline_mulcode)['f']
+        self.assertEqual(f(5, 2), 10)
+        self.assertEqual(f(5, 3), 15)
+
+    @unittest.skipIf(not has_numpy, "NumPy is not available")
+    def test_numpy(self):
+        import numpy
+        a = numpy.ndarray((10, 20))
+        a[0,0] = 10
+        self.assertEqual(safe_type(a), 'numpy.ndarray[numpy.float64_t, ndim=2]')
+        self.assertEqual(inline("return a[0,0]", a=a, **self.test_kwds), 10.0)

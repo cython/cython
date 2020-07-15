@@ -629,7 +629,7 @@ class PyCFunctionObjectPtr(PyObjectPtr):
     _typename = 'PyCFunctionObject'
 
     def proxyval(self, visited):
-        m_ml = self.field('m_ml') # m_ml is a (PyMethodDef*)
+        m_ml = self.field('m_ml')  # m_ml is a (PyMethodDef*)
         try:
             ml_name = m_ml['ml_name'].string()
         except UnicodeDecodeError:
@@ -1307,8 +1307,8 @@ class PyUnicodeObjectPtr(PyObjectPtr):
                     # If sizeof(Py_UNICODE) is 2 here (in gdb), join
                     # surrogate pairs before calling _unichr_is_printable.
                     if (i < len(proxy)
-                    and 0xD800 <= ord(ch) < 0xDC00 \
-                    and 0xDC00 <= ord(proxy[i]) <= 0xDFFF):
+                            and 0xD800 <= ord(ch) < 0xDC00
+                            and 0xDC00 <= ord(proxy[i]) <= 0xDFFF):
                         ch2 = proxy[i]
                         ucs = ch + ch2
                         i += 1

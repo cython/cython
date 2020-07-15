@@ -26,17 +26,18 @@ except ImportError:
 
 
 def _check_stack(path):
-  try:
-    for frame in inspect.getouterframes(inspect.currentframe(), 0):
-      if path in frame[1].replace(os.sep, '/'):
-        return True
-  except Exception:
-    pass
-  return False
+    try:
+        for frame in inspect.getouterframes(inspect.currentframe(), 0):
+            if path in frame[1].replace(os.sep, '/'):
+                return True
+    except Exception:
+        pass
+    return False
+
 
 if (not _check_stack('setuptools/extensions.py')
-    and not _check_stack('pyximport/pyxbuild.py')
-    and not _check_stack('Cython/Distutils/build_ext.py')):
+        and not _check_stack('pyximport/pyxbuild.py')
+        and not _check_stack('Cython/Distutils/build_ext.py')):
     warnings.warn(
         "Cython.Distutils.old_build_ext does not properly handle dependencies "
         "and is deprecated.")
@@ -84,9 +85,9 @@ class old_build_ext(_build_ext.build_ext):
     description = "build C/C++ and Cython extensions (compile/link to build directory)"
 
     sep_by = _build_ext.build_ext.sep_by
-    user_options = _build_ext.build_ext.user_options
-    boolean_options = _build_ext.build_ext.boolean_options
-    help_options = _build_ext.build_ext.help_options
+    user_options = _build_ext.build_ext.user_options[:]
+    boolean_options = _build_ext.build_ext.boolean_options[:]
+    help_options = _build_ext.build_ext.help_options[:]
 
     # Add the pyrex specific data.
     user_options.extend([
@@ -241,7 +242,7 @@ class old_build_ext(_build_ext.build_ext):
         includes = list(self.cython_include_dirs)
         try:
             for i in extension.cython_include_dirs:
-                if not i in includes:
+                if i not in includes:
                     includes.append(i)
         except AttributeError:
             pass
@@ -250,7 +251,7 @@ class old_build_ext(_build_ext.build_ext):
         # result
         extension.include_dirs = list(extension.include_dirs)
         for i in extension.include_dirs:
-            if not i in includes:
+            if i not in includes:
                 includes.append(i)
 
         # Set up Cython compiler directives:

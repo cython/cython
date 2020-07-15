@@ -19,11 +19,11 @@ static PyTypeObject *__pyx__PyAsyncGenASendType = 0;
 static PyTypeObject *__pyx__PyAsyncGenAThrowType = 0;
 static PyTypeObject *__pyx_AsyncGenType = 0;
 
-#define __Pyx_AsyncGen_CheckExact(obj) (Py_TYPE(obj) == __pyx_AsyncGenType)
+#define __Pyx_AsyncGen_CheckExact(obj) __Pyx_IS_TYPE(obj, __pyx_AsyncGenType)
 #define __pyx_PyAsyncGenASend_CheckExact(o) \
-                    (Py_TYPE(o) == __pyx__PyAsyncGenASendType)
+                    __Pyx_IS_TYPE(o, __pyx__PyAsyncGenASendType)
 #define __pyx_PyAsyncGenAThrow_CheckExact(o) \
-                    (Py_TYPE(o) == __pyx__PyAsyncGenAThrowType)
+                    __Pyx_IS_TYPE(o, __pyx__PyAsyncGenAThrowType)
 
 static PyObject *__Pyx_async_gen_anext(PyObject *o);
 static CYTHON_INLINE PyObject *__Pyx_async_gen_asend_iternext(PyObject *o);
@@ -182,7 +182,7 @@ static __pyx_PyAsyncGenASend *__Pyx_ag_asend_freelist[_PyAsyncGen_MAXFREELIST];
 static int __Pyx_ag_asend_freelist_free = 0;
 
 #define __pyx__PyAsyncGenWrappedValue_CheckExact(o) \
-                    (Py_TYPE(o) == __pyx__PyAsyncGenWrappedValueType)
+                    __Pyx_IS_TYPE(o, __pyx__PyAsyncGenWrappedValueType)
 
 
 static int
@@ -429,7 +429,10 @@ static PyTypeObject __pyx_AsyncGenType_type = {
     0,                                          /*tp_vectorcall*/
 #endif
 #if PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000
-    0,                                          /*tp_vectorcall_offset*/
+    0,                                          /*tp_print*/
+#endif
+#if CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM+0 >= 0x06000000
+    0,                                          /*tp_pypy_flags*/
 #endif
 };
 
@@ -449,7 +452,7 @@ __Pyx_PyAsyncGen_ClearFreeLists(void)
     while (__Pyx_ag_asend_freelist_free) {
         __pyx_PyAsyncGenASend *o;
         o = __Pyx_ag_asend_freelist[--__Pyx_ag_asend_freelist_free];
-        assert(Py_TYPE(o) == __pyx__PyAsyncGenASendType);
+        assert(__Pyx_IS_TYPE(o, __pyx__PyAsyncGenASendType));
         PyObject_GC_Del(o);
     }
 
@@ -674,7 +677,10 @@ static PyTypeObject __pyx__PyAsyncGenASendType_type = {
     0,                                          /*tp_vectorcall*/
 #endif
 #if PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000
-    0,                                          /*tp_vectorcall_offset*/
+    0,                                          /*tp_print*/
+#endif
+#if CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM+0 >= 0x06000000
+    0,                                          /*tp_pypy_flags*/
 #endif
 };
 
@@ -789,7 +795,10 @@ static PyTypeObject __pyx__PyAsyncGenWrappedValueType_type = {
     0,                                          /*tp_vectorcall*/
 #endif
 #if PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000
-    0,                                          /*tp_vectorcall_offset*/
+    0,                                          /*tp_print*/
+#endif
+#if CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM+0 >= 0x06000000
+    0,                                          /*tp_pypy_flags*/
 #endif
 };
 
@@ -929,7 +938,7 @@ __Pyx_async_gen_athrow_send(__pyx_PyAsyncGenAThrow *o, PyObject *arg)
     } else {
         /* aclose() mode */
         if (retval) {
-            if (__pyx__PyAsyncGenWrappedValue_CheckExact(retval)) {
+            if (unlikely(__pyx__PyAsyncGenWrappedValue_CheckExact(retval))) {
                 Py_DECREF(retval);
                 goto yield_close;
             }
@@ -983,7 +992,7 @@ __Pyx_async_gen_athrow_throw(__pyx_PyAsyncGenAThrow *o, PyObject *args)
     } else {
         // aclose() mode
         PyObject *exc_type;
-        if (retval && __pyx__PyAsyncGenWrappedValue_CheckExact(retval)) {
+        if (unlikely(retval && __pyx__PyAsyncGenWrappedValue_CheckExact(retval))) {
             o->agt_gen->ag_running_async = 0;
             o->agt_state = __PYX_AWAITABLE_STATE_CLOSED;
             Py_DECREF(retval);
@@ -1102,7 +1111,10 @@ static PyTypeObject __pyx__PyAsyncGenAThrowType_type = {
     0,                                          /*tp_vectorcall*/
 #endif
 #if PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000
-    0,                                          /*tp_vectorcall_offset*/
+    0,                                          /*tp_print*/
+#endif
+#if CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM+0 >= 0x06000000
+    0,                                          /*tp_pypy_flags*/
 #endif
 };
 

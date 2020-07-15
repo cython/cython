@@ -8,7 +8,7 @@ def backup_Options():
     for name, value in vars(Options).items():
         # we need a deep copy of _directive_defaults, because they can be changed
         if name == '_directive_defaults':
-           value = copy.deepcopy(value)
+            value = copy.deepcopy(value)
         backup[name] = value
     return backup
 
