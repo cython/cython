@@ -29,7 +29,7 @@ class NonManglingModuleScope(Symtab.ModuleScope):
             return Symtab.ModuleScope.mangle(self, prefix)
 
     def global_scope(self, outermost=False):
-        if outermost and self.outer_scope:
+        if outermost and self.outer_scope and not self.outer_scope.is_builtin_scope:
             return self.outer_scope.global_scope(outermost)
         return super(NonManglingModuleScope, self).global_scope()
 
