@@ -3220,7 +3220,7 @@ class CFuncType(CType):
             return False
         from .UtilityCode import CythonUtilityCode
         safe_typename = re.sub('[^a-zA-Z0-9]', '__', self.declaration_code("", pyrex=1))
-        to_py_function = "__Pyx_CFunc_%s_to_py" % safe_typename
+        to_py_function = env.next_id("__Pyx_CFunc_%s_to_py" % safe_typename)
 
         for arg in self.args:
             if not arg.type.is_pyobject and not arg.type.create_from_py_utility_code(env):

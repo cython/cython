@@ -28,6 +28,11 @@ class NonManglingModuleScope(Symtab.ModuleScope):
         else:
             return Symtab.ModuleScope.mangle(self, prefix)
 
+    def global_scope(self, outermost=False):
+        if outermost and self.outer_scope:
+            return self.outer_scope.global_scope(outermost)
+        return super(NonManglingModuleScope, self).global_scope()
+
 
 class CythonUtilityCodeContext(StringParseContext):
     scope = None
