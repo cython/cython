@@ -2600,8 +2600,8 @@ class CArrayType(CPointerBaseType):
             return False
 
         safe_typename = self.base_type.specialization_name()
-        to_py_function = "__Pyx_carray_to_py_%s" % safe_typename
-        to_tuple_function = "__Pyx_carray_to_tuple_%s" % safe_typename
+        to_py_function = env.next_id("__Pyx_carray_to_py_%s" % safe_typename)
+        to_tuple_function = env.next_id("__Pyx_carray_to_tuple_%s" % safe_typename)
 
         from .UtilityCode import CythonUtilityCode
         context = {

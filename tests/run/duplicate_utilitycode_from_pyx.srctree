@@ -1,7 +1,7 @@
 
 
 PYTHON setup.py build_ext --inplace
-PYTHON -c "import modb; ClassB()"
+PYTHON -c "import modb; modb.ClassB()"
 
 #################### moda.pyx ####################
 

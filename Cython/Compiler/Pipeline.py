@@ -297,6 +297,7 @@ def create_pyx_as_pxd_pipeline(context, result):
                 if entry.name == entry.cname and entry.visibility != 'extern':
                     # Always mangle non-extern cimported entries.
                     entry.cname = entry.scope.mangle(Naming.func_prefix, entry.name)
+        root.scope.utility_code_list = []  # don't generate utility code for cimported modules
         return StatListNode(root.pos, stats=[]), root.scope
     pipeline.append(fake_pxd)
     return pipeline
