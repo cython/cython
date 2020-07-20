@@ -2843,7 +2843,7 @@ class IteratorNode(ExprNode):
         ExprNode.free_temps(self, code)
 
 
-class CppIteratorNode(IteratorNode):
+class CppIteratorNode(ExprNode):
     # Iteration over a C++ container.
     # Created at the analyse_types stage by IteratorNode
     cpp_sequence_cname = None
