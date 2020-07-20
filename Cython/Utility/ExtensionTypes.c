@@ -343,7 +343,7 @@ __PYX_GOOD:
 
 static CYTHON_INLINE PyObject *{{func_name}}_maybe_call_slot(PyTypeObject* type, PyObject *left, PyObject *right {{extra_arg_decl}}) {
     {{slot_type}} slot;
-#if !CYTHON_COMPILING_IN_LIMITED_API
+#if CYTHON_USE_TYPE_SLOTS || PY_MAJOR_VERSION < 3 || CYTHON_COMPILING_IN_PYPY
     slot = type->tp_as_number ? type->tp_as_number->{{slot_name}} : NULL;
 #else
     slot = ({{slot_type}}) PyType_GetSlot(type, Py_{{slot_name}});

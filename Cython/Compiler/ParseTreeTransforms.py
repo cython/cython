@@ -992,12 +992,7 @@ class InterpretCompilerDirectives(CythonTransform):
             return self.visit_Node(node)
 
         old_directives = self.directives
-        new_directives = dict(old_directives)
-        # test_assert_path_exists and test_fail_if_path_exists should not be inherited
-        # otherwise they can produce very misleading test failures
-        new_directives.pop('test_assert_path_exists', None)
-        new_directives.pop('test_fail_if_path_exists', None)
-        new_directives.update(directives)
+        new_directives = Options.copy_inherited_directives(old_directives, **directives)
 
         if new_directives == old_directives:
             return self.visit_Node(node)
