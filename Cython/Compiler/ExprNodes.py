@@ -2850,6 +2850,8 @@ class CppIteratorNode(ExprNode):
     cpp_attribute_op = "."
     is_temp = True
 
+    subexprs = ['sequence']
+
     def analyse_types(self, env):
         sequence_type = self.sequence.type
         if sequence_type.is_ptr:
