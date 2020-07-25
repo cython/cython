@@ -295,7 +295,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         api_extension_types = api_entries(env.c_class_entries)
         if api_vars or api_funcs or api_extension_types:
             result.api_file = replace_suffix_encoded(result.c_file, "_api.h")
-            h_code = Code.CCodeWriter(source_desc=self.compilation_source.source_desc)
+            h_code = Code.CCodeWriter()
             c_code_config = generate_c_code_config(env, options)
             Code.GlobalState(h_code, self, c_code_config)
             h_code.put_generated_by()
