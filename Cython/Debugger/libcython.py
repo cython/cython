@@ -238,7 +238,9 @@ class CythonBase(object):
         filename = lineno = lexer = None
         if self.is_cython_function(frame):
             filename = self.get_cython_function(frame).module.filename
-            lineno = self.get_cython_lineno(frame)
+            filename_and_lineno = self.get_cython_lineno(frame)
+            assert filename == filename_and_lineno[0]
+            lineno = filename_and_lineno[1]
             if pygments:
                 lexer = pygments.lexers.CythonLexer(stripall=False)
         elif self.is_python_function(frame):
@@ -396,7 +398,7 @@ class CythonBase(object):
 
     def is_initialized(self, cython_func, local_name):
         cyvar = cython_func.locals[local_name]
-        cur_lineno = self.get_cython_lineno()
+        cur_lineno = self.get_cython_lineno()[1]
 
         if '->' in cyvar.cname:
             # Closed over free variable
@@ -730,10 +732,11 @@ class CyImport(CythonCommand):
 
                 for marker in module.find('LineNumberMapping'):
                     cython_lineno = int(marker.attrib['cython_lineno'])
+                    cython_fp = marker.attrib['cython_fp']
                     c_linenos = list(map(int, marker.attrib['c_linenos'].split()))
-                    cython_module.lineno_cy2c[cython_lineno] = min(c_linenos)
+                    cython_module.lineno_cy2c[cython_fp, cython_lineno] = min(c_linenos)
                     for c_lineno in c_linenos:
-                        cython_module.lineno_c2cy[c_lineno] = cython_lineno
+                        cython_module.lineno_c2cy[c_lineno] = (cython_fp, cython_lineno)
 
 
 class CyBreak(CythonCommand):
@@ -771,8 +774,8 @@ class CyBreak(CythonCommand):
         else:
             cython_module = self.get_cython_function().module
 
-        if lineno in cython_module.lineno_cy2c:
-            c_lineno = cython_module.lineno_cy2c[lineno]
+        if (cython_module.filename, lineno) in cython_module.lineno_cy2c:
+            c_lineno = cython_module.lineno_cy2c[cython_module.filename, lineno]
             breakpoint = '%s:%s' % (cython_module.c_filename, c_lineno)
             gdb.execute('break ' + breakpoint)
         else:
@@ -892,7 +895,7 @@ class CythonInfo(CythonBase, libpython.PythonInfo):
         # stepping through Python code, but it would not step back into Cython-
         # related code. The C level should be dispatched to the 'step' command.
         if self.is_cython_function(frame):
-            return self.get_cython_lineno(frame)
+            return self.get_cython_lineno(frame)[1]
         return super(CythonInfo, self).lineno(frame)
 
     def get_source_line(self, frame):
@@ -1416,7 +1419,7 @@ class CyLine(gdb.Function, CythonBase):
     @libpython.dont_suppress_errors
     @require_cython_frame
     def invoke(self):
-        return self.get_cython_lineno()
+        return self.get_cython_lineno()[1]
 
 
 class CyEval(gdb.Function, CythonBase, EvaluateOrExecuteCodeMixin):

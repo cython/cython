@@ -401,7 +401,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             show_entire_c_code = Options.annotate == "fullc" or options.annotate == "fullc"
             rootwriter = Annotate.AnnotationCCodeWriter(show_entire_c_code=show_entire_c_code, source_desc=self.compilation_source.source_desc)
         else:
-            rootwriter = Code.CCodeWriter(source_desc=self.compilation_source.source_desc)
+            rootwriter = Code.CCodeWriter()
 
         c_code_config = generate_c_code_config(env, options)
 
@@ -528,16 +528,19 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         markers = ccodewriter.buffer.allmarkers()
 
         d = defaultdict(list)
-        for c_lineno, cython_lineno in enumerate(markers):
-            if cython_lineno > 0:
-                d[cython_lineno].append(c_lineno + 1)
+        for c_lineno, cython_tup in enumerate(markers):
+            cython_fp = cython_tup[0]
+            cython_lineno = cython_tup[1]
+            if cython_lineno > 0 and cython_fp.filename is not None:
+                d[cython_fp, cython_lineno].append(c_lineno + 1)
 
         tb.start('LineNumberMapping')
-        for cython_lineno, c_linenos in sorted(d.items()):
+        for cython_pos, c_linenos in sorted(d.items()):
             tb.add_entry(
                 'LineNumber',
                 c_linenos=' '.join(map(str, c_linenos)),
-                cython_lineno=str(cython_lineno),
+                cython_fp=cython_pos[0].filename,
+                cython_lineno=str(cython_pos[1]),
             )
         tb.end('LineNumberMapping')
         tb.serialize()

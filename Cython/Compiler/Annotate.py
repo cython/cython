@@ -27,7 +27,7 @@ class AnnotationCCodeWriter(CCodeWriter):
     COMPLETE_CODE_TITLE = "Complete cythonized code"
 
     def __init__(self, create_from=None, buffer=None, copy_formatting=True, show_entire_c_code=False, source_desc=None):
-        CCodeWriter.__init__(self, create_from, buffer, copy_formatting=copy_formatting, source_desc=source_desc)
+        CCodeWriter.__init__(self, create_from, buffer, copy_formatting=copy_formatting)
         self.show_entire_c_code = show_entire_c_code
         if create_from is None:
             self.annotation_buffer = StringIO()
