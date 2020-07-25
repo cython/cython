@@ -187,7 +187,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         h_extension_types = h_entries(env.c_class_entries)
         if h_types or h_vars or h_funcs or h_extension_types:
             result.h_file = replace_suffix_encoded(result.c_file, ".h")
-            h_code = Code.CCodeWriter(source_desc=self.compilation_source.source_desc)
+            h_code = Code.CCodeWriter()
             c_code_config = generate_c_code_config(env, options)
             Code.GlobalState(h_code, self, c_code_config)
             if options.generate_pxi:
