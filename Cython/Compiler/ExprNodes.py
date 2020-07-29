@@ -10346,7 +10346,10 @@ class DereferenceNode(CUnopNode):
 
     def analyse_c_operation(self, env):
         if self.operand.type.is_ptr:
-            self.type = PyrexTypes.CReferenceType(self.operand.type.base_type)
+            if env.is_cpp:
+                self.type = PyrexTypes.CReferenceType(self.operand.type.base_type)
+            else:
+                self.type = self.operand.type.base_type
         else:
             self.type_error()
 
