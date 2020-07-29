@@ -2,7 +2,7 @@
 Cython Changelog
 ================
 
-3.0.0 alpha 6 (2020-0?-??)
+3.0.0 alpha 6 (2020-07-29)
 ==========================
 
 Features added
@@ -28,9 +28,12 @@ Features added
 * For-in-loop iteration over ``bytearray`` and memory views is optimised.
   Patch by David Woods.  (Github issue #2227)
 
+* Type inference now works for memory views and slices.
+  Patch by David Woods.  (Github issue #2227)
+
 * The ``@returns()`` decorator propagates exceptions by default for suitable C
   return types when no ``@exceptval()`` is defined.
-  (Github issue #3664)
+  (Github issues #3625, #3664)
 
 * A low-level inline function ``total_seconds(timedelta)`` was added to
   ``cpython.datetime`` to bypass the Python method call.  Note that this function
@@ -39,13 +42,28 @@ Features added
 
 * Type inference now understands that ``a, *b = x`` assigns a list to ``b``.
 
+* Limited API support was improved.
+  Patches by Matthias Braun.  (Github issues #3693, #3707)
+
+* The Cython ``CodeWriter`` can now handle more syntax constructs.
+  Patch by Tao He.  (Github issue #3514)
+
 Bugs fixed
 ----------
+
+* The construct ``for x in cpp_function_call()`` failed to compile.
+  Patch by David Woods.  (Github issue #3663)
+
+* C++ references failed to compile when used as Python object indexes.
+  Patch by David Woods.  (Github issue #3754)
 
 * The C++ ``typeid()`` function was allowed in C mode.
   Patch by Celelibi.  (Github issue #3637)
 
-* Includes all bug-fixes from the 0.29.20 release.
+* ``repr()`` was assumed to return ``str`` instead of ``unicode`` with ``language_level=3``.
+  (Github issue #3736)
+
+* Includes all bug-fixes from the 0.29.21 release.
 
 Other changes
 -------------
