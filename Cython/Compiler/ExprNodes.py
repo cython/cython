@@ -3739,6 +3739,8 @@ class IndexNode(_IndexingBaseNode):
         if not base_type.is_cfunction:
             self.index = self.index.analyse_types(env)
             self.original_index_type = self.index.type
+            if self.original_index_type.is_reference:
+                self.original_index_type = self.original_index_type.ref_base_type
 
             if base_type.is_unicode_char:
                 # we infer Py_UNICODE/Py_UCS4 for unicode strings in some
