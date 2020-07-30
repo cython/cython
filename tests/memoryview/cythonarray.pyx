@@ -209,3 +209,11 @@ def test_cyarray_from_carray():
 
     mslice = a
     print mslice[0, 0], mslice[1, 0], mslice[2, 5]
+
+class InheritFrom(v.array):
+    """
+    Test is just to confirm it works, not to do anything meaningful with it
+    (Be aware that itemsize isn't necessarily right)
+    >>> inst = InheritFrom(shape=(3, 3, 3), itemsize=4, format="i")
+    """
+    pass

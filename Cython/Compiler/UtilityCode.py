@@ -131,7 +131,7 @@ class CythonUtilityCode(Code.UtilityCodeBase):
             p = []
             for t in pipeline:
                 p.append(t)
-                if isinstance(p, ParseTreeTransforms.AnalyseDeclarationsTransform):
+                if isinstance(t, ParseTreeTransforms.AnalyseDeclarationsTransform):
                     break
 
             pipeline = p
@@ -196,7 +196,7 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         Load a utility code as a string. Returns (proto, implementation)
         """
         util = cls.load(util_code_name, from_file, **kwargs)
-        return util.proto, util.impl # keep line numbers => no lstrip()
+        return util.proto, util.impl  # keep line numbers => no lstrip()
 
     def declare_in_scope(self, dest_scope, used=False, cython_scope=None,
                          whitelist=None):

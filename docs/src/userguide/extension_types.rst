@@ -327,7 +327,8 @@ when it is deleted.::
 Subclassing
 =============
 
-An extension type may inherit from a built-in type or another extension type::
+If an extension type inherits from other types, the first base class must be
+a built-in type or another extension type::
 
     cdef class Parrot:
         ...
@@ -342,7 +343,9 @@ extern extension type. If the base type is defined in another Cython module, it
 must either be declared as an extern extension type or imported using the
 :keyword:`cimport` statement.
 
-An extension type can only have one base class (no multiple inheritance).
+Multiple inheritance is supported, however the second and subsequent base 
+classes must be an ordinary Python class (not an extension type or a built-in
+type).
 
 Cython extension types can also be subclassed in Python. A Python class can
 inherit from multiple extension types provided that the usual Python rules for
@@ -894,8 +897,7 @@ write ``dtype.itemsize`` in Cython code which will be compiled into direct
 access of the C struct field, without going through a C-API equivalent of
 ``dtype.__getattr__('itemsize')``.
 
-For example we may have an extension
-module ``foo_extension``::
+For example, we may have an extension module ``foo_extension``::
 
     cdef class Foo:
         cdef public int field0, field1, field2;
@@ -956,6 +958,18 @@ the FooStructNominal fields. This is useful when directly processing Python
 code. No changes to Python need be made to achieve significant speedups, even
 though the field names in Python and C are different. Of course, one should
 make sure the fields are equivalent.
+
+C inline properties
+-------------------
+
+Similar to Python property attributes, Cython provides a way to declare C-level
+properties on external extension types.  This is often used to shadow Python
+attributes through faster C level data access, but can also be used to add certain
+functionality to existing types when using them from Cython.
+
+For example, the above ``complex`` type could also be declared like this:
+
+.. literalinclude:: ../../examples/userguide/extension_types/c_property.pyx
 
 Implicit importing
 ------------------

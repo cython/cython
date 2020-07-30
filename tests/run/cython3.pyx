@@ -30,6 +30,18 @@ def locals_function(a, b=2):
     return locals()
 
 
+### "new style" classes
+
+class T:
+    """
+    >>> t = T()
+    >>> isinstance(t, T)
+    True
+    >>> isinstance(T, type)  # not a Py2 old style class!
+    True
+    """
+
+
 ### true division
 
 def truediv(x):
@@ -256,6 +268,32 @@ def except_as_deletes_target_in_gen(x, a):
         yield (5, b)
     except UnboundLocalError:
         yield 6
+
+
+def nested_except_gh3666(a=False, b=False):
+    """
+    >>> print(nested_except_gh3666())
+    A
+    >>> print(nested_except_gh3666(a=True))
+    B-V
+    >>> print(nested_except_gh3666(a=True, b=True))
+    B-V-T
+    """
+    try:
+        if a:
+            raise ValueError
+        return "A"
+    except TypeError as exc:
+        return "A-T"
+    except ValueError as exc:
+        try:
+            if b:
+                raise TypeError
+            return "B-V"
+        except ValueError as exc:
+            return "B-V-V"
+        except TypeError as exc:
+            return "B-V-T"
 
 
 ### Py3 feature tests
@@ -578,15 +616,15 @@ def annotation_syntax(a: "test new test", b : "other" = 2, *args: "ARGS", **kwar
     >>> len(annotation_syntax.__annotations__)
     5
     >>> print(annotation_syntax.__annotations__['a'])
-    test new test
+    u'test new test'
     >>> print(annotation_syntax.__annotations__['b'])
-    other
+    u'other'
     >>> print(annotation_syntax.__annotations__['args'])
-    ARGS
+    u'ARGS'
     >>> print(annotation_syntax.__annotations__['kwargs'])
-    KWARGS
+    u'KWARGS'
     >>> print(annotation_syntax.__annotations__['return'])
-    ret
+    u'ret'
     """
     result : int = a + b
 
@@ -610,9 +648,17 @@ async def async_def_annotations(x: 'int') -> 'float':
     >>> ret, arg = sorted(async_def_annotations.__annotations__.items())
     >>> print(ret[0]); print(ret[1])
     return
-    float
+    u'float'
     >>> print(arg[0]); print(arg[1])
     x
-    int
+    u'int'
     """
     return float(x)
+
+
+def repr_returns_str(x) -> str:
+    """
+    >>> repr_returns_str(123)
+    '123'
+    """
+    return repr(x)

@@ -240,6 +240,7 @@ cdef vector[vector_int_ptr] create_to_delete() except *:
 cdef int f(int x):
     return x
 
+
 def test_nested_del():
     """
     >>> test_nested_del()
@@ -247,4 +248,16 @@ def test_nested_del():
     cdef vector[vector_int_ptr] v
     v.push_back(new vector[int]())
     del v[0]
+    del create_to_delete()[f(f(0))]
+
+
+def test_nested_del_repeat():
+    """
+    >>> test_nested_del_repeat()
+    """
+    cdef vector[vector_int_ptr] v
+    v.push_back(new vector[int]())
+    del v[0]
+    del create_to_delete()[f(f(0))]
+    del create_to_delete()[f(f(0))]
     del create_to_delete()[f(f(0))]
