@@ -393,8 +393,8 @@ cdef extern from "numpy/arrayobject.h":
     npy_intp PyArray_STRIDE(ndarray, size_t) nogil
 
     PyObject *PyArray_BASE(ndarray) nogil  # returns borrowed reference!
-    PyArray_Descr *PyArray_DESCR(ndarray) nogil # returns borrowed reference to dtype!
-    PyArray_Descr *PyArray_DTYPE(ndarray) nogil # returns borrowed reference to dtype! NP 1.7+ alias for descr.
+    PyArray_Descr *PyArray_DESCR(ndarray) nogil  # returns borrowed reference to dtype!
+    PyArray_Descr *PyArray_DTYPE(ndarray) nogil  # returns borrowed reference to dtype! NP 1.7+ alias for descr.
     int PyArray_FLAGS(ndarray) nogil
     void PyArray_CLEARFLAGS(ndarray, int flags) nogil  # Added in NumPy 1.7
     void PyArray_ENABLEFLAGS(ndarray, int flags) nogil  # Added in NumPy 1.7
@@ -642,7 +642,7 @@ cdef extern from "numpy/arrayobject.h":
     object PyArray_Choose (ndarray, object, ndarray, NPY_CLIPMODE)
     int PyArray_Sort (ndarray, int, NPY_SORTKIND)
     object PyArray_ArgSort (ndarray, int, NPY_SORTKIND)
-    object PyArray_SearchSorted (ndarray, object, NPY_SEARCHSIDE, PyObject*)
+    object PyArray_SearchSorted (ndarray, object, NPY_SEARCHSIDE, PyObject *)
     object PyArray_ArgMax (ndarray, int, ndarray)
     object PyArray_ArgMin (ndarray, int, ndarray)
     object PyArray_Reshape (ndarray, object)
@@ -1049,9 +1049,11 @@ cdef inline int import_ufunc() except -1:
 cdef inline bint is_timedelta64_object(object obj):
     """
     Cython equivalent of `isinstance(obj, np.timedelta64)`
+
     Parameters
     ----------
     obj : object
+
     Returns
     -------
     bool
@@ -1062,9 +1064,11 @@ cdef inline bint is_timedelta64_object(object obj):
 cdef inline bint is_datetime64_object(object obj):
     """
     Cython equivalent of `isinstance(obj, np.datetime64)`
+
     Parameters
     ----------
     obj : object
+
     Returns
     -------
     bool
@@ -1075,6 +1079,7 @@ cdef inline bint is_datetime64_object(object obj):
 cdef inline npy_datetime get_datetime64_value(object obj) nogil:
     """
     returns the int64 value underlying scalar numpy datetime64 object
+
     Note that to interpret this as a datetime, the corresponding unit is
     also needed.  That can be found using `get_datetime64_unit`.
     """
