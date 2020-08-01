@@ -2,6 +2,18 @@
 Cython Changelog
 ================
 
+3.0.0 alpha 7 (2020-0?-??)
+==========================
+
+Features added
+--------------
+
+* The type ``cython.Py_hash_t`` is available in Python mode.
+
+Bugs fixed
+----------
+
+
 3.0.0 alpha 6 (2020-07-31)
 ==========================
 
