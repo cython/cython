@@ -1,5 +1,9 @@
 # NumPy static imports for Cython
 #
+# NOTE: Do not make incompatible local changes to this file without contacting the NumPy project.
+# This file is maintained by the NumPy project at
+# https://github.com/numpy/numpy/tree/master/numpy
+#
 # If any of the PyArray_* functions are called, import_array must be
 # called first.  This is done automatically by Cython 3.0+ if a call
 # is not detected inside of the module.
