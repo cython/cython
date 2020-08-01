@@ -1,26 +1,14 @@
 # NumPy static imports for Cython
 #
 # If any of the PyArray_* functions are called, import_array must be
-# called first.
-#
-# This also defines backwards-compatibility buffer acquisition
-# code for use in Python 2.x (or Python <= 2.5 when NumPy starts
-# implementing PEP-3118 directly).
-#
-# Because of laziness, the format string of the buffer is statically
-# allocated. Increase the size if this is not enough, or submit a
-# patch to do this properly.
+# called first.  This is done automatically by Cython 3.0+ if a call
+# is not detected inside of the module.
 #
 # Author: Dag Sverre Seljebotn
 #
 
-DEF _buffer_format_string_len = 255
-
-cimport cpython.buffer as pybuf
 from cpython.ref cimport Py_INCREF
-from cpython.mem cimport PyObject_Malloc, PyObject_Free
 from cpython.object cimport PyObject, PyTypeObject, PyObject_TypeCheck
-from cpython.type cimport type
 cimport libc.stdio as stdio
 
 
