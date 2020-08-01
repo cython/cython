@@ -241,7 +241,7 @@ def update_numpy_extension(ext, set_api17_macro=True):
 
     ext.include_dirs.append(numpy.get_include())
 
-    if set_api17_macro:
+    if set_api17_macro and getattr(numpy, '__version__', '') not in ('1.19.0', '1.19.1'):
         ext.define_macros.append(('NPY_NO_DEPRECATED_API', 'NPY_1_7_API_VERSION'))
 
     # We need the npymath library for numpy.math.
