@@ -1,5 +1,7 @@
 # mode: run
 
+# Test the behaviour of memoryview slicing and indexing, contiguity, etc.
+
 # Note: see also bufaccess.pyx
 
 from __future__ import unicode_literals
