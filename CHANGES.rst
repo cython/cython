@@ -299,7 +299,7 @@ Features added
 * Reimports of already imported modules are substantially faster.
   (Github issue #2854)
 
-* Positional-only arguments are supported in Python functions.
+* Positional-only arguments are supported in Python functions (PEP-570).
   Patch by Josh Tobin.  (Github issue #2915)
 
 * The ``volatile`` C modifier is supported in Cython code.
