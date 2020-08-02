@@ -5150,9 +5150,13 @@ class CClassDefNode(ClassDefNode):
                 code.put_gotref(trial_type, py_object_type)
                 code.putln("if (((PyTypeObject*) %s)->tp_base != %s) {" % (
                     trial_type, first_base))
-                code.putln("PyErr_Format(PyExc_TypeError, \"best base '%s' must be equal to first base '%s'\",")
-                code.putln("             ((PyTypeObject*) %s)->tp_base->tp_name, %s->tp_name);" % (
-                           trial_type, first_base))
+                code.putln("__Pyx_TypeName base_name = __Pyx_PyType_GetName(((PyTypeObject*) %s)->tp_base);" % trial_type)
+                code.putln("__Pyx_TypeName type_name = __Pyx_PyType_GetName(%s);" % first_base)
+                code.putln("PyErr_Format(PyExc_TypeError, "
+                    "\"best base '\" __Pyx_FMT_TYPENAME \"' must be equal to first base '\" __Pyx_FMT_TYPENAME \"'\",")
+                code.putln("             base_name, type_name);")
+                code.putln("__Pyx_DECREF_TypeName(base_name);")
+                code.putln("__Pyx_DECREF_TypeName(type_name);")
                 code.putln(code.error_goto(self.pos))
                 code.putln("}")
                 code.funcstate.release_temp(trial_type)
@@ -5179,9 +5183,9 @@ class CClassDefNode(ClassDefNode):
             return
         if entry.visibility != 'extern':
             code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-            tuple_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
             base_type = scope.parent_type.base_type
             if base_type:
+                tuple_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
                 code.putln(
                     "%s = PyTuple_Pack(1, (PyObject *)%s); %s" % (
                     tuple_temp,
@@ -6240,6 +6244,7 @@ class DelStatNode(StatNode):
                 arg.generate_evaluation_code(code)
                 code.putln("delete %s;" % arg.result())
                 arg.generate_disposal_code(code)
+                arg.free_temps(code)
             # else error reported earlier
 
     def annotate(self, code):
@@ -6760,6 +6765,8 @@ class SwitchStatNode(StatNode):
             # generate the switch statement, so shouldn't be bothered).
             code.putln("default: break;")
         code.putln("}")
+        self.test.generate_disposal_code(code)
+        self.test.free_temps(code)
 
     def generate_function_definitions(self, env, code):
         self.test.generate_function_definitions(env, code)
@@ -8046,9 +8053,10 @@ class TryFinallyStatNode(StatNode):
                     if self.func_return_type.is_pyobject:
                         code.putln("%s = 0;" % ret_temp)
                     code.funcstate.release_temp(ret_temp)
-                    ret_temp = None
                 if self.in_generator:
                     self.put_error_uncatcher(code, exc_vars)
+                    for cname in exc_vars:
+                        code.funcstate.release_temp(cname)
 
             if not self.finally_clause.is_terminator:
                 code.put_goto(old_label)
@@ -9179,6 +9187,11 @@ class ParallelStatNode(StatNode, ParallelNode):
         self.begin_of_parallel_control_block_point = None
         self.begin_of_parallel_control_block_point_after_decls = None
 
+        if self.num_threads is not None:
+            # FIXME: is it the right place? should not normally produce code.
+            self.num_threads.generate_disposal_code(code)
+            self.num_threads.free_temps(code)
+
         # Firstly, always prefer errors over returning, continue or break
         if self.error_label_used:
             c.putln("const char *%s = NULL; int %s = 0, %s = 0;" % self.parallel_pos_info)
@@ -9559,7 +9572,7 @@ class ParallelRangeNode(ParallelStatNode):
 
         # And finally, release our privates and write back any closure
         # variables
-        for temp in start_stop_step + (self.chunksize, self.num_threads):
+        for temp in start_stop_step + (self.chunksize,):
             if temp is not None:
                 temp.generate_disposal_code(code)
                 temp.free_temps(code)

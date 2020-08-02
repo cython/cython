@@ -1,26 +1,18 @@
 # NumPy static imports for Cython
 #
+# NOTE: Do not make incompatible local changes to this file without contacting the NumPy project.
+# This file is maintained by the NumPy project at
+# https://github.com/numpy/numpy/tree/master/numpy
+#
 # If any of the PyArray_* functions are called, import_array must be
-# called first.
-#
-# This also defines backwards-compatibility buffer acquisition
-# code for use in Python 2.x (or Python <= 2.5 when NumPy starts
-# implementing PEP-3118 directly).
-#
-# Because of laziness, the format string of the buffer is statically
-# allocated. Increase the size if this is not enough, or submit a
-# patch to do this properly.
+# called first.  This is done automatically by Cython 3.0+ if a call
+# is not detected inside of the module.
 #
 # Author: Dag Sverre Seljebotn
 #
 
-DEF _buffer_format_string_len = 255
-
-cimport cpython.buffer as pybuf
 from cpython.ref cimport Py_INCREF
-from cpython.mem cimport PyObject_Malloc, PyObject_Free
 from cpython.object cimport PyObject, PyTypeObject, PyObject_TypeCheck
-from cpython.type cimport type
 cimport libc.stdio as stdio
 
 
@@ -33,7 +25,7 @@ cdef extern from *:
 
 
 cdef extern from "Python.h":
-    ctypedef int Py_intptr_t
+    ctypedef Py_ssize_t Py_intptr_t
 
 cdef extern from "numpy/arrayobject.h":
     ctypedef Py_intptr_t npy_intp
@@ -405,8 +397,8 @@ cdef extern from "numpy/arrayobject.h":
     npy_intp PyArray_STRIDE(ndarray, size_t) nogil
 
     PyObject *PyArray_BASE(ndarray) nogil  # returns borrowed reference!
-    PyArray_Descr *PyArray_DESCR(ndarray) nogil # returns borrowed reference to dtype!
-    PyArray_Descr *PyArray_DTYPE(ndarray) nogil # returns borrowed reference to dtype! NP 1.7+ alias for descr.
+    PyArray_Descr *PyArray_DESCR(ndarray) nogil  # returns borrowed reference to dtype!
+    PyArray_Descr *PyArray_DTYPE(ndarray) nogil  # returns borrowed reference to dtype! NP 1.7+ alias for descr.
     int PyArray_FLAGS(ndarray) nogil
     void PyArray_CLEARFLAGS(ndarray, int flags) nogil  # Added in NumPy 1.7
     void PyArray_ENABLEFLAGS(ndarray, int flags) nogil  # Added in NumPy 1.7
@@ -654,7 +646,7 @@ cdef extern from "numpy/arrayobject.h":
     object PyArray_Choose (ndarray, object, ndarray, NPY_CLIPMODE)
     int PyArray_Sort (ndarray, int, NPY_SORTKIND)
     object PyArray_ArgSort (ndarray, int, NPY_SORTKIND)
-    object PyArray_SearchSorted (ndarray, object, NPY_SEARCHSIDE, PyObject*)
+    object PyArray_SearchSorted (ndarray, object, NPY_SEARCHSIDE, PyObject *)
     object PyArray_ArgMax (ndarray, int, ndarray)
     object PyArray_ArgMin (ndarray, int, ndarray)
     object PyArray_Reshape (ndarray, object)
@@ -1061,9 +1053,11 @@ cdef inline int import_ufunc() except -1:
 cdef inline bint is_timedelta64_object(object obj):
     """
     Cython equivalent of `isinstance(obj, np.timedelta64)`
+
     Parameters
     ----------
     obj : object
+
     Returns
     -------
     bool
@@ -1074,9 +1068,11 @@ cdef inline bint is_timedelta64_object(object obj):
 cdef inline bint is_datetime64_object(object obj):
     """
     Cython equivalent of `isinstance(obj, np.datetime64)`
+
     Parameters
     ----------
     obj : object
+
     Returns
     -------
     bool
@@ -1087,6 +1083,7 @@ cdef inline bint is_datetime64_object(object obj):
 cdef inline npy_datetime get_datetime64_value(object obj) nogil:
     """
     returns the int64 value underlying scalar numpy datetime64 object
+
     Note that to interpret this as a datetime, the corresponding unit is
     also needed.  That can be found using `get_datetime64_unit`.
     """

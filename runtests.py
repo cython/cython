@@ -241,7 +241,7 @@ def update_numpy_extension(ext, set_api17_macro=True):
 
     ext.include_dirs.append(numpy.get_include())
 
-    if set_api17_macro:
+    if set_api17_macro and getattr(numpy, '__version__', '') not in ('1.19.0', '1.19.1'):
         ext.define_macros.append(('NPY_NO_DEPRECATED_API', 'NPY_1_7_API_VERSION'))
 
     # We need the npymath library for numpy.math.
@@ -1777,6 +1777,8 @@ class EndToEndTest(unittest.TestCase):
                 cmd.append(command)
                 out.append(_out)
                 err.append(_err)
+            if res == 0 and b'REFNANNY: ' in _out:
+                res = -1
             if res != 0:
                 for c, o, e in zip(cmd, out, err):
                     sys.stderr.write("%s\n%s\n%s\n\n" % (
@@ -1841,12 +1843,34 @@ class MissingDependencyExcluder(object):
     def __init__(self, deps):
         # deps: { matcher func : module name }
         self.exclude_matchers = []
-        for matcher, mod in deps.items():
+        for matcher, module_name in deps.items():
             try:
-                __import__(mod)
+                module = __import__(module_name)
             except ImportError:
                 self.exclude_matchers.append(string_selector(matcher))
+                print("Test dependency not found: '%s'" % module_name)
+            else:
+                version = self.find_dep_version(module_name, module)
+                print("Test dependency found: '%s' version %s" % (module_name, version))
         self.tests_missing_deps = []
+
+    def find_dep_version(self, name, module):
+        try:
+            version = module.__version__
+        except AttributeError:
+            stdlib_dir = os.path.dirname(shutil.__file__) + os.sep
+            module_path = getattr(module, '__file__', stdlib_dir)  # no __file__? => builtin stdlib module
+            if module_path.startswith(stdlib_dir):
+                # stdlib module
+                version = sys.version.partition(' ')[0]
+            elif '.' in name:
+                # incrementally look for a parent package with version
+                name = name.rpartition('.')[0]
+                return self.find_dep_version(name, __import__(name))
+            else:
+                version = '?.?'
+        return version
+
     def __call__(self, testname, tags=None):
         for matcher in self.exclude_matchers:
             if matcher(testname, tags):
@@ -2183,7 +2207,7 @@ def main():
         for listfile in options.listfile:
             cmd_args.extend(load_listfile(listfile))
 
-    if options.capture:
+    if options.capture and not options.for_debugging:
         keep_alive_interval = 10
     else:
         keep_alive_interval = None

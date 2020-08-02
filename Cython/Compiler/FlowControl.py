@@ -1223,6 +1223,7 @@ class ControlFlowAnalysis(CythonTransform):
         if self.flow.loops:
             self.flow.loops[-1].exceptions.append(descr)
         self.flow.block = body_block
+        body_block.add_child(entry_point)
         self.flow.nextblock()
         self._visit(node.body)
         self.flow.exceptions.pop()

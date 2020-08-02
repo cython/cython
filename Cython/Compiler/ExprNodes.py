@@ -1680,17 +1680,23 @@ class UnicodeNode(ConstNode):
 
     def generate_evaluation_code(self, code):
         if self.type.is_pyobject:
-            if self.contains_surrogates():
-                # surrogates are not really portable and cannot be
+            # FIXME: this should go away entirely!
+            # Since string_contains_lone_surrogates() returns False for surrogate pairs in Py2/UCS2,
+            # Py2 can generate different code from Py3 here.  Let's hope we get away with claiming that
+            # the processing of surrogate pairs in code was always ambiguous and lead to different results
+            # on P16/32bit Unicode platforms.
+            if StringEncoding.string_contains_lone_surrogates(self.value):
+                # lone (unpaired) surrogates are not really portable and cannot be
                 # decoded by the UTF-8 codec in Py3.3
                 self.result_code = code.get_py_const(py_object_type, 'ustring')
-                data_cname = code.get_pyunicode_ptr_const(self.value)
+                data_cname = code.get_string_const(
+                    StringEncoding.BytesLiteral(self.value.encode('unicode_escape')))
                 const_code = code.get_cached_constants_writer(self.result_code)
                 if const_code is None:
                     return  # already initialised
                 const_code.mark_pos(self.pos)
                 const_code.putln(
-                    "%s = PyUnicode_FromUnicode(%s, (sizeof(%s) / sizeof(Py_UNICODE))-1); %s" % (
+                    "%s = PyUnicode_DecodeUnicodeEscape(%s, sizeof(%s) - 1, NULL); %s" % (
                         self.result_code,
                         data_cname,
                         data_cname,
@@ -2364,12 +2370,6 @@ class NameNode(AtomicExprNode):
             elif entry.scope.is_module_scope:
                 setter = 'PyDict_SetItem'
                 namespace = Naming.moddict_cname
-                code.putln("{")
-                code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-                # global module dict doesn't seems to exist in the limited API so create a temp variable
-                code.putln("PyObject *%s = PyModule_GetDict(%s); %s" % (
-                    namespace, Naming.module_cname, code.error_goto_if_null(namespace, self.pos)))
-                code.putln("#endif")
             elif entry.is_pyclass_attr:
                 # Special-case setting __new__
                 n = "SetNewInClass" if self.name == "__new__" else "SetNameInClass"
@@ -2393,8 +2393,6 @@ class NameNode(AtomicExprNode):
                 # in Py2.6+, we need to invalidate the method cache
                 code.putln("PyType_Modified(%s);" %
                            entry.scope.parent_type.typeptr_cname)
-            elif entry.scope.is_module_scope:
-                code.putln("}")
         else:
             if self.type.is_memoryviewslice:
                 self.generate_acquire_memoryviewslice(rhs, code)
@@ -2675,7 +2673,6 @@ class IteratorNode(ExprNode):
     type = py_object_type
     iter_func_ptr = None
     counter_cname = None
-    cpp_iterator_cname = None
     reversed = False      # currently only used for list/tuple types (see Optimize.py)
     is_async = False
 
@@ -2688,7 +2685,7 @@ class IteratorNode(ExprNode):
             # C array iteration will be transformed later on
             self.type = self.sequence.type
         elif self.sequence.type.is_cpp_class:
-            self.analyse_cpp_types(env)
+            return CppIteratorNode(self.pos, sequence=self.sequence).analyse_types(env)
         else:
             self.sequence = self.sequence.coerce_to_pyobject(env)
             if self.sequence.type in (list_type, tuple_type):
@@ -2718,65 +2715,10 @@ class IteratorNode(ExprNode):
             return sequence_type
         return py_object_type
 
-    def analyse_cpp_types(self, env):
-        sequence_type = self.sequence.type
-        if sequence_type.is_ptr:
-            sequence_type = sequence_type.base_type
-        begin = sequence_type.scope.lookup("begin")
-        end = sequence_type.scope.lookup("end")
-        if (begin is None
-                or not begin.type.is_cfunction
-                or begin.type.args):
-            error(self.pos, "missing begin() on %s" % self.sequence.type)
-            self.type = error_type
-            return
-        if (end is None
-                or not end.type.is_cfunction
-                or end.type.args):
-            error(self.pos, "missing end() on %s" % self.sequence.type)
-            self.type = error_type
-            return
-        iter_type = begin.type.return_type
-        if iter_type.is_cpp_class:
-            if env.lookup_operator_for_types(
-                    self.pos,
-                    "!=",
-                    [iter_type, end.type.return_type]) is None:
-                error(self.pos, "missing operator!= on result of begin() on %s" % self.sequence.type)
-                self.type = error_type
-                return
-            if env.lookup_operator_for_types(self.pos, '++', [iter_type]) is None:
-                error(self.pos, "missing operator++ on result of begin() on %s" % self.sequence.type)
-                self.type = error_type
-                return
-            if env.lookup_operator_for_types(self.pos, '*', [iter_type]) is None:
-                error(self.pos, "missing operator* on result of begin() on %s" % self.sequence.type)
-                self.type = error_type
-                return
-            self.type = iter_type
-        elif iter_type.is_ptr:
-            if not (iter_type == end.type.return_type):
-                error(self.pos, "incompatible types for begin() and end()")
-            self.type = iter_type
-        else:
-            error(self.pos, "result type of begin() on %s must be a C++ class or pointer" % self.sequence.type)
-            self.type = error_type
-            return
-
     def generate_result_code(self, code):
         sequence_type = self.sequence.type
         if sequence_type.is_cpp_class:
-            if self.sequence.is_name:
-                # safe: C++ won't allow you to reassign to class references
-                begin_func = "%s.begin" % self.sequence.result()
-            else:
-                sequence_type = PyrexTypes.c_ptr_type(sequence_type)
-                self.cpp_iterator_cname = code.funcstate.allocate_temp(sequence_type, manage_ref=False)
-                code.putln("%s = &%s;" % (self.cpp_iterator_cname, self.sequence.result()))
-                begin_func = "%s->begin" % self.cpp_iterator_cname
-            # TODO: Limit scope.
-            code.putln("%s = %s();" % (self.result(), begin_func))
-            return
+            assert False, "Should have been changed to CppIteratorNode"
         if sequence_type.is_array or sequence_type.is_ptr:
             raise InternalError("for in carray slice not transformed")
 
@@ -2823,7 +2765,7 @@ class IteratorNode(ExprNode):
             # PyObject_GetIter() fails if "tp_iternext" is not set, but the check below
             # makes it visible to the C compiler that the pointer really isn't NULL, so that
             # it can distinguish between the special cases and the generic case
-            code.putln("%s = Py_TYPE(%s)->tp_iternext; %s" % (
+            code.putln("%s = __Pyx_PyObject_GetIterNextFunc(%s); %s" % (
                 self.iter_func_ptr, self.py_result(),
                 code.error_goto_if_null(self.iter_func_ptr, self.pos)))
         if self.may_be_a_sequence:
@@ -2872,21 +2814,7 @@ class IteratorNode(ExprNode):
         sequence_type = self.sequence.type
         if self.reversed:
             code.putln("if (%s < 0) break;" % self.counter_cname)
-        if sequence_type.is_cpp_class:
-            if self.cpp_iterator_cname:
-                end_func = "%s->end" % self.cpp_iterator_cname
-            else:
-                end_func = "%s.end" % self.sequence.result()
-            # TODO: Cache end() call?
-            code.putln("if (!(%s != %s())) break;" % (
-                            self.result(),
-                            end_func))
-            code.putln("%s = *%s;" % (
-                            result_name,
-                            self.result()))
-            code.putln("++%s;" % self.result())
-            return
-        elif sequence_type is list_type:
+        if sequence_type is list_type:
             self.generate_next_sequence_item('List', result_name, code)
             return
         elif sequence_type is tuple_type:
@@ -2925,8 +2853,109 @@ class IteratorNode(ExprNode):
         if self.iter_func_ptr:
             code.funcstate.release_temp(self.iter_func_ptr)
             self.iter_func_ptr = None
-        if self.cpp_iterator_cname:
-            code.funcstate.release_temp(self.cpp_iterator_cname)
+        ExprNode.free_temps(self, code)
+
+
+class CppIteratorNode(ExprNode):
+    # Iteration over a C++ container.
+    # Created at the analyse_types stage by IteratorNode
+    cpp_sequence_cname = None
+    cpp_attribute_op = "."
+    is_temp = True
+
+    subexprs = ['sequence']
+
+    def analyse_types(self, env):
+        sequence_type = self.sequence.type
+        if sequence_type.is_ptr:
+            sequence_type = sequence_type.base_type
+        begin = sequence_type.scope.lookup("begin")
+        end = sequence_type.scope.lookup("end")
+        if (begin is None
+                or not begin.type.is_cfunction
+                or begin.type.args):
+            error(self.pos, "missing begin() on %s" % self.sequence.type)
+            self.type = error_type
+            return self
+        if (end is None
+                or not end.type.is_cfunction
+                or end.type.args):
+            error(self.pos, "missing end() on %s" % self.sequence.type)
+            self.type = error_type
+            return self
+        iter_type = begin.type.return_type
+        if iter_type.is_cpp_class:
+            if env.lookup_operator_for_types(
+                    self.pos,
+                    "!=",
+                    [iter_type, end.type.return_type]) is None:
+                error(self.pos, "missing operator!= on result of begin() on %s" % self.sequence.type)
+                self.type = error_type
+                return self
+            if env.lookup_operator_for_types(self.pos, '++', [iter_type]) is None:
+                error(self.pos, "missing operator++ on result of begin() on %s" % self.sequence.type)
+                self.type = error_type
+                return self
+            if env.lookup_operator_for_types(self.pos, '*', [iter_type]) is None:
+                error(self.pos, "missing operator* on result of begin() on %s" % self.sequence.type)
+                self.type = error_type
+                return self
+            self.type = iter_type
+        elif iter_type.is_ptr:
+            if not (iter_type == end.type.return_type):
+                error(self.pos, "incompatible types for begin() and end()")
+            self.type = iter_type
+        else:
+            error(self.pos, "result type of begin() on %s must be a C++ class or pointer" % self.sequence.type)
+            self.type = error_type
+        return self
+
+    def generate_result_code(self, code):
+        sequence_type = self.sequence.type
+        # essentially 3 options:
+        if self.sequence.is_name or self.sequence.is_attribute:
+            # 1) is a name and can be accessed directly;
+            #    assigning to it may break the container, but that's the responsibility
+            #    of the user
+            code.putln("%s = %s%sbegin();" % (self.result(),
+                                                self.sequence.result(),
+                                                self.cpp_attribute_op))
+        else:
+                # (while it'd be nice to limit the scope of the loop temp, it's essentially
+                # impossible to do while supporting generators)
+                temp_type = sequence_type
+                if temp_type.is_reference:
+                    # 2) Sequence is a reference (often obtained by dereferencing a pointer);
+                    #    make the temp a pointer so we are not sensitive to users reassigning
+                    #    the pointer than it came from
+                    temp_type = PyrexTypes.CPtrType(sequence_type.ref_base_type)
+                if temp_type.is_ptr:
+                    self.cpp_attribute_op = "->"
+                # 3) (otherwise) sequence comes from a function call or similar, so we must
+                #    create a temp to store it in
+                self.cpp_sequence_cname = code.funcstate.allocate_temp(temp_type, manage_ref=False)
+                code.putln("%s = %s%s;" % (self.cpp_sequence_cname,
+                                           "&" if temp_type.is_ptr else "",
+                                           self.sequence.move_result_rhs()))
+                code.putln("%s = %s%sbegin();" % (self.result(), self.cpp_sequence_cname,
+                                                  self.cpp_attribute_op))
+
+    def generate_iter_next_result_code(self, result_name, code):
+        # end call isn't cached to support containers that allow adding while iterating
+        # (much as this is usually a bad idea)
+        code.putln("if (!(%s != %s%send())) break;" % (
+                        self.result(),
+                        self.cpp_sequence_cname or self.sequence.result(),
+                        self.cpp_attribute_op))
+        code.putln("%s = *%s;" % (
+                        result_name,
+                        self.result()))
+        code.putln("++%s;" % self.result())
+
+    def free_temps(self, code):
+        if self.cpp_sequence_cname:
+            code.funcstate.release_temp(self.cpp_sequence_cname)
+        # skip over IteratorNode since we don't use any of the temps it does
         ExprNode.free_temps(self, code)
 
 
@@ -3587,6 +3616,8 @@ class IndexNode(_IndexingBaseNode):
                                bytearray_type, list_type, tuple_type):
                 # slicing these returns the same type
                 return base_type
+            elif base_type.is_memoryviewslice:
+                return base_type
             else:
                 # TODO: Handle buffers (hopefully without too much redundancy).
                 return py_object_type
@@ -3629,6 +3660,23 @@ class IndexNode(_IndexingBaseNode):
                         index += base_type.size
                     if 0 <= index < base_type.size:
                         return base_type.components[index]
+            elif base_type.is_memoryviewslice:
+                if base_type.ndim == 0:
+                    pass  # probably an error, but definitely don't know what to do - return pyobject for now
+                if base_type.ndim == 1:
+                    return base_type.dtype
+                else:
+                    return PyrexTypes.MemoryViewSliceType(base_type.dtype, base_type.axes[1:])
+
+        if self.index.is_sequence_constructor and base_type.is_memoryviewslice:
+            inferred_type = base_type
+            for a in self.index.args:
+                if not inferred_type.is_memoryviewslice:
+                    break  # something's gone wrong
+                inferred_type = IndexNode(self.pos, base=ExprNode(self.base.pos, type=inferred_type),
+                                          index=a).infer_type(env)
+            else:
+                return inferred_type
 
         if base_type.is_cpp_class:
             class FakeOperand:
@@ -3706,6 +3754,8 @@ class IndexNode(_IndexingBaseNode):
         if not base_type.is_cfunction:
             self.index = self.index.analyse_types(env)
             self.original_index_type = self.index.type
+            if self.original_index_type.is_reference:
+                self.original_index_type = self.original_index_type.ref_base_type
 
             if base_type.is_unicode_char:
                 # we infer Py_UNICODE/Py_UCS4 for unicode strings in some
@@ -3791,6 +3841,8 @@ class IndexNode(_IndexingBaseNode):
     def analyse_as_c_array(self, env, is_slice):
         base_type = self.base.type
         self.type = base_type.base_type
+        if self.type.is_cpp_class:
+            self.type = PyrexTypes.CReferenceType(self.type)
         if is_slice:
             self.type = base_type
         elif self.index.type.is_pyobject:
@@ -4419,6 +4471,7 @@ class BufferIndexNode(_IndexingBaseNode):
                 pythran_indexing_code(self.indices),
                 op,
                 rhs.pythran_result()))
+            code.funcstate.release_temp(obj)
             return
 
         # Used from generate_assignment_code and InPlaceAssignmentNode
@@ -4459,11 +4512,11 @@ class BufferIndexNode(_IndexingBaseNode):
             code.putln("%s = (PyObject *) *%s;" % (self.result(), self.buffer_ptr_code))
             code.putln("__Pyx_INCREF((PyObject*)%s);" % self.result())
 
-    def free_temps(self, code):
+    def free_subexpr_temps(self, code):
         for temp in self.index_temps:
             code.funcstate.release_temp(temp)
         self.index_temps = ()
-        super(BufferIndexNode, self).free_temps(code)
+        super(BufferIndexNode, self).free_subexpr_temps(code)
 
 
 class MemoryViewIndexNode(BufferIndexNode):
@@ -4740,6 +4793,7 @@ class MemoryCopyNode(ExprNode):
         self.dst.generate_evaluation_code(code)
         self._generate_assignment_code(rhs, code)
         self.dst.generate_disposal_code(code)
+        self.dst.free_temps(code)
         rhs.generate_disposal_code(code)
         rhs.free_temps(code)
 
@@ -5664,7 +5718,7 @@ class SimpleCallNode(CallNode):
             env.add_include_file(pythran_get_func_include_file(function))
             return NumPyMethodCallNode.from_node(
                 self,
-                function=function,
+                function_cname=pythran_functor(function),
                 arg_tuple=self.arg_tuple,
                 type=PythranExpr(pythran_func_type(function, self.arg_tuple.args)),
             )
@@ -6070,13 +6124,13 @@ class SimpleCallNode(CallNode):
                 code.funcstate.release_temp(self.opt_arg_struct)
 
 
-class NumPyMethodCallNode(SimpleCallNode):
+class NumPyMethodCallNode(ExprNode):
     # Pythran call to a NumPy function or method.
     #
-    # function    ExprNode      the function/method to call
-    # arg_tuple   TupleNode     the arguments as an args tuple
+    # function_cname  string      the function/method to call
+    # arg_tuple       TupleNode   the arguments as an args tuple
 
-    subexprs = ['function', 'arg_tuple']
+    subexprs = ['arg_tuple']
     is_temp = True
     may_return_none = True
 
@@ -6084,7 +6138,6 @@ class NumPyMethodCallNode(SimpleCallNode):
         code.mark_pos(self.pos)
         self.allocate_temp_result(code)
 
-        self.function.generate_evaluation_code(code)
         assert self.arg_tuple.mult_factor is None
         args = self.arg_tuple.args
         for arg in args:
@@ -6095,7 +6148,7 @@ class NumPyMethodCallNode(SimpleCallNode):
         code.putln("new (&%s) decltype(%s){%s{}(%s)};" % (
             self.result(),
             self.result(),
-            pythran_functor(self.function),
+            self.function_cname,
             ", ".join(a.pythran_result() for a in args)))
 
 
@@ -7310,6 +7363,8 @@ class AttributeNode(ExprNode):
                 self.member.upper(),
                 self.obj.result_as(self.obj.type),
                 rhs.result_as(self.ctype())))
+            rhs.generate_disposal_code(code)
+            rhs.free_temps(code)
         else:
             select_code = self.result()
             if self.type.is_pyobject and self.use_managed_ref:
@@ -7790,7 +7845,7 @@ class SequenceNode(ExprNode):
         rhs.generate_disposal_code(code)
 
         iternext_func = code.funcstate.allocate_temp(self._func_iternext_type, manage_ref=False)
-        code.putln("%s = Py_TYPE(%s)->tp_iternext;" % (
+        code.putln("%s = __Pyx_PyObject_GetIterNextFunc(%s);" % (
             iternext_func, iterator_temp))
 
         unpacking_error_label = code.new_label('unpacking_failed')
@@ -8163,20 +8218,18 @@ class ListNode(SequenceNode):
         return t
 
     def allocate_temp_result(self, code):
-        if self.type.is_array and self.in_module_scope:
-            self.temp_code = code.funcstate.allocate_temp(
-                self.type, manage_ref=False, static=True)
+        if self.type.is_array:
+            if self.in_module_scope:
+                self.temp_code = code.funcstate.allocate_temp(
+                    self.type, manage_ref=False, static=True, reusable=False)
+            else:
+                # To be valid C++, we must allocate the memory on the stack
+                # manually and be sure not to reuse it for something else.
+                # Yes, this means that we leak a temp array variable.
+                self.temp_code = code.funcstate.allocate_temp(
+                    self.type, manage_ref=False, reusable=False)
         else:
             SequenceNode.allocate_temp_result(self, code)
-
-    def release_temp_result(self, env):
-        if self.type.is_array:
-            # To be valid C++, we must allocate the memory on the stack
-            # manually and be sure not to reuse it for something else.
-            # Yes, this means that we leak a temp array variable.
-            pass
-        else:
-            SequenceNode.release_temp_result(self, env)
 
     def calculate_constant_result(self):
         if self.mult_factor:
@@ -9452,21 +9505,8 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         else:
             flags = '0'
 
-        borrowed_moddict_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=False)
-        code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-        code.putln('%s = PyModule_GetDict(%s); %s' % (
-            borrowed_moddict_temp,
-            Naming.module_cname,
-            code.error_goto_if_null(borrowed_moddict_temp, self.pos)))
-        code.putln("#else")
-        code.putln("%s = %s;  if ((1)); else %s;" % (
-            borrowed_moddict_temp,
-            Naming.moddict_cname,
-            code.error_goto(self.pos),
-        ))
-        code.putln("#endif")
         code.putln(
-            '%s = %s(&%s, %s, %s, %s, %s, %s, %s); %s = NULL; %s' % (
+            '%s = %s(&%s, %s, %s, %s, %s, %s, %s); %s' % (
                 self.result(),
                 constructor,
                 self.pymethdef_cname,
@@ -9474,11 +9514,9 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                 self.get_py_qualified_name(code),
                 self.closure_result_code(),
                 self.get_py_mod_name(code),
-                borrowed_moddict_temp,
+                Naming.moddict_cname,
                 code_object_result,
-                borrowed_moddict_temp,
                 code.error_goto_if_null(self.result(), self.pos)))
-        code.funcstate.release_temp(borrowed_moddict_temp)
 
         self.generate_gotref(code)
 
@@ -10324,7 +10362,10 @@ class DereferenceNode(CUnopNode):
 
     def analyse_c_operation(self, env):
         if self.operand.type.is_ptr:
-            self.type = self.operand.type.base_type
+            if env.is_cpp:
+                self.type = PyrexTypes.CReferenceType(self.operand.type.base_type)
+            else:
+                self.type = self.operand.type.base_type
         else:
             self.type_error()
 
@@ -13125,6 +13166,8 @@ class PyTypeTestNode(CoercionNode):
                 type_test = self.type.type_test_code(
                     self.arg.py_result(),
                     self.notnone, exact=self.exact_builtin_type)
+                code.globalstate.use_utility_code(UtilityCode.load_cached(
+                    "RaiseUnexpectedTypeError", "ObjectHandling.c"))
             else:
                 type_test = self.type.type_test_code(
                     self.arg.py_result(), self.notnone)
@@ -13139,8 +13182,17 @@ class PyTypeTestNode(CoercionNode):
     def generate_post_assignment_code(self, code):
         self.arg.generate_post_assignment_code(code)
 
+    def allocate_temp_result(self, code):
+        pass
+
+    def release_temp_result(self, code):
+        pass
+
     def free_temps(self, code):
         self.arg.free_temps(code)
+
+    def free_subexpr_temps(self, code):
+        self.arg.free_subexpr_temps(code)
 
 
 class NoneCheckNode(CoercionNode):
@@ -13490,6 +13542,9 @@ class CoerceToTempNode(CoercionNode):
     def analyse_types(self, env):
         # The arg is always already analysed
         return self
+
+    def may_be_none(self):
+        return self.arg.may_be_none()
 
     def coerce_to_boolean(self, env):
         self.arg = self.arg.coerce_to_boolean(env)
