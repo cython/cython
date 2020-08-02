@@ -1952,9 +1952,10 @@ class PyLocals(gdb.Command):
             return
 
         for pyop_name, pyop_value in pyop_frame.iter_locals():
-            print('%s = %s'
-                   % (pyop_name.proxyval(set()),
-                      pyop_value.get_truncated_repr(MAX_OUTPUT_LEN)))
+            print('%s = %s' % (
+                pyop_name.proxyval(set()),
+                pyop_value.get_truncated_repr(MAX_OUTPUT_LEN),
+            ))
 
 PyLocals()
 

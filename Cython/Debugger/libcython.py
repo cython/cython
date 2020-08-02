@@ -1122,12 +1122,12 @@ class CyPrint(CythonCommand):
             try:
                 value = gdb.parse_and_eval(cname)
             except RuntimeError:
-                print("unable to get value of ", name)
+                print("unable to get value of %s" % name)
             else:
                 if not value.is_optimized_out:
                     self.print_gdb_value(name, value)
                 else:
-                    print(name, "is optimized out")
+                    print("%s is optimized out" % name)
         elif self.is_python_function():
             return gdb.execute('py-print ' + name)
         elif self.is_cython_function():

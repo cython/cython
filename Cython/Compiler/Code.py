@@ -1819,17 +1819,11 @@ class CCodeWriter(object):
 
     def write(self, s):
         # Cygdb needs to know which Cython source line corresponds to which C line.
-        # Therefore, we write the information which Cython line corresponds to which
-        # C line into self.buffer.markers and then write it from there into
-        # cython_debug/cython_debug_info_* (see ModuleNode._serialize_lineno_map).
+        # Therefore, we write this information into "self.buffer.markers" and then write it from there
+        # into cython_debug/cython_debug_info_* (see ModuleNode._serialize_lineno_map).
 
-        if self.last_marked_pos:
-            cython_path = self.last_marked_pos[0]
-            cython_lineno = self.last_marked_pos[1]
-        else:
-            cython_path = None
-            cython_lineno = 0
-        self.buffer.markers.extend([(cython_path, cython_lineno)] * s.count('\n'))
+        filename_line = self.last_marked_pos[:2] if self.last_marked_pos else (None, 0)
+        self.buffer.markers.extend([filename_line] * s.count('\n'))
 
         self.buffer.write(s)
 

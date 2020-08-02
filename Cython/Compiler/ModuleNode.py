@@ -399,7 +399,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         if Options.annotate or options.annotate:
             show_entire_c_code = Options.annotate == "fullc" or options.annotate == "fullc"
-            rootwriter = Annotate.AnnotationCCodeWriter(show_entire_c_code=show_entire_c_code, source_desc=self.compilation_source.source_desc)
+            rootwriter = Annotate.AnnotationCCodeWriter(
+                show_entire_c_code=show_entire_c_code,
+                source_desc=self.compilation_source.source_desc,
+            )
         else:
             rootwriter = Code.CCodeWriter()
 
