@@ -57,7 +57,7 @@ auto __Pyx_pythran_to_python(T &&value) -> decltype(to_python(
   return to_python(returnable_type{std::forward<T>(value)});
 }
 
-#define __Pyx_PythranShapeAccessor(x) (x.shape().array())
+#define __Pyx_PythranShapeAccessor(x) (pythonic::builtins::getattr(pythonic::types::attr::SHAPE{}, x))
 
 ////////////// MoveIfSupported.proto //////////////////
 
