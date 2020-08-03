@@ -1866,8 +1866,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(
             "static int %s(PyObject *o, PyObject *i, PyObject *v) {" % (
                 scope.mangle_internal("mp_ass_subscript")))
-        code.putln(
-            "__Pyx_TypeName o_type_name;")
+        if not set_entry or not del_entry:
+            code.putln(
+                "__Pyx_TypeName o_type_name;")
         code.putln(
             "if (v) {")
         if set_entry:
@@ -1941,8 +1942,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(
             "static int %s(PyObject *o, Py_ssize_t i, Py_ssize_t j, PyObject *v) {" % (
                 scope.mangle_internal("sq_ass_slice")))
-        code.putln(
-            "__Pyx_TypeName o_type_name;")
+        if not set_entry or not del_entry:
+            code.putln(
+                "__Pyx_TypeName o_type_name;")
         code.putln(
             "if (v) {")
         if set_entry:
