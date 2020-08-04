@@ -39,7 +39,7 @@ else:
     _py_int_types = (int, long)
 
 
-IMPLICIT_CLASSMETHODS = {'__init_subclass__', '__class_getitem__'}
+IMPLICIT_CLASSMETHODS = {"__init_subclass__", "__class_getitem__"}
 
 
 def relative_position(pos):
