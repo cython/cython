@@ -2006,8 +2006,14 @@ if VALUE is not None:
                 pymethdef_cname=node.entry.pymethdef_cname,
                 code_object=ExprNodes.CodeObjectNode(node))
         else:
+            linetrace = self.current_directives.get('linetrace')
+            code_object = None
+            # for linetrace wrapper and wrapped function must have one code object
+            if node.is_wrapper and linetrace:
+                code_object = node.wrapped_func.code_object
+
             binding = self.current_directives.get('binding')
-            rhs = ExprNodes.PyCFunctionNode.from_defnode(node, binding)
+            rhs = ExprNodes.PyCFunctionNode.from_defnode(node, binding, code_object)
             node.code_object = rhs.code_object
             if node.is_generator:
                 node.gbody.code_object = node.code_object

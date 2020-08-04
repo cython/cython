@@ -1901,13 +1901,8 @@ class FuncDefNode(StatNode, BlockNode):
             if not self.is_generator:
                 # generators are traced when iterated, not at creation
                 tempvardecl_code.put_trace_declarations()
-
-                # for linetrace CFunDefNode and his wrapper must have one code_object with py_wrapper
-                # for normal profiling CFunDefNode and py_wrapper must have two separated code objects
-                # which will be created automatically
-                if linetrace:
-                    code_object = self.code_object.calculate_result_code(code) if self.code_object else None
-                    code.put_trace_frame_init(code_object)
+                code_object = self.code_object.calculate_result_code(code) if self.code_object else None
+                code.put_trace_frame_init(code_object)
 
         # ----- Special check for getbuffer
         if is_getbuffer_slot:
@@ -1962,19 +1957,17 @@ class FuncDefNode(StatNode, BlockNode):
                 # inner closures own a reference to their outer parent
                 code.put_incref(outer_scope_cname, cenv.scope_class.type)
                 code.put_giveref(outer_scope_cname, cenv.scope_class.type)
+
         # ----- Trace function call
         if profile or linetrace:
             # this looks a bit late, but if we don't get here due to a
             # fatal error before hand, it's not really worth tracing
             if not self.is_generator:
                 # generators are traced when iterated, not at creation
-                if self.is_wrapper:
-                    trace_name = self.entry.name + " (wrapper)"
-                else:
-                    trace_name = self.entry.name
                 code.put_trace_call(
-                    trace_name, self.pos, nogil=not code.funcstate.gil_owned)
+                    self.get_trace_name(), self.pos, nogil=not code.funcstate.gil_owned)
             code.funcstate.can_trace = True
+
         # ----- Fetch arguments
         self.generate_argument_parsing_code(env, code)
         # If an argument is assigned to in the body, we must
@@ -2375,6 +2368,14 @@ class FuncDefNode(StatNode, BlockNode):
             return None
         return slot.preprocessor_guard_code()
 
+    def get_trace_name(self):
+        if self.is_wrapper:
+            trace_name = self.entry.name + " (wrapper)"
+        else:
+            trace_name = self.entry.name
+
+        return trace_name
+
 
 class CFuncDefNode(FuncDefNode):
     #  C function definition.
@@ -2417,11 +2418,6 @@ class CFuncDefNode(FuncDefNode):
 
     def declared_name(self):
         return self.declarator.declared_name()
-
-    @property
-    def code_object(self):
-        # share the CodeObject with the cpdef wrapper (if available)
-        return self.py_func.code_object if self.py_func else None
 
     def analyse_declarations(self, env):
         self.is_c_class_method = env.is_c_class_scope
@@ -2538,7 +2534,8 @@ class CFuncDefNode(FuncDefNode):
                                    doc=self.doc,
                                    body=py_func_body,
                                    decorators=decorators,
-                                   is_wrapper=1)
+                                   is_wrapper=1,
+                                   wrapped_func=self)
             self.py_func.is_module_scope = env.is_module_scope
             self.py_func.analyse_declarations(env)
             self.py_func.entry.is_overridable = True
@@ -2546,6 +2543,11 @@ class CFuncDefNode(FuncDefNode):
             self.py_func.type = PyrexTypes.py_object_type
             self.entry.as_variable = self.py_func.entry
             self.entry.used = self.entry.as_variable.used = True
+
+            from .ExprNodes import CodeObjectNode
+            # Create code object from wrapper
+            self.code_object = CodeObjectNode(self.py_func, self.py_func.name)
+
             # Reset scope entry the above cfunction
             env.entries[name] = self.entry
             if (not self.entry.is_final_cmethod and
@@ -2739,9 +2741,13 @@ class CFuncDefNode(FuncDefNode):
                 self.generate_arg_none_check(arg, code)
 
     def generate_execution_code(self, code):
+        if self.code_object:
+            self.code_object.generate_evaluation_code(code)
+
         if code.globalstate.directives['linetrace']:
             code.mark_pos(self.pos)
             code.putln("")  # generate line tracing code
+
         super(CFuncDefNode, self).generate_execution_code(code)
         if self.py_func_stat:
             self.py_func_stat.generate_execution_code(code)
@@ -2841,6 +2847,7 @@ class DefNode(FuncDefNode):
     lambda_name = None
     reqd_kw_flags_cname = "0"
     is_wrapper = 0
+    wrapped_func = None
     no_assignment_synthesis = 0
     decorators = None
     return_type_annotation = None
