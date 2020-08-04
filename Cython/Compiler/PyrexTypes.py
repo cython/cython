@@ -3224,10 +3224,7 @@ class CFuncType(CType):
         # between functions with identical types but different argument names
         from .Symtab import punycodify_name
         def arg_name_part(arg):
-            if arg.name:
-                return "%s%s" % (len(arg.name), punycodify_name(arg.name))
-            else:
-                return "0"
+            return "%s%s" % (len(arg.name), punycodify_name(arg.name)) if arg.name else "0"
         arg_names = [ arg_name_part(arg) for arg in self.args ]
         arg_names = "_".join(arg_names)
         safe_typename = re.sub('[^a-zA-Z0-9]', '__', self.declaration_code("", pyrex=1))
