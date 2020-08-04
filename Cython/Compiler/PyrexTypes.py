@@ -2600,8 +2600,8 @@ class CArrayType(CPointerBaseType):
             return False
 
         safe_typename = self.base_type.specialization_name()
-        to_py_function = env.next_id("__Pyx_carray_to_py_%s" % safe_typename)
-        to_tuple_function = env.next_id("__Pyx_carray_to_tuple_%s" % safe_typename)
+        to_py_function = "__Pyx_carray_to_py_%s" % safe_typename
+        to_tuple_function = "__Pyx_carray_to_tuple_%s" % safe_typename
 
         from .UtilityCode import CythonUtilityCode
         context = {
@@ -3219,8 +3219,19 @@ class CFuncType(CType):
         if not self.can_coerce_to_pyobject(env):
             return False
         from .UtilityCode import CythonUtilityCode
+
+        # include argument names into the c function name to ensure cname is unique
+        # between functions with identical types but different argument names
+        from .Symtab import punycodify_name
+        def arg_name_part(arg):
+            if arg.name:
+                return "%s%s" % (len(arg.name), punycodify_name(arg.name))
+            else:
+                return "0"
+        arg_names = [ arg_name_part(arg) for arg in self.args ]
+        arg_names = "_".join(arg_names)
         safe_typename = re.sub('[^a-zA-Z0-9]', '__', self.declaration_code("", pyrex=1))
-        to_py_function = env.next_id("__Pyx_CFunc_%s_to_py" % safe_typename)
+        to_py_function = "__Pyx_CFunc_%s_to_py_%s" % (safe_typename, arg_names)
 
         for arg in self.args:
             if not arg.type.is_pyobject and not arg.type.create_from_py_utility_code(env):

@@ -437,7 +437,7 @@ class Scope(object):
 
     def next_id(self, name=None):
         # Return a cname fragment that is unique for this module
-        counters = self.global_scope(outermost=True).id_counters
+        counters = self.global_scope().id_counters
         try:
             count = counters[name] + 1
         except KeyError:
@@ -451,13 +451,9 @@ class Scope(object):
         else:
             return '%d' % count
 
-    def global_scope(self, outermost=False):
-        """ Return the module-level scope containing this scope.
-
-        outermost only affects utility code module scopes - it cause the
-        lookup to keep going to the main module scope
-        """
-        return self.outer_scope.global_scope(outermost)
+    def global_scope(self):
+        """ Return the module-level scope containing this scope. """
+        return self.outer_scope.global_scope()
 
     def builtin_scope(self):
         """ Return the module-level scope containing this scope. """
@@ -1263,7 +1259,7 @@ class ModuleScope(Scope):
     def qualifying_scope(self):
         return self.parent_module
 
-    def global_scope(self, outermost=False):
+    def global_scope(self):
         return self
 
     def lookup(self, name, language_level=None, str_is_str=None):

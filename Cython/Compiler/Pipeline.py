@@ -288,8 +288,9 @@ def create_pyx_as_pxd_pipeline(context, result):
     for stage in pyx_pipeline:
         pipeline.append(stage)
         if isinstance(stage, AnalyseDeclarationsTransform):
-            # This is the last stage we need.
-            break
+            # crude hack to not generate pickle code for classes cimported
+            stage._inject_pickle_methods = lambda node: None
+            break  # This is the last stage we need.
     def fake_pxd(root):
         for entry in root.scope.entries.values():
             if not entry.in_cinclude:
@@ -297,7 +298,6 @@ def create_pyx_as_pxd_pipeline(context, result):
                 if entry.name == entry.cname and entry.visibility != 'extern':
                     # Always mangle non-extern cimported entries.
                     entry.cname = entry.scope.mangle(Naming.func_prefix, entry.name)
-        root.scope.utility_code_list = []  # don't generate utility code for cimported modules
         return StatListNode(root.pos, stats=[]), root.scope
     pipeline.append(fake_pxd)
     return pipeline
