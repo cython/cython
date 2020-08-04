@@ -39,7 +39,8 @@ else:
     _py_int_types = (int, long)
 
 
-IMPLICIT_CLASSMETHODS = {"__init_subclass__", "__class_getitem__"}
+INHERITANCE_HOOK = '__init_subclass__'
+IMPLICIT_CLASSMETHODS = {INHERITANCE_HOOK, '__class_getitem__'}
 
 
 def relative_position(pos):
@@ -2965,10 +2966,12 @@ class DefNode(FuncDefNode):
             # staticmethod() was overridden - not much we can do here ...
             self.is_staticmethod = False
 
-        if env.is_py_class_scope:
-            if self.name == '__new__':
+        if env.is_py_class_scope or env.is_c_class_scope:
+            if self.name == '__new__' and env.is_py_class_scope:
                 self.is_staticmethod = True
-            elif not self.is_classmethod and self.name in IMPLICIT_CLASSMETHODS:
+            elif self.name == INHERITANCE_HOOK and env.is_c_class_scope:
+                error(self.pos, "inheritance argument is not supported by extension class")
+            elif self.name in IMPLICIT_CLASSMETHODS and not self.is_classmethod:
                 self.is_classmethod = True
                 # TODO: remove the need to generate a real decorator here, is_classmethod=True should suffice.
                 from .ExprNodes import NameNode
