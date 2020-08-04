@@ -131,14 +131,14 @@ cdef inline array clone(array template, Py_ssize_t length, bint zero):
     """ fast creation of a new array, given a template array.
     type will be same as template.
     if zero is true, new array will be initialized with zeroes."""
-    op = newarrayobject(Py_TYPE(template), length, template.ob_descr)
+    cdef array op = newarrayobject(Py_TYPE(template), length, template.ob_descr)
     if zero and op is not None:
         memset(op.data.as_chars, 0, length * op.ob_descr.itemsize)
     return op
 
 cdef inline array copy(array self):
     """ make a copy of an array. """
-    op = newarrayobject(Py_TYPE(self), Py_SIZE(self), self.ob_descr)
+    cdef array op = newarrayobject(Py_TYPE(self), Py_SIZE(self), self.ob_descr)
     memcpy(op.data.as_chars, self.data.as_chars, Py_SIZE(op) * op.ob_descr.itemsize)
     return op
 

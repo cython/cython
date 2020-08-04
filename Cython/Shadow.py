@@ -1,7 +1,7 @@
 # cython.* namespace for pure mode.
 from __future__ import absolute_import
 
-__version__ = "3.0a0"
+__version__ = "3.0a6"
 
 try:
     from __builtin__ import basestring
@@ -71,7 +71,7 @@ def index_type(base_type, item):
     else:
         # int[8] etc.
         assert int(item) == item  # array size must be a plain integer
-        array(base_type, item)
+        return array(base_type, item)
 
 # END shameless copy
 
@@ -162,12 +162,16 @@ def cmod(a, b):
 
 # Emulated language constructs
 
-def cast(type_, *args, **kwargs):
+def cast(t, *args, **kwargs):
     kwargs.pop('typecheck', None)
     assert not kwargs
-    if callable(type_):
-        if not isinstance(type_, type) or not (args and isinstance(args[0], type_)):
-            return type_(*args)
+
+    if isinstance(t, typedef):
+        return t(*args)
+    elif isinstance(t, type):  # Doesn't work with old-style classes of Python 2.x
+        if len(args) != 1 or not (args[0] is None or isinstance(args[0], t)):
+            return t(*args)
+
     return args[0]
 
 def sizeof(arg):
@@ -180,14 +184,19 @@ def typeof(arg):
 def address(arg):
     return pointer(type(arg))([arg])
 
-def declare(type=None, value=_Unspecified, **kwds):
-    if type not in (None, object) and hasattr(type, '__call__'):
-        if value is not _Unspecified:
-            return type(value)
-        else:
-            return type()
+def _is_value_type(t):
+    if isinstance(t, typedef):
+        return _is_value_type(t._basetype)
+
+    return isinstance(t, type) and issubclass(t, (StructType, UnionType, ArrayType))
+
+def declare(t=None, value=_Unspecified, **kwds):
+    if value is not _Unspecified:
+        return cast(t, value)
+    elif _is_value_type(t):
+        return t()
     else:
-        return value
+        return None
 
 class _nogil(object):
     """Support for 'with nogil' statement and @nogil decorator.
@@ -260,8 +269,11 @@ class PointerType(CythonType):
 
 class ArrayType(PointerType):
 
-    def __init__(self):
-        self._items = [None] * self._n
+    def __init__(self, value=None):
+        if value is None:
+            self._items = [None] * self._n
+        else:
+            super(ArrayType, self).__init__(value)
 
 
 class StructType(CythonType):
@@ -272,7 +284,7 @@ class StructType(CythonType):
             if len(data) > 0:
                 raise ValueError('Cannot accept keyword arguments when casting.')
             if type(cast_from) is not type(self):
-                raise ValueError('Cannot cast from %s'%cast_from)
+                raise ValueError('Cannot cast from %s' % cast_from)
             for key, value in cast_from.__dict__.items():
                 setattr(self, key, value)
         else:
@@ -298,7 +310,7 @@ class UnionType(CythonType):
             elif type(cast_from) is type(self):
                 datadict = cast_from.__dict__
             else:
-                raise ValueError('Cannot cast from %s'%cast_from)
+                raise ValueError('Cannot cast from %s' % cast_from)
         else:
             datadict = data
         if len(datadict) > 1:
@@ -395,7 +407,7 @@ py_complex = typedef(complex, "double complex")
 
 # Predefined types
 
-int_types = ['char', 'short', 'Py_UNICODE', 'int', 'Py_UCS4', 'long', 'longlong', 'Py_ssize_t', 'size_t']
+int_types = ['char', 'short', 'Py_UNICODE', 'int', 'Py_UCS4', 'long', 'longlong', 'Py_hash_t', 'Py_ssize_t', 'size_t']
 float_types = ['longdouble', 'double', 'float']
 complex_types = ['longdoublecomplex', 'doublecomplex', 'floatcomplex', 'complex']
 other_types = ['bint', 'void', 'Py_tss_t']

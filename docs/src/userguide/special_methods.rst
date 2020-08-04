@@ -129,20 +129,36 @@ executed unless they are explicitly called by the subclass.
 Arithmetic methods
 -------------------
 
-Arithmetic operator methods, such as :meth:`__add__`, behave differently from their
-Python counterparts. There are no separate "reversed" versions of these
-methods (:meth:`__radd__`, etc.) Instead, if the first operand cannot perform the
-operation, the same method of the second operand is called, with the operands
-in the same order.
+Arithmetic operator methods, such as :meth:`__add__`, used to behave differently
+from their Python counterparts in Cython 0.x, following the low-level semantics
+of the C-API slot functions.  Since Cython 3.0, they are called in the same way
+as in Python, including the separate "reversed" versions of these methods
+(:meth:`__radd__`, etc.).
 
-This means that you can't rely on the first parameter of these methods being
-"self" or being the right type, and you should test the types of both operands
-before deciding what to do. If you can't handle the combination of types you've
-been given, you should return `NotImplemented`.
+Previously, if the first operand could not perform the operation, the same method
+of the second operand was called, with the operands in the same order.
+This means that you could not rely on the first parameter of these methods being
+"self" or being the right type, and you needed to test the types of both operands
+before deciding what to do.
 
-This also applies to the in-place arithmetic method :meth:`__ipow__`. It doesn't apply
-to any of the other in-place methods (:meth:`__iadd__`, etc.) which always
-take `self` as the first argument.
+If backwards compatibility is needed, the normal operator method (``__add__``, etc.)
+can still be implemented to support both variants, applying a type check to the
+arguments.  The reversed method (``__radd__``, etc.) can always be implemented
+with ``self`` as first argument and will be ignored by older Cython versions, whereas
+Cython 3.x and later will only call the normal method with the expected argument order,
+and otherwise call the reversed method instead.
+
+Alternatively, the old Cython 0.x (or native C-API) behaviour is still available with
+the directive ``c_api_binop_methods=True``.
+
+If you can't handle the combination of types you've been given, you should return
+`NotImplemented`.  This will let Python's operator implementation first try to apply
+the reversed operator to the second operand, and failing that as well, report an
+appropriate error to the user.
+
+This change in behaviour also applies to the in-place arithmetic method :meth:`__ipow__`.
+It does not apply to any of the other in-place methods (:meth:`__iadd__`, etc.)
+which always take `self` as the first argument.
 
 .. _righ_comparisons:
 
