@@ -2970,7 +2970,7 @@ class DefNode(FuncDefNode):
             if self.name == '__new__' and env.is_py_class_scope:
                 self.is_staticmethod = True
             elif self.name == INHERITANCE_HOOK and env.is_c_class_scope:
-                error(self.pos, "inheritance argument is not supported by extension class")
+                error(self.pos, "{} is not supported by extension class".format(INHERITANCE_HOOK))
             elif self.name in IMPLICIT_CLASSMETHODS and not self.is_classmethod:
                 self.is_classmethod = True
                 # TODO: remove the need to generate a real decorator here, is_classmethod=True should suffice.
