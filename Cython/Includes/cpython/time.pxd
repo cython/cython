@@ -2,11 +2,8 @@
 Cython implementation of (parts of) the standard library time module.
 """
 
-from libc.stdint cimport int64_t
-
-ctypedef int64_t _PyTime_t
-
 cdef extern from "pytime.h":
+    ctypedef _PyTime_t  # alias for int64_t
     _PyTime_t _PyTime_GetSystemClock() nogil
     double _PyTime_AsSecondsDouble(_PyTime_t t) nogil
 
@@ -17,19 +14,18 @@ from libc.time cimport (
 )
 
 
-cpdef inline double time() nogil:
+cdef inline double time() nogil:
     cdef:
         _PyTime_t tic
+
     tic = _PyTime_GetSystemClock()
     return _PyTime_AsSecondsDouble(tic)
 
 
-cpdef tm localtime() nogil:
+cdef tm localtime() nogil:
     """
     Analogue to the stdlib time.localtime.  The returned struct
     has some entries that the stdlib version does not: tm_gmtoff, tm_zone
-
-    When called from python, this returns a dict instead of a struct.
     """
     cdef:
         time_t tic = <time_t>time()

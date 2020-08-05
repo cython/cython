@@ -29,9 +29,14 @@ def test_localtime():
     >>> assert ltp.tm_yday == ltc.tm_yday
     >>> assert ltp.tm_isdst == ltc.tm_isdst
     """
-    # Note: the tm_sec assertion may fail in corner cases when the time.localtime
-    #  call is just before the end of a second and the ctime.localtime
-    #  is just after.
     ltp = time.localtime()
     ltc = ctime.localtime()
+
+    if ltp.tm_sec != ltc.tm_sec:
+        # If the time.localtime call is just before the end of a second and the
+        #  ctime.localtime call is just after the beginning of the next second,
+        #  re-call.  This should not occur twice in a row.
+        ltp = time.localtime()
+        ltc = ctime.localtime()
+
     return ltp, ltc
