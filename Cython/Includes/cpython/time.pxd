@@ -2,8 +2,10 @@
 Cython implementation of (parts of) the standard library time module.
 """
 
+from libc.stdint cimport int64_t
+
 cdef extern from "pytime.h":
-    ctypedef _PyTime_t  # alias for int64_t
+    ctypedef int64_t _PyTime_t
     _PyTime_t _PyTime_GetSystemClock() nogil
     double _PyTime_AsSecondsDouble(_PyTime_t t) nogil
 
