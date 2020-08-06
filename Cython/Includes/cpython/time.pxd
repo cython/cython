@@ -24,7 +24,7 @@ cdef inline double time() nogil:
     return _PyTime_AsSecondsDouble(tic)
 
 
-cdef tm localtime() nogil:
+cdef inline tm localtime() nogil:
     """
     Analogue to the stdlib time.localtime.  The returned struct
     has some entries that the stdlib version does not: tm_gmtoff, tm_zone
