@@ -8,10 +8,19 @@ Cython Changelog
 Features added
 --------------
 
+* ``__class_getitem__`` (PEP-560) is supported for cdef classes.
+  Patch by Kmol Yuan.  (Github issue #3764)
+
+* ``cython.array`` supports simple, non-strided views.
+  (Github issue #3775)
+
 * The type ``cython.Py_hash_t`` is available in Python mode.
 
 Bugs fixed
 ----------
+
+* ``ndarray.shape`` failed to compile with Pythran and recent NumPy.
+  Patch by Serge Guelton.  (Github issue #3762)
 
 
 3.0.0 alpha 6 (2020-07-31)
