@@ -2,7 +2,6 @@
 PYTHON := python
 PYVERSION := $(shell $(PYTHON) -c "import sys; print(sys.version[:3])")
 PYPREFIX := $(shell $(PYTHON) -c "import sys; print(sys.prefix)")
-PYTHONHOME := $(shell $(PYTHON) -c "import sys; print(sys.prefix + ':' + sys.exec_prefix)")
 
 INCDIR := $(shell $(PYTHON) -c "from distutils import sysconfig; print(sysconfig.get_python_inc())")
 PLATINCDIR := $(shell $(PYTHON) -c "from distutils import sysconfig; print(sysconfig.get_python_inc(plat_specific=True))")
@@ -21,7 +20,6 @@ SYSLIBS :=  $(shell $(PYTHON) -c "import distutils.sysconfig; print(distutils.sy
 paths:
 	@echo "PYTHON=$(PYTHON)"
 	@echo "PYVERSION=$(PYVERSION)"
-	@echo "PYTHONHOME=$(PYTHONHOME)"
 	@echo "PYPREFIX=$(PYPREFIX)"
 	@echo "INCDIR=$(INCDIR)"
 	@echo "PLATINCDIR=$(PLATINCDIR)"

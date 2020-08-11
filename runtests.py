@@ -1824,7 +1824,6 @@ class EmbedTest(unittest.TestCase):
             subprocess.check_output([
                 "make",
                 "PYTHON='%s'" % sys.executable,
-                "PYTHONHOME=%s:%s" % (sys.prefix, sys.exec_prefix),
                 "CYTHON='%s'" % cython,
                 "LIBDIR1='%s'" % libdir,
                 "paths", "test",
