@@ -46,8 +46,7 @@
               : 2012-05-02 andreasvc
               : (see revision control)
 """
-from libc.string cimport strcat, strncat, \
-    memset, memchr, memcmp, memcpy, memmove
+from libc.string cimport memset, memcpy
 
 from cpython.object cimport Py_SIZE
 from cpython.ref cimport PyTypeObject, Py_TYPE
