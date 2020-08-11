@@ -177,26 +177,29 @@ cdef class array:
     @cname('getbuffer')
     def __getbuffer__(self, Py_buffer *info, int flags):
         cdef int bufmode = -1
-        if self.mode == u"c":
-            bufmode = PyBUF_C_CONTIGUOUS | PyBUF_ANY_CONTIGUOUS
-        elif self.mode == u"fortran":
-            bufmode = PyBUF_F_CONTIGUOUS | PyBUF_ANY_CONTIGUOUS
-        if not (flags & bufmode):
-            raise ValueError, "Can only create a buffer that is contiguous in memory."
+        if flags & (PyBUF_C_CONTIGUOUS | PyBUF_F_CONTIGUOUS | PyBUF_ANY_CONTIGUOUS):
+            if self.mode == u"c":
+                bufmode = PyBUF_C_CONTIGUOUS | PyBUF_ANY_CONTIGUOUS
+            elif self.mode == u"fortran":
+                bufmode = PyBUF_F_CONTIGUOUS | PyBUF_ANY_CONTIGUOUS
+            if not (flags & bufmode):
+                raise ValueError, "Can only create a buffer that is contiguous in memory."
         info.buf = self.data
         info.len = self.len
-        info.ndim = self.ndim
-        info.shape = self._shape
-        info.strides = self._strides
+
+        if flags & PyBUF_STRIDES:
+            info.ndim = self.ndim
+            info.shape = self._shape
+            info.strides = self._strides
+        else:
+            info.ndim = 1
+            info.shape = &self.len if flags & PyBUF_ND else NULL
+            info.strides = NULL
+
         info.suboffsets = NULL
         info.itemsize = self.itemsize
         info.readonly = 0
-
-        if flags & PyBUF_FORMAT:
-            info.format = self.format
-        else:
-            info.format = NULL
-
+        info.format = self.format if flags & PyBUF_FORMAT else NULL
         info.obj = self
 
     __pyx_getbuffer = capsule(<void *> &__pyx_array_getbuffer, "getbuffer(obj, view, flags)")
