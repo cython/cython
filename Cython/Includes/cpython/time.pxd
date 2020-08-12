@@ -25,6 +25,11 @@ cdef inline double time() nogil:
     return _PyTime_AsSecondsDouble(tic)
 
 
+cdef inline int _raise_from_errno() except -1 with gil:
+    PyErr_SetFromErrno(RuntimeError)
+    return <int> -1  # Let the C compiler know that this function always raises.
+
+
 cdef inline tm localtime() nogil except *:
     """
     Analogue to the stdlib time.localtime.  The returned struct
@@ -36,8 +41,7 @@ cdef inline tm localtime() nogil except *:
 
     result = libc_localtime(&tic)
     if result is NULL:
-        PyErr_SetFromErrno(RuntimeError)
-        raise RuntimeError()  # Cython and the C compiler can't know that the above always raises.
+        _raise_from_errno()
     # Fix 0-based date values (and the 1900-based year).
     result.tm_year += 1900
     result.tm_mon += 1
