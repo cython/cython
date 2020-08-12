@@ -24,23 +24,23 @@ def test_time():
 def test_localtime():
     """
     >>> ltp, ltc = test_localtime()
-    >>> ltp.tm_year == ltc['tm_year']
+    >>> ltp.tm_year == ltc['tm_year']  or  (ltp.tm_year, ltc['tm_year'])
     True
-    >>> ltp.tm_mon == ltc['tm_mon']
+    >>> ltp.tm_mon == ltc['tm_mon']  or  (ltp.tm_mon, ltc['tm_mon'])
     True
-    >>> ltp.tm_mday == ltc['tm_mday']
+    >>> ltp.tm_mday == ltc['tm_mday']  or  (ltp.tm_mday, ltc['tm_mday'])
     True
-    >>> ltp.tm_hour == ltc['tm_hour']
+    >>> ltp.tm_hour == ltc['tm_hour']  or  (ltp.tm_hour, ltc['tm_hour'])
     True
-    >>> ltp.tm_min == ltc['tm_min']
+    >>> ltp.tm_min == ltc['tm_min']  or  (ltp.tm_min, ltc['tm_min'])
     True
-    >>> ltp.tm_sec == ltc['tm_sec']
+    >>> ltp.tm_sec == ltc['tm_sec']  or  (ltp.tm_sec, ltc['tm_sec'])
     True
-    >>> ltp.tm_wday == ltc['tm_wday']
+    >>> ltp.tm_wday == ltc['tm_wday']  or (ltp.tm_wday, ltc['tm_wday'])
     True
-    >>> ltp.tm_yday == ltc['tm_yday']
+    >>> ltp.tm_yday == ltc['tm_yday']  or  (ltp.tm_yday, ltc['tm_yday'])
     True
-    >>> ltp.tm_isdst == ltc['tm_isdst']
+    >>> ltp.tm_isdst == ltc['tm_isdst']  or  (ltp.tm_isdst, ltc['tm_isdst'])
     True
     """
     ltp = time.localtime()
