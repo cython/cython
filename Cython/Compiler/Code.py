@@ -1215,6 +1215,13 @@ class GlobalState(object):
         code.putln("")
         code.putln("/* --- Runtime support code --- */")
 
+    def initialize_main_h_code(self):
+        # h code can include utility code in a few cases so it needs to be insertable
+        rootwriter = self.rootwriter
+        for part in self.code_layout:
+            if part.find("utility_code") != -1:
+                self.parts[part] = rootwriter.insertion_point()
+
     def finalize_main_c_code(self):
         self.close_global_decls()
 

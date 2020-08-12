@@ -189,7 +189,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             result.h_file = replace_suffix_encoded(result.c_file, ".h")
             h_code = Code.CCodeWriter()
             c_code_config = generate_c_code_config(env, options)
-            Code.GlobalState(h_code, self, c_code_config)
+            globalstate = Code.GlobalState(h_code, self, c_code_config)
             if options.generate_pxi:
                 result.i_file = replace_suffix_encoded(result.c_file, ".pxi")
                 i_code = Code.PyrexCodeWriter(result.i_file)
@@ -201,6 +201,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             h_code.put_h_guard(h_guard)
             h_code.putln("")
             h_code.putln('#include "Python.h"')
+            globalstate.initialize_main_h_code()  # in-case utility code is used in the header
             self.generate_type_header_code(h_types, h_code)
             if options.capi_reexport_cincludes:
                 self.generate_includes(env, [], h_code)
