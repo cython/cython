@@ -1145,6 +1145,14 @@ class GlobalState(object):
         'end'
     ]
 
+    h_code_layout = (
+        'h_code',
+        'utility_code_proto_before_types',
+        'type_declarations',
+        'utility_code_proto',
+        'end'
+    )
+
 
     def __init__(self, writer, module_node, code_config, common_utility_include_dir=None):
         self.filename_table = {}
@@ -1219,10 +1227,8 @@ class GlobalState(object):
         # h files can include only include a much smaller list of sections
         # that are manually created here
         rootwriter = self.rootwriter
-        for part in self.code_layout:
-            if part in ('h_code', 'utility_code_proto_before_types', 'type_declarations',
-                        'utility_code_proto', 'end'):
-                self.parts[part] = rootwriter.insertion_point()
+        for part in self.h_code_layout:
+            self.parts[part] = rootwriter.insertion_point()
 
     def finalize_main_c_code(self):
         self.close_global_decls()

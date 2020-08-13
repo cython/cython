@@ -187,8 +187,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         h_extension_types = h_entries(env.c_class_entries)
         if h_types or h_vars or h_funcs or h_extension_types:
             result.h_file = replace_suffix_encoded(result.c_file, ".h")
+            h_code_writer = Code.CCodeWriter()
             c_code_config = generate_c_code_config(env, options)
-            globalstate = Code.GlobalState(Code.CCodeWriter(), self, c_code_config)
+            globalstate = Code.GlobalState(h_code_writer, self, c_code_config)
             globalstate.initialize_main_h_code()  # in-case utility code is used in the header
             h_code_start = globalstate.parts['h_code']
             h_code_main = globalstate.parts['type_declarations']
@@ -272,11 +273,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             h_code_end.putln("")
             h_code_end.putln("#endif /* !%s */" % h_guard)
 
-            f = open_new_file(result.h_file)
-            try:
-                globalstate.rootwriter.copyto(f)
-            finally:
-                f.close()
+            with open_new_file(result.h_file) as f:
+                h_code_writer.copyto(f)
 
     def generate_public_declaration(self, entry, h_code, i_code):
         h_code.putln("%s %s;" % (
