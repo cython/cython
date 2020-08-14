@@ -1,3 +1,6 @@
+# mode: run
+# tag: py3only,pytime
+
 import time
 
 from cpython cimport time as ctime
