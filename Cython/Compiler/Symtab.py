@@ -702,7 +702,7 @@ class Scope(object):
         entry = self.declare_type(name, type, pos, cname = cname,
             visibility = visibility, api = api)
         if scoped:
-            entry.utility_code = Code.UtilityCode.load_cached("EnumDecl", "CppSupport.cpp")
+            entry.utility_code = Code.UtilityCode.load_cached("EnumClassDecl", "CppSupport.cpp")
             self.use_entry_utility_code(entry)
         entry.create_wrapper = create_wrapper
         entry.enum_values = []
