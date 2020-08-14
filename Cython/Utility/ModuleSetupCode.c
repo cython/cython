@@ -410,16 +410,6 @@
   #endif
 #endif
 
-#if defined (_MSC_VER)
-  #if PY_VERSION_HEX >= 0x03040000 && PY_VERSION_HEX < 0x03050000
-    #define __PYX_ENUM_DECL
-  #else
-    #define __PYX_ENUM_DECL enum
-  #endif
-#else
-  #define __PYX_ENUM_DECL enum
-#endif
-
 /////////////// CInitCode ///////////////
 
 // inline attribute

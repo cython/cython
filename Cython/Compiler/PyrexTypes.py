@@ -4049,7 +4049,7 @@ class CppScopedEnumType(CType):
                     self.cname
                 )
             else:
-                type_name = "__PYX_ENUM_DECL %s" % self.cname
+                type_name = "__PYX_ENUM_CLASS_DECL %s" % self.cname
             type_name = public_decl(type_name, dll_linkage)
         return self.base_declaration_code(type_name, entity_code)
 
@@ -4173,7 +4173,7 @@ class CEnumType(CIntLike, CType):
             elif self.typedef_flag:
                 base_code = self.cname
             else:
-                base_code = "__PYX_ENUM_DECL %s" % self.cname
+                base_code = "enum %s" % self.cname
             base_code = public_decl(base_code, dll_linkage)
         return self.base_declaration_code(base_code, entity_code)
 
