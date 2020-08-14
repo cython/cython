@@ -43,8 +43,9 @@ cdef inline tm localtime() nogil except *:
     if result is NULL:
         _raise_from_errno()
     # Fix 0-based date values (and the 1900-based year).
+    # See tmtotuple() in https://github.com/python/cpython/blob/master/Modules/timemodule.c
     result.tm_year += 1900
     result.tm_mon += 1
-    result.tm_wday += 1
+    result.tm_wday = (result.tm_wday + 6) % 7
     result.tm_yday += 1
     return result[0]
