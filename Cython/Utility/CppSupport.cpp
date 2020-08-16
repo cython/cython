@@ -67,3 +67,15 @@ auto __Pyx_pythran_to_python(T &&value) -> decltype(to_python(
 #else
   #define __PYX_STD_MOVE_IF_SUPPORTED(x) x
 #endif
+
+////////////// EnumClassDecl.proto //////////////////
+
+#if defined (_MSC_VER)
+  #if PY_VERSION_HEX >= 0x03040000 && PY_VERSION_HEX < 0x03050000
+    #define __PYX_ENUM_CLASS_DECL
+  #else
+    #define __PYX_ENUM_CLASS_DECL enum
+  #endif
+#else
+  #define __PYX_ENUM_CLASS_DECL enum
+#endif
