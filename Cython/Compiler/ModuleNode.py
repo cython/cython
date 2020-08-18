@@ -531,19 +531,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         markers = ccodewriter.buffer.allmarkers()
 
         d = defaultdict(list)
-        for c_lineno, cython_tup in enumerate(markers):
-            cython_fp = cython_tup[0]
-            cython_lineno = cython_tup[1]
-            if cython_lineno > 0 and cython_fp.filename is not None:
-                d[cython_fp, cython_lineno].append(c_lineno + 1)
+        for c_lineno, (src_desc, src_lineno) in enumerate(markers):
+            if src_lineno > 0 and src_desc.filename is not None:
+                d[src_desc, src_lineno].append(c_lineno + 1)
 
         tb.start('LineNumberMapping')
-        for cython_pos, c_linenos in sorted(d.items()):
+        for (src_desc, src_lineno), c_linenos in sorted(d.items()):
             tb.add_entry(
                 'LineNumber',
                 c_linenos=' '.join(map(str, c_linenos)),
-                cython_fp=cython_pos[0].filename,
-                cython_lineno=str(cython_pos[1]),
+                src_path=src_desc.filename,
+                src_lineno=str(src_lineno),
             )
         tb.end('LineNumberMapping')
         tb.serialize()

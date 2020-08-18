@@ -731,12 +731,12 @@ class CyImport(CythonCommand):
                         funcarg.tag for funcarg in function.find('Arguments'))
 
                 for marker in module.find('LineNumberMapping'):
-                    cython_lineno = int(marker.attrib['cython_lineno'])
-                    cython_fp = marker.attrib['cython_fp']
+                    src_lineno = int(marker.attrib['src_lineno'])
+                    src_path = marker.attrib['src_path']
                     c_linenos = list(map(int, marker.attrib['c_linenos'].split()))
-                    cython_module.lineno_cy2c[cython_fp, cython_lineno] = min(c_linenos)
+                    cython_module.lineno_cy2c[src_path, src_lineno] = min(c_linenos)
                     for c_lineno in c_linenos:
-                        cython_module.lineno_c2cy[c_lineno] = (cython_fp, cython_lineno)
+                        cython_module.lineno_c2cy[c_lineno] = (src_path, src_lineno)
 
 
 class CyBreak(CythonCommand):
