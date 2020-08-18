@@ -1,5 +1,7 @@
 # mode: run
 
+# Test declarations, behaviour and coercions of the memoryview type itself.
+
 u'''
 >>> f()
 >>> g()
