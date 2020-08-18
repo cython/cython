@@ -1,8 +1,6 @@
 # coding: utf-8
 
-#cimport cpython.datetime as cy_datetime
-#from datetime import time, date, datetime, timedelta, tzinfo
-
+cimport cython
 
 from cpython.datetime cimport import_datetime, timedelta
 from cpython.datetime cimport time_new, date_new, datetime_new, timedelta_new
@@ -212,3 +210,20 @@ def test_timedelta_total_seconds():
     pytd = now - py_datetime.datetime(1970, 1, 1)
 
     return total_seconds(td), pytd.total_seconds()
+
+
+@cython.test_fail_if_path_exists("//CoerceFromPyTypeNode")
+def test_datetime_attrs_inlined():
+    # GH#3737
+    """
+    >>> test_datetime_attrs_inlined()
+    """
+    cdef:
+        datetime dt = datetime(2020, 8, 18, 4, 9)
+
+    dt.year
+    dt.month
+    dt.day
+    dt.hour
+    dt.second
+    dt.microsecond
