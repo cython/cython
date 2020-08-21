@@ -4,8 +4,7 @@
 # It can be found under Tools/gdb/libpython.py. It is shipped with Cython
 # because it's not installed as a python module, and because changes are only
 # merged into new python versions (v3.2+).
-# We added some of our code below the "## added, not in CPython" comment
-# and slightly modified PyExec.readcode to make it Python 2 compatible.
+# We added some of our code below the "## added, not in CPython" comment.
 
 '''
 From gdb 7 onwards, gdb's build can be configured --with-python, allowing gdb
