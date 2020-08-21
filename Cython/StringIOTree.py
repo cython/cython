@@ -124,15 +124,15 @@ class StringIOTree(object):
         if len(d) == 0:
             print("allmarkers is empty")
         for cython_lineno, c_linenos in sorted(d.items()):
-            print("cython line", cython_lineno, "maps to ", end="")
+            sys.stdout.write("cython line", cython_lineno, "maps to ")
             i = 0
             while i < len(c_linenos):
-                print(c_linenos[i], end="")
+                sys.stdout.write(c_linenos[i])
                 flag = False
                 while i+1 < len(c_linenos) and c_linenos[i+1] == c_linenos[i]+1:
                     i += 1
                     flag = True
                 if flag:
-                    print("-"+str(c_linenos[i]), end="  ")
+                    sys.stdout.write("-"+str(c_linenos[i]))
                 i += 1
             print("")
