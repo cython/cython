@@ -97,6 +97,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # CodeGenerator, and tell that CodeGenerator to generate code
         # from multiple sources.
         assert isinstance(self.body, Nodes.StatListNode)
+        if scope.directives != self.scope.directives:
+            # merged in nodes should keep their original compiler directives
+            # (for example inline cdef functions)
+            tree = Nodes.CompilerDirectivesNode(tree.pos, body=tree, directives=scope.directives)
         if isinstance(tree, Nodes.StatListNode):
             self.body.stats.extend(tree.stats)
         else:

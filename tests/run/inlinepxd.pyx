@@ -1,3 +1,5 @@
+# cython: wraparound = False
+
 __doc__ = u"""
 >>> f()
 3
@@ -9,6 +11,8 @@ __doc__ = u"""
 6
 >>> j()
 6
+>>> test_wraparound()
+1.0
 """
 
 cimport inlinepxd_support
@@ -28,3 +32,9 @@ def i():
 
 def j():
     return my_add3(2, 4)
+
+def test_wraparound():
+    # the wraparound directive from this scope should not affect the inline pxd
+    cdef double a[2]
+    a[0] = 0.0; a[1] = 1.0
+    return inlinepxd_support.index(<double[:2:1]>a)
