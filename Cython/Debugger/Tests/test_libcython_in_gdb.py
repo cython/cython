@@ -353,15 +353,27 @@ correct_result_test_list_outside_func = '''\
     14            int b, c
 '''
 class TestList(DebugTestCase):
-
+    def workaround_for_coding_style_checker(self, correct_result_wrong_whitespace):
+        correct_result = ""
+        for line in correct_result_test_list_inside_func.split("\n"):
+            if len(line) < 10 and len(line) > 0:
+                line += " "*4
+            correct_result += line + "\n"
+        correct_result = correct_result[:-1]
     def test_list_inside_func(self):
         self.break_and_run('c = 2')
         result = gdb.execute('cy list', to_string=True)
+        # We don't want to fail because of some trailing whitespace,
+        # so we remove trailing whitespaces with the following line
+        result = "\n".join([line.rstrip() for line in result.split("\n")])
         self.assertEqual(correct_result_test_list_inside_func, result)
 
     def test_list_outside_func(self):
         self.break_and_run('python_var = 13')
         result = gdb.execute('cy list', to_string=True)
+        # We don't want to fail because of some trailing whitespace,
+        # so we remove trailing whitespaces with the following line
+        result = "\n".join([line.rstrip() for line in result.split("\n")])
         self.assertEqual(correct_result_test_list_outside_func, result)
 
 
