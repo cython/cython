@@ -330,9 +330,9 @@ class TestPrint(DebugTestCase):
 
 correct_result_test_list_inside_func = '''\
     14            int b, c
-    15    
+    15
     16        b = c = d = 0
-    17    
+    17
     18        b = 1
 >   19        c = 2
     20        int(10)
@@ -342,12 +342,12 @@ correct_result_test_list_inside_func = '''\
 '''
 correct_result_test_list_outside_func = '''\
      5        void some_c_function()
-     6    
+     6
      7    import os
-     8    
+     8
      9    cdef int c_var = 12
 >   10    python_var = 13
-    11    
+    11
     12    def spam(a=0):
     13        cdef:
     14            int b, c
@@ -403,7 +403,7 @@ class TestExec(DebugTestCase):
         # test normal behaviour
         self.assertEqual("[0]", self.eval_command('[a]'))
 
-        return #The test after this return freezes gdb, so I temporarily removed it.
+        return  #The test after this return freezes gdb, so I temporarily removed it.
         # test multiline code
         result = gdb.execute(textwrap.dedent('''\
             cy exec
