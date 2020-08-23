@@ -1237,7 +1237,7 @@ class EvaluateOrExecuteCodeMixin(object):
         "Fill a remotely allocated dict with values from the Cython C stack"
         cython_func = self.get_cython_function()
 
-        for name, cyvar in cython_func.locals.iteritems():
+        for name, cyvar in cython_func.locals.items():
             if (cyvar.type == PythonObject
                     and self.is_initialized(cython_func, name)):
 
