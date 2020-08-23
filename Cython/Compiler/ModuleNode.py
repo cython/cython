@@ -537,6 +537,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         tb.start('LineNumberMapping')
         for (src_desc, src_lineno), c_linenos in sorted(d.items()):
+            assert src_desc.filename is not None
             tb.add_entry(
                 'LineNumber',
                 c_linenos=' '.join(map(str, c_linenos)),
