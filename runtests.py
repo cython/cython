@@ -1199,6 +1199,8 @@ class CythonCompileTestCase(unittest.TestCase):
         tostderr = sys.__stderr__.write
         if expected_warnings or (expect_warnings and warnings):
             self._match_output(expected_warnings, warnings, tostderr)
+        elif warnings:
+            self._match_output([], warnings, tostderr)
         if 'cerror' in self.tags['tag']:
             if errors:
                 tostderr("\n=== Expected C compile error ===\n")
