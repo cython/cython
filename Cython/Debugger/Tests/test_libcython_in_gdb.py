@@ -352,6 +352,8 @@ correct_result_test_list_outside_func = '''\
     13        cdef:
     14            int b, c
 '''
+
+
 class TestList(DebugTestCase):
     def workaround_for_coding_style_checker(self, correct_result_wrong_whitespace):
         correct_result = ""
@@ -360,6 +362,7 @@ class TestList(DebugTestCase):
                 line += " "*4
             correct_result += line + "\n"
         correct_result = correct_result[:-1]
+
     def test_list_inside_func(self):
         self.break_and_run('c = 2')
         result = gdb.execute('cy list', to_string=True)

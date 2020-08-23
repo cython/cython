@@ -3466,12 +3466,10 @@ class DebugTransform(CythonTransform):
         else:
             pf_cname = node.py_func.entry.func_cname
 
-        cname = node.entry.pyfunc_cname
-        if cname is None:
-            cname = node.entry.func_cname
         # For functions defined using def, cname will be pyfunc_cname=__pyx_pf_*
         # For functions defined using cpdef or cdef, cname will be func_cname=__pyx_f_*
         # In all cases, cname will be the name of the function containing the actual code
+        cname = node.entry.pyfunc_cname or node.entry.func_cname
 
         attrs = dict(
             name=node.entry.name or getattr(node, 'name', '<unknown>'),

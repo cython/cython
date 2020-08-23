@@ -2018,7 +2018,7 @@ class PyGlobals(gdb.Command):
 PyGlobals()
 
 # This function used to be a part of CPython's libpython.py (as a member function of frame).
-# It is'nt anymore, so I copied it.
+# It isn't anymore, so I copied it.
 def is_evalframeex(frame):
     '''Is this a PyEval_EvalFrameEx frame?'''
     if frame._gdbframe.name() == 'PyEval_EvalFrameEx':

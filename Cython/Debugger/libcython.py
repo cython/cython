@@ -855,9 +855,9 @@ class CyBreak(CythonCommand):
         # Filter init-module functions (breakpoints can be set using
         # modulename:linenumber).
         names =  [n for n, L in self.cy.functions_by_name.items()
-                    if any(not f.is_initmodule_function for f in L)]
+                  if any(not f.is_initmodule_function for f in L)]
         qnames = [n for n, f in self.cy.functions_by_qualified_name.items()
-                    if not f.is_initmodule_function]
+                  if not f.is_initmodule_function]
 
         if parameters.complete_unqualified:
             all_names = itertools.chain(qnames, names)
