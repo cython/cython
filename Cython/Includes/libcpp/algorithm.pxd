@@ -105,7 +105,6 @@ cdef extern from "<algorithm>" namespace "std" nogil:
 
     void sort[Iter](Iter first, Iter last) except +
     void sort[Iter, Compare](Iter first, Iter last, Compare comp) except +
-
     void partial_sort[Iter](Iter first, Iter middle, Iter last) except +
     void partial_sort[Iter, Compare](Iter first, Iter middle, Iter last, Compare comp) except +
 
@@ -153,3 +152,24 @@ cdef extern from "<algorithm>" namespace "std" nogil:
     # Comparison operations
 
     # Permutation operations
+
+cdef extern from * namespace "cython_std" nogil:
+    """
+    #if __cplusplus > 201703L
+    #include <type_traits>
+
+    namespace cython_std {
+       template< class ExecutionPolicy, class RandomIt >
+       void sort( ExecutionPolicy&& policy, RandomIt first, RandomIt last ) {
+         return std::sort(policy, first, last);
+       }
+
+       template< class ExecutionPolicy, class RandomIt >
+       void sort( ExecutionPolicy& policy, RandomIt first, RandomIt last ) {
+         return std::sort(policy, first, last);
+       }
+    }
+
+    #endif
+    """
+    cdef void sort[ExecutionPolicy, Iter](ExecutionPolicy policy, Iter first, Iter last) except +
