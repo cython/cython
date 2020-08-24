@@ -156,7 +156,7 @@ cdef extern from "<algorithm>" namespace "std" nogil:
 cdef extern from * namespace "cython_std" nogil:
     """
     #if __cplusplus > 201703L
-    #include <type_traits>
+    #include <algorithm>
 
     namespace cython_std {
        template< class ExecutionPolicy, class RandomIt >
