@@ -19,8 +19,18 @@ Features added
 Bugs fixed
 ----------
 
+* Inline functions and other code in ``.pxd`` files could accidentally
+  inherit the compiler directives of the ``.pyx`` file that imported them.
+  Patch by David Woods.  (Github issue #1071)
+
 * ``ndarray.shape`` failed to compile with Pythran and recent NumPy.
   Patch by Serge Guelton.  (Github issue #3762)
+
+* A C compiler warning about unused code was resolved.
+  (Github issue #3763)
+
+* A compile failure for C++ enums in Py3.4 / MSVC was resolved.
+  Patch by Ashwin Srinath.  (Github issue #3782)
 
 
 3.0.0 alpha 6 (2020-07-31)
