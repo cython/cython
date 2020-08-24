@@ -3,43 +3,28 @@
 # ticket: 1961
 
 PYTHON -m venv venv
-PYTHON test_runner.py
+venv/bin/python setup.py build_ext -i
+venv/bin/python -m pip install dummy_module_dir/
+venv/bin/python test_runner.py
 
 ######## test_runner.py ########
 
 import sys, os
 import subprocess
 
-venv_args = 'source venv/bin/activate'
-build_args = 'python setup.py build_ext -i'
-dummy_install_args = 'python -m pip install dummy_module_dir/'
-cygdb_run_args = 'python -c "from Cython.Debugger import Cygdb as cygdb; cygdb.main()" . -- -ex "run test_inside_gdb.py" -ex quit python'
-
-command = ' && '.join([
-    venv_args,
-    build_args,
-    dummy_install_args,
-    cygdb_run_args,
+subprocess.check_call([sys.executable,
+    '-c',
+    'from Cython.Debugger import Cygdb as cygdb; cygdb.main()',
+    '.',
+    '--',
+    '-ex', 'run test_inside_gdb.py',
+    '-ex', 'quit',
+    sys.executable
 ])
 
-p = subprocess.Popen(['bash', '-c', command], stderr=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
-_out, _err = p.communicate()
-res = p.returncode
-
-def print_and_exit():
-    print("STDOUT:-")
-    print(_out)
-    print("STDERR:-")
-    print(_err)
-    # exit with return code 1
+# gdb run might have error, check for that
+if not os.path.isfile('SUCCESS'):
     sys.exit(1)
-
-if res == 0:
-    # gdb run might have error, check for that
-    if not os.path.isfile('SUCCESS'):
-        print_and_exit()
-else:
-    print_and_exit()
 
 
 ######## setup.py ########
