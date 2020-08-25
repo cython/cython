@@ -155,7 +155,7 @@ cdef extern from "<algorithm>" namespace "std" nogil:
 
 cdef extern from * namespace "cython_std" nogil:
     """
-    #if __cplusplus > 201703L
+    #if __cplusplus >= 201703L
     #include <algorithm>
 
     namespace cython_std {
@@ -168,6 +168,12 @@ cdef extern from * namespace "cython_std" nogil:
        void sort( ExecutionPolicy& policy, RandomIt first, RandomIt last ) {
          return std::sort(policy, first, last);
        }
+
+       template< class ExecutionPolicy, class RandomIt >
+       void sort( ExecutionPolicy const& policy, RandomIt first, RandomIt last ) {
+         return std::sort(policy, first, last);
+       }
+
     }
 
     #endif
