@@ -24,4 +24,3 @@ def f(a: 1+2==3, b: list, c: this_cant_evaluate, d: "Hello from inside a string"
     True
     """
     pass
-

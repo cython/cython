@@ -209,3 +209,80 @@ def test_cyarray_from_carray():
 
     mslice = a
     print mslice[0, 0], mslice[1, 0], mslice[2, 5]
+
+class InheritFrom(v.array):
+    """
+    Test is just to confirm it works, not to do anything meaningful with it
+    (Be aware that itemsize isn't necessarily right)
+    >>> inst = InheritFrom(shape=(3, 3, 3), itemsize=4, format="i")
+    """
+    pass
+
+
+def test_char_array_in_python_api(*shape):
+    """
+    >>> import sys
+    >>> if sys.version_info[0] < 3:
+    ...     def bytes(b): return memoryview(b).tobytes()  # don't call str()
+
+    >>> arr1d = test_char_array_in_python_api(10)
+    >>> print(bytes(arr1d).decode('ascii'))
+    xxxxxxxxxx
+    >>> len(bytes(arr1d))
+    10
+    >>> arr2d = test_char_array_in_python_api(10, 2)
+    >>> print(bytes(arr2d).decode('ascii'))
+    xxxxxxxxxxxxxxxxxxxx
+    >>> len(bytes(arr2d))
+    20
+
+    # memoryview
+    >>> len(bytes(memoryview(arr1d)))
+    10
+    >>> bytes(memoryview(arr1d)) == bytes(arr1d)
+    True
+    >>> len(bytes(memoryview(arr2d)))
+    20
+    >>> bytes(memoryview(arr2d)) == bytes(arr2d)
+    True
+
+    # BytesIO
+    >>> from io import BytesIO
+    >>> BytesIO(arr1d).read() == bytes(arr1d)
+    True
+    >>> BytesIO(arr2d).read() == bytes(arr2d)
+    True
+
+    >>> b = BytesIO()
+    >>> print(b.write(arr1d))
+    10
+    >>> b.getvalue() == bytes(arr1d)  or  b.getvalue()
+    True
+
+    >>> b = BytesIO()
+    >>> print(b.write(arr2d))
+    20
+    >>> b.getvalue() == bytes(arr2d)  or  b.getvalue()
+    True
+
+    # BufferedWriter  (uses PyBUF_SIMPLE, see https://github.com/cython/cython/issues/3775)
+    >>> from io import BufferedWriter
+    >>> b = BytesIO()
+    >>> bw = BufferedWriter(b)
+    >>> print(bw.write(arr1d))
+    10
+    >>> bw.flush()
+    >>> b.getvalue() == bytes(arr1d)
+    True
+
+    >>> b = BytesIO()
+    >>> bw = BufferedWriter(b)
+    >>> print(bw.write(arr2d))
+    20
+    >>> bw.flush()
+    >>> b.getvalue() == bytes(arr2d)
+    True
+    """
+    arr = array(shape=shape, itemsize=sizeof(char), format='c', mode='c')
+    arr[:] = b'x'
+    return arr

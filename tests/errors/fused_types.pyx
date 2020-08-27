@@ -49,6 +49,18 @@ def outer(cython.floating f):
     def inner():
         cdef cython.floating g
 
+
+# Mixing const and non-const type makes fused type ambiguous
+cdef fused mix_const_t:
+    int
+    const int
+
+cdef cdef_func_with_mix_const_type(mix_const_t val):
+    print(val)
+
+cdef_func_with_mix_const_type(1)
+
+
 # This is all valid
 dtype5 = fused_type(int, long, float)
 dtype6 = cython.fused_type(int, long)
@@ -65,17 +77,6 @@ ctypedef fused fused2:
 func(x, y)
 
 
-cdef fused mix_const_t:
-    int
-    const int
-
-cdef cdef_func_with_mix_const_type(mix_const_t val):
-    print(val)
-
-# Mixing const and non-const type makes fused type ambiguous
-cdef_func_with_mix_const_type(1)
-
-
 _ERRORS = u"""
 11:15: fused_type does not take keyword arguments
 16:33: Type specified multiple times
@@ -89,6 +90,6 @@ _ERRORS = u"""
 40:0: Fused lambdas not allowed
 43:5: Fused types not allowed here
 46:9: Fused types not allowed here
-76:0: Invalid use of fused types, type cannot be specialized
-76:29: ambiguous overloaded method
+61:0: Invalid use of fused types, type cannot be specialized
+61:29: ambiguous overloaded method
 """

@@ -296,7 +296,7 @@ class UtilityCodeBase(object):
         _, ext = os.path.splitext(path)
         if ext in ('.pyx', '.py', '.pxd', '.pxi'):
             comment = '#'
-            strip_comments = partial(re.compile(r'^\s*#.*').sub, '')
+            strip_comments = partial(re.compile(r'^\s*#(?!\s*cython\s*:).*').sub, '')
             rstrip = StringEncoding._unicode.rstrip
         else:
             comment = '/'
@@ -408,7 +408,7 @@ class UtilityCodeBase(object):
         """
         Calls .load(), but using a per-type cache based on utility name and file name.
         """
-        key = (cls, from_file, utility_code_name)
+        key = (utility_code_name, from_file, cls)
         try:
             return __cache[key]
         except KeyError:
@@ -543,7 +543,7 @@ class UtilityCode(UtilityCodeBase):
 
         impl = re.sub(r'PY(IDENT|UNICODE)\("([^"]+)"\)', externalise, impl)
         assert 'PYIDENT(' not in impl and 'PYUNICODE(' not in impl
-        return bool(replacements), impl
+        return True, impl
 
     def inject_unbound_methods(self, impl, output):
         """Replace 'UNBOUND_METHOD(type, "name")' by a constant Python identifier cname.
@@ -551,7 +551,6 @@ class UtilityCode(UtilityCodeBase):
         if 'CALL_UNBOUND_METHOD(' not in impl:
             return False, impl
 
-        utility_code = set()
         def externalise(matchobj):
             type_cname, method_name, obj_cname, args = matchobj.groups()
             args = [arg.strip() for arg in args[1:].split(',')] if args else []
@@ -567,9 +566,7 @@ class UtilityCode(UtilityCodeBase):
             r'\)', externalise, impl)
         assert 'CALL_UNBOUND_METHOD(' not in impl
 
-        for helper in sorted(utility_code):
-            output.use_utility_code(UtilityCode.load_cached(helper, "ObjectHandling.c"))
-        return bool(utility_code), impl
+        return True, impl
 
     def wrap_c_strings(self, impl):
         """Replace CSTRING('''xyz''') by a C compatible string
@@ -721,9 +718,10 @@ class FunctionState(object):
         self.can_trace = False
         self.gil_owned = True
 
-        self.temps_allocated = [] # of (name, type, manage_ref, static)
-        self.temps_free = {} # (type, manage_ref) -> list of free vars with same type/managed status
-        self.temps_used_type = {} # name -> (type, manage_ref)
+        self.temps_allocated = []  # of (name, type, manage_ref, static)
+        self.temps_free = {}  # (type, manage_ref) -> list of free vars with same type/managed status
+        self.temps_used_type = {}  # name -> (type, manage_ref)
+        self.zombie_temps = set()  # temps that must not be reused after release
         self.temp_counter = 0
         self.closure_temps = None
 
@@ -737,6 +735,20 @@ class FunctionState(object):
         # sections, in which case we introduce a race condition.
         self.should_declare_error_indicator = False
         self.uses_error_indicator = False
+
+    # safety checks
+
+    def validate_exit(self):
+        # validate that all allocated temps have been freed
+        if self.temps_allocated:
+            leftovers = self.temps_in_use()
+            if leftovers:
+                msg = "TEMPGUARD: Temps left over at end of '%s': %s" % (self.scope.name, ', '.join([
+                    '%s [%s]' % (name, ctype)
+                    for name, ctype, is_pytemp in sorted(leftovers)]),
+                )
+                #print(msg)
+                raise RuntimeError(msg)
 
     # labels
 
@@ -807,7 +819,7 @@ class FunctionState(object):
 
     # temp handling
 
-    def allocate_temp(self, type, manage_ref, static=False):
+    def allocate_temp(self, type, manage_ref, static=False, reusable=True):
         """
         Allocates a temporary (which may create a new one or get a previously
         allocated and released one of the same type). Type is simply registered
@@ -826,19 +838,24 @@ class FunctionState(object):
         This is only used when allocating backing store for a module-level
         C array literals.
 
+        if reusable=False, the temp will not be reused after release.
+
         A C string referring to the variable is returned.
         """
         if type.is_cv_qualified and not type.is_reference:
             type = type.cv_base_type
         elif type.is_reference and not type.is_fake_reference:
             type = type.ref_base_type
+        elif type.is_cfunction:
+            from . import PyrexTypes
+            type = PyrexTypes.c_ptr_type(type)  # A function itself isn't an l-value
         if not type.is_pyobject and not type.is_memoryviewslice:
             # Make manage_ref canonical, so that manage_ref will always mean
             # a decref is needed.
             manage_ref = False
 
         freelist = self.temps_free.get((type, manage_ref))
-        if freelist is not None and freelist[0]:
+        if reusable and freelist is not None and freelist[0]:
             result = freelist[0].pop()
             freelist[1].remove(result)
         else:
@@ -847,9 +864,11 @@ class FunctionState(object):
                 result = "%s%d" % (Naming.codewriter_temp_prefix, self.temp_counter)
                 if result not in self.names_taken: break
             self.temps_allocated.append((result, type, manage_ref, static))
+            if not reusable:
+                self.zombie_temps.add(result)
         self.temps_used_type[result] = (type, manage_ref)
         if DebugFlags.debug_temp_code_comments:
-            self.owner.putln("/* %s allocated (%s) */" % (result, type))
+            self.owner.putln("/* %s allocated (%s)%s */" % (result, type, "" if reusable else " - zombie"))
 
         if self.collect_temps_stack:
             self.collect_temps_stack[-1].add((result, type))
@@ -868,10 +887,12 @@ class FunctionState(object):
             self.temps_free[(type, manage_ref)] = freelist
         if name in freelist[1]:
             raise RuntimeError("Temp %s freed twice!" % name)
-        freelist[0].append(name)
+        if name not in self.zombie_temps:
+            freelist[0].append(name)
         freelist[1].add(name)
         if DebugFlags.debug_temp_code_comments:
-            self.owner.putln("/* %s released */" % name)
+            self.owner.putln("/* %s released %s*/" % (
+                name, " - zombie" if name in self.zombie_temps else ""))
 
     def temps_in_use(self):
         """Return a list of (cname,type,manage_ref) tuples of temp names and their type
@@ -891,7 +912,7 @@ class FunctionState(object):
         """
         return [(name, type)
                 for name, type, manage_ref in self.temps_in_use()
-                if manage_ref  and type.is_pyobject]
+                if manage_ref and type.is_pyobject]
 
     def all_managed_temps(self):
         """Return a list of (cname, type) tuples of refcount-managed Python objects.
@@ -1096,14 +1117,10 @@ class GlobalState(object):
         'h_code',
         'filename_table',
         'utility_code_proto_before_types',
-        'numeric_typedefs',          # Let these detailed individual parts stay!,
-        'complex_type_declarations', # as the proper solution is to make a full DAG...
-        'type_declarations',         # More coarse-grained blocks would simply hide
-        'utility_code_proto',        # the ugliness, not fix it
-        'module_state',
-        'module_state_clear',
-        'module_state_traverse',
-        'module_state_defines',
+        'numeric_typedefs',           # Let these detailed individual parts stay!,
+        'complex_type_declarations',  # as the proper solution is to make a full DAG...
+        'type_declarations',          # More coarse-grained blocks would simply hide
+        'utility_code_proto',         # the ugliness, not fix it
         'module_declarations',
         'typeinfo',
         'before_global_var',
@@ -1111,7 +1128,11 @@ class GlobalState(object):
         'string_decls',
         'decls',
         'late_includes',
-        'all_the_rest',
+        'module_state',
+        'module_state_clear',
+        'module_state_traverse',
+        'module_state_defines',  # redefines names used in module_state/_clear/_traverse
+        'module_code',  # user code goes here
         'pystring_table',
         'cached_builtins',
         'cached_constants',
@@ -1135,8 +1156,8 @@ class GlobalState(object):
         self.code_config = code_config
         self.common_utility_include_dir = common_utility_include_dir
         self.parts = {}
-        self.module_node = module_node # because some utility code generation needs it
-                                       # (generating backwards-compatible Get/ReleaseBuffer
+        self.module_node = module_node  # because some utility code generation needs it
+                                        # (generating backwards-compatible Get/ReleaseBuffer
 
         self.const_cnames_used = {}
         self.string_const_index = {}
@@ -1152,8 +1173,10 @@ class GlobalState(object):
 
     def initialize_main_c_code(self):
         rootwriter = self.rootwriter
-        for part in self.code_layout:
-            self.parts[part] = rootwriter.insertion_point()
+        for i, part in enumerate(self.code_layout):
+            w = self.parts[part] = rootwriter.insertion_point()
+            if i > 0:
+                w.putln("/* #### Code section: %s ### */" % part)
 
         if not Options.cache_builtins:
             del self.parts['cached_builtins']
@@ -1463,11 +1486,14 @@ class GlobalState(object):
         for (type_cname, method_name), cname in sorted(self.cached_cmethods.items()):
             cnames.append(cname)
             method_name_cname = self.get_interned_identifier(StringEncoding.EncodedString(method_name)).cname
-            decl.putln('static __Pyx_CachedCFunction %s = {0, &%s, 0, 0, 0};' % (
-                cname, method_name_cname))
+            decl.putln('static __Pyx_CachedCFunction %s = {0, 0, 0, 0, 0};' % (
+                cname))
             # split type reference storage as it might not be static
             init.putln('%s.type = (PyObject*)&%s;' % (
                 cname, type_cname))
+            # method name string isn't static in limited api
+            init.putln('%s.method_name = &%s;' % (
+                cname, method_name_cname))
 
         if Options.generate_cleanup_code:
             cleanup = self.parts['cleanup_globals']
@@ -1792,10 +1818,13 @@ class CCodeWriter(object):
         return self.buffer.getvalue()
 
     def write(self, s):
-        # also put invalid markers (lineno 0), to indicate that those lines
-        # have no Cython source code correspondence
-        cython_lineno = self.last_marked_pos[1] if self.last_marked_pos else 0
-        self.buffer.markers.extend([cython_lineno] * s.count('\n'))
+        # Cygdb needs to know which Cython source line corresponds to which C line.
+        # Therefore, we write this information into "self.buffer.markers" and then write it from there
+        # into cython_debug/cython_debug_info_* (see ModuleNode._serialize_lineno_map).
+
+        filename_line = self.last_marked_pos[:2] if self.last_marked_pos else (None, 0)
+        self.buffer.markers.extend([filename_line] * s.count('\n'))
+
         self.buffer.write(s)
 
     def insertion_point(self):
@@ -1855,6 +1884,7 @@ class CCodeWriter(object):
         self.funcstate = FunctionState(self, scope=scope)
 
     def exit_cfunc_scope(self):
+        self.funcstate.validate_exit()
         self.funcstate = None
 
     # constant handling
@@ -2041,8 +2071,7 @@ class CCodeWriter(object):
             if type.is_pyobject:
                 self.putln("%s = NULL;" % decl)
             elif type.is_memoryviewslice:
-                from . import MemoryView
-                self.putln("%s = %s;" % (decl, MemoryView.memslice_entry_init))
+                self.putln("%s = %s;" % (decl, type.literal_code(type.default_value)))
             else:
                 self.putln("%s%s;" % (static and "static " or "", decl))
 
@@ -2080,7 +2109,7 @@ class CCodeWriter(object):
     def entry_as_pyobject(self, entry):
         type = entry.type
         if (not entry.is_self_arg and not entry.type.is_complete()
-            or entry.type.is_extension_type):
+                or entry.type.is_extension_type):
             return "(PyObject *)" + entry.cname
         else:
             return entry.cname
@@ -2089,123 +2118,89 @@ class CCodeWriter(object):
         from .PyrexTypes import py_object_type, typecast
         return typecast(py_object_type, type, cname)
 
-    def put_gotref(self, cname):
-        self.putln("__Pyx_GOTREF(%s);" % cname)
+    def put_gotref(self, cname, type):
+        type.generate_gotref(self, cname)
 
-    def put_giveref(self, cname):
-        self.putln("__Pyx_GIVEREF(%s);" % cname)
+    def put_giveref(self, cname, type):
+        type.generate_giveref(self, cname)
 
-    def put_xgiveref(self, cname):
-        self.putln("__Pyx_XGIVEREF(%s);" % cname)
+    def put_xgiveref(self, cname, type):
+        type.generate_xgiveref(self, cname)
 
-    def put_xgotref(self, cname):
-        self.putln("__Pyx_XGOTREF(%s);" % cname)
+    def put_xgotref(self, cname, type):
+        type.generate_xgotref(self, cname)
 
     def put_incref(self, cname, type, nanny=True):
-        if nanny:
-            self.putln("__Pyx_INCREF(%s);" % self.as_pyobject(cname, type))
-        else:
-            self.putln("Py_INCREF(%s);" % self.as_pyobject(cname, type))
+        # Note: original put_Memslice_Incref/Decref also added in some utility code
+        # this is unnecessary since the relevant utility code is loaded anyway if a memoryview is used
+        # and so has been removed. However, it's potentially a feature that might be useful here
+        type.generate_incref(self, cname, nanny=nanny)
 
-    def put_decref(self, cname, type, nanny=True):
-        self._put_decref(cname, type, nanny, null_check=False, clear=False)
+    def put_xincref(self, cname, type, nanny=True):
+        type.generate_xincref(self, cname, nanny=nanny)
 
-    def put_var_gotref(self, entry):
-        if entry.type.is_pyobject:
-            self.putln("__Pyx_GOTREF(%s);" % self.entry_as_pyobject(entry))
-
-    def put_var_giveref(self, entry):
-        if entry.type.is_pyobject:
-            self.putln("__Pyx_GIVEREF(%s);" % self.entry_as_pyobject(entry))
-
-    def put_var_xgotref(self, entry):
-        if entry.type.is_pyobject:
-            self.putln("__Pyx_XGOTREF(%s);" % self.entry_as_pyobject(entry))
-
-    def put_var_xgiveref(self, entry):
-        if entry.type.is_pyobject:
-            self.putln("__Pyx_XGIVEREF(%s);" % self.entry_as_pyobject(entry))
-
-    def put_var_incref(self, entry, nanny=True):
-        if entry.type.is_pyobject:
-            if nanny:
-                self.putln("__Pyx_INCREF(%s);" % self.entry_as_pyobject(entry))
-            else:
-                self.putln("Py_INCREF(%s);" % self.entry_as_pyobject(entry))
-
-    def put_var_xincref(self, entry):
-        if entry.type.is_pyobject:
-            self.putln("__Pyx_XINCREF(%s);" % self.entry_as_pyobject(entry))
-
-    def put_decref_clear(self, cname, type, nanny=True, clear_before_decref=False):
-        self._put_decref(cname, type, nanny, null_check=False,
-                         clear=True, clear_before_decref=clear_before_decref)
+    def put_decref(self, cname, type, nanny=True, have_gil=True):
+        type.generate_decref(self, cname, nanny=nanny, have_gil=have_gil)
 
     def put_xdecref(self, cname, type, nanny=True, have_gil=True):
-        self._put_decref(cname, type, nanny, null_check=True,
-                         have_gil=have_gil, clear=False)
+        type.generate_xdecref(self, cname, nanny=nanny, have_gil=have_gil)
 
-    def put_xdecref_clear(self, cname, type, nanny=True, clear_before_decref=False):
-        self._put_decref(cname, type, nanny, null_check=True,
-                         clear=True, clear_before_decref=clear_before_decref)
+    def put_decref_clear(self, cname, type, clear_before_decref=False, nanny=True, have_gil=True):
+        type.generate_decref_clear(self, cname, clear_before_decref=clear_before_decref,
+                              nanny=nanny, have_gil=have_gil)
 
-    def _put_decref(self, cname, type, nanny=True, null_check=False,
-                    have_gil=True, clear=False, clear_before_decref=False):
-        if type.is_memoryviewslice:
-            self.put_xdecref_memoryviewslice(cname, have_gil=have_gil)
-            return
+    def put_xdecref_clear(self, cname, type, clear_before_decref=False, nanny=True, have_gil=True):
+        type.generate_xdecref_clear(self, cname, clear_before_decref=clear_before_decref,
+                              nanny=nanny, have_gil=have_gil)
 
-        prefix = '__Pyx' if nanny else 'Py'
-        X = 'X' if null_check else ''
+    def put_decref_set(self, cname, type, rhs_cname):
+        type.generate_decref_set(self, cname, rhs_cname)
 
-        if clear:
-            if clear_before_decref:
-                if not nanny:
-                    X = ''  # CPython doesn't have a Py_XCLEAR()
-                self.putln("%s_%sCLEAR(%s);" % (prefix, X, cname))
-            else:
-                self.putln("%s_%sDECREF(%s); %s = 0;" % (
-                    prefix, X, self.as_pyobject(cname, type), cname))
-        else:
-            self.putln("%s_%sDECREF(%s);" % (
-                prefix, X, self.as_pyobject(cname, type)))
+    def put_xdecref_set(self, cname, type, rhs_cname):
+        type.generate_xdecref_set(self, cname, rhs_cname)
 
-    def put_decref_set(self, cname, rhs_cname):
-        self.putln("__Pyx_DECREF_SET(%s, %s);" % (cname, rhs_cname))
+    def put_incref_memoryviewslice(self, slice_cname, type, have_gil):
+        # TODO ideally this would just be merged into "put_incref"
+        type.generate_incref_memoryviewslice(self, slice_cname, have_gil=have_gil)
 
-    def put_xdecref_set(self, cname, rhs_cname):
-        self.putln("__Pyx_XDECREF_SET(%s, %s);" % (cname, rhs_cname))
+    def put_var_incref_memoryviewslice(self, entry, have_gil):
+        self.put_incref_memoryviewslice(entry.cname, entry.type, have_gil=have_gil)
 
-    def put_var_decref(self, entry):
-        if entry.type.is_pyobject:
-            self.putln("__Pyx_XDECREF(%s);" % self.entry_as_pyobject(entry))
+    def put_var_gotref(self, entry):
+        self.put_gotref(entry.cname, entry.type)
 
-    def put_var_xdecref(self, entry, nanny=True):
-        if entry.type.is_pyobject:
-            if nanny:
-                self.putln("__Pyx_XDECREF(%s);" % self.entry_as_pyobject(entry))
-            else:
-                self.putln("Py_XDECREF(%s);" % self.entry_as_pyobject(entry))
+    def put_var_giveref(self, entry):
+        self.put_giveref(entry.cname, entry.type)
 
-    def put_var_decref_clear(self, entry):
-        self._put_var_decref_clear(entry, null_check=False)
+    def put_var_xgotref(self, entry):
+        self.put_xgotref(entry.cname, entry.type)
 
-    def put_var_xdecref_clear(self, entry):
-        self._put_var_decref_clear(entry, null_check=True)
+    def put_var_xgiveref(self, entry):
+        self.put_xgiveref(entry.cname, entry.type)
 
-    def _put_var_decref_clear(self, entry, null_check):
-        if entry.type.is_pyobject:
-            if entry.in_closure:
-                # reset before DECREF to make sure closure state is
-                # consistent during call to DECREF()
-                self.putln("__Pyx_%sCLEAR(%s);" % (
-                    null_check and 'X' or '',
-                    entry.cname))
-            else:
-                self.putln("__Pyx_%sDECREF(%s); %s = 0;" % (
-                    null_check and 'X' or '',
-                    self.entry_as_pyobject(entry),
-                    entry.cname))
+    def put_var_incref(self, entry, **kwds):
+        self.put_incref(entry.cname, entry.type, **kwds)
+
+    def put_var_xincref(self, entry, **kwds):
+        self.put_xincref(entry.cname, entry.type, **kwds)
+
+    def put_var_decref(self, entry, **kwds):
+        self.put_decref(entry.cname, entry.type, **kwds)
+
+    def put_var_xdecref(self, entry, **kwds):
+        self.put_xdecref(entry.cname, entry.type, **kwds)
+
+    def put_var_decref_clear(self, entry, **kwds):
+        self.put_decref_clear(entry.cname, entry.type, clear_before_decref=entry.in_closure, **kwds)
+
+    def put_var_decref_set(self, entry, rhs_cname, **kwds):
+        self.put_decref_set(entry.cname, entry.type, rhs_cname, **kwds)
+
+    def put_var_xdecref_set(self, entry, rhs_cname, **kwds):
+        self.put_xdecref_set(entry.cname, entry.type, rhs_cname, **kwds)
+
+    def put_var_xdecref_clear(self, entry, **kwds):
+        self.put_xdecref_clear(entry.cname, entry.type, clear_before_decref=entry.in_closure, **kwds)
 
     def put_var_decrefs(self, entries, used_only = 0):
         for entry in entries:
@@ -2222,19 +2217,6 @@ class CCodeWriter(object):
     def put_var_xdecrefs_clear(self, entries):
         for entry in entries:
             self.put_var_xdecref_clear(entry)
-
-    def put_incref_memoryviewslice(self, slice_cname, have_gil=False):
-        from . import MemoryView
-        self.globalstate.use_utility_code(MemoryView.memviewslice_init_code)
-        self.putln("__PYX_INC_MEMVIEW(&%s, %d);" % (slice_cname, int(have_gil)))
-
-    def put_xdecref_memoryviewslice(self, slice_cname, have_gil=False):
-        from . import MemoryView
-        self.globalstate.use_utility_code(MemoryView.memviewslice_init_code)
-        self.putln("__PYX_XDEC_MEMVIEW(&%s, %d);" % (slice_cname, int(have_gil)))
-
-    def put_xgiveref_memoryviewslice(self, slice_cname):
-        self.put_xgiveref("%s.memview" % slice_cname)
 
     def put_init_to_py_none(self, cname, type, nanny=True):
         from .PyrexTypes import py_object_type, typecast
@@ -2393,24 +2375,18 @@ class CCodeWriter(object):
         self.funcstate.should_declare_error_indicator = True
         if used:
             self.funcstate.uses_error_indicator = True
-        if self.code_config.c_line_in_traceback:
-            cinfo = " %s = %s;" % (Naming.clineno_cname, Naming.line_c_macro)
-        else:
-            cinfo = ""
-
-        return "%s = %s[%s]; %s = %s;%s" % (
-            Naming.filename_cname,
-            Naming.filetable_cname,
+        return "__PYX_MARK_ERR_POS(%s, %s)" % (
             self.lookup_filename(pos[0]),
-            Naming.lineno_cname,
-            pos[1],
-            cinfo)
+            pos[1])
 
-    def error_goto(self, pos):
+    def error_goto(self, pos, used=True):
         lbl = self.funcstate.error_label
         self.funcstate.use_label(lbl)
         if pos is None:
             return 'goto %s;' % lbl
+        self.funcstate.should_declare_error_indicator = True
+        if used:
+            self.funcstate.uses_error_indicator = True
         return "__PYX_ERR(%s, %s, %s)" % (
             self.lookup_filename(pos[0]),
             pos[1],
@@ -2435,14 +2411,14 @@ class CCodeWriter(object):
         self.putln('__Pyx_RefNannyDeclarations')
 
     def put_setup_refcount_context(self, name, acquire_gil=False):
-        name = name.as_c_string_literal() # handle unicode names
+        name = name.as_c_string_literal()  # handle unicode names
         if acquire_gil:
             self.globalstate.use_utility_code(
                 UtilityCode.load_cached("ForceInitThreads", "ModuleSetupCode.c"))
         self.putln('__Pyx_RefNannySetupContext(%s, %d);' % (name, acquire_gil and 1 or 0))
 
-    def put_finish_refcount_context(self):
-        self.putln("__Pyx_RefNannyFinishContext();")
+    def put_finish_refcount_context(self, nogil=False):
+        self.putln("__Pyx_RefNannyFinishContextNogil()" if nogil else "__Pyx_RefNannyFinishContext();")
 
     def put_add_traceback(self, qualified_name, include_cline=True):
         """
@@ -2450,7 +2426,7 @@ class CCodeWriter(object):
 
         qualified_name should be the qualified name of the function.
         """
-        qualified_name = qualified_name.as_c_string_literal() # handle unicode names
+        qualified_name = qualified_name.as_c_string_literal()  # handle unicode names
         format_tuple = (
             qualified_name,
             Naming.clineno_cname if include_cline else 0,

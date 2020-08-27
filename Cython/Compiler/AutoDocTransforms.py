@@ -3,12 +3,15 @@ from __future__ import absolute_import, print_function
 from .Visitor import CythonTransform
 from .StringEncoding import EncodedString
 from . import Options
-from . import PyrexTypes, ExprNodes
+from . import PyrexTypes
 from ..CodeWriter import ExpressionWriter
 from .Errors import warning
 
 
 class AnnotationWriter(ExpressionWriter):
+    """
+    A Cython code writer for Python expressions in argument/variable annotations.
+    """
     def __init__(self, description=None):
         """description is optional. If specified it is used in
         warning messages for the nodes that don't convert to string properly.
@@ -198,7 +201,7 @@ class EmbedSignature(CythonTransform):
     def visit_CFuncDefNode(self, node):
         if not self.current_directives['embedsignature']:
             return node
-        if not node.overridable: # not cpdef FOO(...):
+        if not node.overridable:  # not cpdef FOO(...):
             return node
 
         signature = self._fmt_signature(
@@ -214,8 +217,9 @@ class EmbedSignature(CythonTransform):
                 old_doc = None
             new_doc = self._embed_signature(signature, old_doc)
             node.entry.doc = EncodedString(new_doc)
-            if hasattr(node, 'py_func') and node.py_func is not None:
-                node.py_func.entry.doc = EncodedString(new_doc)
+            py_func = getattr(node, 'py_func', None)
+            if py_func is not None:
+                py_func.entry.doc = EncodedString(new_doc)
         return node
 
     def visit_PropertyNode(self, node):

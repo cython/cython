@@ -12,8 +12,10 @@ True
 True
 """
 
+cimport cython
 from cpython.ref cimport PyObject
 
+@cython.always_allow_keywords(False)
 def get_refcount(obj):
     return (<PyObject*>obj).ob_refcnt
 

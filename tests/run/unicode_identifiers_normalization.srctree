@@ -72,10 +72,12 @@ def test():
     return {1}
 """]
 
-for idx in range(len(example_code)):
-    with open("test{0}.py".format(idx),"w") as f:
+from io import open
+
+for idx, (code, strings) in enumerate(zip(example_code, string_pairs)):
+    with open("test{0}.py".format(idx), "w", encoding="utf8") as f:
+        code = code.format(*strings)
+        f.write("# -*- coding: utf-8 -*-\n")
+        # The code isn't Py2 compatible. Only write actual code in Py3+.
         if sys.version_info[0] > 2:
-            f.write("# -*- coding: utf-8 -*-\n")
-            f.write(example_code[idx].format(*string_pairs[idx]))
-        else:
-            f.write("\n") # code isn't Python 2 compatible - write a dummy file
+            f.write(code)

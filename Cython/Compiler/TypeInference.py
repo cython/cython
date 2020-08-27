@@ -140,7 +140,6 @@ class MarkParallelAssignments(EnvTransform):
                                                      '+',
                                                      sequence.args[0],
                                                      sequence.args[2]))
-
         if not is_special:
             # A for-loop basically translates to subsequent calls to
             # __getitem__(), so using an IndexNode here allows us to
@@ -178,7 +177,7 @@ class MarkParallelAssignments(EnvTransform):
         return node
 
     def visit_FromCImportStatNode(self, node):
-        pass # Can't be assigned to...
+        return node  # Can't be assigned to...
 
     def visit_FromImportStatNode(self, node):
         for name, target in node.items:
@@ -308,10 +307,10 @@ class MarkOverflowingArithmetic(CythonTransform):
 
     def visit_SimpleCallNode(self, node):
         if node.function.is_name and node.function.name == 'abs':
-          # Overflows for minimum value of fixed size ints.
-          return self.visit_dangerous_node(node)
+            # Overflows for minimum value of fixed size ints.
+            return self.visit_dangerous_node(node)
         else:
-          return self.visit_neutral_node(node)
+            return self.visit_neutral_node(node)
 
     visit_UnopNode = visit_neutral_node
 
@@ -360,9 +359,11 @@ class SimpleAssignmentTypeInferer(object):
     applies to nested scopes in top-down order.
     """
     def set_entry_type(self, entry, entry_type):
-        entry.type = entry_type
         for e in entry.all_entries():
             e.type = entry_type
+            if e.type.is_memoryviewslice:
+                # memoryview slices crash if they don't get initialized
+                e.init = e.type.default_value
 
     def infer_types(self, scope):
         enabled = scope.directives['infer_types']
@@ -370,7 +371,7 @@ class SimpleAssignmentTypeInferer(object):
 
         if enabled == True:
             spanning_type = aggressive_spanning_type
-        elif enabled is None: # safe mode
+        elif enabled is None:  # safe mode
             spanning_type = safe_spanning_type
         else:
             for entry in scope.entries.values():
@@ -576,6 +577,8 @@ def safe_spanning_type(types, might_overflow, pos, scope):
         # Though we have struct -> object for some structs, this is uncommonly
         # used, won't arise in pure Python, and there shouldn't be side
         # effects, so I'm declaring this safe.
+        return result_type
+    elif result_type.is_memoryviewslice:
         return result_type
     # TODO: double complex should be OK as well, but we need
     # to make sure everything is supported.
