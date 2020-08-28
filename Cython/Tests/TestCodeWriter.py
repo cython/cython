@@ -107,6 +107,18 @@ class TestCodeWriter(CythonTest):
     def test_attribute(self):
         self.t(u"a.x")
 
+    def test_return_none(self):
+        self.t(u"""
+                    def f(x, y, z):
+                        return
+                    cdef f(x, y, z):
+                        return
+                    def f(x, y, z):
+                        return 1234
+                    cdef f(x, y, z):
+                        return 1234
+               """)
+
 if __name__ == "__main__":
     import unittest
     unittest.main()
