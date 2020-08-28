@@ -39,9 +39,9 @@ cdef class BasicDataclass:
     >>> inst1 = BasicDataclass(2.0)
 
     # The error at-least demonstrates that the hash function has been created
-    >>> hash(inst1)
+    >>> hash(inst1) # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: unhashable type: 'list'
+    TypeError: ...unhashable...
     >>> inst2 = BasicDataclass(2.0)
     >>> inst1 == inst2
     True

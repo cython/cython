@@ -2218,11 +2218,11 @@ class CClassScope(ClassScope):
                     cname = None, visibility = 'private',
                     api = 0, in_pxd = 0, is_cdef = 0):
         name = self.mangle_class_private_name(name)
-        
+
         if type.is_classvar:
             is_cdef = 0
 
-        if type.is_initvar and not 'dataclass' in self.directives:
+        if type.is_initvar and 'dataclass' not in self.directives:
             # no real reason to ban it, but it doesn't hugely make sense
             warning(pos, "Use of cython.InitVar does not make sense outside a dataclass")
 

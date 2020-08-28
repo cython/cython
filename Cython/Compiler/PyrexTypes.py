@@ -4332,7 +4332,7 @@ class ErrorType(PyrexType):
     def error_condition(self, result_code):
         return "dummy"
 
-class InitOrClassVar: #(PyrexType):
+class InitOrClassVar:
     """Used to help Cython interpret dataclass InitVar or ClassVar.
 
     Although not really a CppClassType, it uses a template-like syntax

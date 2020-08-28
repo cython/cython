@@ -42,10 +42,10 @@ class RemoveAssignments(VisitorTransform, SkipDeclarations):
         return node
 
     def visit_PyClassNode(self, node):
-        return node # go no further
+        return node  # go no further
 
     def visit_FuncDefNode(self, node):
-        return node # go no further
+        return node  # go no further
 
     def visit_SingleAssignmentNode(self, node):
         if node.lhs.is_name and node.lhs.name in self.names:
@@ -292,7 +292,7 @@ def generate_init_code(init, node, fields):
     func_call = u"def __init__(%s):" % args
 
     code_lines = [func_call,
-                  "    pass", # just in-case it's an empty body
+                  "    pass",  # just in-case it's an empty body
                   ]
     for name, field in fields.items():
         if field.is_initvar:
@@ -345,13 +345,13 @@ def generate_repr_code(repr, node, fields):
 
 def generate_cmp_code(op, funcname, node, fields):
     if node.scope.lookup_here(funcname):
-        return [] # already exists
+        return []  # already exists
 
     names = [ name for name, field in fields.items()
                 if (field.compare.value and not field.is_initvar) ]
 
     if not names:
-        return [] # no comparable types
+        return []  # no comparable types
 
     code_lines = ["def %s(self, other):" % funcname,
                   "    cdef %s other_cast" % node.class_name,
@@ -417,7 +417,7 @@ def generate_hash_code(unsafe_hash, eq, frozen, node, fields):
                 if (not field.is_initvar and
                     (field.compare.value if field.hash.value is None else field.hash.value)) ]
     if not names:
-        return [] # nothing to hash
+        return []  # nothing to hash
 
     # make a tuple of the hashes
     tpl = u", ".join(u"hash(self.%s)" % name for name in names )
