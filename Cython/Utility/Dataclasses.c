@@ -39,10 +39,10 @@ static PyObject* __Pyx_LoadInternalModule(const char* name, const char* fallback
         }
         modulename = PyBytes_FromFormat("_cython_" CYTHON_ABI ".%s", name);
         if (!modulename) goto bad;
-#if PY_MAJOR_VERSION >= 3
+#if PY_MAJOR_VERSION >= 3 && CYTHON_COMPILING_IN_CPYTHON
         module = PyImport_AddModuleObject(modulename); // borrowed
 #else
-        module = PyImport_AddModule(PyString_AsString(modulename)); // borrowed
+        module = PyImport_AddModule(PyBytes_AsString(modulename)); // borrowed
 #endif
         Py_DECREF(modulename);
         if (!module) goto bad;
