@@ -386,4 +386,3 @@ class ResultRefWithTypePropertyNode(ResultRefNode):
 
     def infer_type(self, env):
         return self.type
-
