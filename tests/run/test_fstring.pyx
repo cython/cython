@@ -1234,11 +1234,9 @@ non-important content
         # spec of '=10'.
         self.assertEqual(f'{x:=10}', '        20')
 
-        """
         # This is an assignment expression, which requires parens.
         self.assertEqual(f'{(x:=10)}', '10')
         self.assertEqual(x, 10)
-        """
 
     def test_invalid_syntax_error_message(self):
         # with self.assertRaisesRegex(SyntaxError, "f-string: invalid syntax"):
