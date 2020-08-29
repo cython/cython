@@ -8,10 +8,29 @@ Cython Changelog
 Features added
 --------------
 
+* ``__class_getitem__`` (PEP-560) is supported for cdef classes.
+  Patch by Kmol Yuan.  (Github issue #3764)
+
+* ``cython.array`` supports simple, non-strided views.
+  (Github issue #3775)
+
 * The type ``cython.Py_hash_t`` is available in Python mode.
 
 Bugs fixed
 ----------
+
+* Inline functions and other code in ``.pxd`` files could accidentally
+  inherit the compiler directives of the ``.pyx`` file that imported them.
+  Patch by David Woods.  (Github issue #1071)
+
+* ``ndarray.shape`` failed to compile with Pythran and recent NumPy.
+  Patch by Serge Guelton.  (Github issue #3762)
+
+* A C compiler warning about unused code was resolved.
+  (Github issue #3763)
+
+* A compile failure for C++ enums in Py3.4 / MSVC was resolved.
+  Patch by Ashwin Srinath.  (Github issue #3782)
 
 
 3.0.0 alpha 6 (2020-07-31)

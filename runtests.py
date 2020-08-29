@@ -250,6 +250,22 @@ def update_numpy_extension(ext, set_api17_macro=True):
         getattr(ext, attr).extend(value)
 
 
+def update_gdb_extension(ext, _has_gdb=[None]):
+    # We should probably also check for Python support.
+    if not include_debugger:
+        _has_gdb[0] = False
+    if _has_gdb[0] is None:
+        try:
+            subprocess.check_call(["gdb", "--version"])
+        except (IOError, subprocess.CalledProcessError):
+            _has_gdb[0] = False
+        else:
+            _has_gdb[0] = True
+    if not _has_gdb[0]:
+        return EXCLUDE_EXT
+    return ext
+
+
 def update_openmp_extension(ext):
     ext.openmp = True
     language = ext.language
@@ -377,6 +393,7 @@ EXCLUDE_EXT = object()
 EXT_EXTRAS = {
     'tag:numpy' : update_numpy_extension,
     'tag:openmp': update_openmp_extension,
+    'tag:gdb': update_gdb_extension,
     'tag:cpp11': update_cpp11_extension,
     'tag:trace' : update_linetrace_extension,
     'tag:bytesformat':  exclude_extension_in_pyver((3, 3), (3, 4)),  # no %-bytes formatting

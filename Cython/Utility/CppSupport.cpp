@@ -57,7 +57,7 @@ auto __Pyx_pythran_to_python(T &&value) -> decltype(to_python(
   return to_python(returnable_type{std::forward<T>(value)});
 }
 
-#define __Pyx_PythranShapeAccessor(x) (x.shape().array())
+#define __Pyx_PythranShapeAccessor(x) (pythonic::builtins::getattr(pythonic::types::attr::SHAPE{}, x))
 
 ////////////// MoveIfSupported.proto //////////////////
 
@@ -66,4 +66,16 @@ auto __Pyx_pythran_to_python(T &&value) -> decltype(to_python(
   #define __PYX_STD_MOVE_IF_SUPPORTED(x) std::move(x)
 #else
   #define __PYX_STD_MOVE_IF_SUPPORTED(x) x
+#endif
+
+////////////// EnumClassDecl.proto //////////////////
+
+#if defined (_MSC_VER)
+  #if PY_VERSION_HEX >= 0x03040000 && PY_VERSION_HEX < 0x03050000
+    #define __PYX_ENUM_CLASS_DECL
+  #else
+    #define __PYX_ENUM_CLASS_DECL enum
+  #endif
+#else
+  #define __PYX_ENUM_CLASS_DECL enum
 #endif

@@ -26,7 +26,7 @@ class AnnotationCCodeWriter(CCodeWriter):
     # also used as marker for detection of complete code emission in tests
     COMPLETE_CODE_TITLE = "Complete cythonized code"
 
-    def __init__(self, create_from=None, buffer=None, copy_formatting=True, show_entire_c_code=False):
+    def __init__(self, create_from=None, buffer=None, copy_formatting=True, show_entire_c_code=False, source_desc=None):
         CCodeWriter.__init__(self, create_from, buffer, copy_formatting=copy_formatting)
         self.show_entire_c_code = show_entire_c_code
         if create_from is None:
