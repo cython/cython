@@ -1,9 +1,8 @@
-# tag: cpp
 # mode: compile
+# tag: cpp, cpp11
 
 cdef extern from *:
     """
-    #if __cplusplus >= 201103L
     class NoAssign {
         public:
             NoAssign() {}
@@ -13,14 +12,6 @@ cdef extern from *:
             NoAssign& operator=(NoAssign&&) { return *this; }
             void func() {}
     };
-    #else
-    // the test becomes meaningless
-    // (but just declare something to ensure it passes)
-    class NoAssign {
-        public:
-            void func() {}
-    };
-    #endif
 
     NoAssign get_NoAssign_Py() {
         return NoAssign();
@@ -28,22 +19,46 @@ cdef extern from *:
     NoAssign get_NoAssign_Cpp() {
         return NoAssign();
     }
+
+    class NoDefaultNoAssign {
+        public:
+            explicit NoDefaultNoAssign(int) {}
+            NoDefaultNoAssign(NoDefaultNoAssign&) = delete;
+            NoDefaultNoAssign(NoDefaultNoAssign&&) {}
+            NoDefaultNoAssign& operator=(NoDefaultNoAssign&) = delete;
+            NoDefaultNoAssign& operator=(NoDefaultNoAssign&&) { return *this; }
+            void func() {}
+    };
+
+    NoDefaultNoAssign get_NoDefaultNoAssign_Py() {
+        return NoDefaultNoAssign(0);
+    }
+    NoDefaultNoAssign get_NoDefaultNoAssign_Cpp() {
+        return NoDefaultNoAssign(0);
+    }
     """
     cdef cppclass NoAssign:
+        void func()
+    cdef cppclass NoDefaultNoAssign:
         void func()
 
     # might raise Python exception (thus needs a temp)
     NoAssign get_NoAssign_Py() except *
     # might raise C++ exception (thus needs a temp)
     NoAssign get_NoAssign_Cpp() except +
+    # might raise Python exception (thus needs a temp)
+    NoDefaultNoAssign get_NoDefaultNoAssign_Py() except *
+    # might raise C++ exception (thus needs a temp)
+    NoDefaultNoAssign get_NoDefaultNoAssign_Cpp() except +
 
-cdef internal_cpp_func(NoAssign arg):
+cdef internal_cpp_func(NoDefaultNoAssign arg):
     pass
 
 def test_call_to_function():
     # will fail to compile if move constructors aren't used
-    internal_cpp_func(get_NoAssign_Py())
-    internal_cpp_func(get_NoAssign_Cpp())
+    # or if the default constructor is needed
+    internal_cpp_func(get_NoDefaultNoAssign_Py())
+    internal_cpp_func(get_NoDefaultNoAssign_Cpp())
 
 def test_assignment_to_name():
     # will fail if move constructors aren't used

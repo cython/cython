@@ -183,6 +183,8 @@ class PyrexType(BaseType):
     #  is_struct             boolean     Is a C struct type
     #  is_enum               boolean     Is a C enum type
     #  is_cpp_enum           boolean     Is a C++ scoped enum type
+    #  is_cpp_class          boolean     Is a cppclass
+    #  is_cpp_temp           boolean     Is a temporary handle to a c++ class
     #  is_typedef            boolean     Is a typedef type
     #  is_string             boolean     Is a C char * type
     #  is_pyunicode_ptr      boolean     Is a C PyUNICODE * type
@@ -246,6 +248,7 @@ class PyrexType(BaseType):
     is_cfunction = 0
     is_struct_or_union = 0
     is_cpp_class = 0
+    is_cpp_temp = 0
     is_cpp_string = 0
     is_struct = 0
     is_enum = 0
@@ -4021,6 +4024,27 @@ class CppClassType(CType):
         constructor = self.scope.lookup(u'<init>')
         if constructor is not None and best_match([], constructor.all_alternatives()) is None:
             error(pos, "C++ class must have a nullary constructor to be %s" % msg)
+
+
+class CppTempType(PyrexType):
+    """
+    Used internally to avoid requiring a default constructor for C++ temps
+    """
+    is_cpp_temp = 1
+
+    def __init__(self, base):
+        self.base = base
+
+    def __repr__(self):
+        return "<CppTempType %s>" % repr(self.base.name)
+
+    def __str__(self):
+        return "%s [temp]" % self.base.name
+
+    def declaration_code(self, entity_code,
+            for_display = 0, dll_linkage = None, pyrex = 0):
+        return "__Pyx_CppTemp<%s> %s" % (self.base.empty_declaration_code(), entity_code)
+
 
 class CppScopedEnumType(CType):
     # name    string

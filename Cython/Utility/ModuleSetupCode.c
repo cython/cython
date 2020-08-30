@@ -467,6 +467,83 @@ class __Pyx_FakeReference {
     T *ptr;
 };
 
+// msvc isn't very good at indicating what standard it supports
+#if __cplusplus >= 201103L || (defined(_MSC_VER) && _MSC_VER > 1900)
+#include <utility> // for std::move
+#endif
+
+// Used for temporary variables of any stack allocated C++ classes
+// Uses placement new to avoid needing a default constructor
+template <typename T>
+class __Pyx_CppTemp {
+public:
+    __Pyx_CppTemp() : assigned(false) {}
+    ~__Pyx_CppTemp() {
+        if (assigned) {
+            get_ptr()->~T();
+        }
+    }
+
+    const T& operator=(const T& rhs) {
+        if (assigned) {
+            *get_ptr() = rhs; // should we delete and always do placement new?
+        } else {
+            new(get_ptr()) T(rhs);
+            assigned = true;
+        }
+        return *get_ptr();
+    }
+
+    const __Pyx_CppTemp& operator=(const __Pyx_CppTemp& rhs) {
+        *this = *rhs.get_ptr();
+        return *this;
+    }
+
+    operator T&() {
+        return *get_ptr();
+    }
+
+// msvc isn't very good at indicating what standard it supports
+#if __cplusplus >= 201103L || (defined(_MSC_VER) && _MSC_VER > 1900)
+    const T& operator=(T&& rhs) {
+        if (assigned) {
+            *get_ptr() = std::move(rhs);
+        } else {
+            new(get_ptr()) T(std::move(rhs));
+            assigned = true;
+        }
+        return *get_ptr();
+    }
+
+    const __Pyx_CppTemp& operator=(__Pyx_CppTemp&& rhs) {
+        *this = std::move(*rhs.get_ptr());
+        return *this;
+    }
+#endif
+
+    void free_temp() {
+        get_ptr()->~T();
+        assigned = false;
+    }
+private:
+    T* get_ptr() {
+        return (T*) data;
+    }
+
+#if __cplusplus >= 201103L || (defined(_MSC_VER) && _MSC_VER > 1900)
+    alignas(T) char data[sizeof(T)];
+#else
+    // align to as a 64 bit integer to be on the safe side - this may result in slight overallocation
+    uint64_t data[sizeof(T)/sizeof(uint64_t) + sizeof(T)%sizeof(uint64_t) ? 1 : 0];
+#endif
+    bool assigned;
+
+#if __cplusplus >= 201103L || (defined(_MSC_VER) && _MSC_VER > 1900)
+    friend typename std::remove_reference<T>::type&& __PYX_STD_MOVE_IF_SUPPORTED(__Pyx_CppTemp& xtemp) {
+        return std::move<T&>(xtemp);
+    }
+#endif
+};
 
 /////////////// PythonCompatibility ///////////////
 

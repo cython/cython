@@ -64,7 +64,10 @@ auto __Pyx_pythran_to_python(T &&value) -> decltype(to_python(
 #if __cplusplus >= 201103L || (defined(_MSC_VER) && _MSC_VER > 1900)
   // move should be defined for these versions of MSVC, but __cplusplus isn't set usefully
   #include <utility>
-  #define __PYX_STD_MOVE_IF_SUPPORTED(x) std::move(x)
+  template<class T>
+  typename std::remove_reference<T>::type&& __PYX_STD_MOVE_IF_SUPPORTED(T&& x) {
+      return std::move(x);
+  }
 #else
   #define __PYX_STD_MOVE_IF_SUPPORTED(x) x
 #endif

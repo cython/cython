@@ -849,6 +849,9 @@ class FunctionState(object):
         elif type.is_cfunction:
             from . import PyrexTypes
             type = PyrexTypes.c_ptr_type(type)  # A function itself isn't an l-value
+        elif type.is_cpp_class and not type.is_reference:
+            from . import PyrexTypes
+            type = PyrexTypes.CppTempType(type)
         if not type.is_pyobject and not type.is_memoryviewslice:
             # Make manage_ref canonical, so that manage_ref will always mean
             # a decref is needed.
@@ -890,6 +893,8 @@ class FunctionState(object):
         if name not in self.zombie_temps:
             freelist[0].append(name)
         freelist[1].add(name)
+        if type.is_cpp_temp:
+            self.owner.putln("%s.free_temp();" % name)
         if DebugFlags.debug_temp_code_comments:
             self.owner.putln("/* %s released %s*/" % (
                 name, " - zombie" if name in self.zombie_temps else ""))
