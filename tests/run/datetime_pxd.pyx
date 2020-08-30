@@ -212,18 +212,28 @@ def test_timedelta_total_seconds():
     return total_seconds(td), pytd.total_seconds()
 
 
-@cython.test_fail_if_path_exists("//CoerceFromPyTypeNode")
-def test_datetime_attrs_inlined():
+@cython.test_fail_if_path_exists(
+    "//CoerceFromPyTypeNode",
+    "//AttributeNode",
+)
+def test_datetime_attrs_inlined(datetime dt):
     # GH#3737
     """
-    >>> test_datetime_attrs_inlined()
+    >>> py_dt = datetime(2020, 8, 18, 4, 9)
+    >>> dt = test_datetime_attrs_inlined(py_dt)
+    >>> dt[:5]
+    (2020, 8, 18, 4, 9)
+    >>> dt[5] == py_dt.second  or  (dt[5], py_dt.second)
+    True
+    >>> dt[6] == py_dt.microsecond  or  (dt[6], py_dt.microsecond)
+    True
     """
-    cdef:
-        datetime dt = datetime(2020, 8, 18, 4, 9)
-
-    dt.year
-    dt.month
-    dt.day
-    dt.hour
-    dt.second
-    dt.microsecond
+    return (
+        dt.year,
+        dt.month,
+        dt.day,
+        dt.hour,
+        dt.minute,
+        dt.second,
+        dt.microsecond,
+    )
