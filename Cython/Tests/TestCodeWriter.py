@@ -114,6 +114,10 @@ class TestCodeWriter(CythonTest):
                     cdef f(x, y, z):
                         return
                     def f(x, y, z):
+                        return None
+                    cdef f(x, y, z):
+                        return None
+                    def f(x, y, z):
                         return 1234
                     cdef f(x, y, z):
                         return 1234
