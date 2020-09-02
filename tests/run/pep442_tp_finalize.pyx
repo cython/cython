@@ -142,12 +142,17 @@ def test_zombie_object():
     >>> test_zombie_object()
     start
     del
+    del global
     dealloc
     finish
     """
+    global c
     print("start")
     i = immortal()
     i = None
     import gc
+    gc.collect()
+    print("del global")
+    del c
     gc.collect()
     print("finish")
