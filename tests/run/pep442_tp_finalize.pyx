@@ -143,7 +143,7 @@ def test_zombie_object():
     start
     del
     del global
-    dealloc
+    del
     finish
     """
     global c
@@ -151,7 +151,40 @@ def test_zombie_object():
     i = immortal()
     i = None
     import gc
+    print("del global")
+    del c
     gc.collect()
+    print("finish")
+
+
+# Same as above, but the member
+# makes the class GC, so it
+# is deallocated
+cdef class gc_immortal:
+    cdef object x
+
+    def __del__(self):
+        global c
+        print("del")
+        c = self
+
+    def __dealloc__(self):
+        print("dealloc")
+
+def test_gc_zombie_object():
+    """
+    >>> test_gc_zombie_object()
+    start
+    del
+    del global
+    dealloc
+    finish
+    """
+    global c
+    print("start")
+    i = gc_immortal()
+    i = None
+    import gc
     print("del global")
     del c
     gc.collect()
