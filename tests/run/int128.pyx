@@ -117,3 +117,66 @@ def signed_conversion(x):
     """
     cdef int128_t n = x
     return n
+
+
+def get_int_distribution(shuffle=True):
+    """
+    >>> L = get_int_distribution()
+    >>> bigint(L[0])
+    682
+    >>> bigint(L[ len(L) // 2 ])
+    3002399751580330
+    >>> bigint(L[-1])
+    13195544127517395320358043648
+    >>> len(L)
+    252000
+    """
+    # Large integers that cover 1-4 (30 bits) or 1-7 (15 bits) PyLong digits.
+    ints = [int((2.0 ** (n/1000.)) / 3) for n in range(11 * 1000, 95 * 1000)]
+    return ints * 3  # longer list, but keeps median in the middle
+
+
+def intsum(L):
+    """
+    >>> L = get_int_distribution()
+    >>> bigint(intsum(L))
+    57131233826607488945110474209519
+    >>> bigint(sum(L))
+    57131233826607488945110474209519
+
+    >>> from random import shuffle
+    >>> shuffle(L)
+    >>> bigint(intsum(L))
+    57131233826607488945110474209519
+    """
+    cdef uint128_t i, x = 0
+    for i in L:
+        x += i
+    return x
+
+
+def intxor(L):
+    """
+    >>> L = get_int_distribution()
+    >>> bigint(intxor(L))
+    11140796789428055795371202119
+    >>> bigint(intxor(L * 2))
+    0
+    >>> import operator
+    >>> from functools import reduce
+    >>> bigint(reduce(operator.xor, L))
+    11140796789428055795371202119
+    >>> bigint(reduce(operator.xor, L * 2))
+    0
+
+    >>> from random import shuffle
+    >>> shuffle(L)
+    >>> bigint(intxor(L))
+    11140796789428055795371202119
+    >>> bigint(intxor(L * 2))
+    0
+    """
+    cdef uint128_t i, x = 0
+    for i in L:
+        x ^= i
+    return x
