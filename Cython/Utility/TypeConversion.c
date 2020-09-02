@@ -625,9 +625,17 @@ static CYTHON_INLINE Py_UNICODE __Pyx_PyObject_AsPy_UNICODE(PyObject* x) {
 static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value);
 
 /////////////// CIntToPy ///////////////
+//@requires: GCCDiagnostics
 
 static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
-    const {{TYPE}} neg_one = ({{TYPE}}) (({{TYPE}}) 0 - ({{TYPE}}) 1), const_zero = ({{TYPE}}) 0;
+#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wconversion"
+#endif
+    const {{TYPE}} neg_one = ({{TYPE}}) -1, const_zero = ({{TYPE}}) 0;
+#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
+#pragma GCC diagnostic pop
+#endif
     const int is_unsigned = neg_one > const_zero;
     if (is_unsigned) {
         if (sizeof({{TYPE}}) < sizeof(long)) {
@@ -853,11 +861,19 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *);
 
 /////////////// CIntFromPy ///////////////
 //@requires: CIntFromPyVerify
+//@requires: GCCDiagnostics
 
 {{py: from Cython.Utility import pylong_join }}
 
 static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
-    const {{TYPE}} neg_one = ({{TYPE}}) (({{TYPE}}) 0 - ({{TYPE}}) 1), const_zero = ({{TYPE}}) 0;
+#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wconversion"
+#endif
+    const {{TYPE}} neg_one = ({{TYPE}}) -1, const_zero = ({{TYPE}}) 0;
+#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
+#pragma GCC diagnostic pop
+#endif
     const int is_unsigned = neg_one > const_zero;
 #if PY_MAJOR_VERSION < 3
     if (likely(PyInt_Check(x))) {
