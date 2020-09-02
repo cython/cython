@@ -43,7 +43,7 @@ def test_del_and_dealloc():
     finish
     """
     print("start")
-    d = nontrivial_del()
+    d = del_and_dealloc()
     d = None
     import gc
     gc.collect()
@@ -92,6 +92,62 @@ def test_del_inheritance():
     print("start")
     c = child()
     c = None
+    import gc
+    gc.collect()
+    print("finish")
+
+
+cdef class cy_parent:
+    def __del__(self):
+        print("del cy_parent")
+
+    def __dealloc__(self):
+        print("dealloc cy_parent")
+
+class py_parent:
+    def __del__(self):
+        print("del py_parent")
+
+class multi_child(cy_parent, py_parent):
+    def __del__(self):
+        print("del child")
+
+def test_multiple_inheritance():
+    """
+    >>> test_multiple_inheritance()
+    start
+    del child
+    dealloc cy_parent
+    finish
+    """
+    print("start")
+    c = multi_child()
+    c = None
+    import gc
+    gc.collect()
+    print("finish")
+
+
+cdef class immortal:
+    def __del__(self):
+        global c
+        print("del")
+        c = self
+
+    def __dealloc__(self):
+        print("dealloc")
+
+def test_zombie_object():
+    """
+    >>> test_zombie_object()
+    start
+    del
+    dealloc
+    finish
+    """
+    print("start")
+    i = immortal()
+    i = None
     import gc
     gc.collect()
     print("finish")
