@@ -74,6 +74,27 @@ def test_del_with_exception():
     print("finish")
 
 
+
+def test_nontrivial_del_with_exception():
+    """
+    >>> test_nontrivial_del_with_exception()
+    start
+    init
+    del
+    end
+    """
+    print("start")
+    def inner():
+        c = nontrivial_del()
+        raise RuntimeError()
+
+    try:
+        inner()
+    except RuntimeError:
+        pass
+
+    print("end")
+
 cdef class parent:
     def __del__(self):
         print("del parent")
