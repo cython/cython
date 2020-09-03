@@ -559,6 +559,24 @@ class CReferenceDeclaratorNode(CDeclaratorNode):
         return self.base.analyse(ref_type, env, nonempty=nonempty, visibility=visibility, in_pxd=in_pxd)
 
 
+class CppRvalueReferenceDeclaratorNode(CDeclaratorNode):
+    # base     CDeclaratorNode
+
+    child_attrs = ["base"]
+
+    def declared_name(self):
+        return self.base.declared_name()
+
+    def analyse_templates(self):
+        return self.base.analyse_templates()
+
+    def analyse(self, base_type, env, nonempty=0, visibility=None, in_pxd=False):
+        if base_type.is_pyobject:
+            error(self.pos, "Rvalue-reference base type cannot be a Python object")
+        ref_type = PyrexTypes.cpp_rvalue_ref_type(base_type)
+        return self.base.analyse(ref_type, env, nonempty=nonempty, visibility=visibility, in_pxd=in_pxd)
+
+
 class CArrayDeclaratorNode(CDeclaratorNode):
     # base        CDeclaratorNode
     # dimension   ExprNode
