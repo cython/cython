@@ -97,8 +97,8 @@ complaining about the signature mismatch.
 
 .. _finalization_method:
 
-Finalization method: :meth:`__dealloc__`
-----------------------------------------
+Finalization methods: :meth:`__dealloc__` and :meth:`__del__`
+-------------------------------------------------------------
 
 The counterpart to the :meth:`__cinit__` method is the :meth:`__dealloc__`
 method, which should perform the inverse of the :meth:`__cinit__` method. Any
@@ -122,7 +122,12 @@ of the superclass will always be called, even if it is overridden.  This is in
 contrast to typical Python behavior where superclass methods will not be
 executed unless they are explicitly called by the subclass.
 
-.. Note:: There is no :meth:`__del__` method for extension types.
+Python 3.4 introduced the :meth:`__del__` method to allow for the safe
+finalization of objects. You can add a :meth:`__del__` method to
+extension types in order to perform Python cleanup operations. When
+the :meth:`__del__` is called the object is still in a valid
+state (unlike in the case of :meth:`__dealloc___`-ation),
+permitting the use of Python operations on its class members.
 
 .. _arithmetic_methods:
 
