@@ -219,6 +219,7 @@ def test_timedelta_total_seconds():
 def test_datetime_attrs_inlined(datetime dt):
     # GH#3737
     """
+    >>> from datetime import datetime
     >>> py_dt = datetime(2020, 8, 18, 4, 9)
     >>> dt = test_datetime_attrs_inlined(py_dt)
     >>> dt[:5]
