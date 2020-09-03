@@ -125,14 +125,21 @@ def get_int_distribution(shuffle=True):
     >>> bigint(L[0])
     682
     >>> bigint(L[ len(L) // 2 ])
-    3002399751580330
+    5617771410183435
     >>> bigint(L[-1])
-    13195544127517395320358043648
+    52818775009509558395695966805
     >>> len(L)
-    252000
+    66510
     """
     # Large integers that cover 1-4 (30 bits) or 1-7 (15 bits) PyLong digits.
-    ints = [int((2.0 ** (n/1000.)) / 3) for n in range(11 * 1000, 95 * 1000)]
+    # Uses only integer calculations to avoid rounding issues.
+    pow2 = [2**exp for exp in range(98)]
+    ints = [
+        n // 3
+        for i in range(11, len(pow2) - 1)
+        # Take a low but growing number of integers from each power-of-2 range.
+        for n in range(pow2[i], pow2[i+1], pow2[i - 8] - 1)
+    ]
     return ints * 3  # longer list, but keeps median in the middle
 
 
@@ -140,14 +147,14 @@ def intsum(L):
     """
     >>> L = get_int_distribution()
     >>> bigint(intsum(L))
-    57131233826607488945110474209519
+    61084913298497804284622382871263
     >>> bigint(sum(L))
-    57131233826607488945110474209519
+    61084913298497804284622382871263
 
     >>> from random import shuffle
     >>> shuffle(L)
     >>> bigint(intsum(L))
-    57131233826607488945110474209519
+    61084913298497804284622382871263
     """
     cdef uint128_t i, x = 0
     for i in L:
@@ -159,20 +166,20 @@ def intxor(L):
     """
     >>> L = get_int_distribution()
     >>> bigint(intxor(L))
-    11140796789428055795371202119
+    31773794341658093722410838161
     >>> bigint(intxor(L * 2))
     0
     >>> import operator
     >>> from functools import reduce
     >>> bigint(reduce(operator.xor, L))
-    11140796789428055795371202119
+    31773794341658093722410838161
     >>> bigint(reduce(operator.xor, L * 2))
     0
 
     >>> from random import shuffle
     >>> shuffle(L)
     >>> bigint(intxor(L))
-    11140796789428055795371202119
+    31773794341658093722410838161
     >>> bigint(intxor(L * 2))
     0
     """
