@@ -3168,11 +3168,13 @@ def p_c_enum_definition(s, pos, ctx):
     s.expect(':')
     items = []
 
+    doc = None
     if s.sy != 'NEWLINE':
         p_c_enum_line(s, ctx, items)
     else:
         s.next()  # 'NEWLINE'
         s.expect_indent()
+        doc = p_doc_string(s)
 
         while s.sy not in ('DEDENT', 'EOF'):
             p_c_enum_line(s, ctx, items)
@@ -3188,7 +3190,7 @@ def p_c_enum_definition(s, pos, ctx):
         underlying_type=underlying_type,
         typedef_flag=ctx.typedef_flag, visibility=ctx.visibility,
         create_wrapper=ctx.overridable,
-        api=ctx.api, in_pxd=ctx.level == 'module_pxd')
+        api=ctx.api, in_pxd=ctx.level == 'module_pxd', doc=doc)
 
 def p_c_enum_line(s, ctx, items):
     if s.sy != 'pass':

@@ -11,5 +11,19 @@ cpdef enum PxdEnum:
     RANK_1 = 37
     RANK_2 = 389
 
+cpdef enum cpdefPxdDocEnum:
+    """Home is where...
+    """
+    RANK_0 = 11
+
+cpdef enum cpdefPxdDocLineEnum:
+    """Home is where..."""
+    RANK_0 = 11
+
 cdef enum PxdSecretEnum:
+    RANK_3 = 5077
+
+cdef enum cdefPxdDocEnum:
+    """the heart is.
+    """
     RANK_3 = 5077

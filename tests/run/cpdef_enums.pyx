@@ -48,6 +48,18 @@ Traceback (most recent call last):
 NameError: ...name 'IntEnum' is not defined
 """
 
+>>> PxdEnum.__doc__
+"An enumeration."
+>>> PyxEnum.__doc__
+"An enumeration."
+>>> cpdefPyxDocEnum.__doc__
+"Home is where...\n    "
+>>> cpdefPxdDocEnum.__doc__
+"Home is where...\n    "
+>>> cpdefPyxDocLineEnum.__doc__
+"Home is where..."
+>>> cpdefPxdDocLineEnum.__doc__
+"Home is where..."
 
 cdef extern from *:
     cpdef enum: # ExternPyx
@@ -63,8 +75,22 @@ cpdef enum PyxEnum:
     THREE = 3
     FIVE = 5
 
+cpdef enum cpdefPyxDocEnum:
+    """Home is where...
+    """
+    RANK_0 = 11
+
+cpdef enum cpdefPyxDocLineEnum:
+    """Home is where..."""
+
 cdef enum SecretPyxEnum:
     SEVEN = 7
+
+cdef enum cdefPyxDocEnum:
+    """the heart is.
+    """
+    RANK_3 = 5077
+
 
 def test_as_variable_from_cython():
     """
