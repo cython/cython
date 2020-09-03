@@ -122,12 +122,13 @@ of the superclass will always be called, even if it is overridden.  This is in
 contrast to typical Python behavior where superclass methods will not be
 executed unless they are explicitly called by the subclass.
 
-Python 3.4 introduced the :meth:`__del__` method to allow for the safe
-finalization of objects. You can add a :meth:`__del__` method to
-extension types in order to perform Python cleanup operations. When
-the :meth:`__del__` is called the object is still in a valid
-state (unlike in the case of :meth:`__dealloc___`-ation),
-permitting the use of Python operations on its class members.
+Python 3.4 made it possible for extension types to safely define
+finalizers for objects. When running a Cython module on Python 3.4 and
+higher you can add a :meth:`__del__` method to extension types in
+order to perform Python cleanup operations. When the :meth:`__del__`
+is called the object is still in a valid state (unlike in the case of
+:meth:`__dealloc___`-ation), permitting the use of Python operations
+on its class members. On Python <3.4 :meth:`__del__` will not be called.
 
 .. _arithmetic_methods:
 
