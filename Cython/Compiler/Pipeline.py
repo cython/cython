@@ -287,18 +287,17 @@ def create_pyx_as_pxd_pipeline(context, result):
                                            ])
     from .Visitor import VisitorTransform
     class SetInPxdTransform(VisitorTransform):
-        # a number of nodes have an in_pxd attribute which affects AnalyseDeclarationsTransform
-        # (for example controlling pickling generation)
-        # set this
+        # A number of nodes have an "in_pxd" attribute which affects AnalyseDeclarationsTransform
+        # (for example controlling pickling generation). Set it, to make sure we don't mix them up with
+        # the importing main module.
+        # FIXME: This should be done closer to the parsing step.
         def visit_StatNode(self, node):
             if hasattr(node, "in_pxd"):
                 node.in_pxd = True
             self.visitchildren(node)
             return node
 
-        def visit_Node(self, node):
-            self.visitchildren(node)
-            return node
+        visit_Node = VisitorTransform.recurse_to_children
 
     for stage in pyx_pipeline:
         pipeline.append(stage)
