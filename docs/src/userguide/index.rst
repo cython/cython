@@ -7,6 +7,7 @@ Contents:
    :maxdepth: 2
 
    language_basics
+   glossary
    extension_types
    special_methods
    sharing_declarations
