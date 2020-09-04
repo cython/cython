@@ -58,7 +58,7 @@ if PY_VERSION_HEX >= 0x03040000:
     {{endfor}}
 else:
     class {{name}}(__Pyx_EnumBase):
-        __doc__ = """{{enum_doc}}"""
+        {{ repr(enum_doc) }}
     {{for item in items}}
     __Pyx_globals['{{item}}'] = {{name}}({{item}}, '{{item}}')
     {{endfor}}
