@@ -451,7 +451,7 @@ class ConstructorSlot(InternalMethodSlot):
     def slot_code(self, scope):
         if not self._needs_own(scope):
             # if the type does not have object attributes, it can
-            # delegate GC methods to its parent - iff the parent
+            # delegate GC methods to its parent - if the parent
             # functions are defined in the same module
             slot_code = self._parent_slot_function(scope)
             return slot_code or '0'
@@ -476,6 +476,17 @@ class ConstructorSlot(InternalMethodSlot):
             return
 
         self.generate_set_slot_code(src, scope, code)
+
+
+class DelSlot(InternalMethodSlot):
+    # For __del__ if defined
+    def __init__(self, slot_name, **kwargs):
+        super(DelSlot, self).__init__(slot_name, **kwargs)
+
+    def slot_code(self, scope):
+        if not scope.lookup_here("__del__"):
+            return 0
+        return InternalMethodSlot.slot_code(self, scope)
 
 
 class SyntheticSlot(InternalMethodSlot):
@@ -1007,7 +1018,7 @@ slot_table = (
     EmptySlot("tp_weaklist"),
     EmptySlot("tp_del"),
     EmptySlot("tp_version_tag"),
-    MethodSlot(destructor, "tp_finalize", "__del__", ifdef="PY_VERSION_HEX >= 0x030400a1"),
+    DelSlot("tp_finalize", ifdef="PY_VERSION_HEX >= 0x030400a1"),
     EmptySlot("tp_vectorcall", ifdef="PY_VERSION_HEX >= 0x030800b1"),
     EmptySlot("tp_print", ifdef="PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000"),
     # PyPy specific extension - only here to avoid C compiler warnings.
@@ -1024,6 +1035,7 @@ slot_table = (
 
 MethodSlot(initproc, "", "__cinit__")
 MethodSlot(destructor, "", "__dealloc__")
+MethodSlot(destructor, "", "__del__")
 MethodSlot(objobjargproc, "", "__setitem__")
 MethodSlot(objargproc, "", "__delitem__")
 MethodSlot(ssizessizeobjargproc, "", "__setslice__")

@@ -1555,61 +1555,25 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "}")
 
     def generate_del_function(self, scope, code):
-
-        is_final_type = scope.parent_type.is_final_type
-
-        # if is_final_type:
-        #     return
-
-        tp_slot = TypeSlots.get_slot_by_name("tp_finalize")
+        tp_slot = TypeSlots.ConstructorSlot("tp_finalize", '__del__')
         slot_func = scope.mangle_internal("tp_finalize")
-        base_type = scope.parent_type.base_type
+        if tp_slot.slot_code(scope) != slot_func:
+            return  # never used
 
-        # if tp_slot.slot_code(scope) != slot_func:
-        #     return  # never used
-
-        needs_gc = scope.needs_gc()
-
+        entry = scope.lookup_here("__del__")
+        if entry is None or not entry.is_special:
+            return  # nothing to wrap
         slot_func_cname = scope.mangle_internal("tp_finalize")
         code.putln("")
-        cdel_func_entry = scope.lookup_here("__del__")
 
-        if cdel_func_entry and not cdel_func_entry.is_special:
-            cdel_func_entry = None
-
-        if cdel_func_entry is None:
-            code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
-
+        code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
         code.putln("static void %s(PyObject *o) {" % slot_func_cname)
-
-        code.putln("#if CYTHON_USE_TP_FINALIZE")
-
-        if needs_gc:
-            finalised_check = '!_PyGC_FINALIZED(o)'
-        else:
-            finalised_check = (
-                '(!PyType_IS_GC(Py_TYPE(o)) || !_PyGC_FINALIZED(o))')
-
-        code.putln(
-            "if (unlikely("
-            "(PY_VERSION_HEX >= 0x03080000 || __Pyx_PyType_HasFeature(Py_TYPE(o), Py_TPFLAGS_HAVE_FINALIZE))"
-            " && Py_TYPE(o)->tp_finalize) && %s) {" % finalised_check)
-
         code.putln("PyObject *etype, *eval, *etb;")
         code.putln("PyErr_Fetch(&etype, &eval, &etb);")
-        code.putln("int resurrected = PyObject_CallFinalizerFromDealloc(o);")
+        code.putln("%s(o);" % entry.func_cname)
         code.putln("PyErr_Restore(etype, eval, etb);")
-        # if instance was resurrected by finaliser, abort finalisation
-        code.putln("if (resurrected) return;")
-
         code.putln("}")
         code.putln("#endif")
-
-        code.putln("}")
-
-        if cdel_func_entry is None:
-            code.putln("#endif")
-
 
     def generate_dealloc_function(self, scope, code):
         tp_slot = TypeSlots.ConstructorSlot("tp_dealloc", '__dealloc__')
@@ -1646,6 +1610,23 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         if py_attrs or cpp_class_attrs or memoryview_slices or weakref_slot or dict_slot:
             self.generate_self_cast(scope, code)
+
+        if not is_final_type:
+            # in Py3.4+, call tp_finalize() as early as possible
+            code.putln("#if CYTHON_USE_TP_FINALIZE")
+            if needs_gc:
+                finalised_check = '!_PyGC_FINALIZED(o)'
+            else:
+                finalised_check = (
+                    '(!PyType_IS_GC(Py_TYPE(o)) || !_PyGC_FINALIZED(o))')
+            code.putln(
+                "if (unlikely("
+                "(PY_VERSION_HEX >= 0x03080000 || __Pyx_PyType_HasFeature(Py_TYPE(o), Py_TPFLAGS_HAVE_FINALIZE))"
+                " && Py_TYPE(o)->tp_finalize) && %s) {" % finalised_check)
+            # if instance was resurrected by finaliser, return
+            code.putln("if (PyObject_CallFinalizerFromDealloc(o)) return;")
+            code.putln("}")
+            code.putln("#endif")
 
         if needs_gc:
             # We must mark this object as (gc) untracked while tearing
