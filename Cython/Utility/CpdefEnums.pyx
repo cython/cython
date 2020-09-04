@@ -51,14 +51,16 @@ if PY_VERSION_HEX >= 0x03040000:
         ('{{item}}', {{item}}),
         {{endfor}}
     ]))
-    {{name}}.__doc__ = {{ repr(enum_doc) }}
+    {{if enum_doc is not None}}
+        {{name}}.__doc__ = {{ repr(enum_doc) }}
+    {{endif}}
 
     {{for item in items}}
     __Pyx_globals['{{item}}'] = {{name}}.{{item}}
     {{endfor}}
 else:
     class {{name}}(__Pyx_EnumBase):
-        {{ repr(enum_doc) }}
+        {{ repr(enum_doc) if enum_doc is not None else 'pass' }}
     {{for item in items}}
     __Pyx_globals['{{item}}'] = {{name}}({{item}}, '{{item}}')
     {{endfor}}
