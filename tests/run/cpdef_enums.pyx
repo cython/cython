@@ -48,10 +48,6 @@ Traceback (most recent call last):
 NameError: ...name 'IntEnum' is not defined
 """
 
->>> PxdEnum.__doc__
-None
->>> PyxEnum.__doc__
-None
 >>> cpdefPyxDocEnum.__doc__
 "Home is where...\n    "
 >>> cpdefPxdDocEnum.__doc__
