@@ -52,7 +52,7 @@ if PY_VERSION_HEX >= 0x03040000:
         {{endfor}}
     ]))
     {{if enum_doc is not None}}
-        {{name}}.__doc__ = {{ repr(enum_doc) }}
+    {{name}}.__doc__ = {{ repr(enum_doc) }}
     {{endif}}
 
     {{for item in items}}
