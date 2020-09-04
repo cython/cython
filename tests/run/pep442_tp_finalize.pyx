@@ -210,3 +210,28 @@ def test_gc_zombie_object():
     del c
     gc.collect()
     print("finish")
+
+
+cdef class cdef_parent:
+    pass
+
+cdef class cdef_child(cdef_parent):
+    def __del__(self):
+        print("del")
+    def __dealloc__(self):
+        print("dealloc")
+
+def test_cdef_parent_object():
+    """
+    >>> test_cdef_parent_object()
+    start
+    del
+    dealloc
+    finish
+    """
+    print("start")
+    i = cdef_child()
+    i = None
+    import gc
+    gc.collect()
+    print("finish")

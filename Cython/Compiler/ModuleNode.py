@@ -1336,6 +1336,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 if scope:  # could be None if there was an error
                     self.generate_exttype_vtable(scope, code)
                     self.generate_new_function(scope, code, entry)
+                    self.generate_del_function(scope, code)
                     self.generate_dealloc_function(scope, code)
                     if scope.needs_gc():
                         self.generate_traverse_function(scope, code, entry)
@@ -1553,6 +1554,63 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(
             "}")
 
+    def generate_del_function(self, scope, code):
+
+        is_final_type = scope.parent_type.is_final_type
+
+        # if is_final_type:
+        #     return
+
+        tp_slot = TypeSlots.get_slot_by_name("tp_finalize")
+        slot_func = scope.mangle_internal("tp_finalize")
+        base_type = scope.parent_type.base_type
+
+        # if tp_slot.slot_code(scope) != slot_func:
+        #     return  # never used
+
+        needs_gc = scope.needs_gc()
+
+        slot_func_cname = scope.mangle_internal("tp_finalize")
+        code.putln("")
+        cdel_func_entry = scope.lookup_here("__del__")
+
+        if cdel_func_entry and not cdel_func_entry.is_special:
+            cdel_func_entry = None
+
+        if cdel_func_entry is None:
+            code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
+
+        code.putln("static void %s(PyObject *o) {" % slot_func_cname)
+
+        code.putln("#if CYTHON_USE_TP_FINALIZE")
+
+        if needs_gc:
+            finalised_check = '!_PyGC_FINALIZED(o)'
+        else:
+            finalised_check = (
+                '(!PyType_IS_GC(Py_TYPE(o)) || !_PyGC_FINALIZED(o))')
+
+        code.putln(
+            "if (unlikely("
+            "(PY_VERSION_HEX >= 0x03080000 || __Pyx_PyType_HasFeature(Py_TYPE(o), Py_TPFLAGS_HAVE_FINALIZE))"
+            " && Py_TYPE(o)->tp_finalize) && %s) {" % finalised_check)
+
+        code.putln("PyObject *etype, *eval, *etb;")
+        code.putln("PyErr_Fetch(&etype, &eval, &etb);")
+        code.putln("int resurrected = PyObject_CallFinalizerFromDealloc(o);")
+        code.putln("PyErr_Restore(etype, eval, etb);")
+        # if instance was resurrected by finaliser, abort finalisation
+        code.putln("if (resurrected) return;")
+
+        code.putln("}")
+        code.putln("#endif")
+
+        code.putln("}")
+
+        if cdel_func_entry is None:
+            code.putln("#endif")
+
+
     def generate_dealloc_function(self, scope, code):
         tp_slot = TypeSlots.ConstructorSlot("tp_dealloc", '__dealloc__')
         slot_func = scope.mangle_internal("tp_dealloc")
@@ -1588,10 +1646,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         if py_attrs or cpp_class_attrs or memoryview_slices or weakref_slot or dict_slot:
             self.generate_self_cast(scope, code)
-
-        if not is_final_type:
-            # in Py3.4+, call tp_finalize() as early as possible
-            self.generate_finalizer_call(needs_gc, code)
 
         if needs_gc:
             # We must mark this object as (gc) untracked while tearing
@@ -1685,31 +1739,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "}")
         if cdealloc_func_entry is None:
             code.putln("#endif")
-
-    def generate_finalizer_call(self, needs_gc, code):
-        code.putln("#if CYTHON_USE_TP_FINALIZE")
-
-        if needs_gc:
-            finalised_check = '!_PyGC_FINALIZED(o)'
-        else:
-            finalised_check = (
-                '(!PyType_IS_GC(Py_TYPE(o)) || !_PyGC_FINALIZED(o))')
-        code.putln(
-            "if (unlikely("
-            "(PY_VERSION_HEX >= 0x03080000 || __Pyx_PyType_HasFeature(Py_TYPE(o), Py_TPFLAGS_HAVE_FINALIZE))"
-            " && Py_TYPE(o)->tp_finalize) && %s) {" % finalised_check)
-        # if instance was resurrected by finaliser, return
-
-        code.putln("{")
-        code.putln("PyObject *etype, *eval, *etb;")
-        code.putln("PyErr_Fetch(&etype, &eval, &etb);")
-        code.putln("const int ressurected = PyObject_CallFinalizerFromDealloc(o);")
-        code.putln("PyErr_Restore(etype, eval, etb);")
-        code.putln("if (ressurected) return;")
-        code.putln("}")
-
-        code.putln("}")
-        code.putln("#endif")
 
     def generate_usr_dealloc_call(self, scope, code):
         entry = scope.lookup_here("__dealloc__")
