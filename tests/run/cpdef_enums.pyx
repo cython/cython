@@ -49,9 +49,9 @@ NameError: ...name 'IntEnum' is not defined
 """
 
 >>> PxdEnum.__doc__
-"An enumeration."
+None
 >>> PyxEnum.__doc__
-"An enumeration."
+None
 >>> cpdefPyxDocEnum.__doc__
 "Home is where...\n    "
 >>> cpdefPxdDocEnum.__doc__

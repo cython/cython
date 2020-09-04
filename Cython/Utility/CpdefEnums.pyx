@@ -51,7 +51,7 @@ if PY_VERSION_HEX >= 0x03040000:
         ('{{item}}', {{item}}),
         {{endfor}}
     ]))
-    {{name}}.__doc__ = """{{enum_doc}}"""
+    {{name}}.__doc__ = {{ repr(enum_doc) }}
 
     {{for item in items}}
     __Pyx_globals['{{item}}'] = {{name}}.{{item}}
