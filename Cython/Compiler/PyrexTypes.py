@@ -4024,12 +4024,14 @@ class CppClassType(CType):
 
 class CppScopedEnumType(CType):
     # name    string
+    # doc     string or None
     # cname   string
 
     is_cpp_enum = True
 
-    def __init__(self, name, cname, underlying_type, namespace=None):
+    def __init__(self, name, cname, underlying_type, namespace=None, doc=None):
         self.name = name
+        self.doc = doc
         self.cname = cname
         self.values = []
         self.underlying_type = underlying_type
@@ -4084,6 +4086,7 @@ class CppScopedEnumType(CType):
                 "cname": self.cname.split("::")[-1],
                 "items": tuple(self.values),
                 "underlying_type": self.underlying_type.empty_declaration_code(),
+                "enum_doc": self.doc,
             },
             outer_module_scope=env.global_scope())
 

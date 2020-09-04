@@ -82,3 +82,7 @@ else:
     {{for item in items}}
     __Pyx_globals["{{name}}"](<{{underlying_type}}>({{name}}.{{item}}), '{{item}}')
     {{endfor}}
+
+{{if enum_doc is not None}}
+__Pyx_globals["{{name}}"].__doc__ = {{ repr(enum_doc) }}
+{{endif}}

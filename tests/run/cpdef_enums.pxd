@@ -14,16 +14,16 @@ cpdef enum PxdEnum:
 cpdef enum cpdefPxdDocEnum:
     """Home is where...
     """
-    RANK_0 = 11
+    RANK_6 = 159
 
 cpdef enum cpdefPxdDocLineEnum:
     """Home is where..."""
-    RANK_0 = 11
+    RANK_7 = 889
 
 cdef enum PxdSecretEnum:
-    RANK_3 = 5077
+    RANK_8 = 5077
 
 cdef enum cdefPxdDocEnum:
     """the heart is.
     """
-    RANK_3 = 5077
+    RANK_9 = 2458

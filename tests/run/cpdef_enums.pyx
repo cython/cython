@@ -11,6 +11,8 @@ True
 True
 >>> FIVE == 5 or FIVE
 True
+>>> ELEVEN == 11 or ELEVEN
+True
 >>> SEVEN           # doctest: +ELLIPSIS
 Traceback (most recent call last):
 NameError: ...name 'SEVEN' is not defined
@@ -28,6 +30,10 @@ True
 >>> RANK_1 == 37 or RANK_1
 True
 >>> RANK_2 == 389 or RANK_2
+True
+>>> RANK_6 == 159 or RANK_6
+True
+>>> RANK_7 == 889 or RANK_7
 True
 >>> RANK_3         # doctest: +ELLIPSIS
 Traceback (most recent call last):
@@ -78,7 +84,7 @@ cpdef enum PyxEnum:
 cpdef enum cpdefPyxDocEnum:
     """Home is where...
     """
-    RANK_0 = 11
+    ELEVEN = 11
 
 cpdef enum cpdefPyxDocLineEnum:
     """Home is where..."""
@@ -89,7 +95,7 @@ cdef enum SecretPyxEnum:
 cdef enum cdefPyxDocEnum:
     """the heart is.
     """
-    RANK_3 = 5077
+    FIVE_AND_SEVEN = 5077
 
 
 def test_as_variable_from_cython():
