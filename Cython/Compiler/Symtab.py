@@ -592,8 +592,10 @@ class Scope(object):
                 cname = self.mangle(Naming.type_prefix, name)
         entry = self.lookup_here(name)
         if not entry:
+            in_cpp = self.is_cpp()
             type = PyrexTypes.CStructOrUnionType(
-                name, kind, scope, typedef_flag, cname, packed)
+                name, kind, scope, typedef_flag, cname, packed,
+                in_cpp = in_cpp)
             entry = self.declare_type(name, type, pos, cname,
                 visibility = visibility, api = api,
                 defining = scope is not None)
@@ -2146,7 +2148,7 @@ class CClassScope(ClassScope):
 
     has_pyobject_attrs = False
     has_memoryview_attrs = False
-    has_cpp_class_attrs = False
+    has_cpp_constructable_attrs = False
     has_cyclic_pyobject_attrs = False
     defined = False
     implemented = False
@@ -2234,14 +2236,14 @@ class CClassScope(ClassScope):
                 cname = punycodify_name(cname, Naming.unicode_structmember_prefix)
             if type.is_cpp_class and visibility != 'extern':
                 type.check_nullary_constructor(pos)
-                self.use_utility_code(Code.UtilityCode("#include <new>"))
             entry = self.declare(name, cname, type, pos, visibility)
             entry.is_variable = 1
             self.var_entries.append(entry)
             if type.is_memoryviewslice:
                 self.has_memoryview_attrs = True
-            elif type.is_cpp_class:
-                self.has_cpp_class_attrs = True
+            elif type.needs_cpp_construction:
+                self.use_utility_code(Code.UtilityCode("#include <new>"))
+                self.has_cpp_constructable_attrs = True
             elif type.is_pyobject and (self.is_closure_class_scope or name != '__weakref__'):
                 self.has_pyobject_attrs = True
                 if (not type.is_builtin_type
