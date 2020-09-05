@@ -235,3 +235,31 @@ def test_cdef_parent_object():
     import gc
     gc.collect()
     print("finish")
+
+cdef class cdef_nontrivial_parent:
+    def __del__(self):
+        print("del parent")
+    def __dealloc__(self):
+        print("dealloc parent")
+
+cdef class cdef_nontrivial_child(cdef_nontrivial_parent):
+    def __del__(self):
+        print("del child")
+    def __dealloc__(self):
+        print("dealloc child")
+
+def test_cdef_nontrivial_parent_object():
+    """
+    >>> test_cdef_nontrivial_parent_object()
+    start
+    del child
+    dealloc child
+    dealloc parent
+    finish
+    """
+    print("start")
+    i = cdef_nontrivial_child()
+    i = None
+    import gc
+    gc.collect()
+    print("finish")
