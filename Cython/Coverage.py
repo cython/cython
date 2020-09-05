@@ -54,7 +54,8 @@ class NoCoverConfigurer(CoveragePlugin):
     exclude_lines = []
 
     def configure(self, config):
-        type(self).exclude_lines = config.get_option("report:exclude_lines")
+        # Pass on the "excluded_lines" as found by the "CythonModuleReporter" below.
+        self.exclude_lines = config.get_option("report:exclude_lines")
 
 
 class Plugin(CoveragePlugin):
