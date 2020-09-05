@@ -316,9 +316,12 @@ def p_typecast(s):
     s.next()
     base_type = p_c_base_type(s)
     is_memslice = isinstance(base_type, Nodes.MemoryViewSliceTypeNode)
-    is_template = isinstance(base_type, Nodes.TemplatedTypeNode)
-    is_const_volatile = isinstance(base_type, Nodes.CConstOrVolatileTypeNode)
-    if not is_memslice and not is_template and not is_const_volatile and base_type.name is None:
+    is_other_unnamed_type = isinstance(base_type, (
+        Nodes.TemplatedTypeNode,
+        Nodes.CConstOrVolatileTypeNode,
+        Nodes.CTupleBaseTypeNode,
+    ))
+    if not (is_memslice or is_other_unnamed_type) and base_type.name is None:
         s.error("Unknown type")
     declarator = p_c_declarator(s, empty = 1)
     if s.sy == '?':
