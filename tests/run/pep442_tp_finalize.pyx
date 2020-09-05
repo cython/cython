@@ -263,3 +263,47 @@ def test_cdef_nontrivial_parent_object():
     import gc
     gc.collect()
     print("finish")
+
+
+class python_child(cdef_nontrivial_parent):
+    def __del__(self):
+        print("del python child")
+        super().__del__()
+
+def test_python_child_object():
+    """
+    >>> test_python_child_object()
+    Traceback (most recent call last):
+    ...
+    RuntimeError: End function
+    """
+
+    def func(tp):
+        inst = tp()
+        raise RuntimeError("End function")
+
+    func(python_child)
+
+def test_python_child_fancy_inherit():
+    """
+    >>> test_python_child_fancy_inherit()
+    Traceback (most recent call last):
+    ...
+    RuntimeError: End function
+    """
+
+    # inherit using "true python" rather than Cython
+    globs = { 'cdef_nontrivial_parent': cdef_nontrivial_parent }
+
+    exec("""
+class derived_python_child(cdef_nontrivial_parent):
+    pass
+""", globs)
+
+    derived_python_child = globs['derived_python_child']
+
+    def func(tp):
+        inst = tp()
+        raise RuntimeError("End function")
+
+    func(derived_python_child)
