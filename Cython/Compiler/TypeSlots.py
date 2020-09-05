@@ -552,6 +552,8 @@ class TypeFlagsSlot(SlotDescriptor):
             value += "|Py_TPFLAGS_BASETYPE"
         if scope.needs_gc():
             value += "|Py_TPFLAGS_HAVE_GC"
+        if scope.lookup("__del__"):
+            value += "|Py_TPFLAGS_HAVE_FINALIZE"
         return value
 
     def generate_spec(self, scope, code):
