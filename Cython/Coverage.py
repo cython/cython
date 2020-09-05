@@ -54,7 +54,7 @@ class NoCoverConfigurer(CoveragePlugin):
     exclude_lines = []
 
     def configure(self, config):
-        # Pass on the "excluded_lines" as found by the "CythonModuleReporter" below.
+        # Read the regular expressions from the coverage config that match lines to be excluded from coverage.
         self.exclude_lines = config.get_option("report:exclude_lines")
 
 
@@ -235,6 +235,7 @@ class Plugin(CoveragePlugin):
             r'(\s+[^:]+|)\s*:'
         ).match
         exclude_lines = [
+            # Regexes that match code lines to exclude from coverage.
             re.compile(regex).search for regex in NoCoverConfigurer.exclude_lines
         ]
 
