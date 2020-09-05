@@ -1691,6 +1691,8 @@ class FuncDefNode(StatNode, BlockNode):
     needs_outer_scope = False
     pymethdef_required = False
     is_generator = False
+    is_coroutine = False
+    is_asyncgen = False
     is_generator_body = False
     is_async_def = False
     modifiers = []
@@ -4336,9 +4338,7 @@ class GeneratorDefNode(DefNode):
     #
 
     is_generator = True
-    is_coroutine = False
     is_iterable_coroutine = False
-    is_asyncgen = False
     gen_type_name = 'Generator'
     needs_closure = True
 
