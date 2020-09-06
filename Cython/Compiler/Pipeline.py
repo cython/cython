@@ -160,6 +160,7 @@ def create_pipeline(context, mode, exclude_classes=()):
     from .Optimize import ConstantFolding, FinalOptimizePhase
     from .Optimize import DropRefcountingTransform
     from .Optimize import ConsolidateOverflowCheck
+    from .TypeStubGenerator import TypeStubGenerator
     from .Buffer import IntroduceBufferAuxiliaryVars
     from .ModuleNode import check_c_declarations, check_c_declarations_pxd
 
@@ -221,6 +222,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         DropRefcountingTransform(),
         FinalOptimizePhase(context),
         GilCheck(),
+        TypeStubGenerator(),
         ]
     filtered_stages = []
     for s in stages:
