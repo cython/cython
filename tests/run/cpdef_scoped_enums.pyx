@@ -34,7 +34,9 @@ def test_enum_to_list():
 
 def test_enum_doc():
     """
-    >>> test_enum_doc()
+    >>> assert Enum2.__doc__ == "Apricots and other fruits.\\n        "
+    True
+    >>> assert Enum1.__doc__ != "Apricots and other fruits.\\n        "
+    True
     """
-    assert Enum2.__doc__ == "Apricots and other fruits.\n        "
-    assert Enum1.__doc__ != "Apricots and other fruits.\n        "
+    pass

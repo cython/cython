@@ -54,19 +54,6 @@ Traceback (most recent call last):
 NameError: ...name 'IntEnum' is not defined
 """
 
->>> PxdEnum.__doc__ not in ("Home is where...\n    ", "Home is where...")
-True
->>> PyxEnum.__doc__ not in ("Home is where...\n    ", "Home is where...")
-True
->>> cpdefPyxDocEnum.__doc__
-"Home is where...\n    "
->>> cpdefPxdDocEnum.__doc__
-"Home is where...\n    "
->>> cpdefPyxDocLineEnum.__doc__
-"Home is where..."
->>> cpdefPxdDocLineEnum.__doc__
-"Home is where..."
-
 cdef extern from *:
     cpdef enum: # ExternPyx
         ONE "1"
@@ -88,6 +75,7 @@ cpdef enum cpdefPyxDocEnum:
 
 cpdef enum cpdefPyxDocLineEnum:
     """Home is where..."""
+    FOURTEEN = 14
 
 cdef enum SecretPyxEnum:
     SEVEN = 7
@@ -121,3 +109,21 @@ def verify_resolution_GH1533():
     """
     THREE = 100
     return int(PyxEnum.THREE)
+
+
+def check_docs():
+    """
+    >>> PxdEnum.__doc__ not in ("Home is where...\\n    ", "Home is where...")
+    True
+    >>> PyxEnum.__doc__ not in ("Home is where...\\n    ", "Home is where...")
+    True
+    >>> cpdefPyxDocEnum.__doc__ == "Home is where...\\n    "
+    True
+    >>> cpdefPxdDocEnum.__doc__ == "Home is where...\\n    "
+    True
+    >>> cpdefPyxDocLineEnum.__doc__
+    'Home is where...'
+    >>> cpdefPxdDocLineEnum.__doc__
+    'Home is where...'
+    """
+    pass
