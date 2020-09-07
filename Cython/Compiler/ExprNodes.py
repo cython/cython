@@ -5721,6 +5721,20 @@ class SimpleCallNode(CallNode):
 
         return self
 
+    def handle_universal_references(self):
+        func_type = self.function_type()
+        arg_types = [arg.type for arg in self.args]
+        for i, formal_arg in enumerate(func_type.args):
+            if formal_arg.type.is_rvalue_reference:
+                if isinstance(
+                    formal_arg.type.ref_base_type,
+                    PyrexTypes.TemplatePlaceholderType
+                ):
+                    # it's a forwarding reference,
+                    if self.args[i].is_lvalue():
+                        arg_types[i] = PyrexTypes.c_ref_type(arg_types[i])
+        return arg_types
+
     def function_type(self):
         # Return the type of the function being called, coercing a function
         # pointer to a function if necessary. If the function has fused
@@ -5771,7 +5785,8 @@ class SimpleCallNode(CallNode):
                 alternatives = overloaded_entry.all_alternatives()
 
             entry = PyrexTypes.best_match(
-                [arg.type for arg in args], alternatives, self.pos, env, args)
+                self.handle_universal_references(), alternatives, self.pos, env, args
+            )
 
             if not entry:
                 self.type = PyrexTypes.error_type
