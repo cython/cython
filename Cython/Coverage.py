@@ -233,7 +233,10 @@ class Plugin(CoveragePlugin):
             r'(?:struct|union|enum|class)'
             r'(\s+[^:]+|)\s*:'
         ).match
-        line_is_excluded = re.compile("|".join(["(?:%s)" % regex for regex in self._excluded_line_patterns])).search
+        if self._excluded_line_patterns:
+            line_is_excluded = re.compile("|".join(["(?:%s)" % regex for regex in self._excluded_line_patterns])).search
+        else:
+            line_is_excluded = lambda line: False
 
         code_lines = defaultdict(dict)
         executable_lines = defaultdict(set)
