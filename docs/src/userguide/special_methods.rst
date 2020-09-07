@@ -127,7 +127,7 @@ finalizers for objects. When running a Cython module on Python 3.4 and
 higher you can add a :meth:`__del__` method to extension types in
 order to perform Python cleanup operations. When the :meth:`__del__`
 is called the object is still in a valid state (unlike in the case of
-:meth:`__dealloc___`-ation), permitting the use of Python operations
+:meth:`__dealloc__`), permitting the use of Python operations
 on its class members. On Python <3.4 :meth:`__del__` will not be called.
 
 .. _arithmetic_methods:
