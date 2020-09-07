@@ -1624,8 +1624,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 "(PY_VERSION_HEX >= 0x03080000 || __Pyx_PyType_HasFeature(Py_TYPE(o), Py_TPFLAGS_HAVE_FINALIZE))"
                 " && Py_TYPE(o)->tp_finalize) && %s) {" % finalised_check)
 
-            code.putln("if (Py_TYPE(o)->tp_dealloc == %s)" % slot_func_cname)
-            code.putln("{")
+            code.putln("if (Py_TYPE(o)->tp_dealloc == %s) {" % slot_func_cname)
             # if instance was resurrected by finaliser, return
             code.putln("if (PyObject_CallFinalizerFromDealloc(o)) return;")
             code.putln("}")

@@ -451,7 +451,7 @@ class ConstructorSlot(InternalMethodSlot):
     def slot_code(self, scope):
         if not self._needs_own(scope):
             # if the type does not have object attributes, it can
-            # delegate GC methods to its parent - if the parent
+            # delegate GC methods to its parent - iff the parent
             # functions are defined in the same module
             slot_code = self._parent_slot_function(scope)
             return slot_code or '0'

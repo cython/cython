@@ -74,7 +74,6 @@ def test_del_with_exception():
     print("finish")
 
 
-
 def test_nontrivial_del_with_exception():
     """
     >>> test_nontrivial_del_with_exception()
@@ -94,6 +93,7 @@ def test_nontrivial_del_with_exception():
         pass
 
     print("end")
+
 
 cdef class parent:
     def __del__(self):
@@ -235,6 +235,7 @@ def test_cdef_parent_object():
     import gc
     gc.collect()
     print("finish")
+
 
 cdef class cdef_nontrivial_parent:
     def __del__(self):
