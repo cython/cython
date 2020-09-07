@@ -55,7 +55,7 @@ class NoCoverConfigurer(CoveragePlugin):
 
     def configure(self, config):
         # Read the regular expressions from the coverage config that match lines to be excluded from coverage.
-        self.exclude_lines = config.get_option("report:exclude_lines")
+        type(self).exclude_lines = config.get_option("report:exclude_lines")
 
 
 class Plugin(CoveragePlugin):
