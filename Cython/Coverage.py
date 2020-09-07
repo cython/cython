@@ -50,14 +50,6 @@ def _find_dep_file_path(main_file, file_path, relative_path_search=False):
     return canonical_filename(abs_path)
 
 
-class NoCoverConfigurer(CoveragePlugin):
-    exclude_lines = []
-
-    def configure(self, config):
-        # Read the regular expressions from the coverage config that match lines to be excluded from coverage.
-        type(self).exclude_lines = config.get_option("report:exclude_lines")
-
-
 class Plugin(CoveragePlugin):
     # map from traced file paths to absolute file paths
     _file_path_map = None
@@ -67,9 +59,16 @@ class Plugin(CoveragePlugin):
     _parsed_c_files = None
     # map from traced files to lines that are excluded from coverage
     _excluded_lines_map = None
+    # list of regex patterns for lines to exclude
+    _excluded_line_patterns = ()
 
     def sys_info(self):
         return [('Cython version', __version__)]
+
+    def configure(self, config):
+        # Entry point for coverage "configurer".
+        # Read the regular expressions from the coverage config that match lines to be excluded from coverage.
+        self._excluded_line_patterns = config.get_option("report:exclude_lines")
 
     def file_tracer(self, filename):
         """
@@ -234,10 +233,7 @@ class Plugin(CoveragePlugin):
             r'(?:struct|union|enum|class)'
             r'(\s+[^:]+|)\s*:'
         ).match
-        exclude_lines = [
-            # Regexes that match code lines to exclude from coverage.
-            re.compile(regex).search for regex in NoCoverConfigurer.exclude_lines
-        ]
+        line_is_excluded = re.compile("|".join(["(?:%s)" % regex for regex in self._excluded_line_patterns])).search
 
         code_lines = defaultdict(dict)
         executable_lines = defaultdict(set)
@@ -264,7 +260,7 @@ class Plugin(CoveragePlugin):
                         code_line = match.group(1).rstrip()
                         if not_executable(code_line):
                             break
-                        if any(exclude(code_line) for exclude in exclude_lines):
+                        if line_is_excluded(code_line):
                             self._excluded_lines_map[filename].add(lineno)
                             break
                         code_lines[filename][lineno] = code_line
@@ -377,5 +373,6 @@ class CythonModuleReporter(FileReporter):
 
 
 def coverage_init(reg, options):
-    reg.add_configurer(NoCoverConfigurer())
-    reg.add_file_tracer(Plugin())
+    plugin = Plugin()
+    reg.add_configurer(plugin)
+    reg.add_file_tracer(plugin)
