@@ -345,8 +345,9 @@ class CythonMagics(Magics):
         try:
             self._build_extension(extension, lib_dir, pgo_step_name='use' if args.pgo else None,
                                   quiet=args.quiet)
-        except distutils.errors.CompileError:
+        except (distutils.errors.CompileError, distutils.errors.LinkError):
             # Build failed and printed error message
+            print('Build failed, see logs for more details', file=sys.stderr)
             return None
 
         module = imp.load_dynamic(module_name, module_path)
