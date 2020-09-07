@@ -125,7 +125,13 @@ class TypeStubGenerator(TreeVisitor):
         self._print_indented("def %s(" % func_name, end='')
 
         def type_name(ctype):
+
+            if arg.type is not None:
+                if hasattr(arg.type, 'name'):
+                    return arg.type.name
+
             py_name = func_type.return_type.py_type_name()
+
             if "(int, long)" in py_name:
                 return "int"
             return py_name
