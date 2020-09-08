@@ -112,13 +112,8 @@ class TypeStubGenerator(TreeVisitor):
         if node.py_func is None:
             return node
 
-        entry = node.entry
-
-        if entry is None:
-            self.print_DefNode(node.py_func)
-
         func_name = node.py_func.name
-        func_type = entry.type
+        func_type = node.type
 
         py_args = node.py_func.args
 
@@ -169,7 +164,7 @@ class TypeStubGenerator(TreeVisitor):
 
         # arg: CArgDeclNode
         def argument_str(arg):
-            value = arg.name
+            value = arg.declarator.name
             if arg.annotation is not None:
                 value += (": %s" % annotation_str(arg.annotation))
 

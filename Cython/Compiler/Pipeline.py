@@ -181,6 +181,7 @@ def create_pipeline(context, mode, exclude_classes=()):
     # code in pxd files. So it will be run multiple times in a
     # compilation stage.
     stages = [
+        TypeStubGenerator(),
         NormalizeTree(context),
         PostParse(context),
         _specific_post_parse,
@@ -221,8 +222,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         ConsolidateOverflowCheck(context),
         DropRefcountingTransform(),
         FinalOptimizePhase(context),
-        GilCheck(),
-        TypeStubGenerator(),
+        GilCheck()
         ]
     filtered_stages = []
     for s in stages:
