@@ -5476,6 +5476,12 @@ class SliceIntNode(SliceNode):
 
 
 class CallNode(ExprNode):
+    # Node corresponding to a function call
+    #
+    #
+    # function  NameNode
+    # args      [ExprNode]
+
 
     # allow overriding the default 'may_be_none' behaviour
     may_return_none = None
