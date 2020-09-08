@@ -7,41 +7,39 @@ cython.declare(PyrexTypes=object, Naming=object, ExprNodes=object, Nodes=object,
                error=object, warning=object, copy=object, _unicode=object)
 
 from .Nodes import CFuncDefNode
-from .ExprNodes import ImportNode
+from .ExprNodes import AttributeNode, CallNode, ImportNode, NameNode
 
 from . import Version
 
 from .Visitor import TreeVisitor
+from Cython.CodeWriter import IndentationWriter
 
-class TypeStubGenerator(TreeVisitor):
+class TypeStubGenerator(TreeVisitor, IndentationWriter):
 
-    def __init__(self):
-        super(TypeStubGenerator, self).__init__()
-        self._indent = 0
-        pass
+    def __init__(self, result=None):
+        TreeVisitor.__init__(self)
+        IndentedWriter.__init__(self, result)
 
-    def visit_ModuleNode(self, node):
-
+    def _visit_indented(self, node):
+        self.indent()
         self.visitchildren(node)
-
-        print()
-
-        return node
+        self.dedent()
 
     def visit_ImportNode(self, node):
 
         module_name = node.module_name.value
 
         if node.name_list is None:
-            self._print_indented("import %s" % module_name)
+            self.putline("import %s" % module_name)
         else:
             names = (arg.value for arg in node.name_list.args)
             all_names = ", ".join(names)
 
             if node.level > 0:
-                module_name = "%s%s" % ("."*node.level, module_name)
+                complete_level = "." * node.level
+                module_name = "%s%s" % (complete_level, module_name)
 
-            self._print_indented("from %s import %s" % (module_name, all_names))
+            self.putline("from %s import %s" % (module_name, all_names))
 
         return node
 
@@ -65,42 +63,27 @@ class TypeStubGenerator(TreeVisitor):
             self.visitchildren(node)
             return node
 
-        self._print_indented("import %s as %s" % (module_name, imported_name))
+        self.putline("import %s as %s" % (module_name, imported_name))
 
         return node
 
     def visit_CClassDefNode(self, node):
 
-        print("class %s:" % node.class_name)
+        self.putline("class %s:" % node.class_name)
 
-        self._indent += 1
+        self._visit_indented(node)
 
-        self.visitchildren(node)
-
-        self._indent -= 1
-
-        print("")
+        self.emptyline()
 
         return node
 
-    def _indent_str(self):
-        return "  " * self._indent
-
-    def _print_indented(self, *args, **kwds):
-        print(self._indent_str(), end='')
-        print(*args, **kwds)
-
     def visit_PyClassDefNode(self, node):
 
-        self._print_indented("class %s" % node.name)
+        self.putline("class %s" % node.name)
 
-        self._indent += 1
+        self._visit_indented(node)
 
-        self.visitchildren(node)
-
-        self._indent -= 1
-
-        print()
+        self.emptyline()
 
         return node
 
@@ -117,7 +100,9 @@ class TypeStubGenerator(TreeVisitor):
 
         py_args = node.py_func.args
 
-        self._print_indented("def %s(" % func_name, end='')
+        self.startline()
+
+        self.put("def %s(" % func_name, end='')
 
         def type_name(ctype):
 
@@ -148,13 +133,27 @@ class TypeStubGenerator(TreeVisitor):
 
             arg_names.append(arg_name)
 
-        print(", ".join(arg_names), end='')
+        self.put(", ".join(arg_names), end='')
 
-        print(") -> %s: ..." % type_name(func_type.return_type), end='')
-
-        print()
+        self.endline(") -> %s: ..." % type_name(func_type.return_type), end='')
 
         return node
+
+    def print_Decorator(self, decorator):
+
+        # Not implemented and afaik not required..
+        if isinstance(decorator, CallNode):
+            return
+
+        self.startline("@")
+
+        if isinstance(decorator, NameNode):
+            self.put("%s" % decorator.name)
+        else:
+            assert isinstance(decorator, AttributeNode)
+            self.put("%s.%s" % (decorator.obj.name, decorator.attribute))
+
+        self.emptyline()
 
     def print_DefNode(self, node):
 
@@ -174,7 +173,13 @@ class TypeStubGenerator(TreeVisitor):
 
             return value
 
-        self._print_indented("def %s(" % node.name, end='')
+        async_name = "async " if (node.is_async_def or node.is_asyncgen) else ""
+
+        if node.decorators is not None:
+            for decorator in node.decorators:
+                self.print_Decorator(decorator.decorator)
+
+        self.startline("%sdef %s(" % (async_name, node.name))
 
         args = []
 
@@ -191,16 +196,16 @@ class TypeStubGenerator(TreeVisitor):
         if starstar_arg is not None:
             args.append("**%s" % starstar_arg.name)
 
-        print(", ".join(args), end='')
+        self.put(", ".join(args))
 
         retype = node.return_type_annotation
 
         if retype is not None:
-            print(") -> %s: ..." % annotation_str(retype), end='')
+            self.put(") -> %s: ..." % annotation_str(retype))
         else:
-            print("): ...", end='')
+            self.put("): ...")
 
-        print()
+        self.endline()
 
 
     def visit_DefNode(self, node):
@@ -214,6 +219,7 @@ class TypeStubGenerator(TreeVisitor):
         return node
 
     def __call__(self, root):
-        print("# Python stub file generated by Cython %s" % Version.watermark)
-        print()
+        self.putline("# Python stub file generated by Cython %s" % Version.watermark)
+        self.emptyline()
+
         return self._visit(root)
