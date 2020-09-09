@@ -49,11 +49,15 @@ class TypeStubGenerator(TreeVisitor, IndentationWriter):
     def atModuleRoot(self):
         return len(self.context) == 1
 
+    def set_Context_Nonempty(self):
+        for context in self.context:
+            context.empty = False
+
     def visit_ImportNode(self, node):
 
         module_name = node.module_name.value
 
-        self.currentContext.empty = False
+        self.set_Context_Nonempty()
 
         if node.name_list is None:
             self.putline("import %s" % module_name)
@@ -76,7 +80,7 @@ class TypeStubGenerator(TreeVisitor, IndentationWriter):
 
         module_name = node.rhs.module_name.value
 
-        self.currentContext.empty = False
+        self.set_Context_Nonempty()
 
         module_name_start = module_name
 
@@ -106,6 +110,7 @@ class TypeStubGenerator(TreeVisitor, IndentationWriter):
         assert self.currentContext.name == node.class_name
 
         if self.currentContext.empty:
+            self.set_Context_Nonempty()
             with self.indented():
                 self.putline("pass")
 
@@ -123,9 +128,10 @@ class TypeStubGenerator(TreeVisitor, IndentationWriter):
 
         self._visit_indented(node)
 
-        assert self.currentContext.name == node.class_name
+        assert self.currentContext.name == node.name
 
         if self.currentContext.empty:
+            self.set_Context_Nonempty()
             with self.indented():
                 self.putline("pass")
 
@@ -209,7 +215,7 @@ class TypeStubGenerator(TreeVisitor, IndentationWriter):
 
     def print_DefNode(self, node):
 
-        self.currentContext.empty = False
+        self.set_Context_Nonempty()
 
         # arg: CArgDeclNode
         def argument_str(arg):
@@ -266,6 +272,10 @@ class TypeStubGenerator(TreeVisitor, IndentationWriter):
     def visit_SingleAssignmentNode(self, node):
 
         if not self.atModuleRoot():
+            return node
+
+        if isinstance(node.rhs, ImportNode):
+            self.visitchildren(node)
             return node
 
         name = node.lhs.name
