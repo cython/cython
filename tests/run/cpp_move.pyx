@@ -13,7 +13,7 @@ cdef extern from *:
     template<typename T> const char* move_helper(T&) { return "lvalue-ref"; }
     template<typename T> const char* move_helper(T&&) { return "rvalue-ref"; }
     """
-    const char* move_helper[T](T&&)
+    const char* move_helper[T](T)
 
 def test_move_assignment():
     """

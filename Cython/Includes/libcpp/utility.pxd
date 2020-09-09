@@ -14,4 +14,16 @@ cdef extern from "<utility>" namespace "std" nogil:
         bint operator<=(pair&, pair&)
         bint operator>=(pair&, pair&)
 
-    cdef T move[T](T&&)
+cdef extern from * namespace "cython_std" nogil:
+    """
+    #if __cplusplus > 199711L
+    #include <type_traits>
+
+    namespace cython_std {
+    template <typename T> typename std::remove_reference<T>::type&& move(T& t) noexcept { return std::move(t); }
+    template <typename T> typename std::remove_reference<T>::type&& move(T&& t) noexcept { return std::move(t); }
+    }
+
+    #endif
+    """
+    cdef T move[T](T)
