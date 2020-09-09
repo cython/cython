@@ -46,6 +46,9 @@ class TypeStubGenerator(TreeVisitor, IndentationWriter):
     def currentContext(self):
         return self.context[-1]
 
+    def atModuleRoot(self):
+        return len(self.context) == 1
+
     def visit_ImportNode(self, node):
 
         module_name = node.module_name.value
@@ -200,19 +203,19 @@ class TypeStubGenerator(TreeVisitor, IndentationWriter):
 
         self.emptyline()
 
+    def annotation_Str(self, annotation):
+        value = annotation.string.value
+        return value.decode('utf-8').strip()
+
     def print_DefNode(self, node):
 
         self.currentContext.empty = False
-
-        def annotation_str(annotation):
-            value = annotation.string.value
-            return value.decode('utf-8').strip()
 
         # arg: CArgDeclNode
         def argument_str(arg):
             value = arg.declarator.name
             if arg.annotation is not None:
-                value += (": %s" % annotation_str(arg.annotation))
+                value += (": %s" % self.annotation_Str(arg.annotation))
 
             if (arg.default is not None or
                 arg.default_value is not None):
@@ -250,12 +253,45 @@ class TypeStubGenerator(TreeVisitor, IndentationWriter):
         retype = node.return_type_annotation
 
         if retype is not None:
-            self.put(") -> %s: ..." % annotation_str(retype))
+            self.put(") -> %s: ..." % self.annotation_Str(retype))
         else:
             self.put("): ...")
 
         self.endline()
 
+    def visit_ExprStatNode(self, node):
+        if not self.atModuleRoot():
+            return node
+
+    def visit_SingleAssignmentNode(self, node):
+
+        if not self.atModuleRoot():
+            return node
+
+        name = node.lhs.name
+
+        if node.lhs.annotation:
+            annotation = node.lhs.annotation.string.value
+            self.putline("%s: %s = ..." % (name, annotation))
+        else:
+            self.putline("%s = ..." % name)
+
+    def visit_ExprStatNode(self, node):
+
+        if not self.atModuleRoot():
+            return node
+
+        if isinstance(node.expr, NameNode):
+
+            node = node.expr
+
+            name = node.name
+
+            if node.annotation:
+                annotation = self.annotation_Str(node.annotation)
+                self.putline("%s: %s" % (name, annotation))
+            else:
+                self.putline("%s" % (name))
 
     def visit_DefNode(self, node):
 
