@@ -28,11 +28,29 @@ class LinesResult(object):
         self.put(s)
         self.newline()
 
+    def __str__(self):
+        value = "\n".join(self.lines)
+
+        if self.s:
+            value += "\n" + self.s
+
+        return value
+
 
 class IndentationWriter:
     """
     Mixin class for writing indented code.
     """
+
+    class Indented:
+        def __init__(self, writer):
+            self.writer = writer
+
+        def __enter__(self):
+            self.writer.indent()
+
+        def __exit__(self, type, value, traceback):
+            self.writer.dedent()
 
     def __init__(self, result=None):
         super(IndentationWriter, self).__init__()
@@ -47,6 +65,9 @@ class IndentationWriter:
     def write(self, tree):
         self.visit(tree)
         return self.result
+
+    def indented(self):
+        return self.Indented(self)
 
     def indent(self):
         self.numindents += 1
