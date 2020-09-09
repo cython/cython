@@ -2797,7 +2797,7 @@ class CFakeReferenceType(CReferenceType):
         return "__Pyx_FakeReference<%s> %s" % (self.ref_base_type.empty_declaration_code(), entity_code)
 
 
-class CppRvalueReferenceType(CReference):
+class CppRvalueReferenceType(CReferenceType):
 
     is_reference = 0
     is_rvalue_reference = 1
