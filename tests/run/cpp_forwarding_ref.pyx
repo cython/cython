@@ -15,7 +15,7 @@ cdef extern from *:
     const char* f(int&& x) {
         return "rvalue-ref";
     }
-    
+
     template <typename T>
     const char* foo(T&& x)
     {
@@ -29,4 +29,3 @@ def test_forwarding_basic():
     cdef int x = 1
     assert foo(x) == b"lvalue-ref"
     assert foo(move(x)) == b"rvalue-ref"
-
