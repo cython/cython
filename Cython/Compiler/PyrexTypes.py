@@ -2797,13 +2797,10 @@ class CFakeReferenceType(CReferenceType):
         return "__Pyx_FakeReference<%s> %s" % (self.ref_base_type.empty_declaration_code(), entity_code)
 
 
-class CppRvalueReferenceType(BaseType):
-    # TODO: figure out how to reuse code with CReferenceType
+class CppRvalueReferenceType(CReference):
 
+    is_reference = 0
     is_rvalue_reference = 1
-
-    def __init__(self, base_type):
-        self.ref_base_type = base_type
 
     def __repr__(self):
         return "<CppRvalueReferenceType %s>" % repr(self.ref_base_type)
@@ -2817,19 +2814,6 @@ class CppRvalueReferenceType(BaseType):
         return self.ref_base_type.declaration_code(
             "&&%s" % entity_code,
             for_display, dll_linkage, pyrex)
-
-    def specialize(self, values):
-        base_type = self.ref_base_type.specialize(values)
-        if base_type == self.ref_base_type:
-            return self
-        else:
-            return type(self)(base_type)
-
-    def deduce_template_params(self, actual):
-        return self.ref_base_type.deduce_template_params(actual)
-
-    def __getattr__(self, name):
-        return getattr(self.ref_base_type, name)
 
 
 class CFuncType(CType):
