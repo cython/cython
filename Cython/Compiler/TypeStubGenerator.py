@@ -16,6 +16,17 @@ from Cython.CodeWriter import IndentationWriter
 
 class TypeStubGenerator(TreeVisitor, IndentationWriter):
 
+    forbiddenFunctionNames = frozenset((
+        "__cinit__",
+        "__dealloc__",
+        "__getbuffer__",
+        "__releasebuffer__",
+        "__getreadbuffer__",
+        "__getwritebuffer__",
+        "___getsegcount__",
+        "__getcharbuffer__"
+    ))
+
     class Context:
         name = ""
         empty = True
@@ -41,6 +52,12 @@ class TypeStubGenerator(TreeVisitor, IndentationWriter):
         self.indent()
         self.visitchildren(node)
         self.dedent()
+
+    def hide_Function(self, name):
+        if name in self.forbiddenFunctionNames:
+            return True
+
+        return name.startswith("__pyx")
 
     @property
     def currentContext(self):
@@ -144,15 +161,17 @@ class TypeStubGenerator(TreeVisitor, IndentationWriter):
     def visit_CFuncDefNode(self, node):
 
         # cdef rather than cpdef => invisible
-        if node.py_func is None:
+        if not node.overridable:
             return node
 
-        self.currentContext.empty = False
+        self.set_Context_Nonempty()
 
-        func_name = node.py_func.name
-        func_type = node.type
+        func_name = node.declared_name()
 
-        py_args = node.py_func.args
+        if self.hide_Function(func_name):
+            return node
+
+        func_args = node.declarator.args
 
         self.startline()
 
@@ -215,6 +234,11 @@ class TypeStubGenerator(TreeVisitor, IndentationWriter):
 
     def print_DefNode(self, node):
 
+        func_name = node.name
+
+        if self.hide_Function(func_name):
+            return node
+
         self.set_Context_Nonempty()
 
         # arg: CArgDeclNode
@@ -271,12 +295,11 @@ class TypeStubGenerator(TreeVisitor, IndentationWriter):
 
     def visit_SingleAssignmentNode(self, node):
 
-        if not self.atModuleRoot():
-            return node
-
         if isinstance(node.rhs, ImportNode):
             self.visitchildren(node)
             return node
+
+        self.set_Context_Nonempty()
 
         name = node.lhs.name
 
@@ -288,10 +311,9 @@ class TypeStubGenerator(TreeVisitor, IndentationWriter):
 
     def visit_ExprStatNode(self, node):
 
-        if not self.atModuleRoot():
-            return node
-
         if isinstance(node.expr, NameNode):
+
+            self.set_Context_Nonempty()
 
             node = node.expr
 
