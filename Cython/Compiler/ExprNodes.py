@@ -5780,7 +5780,7 @@ class SimpleCallNode(CallNode):
                 alternatives = [f.entry for f in functypes]
             else:
                 alternatives = overloaded_entry.all_alternatives()
-            
+
             entry = PyrexTypes.best_match(
                 arg_types,
                 alternatives,
