@@ -1,11 +1,8 @@
-/////////////// FetchCommonType.proto ///////////////
+/////////////// FetchSharedCythonModule.proto ///////
 
-static CYTHON_UNUSED PyTypeObject* __Pyx_FetchCommonType(PyTypeObject* type);
-#if CYTHON_COMPILING_IN_LIMITED_API
-static PyTypeObject* __Pyx_FetchCommonTypeFromSpec(PyType_Spec *spec, PyObject *bases);
-#endif
+static PyObject *__Pyx_FetchSharedCythonABIModule(void);
 
-/////////////// FetchCommonType ///////////////
+/////////////// FetchSharedCythonModule ////////////
 
 static PyObject *__Pyx_FetchSharedCythonABIModule(void) {
     PyObject *abi_module = PyImport_AddModule((char*) __PYX_ABI_MODULE_NAME);
@@ -13,6 +10,16 @@ static PyObject *__Pyx_FetchSharedCythonABIModule(void) {
     Py_INCREF(abi_module);
     return abi_module;
 }
+
+/////////////// FetchCommonType.proto ///////////////
+//@requires: FetchSharedCythonModule
+
+static PyTypeObject* __Pyx_FetchCommonType(PyTypeObject* type);
+#if CYTHON_COMPILING_IN_LIMITED_API
+static PyTypeObject* __Pyx_FetchCommonTypeFromSpec(PyType_Spec *spec, PyObject *bases);
+#endif
+
+/////////////// FetchCommonType ///////////////
 
 static int __Pyx_VerifyCachedType(PyObject *cached_type,
                                const char *name,

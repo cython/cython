@@ -1050,7 +1050,7 @@ Dataclass extension types
 =========================
 
 Cython supports extension types that behave like the dataclasses defined in
-the Python 3.7+ standard library. The main benefit of using a dataclasses is
+the Python 3.7+ standard library. The main benefit of using a dataclass is
 that it can auto-generate simple `__init__`, `__repr__` and comparison
 functions. The Cython implementation behaves as much like the Python
 standard library implementation as possible and therefore the documentation
@@ -1063,7 +1063,7 @@ you need to define special properties on a field then use `cython.field`
 .. literalinclude:: ../../examples/userguide/extension_types/dataclass.pyx    
 
 You may use C-level types such as structs, pointers, or C++ classes.
-However, you may these types are not compatible with the auto-generated
+However, you may find these types are not compatible with the auto-generated
 special methods - for example if they cannot be converted from a Python
 type they cannot be passed to a constructor, and you must use a 
 `default_factory` to initialize them. As in Python, you can also control

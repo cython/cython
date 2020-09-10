@@ -3,7 +3,7 @@
 static PyObject* __Pyx_LoadInternalModule(const char* name, const char* fallback_code); /* proto */
 
 //////////////////// ModuleLoader ///////////////////////
-//@requires: CommonStructures.c::FetchCommonType
+//@requires: CommonStructures.c::FetchSharedCythonModule
 
 static PyObject* __Pyx_LoadInternalModule(const char* name, const char* fallback_code) {
     // In supporting dataclasses we want to be able to use directives like:
@@ -67,27 +67,15 @@ static PyObject* __Pyx_LoadInternalModule(const char* name, const char* fallback
     return module;
 }
 
-///////////////////// DataclassModuleLoader.proto //////////////////////
+///////////////////// SpecificModuleLoader.proto //////////////////////
+//@substitute: tempita
 
-static PyObject* __Pyx_LoadDataclassModule(void); /* proto */
+static PyObject* __Pyx_Load_{{name}}_Module(void); /* proto */
 
 
-//////////////////// DataclassModuleLoader ///////////////////////
+//////////////////// SpecificModuleLoader ///////////////////////
 //@requires: ModuleLoader
-//@substitute: naming
 
-static PyObject* __Pyx_LoadDataclassModule(void) {
-    return __Pyx_LoadInternalModule("dataclasses", $dataclass_py_code);
-}
-
-///////////////////// TypingModuleLoader.proto ////////////////////////
-
-static PyObject* __Pyx_LoadTypingModule(void); /* proto */
-
-///////////////////// TypingModuleLoader ///////////////////////////
-//@requires: ModuleLoader
-//@substitute: naming
-
-static PyObject* __Pyx_LoadTypingModule(void) {
-    return __Pyx_LoadInternalModule("typing", $typing_py_code);
+static PyObject* __Pyx_Load_{{name}}_Module(void) {
+    return __Pyx_LoadInternalModule("{{name}}", {{py_code}});
 }

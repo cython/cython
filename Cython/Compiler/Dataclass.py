@@ -4,7 +4,7 @@ from collections import OrderedDict
 
 from .Errors import error, warning
 from . import ExprNodes, Nodes, PyrexTypes
-from .Code import UtilityCode
+from .Code import UtilityCode, TempitaUtilityCode
 from .Visitor import VisitorTransform
 from . import UtilNodes, Builtin, Naming
 from .StringEncoding import BytesLiteral, EncodedString
@@ -12,23 +12,30 @@ from .TreeFragment import TreeFragment
 from .ParseTreeTransforms import (NormalizeTree, SkipDeclarations, AnalyseDeclarationsTransform,
                                   MarkClosureVisitor)
 
-def _make_module_callnode(pos, name):
-    loader_utilitycode = UtilityCode.load_cached("%sModuleLoader" % name, "Dataclasses.c")
-    return ExprNodes.PythonCapiCallNode(pos, "__Pyx_Load%sModule" % name,
+def _make_module_callnode_and_utilcode(pos, name, py_code):
+    loader_utilitycode = TempitaUtilityCode.load_cached("SpecificModuleLoader", "Dataclasses.c",
+                                                        context={'name': name, 'py_code': py_code})
+    return (ExprNodes.PythonCapiCallNode(pos, "__Pyx_Load_%s_Module" % name,
                                 PyrexTypes.CFuncType(PyrexTypes.py_object_type, []),
                                 utility_code = loader_utilitycode,
-                                args=[])
+                                args=[]),
+            loader_utilitycode)
 
+def make_dataclass_module_callnode_and_utilcode(pos):
+    python_utility_code = UtilityCode.load_cached("Dataclasses_fallback", "Dataclasses.py")
+    python_utility_code = EncodedString(python_utility_code.impl)
+    return _make_module_callnode_and_utilcode(pos, "dataclasses", python_utility_code.as_c_string_literal())
 def make_dataclass_module_callnode(pos):
-    return _make_module_callnode(pos, "Dataclass")
+    return make_dataclass_module_callnode_and_utilcode(pos)[0]
 def make_typing_module_callnode(pos):
-    return _make_module_callnode(pos, "Typing")
+    python_utility_code = UtilityCode.load_cached("Typing_fallback", "Dataclasses.py")
+    python_utility_code = EncodedString(python_utility_code.impl)
+    return _make_module_callnode_and_utilcode(pos, "typing", python_utility_code.as_c_string_literal())[0]
 
 _INTERNAL_DEFAULTSHOLDER_NAME = EncodedString('__pyx_dataclass_defaults')
 
 def make_common_utilitycode(scope):
-    scope.global_scope().use_utility_code(
-        UtilityCode.load_cached("DataclassModuleLoader", "Dataclasses.c"))
+    scope.global_scope().use_utility_code(make_dataclass_module_callnode_and_utilcode(None)[1])
 
 
 class RemoveAssignments(VisitorTransform, SkipDeclarations):
