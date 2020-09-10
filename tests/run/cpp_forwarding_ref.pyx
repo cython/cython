@@ -25,7 +25,11 @@ cdef extern from *:
     const char* foo[T](T&& x)
 
 
-def test_forwarding_basic():
+def test_forwarding_ref():
+    """
+    >>> test_forwarding_ref()
+    """
     cdef int x = 1
     assert foo(x) == b"lvalue-ref"
+    assert foo(<int>(1)) == b"rvalue-ref"
     assert foo(move(x)) == b"rvalue-ref"
