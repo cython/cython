@@ -4028,12 +4028,14 @@ class CppClassType(CType):
 
 class CppScopedEnumType(CType):
     # name    string
+    # doc     string or None
     # cname   string
 
     is_cpp_enum = True
 
-    def __init__(self, name, cname, underlying_type, namespace=None):
+    def __init__(self, name, cname, underlying_type, namespace=None, doc=None):
         self.name = name
+        self.doc = doc
         self.cname = cname
         self.values = []
         self.underlying_type = underlying_type
@@ -4088,6 +4090,7 @@ class CppScopedEnumType(CType):
                 "cname": self.cname.split("::")[-1],
                 "items": tuple(self.values),
                 "underlying_type": self.underlying_type.empty_declaration_code(),
+                "enum_doc": self.doc,
             },
             outer_module_scope=env.global_scope())
 
@@ -4143,6 +4146,7 @@ def is_optional_template_param(type):
 
 class CEnumType(CIntLike, CType):
     #  name           string
+    #  doc            string or None
     #  cname          string or None
     #  typedef_flag   boolean
     #  values         [string], populated during declaration analysis
@@ -4151,8 +4155,9 @@ class CEnumType(CIntLike, CType):
     signed = 1
     rank = -1  # Ranks below any integer type
 
-    def __init__(self, name, cname, typedef_flag, namespace=None):
+    def __init__(self, name, cname, typedef_flag, namespace=None, doc=None):
         self.name = name
+        self.doc = doc
         self.cname = cname
         self.values = []
         self.typedef_flag = typedef_flag
@@ -4194,7 +4199,9 @@ class CEnumType(CIntLike, CType):
         env.use_utility_code(CythonUtilityCode.load(
             "EnumType", "CpdefEnums.pyx",
             context={"name": self.name,
-                     "items": tuple(self.values)},
+                     "items": tuple(self.values),
+                     "enum_doc": self.doc,
+                     },
             outer_module_scope=env.global_scope()))
 
 
