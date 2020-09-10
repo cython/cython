@@ -80,9 +80,16 @@ def process_class_get_fields(node):
     _NoneNode = ExprNodes.NoneNode(node.pos)
 
     class Field:
-        # store fields as nodes so they can be used in code construction
-        # more readily; define class inside function so default arguments
-        # have a useful pos
+        """
+        Field is based on the dataclasses.field class from the standard library module.
+        It is used internally during the generation of Cython dataclasses to keep track
+        of the settings for individual attributes.
+
+        Attributes of this class are stored as nodes so they can be used in code construction
+        more readily (i.e. we store BoolNode rather than bool)
+        The class (+ _TrueNode, _FalseNode and _NoneNode) are defined inside a function
+        that when _TrueNode (etc) are used as default arguments they can have a useful pos
+        """
         default = MISSING
         default_factory = MISSING
         def __init__(self, default=MISSING, default_factory=MISSING,
@@ -171,7 +178,7 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
                             GeneralCallNode, DictNode,
                             IdentifierStringNode, BoolNode, DictItemNode)
 
-    # https://docs.python.org/3/library/dataclasses.html
+    # default argument values from https://docs.python.org/3/library/dataclasses.html
     kwargs = dict(init=True, repr=True, eq=True,
                   order=False, unsafe_hash=False, frozen=False)
     if dataclass_args is not None:
@@ -225,20 +232,20 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
 
     # turn off annotation typing, so all arguments to __init__ are accepted as
     # generic objects and thus can accept _HAS_DEFAULT_FACTORY
-    # type conversion done comes later
-    # (for some reason this has to be on the class scope, so save and restore)
-    annotation_typing = node.scope.directives['annotation_typing']
-    node.scope.directives['annotation_typing'] = False
-    stats.analyse_declarations(node.scope)
+    # type conversion comes later
+    comp_directives = Nodes.CompilerDirectivesNode(node.pos,
+        directives = node.scope.directives.copy(),
+        body=stats)
+    comp_directives.directives['annotation_typing'] = False
+
+    comp_directives.analyse_declarations(node.scope)
     # probably already in this scope, but it doesn't hurt to make sure
     analyse_decs_transform.enter_scope(node, node.scope)
-    analyse_decs_transform.visit(stats)
+    analyse_decs_transform.visit(comp_directives)
     analyse_decs_transform.exit_scope()
-    node.scope.directives['annotation_typing'] = annotation_typing
 
-    RemoveDontAnalyseDeclarations()(stats)
-
-    node.body.stats.extend(stats.stats)
+    RemoveDontAnalyseDeclarations()(comp_directives)
+    node.body.stats.append(comp_directives)
 
 def generate_init_code(init, node, fields):
     if not init or node.scope.lookup_here("__init__"):
