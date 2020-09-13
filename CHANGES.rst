@@ -11,6 +11,9 @@ Bugs fixed
 * ``repr()`` was assumed to return ``str`` instead of ``unicode`` with ``language_level=3``.
   (Github issue #3736)
 
+* Cython no longer validates the ABI size of the NumPy classes it compiled against.
+  See the discussion in https://github.com/numpy/numpy/pull/432
+
 
 0.29.21 (2020-07-09)
 ====================
