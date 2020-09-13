@@ -14,6 +14,9 @@ Bugs fixed
 * Cython no longer validates the ABI size of the NumPy classes it compiled against.
   See the discussion in https://github.com/numpy/numpy/pull/432
 
+* A C compiler warning about enum value casting was resolved in GCC.
+  (Github issue #2749)
+
 
 0.29.21 (2020-07-09)
 ====================
