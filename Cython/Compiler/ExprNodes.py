@@ -2898,8 +2898,8 @@ class CppIteratorNode(ExprNode):
     def generate_result_code(self, code):
         sequence_type = self.sequence.type
         # essentially 3 options:
-        if self.sequence.is_name or self.sequence.is_attribute:
-            # 1) is a name and can be accessed directly;
+        if self.sequence.is_simple():
+            # 1) Sequence can be accessed directly, like a name;
             #    assigning to it may break the container, but that's the responsibility
             #    of the user
             code.putln("%s = %s%sbegin();" % (self.result(),
