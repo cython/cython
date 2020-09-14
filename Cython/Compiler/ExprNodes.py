@@ -5763,23 +5763,23 @@ class SimpleCallNode(CallNode):
         else:
             overloaded_entry = None
 
-        # For any argument/parameter pair A/P, if P is a forwarding reference,
-        # use lvalue-reference-to-A for deduction in place of A when the
-        # function call argument is an lvalue. See:
-        # https://en.cppreference.com/w/cpp/language/template_argument_deduction#Deduction_from_a_function_call
-        arg_types = [arg.type for arg in args]
-        if func_type.is_cfunction:
-            for i, formal_arg in enumerate(func_type.args):
-                if formal_arg.is_forwarding_reference():
-                    if self.args[i].is_lvalue():
-                        arg_types[i] = PyrexTypes.c_ref_type(arg_types[i])
-
         if overloaded_entry:
             if self.function.type.is_fused:
                 functypes = self.function.type.get_all_specialized_function_types()
                 alternatives = [f.entry for f in functypes]
             else:
                 alternatives = overloaded_entry.all_alternatives()
+
+            # For any argument/parameter pair A/P, if P is a forwarding reference,
+            # use lvalue-reference-to-A for deduction in place of A when the
+            # function call argument is an lvalue. See:
+            # https://en.cppreference.com/w/cpp/language/template_argument_deduction#Deduction_from_a_function_call
+            arg_types = [arg.type for arg in args]
+            if func_type.is_cfunction:
+                for i, formal_arg in enumerate(func_type.args):
+                    if formal_arg.is_forwarding_reference():
+                        if self.args[i].is_lvalue():
+                            arg_types[i] = PyrexTypes.c_ref_type(arg_types[i])
 
             entry = PyrexTypes.best_match(
                 arg_types,
