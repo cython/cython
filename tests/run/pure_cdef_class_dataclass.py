@@ -5,7 +5,7 @@ from __future__ import print_function
 
 import cython
 
-@cython.dataclass(order=True, unsafe_hash=True)
+@cython.dataclasses.dataclass(order=True, unsafe_hash=True)
 @cython.cclass
 class MyDataclass:
     """
@@ -28,4 +28,4 @@ class MyDataclass:
     """
 
     a: int = 1
-    self: list = cython.field(default_factory=list, hash=False)  # test that arguments of init don't conflict
+    self: list = cython.dataclasses.field(default_factory=list, hash=False)  # test that arguments of init don't conflict

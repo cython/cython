@@ -21,12 +21,12 @@ def _make_module_callnode_and_utilcode(pos, name, py_code):
                                 args=[]),
             loader_utilitycode)
 
-def make_dataclass_module_callnode_and_utilcode(pos):
+def make_dataclasses_module_callnode_and_utilcode(pos):
     python_utility_code = UtilityCode.load_cached("Dataclasses_fallback", "Dataclasses.py")
     python_utility_code = EncodedString(python_utility_code.impl)
     return _make_module_callnode_and_utilcode(pos, "dataclasses", python_utility_code.as_c_string_literal())
-def make_dataclass_module_callnode(pos):
-    return make_dataclass_module_callnode_and_utilcode(pos)[0]
+def make_dataclasses_module_callnode(pos):
+    return make_dataclasses_module_callnode_and_utilcode(pos)[0]
 def make_typing_module_callnode(pos):
     python_utility_code = UtilityCode.load_cached("Typing_fallback", "Dataclasses.py")
     python_utility_code = EncodedString(python_utility_code.impl)
@@ -35,7 +35,7 @@ def make_typing_module_callnode(pos):
 _INTERNAL_DEFAULTSHOLDER_NAME = EncodedString('__pyx_dataclass_defaults')
 
 def make_common_utilitycode(scope):
-    scope.global_scope().use_utility_code(make_dataclass_module_callnode_and_utilcode(None)[1])
+    scope.global_scope().use_utility_code(make_dataclasses_module_callnode_and_utilcode(None)[1])
 
 
 class RemoveAssignments(VisitorTransform, SkipDeclarations):
@@ -92,6 +92,7 @@ def process_class_get_fields(node):
         """
         default = MISSING
         default_factory = MISSING
+        private = False
         def __init__(self, default=MISSING, default_factory=MISSING,
                         repr=_TrueNode, hash=_NoneNode, init=_TrueNode,
                         compare=_TrueNode, metadata=_NoneNode,
@@ -110,7 +111,7 @@ def process_class_get_fields(node):
             for field_name in ("repr", "hash", "init", "compare", "metadata"):
                 field_value = getattr(self, field_name)
                 if not field_value.is_literal:
-                    error(field_value.pos, "cython.field parameter '%s' must be a literal value"
+                    error(field_value.pos, "cython.dataclasses.field parameter '%s' must be a literal value"
                             % field_name)
 
     var_entries = node.scope.var_entries
@@ -132,15 +133,15 @@ def process_class_get_fields(node):
         if name in transform.removed_assignments:
             assignment = transform.removed_assignments[name]
             if (isinstance(assignment, ExprNodes.CallNode)
-                    and assignment.function.as_cython_attribute() == "field"):
+                    and assignment.function.as_cython_attribute() == "dataclasses.field"):
                 # I believe most of this is well-enforced when it's treated as a directive
                 # but it doesn't hurt to make sure
                 if (not isinstance(assignment, ExprNodes.GeneralCallNode)
                         or not isinstance(assignment.positional_args, ExprNodes.TupleNode)
                         or assignment.positional_args.args
                         or not isinstance(assignment.keyword_args, ExprNodes.DictNode)):
-                    error(assignment.pos, "Call to 'cython.field' must only consist of compile-time "
-                          "keyword arguments")
+                    error(assignment.pos, "Call to 'cython.dataclasses.field' must only consist "
+                          "of compile-time keyword arguments")
                     continue
                 keyword_args = { k.value: v for k, v in assignment.keyword_args.key_value_pairs }
                 if 'default' in keyword_args and 'default_factory' in keyword_args:
@@ -154,21 +155,21 @@ def process_class_get_fields(node):
                     if ((func.is_name and func.name == "field")
                             or (isinstance(func, ExprNodes.AttributeNode)
                                 and func.attribute == "field")):
-                        warning(assignment.pos, "Do you mean cython.field instead?", 1)
+                        warning(assignment.pos, "Do you mean cython.dataclasses.field instead?", 1)
                 if assignment.type in [Builtin.list_type,
                                     Builtin.dict_type,
                                     Builtin.set_type]:
                     # The standard library module generates a TypeError at runtime
                     # in this situation
                     error(assignment.pos, "Mutable default passed argument for '{0}' - "
-                          "use 'default_factory' instead and see "
-                          "'https://docs.python.org/library/dataclasses.html#mutable-default-values'"
-                          "for more details".format(name))
+                          "use 'default_factory' instead".format(name))
 
                 field = Field(default=assignment)
         else:
             field = Field()
         field.is_initvar = is_initvar
+        if entry.visibility == "private":
+            field.private = True
         fields[name] = field
     node.entry.type.dataclass_fields = fields
     return fields
@@ -177,26 +178,25 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     from .ExprNodes import (AttributeNode, TupleNode, NameNode,
                             GeneralCallNode, DictNode,
                             IdentifierStringNode, BoolNode, DictItemNode)
-
     # default argument values from https://docs.python.org/3/library/dataclasses.html
     kwargs = dict(init=True, repr=True, eq=True,
                   order=False, unsafe_hash=False, frozen=False)
     if dataclass_args is not None:
         if dataclass_args[0]:
-            error(node.pos, "cython.dataclass takes no positional arguments")
+            error(node.pos, "cython.dataclasses.dataclass takes no positional arguments")
         for k, v in dataclass_args[1].items():
             if k not in kwargs:
                 error(node.pos,
-                      "Unrecognised keyword argument '{0}' to cython.dataclass".format(k))
+                      "Unrecognised keyword argument '{0}' to cython.dataclasses.dataclass".format(k))
             if not isinstance(v, ExprNodes.BoolNode):
                 error(node.pos,
-                      "Arguments to cython.dataclass must be True or False")
+                      "Arguments to cython.dataclasses.dataclass must be True or False")
             kwargs[k] = v
 
     dataclass_scope = make_common_utilitycode(node.scope)
     fields = process_class_get_fields(node)
 
-    dataclass_module = make_dataclass_module_callnode(node.pos)
+    dataclass_module = make_dataclasses_module_callnode(node.pos)
 
     # create __dataclass_params__ attribute
     dataclass_params_func = AttributeNode(node.pos, obj=dataclass_module,
@@ -258,7 +258,7 @@ def generate_init_code(init, node, fields):
     placeholder_count = [0]
 
     # create a temp to get _HAS_DEFAULT_FACTORY
-    dataclass_module = make_dataclass_module_callnode(node.pos)
+    dataclass_module = make_dataclasses_module_callnode(node.pos)
     has_default_factory = ExprNodes.AttributeNode(node.pos,
                                         obj = dataclass_module,
                                         attribute = EncodedString("_HAS_DEFAULT_FACTORY"))
@@ -557,6 +557,8 @@ def _setup_dataclass_fields(node, fields, dataclass_module):
     # pass those around instead
     variables_assignment_stats = []
     for name, field in fields.items():
+        if field.private:
+            continue  # doesn't appear in the public interface
         for attrname in [ "default", "default_factory" ]:
             f_def = getattr(field, attrname)
             if f_def is MISSING or f_def.is_literal or f_def.is_name:
@@ -585,6 +587,8 @@ def _setup_dataclass_fields(node, fields, dataclass_module):
     dc_fields = DictNode(node.pos, key_value_pairs=[])
     dc_fields_namevalue_assignments = []
     for name, field in fields.items():
+        if field.private:
+            continue  # doesn't appear in the public interface
         placeholder_name = "PLACEHOLDER_%s" % name
         placeholders[placeholder_name] = GetTypeNode(node.scope.entries[name])
 
@@ -594,7 +598,7 @@ def _setup_dataclass_fields(node, fields, dataclass_module):
         dc_field_keywords = DictNode.from_pairs(node.pos,
             [ (IdentifierStringNode(node.pos, value=EncodedString(k)),
                FieldsValueNode(node.pos, arg=v))
-                for k, v in field.__dict__.items() if k != "is_initvar" ])
+                for k, v in field.__dict__.items() if k not in ["is_initvar", "private"] ])
         dc_field_call = GeneralCallNode(node.pos, function = field_func,
                                     positional_args = TupleNode(node.pos, args=[]),
                                     keyword_args = dc_field_keywords)

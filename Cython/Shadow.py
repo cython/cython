@@ -507,19 +507,31 @@ class CythonDotParallel(object):
     # def threadsavailable(self):
         # return 1
 
+class CythonDotImportedFromElsewhere(object):
+    """
+    cython.dataclasses and cython.typing just shadow the standard library modules of the same name
+    """
+    def __init__(self, name):
+        self.__name = name
+
+    def __getattr__(self, attr):
+        # we typically only expect this to be called once
+        from importlib import import_module
+        import sys
+        try:
+            mod = import_module(self.__name)
+        except ImportError:
+            # but if they don't exist (Python is not sufficiently up-to-date) then
+            # you can't use them
+            raise AttributeError("%s: the standard library module %s is not available" %
+                                 (attr, self.__name))
+        sys.modules['cython.%s' % self.__name] = mod
+        return getattr(mod, attr)
+
 import sys
 sys.modules['cython.parallel'] = CythonDotParallel()
+# In pure Python mode @cython.dataclasses.dataclass and dataclass field should just
+# shadow the standard library ones (if they are available)
+dataclasses = sys.modules['cython.dataclasses'] = CythonDotImportedFromElsewhere('dataclasses')
+typing = sys.modules['cython.typing'] = CythonDotImportedFromElsewhere('typing')
 del sys
-
-try:
-    # In pure Python mode @cython.dataclass and dataclass field should just
-    # shadow the standard library ones
-    from dataclasses import dataclass, field, InitVar
-except ImportError:
-    # but if they don't exist (Python is not sufficiently up-to-date) then
-    # you can't use them
-    pass
-try:
-    from typing import ClassVar
-except ImportError:
-    pass

@@ -790,6 +790,7 @@ class InterpretCompilerDirectives(CythonTransform):
         return node
 
     def visit_FromCImportStatNode(self, node):
+        extra_stats = []
         if not node.relative_level and (
                 node.module_name == u"cython" or node.module_name.startswith(u"cython.")):
             submodule = (node.module_name + u".")[7:]
@@ -798,7 +799,6 @@ class InterpretCompilerDirectives(CythonTransform):
             for pos, name, as_name, kind in node.imported_names:
                 full_name = submodule + name
                 qualified_name = u"cython." + full_name
-
                 if self.is_parallel_directive(qualified_name, node.pos):
                     # from cython cimport parallel, or
                     # from cython.parallel cimport parallel, prange, ...
@@ -808,14 +808,24 @@ class InterpretCompilerDirectives(CythonTransform):
                     if kind is not None:
                         self.context.nonfatal_error(PostParseError(pos,
                             "Compiler directive imports must be plain imports"))
+                elif full_name in ['dataclasses', 'typing']:
+                    self.directive_names[as_name or name] = full_name
+                    # unlike many directives, still treat it as a regular module
+                    newimp.append((pos, name, as_name, kind))
                 else:
                     newimp.append((pos, name, as_name, kind))
 
             if not newimp:
-                return None
+                if not extra_stats:
+                    return None
+                else:
+                    return extra_stats
 
             node.imported_names = newimp
-        return node
+        if not extra_stats:
+            return node
+        else:
+            return [node] + extra_stats
 
     def visit_FromImportStatNode(self, node):
         if (node.module.module_name.value == u"cython") or \
@@ -1060,7 +1070,7 @@ class InterpretCompilerDirectives(CythonTransform):
                         if self.directives.get(name, object()) != value:
                             directives.append(directive)
                         if (directive[0] == 'staticmethod'
-                                or (directive[0] == 'dataclass' and scope_name == 'class')):
+                                or (directive[0] == 'dataclasses.dataclass' and scope_name == 'class')):
                             both.append(dec)
                     # Adapt scope type based on decorators that change it.
                     if directive[0] == 'cclass' and scope_name == 'class':
@@ -1073,7 +1083,8 @@ class InterpretCompilerDirectives(CythonTransform):
                 rd = rd.decorator
                 if ((rd.is_name and rd.name == "dataclass")
                         or (isinstance(rd, ExprNodes.AttributeNode) and rd.attribute=="dataclass")):
-                    error(rd.pos, "Use '@cython.dataclass' on cdef classes to create a dataclass")
+                    error(rd.pos,
+                          "Use '@cython.dataclasses.dataclass' on cdef classes to create a dataclass")
             raise PostParseError(realdecs[0].pos, "Cdef functions/classes cannot take arbitrary decorators.")
         node.decorators = realdecs[::-1] + both[::-1]
         # merge or override repeated directives
@@ -1722,9 +1733,9 @@ if VALUE is not None:
 
     def visit_CClassDefNode(self, node):
         node = self.visit_ClassDefNode(node)
-        if node.scope and 'dataclass' in node.scope.directives:
+        if node.scope and 'dataclasses.dataclass' in node.scope.directives:
             from .Dataclass import handle_cclass_dataclass
-            handle_cclass_dataclass(node, node.scope.directives['dataclass'], self)
+            handle_cclass_dataclass(node, node.scope.directives['dataclasses.dataclass'], self)
         if node.scope and node.scope.implemented and node.body:
             stats = []
             for entry in node.scope.var_entries:
@@ -3097,12 +3108,12 @@ class TransformBuiltinMethods(EnvTransform):
 
     def visit_cython_attribute(self, node):
         attribute = node.as_cython_attribute()
-        if (not attribute and node.is_name
-                and node.name in ["ClassVar", "InitVar"]  # not directives so don't get picked up correctly
-                ):
-            entry = self.current_env().lookup(node.name)
-            if entry and getattr(entry.scope, "is_cython_builtin"):
-                attribute = node.name
+        #if (not attribute and node.is_name
+        #        and node.name in ["typing.ClassVar", "dataclasses.InitVar"]  # not directives so don't get picked up correctly
+        #        ):
+        #    entry = self.current_env().lookup(node.name)
+        #    if entry and getattr(entry.scope, "is_cython_builtin"):
+        #        attribute = node.name
         if attribute:
             if attribute == u'__version__':
                 from .. import __version__ as version
@@ -3114,15 +3125,6 @@ class TransformBuiltinMethods(EnvTransform):
                                           entry=self.current_env().builtin_scope().lookup_here(attribute))
             elif PyrexTypes.parse_basic_type(attribute):
                 pass
-            elif attribute in ['field', 'dataclass', 'InitVar', 'ClassVar']:
-                from .Dataclass import (make_dataclass_module_callnode,
-                                        make_typing_module_callnode)
-                if attribute == "ClassVar":
-                    module = make_typing_module_callnode(node.pos)
-                else:
-                    module = make_dataclass_module_callnode(node.pos)
-                node = ExprNodes.AttributeNode(node.pos, obj=module,
-                                               attribute=EncodedString(attribute))
             elif self.context.cython_scope.lookup_qualified_name(attribute):
                 pass
             else:

@@ -99,14 +99,6 @@ class CythonScope(ModuleScope):
             defining = 1,
             cname = 'PyObject_TypeCheck')
 
-        entry = self.declare_type("InitVar", InitOrClassVar("InitVar"), pos = None)
-        # just need .as_variable to appear like an entry - the namenode is swapped
-        # out in TransformBuiltinMethods anyway
-        dummy_entry = Entry("InitVar", "<error>", py_object_type)
-        entry.as_variable = dummy_entry
-        entry = self.declare_type("ClassVar", InitOrClassVar("ClassVar"), pos = None)
-        dummy_entry = Entry("ClassVar", "<error>", py_object_type)
-        entry.as_variable = dummy_entry
 
     def load_cythonscope(self):
         """
@@ -145,8 +137,27 @@ class CythonScope(ModuleScope):
         for ext_type in ext_types:
             ext_type.is_cython_builtin_type = 1
 
-
         # self.entries["array"] = view_utility_scope.entries.pop("array")
+
+        # dataclasses and typing scopes
+        dataclassesscope = ModuleScope(u'dataclasses', self, None)
+        self.declare_module('dataclasses', dataclassesscope, None).as_module = dataclassesscope
+        dataclassesscope.is_cython_builtin = True
+        dataclassesscope.pxd_file_loaded = True
+        entry = dataclassesscope.declare_type("InitVar", InitOrClassVar("InitVar"), pos = None)
+        # just need .as_variable to appear like an entry - the namenode is swapped
+        # out in TransformBuiltinMethods anyway
+        dummy_entry = Entry("InitVar", "<error>", py_object_type)
+        entry.as_variable = dummy_entry
+
+        typingscope = ModuleScope(u'typing', self, None)
+        self.declare_module('typing', typingscope, None).as_module = typingscope
+        typingscope.is_cython_builtin = True
+        typingscope.pxd_file_loaded = True
+        entry = typingscope.declare_type("ClassVar", InitOrClassVar("ClassVar"), pos = None)
+        dummy_entry = Entry("ClassVar", "<error>", py_object_type)
+        entry.as_variable = dummy_entry
+
 
 
 def create_cython_scope(context):

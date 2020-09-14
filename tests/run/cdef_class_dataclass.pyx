@@ -1,7 +1,9 @@
 # mode: run
 # tag: dataclass
 
-from cython cimport dataclass, field, InitVar, ClassVar
+from cython cimport dataclasses, typing
+from cython.dataclasses cimport dataclass, field, InitVar
+from cython.typing cimport ClassVar
 import cython
 from libc.stdlib cimport malloc, free
 
@@ -55,9 +57,9 @@ cdef class BasicDataclass:
     a: float
     b: NotADataclass = field(default_factory=NotADataclass)
     c: object = field(default=0)
-    d: list = field(default_factory=list)
+    d: list = dataclasses.field(default_factory=list)
 
-@dataclass
+@dataclasses.dataclass
 cdef class InheritsFromDataclass(BasicDataclass):
     """
     >>> sorted(list(InheritsFromDataclass.__dataclass_fields__.keys()))
@@ -71,7 +73,7 @@ cdef class InheritsFromDataclass(BasicDataclass):
     def __post_init__(self):
         print "In __post_init__"
 
-@dataclass
+@cython.dataclasses.dataclass
 cdef class InheritsFromNotADataclass(NotADataclass):
     """
     >>> sorted(list(InheritsFromNotADataclass.__dataclass_fields__.keys()))
@@ -106,7 +108,7 @@ cdef class ContainsNonPyFields:
     Traceback (most recent call last):
     TypeError: __init__() got an unexpected keyword argument 'mystruct_ptr'
     """
-    mystruct: S = field(compare=False)
+    mystruct: S = cython.dataclasses.field(compare=False)
     mystruct_ptr: S_ptr = field(init=False, repr=False, default_factory=malloc_a_struct)
     memview: int[:, ::1] = field(default=create_array((3,1), "c"),  # mutable so not great but OK for a test
                                  compare=False)
@@ -119,92 +121,97 @@ cdef class InitClassVars:
     """
     >>> sorted(list(InitClassVars.__dataclass_fields__.keys()))
     ['a']
-    >>> InitClassVars.c
+    >>> InitClassVars.c1
     2.0
-    >>> InitClassVars.e
+    >>> InitClassVars.e1
     []
     >>> inst1 = InitClassVars()
     In __post_init__
     >>> inst1  # init vars don't appear in string
     InitClassVars(a=0)
-    >>> inst2 = InitClassVars(b=5, d=100)
+    >>> inst2 = InitClassVars(b1=5, d2=100)
     In __post_init__
     >>> inst1 == inst2  # comparison ignores the initvar
     True
     """
     a: cython.int = 0
-    b: InitVar[double] = 1.0
-    c: ClassVar[float] = 2.0
-    cdef InitVar[cython.int] d
-    d = 5
-    cdef ClassVar[list] e
-    e = []
+    b1: InitVar[double] = 1.0
+    b2: dataclasses.InitVar[double] = 1.0
+    b3: cython.dataclasses.InitVar[double] = 1.0
+    c1: ClassVar[float] = 2.0
+    c2: typing.ClassVar[float] = 2.0
+    c3: cython.typing.ClassVar[float] = 2.0
+    cdef InitVar[cython.int] d1
+    cdef dataclasses.InitVar[cython.int] d2
+    cdef cython.dataclasses.InitVar[cython.int] d3
+    d1 = 5
+    d2 = 5
+    d3 = 5
+    cdef ClassVar[list] e1
+    cdef typing.ClassVar[list] e2
+    cdef cython.typing.ClassVar[list] e3
+    e1 = []
+    e2 = []
+    e3 = []
 
-    def __post_init__(self, b, d):
-        assert self.b==0, self.b  # hasn't been assigned yet
-        assert self.d==0, self.d
-        self.b = b
-        self.d = d
+    def __post_init__(self, b1, b2, b3, d1, d2, d3):
+         # Check that the initvars haven't been assigned yet
+        assert self.b1==0, self.b1
+        assert self.b2==0, self.b2
+        assert self.b3==0, self.b3
+        assert self.d1==0, self.d1
+        assert self.d2==0, self.d2
+        assert self.d3==0, self.d3
+        self.b1 = b1
+        self.b2 = b2
+        self.b3 = b3
+        self.d1 = d1
+        self.d2 = d2
+        self.d3 = d3
         print "In __post_init__"
 
+@dataclass
+cdef class TestVisibility:
+    """
+    >>> inst = TestVisibility()
+    >>> "a" in TestVisibility.__dataclass_fields__
+    False
+    >>> hasattr(inst, "a")
+    False
+    >>> "b" in TestVisibility.__dataclass_fields__
+    True
+    >>> hasattr(inst, "b")
+    True
+    >>> "c" in TestVisibility.__dataclass_fields__
+    True
+    >>> hasattr(inst, "c")
+    True
+    """
+    cdef double a
+    a = 1.0
+    b: double = 2.0
+    cdef public double c
+    c = 3.0
+
+@dataclass(frozen=True)
+cdef class TestFrozen:
+    """
+    >>> inst = TestFrozen(a=5)
+    >>> inst.a
+    5.0
+    >>> inst.a = 2.
+    Traceback (most recent call last):
+    AttributeError: attribute 'a' of 'cdef_class_dataclass.TestFrozen' objects is not writable
+    """
+    a: double = 2.0
+
 import sys
-if (sys.version_info >= (3, 7)
-        and False # TODO: This currently doesn't work because regular classes don't
-            # create __annotations__
-        ):
-    # if possible the Cython decorators should fall back to the Python module
-    # where available.
-    @dataclass
-    class RegularClass:
-        """
-        >>> from dataclasses import is_dataclass
-        >>> is_dataclass(RegularClass)
-        True
-        >>> is_dataclass(RegularClass())
-        True
-        """
-        a: cython.int = field(default_factory = lambda: 5)
-
-    @dataclass(init=True)
-    class RegularClass2:
-        """
-        >>> from dataclasses import is_dataclass
-        >>> is_dataclass(RegularClass2)
-        True
-        """
-        a: cython.int = field(default_factory = lambda: 5)
-
-dc1 = dataclass  # copy the cython attributes
-fld1 = field
-iv1 = InitVar
-cv1 = ClassVar
-
-cimport cython
-dc2 = cython.dataclass
-fld2 = cython.field
-iv2 = cython.InitVar
-cv2 = cython.ClassVar
-
-__doc__ = """
-# test that the Cython attributes are available as PyObjects
-# any further use is impossible without the dataclasses module though
->>> all(isinstance(o, object) for o in [dc1, dc2, fld1, fld2, iv1, iv2, cv1, cv2])
-True
-"""
-
 if sys.version_info >= (3, 7):
-    __doc__ += """
-    >>> from dataclasses import is_dataclass, dataclass, field, InitVar
-    >>> from typing import ClassVar
+    __doc__ = """
+    >>> from dataclasses import Field, is_dataclass
 
-    # cython attributes revert to being the standard library values
-    >>> dc1 is dc2 and dc1 is dataclass
-    True
-    >>> fld1 is fld2 and fld1 is field
-    True
-    >>> iv1 is iv2 and iv1 is InitVar
-    True
-    >>> cv1 is cv2 and cv1 is ClassVar
+    # It uses the types from the standard library where available
+    >>> all(isinstance(v, Field) for v in BasicDataclass.__dataclass_fields__.values())
     True
 
     # check out Cython dataclasses are close enough to convince it

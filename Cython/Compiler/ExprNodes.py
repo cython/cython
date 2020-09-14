@@ -1997,7 +1997,16 @@ class NameNode(AtomicExprNode):
             atype = unspecified_type if as_target and env.directives['infer_types'] != False else py_object_type
         if atype.is_fused and env.fused_to_specific:
             atype = atype.specialize(env.fused_to_specific)
-        self.entry = env.declare_var(name, atype, self.pos, is_cdef=not as_target)
+        kwds = {}
+        if 'dataclasses.dataclass' in env.directives:
+            # handle "frozen" directive - full inspection of the dataclass directives happens
+            # in Dataclass.py
+            frozen_directive = env.directives['dataclasses.dataclass']
+            if frozen_directive:
+                frozen_directive = frozen_directive[1].get('frozen', None)
+            is_frozen = frozen_directive and frozen_directive.is_literal and frozen_directive.value
+            kwds = {'visibility': 'readonly?' if is_frozen else 'public?'}
+        self.entry = env.declare_var(name, atype, self.pos, is_cdef=not as_target, **kwds)
         self.entry.annotation = annotation.expr
         self.entry.pep563_annotation = annotation.string.value
 
@@ -2042,8 +2051,9 @@ class NameNode(AtomicExprNode):
             self.entry = env.lookup_here(self.name)
         if not self.entry and self.annotation is not None:
             # name : type = ...
-            if 'dataclass' in env.directives:
+            if 'dataclasses.dataclass' in env.directives:
                 # in a dataclass an assignment should not prevent a name becoming a class member
+                # hence "as_target = False"
                 self.declare_from_annotation(env, as_target=False)
             else:
                 self.declare_from_annotation(env, as_target=True)
