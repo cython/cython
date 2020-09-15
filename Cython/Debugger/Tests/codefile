@@ -37,14 +37,13 @@ def outer():
     def inner():
         b = 2
         # access closed over variables
-        print a, b
+        print(a, b)
     return inner
-
 
 outer()()
 
 spam()
-print "bye!"
+print("bye!")
 
 def use_ham():
     ham()

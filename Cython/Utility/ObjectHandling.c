@@ -133,7 +133,7 @@ static int __Pyx_unpack_tuple2_generic(PyObject* tuple, PyObject** pvalue1, PyOb
     if (unlikely(!iter)) goto bad;
     if (decref_tuple) { Py_DECREF(tuple); tuple = NULL; }
 
-    iternext = Py_TYPE(iter)->tp_iternext;
+    iternext = __Pyx_PyObject_GetIterNextFunc(iter);
     value1 = iternext(iter); if (unlikely(!value1)) { index = 0; goto unpacking_failed; }
     value2 = iternext(iter); if (unlikely(!value2)) { index = 1; goto unpacking_failed; }
     if (!has_known_size && unlikely(__Pyx_IternextUnpackEndCheck(iternext(iter), 2))) goto bad;
@@ -185,8 +185,10 @@ static PyObject *__Pyx_PyIter_Next2Default(PyObject* defval) {
 }
 
 static void __Pyx_PyIter_Next_ErrorNoIterator(PyObject *iterator) {
+    __Pyx_TypeName iterator_type_name = __Pyx_PyType_GetName(Py_TYPE(iterator));
     PyErr_Format(PyExc_TypeError,
-        "%.200s object is not an iterator", Py_TYPE(iterator)->tp_name);
+        __Pyx_FMT_TYPENAME " object is not an iterator", iterator_type_name);
+    __Pyx_DECREF_TypeName(iterator_type_name);
 }
 
 // originally copied from Py3's builtin_next()
@@ -295,13 +297,17 @@ static PyObject *__Pyx_PyObject_GetIndex(PyObject *obj, PyObject *index) {
 
     // Error handling code -- only manage OverflowError differently.
     if (PyErr_GivenExceptionMatches(runerr, PyExc_OverflowError)) {
+        __Pyx_TypeName index_type_name = __Pyx_PyType_GetName(Py_TYPE(index));
         PyErr_Clear();
-        PyErr_Format(PyExc_IndexError, "cannot fit '%.200s' into an index-sized integer", Py_TYPE(index)->tp_name);
+        PyErr_Format(PyExc_IndexError,
+            "cannot fit '" __Pyx_FMT_TYPENAME "' into an index-sized integer", index_type_name);
+        __Pyx_DECREF_TypeName(index_type_name);
     }
     return NULL;
 }
 
 static PyObject *__Pyx_PyObject_GetItem_Slow(PyObject *obj, PyObject *key) {
+    __Pyx_TypeName obj_type_name;
     // Handles less common slow-path checks for GetItem
     if (likely(PyType_Check(obj))) {
         PyObject *meth = __Pyx_PyObject_GetAttrStrNoError(obj, PYIDENT("__class_getitem__"));
@@ -312,7 +318,10 @@ static PyObject *__Pyx_PyObject_GetItem_Slow(PyObject *obj, PyObject *key) {
         }
     }
 
-    PyErr_Format(PyExc_TypeError, "'%.200s' object is not subscriptable", Py_TYPE(obj)->tp_name);
+    obj_type_name = __Pyx_PyType_GetName(Py_TYPE(obj));
+    PyErr_Format(PyExc_TypeError,
+        "'" __Pyx_FMT_TYPENAME "' object is not subscriptable", obj_type_name);
+    __Pyx_DECREF_TypeName(obj_type_name);
     return NULL;
 }
 
@@ -640,6 +649,7 @@ static CYTHON_INLINE int __Pyx_PyObject_SetSlice(PyObject* obj, PyObject* value,
         Py_ssize_t cstart, Py_ssize_t cstop,
         PyObject** _py_start, PyObject** _py_stop, PyObject** _py_slice,
         int has_cstart, int has_cstop, CYTHON_UNUSED int wraparound) {
+    __Pyx_TypeName obj_type_name;
 #if CYTHON_USE_TYPE_SLOTS
     PyMappingMethods* mp;
 #if PY_MAJOR_VERSION < 3
@@ -742,13 +752,15 @@ static CYTHON_INLINE int __Pyx_PyObject_SetSlice(PyObject* obj, PyObject* value,
         }
         return result;
     }
+    obj_type_name = __Pyx_PyType_GetName(Py_TYPE(obj));
     PyErr_Format(PyExc_TypeError,
 {{if access == 'Get'}}
-        "'%.200s' object is unsliceable", Py_TYPE(obj)->tp_name);
+        "'" __Pyx_FMT_TYPENAME "' object is unsliceable", obj_type_name);
 {{else}}
-        "'%.200s' object does not support slice %.10s",
-        Py_TYPE(obj)->tp_name, value ? "assignment" : "deletion");
+        "'" __Pyx_FMT_TYPENAME "' object does not support slice %.10s",
+        obj_type_name, value ? "assignment" : "deletion");
 {{endif}}
+    __Pyx_DECREF_TypeName(obj_type_name);
 
 bad:
     return {{if access == 'Get'}}NULL{{else}}-1{{endif}};
@@ -1096,15 +1108,18 @@ static int __Pyx_SetNamesPEP487(PyObject *type_obj) {
             tmp = __Pyx_PyObject_Call2Args(set_name, type_obj, key);
             Py_DECREF(set_name);
             if (unlikely(tmp == NULL)) {
+                __Pyx_TypeName value_type_name =
+                    __Pyx_PyType_GetName(Py_TYPE(value));
+                __Pyx_TypeName type_name = __Pyx_PyType_GetName(type);
                 PyErr_Format(PyExc_RuntimeError,
 #if PY_MAJOR_VERSION >= 3
-                    "Error calling __set_name__ on '%.100s' instance %R "
-                    "in '%.100s'",
-                    Py_TYPE(value)->tp_name, key, type->tp_name);
+                    "Error calling __set_name__ on '" __Pyx_FMT_TYPENAME "' instance %R " "in '" __Pyx_FMT_TYPENAME "'",
+                    value_type_name, key, type_name);
 #else
-                    "Error calling __set_name__ on '%.100s' instance %.100s "
-                    "in '%.100s'",
-                    Py_TYPE(value)->tp_name, PyString_Check(key) ? PyString_AS_STRING(key) : "?", type->tp_name);
+                    "Error calling __set_name__ on '" __Pyx_FMT_TYPENAME "' instance %.100s in '" __Pyx_FMT_TYPENAME "'",
+                    value_type_name,
+                    PyString_Check(key) ? PyString_AS_STRING(key) : "?",
+                    type_name);
 #endif
                 goto bad;
             } else {
@@ -1269,14 +1284,21 @@ static CYTHON_INLINE int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type); /*pr
 /////////////// ExtTypeTest ///////////////
 
 static CYTHON_INLINE int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type) {
+    __Pyx_TypeName obj_type_name;
+    __Pyx_TypeName type_name;
     if (unlikely(!type)) {
         PyErr_SetString(PyExc_SystemError, "Missing type object");
         return 0;
     }
     if (likely(__Pyx_TypeCheck(obj, type)))
         return 1;
-    PyErr_Format(PyExc_TypeError, "Cannot convert %.200s to %.200s",
-                 Py_TYPE(obj)->tp_name, type->tp_name);
+    obj_type_name = __Pyx_PyType_GetName(Py_TYPE(obj));
+    type_name = __Pyx_PyType_GetName(type);
+    PyErr_Format(PyExc_TypeError,
+                 "Cannot convert " __Pyx_FMT_TYPENAME " to " __Pyx_FMT_TYPENAME,
+                 obj_type_name, type_name);
+    __Pyx_DECREF_TypeName(obj_type_name);
+    __Pyx_DECREF_TypeName(type_name);
     return 0;
 }
 
@@ -1578,14 +1600,16 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_GenericGetAttrNoDict(PyObject* obj
 #if CYTHON_USE_TYPE_SLOTS && CYTHON_USE_PYTYPE_LOOKUP && PY_VERSION_HEX < 0x03070000
 
 static PyObject *__Pyx_RaiseGenericGetAttributeError(PyTypeObject *tp, PyObject *attr_name) {
+    __Pyx_TypeName type_name = __Pyx_PyType_GetName(tp);
     PyErr_Format(PyExc_AttributeError,
 #if PY_MAJOR_VERSION >= 3
-                 "'%.50s' object has no attribute '%U'",
-                 tp->tp_name, attr_name);
+                 "'" __Pyx_FMT_TYPENAME "' object has no attribute '%U'",
+                 type_name, attr_name);
 #else
-                 "'%.50s' object has no attribute '%.400s'",
-                 tp->tp_name, PyString_AS_STRING(attr_name));
+                 "'" __Pyx_FMT_TYPENAME "' object has no attribute '%.400s'",
+                 type_name, PyString_AS_STRING(attr_name));
 #endif
+    __Pyx_DECREF_TypeName(type_name);
     return NULL;
 }
 
@@ -1742,6 +1766,7 @@ static int __Pyx_PyObject_GetMethod(PyObject *obj, PyObject *name, PyObject **me
 static int __Pyx_PyObject_GetMethod(PyObject *obj, PyObject *name, PyObject **method) {
     PyObject *attr;
 #if CYTHON_UNPACK_METHODS && CYTHON_COMPILING_IN_CPYTHON && CYTHON_USE_PYTYPE_LOOKUP
+    __Pyx_TypeName type_name;
     // Copied from _PyObject_GetMethod() in CPython 3.7
     PyTypeObject *tp = Py_TYPE(obj);
     PyObject *descr;
@@ -1820,14 +1845,16 @@ static int __Pyx_PyObject_GetMethod(PyObject *obj, PyObject *name, PyObject **me
         return 0;
     }
 
+    type_name = __Pyx_PyType_GetName(tp);
     PyErr_Format(PyExc_AttributeError,
 #if PY_MAJOR_VERSION >= 3
-                 "'%.50s' object has no attribute '%U'",
-                 tp->tp_name, name);
+                 "'" __Pyx_FMT_TYPENAME "' object has no attribute '%U'",
+                 type_name, name);
 #else
-                 "'%.50s' object has no attribute '%.400s'",
-                 tp->tp_name, PyString_AS_STRING(name));
+                 "'" __Pyx_FMT_TYPENAME "' object has no attribute '%.400s'",
+                 type_name, PyString_AS_STRING(name));
 #endif
+    __Pyx_DECREF_TypeName(type_name);
     return 0;
 
 // Generic fallback implementation using normal attribute lookup.
@@ -2156,7 +2183,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
     if (f) {
         return f(func, args, nargs, kwargs);
     }
-    #elif __Pyx_CyFunction_USED && CYTHON_BACKPORT_VECTORCALL
+    #elif defined(__Pyx_CyFunction_USED) && CYTHON_BACKPORT_VECTORCALL
     // exclude fused functions for now
     if (__Pyx_CyFunction_CheckExact(func)) {
         __pyx_vectorcallfunc f = __Pyx_CyFunction_func_vectorcall(func);
@@ -2651,6 +2678,8 @@ done:
 }
 
 static PyObject* __Pyx__PyNumber_MatrixMultiply(PyObject* x, PyObject* y, const char* op_name) {
+    __Pyx_TypeName x_type_name;
+    __Pyx_TypeName y_type_name;
     int right_is_subtype = PyObject_IsSubclass((PyObject*)Py_TYPE(y), (PyObject*)Py_TYPE(x));
     if (unlikely(right_is_subtype == -1))
         return NULL;
@@ -2663,11 +2692,13 @@ static PyObject* __Pyx__PyNumber_MatrixMultiply(PyObject* x, PyObject* y, const 
     if (!right_is_subtype) {
         __Pyx_TryMatrixMethod(y, x, PYIDENT("__rmatmul__"))
     }
+    x_type_name = __Pyx_PyType_GetName(Py_TYPE(x));
+    y_type_name = __Pyx_PyType_GetName(Py_TYPE(y));
     PyErr_Format(PyExc_TypeError,
-                 "unsupported operand type(s) for %.2s: '%.100s' and '%.100s'",
-                 op_name,
-                 Py_TYPE(x)->tp_name,
-                 Py_TYPE(y)->tp_name);
+        "unsupported operand type(s) for %.2s: '" __Pyx_FMT_TYPENAME "' and '"
+        __Pyx_FMT_TYPENAME "'", op_name, x_type_name, y_type_name);
+    __Pyx_DECREF_TypeName(x_type_name);
+    __Pyx_DECREF_TypeName(y_type_name);
     return NULL;
 }
 
@@ -2746,10 +2777,8 @@ static CYTHON_INLINE int __Pyx_object_dict_version_matches(PyObject* obj, PY_UIN
 // This should be an actual function (not a macro), such that we can put it
 // directly in a tp_descr_get slot.
 static PyObject *__Pyx_PyMethod_New(PyObject *func, PyObject *self, CYTHON_UNUSED PyObject *typ) {
-    if (!self) {
-        Py_INCREF(func);
-        return func;
-    }
+    if (!self)
+        return __Pyx_NewRef(func);
     return PyMethod_New(func, self);
 }
 #else
@@ -2875,3 +2904,49 @@ static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_le
     PyNumber_Add(a, b) : __Pyx_PyStr_Concat(a, b))
 #define __Pyx_PyStr_ConcatInPlaceSafe(a, b) ((unlikely((a) == Py_None) || unlikely((b) == Py_None)) ? \
     PyNumber_InPlaceAdd(a, b) : __Pyx_PyStr_ConcatInPlace(a, b))
+
+/////////////// FormatTypeName.proto ///////////////
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+typedef PyObject *__Pyx_TypeName;
+#define __Pyx_FMT_TYPENAME "%U"
+static __Pyx_TypeName __Pyx_PyType_GetName(PyTypeObject* tp); /*proto*/
+#define __Pyx_DECREF_TypeName(obj) Py_XDECREF(obj)
+#else
+typedef const char *__Pyx_TypeName;
+#define __Pyx_FMT_TYPENAME "%.200s"
+#define __Pyx_PyType_GetName(tp) ((tp)->tp_name)
+#define __Pyx_DECREF_TypeName(obj)
+#endif
+
+/////////////// FormatTypeName ///////////////
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+static __Pyx_TypeName
+__Pyx_PyType_GetName(PyTypeObject* tp)
+{
+    PyObject *name = __Pyx_PyObject_GetAttrStr((PyObject *)tp,
+                                               PYIDENT("__name__"));
+    if (unlikely(name == NULL) || unlikely(!PyUnicode_Check(name))) {
+        PyErr_Clear();
+        Py_XSETREF(name, __Pyx_NewRef(PYIDENT("?")));
+    }
+    return name;
+}
+#endif
+
+/////////////// RaiseUnexpectedTypeError.proto ///////////////
+
+static int __Pyx_RaiseUnexpectedTypeError(const char *expected, PyObject *obj); /*proto*/
+
+/////////////// RaiseUnexpectedTypeError ///////////////
+
+static int
+__Pyx_RaiseUnexpectedTypeError(const char *expected, PyObject *obj)
+{
+    __Pyx_TypeName obj_type_name = __Pyx_PyType_GetName(Py_TYPE(obj));
+    PyErr_Format(PyExc_TypeError, "Expected %s, got " __Pyx_FMT_TYPENAME,
+                 expected, obj_type_name);
+    __Pyx_DECREF_TypeName(obj_type_name);
+    return 0;
+}

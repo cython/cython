@@ -12,14 +12,14 @@ class Test(object):
         try:
             print(__something)
         except NameError:
-            print("NameError1") # correct - shouldn't exist
+            print("NameError1")  # correct - shouldn't exist
         globals()['__something'] = 'found unmangled'
         try:
             print(__something)
         except NameError:
-            print("NameError2") # correct - shouldn't exist
+            print("NameError2")  # correct - shouldn't exist
         globals()['_Test__something'] = 'found mangled'
         try:
-            print(__something) # should print this
+            print(__something)  # should print this
         except NameError:
             print("NameError3")

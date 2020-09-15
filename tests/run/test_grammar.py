@@ -363,7 +363,7 @@ the \'lazy\' dog.\n\
                 compile(s, "<test>", "exec")
             self.assertIn("unexpected EOF", str(cm.exception))
 
-var_annot_global: int # a global annotated is necessary for test_var_annot
+var_annot_global: int  # a global annotated is necessary for test_var_annot
 
 # custom namespace for testing __annotations__
 
@@ -843,7 +843,7 @@ class GrammarTests(unittest.TestCase):
         ### lambdef: 'lambda' [varargslist] ':' test
         l1 = lambda : 0
         self.assertEqual(l1(), 0)
-        l2 = lambda : a[d] # XXX just testing the expression
+        l2 = lambda : a[d]  # XXX just testing the expression
         l3 = lambda : [2 < x for x in [-1, 3, 0]]
         self.assertEqual(l3(), [0, 1, 0])
         l4 = lambda x = lambda y = lambda z=1 : z : y() : x()
@@ -1819,7 +1819,7 @@ class GrammarTests(unittest.TestCase):
         self.assertEqual(sum(b), sum([x for x in range(10)]))
 
         self.assertEqual(sum(x**2 for x in range(10)), sum([x**2 for x in range(10)]))
-        self.assertEqual(sum(x*x for x in range(10) if x%2), sum([x*x for x in range(10) if x%2]))
+        self.assertEqual(sum(x*x for x in range(10) if x % 2), sum([x*x for x in range(10) if x % 2]))
         self.assertEqual(sum(x for x in (y for y in range(10))), sum([x for x in range(10)]))
         self.assertEqual(sum(x for x in (y for y in (z for z in range(10)))), sum([x for x in range(10)]))
         self.assertEqual(sum(x for x in [y for y in (z for z in range(10))]), sum([x for x in range(10)]))

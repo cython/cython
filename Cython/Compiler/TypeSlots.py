@@ -432,7 +432,7 @@ class ConstructorSlot(InternalMethodSlot):
         if (scope.parent_type.base_type
                 and not scope.has_pyobject_attrs
                 and not scope.has_memoryview_attrs
-                and not scope.has_cpp_class_attrs
+                and not scope.has_cpp_constructable_attrs
                 and not (self.slot_name == 'tp_new' and scope.parent_type.vtabslot_cname)):
             entry = scope.lookup_here(self.method) if self.method else None
             if not (entry and entry.is_special):
@@ -788,7 +788,7 @@ ssizessizeargfunc = Signature("Tzz", "O")  # typedef PyObject *(*ssizessizeargfu
 intobjargproc = Signature("TiO", 'r')      # typedef int(*intobjargproc)(PyObject *, int, PyObject *);
 ssizeobjargproc = Signature("TzO", 'r')    # typedef int(*ssizeobjargproc)(PyObject *, Py_ssize_t, PyObject *);
 intintobjargproc = Signature("TiiO", 'r')  # typedef int(*intintobjargproc)(PyObject *, int, int, PyObject *);
-ssizessizeobjargproc = Signature("TzzO", 'r') # typedef int(*ssizessizeobjargproc)(PyObject *, Py_ssize_t, Py_ssize_t, PyObject *);
+ssizessizeobjargproc = Signature("TzzO", 'r')  # typedef int(*ssizessizeobjargproc)(PyObject *, Py_ssize_t, Py_ssize_t, PyObject *);
 
 intintargproc = Signature("Tii", 'r')
 ssizessizeargproc = Signature("Tzz", 'r')
@@ -878,7 +878,7 @@ PyNumberMethods = (
     MethodSlot(ibinaryfunc, "nb_inplace_multiply", "__imul__"),
     MethodSlot(ibinaryfunc, "nb_inplace_divide", "__idiv__", ifdef = PyNumberMethods_Py3_GUARD),
     MethodSlot(ibinaryfunc, "nb_inplace_remainder", "__imod__"),
-    MethodSlot(ibinaryfunc, "nb_inplace_power", "__ipow__"), # actually ternaryfunc!!!
+    MethodSlot(ibinaryfunc, "nb_inplace_power", "__ipow__"),  # actually ternaryfunc!!!
     MethodSlot(ibinaryfunc, "nb_inplace_lshift", "__ilshift__"),
     MethodSlot(ibinaryfunc, "nb_inplace_rshift", "__irshift__"),
     MethodSlot(ibinaryfunc, "nb_inplace_and", "__iand__"),
@@ -902,15 +902,15 @@ PyNumberMethods = (
 
 PySequenceMethods = (
     MethodSlot(lenfunc, "sq_length", "__len__"),
-    EmptySlot("sq_concat"), # nb_add used instead
-    EmptySlot("sq_repeat"), # nb_multiply used instead
+    EmptySlot("sq_concat"),  # nb_add used instead
+    EmptySlot("sq_repeat"),  # nb_multiply used instead
     SyntheticSlot("sq_item", ["__getitem__"], "0"),    #EmptySlot("sq_item"),   # mp_subscript used instead
     MethodSlot(ssizessizeargfunc, "sq_slice", "__getslice__"),
-    EmptySlot("sq_ass_item"), # mp_ass_subscript used instead
+    EmptySlot("sq_ass_item"),  # mp_ass_subscript used instead
     SyntheticSlot("sq_ass_slice", ["__setslice__", "__delslice__"], "0"),
     MethodSlot(cmpfunc, "sq_contains", "__contains__"),
-    EmptySlot("sq_inplace_concat"), # nb_inplace_add used instead
-    EmptySlot("sq_inplace_repeat"), # nb_inplace_multiply used instead
+    EmptySlot("sq_inplace_concat"),  # nb_inplace_add used instead
+    EmptySlot("sq_inplace_repeat"),  # nb_inplace_multiply used instead
 )
 
 PyMappingMethods = (
@@ -964,8 +964,8 @@ slot_table = (
     MethodSlot(callfunc, "tp_call", "__call__"),
     MethodSlot(reprfunc, "tp_str", "__str__"),
 
-    SyntheticSlot("tp_getattro", ["__getattr__","__getattribute__"], "0"), #"PyObject_GenericGetAttr"),
-    SyntheticSlot("tp_setattro", ["__setattr__", "__delattr__"], "0"), #"PyObject_GenericSetAttr"),
+    SyntheticSlot("tp_getattro", ["__getattr__","__getattribute__"], "0"),  #"PyObject_GenericGetAttr"),
+    SyntheticSlot("tp_setattro", ["__setattr__", "__delattr__"], "0"),  #"PyObject_GenericSetAttr"),
 
     SuiteSlot(PyBufferProcs, "PyBufferProcs", "tp_as_buffer"),
 
@@ -986,7 +986,7 @@ slot_table = (
     MemberTableSlot("tp_members"),
     GetSetSlot("tp_getset"),
 
-    BaseClassSlot("tp_base"), #EmptySlot("tp_base"),
+    BaseClassSlot("tp_base"),  #EmptySlot("tp_base"),
     EmptySlot("tp_dict"),
 
     SyntheticSlot("tp_descr_get", ["__get__"], "0"),
@@ -995,7 +995,7 @@ slot_table = (
     DictOffsetSlot("tp_dictoffset"),
 
     MethodSlot(initproc, "tp_init", "__init__"),
-    EmptySlot("tp_alloc"), #FixedSlot("tp_alloc", "PyType_GenericAlloc"),
+    EmptySlot("tp_alloc"),  #FixedSlot("tp_alloc", "PyType_GenericAlloc"),
     ConstructorSlot("tp_new", "__cinit__"),
     EmptySlot("tp_free"),
 

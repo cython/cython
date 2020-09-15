@@ -241,13 +241,29 @@ def update_numpy_extension(ext, set_api17_macro=True):
 
     ext.include_dirs.append(numpy.get_include())
 
-    if set_api17_macro:
+    if set_api17_macro and getattr(numpy, '__version__', '') not in ('1.19.0', '1.19.1'):
         ext.define_macros.append(('NPY_NO_DEPRECATED_API', 'NPY_1_7_API_VERSION'))
 
     # We need the npymath library for numpy.math.
     # This is typically a static-only library.
     for attr, value in get_info('npymath').items():
         getattr(ext, attr).extend(value)
+
+
+def update_gdb_extension(ext, _has_gdb=[None]):
+    # We should probably also check for Python support.
+    if not include_debugger:
+        _has_gdb[0] = False
+    if _has_gdb[0] is None:
+        try:
+            subprocess.check_call(["gdb", "--version"])
+        except (IOError, subprocess.CalledProcessError):
+            _has_gdb[0] = False
+        else:
+            _has_gdb[0] = True
+    if not _has_gdb[0]:
+        return EXCLUDE_EXT
+    return ext
 
 
 def update_openmp_extension(ext):
@@ -377,6 +393,7 @@ EXCLUDE_EXT = object()
 EXT_EXTRAS = {
     'tag:numpy' : update_numpy_extension,
     'tag:openmp': update_openmp_extension,
+    'tag:gdb': update_gdb_extension,
     'tag:cpp11': update_cpp11_extension,
     'tag:trace' : update_linetrace_extension,
     'tag:bytesformat':  exclude_extension_in_pyver((3, 3), (3, 4)),  # no %-bytes formatting
@@ -617,6 +634,7 @@ class TestBuilder(object):
         self.cleanup_failures = options.cleanup_failures
         self.with_pyregr = with_pyregr
         self.cython_only = options.cython_only
+        self.doctest_selector = re.compile(options.only_pattern).search if options.only_pattern else None
         self.languages = languages
         self.test_bugs = test_bugs
         self.fork = options.fork
@@ -784,6 +802,7 @@ class TestBuilder(object):
                           cleanup_sharedlibs=self.cleanup_sharedlibs,
                           cleanup_failures=self.cleanup_failures,
                           cython_only=self.cython_only,
+                          doctest_selector=self.doctest_selector,
                           fork=self.fork,
                           language_level=language_level or self.language_level,
                           warning_errors=warning_errors,
@@ -824,7 +843,7 @@ def filter_stderr(stderr_bytes):
 class CythonCompileTestCase(unittest.TestCase):
     def __init__(self, test_directory, workdir, module, tags, language='c', preparse='id',
                  expect_errors=False, expect_warnings=False, annotate=False, cleanup_workdir=True,
-                 cleanup_sharedlibs=True, cleanup_failures=True, cython_only=False,
+                 cleanup_sharedlibs=True, cleanup_failures=True, cython_only=False, doctest_selector=None,
                  fork=True, language_level=2, warning_errors=False,
                  test_determinism=False,
                  common_utility_dir=None, pythran_dir=None, stats=None):
@@ -842,6 +861,7 @@ class CythonCompileTestCase(unittest.TestCase):
         self.cleanup_sharedlibs = cleanup_sharedlibs
         self.cleanup_failures = cleanup_failures
         self.cython_only = cython_only
+        self.doctest_selector = doctest_selector
         self.fork = fork
         self.language_level = language_level
         self.warning_errors = warning_errors
@@ -1314,6 +1334,8 @@ class CythonRunTestCase(CythonCompileTestCase):
             else:
                 module = module_or_name
             tests = doctest.DocTestSuite(module)
+            if self.doctest_selector is not None:
+                tests._tests[:] = [test for test in tests._tests if self.doctest_selector(test.id())]
             with self.stats.time(self.name, self.language, 'run'):
                 tests.run(result)
         run_forked_test(result, run_test, self.shortDescription(), self.fork)
@@ -1772,6 +1794,8 @@ class EndToEndTest(unittest.TestCase):
                 cmd.append(command)
                 out.append(_out)
                 err.append(_err)
+            if res == 0 and b'REFNANNY: ' in _out:
+                res = -1
             if res != 0:
                 for c, o, e in zip(cmd, out, err):
                     sys.stderr.write("%s\n%s\n%s\n\n" % (
@@ -1836,12 +1860,34 @@ class MissingDependencyExcluder(object):
     def __init__(self, deps):
         # deps: { matcher func : module name }
         self.exclude_matchers = []
-        for matcher, mod in deps.items():
+        for matcher, module_name in deps.items():
             try:
-                __import__(mod)
+                module = __import__(module_name)
             except ImportError:
                 self.exclude_matchers.append(string_selector(matcher))
+                print("Test dependency not found: '%s'" % module_name)
+            else:
+                version = self.find_dep_version(module_name, module)
+                print("Test dependency found: '%s' version %s" % (module_name, version))
         self.tests_missing_deps = []
+
+    def find_dep_version(self, name, module):
+        try:
+            version = module.__version__
+        except AttributeError:
+            stdlib_dir = os.path.dirname(shutil.__file__) + os.sep
+            module_path = getattr(module, '__file__', stdlib_dir)  # no __file__? => builtin stdlib module
+            if module_path.startswith(stdlib_dir):
+                # stdlib module
+                version = sys.version.partition(' ')[0]
+            elif '.' in name:
+                # incrementally look for a parent package with version
+                name = name.rpartition('.')[0]
+                return self.find_dep_version(name, __import__(name))
+            else:
+                version = '?.?'
+        return version
+
     def __call__(self, testname, tags=None):
         for matcher in self.exclude_matchers:
             if matcher(testname, tags):
@@ -2109,6 +2155,8 @@ def main():
     parser.add_option("-T", "--ticket", dest="tickets",
                       action="append",
                       help="a bug ticket number to run the respective test in 'tests/*'")
+    parser.add_option("-k", dest="only_pattern",
+                      help="a regex pattern for selecting doctests and test functions in the test modules")
     parser.add_option("-3", dest="language_level",
                       action="store_const", const=3, default=2,
                       help="set language level to Python 3 (useful for running the CPython regression tests)'")
@@ -2176,7 +2224,7 @@ def main():
         for listfile in options.listfile:
             cmd_args.extend(load_listfile(listfile))
 
-    if options.capture:
+    if options.capture and not options.for_debugging:
         keep_alive_interval = 10
     else:
         keep_alive_interval = None

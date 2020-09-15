@@ -38,17 +38,24 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
             b = (PyTypeObject*)b0;
             if (!__Pyx_PyType_HasFeature(b, Py_TPFLAGS_HEAPTYPE))
             {
-                PyErr_Format(PyExc_TypeError, "base class '%.200s' is not a heap type",
-                             b->tp_name);
+                __Pyx_TypeName b_name = __Pyx_PyType_GetName(b);
+                PyErr_Format(PyExc_TypeError,
+                    "base class '" __Pyx_FMT_TYPENAME "' is not a heap type", b_name);
+                __Pyx_DECREF_TypeName(b_name);
                 return -1;
             }
             if (t->tp_dictoffset == 0 && b->tp_dictoffset)
             {
+                __Pyx_TypeName t_name = __Pyx_PyType_GetName(t);
+                __Pyx_TypeName b_name = __Pyx_PyType_GetName(b);
                 PyErr_Format(PyExc_TypeError,
-                    "extension type '%.200s' has no __dict__ slot, but base type '%.200s' has: "
+                    "extension type '" __Pyx_FMT_TYPENAME "' has no __dict__ slot, "
+                    "but base type '" __Pyx_FMT_TYPENAME "' has: "
                     "either add 'cdef dict __dict__' to the extension type "
                     "or add '__slots__ = [...]' to the base type",
-                    t->tp_name, b->tp_name);
+                    t_name, b_name);
+                __Pyx_DECREF_TypeName(t_name);
+                __Pyx_DECREF_TypeName(b_name);
                 return -1;
             }
         }
@@ -309,8 +316,13 @@ static int __Pyx_setup_reduce(PyObject* type_obj) {
     goto __PYX_GOOD;
 
 __PYX_BAD:
-    if (!PyErr_Occurred())
-        PyErr_Format(PyExc_RuntimeError, "Unable to initialize pickling for %s", __Pyx_PyType_Name(type_obj));
+    if (!PyErr_Occurred()) {
+        __Pyx_TypeName type_obj_name =
+            __Pyx_PyType_GetName((PyTypeObject*)type_obj);
+        PyErr_Format(PyExc_RuntimeError,
+            "Unable to initialize pickling for " __Pyx_FMT_TYPENAME, type_obj_name);
+        __Pyx_DECREF_TypeName(type_obj_name);
+    }
     ret = -1;
 __PYX_GOOD:
 #if !CYTHON_USE_PYTYPE_LOOKUP
@@ -331,7 +343,7 @@ __PYX_GOOD:
 
 static CYTHON_INLINE PyObject *{{func_name}}_maybe_call_slot(PyTypeObject* type, PyObject *left, PyObject *right {{extra_arg_decl}}) {
     {{slot_type}} slot;
-#if !CYTHON_COMPILING_IN_LIMITED_API
+#if CYTHON_USE_TYPE_SLOTS || PY_MAJOR_VERSION < 3 || CYTHON_COMPILING_IN_PYPY
     slot = type->tp_as_number ? type->tp_as_number->{{slot_name}} : NULL;
 #else
     slot = ({{slot_type}}) PyType_GetSlot(type, Py_{{slot_name}});
@@ -340,7 +352,6 @@ static CYTHON_INLINE PyObject *{{func_name}}_maybe_call_slot(PyTypeObject* type,
 }
 
 static PyObject *{{func_name}}(PyObject *left, PyObject *right {{extra_arg_decl}}) {
-    PyObject *res;
     int maybe_self_is_left, maybe_self_is_right = 0;
     maybe_self_is_left = Py_TYPE(left) == Py_TYPE(right)
 #if CYTHON_USE_TYPE_SLOTS
@@ -348,7 +359,7 @@ static PyObject *{{func_name}}(PyObject *left, PyObject *right {{extra_arg_decl}
 #endif
             || __Pyx_TypeCheck(left, {{type_cname}});
     // Optimize for the common case where the left operation is defined (and successful).
-    if (!{{overloads_left}}) {
+    if (!({{overloads_left}})) {
         maybe_self_is_right = Py_TYPE(left) == Py_TYPE(right)
 #if CYTHON_USE_TYPE_SLOTS
                 || (Py_TYPE(right)->tp_as_number && Py_TYPE(right)->tp_as_number->{{slot_name}} == &{{func_name}})
@@ -356,7 +367,8 @@ static PyObject *{{func_name}}(PyObject *left, PyObject *right {{extra_arg_decl}
                 || __Pyx_TypeCheck(right, {{type_cname}});
     }
     if (maybe_self_is_left) {
-        if (maybe_self_is_right && !{{overloads_left}}) {
+        PyObject *res;
+        if (maybe_self_is_right && !({{overloads_left}})) {
             res = {{call_right}};
             if (res != Py_NotImplemented) return res;
             Py_DECREF(res);
@@ -367,7 +379,7 @@ static PyObject *{{func_name}}(PyObject *left, PyObject *right {{extra_arg_decl}
         if (res != Py_NotImplemented) return res;
         Py_DECREF(res);
     }
-    if ({{overloads_left}}) {
+    if (({{overloads_left}})) {
         maybe_self_is_right = Py_TYPE(left) == Py_TYPE(right)
 #if CYTHON_USE_TYPE_SLOTS
                 || (Py_TYPE(right)->tp_as_number && Py_TYPE(right)->tp_as_number->{{slot_name}} == &{{func_name}})

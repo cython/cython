@@ -1,5 +1,7 @@
 # mode: run
 
+# Test the behaviour of memoryview slicing and indexing, contiguity, etc.
+
 # Note: see also bufaccess.pyx
 
 from __future__ import unicode_literals
@@ -1525,7 +1527,7 @@ def test_index_slicing_away_direct_indirect():
     All dimensions preceding dimension 1 must be indexed and not sliced
     """
     cdef int[:, ::view.indirect, :] a = TestIndexSlicingDirectIndirectDims()
-    a_obj = a
+    cdef object a_obj = a
 
     print a[1][2][3]
     print a[1, 2, 3]

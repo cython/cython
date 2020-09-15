@@ -63,9 +63,18 @@ class Plugin(CoveragePlugin):
     _c_files_map = None
     # map from parsed C files to their content
     _parsed_c_files = None
+    # map from traced files to lines that are excluded from coverage
+    _excluded_lines_map = None
+    # list of regex patterns for lines to exclude
+    _excluded_line_patterns = ()
 
     def sys_info(self):
         return [('Cython version', __version__)]
+
+    def configure(self, config):
+        # Entry point for coverage "configurer".
+        # Read the regular expressions from the coverage config that match lines to be excluded from coverage.
+        self._excluded_line_patterns = config.get_option("report:exclude_lines")
 
     def file_tracer(self, filename):
         """
@@ -114,7 +123,13 @@ class Plugin(CoveragePlugin):
             rel_file_path, code = self._read_source_lines(c_file, filename)
             if code is None:
                 return None  # no source found
-        return CythonModuleReporter(c_file, filename, rel_file_path, code)
+        return CythonModuleReporter(
+            c_file,
+            filename,
+            rel_file_path,
+            code,
+            self._excluded_lines_map.get(rel_file_path, frozenset())
+        )
 
     def _find_source_files(self, filename):
         basename, ext = os.path.splitext(filename)
@@ -224,10 +239,16 @@ class Plugin(CoveragePlugin):
             r'(?:struct|union|enum|class)'
             r'(\s+[^:]+|)\s*:'
         ).match
+        if self._excluded_line_patterns:
+            line_is_excluded = re.compile("|".join(["(?:%s)" % regex for regex in self._excluded_line_patterns])).search
+        else:
+            line_is_excluded = lambda line: False
 
         code_lines = defaultdict(dict)
         executable_lines = defaultdict(set)
         current_filename = None
+        if self._excluded_lines_map is None:
+            self._excluded_lines_map = defaultdict(set)
 
         with open(c_file) as lines:
             lines = iter(lines)
@@ -247,6 +268,9 @@ class Plugin(CoveragePlugin):
                     if match:
                         code_line = match.group(1).rstrip()
                         if not_executable(code_line):
+                            break
+                        if line_is_excluded(code_line):
+                            self._excluded_lines_map[filename].add(lineno)
                             break
                         code_lines[filename][lineno] = code_line
                         break
@@ -304,17 +328,24 @@ class CythonModuleReporter(FileReporter):
     """
     Provide detailed trace information for one source file to coverage.py.
     """
-    def __init__(self, c_file, source_file, rel_file_path, code):
+    def __init__(self, c_file, source_file, rel_file_path, code, excluded_lines):
         super(CythonModuleReporter, self).__init__(source_file)
         self.name = rel_file_path
         self.c_file = c_file
         self._code = code
+        self._excluded_lines = excluded_lines
 
     def lines(self):
         """
         Return set of line numbers that are possibly executable.
         """
         return set(self._code)
+
+    def excluded_lines(self):
+        """
+        Return set of line numbers that are excluded from coverage.
+        """
+        return self._excluded_lines
 
     def _iter_source_tokens(self):
         current_line = 1
@@ -351,4 +382,6 @@ class CythonModuleReporter(FileReporter):
 
 
 def coverage_init(reg, options):
-    reg.add_file_tracer(Plugin())
+    plugin = Plugin()
+    reg.add_configurer(plugin)
+    reg.add_file_tracer(plugin)
