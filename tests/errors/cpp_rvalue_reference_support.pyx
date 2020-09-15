@@ -24,9 +24,9 @@ cdef extern from *:
 
 
 _ERRORS="""
-4:8: C++ rvalue-references cannot be declared
-6:13: Rvalue-reference as function argument not supported
-9:14: Rvalue-reference as function return type not supported
-19:17: Rvalue-reference as function argument not supported
-20:20: Rvalue-reference as function argument not supported
+7:8: C++ rvalue-references cannot be declared
+9:13: Rvalue-reference as function argument not supported
+12:14: Rvalue-reference as function return type not supported
+22:17: Rvalue-reference as function argument not supported
+23:20: Rvalue-reference as function argument not supported
 """
