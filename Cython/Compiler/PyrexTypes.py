@@ -3447,6 +3447,7 @@ class CFuncTypeArg(BaseType):
 
     def specialize(self, values):
         return CFuncTypeArg(self.name, self.type.specialize(values), self.pos, self.cname)
+
     def is_forwarding_reference(self):
         if self.type.is_rvalue_reference:
             if (
