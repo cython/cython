@@ -14,15 +14,14 @@ from Cython.Build import cythonize
 
 MODULES = [
         Extension("pkg.module1", ["src/pkg/module1.pyx"]),
-        Extension("pkg._hidden_module", ["src/pkg/_hidden_module.pyx"])
         ]
 
 setup(
     name="pkg",
     zip_safe=False,
     packages=find_packages('src'),
+    package_data={'pkg': ['*.pxd', '*.pyx']},
     package_dir={'': 'src'},
-    setup_requires=["cython"],
     ext_modules= cythonize(MODULES)
     )
 
@@ -31,12 +30,11 @@ setup(
 [run]
 plugins = Cython.Coverage
 
+######## src/pkg/__init__.py ########
 
 ######## src/pkg/module1.pyx ########
 # cython: linetrace=True
 # distutils: define_macros=CYTHON_TRACE=1
-
-from ._hidden_module import MY_CONSTANT
 
 def func1(int a, int b):
     cdef int x = 1      #  5
@@ -45,13 +43,7 @@ def func1(int a, int b):
 
 
 def func2(int a):
-    return a * MY_CONSTANT        # 11
-
-######## src/pkg/_hidden_module.pyx ########
-# cython: linetrace=True
-# distutils: define_macros=CYTHON_TRACE=1
-
-MY_CONSTANT=2
+    return a * 2       # 11
 
 ######## coverage_test.py ########
 
