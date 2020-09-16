@@ -42,10 +42,19 @@ def _find_dep_file_path(main_file, file_path, relative_path_search=False):
         if os.path.exists(rel_file_path):
             abs_path = os.path.abspath(rel_file_path)
 
-        # if file_path matches the main_file ending, that's it:
-        matching_abs_path = os.path.splitext(main_file)[0] + os.path.splitext(file_path)[1]
-        if matching_abs_path.endswith(file_path) and os.path.exists(matching_abs_path):
-            return matching_abs_path
+        abs_no_ext = os.path.splitext(abs_path)[0]
+        file_no_ext, extension = os.path.splitext(file_path)
+        # We check if the paths match by matching the directories in reverse order.
+        # pkg/module.pyx /long/absolute_path/bla/bla/site-packages/pkg/module.c should match.
+        # this will match the pairs: module-module and pkg-pkg. After which there is nothing left to zip.
+        matching_paths = zip(reversed(abs_no_ext.split(os.sep)), reversed(file_no_ext.split(os.sep)))
+        for one, other in matching_paths:
+            if one != other:
+                break
+        else:  # No mismatches detected
+            matching_abs_path = os.path.splitext(main_file)[0] + extension
+            if os.path.exists(matching_abs_path):
+                return matching_abs_path
 
     # search sys.path for external locations if a valid file hasn't been found
     if not os.path.exists(abs_path):
