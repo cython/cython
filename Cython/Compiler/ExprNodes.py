@@ -500,11 +500,14 @@ class ExprNode(Node):
         else:
             return self.calculate_result_code()
 
+    def _make_move_result(self, result):
+        self.has_temp_moved = True
+        return "__PYX_STD_MOVE_IF_SUPPORTED({0})".format(result)
+
     def _make_move_result_rhs(self, result, allow_move=True):
         if (self.is_temp and allow_move and
                 self.type.is_cpp_class and not self.type.is_reference):
-            self.has_temp_moved = True
-            return "__PYX_STD_MOVE_IF_SUPPORTED({0})".format(result)
+            return self._make_move_result(result)
         else:
             return result
 
@@ -512,6 +515,8 @@ class ExprNode(Node):
         return self._make_move_result_rhs(self.result())
 
     def move_result_rhs_as(self, type):
+        if type.is_rvalue_reference:
+            return self._make_move_result(self.result_as(type))
         allow_move = (type and not type.is_reference and not type.needs_refcounting)
         return self._make_move_result_rhs(self.result_as(type),
                                           allow_move=allow_move)
