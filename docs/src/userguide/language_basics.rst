@@ -366,14 +366,22 @@ of :ref:`error_return_values`.
 Error return values
 -------------------
 
-If you don't do anything special, a function declared with :keyword:`cdef` that
-does not return a Python object has no way of reporting Python exceptions to
-its caller. If an exception is detected in such a function, a warning message
-is printed and the exception is ignored.
+If you don't change the default behaviour, a function declared with :keyword:`cdef` or 
+:keyword:`cpdef` that does not return a Python object can not report its
+exception to the caller in an ordinary way, so a default value of ``0``/``False``
+will be immediately returned. If the caller is a Cython function, it will be
+detected as an exception and can be handled appropriately by the calling
+Cython function, but if the caller is a Python function it will only see a
+return value of ``0``/``False``.
 
-If you want a C function that does not return a Python object to be able to
-propagate exceptions to its caller, you need to declare an exception value for
-it. Here is an example::
+See the below example for the default behaviour:
+
+.. literalinclude:: ../../examples/userguide/language_basics/exception_example.pyx
+
+If you want to change the default value returned to indicate an exception for a
+:keyword:`cdef` or :keyword:`cpdef` function that does not return a 
+a Python object, you need to
+declare an exception value for it. Here is an example::
 
     cdef int spam() except -1:
         ...
@@ -383,10 +391,8 @@ immediately return with the value ``-1``. Furthermore, whenever a call to spam
 returns ``-1``, an exception will be assumed to have occurred and will be
 propagated.
 
-When you declare an exception value for a function, you should never
-explicitly or implicitly return that value. In particular, if the exceptional return value
-is a ``False`` value, then you should ensure the function will never terminate via an implicit
-or empty return.
+When you declare an exception value for a function using the above syntax,
+you should never explicitly or implicitly return that value. 
 
 If all possible return values are legal and you
 can't reserve one entirely for signalling errors, you can use an alternative
