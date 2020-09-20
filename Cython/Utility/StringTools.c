@@ -118,6 +118,7 @@ static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(PyObject* unicode, Py_UCS4 ch
 
 //////////////////// PyUCS4InUnicode ////////////////////
 
+#if PY_VERSION_HEX < 0x03090000
 #if Py_UNICODE_SIZE == 2
 static int __Pyx_PyUnicodeBufferContainsUCS4_SP(Py_UNICODE* buffer, Py_ssize_t length, Py_UCS4 character) {
     /* handle surrogate pairs for Py_UNICODE buffers in 16bit Unicode builds */
@@ -141,6 +142,7 @@ static int __Pyx_PyUnicodeBufferContainsUCS4_BMP(Py_UNICODE* buffer, Py_ssize_t 
     }
     return 0;
 }
+#endif
 
 static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(PyObject* unicode, Py_UCS4 character) {
 #if CYTHON_PEP393_ENABLED
@@ -154,7 +156,10 @@ static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(PyObject* unicode, Py_UCS4 ch
         }
         return 0;
     }
+#elif PY_VERSION_HEX >= 0x03090000
+    #error Cannot use "UChar in Unicode" in Python 3.9 without PEP-393 unicode strings.
 #endif
+#if PY_VERSION_HEX < 0x03090000
 #if Py_UNICODE_SIZE == 2
     if (unlikely(character > 65535)) {
         return __Pyx_PyUnicodeBufferContainsUCS4_SP(
@@ -170,6 +175,7 @@ static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(PyObject* unicode, Py_UCS4 ch
             character);
 
     }
+#endif
 }
 
 

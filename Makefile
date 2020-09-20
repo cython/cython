@@ -61,6 +61,9 @@ testclean:
 test:	testclean
 	${PYTHON} runtests.py -vv ${TESTOPTS}
 
+checks:
+	${PYTHON} runtests.py -vv --no-unit --no-doctest --no-file --no-pyregr --no-examples
+
 s5:
 	$(MAKE) -C Doc/s5 slides
 

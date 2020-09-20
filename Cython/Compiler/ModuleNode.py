@@ -97,6 +97,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # CodeGenerator, and tell that CodeGenerator to generate code
         # from multiple sources.
         assert isinstance(self.body, Nodes.StatListNode)
+        if scope.directives != self.scope.directives:
+            # merged in nodes should keep their original compiler directives
+            # (for example inline cdef functions)
+            tree = Nodes.CompilerDirectivesNode(tree.pos, body=tree, directives=scope.directives)
         if isinstance(tree, Nodes.StatListNode):
             self.body.stats.extend(tree.stats)
         else:
@@ -399,7 +403,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         if Options.annotate or options.annotate:
             show_entire_c_code = Options.annotate == "fullc" or options.annotate == "fullc"
-            rootwriter = Annotate.AnnotationCCodeWriter(show_entire_c_code=show_entire_c_code)
+            rootwriter = Annotate.AnnotationCCodeWriter(
+                show_entire_c_code=show_entire_c_code,
+                source_desc=self.compilation_source.source_desc,
+            )
         else:
             rootwriter = Code.CCodeWriter()
 
@@ -528,16 +535,18 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         markers = ccodewriter.buffer.allmarkers()
 
         d = defaultdict(list)
-        for c_lineno, cython_lineno in enumerate(markers):
-            if cython_lineno > 0:
-                d[cython_lineno].append(c_lineno + 1)
+        for c_lineno, (src_desc, src_lineno) in enumerate(markers):
+            if src_lineno > 0 and src_desc.filename is not None:
+                d[src_desc, src_lineno].append(c_lineno + 1)
 
         tb.start('LineNumberMapping')
-        for cython_lineno, c_linenos in sorted(d.items()):
+        for (src_desc, src_lineno), c_linenos in sorted(d.items()):
+            assert src_desc.filename is not None
             tb.add_entry(
                 'LineNumber',
                 c_linenos=' '.join(map(str, c_linenos)),
-                cython_lineno=str(cython_lineno),
+                src_path=src_desc.filename,
+                src_lineno=str(src_lineno),
             )
         tb.end('LineNumberMapping')
         tb.serialize()
@@ -1399,8 +1408,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if scope.is_internal:
             # internal classes (should) never need None inits, normal zeroing will do
             py_attrs = []
-        cpp_class_attrs = [entry for entry in scope.var_entries
-                           if entry.type.is_cpp_class]
+        cpp_constructable_attrs = [entry for entry in scope.var_entries
+                                   if entry.type.needs_cpp_construction]
 
         cinit_func_entry = scope.lookup_here("__cinit__")
         if cinit_func_entry and not cinit_func_entry.is_special:
@@ -1434,7 +1443,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         need_self_cast = (type.vtabslot_cname or
                           (py_buffers or memoryview_slices or py_attrs) or
-                          cpp_class_attrs)
+                          cpp_constructable_attrs)
         if need_self_cast:
             code.putln("%s;" % scope.parent_type.declaration_code("p"))
         if base_type:
@@ -1504,7 +1513,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 type.vtabslot_cname,
                 struct_type_cast, type.vtabptr_cname))
 
-        for entry in cpp_class_attrs:
+        for entry in cpp_constructable_attrs:
             code.putln("new((void*)&(p->%s)) %s();" % (
                 entry.cname, entry.type.empty_declaration_code()))
 
@@ -1569,10 +1578,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             dict_slot = None
 
         _, (py_attrs, _, memoryview_slices) = scope.get_refcounted_entries()
-        cpp_class_attrs = [entry for entry in scope.var_entries
-                           if entry.type.is_cpp_class]
+        cpp_destructable_attrs = [entry for entry in scope.var_entries
+                           if entry.type.needs_cpp_construction]
 
-        if py_attrs or cpp_class_attrs or memoryview_slices or weakref_slot or dict_slot:
+        if py_attrs or cpp_destructable_attrs or memoryview_slices or weakref_slot or dict_slot:
             self.generate_self_cast(scope, code)
 
         if not is_final_type:
@@ -1616,7 +1625,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if dict_slot:
             code.putln("if (p->__dict__) PyDict_Clear(p->__dict__);")
 
-        for entry in cpp_class_attrs:
+        for entry in cpp_destructable_attrs:
             code.putln("__Pyx_call_destructor(p->%s);" % entry.cname)
 
         for entry in (py_attrs + memoryview_slices):
@@ -1860,12 +1869,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "static int %s(PyObject *o, PyObject *i, PyObject *v) {" % (
                 scope.mangle_internal("mp_ass_subscript")))
         code.putln(
-            "__Pyx_TypeName o_type_name;")
-        code.putln(
             "if (v) {")
         if set_entry:
             code.putln("return %s(o, i, v);" % set_entry.func_cname)
         else:
+            code.putln(
+                "__Pyx_TypeName o_type_name;")
             self.generate_guarded_basetype_call(
                 base_type, "tp_as_mapping", "mp_ass_subscript", "o, i, v", code)
             code.putln(
@@ -1887,6 +1896,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 "return %s(o, i);" % (
                     del_entry.func_cname))
         else:
+            code.putln(
+                "__Pyx_TypeName o_type_name;")
             self.generate_guarded_basetype_call(
                 base_type, "tp_as_mapping", "mp_ass_subscript", "o, i, v", code)
             code.putln(
@@ -1935,14 +1946,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "static int %s(PyObject *o, Py_ssize_t i, Py_ssize_t j, PyObject *v) {" % (
                 scope.mangle_internal("sq_ass_slice")))
         code.putln(
-            "__Pyx_TypeName o_type_name;")
-        code.putln(
             "if (v) {")
         if set_entry:
             code.putln(
                 "return %s(o, i, j, v);" % (
                     set_entry.func_cname))
         else:
+            code.putln(
+                "__Pyx_TypeName o_type_name;")
             self.generate_guarded_basetype_call(
                 base_type, "tp_as_sequence", "sq_ass_slice", "o, i, j, v", code)
             code.putln(
@@ -1964,6 +1975,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 "return %s(o, i, j);" % (
                     del_entry.func_cname))
         else:
+            code.putln(
+                "__Pyx_TypeName o_type_name;")
             self.generate_guarded_basetype_call(
                 base_type, "tp_as_sequence", "sq_ass_slice", "o, i, j, v", code)
             code.putln(
@@ -2070,16 +2083,18 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             extra_arg = ', extra_arg'
             extra_arg_decl = ', PyObject* extra_arg'
         else:
-            error(pos, "Unexpected type lost signature: %s" % slot)
+            error(pos, "Unexpected type slot signature: %s" % slot)
+            return
 
-        def has_slot_method(method_name):
+        def get_slot_method_cname(method_name):
             entry = scope.lookup(method_name)
-            return bool(entry and entry.is_special and entry.func_cname)
+            return entry.func_cname if entry and entry.is_special else None
+
         def call_slot_method(method_name, reverse):
-            entry = scope.lookup(method_name)
-            if entry and entry.is_special and entry.func_cname:
+            func_cname = get_slot_method_cname(method_name)
+            if func_cname:
                 return "%s(%s%s)" % (
-                    entry.func_cname,
+                    func_cname,
                     "right, left" if reverse else "left, right",
                     extra_arg)
             else:
@@ -2088,13 +2103,21 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     'Py_TYPE(right)->tp_base' if reverse else 'Py_TYPE(left)->tp_base',
                     extra_arg)
 
+        if get_slot_method_cname(slot.left_slot.method_name) and not get_slot_method_cname(slot.right_slot.method_name):
+            warning(pos, "Extension type implements %s() but not %s(). "
+                         "The behaviour has changed from previous Cython versions to match Python semantics. "
+                         "You can implement both special methods in a backwards compatible way." % (
+                slot.left_slot.method_name,
+                slot.right_slot.method_name,
+            ))
+
         code.putln(
             TempitaUtilityCode.load_as_string(
                 "BinopSlot", "ExtensionTypes.c",
                 context={
                     "func_name": func_name,
                     "slot_name": slot.slot_name,
-                    "overloads_left": int(has_slot_method(slot.left_slot.method_name)),
+                    "overloads_left": int(bool(get_slot_method_cname(slot.left_slot.method_name))),
                     "call_left": call_slot_method(slot.left_slot.method_name, reverse=False),
                     "call_right": call_slot_method(slot.right_slot.method_name, reverse=True),
                     "type_cname": scope.parent_type.typeptr_cname,
@@ -2747,7 +2770,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("")
         # main module init code lives in Py_mod_exec function, not in PyInit function
         code.putln("static CYTHON_SMALL_CODE int %s(PyObject *%s)" % (
-            self.mod_init_func_cname(Naming.pymodule_exec_func_cname, env),
+            self.module_init_func_cname(),
             Naming.pymodinit_module_arg))
         code.putln("#endif")  # PEP489
 
@@ -3173,6 +3196,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # from PEP483
         return self.punycode_module_name(prefix, env.module_name)
 
+    # Returns the name of the C-function that corresponds to the module initialisation.
+    # (module initialisation == the cython code outside of functions)
+    # Note that this should never be the name of a wrapper and always the name of the
+    # function containing the actual code. Otherwise, cygdb will experience problems.
+    def module_init_func_cname(self):
+        env = self.scope
+        return self.mod_init_func_cname(Naming.pymodule_exec_func_cname, env)
+
     def generate_pymoduledef_struct(self, env, code):
         if env.doc:
             doc = "%s" % code.get_string_const(env.doc)
@@ -3186,7 +3217,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("")
         code.putln("#if PY_MAJOR_VERSION >= 3")
         code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
-        exec_func_cname = self.mod_init_func_cname(Naming.pymodule_exec_func_cname, env)
+        exec_func_cname = self.module_init_func_cname()
         code.putln("static PyObject* %s(PyObject *spec, PyModuleDef *def); /*proto*/" %
                    Naming.pymodule_create_func_cname)
         code.putln("static int %s(PyObject* module); /*proto*/" % exec_func_cname)

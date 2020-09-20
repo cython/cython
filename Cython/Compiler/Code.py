@@ -1818,10 +1818,13 @@ class CCodeWriter(object):
         return self.buffer.getvalue()
 
     def write(self, s):
-        # also put invalid markers (lineno 0), to indicate that those lines
-        # have no Cython source code correspondence
-        cython_lineno = self.last_marked_pos[1] if self.last_marked_pos else 0
-        self.buffer.markers.extend([cython_lineno] * s.count('\n'))
+        # Cygdb needs to know which Cython source line corresponds to which C line.
+        # Therefore, we write this information into "self.buffer.markers" and then write it from there
+        # into cython_debug/cython_debug_info_* (see ModuleNode._serialize_lineno_map).
+
+        filename_line = self.last_marked_pos[:2] if self.last_marked_pos else (None, 0)
+        self.buffer.markers.extend([filename_line] * s.count('\n'))
+
         self.buffer.write(s)
 
     def insertion_point(self):

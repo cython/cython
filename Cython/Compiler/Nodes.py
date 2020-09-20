@@ -1546,17 +1546,23 @@ class CEnumDefNode(StatNode):
     #  in_pxd             boolean
     #  create_wrapper     boolean
     #  entry              Entry
+    #  doc                EncodedString or None    Doc string
 
     child_attrs = ["items", "underlying_type"]
+    doc = None
 
     def declare(self, env):
+        doc = None
+        if Options.docstrings:
+            doc = embed_position(self.pos, self.doc)
+
         self.entry = env.declare_enum(
             self.name, self.pos,
             cname=self.cname,
             scoped=self.scoped,
             typedef_flag=self.typedef_flag,
             visibility=self.visibility, api=self.api,
-            create_wrapper=self.create_wrapper)
+            create_wrapper=self.create_wrapper, doc=doc)
 
     def analyse_declarations(self, env):
         scope = None
@@ -1691,6 +1697,8 @@ class FuncDefNode(StatNode, BlockNode):
     needs_outer_scope = False
     pymethdef_required = False
     is_generator = False
+    is_coroutine = False
+    is_asyncgen = False
     is_generator_body = False
     is_async_def = False
     modifiers = []
@@ -2972,10 +2980,12 @@ class DefNode(FuncDefNode):
             # staticmethod() was overridden - not much we can do here ...
             self.is_staticmethod = False
 
-        if env.is_py_class_scope:
-            if self.name == '__new__':
+        if env.is_py_class_scope or env.is_c_class_scope:
+            if self.name == '__new__' and env.is_py_class_scope:
                 self.is_staticmethod = True
-            elif not self.is_classmethod and self.name in IMPLICIT_CLASSMETHODS:
+            elif self.name == '__init_subclass__' and env.is_c_class_scope:
+                error(self.pos, "'__init_subclass__' is not supported by extension class")
+            elif self.name in IMPLICIT_CLASSMETHODS and not self.is_classmethod:
                 self.is_classmethod = True
                 # TODO: remove the need to generate a real decorator here, is_classmethod=True should suffice.
                 from .ExprNodes import NameNode
@@ -4341,9 +4351,7 @@ class GeneratorDefNode(DefNode):
     #
 
     is_generator = True
-    is_coroutine = False
     is_iterable_coroutine = False
-    is_asyncgen = False
     gen_type_name = 'Generator'
     needs_closure = True
 

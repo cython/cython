@@ -21,6 +21,7 @@ class TestCodeWriter(CythonTest):
         self.t(u"""
                     print(x + y ** 2)
                     print(x, y, z)
+                    print(x + y, x + y * z, x * (y + z))
                """)
 
     def test_if(self):
@@ -43,6 +44,20 @@ class TestCodeWriter(CythonTest):
                     def f(x, y, z):
                         pass
                     def f(x = 34, y = 54, z):
+                        pass
+               """)
+
+    def test_cdef(self):
+        self.t(u"""
+                    cdef f(x, y, z):
+                        pass
+                    cdef public void (x = 34, y = 54, z):
+                        pass
+                    cdef f(int *x, void *y, Value *z):
+                        pass
+                    cdef f(int **x, void **y, Value **z):
+                        pass
+                    cdef inline f(int &x, Value &z):
                         pass
                """)
 
@@ -75,6 +90,14 @@ class TestCodeWriter(CythonTest):
                         print(43)
                 """)
 
+    def test_while_loop(self):
+        self.t(u"""
+                    while True:
+                        while True:
+                            while True:
+                                continue
+                """)
+
     def test_inplace_assignment(self):
         self.t(u"x += 43")
 
@@ -83,6 +106,22 @@ class TestCodeWriter(CythonTest):
 
     def test_attribute(self):
         self.t(u"a.x")
+
+    def test_return_none(self):
+        self.t(u"""
+                    def f(x, y, z):
+                        return
+                    cdef f(x, y, z):
+                        return
+                    def f(x, y, z):
+                        return None
+                    cdef f(x, y, z):
+                        return None
+                    def f(x, y, z):
+                        return 1234
+                    cdef f(x, y, z):
+                        return 1234
+               """)
 
 if __name__ == "__main__":
     import unittest

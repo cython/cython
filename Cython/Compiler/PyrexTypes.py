@@ -194,7 +194,8 @@ class PyrexType(BaseType):
     #  is_pythran_expr       boolean     Is Pythran expr
     #  is_numpy_buffer       boolean     Is Numpy array buffer
     #  has_attributes        boolean     Has C dot-selectable attributes
-    #  needs_refcounting          boolean     Needs code to be generated similar to incref/gotref/decref.
+    #  needs_cpp_construction  boolean     Needs C++ constructor and destructor when used in a cdef class
+    #  needs_refcounting     boolean     Needs code to be generated similar to incref/gotref/decref.
     #                                    Largely used internally.
     #  default_value         string      Initial value that can be assigned before first user assignment.
     #  declaration_value     string      The value statically assigned on declaration (if any).
@@ -262,6 +263,7 @@ class PyrexType(BaseType):
     is_pythran_expr = 0
     is_numpy_buffer = 0
     has_attributes = 0
+    needs_cpp_construction = 0
     needs_refcounting = 0
     default_value = ""
     declaration_value = ""
@@ -3495,7 +3497,7 @@ class CStructOrUnionType(CType):
     has_attributes = 1
     exception_check = True
 
-    def __init__(self, name, kind, scope, typedef_flag, cname, packed=False):
+    def __init__(self, name, kind, scope, typedef_flag, cname, packed=False, in_cpp=False):
         self.name = name
         self.cname = cname
         self.kind = kind
@@ -3510,6 +3512,7 @@ class CStructOrUnionType(CType):
         self._convert_to_py_code = None
         self._convert_from_py_code = None
         self.packed = packed
+        self.needs_cpp_construction = self.is_struct and in_cpp
 
     def can_coerce_to_pyobject(self, env):
         if self._convert_to_py_code is False:
@@ -3680,6 +3683,7 @@ class CppClassType(CType):
 
     is_cpp_class = 1
     has_attributes = 1
+    needs_cpp_construction = 1
     exception_check = True
     namespace = None
 
@@ -4024,12 +4028,14 @@ class CppClassType(CType):
 
 class CppScopedEnumType(CType):
     # name    string
+    # doc     string or None
     # cname   string
 
     is_cpp_enum = True
 
-    def __init__(self, name, cname, underlying_type, namespace=None):
+    def __init__(self, name, cname, underlying_type, namespace=None, doc=None):
         self.name = name
+        self.doc = doc
         self.cname = cname
         self.values = []
         self.underlying_type = underlying_type
@@ -4049,7 +4055,7 @@ class CppScopedEnumType(CType):
                     self.cname
                 )
             else:
-                type_name = "enum %s" % self.cname
+                type_name = "__PYX_ENUM_CLASS_DECL %s" % self.cname
             type_name = public_decl(type_name, dll_linkage)
         return self.base_declaration_code(type_name, entity_code)
 
@@ -4084,6 +4090,7 @@ class CppScopedEnumType(CType):
                 "cname": self.cname.split("::")[-1],
                 "items": tuple(self.values),
                 "underlying_type": self.underlying_type.empty_declaration_code(),
+                "enum_doc": self.doc,
             },
             outer_module_scope=env.global_scope())
 
@@ -4139,6 +4146,7 @@ def is_optional_template_param(type):
 
 class CEnumType(CIntLike, CType):
     #  name           string
+    #  doc            string or None
     #  cname          string or None
     #  typedef_flag   boolean
     #  values         [string], populated during declaration analysis
@@ -4147,8 +4155,9 @@ class CEnumType(CIntLike, CType):
     signed = 1
     rank = -1  # Ranks below any integer type
 
-    def __init__(self, name, cname, typedef_flag, namespace=None):
+    def __init__(self, name, cname, typedef_flag, namespace=None, doc=None):
         self.name = name
+        self.doc = doc
         self.cname = cname
         self.values = []
         self.typedef_flag = typedef_flag
@@ -4190,7 +4199,9 @@ class CEnumType(CIntLike, CType):
         env.use_utility_code(CythonUtilityCode.load(
             "EnumType", "CpdefEnums.pyx",
             context={"name": self.name,
-                     "items": tuple(self.values)},
+                     "items": tuple(self.values),
+                     "enum_doc": self.doc,
+                     },
             outer_module_scope=env.global_scope()))
 
 
