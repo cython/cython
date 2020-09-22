@@ -486,6 +486,7 @@ class GrammarTests(unittest.TestCase):
                 x: int
                 x.y: list = []
 
+    @skip("Not currently supported: https://github.com/cython/cython/issues/3839")
     def test_var_annot_metaclass_semantics(self):
         class CMeta(type):
             @classmethod
