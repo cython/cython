@@ -2937,6 +2937,33 @@ class CppIteratorNode(ExprNode):
                         self.result()))
         code.putln("++%s;" % self.result())
 
+    def generate_subexpr_disposal_code(self, code):
+        if not self.cpp_sequence_cname:
+            # the sequence is accessed directly so any temporary result in its
+            # subexpressions must remain available until the iterator is not needed
+            return
+        ExprNode.generate_subexpr_disposal_code(self, code)
+
+    def free_subexpr_temps(self, code):
+        if not self.cpp_sequence_cname:
+            # the sequence is accessed directly so any temporary result in its
+            # subexpressions must remain available until the iterator is not needed
+            return
+        ExprNode.free_subexpr_temps(self, code)
+
+    def generate_disposal_code(self, code):
+        if not self.cpp_sequence_cname:
+            # postponed from CppIteratorNode.generate_subexpr_disposal_code
+            # and CppIteratorNode.free_subexpr_temps
+            ExprNode.generate_subexpr_disposal_code(self, code)
+            ExprNode.free_subexpr_temps(self, code)
+            # adapt relevant bits from ExprNodes.generate_disposal_code
+            if self.has_temp_moved:
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("MoveIfSupported", "CppSupport.cpp"))
+        else:
+            ExprNode.generate_disposal_code(self, code)
+
     def free_temps(self, code):
         if self.cpp_sequence_cname:
             code.funcstate.release_temp(self.cpp_sequence_cname)
