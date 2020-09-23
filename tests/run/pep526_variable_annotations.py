@@ -156,6 +156,7 @@ _WARNINGS = """
 37:19: Unknown type declaration in annotation, ignoring
 38:12: Unknown type declaration in annotation, ignoring
 39:18: Unknown type declaration in annotation, ignoring
+57:19: Unknown type declaration in annotation, ignoring
 73:19: Unknown type declaration in annotation, ignoring
 # FIXME: these are sort-of evaluated now, so the warning is misleading
 126:21: Unknown type declaration in annotation, ignoring
