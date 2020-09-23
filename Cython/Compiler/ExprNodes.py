@@ -458,6 +458,9 @@ class ExprNode(Node):
 
     child_attrs = property(fget=operator.attrgetter('subexprs'))
 
+    def analyse_annotations(self, env):
+        pass
+
     def not_implemented(self, method_name):
         print_call_chain(method_name, "not implemented")
         raise InternalError(
