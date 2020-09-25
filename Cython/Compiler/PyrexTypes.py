@@ -4901,42 +4901,34 @@ def parse_basic_type(name):
             name = 'int'
     return simple_c_type(signed, longness, name)
 
-def c_array_type(base_type, size):
-    # Construct a C array type.
+
+def _construct_type_from_base(cls, base_type, *args):
     if base_type is error_type:
         return error_type
-    else:
-        return CArrayType(base_type, size)
+    return cls(base_type, *args)
+
+def c_array_type(base_type, size):
+    # Construct a C array type.
+    return _construct_type_from_base(CArrayType, base_type, size)
 
 def c_ptr_type(base_type):
     # Construct a C pointer type.
-    if base_type is error_type:
-        return error_type
-    elif base_type.is_reference:
-        return CPtrType(base_type.ref_base_type)
-    else:
-        return CPtrType(base_type)
+    if base_type.is_reference:
+        base_type = base_type.ref_base_type
+    return _construct_type_from_base(CPtrType, base_type)
 
 def c_ref_type(base_type):
     # Construct a C reference type
-    if base_type is error_type:
-        return error_type
-    else:
-        return CReferenceType(base_type)
+    return _construct_type_from_base(CReferenceType, base_type)
 
 def c_const_type(base_type):
     # Construct a C const type.
-    if base_type is error_type:
-        return error_type
-    else:
-        return CConstType(base_type)
+    return _construct_type_from_base(CConstType, base_type)
 
 def c_const_or_volatile_type(base_type, is_const, is_volatile):
     # Construct a C const/volatile type.
-    if base_type is error_type:
-        return error_type
-    else:
-        return CConstOrVolatileType(base_type, is_const, is_volatile)
+    return _construct_type_from_base(CConstOrVolatileType, base_type, is_const, is_volatile)
+
 
 def same_type(type1, type2):
     return type1.same_as(type2)
