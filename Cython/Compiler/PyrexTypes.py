@@ -196,7 +196,8 @@ class PyrexType(BaseType):
     #  is_initvar            boolean     Is a dataclass InitVar
     #  is_classvar            boolean     Is a dataclass ClassVar
     #  has_attributes        boolean     Has C dot-selectable attributes
-    #  needs_refcounting          boolean     Needs code to be generated similar to incref/gotref/decref.
+    #  needs_cpp_construction  boolean     Needs C++ constructor and destructor when used in a cdef class
+    #  needs_refcounting     boolean     Needs code to be generated similar to incref/gotref/decref.
     #                                    Largely used internally.
     #  default_value         string      Initial value that can be assigned before first user assignment.
     #  declaration_value     string      The value statically assigned on declaration (if any).
@@ -266,6 +267,7 @@ class PyrexType(BaseType):
     is_initvar = 0
     is_classvar = 0
     has_attributes = 0
+    needs_cpp_construction = 0
     needs_refcounting = 0
     default_value = ""
     declaration_value = ""
@@ -3501,7 +3503,7 @@ class CStructOrUnionType(CType):
     has_attributes = 1
     exception_check = True
 
-    def __init__(self, name, kind, scope, typedef_flag, cname, packed=False):
+    def __init__(self, name, kind, scope, typedef_flag, cname, packed=False, in_cpp=False):
         self.name = name
         self.cname = cname
         self.kind = kind
@@ -3516,6 +3518,7 @@ class CStructOrUnionType(CType):
         self._convert_to_py_code = None
         self._convert_from_py_code = None
         self.packed = packed
+        self.needs_cpp_construction = self.is_struct and in_cpp
 
     def can_coerce_to_pyobject(self, env):
         if self._convert_to_py_code is False:
@@ -3686,6 +3689,7 @@ class CppClassType(CType):
 
     is_cpp_class = 1
     has_attributes = 1
+    needs_cpp_construction = 1
     exception_check = True
     namespace = None
 
@@ -4030,12 +4034,14 @@ class CppClassType(CType):
 
 class CppScopedEnumType(CType):
     # name    string
+    # doc     string or None
     # cname   string
 
     is_cpp_enum = True
 
-    def __init__(self, name, cname, underlying_type, namespace=None):
+    def __init__(self, name, cname, underlying_type, namespace=None, doc=None):
         self.name = name
+        self.doc = doc
         self.cname = cname
         self.values = []
         self.underlying_type = underlying_type
@@ -4090,6 +4096,7 @@ class CppScopedEnumType(CType):
                 "cname": self.cname.split("::")[-1],
                 "items": tuple(self.values),
                 "underlying_type": self.underlying_type.empty_declaration_code(),
+                "enum_doc": self.doc,
             },
             outer_module_scope=env.global_scope())
 
@@ -4145,6 +4152,7 @@ def is_optional_template_param(type):
 
 class CEnumType(CIntLike, CType):
     #  name           string
+    #  doc            string or None
     #  cname          string or None
     #  typedef_flag   boolean
     #  values         [string], populated during declaration analysis
@@ -4153,8 +4161,9 @@ class CEnumType(CIntLike, CType):
     signed = 1
     rank = -1  # Ranks below any integer type
 
-    def __init__(self, name, cname, typedef_flag, namespace=None):
+    def __init__(self, name, cname, typedef_flag, namespace=None, doc=None):
         self.name = name
+        self.doc = doc
         self.cname = cname
         self.values = []
         self.typedef_flag = typedef_flag
@@ -4196,7 +4205,9 @@ class CEnumType(CIntLike, CType):
         env.use_utility_code(CythonUtilityCode.load(
             "EnumType", "CpdefEnums.pyx",
             context={"name": self.name,
-                     "items": tuple(self.values)},
+                     "items": tuple(self.values),
+                     "enum_doc": self.doc,
+                     },
             outer_module_scope=env.global_scope()))
 
 
@@ -4962,42 +4973,34 @@ def parse_basic_type(name):
             name = 'int'
     return simple_c_type(signed, longness, name)
 
-def c_array_type(base_type, size):
-    # Construct a C array type.
+
+def _construct_type_from_base(cls, base_type, *args):
     if base_type is error_type:
         return error_type
-    else:
-        return CArrayType(base_type, size)
+    return cls(base_type, *args)
+
+def c_array_type(base_type, size):
+    # Construct a C array type.
+    return _construct_type_from_base(CArrayType, base_type, size)
 
 def c_ptr_type(base_type):
     # Construct a C pointer type.
-    if base_type is error_type:
-        return error_type
-    elif base_type.is_reference:
-        return CPtrType(base_type.ref_base_type)
-    else:
-        return CPtrType(base_type)
+    if base_type.is_reference:
+        base_type = base_type.ref_base_type
+    return _construct_type_from_base(CPtrType, base_type)
 
 def c_ref_type(base_type):
     # Construct a C reference type
-    if base_type is error_type:
-        return error_type
-    else:
-        return CReferenceType(base_type)
+    return _construct_type_from_base(CReferenceType, base_type)
 
 def c_const_type(base_type):
     # Construct a C const type.
-    if base_type is error_type:
-        return error_type
-    else:
-        return CConstType(base_type)
+    return _construct_type_from_base(CConstType, base_type)
 
 def c_const_or_volatile_type(base_type, is_const, is_volatile):
     # Construct a C const/volatile type.
-    if base_type is error_type:
-        return error_type
-    else:
-        return CConstOrVolatileType(base_type, is_const, is_volatile)
+    return _construct_type_from_base(CConstOrVolatileType, base_type, is_const, is_volatile)
+
 
 def same_type(type1, type2):
     return type1.same_as(type2)

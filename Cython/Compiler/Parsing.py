@@ -316,9 +316,12 @@ def p_typecast(s):
     s.next()
     base_type = p_c_base_type(s)
     is_memslice = isinstance(base_type, Nodes.MemoryViewSliceTypeNode)
-    is_template = isinstance(base_type, Nodes.TemplatedTypeNode)
-    is_const_volatile = isinstance(base_type, Nodes.CConstOrVolatileTypeNode)
-    if not is_memslice and not is_template and not is_const_volatile and base_type.name is None:
+    is_other_unnamed_type = isinstance(base_type, (
+        Nodes.TemplatedTypeNode,
+        Nodes.CConstOrVolatileTypeNode,
+        Nodes.CTupleBaseTypeNode,
+    ))
+    if not (is_memslice or is_other_unnamed_type) and base_type.name is None:
         s.error("Unknown type")
     declarator = p_c_declarator(s, empty = 1)
     if s.sy == '?':
@@ -3168,11 +3171,13 @@ def p_c_enum_definition(s, pos, ctx):
     s.expect(':')
     items = []
 
+    doc = None
     if s.sy != 'NEWLINE':
         p_c_enum_line(s, ctx, items)
     else:
         s.next()  # 'NEWLINE'
         s.expect_indent()
+        doc = p_doc_string(s)
 
         while s.sy not in ('DEDENT', 'EOF'):
             p_c_enum_line(s, ctx, items)
@@ -3188,7 +3193,7 @@ def p_c_enum_definition(s, pos, ctx):
         underlying_type=underlying_type,
         typedef_flag=ctx.typedef_flag, visibility=ctx.visibility,
         create_wrapper=ctx.overridable,
-        api=ctx.api, in_pxd=ctx.level == 'module_pxd')
+        api=ctx.api, in_pxd=ctx.level == 'module_pxd', doc=doc)
 
 def p_c_enum_line(s, ctx, items):
     if s.sy != 'pass':

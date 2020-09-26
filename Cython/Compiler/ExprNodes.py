@@ -9501,6 +9501,9 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         if def_node.local_scope.parent_scope.is_c_class_scope and not def_node.entry.is_anonymous:
             flags.append('__Pyx_CYFUNCTION_CCLASS')
 
+        if def_node.is_coroutine:
+            flags.append('__Pyx_CYFUNCTION_COROUTINE')
+
         if flags:
             flags = ' | '.join(flags)
         else:
