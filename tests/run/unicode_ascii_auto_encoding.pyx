@@ -57,3 +57,20 @@ def slice_as_objects(char* ascii_data, int start, int end):
     assert isinstance(<unicode>ascii_data[start:], unicode)
 
     return ascii_data[start:end]
+
+
+def c_slice_auto_convertation():
+    """
+    >>> x = c_slice_auto_convertation()
+    """
+    cdef char* c_strings[4]
+    c_strings[0] = 'abccba_0'
+    c_strings[1] = 'abccbay_1'
+    c_strings[2] = 'abccbaf_2'
+    c_strings[3] = 'abccbaf_3'
+
+    slice_c_strings = <list> c_strings[1:3]
+
+    assert isinstance(slice_c_strings[0], auto_string_type)
+    assert isinstance(slice_c_strings[1], auto_string_type)
+    assert _as_string(slice_c_strings[0]) == 'abccbay_1' or repr(slice_c_strings[0])
