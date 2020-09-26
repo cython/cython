@@ -1998,7 +1998,7 @@ class NameNode(AtomicExprNode):
         if atype.is_fused and env.fused_to_specific:
             atype = atype.specialize(env.fused_to_specific)
         self.entry = env.declare_var(name, atype, self.pos, is_cdef=not as_target)
-        self.entry.annotation = annotation.expr
+        self.entry.annotation = annotation
 
     def analyse_as_module(self, env):
         # Try to interpret this as a reference to a cimported module.
