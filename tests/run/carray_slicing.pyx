@@ -1,5 +1,12 @@
-
 cimport cython
+import sys
+
+cdef extern from *:
+    cdef Py_ssize_t PY_SSIZE_T_MIN
+    cdef Py_ssize_t PY_SSIZE_T_MAX
+
+SSIZE_T_MAX = PY_SSIZE_T_MAX
+SSIZE_T_MIN = PY_SSIZE_T_MIN
 
 ############################################################
 # tests for char* slicing
@@ -275,3 +282,225 @@ def struct_ptr_iter():
     return ([ value.i for value in my_structs[:5] ],
             [ ptr.i for ptr in my_structs[:5] ],
             [ inferred.i for inferred in my_structs[:5] ])
+
+############################################################
+# tests for coercing slice of c-array to python list
+
+def test_coercing_c_slice_to_py_start_end():
+    """
+    >>> test_coercing_c_slice_to_py_start_end()
+    [4, 9]
+    """
+    cdef int i
+    cdef int a[10]
+    for i in range(10):
+        a[i] = i**2
+    return a[2:4]
+
+def test_coercing_c_slice_to_py__end():
+    """
+    >>> test_coercing_c_slice_to_py__end()
+    [0, 1]
+    """
+    cdef int i
+    cdef int a[10]
+    for i in range(10):
+        a[i] = i**2
+    return a[:2]
+
+
+def test_coercing_c_slice_to_py_from_():
+    """
+    >>> test_coercing_c_slice_to_py_from_()
+    [64, 81]
+    """
+    cdef int i
+    cdef int a[10]
+    for i in range(10):
+        a[i] = i**2
+    return a[8:]
+
+cpdef test_coercing_c_slice_in_cpedef_list():
+    """
+    >>> test_coercing_c_slice_in_cpedef_list()
+    [64, 81]
+    """
+    cdef int i
+    cdef int a[10]
+    for i in range(10):
+        a[i] = i**2
+    return a[8:]
+
+
+def test_c_to_py_coercing_array_in_var():
+    """
+    >>> test_c_to_py_coercing_array_in_var()
+    [64, 81]
+    """
+    cdef int i
+    cdef int a[10]
+    b = 5555
+    for i in range(10):
+        a[i] = i**2
+    b = a[8:]
+    return b
+
+cpdef test_c_to_py_coercing_array_in_var_2():
+    """
+    >>> test_c_to_py_coercing_array_in_var_2()
+    [64, 81]
+    """
+    cdef int i
+    cdef int a[10]
+    b = 5555
+    for i in range(10):
+        a[i] = i**2
+    b = a[8:]
+    return b
+
+
+cpdef tuple test_coercing_c_slice_to_tuple():
+    """
+    >>> test_coercing_c_slice_to_tuple()
+    (64, 81)
+    """
+    cdef int i
+    cdef int a[10]
+    for i in range(10):
+        a[i] = i**2
+    return a[8:]
+
+
+cpdef set test_coercing_c_slice_to_set():
+    """
+    >>> b = test_coercing_c_slice_to_set()
+    >>> isinstance(b, set)
+    True
+    >>> b = list(b)
+    >>> b.sort()
+    >>> b
+    [64, 81]
+    """
+    cdef int i
+    cdef int a[10]
+    for i in range(10):
+        a[i] = i**2
+    return a[8:]
+
+
+cpdef frozenset test_coercing_c_slice_to_frozenset():
+    """
+    >>> b = test_coercing_c_slice_to_frozenset()
+    >>> isinstance(b, frozenset)
+    True
+    >>> b = list(b)
+    >>> b.sort()
+    >>> b
+    [64, 81]
+    """
+
+    cdef int i
+    cdef int a[10]
+    for i in range(10):
+        a[i] = i**2
+    return a[8:]
+
+
+def test_coercing_c_slice_by_casting():
+    """
+    >>> test_coercing_c_slice_by_casting()
+    [25, 36, 49, 64, 81]
+    (25, 36, 49, 64, 81)
+    [25, 36, 49, 64, 81]
+    [25, 36, 49, 64, 81]
+    """
+    cdef int i
+    cdef int a[10]
+    for i in range(10):
+        a[i] = i**2
+
+    print(<list> a[5:])
+    print(<tuple> a[5:])
+    b = <set> a[5:]
+    assert isinstance(b, set)
+    print(sorted(b))
+    b = <frozenset> a[5:]
+    assert isinstance(b, frozenset)
+    print(sorted(b))
+
+
+def test_coercing_c_slice_out_of_range():
+    """
+    >>> test_coercing_c_slice_out_of_range()
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    [0, 1, 2, 3, 4]
+    [5, 6, 7, 8, 9]
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    """
+    cdef int i
+    cdef int a[10]
+    cdef object b
+    for i in range(10):
+        a[i] = i
+
+    b = a[5:4]
+    assert len(b) == 0
+
+    b = a[5:5]
+    assert len(b) == 0
+
+    b = a[11:]
+    assert len(b) == 0
+
+    b = a[-100:-100]
+    assert len(b) == 0
+
+    b = a[100:100]
+    assert len(b) == 0
+
+    b = a[SSIZE_T_MAX:SSIZE_T_MIN]
+    assert len(b) == 0
+
+    b = a[SSIZE_T_MAX:]
+    assert len(b) == 0
+
+    b = a[SSIZE_T_MAX:None]
+    assert len(b) == 0
+
+    b = a[:SSIZE_T_MIN]
+    assert len(b) == 0
+
+    b = a[None:SSIZE_T_MIN]
+    assert len(b) == 0
+
+    b = a[-11:]
+    print(b)
+
+    b = a[:100]
+    print(b)
+
+    b = a[-100:100]
+    print(b)
+
+    b = a[:SSIZE_T_MAX]
+    print(b)
+
+    b = a[SSIZE_T_MIN:]
+    print(b)
+
+    b = a[SSIZE_T_MIN:SSIZE_T_MAX]
+    print(b)
+
+    b = a[-100:5]
+    print(b)
+
+    b = a[5:100]
+    print(b)
+
+    b = a[:]
+    print(b)
