@@ -19,9 +19,11 @@ class AnnotationWriter(ExpressionWriter):
         """
         ExpressionWriter.__init__(self)
         self.description = description
+        self.incomplete = False
 
     def visit_Node(self, node):
         self.put(u"<???>")
+        self.incomplete = True
         if self.description:
             warning(node.pos,
                     "Failed to convert code to string representation in {0}".format(
@@ -30,6 +32,7 @@ class AnnotationWriter(ExpressionWriter):
     def visit_LambdaNode(self, node):
         # XXX Should we do better?
         self.put("<lambda>")
+        self.incomplete = True
         if self.description:
             warning(node.pos,
                     "Failed to convert lambda to string representation in {0}".format(
