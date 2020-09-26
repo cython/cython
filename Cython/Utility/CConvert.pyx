@@ -132,3 +132,82 @@ cdef inline tuple {{to_tuple_cname}}({{base_type}} *v, Py_ssize_t length):
         Py_INCREF(value)
         PyTuple_SET_ITEM(t, i, value)
     return t
+
+#################### c_array_slice.to_py ####################
+
+cdef extern from *:
+    void Py_INCREF(object o)
+    void Py_DECREF(object o)
+    object PyErr_Format(exc, const char *format, ...)
+
+    list PyList_New(Py_ssize_t size)
+    void PyList_SET_ITEM(object p, Py_ssize_t pos, object o)
+
+    tuple PyTuple_New(Py_ssize_t size)
+    void PyTuple_SET_ITEM(object p, Py_ssize_t pos, object o)
+
+    frozenset __Pyx_PyFrozenSet_New(object)
+    set PySet_New(void *)
+    int PySet_Add(object p, object o) except -1
+
+@cname("{{cname}}")
+cdef inline {{to_py_obj_type}} {{cname}}({{base_type}} *arr, Py_ssize_t arr_size, Py_ssize_t from_idx, Py_ssize_t to_idx, int wraparound, int boundscheck):
+    cdef Py_ssize_t i, length = 0
+
+    if wraparound:
+        if from_idx < 0:
+            from_idx += arr_size
+
+        if to_idx < 0:
+            to_idx += arr_size
+
+    if boundscheck:
+        if from_idx >= to_idx:
+             from_idx = to_idx = 0
+        else:
+            if from_idx < 0:
+                from_idx = 0
+
+            if to_idx > arr_size:
+                to_idx = arr_size
+
+    length = to_idx - from_idx
+
+    {{if to_py_obj_type == 'list'}}
+    container = PyList_New(length)
+    {{elif to_py_obj_type == 'tuple'}}
+    container = PyTuple_New(length)
+
+    # The PySet_New is used for creating frozenset,
+    # since PyFrozenSet_New has a bug with PySet_Add in PyPy.
+    #
+    # __Pyx_PyFrozenSet_New(NULL) doesn't work for this goal,
+    # since it returns immutable frozenset-singleton.
+    {{elif to_py_obj_type == 'set' or to_py_obj_type == 'frozenset'}}
+    container = PySet_New(NULL)
+    {{else}}
+        {{py: assert False, "Invalid target type for C array conversion: %r" % to_py_obj_type}}
+    {{endif}}
+
+
+    cdef object value
+    if length > 0:
+        for i in range(from_idx, to_idx):
+            value = arr[i]
+
+            {{if to_py_obj_type == 'list'}}
+            Py_INCREF(value)
+            PyList_SET_ITEM(container, i - from_idx, value)
+            {{elif to_py_obj_type == 'tuple'}}
+            Py_INCREF(value)
+            PyTuple_SET_ITEM(container, i - from_idx, value)
+            {{elif to_py_obj_type == 'set' or to_py_obj_type == 'frozenset'}}
+            PySet_Add(container, value)
+            {{endif}}
+
+    {{if to_py_obj_type == 'frozenset'}}
+    # workaround for bug with frozenset in PyPy
+    container = __Pyx_PyFrozenSet_New(container)
+    {{endif}}
+
+    return container
