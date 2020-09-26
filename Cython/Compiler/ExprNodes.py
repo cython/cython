@@ -10553,7 +10553,8 @@ class TypecastNode(ExprNode):
         if to_py and not from_py:
             if self.type is bytes_type and self.operand.type.is_int:
                 return CoerceIntToBytesNode(self.operand, env)
-            elif self.operand.type.can_coerce_to_pyobject(env):
+            elif self.operand.type.can_coerce_to_pyobject(env) or \
+                    (isinstance(self.operand, SliceIndexNode) and self.operand.base.type.is_array):
                 self.result_ctype = py_object_type
                 self.operand = self.operand.coerce_to(self.type, env)
             else:
