@@ -38,6 +38,11 @@ class AnnotationWriter(ExpressionWriter):
                     "Failed to convert lambda to string representation in {0}".format(
                         self.description), level=1)
 
+    def visit_UnicodeNode(self, node):
+        # Discard Unicode prefix in annotations. Any tool looking at them
+        # would probably expect Py3 string semantics.
+        self.emit_string(node, "")
+
     def visit_AnnotationNode(self, node):
         self.put(node.string.unicode_value)
 
@@ -50,6 +55,12 @@ class EmbedSignature(CythonTransform):
         self.class_node = None
 
     def _fmt_expr(self, node):
+        writer = ExpressionWriter()
+        result = writer.write(node)
+        # print(type(node).__name__, '-->', result)
+        return result
+
+    def _fmt_annotation(self, node):
         writer = AnnotationWriter()
         result = writer.write(node)
         # print(type(node).__name__, '-->', result)
@@ -62,7 +73,7 @@ class EmbedSignature(CythonTransform):
             doc = arg.type.declaration_code(arg.name, for_display=1)
 
         if arg.annotation:
-            annotation = self._fmt_expr(arg.annotation)
+            annotation = self._fmt_annotation(arg.annotation)
             doc = doc + (': %s' % annotation)
             if arg.default:
                 default = self._fmt_expr(arg.default)
@@ -75,7 +86,7 @@ class EmbedSignature(CythonTransform):
     def _fmt_star_arg(self, arg):
         arg_doc = arg.name
         if arg.annotation:
-            annotation = self._fmt_expr(arg.annotation)
+            annotation = self._fmt_annotation(arg.annotation)
             arg_doc = arg_doc + (': %s' % annotation)
         return arg_doc
 
@@ -121,7 +132,7 @@ class EmbedSignature(CythonTransform):
             func_doc = '%s.%s' % (cls_name, func_doc)
         ret_doc = None
         if return_expr:
-            ret_doc = self._fmt_expr(return_expr)
+            ret_doc = self._fmt_annotation(return_expr)
         elif return_type:
             ret_doc = self._fmt_ret_type(return_type)
         if ret_doc:
