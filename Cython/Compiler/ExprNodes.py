@@ -7185,6 +7185,62 @@ class AttributeNode(ExprNode):
                 error(self.pos,
                       "Object of type '%s' has no attribute '%s'" %
                       (obj_type, self.attribute))
+        else:
+            self.python_attribute_lookup_warnings(env)
+
+    def python_attribute_lookup_warnings(self, env):
+        def entry_matches(tp_scope):
+            entry = tp_scope.lookup(self.attribute)
+            if entry and (entry.is_cfunction or
+                    # next line gets C attributes but excludes def functions
+                    entry.is_variable and not (entry.is_member or entry.is_pyglobal)):
+                return entry
+            return None
+
+        possible_type = None
+        # attempt to warn the user if it looks like they should have typed a variable
+        if self.obj.is_name and self.obj.entry:
+            for assignment in self.obj.entry.cf_assignments:
+                tp = assignment.rhs.type
+                if (not tp.is_extension_type) or tp == possible_type:
+                    continue
+                entry = entry_matches(tp.scope)
+                if entry:
+                    if possible_type:
+                        return  # don't warn if the type is ambiguous
+                    possible_type = (tp, entry)
+
+        # Otherwise use a broader search
+        # ignore very short attributes (exact cutoff is arbitrary but 3 was picked to include "ptr")
+        if not possible_type and len(self.attribute) >= 3:
+            for tp_entry in env.global_scope().type_entries:
+                if not tp_entry.is_cclass:
+                    continue
+                entry = entry_matches(tp_entry.type.scope)
+                if entry:
+                    if possible_type:
+                        return  # don't warn if the type is ambiguous
+                    possible_type = (tp_entry.type, entry)
+
+        if possible_type:
+            tp, entry = possible_type
+            if entry.as_variable or entry.is_property:
+                # cpdef functions and properties get a different warning
+                msg = ("%s is typed as a Python object; to enable fast C lookup of "
+                        "'%s.%s' then you must specify the type of %s")
+            else:
+                msg = ("%s is typed as a Python object; if you intended to lookup "
+                    "'%s.%s' then you must specify the type of %s")
+            if self.obj.is_name:
+                obj_name = "'%s'" % self.obj.name
+            else:
+                obj_name = "this expression"
+
+            warning(self.pos, msg % (obj_name.capitalize(), tp, self.attribute, obj_name),
+                    2)
+            return
+
+
 
     def wrap_obj_in_nonecheck(self, env):
         if not env.directives['nonecheck']:
