@@ -34,6 +34,8 @@ cdef passmvs(float[:,::1] mvs, object foo):
     mvs = array((10,10), itemsize=sizeof(float), format='f')
     foo = init_obj()
 
+cdef object passmvs_wrapper = passmvs  # also test if wrapper can be generated for cdef functions
+
 cdef object returnobj():
     cdef obj = object()
     return obj

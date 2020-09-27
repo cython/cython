@@ -695,7 +695,6 @@ class MemoryViewSliceType(PyrexType):
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
         # XXX: we put these guards in for now...
-        assert not pyrex
         assert not dll_linkage
         from . import MemoryView
         base_code = StringEncoding.EncodedString(
