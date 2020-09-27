@@ -1997,6 +1997,11 @@ class NameNode(AtomicExprNode):
             atype = unspecified_type if as_target and env.directives['infer_types'] != False else py_object_type
         if atype.is_fused and env.fused_to_specific:
             atype = atype.specialize(env.fused_to_specific)
+        if as_target and env.is_c_class_scope and not atype.is_pyobject:
+            # TODO: this will need revising slightly for cdef dataclasses when implemented
+            atype = py_object_type
+            warning(self.pos, "Annotation ignored since class-level attributes must be Python objects. "
+                    "Were you trying to set up an instance attribute?", 2)
         self.entry = env.declare_var(name, atype, self.pos, is_cdef=not as_target)
         self.entry.annotation = annotation.expr
 
