@@ -76,6 +76,12 @@ ctypedef fused fused2:
 
 func(x, y)
 
+cdef floating return_type_unfindable1(cython.integral x):
+    return 1.0
+
+cpdef floating return_type_unfindable2(cython.integral x):
+    return 1.0
+
 
 _ERRORS = u"""
 11:15: fused_type does not take keyword arguments
@@ -92,4 +98,6 @@ _ERRORS = u"""
 46:9: Fused types not allowed here
 61:0: Invalid use of fused types, type cannot be specialized
 61:29: ambiguous overloaded method
+79:5: Return type is a fused type that cannot be determined from the function arguments
+82:6: Return type is a fused type that cannot be determined from the function arguments
 """
