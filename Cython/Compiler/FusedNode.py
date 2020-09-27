@@ -140,6 +140,18 @@ class FusedCFuncDefNode(StatListNode):
         for cname, fused_to_specific in permutations:
             copied_node = copy.deepcopy(self.node)
 
+            # unlike for the argument types, specializing the return type can fail, so tentatively
+            # try it here and produce an error message if it fails.
+            # specialize can also go through layers of pointers/const which makes anything other
+            # than "try...except" difficult
+            if copied_node.type.return_type.is_fused:
+                try:
+                    copied_node.type.return_type.specialize(fused_to_specific)
+                except KeyError:
+                    Errors.error(copied_node.pos, "Return type is a fused type that cannot "
+                                 "be determined from the function arguments")
+                    copied_node.type.return_type = PyrexTypes.error_type
+
             # Make the types in our CFuncType specific.
             type = copied_node.type.specialize(fused_to_specific)
             entry = copied_node.entry
