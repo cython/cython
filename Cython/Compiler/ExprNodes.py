@@ -7203,6 +7203,11 @@ class AttributeNode(ExprNode):
         possible_type = None
         # attempt to warn the user if it looks like they should have typed a variable
         if self.obj.is_name and self.obj.entry:
+            if ((self.obj.entry.name == "self" and self.obj.entry.is_arg)
+                    or self.obj.entry.is_self_arg):
+                return  # skip self args by default (using the name is as a test is a bit fuzzy
+                    # but since we're only detecting for warnings it'll do)
+
             for assignment in self.obj.entry.cf_assignments:
                 tp = assignment.rhs.type
                 if not tp or (not tp.is_extension_type) or tp == possible_type:
