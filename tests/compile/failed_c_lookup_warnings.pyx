@@ -3,6 +3,8 @@
 
 # Test detection of obvious cases where the user intended to use a cdef function but failed to type it
 
+cimport cython
+
 cdef class C:
     cdef int val1
     cdef public int val2
@@ -33,24 +35,26 @@ def g():
 
 cdef c = C()
 c.func1()
+with cython.warn.should_be_ctyped(False):
+    c.func1()
 c.func2()
 c.func3()
 c.val1 = 5
 c.val2 = 5
 
 _WARNINGS = """
-18:5: 'c' is typed as a Python object; if you intended to lookup 'C.func1' then you must specify the type of 'c'
-19:5: 'c' is typed as a Python object; to enable fast C lookup of 'C.func2' then you must specify the type of 'c'
-21:5: 'c' is typed as a Python object; if you intended to lookup 'C.val1' then you must specify the type of 'c'
-22:5: 'c' is typed as a Python object; to enable fast C lookup of 'C.val2' then you must specify the type of 'c'
-28:10: This expression is typed as a Python object; if you intended to lookup 'C.func1' then you must specify the type of this expression
-29:10: This expression is typed as a Python object; to enable fast C lookup of 'C.func2' then you must specify the type of this expression
-31:10: This expression is typed as a Python object; if you intended to lookup 'C.val1' then you must specify the type of this expression
-32:10: This expression is typed as a Python object; to enable fast C lookup of 'C.val2' then you must specify the type of this expression
-35:1: 'c' is typed as a Python object; if you intended to lookup 'C.func1' then you must specify the type of 'c'
-36:1: 'c' is typed as a Python object; to enable fast C lookup of 'C.func2' then you must specify the type of 'c'
-38:1: 'c' is typed as a Python object; if you intended to lookup 'C.val1' then you must specify the type of 'c'
-39:1: 'c' is typed as a Python object; to enable fast C lookup of 'C.val2' then you must specify the type of 'c'
+20:5: 'c' is typed as a Python object; if you intended to lookup 'C.func1' then you must specify the type of 'c'
+21:5: 'c' is typed as a Python object; to enable fast C lookup of 'C.func2' then you must specify the type of 'c'
+23:5: 'c' is typed as a Python object; if you intended to lookup 'C.val1' then you must specify the type of 'c'
+24:5: 'c' is typed as a Python object; to enable fast C lookup of 'C.val2' then you must specify the type of 'c'
+30:10: This expression is typed as a Python object; if you intended to lookup 'C.func1' then you must specify the type of this expression
+31:10: This expression is typed as a Python object; to enable fast C lookup of 'C.func2' then you must specify the type of this expression
+33:10: This expression is typed as a Python object; if you intended to lookup 'C.val1' then you must specify the type of this expression
+34:10: This expression is typed as a Python object; to enable fast C lookup of 'C.val2' then you must specify the type of this expression
+37:1: 'c' is typed as a Python object; if you intended to lookup 'C.func1' then you must specify the type of 'c'
+40:1: 'c' is typed as a Python object; to enable fast C lookup of 'C.func2' then you must specify the type of 'c'
+42:1: 'c' is typed as a Python object; if you intended to lookup 'C.val1' then you must specify the type of 'c'
+43:1: 'c' is typed as a Python object; to enable fast C lookup of 'C.val2' then you must specify the type of 'c'
 # BUG:
-11:10: 'func2' redeclared
+13:10: 'func2' redeclared
 """

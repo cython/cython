@@ -957,7 +957,13 @@ to turn the warning on / off.
 ``warn.multiple_declarators`` (default True)
    Warns about multiple variables declared on the same line with at least one pointer type.
    For example ``cdef double* a, b`` - which, as in C, declares ``a`` as a pointer, ``b`` as
-   a value type, but could be mininterpreted as declaring two pointers.
+   a value type, but could be misinterpreted as declaring two pointers.
+
+``warn.should_be_ctyped`` (default True)
+   Warns when Cython thinks the user is trying to lookup a ``cdef`` attribute of a
+   ``cdef class`` but the variable does not have a specific type set (e.g.
+   ``cdef a = Foo; a.cdef_func_of_foo()``). This can generate false positives so it
+   may be useful to disable it locally (e.g. ``with cython.warn.should_be_ctyped(False):``).
 
 
 .. _how_to_set_directives:

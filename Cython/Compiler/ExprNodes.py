@@ -7189,6 +7189,9 @@ class AttributeNode(ExprNode):
             self.python_attribute_lookup_warnings(env)
 
     def python_attribute_lookup_warnings(self, env):
+        if not env.directives['warn.should_be_ctyped']:
+            return
+
         def entry_matches(tp_scope):
             entry = tp_scope.lookup(self.attribute)
             if entry and (entry.is_cfunction or
@@ -7202,7 +7205,7 @@ class AttributeNode(ExprNode):
         if self.obj.is_name and self.obj.entry:
             for assignment in self.obj.entry.cf_assignments:
                 tp = assignment.rhs.type
-                if (not tp.is_extension_type) or tp == possible_type:
+                if not tp or (not tp.is_extension_type) or tp == possible_type:
                     continue
                 entry = entry_matches(tp.scope)
                 if entry:
