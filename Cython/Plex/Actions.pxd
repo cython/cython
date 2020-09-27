@@ -5,21 +5,21 @@ cdef class Action:
     cpdef same_as(self, other)
 
 cdef class Return(Action):
-    cdef object value
+    cdef public object value
     cdef perform(self, token_stream, text)
     cpdef same_as(self, other)
 
 cdef class Call(Action):
-    cdef object function
+    cdef public object function
     cdef perform(self, token_stream, text)
     cpdef same_as(self, other)
 
 cdef class Method(Action):
-    cdef str name
-    cdef dict kwargs
+    cdef public str name
+    cdef public dict kwargs
 
 cdef class Begin(Action):
-    cdef object state_name
+    cdef public object state_name
     cdef perform(self, token_stream, text)
     cpdef same_as(self, other)
 
