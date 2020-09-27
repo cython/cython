@@ -7192,6 +7192,10 @@ class AttributeNode(ExprNode):
         if not env.directives['warn.should_be_ctyped']:
             return
 
+        if self.obj.type is not py_object_type:
+            # it's typed as *something*
+            return
+
         def entry_matches(tp_scope):
             entry = tp_scope.lookup(self.attribute)
             if entry and (entry.is_cfunction or

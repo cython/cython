@@ -452,7 +452,7 @@ cdef class memoryview:
 
         return obj
 
-    cdef setitem_slice_assignment(self, dst, src):
+    cdef setitem_slice_assignment(self, memoryview dst, memoryview src):
         cdef {{memviewslice_name}} dst_slice
         cdef {{memviewslice_name}} src_slice
         cdef {{memviewslice_name}} msrc = get_slice_from_memview(src, &src_slice)[0]
