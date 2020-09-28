@@ -39,14 +39,6 @@ env:
 
 matrix:
   include:
-    # slowest first
-    - os: osx
-      osx_image: xcode10.3
-      env: PY=2 MACOSX_DEPLOYMENT_TARGET=10.9
-      python: 2
-      language: c
-      compiler: clang
-      cache: false
     - os: osx
       osx_image: xcode10.3
       env: PY=3 MACOSX_DEPLOYMENT_TARGET=10.9
@@ -57,50 +49,6 @@ matrix:
 # Disabled: coverage analysis takes excessively long, several times longer than without.
 #    - python: 3.7
 #      env: COVERAGE=1
-    - python: 3.7
-      env: TEST_CODE_STYLE=1
-    - python: 3.8
-      env: LIMITED_API=--limited-api EXCLUDE=--no-file
-    - python: 3.7
-      env: LIMITED_API=--limited-api EXCLUDE=--no-file
-    - python: 3.6
-      env: LIMITED_API=--limited-api EXCLUDE=--no-file
-    - python: 3.8
-      arch: arm64
-      env: BACKEND=c
-    - python: 3.8
-      arch: arm64
-      env: BACKEND=cpp
-    - python: 3.8
-      arch: ppc64le
-      env: BACKEND=c
-    - python: 3.8
-      arch: ppc64le
-      env: BACKEND=cpp
-# s390x currently shows test failures.
-#    - python: 3.8
-#      arch: s390x
-#      env: BACKEND=c
-#    - python: 3.8
-#      arch: s390x
-#      env: BACKEND=cpp
-    - env: STACKLESS=true BACKEND=c PY=2
-      python: 2.7
-    - env: STACKLESS=true BACKEND=c PY=3
-      python: 3.6
-    - python: pypy
-      env: BACKEND=c
-    - python: pypy3
-      env: BACKEND=c
-# a secondary pypy tests which is allowed to fail and which specifically
-# tests known bugs
-    - python: pypy
-      env: BACKEND=c EXCLUDE="--listfile=tests/pypy_bugs.txt --listfile=tests/pypy2_bugs.txt bugs"
-    - python: pypy3
-      env: BACKEND=c EXCLUDE="--listfile=tests/pypy_bugs.txt bugs"
-  allow_failures:
-    - env: BACKEND=c EXCLUDE="--listfile=tests/pypy_bugs.txt bugs"
-    - env: BACKEND=c EXCLUDE="--listfile=tests/pypy_bugs.txt --listfile=tests/pypy2_bugs.txt bugs"
 
 
 before_install:

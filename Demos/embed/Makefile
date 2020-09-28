@@ -33,6 +33,8 @@ paths:
 	@echo "SYSLIBS=$(SYSLIBS)"
 
 embedded: embedded.o
+	ls $(LIBDIR1)
+	ls $(LIBDIR2)
 	$(LINKCC) -o $@ $^ -L$(LIBDIR1) -L$(LIBDIR2) -l$(PYLIB) $(LIBS) $(SYSLIBS) $(LINKFORSHARED)
 
 embedded.o: embedded.c
@@ -49,5 +51,6 @@ clean:
 	@rm -f *~ *.o *.so core core.* *.c embedded test.output
 
 test: clean all
+	LD_LIBRARY_PATH=$(LIBDIR1):$$LD_LIBRARY_PATH ldd ./embedded
 	LD_LIBRARY_PATH=$(LIBDIR1):$$LD_LIBRARY_PATH ./embedded 2>&1 | tee test.output
 	$(PYTHON) assert_equal.py embedded.output test.output
