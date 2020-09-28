@@ -682,7 +682,7 @@ class Scope(object):
                 entry.name, entry.visibility))
 
     def declare_enum(self, name, pos, cname, scoped, typedef_flag,
-            visibility='private', api=0, create_wrapper=0):
+            visibility='private', api=0, create_wrapper=0, doc=None):
         if name:
             if not cname:
                 if (self.in_cinclude or visibility == 'public'
@@ -696,9 +696,9 @@ class Scope(object):
                 namespace = None
 
             if scoped:
-                type = PyrexTypes.CppScopedEnumType(name, cname, namespace)
+                type = PyrexTypes.CppScopedEnumType(name, cname, namespace, doc=doc)
             else:
-                type = PyrexTypes.CEnumType(name, cname, typedef_flag, namespace)
+                type = PyrexTypes.CEnumType(name, cname, typedef_flag, namespace, doc=doc)
         else:
             type = PyrexTypes.c_anon_enum_type
         entry = self.declare_type(name, type, pos, cname = cname,

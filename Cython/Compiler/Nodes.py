@@ -1563,17 +1563,23 @@ class CEnumDefNode(StatNode):
     #  in_pxd             boolean
     #  create_wrapper     boolean
     #  entry              Entry
+    #  doc                EncodedString or None    Doc string
 
     child_attrs = ["items", "underlying_type"]
+    doc = None
 
     def declare(self, env):
+        doc = None
+        if Options.docstrings:
+            doc = embed_position(self.pos, self.doc)
+
         self.entry = env.declare_enum(
             self.name, self.pos,
             cname=self.cname,
             scoped=self.scoped,
             typedef_flag=self.typedef_flag,
             visibility=self.visibility, api=self.api,
-            create_wrapper=self.create_wrapper)
+            create_wrapper=self.create_wrapper, doc=doc)
 
     def analyse_declarations(self, env):
         scope = None
@@ -2275,7 +2281,7 @@ class FuncDefNode(StatNode, BlockNode):
             error(arg.pos, "Argument type '%s' is incomplete" % arg.type)
         entry = env.declare_arg(arg.name, arg.type, arg.pos)
         if arg.annotation:
-            entry.annotation = arg.annotation.expr
+            entry.annotation = arg.annotation
         return entry
 
     def generate_arg_type_test(self, arg, code):
