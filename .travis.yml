@@ -18,12 +18,6 @@ cache:
 
 python:
   - 3.8
-  - 2.7
-  - 3.9-dev
-  - 3.7
-  - 3.6
-  - 3.5
-  - 3.4
 
 env:
   global:
@@ -35,7 +29,6 @@ env:
     - BACKEND=c,cpp
   matrix:
     - BACKEND=c
-    - BACKEND=cpp
 
 matrix:
   include:
