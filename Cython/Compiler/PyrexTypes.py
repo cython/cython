@@ -175,6 +175,7 @@ class PyrexType(BaseType):
     #  is_ptr                boolean     Is a C pointer type
     #  is_null_ptr           boolean     Is the type of NULL
     #  is_reference          boolean     Is a C reference type
+    #  is_rvalue_reference   boolean     Is a C++ rvalue reference type
     #  is_const              boolean     Is a C const type
     #  is_volatile           boolean     Is a C volatile type
     #  is_cv_qualified       boolean     Is a C const or volatile type
@@ -2802,8 +2803,6 @@ class CFakeReferenceType(CReferenceType):
 
 class CppRvalueReferenceType(CReferenceBaseType):
 
-    is_reference = 0
-    is_fake_reference = 0
     is_rvalue_reference = 1
 
     def __str__(self):

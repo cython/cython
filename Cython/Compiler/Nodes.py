@@ -541,7 +541,7 @@ class CPtrDeclaratorNode(CDeclaratorNode):
         return self.base.analyse(ptr_type, env, nonempty=nonempty, visibility=visibility, in_pxd=in_pxd)
 
 
-class CBaseReferenceDeclaratorNode(CDeclaratorNode):
+class _CReferenceDeclaratorBaseNode(CDeclaratorNode):
     child_attrs = ["base"]
 
     def declared_name(self):
@@ -551,7 +551,7 @@ class CBaseReferenceDeclaratorNode(CDeclaratorNode):
         return self.base.analyse_templates()
 
 
-class CReferenceDeclaratorNode(CBaseReferenceDeclaratorNode):
+class CReferenceDeclaratorNode(_CReferenceDeclaratorBaseNode):
     def analyse(self, base_type, env, nonempty=0, visibility=None, in_pxd=False):
         if base_type.is_pyobject:
             error(self.pos, "Reference base type cannot be a Python object")
@@ -559,7 +559,7 @@ class CReferenceDeclaratorNode(CBaseReferenceDeclaratorNode):
         return self.base.analyse(ref_type, env, nonempty=nonempty, visibility=visibility, in_pxd=in_pxd)
 
 
-class CppRvalueReferenceDeclaratorNode(CBaseReferenceDeclaratorNode):
+class CppRvalueReferenceDeclaratorNode(_CReferenceDeclaratorBaseNode):
     def analyse(self, base_type, env, nonempty=0, visibility=None, in_pxd=False):
         if base_type.is_pyobject:
             error(self.pos, "Rvalue-reference base type cannot be a Python object")

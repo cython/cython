@@ -5784,13 +5784,7 @@ class SimpleCallNode(CallNode):
                         if self.args[i].is_lvalue():
                             arg_types[i] = PyrexTypes.c_ref_type(arg_types[i])
 
-            entry = PyrexTypes.best_match(
-                arg_types,
-                alternatives,
-                self.pos,
-                env,
-                args
-            )
+            entry = PyrexTypes.best_match(arg_types, alternatives, self.pos, env, args)
 
             if not entry:
                 self.type = PyrexTypes.error_type
