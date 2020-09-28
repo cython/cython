@@ -4948,10 +4948,7 @@ def c_ref_type(base_type):
 
 def cpp_rvalue_ref_type(base_type):
     # Construct a C++ rvalue reference type
-    if base_type is error_type:
-        return error_type
-    else:
-        return CppRvalueReferenceType(base_type)
+    return _construct_type_from_base(CppRvalueReferenceType, base_type)
 
 def c_const_type(base_type):
     # Construct a C const type.
