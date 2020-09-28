@@ -35,7 +35,7 @@ paths:
 embedded: embedded.o
 	ls $(LIBDIR1)
 	ls $(LIBDIR2)
-	$(LINKCC) -o $@ $^ -L$(LIBDIR1) -L$(LIBDIR2) -l$(PYLIB) $(LIBS) $(SYSLIBS) $(LINKFORSHARED)
+	$(LINKCC) -o $@ $^ -Wl,-rpath=$(LIBDIR1) -L$(LIBDIR1) -L$(LIBDIR2) -l$(PYLIB) $(LIBS) $(SYSLIBS) $(LINKFORSHARED)
 
 embedded.o: embedded.c
 	$(CC) -c $^ -I$(INCDIR) -I$(PLATINCDIR)
