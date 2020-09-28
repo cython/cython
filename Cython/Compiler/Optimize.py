@@ -319,7 +319,7 @@ class IterationTransform(Visitor.EnvTransform):
             return node
         elif len(args) > 1:
             error(reversed_function.pos,
-                  "reversed() takes exactly 1 argument")1. 1. 1. 1. 1. 
+                  "reversed() takes exactly 1 argument")
             return node
         arg = args[0]
 
