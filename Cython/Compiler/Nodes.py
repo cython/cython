@@ -783,10 +783,10 @@ class CFuncDeclaratorNode(CDeclaratorNode):
             func_type.calling_convention = callspec
 
         if func_type.return_type.is_rvalue_reference:
-            error(self.pos, "Rvalue-reference as function return type not supported")
+            warning(self.pos, "Rvalue-reference as function return type not supported", 1)
         for arg in func_type.args:
             if arg.type.is_rvalue_reference and not arg.is_forwarding_reference():
-                error(self.pos, "Rvalue-reference as function argument not supported")
+                warning(self.pos, "Rvalue-reference as function argument not supported", 1)
 
         return self.base.analyse(func_type, env, visibility=visibility, in_pxd=in_pxd)
 

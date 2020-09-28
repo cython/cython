@@ -1,5 +1,5 @@
 # mode: error
-# tag: cpp, cpp11
+# tag: werror, cpp, cpp11
 
 # These tests check for unsupported use of rvalue-references (&&)
 # and should be removed or cleaned up when support is added.
