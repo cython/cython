@@ -128,7 +128,8 @@ def inject_utility_code_stage_factory(context):
                         module_node.scope.utility_code_list.append(dep)
             tree = utilcode.get_tree(cython_scope=context.cython_scope)
             if tree:
-                module_node.merge_in(tree.body, tree.scope, merge_scope=True)
+                module_node.merge_in(tree.with_compiler_directives(),
+                                     tree.scope, merge_scope=True)
         return module_node
     return inject_utility_code_stage
 
@@ -238,7 +239,7 @@ def create_pyx_pipeline(context, options, result, py=False, exclude_classes=()):
         test_support.append(TreeAssertVisitor())
 
     if options.gdb_debug:
-        from ..Debugger import DebugWriter # requires Py2.5+
+        from ..Debugger import DebugWriter  # requires Py2.5+
         from .ParseTreeTransforms import DebugTransform
         context.gdb_debug_outputwriter = DebugWriter.CythonDebugWriter(
             options.output_dir)

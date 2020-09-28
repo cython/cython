@@ -5,6 +5,17 @@ cdef extern from "Python.h":
         pass
 
 cdef extern from "datetime.h":
+    """
+    #if PY_MAJOR_VERSION < 3 && !defined(PyDateTime_DELTA_GET_DAYS)
+    #define PyDateTime_DELTA_GET_DAYS(o)         (((PyDateTime_Delta*)o)->days)
+    #endif
+    #if PY_MAJOR_VERSION < 3 && !defined(PyDateTime_DELTA_GET_SECONDS)
+    #define PyDateTime_DELTA_GET_SECONDS(o)      (((PyDateTime_Delta*)o)->seconds)
+    #endif
+    #if PY_MAJOR_VERSION < 3 && !defined(PyDateTime_DELTA_GET_MICROSECONDS)
+    #define PyDateTime_DELTA_GET_MICROSECONDS(o)   (((PyDateTime_Delta*)o)->microseconds)
+    #endif
+    """
 
     ctypedef extern class datetime.date[object PyDateTime_Date]:
         pass
@@ -90,9 +101,9 @@ cdef extern from "datetime.h":
     int PyDateTime_TIME_GET_MICROSECOND(object o)
 
     # Getters for timedelta (C macros).
-    #int PyDateTime_DELTA_GET_DAYS(object o)
-    #int PyDateTime_DELTA_GET_SECONDS(object o)
-    #int PyDateTime_DELTA_GET_MICROSECONDS(object o)
+    int PyDateTime_DELTA_GET_DAYS(object o)
+    int PyDateTime_DELTA_GET_SECONDS(object o)
+    int PyDateTime_DELTA_GET_MICROSECONDS(object o)
 
     # PyDateTime CAPI object.
     PyDateTime_CAPI *PyDateTimeAPI
@@ -210,3 +221,14 @@ cdef inline int timedelta_seconds(object o):
 # Get microseconds of timedelta
 cdef inline int timedelta_microseconds(object o):
     return (<PyDateTime_Delta*>o).microseconds
+
+cdef inline double total_seconds(timedelta obj):
+    # Mirrors the "timedelta.total_seconds()" method.
+    # Note that this implementation is not guaranteed to give *exactly* the same
+    # result as the original method, due to potential differences in floating point rounding.
+    cdef:
+        double days, seconds, micros
+    days = <double>PyDateTime_DELTA_GET_DAYS(obj)
+    seconds = <double>PyDateTime_DELTA_GET_SECONDS(obj)
+    micros = <double>PyDateTime_DELTA_GET_MICROSECONDS(obj)
+    return days * 24 * 3600 + seconds + micros / 1_000_000

@@ -1,4 +1,5 @@
 # cython: language_level=3str
+# cython: auto_pickle=True
 
 from __future__ import absolute_import
 
@@ -216,7 +217,7 @@ class ControlFlow(object):
         visited.remove(self.entry_point)
         for block in visited:
             if block.empty():
-                for parent in block.parents: # Re-parent
+                for parent in block.parents:  # Re-parent
                     for child in block.children:
                         parent.add_child(child)
                 block.detach()
@@ -454,7 +455,7 @@ class GVContext(object):
         start = min(block.positions)
         stop = max(block.positions)
         srcdescr = start[0]
-        if not srcdescr in self.sources:
+        if srcdescr not in self.sources:
             self.sources[srcdescr] = list(srcdescr.get_lines())
         lines = self.sources[srcdescr]
         return '\\n'.join([l.strip() for l in lines[start[1] - 1:stop[1]]])
@@ -620,7 +621,7 @@ def check_definitions(flow, compiler_directives):
     # Unused result
     for assmt in assignments:
         if (not assmt.refs and not assmt.entry.is_pyclass_attr
-            and not assmt.entry.in_closure):
+                and not assmt.entry.in_closure):
             if assmt.entry.cf_references and warn_unused_result:
                 if assmt.is_arg:
                     messages.warning(assmt.pos, "Unused argument value '%s'" %
@@ -773,13 +774,16 @@ class ControlFlowAnalysis(CythonTransform):
                 entry = lhs.entry
             else:
                 entry = self.env.lookup(lhs.name)
-            if entry is None: # TODO: This shouldn't happen...
+            if entry is None:  # TODO: This shouldn't happen...
                 return
             self.flow.mark_assignment(lhs, rhs, entry)
         elif lhs.is_sequence_constructor:
             for i, arg in enumerate(lhs.args):
-                if not rhs or arg.is_starred:
-                    item_node = None
+                if arg.is_starred:
+                    # "a, *b = x" assigns a list to "b"
+                    item_node = TypedExprNode(Builtin.list_type, may_be_none=False, pos=arg.pos)
+                elif rhs is self.object_expr:
+                    item_node = rhs
                 else:
                     item_node = rhs.inferable_item_node(i)
                 self.mark_assignment(arg, item_node)
@@ -804,7 +808,7 @@ class ControlFlowAnalysis(CythonTransform):
         return node
 
     def visit_AssignmentNode(self, node):
-        raise InternalError("Unhandled assignment node")
+        raise InternalError("Unhandled assignment node %s" % type(node))
 
     def visit_SingleAssignmentNode(self, node):
         self._visit(node.rhs)
@@ -880,6 +884,12 @@ class ControlFlowAnalysis(CythonTransform):
     def visit_Node(self, node):
         self.visitchildren(node)
         self.mark_position(node)
+        return node
+
+    def visit_SizeofVarNode(self, node):
+        return node
+
+    def visit_TypeidNode(self, node):
         return node
 
     def visit_IfStatNode(self, node):
@@ -1025,7 +1035,7 @@ class ControlFlowAnalysis(CythonTransform):
         elif isinstance(node, Nodes.AsyncForStatNode):
             # not entirely correct, but good enough for now
             self.mark_assignment(node.target, node.item)
-        else: # Parallel
+        else:  # Parallel
             self.mark_assignment(node.target)
 
         # Body block
@@ -1210,7 +1220,6 @@ class ControlFlowAnalysis(CythonTransform):
         if self.flow.loops:
             self.flow.loops[-1].exceptions.append(descr)
         self.flow.block = body_block
-        ## XXX: Is it still required
         body_block.add_child(entry_point)
         self.flow.nextblock()
         self._visit(node.body)
@@ -1245,11 +1254,18 @@ class ControlFlowAnalysis(CythonTransform):
         self.mark_position(node)
         self.visitchildren(node)
 
-        for exception in self.flow.exceptions[::-1]:
-            if exception.finally_enter:
-                self.flow.block.add_child(exception.finally_enter)
-                if exception.finally_exit:
-                    exception.finally_exit.add_child(self.flow.exit_point)
+        outer_exception_handlers = iter(self.flow.exceptions[::-1])
+        for handler in outer_exception_handlers:
+            if handler.finally_enter:
+                self.flow.block.add_child(handler.finally_enter)
+                if handler.finally_exit:
+                    # 'return' goes to function exit, or to the next outer 'finally' clause
+                    exit_point = self.flow.exit_point
+                    for next_handler in outer_exception_handlers:
+                        if next_handler.finally_enter:
+                            exit_point = next_handler.finally_enter
+                            break
+                    handler.finally_exit.add_child(exit_point)
                 break
         else:
             if self.flow.block:

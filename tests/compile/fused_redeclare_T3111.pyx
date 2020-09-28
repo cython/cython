@@ -22,14 +22,14 @@ def foo(dtype_t[:] a, dtype_t_out[:, :] b):
 # "__pyxutil:16:4: '___pyx_npy_uint8' redeclared".  The remaining warnings are
 # unrelated to this test.
 _WARNINGS = """
-# cpdef redeclaration bug
-22:10: 'cpdef_method' redeclared
-33:10: 'cpdef_cname_method' redeclared
+# cpdef redeclaration bug, from TestCythonScope.pyx
+25:10: 'cpdef_method' redeclared
+36:10: 'cpdef_cname_method' redeclared
 # from MemoryView.pyx
-981:29: Ambiguous exception value, same as default return value: 0
-981:29: Ambiguous exception value, same as default return value: 0
-1008:46: Ambiguous exception value, same as default return value: 0
-1008:46: Ambiguous exception value, same as default return value: 0
-1098:29: Ambiguous exception value, same as default return value: 0
-1098:29: Ambiguous exception value, same as default return value: 0
+987:29: Ambiguous exception value, same as default return value: 0
+987:29: Ambiguous exception value, same as default return value: 0
+1014:46: Ambiguous exception value, same as default return value: 0
+1014:46: Ambiguous exception value, same as default return value: 0
+1104:29: Ambiguous exception value, same as default return value: 0
+1104:29: Ambiguous exception value, same as default return value: 0
 """

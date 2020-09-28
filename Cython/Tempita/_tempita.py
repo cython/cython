@@ -336,7 +336,7 @@ class Template(object):
                 if not isinstance(value, basestring_):
                     value = coerce_text(value)
                 if (is_unicode(value)
-                    and self.default_encoding):
+                        and self.default_encoding):
                     value = value.encode(self.default_encoding)
         except Exception as e:
             e.args = (self._add_line_info(e.args[0], pos),)
@@ -724,7 +724,7 @@ def trim_lex(tokens):
         else:
             next_chunk = tokens[i + 1]
         if (not isinstance(next_chunk, basestring_)
-            or not isinstance(prev, basestring_)):
+                or not isinstance(prev, basestring_)):
             continue
         prev_ok = not prev or trail_whitespace_re.search(prev)
         if i == 1 and not prev.strip():
@@ -736,7 +736,7 @@ def trim_lex(tokens):
                  or (i == len(tokens) - 2 and not next_chunk.strip()))):
             if prev:
                 if ((i == 1 and not prev.strip())
-                    or prev_ok == 'last'):
+                        or prev_ok == 'last'):
                     tokens[i - 1] = ''
                 else:
                     m = trail_whitespace_re.search(prev)
@@ -888,7 +888,7 @@ def parse_cond(tokens, name, context):
                 'Missing {{endif}}',
                 position=start, name=name)
         if (isinstance(tokens[0], tuple)
-            and tokens[0][0] == 'endif'):
+                and tokens[0][0] == 'endif'):
             return ('cond', start) + tuple(pieces), tokens[1:]
         next_chunk, tokens = parse_one_cond(tokens, name, context)
         pieces.append(next_chunk)
@@ -950,7 +950,7 @@ def parse_for(tokens, name, context):
                 'No {{endfor}}',
                 position=pos, name=name)
         if (isinstance(tokens[0], tuple)
-            and tokens[0][0] == 'endfor'):
+                and tokens[0][0] == 'endfor'):
             return ('for', pos, vars, expr, content), tokens[1:]
         next_chunk, tokens = parse_expr(tokens, name, context)
         content.append(next_chunk)
@@ -1010,7 +1010,7 @@ def parse_def(tokens, name, context):
                 'Missing {{enddef}}',
                 position=start, name=name)
         if (isinstance(tokens[0], tuple)
-            and tokens[0][0] == 'enddef'):
+                and tokens[0][0] == 'enddef'):
             return ('def', start, func_name, sig, content), tokens[1:]
         next_chunk, tokens = parse_expr(tokens, name, context)
         content.append(next_chunk)
@@ -1073,7 +1073,7 @@ def parse_signature(sig_text, name, pos):
                     raise TemplateError('Invalid signature: (%s)' % sig_text,
                                         position=pos, name=name)
                 if (not nest_count and
-                    (tok_type == tokenize.ENDMARKER or (tok_type == tokenize.OP and tok_string == ','))):
+                        (tok_type == tokenize.ENDMARKER or (tok_type == tokenize.OP and tok_string == ','))):
                     default_expr = isolate_expression(sig_text, start_pos, end_pos)
                     defaults[var_name] = default_expr
                     sig_args.append(var_name)

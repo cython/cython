@@ -65,6 +65,25 @@ matrix:
       env: LIMITED_API=--limited-api EXCLUDE=--no-file
     - python: 3.6
       env: LIMITED_API=--limited-api EXCLUDE=--no-file
+    - python: 3.8
+      arch: arm64
+      env: BACKEND=c
+    - python: 3.8
+      arch: arm64
+      env: BACKEND=cpp
+    - python: 3.8
+      arch: ppc64le
+      env: BACKEND=c
+    - python: 3.8
+      arch: ppc64le
+      env: BACKEND=cpp
+# s390x currently shows test failures.
+#    - python: 3.8
+#      arch: s390x
+#      env: BACKEND=c
+#    - python: 3.8
+#      arch: s390x
+#      env: BACKEND=cpp
     - env: STACKLESS=true BACKEND=c PY=2
       python: 2.7
     - env: STACKLESS=true BACKEND=c PY=3
@@ -83,10 +102,6 @@ matrix:
     - env: BACKEND=c EXCLUDE="--listfile=tests/pypy_bugs.txt bugs"
     - env: BACKEND=c EXCLUDE="--listfile=tests/pypy_bugs.txt --listfile=tests/pypy2_bugs.txt bugs"
 
-branches:
-  only:
-    - master
-    - release
 
 before_install:
   - |

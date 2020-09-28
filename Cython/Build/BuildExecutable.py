@@ -28,7 +28,7 @@ if PYLIB_DYN == PYLIB:
     # no shared library
     PYLIB_DYN = ''
 else:
-    PYLIB_DYN = os.path.splitext(PYLIB_DYN[3:])[0] # 'lib(XYZ).so' -> XYZ
+    PYLIB_DYN = os.path.splitext(PYLIB_DYN[3:])[0]  # 'lib(XYZ).so' -> XYZ
 
 CC = get_config_var('CC', os.environ.get('CC', ''))
 CFLAGS = get_config_var('CFLAGS') + ' ' + os.environ.get('CFLAGS', '')
@@ -65,12 +65,8 @@ def runcmd(cmd, shell=True):
     else:
         _debug(' '.join(cmd))
 
-    try:
-        import subprocess
-    except ImportError: # Python 2.3 ...
-        returncode = os.system(cmd)
-    else:
-        returncode = subprocess.call(cmd, shell=shell)
+    import subprocess
+    returncode = subprocess.call(cmd, shell=shell)
 
     if returncode:
         sys.exit(returncode)
@@ -105,7 +101,7 @@ def build(input_file, compiler_args=(), force=False):
     if not force and os.path.abspath(exe_file) == os.path.abspath(input_file):
         raise ValueError("Input and output file names are the same, refusing to overwrite")
     if (not force and os.path.exists(exe_file) and os.path.exists(input_file)
-        and os.path.getmtime(input_file) <= os.path.getmtime(exe_file)):
+            and os.path.getmtime(input_file) <= os.path.getmtime(exe_file)):
         _debug("File is up to date, not regenerating %s", exe_file)
         return exe_file
     cycompile(input_file, compiler_args)

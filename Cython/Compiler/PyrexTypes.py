@@ -182,6 +182,7 @@ class PyrexType(BaseType):
     #  is_struct_or_union    boolean     Is a C struct or union type
     #  is_struct             boolean     Is a C struct type
     #  is_enum               boolean     Is a C enum type
+    #  is_cpp_enum           boolean     Is a C++ scoped enum type
     #  is_typedef            boolean     Is a typedef type
     #  is_string             boolean     Is a C char * type
     #  is_pyunicode_ptr      boolean     Is a C PyUNICODE * type
@@ -193,7 +194,8 @@ class PyrexType(BaseType):
     #  is_pythran_expr       boolean     Is Pythran expr
     #  is_numpy_buffer       boolean     Is Numpy array buffer
     #  has_attributes        boolean     Has C dot-selectable attributes
-    #  needs_refcounting          boolean     Needs code to be generated similar to incref/gotref/decref.
+    #  needs_cpp_construction  boolean     Needs C++ constructor and destructor when used in a cdef class
+    #  needs_refcounting     boolean     Needs code to be generated similar to incref/gotref/decref.
     #                                    Largely used internally.
     #  default_value         string      Initial value that can be assigned before first user assignment.
     #  declaration_value     string      The value statically assigned on declaration (if any).
@@ -248,6 +250,7 @@ class PyrexType(BaseType):
     is_cpp_string = 0
     is_struct = 0
     is_enum = 0
+    is_cpp_enum = False
     is_typedef = 0
     is_string = 0
     is_pyunicode_ptr = 0
@@ -260,6 +263,7 @@ class PyrexType(BaseType):
     is_pythran_expr = 0
     is_numpy_buffer = 0
     has_attributes = 0
+    needs_cpp_construction = 0
     needs_refcounting = 0
     default_value = ""
     declaration_value = ""
@@ -479,9 +483,9 @@ class CTypedefType(BaseType):
                                  "TO_PY_FUNCTION": self.to_py_function}))
                     return True
                 elif base_type.is_float:
-                    pass # XXX implement!
+                    pass  # XXX implement!
                 elif base_type.is_complex:
-                    pass # XXX implement!
+                    pass  # XXX implement!
                     pass
                 elif base_type.is_cpp_string:
                     cname = "__pyx_convert_PyObject_string_to_py_%s" % type_identifier(self)
@@ -512,9 +516,9 @@ class CTypedefType(BaseType):
                                  "FROM_PY_FUNCTION": self.from_py_function}))
                     return True
                 elif base_type.is_float:
-                    pass # XXX implement!
+                    pass  # XXX implement!
                 elif base_type.is_complex:
-                    pass # XXX implement!
+                    pass  # XXX implement!
                 elif base_type.is_cpp_string:
                     cname = '__pyx_convert_string_from_py_%s' % type_identifier(self)
                     context = {
@@ -669,6 +673,10 @@ class MemoryViewSliceType(PyrexType):
             return self.same_as_resolved_type(other)
         else:
             return False
+
+    def __ne__(self, other):
+        # TODO drop when Python2 is dropped
+        return not (self == other)
 
     def same_as_resolved_type(self, other_type):
         return ((other_type.is_memoryviewslice and
@@ -1440,14 +1448,9 @@ class BuiltinObjectType(PyObjectType):
             check += '||((%s) == Py_None)' % arg
         if self.name == 'basestring':
             name = '(PY_MAJOR_VERSION < 3 ? "basestring" : "str")'
-            space_for_name = 16
         else:
             name = '"%s"' % self.name
-            # avoid wasting too much space but limit number of different format strings
-            space_for_name = (len(self.name) // 16 + 1) * 16
-        error = '(PyErr_Format(PyExc_TypeError, "Expected %%.%ds, got %%.200s", %s, __Pyx_PyType_Name(Py_TYPE(%s))), 0)' % (
-            space_for_name, name, arg)
-        return check + '||' + error
+        return check + ' || __Pyx_RaiseUnexpectedTypeError(%s, %s)' % (name, arg)
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
@@ -1466,7 +1469,7 @@ class BuiltinObjectType(PyObjectType):
 
     def cast_code(self, expr_code, to_object_struct = False):
         return "((%s*)%s)" % (
-            to_object_struct and self.objstruct_cname or self.decl_type, # self.objstruct_cname may be None
+            to_object_struct and self.objstruct_cname or self.decl_type,  # self.objstruct_cname may be None
             expr_code)
 
     def py_type_name(self):
@@ -2342,8 +2345,8 @@ class CComplexType(CNumericType):
     def assignable_from(self, src_type):
         # Temporary hack/feature disabling, see #441
         if (not src_type.is_complex and src_type.is_numeric and src_type.is_typedef
-            and src_type.typedef_is_external):
-             return False
+                and src_type.typedef_is_external):
+            return False
         elif src_type.is_pyobject:
             return True
         else:
@@ -2351,8 +2354,8 @@ class CComplexType(CNumericType):
 
     def assignable_from_resolved_type(self, src_type):
         return (src_type.is_complex and self.real_type.assignable_from_resolved_type(src_type.real_type)
-                    or src_type.is_numeric and self.real_type.assignable_from_resolved_type(src_type)
-                    or src_type is error_type)
+            or src_type.is_numeric and self.real_type.assignable_from_resolved_type(src_type)
+            or src_type is error_type)
 
     def attributes_known(self):
         if self.scope is None:
@@ -2519,6 +2522,7 @@ class CPointerBaseType(CType):
         if self.is_string:
             assert isinstance(value, str)
             return '"%s"' % StringEncoding.escape_byte_string(value)
+        return str(value)
 
 
 class CArrayType(CPointerBaseType):
@@ -2538,7 +2542,7 @@ class CArrayType(CPointerBaseType):
         return False
 
     def __hash__(self):
-        return hash(self.base_type) + 28 # arbitrarily chosen offset
+        return hash(self.base_type) + 28  # arbitrarily chosen offset
 
     def __repr__(self):
         return "<CArrayType %s %s>" % (self.size, repr(self.base_type))
@@ -2670,7 +2674,7 @@ class CPtrType(CPointerBaseType):
     default_value = "0"
 
     def __hash__(self):
-        return hash(self.base_type) + 27 # arbitrarily chosen offset
+        return hash(self.base_type) + 27  # arbitrarily chosen offset
 
     def __eq__(self, other):
         if isinstance(other, CType) and other.is_ptr:
@@ -2965,8 +2969,8 @@ class CFuncType(CType):
         # is performed elsewhere).
         for i in range(as_cmethod, len(other_type.args)):
             if not self.args[i].type.same_as(
-                other_type.args[i].type):
-                    return 0
+                    other_type.args[i].type):
+                return 0
         if self.has_varargs != other_type.has_varargs:
             return 0
         if not self.return_type.subtype_of_resolved_type(other_type.return_type):
@@ -3415,7 +3419,7 @@ class CFuncTypeArg(BaseType):
             self.annotation = annotation
         self.type = type
         self.pos = pos
-        self.needs_type_test = False # TODO: should these defaults be set in analyse_types()?
+        self.needs_type_test = False  # TODO: should these defaults be set in analyse_types()?
 
     def __repr__(self):
         return "%s:%s" % (self.name, repr(self.type))
@@ -3493,7 +3497,7 @@ class CStructOrUnionType(CType):
     has_attributes = 1
     exception_check = True
 
-    def __init__(self, name, kind, scope, typedef_flag, cname, packed=False):
+    def __init__(self, name, kind, scope, typedef_flag, cname, packed=False, in_cpp=False):
         self.name = name
         self.cname = cname
         self.kind = kind
@@ -3508,6 +3512,7 @@ class CStructOrUnionType(CType):
         self._convert_to_py_code = None
         self._convert_from_py_code = None
         self.packed = packed
+        self.needs_cpp_construction = self.is_struct and in_cpp
 
     def can_coerce_to_pyobject(self, env):
         if self._convert_to_py_code is False:
@@ -3585,6 +3590,7 @@ class CStructOrUnionType(CType):
                 var_entries=self.scope.var_entries,
                 funcname=self.from_py_function,
             )
+            env.use_utility_code(UtilityCode.load_cached("RaiseUnexpectedTypeError", "ObjectHandling.c"))
             from .UtilityCode import CythonUtilityCode
             self._convert_from_py_code = CythonUtilityCode.load(
                 "FromPyStructUtility" if self.is_struct else "FromPyUnionUtility",
@@ -3677,6 +3683,7 @@ class CppClassType(CType):
 
     is_cpp_class = 1
     has_attributes = 1
+    needs_cpp_construction = 1
     exception_check = True
     namespace = None
 
@@ -3867,18 +3874,18 @@ class CppClassType(CType):
             specialized.namespace = self.namespace.specialize(values)
         specialized.scope = self.scope.specialize(values, specialized)
         if self.cname == 'std::vector':
-          # vector<bool> is special cased in the C++ standard, and its
-          # accessors do not necessarily return references to the underlying
-          # elements (which may be bit-packed).
-          # http://www.cplusplus.com/reference/vector/vector-bool/
-          # Here we pretend that the various methods return bool values
-          # (as the actual returned values are coercable to such, and
-          # we don't support call expressions as lvalues).
-          T = values.get(self.templates[0], None)
-          if T and not T.is_fused and T.empty_declaration_code() == 'bool':
-            for bit_ref_returner in ('at', 'back', 'front'):
-              if bit_ref_returner in specialized.scope.entries:
-                specialized.scope.entries[bit_ref_returner].type.return_type = T
+            # vector<bool> is special cased in the C++ standard, and its
+            # accessors do not necessarily return references to the underlying
+            # elements (which may be bit-packed).
+            # http://www.cplusplus.com/reference/vector/vector-bool/
+            # Here we pretend that the various methods return bool values
+            # (as the actual returned values are coercable to such, and
+            # we don't support call expressions as lvalues).
+            T = values.get(self.templates[0], None)
+            if T and not T.is_fused and T.empty_declaration_code() == 'bool':
+                for bit_ref_returner in ('at', 'back', 'front'):
+                    if bit_ref_returner in specialized.scope.entries:
+                        specialized.scope.entries[bit_ref_returner].type.return_type = T
         return specialized
 
     def deduce_template_params(self, actual):
@@ -4019,6 +4026,76 @@ class CppClassType(CType):
         if constructor is not None and best_match([], constructor.all_alternatives()) is None:
             error(pos, "C++ class must have a nullary constructor to be %s" % msg)
 
+class CppScopedEnumType(CType):
+    # name    string
+    # doc     string or None
+    # cname   string
+
+    is_cpp_enum = True
+
+    def __init__(self, name, cname, underlying_type, namespace=None, doc=None):
+        self.name = name
+        self.doc = doc
+        self.cname = cname
+        self.values = []
+        self.underlying_type = underlying_type
+        self.namespace = namespace
+
+    def __str__(self):
+        return self.name
+
+    def declaration_code(self, entity_code,
+                        for_display=0, dll_linkage=None, pyrex=0):
+        if pyrex or for_display:
+            type_name = self.name
+        else:
+            if self.namespace:
+                type_name = "%s::%s" % (
+                    self.namespace.empty_declaration_code(),
+                    self.cname
+                )
+            else:
+                type_name = "__PYX_ENUM_CLASS_DECL %s" % self.cname
+            type_name = public_decl(type_name, dll_linkage)
+        return self.base_declaration_code(type_name, entity_code)
+
+    def create_from_py_utility_code(self, env):
+        if self.from_py_function:
+            return True
+        if self.underlying_type.create_from_py_utility_code(env):
+            self.from_py_function = '(%s)%s' % (
+                self.cname, self.underlying_type.from_py_function
+            )
+        return True
+
+    def create_to_py_utility_code(self, env):
+        if self.to_py_function is not None:
+            return True
+        if self.underlying_type.create_to_py_utility_code(env):
+            # Using a C++11 lambda here, which is fine since
+            # scoped enums are a C++11 feature
+            self.to_py_function = '[](const %s& x){return %s((%s)x);}' % (
+                self.cname,
+                self.underlying_type.to_py_function,
+                self.underlying_type.empty_declaration_code()
+            )
+        return True
+
+    def create_type_wrapper(self, env):
+        from .UtilityCode import CythonUtilityCode
+        rst = CythonUtilityCode.load(
+            "CppScopedEnumType", "CpdefEnums.pyx",
+            context={
+                "name": self.name,
+                "cname": self.cname.split("::")[-1],
+                "items": tuple(self.values),
+                "underlying_type": self.underlying_type.empty_declaration_code(),
+                "enum_doc": self.doc,
+            },
+            outer_module_scope=env.global_scope())
+
+        env.use_utility_code(rst)
+
 
 class TemplatePlaceholderType(CType):
 
@@ -4069,16 +4146,18 @@ def is_optional_template_param(type):
 
 class CEnumType(CIntLike, CType):
     #  name           string
+    #  doc            string or None
     #  cname          string or None
     #  typedef_flag   boolean
     #  values         [string], populated during declaration analysis
 
     is_enum = 1
     signed = 1
-    rank = -1 # Ranks below any integer type
+    rank = -1  # Ranks below any integer type
 
-    def __init__(self, name, cname, typedef_flag, namespace=None):
+    def __init__(self, name, cname, typedef_flag, namespace=None, doc=None):
         self.name = name
+        self.doc = doc
         self.cname = cname
         self.values = []
         self.typedef_flag = typedef_flag
@@ -4120,7 +4199,9 @@ class CEnumType(CIntLike, CType):
         env.use_utility_code(CythonUtilityCode.load(
             "EnumType", "CpdefEnums.pyx",
             context={"name": self.name,
-                     "items": tuple(self.values)},
+                     "items": tuple(self.values),
+                     "enum_doc": self.doc,
+                     },
             outer_module_scope=env.global_scope()))
 
 
@@ -4207,6 +4288,9 @@ class CTupleType(CType):
         env.use_utility_code(self._convert_from_py_code)
         return True
 
+    def cast_code(self, expr_code):
+        return expr_code
+
 
 def c_tuple_type(components):
     components = tuple(components)
@@ -4255,14 +4339,14 @@ class ErrorType(PyrexType):
 
 
 rank_to_type_name = (
-    "char",         # 0
-    "short",        # 1
-    "int",          # 2
-    "long",         # 3
-    "PY_LONG_LONG", # 4
-    "float",        # 5
-    "double",       # 6
-    "long double",  # 7
+    "char",          # 0
+    "short",         # 1
+    "int",           # 2
+    "long",          # 3
+    "PY_LONG_LONG",  # 4
+    "float",         # 5
+    "double",        # 6
+    "long double",   # 7
 )
 
 _rank_to_type_name = list(rank_to_type_name)
@@ -4472,8 +4556,7 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
         # Check no. of args
         max_nargs = len(func_type.args)
         min_nargs = max_nargs - func_type.optional_arg_count
-        if actual_nargs < min_nargs or \
-            (not func_type.has_varargs and actual_nargs > max_nargs):
+        if actual_nargs < min_nargs or (not func_type.has_varargs and actual_nargs > max_nargs):
             if max_nargs == min_nargs and not func_type.has_varargs:
                 expectation = max_nargs
             elif actual_nargs < min_nargs:
@@ -4818,42 +4901,34 @@ def parse_basic_type(name):
             name = 'int'
     return simple_c_type(signed, longness, name)
 
-def c_array_type(base_type, size):
-    # Construct a C array type.
+
+def _construct_type_from_base(cls, base_type, *args):
     if base_type is error_type:
         return error_type
-    else:
-        return CArrayType(base_type, size)
+    return cls(base_type, *args)
+
+def c_array_type(base_type, size):
+    # Construct a C array type.
+    return _construct_type_from_base(CArrayType, base_type, size)
 
 def c_ptr_type(base_type):
     # Construct a C pointer type.
-    if base_type is error_type:
-        return error_type
-    elif base_type.is_reference:
-        return CPtrType(base_type.ref_base_type)
-    else:
-        return CPtrType(base_type)
+    if base_type.is_reference:
+        base_type = base_type.ref_base_type
+    return _construct_type_from_base(CPtrType, base_type)
 
 def c_ref_type(base_type):
     # Construct a C reference type
-    if base_type is error_type:
-        return error_type
-    else:
-        return CReferenceType(base_type)
+    return _construct_type_from_base(CReferenceType, base_type)
 
 def c_const_type(base_type):
     # Construct a C const type.
-    if base_type is error_type:
-        return error_type
-    else:
-        return CConstType(base_type)
+    return _construct_type_from_base(CConstType, base_type)
 
 def c_const_or_volatile_type(base_type, is_const, is_volatile):
     # Construct a C const/volatile type.
-    if base_type is error_type:
-        return error_type
-    else:
-        return CConstOrVolatileType(base_type, is_const, is_volatile)
+    return _construct_type_from_base(CConstOrVolatileType, base_type, is_const, is_volatile)
+
 
 def same_type(type1, type2):
     return type1.same_as(type2)

@@ -11,8 +11,6 @@ int %(wmain_method)s(int argc, wchar_t **argv) {
 #else
 static int __Pyx_main(int argc, wchar_t **argv) {
 #endif
-    wchar_t *program = NULL;
-
     /* 754 requires that FP exceptions run in "no stop" mode by default,
      * and until C vendors implement C99's ways to control FP exceptions,
      * Python requires non-stop mode.  Alas, some platforms enable FP

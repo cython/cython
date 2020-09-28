@@ -704,15 +704,17 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 
 /* Type slots */
 #if CYTHON_COMPILING_IN_LIMITED_API
-  #if defined(_PyType_Name)
-    #define __Pyx_PyType_Name(tp)     (_PyType_Name((PyTypeObject *)tp))
-  #else
-    #define __Pyx_PyType_Name(tp)     (((PyTypeObject *)tp)->tp_name)
-  #endif
   #define __Pyx_PyType_GetFlags(tp)   (PyType_GetFlags((PyTypeObject *)tp))
 #else
-  #define __Pyx_PyType_Name(tp)       (((PyTypeObject *)tp)->tp_name)
   #define __Pyx_PyType_GetFlags(tp)   (((PyTypeObject *)tp)->tp_flags)
+#endif
+
+#if CYTHON_USE_TYPE_SLOTS
+  #define __Pyx_PyType_HasFeature(type, feature)  ((__Pyx_PyType_GetFlags(type) & (feature)) != 0)
+  #define __Pyx_PyObject_GetIterNextFunc(obj)  (Py_TYPE(obj)->tp_iternext)
+#else
+  #define __Pyx_PyType_HasFeature(type, feature)  PyType_HasFeature(type, feature)
+  #define __Pyx_PyObject_GetIterNextFunc(obj)  PyIter_Next
 #endif
 
 #if CYTHON_COMPILING_IN_LIMITED_API
@@ -739,7 +741,11 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define __Pyx_PyUnicode_DATA(u)         PyUnicode_DATA(u)
   #define __Pyx_PyUnicode_READ(k, d, i)   PyUnicode_READ(k, d, i)
   #define __Pyx_PyUnicode_WRITE(k, d, i, ch)  PyUnicode_WRITE(k, d, i, ch)
+  #if defined(PyUnicode_IS_READY) && defined(PyUnicode_GET_SIZE)
   #define __Pyx_PyUnicode_IS_TRUE(u)      (0 != (likely(PyUnicode_IS_READY(u)) ? PyUnicode_GET_LENGTH(u) : PyUnicode_GET_SIZE(u)))
+  #else
+  #define __Pyx_PyUnicode_IS_TRUE(u)      (0 != PyUnicode_GET_LENGTH(u))
+  #endif
 #else
   #define CYTHON_PEP393_ENABLED 0
   #define PyUnicode_1BYTE_KIND  1
@@ -823,6 +829,14 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define PySet_CheckExact(obj)        __Pyx_IS_TYPE(obj, &PySet_Type)
 #endif
 
+#if PY_VERSION_HEX >= 0x030900A4
+  #define __Pyx_SET_REFCNT(obj, refcnt) Py_SET_REFCNT(obj, refcnt)
+  #define __Pyx_SET_SIZE(obj, size) Py_SET_SIZE(obj, size)
+#else
+  #define __Pyx_SET_REFCNT(obj, refcnt) Py_REFCNT(obj) = (refcnt)
+  #define __Pyx_SET_SIZE(obj, size) Py_SIZE(obj) = (size)
+#endif
+
 #if CYTHON_ASSUME_SAFE_MACROS
   #define __Pyx_PySequence_SIZE(seq)  Py_SIZE(seq)
 #else
@@ -887,7 +901,6 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
     } __Pyx_PyAsyncMethodsStruct;
 #endif
 
-
 /////////////// SmallCodeConfig.proto ///////////////
 
 #ifndef CYTHON_SMALL_CODE
@@ -903,24 +916,24 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 
 /////////////// PyModInitFuncType.proto ///////////////
 
-#if PY_MAJOR_VERSION < 3
+#ifndef CYTHON_NO_PYINIT_EXPORT
+#define __Pyx_PyMODINIT_FUNC PyMODINIT_FUNC
 
-#ifdef CYTHON_NO_PYINIT_EXPORT
-// define this to void manually because PyMODINIT_FUNC adds __declspec(dllexport) to it's definition.
+#elif PY_MAJOR_VERSION < 3
+// Py2: define this to void manually because PyMODINIT_FUNC adds __declspec(dllexport) to it's definition.
+#ifdef __cplusplus
+#define __Pyx_PyMODINIT_FUNC extern "C" void
+#else
 #define __Pyx_PyMODINIT_FUNC void
-#else
-#define __Pyx_PyMODINIT_FUNC PyMODINIT_FUNC
 #endif
 
 #else
-
-#ifdef CYTHON_NO_PYINIT_EXPORT
-// define this to PyObject * manually because PyMODINIT_FUNC adds __declspec(dllexport) to it's definition.
+// Py3+: define this to PyObject * manually because PyMODINIT_FUNC adds __declspec(dllexport) to it's definition.
+#ifdef __cplusplus
+#define __Pyx_PyMODINIT_FUNC extern "C" PyObject *
+#else
 #define __Pyx_PyMODINIT_FUNC PyObject *
-#else
-#define __Pyx_PyMODINIT_FUNC PyMODINIT_FUNC
 #endif
-
 #endif
 
 
@@ -928,11 +941,14 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 
 #if CYTHON_COMPILING_IN_CPYTHON
 #define __Pyx_TypeCheck(obj, type) __Pyx_IsSubtype(Py_TYPE(obj), (PyTypeObject *)type)
+#define __Pyx_TypeCheck2(obj, type1, type2) __Pyx_IsAnySubtype2(Py_TYPE(obj), (PyTypeObject *)type1, (PyTypeObject *)type2)
 static CYTHON_INLINE int __Pyx_IsSubtype(PyTypeObject *a, PyTypeObject *b);/*proto*/
+static CYTHON_INLINE int __Pyx_IsAnySubtype2(PyTypeObject *cls, PyTypeObject *a, PyTypeObject *b);/*proto*/
 static CYTHON_INLINE int __Pyx_PyErr_GivenExceptionMatches(PyObject *err, PyObject *type);/*proto*/
 static CYTHON_INLINE int __Pyx_PyErr_GivenExceptionMatches2(PyObject *err, PyObject *type1, PyObject *type2);/*proto*/
 #else
 #define __Pyx_TypeCheck(obj, type) PyObject_TypeCheck(obj, (PyTypeObject *)type)
+#define __Pyx_TypeCheck2(obj, type1, type2) (PyObject_TypeCheck(obj, (PyTypeObject *)type1) || PyObject_TypeCheck(obj, (PyTypeObject *)type2))
 #define __Pyx_PyErr_GivenExceptionMatches(err, type) PyErr_GivenExceptionMatches(err, type)
 #define __Pyx_PyErr_GivenExceptionMatches2(err, type1, type2) (PyErr_GivenExceptionMatches(err, type1) || PyErr_GivenExceptionMatches(err, type2))
 #endif
@@ -1159,10 +1175,11 @@ static CYTHON_SMALL_CODE int __Pyx_check_single_interpreter(void) {
 }
 
 #if CYTHON_COMPILING_IN_LIMITED_API
-static CYTHON_SMALL_CODE int __Pyx_copy_spec_to_module(PyObject *spec, PyObject *module, const char* from_name, const char* to_name, int allow_none) {
+static CYTHON_SMALL_CODE int __Pyx_copy_spec_to_module(PyObject *spec, PyObject *module, const char* from_name, const char* to_name, int allow_none)
 #else
-static CYTHON_SMALL_CODE int __Pyx_copy_spec_to_module(PyObject *spec, PyObject *moddict, const char* from_name, const char* to_name, int allow_none) {
+static CYTHON_SMALL_CODE int __Pyx_copy_spec_to_module(PyObject *spec, PyObject *moddict, const char* from_name, const char* to_name, int allow_none)
 #endif
+{
     PyObject *value = PyObject_GetAttrString(spec, from_name);
     int result = 0;
     if (likely(value)) {
@@ -1407,15 +1424,16 @@ static CYTHON_INLINE int __Pyx_Is_Little_Endian(void)
           } else { \
               __pyx_refnanny = __Pyx_RefNanny->SetupContext((name), __LINE__, __FILE__); \
           }
-#else
-  #define __Pyx_RefNannySetupContext(name, acquire_gil) \
-          __pyx_refnanny = __Pyx_RefNanny->SetupContext((name), __LINE__, __FILE__)
-#endif
   #define __Pyx_RefNannyFinishContextNogil() { \
               PyGILState_STATE __pyx_gilstate_save = PyGILState_Ensure(); \
               __Pyx_RefNannyFinishContext(); \
               PyGILState_Release(__pyx_gilstate_save); \
           }
+#else
+  #define __Pyx_RefNannySetupContext(name, acquire_gil) \
+          __pyx_refnanny = __Pyx_RefNanny->SetupContext((name), __LINE__, __FILE__)
+  #define __Pyx_RefNannyFinishContextNogil() __Pyx_RefNannyFinishContext()
+#endif
   #define __Pyx_RefNannyFinishContext() \
           __Pyx_RefNanny->FinishContext(&__pyx_refnanny)
   #define __Pyx_INCREF(r)  __Pyx_RefNanny->INCREF(__pyx_refnanny, (PyObject *)(r), __LINE__)
@@ -1647,7 +1665,7 @@ static void __Pyx_FastGilFuncInit(void);
 
 #if CYTHON_FAST_GIL
 
-#define __Pyx_FastGIL_ABI_module "_cython_" CYTHON_ABI
+#define __Pyx_FastGIL_ABI_module __PYX_ABI_MODULE_NAME
 #define __Pyx_FastGIL_PyCapsuleName "FastGilFuncs"
 #define __Pyx_FastGIL_PyCapsule \
     __Pyx_FastGIL_ABI_module "." __Pyx_FastGIL_PyCapsuleName

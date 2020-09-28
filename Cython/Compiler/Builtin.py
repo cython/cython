@@ -56,7 +56,7 @@ class BuiltinAttribute(object):
     def __init__(self, py_name, cname=None, field_type=None, field_type_name=None):
         self.py_name = py_name
         self.cname = cname or py_name
-        self.field_type_name = field_type_name # can't do the lookup before the type is declared!
+        self.field_type_name = field_type_name  # can't do the lookup before the type is declared!
         self.field_type = field_type
 
     def declare_in_type(self, self_type):
@@ -205,13 +205,13 @@ builtin_function_table = [
     #('raw_input', "",     "",      ""),
     #('reduce',    "",     "",      ""),
     BuiltinFunction('reload',     "O",    "O",     "PyImport_ReloadModule"),
-    BuiltinFunction('repr',       "O",    "O",     "PyObject_Repr", builtin_return_type='str'),
+    BuiltinFunction('repr',       "O",    "O",     "PyObject_Repr"),  # , builtin_return_type='str'),  # add in Cython 3.1
     #('round',     "",     "",      ""),
     BuiltinFunction('setattr',    "OOO",  "r",     "PyObject_SetAttr"),
     #('sum',       "",     "",      ""),
     #('sorted',    "",     "",      ""),
     #('type',       "O",    "O",     "PyObject_Type"),
-    #('unichr',    "",     "",      ""),
+    BuiltinFunction('unichr',     "l",    "O",      "PyUnicode_FromOrdinal", builtin_return_type='unicode'),
     #('unicode',   "",     "",      ""),
     #('vars',      "",     "",      ""),
     #('zip',       "",     "",      ""),
