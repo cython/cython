@@ -1,8 +1,8 @@
 # mode: error
 # tag: cpp, cpp11
 
-# These test check for unsupported use of rvalue-references (&&)
-# and should be when support is added.
+# These tests check for unsupported use of rvalue-references (&&)
+# and should be removed or cleaned up when support is added.
 
 cdef int&& x
 
