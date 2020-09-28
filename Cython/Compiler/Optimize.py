@@ -319,27 +319,7 @@ class IterationTransform(Visitor.EnvTransform):
             return node
         elif len(args) > 1:
             error(reversed_function.pos,
-                  "reversed() takes exactly 1 argument")* Some more glossary entries
-* Some more glossary entries
-
-* Line length
-
-Co-authored-by: scoder <stefan_ml@behnel.de>
-
-* Update docs/src/userguide/glossary.rst
-
-Co-authored-by: scoder <stefan_ml@behnel.de>
-
-Co-authored-by: scoder <stefan_ml@behnel.de>
-* Line length
-
-Co-authored-by: scoder <stefan_ml@behnel.de>
-
-* Update docs/src/userguide/glossary.rst
-
-Co-authored-by: scoder <stefan_ml@behnel.de>
-
-Co-authored-by: scoder <stefan_ml@behnel.de>
+                  "reversed() takes exactly 1 argument")1. 1. 1. 1. 1. 
             return node
         arg = args[0]
 
