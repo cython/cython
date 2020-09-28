@@ -6,11 +6,8 @@ from __future__ import annotations
 
 try:
     from typing import ClassVar
-except ImportError:  # Py3.5
-    try:
-        from typing import Optional as ClassVar  # Good enough for jazz.
-    except ImportError:   # Py<=3.4
-        from collections import defaultdict as ClassVar  # Now we're hacking!
+except ImportError:  # Py<=3.5
+    ClassVar = {int: int}
 
 
 class PyAnnotatedClass:
