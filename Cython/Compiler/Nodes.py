@@ -5,6 +5,7 @@
 from __future__ import absolute_import
 
 import cython
+
 cython.declare(sys=object, os=object, copy=object,
                Builtin=object, error=object, warning=object, Naming=object, PyrexTypes=object,
                py_object_type=object, ModuleScope=object, LocalScope=object, ClosureScope=object,
@@ -4852,6 +4853,7 @@ class PyClassDefNode(ClassDefNode):
         if self.doc_node:
             self.doc_node.analyse_target_declaration(cenv)
         self.body.analyse_declarations(cenv)
+        self.class_result.analyse_annotations(cenv)
 
     def analyse_expressions(self, env):
         if self.bases:

@@ -477,8 +477,7 @@ class GrammarTests(unittest.TestCase):
             def __init__(self, x):
                 self.x: int = x
 
-        # FIXME: implement class annotations
-        #self.assertEqual(C.__annotations__, {'_C__foo': int, 's': str})
+        self.assertEqual(C.__annotations__, {'_C__foo': 'int', 's': 'str'})
         with self.assertRaises(NameError):
             class CBad:
                 no_such_name_defined.attr: int = 0
@@ -487,7 +486,7 @@ class GrammarTests(unittest.TestCase):
                 x: int
                 x.y: list = []
 
-    @skip("Class annotations not implemented")
+    @skip("Not currently supported: https://github.com/cython/cython/issues/3839")
     def test_var_annot_metaclass_semantics(self):
         class CMeta(type):
             @classmethod
