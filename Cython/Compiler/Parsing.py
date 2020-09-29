@@ -2334,7 +2334,7 @@ def p_statement(s, ctx, first_statement = 0):
                         return p_async_statement(s, ctx, decorators)
                     elif decorators:
                         s.error("Decorators can only be followed by functions or classes")
-                    s.put_back('IDENT', ident_name)  # re-insert original token
+                    s.put_back(u'IDENT', ident_name)  # re-insert original token
                 return p_simple_statement_list(s, ctx, first_statement=first_statement)
 
 
@@ -2556,13 +2556,13 @@ def p_c_simple_base_type(s, self_flag, nonempty, templates = None):
                 s.next()
                 if (s.sy == '*' or s.sy == '**' or s.sy == '&'
                         or (s.sy == 'IDENT' and s.systring in calling_convention_words)):
-                    s.put_back('(', '(')
+                    s.put_back(u'(', u'(')
                 else:
-                    s.put_back('(', '(')
-                    s.put_back('IDENT', name)
+                    s.put_back(u'(', u'(')
+                    s.put_back(u'IDENT', name)
                     name = None
             elif s.sy not in ('*', '**', '[', '&'):
-                s.put_back('IDENT', name)
+                s.put_back(u'IDENT', name)
                 name = None
 
     type_node = Nodes.CSimpleBaseTypeNode(pos,
@@ -2703,10 +2703,10 @@ def looking_at_expr(s):
 
         dotted_path.reverse()
         for p in dotted_path:
-            s.put_back('IDENT', p)
-            s.put_back('.', '.')
+            s.put_back(u'IDENT', p)
+            s.put_back(u'.', u'.')
 
-        s.put_back('IDENT', name)
+        s.put_back(u'IDENT', name)
         return not is_type and saved[0]
     else:
         return True
@@ -2720,7 +2720,7 @@ def looking_at_dotted_name(s):
         name = s.systring
         s.next()
         result = s.sy == '.'
-        s.put_back('IDENT', name)
+        s.put_back(u'IDENT', name)
         return result
     else:
         return 0
