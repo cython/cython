@@ -1998,7 +1998,8 @@ class NameNode(AtomicExprNode):
         if atype.is_fused and env.fused_to_specific:
             atype = atype.specialize(env.fused_to_specific)
         if as_target and env.is_c_class_scope and not atype.is_pyobject:
-            # TODO: this will need revising slightly for cdef dataclasses when implemented
+            # TODO: this will need revising slightly if either cdef dataclasses or
+            # annotated cdef attributes are implemented
             atype = py_object_type
             warning(self.pos, "Annotation ignored since class-level attributes must be Python objects. "
                     "Were you trying to set up an instance attribute?", 2)
