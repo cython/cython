@@ -2858,31 +2858,24 @@ def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
                           assignable, nonempty):
     pos = s.position()
     calling_convention = p_calling_convention(s)
-    if s.sy == '*':
+    if s.sy in ('*', '**'):
+        # scanner returns '**' as a single token
+        is_ptrptr = s.sy == '**'
         s.next()
-        if s.systring == 'const':
-            const_pos = s.position()
+
+        const_pos = s.position()
+        is_const = s.systring == 'const' and s.sy == 'IDENT'
+        if is_const:
             s.next()
-            const_base = p_c_declarator(s, ctx, empty = empty,
-                                       is_type = is_type,
-                                       cmethod_flag = cmethod_flag,
-                                       assignable = assignable,
-                                       nonempty = nonempty)
-            base = Nodes.CConstDeclaratorNode(const_pos, base = const_base)
-        else:
-            base = p_c_declarator(s, ctx, empty = empty, is_type = is_type,
-                                  cmethod_flag = cmethod_flag,
-                                  assignable = assignable, nonempty = nonempty)
-        result = Nodes.CPtrDeclaratorNode(pos,
-            base = base)
-    elif s.sy == '**':  # scanner returns this as a single token
-        s.next()
-        base = p_c_declarator(s, ctx, empty = empty, is_type = is_type,
-                              cmethod_flag = cmethod_flag,
-                              assignable = assignable, nonempty = nonempty)
-        result = Nodes.CPtrDeclaratorNode(pos,
-            base = Nodes.CPtrDeclaratorNode(pos,
-                base = base))
+
+        base = p_c_declarator(s, ctx, empty=empty, is_type=is_type,
+                              cmethod_flag=cmethod_flag,
+                              assignable=assignable, nonempty=nonempty)
+        if is_const:
+            base = Nodes.CConstDeclaratorNode(const_pos, base=base)
+        if is_ptrptr:
+            base = Nodes.CPtrDeclaratorNode(pos, base=base)
+        result = Nodes.CPtrDeclaratorNode(pos, base=base)
     elif s.sy == '&':
         s.next()
         base = p_c_declarator(s, ctx, empty = empty, is_type = is_type,
