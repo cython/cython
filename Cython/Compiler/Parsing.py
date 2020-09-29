@@ -2883,18 +2883,13 @@ def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
         result = Nodes.CPtrDeclaratorNode(pos,
             base = Nodes.CPtrDeclaratorNode(pos,
                 base = base))
-    elif s.sy == '&':
+    elif s.sy == '&' or (s.sy == '&&' and s.context.cpp):
         s.next()
-        base = p_c_declarator(s, ctx, empty = empty, is_type = is_type,
-                              cmethod_flag = cmethod_flag,
-                              assignable = assignable, nonempty = nonempty)
-        result = Nodes.CReferenceDeclaratorNode(pos, base = base)
-    elif s.sy == '&&' and s.context.cpp:
-        s.next()
-        base = p_c_declarator(s, ctx, empty = empty, is_type = is_type,
-                              cmethod_flag = cmethod_flag,
-                              assignable = assignable, nonempty = nonempty)
-        result = Nodes.CppRvalueReferenceDeclaratorNode(pos, base = base)
+        base = p_c_declarator(s, ctx, empty=empty, is_type=is_type,
+                              cmethod_flag=cmethod_flag,
+                              assignable=assignable, nonempty=nonempty)
+        result = (Nodes.CppRvalueReferenceDeclaratorNode if s.sy == '&&' else Nodes.CReferenceDeclaratorNode)(
+            pos, base=base)
     else:
         rhs = None
         if s.sy == 'IDENT':
