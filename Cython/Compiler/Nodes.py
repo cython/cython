@@ -519,6 +519,10 @@ class CNameDeclaratorNode(CDeclaratorNode):
 
         if base_type.is_fused and env.fused_to_specific:
             base_type = base_type.specialize(env.fused_to_specific)
+            if base_type is PyrexTypes.error_type:
+                error(self.pos,
+                      "'%s' cannot be specialized since its type is not a fused argument to this function" %
+                      self.name)
 
         self.type = base_type
         return self, base_type
@@ -1208,6 +1212,11 @@ class TemplatedTypeNode(CBaseTypeNode):
 
         if self.type.is_fused and env.fused_to_specific:
             self.type = self.type.specialize(env.fused_to_specific)
+            if self.type is PyrexTypes.error_type:
+                error(self.pos,
+                      "'%s' cannot be specialized since its type is not a fused argument to this function" %
+                      self.name)
+
 
         return self.type
 

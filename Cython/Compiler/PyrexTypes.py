@@ -274,6 +274,7 @@ class PyrexType(BaseType):
 
     def specialize(self, values):
         # TODO(danilo): Override wherever it makes sense.
+        # Overridden functions should generally return error_type instead of raising an exception
         return self
 
     def literal_code(self, value):
@@ -1827,7 +1828,7 @@ class FusedType(CType):
         return 'FusedType(name=%r)' % self.name
 
     def specialize(self, values):
-        return values[self]
+        return values.get(self, error_type)
 
     def get_fused_types(self, result=None, seen=None):
         if result is None:

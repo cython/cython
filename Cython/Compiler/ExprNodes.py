@@ -2001,6 +2001,11 @@ class NameNode(AtomicExprNode):
                 atype = unspecified_type if as_target and env.directives['infer_types'] != False else py_object_type
             if atype.is_fused and env.fused_to_specific:
                 atype = atype.specialize(env.fused_to_specific)
+                if atype is error_type:
+                    error(self.pos,
+                      "'%s' cannot be specialized since its type is not a fused argument to this function" %
+                      self.name)
+
             entry = self.entry = env.declare_var(name, atype, self.pos, is_cdef=not as_target)
         # Even if the entry already exists, make sure we're supplying an annotation if we can.
         if annotation and not entry.annotation:
@@ -10935,6 +10940,9 @@ class SizeofVarNode(SizeofNode):
             self.arg_type = operand_as_type
             if self.arg_type.is_fused:
                 self.arg_type = self.arg_type.specialize(env.fused_to_specific)
+                if self.arg_type is error_type:
+                    error(self.operand.pos,
+                      "Type cannot be specialized since it is not a fused argument to this function")
             self.__class__ = SizeofTypeNode
             self.check_type()
         else:
