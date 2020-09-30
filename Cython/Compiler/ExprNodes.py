@@ -28,7 +28,7 @@ from .Code import UtilityCode, TempitaUtilityCode
 from . import StringEncoding
 from . import Naming
 from . import Nodes
-from .Nodes import Node, utility_code_for_imports
+from .Nodes import Node, utility_code_for_imports, SingleAssignmentNode, PassStatNode
 from . import PyrexTypes
 from .PyrexTypes import py_object_type, c_long_type, typecast, error_type, \
     unspecified_type
@@ -457,6 +457,9 @@ class ExprNode(Node):
     constant_result = constant_value_not_set
 
     child_attrs = property(fget=operator.attrgetter('subexprs'))
+
+    def analyse_annotations(self, env):
+        pass
 
     def not_implemented(self, method_name):
         print_call_chain(method_name, "not implemented")
@@ -1979,32 +1982,35 @@ class NameNode(AtomicExprNode):
     def declare_from_annotation(self, env, as_target=False):
         """Implements PEP 526 annotation typing in a fairly relaxed way.
 
-        Annotations are ignored for global variables, Python class attributes and already declared variables.
-        String literals are allowed and ignored.
-        The ambiguous Python types 'int' and 'long' are ignored and the 'cython.int' form must be used instead.
+        Annotations are ignored for global variables.
+        All other annotations are stored on the entry in the symbol table.
+        String literals are allowed and not evaluated.
+        The ambiguous Python types 'int' and 'long' are not evaluated - the 'cython.int' form must be used instead.
         """
-        if not env.directives['annotation_typing']:
-            return
-        if env.is_module_scope or env.is_py_class_scope:
-            # annotations never create global cdef names and Python classes don't support them anyway
-            return
         name = self.name
-        if self.entry or env.lookup_here(name) is not None:
-            # already declared => ignore annotation
-            return
-
         annotation = self.annotation
-        if annotation.expr.is_string_literal:
-            # name: "description" => not a type, but still a declared variable or attribute
-            atype = None
-        else:
-            _, atype = annotation.analyse_type_annotation(env)
-        if atype is None:
-            atype = unspecified_type if as_target and env.directives['infer_types'] != False else py_object_type
-        if atype.is_fused and env.fused_to_specific:
-            atype = atype.specialize(env.fused_to_specific)
-        self.entry = env.declare_var(name, atype, self.pos, is_cdef=not as_target)
-        self.entry.annotation = annotation
+        entry = self.entry or env.lookup_here(name)
+        if not entry:
+            # annotations never create global cdef names
+            if env.is_module_scope:
+                return
+            if (
+                # name: "description" => not a type, but still a declared variable or attribute
+                annotation.expr.is_string_literal
+                # don't do type analysis from annotations if not asked to, but still collect the annotation
+                or not env.directives['annotation_typing']
+            ):
+                atype = None
+            else:
+                _, atype = annotation.analyse_type_annotation(env)
+            if atype is None:
+                atype = unspecified_type if as_target and env.directives['infer_types'] != False else py_object_type
+            if atype.is_fused and env.fused_to_specific:
+                atype = atype.specialize(env.fused_to_specific)
+            entry = self.entry = env.declare_var(name, atype, self.pos, is_cdef=not as_target)
+        # Even if the entry already exists, make sure we're supplying an annotation if we can.
+        if annotation and not entry.annotation:
+            entry.annotation = annotation
 
     def analyse_as_module(self, env):
         # Try to interpret this as a reference to a cimported module.
@@ -9053,6 +9059,9 @@ class ClassNode(ExprNode, ModuleNameMixin):
     type = py_object_type
     is_temp = True
 
+    def analyse_annotations(self, env):
+        pass
+
     def infer_type(self, env):
         # TODO: could return 'type' in some cases
         return py_object_type
@@ -9122,6 +9131,26 @@ class Py3ClassNode(ExprNode):
         return True
 
     gil_message = "Constructing Python class"
+
+    def analyse_annotations(self, env):
+        from .AutoDocTransforms import AnnotationWriter
+        position = self.class_def_node.pos
+        dict_items = [
+            DictItemNode(
+                entry.pos,
+                key=IdentifierStringNode(entry.pos, value=entry.name),
+                value=entry.annotation.string
+            )
+            for entry in env.entries.values() if entry.annotation
+        ]
+        # Annotations dict shouldn't exist for classes which don't declare any.
+        if dict_items:
+            annotations_dict = DictNode(position, key_value_pairs=dict_items)
+            lhs = NameNode(position, name=StringEncoding.EncodedString(u"__annotations__"))
+            lhs.entry = env.lookup_here(lhs.name) or env.declare_var(lhs.name, dict_type, position)
+            node = SingleAssignmentNode(position, lhs=lhs, rhs=annotations_dict)
+            node.analyse_declarations(env)
+            self.class_def_node.body.stats.insert(0, node)
 
     def generate_result_code(self, code):
         code.globalstate.use_utility_code(UtilityCode.load_cached("Py3ClassCreate", "ObjectHandling.c"))
