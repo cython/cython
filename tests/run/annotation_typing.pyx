@@ -275,7 +275,7 @@ _WARNINGS = """
 8:85: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
 242:44: Unknown type declaration in annotation, ignoring
 249:29: Ambiguous types in annotation, ignoring
-266:4: Annotation ignored since class-level attributes must be Python objects. Were you trying to set up an instance attribute?
+266:15: Annotation ignored since class-level attributes must be Python objects. Were you trying to set up an instance attribute?
 # BUG:
 46:6: 'pytypes_cpdef' redeclared
 120:0: 'struct_io' redeclared
