@@ -5,6 +5,7 @@
 from __future__ import absolute_import
 
 import cython
+
 cython.declare(sys=object, os=object, copy=object,
                Builtin=object, error=object, warning=object, Naming=object, PyrexTypes=object,
                py_object_type=object, ModuleScope=object, LocalScope=object, ClosureScope=object,
@@ -2264,7 +2265,7 @@ class FuncDefNode(StatNode, BlockNode):
             error(arg.pos, "Argument type '%s' is incomplete" % arg.type)
         entry = env.declare_arg(arg.name, arg.type, arg.pos)
         if arg.annotation:
-            entry.annotation = arg.annotation.expr
+            entry.annotation = arg.annotation
         return entry
 
     def generate_arg_type_test(self, arg, code):
@@ -4852,6 +4853,7 @@ class PyClassDefNode(ClassDefNode):
         if self.doc_node:
             self.doc_node.analyse_target_declaration(cenv)
         self.body.analyse_declarations(cenv)
+        self.class_result.analyse_annotations(cenv)
 
     def analyse_expressions(self, env):
         if self.bases:

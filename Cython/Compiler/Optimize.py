@@ -192,7 +192,7 @@ class IterationTransform(Visitor.EnvTransform):
     def _optimise_for_loop(self, node, iterable, reversed=False):
         annotation_type = None
         if (iterable.is_name or iterable.is_attribute) and iterable.entry and iterable.entry.annotation:
-            annotation = iterable.entry.annotation
+            annotation = iterable.entry.annotation.expr
             if annotation.is_subscript:
                 annotation = annotation.base  # container base type
             # FIXME: generalise annotation evaluation => maybe provide a "qualified name" also for imported names?
