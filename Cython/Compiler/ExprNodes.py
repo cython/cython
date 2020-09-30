@@ -500,14 +500,13 @@ class ExprNode(Node):
         else:
             return self.calculate_result_code()
 
-    def _make_move_result_rhs(self, result, allow_move=True, optional=True):
-        if (self.is_temp and allow_move and
-                self.type.is_cpp_class and not self.type.is_reference):
+    def _make_move_result_rhs(self, result, allow_move=True):
+        if (self.is_temp and allow_move and not self.type.is_reference):
+            # note: ideally, we would only want to do this in cpp mode,
+            # but there doesn't seem to be an easy way to detect
+            # whether we are writing C++ here.
             self.has_temp_moved = True
-            return "{}({})".format(
-                "__PYX_STD_MOVE_IF_SUPPORTED" if optional else "std::move",
-                result,
-            )
+            return "__PYX_STD_MOVE_IF_SUPPORTED({})".format(result)
         else:
             return result
 
@@ -519,7 +518,6 @@ class ExprNode(Node):
         return self._make_move_result_rhs(
             self.result_as(type),
             allow_move=allow_move,
-            optional=not type.is_rvalue_reference,
         )
 
     def pythran_result(self, type_=None):
