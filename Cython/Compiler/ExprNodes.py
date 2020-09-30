@@ -518,10 +518,7 @@ class ExprNode(Node):
 
     def move_result_rhs_as(self, type):
         allow_move = (type and not type.is_reference and not type.needs_refcounting)
-        return self._make_move_result_rhs(
-            self.result_as(type),
-            allow_move=allow_move,
-        )
+        return self._make_move_result_rhs(self.result_as(type), allow_move=allow_move)
 
     def pythran_result(self, type_=None):
         if is_pythran_supported_node_or_none(self):
