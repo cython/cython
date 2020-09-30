@@ -82,7 +82,7 @@ in the :file:`.pxd`, that is, to be accessible from Python,
 
 
 In the example above, the type of the local variable `a` in `myfunction()`
-is not fixed and will thus be a Python object.  To statically type it, one
+is not fixed and will thus be a :term:`Python object`.  To statically type it, one
 can use Cython's ``@cython.locals`` decorator (see :ref:`magic_attributes`,
 and :ref:`magic_attributes_pxd`).
 
