@@ -273,8 +273,7 @@ class PyrexType(BaseType):
         return self
 
     def specialize(self, values):
-        # TODO(danilo): Override wherever it makes sense.
-        # Overridden functions should generally return error_type instead of raising an exception
+        # Returns the concrete type if this is a fused type, or otherwise the type itself.
         return self
 
     def literal_code(self, value):
