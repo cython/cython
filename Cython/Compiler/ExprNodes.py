@@ -503,25 +503,25 @@ class ExprNode(Node):
         else:
             return self.calculate_result_code()
 
-    def _make_move_result_rhs(self, result, allow_move=True, force_move=False):
-        if force_move or (
+    def _make_move_result_rhs(self, result, allow_move=True, optional=False):
+        if not optional or (
             self.is_temp and allow_move and self.type.is_cpp_class and not self.type.is_reference
         ):
             self.has_temp_moved = True
             return (
-                "std::move({})" if force_move else "__PYX_STD_MOVE_IF_SUPPORTED({})"
+                "__PYX_STD_MOVE_IF_SUPPORTED({})" if optional else "std::move({})"
             ).format(result)
         else:
             return result
 
     def move_result_rhs(self):
-        return self._make_move_result_rhs(self.result())
+        return self._make_move_result_rhs(self.result(), optional=True)
 
     def move_result_rhs_as(self, type):
         if type.is_rvalue_reference and self.is_temp:
-            return self._make_move_result_rhs(self.result_as(type), force_move=True)
+            return self._make_move_result_rhs(self.result_as(type))
         allow_move = (type and not type.is_reference and not type.needs_refcounting)
-        return self._make_move_result_rhs(self.result_as(type), allow_move=allow_move)
+        return self._make_move_result_rhs(self.result_as(type), allow_move=allow_move, optional=True)
 
     def pythran_result(self, type_=None):
         if is_pythran_supported_node_or_none(self):
