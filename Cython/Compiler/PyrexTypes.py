@@ -2750,6 +2750,9 @@ class CNullPtrType(CPtrType):
 
 
 class CReferenceBaseType(BaseType):
+
+    is_fake_reference = 0
+
     # Common base type for C reference and C++ rvalue reference types.
 
     def __init__(self, base_type):
@@ -2775,7 +2778,6 @@ class CReferenceBaseType(BaseType):
 class CReferenceType(CReferenceBaseType):
 
     is_reference = 1
-    is_fake_reference = 0
 
     def __str__(self):
         return "%s &" % self.ref_base_type
