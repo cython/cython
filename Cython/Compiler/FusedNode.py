@@ -7,6 +7,7 @@ from . import (ExprNodes, PyrexTypes, MemoryView,
 from .ExprNodes import CloneNode, ProxyNode, TupleNode
 from .Nodes import FuncDefNode, CFuncDefNode, StatListNode, DefNode
 from ..Utils import OrderedSet
+from .Errors import error, CannotSpecialize
 
 
 class FusedCFuncDefNode(StatListNode):
@@ -141,11 +142,14 @@ class FusedCFuncDefNode(StatListNode):
             copied_node = copy.deepcopy(self.node)
 
             # Make the types in our CFuncType specific.
-            type = copied_node.type.specialize(fused_to_specific)
-            # unlike for the argument types, specializing the return type can fail, so test it
-            if type.return_type is PyrexTypes.error_type:
-                Errors.error(copied_node.pos, "Return type is a fused type that cannot "
-                                 "be determined from the function arguments")
+            try:
+                type = copied_node.type.specialize(fused_to_specific)
+            except CannotSpecialize:
+                # unlike for the argument types, specializing the return type can fail
+                error(copied_node.pos, "Return type is a fused type that cannot "
+                      "be determined from the function arguments")
+                self.py_func = None  # this is just to let the compiler exit gracefully
+                return
             entry = copied_node.entry
             type.specialize_entry(entry, cname)
 

@@ -17,7 +17,7 @@ import sys, os, copy
 from itertools import chain
 
 from . import Builtin
-from .Errors import error, warning, InternalError, CompileError
+from .Errors import error, warning, InternalError, CompileError, CannotSpecialize
 from . import Naming
 from . import PyrexTypes
 from . import TypeSlots
@@ -518,8 +518,9 @@ class CNameDeclaratorNode(CDeclaratorNode):
                 base_type = py_object_type
 
         if base_type.is_fused and env.fused_to_specific:
-            base_type = base_type.specialize(env.fused_to_specific)
-            if base_type is PyrexTypes.error_type:
+            try:
+                base_type = base_type.specialize(env.fused_to_specific)
+            except CannotSpecialize:
                 error(self.pos,
                       "'%s' cannot be specialized since its type is not a fused argument to this function" %
                       self.name)
@@ -1211,12 +1212,12 @@ class TemplatedTypeNode(CBaseTypeNode):
                 self.type = self.array_declarator.analyse(base_type, env)[1]
 
         if self.type.is_fused and env.fused_to_specific:
-            self.type = self.type.specialize(env.fused_to_specific)
-            if self.type is PyrexTypes.error_type:
+            try:
+                self.type = self.type.specialize(env.fused_to_specific)
+            except CannotSpecialize:
                 error(self.pos,
                       "'%s' cannot be specialized since its type is not a fused argument to this function" %
                       self.name)
-
 
         return self.type
 

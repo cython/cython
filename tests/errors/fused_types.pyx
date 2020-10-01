@@ -104,10 +104,6 @@ _ERRORS = u"""
 61:29: ambiguous overloaded method
 # Possibly duplicates the errors more often than we want
 79:5: Return type is a fused type that cannot be determined from the function arguments
-79:5: Return type is a fused type that cannot be determined from the function arguments
-79:5: Return type is a fused type that cannot be determined from the function arguments
-82:6: Return type is a fused type that cannot be determined from the function arguments
-82:6: Return type is a fused type that cannot be determined from the function arguments
 82:6: Return type is a fused type that cannot be determined from the function arguments
 86:4: 'z' cannot be specialized since its type is not a fused argument to this function
 86:4: 'z' cannot be specialized since its type is not a fused argument to this function
