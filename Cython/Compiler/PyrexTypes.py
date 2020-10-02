@@ -17,7 +17,7 @@ from .Code import UtilityCode, LazyUtilityCode, TempitaUtilityCode
 from . import StringEncoding
 from . import Naming
 
-from .Errors import error, warning
+from .Errors import error, warning, CannotSpecialize
 
 
 class BaseType(object):
@@ -274,6 +274,7 @@ class PyrexType(BaseType):
 
     def specialize(self, values):
         # Returns the concrete type if this is a fused type, or otherwise the type itself.
+        # May raise Errors.CannotSpecialize on failure
         return self
 
     def literal_code(self, value):
@@ -1827,7 +1828,10 @@ class FusedType(CType):
         return 'FusedType(name=%r)' % self.name
 
     def specialize(self, values):
-        return values[self]
+        if self in values:
+            return values[self]
+        else:
+            raise CannotSpecialize()
 
     def get_fused_types(self, result=None, seen=None):
         if result is None:

@@ -23,7 +23,8 @@ import os.path
 import operator
 
 from .Errors import (
-    error, warning, InternalError, CompileError, report_error, local_errors)
+    error, warning, InternalError, CompileError, report_error, local_errors,
+    CannotSpecialize)
 from .Code import UtilityCode, TempitaUtilityCode
 from . import StringEncoding
 from . import Naming
@@ -2000,7 +2001,14 @@ class NameNode(AtomicExprNode):
             if atype is None:
                 atype = unspecified_type if as_target and env.directives['infer_types'] != False else py_object_type
             if atype.is_fused and env.fused_to_specific:
-                atype = atype.specialize(env.fused_to_specific)
+                try:
+                    atype = atype.specialize(env.fused_to_specific)
+                except CannotSpecialize:
+                    error(self.pos,
+                          "'%s' cannot be specialized since its type is not a fused argument to this function" %
+                          self.name)
+                    atype = error_type
+
             entry = self.entry = env.declare_var(name, atype, self.pos, is_cdef=not as_target)
         # Even if the entry already exists, make sure we're supplying an annotation if we can.
         if annotation and not entry.annotation:
@@ -10934,7 +10942,11 @@ class SizeofVarNode(SizeofNode):
         if operand_as_type:
             self.arg_type = operand_as_type
             if self.arg_type.is_fused:
-                self.arg_type = self.arg_type.specialize(env.fused_to_specific)
+                try:
+                    self.arg_type = self.arg_type.specialize(env.fused_to_specific)
+                except CannotSpecialize:
+                    error(self.operand.pos,
+                          "Type cannot be specialized since it is not a fused argument to this function")
             self.__class__ = SizeofTypeNode
             self.check_type()
         else:
