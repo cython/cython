@@ -3451,10 +3451,8 @@ class CFuncTypeArg(BaseType):
 
     def is_forwarding_reference(self):
         if self.type.is_rvalue_reference:
-            if (
-                isinstance(self.type.ref_base_type, TemplatePlaceholderType)
-                and not self.type.ref_base_type.is_cv_qualified
-            ):
+            if (isinstance(self.type.ref_base_type, TemplatePlaceholderType)
+                    and not self.type.ref_base_type.is_cv_qualified):
                 return True
         return False
 
