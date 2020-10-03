@@ -335,7 +335,7 @@ Including verbatim C code
 For advanced use cases, Cython allows you to directly write C code
 as "docstring" of a ``cdef extern from`` block:
 
-.. literalinclude:: ../../examples/userguide/external_C_code/c_code_docstring.pyx
+.. literalinclude:: ../../examples/userguide/external_C_code/verbatim_c_code.pyx
 
 The above is essentially equivalent to having the C code in a file
 ``header.h`` and writing ::
@@ -343,6 +343,11 @@ The above is essentially equivalent to having the C code in a file
     cdef extern from "header.h":
         long square(long x)
         void assign(long& x, long y)
+
+This feature is commonly used for platform specific adaptations at
+compile time, for example::
+
+.. literalinclude:: ../../examples/userguide/external_C_code/platform_adaptation.pyx
 
 It is also possible to combine a header file and verbatim C code::
 
