@@ -345,7 +345,7 @@ The above is essentially equivalent to having the C code in a file
         void assign(long& x, long y)
 
 This feature is commonly used for platform specific adaptations at
-compile time, for example::
+compile time, for example:
 
 .. literalinclude:: ../../examples/userguide/external_C_code/platform_adaptation.pyx
 
