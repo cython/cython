@@ -698,11 +698,10 @@ class MemoryViewSliceType(PyrexType):
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
         # XXX: we put these guards in for now...
-        assert not pyrex
         assert not dll_linkage
         from . import MemoryView
         base_code = StringEncoding.EncodedString(
-                        (str(self)) if for_display else MemoryView.memviewslice_cname)
+            str(self) if pyrex or for_display else MemoryView.memviewslice_cname)
         return self.base_declaration_code(
                 base_code,
                 entity_code)
@@ -3249,7 +3248,7 @@ class CFuncType(CType):
         if not self.can_coerce_to_pyobject(env):
             return False
         from .UtilityCode import CythonUtilityCode
-        safe_typename = re.sub('[^a-zA-Z0-9]', '__', self.declaration_code("", pyrex=1))
+        safe_typename = type_identifier_from_declaration(self.declaration_code("", pyrex=1))
         to_py_function = "__Pyx_CFunc_%s_to_py" % safe_typename
 
         for arg in self.args:
@@ -4987,9 +4986,12 @@ def typecast(to_type, from_type, expr_code):
 def type_list_identifier(types):
     return cap_length('__and_'.join(type_identifier(type) for type in types))
 
-_type_identifier_cache = {}
 def type_identifier(type):
     decl = type.empty_declaration_code()
+    return type_identifier_from_declaration(decl)
+
+_type_identifier_cache = {}
+def type_identifier_from_declaration(decl):
     safe = _type_identifier_cache.get(decl)
     if safe is None:
         safe = decl
