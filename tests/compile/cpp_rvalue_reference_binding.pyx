@@ -4,7 +4,7 @@
 cdef extern from *:
     """
     template <typename T>
-    void accept(T&& x) {}
+    void accept(T&& x) { (void) x; }
     """
     cdef void accept[T](T&& x)
 
