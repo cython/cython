@@ -698,7 +698,7 @@ class MemoryViewSliceType(PyrexType):
         assert not dll_linkage
         from . import MemoryView
         base_code = StringEncoding.EncodedString(
-            (str(self)) if pyrex or for_display else MemoryView.memviewslice_cname)
+            str(self) if pyrex or for_display else MemoryView.memviewslice_cname)
         return self.base_declaration_code(
                 base_code,
                 entity_code)
