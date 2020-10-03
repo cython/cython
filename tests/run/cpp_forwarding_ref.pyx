@@ -9,10 +9,12 @@ cdef extern from *:
     #include <utility>
 
     const char* f(int& x) {
+        (void) x;
         return "lvalue-ref";
     }
 
     const char* f(int&& x) {
+        (void) x;
         return "rvalue-ref";
     }
 
