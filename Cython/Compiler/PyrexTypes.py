@@ -175,6 +175,7 @@ class PyrexType(BaseType):
     #  is_ptr                boolean     Is a C pointer type
     #  is_null_ptr           boolean     Is the type of NULL
     #  is_reference          boolean     Is a C reference type
+    #  is_rvalue_reference   boolean     Is a C++ rvalue reference type
     #  is_const              boolean     Is a C const type
     #  is_volatile           boolean     Is a C volatile type
     #  is_cv_qualified       boolean     Is a C const or volatile type
@@ -241,6 +242,7 @@ class PyrexType(BaseType):
     is_ptr = 0
     is_null_ptr = 0
     is_reference = 0
+    is_rvalue_reference = 0
     is_const = 0
     is_volatile = 0
     is_cv_qualified = 0
@@ -2751,26 +2753,17 @@ class CNullPtrType(CPtrType):
     is_null_ptr = 1
 
 
-class CReferenceType(BaseType):
+class CReferenceBaseType(BaseType):
 
-    is_reference = 1
     is_fake_reference = 0
+
+    # Common base type for C reference and C++ rvalue reference types.
 
     def __init__(self, base_type):
         self.ref_base_type = base_type
 
     def __repr__(self):
-        return "<CReferenceType %s>" % repr(self.ref_base_type)
-
-    def __str__(self):
-        return "%s &" % self.ref_base_type
-
-    def declaration_code(self, entity_code,
-            for_display = 0, dll_linkage = None, pyrex = 0):
-        #print "CReferenceType.declaration_code: pointer to", self.base_type ###
-        return self.ref_base_type.declaration_code(
-            "&%s" % entity_code,
-            for_display, dll_linkage, pyrex)
+        return "<%s %s>" % repr(self.__class__.__name__, self.ref_base_type)
 
     def specialize(self, values):
         base_type = self.ref_base_type.specialize(values)
@@ -2786,12 +2779,24 @@ class CReferenceType(BaseType):
         return getattr(self.ref_base_type, name)
 
 
+class CReferenceType(CReferenceBaseType):
+
+    is_reference = 1
+
+    def __str__(self):
+        return "%s &" % self.ref_base_type
+
+    def declaration_code(self, entity_code,
+            for_display = 0, dll_linkage = None, pyrex = 0):
+        #print "CReferenceType.declaration_code: pointer to", self.base_type ###
+        return self.ref_base_type.declaration_code(
+            "&%s" % entity_code,
+            for_display, dll_linkage, pyrex)
+
+
 class CFakeReferenceType(CReferenceType):
 
     is_fake_reference = 1
-
-    def __repr__(self):
-        return "<CFakeReferenceType %s>" % repr(self.ref_base_type)
 
     def __str__(self):
         return "%s [&]" % self.ref_base_type
@@ -2800,6 +2805,20 @@ class CFakeReferenceType(CReferenceType):
             for_display = 0, dll_linkage = None, pyrex = 0):
         #print "CReferenceType.declaration_code: pointer to", self.base_type ###
         return "__Pyx_FakeReference<%s> %s" % (self.ref_base_type.empty_declaration_code(), entity_code)
+
+
+class CppRvalueReferenceType(CReferenceBaseType):
+
+    is_rvalue_reference = 1
+
+    def __str__(self):
+        return "%s &&" % self.ref_base_type
+
+    def declaration_code(self, entity_code,
+            for_display = 0, dll_linkage = None, pyrex = 0):
+        return self.ref_base_type.declaration_code(
+            "&&%s" % entity_code,
+            for_display, dll_linkage, pyrex)
 
 
 class CFuncType(CType):
@@ -3434,6 +3453,12 @@ class CFuncTypeArg(BaseType):
     def specialize(self, values):
         return CFuncTypeArg(self.name, self.type.specialize(values), self.pos, self.cname)
 
+    def is_forwarding_reference(self):
+        if self.type.is_rvalue_reference:
+            if (isinstance(self.type.ref_base_type, TemplatePlaceholderType)
+                    and not self.type.ref_base_type.is_cv_qualified):
+                return True
+        return False
 
 class ToPyStructUtilityCode(object):
 
@@ -4924,6 +4949,10 @@ def c_ptr_type(base_type):
 def c_ref_type(base_type):
     # Construct a C reference type
     return _construct_type_from_base(CReferenceType, base_type)
+
+def cpp_rvalue_ref_type(base_type):
+    # Construct a C++ rvalue reference type
+    return _construct_type_from_base(CppRvalueReferenceType, base_type)
 
 def c_const_type(base_type):
     # Construct a C const type.

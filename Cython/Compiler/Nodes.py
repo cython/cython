@@ -547,9 +547,7 @@ class CPtrDeclaratorNode(CDeclaratorNode):
         return self.base.analyse(ptr_type, env, nonempty=nonempty, visibility=visibility, in_pxd=in_pxd)
 
 
-class CReferenceDeclaratorNode(CDeclaratorNode):
-    # base     CDeclaratorNode
-
+class _CReferenceDeclaratorBaseNode(CDeclaratorNode):
     child_attrs = ["base"]
 
     def declared_name(self):
@@ -558,10 +556,20 @@ class CReferenceDeclaratorNode(CDeclaratorNode):
     def analyse_templates(self):
         return self.base.analyse_templates()
 
+
+class CReferenceDeclaratorNode(_CReferenceDeclaratorBaseNode):
     def analyse(self, base_type, env, nonempty=0, visibility=None, in_pxd=False):
         if base_type.is_pyobject:
             error(self.pos, "Reference base type cannot be a Python object")
         ref_type = PyrexTypes.c_ref_type(base_type)
+        return self.base.analyse(ref_type, env, nonempty=nonempty, visibility=visibility, in_pxd=in_pxd)
+
+
+class CppRvalueReferenceDeclaratorNode(_CReferenceDeclaratorBaseNode):
+    def analyse(self, base_type, env, nonempty=0, visibility=None, in_pxd=False):
+        if base_type.is_pyobject:
+            error(self.pos, "Rvalue-reference base type cannot be a Python object")
+        ref_type = PyrexTypes.cpp_rvalue_ref_type(base_type)
         return self.base.analyse(ref_type, env, nonempty=nonempty, visibility=visibility, in_pxd=in_pxd)
 
 
@@ -779,6 +787,13 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                 error(self.pos, "cannot have both '%s' and '%s' "
                       "calling conventions" % (current, callspec))
             func_type.calling_convention = callspec
+
+        if func_type.return_type.is_rvalue_reference:
+            warning(self.pos, "Rvalue-reference as function return type not supported", 1)
+        for arg in func_type.args:
+            if arg.type.is_rvalue_reference and not arg.is_forwarding_reference():
+                warning(self.pos, "Rvalue-reference as function argument not supported", 1)
+
         return self.base.analyse(func_type, env, visibility=visibility, in_pxd=in_pxd)
 
     def declare_optional_arg_struct(self, func_type, env, fused_cname=None):
@@ -1389,6 +1404,8 @@ class CVarDefNode(StatNode):
                 return
             if type.is_reference and self.visibility != 'extern':
                 error(declarator.pos, "C++ references cannot be declared; use a pointer instead")
+            if type.is_rvalue_reference and self.visibility != 'extern':
+                error(declarator.pos, "C++ rvalue-references cannot be declared")
             if type.is_cfunction:
                 if 'staticmethod' in env.directives:
                     type.is_static_method = True

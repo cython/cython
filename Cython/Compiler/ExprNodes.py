@@ -504,21 +504,21 @@ class ExprNode(Node):
         else:
             return self.calculate_result_code()
 
-    def _make_move_result_rhs(self, result, allow_move=True):
-        if (self.is_temp and allow_move and
-                self.type.is_cpp_class and not self.type.is_reference):
-            self.has_temp_moved = True
-            return "__PYX_STD_MOVE_IF_SUPPORTED({0})".format(result)
-        else:
+    def _make_move_result_rhs(self, result, optional=False):
+        if optional and not (self.is_temp and self.type.is_cpp_class and not self.type.is_reference):
             return result
+        self.has_temp_moved = True
+        return "{}({})".format("__PYX_STD_MOVE_IF_SUPPORTED" if optional else "std::move", result)
 
     def move_result_rhs(self):
-        return self._make_move_result_rhs(self.result())
+        return self._make_move_result_rhs(self.result(), optional=True)
 
     def move_result_rhs_as(self, type):
-        allow_move = (type and not type.is_reference and not type.needs_refcounting)
-        return self._make_move_result_rhs(self.result_as(type),
-                                          allow_move=allow_move)
+        result = self.result_as(type)
+        if not (type.is_reference or type.needs_refcounting):
+            requires_move = type.is_rvalue_reference and self.is_temp
+            result = self._make_move_result_rhs(result, optional=not requires_move)
+        return result
 
     def pythran_result(self, type_=None):
         if is_pythran_supported_node_or_none(self):
@@ -5784,8 +5784,18 @@ class SimpleCallNode(CallNode):
             else:
                 alternatives = overloaded_entry.all_alternatives()
 
-            entry = PyrexTypes.best_match(
-                [arg.type for arg in args], alternatives, self.pos, env, args)
+            # For any argument/parameter pair A/P, if P is a forwarding reference,
+            # use lvalue-reference-to-A for deduction in place of A when the
+            # function call argument is an lvalue. See:
+            # https://en.cppreference.com/w/cpp/language/template_argument_deduction#Deduction_from_a_function_call
+            arg_types = [arg.type for arg in args]
+            if func_type.is_cfunction:
+                for i, formal_arg in enumerate(func_type.args):
+                    if formal_arg.is_forwarding_reference():
+                        if self.args[i].is_lvalue():
+                            arg_types[i] = PyrexTypes.c_ref_type(arg_types[i])
+
+            entry = PyrexTypes.best_match(arg_types, alternatives, self.pos, env, args)
 
             if not entry:
                 self.type = PyrexTypes.error_type
