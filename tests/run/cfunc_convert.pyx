@@ -249,7 +249,6 @@ cdef void memoryview_func_f(int [::1,:] x):
     x[0,0] = 4
 
 
-
 def test_memview_wrapping():
     """
     We're mainly concerned that the code compiles without the names clashing
