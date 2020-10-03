@@ -4,6 +4,7 @@
 
 from __future__ import absolute_import
 
+import hashlib
 import copy
 import re
 
@@ -11,6 +12,7 @@ try:
     reduce
 except NameError:
     from functools import reduce
+from functools import partial
 
 from Cython.Utils import cached_function
 from .Code import UtilityCode, LazyUtilityCode, TempitaUtilityCode
@@ -45,7 +47,9 @@ class BaseType(object):
     def cast_code(self, expr_code):
         return "((%s)%s)" % (self.empty_declaration_code(), expr_code)
 
-    def empty_declaration_code(self):
+    def empty_declaration_code(self, pyrex=False):
+        if pyrex:
+            return self.declaration_code('', pyrex=True)
         if self._empty_declaration is None:
             self._empty_declaration = self.declaration_code('')
         return self._empty_declaration
@@ -3248,8 +3252,7 @@ class CFuncType(CType):
         if not self.can_coerce_to_pyobject(env):
             return False
         from .UtilityCode import CythonUtilityCode
-        safe_typename = type_identifier_from_declaration(self.declaration_code("", pyrex=1))
-        to_py_function = "__Pyx_CFunc_%s_to_py" % safe_typename
+        to_py_function = "__Pyx_CFunc_%s_to_py" % type_identifier(self, pyrex=True)
 
         for arg in self.args:
             if not arg.type.is_pyobject and not arg.type.create_from_py_utility_code(env):
@@ -4986,8 +4989,32 @@ def typecast(to_type, from_type, expr_code):
 def type_list_identifier(types):
     return cap_length('__and_'.join(type_identifier(type) for type in types))
 
-def type_identifier(type):
-    decl = type.empty_declaration_code()
+_special_type_characters = {
+    '__': '__dunder',
+    'const ': '__const_',
+    ' ': '__space_',
+    '*': '__ptr',
+    '&': '__ref',
+    '&&': '__fwref',
+    '[': '__lArr',
+    ']': '__rArr',
+    '<': '__lAng',
+    '>': '__rAng',
+    '(': '__lParen',
+    ')': '__rParen',
+    ',': '__comma_',
+    '...': '__EL',
+    '::': '__in_',
+    ':': '__D',
+}
+
+_escape_special_type_characters = partial(re.compile(
+    # join substrings in reverse order to put longer matches first, e.g. "::" before ":"
+    " ?(%s) ?" % "|".join(re.escape(s) for s in sorted(_special_type_characters, reverse=True))
+).sub, lambda match: _special_type_characters[match.group(1)])
+
+def type_identifier(type, pyrex=False):
+    decl = type.empty_declaration_code(pyrex=pyrex)
     return type_identifier_from_declaration(decl)
 
 _type_identifier_cache = {}
@@ -4996,21 +5023,8 @@ def type_identifier_from_declaration(decl):
     if safe is None:
         safe = decl
         safe = re.sub(' +', ' ', safe)
-        safe = re.sub(' ([^a-zA-Z0-9_])', r'\1', safe)
-        safe = re.sub('([^a-zA-Z0-9_]) ', r'\1', safe)
-        safe = (safe.replace('__', '__dunder')
-                    .replace('const ', '__const_')
-                    .replace(' ', '__space_')
-                    .replace('*', '__ptr')
-                    .replace('&', '__ref')
-                    .replace('[', '__lArr')
-                    .replace(']', '__rArr')
-                    .replace('<', '__lAng')
-                    .replace('>', '__rAng')
-                    .replace('(', '__lParen')
-                    .replace(')', '__rParen')
-                    .replace(',', '__comma_')
-                    .replace('::', '__in_'))
+        safe = re.sub(' ?([^a-zA-Z0-9_]) ?', r'\1', safe)
+        safe = _escape_special_type_characters(safe)
         safe = cap_length(re.sub('[^a-zA-Z0-9_]', lambda x: '__%X' % ord(x.group(0)), safe))
         _type_identifier_cache[decl] = safe
     return safe
@@ -5018,5 +5032,5 @@ def type_identifier_from_declaration(decl):
 def cap_length(s, max_prefix=63, max_len=1024):
     if len(s) <= max_prefix:
         return s
-    else:
-        return '%x__%s__etc' % (abs(hash(s)) % (1<<20), s[:max_len-17])
+    hash_prefix = hashlib.sha1(s.encode('ascii')).hexdigest()[:6]
+    return '%s__%s__etc' % (hash_prefix, s[:max_len-17])
