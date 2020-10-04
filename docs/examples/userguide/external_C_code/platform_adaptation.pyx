@@ -1,7 +1,7 @@
 cdef extern from *:
     """
-    #if defined(WIN32) || defined(MS_WINDOWS)
-      #include <synchapi.h>
+    #if defined(_WIN32) || defined(MS_WINDOWS) || defined(_MSC_VER)
+      #include <windows.h>
       #define myapp_sleep(m)  Sleep(m)
     #else
       #include <unistd.h>
