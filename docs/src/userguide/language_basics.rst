@@ -363,7 +363,7 @@ through defined error return values.  For functions that return Python object
 error return value.
 
 While this is always the case for :keyword:`def` functions, functions
-defined as :keyword`cdef` or :keyword:`cpdef` can return arbitrary C types,
+defined as :keyword:`cdef` or :keyword:`cpdef` can return arbitrary C types,
 which do not have such a well-defined error return value.  Thus, if an
 exception is detected in such a function, a warning message is printed,
 the exception is ignored, and the function returns without propagating it
