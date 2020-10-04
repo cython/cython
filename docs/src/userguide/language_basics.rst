@@ -373,12 +373,12 @@ through defined error return values.  For functions that return a Python object
 ``NULL`` pointer, so any function returning a Python object has a well-defined
 error return value.
 
-While this is always the case for :keyword:`def` functions, functions
+While this is always the case for :keyword:`def` functions, any functions
 defined as :keyword:`cdef` or :keyword:`cpdef` can return arbitrary C types,
 which do not have such a well-defined error return value.  Thus, if an
 exception is detected in such a function, a warning message is printed,
-the exception is ignored, and the function returns without propagating it
-to its caller.
+the exception is ignored, and the function returns immediately without
+propagating the exception to its caller.
 
 If you want such a C function to be able to propagate exceptions, you need
 to declare an exception return value for it as a contract with the caller.
