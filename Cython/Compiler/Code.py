@@ -1145,6 +1145,14 @@ class GlobalState(object):
         'end'
     ]
 
+    # h files can only have a much smaller list of sections
+    h_code_layout = [
+        'h_code',
+        'utility_code_proto_before_types',
+        'type_declarations',
+        'utility_code_proto',
+        'end'
+    ]
 
     def __init__(self, writer, module_node, code_config, common_utility_include_dir=None):
         self.filename_table = {}
@@ -1214,6 +1222,11 @@ class GlobalState(object):
             code.write('\n#line 1 "cython_utility"\n')
         code.putln("")
         code.putln("/* --- Runtime support code --- */")
+
+    def initialize_main_h_code(self):
+        rootwriter = self.rootwriter
+        for part in self.h_code_layout:
+            self.parts[part] = rootwriter.insertion_point()
 
     def finalize_main_c_code(self):
         self.close_global_decls()

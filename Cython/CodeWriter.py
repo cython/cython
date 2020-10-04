@@ -449,8 +449,10 @@ class StatementWriter(DeclarationWriter):
         self._visit_indented(node.body)
 
     def visit_ReturnStatNode(self, node):
-        self.startline("return ")
-        self.visit(node.value)
+        self.startline("return")
+        if node.value is not None:
+            self.put(u" ")
+            self.visit(node.value)
         self.endline()
 
     def visit_ReraiseStatNode(self, node):

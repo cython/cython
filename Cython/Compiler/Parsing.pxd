@@ -1,3 +1,5 @@
+# cython: language_level=3
+
 # We declare all of these here to type the first argument.
 
 from __future__ import absolute_import

@@ -110,7 +110,7 @@ class Base(type):
 
 class Bar(metaclass=Base):
    """
-   >>> [n for n in Bar._order if n != "__qualname__"]
+   >>> [n for n in Bar._order if n not in {"__qualname__", "__annotations__"}]
    ['__module__', '__doc__', 'bar']
    """
    @property
