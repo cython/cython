@@ -357,7 +357,7 @@ Error return values
 
 In Python (more specifically, in the CPython runtime), exceptions that occur
 inside of a function are signaled to the caller and propagated up the call stack
-through defined error return values.  For functions that return Python object
+through defined error return values.  For functions that return a Python object
 (and thus, a pointer to such an object), the error return value is simply the
 ``NULL`` pointer, so any function returning a Python object has a well-defined
 error return value.
@@ -378,7 +378,7 @@ Here is an example::
 
 With this declaration, whenever an exception occurs inside ``spam``, it will
 immediately return with the value ``-1``.  From the caller's side, whenever
-a call to spam returns ``-1``, the claler will assume that an exception has
+a call to spam returns ``-1``, the caller will assume that an exception has
 occurred and can now process or propagate it.
 
 When you declare an exception value for a function, you should never explicitly
@@ -422,7 +422,7 @@ See :ref:`wrapping-cplusplus` for more details.
 
 Some things to note:
 
-* Exception values can only be declared for functions returning an integer,
+* Exception values can only be declared for functions returning a C integer,
   enum, float or pointer type, and the value must be a constant expression.
   Functions that return ``void``, or a struct/union by value, can only use
   the ``except *`` form.
