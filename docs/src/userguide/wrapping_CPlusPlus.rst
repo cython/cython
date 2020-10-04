@@ -11,8 +11,8 @@ Overview
 
 Cython has native support for most of the C++ language.  Specifically:
 
-* C++ objects can be dynamically allocated with ``new`` and ``del`` keywords.
-* C++ objects can be stack-allocated.
+* C++ objects can be :term:`dynamically allocated<Dynamic allocation>` with ``new`` and ``del`` keywords.
+* C++ objects can be :term:`stack-allocated<Stack allocation>`.
 * C++ classes can be declared with the new keyword ``cppclass``.
 * Templated classes and functions are supported.
 * Overloaded functions are supported.

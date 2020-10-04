@@ -721,6 +721,7 @@ class FunctionState(object):
         self.temps_allocated = []  # of (name, type, manage_ref, static)
         self.temps_free = {}  # (type, manage_ref) -> list of free vars with same type/managed status
         self.temps_used_type = {}  # name -> (type, manage_ref)
+        self.zombie_temps = set()  # temps that must not be reused after release
         self.temp_counter = 0
         self.closure_temps = None
 
@@ -734,6 +735,20 @@ class FunctionState(object):
         # sections, in which case we introduce a race condition.
         self.should_declare_error_indicator = False
         self.uses_error_indicator = False
+
+    # safety checks
+
+    def validate_exit(self):
+        # validate that all allocated temps have been freed
+        if self.temps_allocated:
+            leftovers = self.temps_in_use()
+            if leftovers:
+                msg = "TEMPGUARD: Temps left over at end of '%s': %s" % (self.scope.name, ', '.join([
+                    '%s [%s]' % (name, ctype)
+                    for name, ctype, is_pytemp in sorted(leftovers)]),
+                )
+                #print(msg)
+                raise RuntimeError(msg)
 
     # labels
 
@@ -804,7 +819,7 @@ class FunctionState(object):
 
     # temp handling
 
-    def allocate_temp(self, type, manage_ref, static=False):
+    def allocate_temp(self, type, manage_ref, static=False, reusable=True):
         """
         Allocates a temporary (which may create a new one or get a previously
         allocated and released one of the same type). Type is simply registered
@@ -823,6 +838,8 @@ class FunctionState(object):
         This is only used when allocating backing store for a module-level
         C array literals.
 
+        if reusable=False, the temp will not be reused after release.
+
         A C string referring to the variable is returned.
         """
         if type.is_cv_qualified and not type.is_reference:
@@ -838,7 +855,7 @@ class FunctionState(object):
             manage_ref = False
 
         freelist = self.temps_free.get((type, manage_ref))
-        if freelist is not None and freelist[0]:
+        if reusable and freelist is not None and freelist[0]:
             result = freelist[0].pop()
             freelist[1].remove(result)
         else:
@@ -847,9 +864,11 @@ class FunctionState(object):
                 result = "%s%d" % (Naming.codewriter_temp_prefix, self.temp_counter)
                 if result not in self.names_taken: break
             self.temps_allocated.append((result, type, manage_ref, static))
+            if not reusable:
+                self.zombie_temps.add(result)
         self.temps_used_type[result] = (type, manage_ref)
         if DebugFlags.debug_temp_code_comments:
-            self.owner.putln("/* %s allocated (%s) */" % (result, type))
+            self.owner.putln("/* %s allocated (%s)%s */" % (result, type, "" if reusable else " - zombie"))
 
         if self.collect_temps_stack:
             self.collect_temps_stack[-1].add((result, type))
@@ -868,10 +887,12 @@ class FunctionState(object):
             self.temps_free[(type, manage_ref)] = freelist
         if name in freelist[1]:
             raise RuntimeError("Temp %s freed twice!" % name)
-        freelist[0].append(name)
+        if name not in self.zombie_temps:
+            freelist[0].append(name)
         freelist[1].add(name)
         if DebugFlags.debug_temp_code_comments:
-            self.owner.putln("/* %s released */" % name)
+            self.owner.putln("/* %s released %s*/" % (
+                name, " - zombie" if name in self.zombie_temps else ""))
 
     def temps_in_use(self):
         """Return a list of (cname,type,manage_ref) tuples of temp names and their type
@@ -1124,6 +1145,14 @@ class GlobalState(object):
         'end'
     ]
 
+    # h files can only have a much smaller list of sections
+    h_code_layout = [
+        'h_code',
+        'utility_code_proto_before_types',
+        'type_declarations',
+        'utility_code_proto',
+        'end'
+    ]
 
     def __init__(self, writer, module_node, code_config, common_utility_include_dir=None):
         self.filename_table = {}
@@ -1193,6 +1222,11 @@ class GlobalState(object):
             code.write('\n#line 1 "cython_utility"\n')
         code.putln("")
         code.putln("/* --- Runtime support code --- */")
+
+    def initialize_main_h_code(self):
+        rootwriter = self.rootwriter
+        for part in self.h_code_layout:
+            self.parts[part] = rootwriter.insertion_point()
 
     def finalize_main_c_code(self):
         self.close_global_decls()
@@ -1797,10 +1831,13 @@ class CCodeWriter(object):
         return self.buffer.getvalue()
 
     def write(self, s):
-        # also put invalid markers (lineno 0), to indicate that those lines
-        # have no Cython source code correspondence
-        cython_lineno = self.last_marked_pos[1] if self.last_marked_pos else 0
-        self.buffer.markers.extend([cython_lineno] * s.count('\n'))
+        # Cygdb needs to know which Cython source line corresponds to which C line.
+        # Therefore, we write this information into "self.buffer.markers" and then write it from there
+        # into cython_debug/cython_debug_info_* (see ModuleNode._serialize_lineno_map).
+
+        filename_line = self.last_marked_pos[:2] if self.last_marked_pos else (None, 0)
+        self.buffer.markers.extend([filename_line] * s.count('\n'))
+
         self.buffer.write(s)
 
     def insertion_point(self):
@@ -1860,6 +1897,7 @@ class CCodeWriter(object):
         self.funcstate = FunctionState(self, scope=scope)
 
     def exit_cfunc_scope(self):
+        self.funcstate.validate_exit()
         self.funcstate = None
 
     # constant handling

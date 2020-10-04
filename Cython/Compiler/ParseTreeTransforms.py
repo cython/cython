@@ -992,12 +992,7 @@ class InterpretCompilerDirectives(CythonTransform):
             return self.visit_Node(node)
 
         old_directives = self.directives
-        new_directives = dict(old_directives)
-        # test_assert_path_exists and test_fail_if_path_exists should not be inherited
-        # otherwise they can produce very misleading test failures
-        new_directives.pop('test_assert_path_exists', None)
-        new_directives.pop('test_fail_if_path_exists', None)
-        new_directives.update(directives)
+        new_directives = Options.copy_inherited_directives(old_directives, **directives)
 
         if new_directives == old_directives:
             return self.visit_Node(node)
@@ -3471,9 +3466,14 @@ class DebugTransform(CythonTransform):
         else:
             pf_cname = node.py_func.entry.func_cname
 
+        # For functions defined using def, cname will be pyfunc_cname=__pyx_pf_*
+        # For functions defined using cpdef or cdef, cname will be func_cname=__pyx_f_*
+        # In all cases, cname will be the name of the function containing the actual code
+        cname = node.entry.pyfunc_cname or node.entry.func_cname
+
         attrs = dict(
             name=node.entry.name or getattr(node, 'name', '<unknown>'),
-            cname=node.entry.func_cname,
+            cname=cname,
             pf_cname=pf_cname,
             qualified_name=node.local_scope.qualified_name,
             lineno=str(node.pos[1]))
@@ -3523,26 +3523,16 @@ class DebugTransform(CythonTransform):
         it's a "relevant frame" and it will know where to set the breakpoint
         for 'break modulename'.
         """
-        name = node.full_module_name.rpartition('.')[-1]
-
-        cname_py2 = 'init' + name
-        cname_py3 = 'PyInit_' + name
-
-        py2_attrs = dict(
-            name=name,
-            cname=cname_py2,
+        self._serialize_modulenode_as_function(node, dict(
+            name=node.full_module_name.rpartition('.')[-1],
+            cname=node.module_init_func_cname(),
             pf_cname='',
             # Ignore the qualified_name, breakpoints should be set using
             # `cy break modulename:lineno` for module-level breakpoints.
             qualified_name='',
             lineno='1',
             is_initmodule_function="True",
-        )
-
-        py3_attrs = dict(py2_attrs, cname=cname_py3)
-
-        self._serialize_modulenode_as_function(node, py2_attrs)
-        self._serialize_modulenode_as_function(node, py3_attrs)
+        ))
 
     def _serialize_modulenode_as_function(self, node, attrs):
         self.tb.start('Function', attrs=attrs)
