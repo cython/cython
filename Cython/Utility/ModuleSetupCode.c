@@ -18,7 +18,7 @@
   #define offsetof(type, member) ( (size_t) & ((type*)0) -> member )
 #endif
 
-#if !defined(WIN32) && !defined(MS_WINDOWS)
+#if !defined(_WIN32) && !defined(WIN32) && !defined(MS_WINDOWS)
   #ifndef __stdcall
     #define __stdcall
   #endif
@@ -1100,7 +1100,7 @@ static CYTHON_INLINE int __Pyx_PyErr_GivenExceptionMatches2(PyObject *err, PyObj
 
 /////////////// MathInitCode ///////////////
 
-#if defined(WIN32) || defined(MS_WINDOWS)
+#if defined(_WIN32) || defined(WIN32) || defined(MS_WINDOWS)
   #define _USE_MATH_DEFINES
 #endif
 #include <math.h>

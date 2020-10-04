@@ -6,7 +6,7 @@
 
 #if PY_MAJOR_VERSION < 3
 int %(main_method)s(int argc, char** argv) {
-#elif defined(WIN32) || defined(MS_WINDOWS)
+#elif defined(_WIN32) || defined(WIN32) || defined(MS_WINDOWS)
 int %(wmain_method)s(int argc, wchar_t **argv) {
 #else
 static int __Pyx_main(int argc, wchar_t **argv) {
@@ -59,7 +59,7 @@ static int __Pyx_main(int argc, wchar_t **argv) {
 }
 
 
-#if PY_MAJOR_VERSION >= 3 && !defined(WIN32) && !defined(MS_WINDOWS)
+#if PY_MAJOR_VERSION >= 3 && !defined(_WIN32) && !defined(WIN32) && !defined(MS_WINDOWS)
 #include <locale.h>
 
 #if PY_VERSION_HEX < 0x03050000
