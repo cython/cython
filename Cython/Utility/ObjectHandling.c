@@ -2920,7 +2920,7 @@ static CYTHON_INLINE Py_ssize_t __Pyx_PySlice_AdjustIndices(Py_ssize_t length,
 
 #if (PY_VERSION_HEX >= 0x03050400 && PY_VERSION_HEX < 0x03060000) || PY_VERSION_HEX >= 0x03060100
 #else
-// copied from PySlice_AdjustIndicies in CPython 3.6.1+
+// copied from PySlice_AdjustIndices in CPython 3.6.1+
 static Py_ssize_t __Pyx_PySlice_AdjustIndices(Py_ssize_t length,
                                                             Py_ssize_t *start, Py_ssize_t *stop,
                                                             Py_ssize_t step) {

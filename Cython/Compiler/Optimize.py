@@ -223,8 +223,8 @@ class IterationTransform(Visitor.EnvTransform):
 
         # C array (slice) iteration?
         # note that a slice of char* is typed as bytes, but we can still treat it as a ptr here
-        if iterable.type.is_ptr or iterable.type.is_array \
-                or isinstance(iterable, ExprNodes.SliceIndexNode) and iterable.base.type.is_string:
+        if iterable.type.is_ptr or iterable.type.is_array or (
+                isinstance(iterable, ExprNodes.SliceIndexNode) and iterable.base.type.is_string):
             return self._transform_carray_iteration(node, iterable, reversed=reversed)
         if iterable.type is Builtin.bytes_type:
             return self._transform_bytes_iteration(node, iterable, reversed=reversed)
@@ -491,10 +491,9 @@ class IterationTransform(Visitor.EnvTransform):
         stop = UtilNodes.LetRefNode(stop, stop.pos)
 
         env = self.current_env()
-        if (env.directives['wraparound'] or env.directives['boundscheck']) \
-               and not (start.expression.has_constant_result() \
-                        and start.expression.constant_result == 0 \
-                        and stop.expression is length):
+        if (env.directives['wraparound'] or env.directives['boundscheck']) and not (
+                 start.expression.has_constant_result() and start.expression.constant_result == 0
+                 and stop.expression is length):
             adjusted_length = ExprNodes.PythonCapiCallNode(
                 slice_node.pos, "__Pyx_PySlice_AdjustIndices",
                 self.PySlice_AdjustIndices_func_type,
@@ -593,11 +592,8 @@ class IterationTransform(Visitor.EnvTransform):
         if base.type is not Builtin.unicode_type:
             return node
 
-        if base.may_be_none():
-            base = UtilNodes.LetRefNode(
-                base.as_none_safe_node("'NoneType' is not iterable"))
-        else:
-            base = UtilNodes.LetRefNode(base)
+        base = UtilNodes.LetRefNode(
+            base.as_none_safe_node("'NoneType' is not iterable"))
 
         length = UtilNodes.TempHandle(PyrexTypes.c_py_ssize_t_type)
         length_temp = length.ref(slice_node.pos)
@@ -705,7 +701,7 @@ class IterationTransform(Visitor.EnvTransform):
         for var in [start, stop]:
             node = UtilNodes.LetNode(var, node)
 
-        # note that stop msut only be created after setup_node has run so it
+        # note that 'stop' must only be created after 'setup_node' has run so it
         # can safely read the length
         node = UtilNodes.LetNode(base, Nodes.StatListNode(node.pos, stats=[setup_node, node]))
         return UtilNodes.TempsBlockNode(node.pos, temps=[data, length, kind, counter], body=node)

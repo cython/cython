@@ -5130,13 +5130,12 @@ class SliceIndexNode(ExprNode):
                 type_name = self.type.name.title()
             assert self.stop is not None
             code.putln(
-                "if (unlikely(%s <= %s)) { %s = %s; }" % (
+                "if (unlikely(%s <= %s)) { %s = __Pyx_NewRef(%s); }" % (
                     stop_code,
                     start_code,
                     result,
                     Naming.empty_bytes))
-            code.putln("else")
-            code.putln("{")
+            code.putln("else {")
             code.putln(
                 "%s = __Pyx_Py%s_FromStringAndSize(%s + %s, %s - %s); %s" % (
                     result,
