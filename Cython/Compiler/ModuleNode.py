@@ -429,7 +429,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             except ImportError:
                 import xml.etree.ElementTree as ET
             coverage_xml = ET.parse(coverage_xml_filename).getroot()
-            for el in coverage_xml.getiterator():
+            if hasattr(coverage_xml, 'iter'):
+                iterator = coverage_xml.iter()  # Python 2.7 & 3.2+
+            else:
+                iterator = coverage_xml.getiterator()
+            for el in iterator:
                 el.tail = None  # save some memory
         else:
             coverage_xml = None
