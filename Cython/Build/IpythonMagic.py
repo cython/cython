@@ -82,6 +82,7 @@ from ..Shadow import __version__ as cython_version
 from ..Compiler.Errors import CompileError
 from .Inline import cython_inline
 from .Dependencies import cythonize
+from ..Utils import captured_fd
 
 
 PGO_CONFIG = {
@@ -343,10 +344,21 @@ class CythonMagics(Magics):
                 self._profile_pgo_wrapper(extension, lib_dir)
 
         try:
-            self._build_extension(extension, lib_dir, pgo_step_name='use' if args.pgo else None,
+            get_stderr = get_stdout = None
+            with captured_fd(1, sys.getdefaultencoding()) as get_stdout:
+                with captured_fd(2, sys.getdefaultencoding()) as get_stderr:
+                    self._build_extension(extension, lib_dir, pgo_step_name='use' if args.pgo else None,
                                   quiet=args.quiet)
-        except distutils.errors.CompileError:
-            # Build failed and printed error message
+        except (distutils.errors.CompileError, distutils.errors.LinkError):
+            # Build failed, print error message from compiler/linker
+            # On windows errors are printed to stdout,
+            # we redirect it to sys.stderr
+            stdout = get_stdout and get_stdout().strip()
+            if stdout:
+                print(stdout, file=sys.stderr)
+            stderr = get_stderr and get_stderr().strip()
+            if stderr:
+                print(stderr, file=sys.stderr)
             return None
 
         module = imp.load_dynamic(module_name, module_path)
