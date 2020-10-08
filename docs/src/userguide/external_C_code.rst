@@ -233,8 +233,10 @@ For example::
     cdef extern from "<my_lib.h>":
         cdef void increase_by_one(int *my_var)
 
-This function requires a pointer to an integer. In order to get the address from an existing
-variable use the ``&`` operator::
+This function takes a pointer to an integer as argument.  Knowing the address of the
+integer allows the function to modify the value in place, so that the caller can see
+the changes afterwards.  In order to get the address from an existing variable,
+use the ``&`` operator::
 
     cdef int some_int = 42
     cdef int *some_int_pointer = &some_int
