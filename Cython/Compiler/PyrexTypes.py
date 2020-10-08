@@ -4,8 +4,8 @@
 
 from __future__ import absolute_import
 
-import collections
 import copy
+import hashlib
 import re
 
 try:
@@ -4731,5 +4731,5 @@ def type_identifier(type):
 def cap_length(s, max_prefix=63, max_len=1024):
     if len(s) <= max_prefix:
         return s
-    else:
-        return '%x__%s__etc' % (abs(hash(s)) % (1<<20), s[:max_len-17])
+    hash_prefix = hashlib.sha256(s.encode('ascii')).hexdigest()[:6]
+    return '%s__%s__etc' % (hash_prefix, s[:max_len-17])
