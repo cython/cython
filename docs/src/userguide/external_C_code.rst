@@ -243,6 +243,7 @@ use the ``&`` operator::
     increase_by_one(some_int_pointer)
     # Or without creating the extra variable
     increase_by_one(&some_int)
+    print(some_int)  # prints 44 (== 42+1+1)
 
 If you want to manipulate the variable the pointer points to, you can access it by
 referencing its first element like you would in python ``my_pointer[0]``. For example::
