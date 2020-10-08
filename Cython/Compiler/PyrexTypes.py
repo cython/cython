@@ -5,19 +5,21 @@
 from __future__ import absolute_import
 
 import copy
+import hashlib
 import re
 
 try:
     reduce
 except NameError:
     from functools import reduce
+from functools import partial
 
 from Cython.Utils import cached_function
 from .Code import UtilityCode, LazyUtilityCode, TempitaUtilityCode
 from . import StringEncoding
 from . import Naming
 
-from .Errors import error, warning
+from .Errors import error, warning, CannotSpecialize
 
 
 class BaseType(object):
@@ -45,7 +47,9 @@ class BaseType(object):
     def cast_code(self, expr_code):
         return "((%s)%s)" % (self.empty_declaration_code(), expr_code)
 
-    def empty_declaration_code(self):
+    def empty_declaration_code(self, pyrex=False):
+        if pyrex:
+            return self.declaration_code('', pyrex=True)
         if self._empty_declaration is None:
             self._empty_declaration = self.declaration_code('')
         return self._empty_declaration
@@ -175,6 +179,7 @@ class PyrexType(BaseType):
     #  is_ptr                boolean     Is a C pointer type
     #  is_null_ptr           boolean     Is the type of NULL
     #  is_reference          boolean     Is a C reference type
+    #  is_rvalue_reference   boolean     Is a C++ rvalue reference type
     #  is_const              boolean     Is a C const type
     #  is_volatile           boolean     Is a C volatile type
     #  is_cv_qualified       boolean     Is a C const or volatile type
@@ -241,6 +246,7 @@ class PyrexType(BaseType):
     is_ptr = 0
     is_null_ptr = 0
     is_reference = 0
+    is_rvalue_reference = 0
     is_const = 0
     is_volatile = 0
     is_cv_qualified = 0
@@ -273,7 +279,8 @@ class PyrexType(BaseType):
         return self
 
     def specialize(self, values):
-        # TODO(danilo): Override wherever it makes sense.
+        # Returns the concrete type if this is a fused type, or otherwise the type itself.
+        # May raise Errors.CannotSpecialize on failure
         return self
 
     def literal_code(self, value):
@@ -695,11 +702,10 @@ class MemoryViewSliceType(PyrexType):
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
         # XXX: we put these guards in for now...
-        assert not pyrex
         assert not dll_linkage
         from . import MemoryView
         base_code = StringEncoding.EncodedString(
-                        (str(self)) if for_display else MemoryView.memviewslice_cname)
+            str(self) if pyrex or for_display else MemoryView.memviewslice_cname)
         return self.base_declaration_code(
                 base_code,
                 entity_code)
@@ -1827,7 +1833,10 @@ class FusedType(CType):
         return 'FusedType(name=%r)' % self.name
 
     def specialize(self, values):
-        return values[self]
+        if self in values:
+            return values[self]
+        else:
+            raise CannotSpecialize()
 
     def get_fused_types(self, result=None, seen=None):
         if result is None:
@@ -2747,26 +2756,17 @@ class CNullPtrType(CPtrType):
     is_null_ptr = 1
 
 
-class CReferenceType(BaseType):
+class CReferenceBaseType(BaseType):
 
-    is_reference = 1
     is_fake_reference = 0
+
+    # Common base type for C reference and C++ rvalue reference types.
 
     def __init__(self, base_type):
         self.ref_base_type = base_type
 
     def __repr__(self):
-        return "<CReferenceType %s>" % repr(self.ref_base_type)
-
-    def __str__(self):
-        return "%s &" % self.ref_base_type
-
-    def declaration_code(self, entity_code,
-            for_display = 0, dll_linkage = None, pyrex = 0):
-        #print "CReferenceType.declaration_code: pointer to", self.base_type ###
-        return self.ref_base_type.declaration_code(
-            "&%s" % entity_code,
-            for_display, dll_linkage, pyrex)
+        return "<%s %s>" % repr(self.__class__.__name__, self.ref_base_type)
 
     def specialize(self, values):
         base_type = self.ref_base_type.specialize(values)
@@ -2782,12 +2782,24 @@ class CReferenceType(BaseType):
         return getattr(self.ref_base_type, name)
 
 
+class CReferenceType(CReferenceBaseType):
+
+    is_reference = 1
+
+    def __str__(self):
+        return "%s &" % self.ref_base_type
+
+    def declaration_code(self, entity_code,
+            for_display = 0, dll_linkage = None, pyrex = 0):
+        #print "CReferenceType.declaration_code: pointer to", self.base_type ###
+        return self.ref_base_type.declaration_code(
+            "&%s" % entity_code,
+            for_display, dll_linkage, pyrex)
+
+
 class CFakeReferenceType(CReferenceType):
 
     is_fake_reference = 1
-
-    def __repr__(self):
-        return "<CFakeReferenceType %s>" % repr(self.ref_base_type)
 
     def __str__(self):
         return "%s [&]" % self.ref_base_type
@@ -2796,6 +2808,20 @@ class CFakeReferenceType(CReferenceType):
             for_display = 0, dll_linkage = None, pyrex = 0):
         #print "CReferenceType.declaration_code: pointer to", self.base_type ###
         return "__Pyx_FakeReference<%s> %s" % (self.ref_base_type.empty_declaration_code(), entity_code)
+
+
+class CppRvalueReferenceType(CReferenceBaseType):
+
+    is_rvalue_reference = 1
+
+    def __str__(self):
+        return "%s &&" % self.ref_base_type
+
+    def declaration_code(self, entity_code,
+            for_display = 0, dll_linkage = None, pyrex = 0):
+        return self.ref_base_type.declaration_code(
+            "&&%s" % entity_code,
+            for_display, dll_linkage, pyrex)
 
 
 class CFuncType(CType):
@@ -3226,8 +3252,7 @@ class CFuncType(CType):
         if not self.can_coerce_to_pyobject(env):
             return False
         from .UtilityCode import CythonUtilityCode
-        safe_typename = re.sub('[^a-zA-Z0-9]', '__', self.declaration_code("", pyrex=1))
-        to_py_function = "__Pyx_CFunc_%s_to_py" % safe_typename
+        to_py_function = "__Pyx_CFunc_%s_to_py" % type_identifier(self, pyrex=True)
 
         for arg in self.args:
             if not arg.type.is_pyobject and not arg.type.create_from_py_utility_code(env):
@@ -3430,6 +3455,12 @@ class CFuncTypeArg(BaseType):
     def specialize(self, values):
         return CFuncTypeArg(self.name, self.type.specialize(values), self.pos, self.cname)
 
+    def is_forwarding_reference(self):
+        if self.type.is_rvalue_reference:
+            if (isinstance(self.type.ref_base_type, TemplatePlaceholderType)
+                    and not self.type.ref_base_type.is_cv_qualified):
+                return True
+        return False
 
 class ToPyStructUtilityCode(object):
 
@@ -4921,6 +4952,10 @@ def c_ref_type(base_type):
     # Construct a C reference type
     return _construct_type_from_base(CReferenceType, base_type)
 
+def cpp_rvalue_ref_type(base_type):
+    # Construct a C++ rvalue reference type
+    return _construct_type_from_base(CppRvalueReferenceType, base_type)
+
 def c_const_type(base_type):
     # Construct a C const type.
     return _construct_type_from_base(CConstType, base_type)
@@ -4954,28 +4989,42 @@ def typecast(to_type, from_type, expr_code):
 def type_list_identifier(types):
     return cap_length('__and_'.join(type_identifier(type) for type in types))
 
+_special_type_characters = {
+    '__': '__dunder',
+    'const ': '__const_',
+    ' ': '__space_',
+    '*': '__ptr',
+    '&': '__ref',
+    '&&': '__fwref',
+    '[': '__lArr',
+    ']': '__rArr',
+    '<': '__lAng',
+    '>': '__rAng',
+    '(': '__lParen',
+    ')': '__rParen',
+    ',': '__comma_',
+    '...': '__EL',
+    '::': '__in_',
+    ':': '__D',
+}
+
+_escape_special_type_characters = partial(re.compile(
+    # join substrings in reverse order to put longer matches first, e.g. "::" before ":"
+    " ?(%s) ?" % "|".join(re.escape(s) for s in sorted(_special_type_characters, reverse=True))
+).sub, lambda match: _special_type_characters[match.group(1)])
+
+def type_identifier(type, pyrex=False):
+    decl = type.empty_declaration_code(pyrex=pyrex)
+    return type_identifier_from_declaration(decl)
+
 _type_identifier_cache = {}
-def type_identifier(type):
-    decl = type.empty_declaration_code()
+def type_identifier_from_declaration(decl):
     safe = _type_identifier_cache.get(decl)
     if safe is None:
         safe = decl
         safe = re.sub(' +', ' ', safe)
-        safe = re.sub(' ([^a-zA-Z0-9_])', r'\1', safe)
-        safe = re.sub('([^a-zA-Z0-9_]) ', r'\1', safe)
-        safe = (safe.replace('__', '__dunder')
-                    .replace('const ', '__const_')
-                    .replace(' ', '__space_')
-                    .replace('*', '__ptr')
-                    .replace('&', '__ref')
-                    .replace('[', '__lArr')
-                    .replace(']', '__rArr')
-                    .replace('<', '__lAng')
-                    .replace('>', '__rAng')
-                    .replace('(', '__lParen')
-                    .replace(')', '__rParen')
-                    .replace(',', '__comma_')
-                    .replace('::', '__in_'))
+        safe = re.sub(' ?([^a-zA-Z0-9_]) ?', r'\1', safe)
+        safe = _escape_special_type_characters(safe)
         safe = cap_length(re.sub('[^a-zA-Z0-9_]', lambda x: '__%X' % ord(x.group(0)), safe))
         _type_identifier_cache[decl] = safe
     return safe
@@ -4983,5 +5032,5 @@ def type_identifier(type):
 def cap_length(s, max_prefix=63, max_len=1024):
     if len(s) <= max_prefix:
         return s
-    else:
-        return '%x__%s__etc' % (abs(hash(s)) % (1<<20), s[:max_len-17])
+    hash_prefix = hashlib.sha256(s.encode('ascii')).hexdigest()[:6]
+    return '%s__%s__etc' % (hash_prefix, s[:max_len-17])

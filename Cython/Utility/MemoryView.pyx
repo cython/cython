@@ -1471,7 +1471,8 @@ cdef bytes format_from_typeinfo(__Pyx_TypeInfo *type):
     cdef Py_ssize_t i
 
     if type.typegroup == 'S':
-        assert type.fields != NULL and type.fields.type != NULL
+        assert type.fields != NULL
+        assert type.fields.type != NULL
 
         if type.flags & __PYX_BUF_FLAGS_PACKED_STRUCT:
             alignment = b'^'

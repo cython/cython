@@ -7,22 +7,27 @@ print(end='')  # test that language_level 3 applies immediately at the module st
 cimport cython
 
 __doc__ = """
+>>> items = sorted(locals_function(1).items())
+>>> for item in items:
+...     print('%s = %r' % item)
+a = 1
+b = 2
+x = u'abc'
+
 >>> except_as_deletes
 True
+
 >>> no_match_does_not_touch_target
 True
 """
 
+import sys
+IS_PY2 = sys.version_info[0] < 3
+if not IS_PY2:
+    __doc__ = __doc__.replace(" u'", " '")
+
 
 def locals_function(a, b=2):
-    """
-    >>> items = sorted(locals_function(1).items())
-    >>> for item in items:
-    ...     print('%s = %r' % item)
-    a = 1
-    b = 2
-    x = 'abc'
-    """
     x = 'abc'
     return locals()
 
