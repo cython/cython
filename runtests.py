@@ -311,6 +311,27 @@ def update_cpp11_extension(ext):
 
     return EXCLUDE_EXT
 
+def update_cpp17_extension(ext):
+    """
+        update cpp17 extensions that will run on versions of gcc >=5.0
+    """
+    gcc_version = get_gcc_version(ext.language)
+    if gcc_version:
+        compiler_version = gcc_version.group(1)
+        if float(compiler_version) >= 5.0:
+            ext.extra_compile_args.append("-std=c++17")
+        return ext
+
+    clang_version = get_clang_version(ext.language)
+    if clang_version:
+        ext.extra_compile_args.append("-std=c++17")
+        if sys.platform == "darwin":
+          ext.extra_compile_args.append("-stdlib=libc++")
+          ext.extra_compile_args.append("-mmacosx-version-min=10.13")
+        return ext
+
+    return EXCLUDE_EXT
+
 
 def get_cc_version(language):
     """
@@ -395,6 +416,7 @@ EXT_EXTRAS = {
     'tag:openmp': update_openmp_extension,
     'tag:gdb': update_gdb_extension,
     'tag:cpp11': update_cpp11_extension,
+    'tag:cpp17': update_cpp17_extension,
     'tag:trace' : update_linetrace_extension,
     'tag:bytesformat':  exclude_extension_in_pyver((3, 3), (3, 4)),  # no %-bytes formatting
     'tag:no-macos':  exclude_extension_on_platform('darwin'),
