@@ -11,6 +11,7 @@ cdef extern from "<algorithm>" namespace "std" nogil:
     bool any_of[ExecutionPolicy, Iter, Pred](ExecutionPolicy&& policy, Iter first, Iter last, Pred pred) except +
     bool none_of[Iter, Pred](Iter first, Iter last, Pred pred) except +
     bool none_of[ExecutionPolicy, Iter, Pred](ExecutionPolicy&& policy, Iter first, Iter last, Pred pred) except +
+
     void for_each[Iter, UnaryFunction](Iter first, Iter last, UnaryFunction f) except +  # actually returns f
     void for_each[ExecutionPolicy, Iter, UnaryFunction](ExecutionPolicy&& policy, Iter first, Iter last, UnaryFunction f) except +  # actually returns f
 
@@ -180,6 +181,7 @@ cdef extern from "<algorithm>" namespace "std" nogil:
     void sort[ExecutionPolicy, Iter](ExecutionPolicy&& policy, Iter first, Iter last) except +
     void sort[Iter, Compare](Iter first, Iter last, Compare comp) except +
     void sort[ExecutionPolicy, Iter, Compare](ExecutionPolicy&& policy, Iter first, Iter last, Compare comp) except +
+
     void partial_sort[Iter](Iter first, Iter middle, Iter last) except +
     void partial_sort[ExecutionPolicy, Iter](ExecutionPolicy&& policy, Iter first, Iter middle, Iter last) except +
     void partial_sort[Iter, Compare](Iter first, Iter middle, Iter last, Compare comp) except +
