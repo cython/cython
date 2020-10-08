@@ -23,12 +23,13 @@ import os.path
 import operator
 
 from .Errors import (
-    error, warning, InternalError, CompileError, report_error, local_errors)
+    error, warning, InternalError, CompileError, report_error, local_errors,
+    CannotSpecialize)
 from .Code import UtilityCode, TempitaUtilityCode
 from . import StringEncoding
 from . import Naming
 from . import Nodes
-from .Nodes import Node, utility_code_for_imports
+from .Nodes import Node, utility_code_for_imports, SingleAssignmentNode, PassStatNode
 from . import PyrexTypes
 from .PyrexTypes import py_object_type, c_long_type, typecast, error_type, \
     unspecified_type
@@ -458,6 +459,9 @@ class ExprNode(Node):
 
     child_attrs = property(fget=operator.attrgetter('subexprs'))
 
+    def analyse_annotations(self, env):
+        pass
+
     def not_implemented(self, method_name):
         print_call_chain(method_name, "not implemented")
         raise InternalError(
@@ -500,21 +504,21 @@ class ExprNode(Node):
         else:
             return self.calculate_result_code()
 
-    def _make_move_result_rhs(self, result, allow_move=True):
-        if (self.is_temp and allow_move and
-                self.type.is_cpp_class and not self.type.is_reference):
-            self.has_temp_moved = True
-            return "__PYX_STD_MOVE_IF_SUPPORTED({0})".format(result)
-        else:
+    def _make_move_result_rhs(self, result, optional=False):
+        if optional and not (self.is_temp and self.type.is_cpp_class and not self.type.is_reference):
             return result
+        self.has_temp_moved = True
+        return "{}({})".format("__PYX_STD_MOVE_IF_SUPPORTED" if optional else "std::move", result)
 
     def move_result_rhs(self):
-        return self._make_move_result_rhs(self.result())
+        return self._make_move_result_rhs(self.result(), optional=True)
 
     def move_result_rhs_as(self, type):
-        allow_move = (type and not type.is_reference and not type.needs_refcounting)
-        return self._make_move_result_rhs(self.result_as(type),
-                                          allow_move=allow_move)
+        result = self.result_as(type)
+        if not (type.is_reference or type.needs_refcounting):
+            requires_move = type.is_rvalue_reference and self.is_temp
+            result = self._make_move_result_rhs(result, optional=not requires_move)
+        return result
 
     def pythran_result(self, type_=None):
         if is_pythran_supported_node_or_none(self):
@@ -1973,32 +1977,42 @@ class NameNode(AtomicExprNode):
     def declare_from_annotation(self, env, as_target=False):
         """Implements PEP 526 annotation typing in a fairly relaxed way.
 
-        Annotations are ignored for global variables, Python class attributes and already declared variables.
-        String literals are allowed and ignored.
-        The ambiguous Python types 'int' and 'long' are ignored and the 'cython.int' form must be used instead.
+        Annotations are ignored for global variables.
+        All other annotations are stored on the entry in the symbol table.
+        String literals are allowed and not evaluated.
+        The ambiguous Python types 'int' and 'long' are not evaluated - the 'cython.int' form must be used instead.
         """
-        if not env.directives['annotation_typing']:
-            return
-        if env.is_module_scope or env.is_py_class_scope:
-            # annotations never create global cdef names and Python classes don't support them anyway
-            return
         name = self.name
-        if self.entry or env.lookup_here(name) is not None:
-            # already declared => ignore annotation
-            return
-
         annotation = self.annotation
-        if annotation.expr.is_string_literal:
-            # name: "description" => not a type, but still a declared variable or attribute
-            atype = None
-        else:
-            _, atype = annotation.analyse_type_annotation(env)
-        if atype is None:
-            atype = unspecified_type if as_target and env.directives['infer_types'] != False else py_object_type
-        if atype.is_fused and env.fused_to_specific:
-            atype = atype.specialize(env.fused_to_specific)
-        self.entry = env.declare_var(name, atype, self.pos, is_cdef=not as_target)
-        self.entry.annotation = annotation.expr
+        entry = self.entry or env.lookup_here(name)
+        if not entry:
+            # annotations never create global cdef names
+            if env.is_module_scope:
+                return
+            if (
+                # name: "description" => not a type, but still a declared variable or attribute
+                annotation.expr.is_string_literal
+                # don't do type analysis from annotations if not asked to, but still collect the annotation
+                or not env.directives['annotation_typing']
+            ):
+                atype = None
+            else:
+                _, atype = annotation.analyse_type_annotation(env)
+            if atype is None:
+                atype = unspecified_type if as_target and env.directives['infer_types'] != False else py_object_type
+            if atype.is_fused and env.fused_to_specific:
+                try:
+                    atype = atype.specialize(env.fused_to_specific)
+                except CannotSpecialize:
+                    error(self.pos,
+                          "'%s' cannot be specialized since its type is not a fused argument to this function" %
+                          self.name)
+                    atype = error_type
+
+            entry = self.entry = env.declare_var(name, atype, self.pos, is_cdef=not as_target)
+        # Even if the entry already exists, make sure we're supplying an annotation if we can.
+        if annotation and not entry.annotation:
+            entry.annotation = annotation
 
     def analyse_as_module(self, env):
         # Try to interpret this as a reference to a cimported module.
@@ -5770,8 +5784,18 @@ class SimpleCallNode(CallNode):
             else:
                 alternatives = overloaded_entry.all_alternatives()
 
-            entry = PyrexTypes.best_match(
-                [arg.type for arg in args], alternatives, self.pos, env, args)
+            # For any argument/parameter pair A/P, if P is a forwarding reference,
+            # use lvalue-reference-to-A for deduction in place of A when the
+            # function call argument is an lvalue. See:
+            # https://en.cppreference.com/w/cpp/language/template_argument_deduction#Deduction_from_a_function_call
+            arg_types = [arg.type for arg in args]
+            if func_type.is_cfunction:
+                for i, formal_arg in enumerate(func_type.args):
+                    if formal_arg.is_forwarding_reference():
+                        if self.args[i].is_lvalue():
+                            arg_types[i] = PyrexTypes.c_ref_type(arg_types[i])
+
+            entry = PyrexTypes.best_match(arg_types, alternatives, self.pos, env, args)
 
             if not entry:
                 self.type = PyrexTypes.error_type
@@ -9037,6 +9061,9 @@ class ClassNode(ExprNode, ModuleNameMixin):
     type = py_object_type
     is_temp = True
 
+    def analyse_annotations(self, env):
+        pass
+
     def infer_type(self, env):
         # TODO: could return 'type' in some cases
         return py_object_type
@@ -9106,6 +9133,26 @@ class Py3ClassNode(ExprNode):
         return True
 
     gil_message = "Constructing Python class"
+
+    def analyse_annotations(self, env):
+        from .AutoDocTransforms import AnnotationWriter
+        position = self.class_def_node.pos
+        dict_items = [
+            DictItemNode(
+                entry.pos,
+                key=IdentifierStringNode(entry.pos, value=entry.name),
+                value=entry.annotation.string
+            )
+            for entry in env.entries.values() if entry.annotation
+        ]
+        # Annotations dict shouldn't exist for classes which don't declare any.
+        if dict_items:
+            annotations_dict = DictNode(position, key_value_pairs=dict_items)
+            lhs = NameNode(position, name=StringEncoding.EncodedString(u"__annotations__"))
+            lhs.entry = env.lookup_here(lhs.name) or env.declare_var(lhs.name, dict_type, position)
+            node = SingleAssignmentNode(position, lhs=lhs, rhs=annotations_dict)
+            node.analyse_declarations(env)
+            self.class_def_node.body.stats.insert(0, node)
 
     def generate_result_code(self, code):
         code.globalstate.use_utility_code(UtilityCode.load_cached("Py3ClassCreate", "ObjectHandling.c"))
@@ -9485,6 +9532,9 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
 
         if def_node.local_scope.parent_scope.is_c_class_scope and not def_node.entry.is_anonymous:
             flags.append('__Pyx_CYFUNCTION_CCLASS')
+
+        if def_node.is_coroutine:
+            flags.append('__Pyx_CYFUNCTION_COROUTINE')
 
         if flags:
             flags = ' | '.join(flags)
@@ -10902,7 +10952,11 @@ class SizeofVarNode(SizeofNode):
         if operand_as_type:
             self.arg_type = operand_as_type
             if self.arg_type.is_fused:
-                self.arg_type = self.arg_type.specialize(env.fused_to_specific)
+                try:
+                    self.arg_type = self.arg_type.specialize(env.fused_to_specific)
+                except CannotSpecialize:
+                    error(self.operand.pos,
+                          "Type cannot be specialized since it is not a fused argument to this function")
             self.__class__ = SizeofTypeNode
             self.check_type()
         else:

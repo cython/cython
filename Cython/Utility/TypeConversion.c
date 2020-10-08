@@ -464,6 +464,15 @@ static CYTHON_INLINE PyObject * __Pyx_PyInt_FromSize_t(size_t ival) {
 }
 
 
+/////////////// GCCDiagnostics.proto ///////////////
+
+// GCC diagnostic pragmas were introduced in GCC 4.6
+// Used to silence conversion warnings that are ok but cannot be avoided.
+#if defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6))
+#define __Pyx_HAS_GCC_DIAGNOSTIC
+#endif
+
+
 /////////////// ToPyCTupleUtility.proto ///////////////
 static PyObject* {{funcname}}({{struct_type_decl}});
 
@@ -653,9 +662,17 @@ static CYTHON_INLINE Py_UNICODE __Pyx_PyObject_AsPy_UNICODE(PyObject* x) {
 static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value);
 
 /////////////// CIntToPy ///////////////
+//@requires: GCCDiagnostics
 
 static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
-    const {{TYPE}} neg_one = ({{TYPE}}) (({{TYPE}}) 0 - ({{TYPE}}) 1), const_zero = ({{TYPE}}) 0;
+#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wconversion"
+#endif
+    const {{TYPE}} neg_one = ({{TYPE}}) -1, const_zero = ({{TYPE}}) 0;
+#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
+#pragma GCC diagnostic pop
+#endif
     const int is_unsigned = neg_one > const_zero;
     if (is_unsigned) {
         if (sizeof({{TYPE}}) < sizeof(long)) {
@@ -724,13 +741,10 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t wid
 /////////////// CIntToPyUnicode ///////////////
 //@requires: StringTools.c::BuildPyUnicode
 //@requires: CIntToDigits
+//@requires: GCCDiagnostics
 
 // NOTE: inlining because most arguments are constant, which collapses lots of code below
 
-// GCC diagnostic pragmas were introduced in GCC 4.6
-#if defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6))
-#define GCC_DIAGNOSTIC
-#endif
 static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t width, char padding_char, char format_char) {
     // simple and conservative C string allocation on the stack: each byte gives at most 3 digits, plus sign
     char digits[sizeof({{TYPE}})*3+2];
@@ -740,12 +754,12 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t wid
     Py_ssize_t length, ulength;
     int prepend_sign, last_one_off;
     {{TYPE}} remaining;
-#ifdef GCC_DIAGNOSTIC
+#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wconversion"
 #endif
     const {{TYPE}} neg_one = ({{TYPE}}) -1, const_zero = ({{TYPE}}) 0;
-#ifdef GCC_DIAGNOSTIC
+#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
 #pragma GCC diagnostic pop
 #endif
     const int is_unsigned = neg_one > const_zero;
@@ -872,11 +886,19 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *);
 
 /////////////// CIntFromPy ///////////////
 //@requires: CIntFromPyVerify
+//@requires: GCCDiagnostics
 
 {{py: from Cython.Utility import pylong_join }}
 
 static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
-    const {{TYPE}} neg_one = ({{TYPE}}) (({{TYPE}}) 0 - ({{TYPE}}) 1), const_zero = ({{TYPE}}) 0;
+#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wconversion"
+#endif
+    const {{TYPE}} neg_one = ({{TYPE}}) -1, const_zero = ({{TYPE}}) 0;
+#ifdef __Pyx_HAS_GCC_DIAGNOSTIC
+#pragma GCC diagnostic pop
+#endif
     const int is_unsigned = neg_one > const_zero;
 #if PY_MAJOR_VERSION < 3
     if (likely(PyInt_Check(x))) {

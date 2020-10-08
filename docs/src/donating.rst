@@ -1,5 +1,5 @@
 🌷️ Thank you for your interest in supporting Cython! 🌷️
-======================================================
+=========================================================
 
 Managing, maintaining and advancing a project as large as Cython takes
 **a lot of time and dedication**.  This is really a full-time job that
@@ -17,3 +17,7 @@ Please consider signing a subscription for continuous project support via
 or donating via
 
 * `PayPal <https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=HLS9JEYD4ETB6&source=url>`_
+
+Note that PayPal takes 5 - 15% fees for small non-EUR payments,
+which is money that you pay without helping us.
+Consider signing up for a GitHub Sponsors subscription instead.

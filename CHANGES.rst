@@ -14,13 +14,45 @@ Features added
 * ``cython.array`` supports simple, non-strided views.
   (Github issue #3775)
 
+* The destructor is now called for fields in C++ structs.
+  Patch by David Woods.  (Github issue #3226)
+
+* ``asyncio.iscoroutinefunction()`` now recognises coroutine functions
+  also when compiled by Cython.
+  Patch by Pedro Marques da Luz.  (Github issue #2273)
+
+* Docstrings of ``cpdef`` enums are now copied to the enum class.
+  Patch by matham.  (Github issue #3805)
+
 * The type ``cython.Py_hash_t`` is available in Python mode.
+
+* The value ``PyBUF_MAX_NDIM`` was added to the ``cpython.buffer`` module.
+  Patch by John Kirkham.  (Github issue #3811)
 
 Bugs fixed
 ----------
 
+* Inline functions and other code in ``.pxd`` files could accidentally
+  inherit the compiler directives of the ``.pyx`` file that imported them.
+  Patch by David Woods.  (Github issue #1071)
+
 * ``ndarray.shape`` failed to compile with Pythran and recent NumPy.
   Patch by Serge Guelton.  (Github issue #3762)
+
+* Casting to ctuples is now allowed.
+  Patch by David Woods.  (Github issue #3808)
+
+* A C compiler warning about unused code was resolved.
+  (Github issue #3763)
+
+* A C compiler warning about enum value casting was resolved in GCC.
+  (Github issue #2749)
+
+* A compile failure for C++ enums in Py3.4 / MSVC was resolved.
+  Patch by Ashwin Srinath.  (Github issue #3782)
+
+* The Cython ``CodeWriter`` mishandled no-argument ``return`` statements.
+  Patch by Tao He.  (Github issue #3795)
 
 
 3.0.0 alpha 6 (2020-07-31)
@@ -506,6 +538,12 @@ Bugs fixed
 
 * ``repr()`` was assumed to return ``str`` instead of ``unicode`` with ``language_level=3``.
   (Github issue #3736)
+
+* Cython no longer validates the ABI size of the NumPy classes it compiled against.
+  See the discussion in https://github.com/numpy/numpy/pull/432
+
+* A C compiler warning about enum value casting was resolved in GCC.
+  (Github issue #2749)
 
 
 0.29.21 (2020-07-09)
