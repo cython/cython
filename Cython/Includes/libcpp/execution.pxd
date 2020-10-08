@@ -9,7 +9,7 @@ cdef extern from "<execution>" namespace "std::execution" nogil:
     cdef cppclass unsequenced_policy:
         pass
     
-    sequenced_policy seq "std::execution::seq"
-    parallel_policy par "std::execution::par"
-    parallel_unsequenced_policy par_unseq "std::execution::par_unseq"
-    unsequenced_policy unseq "std::execution::unseq"
+    const sequenced_policy seq "std::execution::seq"
+    const parallel_policy par "std::execution::par"
+    const parallel_unsequenced_policy par_unseq "std::execution::par_unseq"
+    const unsequenced_policy unseq "std::execution::unseq"
