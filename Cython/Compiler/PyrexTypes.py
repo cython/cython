@@ -4,10 +4,6 @@
 
 from __future__ import absolute_import
 
-<<<<<<< HEAD
-import hashlib
-=======
->>>>>>> 0.29.x
 import copy
 import hashlib
 import re
