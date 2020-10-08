@@ -56,7 +56,7 @@ cdef extern from *:
         Py_ssize_t suboffsets[{{max_dims}}]
 
     void __PYX_INC_MEMVIEW({{memviewslice_name}} *memslice, int have_gil)
-    void __PYX_XDEC_MEMVIEW({{memviewslice_name}} *memslice, int have_gil)
+    void __PYX_XCLEAR_MEMVIEW({{memviewslice_name}} *memslice, int have_gil)
 
     ctypedef struct __pyx_buffer "Py_buffer":
         PyObject *obj
@@ -987,7 +987,7 @@ cdef class _memoryviewslice(memoryview):
     cdef int (*to_dtype_func)(char *, object) except 0
 
     def __dealloc__(self):
-        __PYX_XDEC_MEMVIEW(&self.from_slice, 1)
+        __PYX_XCLEAR_MEMVIEW(&self.from_slice, 1)
 
     cdef convert_item_to_object(self, char *itemp):
         if self.to_object_func != NULL:
