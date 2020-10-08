@@ -3,7 +3,7 @@ cdef extern from "<execution>" namespace "std::execution" nogil:
     cdef cppclass sequenced_policy:
         pass
     cdef cppclass parallel_policy:
-        parallel_policy()
+        pass
     cdef cppclass parallel_unsequenced_policy:
         pass
     cdef cppclass unsequenced_policy:
