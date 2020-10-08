@@ -14,6 +14,7 @@ from Cython.Compiler.Annotate import AnnotationCCodeWriter
 
 try:
     import IPython.testing.globalipapp
+    from IPython.utils.io import capture_output
 except ImportError:
     # Disable tests and fake helpers for initialisation below.
     def skip_if_not_installed(_):
@@ -46,6 +47,16 @@ pgo_cython3_code = cython3_code + u"""\
 def main():
     for _ in range(100): call(5)
 main()
+"""
+
+compile_error_code = u"""\
+cdef extern from *:
+    \"\"\"
+    xxx a=1;
+    \"\"\"
+    int a;
+def doit():
+    return a
 """
 
 
@@ -142,6 +153,18 @@ class TestIPythonMagic(CythonTest):
         ip.ex('g = f(10); h = call(10)')
         self.assertEqual(ip.user_ns['g'], 2 // 10)
         self.assertEqual(ip.user_ns['h'], 2 // 10)
+
+    def test_compile_error_shown(self):
+        ip = self._ip
+        with capture_output() as captured:
+            ip.run_cell_magic('cython', '-3', compile_error_code)
+        self.assertTrue("error" in captured.stderr)
+
+    def test_link_error_shown(self):
+        ip = self._ip
+        with capture_output() as captured:
+            ip.run_cell_magic('cython', '-3 -l=xxxxxxxx', code)
+        self.assertTrue("error" in captured.stderr)
 
     @skip_win32('Skip on Windows')
     def test_cython3_pgo(self):
