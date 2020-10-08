@@ -632,9 +632,11 @@ async def async_def_annotations(x: 'int') -> 'float':
     return float(x)
 
 
+'''
 def repr_returns_str(x) -> str:
     """
     >>> repr_returns_str(123)
     '123'
     """
     return repr(x)
+'''
