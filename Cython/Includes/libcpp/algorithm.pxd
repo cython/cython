@@ -96,7 +96,7 @@ cdef extern from "<algorithm>" namespace "std" nogil:
     OutputIt transform[InputIt1, InputIt2, OutputIt, BinaryOp](
         InputIt1 first1, InputIt1 last1, InputIt2 first2, OutputIt d_first, BinaryOp binary_op) except +
 
-    Outputit transform[ExecutionPolicy, InputIt1, InputIt2, OutputIt, BinaryOp](
+    OutputIt transform[ExecutionPolicy, InputIt1, InputIt2, OutputIt, BinaryOp](
         ExecutionPolicy&& policy, InputIt1 first1, InputIt1 last1, InputIt2 first2, OutputIt d_first, BinaryOp binary_op) except +
 
     void generate[Iter, Generator](Iter first, Iter last, Generator g) except +
