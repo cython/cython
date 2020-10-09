@@ -55,9 +55,9 @@ def test_forwarding_ref():
     assert foo(move(x)) == b"rvalue-ref"
 
 
-def test_forwarding_ref_ambiguous_overload():
+def test_forwarding_ref_overload():
     """
-    >>> test_forwarding_ref_ambiguous_overload()
+    >>> test_forwarding_ref_overload()
     """
     cdef int x = 1
     cdef int y = 2
