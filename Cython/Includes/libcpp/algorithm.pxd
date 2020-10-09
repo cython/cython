@@ -88,12 +88,15 @@ cdef extern from "<algorithm>" namespace "std" nogil:
 
     OutputIt transform[InputIt, OutputIt, UnaryOp](
         InputIt first1, InputIt last1, OutputIt d_first, UnaryOp unary_op) except +
-    OutputIt transform[ExecutionPolicy, InputIt, OutputIt, UnaryOp](
-        ExecutionPolicy&& policy, InputIt first1, InputIt last1, OutputIt d_first, UnaryOp unary_op) except +
+
+    # This overload is ambiguos with the next one. We just let C++ disambiguate from the arguments
+    # OutputIt transform[ExecutionPolicy, InputIt, OutputIt, UnaryOp](
+    #     ExecutionPolicy&& policy, InputIt first1, InputIt last1, OutputIt d_first, UnaryOp unary_op) except +
 
     OutputIt transform[InputIt1, InputIt2, OutputIt, BinaryOp](
         InputIt1 first1, InputIt1 last1, InputIt2 first2, OutputIt d_first, BinaryOp binary_op) except +
-    OutputIt transform[ExecutionPolicy, InputIt1, InputIt2, OutputIt, BinaryOp](
+
+    Outputit transform[ExecutionPolicy, InputIt1, InputIt2, OutputIt, BinaryOp](
         ExecutionPolicy&& policy, InputIt1 first1, InputIt1 last1, InputIt2 first2, OutputIt d_first, BinaryOp binary_op) except +
 
     void generate[Iter, Generator](Iter first, Iter last, Generator g) except +
