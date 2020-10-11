@@ -19,7 +19,7 @@ MISSING = _MISSING_TYPE()
 
 _DataclassParams = namedtuple('_DataclassParams',
     ["init", "repr", "eq", "order", "unsafe_hash", "frozen"])
-class Field:
+class Field(object):
     __slots__ = ('name',
                  'type',
                  'default',

@@ -373,7 +373,7 @@ directive_scopes = {  # defaults to available everywhere
     'fast_gil': ('module',),
     'iterable_coroutine': ('module', 'function'),
     'trashcan' : ('cclass',),
-    'dataclass.dataclass' : ('class', 'cclass',)
+    'dataclasses.dataclass' : ('class', 'cclass',)
 }
 
 

@@ -2065,7 +2065,7 @@ class NameNode(AtomicExprNode):
         if not self.entry and self.annotation is not None:
             # name : type = ...
             if 'dataclasses.dataclass' in env.directives:
-                # in a dataclass an assignment should not prevent a name becoming a class member
+                # in a dataclass an assignment should not prevent a name becoming an instance attribute
                 # hence "as_target = False"
                 self.declare_from_annotation(env, as_target=False)
             else:

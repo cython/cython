@@ -4374,11 +4374,11 @@ class ErrorType(PyrexType):
     def error_condition(self, result_code):
         return "dummy"
 
-class InitOrClassVar:
+class InitOrClassVar(object):
     """Used to help Cython interpret dataclass InitVar or ClassVar.
 
-    Although not really a CppClassType, it uses a template-like syntax
-    so claims to be to allow exisiting code to use it with minimal fuss
+    Although not really a CppClassType, it uses a template-like syntax.
+    So it mimics the interface to let existing code use it with minimal fuss.
 
     Don't inherit from PyrexType to simplify implementation of
     __getattribute__. However, this behaves like a PyrexType

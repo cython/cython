@@ -12,7 +12,6 @@ static PyObject *__Pyx_FetchSharedCythonABIModule(void) {
 }
 
 /////////////// FetchCommonType.proto ///////////////
-//@requires: FetchSharedCythonModule
 
 static PyTypeObject* __Pyx_FetchCommonType(PyTypeObject* type);
 #if CYTHON_COMPILING_IN_LIMITED_API
@@ -20,6 +19,7 @@ static PyTypeObject* __Pyx_FetchCommonTypeFromSpec(PyType_Spec *spec, PyObject *
 #endif
 
 /////////////// FetchCommonType ///////////////
+//@requires: FetchSharedCythonModule
 
 static int __Pyx_VerifyCachedType(PyObject *cached_type,
                                const char *name,
