@@ -332,6 +332,14 @@ def update_cpp17_extension(ext):
 
     return EXCLUDE_EXT
 
+def require_gcc(version):
+    def check(ext):
+        gcc_version = get_gcc_version(ext.language)
+        if gcc_version:
+            if float(gcc_version.group(1)) >= float(version):
+                return ext
+        return EXCLUDE_EXT
+    return check
 
 def get_cc_version(language):
     """
@@ -421,6 +429,7 @@ EXT_EXTRAS = {
     'tag:bytesformat':  exclude_extension_in_pyver((3, 3), (3, 4)),  # no %-bytes formatting
     'tag:no-macos':  exclude_extension_on_platform('darwin'),
     'tag:py3only':  exclude_extension_in_pyver((2, 7)),
+    'tag:execpolicies': require_gcc("9.1")
 }
 
 

@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, werror, cpp17
+# tag: cpp, werror, cpp17, execpolicies
 
 from libcpp.algorithm cimport is_sorted, sort, stable_sort, nth_element, all_of, count, copy
 from libcpp.execution cimport seq
