@@ -4,8 +4,8 @@
 
 from __future__ import absolute_import
 
-import hashlib
 import copy
+import hashlib
 import re
 
 try:
@@ -5104,5 +5104,5 @@ def type_identifier_from_declaration(decl):
 def cap_length(s, max_prefix=63, max_len=1024):
     if len(s) <= max_prefix:
         return s
-    hash_prefix = hashlib.sha1(s.encode('ascii')).hexdigest()[:6]
+    hash_prefix = hashlib.sha256(s.encode('ascii')).hexdigest()[:6]
     return '%s__%s__etc' % (hash_prefix, s[:max_len-17])
