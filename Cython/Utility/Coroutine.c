@@ -810,7 +810,7 @@ PyObject *__Pyx_Coroutine_FinishDelegation(__pyx_CoroutineObject *gen) {
 }
 
 static PyObject *__Pyx_PyGen_Send(PyObject *gen, PyObject *arg) {
-#if PY_VERSION_HEX < 0x030A00A1
+#if PY_VERSION_HEX <= 0x030A00A1
     return _PyGen_Send((PyGenObject*)gen, arg);
 #else
     PyObject *result;
