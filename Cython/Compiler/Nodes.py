@@ -316,6 +316,14 @@ class Node(object):
         return u'"%s":%d:%d\n%s\n' % (
             source_desc.get_escaped_description(), line, col, u''.join(lines))
 
+    def unambiguous_import_path(self):
+        """
+        Gets the module.path that this node was imported from
+
+        Many nodes do not have one, or it is not unambiguous, in which case
+        this function returns a false value"""
+        return None
+
 class CompilerDirectivesNode(Node):
     """
     Sets compiler directives for the children nodes
@@ -1049,6 +1057,10 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
                     else:
                         scope = None
                         break
+                if scope is None:
+                    # TODO: probably not the best place to declare it?
+                    from .CythonScope import get_known_module_scope
+                    scope = get_known_module_scope(".".join(self.module_path))
 
                 if scope is None:
                     # Maybe it's a cimport.
@@ -5698,6 +5710,10 @@ class SingleAssignmentNode(AssignmentNode):
             return
         else:
             self.lhs.analyse_target_declaration(env)
+            if (getattr(self.lhs, "entry", None) and
+                    self.lhs.entry.unambiguous_import_path is None and
+                    self.rhs.unambiguous_import_path()):
+                self.lhs.entry.unambiguous_import_path = self.rhs.unambiguous_import_path()
 
     def analyse_types(self, env, use_temp=0):
         from . import ExprNodes
@@ -8394,7 +8410,8 @@ class CImportStatNode(StatNode):
                 env.declare_module(top_name, top_module_scope, self.pos)
         else:
             name = self.as_name or self.module_name
-            env.declare_module(name, module_scope, self.pos)
+            entry = env.declare_module(name, module_scope, self.pos)
+            entry.unambiguous_import_path = self.module_name
         if self.module_name in utility_code_for_cimports:
             env.use_utility_code(utility_code_for_cimports[self.module_name]())
 
@@ -8508,6 +8525,14 @@ class FromImportStatNode(StatNode):
                 self.import_star = 1
             else:
                 target.analyse_target_declaration(env)
+                if target.entry:
+                    if target.unambiguous_import_path() is None:
+                        target.entry.unambiguous_import_path = "%s.%s" % (
+                            self.module.module_name.value, name)
+                else:
+                    # it isn't unambiguous
+                    target.entry.unambiguous_import_path = False
+
 
     def analyse_expressions(self, env):
         from . import ExprNodes

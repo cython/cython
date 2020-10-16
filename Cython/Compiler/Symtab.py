@@ -159,6 +159,9 @@ class Entry(object):
     # is_fused_specialized boolean Whether this entry of a cdef or def function
     #                              is a specialization
     # is_cgetter       boolean    Is a c-level getter function
+    # unambiguous_import_path     Either None (default), False (definitely can't be determined)
+    #                             or a string of "modulename.something.attribute"
+    #                             Used for identifying imports from typing/dataclasses etc
 
     # TODO: utility_code and utility_code_definition serves the same purpose...
 
@@ -231,6 +234,7 @@ class Entry(object):
     cf_used = True
     outer_entry = None
     is_cgetter = False
+    unambiguous_import_path = None
 
     def __init__(self, name, cname, type, pos = None, init = None):
         self.name = name
@@ -2226,10 +2230,10 @@ class CClassScope(ClassScope):
         """
         name = self.mangle_class_private_name(name)
 
-        if type.is_classvar:
+        if type.is_typing_classvar:
             is_cdef = 0
 
-        if type.is_initvar and 'dataclass' not in self.directives:
+        if type.is_dataclasses_initvar and 'dataclass' not in self.directives:
             # no real reason to ban it, but it doesn't hugely make sense
             warning(pos, "Use of cython.dataclasses.InitVar does not make sense outside a dataclass")
 
