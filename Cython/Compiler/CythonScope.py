@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 
-from .Symtab import ModuleScope
+from .Symtab import ModuleScope, Entry
 from .PyrexTypes import *
 from .UtilityCode import CythonUtilityCode
 from .Errors import error
@@ -171,3 +171,32 @@ cython_test_extclass_utility_code = \
                                      test_cython_utility_dep])
 
 cythonview_testscope_utility_code = load_testscope_utility("View.TestScope")
+
+_known_module_scopes = {}
+
+def get_known_module_scope(module_name):
+    # I don't think this is in the right place, but it isn't clear where it should be
+    mod = _known_module_scopes.get(module_name, None)
+    if not mod:
+        if module_name == "typing":
+            from . import Builtin
+            mod = ModuleScope(module_name, None, None)
+            for name, tp in [('Dict', Builtin.dict_type),
+                             ('List', Builtin.list_type),
+                             ('Tuple', Builtin.tuple_type),
+                             ('Set', Builtin.set_type),
+                             ('FrozenSet', Builtin.frozenset_type),
+                             ('DefaultDict', Builtin.dict_type),
+                             ('OrderedDict', Builtin.dict_type)]:
+                indexed_type = IndexedPythonType("typing."+name, tp)
+                entry = mod.declare_type(name, indexed_type, pos = None)
+                dummy_entry = Entry(name, "<error>", py_object_type)
+                entry.as_variable = dummy_entry
+            for name in [('ClassVar')]:
+                indexed_type = SpecialIndexedPythonType("typing."+name)
+                entry = mod.declare_type(name, indexed_type, pos = None)
+                dummy_entry = Entry(name, "<error>", py_object_type)
+                entry.as_variable = dummy_entry
+            _known_module_scopes[module_name] = mod
+    return mod
+

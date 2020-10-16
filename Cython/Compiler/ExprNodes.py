@@ -2058,6 +2058,8 @@ class NameNode(AtomicExprNode):
     def analyse_target_declaration(self, env):
         if not self.entry:
             self.entry = env.lookup_here(self.name)
+        if self.entry:
+            self.entry.unambiguous_import_path = False  # already exists somewhere and so is now ambiguous
         if not self.entry and self.annotation is not None:
             # name : type = ...
             self.declare_from_annotation(env, as_target=True)
@@ -2557,6 +2559,11 @@ class NameNode(AtomicExprNode):
                 style, text = 'c_call', 'c function (%s)'
             code.annotate(pos, AnnotationItem(style, text % self.type, size=len(self.name)))
 
+    def unambiguous_import_path(self):
+        if self.entry:
+            return self.entry.unambiguous_import_path
+        return None
+
 class BackquoteNode(ExprNode):
     #  `expr`
     #
@@ -2665,6 +2672,9 @@ class ImportNode(ExprNode):
             import_code,
             code.error_goto_if_null(self.result(), self.pos)))
         self.generate_gotref(code)
+
+    def unambiguous_import_path(self):
+        return self.module_name.value
 
 
 class IteratorNode(ExprNode):
@@ -7423,6 +7433,11 @@ class AttributeNode(ExprNode):
         else:
             style, text = 'c_attr', 'c attribute (%s)'
         code.annotate(self.pos, AnnotationItem(style, text % self.type, size=len(self.attribute)))
+
+    def unambiguous_import_path(self):
+        if self.obj.unambiguous_import_path:
+            return "%s.%s" % (self.obj.unambiguous_import_path, self.attribute)
+        return None
 
 
 #-------------------------------------------------------------------

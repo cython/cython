@@ -198,6 +198,7 @@ class PyrexType(BaseType):
     #  is_buffer             boolean     Is buffer access type
     #  is_pythran_expr       boolean     Is Pythran expr
     #  is_numpy_buffer       boolean     Is Numpy array buffer
+    #  is_typing_classvar            boolean     Is a typing ClassVar
     #  has_attributes        boolean     Has C dot-selectable attributes
     #  needs_cpp_construction  boolean     Needs C++ constructor and destructor when used in a cdef class
     #  needs_refcounting     boolean     Needs code to be generated similar to incref/gotref/decref.
@@ -268,6 +269,7 @@ class PyrexType(BaseType):
     is_memoryviewslice = 0
     is_pythran_expr = 0
     is_numpy_buffer = 0
+    is_typing_classvar = 0
     has_attributes = 0
     needs_cpp_construction = 0
     needs_refcounting = 0
@@ -4367,6 +4369,98 @@ class ErrorType(PyrexType):
 
     def error_condition(self, result_code):
         return "dummy"
+
+
+class IndexedPythonType(PyrexType):
+    """Used to help Cython interpret indexed types from the typing module (or similar)
+
+    Although not really a CppClassType, it uses a template-like syntax.
+    So it mimics the interface to let existing code use it with minimal fuss.
+    """
+    is_cpp_class = True  # TODO: should probably be replaced with a clearer mechanism
+
+    def __init__(self, name, base_type=None):
+        self.name = name
+        self.base_type = base_type
+
+    def specialize_here(self, pos, template_values=None):
+        if self.base_type:
+            # for a lot of the typing classes it doesn't really matter what the template it
+            # (i.e. typing.Dict[int] is really just a dict
+            return self.base_type
+        return self
+
+    def __repr__(self):
+        if self.base_type:
+            return "%s[%r]" % (self.name, self.base_type)
+        else:
+            return self.name
+
+    def is_template_type(self):
+        return True
+
+
+class SpecialIndexedPythonType(IndexedPythonType):
+    """
+    For things like ClassVar, Optional, etc, which have extra features on top of being
+    a "templated" type
+    """
+    @property
+    def is_cpp_class(self):
+        return not bool(self.template_type)
+
+    def __init__(self, name, template_type=None):
+        super(SpecialIndexedPythonType, self).__init__(name, None)
+        if (name == "typing.ClassVar" and template_type
+                and not template_type.is_pyobject):
+            # because classvars end up essentially used as globals they have
+            # to be PyObjects. Try to find the nearest suitable type (although
+            # practically I doubt this matters
+            py_type_name = template_type.py_type_name()
+            if py_type_name:
+                from .Builtin import builtin_scope
+                template_type = (builtin_scope.lookup_type(py_type_name)
+                                        or py_object_type)
+            else:
+                template_type = py_object_type
+        if name == "typing.ClassVar":
+            self.is_typing_classvar = True
+        self.template_type = template_type
+
+    def __getattribute__(self, attr):
+        # order of lookup is:
+        # 1. specifically overridden in this class
+        # 2. template type (if it exists)
+        # 3. PyrexType
+        dict_ = super(IndexedPythonType, self).__getattribute__("__dict__")
+        if attr in dict_:
+            return dict_[attr]
+        cls = super(IndexedPythonType, self).__getattribute__("__class__")
+        if attr in cls.__dict__:
+            return super(IndexedPythonType, self).__getattribute__(attr)
+
+        tt = super(IndexedPythonType, self).__getattribute__("template_type")
+        if tt:
+            return getattr(tt, attr)
+
+        return super(IndexedPythonType, self).__getattribute__(attr)  # fallback to looking like a PyrexType
+
+    def __repr__(self):
+        if self.template_type:
+            return "%s[%r]" % (self.name, self.template_type)
+        else:
+            return self.name
+
+    def is_template_type(self):
+        return self.template_type is None
+
+    def specialize_here(self, pos, template_values=None):
+        if not self.is_template_type():
+            error(pos, "'%r' has already been specialized" % self )
+            return error_type
+        if len(template_values) != 1:
+            error(pos, "'%s' takes exactly one template argument." % self.name)
+        return SpecialIndexedPythonType(self.name, template_values[0])
 
 
 rank_to_type_name = (

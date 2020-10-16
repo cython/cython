@@ -158,6 +158,9 @@ class Entry(object):
     # is_fused_specialized boolean Whether this entry of a cdef or def function
     #                              is a specialization
     # is_cgetter       boolean    Is a c-level getter function
+    # unambiguous_import_path     Either None (default), False (definitely can't be determined)
+    #                             or a string of "modulename.something.attribute"
+    #                             Used for identifying imports from typing/dataclasses etc
 
     # TODO: utility_code and utility_code_definition serves the same purpose...
 
@@ -229,6 +232,7 @@ class Entry(object):
     cf_used = True
     outer_entry = None
     is_cgetter = False
+    unambiguous_import_path = None
 
     def __init__(self, name, cname, type, pos = None, init = None):
         self.name = name
@@ -980,6 +984,14 @@ class Scope(object):
             if entry.type.is_fused and self.fused_to_specific:
                 return entry.type.specialize(self.fused_to_specific)
             return entry.type
+        # allow us to find types from the "typing" module and similar
+        if entry and entry.unambiguous_import_path:
+            from .CythonScope import get_known_module_scope
+            path, name = entry.unambiguous_import_path.rsplit(".",1)
+            scope = get_known_module_scope(path)
+            if scope:
+                return scope.lookup_type(name)
+
 
     def lookup_operator(self, operator, operands):
         if operands[0].type.is_cpp_class:
@@ -2219,6 +2231,8 @@ class CClassScope(ClassScope):
                     cname = None, visibility = 'private',
                     api = 0, in_pxd = 0, is_cdef = 0):
         name = self.mangle_class_private_name(name)
+        if type.is_typing_classvar:
+            is_cdef = 0
         if is_cdef:
             # Add an entry for an attribute.
             if self.defined:
