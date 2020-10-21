@@ -21,6 +21,7 @@ import re
 import io
 import codecs
 import shutil
+import tempfile
 from contextlib import contextmanager
 
 modification_time = os.path.getmtime
@@ -334,41 +335,25 @@ def get_cython_cache_dir():
 
 @contextmanager
 def captured_fd(stream=2, encoding=None):
-    pipe_in = t = None
     orig_stream = os.dup(stream)  # keep copy of original stream
     try:
-        pipe_in, pipe_out = os.pipe()
-        os.dup2(pipe_out, stream)  # replace stream by copy of pipe
-        try:
-            os.close(pipe_out)  # close original pipe-out stream
-            data = []
+        with tempfile.TemporaryFile(mode="a+b") as temp_file:
+            def read_output(_output=[b'']):
+                if not temp_file.closed:
+                    temp_file.seek(0)
+                    _output[0] = temp_file.read()
+                return _output[0]
 
-            def copy():
-                try:
-                    while True:
-                        d = os.read(pipe_in, 1000)
-                        if d:
-                            data.append(d)
-                        else:
-                            break
-                finally:
-                    os.close(pipe_in)
+            os.dup2(temp_file.fileno(), stream)  # replace stream by copy of pipe
+            try:
+                def get_output():
+                    result = read_output()
+                    return result.decode(encoding) if encoding else result
 
-            def get_output():
-                output = b''.join(data)
-                if encoding:
-                    output = output.decode(encoding)
-                return output
-
-            from threading import Thread
-            t = Thread(target=copy)
-            t.daemon = True  # just in case
-            t.start()
-            yield get_output
-        finally:
-            os.dup2(orig_stream, stream)  # restore original stream
-            if t is not None:
-                t.join()
+                yield get_output
+            finally:
+                os.dup2(orig_stream, stream)  # restore original stream
+                read_output()  # keep the output in case it's used after closing the context manager
     finally:
         os.close(orig_stream)
 
