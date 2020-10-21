@@ -642,7 +642,9 @@ class TestBuilder(object):
                     continue
                 suite.addTest(
                     self.handle_directory(path, filename))
-        if sys.platform not in ['win32'] and self.add_embedded_test:
+        if (sys.platform not in ['win32'] and self.add_embedded_test
+                # the embedding test is currently broken in Py3.8+, except on Linux.
+                and (sys.version_info < (3, 8) or sys.platform != 'darwin')):
             # Non-Windows makefile.
             if [1 for selector in self.selectors if selector("embedded")] \
                 and not [1 for selector in self.exclude_selectors if selector("embedded")]:
