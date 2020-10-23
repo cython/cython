@@ -2700,6 +2700,10 @@ def looking_at_expr(s):
             s.next()
             is_type = s.sy == ']'
             s.put_back(*saved)
+            if not is_type:  # could be template type
+                s.next()
+                is_type = not looking_at_expr(s)
+                s.put_back(*saved)
 
         dotted_path.reverse()
         for p in dotted_path:
