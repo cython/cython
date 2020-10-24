@@ -5,6 +5,7 @@
 from __future__ import absolute_import
 
 import cython
+
 cython.declare(sys=object, os=object, copy=object,
                Builtin=object, error=object, warning=object, Naming=object, PyrexTypes=object,
                py_object_type=object, ModuleScope=object, LocalScope=object, ClosureScope=object,
@@ -16,7 +17,7 @@ import sys, os, copy
 from itertools import chain
 
 from . import Builtin
-from .Errors import error, warning, InternalError, CompileError
+from .Errors import error, warning, InternalError, CompileError, CannotSpecialize
 from . import Naming
 from . import PyrexTypes
 from . import TypeSlots
@@ -517,7 +518,12 @@ class CNameDeclaratorNode(CDeclaratorNode):
                 base_type = py_object_type
 
         if base_type.is_fused and env.fused_to_specific:
-            base_type = base_type.specialize(env.fused_to_specific)
+            try:
+                base_type = base_type.specialize(env.fused_to_specific)
+            except CannotSpecialize:
+                error(self.pos,
+                      "'%s' cannot be specialized since its type is not a fused argument to this function" %
+                      self.name)
 
         self.type = base_type
         return self, base_type
@@ -541,9 +547,7 @@ class CPtrDeclaratorNode(CDeclaratorNode):
         return self.base.analyse(ptr_type, env, nonempty=nonempty, visibility=visibility, in_pxd=in_pxd)
 
 
-class CReferenceDeclaratorNode(CDeclaratorNode):
-    # base     CDeclaratorNode
-
+class _CReferenceDeclaratorBaseNode(CDeclaratorNode):
     child_attrs = ["base"]
 
     def declared_name(self):
@@ -552,10 +556,20 @@ class CReferenceDeclaratorNode(CDeclaratorNode):
     def analyse_templates(self):
         return self.base.analyse_templates()
 
+
+class CReferenceDeclaratorNode(_CReferenceDeclaratorBaseNode):
     def analyse(self, base_type, env, nonempty=0, visibility=None, in_pxd=False):
         if base_type.is_pyobject:
             error(self.pos, "Reference base type cannot be a Python object")
         ref_type = PyrexTypes.c_ref_type(base_type)
+        return self.base.analyse(ref_type, env, nonempty=nonempty, visibility=visibility, in_pxd=in_pxd)
+
+
+class CppRvalueReferenceDeclaratorNode(_CReferenceDeclaratorBaseNode):
+    def analyse(self, base_type, env, nonempty=0, visibility=None, in_pxd=False):
+        if base_type.is_pyobject:
+            error(self.pos, "Rvalue-reference base type cannot be a Python object")
+        ref_type = PyrexTypes.cpp_rvalue_ref_type(base_type)
         return self.base.analyse(ref_type, env, nonempty=nonempty, visibility=visibility, in_pxd=in_pxd)
 
 
@@ -773,6 +787,13 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                 error(self.pos, "cannot have both '%s' and '%s' "
                       "calling conventions" % (current, callspec))
             func_type.calling_convention = callspec
+
+        if func_type.return_type.is_rvalue_reference:
+            warning(self.pos, "Rvalue-reference as function return type not supported", 1)
+        for arg in func_type.args:
+            if arg.type.is_rvalue_reference and not arg.is_forwarding_reference():
+                warning(self.pos, "Rvalue-reference as function argument not supported", 1)
+
         return self.base.analyse(func_type, env, visibility=visibility, in_pxd=in_pxd)
 
     def declare_optional_arg_struct(self, func_type, env, fused_cname=None):
@@ -1206,7 +1227,12 @@ class TemplatedTypeNode(CBaseTypeNode):
                 self.type = self.array_declarator.analyse(base_type, env)[1]
 
         if self.type.is_fused and env.fused_to_specific:
-            self.type = self.type.specialize(env.fused_to_specific)
+            try:
+                self.type = self.type.specialize(env.fused_to_specific)
+            except CannotSpecialize:
+                error(self.pos,
+                      "'%s' cannot be specialized since its type is not a fused argument to this function" %
+                      self.name)
 
         return self.type
 
@@ -1378,6 +1404,8 @@ class CVarDefNode(StatNode):
                 return
             if type.is_reference and self.visibility != 'extern':
                 error(declarator.pos, "C++ references cannot be declared; use a pointer instead")
+            if type.is_rvalue_reference and self.visibility != 'extern':
+                error(declarator.pos, "C++ rvalue-references cannot be declared")
             if type.is_cfunction:
                 if 'staticmethod' in env.directives:
                     type.is_static_method = True
@@ -2264,7 +2292,7 @@ class FuncDefNode(StatNode, BlockNode):
             error(arg.pos, "Argument type '%s' is incomplete" % arg.type)
         entry = env.declare_arg(arg.name, arg.type, arg.pos)
         if arg.annotation:
-            entry.annotation = arg.annotation.expr
+            entry.annotation = arg.annotation
         return entry
 
     def generate_arg_type_test(self, arg, code):
@@ -4866,6 +4894,7 @@ class PyClassDefNode(ClassDefNode):
         if self.doc_node:
             self.doc_node.analyse_target_declaration(cenv)
         self.body.analyse_declarations(cenv)
+        self.class_result.analyse_annotations(cenv)
 
     def analyse_expressions(self, env):
         if self.bases:

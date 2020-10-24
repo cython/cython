@@ -1,4 +1,5 @@
 # mode: run
+# tag: autowrap
 # cython: always_allow_keywords=True
 
 cimport cython

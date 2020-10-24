@@ -397,11 +397,11 @@ __Pyx_CyFunction_get_annotations(__pyx_CyFunctionObject *op, CYTHON_UNUSED void 
 
 static PyObject *
 __Pyx_CyFunction_get_is_coroutine(__pyx_CyFunctionObject *op, CYTHON_UNUSED void *context) {
+    int is_coroutine;
     if (op->func_is_coroutine)
         return __Pyx_NewRef(op->func_is_coroutine);
 
-    int is_coroutine = op->flags & __Pyx_CYFUNCTION_COROUTINE;
-
+    is_coroutine = op->flags & __Pyx_CYFUNCTION_COROUTINE;
 #if PY_VERSION_HEX >= 0x03050000
     if (is_coroutine) {
         PyObject *module, *fromlist, *marker = PYIDENT("_is_coroutine");
