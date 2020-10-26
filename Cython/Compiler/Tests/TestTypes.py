@@ -61,9 +61,9 @@ class TestTypeIdentifiers(unittest.TestCase):
             ("const &&&std::vector", "const__fwref__refstd__in_vector"),
             ("const &&std::vector", "const__fwrefstd__in_vector"),
             ("void (*func)(int x, float y)",
-             "07d63e__void__lParen__ptrfunc__rParen__lParenint__space_x__comma_float__space_y__rParen__etc"),
+             "975d51__void__lParen__ptrfunc__rParen__lParenint__space_x__comma_float__space_y__rParen__etc"),
             ("float ** (*func)(int x, int[:] y)",
-             "79b33d__float__ptr__ptr__lParen__ptrfunc__rParen__lParenint__space_x__comma_int__lArr__D__rArry__rParen__etc"),
+             "31883a__float__ptr__ptr__lParen__ptrfunc__rParen__lParenint__space_x__comma_int__lArr__D__rArry__rParen__etc"),
         ]
         self._test_escape(function_name, test_data)
 

@@ -2011,7 +2011,12 @@ class NameNode(AtomicExprNode):
                           "'%s' cannot be specialized since its type is not a fused argument to this function" %
                           self.name)
                     atype = error_type
-
+            if as_target and env.is_c_class_scope and not (atype.is_pyobject or atype.is_error):
+                # TODO: this will need revising slightly if either cdef dataclasses or
+                # annotated cdef attributes are implemented
+                atype = py_object_type
+                warning(annotation.pos, "Annotation ignored since class-level attributes must be Python objects. "
+                        "Were you trying to set up an instance attribute?", 2)
             entry = self.entry = env.declare_var(name, atype, self.pos, is_cdef=not as_target)
         # Even if the entry already exists, make sure we're supplying an annotation if we can.
         if annotation and not entry.annotation:

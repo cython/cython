@@ -14,7 +14,7 @@ cython.declare(Nodes=object, ExprNodes=object, EncodedString=object,
                Builtin=object, ModuleNode=object, Utils=object, _unicode=object, _bytes=object,
                re=object, sys=object, _parse_escape_sequences=object, _parse_escape_sequences_raw=object,
                partial=object, reduce=object, _IS_PY3=cython.bint, _IS_2BYTE_UNICODE=cython.bint,
-               _CDEF_MODIFIERS=tuple)
+               _CDEF_MODIFIERS=tuple, COMMON_BINOP_MISTAKES=dict)
 
 from io import StringIO
 import re
@@ -173,24 +173,31 @@ def p_walrus_test(s, allow_assignment_expression=True):
 
 #or_test: and_test ('or' and_test)*
 
-def p_or_test(s):
-    return p_rassoc_binop_expr(s, ('or',), p_and_test)
+COMMON_BINOP_MISTAKES = {'||': 'or', '&&': 'and'}
 
-def p_rassoc_binop_expr(s, ops, p_subexpr):
+def p_or_test(s):
+    return p_rassoc_binop_expr(s, u'or', p_and_test)
+
+def p_rassoc_binop_expr(s, op, p_subexpr):
     n1 = p_subexpr(s)
-    if s.sy in ops:
+    if s.sy == op:
         pos = s.position()
         op = s.sy
         s.next()
-        n2 = p_rassoc_binop_expr(s, ops, p_subexpr)
+        n2 = p_rassoc_binop_expr(s, op, p_subexpr)
         n1 = ExprNodes.binop_node(pos, op, n1, n2)
+    elif s.sy in COMMON_BINOP_MISTAKES and COMMON_BINOP_MISTAKES[s.sy] == op:
+        # Only report this for the current operator since we pass through here twice for 'and' and 'or'.
+        warning(s.position(),
+                "Found the C operator '%s', did you mean the Python operator '%s'?" % (s.sy, op),
+                level=1)
     return n1
 
 #and_test: not_test ('and' not_test)*
 
 def p_and_test(s):
     #return p_binop_expr(s, ('and',), p_not_test)
-    return p_rassoc_binop_expr(s, ('and',), p_not_test)
+    return p_rassoc_binop_expr(s, u'and', p_not_test)
 
 #not_test: 'not' not_test | comparison
 

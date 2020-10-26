@@ -377,8 +377,8 @@ While this is always the case for :keyword:`def` functions, functions
 defined as :keyword:`cdef` or :keyword:`cpdef` can return arbitrary C types,
 which do not have such a well-defined error return value.  Thus, if an
 exception is detected in such a function, a warning message is printed,
-the exception is ignored, and the function returns without propagating it
-to its caller.
+the exception is ignored, and the function returns immediately without
+propagating the exception to its caller.
 
 If you want such a C function to be able to propagate exceptions, you need
 to declare an exception return value for it as a contract with the caller.
@@ -952,4 +952,3 @@ The expressions in the ``IF`` and ``ELIF`` clauses must be valid compile-time
 expressions as for the ``DEF`` statement, although they can evaluate to any
 Python value, and the truth of the result is determined in the usual Python
 way.
-
