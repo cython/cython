@@ -299,6 +299,13 @@ reference the type of a default template parameter for an incomplete template
 instantiation, it will write ``MyClass<T, U>::V``, so if the class provides
 a typedef for its template parameters it is preferable to use that name here.
 
+Cython is unable to infer the template type from the cdef statement when
+creating instances of a tempalte class. The template type must be supplied 
+directly to the constructor as well::
+
+	cdef vector[int] v = vector[int]()
+	cdef vector[int] *v_ptr = new vector[int]()
+
 
 Template functions are defined similarly to class templates, with
 the template parameter list following the function name:
