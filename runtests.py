@@ -597,6 +597,8 @@ class Stats(object):
 
     def update(self, stats):
         # type: (Stats) -> None
+        if not stats:
+            return
         for metric, t in stats.test_times.items():
             self.test_times[metric] += t
             self.test_counts[metric] += stats.test_counts[metric]
@@ -1775,6 +1777,7 @@ class EndToEndTest(unittest.TestCase):
         if old_path:
             new_path = new_path + os.pathsep + self.workdir + os.pathsep + old_path
         env['PYTHONPATH'] = new_path
+        env['PYTHONFAULTHANDLER'] = "1"  # use faulthandler to get better diagnostics where possible
         if not env.get("PYTHONIOENCODING"):
             env["PYTHONIOENCODING"] = sys.stdout.encoding or sys.getdefaultencoding()
         cmd = []
@@ -2360,6 +2363,8 @@ def save_coverage(coverage, options):
 
 def runtests_callback(args):
     options, cmd_args, shard_num = args
+    if shard_num != 2:
+        return shard_num, None, 0
     options.shard_num = shard_num
     return runtests(options, cmd_args)
 
