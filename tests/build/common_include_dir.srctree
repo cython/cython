@@ -24,6 +24,7 @@ from distutils.core import setup
 nthreads = 0
 if not hasattr(sys, 'pypy_version_info'):
     try:
+        raise ImportError()
         import multiprocessing
         multiprocessing.Pool(2).close()
         nthreads = 2
