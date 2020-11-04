@@ -124,8 +124,8 @@ before_install:
       conda --version || exit 1
       #conda install --quiet --yes nomkl --file=test-requirements.txt --file=test-requirements-cpython.txt
       if [ "$TRAVIS_OS_NAME" == "osx" ]; then
-        which clang && clang --version && export CC=clang || true
-        which clang++ && clang++ --version && export CXX="clang++ -stdlib=libc++" || true
+        which clang && clang --version && export CC="clang -Wno-deprecated-declarations" || true
+        which clang++ && clang++ --version && export CXX="clang++ -stdlib=libc++ -Wno-deprecated-declarations" || true
       fi
     fi
 
