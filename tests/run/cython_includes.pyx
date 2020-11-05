@@ -12,6 +12,7 @@ cimport cpython.bytearray
 cimport cpython.bytes
 cimport cpython.ceval
 cimport cpython.cobject
+cimport cpython.codecs
 cimport cpython.complex
 cimport cpython.datetime
 cimport cpython.dict
