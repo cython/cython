@@ -2678,7 +2678,7 @@ def looking_at_expr(s):
             s.put_back(*saved)
         elif s.sy == '[':
             s.next()
-            is_type = s.sy == ']'
+            is_type = s.sy == ']' or not looking_at_expr(s)  # could be a nested template type
             s.put_back(*saved)
 
         dotted_path.reverse()
