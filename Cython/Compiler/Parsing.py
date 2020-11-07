@@ -952,7 +952,7 @@ def p_string_literal(s, kind_override=None):
         else:
             s.error("Unexpected token %r:%r in string literal" % (
                 sy, s.systring))
-            break # Important for fault-tolerant mode (don't recurse forever).
+            break  # Important for fault-tolerant mode (don't recurse forever).
 
     if kind == 'c':
         unicode_value = None
@@ -1551,9 +1551,7 @@ def p_expression_or_assignment(s):
             # work later on.
             assert s.fault_tolerant
             expr = ExprNodes.EllipsisNode(s.position())
-        else:
-            pos = expr.pos
-        return Nodes.ExprStatNode(expr, expr=expr)
+        return Nodes.ExprStatNode(expr.pos, expr=expr)
 
     rhs = expr_list[-1]
     if rhs is None:
