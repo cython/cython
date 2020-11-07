@@ -43,14 +43,14 @@ matrix:
     - os: osx
       osx_image: xcode10.3
       env: PY=2 MACOSX_DEPLOYMENT_TARGET=10.9
-      python: 2
+      python: 2.7
       language: c
       compiler: clang
       cache: false
     - os: osx
       osx_image: xcode10.3
       env: PY=3 MACOSX_DEPLOYMENT_TARGET=10.9
-      python: 3
+      python: 3.9
       language: c
       compiler: clang
       cache: false
@@ -124,8 +124,8 @@ before_install:
       conda --version || exit 1
       #conda install --quiet --yes nomkl --file=test-requirements.txt --file=test-requirements-cpython.txt
       if [ "$TRAVIS_OS_NAME" == "osx" ]; then
-        which clang && clang --version && export CC=clang || true
-        which clang++ && clang++ --version && export CXX="clang++ -stdlib=libc++" || true
+        which clang && clang --version && export CC="clang -Wno-deprecated-declarations" || true
+        which clang++ && clang++ --version && export CXX="clang++ -stdlib=libc++ -Wno-deprecated-declarations" || true
       fi
     fi
 
