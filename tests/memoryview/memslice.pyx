@@ -1155,9 +1155,21 @@ def basic_struct(MyStruct[:] buf):
     """
     See also buffmt.pyx
 
-    >>> basic_struct(MyStructMockBuffer(None, [(1, 2, 3, 4, 5)]))  # , writable=False))
+    >>> basic_struct(MyStructMockBuffer(None, [(1, 2, 3, 4, 5)]))
     1 2 3 4 5
-    >>> basic_struct(MyStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="ccqii"))  # , writable=False))
+    >>> basic_struct(MyStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="ccqii"))
+    1 2 3 4 5
+    """
+    print buf[0].a, buf[0].b, buf[0].c, buf[0].d, buf[0].e
+
+@testcase
+def const_struct(const MyStruct[:] buf):
+    """
+    See also buffmt.pyx
+
+    >>> const_struct(MyStructMockBuffer(None, [(1, 2, 3, 4, 5)], writable=False))
+    1 2 3 4 5
+    >>> const_struct(MyStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="ccqii", writable=False))
     1 2 3 4 5
     """
     print buf[0].a, buf[0].b, buf[0].c, buf[0].d, buf[0].e
@@ -1167,9 +1179,21 @@ def nested_struct(NestedStruct[:] buf):
     """
     See also buffmt.pyx
 
-    >>> nested_struct(NestedStructMockBuffer(None, [(1, 2, 3, 4, 5)]))  # , writable=False))
+    >>> nested_struct(NestedStructMockBuffer(None, [(1, 2, 3, 4, 5)]))
     1 2 3 4 5
-    >>> nested_struct(NestedStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="T{ii}T{2i}i"))  # , writable=False))
+    >>> nested_struct(NestedStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="T{ii}T{2i}i"))
+    1 2 3 4 5
+    """
+    print buf[0].x.a, buf[0].x.b, buf[0].y.a, buf[0].y.b, buf[0].z
+
+@testcase
+def const_nested_struct(const NestedStruct[:] buf):
+    """
+    See also buffmt.pyx
+
+    >>> const_nested_struct(NestedStructMockBuffer(None, [(1, 2, 3, 4, 5)], writable=False))
+    1 2 3 4 5
+    >>> const_nested_struct(NestedStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="T{ii}T{2i}i", writable=False))
     1 2 3 4 5
     """
     print buf[0].x.a, buf[0].x.b, buf[0].y.a, buf[0].y.b, buf[0].z
@@ -1179,11 +1203,26 @@ def packed_struct(PackedStruct[:] buf):
     """
     See also buffmt.pyx
 
-    >>> packed_struct(PackedStructMockBuffer(None, [(1, 2)]))  # , writable=False))
+    >>> packed_struct(PackedStructMockBuffer(None, [(1, 2)]))
     1 2
-    >>> packed_struct(PackedStructMockBuffer(None, [(1, 2)], format="T{c^i}"))  # , writable=False))
+    >>> packed_struct(PackedStructMockBuffer(None, [(1, 2)], format="T{c^i}"))
     1 2
-    >>> packed_struct(PackedStructMockBuffer(None, [(1, 2)], format="T{c=i}"))  # , writable=False))
+    >>> packed_struct(PackedStructMockBuffer(None, [(1, 2)], format="T{c=i}"))
+    1 2
+
+    """
+    print buf[0].a, buf[0].b
+
+@testcase
+def const_packed_struct(const PackedStruct[:] buf):
+    """
+    See also buffmt.pyx
+
+    >>> const_packed_struct(PackedStructMockBuffer(None, [(1, 2)], writable=False))
+    1 2
+    >>> const_packed_struct(PackedStructMockBuffer(None, [(1, 2)], format="T{c^i}", writable=False))
+    1 2
+    >>> const_packed_struct(PackedStructMockBuffer(None, [(1, 2)], format="T{c=i}", writable=False))
     1 2
 
     """
@@ -1194,11 +1233,26 @@ def nested_packed_struct(NestedPackedStruct[:] buf):
     """
     See also buffmt.pyx
 
-    >>> nested_packed_struct(NestedPackedStructMockBuffer(None, [(1, 2, 3, 4, 5)]))  # , writable=False))
+    >>> nested_packed_struct(NestedPackedStructMockBuffer(None, [(1, 2, 3, 4, 5)]))
     1 2 3 4 5
-    >>> nested_packed_struct(NestedPackedStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="ci^ci@i"))  # , writable=False))
+    >>> nested_packed_struct(NestedPackedStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="ci^ci@i"))
     1 2 3 4 5
-    >>> nested_packed_struct(NestedPackedStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="^c@i^ci@i"))  # , writable=False))
+    >>> nested_packed_struct(NestedPackedStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="^c@i^ci@i"))
+    1 2 3 4 5
+    """
+    print buf[0].a, buf[0].b, buf[0].sub.a, buf[0].sub.b, buf[0].c
+
+
+@testcase
+def const_nested_packed_struct(const NestedPackedStruct[:] buf):
+    """
+    See also buffmt.pyx
+
+    >>> const_nested_packed_struct(NestedPackedStructMockBuffer(None, [(1, 2, 3, 4, 5)], writable=False))
+    1 2 3 4 5
+    >>> const_nested_packed_struct(NestedPackedStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="ci^ci@i", writable=False))
+    1 2 3 4 5
+    >>> const_nested_packed_struct(NestedPackedStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="^c@i^ci@i", writable=False))
     1 2 3 4 5
     """
     print buf[0].a, buf[0].b, buf[0].sub.a, buf[0].sub.b, buf[0].c
