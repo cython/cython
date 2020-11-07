@@ -75,25 +75,25 @@ matrix:
       dist: xenial    # Required for Python 3.7
       sudo: required  # travis-ci/travis-ci#9069
       env: BACKEND=cpp
-    - python: 3.9-dev
+    - python: 3.9
       dist: xenial    # Required for Python 3.7
       sudo: required  # travis-ci/travis-ci#9069
       env: BACKEND=c
-    - python: 3.9-dev
+    - python: 3.9
       dist: xenial    # Required for Python 3.7
       sudo: required  # travis-ci/travis-ci#9069
       env: BACKEND=cpp
     - os: osx
       osx_image: xcode6.4
       env: PY=2
-      python: 2
+      python: 2.7
       language: c
       compiler: clang
       cache: false
     - os: osx
-      osx_image: xcode6.4
-      env: PY=3
-      python: 3
+      osx_image: xcode10.3
+      env: PY=3 MACOSX_DEPLOYMENT_TARGET=10.9
+      python: 3.9
       language: c
       compiler: clang
       cache: false
@@ -106,7 +106,6 @@ matrix:
     - env: STACKLESS=true BACKEND=c PY=3
       python: 3.6
   allow_failures:
-    - python: 3.9-dev
     - python: pypy
     - python: pypy3
 
@@ -136,8 +135,8 @@ before_install:
       conda --version || exit 1
       #conda install --quiet --yes nomkl --file=test-requirements.txt --file=test-requirements-cpython.txt
       if [ "$TRAVIS_OS_NAME" == "osx" ]; then
-        which clang && clang --version && export CC=clang || true
-        which clang++ && clang++ --version && export CXX=clang++ || true
+        which clang && clang --version && export CC="clang -Wno-deprecated-declarations" || true
+        which clang++ && clang++ --version && export CXX="clang++ -stdlib=libc++ -Wno-deprecated-declarations" || true
       fi
     fi
 
