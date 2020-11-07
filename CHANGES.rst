@@ -5,8 +5,24 @@ Cython Changelog
 0.29.22 (2020-??-??)
 ====================
 
+Features added
+--------------
+
+* Some declarations were added to the provided pxd includes.
+  Patches by Zackary Spytz and John Kirkham.
+  (Github issues #3811, #3882, #3899)
+
 Bugs fixed
 ----------
+
+* ``const`` memory views of structs failed to compile.
+  (Github issue #2251)
+
+* ``const`` template declarations could not be nested.
+  Patch by Ashwin Srinath.  (Github issue #1355)
+
+* Casts to memory views failed for fused dtypes.
+  Patch by David Woods.  (Github issue #3881)
 
 * ``repr()`` was assumed to return ``str`` instead of ``unicode`` with ``language_level=3``.
   (Github issue #3736)
@@ -16,6 +32,14 @@ Bugs fixed
 
 * A C compiler warning about enum value casting was resolved in GCC.
   (Github issue #2749)
+
+* Coverage reporting in the annotated HTML file failed in Py3.9.
+  Patch by Nick Pope.  (Github issue #3865)
+
+* The embedding code now reports Python errors as exit status.
+
+* Long type declarations could lead to (harmless) random changes in the
+  C file when used in auto-generated Python wrappers or pickled classes.
 
 
 0.29.21 (2020-07-09)
