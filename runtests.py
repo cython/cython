@@ -28,12 +28,12 @@ try:
     import platform
     IS_PYPY = platform.python_implementation() == 'PyPy'
     IS_CPYTHON = platform.python_implementation() == 'CPython'
-    CAN_SYMLINK = platform.system() != 'Windows'
 except (ImportError, AttributeError):
     IS_CPYTHON = True
     IS_PYPY = False
-    CAN_SYMLINK = False
+
 IS_PY2 = sys.version_info[0] < 3
+CAN_SYMLINK = sys.platform != 'win32' and hasattr(os, 'symlink')
 
 from io import open as io_open
 try:
@@ -999,13 +999,7 @@ class CythonCompileTestCase(unittest.TestCase):
                         fout.write(preparse_func(fin.read()))
         else:
             # use symlink on Unix, copy on Windows
-            try:
-                if CAN_SYMLINK:
-                    copy = os.symlink
-                else:
-                    copy = shutil.copy
-            except AttributeError:
-                copy = shutil.copy
+            copy = os.symlink if CAN_SYMLINK else shutil.copy
 
         join = os.path.join
         for filename in file_list:
