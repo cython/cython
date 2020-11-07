@@ -1099,7 +1099,7 @@ class MemoryViewSliceType(PyrexType):
     # decref however did look to always apply for memoryview slices
     # with "have_gil" set to True by default
     def generate_xdecref(self, code, cname, nanny, have_gil):
-        code.putln("__PYX_XDEC_MEMVIEW(&%s, %d);" % (cname, int(have_gil)))
+        code.putln("__PYX_XCLEAR_MEMVIEW(&%s, %d);" % (cname, int(have_gil)))
 
     def generate_decref(self, code, cname, nanny, have_gil):
         # Fall back to xdecref since we don't care to have a separate decref version for this.
