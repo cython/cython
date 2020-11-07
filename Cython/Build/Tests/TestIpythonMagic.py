@@ -49,15 +49,15 @@ def main():
 main()
 """
 
-compile_error_code = u"""\
+compile_error_code = u'''\
 cdef extern from *:
-    \"\"\"
+    """
     xxx a=1;
-    \"\"\"
+    """
     int a;
 def doit():
     return a
-"""
+'''
 
 
 if sys.platform == 'win32':

@@ -347,18 +347,18 @@ class CythonMagics(Magics):
             get_stderr = get_stdout = None
             with captured_fd(1, sys.getdefaultencoding()) as get_stdout:
                 with captured_fd(2, sys.getdefaultencoding()) as get_stderr:
-                    self._build_extension(extension, lib_dir, pgo_step_name='use' if args.pgo else None,
-                                  quiet=args.quiet)
+                    self._build_extension(
+                        extension, lib_dir, pgo_step_name='use' if args.pgo else None, quiet=args.quiet)
         except (distutils.errors.CompileError, distutils.errors.LinkError):
             # Build failed, print error message from compiler/linker
             # On windows errors are printed to stdout,
             # we redirect it to sys.stderr
             stdout = get_stdout and get_stdout().strip()
             if stdout:
-                print(stdout, file=sys.stderr)
+                sys.stderr.write(stdout)
             stderr = get_stderr and get_stderr().strip()
             if stderr:
-                print(stderr, file=sys.stderr)
+                sys.stderr.write(stderr)
             return None
 
         module = imp.load_dynamic(module_name, module_path)
