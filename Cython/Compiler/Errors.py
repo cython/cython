@@ -24,6 +24,8 @@ class PyrexError(Exception):
 class PyrexWarning(Exception):
     pass
 
+class CannotSpecialize(PyrexError):
+    pass
 
 def context(position):
     source = position[0]

@@ -27,7 +27,7 @@ You can **support the Cython project** via
 Installation:
 -------------
 
-If you already have a C compiler, just do::
+If you already have a C compiler, just run following command::
 
    pip install Cython
 
@@ -71,14 +71,14 @@ The following is from Pyrex:
 This is a development version of Pyrex, a language
 for writing Python extension modules.
 
-For more info, see:
+For more info, take a look at:
 
 * Doc/About.html for a description of the language
 * INSTALL.txt    for installation instructions
 * USAGE.txt      for usage instructions
 * Demos          for usage examples
 
-Comments, suggestions, bug reports, etc. are
+Comments, suggestions, bug reports, etc. are most
 welcome!
 
 Copyright stuff: Pyrex is free of restrictions. You

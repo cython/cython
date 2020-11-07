@@ -368,7 +368,7 @@ static PyObject *{{func_name}}(PyObject *left, PyObject *right {{extra_arg_decl}
     }
     if (maybe_self_is_left) {
         PyObject *res;
-        if (maybe_self_is_right && !{{overloads_left}}) {
+        if (maybe_self_is_right && !({{overloads_left}})) {
             res = {{call_right}};
             if (res != Py_NotImplemented) return res;
             Py_DECREF(res);
@@ -379,7 +379,7 @@ static PyObject *{{func_name}}(PyObject *left, PyObject *right {{extra_arg_decl}
         if (res != Py_NotImplemented) return res;
         Py_DECREF(res);
     }
-    if ({{overloads_left}}) {
+    if (({{overloads_left}})) {
         maybe_self_is_right = Py_TYPE(left) == Py_TYPE(right)
 #if CYTHON_USE_TYPE_SLOTS
                 || (Py_TYPE(right)->tp_as_number && Py_TYPE(right)->tp_as_number->{{slot_name}} == &{{func_name}})

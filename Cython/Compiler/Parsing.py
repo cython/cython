@@ -15,7 +15,8 @@ cython.declare(Nodes=object, ExprNodes=object, EncodedString=object,
                Builtin=object, ModuleNode=object, Utils=object, _unicode=object, _bytes=object,
                re=object, sys=object, _parse_escape_sequences=object, _parse_escape_sequences_raw=object,
                partial=object, reduce=object, _IS_PY3=cython.bint, _IS_2BYTE_UNICODE=cython.bint,
-               _CDEF_MODIFIERS=tuple, report_error=object, CompileError=object)
+               _CDEF_MODIFIERS=tuple)
+               _CDEF_MODIFIERS=tuple, COMMON_BINOP_MISTAKES=dict, report_error=object, CompileError=object)
 
 from io import StringIO
 import re
@@ -161,24 +162,31 @@ def p_test_nocond(s):
 
 #or_test: and_test ('or' and_test)*
 
-def p_or_test(s):
-    return p_rassoc_binop_expr(s, ('or',), p_and_test)
+COMMON_BINOP_MISTAKES = {'||': 'or', '&&': 'and'}
 
-def p_rassoc_binop_expr(s, ops, p_subexpr):
+def p_or_test(s):
+    return p_rassoc_binop_expr(s, u'or', p_and_test)
+
+def p_rassoc_binop_expr(s, op, p_subexpr):
     n1 = p_subexpr(s)
-    if s.sy in ops:
+    if s.sy == op:
         pos = s.position()
         op = s.sy
         s.next()
-        n2 = p_rassoc_binop_expr(s, ops, p_subexpr)
+        n2 = p_rassoc_binop_expr(s, op, p_subexpr)
         n1 = ExprNodes.binop_node(pos, op, n1, n2)
+    elif s.sy in COMMON_BINOP_MISTAKES and COMMON_BINOP_MISTAKES[s.sy] == op:
+        # Only report this for the current operator since we pass through here twice for 'and' and 'or'.
+        warning(s.position(),
+                "Found the C operator '%s', did you mean the Python operator '%s'?" % (s.sy, op),
+                level=1)
     return n1
 
 #and_test: not_test ('and' not_test)*
 
 def p_and_test(s):
     #return p_binop_expr(s, ('and',), p_not_test)
-    return p_rassoc_binop_expr(s, ('and',), p_not_test)
+    return p_rassoc_binop_expr(s, u'and', p_not_test)
 
 #not_test: 'not' not_test | comparison
 
@@ -318,9 +326,12 @@ def p_typecast(s):
     s.next()
     base_type = p_c_base_type(s)
     is_memslice = isinstance(base_type, Nodes.MemoryViewSliceTypeNode)
-    is_template = isinstance(base_type, Nodes.TemplatedTypeNode)
-    is_const_volatile = isinstance(base_type, Nodes.CConstOrVolatileTypeNode)
-    if not is_memslice and not is_template and not is_const_volatile and base_type.name is None:
+    is_other_unnamed_type = isinstance(base_type, (
+        Nodes.TemplatedTypeNode,
+        Nodes.CConstOrVolatileTypeNode,
+        Nodes.CTupleBaseTypeNode,
+    ))
+    if not (is_memslice or is_other_unnamed_type) and base_type.name is None:
         s.error("Unknown type")
     declarator = p_c_declarator(s, empty = 1)
     if s.sy == '?':
@@ -2349,7 +2360,7 @@ def p_statement(s, ctx, first_statement = 0):
                         return p_async_statement(s, ctx, decorators)
                     elif decorators:
                         s.error("Decorators can only be followed by functions or classes")
-                    s.put_back('IDENT', ident_name)  # re-insert original token
+                    s.put_back(u'IDENT', ident_name)  # re-insert original token
                 return p_simple_statement_list(s, ctx, first_statement=first_statement)
 
 
@@ -2571,13 +2582,13 @@ def p_c_simple_base_type(s, self_flag, nonempty, templates = None):
                 s.next()
                 if (s.sy == '*' or s.sy == '**' or s.sy == '&'
                         or (s.sy == 'IDENT' and s.systring in calling_convention_words)):
-                    s.put_back('(', '(')
+                    s.put_back(u'(', u'(')
                 else:
-                    s.put_back('(', '(')
-                    s.put_back('IDENT', name)
+                    s.put_back(u'(', u'(')
+                    s.put_back(u'IDENT', name)
                     name = None
             elif s.sy not in ('*', '**', '[', '&'):
-                s.put_back('IDENT', name)
+                s.put_back(u'IDENT', name)
                 name = None
 
     type_node = Nodes.CSimpleBaseTypeNode(pos,
@@ -2713,15 +2724,15 @@ def looking_at_expr(s):
             s.put_back(*saved)
         elif s.sy == '[':
             s.next()
-            is_type = s.sy == ']'
+            is_type = s.sy == ']' or not looking_at_expr(s)  # could be a nested template type
             s.put_back(*saved)
 
         dotted_path.reverse()
         for p in dotted_path:
-            s.put_back('IDENT', p)
-            s.put_back('.', '.')
+            s.put_back(u'IDENT', p)
+            s.put_back(u'.', u'.')
 
-        s.put_back('IDENT', name)
+        s.put_back(u'IDENT', name)
         return not is_type and saved[0]
     else:
         return True
@@ -2735,7 +2746,7 @@ def looking_at_dotted_name(s):
         name = s.systring
         s.next()
         result = s.sy == '.'
-        s.put_back('IDENT', name)
+        s.put_back(u'IDENT', name)
         return result
     else:
         return 0
@@ -2873,37 +2884,31 @@ def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
                           assignable, nonempty):
     pos = s.position()
     calling_convention = p_calling_convention(s)
-    if s.sy == '*':
+    if s.sy in ('*', '**'):
+        # scanner returns '**' as a single token
+        is_ptrptr = s.sy == '**'
         s.next()
-        if s.systring == 'const':
-            const_pos = s.position()
+
+        const_pos = s.position()
+        is_const = s.systring == 'const' and s.sy == 'IDENT'
+        if is_const:
             s.next()
-            const_base = p_c_declarator(s, ctx, empty = empty,
-                                       is_type = is_type,
-                                       cmethod_flag = cmethod_flag,
-                                       assignable = assignable,
-                                       nonempty = nonempty)
-            base = Nodes.CConstDeclaratorNode(const_pos, base = const_base)
-        else:
-            base = p_c_declarator(s, ctx, empty = empty, is_type = is_type,
-                                  cmethod_flag = cmethod_flag,
-                                  assignable = assignable, nonempty = nonempty)
-        result = Nodes.CPtrDeclaratorNode(pos,
-            base = base)
-    elif s.sy == '**':  # scanner returns this as a single token
+
+        base = p_c_declarator(s, ctx, empty=empty, is_type=is_type,
+                              cmethod_flag=cmethod_flag,
+                              assignable=assignable, nonempty=nonempty)
+        if is_const:
+            base = Nodes.CConstDeclaratorNode(const_pos, base=base)
+        if is_ptrptr:
+            base = Nodes.CPtrDeclaratorNode(pos, base=base)
+        result = Nodes.CPtrDeclaratorNode(pos, base=base)
+    elif s.sy == '&' or (s.sy == '&&' and s.context.cpp):
+        node_class = Nodes.CppRvalueReferenceDeclaratorNode if s.sy == '&&' else Nodes.CReferenceDeclaratorNode
         s.next()
-        base = p_c_declarator(s, ctx, empty = empty, is_type = is_type,
-                              cmethod_flag = cmethod_flag,
-                              assignable = assignable, nonempty = nonempty)
-        result = Nodes.CPtrDeclaratorNode(pos,
-            base = Nodes.CPtrDeclaratorNode(pos,
-                base = base))
-    elif s.sy == '&':
-        s.next()
-        base = p_c_declarator(s, ctx, empty = empty, is_type = is_type,
-                              cmethod_flag = cmethod_flag,
-                              assignable = assignable, nonempty = nonempty)
-        result = Nodes.CReferenceDeclaratorNode(pos, base = base)
+        base = p_c_declarator(s, ctx, empty=empty, is_type=is_type,
+                              cmethod_flag=cmethod_flag,
+                              assignable=assignable, nonempty=nonempty)
+        result = node_class(pos, base=base)
     else:
         rhs = None
         if s.sy == 'IDENT':
@@ -3186,11 +3191,13 @@ def p_c_enum_definition(s, pos, ctx):
     s.expect(':')
     items = []
 
+    doc = None
     if s.sy != 'NEWLINE':
         p_c_enum_line(s, ctx, items)
     else:
         s.next()  # 'NEWLINE'
         s.expect_indent()
+        doc = p_doc_string(s)
 
         while s.sy not in ('DEDENT', 'EOF'):
             p_c_enum_line(s, ctx, items)
@@ -3206,7 +3213,7 @@ def p_c_enum_definition(s, pos, ctx):
         underlying_type=underlying_type,
         typedef_flag=ctx.typedef_flag, visibility=ctx.visibility,
         create_wrapper=ctx.overridable,
-        api=ctx.api, in_pxd=ctx.level == 'module_pxd')
+        api=ctx.api, in_pxd=ctx.level == 'module_pxd', doc=doc)
 
 def p_c_enum_line(s, ctx, items):
     if s.sy != 'pass':
