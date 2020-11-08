@@ -9,7 +9,7 @@ Features added
 --------------
 
 * Some declarations were added to the provided pxd includes.
-  Patches by Zackary Spytz and John Kirkham.
+  Patches by Zackery Spytz and John Kirkham.
   (Github issues #3811, #3882, #3899, #3901)
 
 Bugs fixed
