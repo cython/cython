@@ -53,3 +53,5 @@ cdef extern from "Python.h":
     int PyFile_WriteString(const char *s, object p) except? -1
     # Write string s to file object p. Return 0 on success or -1 on failure;
     # the appropriate exception will be set.
+
+    enum: Py_PRINT_RAW
