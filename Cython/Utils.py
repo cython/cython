@@ -141,9 +141,7 @@ def check_package_dir(dir_path, package_names):
     for dirname in package_names:
         dir_path = os.path.join(dir_path, dirname)
         has_init = contains_init(dir_path)
-        if not namespace and not has_init:
-            return None, False
-        elif has_init:
+        if has_init:
             namespace = False
     return dir_path, namespace
 
