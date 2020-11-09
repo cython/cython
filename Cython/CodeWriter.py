@@ -17,6 +17,10 @@ class LinesResult(object):
         self.lines = []
         self.s = u""
 
+    def __getitem__(self, s):
+        self.s = self.s[s]
+        return self
+
     def put(self, s):
         self.s += s
 
@@ -27,6 +31,9 @@ class LinesResult(object):
     def putline(self, s):
         self.put(s)
         self.newline()
+
+    def endswith(self, s):
+        return self.s.endswith(s)
 
 
 class DeclarationWriter(TreeVisitor):
@@ -424,9 +431,8 @@ class StatementWriter(DeclarationWriter):
         self._visit_indented(node.body)
 
     def visit_TryFinallyStatNode(self, node):
-        self.line(u"try:")
-        self._visit_indented(node.body)
-        self.line(u"finally:")
+        self.visit(node.body)
+        self.line(u'finally:')
         self._visit_indented(node.finally_clause)
 
     def visit_TryExceptStatNode(self, node):
@@ -435,15 +441,16 @@ class StatementWriter(DeclarationWriter):
         for x in node.except_clauses:
             self.visit(x)
         if node.else_clause is not None:
-            self.visit(node.else_clause)
+            self.line(u"else:")
+            self._visit_indented(node.else_clause)
 
     def visit_ExceptClauseNode(self, node):
         self.startline(u"except")
         if node.pattern is not None:
             self.put(u" ")
-            self.visit(node.pattern)
+            self.visit(node.pattern[0])
         if node.target is not None:
-            self.put(u", ")
+            self.put(u" as ")
             self.visit(node.target)
         self.endline(":")
         self._visit_indented(node.body)
@@ -477,6 +484,40 @@ class StatementWriter(DeclarationWriter):
     def visit_TempRefNode(self, node):
         self.put(self.tempnames[node.handle])
 
+    def visit_AssertStatNode(self, node):
+        self.startline(u"assert ")
+        self.visit(node.condition)
+        if node.value:
+            self.put(u", ")
+            self.visit(node.value)
+        self.endline()
+
+    def visit_DelStatNode(self, node):
+        self.startline(u"del ")
+        for arg in node.args:
+            self.visit(arg)
+        self.endline()
+
+    def visit_GlobalNode(self, node):
+        self.startline(u"global ")
+        for item in node.names[:-1]:
+            self.put(item)
+            self.put(u", ")
+        self.put(node.names[-1])
+        self.endline()
+
+    def visit_NonlocalNode(self, node):
+        self.startline(u"nonlocal ")
+        for item in node.names[:-1]:
+            self.put(item)
+            self.put(u", ")
+        self.put(node.names[-1])
+        self.endline()
+
+    def visit_RaiseStatNode(self, node):
+        self.startline(u"raise ")
+        self.visit(node.exc_type)
+        self.endline()
 
 class ExpressionWriter(TreeVisitor):
     """
@@ -639,6 +680,8 @@ class ExpressionWriter(TreeVisitor):
 
     def visit_PrimaryCmpNode(self, node):
         self.visit_BinopNode(node)
+        if node.cascade:
+            self.visit(node.cascade)
 
     def visit_IndexNode(self, node):
         self.visit(node.base)
@@ -780,6 +823,27 @@ class ExpressionWriter(TreeVisitor):
             # type(body) is Nodes.ExprStatNode
             body = body.expr.arg
         self.emit_comprehension(body, target, sequence, condition, u"()")
+
+    def visit_CascadedCmpNode(self, node):
+        self.put(u" %s " % node.operator)
+        self.visit(node.operand2)
+        if node.cascade:
+            # recursion
+            self.visit(node.cascade)
+
+    def visit_LambdaNode(self, node):
+        self.startline(u"lambda ")
+        self.comma_separated_list(node.args)
+        self.put(u" : ")
+        self.visit(node.result_expr)
+
+    def visit_YieldExprNode(self, node):
+        self.put(u"yield ")
+        self.visit(node.arg)
+
+    def visit_YieldFromExprNode(self, node):
+        self.put(u"yield from ")
+        self.visit(node.arg)
 
 
 class PxdWriter(DeclarationWriter, ExpressionWriter):

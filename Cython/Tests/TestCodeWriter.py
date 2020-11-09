@@ -123,6 +123,71 @@ class TestCodeWriter(CythonTest):
                         return 1234
                """)
 
+    def test_assert(self):
+        self.t(u"""
+                    assert a == 10
+                    assert a == 10, 'detail message'
+               """)
+
+    def test_global_node(self):
+        self.t(u"""
+                    global a, b
+               """)
+
+    def test_nonlocal_node(self):
+        self.t(u"""
+                    nonlocal a, b
+               """)
+
+    def test_yield(self):
+        self.t(u"""
+                    yield (1, 2)
+                    yield from [1, 2, 3, 4, 5]
+               """)
+
+    def test_del(self):
+        self.t(u"""
+                    del a
+                    del a[0]
+               """)
+
+    def test_lambda(self):
+        self.t(u"""
+                    lambda x : x + 2
+               """)
+
+    def test_cascaded_cmp_node(self):
+        self.t(u"""
+                    5 < 6 <= 7 > 4 >= 3 > 2 != 1
+               """)
+
+    def test_raise(self):
+        self.t(u"""
+                    raise RuntimeError
+                    raise RuntimeError('detail messages')
+               """)
+
+    def test_general_call(self):
+        self.t(u"""
+                    func(a, b, c=10)
+               """)
+
+    def test_try_except_else_finally(self):
+        self.t(u"""
+                    try:
+                        pass
+                    except:
+                        pass
+                    except IOError as e:
+                        pass
+                    except RuntimeError as e:
+                        pass
+                    else:
+                        pass
+                    finally:
+                        pass
+               """)
+
 if __name__ == "__main__":
     import unittest
     unittest.main()
