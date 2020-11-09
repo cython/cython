@@ -1078,6 +1078,8 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
                         type = PyrexTypes.TemplatePlaceholderType(self.name)
                     else:
                         error(self.pos, "'%s' is not a type identifier" % self.name)
+        if type and type.is_fused and env.fused_to_specific:
+            type = type.specialize(env.fused_to_specific)
         if self.complex:
             if not type.is_numeric or type.is_complex:
                 error(self.pos, "can only complexify c numeric types")

@@ -100,6 +100,12 @@ def put_acquire_memoryviewslice(lhs_cname, lhs_type, lhs_pos, rhs, code,
 
 def put_assign_to_memviewslice(lhs_cname, rhs, rhs_cname, memviewslicetype, code,
                                have_gil=False, first_assignment=False):
+    if lhs_cname == rhs_cname:
+        # self assignment is tricky because memoryview xdecref clears the memoryview
+        # thus invalidating both sides of the assignment. Therefore make it actually do nothing
+        code.putln("/* memoryview self assignment no-op */")
+        return
+
     if not first_assignment:
         code.put_xdecref(lhs_cname, memviewslicetype,
                          have_gil=have_gil)

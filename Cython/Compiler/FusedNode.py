@@ -414,7 +414,7 @@ class FusedCFuncDefNode(StatListNode):
                 if itemsize == -1 or itemsize == {{sizeof_dtype}}:
                     memslice = {{coerce_from_py_func}}(arg, 0)
                     if memslice.memview:
-                        __PYX_XDEC_MEMVIEW(&memslice, 1)
+                        __PYX_XCLEAR_MEMVIEW(&memslice, 1)
                         # print 'found a match for the buffer through format parsing'
                         %s
                         break
@@ -493,7 +493,7 @@ class FusedCFuncDefNode(StatListNode):
                 ctypedef struct {{memviewslice_cname}}:
                     void *memview
 
-                void __PYX_XDEC_MEMVIEW({{memviewslice_cname}} *, int have_gil)
+                void __PYX_XCLEAR_MEMVIEW({{memviewslice_cname}} *, int have_gil)
                 bint __pyx_memoryview_check(object)
             """)
 

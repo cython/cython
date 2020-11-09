@@ -1841,7 +1841,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("Py_CLEAR(p->%s.obj);" % entry.cname)
 
         if cclass_entry.cname == '__pyx_memoryviewslice':
-            code.putln("__PYX_XDEC_MEMVIEW(&p->from_slice, 1);")
+            code.putln("__PYX_XCLEAR_MEMVIEW(&p->from_slice, 1);")
 
         code.putln("return 0;")
         code.putln("}")
