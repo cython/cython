@@ -1,10 +1,24 @@
+"""
+From https://docs.python.org/3.9/c-api/file.html
+
+These APIs are a minimal emulation of the Python 2 C API for built-in file objects,
+which used to rely on the buffered I/O (FILE*) support from the C standard library.
+In Python 3, files and streams use the new io module, which defines several layers
+over the low-level unbuffered I/O of the operating system. The functions described
+below are convenience C wrappers over these new APIs, and meant mostly for internal
+error reporting in the interpreter;
+
+third-party code is advised to access the io APIs instead.
+"""
+
 cdef extern from "Python.h":
 
     ###########################################################################
     # File Objects
     ###########################################################################
 
-    object PyFile_FromFd(int fd, const char *name, const char *mode, int buffering, const char *encoding, const char *errors, const char *newline, int closefd)
+    object PyFile_FromFd(int fd, const char *name, const char *mode, int buffering,
+                         const char *encoding, const char *errors, const char *newline, int closefd)
     # Return value: New reference.
     # Create a Python file object from the file descriptor of an already
     # opened file fd. The arguments name, encoding, errors and newline can be
