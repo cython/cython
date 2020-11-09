@@ -4603,7 +4603,7 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
             # use lvalue-reference-to-A for deduction in place of A when the
             # function call argument is an lvalue. See:
             # https://en.cppreference.com/w/cpp/language/template_argument_deduction#Deduction_from_a_function_call
-            arg_types_for_deduction = copy.copy(arg_types)
+            arg_types_for_deduction = list(arg_types)
             if func.type.is_cfunction and args:
                 for i, formal_arg in enumerate(func.type.args):
                     if formal_arg.is_forwarding_reference():
