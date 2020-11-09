@@ -154,13 +154,13 @@ class TestIPythonMagic(CythonTest):
         self.assertEqual(ip.user_ns['g'], 2 // 10)
         self.assertEqual(ip.user_ns['h'], 2 // 10)
 
-    def test_compile_error_shown(self):
+    def test_cython_compile_error_shown(self):
         ip = self._ip
         with capture_output() as captured:
             ip.run_cell_magic('cython', '-3', compile_error_code)
         self.assertTrue("error" in captured.stderr)
 
-    def test_link_error_shown(self):
+    def test_cython_link_error_shown(self):
         ip = self._ip
         with capture_output() as captured:
             ip.run_cell_magic('cython', '-3 -l=xxxxxxxx', code)
