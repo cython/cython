@@ -4548,7 +4548,7 @@ def is_promotion(src_type, dst_type):
 
 def best_match(arg_types, functions, pos=None, env=None, args=None):
     """
-    Given a list args of arguments and a list of functions, choose one
+    Given a list arg_types of arguments and a list of functions, choose one
     to call which seems to be the "best" fit for this list of arguments.
     This function is used, e.g., when deciding which overloaded method
     to dispatch for C++ classes.
@@ -4567,8 +4567,9 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
     If no function is deemed a good fit, or if two or more functions have
     the same weight, we return None (as there is no best match). If pos
     is not None, we also generate an error.
+
+    args is the list of ExprNodes corresponding to the passed arguments.
     """
-    # TODO: args should be a list of types, not a list of Nodes.
     actual_nargs = len(arg_types)
 
     candidates = []
@@ -4604,7 +4605,7 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
             # function call argument is an lvalue. See:
             # https://en.cppreference.com/w/cpp/language/template_argument_deduction#Deduction_from_a_function_call
             arg_types_for_deduction = copy.copy(arg_types)
-            if func.type.is_cfunction and args:
+            if func.type.is_cfunction:
                 for i, formal_arg in enumerate(func.type.args):
                     if formal_arg.is_forwarding_reference():
                         if args[i].is_lvalue():
