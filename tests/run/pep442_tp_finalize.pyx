@@ -1,5 +1,7 @@
 # mode: run
 
+import gc
+
 cdef class nontrivial_del:
     def __init__(self):
         print("init")
@@ -18,7 +20,6 @@ def test_del():
     print("start")
     d = nontrivial_del()
     d = None
-    import gc
     gc.collect()
     print("finish")
 
@@ -45,7 +46,6 @@ def test_del_and_dealloc():
     print("start")
     d = del_and_dealloc()
     d = None
-    import gc
     gc.collect()
     print("finish")
 
@@ -69,7 +69,6 @@ def test_del_with_exception():
     print("start")
     d = nontrivial_del()
     d = None
-    import gc
     gc.collect()
     print("finish")
 
@@ -113,7 +112,6 @@ def test_del_inheritance():
     print("start")
     c = child()
     c = None
-    import gc
     gc.collect()
     print("finish")
 
@@ -144,7 +142,6 @@ def test_multiple_inheritance():
     print("start")
     c = multi_child()
     c = None
-    import gc
     gc.collect()
     print("finish")
 
@@ -171,7 +168,6 @@ def test_zombie_object():
     print("start")
     i = immortal()
     i = None
-    import gc
     print("del global")
     del c
     gc.collect()
@@ -205,7 +201,6 @@ def test_gc_zombie_object():
     print("start")
     i = gc_immortal()
     i = None
-    import gc
     print("del global")
     del c
     gc.collect()
@@ -232,7 +227,6 @@ def test_cdef_parent_object():
     print("start")
     i = cdef_child()
     i = None
-    import gc
     gc.collect()
     print("finish")
 
@@ -261,7 +255,6 @@ def test_cdef_nontrivial_parent_object():
     print("start")
     i = cdef_nontrivial_child()
     i = None
-    import gc
     gc.collect()
     print("finish")
 
