@@ -15,7 +15,6 @@ cython.declare(Nodes=object, ExprNodes=object, EncodedString=object,
                Builtin=object, ModuleNode=object, Utils=object, _unicode=object, _bytes=object,
                re=object, sys=object, _parse_escape_sequences=object, _parse_escape_sequences_raw=object,
                partial=object, reduce=object, _IS_PY3=cython.bint, _IS_2BYTE_UNICODE=cython.bint,
-               _CDEF_MODIFIERS=tuple)
                _CDEF_MODIFIERS=tuple, COMMON_BINOP_MISTAKES=dict, report_error=object, CompileError=object)
 
 from io import StringIO
