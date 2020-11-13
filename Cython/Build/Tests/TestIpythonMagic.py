@@ -158,13 +158,13 @@ class TestIPythonMagic(CythonTest):
         ip = self._ip
         with capture_output() as captured:
             ip.run_cell_magic('cython', '-3', compile_error_code)
-        self.assertTrue("error" in captured.stderr)
+        self.assertEqual("error", captured.stderr)
 
     def test_cython_link_error_shown(self):
         ip = self._ip
         with capture_output() as captured:
             ip.run_cell_magic('cython', '-3 -l=xxxxxxxx', code)
-        self.assertTrue("error" in captured.stderr)
+        self.assertEqual("error", captured.stderr)
 
     @skip_win32('Skip on Windows')
     def test_cython3_pgo(self):
