@@ -478,17 +478,6 @@ class ConstructorSlot(InternalMethodSlot):
         self.generate_set_slot_code(src, scope, code)
 
 
-class DelSlot(InternalMethodSlot):
-    # For __del__ if defined
-    def __init__(self, slot_name, **kwargs):
-        super(DelSlot, self).__init__(slot_name, **kwargs)
-
-    def slot_code(self, scope):
-        if not scope.lookup_here("__del__"):
-            return 0
-        return InternalMethodSlot.slot_code(self, scope)
-
-
 class SyntheticSlot(InternalMethodSlot):
     #  Type slot descriptor for a synthesized method which
     #  dispatches to one or more user-defined methods depending
@@ -512,6 +501,17 @@ class SyntheticSlot(InternalMethodSlot):
         if self.slot_name == "tp_getattro" and not scope.defines_any_special(self.user_methods):
             return "PyObject_GenericGetAttr"
         return self.slot_code(scope)
+
+
+class DelSlot(SyntheticSlot):
+    # For __del__ if defined
+    def __init__(self, slot_name, user_methods, default_value, **kwargs):
+        super(DelSlot, self).__init__(slot_name, user_methods, default_value, **kwargs)
+
+    def slot_code(self, scope):
+        if not scope.lookup_here("__del__"):
+            return 0
+        return InternalMethodSlot.slot_code(self, scope)
 
 
 class BinopSlot(SyntheticSlot):
@@ -1020,7 +1020,7 @@ slot_table = (
     EmptySlot("tp_weaklist"),
     EmptySlot("tp_del"),
     EmptySlot("tp_version_tag"),
-    DelSlot("tp_finalize", ifdef="PY_VERSION_HEX >= 0x030400a1"),
+    DelSlot("tp_finalize", ["__del__"], "0", ifdef="PY_VERSION_HEX >= 0x030400a1"),
     EmptySlot("tp_vectorcall", ifdef="PY_VERSION_HEX >= 0x030800b1"),
     EmptySlot("tp_print", ifdef="PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000"),
     # PyPy specific extension - only here to avoid C compiler warnings.
