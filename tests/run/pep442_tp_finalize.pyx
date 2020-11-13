@@ -146,11 +146,11 @@ def test_multiple_inheritance():
     print("finish")
 
 
-cdef class immortal:
+cdef class zombie_object:
     def __del__(self):
-        global c
+        global global_zombie_object
         print("del")
-        c = self
+        global_zombie_object = self
 
     def __dealloc__(self):
         print("dealloc")
@@ -164,12 +164,12 @@ def test_zombie_object():
     del
     finish
     """
-    global c
+    global global_zombie_object
     print("start")
-    i = immortal()
+    i = zombie_object()
     i = None
     print("del global")
-    del c
+    del global_zombie_object
     gc.collect()
     print("finish")
 
@@ -177,13 +177,13 @@ def test_zombie_object():
 # Same as above, but the member
 # makes the class GC, so it
 # is deallocated
-cdef class gc_immortal:
+cdef class gc_zombie_object:
     cdef object x
 
     def __del__(self):
-        global c
+        global global_gc_zombie_object
         print("del")
-        c = self
+        global_gc_zombie_object = self
 
     def __dealloc__(self):
         print("dealloc")
@@ -197,12 +197,12 @@ def test_gc_zombie_object():
     dealloc
     finish
     """
-    global c
+    global global_gc_zombie_object
     print("start")
-    i = gc_immortal()
+    i = gc_zombie_object()
     i = None
     print("del global")
-    del c
+    del global_gc_zombie_object
     gc.collect()
     print("finish")
 
