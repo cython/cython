@@ -11,7 +11,7 @@ setup(
   ext_modules=cythonize([
     Extension("nsp.m1.a", ["nsp/m1/a.pyx"]),
     Extension("nsp.m2.b", ["nsp/m2/b.pyx"]),
-    Extension("nsp.m3.c.d", ["nsp/m3/c/d.pyx"])
+    Extension("nsp.m3.c.d", ["nsp/m3/c/d.pyx"]),
   ]),
 )
 
