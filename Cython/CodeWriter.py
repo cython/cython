@@ -448,7 +448,18 @@ class StatementWriter(DeclarationWriter):
         self.startline(u"except")
         if node.pattern is not None:
             self.put(u" ")
-            self.visit(node.pattern[0])
+            if len(node.pattern) == 0:
+                # except () as e
+                self.put(u"()")
+            elif len(node.pattern) == 1:
+                self.visit(node.pattern[0])
+            else:
+                self.put(u"(")
+                for p in node.pattern[:-1]:
+                    self.visit(p)
+                    self.put(u", ")
+                self.visit(node.pattern[-1])
+                self.put(u")")
         if node.target is not None:
             self.put(u" as ")
             self.visit(node.target)
@@ -517,6 +528,9 @@ class StatementWriter(DeclarationWriter):
     def visit_RaiseStatNode(self, node):
         self.startline(u"raise ")
         self.visit(node.exc_type)
+        if node.cause:
+            self.put(u" from ")
+            self.visit(node.cause)
         self.endline()
 
 class ExpressionWriter(TreeVisitor):

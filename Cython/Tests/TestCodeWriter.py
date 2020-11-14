@@ -126,7 +126,7 @@ class TestCodeWriter(CythonTest):
     def test_assert(self):
         self.t(u"""
                     assert a == 10
-                    assert a == 10, 'detail message'
+                    assert a == 10, 'Something detail here'
                """)
 
     def test_global_node(self):
@@ -164,7 +164,9 @@ class TestCodeWriter(CythonTest):
     def test_raise(self):
         self.t(u"""
                     raise RuntimeError
-                    raise RuntimeError('detail messages')
+                    raise RuntimeError('Something bad happened')
+                    raise RuntimeError('Something bad happened') from exc
+                    raise RuntimeError('Something bad happened') from None
                """)
 
     def test_general_call(self):
@@ -181,6 +183,10 @@ class TestCodeWriter(CythonTest):
                     except IOError as e:
                         pass
                     except RuntimeError as e:
+                        pass
+                    except () as e:
+                        pass
+                    except (TypeError, KeyError) as e:
                         pass
                     else:
                         pass
