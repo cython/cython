@@ -109,14 +109,17 @@ else:
 
 def prepare_captured(captured):
     captured_bytes = captured and captured().strip()
-    if captured_bytes:
-        for enc in [sys.getdefaultencoding(), 'latin-1']:
-            try:
-                return captured_bytes.decode(enc)
-            except UnicodeDecodeError:
-                pass
-    # returns as bytes, as it couldn't be decoded
-    return captured_bytes
+    if not captured_bytes:
+        return None
+    tried = {None}
+    for encoding in [sys.getdefaultencoding(), sys.stdout.encoding, sys.stdin.encoding]:
+        try:
+            if encoding not in tried:
+                return captured_bytes.decode(encoding)
+        except UnicodeDecodeError:
+            tried.add(encoding)
+    # last resort: print at least the readable ascii parts correctly.
+    return captured_bytes.decode('latin-1')
 
 
 def print_captured(captured, output, header_line):
@@ -363,23 +366,24 @@ class CythonMagics(Magics):
             if args.pgo:
                 self._profile_pgo_wrapper(extension, lib_dir)
 
+        def print_compiler_output(stdout, stderr):
+            # On windows, errors are printed to stdout, we redirect both to sys.stderr.
+            print_captured(stdout, sys.stdout, "Content of stdout:\n")
+            print_captured(stderr, sys.stdout, "Content of stderr:\n")
+
+        get_stderr = get_stdout = None
         try:
-            get_stderr = get_stdout = None
             with captured_fd(1) as get_stdout:
                 with captured_fd(2) as get_stderr:
                     self._build_extension(
                         extension, lib_dir, pgo_step_name='use' if args.pgo else None, quiet=args.quiet)
         except (distutils.errors.CompileError, distutils.errors.LinkError):
             # Build failed, print error message from compiler/linker
-            # On windows errors are printed to stdout,
-            # we redirect it to sys.stderr
-            print_captured(get_stdout, sys.stderr, "Content of stdout:\n")
-            print_captured(get_stderr, sys.stderr, "Content of stderr:\n")
+            print_compiler_output(get_stdout, get_stderr)
             return None
 
-        # Build might be ok, that we should show the warnings (if there are some):
-        print_captured(get_stdout, sys.stdout, "Content of stdout:\n")
-        print_captured(get_stderr, sys.stdout, "Content of stderr:\n")
+        # Build seems ok, but we might still want to show any warnings that occurred
+        print_compiler_output(get_stdout, get_stderr)
 
         module = imp.load_dynamic(module_name, module_path)
         self._import_all(module)
