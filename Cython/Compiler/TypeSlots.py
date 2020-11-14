@@ -1021,7 +1021,7 @@ slot_table = (
     EmptySlot("tp_weaklist"),
     EmptySlot("tp_del"),
     EmptySlot("tp_version_tag"),
-    DelSlot("tp_finalize", ["__del__"], "0", ifdef="PY_VERSION_HEX >= 0x030400a1"),
+    DelSlot("tp_finalize", ["__del__"], "0", ifdef="PY_VERSION_HEX >= 0x030400a1 && CYTHON_USE_TP_FINALIZE"),
     EmptySlot("tp_vectorcall", ifdef="PY_VERSION_HEX >= 0x030800b1"),
     EmptySlot("tp_print", ifdef="PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000"),
     # PyPy specific extension - only here to avoid C compiler warnings.
