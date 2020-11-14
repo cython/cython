@@ -505,8 +505,10 @@ class StatementWriter(DeclarationWriter):
 
     def visit_DelStatNode(self, node):
         self.startline(u"del ")
-        for arg in node.args:
-            self.visit(arg)
+        for item in node.args[:-1]:
+            self.visit(item)
+            self.put(u", ")
+        self.visit(node.args[-1])
         self.endline()
 
     def visit_GlobalNode(self, node):

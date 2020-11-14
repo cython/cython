@@ -149,6 +149,7 @@ class TestCodeWriter(CythonTest):
         self.t(u"""
                     del a
                     del a[0]
+                    del a, b, c
                """)
 
     def test_lambda(self):
