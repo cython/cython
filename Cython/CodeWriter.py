@@ -7,6 +7,8 @@ is preserved (and it could not be as it is not present in the code tree).
 
 from __future__ import absolute_import, print_function
 
+import copy
+
 from .Compiler.Visitor import TreeVisitor
 from .Compiler.ExprNodes import *
 from .Compiler.Nodes import CNameDeclaratorNode, CSimpleBaseTypeNode
@@ -18,8 +20,9 @@ class LinesResult(object):
         self.s = u""
 
     def __getitem__(self, s):
-        self.s = self.s[s]
-        return self
+        other = copy.deepcopy(self)
+        other.s = other.s[s]
+        return other
 
     def put(self, s):
         self.s += s
