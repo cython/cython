@@ -2048,9 +2048,10 @@ class NameNode(AtomicExprNode):
                 return None
             path, name = path
             scope = get_known_module_scope(path)
-            entry = scope.lookup(name)
-            if entry and entry.is_type:
-                return entry.type
+            if scope:
+                entry = scope.lookup(name)
+                if entry and entry.is_type:
+                    return entry.type
         else:
             return None
 

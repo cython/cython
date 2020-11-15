@@ -1060,13 +1060,12 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
                         scope = None
                         break
                 if scope is None:
+                    # Maybe it's a cimport.
+                    scope = env.find_imported_module(self.module_path, self.pos)
+                if scope is None:
                     # TODO: probably not the best place to declare it?
                     from .CythonScope import get_known_module_scope
                     scope = get_known_module_scope(".".join(self.module_path))
-
-                if scope is None:
-                    # Maybe it's a cimport.
-                    scope = env.find_imported_module(self.module_path, self.pos)
             else:
                 scope = env
 
