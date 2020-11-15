@@ -366,10 +366,10 @@ class CythonMagics(Magics):
             if args.pgo:
                 self._profile_pgo_wrapper(extension, lib_dir)
 
-        def print_compiler_output(stdout, stderr):
+        def print_compiler_output(stdout, stderr, where):
             # On windows, errors are printed to stdout, we redirect both to sys.stderr.
-            print_captured(stdout, sys.stdout, "Content of stdout:\n")
-            print_captured(stderr, sys.stdout, "Content of stderr:\n")
+            print_captured(stdout, where, "Content of stdout:\n")
+            print_captured(stderr, where, "Content of stderr:\n")
 
         get_stderr = get_stdout = None
         try:
@@ -379,11 +379,11 @@ class CythonMagics(Magics):
                         extension, lib_dir, pgo_step_name='use' if args.pgo else None, quiet=args.quiet)
         except (distutils.errors.CompileError, distutils.errors.LinkError):
             # Build failed, print error message from compiler/linker
-            print_compiler_output(get_stdout, get_stderr)
+            print_compiler_output(get_stdout, get_stderr, sys.stderr)
             return None
 
         # Build seems ok, but we might still want to show any warnings that occurred
-        print_compiler_output(get_stdout, get_stderr)
+        print_compiler_output(get_stdout, get_stderr, sys.stdout)
 
         module = imp.load_dynamic(module_name, module_path)
         self._import_all(module)
