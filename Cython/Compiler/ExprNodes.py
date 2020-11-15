@@ -2041,6 +2041,16 @@ class NameNode(AtomicExprNode):
             entry = env.lookup(self.name)
         if entry and entry.is_type:
             return entry.type
+        elif entry and entry.unambiguous_import_path:
+            from .CythonScope import get_known_module_scope
+            path = entry.unambiguous_import_path.rsplit(".",1)
+            if len(path) < 2:
+                return None
+            path, name = path
+            scope = get_known_module_scope(path)
+            entry = scope.lookup(name)
+            if entry and entry.is_type:
+                return entry.type
         else:
             return None
 

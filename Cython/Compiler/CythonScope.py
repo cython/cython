@@ -192,7 +192,7 @@ def get_known_module_scope(module_name):
                 entry = mod.declare_type(name, indexed_type, pos = None)
                 dummy_entry = Entry(name, "<error>", py_object_type)
                 entry.as_variable = dummy_entry
-            for name in [('ClassVar')]:
+            for name in ['ClassVar', 'Optional']:
                 indexed_type = SpecialIndexedPythonType("typing."+name)
                 entry = mod.declare_type(name, indexed_type, pos = None)
                 dummy_entry = Entry(name, "<error>", py_object_type)

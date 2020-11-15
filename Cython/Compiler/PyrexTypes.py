@@ -199,6 +199,7 @@ class PyrexType(BaseType):
     #  is_pythran_expr       boolean     Is Pythran expr
     #  is_numpy_buffer       boolean     Is Numpy array buffer
     #  is_typing_classvar            boolean     Is a typing ClassVar
+    #  is_typing_optional            boolean     Is a typing Optional
     #  has_attributes        boolean     Has C dot-selectable attributes
     #  needs_cpp_construction  boolean     Needs C++ constructor and destructor when used in a cdef class
     #  needs_refcounting     boolean     Needs code to be generated similar to incref/gotref/decref.
@@ -270,6 +271,7 @@ class PyrexType(BaseType):
     is_pythran_expr = 0
     is_numpy_buffer = 0
     is_typing_classvar = 0
+    is_typing_optional = 0
     has_attributes = 0
     needs_cpp_construction = 0
     needs_refcounting = 0
@@ -4396,6 +4398,9 @@ class IndexedPythonType(PyrexType):
         else:
             return self.name
 
+    def __str__(self):
+        return self.__repr__()
+
     def is_template_type(self):
         return True
 
@@ -4425,19 +4430,24 @@ class SpecialIndexedPythonType(IndexedPythonType):
                 template_type = py_object_type
         if name == "typing.ClassVar":
             self.is_typing_classvar = True
+        if name == "typing.Optional":
+            self.is_typing_optional = True
+            # the constraints on optional are enforced elsewhere
         self.template_type = template_type
 
     def __getattribute__(self, attr):
         # order of lookup is:
-        # 1. specifically overridden in this class
+        # 1. specifically overridden in this class or IndexedPythonType
         # 2. template type (if it exists)
         # 3. PyrexType
         dict_ = super(IndexedPythonType, self).__getattribute__("__dict__")
         if attr in dict_:
             return dict_[attr]
         cls = super(IndexedPythonType, self).__getattribute__("__class__")
-        if attr in cls.__dict__:
-            return super(IndexedPythonType, self).__getattribute__(attr)
+        while issubclass(cls, IndexedPythonType):
+            if attr in cls.__dict__:
+                return super(IndexedPythonType, self).__getattribute__(attr)
+            cls = cls.__base__
 
         tt = super(IndexedPythonType, self).__getattribute__("template_type")
         if tt:

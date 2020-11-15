@@ -960,6 +960,8 @@ class CArgDeclNode(Node):
         base_type, arg_type = annotation.analyse_type_annotation(env, assigned_value=self.default)
         if base_type is not None:
             self.base_type = base_type
+        if arg_type and arg_type.is_typing_optional:
+            self.or_none = True
         return arg_type
 
     def calculate_default_value_code(self, code):
