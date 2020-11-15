@@ -107,17 +107,29 @@ else:
         return name
 
 
+def get_encoding_candidates():
+    candidates = {sys.getdefaultencoding()}
+    try:
+        candidates.update([sys.stdout.encoding, sys.stdin.encoding])
+    except AttributeError:
+        pass
+    try:
+        candidates.update([sys.__stdout__.encoding, sys.__stdin__.encoding])
+    except AttributeError:
+        pass
+    candidates.discard(None)
+    return candidates
+
+
 def prepare_captured(captured):
     captured_bytes = captured and captured().strip()
     if not captured_bytes:
         return None
-    tried = {None}
-    for encoding in [sys.getdefaultencoding(), sys.stdout.encoding, sys.stdin.encoding]:
+    for encoding in get_encoding_candidates():
         try:
-            if encoding not in tried:
-                return captured_bytes.decode(encoding)
+            return captured_bytes.decode(encoding)
         except UnicodeDecodeError:
-            tried.add(encoding)
+            pass
     # last resort: print at least the readable ascii parts correctly.
     return captured_bytes.decode('latin-1')
 
