@@ -511,7 +511,13 @@ class DelSlot(SyntheticSlot):
     def slot_code(self, scope):
         if not scope.lookup_here("__del__"):
             return 0
-        return InternalMethodSlot.slot_code(self, scope)
+        return """
+        #if CYTHON_USE_TP_FINALIZE
+        %s
+        #else
+        NULL
+        #endif
+        """ % InternalMethodSlot.slot_code(self, scope)
 
 
 class BinopSlot(SyntheticSlot):
@@ -1021,7 +1027,7 @@ slot_table = (
     EmptySlot("tp_weaklist"),
     EmptySlot("tp_del"),
     EmptySlot("tp_version_tag"),
-    DelSlot("tp_finalize", ["__del__"], "0", ifdef="PY_VERSION_HEX >= 0x030400a1 && CYTHON_USE_TP_FINALIZE"),
+    DelSlot("tp_finalize", ["__del__"], "0", ifdef="PY_VERSION_HEX >= 0x030400a1"),
     EmptySlot("tp_vectorcall", ifdef="PY_VERSION_HEX >= 0x030800b1"),
     EmptySlot("tp_print", ifdef="PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000"),
     # PyPy specific extension - only here to avoid C compiler warnings.
