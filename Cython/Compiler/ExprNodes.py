@@ -2027,6 +2027,11 @@ class NameNode(AtomicExprNode):
             entry = env.lookup(self.name)
         if entry and entry.as_module:
             return entry.as_module
+        if entry.unambiguous_import_path:
+            from .CythonScope import get_known_python_import
+            entry = get_known_python_import(entry.unambiguous_import_path)
+            if entry and entry.is_module_scope:
+                return entry
         return None
 
     def analyse_as_type(self, env):
@@ -2042,16 +2047,10 @@ class NameNode(AtomicExprNode):
         if entry and entry.is_type:
             return entry.type
         elif entry and entry.unambiguous_import_path:
-            from .CythonScope import get_known_module_scope
-            path = entry.unambiguous_import_path.rsplit(".",1)
-            if len(path) < 2:
-                return None
-            path, name = path
-            scope = get_known_module_scope(path)
-            if scope:
-                entry = scope.lookup(name)
-                if entry and entry.is_type:
-                    return entry.type
+            from .CythonScope import get_known_python_import
+            entry = get_known_python_import(entry.unambiguous_import_path)
+            if entry and entry.is_type:
+                return entry.type
         else:
             return None
 
@@ -3595,7 +3594,7 @@ class IndexNode(_IndexingBaseNode):
     def analyse_as_type(self, env):
         base_type = self.base.analyse_as_type(env)
         if base_type and not base_type.is_pyobject:
-            if base_type.is_cpp_class:
+            if base_type.is_cpp_class or base_type.is_indexed_pytype:
                 if isinstance(self.index, TupleNode):
                     template_values = self.index.args
                 else:
@@ -7102,6 +7101,7 @@ class AttributeNode(ExprNode):
                 return entry.as_module
         return None
 
+
     def as_name_node(self, env, entry, target):
         # Create a corresponding NameNode from this node and complete the
         # analyse_types phase.
@@ -7446,8 +7446,8 @@ class AttributeNode(ExprNode):
         code.annotate(self.pos, AnnotationItem(style, text % self.type, size=len(self.attribute)))
 
     def unambiguous_import_path(self):
-        if self.obj.unambiguous_import_path:
-            return "%s.%s" % (self.obj.unambiguous_import_path, self.attribute)
+        if self.obj.unambiguous_import_path():
+            return "%s.%s" % (self.obj.unambiguous_import_path(), self.attribute)
         return None
 
 
@@ -13482,7 +13482,7 @@ class CoerceFromPyTypeNode(CoercionNode):
         self.is_temp = 1
         if not result_type.create_from_py_utility_code(env):
             error(arg.pos,
-                  "Cannot convert Python object to '%s'" % result_type)
+                "Cannot convert Python object to '%s'" % result_type)
         if self.type.is_string or self.type.is_pyunicode_ptr:
             if self.arg.is_name and self.arg.entry and self.arg.entry.is_pyglobal:
                 warning(arg.pos,

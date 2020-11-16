@@ -980,17 +980,15 @@ class Scope(object):
 
     def lookup_type(self, name):
         entry = self.lookup(name)
-        if entry and entry.is_type:
-            if entry.type.is_fused and self.fused_to_specific:
-                return entry.type.specialize(self.fused_to_specific)
-            return entry.type
-        # allow us to find types from the "typing" module and similar
-        if entry and entry.unambiguous_import_path:
-            from .CythonScope import get_known_module_scope
-            path, name = entry.unambiguous_import_path.rsplit(".",1)
-            scope = get_known_module_scope(path)
-            if scope:
-                return scope.lookup_type(name)
+        for i in range(2):
+            if entry and entry.is_type:
+                if entry.type.is_fused and self.fused_to_specific:
+                    return entry.type.specialize(self.fused_to_specific)
+                return entry.type
+            # allow us to find types from the "typing" module and similar
+            if i<1 and entry and entry.unambiguous_import_path:
+                from .CythonScope import get_known_python_import
+                entry = get_known_python_import(entry.unambiguous_import_path)
 
 
     def lookup_operator(self, operator, operands):

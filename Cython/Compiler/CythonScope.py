@@ -174,8 +174,11 @@ cythonview_testscope_utility_code = load_testscope_utility("View.TestScope")
 
 _known_module_scopes = {}
 
-def get_known_module_scope(module_name):
+def get_known_python_import(qualified_name):
     # I don't think this is in the right place, but it isn't clear where it should be
+
+    module_name, *rest = qualified_name.split(".")
+
     mod = _known_module_scopes.get(module_name, None)
     if not mod:
         if module_name == "typing":
@@ -188,7 +191,10 @@ def get_known_module_scope(module_name):
                              ('FrozenSet', Builtin.frozenset_type),
                              ('DefaultDict', Builtin.dict_type),
                              ('OrderedDict', Builtin.dict_type)]:
-                indexed_type = IndexedPythonType("typing."+name, tp)
+                if name == "Tuple":
+                    indexed_type = TupleIndexedPythonType("typing."+name, tp)
+                else:
+                    indexed_type = IndexedPythonType("typing."+name, tp)
                 entry = mod.declare_type(name, indexed_type, pos = None)
                 dummy_entry = Entry(name, "<error>", py_object_type)
                 entry.as_variable = dummy_entry
@@ -198,5 +204,10 @@ def get_known_module_scope(module_name):
                 dummy_entry = Entry(name, "<error>", py_object_type)
                 entry.as_variable = dummy_entry
             _known_module_scopes[module_name] = mod
-    return mod
+
+    entry = mod
+    for attr in rest:
+        if entry:
+            entry = entry.lookup_here(attr)
+    return entry
 

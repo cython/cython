@@ -192,6 +192,7 @@ class PyrexType(BaseType):
     #  is_string             boolean     Is a C char * type
     #  is_pyunicode_ptr      boolean     Is a C PyUNICODE * type
     #  is_cpp_string         boolean     Is a C++ std::string type
+    #  is_indexed_pytype     boolean     Is a Python type identifier that can be indexed/"templated"
     #  is_unicode_char       boolean     Is either Py_UCS4 or Py_UNICODE
     #  is_returncode         boolean     Is used only to signal exceptions
     #  is_error              boolean     Is the dummy error type
@@ -255,6 +256,7 @@ class PyrexType(BaseType):
     is_cfunction = 0
     is_struct_or_union = 0
     is_cpp_class = 0
+    is_indexed_pytype = 0
     is_cpp_string = 0
     is_struct = 0
     is_enum = 0
@@ -3858,7 +3860,7 @@ class CppClassType(CType):
                 T.get_fused_types(result, seen)
         return result
 
-    def specialize_here(self, pos, template_values=None):
+    def specialize_here(self, pos, env, template_values=None):
         if not self.is_template_type():
             error(pos, "'%s' type is not a template" % self)
             return error_type
@@ -4379,13 +4381,13 @@ class IndexedPythonType(PyrexType):
     Although not really a CppClassType, it uses a template-like syntax.
     So it mimics the interface to let existing code use it with minimal fuss.
     """
-    is_cpp_class = True  # TODO: should probably be replaced with a clearer mechanism
+    is_indexed_pytype = True
 
     def __init__(self, name, base_type=None):
         self.name = name
         self.base_type = base_type
 
-    def specialize_here(self, pos, template_values=None):
+    def specialize_here(self, pos, env, template_values=None):
         if self.base_type:
             # for a lot of the typing classes it doesn't really matter what the template it
             # (i.e. typing.Dict[int] is really just a dict
@@ -4405,13 +4407,23 @@ class IndexedPythonType(PyrexType):
         return True
 
 
+class TupleIndexedPythonType(IndexedPythonType):
+    def specialize_here(self, pos, env, template_values=None):
+        if (template_values and None not in template_values and
+                not any(v.is_pyobject for v in template_values)):
+            entry = env.declare_tuple_type(pos, template_values)
+            if entry:
+                return entry.type
+        return super(TupleIndexedPythonType, self).specialize_here(pos, env, template_values)
+
+
 class SpecialIndexedPythonType(IndexedPythonType):
     """
     For things like ClassVar, Optional, etc, which have extra features on top of being
     a "templated" type
     """
     @property
-    def is_cpp_class(self):
+    def is_indexed_pytype(self):
         return not bool(self.template_type)
 
     def __init__(self, name, template_type=None):
@@ -4464,7 +4476,7 @@ class SpecialIndexedPythonType(IndexedPythonType):
     def is_template_type(self):
         return self.template_type is None
 
-    def specialize_here(self, pos, template_values=None):
+    def specialize_here(self, pos, env, template_values=None):
         if not self.is_template_type():
             error(pos, "'%r' has already been specialized" % self )
             return error_type

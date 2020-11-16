@@ -86,11 +86,12 @@ def ext_not_none(MyExtType x not None):
 
 def ext_annotations(x: MyExtType):
     """
-    Behaves the same as "MyExtType x"
+    Behaves the same as "MyExtType x not None"
     >>> ext_annotations(MyExtType())
     123
     >>> ext_annotations(None)
-    321
+    Traceback (most recent call last):
+    TypeError: Argument 'x' has incorrect type (expected ext_type_none_arg.MyExtType, got NoneType)
     """
     return attr(x)
 
@@ -105,7 +106,6 @@ def ext_annotations_check_on(x: MyExtType):
     """
     return attr(x)
 
-@cython.allow_none_for_extension_args(False)
 def ext_optional(x: typing.Optional[MyExtType], y: Optional[MyExtType]):
     """
     Behaves the same as "or None"
