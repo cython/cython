@@ -2027,7 +2027,7 @@ class NameNode(AtomicExprNode):
             entry = env.lookup(self.name)
         if entry and entry.as_module:
             return entry.as_module
-        if entry.unambiguous_import_path:
+        if entry and entry.unambiguous_import_path:
             from .CythonScope import get_known_python_import
             entry = get_known_python_import(entry.unambiguous_import_path)
             if entry and entry.is_module_scope:
