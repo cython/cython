@@ -316,13 +316,6 @@ class Node(object):
         return u'"%s":%d:%d\n%s\n' % (
             source_desc.get_escaped_description(), line, col, u''.join(lines))
 
-    def unambiguous_import_path(self):
-        """
-        Gets the module.path that this node was imported from
-
-        Many nodes do not have one, or it is not unambiguous, in which case
-        this function returns a false value"""
-        return None
 
 class CompilerDirectivesNode(Node):
     """
@@ -5717,8 +5710,8 @@ class SingleAssignmentNode(AssignmentNode):
             self.lhs.analyse_target_declaration(env)
             if (getattr(self.lhs, "entry", None) and
                     self.lhs.entry.unambiguous_import_path is None and
-                    self.rhs.unambiguous_import_path()):
-                self.lhs.entry.unambiguous_import_path = self.rhs.unambiguous_import_path()
+                    self.rhs.get_unambiguous_import_path()):
+                self.lhs.entry.unambiguous_import_path = self.rhs.get_unambiguous_import_path()
 
     def analyse_types(self, env, use_temp=0):
         from . import ExprNodes
@@ -8531,7 +8524,7 @@ class FromImportStatNode(StatNode):
             else:
                 target.analyse_target_declaration(env)
                 if target.entry:
-                    if target.unambiguous_import_path() is None:
+                    if target.get_unambiguous_import_path() is None:
                         target.entry.unambiguous_import_path = "%s.%s" % (
                             self.module.module_name.value, name)
                 else:

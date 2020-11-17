@@ -1156,6 +1156,14 @@ class ExprNode(Node):
                 kwargs[attr_name] = value
         return cls(node.pos, **kwargs)
 
+    def get_unambiguous_import_path(self):
+        """
+        Gets the module.path that this node was imported from
+
+        Many nodes do not have one, or it is not unambiguous, in which case
+        this function returns a false value"""
+        return None
+
 
 class AtomicExprNode(ExprNode):
     #  Abstract base class for expression nodes which have
@@ -2569,7 +2577,7 @@ class NameNode(AtomicExprNode):
                 style, text = 'c_call', 'c function (%s)'
             code.annotate(pos, AnnotationItem(style, text % self.type, size=len(self.name)))
 
-    def unambiguous_import_path(self):
+    def get_unambiguous_import_path(self):
         if self.entry:
             return self.entry.unambiguous_import_path
         return None
@@ -2683,7 +2691,7 @@ class ImportNode(ExprNode):
             code.error_goto_if_null(self.result(), self.pos)))
         self.generate_gotref(code)
 
-    def unambiguous_import_path(self):
+    def get_unambiguous_import_path(self):
         return self.module_name.value
 
 
@@ -7445,9 +7453,9 @@ class AttributeNode(ExprNode):
             style, text = 'c_attr', 'c attribute (%s)'
         code.annotate(self.pos, AnnotationItem(style, text % self.type, size=len(self.attribute)))
 
-    def unambiguous_import_path(self):
-        if self.obj.unambiguous_import_path():
-            return "%s.%s" % (self.obj.unambiguous_import_path(), self.attribute)
+    def get_unambiguous_import_path(self):
+        if self.obj.get_unambiguous_import_path():
+            return "%s.%s" % (self.obj.get_unambiguous_import_path(), self.attribute)
         return None
 
 

@@ -177,7 +177,9 @@ _known_module_scopes = {}
 def get_known_python_import(qualified_name):
     # I don't think this is in the right place, but it isn't clear where it should be
 
-    module_name, *rest = qualified_name.split(".")
+    qualified_name = qualified_name.split(".")
+    module_name = qualified_name[0]
+    rest = qualified_name[1:]
 
     mod = _known_module_scopes.get(module_name, None)
     if not mod:
