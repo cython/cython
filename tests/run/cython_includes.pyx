@@ -15,6 +15,7 @@ cimport cpython.ceval
 cimport cpython.cobject
 cimport cpython.codecs
 cimport cpython.complex
+cimport cpython.conversion
 cimport cpython.datetime
 cimport cpython.dict
 cimport cpython.exc
