@@ -212,4 +212,3 @@ def get_known_python_import(qualified_name):
         if entry:
             entry = entry.lookup_here(attr)
     return entry
-
