@@ -2635,6 +2635,12 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         elif func_arg.type is Builtin.bytearray_type:
             cfunc_name = "__Pyx_PyByteArray_AsDouble"
             utility_code_name = 'pybytes_as_double'
+        elif func_arg.type is Builtin.unicode_type:
+            cfunc_name = "__Pyx_PyUnicode_AsDouble"
+            utility_code_name = 'pyunicode_as_double'
+        elif func_arg.type is Builtin.str_type:
+            cfunc_name = "__Pyx_PyString_AsDouble"
+            utility_code_name = 'pystring_as_double'
         else:
             cfunc_name = "__Pyx_PyObject_AsDouble"
             utility_code_name = 'pyobject_as_double'

@@ -608,16 +608,12 @@ static double __Pyx__PyObject_AsDouble(PyObject* obj) {
     (void)__Pyx__PyBytes_AsDouble;
 #else
     PyNumberMethods *nb = Py_TYPE(obj)->tp_as_number;
-    if (PyBytes_CheckExact(obj)) {
+    if (PyUnicode_CheckExact(obj)) {
+        return __Pyx_PyUnicode_AsDouble(obj);
+    } else if (PyBytes_CheckExact(obj)) {
         return __Pyx_PyBytes_AsDouble(obj);
     } else if (PyByteArray_CheckExact(obj)) {
         return __Pyx_PyByteArray_AsDouble(obj);
-    } else if (PyUnicode_CheckExact(obj)) {
-#if PY_MAJOR_VERSION >= 3
-        float_value = PyFloat_FromString(obj);
-#else
-        float_value = PyFloat_FromString(obj, 0);
-#endif
     } else if (likely(nb) && likely(nb->nb_float)) {
         float_value = nb->nb_float(obj);
         if (likely(float_value) && unlikely(!PyFloat_Check(float_value))) {
@@ -643,8 +639,44 @@ bad:
 }
 
 
+/////////////// pystring_as_double.proto ///////////////
+//@requires: pyunicode_as_double
+//@requires: pybytes_as_double
+
+static CYTHON_INLINE double __Pyx_PyString_AsDouble(PyObject *obj) {
+    #if PY_MAJOR_VERSION >= 3
+    (void)__Pyx_PyBytes_AsDouble;
+    return __Pyx_PyUnicode_AsDouble(obj);
+    #else
+    (void)__Pyx_PyUnicode_AsDouble;
+    return __Pyx_PyBytes_AsDouble(obj);
+    #endif
+}
+
+
+/////////////// pyunicode_as_double.proto ///////////////
+
+static CYTHON_INLINE double __Pyx_PyUnicode_AsDouble(PyObject *obj);/*proto*/
+
+/////////////// pyunicode_as_double.proto ///////////////
+//@requires: pybytes_as_double
+
+static CYTHON_INLINE double __Pyx_PyUnicode_AsDouble(PyObject *obj) {
+#if PY_MAJOR_VERSION >= 3
+    if (likely(PyUnicode_IS_ASCII(obj))) {
+        const char *s;
+        Py_ssize_t length;
+        s = PyUnicode_AsUTF8AndSize(obj, &length);
+        return __Pyx__PyBytes_AsDouble(obj, s, length);
+    }
+#endif
+    return __Pyx_SlowPyString_AsDouble(obj);
+}
+
+
 /////////////// pybytes_as_double.proto ///////////////
 
+static double __Pyx_SlowPyString_AsDouble(PyObject *obj);/*proto*/
 static double __Pyx__PyBytes_AsDouble(PyObject *obj, const char* start, Py_ssize_t length);/*proto*/
 
 static CYTHON_INLINE double __Pyx_PyBytes_AsDouble(PyObject *obj) {
@@ -657,8 +689,22 @@ static CYTHON_INLINE double __Pyx_PyByteArray_AsDouble(PyObject *obj) {
 
 /////////////// pybytes_as_double ///////////////
 
-static double __Pyx__PyBytes_AsDouble(PyObject *bytes, const char* start, Py_ssize_t length) {
+static double __Pyx_SlowPyString_AsDouble(PyObject *obj) {
     PyObject *float_value;
+#if PY_MAJOR_VERSION >= 3
+    float_value = PyFloat_FromString(obj);
+#else
+    float_value = PyFloat_FromString(obj, 0);
+#endif
+    if (likely(float_value)) {
+        double value = PyFloat_AS_DOUBLE(float_value);
+        Py_DECREF(float_value);
+        return value;
+    }
+    return (double)-1;
+}
+
+static double __Pyx__PyBytes_AsDouble(PyObject *obj, const char* start, Py_ssize_t length) {
     if (likely(!memchr(start, '_', length))) {
         const char *end, *last = start + length;
         double value;
@@ -671,19 +717,7 @@ static double __Pyx__PyBytes_AsDouble(PyObject *bytes, const char* start, Py_ssi
             return value;
         }
     }
-    // slow fallback
-#if PY_MAJOR_VERSION >= 3
-    float_value = PyFloat_FromString(bytes);
-#else
-    float_value = PyFloat_FromString(bytes, 0);
-#endif
-    if (likely(float_value)) {
-        double value = PyFloat_AS_DOUBLE(float_value);
-        Py_DECREF(float_value);
-        return value;
-    }
-bad:
-    return (double)-1;
+    return __Pyx_SlowPyString_AsDouble(obj);
 }
 
 
