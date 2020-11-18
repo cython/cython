@@ -13,13 +13,18 @@ cdef extern from "Python.h":
     # Output not more than size bytes to str according to the format
     # string format and the variable argument list va. Unix man page vsnprintf(2).
 
-    double PyOS_string_to_double(const char *s, char **endptr, PyObject *overflow_exception)
+    double PyOS_string_to_double(const char *s, char **endptr, PyObject *overflow_exception) except? -1.0
     # Convert a string s to a double, raising a Python exception on failure. The set of
     # accepted strings corresponds to the set of strings accepted by Python’s float()
     # constructor, except that s must not have leading or trailing whitespace.
     # The conversion is independent of the current locale.
 
-    char* PyOS_double_to_string(double val, char format_code, int precision, int flags, int *ptype)
+    enum:
+        Py_DTSF_SIGN
+        Py_DTSF_ADD_DOT_0
+        Py_DTSF_ALT
+
+    char* PyOS_double_to_string(double val, char format_code, int precision, int flags, int *ptype) except NULL
     # Convert a double val to a string using supplied format_code, precision, and flags.
 
     int PyOS_stricmp(const char *s1, const char *s2)
