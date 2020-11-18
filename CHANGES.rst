@@ -21,6 +21,8 @@ Features added
   also when compiled by Cython.
   Patch by Pedro Marques da Luz.  (Github issue #2273)
 
+* ``float(…)`` is optimised for ``bytes`` and ``bytearray`` arguments.
+
 * Docstrings of ``cpdef`` enums are now copied to the enum class.
   Patch by matham.  (Github issue #3805)
 

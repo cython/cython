@@ -596,6 +596,7 @@ static double __Pyx__PyObject_AsDouble(PyObject* obj); /* proto */
 #endif
 
 /////////////// pyobject_as_double ///////////////
+//@requires: pybytes_as_double
 //@requires: ObjectHandling.c::PyObjectCallOneArg
 
 static double __Pyx__PyObject_AsDouble(PyObject* obj) {
@@ -604,9 +605,20 @@ static double __Pyx__PyObject_AsDouble(PyObject* obj) {
     float_value = PyNumber_Float(obj);  if ((0)) goto bad;
     // avoid "unused" warnings
     (void)__Pyx_PyObject_CallOneArg;
+    (void)__Pyx__PyBytes_AsDouble;
 #else
     PyNumberMethods *nb = Py_TYPE(obj)->tp_as_number;
-    if (likely(nb) && likely(nb->nb_float)) {
+    if (PyBytes_CheckExact(obj)) {
+        return __Pyx_PyBytes_AsDouble(obj);
+    } else if (PyByteArray_CheckExact(obj)) {
+        return __Pyx_PyByteArray_AsDouble(obj);
+    } else if (PyUnicode_CheckExact(obj)) {
+#if PY_MAJOR_VERSION >= 3
+        float_value = PyFloat_FromString(obj);
+#else
+        float_value = PyFloat_FromString(obj, 0);
+#endif
+    } else if (likely(nb) && likely(nb->nb_float)) {
         float_value = nb->nb_float(obj);
         if (likely(float_value) && unlikely(!PyFloat_Check(float_value))) {
             __Pyx_TypeName float_value_type_name = __Pyx_PyType_GetName(Py_TYPE(float_value));
@@ -617,15 +629,53 @@ static double __Pyx__PyObject_AsDouble(PyObject* obj) {
             Py_DECREF(float_value);
             goto bad;
         }
-    } else if (PyUnicode_CheckExact(obj) || PyBytes_CheckExact(obj)) {
-#if PY_MAJOR_VERSION >= 3
-        float_value = PyFloat_FromString(obj);
-#else
-        float_value = PyFloat_FromString(obj, 0);
-#endif
     } else {
         float_value = __Pyx_PyObject_CallOneArg((PyObject*)&PyFloat_Type, obj);
     }
+#endif
+    if (likely(float_value)) {
+        double value = PyFloat_AS_DOUBLE(float_value);
+        Py_DECREF(float_value);
+        return value;
+    }
+bad:
+    return (double)-1;
+}
+
+
+/////////////// pybytes_as_double.proto ///////////////
+
+static double __Pyx__PyBytes_AsDouble(PyObject *obj, const char* start, Py_ssize_t length);/*proto*/
+
+static CYTHON_INLINE double __Pyx_PyBytes_AsDouble(PyObject *obj) {
+    return __Pyx__PyBytes_AsDouble(obj, PyBytes_AS_STRING(obj), PyBytes_GET_SIZE(obj));
+}
+static CYTHON_INLINE double __Pyx_PyByteArray_AsDouble(PyObject *obj) {
+    return __Pyx__PyBytes_AsDouble(obj, PyByteArray_AS_STRING(obj), PyByteArray_GET_SIZE(obj));
+}
+
+
+/////////////// pybytes_as_double ///////////////
+
+static double __Pyx__PyBytes_AsDouble(PyObject *bytes, const char* start, Py_ssize_t length) {
+    PyObject *float_value;
+    if (likely(!memchr(start, '_', length))) {
+        const char *end, *last = start + length;
+        double value;
+        while (Py_ISSPACE(*start))
+            start++;
+        while (start < last - 1 && Py_ISSPACE(last[-1]))
+            last--;
+        value = PyOS_string_to_double(start, (char**) &end, NULL);
+        if (likely(end == last) || (value == (double)-1 && PyErr_Occurred())) {
+            return value;
+        }
+    }
+    // slow fallback
+#if PY_MAJOR_VERSION >= 3
+    float_value = PyFloat_FromString(bytes);
+#else
+    float_value = PyFloat_FromString(bytes, 0);
 #endif
     if (likely(float_value)) {
         double value = PyFloat_AS_DOUBLE(float_value);

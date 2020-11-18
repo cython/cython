@@ -2189,7 +2189,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 func_arg = arg.args[0]
                 if func_arg.type is Builtin.float_type:
                     return func_arg.as_none_safe_node("float() argument must be a string or a number, not 'NoneType'")
-                elif func_arg.type.is_pyobject:
+                elif func_arg.type.is_pyobject and arg.function.cname == "__Pyx__PyObject_AsDouble":
                     return ExprNodes.PythonCapiCallNode(
                         node.pos, '__Pyx_PyNumber_Float', self.PyNumber_Float_func_type,
                         args=[func_arg],
@@ -2619,6 +2619,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         elif len(pos_args) != 1:
             self._error_wrong_arg_count('float', node, pos_args, '0 or 1')
             return node
+
         func_arg = pos_args[0]
         if isinstance(func_arg, ExprNodes.CoerceToPyTypeNode):
             func_arg = func_arg.arg
@@ -2627,12 +2628,23 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         elif node.type.assignable_from(func_arg.type) or func_arg.type.is_numeric:
             return ExprNodes.TypecastNode(
                 node.pos, operand=func_arg, type=node.type)
+
+        if func_arg.type is Builtin.bytes_type:
+            cfunc_name = "__Pyx_PyBytes_AsDouble"
+            utility_code_name = 'pybytes_as_double'
+        elif func_arg.type is Builtin.bytearray_type:
+            cfunc_name = "__Pyx_PyByteArray_AsDouble"
+            utility_code_name = 'pybytes_as_double'
+        else:
+            cfunc_name = "__Pyx_PyObject_AsDouble"
+            utility_code_name = 'pyobject_as_double'
+
         return ExprNodes.PythonCapiCallNode(
-            node.pos, "__Pyx_PyObject_AsDouble",
+            node.pos, cfunc_name,
             self.PyObject_AsDouble_func_type,
             args = pos_args,
             is_temp = node.is_temp,
-            utility_code = load_c_utility('pyobject_as_double'),
+            utility_code = load_c_utility(utility_code_name),
             py_name = "float")
 
     PyNumber_Int_func_type = PyrexTypes.CFuncType(
