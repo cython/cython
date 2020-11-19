@@ -704,19 +704,48 @@ static double __Pyx_SlowPyString_AsDouble(PyObject *obj) {
     return (double)-1;
 }
 
-static double __Pyx__PyBytes_AsDouble(PyObject *obj, const char* start, Py_ssize_t length) {
-    if (likely(!memchr(start, '_', length))) {
-        const char *end, *last = start + length;
-        double value;
-        while (Py_ISSPACE(*start))
-            start++;
-        while (start < last - 1 && Py_ISSPACE(last[-1]))
-            last--;
-        value = PyOS_string_to_double(start, (char**) &end, NULL);
-        if (likely(end == last) || (value == (double)-1 && PyErr_Occurred())) {
-            return value;
-        }
+static const char* __Pyx__PyBytes_AsDouble_Copy(const char* start, char* buffer, Py_ssize_t length) {
+    Py_ssize_t i;
+    char *digit = buffer;
+    for (i=0; i < length; i++) {
+        if (start[i] != '_') *buffer++ = start[i];
     }
+    *buffer = '\0';
+    return buffer;
+}
+
+static double __Pyx__PyBytes_AsDouble(PyObject *obj, const char* start, Py_ssize_t length) {
+    double value;
+    Py_ssize_t i, digits;
+    const char *last = start + length;
+    char *end;
+    // strip spaces at start and end
+    while (Py_ISSPACE(*start))
+        start++;
+    while (start < last - 1 && Py_ISSPACE(last[-1]))
+        last--;
+    length = last - start;
+    // look for underscores
+    digits = 0;
+    for (i=0; i < length; digits += start[i++] != '_');
+
+    if (likely(digits == length)) {
+        value = PyOS_string_to_double(start, &end, NULL);
+    } else if (digits < 40) {
+        char number[40];
+        last = __Pyx__PyBytes_AsDouble_Copy(start, number, length);
+        value = PyOS_string_to_double(number, &end, NULL);
+    } else {
+        char *number = (char*) PyMem_Malloc((digits + 1) * sizeof(char));
+        if (unlikely(!number)) goto fallback;
+        last = __Pyx__PyBytes_AsDouble_Copy(start, number, length);
+        value = PyOS_string_to_double(number, &end, NULL);
+        PyMem_Free(number);
+    }
+    if (likely(end == last) || (value == (double)-1 && PyErr_Occurred())) {
+        return value;
+    }
+fallback:
     return __Pyx_SlowPyString_AsDouble(obj);
 }
 
