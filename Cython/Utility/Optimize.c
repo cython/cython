@@ -662,6 +662,8 @@ static CYTHON_INLINE double __Pyx_PyUnicode_AsDouble(PyObject *obj);/*proto*/
 //@requires: pybytes_as_double
 
 static CYTHON_INLINE double __Pyx_PyUnicode_AsDouble(PyObject *obj) {
+    // Currently not optimised for 1) Py2.7 and 2) Py3 unicode strings with non-ASCII whitespace.
+    // See __Pyx__PyBytes_AsDouble() below, the same byte buffer copying could be done here.
 #if PY_MAJOR_VERSION >= 3
     if (likely(PyUnicode_IS_ASCII(obj))) {
         const char *s;
