@@ -597,6 +597,7 @@ static double __Pyx__PyObject_AsDouble(PyObject* obj); /* proto */
 
 /////////////// pyobject_as_double ///////////////
 //@requires: pybytes_as_double
+//@requires: pyunicode_as_double
 //@requires: ObjectHandling.c::PyObjectCallOneArg
 
 static double __Pyx__PyObject_AsDouble(PyObject* obj) {
@@ -606,6 +607,7 @@ static double __Pyx__PyObject_AsDouble(PyObject* obj) {
     // avoid "unused" warnings
     (void)__Pyx_PyObject_CallOneArg;
     (void)__Pyx__PyBytes_AsDouble;
+    (void)__Pyx_PyUnicode_AsDouble;
 #else
     PyNumberMethods *nb = Py_TYPE(obj)->tp_as_number;
     if (PyUnicode_CheckExact(obj)) {
