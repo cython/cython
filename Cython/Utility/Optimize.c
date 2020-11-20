@@ -606,7 +606,8 @@ static double __Pyx__PyObject_AsDouble(PyObject* obj) {
     float_value = PyNumber_Float(obj);  if ((0)) goto bad;
     // avoid "unused" warnings
     (void)__Pyx_PyObject_CallOneArg;
-    (void)__Pyx__PyBytes_AsDouble;
+    (void)__Pyx_PyBytes_AsDouble;
+    (void)__Pyx_PyByteArray_AsDouble;
     (void)__Pyx_PyUnicode_AsDouble;
 #else
     PyNumberMethods *nb = Py_TYPE(obj)->tp_as_number;
