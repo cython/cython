@@ -60,6 +60,9 @@ def from_bytes(s: bytes):
     1.2413112312318938e+47
     >>> from_bytes(b"123E100")
     1.23e+102
+    >>> from_bytes(None)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError...
     """
     return float(s)
 
@@ -92,6 +95,9 @@ def from_bytearray(s: bytearray):
     1.2413112312318938e+47
     >>> from_bytearray(bytearray(b"123E100"))
     1.23e+102
+    >>> from_bytearray(None)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError...
     """
     return float(s)
 
@@ -112,6 +118,9 @@ def from_str(s: 'str'):
     1.2413112312318938e+47
     >>> from_str("123E100")
     1.23e+102
+    >>> from_str(None)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError...
     """
     return float(s)
 
@@ -146,6 +155,9 @@ def from_unicode(s: 'unicode'):
     1.23e+102
     >>> from_unicode(u"123.23\\N{PUNCTUATION SPACE}")
     123.23
+    >>> from_unicode(None)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError...
     """
     return float(s)
 

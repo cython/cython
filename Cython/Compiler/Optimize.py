@@ -2629,6 +2629,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             return ExprNodes.TypecastNode(
                 node.pos, operand=func_arg, type=node.type)
 
+        arg = None
         if func_arg.type is Builtin.bytes_type:
             cfunc_name = "__Pyx_PyBytes_AsDouble"
             utility_code_name = 'pybytes_as_double'
@@ -2642,13 +2643,18 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             cfunc_name = "__Pyx_PyString_AsDouble"
             utility_code_name = 'pystring_as_double'
         else:
+            arg = func_arg  # no need for an additional None check
             cfunc_name = "__Pyx_PyObject_AsDouble"
             utility_code_name = 'pyobject_as_double'
+
+        if arg is None:
+            arg = func_arg.as_none_safe_node(
+                "float() argument must be a string or a number, not 'NoneType'")
 
         return ExprNodes.PythonCapiCallNode(
             node.pos, cfunc_name,
             self.PyObject_AsDouble_func_type,
-            args = pos_args,
+            args = [arg],
             is_temp = node.is_temp,
             utility_code = load_c_utility(utility_code_name),
             py_name = "float")
