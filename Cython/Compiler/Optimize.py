@@ -2189,7 +2189,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 func_arg = arg.args[0]
                 if func_arg.type is Builtin.float_type:
                     return func_arg.as_none_safe_node("float() argument must be a string or a number, not 'NoneType'")
-                elif func_arg.type.is_pyobject and arg.function.cname == "__Pyx__PyObject_AsDouble":
+                elif func_arg.type.is_pyobject and arg.function.cname == "__Pyx_PyObject_AsDouble":
                     return ExprNodes.PythonCapiCallNode(
                         node.pos, '__Pyx_PyNumber_Float', self.PyNumber_Float_func_type,
                         args=[func_arg],
