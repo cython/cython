@@ -2642,6 +2642,8 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         elif func_arg.type is Builtin.str_type:
             cfunc_name = "__Pyx_PyString_AsDouble"
             utility_code_name = 'pystring_as_double'
+        elif func_arg.type is Builtin.long_type:
+            cfunc_name = "PyLong_AsDouble"
         else:
             arg = func_arg  # no need for an additional None check
             cfunc_name = "__Pyx_PyObject_AsDouble"
@@ -2656,7 +2658,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             self.PyObject_AsDouble_func_type,
             args = [arg],
             is_temp = node.is_temp,
-            utility_code = load_c_utility(utility_code_name),
+            utility_code = load_c_utility(utility_code_name) if utility_code_name else None,
             py_name = "float")
 
     PyNumber_Int_func_type = PyrexTypes.CFuncType(
