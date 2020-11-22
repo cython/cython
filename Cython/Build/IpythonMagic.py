@@ -383,8 +383,8 @@ class CythonMagics(Magics):
 
         def print_compiler_output(stdout, stderr, where):
             # On windows, errors are printed to stdout, we redirect both to sys.stderr.
-            print_captured(stdout, where, "Content of stdout:\n")
-            print_captured(stderr, where, "Content of stderr:\n")
+            print_captured(stdout, where, u"Content of stdout:\n")
+            print_captured(stderr, where, u"Content of stderr:\n")
 
         get_stderr = get_stdout = None
         try:
