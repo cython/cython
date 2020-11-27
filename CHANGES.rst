@@ -545,6 +545,9 @@ Features added
 Bugs fixed
 ----------
 
+* A crash when calling certain functions in Py3.9 and later was resolved.
+  (Github issue #3917)
+
 * ``const`` memory views of structs failed to compile.
   (Github issue #2251)
 
