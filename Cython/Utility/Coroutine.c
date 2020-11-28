@@ -791,12 +791,12 @@ PyObject *__Pyx_Coroutine_MethodReturn(CYTHON_UNUSED PyObject* gen, PyObject *re
 #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x03030000 && (defined(__linux__) || PY_VERSION_HEX >= 0x030600B3)
 static CYTHON_INLINE
 PyObject *__Pyx_PyGen_Send(PyGenObject *gen, PyObject *arg) {
-#if PY_VERSION_HEX < 0x030A00A1
+#if PY_VERSION_HEX <= 0x030A00A1
     return _PyGen_Send(gen, arg);
 #else
     PyObject *result;
-    // PyGen_Send() asserts non-NULL arg
-    if (PyGen_Send(gen, arg ? arg : Py_None, &result) == PYGEN_RETURN) {
+    // PyIter_Send() asserts non-NULL arg
+    if (PyIter_Send((PyObject*)gen, arg ? arg : Py_None, &result) == PYGEN_RETURN) {
         if (PyAsyncGen_CheckExact(gen)) {
             assert(result == Py_None);
             PyErr_SetNone(PyExc_StopAsyncIteration);
