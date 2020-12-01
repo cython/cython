@@ -40,14 +40,14 @@ def capture_output():
              io.TextIOWrapper(io.BytesIO(), encoding=sys.stderr.encoding),
         ]
         sys.stdout, sys.stderr = replacement
-        output = ["", ""]
+        output = []
         yield output
     finally:
         sys.stdout, sys.stderr = backup
         for wrapper in replacement:
             wrapper.seek(0)  # rewind
-        output[0] = replacement[0].read()
-        output[1] = replacement[1].read()
+            output.append(wrapper.read())
+            wrapper.close()
 
 
 code = u"""\
