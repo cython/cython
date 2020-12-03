@@ -7,6 +7,13 @@ from __future__ import absolute_import
 import re
 import copy
 import operator
+import sys
+
+is_openvms = (sys.platform == 'OpenVMS')
+openvms_reserved_names = [
+    'readonly',
+    '_align',
+]
 
 try:
     import __builtin__ as builtins
@@ -474,6 +481,8 @@ class Scope(object):
         if not self.in_cinclude and cname and re.match("^_[_A-Z]+$", cname):
             # See https://www.gnu.org/software/libc/manual/html_node/Reserved-Names.html#Reserved-Names
             warning(pos, "'%s' is a reserved name in C." % cname, -1)
+        if is_openvms and cname in openvms_reserved_names:
+            cname = cname + '$'
 
         entries = self.entries
         if name and name in entries and not shadow:
