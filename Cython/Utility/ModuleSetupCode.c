@@ -379,7 +379,7 @@
     #endif
 #else
 #ifdef HAVE_STDINT_H
-#include <stdint.h>
+    #include <stdint.h>
 #endif
     typedef uintptr_t  __pyx_uintptr_t;
 #endif
