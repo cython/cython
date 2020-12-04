@@ -1135,7 +1135,7 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
             PyErr_Format(PyExc_TypeError,
                          "First argument should be of type %.200s, got %.200s.",
                          ((PyTypeObject *) binding_func->type)->tp_name,
-                         self->ob_type->tp_name);
+                         Py_TYPE(self)->tp_name);
             goto bad;
         } else if (unlikely(is_instance == -1)) {
             goto bad;
