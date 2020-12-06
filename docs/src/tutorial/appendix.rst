@@ -32,7 +32,7 @@ Python 3.8+
 -----------
 
 Since Python 3.8, the search paths of DLL dependencies has been reset.
-(`changelog <https://docs.python.org/3/whatsnew/3.8.html#changes-in-the-python-api>`_)
+(`changelog <https://docs.python.org/3/whatsnew/3.8.html#bpo-36085-whatsnew>`_)
 
 Only the system paths, the directory containing the DLL or PYD file
 are searched for load-time dependencies.
