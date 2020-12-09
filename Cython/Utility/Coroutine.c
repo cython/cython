@@ -1191,7 +1191,7 @@ static void __Pyx_Coroutine_del(PyObject *self) {
 #if !CYTHON_USE_TP_FINALIZE
     // Temporarily resurrect the object.
     assert(self->ob_refcnt == 0);
-    self->ob_refcnt = 1;
+    __Pyx_SET_REFCNT(self, 1);
 #endif
 
     __Pyx_PyThreadState_assign
@@ -1283,7 +1283,7 @@ static void __Pyx_Coroutine_del(PyObject *self) {
     {
         Py_ssize_t refcnt = self->ob_refcnt;
         _Py_NewReference(self);
-        self->ob_refcnt = refcnt;
+        __Pyx_SET_REFCNT(self, refcnt);
     }
 #if CYTHON_COMPILING_IN_CPYTHON
     assert(PyType_IS_GC(self->ob_type) &&
