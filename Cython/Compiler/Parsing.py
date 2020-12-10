@@ -1081,8 +1081,8 @@ def p_f_string(s, unicode_value, pos, is_raw):
                 if builder.chars:
                     values.append(ExprNodes.UnicodeNode(pos, value=builder.getstring()))
                     builder = StringEncoding.UnicodeLiteralBuilder()
-                next_start, expr_node = p_f_string_expr(s, unicode_value, pos, next_start, is_raw)
-                values.append(expr_node)
+                next_start, expr_nodes = p_f_string_expr(s, unicode_value, pos, next_start, is_raw)
+                values.extend(expr_nodes)
         elif c == '}':
             if part == '}}':
                 builder.append('}')
@@ -1098,12 +1098,16 @@ def p_f_string(s, unicode_value, pos, is_raw):
 
 
 def p_f_string_expr(s, unicode_value, pos, starting_index, is_raw):
-    # Parses a {}-delimited expression inside an f-string. Returns a FormattedValueNode
-    # and the index in the string that follows the expression.
+    # Parses a {}-delimited expression inside an f-string. Returns a list of nodes
+    # [UnicodeNode?, FormattedValueNode] and the index in the string that follows
+    # the expression.
+    #
+    # ? = Optional
     i = starting_index
     size = len(unicode_value)
     conversion_char = terminal_char = format_spec = None
     format_spec_str = None
+    expr_text = None
     NO_CHAR = 2**30
 
     nested_depth = 0
@@ -1143,11 +1147,17 @@ def p_f_string_expr(s, unicode_value, pos, starting_index, is_raw):
         elif c == '#':
             error(_f_string_error_pos(pos, unicode_value, i),
                   "format string cannot include #")
-        elif nested_depth == 0 and c in '!:}':
-            # allow != as a special case
-            if c == '!' and i + 1 < size and unicode_value[i + 1] == '=':
-                i += 1
-                continue
+        elif nested_depth == 0 and c in '><=!:}':
+            # allow special cases with '!' and '='
+            if i + 1 < size:
+                chars = c + unicode_value[i + 1]
+                if chars in ('!=', '==', '>=', '<='):
+                    i += 2  # we checked 2, so we can skip 2
+                    continue
+
+                if c in '><':  # allow single '<' and '>'
+                    i += 1
+                    continue
 
             terminal_char = c
             break
@@ -1160,6 +1170,16 @@ def p_f_string_expr(s, unicode_value, pos, starting_index, is_raw):
     if not expr_str.strip():
         error(_f_string_error_pos(pos, unicode_value, starting_index),
               "empty expression not allowed in f-string")
+
+    if terminal_char == '=':
+        i += 1
+        while i < size and unicode_value[i].isspace():
+            i += 1
+
+        if i < size:
+            terminal_char = unicode_value[i]
+            expr_text = unicode_value[starting_index:i]
+        # otherwise: error will be reported below
 
     if terminal_char == '!':
         i += 1
@@ -1198,6 +1218,9 @@ def p_f_string_expr(s, unicode_value, pos, starting_index, is_raw):
 
         format_spec_str = unicode_value[start_format_spec:i]
 
+    if expr_text and conversion_char is None and format_spec_str is None:
+        conversion_char = 'r'
+
     if terminal_char != '}':
         error(_f_string_error_pos(pos, unicode_value, i),
               "missing '}' in format string expression" + (
@@ -1216,8 +1239,12 @@ def p_f_string_expr(s, unicode_value, pos, starting_index, is_raw):
     if format_spec_str:
         format_spec = ExprNodes.JoinedStrNode(pos, values=p_f_string(s, format_spec_str, pos, is_raw))
 
-    return i + 1, ExprNodes.FormattedValueNode(
-        pos, value=expr, conversion_char=conversion_char, format_spec=format_spec)
+    nodes = []
+    if expr_text:
+        nodes.append(ExprNodes.UnicodeNode(pos, value=StringEncoding.EncodedString(expr_text)))
+    nodes.append(ExprNodes.FormattedValueNode(pos, value=expr, conversion_char=conversion_char, format_spec=format_spec))
+
+    return i + 1, nodes
 
 
 # since PEP 448:
