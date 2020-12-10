@@ -1166,7 +1166,7 @@ static void __Pyx_Coroutine_dealloc(PyObject *self) {
         if (unlikely(PyObject_CallFinalizerFromDealloc(self)))
 #else
         Py_TYPE(gen)->tp_del(self);
-        if (unlikely(self->ob_refcnt > 0))
+        if (unlikely(Py_REFCNT(self) > 0))
 #endif
         {
             // resurrected.  :(
@@ -1200,7 +1200,7 @@ static void __Pyx_Coroutine_del(PyObject *self) {
 #if !CYTHON_USE_TP_FINALIZE
     // Temporarily resurrect the object.
     assert(self->ob_refcnt == 0);
-    self->ob_refcnt = 1;
+    __Pyx_SET_REFCNT(self, 1);
 #endif
 
     __Pyx_PyThreadState_assign
@@ -1281,7 +1281,7 @@ static void __Pyx_Coroutine_del(PyObject *self) {
 #if !CYTHON_USE_TP_FINALIZE
     // Undo the temporary resurrection; can't use DECREF here, it would
     // cause a recursive call.
-    assert(self->ob_refcnt > 0);
+    assert(Py_REFCNT(self) > 0);
     if (likely(--self->ob_refcnt == 0)) {
         // this is the normal path out
         return;
@@ -1290,12 +1290,12 @@ static void __Pyx_Coroutine_del(PyObject *self) {
     // close() resurrected it!  Make it look like the original Py_DECREF
     // never happened.
     {
-        Py_ssize_t refcnt = self->ob_refcnt;
+        Py_ssize_t refcnt = Py_REFCNT(self);
         _Py_NewReference(self);
-        self->ob_refcnt = refcnt;
+        __Pyx_SET_REFCNT(self, refcnt);
     }
 #if CYTHON_COMPILING_IN_CPYTHON
-    assert(PyType_IS_GC(self->ob_type) &&
+    assert(PyType_IS_GC(Py_TYPE(self)) &&
            _Py_AS_GC(self)->gc.gc_refs != _PyGC_REFS_UNTRACKED);
 
     // If Py_REF_DEBUG, _Py_NewReference bumped _Py_RefTotal, so
