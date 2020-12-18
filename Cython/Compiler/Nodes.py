@@ -1783,6 +1783,9 @@ class FuncDefNode(StatNode, BlockNode):
             error(type_node.pos, "Previous declaration here")
         else:
             arg.type = other_type
+            if arg.type.is_complex:
+                # utility code for complex types is special-cased and also important to ensure that it's run
+                arg.type.create_declaration_utility_code(env)
         return arg
 
     def need_gil_acquisition(self, lenv):
