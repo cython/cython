@@ -13857,6 +13857,9 @@ class AnnotationNode(ExprNode):
             warning(annotation.pos,
                     "Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.",
                     level=1)
+        elif arg_type is not None and arg_type.is_complex:
+            # creating utility code needs to be special-cased for complex types
+            arg_type.create_declaration_utility_code(env)
         if arg_type is not None:
             if explicit_pytype and not explicit_ctype and not arg_type.is_pyobject:
                 warning(annotation.pos,
