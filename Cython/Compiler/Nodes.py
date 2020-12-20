@@ -1056,10 +1056,13 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
                     else:
                         scope = None
                         break
-                if scope is None:
+                if scope is None and len(self.module_path)==1:
+                    # (may be possible to handle longer module paths?)
                     # TODO: probably not the best place to declare it?
                     from .CythonScope import get_known_python_import
-                    scope = get_known_python_import(".".join(self.module_path))
+                    found_entry = env.lookup(self.module_path[0])
+                    if found_entry and found_entry.unambiguous_import_path:
+                        scope = get_known_python_import(found_entry.unambiguous_import_path)
                 if scope is None:
                     # Maybe it's a cimport.
                     scope = env.find_imported_module(self.module_path, self.pos)
