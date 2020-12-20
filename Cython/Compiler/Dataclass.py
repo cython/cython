@@ -129,7 +129,7 @@ def process_class_get_fields(node):
         fields = OrderedDict()
     for entry in var_entries:
         name = entry.name
-        is_initvar = entry.type.is_initvar
+        is_initvar = entry.type.is_dataclasses_initvar
         if name in transform.removed_assignments:
             assignment = transform.removed_assignments[name]
             if (isinstance(assignment, ExprNodes.CallNode)

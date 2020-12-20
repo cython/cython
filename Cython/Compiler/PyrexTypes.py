@@ -4445,9 +4445,11 @@ class SpecialIndexedPythonType(IndexedPythonType):
                 template_type = py_object_type
         if name == "typing.ClassVar":
             self.is_typing_classvar = True
-        if name == "typing.Optional":
+        elif name == "typing.Optional":
             self.is_typing_optional = True
             # the constraints on optional are enforced elsewhere
+        elif name == "dataclasses.InitVar":
+            self.is_dataclasses_initvar = True
         self.template_type = template_type
 
     def __getattribute__(self, attr):

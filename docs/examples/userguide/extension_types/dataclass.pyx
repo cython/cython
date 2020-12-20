@@ -1,4 +1,9 @@
 cimport cython
+try:
+    import dataclasses
+    import typing
+except ImportError:
+    pass  # The modules don't actually have to exists for Cython to use them as annotations
 
 @cython.dataclasses.dataclass
 cdef class MyDataclass:
@@ -11,5 +16,5 @@ cdef class MyDataclass:
     c = "hello"  # assignment of default value on a separate line
 
     # cython equivalents to InitVar and typing.ClassVar also work
-    d: cython.dataclasses.InitVar[double] = 5
-    e: cython.typing.ClassVar[list] = []
+    d: dataclasses.InitVar[double] = 5
+    e: typing.ClassVar[list] = []

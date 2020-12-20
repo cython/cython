@@ -139,25 +139,14 @@ class CythonScope(ModuleScope):
 
         # self.entries["array"] = view_utility_scope.entries.pop("array")
 
-        # dataclasses and typing scopes
-        dataclassesscope = ModuleScope(u'dataclasses', self, None)
-        self.declare_module('dataclasses', dataclassesscope, None).as_module = dataclassesscope
+        # dataclasses scope
+        from .StringEncoding import EncodedString
+        dc_str = EncodedString(u'dataclasses')
+        dataclassesscope = ModuleScope(dc_str, self, None)
+        self.declare_module(dc_str, dataclassesscope, None).as_module = dataclassesscope
         dataclassesscope.is_cython_builtin = True
         dataclassesscope.pxd_file_loaded = True
-        entry = dataclassesscope.declare_type("InitVar", InitOrClassVar("InitVar"), pos = None)
-        # just need .as_variable to appear like an entry - the namenode is swapped
-        # out in TransformBuiltinMethods anyway
-        dummy_entry = Entry("InitVar", "<error>", py_object_type)
-        entry.as_variable = dummy_entry
-
-        typingscope = ModuleScope(u'typing', self, None)
-        self.declare_module('typing', typingscope, None).as_module = typingscope
-        typingscope.is_cython_builtin = True
-        typingscope.pxd_file_loaded = True
-        entry = typingscope.declare_type("ClassVar", InitOrClassVar("ClassVar"), pos = None)
-        dummy_entry = Entry("ClassVar", "<error>", py_object_type)
-        entry.as_variable = dummy_entry
-
+        # doesn't actually any contents
 
 
 def create_cython_scope(context):
@@ -226,6 +215,13 @@ def get_known_python_import(qualified_name):
                 entry = mod.declare_type(name, indexed_type, pos = None)
                 dummy_entry = Entry(name, "<error>", py_object_type)
                 entry.as_variable = dummy_entry
+            _known_module_scopes[module_name] = mod
+        elif module_name == "dataclasses":
+            mod = ModuleScope(module_name, None, None)
+            indexed_type = SpecialIndexedPythonType("dataclasses.InitVar")
+            entry = mod.declare_type("InitVar", indexed_type, pos = None)
+            dummy_entry = Entry("InitVar", "<error>", py_object_type)
+            entry.as_variable = dummy_entry
             _known_module_scopes[module_name] = mod
 
     entry = mod

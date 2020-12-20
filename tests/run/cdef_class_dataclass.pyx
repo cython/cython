@@ -1,9 +1,15 @@
 # mode: run
 # tag: dataclass
 
-from cython cimport dataclasses, typing
-from cython.dataclasses cimport dataclass, field, InitVar
-from cython.typing cimport ClassVar
+from cython cimport dataclasses
+from cython.dataclasses cimport dataclass, field
+try:
+    import typing
+    from typing import ClassVar
+    from dataclasses import InitVar
+    import dataclasses as py_dataclasses
+except ImportError:
+    pass
 import cython
 from libc.stdlib cimport malloc, free
 
@@ -136,38 +142,28 @@ cdef class InitClassVars:
     """
     a: cython.int = 0
     b1: InitVar[double] = 1.0
-    b2: dataclasses.InitVar[double] = 1.0
-    b3: cython.dataclasses.InitVar[double] = 1.0
+    b2: py_dataclasses.InitVar[double] = 1.0
     c1: ClassVar[float] = 2.0
     c2: typing.ClassVar[float] = 2.0
-    c3: cython.typing.ClassVar[float] = 2.0
     cdef InitVar[cython.int] d1
-    cdef dataclasses.InitVar[cython.int] d2
-    cdef cython.dataclasses.InitVar[cython.int] d3
+    cdef py_dataclasses.InitVar[cython.int] d2
     d1 = 5
     d2 = 5
-    d3 = 5
     cdef ClassVar[list] e1
     cdef typing.ClassVar[list] e2
-    cdef cython.typing.ClassVar[list] e3
     e1 = []
     e2 = []
-    e3 = []
 
-    def __post_init__(self, b1, b2, b3, d1, d2, d3):
+    def __post_init__(self, b1, b2, d1, d2):
          # Check that the initvars haven't been assigned yet
         assert self.b1==0, self.b1
         assert self.b2==0, self.b2
-        assert self.b3==0, self.b3
         assert self.d1==0, self.d1
         assert self.d2==0, self.d2
-        assert self.d3==0, self.d3
         self.b1 = b1
         self.b2 = b2
-        self.b3 = b3
         self.d1 = d1
         self.d2 = d2
-        self.d3 = d3
         print "In __post_init__"
 
 @dataclass
