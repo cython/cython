@@ -79,7 +79,7 @@ def process_class_get_fields(node):
     _FalseNode = ExprNodes.BoolNode(node.pos, value=False)
     _NoneNode = ExprNodes.NoneNode(node.pos)
 
-    class Field:
+    class Field(object):
         """
         Field is based on the dataclasses.field class from the standard library module.
         It is used internally during the generation of Cython dataclasses to keep track
@@ -215,7 +215,7 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
                                         name=EncodedString("__dataclass_params__")),
                         rhs = dataclass_params)
 
-    dataclass_fields_stats = _setup_dataclass_fields(node, fields, dataclass_module)
+    dataclass_fields_stats = _set_up_dataclass_fields(node, fields, dataclass_module)
 
     stats = Nodes.StatListNode(node.pos,
                                stats=[dataclass_params_assignment]
@@ -543,7 +543,7 @@ class FieldsValueNode(ExprNodes.ExprNode):
         return self.arg.generate_evaluation_code(code)
 
 
-def _setup_dataclass_fields(node, fields, dataclass_module):
+def _set_up_dataclass_fields(node, fields, dataclass_module):
     from .ExprNodes import (AttributeNode, TupleNode, NameNode,
                             GeneralCallNode, DictNode,
                             IdentifierStringNode, BoolNode, DictItemNode,

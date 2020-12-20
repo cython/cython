@@ -2090,12 +2090,10 @@ class NameNode(AtomicExprNode):
             self.entry.unambiguous_import_path = False  # already exists somewhere and so is now ambiguous
         if not self.entry and self.annotation is not None:
             # name : type = ...
-            if 'dataclasses.dataclass' in env.directives:
-                # in a dataclass an assignment should not prevent a name becoming an instance attribute
-                # hence "as_target = False"
-                self.declare_from_annotation(env, as_target=False)
-            else:
-                self.declare_from_annotation(env, as_target=True)
+            is_dataclass = 'dataclasses.dataclass' in env.directives
+            # in a dataclass an assignment should not prevent a name becoming an instance attribute
+            # hence "as_target = not is_dataclass"
+            self.declare_from_annotation(env, as_target=not is_dataclass)
         if not self.entry:
             if env.directives['warn.undeclared']:
                 warning(self.pos, "implicit declaration of '%s'" % self.name, 1)

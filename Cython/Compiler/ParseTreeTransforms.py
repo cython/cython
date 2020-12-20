@@ -790,7 +790,6 @@ class InterpretCompilerDirectives(CythonTransform):
         return node
 
     def visit_FromCImportStatNode(self, node):
-        extra_stats = []
         if not node.relative_level and (
                 node.module_name == u"cython" or node.module_name.startswith(u"cython.")):
             submodule = (node.module_name + u".")[7:]
@@ -816,16 +815,10 @@ class InterpretCompilerDirectives(CythonTransform):
                     newimp.append((pos, name, as_name, kind))
 
             if not newimp:
-                if not extra_stats:
-                    return None
-                else:
-                    return extra_stats
+                return None
 
             node.imported_names = newimp
-        if not extra_stats:
-            return node
-        else:
-            return [node] + extra_stats
+        return node
 
     def visit_FromImportStatNode(self, node):
         if (node.module.module_name.value == u"cython") or \
