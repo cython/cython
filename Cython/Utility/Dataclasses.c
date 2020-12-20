@@ -6,12 +6,8 @@ static PyObject* __Pyx_LoadInternalModule(const char* name, const char* fallback
 //@requires: CommonStructures.c::FetchSharedCythonModule
 
 static PyObject* __Pyx_LoadInternalModule(const char* name, const char* fallback_code) {
-    // In supporting dataclasses we want to be able to use directives like:
-    //  cython.dataclasses.dataclass, cython.dataclasses.field, cython.dataclasses.InitVar
-    //   (based on the Standard Library dataclasses module)
-    //  cython.typing.ClassVar (based on the standard library tying module)
-    // These are processed efficiently by Cython as much as possible, but if they are treated
-    // as a Python object then the objects from the standard library module should be substituted.
+    // In supporting dataclasses we want to be able to use directives the contents
+    // of the standard library dataclasses module where available
     // If those objects aren't available (due to Python version) then a simple fallback is substituted
     // instead, which largely just fails with a not-implemented error.
     //

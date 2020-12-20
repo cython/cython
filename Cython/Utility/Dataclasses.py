@@ -96,18 +96,3 @@ def field(*ignore, **kwds):
     if ignore:
         raise ValueError("'field' does not take any positional arguments")
     return Field(default, default_factory, init, repr, hash, compare, metadata)
-
-class _DummySubscriptable:
-    def __getitem__(self, item):
-        return NotImplemented(_DATACLASS_MODULE_UNAVAILABLE_ERROR)
-
-InitVar = _DummySubscriptable()
-
-################### Typing_fallback ###############################
-
-class _DummySubscriptable:
-    def __getitem__(self, item):
-        return NotImplemented("Standard library 'typing' module"
-    "is unavailable, likely due to the version of Python you're using.")
-
-ClassVar = _DummySubscriptable()
