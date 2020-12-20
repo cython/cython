@@ -316,13 +316,6 @@ class Node(object):
         return u'"%s":%d:%d\n%s\n' % (
             source_desc.get_escaped_description(), line, col, u''.join(lines))
 
-    def unambiguous_import_path(self):
-        """
-        Gets the module.path that this node was imported from
-
-        Many nodes do not have one, or it is not unambiguous, in which case
-        this function returns a false value"""
-        return None
 
 class CompilerDirectivesNode(Node):
     """
@@ -588,7 +581,9 @@ class CArrayDeclaratorNode(CDeclaratorNode):
     child_attrs = ["base", "dimension"]
 
     def analyse(self, base_type, env, nonempty=0, visibility=None, in_pxd=False):
-        if (base_type.is_cpp_class and base_type.is_template_type()) or base_type.is_cfunction:
+        if ((base_type.is_cpp_class and base_type.is_template_type()) or
+                base_type.is_cfunction or
+                base_type.is_indexed_pytype):
             from .ExprNodes import TupleNode
             if isinstance(self.dimension, TupleNode):
                 args = self.dimension.args
@@ -600,7 +595,7 @@ class CArrayDeclaratorNode(CDeclaratorNode):
                 error(args[ix].pos, "Template parameter not a type")
                 base_type = error_type
             else:
-                base_type = base_type.specialize_here(self.pos, values)
+                base_type = base_type.specialize_here(self.pos, env, values)
             return self.base.analyse(base_type, env, nonempty=nonempty, visibility=visibility, in_pxd=in_pxd)
         if self.dimension:
             self.dimension = self.dimension.analyse_const_expression(env)
@@ -960,6 +955,10 @@ class CArgDeclNode(Node):
         base_type, arg_type = annotation.analyse_type_annotation(env, assigned_value=self.default)
         if base_type is not None:
             self.base_type = base_type
+        if arg_type and arg_type.is_typing_optional:
+            self.or_none = True
+        if arg_type and arg_type.is_pyobject:
+            self.not_none = True
         return arg_type
 
     def calculate_default_value_code(self, code):
@@ -1059,9 +1058,8 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
                         break
                 if scope is None:
                     # TODO: probably not the best place to declare it?
-                    from .CythonScope import get_known_module_scope
-                    scope = get_known_module_scope(".".join(self.module_path))
-
+                    from .CythonScope import get_known_python_import
+                    scope = get_known_python_import(".".join(self.module_path))
                 if scope is None:
                     # Maybe it's a cimport.
                     scope = env.find_imported_module(self.module_path, self.pos)
@@ -1184,20 +1182,23 @@ class TemplatedTypeNode(CBaseTypeNode):
             base_type = self.base_type_node.analyse(env)
         if base_type.is_error: return base_type
 
-        if base_type.is_cpp_class and base_type.is_template_type():
+        if ((base_type.is_cpp_class and base_type.is_template_type()) or
+                base_type.is_indexed_pytype):
             # Templated class
             if self.keyword_args and self.keyword_args.key_value_pairs:
-                error(self.pos, "c++ templates cannot take keyword arguments")
+                tp = "c++ templates" if base_type.is_cpp_class else "indexed type"
+                error(self.pos, "%s cannot take keyword arguments" % tp)
                 self.type = PyrexTypes.error_type
             else:
                 template_types = []
                 for template_node in self.positional_args:
                     type = template_node.analyse_as_type(env)
-                    if type is None:
+                    if type is None and base_type.is_cpp_class:
                         error(template_node.pos, "unknown type in template argument")
                         type = error_type
+                    # for indexed_ed_pytype we can be a bit more flexible and pass None
                     template_types.append(type)
-                self.type = base_type.specialize_here(self.pos, template_types)
+                self.type = base_type.specialize_here(self.pos, env, template_types)
 
         elif base_type.is_pyobject:
             # Buffer
@@ -5712,8 +5713,8 @@ class SingleAssignmentNode(AssignmentNode):
             self.lhs.analyse_target_declaration(env)
             if (getattr(self.lhs, "entry", None) and
                     self.lhs.entry.unambiguous_import_path is None and
-                    self.rhs.unambiguous_import_path()):
-                self.lhs.entry.unambiguous_import_path = self.rhs.unambiguous_import_path()
+                    self.rhs.get_unambiguous_import_path()):
+                self.lhs.entry.unambiguous_import_path = self.rhs.get_unambiguous_import_path()
 
     def analyse_types(self, env, use_temp=0):
         from . import ExprNodes
@@ -8526,7 +8527,7 @@ class FromImportStatNode(StatNode):
             else:
                 target.analyse_target_declaration(env)
                 if target.entry:
-                    if target.unambiguous_import_path() is None:
+                    if target.get_unambiguous_import_path() is None:
                         target.entry.unambiguous_import_path = "%s.%s" % (
                             self.module.module_name.value, name)
                 else:

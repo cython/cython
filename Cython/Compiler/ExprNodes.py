@@ -1156,6 +1156,14 @@ class ExprNode(Node):
                 kwargs[attr_name] = value
         return cls(node.pos, **kwargs)
 
+    def get_unambiguous_import_path(self):
+        """
+        Gets the module.path that this node was imported from
+
+        Many nodes do not have one, or it is not unambiguous, in which case
+        this function returns a false value"""
+        return None
+
 
 class AtomicExprNode(ExprNode):
     #  Abstract base class for expression nodes which have
@@ -2037,6 +2045,11 @@ class NameNode(AtomicExprNode):
             entry = env.lookup(self.name)
         if entry and entry.as_module:
             return entry.as_module
+        if entry and entry.unambiguous_import_path:
+            from .CythonScope import get_known_python_import
+            entry = get_known_python_import(entry.unambiguous_import_path)
+            if entry and entry.is_module_scope:
+                return entry
         return None
 
     def analyse_as_type(self, env):
@@ -2051,6 +2064,11 @@ class NameNode(AtomicExprNode):
             entry = env.lookup(self.name)
         if entry and entry.is_type:
             return entry.type
+        elif entry and entry.unambiguous_import_path:
+            from .CythonScope import get_known_python_import
+            entry = get_known_python_import(entry.unambiguous_import_path)
+            if entry and entry.is_type:
+                return entry.type
         else:
             return None
 
@@ -2574,7 +2592,7 @@ class NameNode(AtomicExprNode):
                 style, text = 'c_call', 'c function (%s)'
             code.annotate(pos, AnnotationItem(style, text % self.type, size=len(self.name)))
 
-    def unambiguous_import_path(self):
+    def get_unambiguous_import_path(self):
         if self.entry:
             return self.entry.unambiguous_import_path
         return None
@@ -2688,7 +2706,7 @@ class ImportNode(ExprNode):
             code.error_goto_if_null(self.result(), self.pos)))
         self.generate_gotref(code)
 
-    def unambiguous_import_path(self):
+    def get_unambiguous_import_path(self):
         return self.module_name.value
 
 
@@ -3599,7 +3617,7 @@ class IndexNode(_IndexingBaseNode):
     def analyse_as_type(self, env):
         base_type = self.base.analyse_as_type(env)
         if base_type and not base_type.is_pyobject:
-            if base_type.is_cpp_class:
+            if base_type.is_cpp_class or base_type.is_indexed_pytype:
                 if isinstance(self.index, TupleNode):
                     template_values = self.index.args
                 else:
@@ -7106,6 +7124,7 @@ class AttributeNode(ExprNode):
                 return entry.as_module
         return None
 
+
     def as_name_node(self, env, entry, target):
         # Create a corresponding NameNode from this node and complete the
         # analyse_types phase.
@@ -7449,9 +7468,9 @@ class AttributeNode(ExprNode):
             style, text = 'c_attr', 'c attribute (%s)'
         code.annotate(self.pos, AnnotationItem(style, text % self.type, size=len(self.attribute)))
 
-    def unambiguous_import_path(self):
-        if self.obj.unambiguous_import_path:
-            return "%s.%s" % (self.obj.unambiguous_import_path, self.attribute)
+    def get_unambiguous_import_path(self):
+        if self.obj.get_unambiguous_import_path():
+            return "%s.%s" % (self.obj.get_unambiguous_import_path(), self.attribute)
         return None
 
 
@@ -13486,7 +13505,7 @@ class CoerceFromPyTypeNode(CoercionNode):
         self.is_temp = 1
         if not result_type.create_from_py_utility_code(env):
             error(arg.pos,
-                  "Cannot convert Python object to '%s'" % result_type)
+                "Cannot convert Python object to '%s'" % result_type)
         if self.type.is_string or self.type.is_pyunicode_ptr:
             if self.arg.is_name and self.arg.entry and self.arg.entry.is_pyglobal:
                 warning(arg.pos,

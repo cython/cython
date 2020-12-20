@@ -1,5 +1,10 @@
 
 cimport cython
+try:
+    import typing
+    from typing import Optional
+except ImportError:
+    pass  # Cython can still identify the use of "typing" even if the module doesn't exist
 
 
 ### extension types
@@ -79,6 +84,39 @@ def ext_not_none(MyExtType x not None):
     """
     return attr(x)
 
+def ext_annotations(x: MyExtType):
+    """
+    Behaves the same as "MyExtType x not None"
+    >>> ext_annotations(MyExtType())
+    123
+    >>> ext_annotations(None)
+    Traceback (most recent call last):
+    TypeError: Argument 'x' has incorrect type (expected ext_type_none_arg.MyExtType, got NoneType)
+    """
+    return attr(x)
+
+@cython.allow_none_for_extension_args(False)
+def ext_annotations_check_on(x: MyExtType):
+    """
+    >>> ext_annotations_check_on(MyExtType())
+    123
+    >>> ext_annotations_check_on(None)
+    Traceback (most recent call last):
+    TypeError: Argument 'x' has incorrect type (expected ext_type_none_arg.MyExtType, got NoneType)
+    """
+    return attr(x)
+
+def ext_optional(x: typing.Optional[MyExtType], y: Optional[MyExtType]):
+    """
+    Behaves the same as "or None"
+    >>> ext_optional(MyExtType(), MyExtType())
+    246
+    >>> ext_optional(MyExtType(), None)
+    444
+    >>> ext_optional(None, MyExtType())
+    444
+    """
+    return attr(x) + attr(y)
 
 ### builtin types (using list)
 
