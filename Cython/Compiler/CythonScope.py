@@ -208,13 +208,9 @@ def get_known_python_import(qualified_name):
                 else:
                     indexed_type = IndexedPythonType("typing."+name, tp)
                 entry = mod.declare_type(name, indexed_type, pos = None)
-                dummy_entry = Entry(name, "<error>", py_object_type)
-                entry.as_variable = dummy_entry
             for name in ['ClassVar', 'Optional']:
                 indexed_type = SpecialIndexedPythonType("typing."+name)
                 entry = mod.declare_type(name, indexed_type, pos = None)
-                dummy_entry = Entry(name, "<error>", py_object_type)
-                entry.as_variable = dummy_entry
             _known_module_scopes[module_name] = mod
         elif module_name == "dataclasses":
             mod = ModuleScope(module_name, None, None)
