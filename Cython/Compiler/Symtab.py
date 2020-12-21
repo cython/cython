@@ -84,7 +84,6 @@ class Entry(object):
     # type             PyrexType  Type of entity
     # doc              string     Doc string
     # annotation       ExprNode   PEP 484/526 annotation
-    # pep563_annotation string    PEP563 string version of the annotation
     # init             string     Initial value
     # visibility       'private' or 'public' or 'extern'
     # is_builtin       boolean    Is an entry in the Python builtins dict
@@ -2489,7 +2488,6 @@ class CClassScope(ClassScope):
                 base_entry.type, None, 'private')
             entry.is_variable = 1
             entry.annotation = base_entry.annotation
-            entry.pep563_annotation = base_entry.pep563_annotation
             self.inherited_var_entries.append(entry)
 
         # If the class defined in a pxd, specific entries have not been added.

@@ -16,7 +16,7 @@ def make_dataclasses_module_callnode(pos):
     python_utility_code = UtilityCode.load_cached("Dataclasses_fallback", "Dataclasses.py")
     python_utility_code = EncodedString(python_utility_code.impl)
     loader_utilitycode = TempitaUtilityCode.load_cached("SpecificModuleLoader", "Dataclasses.c",
-            context={'name': "dataclasses", 'py_code': python_utility_code.as_c_string_literal()})
+            context={'cname': "dataclasses", 'py_code': python_utility_code.as_c_string_literal()})
     return ExprNodes.PythonCapiCallNode(pos, "__Pyx_Load_dataclasses_Module",
                                 PyrexTypes.CFuncType(PyrexTypes.py_object_type, []),
                                 utility_code = loader_utilitycode,
@@ -267,9 +267,9 @@ def generate_init_code(init, node, fields):
         if not field.init.value:
             continue
         entry = node.scope.lookup(name)
-        annotation = entry.pep563_annotation
+        annotation = entry.annotation.string if entry.annotation else None
         if annotation:
-            annotation = u": %s" % annotation
+            annotation = u": %s" % annotation.value
         else:
             annotation = u""
         assignment = u''
@@ -470,7 +470,7 @@ class GetTypeNode(ExprNodes.ExprNode):
                         return nn.analyse_types(env)
 
         # otherwise we're left to return a string
-        s = self.entry.pep563_annotation
+        s = self.entry.annotation.string.value if self.entry.annotation else None
         if not s:
             s = self.entry.type.declaration_code("", for_display=1)
         return ExprNodes.StringNode(self.pos, value=s).analyse_types(env)

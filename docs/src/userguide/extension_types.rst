@@ -1055,7 +1055,8 @@ that it can auto-generate simple `__init__`, `__repr__` and comparison
 functions. The Cython implementation behaves as much like the Python
 standard library implementation as possible and therefore the documentation
 here only briefly outlines the differences - if you plan on using them
-then please read the documentation for the standard library module.
+then please read `the documentation for the standard library module
+<https://docs.python.org/3/library/dataclasses.html>`_.
 
 Dataclasses can be declared using the `@cython.dataclass` decorator. If
 you need to define special properties on a field then use `cython.field`

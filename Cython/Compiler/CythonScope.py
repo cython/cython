@@ -220,8 +220,6 @@ def get_known_python_import(qualified_name):
             mod = ModuleScope(module_name, None, None)
             indexed_type = SpecialIndexedPythonType("dataclasses.InitVar")
             entry = mod.declare_type("InitVar", indexed_type, pos = None)
-            dummy_entry = Entry("InitVar", "<error>", py_object_type)
-            entry.as_variable = dummy_entry
             _known_module_scopes[module_name] = mod
 
     entry = mod

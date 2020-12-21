@@ -2035,7 +2035,6 @@ class NameNode(AtomicExprNode):
         # Even if the entry already exists, make sure we're supplying an annotation if we can.
         if annotation and not entry.annotation:
             entry.annotation = annotation
-            entry.pep563_annotation = annotation.string.value
 
     def analyse_as_module(self, env):
         # Try to interpret this as a reference to a cimported module.

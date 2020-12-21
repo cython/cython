@@ -67,12 +67,12 @@ static PyObject* __Pyx_LoadInternalModule(const char* name, const char* fallback
 ///////////////////// SpecificModuleLoader.proto //////////////////////
 //@substitute: tempita
 
-static PyObject* __Pyx_Load_{{name}}_Module(void); /* proto */
+static PyObject* __Pyx_Load_{{cname}}_Module(void); /* proto */
 
 
 //////////////////// SpecificModuleLoader ///////////////////////
 //@requires: ModuleLoader
 
-static PyObject* __Pyx_Load_{{name}}_Module(void) {
-    return __Pyx_LoadInternalModule("{{name}}", {{py_code}});
+static PyObject* __Pyx_Load_{{cname}}_Module(void) {
+    return __Pyx_LoadInternalModule("{{cname}}", {{py_code}});
 }
