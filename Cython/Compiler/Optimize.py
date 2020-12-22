@@ -4424,6 +4424,8 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                 string_node.unicode_value = encoded_string(
                     string_node.unicode_value * multiplier,
                     string_node.unicode_value.encoding)
+            if not string_node.value.is_unicode:
+                build_string = bytes_literal
         elif isinstance(string_node, ExprNodes.UnicodeNode):
             if string_node.bytes_value is not None:
                 string_node.bytes_value = bytes_literal(
