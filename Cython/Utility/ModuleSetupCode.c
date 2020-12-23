@@ -644,7 +644,7 @@ static CYTHON_INLINE int PyThread_tss_set(Py_tss_t *key, void *value) {
 static CYTHON_INLINE void * PyThread_tss_get(Py_tss_t *key) {
   return PyThread_get_key_value(*key);
 }
-// PyThread_delete_key_value(key) is equalivalent to PyThread_set_key_value(key, NULL)
+// PyThread_delete_key_value(key) is equivalent to PyThread_set_key_value(key, NULL)
 // PyThread_ReInitTLS() is a no-op
 #endif /* TSS (Thread Specific Storage) API */
 
