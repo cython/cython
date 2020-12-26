@@ -3009,6 +3009,10 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 utility_code=utility_code,
                 is_temp=node.is_temp
             )
+    def _handle_any_slot__class__(self,  node, function, args, is_unbound_method):
+        # This could possible be optimized more, but the main thing is to
+        # handle it so it doesn't make it into the __Pyx_CallUnboundCMethod0 mechanism
+        return node
 
     ### methods of builtin types
 
