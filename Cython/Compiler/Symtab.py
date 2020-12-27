@@ -2228,11 +2228,6 @@ class CClassScope(ClassScope):
     def declare_var(self, name, type, pos,
                     cname = None, visibility = 'private',
                     api = 0, in_pxd = 0, is_cdef = 0):
-        """
-        Also support visibility 'public?' or 'readonly?' which default to private if
-        the type isn't coercable. This is to help dataclasses, which want annotated
-        attributes to be public if possible but not fail otherwise
-        """
         name = self.mangle_class_private_name(name)
 
         if type.is_typing_classvar:
@@ -2259,7 +2254,7 @@ class CClassScope(ClassScope):
                 cname = punycodify_name(cname, Naming.unicode_structmember_prefix)
             if type.is_cpp_class and visibility != 'extern':
                 type.check_nullary_constructor(pos)
-            entry = self.declare(name, cname, type, pos, visibility.strip("?"))
+            entry = self.declare(name, cname, type, pos, visibility)
             entry.is_variable = 1
             self.var_entries.append(entry)
             if type.is_memoryviewslice:
@@ -2272,10 +2267,10 @@ class CClassScope(ClassScope):
                 if (not type.is_builtin_type
                         or not type.scope or type.scope.needs_gc()):
                     self.has_cyclic_pyobject_attrs = True
-            if visibility not in ('private', 'public', 'readonly', 'public?', 'readonly?'):
+            if visibility not in ('private', 'public', 'readonly'):
                 error(pos,
                     "Attribute of extension type cannot be declared %s" % visibility)
-            if visibility in ('public', 'readonly', 'public?', 'readonly?'):
+            if visibility in ('public', 'readonly'):
                 # If the field is an external typedef, we cannot be sure about the type,
                 # so do conversion ourself rather than rely on the CPython mechanism (through
                 # a property; made in AnalyseDeclarationsTransform).
@@ -2283,12 +2278,8 @@ class CClassScope(ClassScope):
                 if not self.is_closure_class_scope and name == "__weakref__":
                     error(pos, "Special attribute __weakref__ cannot be exposed to Python")
                 if not (type.is_pyobject or type.can_coerce_to_pyobject(self)):
-                    if not visibility.endswith('?'):
-                        # we're not testing for coercion *from* Python here - that would fail later
-                        error(pos, "C attribute of type '%s' cannot be accessed from Python" % type)
-                    else:
-                        visibility = entry.visibility = "private"
-                        entry.needs_property = False
+                    # we're not testing for coercion *from* Python here - that would fail later
+                    error(pos, "C attribute of type '%s' cannot be accessed from Python" % type)
             else:
                 entry.needs_property = False
             return entry

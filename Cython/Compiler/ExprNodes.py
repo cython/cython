@@ -2024,7 +2024,9 @@ class NameNode(AtomicExprNode):
                 if frozen_directive:
                     frozen_directive = frozen_directive[1].get('frozen', None)
                 is_frozen = frozen_directive and frozen_directive.is_literal and frozen_directive.value
-                kwds = {'visibility': 'readonly?' if is_frozen else 'public?'}
+                if atype.is_pyobject or atype.can_coerce_to_pyobject(env):
+                    kwds = {'visibility': 'readonly' if is_frozen else 'public'}
+                    # If the object can't be coerced that's fine - we just don't create a property
             if as_target and env.is_c_class_scope and not (atype.is_pyobject or atype.is_error):
                 # TODO: this will need revising slightly if either cdef dataclasses or
                 # annotated cdef attributes are implemented
