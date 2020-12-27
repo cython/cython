@@ -9835,6 +9835,9 @@ class LambdaNode(InnerFunctionNode):
     name = StringEncoding.EncodedString('<lambda>')
 
     def analyse_declarations(self, env):
+        if hasattr(self, "lambda_name"):
+            # this if statement makes it safe to run twice
+            return
         self.lambda_name = self.def_node.lambda_name = env.next_id('lambda')
         self.def_node.no_assignment_synthesis = True
         self.def_node.pymethdef_required = True
@@ -9864,6 +9867,9 @@ class GeneratorExpressionNode(LambdaNode):
     binding = False
 
     def analyse_declarations(self, env):
+        if hasattr(self, "genexpr_name"):
+            # this if statement makes it safe to run twice
+            return
         self.genexpr_name = env.next_id('genexpr')
         super(GeneratorExpressionNode, self).analyse_declarations(env)
         # No pymethdef required

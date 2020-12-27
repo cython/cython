@@ -229,7 +229,6 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     analyse_decs_transform.visit(comp_directives)
     analyse_decs_transform.exit_scope()
 
-    RemoveDontAnalyseDeclarations()(comp_directives)
     node.body.stats.append(comp_directives)
 
 def generate_init_code(init, node, fields):
@@ -475,26 +474,6 @@ class GetTypeNode(ExprNodes.ExprNode):
             s = self.entry.type.declaration_code("", for_display=1)
         return ExprNodes.StringNode(self.pos, value=s).analyse_types(env)
 
-class DontAnalyseDeclarationsNode(ExprNodes.ExprNode):
-    # arg    ExprNode
-    #
-    # This is designed to wrap stuff that's already been analysed
-    # so that lambdas aren't redeclared for example
-    # and then immediately be replaced
-
-    subexprs = []
-
-    def analyse_declarations(self, env):
-        return
-
-class RemoveDontAnalyseDeclarations(VisitorTransform):
-    def visit_DontAnalyseDeclarationsNode(self, node):
-        return node.arg
-
-    def visit_Node(self, node):
-        self.visitchildren(node)
-        return node
-
 
 class FieldsValueNode(ExprNodes.ExprNode):
     # largely just forwards arg. Allows it to be coerced to a Python object
@@ -564,7 +543,7 @@ def _set_up_dataclass_fields(node, fields, dataclass_module):
             variables_assignment_stats.append(
                 Nodes.SingleAssignmentNode(f_def.pos,
                                            lhs = nn,
-                                           rhs = DontAnalyseDeclarationsNode(f_def.pos, arg=f_def)))
+                                           rhs = f_def))
 
     placeholders = {}
     field_func = AttributeNode(node.pos, obj = dataclass_module,
