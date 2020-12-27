@@ -326,9 +326,10 @@ directive_types = {
     'c_string_type': one_of('bytes', 'bytearray', 'str', 'unicode'),
     'c_string_encoding': normalise_encoding_name,
     'trashcan': bool,
-    'dataclasses.dataclass': Ellipsis,  # use Ellipsis as a flag not to attempt to analyse the arguments
-                            # when the directive is applied
-                            # TODO this may not be the best way of flagging it?
+    'dataclasses.dataclass': Ellipsis,  # use Ellipsis as a flag to defer analysis of the arguments
+            # instead of analysing it in InterpretCompilerDirectives. The dataclass directives are quite
+            # complicated and it's easier to deal with them at the point the dataclass is created
+            # TODO this may not be the best way of flagging it?
     'dataclasses.field': Ellipsis,
 }
 
