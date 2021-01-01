@@ -126,7 +126,8 @@ static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject*);
 #else
 #define __Pyx_PyNumber_Int(x) (PyInt_CheckExact(x) ? __Pyx_NewRef(x) : PyNumber_Int(x))
 #endif
-#define __Pyx_PyNumber_Float(x) (PyFloat_CheckExact(x) ? __Pyx_NewRef(x) : PyNumber_Float(x))
+// __Pyx_PyNumber_Float is now in it's own section since it has dependencies (needed to make
+// string conversion work the same in all circumstances)
 
 #if PY_MAJOR_VERSION < 3 && __PYX_DEFAULT_STRING_ENCODING_IS_ASCII
 static int __Pyx_sys_getdefaultencoding_not_ascii;
@@ -463,6 +464,27 @@ static CYTHON_INLINE PyObject * __Pyx_PyInt_FromSize_t(size_t ival) {
     return PyInt_FromSize_t(ival);
 }
 
+/////////////// pynumber_float.proto ///////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyNumber_Float(PyObject* obj); /* proto */
+
+/////////////// pynumber_float ///////////////
+//@requires: Optimize.c::pybytes_as_double
+//@requires: Optimize.c::pyunicode_as_double
+
+static CYTHON_INLINE PyObject* __Pyx_PyNumber_Float(PyObject* obj) {
+    if (PyFloat_CheckExact(obj)) {
+        return __Pyx_NewRef(obj);
+    } else if (PyUnicode_CheckExact(obj)) {
+        return PyFloat_FromDouble(__Pyx_PyUnicode_AsDouble(obj));
+    } else if (PyBytes_CheckExact(obj)) {
+        return PyFloat_FromDouble(__Pyx_PyBytes_AsDouble(obj));
+    } else if (PyByteArray_CheckExact(obj)) {
+        return PyFloat_FromDouble(__Pyx_PyByteArray_AsDouble(obj));
+    } else {
+        return PyNumber_Float(obj);
+    }
+}
 
 /////////////// GCCDiagnostics.proto ///////////////
 
