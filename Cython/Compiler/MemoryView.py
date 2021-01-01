@@ -857,7 +857,7 @@ view_utility_code = load_memview_cy_utility(
                   copy_contents_new_utility,
                   ModuleNode.capsule_utility_code],
 )
-view_utility_whitelist = ('array', 'memoryview', 'array_cwrapper',
+view_utility_allowlist = ('array', 'memoryview', 'array_cwrapper',
                           'generic', 'strided', 'indirect', 'contiguous',
                           'indirect_contiguous')
 

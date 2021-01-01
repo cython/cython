@@ -19,6 +19,7 @@ cimport cpython.conversion
 cimport cpython.datetime
 cimport cpython.dict
 cimport cpython.exc
+cimport cpython.fileobject
 cimport cpython.float
 cimport cpython.function
 cimport cpython.genobject

@@ -1795,6 +1795,9 @@ class FuncDefNode(StatNode, BlockNode):
         else:
             arg.type = other_type
             arg.type_set_manually = True
+            if arg.type.is_complex:
+                # utility code for complex types is special-cased and also important to ensure that it's run
+                arg.type.create_declaration_utility_code(env)
         return arg
 
     def need_gil_acquisition(self, lenv):
