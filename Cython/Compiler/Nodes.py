@@ -858,6 +858,7 @@ class CArgDeclNode(Node):
     # kw_only        boolean            Is a keyword-only argument
     # is_dynamic     boolean            Non-literal arg stored inside CyFunction
     # pos_only       boolean            Is a positional-only argument
+    # _type_set_manually boolean         Used in overriding the type of self arguments - otherwise unimportant
     #
     # name_cstring                         property that converts the name to a cstring taking care of unicode
     #                                      and quoting it
@@ -877,6 +878,7 @@ class CArgDeclNode(Node):
     default_value = None
     annotation = None
     is_dynamic = 0
+    _type_set_manually = 0
 
     def declared_name(self):
         return self.declarator.declared_name()
@@ -884,6 +886,15 @@ class CArgDeclNode(Node):
     @property
     def name_cstring(self):
         return self.name.as_c_string_literal()
+
+    @property
+    def type_set_manually(self):
+        if self._type_set_manually:
+            return True
+        return bool(getattr(self.base_type, "name", False))
+    @type_set_manually.setter
+    def type_set_manually(self, value):
+        self._type_set_manually = value
 
     @property
     def hdr_cname(self):
@@ -1783,6 +1794,7 @@ class FuncDefNode(StatNode, BlockNode):
             error(type_node.pos, "Previous declaration here")
         else:
             arg.type = other_type
+            arg.type_set_manually = True
         return arg
 
     def need_gil_acquisition(self, lenv):
@@ -3157,13 +3169,34 @@ class DefNode(FuncDefNode):
             arg = self.args[i]
             arg.is_generic = 0
             if sig.is_self_arg(i) and not self.is_staticmethod:
+                self_type_overridden = arg.type_set_manually
                 if self.is_classmethod:
                     arg.is_type_arg = 1
-                    arg.hdr_type = arg.type = Builtin.type_type
+                    usual_type = Builtin.type_type
+                    if not arg.type_set_manually:
+                        arg.hdr_type = arg.type = usual_type
                 else:
                     arg.is_self_arg = 1
-                    arg.hdr_type = arg.type = env.parent_type
+                    usual_type = env.parent_type
+                    if not self_type_overridden:
+                        arg.hdr_type = arg.type = usual_type
+                    if arg.type.is_fused:
+                        arg.type_set_manually = True
+                        self_type_overridden = True
+                        self.has_fused_arguments = True
                 arg.needs_conversion = 0
+                if self_type_overridden:
+                    if arg.type.same_as(usual_type):
+                        arg.hdr_type = usual_type
+                    else:
+                        arg.hdr_type = py_object_type
+                    if not arg.type.same_as(arg.hdr_type):
+                        if arg.hdr_type.is_pyobject and arg.type.is_pyobject:
+                            # for consistency with general behaviour of not testing self type
+                            # only test it if we're expecting something unusual
+                            arg.needs_type_test = not arg.type.same_as(usual_type)
+                        else:
+                            arg.needs_conversion = 1
             else:
                 arg.hdr_type = sig.fixed_arg_type(i)
                 if not arg.type.same_as(arg.hdr_type):
@@ -3807,6 +3840,9 @@ class DefNodeWrapper(FuncDefNode):
                 self.star_arg.entry.cname,
                 Naming.args_cname))
             self.star_arg.entry.xdecref_cleanup = 0
+        if not self.self_in_stararg and len(self.args) >= 1:
+            if self.args[0].needs_conversion:  # in the unlikely event that self is typed as something else
+                self.generate_arg_conversion(self.args[0], code)
 
     def generate_tuple_and_keyword_parsing_code(self, args, success_label, code):
         code.globalstate.use_utility_code(
