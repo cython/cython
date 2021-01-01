@@ -1421,6 +1421,8 @@ class CVarDefNode(StatNode):
                     self.entry.type.create_to_py_utility_code(env)
                     self.entry.create_wrapper = True
             else:
+                if self.overridable:
+                    error(self.pos, "Variables can not be cpdef")
                 if self.directive_locals:
                     error(self.pos, "Decorators can only be followed by functions")
                 self.entry = dest_scope.declare_var(
