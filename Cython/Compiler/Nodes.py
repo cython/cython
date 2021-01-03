@@ -2877,8 +2877,6 @@ class DefNode(FuncDefNode):
     #                                   (in case this is a specialization)
     #  specialized_cpdefs   [DefNode]   list of specialized cpdef DefNodes
     #  py_cfunc_node  PyCFunctionNode/InnerFunctionNode   The PyCFunction to create and assign
-    #
-    # decorator_indirection IndirectionNode Used to remove __Pyx_Method_ClassMethod for fused functions
 
     child_attrs = ["args", "star_arg", "starstar_arg", "body", "decorators", "return_type_annotation"]
     outer_attrs = ["decorators", "return_type_annotation"]
@@ -2899,6 +2897,8 @@ class DefNode(FuncDefNode):
     requires_classobj = False
     defaults_struct = None  # Dynamic kwrds structure name
     doc = None
+    is_in_arbitrary_decorator = False  # only relevant for functions in cdef classes
+    is_transformed_to_property = False  # useful for a single warning message
 
     fused_py_func = False
     specialized_cpdefs = None
@@ -3005,18 +3005,28 @@ class DefNode(FuncDefNode):
 
     def analyse_declarations(self, env):
         if self.decorators:
-            for decorator in self.decorators:
-                func = decorator.decorator
-                if func.is_name:
-                    self.is_classmethod |= func.name == 'classmethod'
-                    self.is_staticmethod |= func.name == 'staticmethod'
+            # should only apply to functions outside cdef classes
+            # because decorators inside a cdef class are transformed earlier
 
-        if self.is_classmethod and env.lookup_here('classmethod'):
+            # only test the innermost decorator for classmethod
+            # and static method - anything else will have to be
+            # fed to the relevant builtin functions
+            decorator = self.decorators[-1]
+            func = decorator.decorator
+            if func.is_name:
+                self.is_classmethod |= func.name == 'classmethod'
+                self.is_staticmethod |= func.name == 'staticmethod'
+        cm_entry = env.lookup('classmethod')
+        if self.is_classmethod and (not cm_entry or cm_entry.cname != "__Pyx_Method_ClassMethod"):
             # classmethod() was overridden - not much we can do here ...
             self.is_classmethod = False
-        if self.is_staticmethod and env.lookup_here('staticmethod'):
+        sm_entry = env.lookup('staticmethod')
+        if self.is_staticmethod and sm_entry and sm_entry.is_builtin:
             # staticmethod() was overridden - not much we can do here ...
             self.is_staticmethod = False
+        if self.is_transformed_to_property and env.lookup('property'):
+            warning(self.pos, "Re-assignment of name 'property' was ignored when "
+                    "function was transformed to property of cdef class", 1)
 
         if env.is_py_class_scope or env.is_c_class_scope:
             if self.name == '__new__' and env.is_py_class_scope:
@@ -3164,10 +3174,6 @@ class DefNode(FuncDefNode):
             sig.is_staticmethod = True
             sig.has_generic_args = True
 
-        if ((self.is_classmethod or self.is_staticmethod) and
-                self.has_fused_arguments and env.is_c_class_scope):
-            del self.decorator_indirection.stats[:]
-
         for i in range(min(nfixed, len(self.args))):
             arg = self.args[i]
             arg.is_generic = 0
@@ -3180,7 +3186,17 @@ class DefNode(FuncDefNode):
                         arg.hdr_type = arg.type = usual_type
                 else:
                     arg.is_self_arg = 1
-                    usual_type = env.parent_type
+                    # FIXME this probably shouldn't be automatic
+                    if self.is_in_arbitrary_decorator and not self_type_overridden:
+                        usual_type = PyrexTypes.FusedType([env.parent_type, PyrexTypes.py_object_type],
+                                                            name="fused self or object")
+                        warning(arg.pos, "Type of argument '%s' cannot be assumed to be %s because "
+                                    "it has an unknown decorator. "
+                                    "Consider setting the type explicitly." % (
+                                        arg.name, env.parent_type),
+                                    1)
+                    else:
+                        usual_type = env.parent_type
                     if not self_type_overridden:
                         arg.hdr_type = arg.type = usual_type
                     if arg.type.is_fused:
