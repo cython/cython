@@ -217,6 +217,7 @@ _directive_defaults = {
     'old_style_globals': False,
     'np_pythran': False,
     'fast_gil': False,
+    'fused_types_arbitrary_decorators': False,  # try to make arbitrary decorators work more generically using fused types
 
     # set __file__ and/or __path__ to known source/target path at import time (instead of not having them available)
     'set_initial_path' : None,  # SOURCEFILE or "/full/path/to/module"

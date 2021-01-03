@@ -2,7 +2,7 @@
 # tag: decorator
 # tag: pure2.0, pure3.0
 # Github #1434 #1274
-#cython: binding=True
+#cython: binding=True, fused_types_arbitrary_decorators=True
 
 from __future__ import print_function
 
@@ -117,6 +117,23 @@ class C:
         print(cython.typeof(args), type(args).__name__)
         print(type(args[0]).__name__, sum(args[1:]))
 
+@cython.cclass
+@cython.fused_types_arbitrary_decorators(False)
+class D:
+    # should also generate a warning (not tested)
+    @cython.test_fail_if_path_exists("//FusedCFuncDefNode")
+    @arbitrary_decorator1
+    def arb_decorated1(self, *args):
+        print(cython.typeof(self), type(self).__name__)
+        print(self.imag(), sum(args))
+
+    # no warning
+    @cython.test_fail_if_path_exists("//FusedCFuncDefNode")
+    @arbitrary_decorator1
+    @cython.locals(self="C")
+    def arb_decorated1_typed(self, *args):
+        print(cython.typeof(self), type(self).__name__)
+        print(self.imag(), sum(args))
 
 import sys
 

@@ -3186,17 +3186,17 @@ class DefNode(FuncDefNode):
                         arg.hdr_type = arg.type = usual_type
                 else:
                     arg.is_self_arg = 1
-                    # FIXME this probably shouldn't be automatic
+                    usual_type = env.parent_type
                     if self.is_in_arbitrary_decorator and not self_type_overridden:
-                        usual_type = PyrexTypes.FusedType([env.parent_type, PyrexTypes.py_object_type],
-                                                            name="fused self or object")
-                        warning(arg.pos, "Type of argument '%s' cannot be assumed to be %s because "
-                                    "it has an unknown decorator. "
-                                    "Consider setting the type explicitly." % (
-                                        arg.name, env.parent_type),
-                                    1)
-                    else:
-                        usual_type = env.parent_type
+                        if env.directives['fused_types_arbitrary_decorators']:
+                            usual_type = PyrexTypes.FusedType([env.parent_type, PyrexTypes.py_object_type],
+                                                                name="fused self or object")
+                        else:
+                            warning(arg.pos, "Type of argument '%s' assumed to be %s "
+                                        "which may not be true because it has an unknown decorator. "
+                                        "Consider setting the type explicitly or enabling "
+                                        "'cython.fused_types_arbitrary_decorators'" % (
+                                               arg.name, env.parent_type), 2)
                     if not self_type_overridden:
                         arg.hdr_type = arg.type = usual_type
                     if arg.type.is_fused:

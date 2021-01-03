@@ -110,7 +110,7 @@ cclass = ccall = cfunc = _EmptyDecoratorAndManager()
 returns = wraparound = boundscheck = initializedcheck = nonecheck = \
     embedsignature = cdivision = cdivision_warnings = \
     always_allows_keywords = profile = linetrace = infer_types = \
-    unraisable_tracebacks = freelist = \
+    unraisable_tracebacks = freelist = fused_types_arbitrary_decorators = \
         lambda _: _EmptyDecoratorAndManager()
 
 exceptval = lambda _=None, check=True: _EmptyDecoratorAndManager()

@@ -905,6 +905,13 @@ Cython code.  Here is the list of currently supported directives:
     Copy the original source code line by line into C code comments in the generated
     code file to help with understanding the output.
     This is also required for coverage analysis.
+    
+``fused_types_arbitrary_decorators`` (True / False)
+    When applying arbitrary decorators to methods of an extension type it is not
+    guaranteed that the first argument is an instance of the extension type.
+    This experimental option (off by default) changes the function to a fused
+    function to try to handle both cases and thus allow more flexible use of
+    decorators, at the cost of some performance.
 
 .. _configurable_optimisations:
 
