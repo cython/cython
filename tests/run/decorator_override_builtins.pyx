@@ -164,10 +164,6 @@ else:
 # FIXME I think the "redeclared" warnings are spurious. They certainly aren't what we're interested in testing here
 _WARNINGS="""
 100:4: Re-assignment of name 'property' was ignored when function was transformed to property of cdef class
-114:4: 'sm2' redeclared
-114:4: 'sm2' redeclared
-116:12: Type of argument 'self' cannot be assumed to be CdefClass because it has an unknown decorator. Consider setting the type explicitly.
-123:4: 'cm2' redeclared
-123:4: 'cm2' redeclared
-125:12: Type of argument 'self' cannot be assumed to be CdefClass because it has an unknown decorator. Consider setting the type explicitly.
+116:12: Type of argument 'self' assumed to be CdefClass which may not be true because it has an unknown decorator. Consider setting the type explicitly or enabling 'cython.fused_types_arbitrary_decorators'
+125:12: Type of argument 'self' assumed to be CdefClass which may not be true because it has an unknown decorator. Consider setting the type explicitly or enabling 'cython.fused_types_arbitrary_decorators'
 """
