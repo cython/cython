@@ -713,7 +713,6 @@ static double __Pyx_SlowPyString_AsDouble(PyObject *obj) {
 
 static const char* __Pyx__PyBytes_AsDouble_Copy(const char* start, char* buffer, Py_ssize_t length) {
     Py_ssize_t i;
-    char *digit = buffer;
     for (i=0; i < length; i++) {
         if (start[i] != '_') *buffer++ = start[i];
     }
