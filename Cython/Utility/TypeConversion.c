@@ -466,16 +466,16 @@ static CYTHON_INLINE PyObject * __Pyx_PyInt_FromSize_t(size_t ival) {
 
 /////////////// pynumber_float.proto ///////////////
 
-static CYTHON_INLINE PyObject* __Pyx_PyNumber_Float(PyObject* obj); /* proto */
+static CYTHON_INLINE PyObject* __Pyx__PyNumber_Float(PyObject* obj); /* proto */
+#define __Pyx_PyNumber_Float(x) (PyFloat_CheckExact(x) ? __Pyx_NewRef(x) : __Pyx__PyNumber_Float(x))
 
 /////////////// pynumber_float ///////////////
 //@requires: Optimize.c::pybytes_as_double
 //@requires: Optimize.c::pyunicode_as_double
 
-static CYTHON_INLINE PyObject* __Pyx_PyNumber_Float(PyObject* obj) {
-    if (PyFloat_CheckExact(obj)) {
-        return __Pyx_NewRef(obj);
-    } else if (PyUnicode_CheckExact(obj)) {
+static CYTHON_INLINE PyObject* __Pyx__PyNumber_Float(PyObject* obj) {
+    // obj is PyFloat is handled in the calling macro
+    if (PyUnicode_CheckExact(obj)) {
         return PyFloat_FromDouble(__Pyx_PyUnicode_AsDouble(obj));
     } else if (PyBytes_CheckExact(obj)) {
         return PyFloat_FromDouble(__Pyx_PyBytes_AsDouble(obj));
