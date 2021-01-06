@@ -241,13 +241,29 @@ def update_numpy_extension(ext, set_api17_macro=True):
 
     ext.include_dirs.append(numpy.get_include())
 
-    if set_api17_macro:
+    if set_api17_macro and getattr(numpy, '__version__', '') not in ('1.19.0', '1.19.1'):
         ext.define_macros.append(('NPY_NO_DEPRECATED_API', 'NPY_1_7_API_VERSION'))
 
     # We need the npymath library for numpy.math.
     # This is typically a static-only library.
     for attr, value in get_info('npymath').items():
         getattr(ext, attr).extend(value)
+
+
+def update_gdb_extension(ext, _has_gdb=[None]):
+    # We should probably also check for Python support.
+    if not include_debugger:
+        _has_gdb[0] = False
+    if _has_gdb[0] is None:
+        try:
+            subprocess.check_call(["gdb", "--version"])
+        except (IOError, subprocess.CalledProcessError):
+            _has_gdb[0] = False
+        else:
+            _has_gdb[0] = True
+    if not _has_gdb[0]:
+        return EXCLUDE_EXT
+    return ext
 
 
 def update_openmp_extension(ext):
@@ -377,6 +393,7 @@ EXCLUDE_EXT = object()
 EXT_EXTRAS = {
     'tag:numpy' : update_numpy_extension,
     'tag:openmp': update_openmp_extension,
+    'tag:gdb': update_gdb_extension,
     'tag:cpp11': update_cpp11_extension,
     'tag:trace' : update_linetrace_extension,
     'tag:bytesformat':  exclude_extension_in_pyver((3, 3), (3, 4)),  # no %-bytes formatting
@@ -644,7 +661,9 @@ class TestBuilder(object):
                     continue
                 suite.addTest(
                     self.handle_directory(path, filename))
-        if sys.platform not in ['win32'] and self.add_embedded_test:
+        if (sys.platform not in ['win32'] and self.add_embedded_test
+                # the embedding test is currently broken in Py3.8+, except on Linux.
+                and (sys.version_info < (3, 8) or sys.platform != 'darwin')):
             # Non-Windows makefile.
             if [1 for selector in self.selectors if selector("embedded")] \
                     and not [1 for selector in self.exclude_selectors if selector("embedded")]:
@@ -1664,13 +1683,13 @@ def collect_doctests(path, module_prefix, suite, selectors, exclude_selectors):
         return dirname not in ("Mac", "Distutils", "Plex", "Tempita")
     def file_matches(filename):
         filename, ext = os.path.splitext(filename)
-        blacklist = ['libcython', 'libpython', 'test_libcython_in_gdb',
-                     'TestLibCython']
+        excludelist = ['libcython', 'libpython', 'test_libcython_in_gdb',
+                       'TestLibCython']
         return (ext == '.py' and not
                 '~' in filename and not
                 '#' in filename and not
                 filename.startswith('.') and not
-                filename in blacklist)
+                filename in excludelist)
     import doctest
     for dirpath, dirnames, filenames in os.walk(path):
         for dir in list(dirnames):
@@ -1843,12 +1862,34 @@ class MissingDependencyExcluder(object):
     def __init__(self, deps):
         # deps: { matcher func : module name }
         self.exclude_matchers = []
-        for matcher, mod in deps.items():
+        for matcher, module_name in deps.items():
             try:
-                __import__(mod)
+                module = __import__(module_name)
             except ImportError:
                 self.exclude_matchers.append(string_selector(matcher))
+                print("Test dependency not found: '%s'" % module_name)
+            else:
+                version = self.find_dep_version(module_name, module)
+                print("Test dependency found: '%s' version %s" % (module_name, version))
         self.tests_missing_deps = []
+
+    def find_dep_version(self, name, module):
+        try:
+            version = module.__version__
+        except AttributeError:
+            stdlib_dir = os.path.dirname(shutil.__file__) + os.sep
+            module_path = getattr(module, '__file__', stdlib_dir)  # no __file__? => builtin stdlib module
+            if module_path.startswith(stdlib_dir):
+                # stdlib module
+                version = sys.version.partition(' ')[0]
+            elif '.' in name:
+                # incrementally look for a parent package with version
+                name = name.rpartition('.')[0]
+                return self.find_dep_version(name, __import__(name))
+            else:
+                version = '?.?'
+        return version
+
     def __call__(self, testname, tags=None):
         for matcher in self.exclude_matchers:
             if matcher(testname, tags):

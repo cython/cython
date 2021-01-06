@@ -1,5 +1,7 @@
 # mode: run
 
+# Test declarations, behaviour and coercions of the memoryview type itself.
+
 u'''
 >>> f()
 >>> g()
@@ -155,6 +157,7 @@ def assignmvs():
     cdef int[:] mv3
     mv1 = array((10,), itemsize=sizeof(int), format='i')
     mv2 = mv1
+    mv1 = mv1
     mv1 = mv2
     mv3 = mv2
 

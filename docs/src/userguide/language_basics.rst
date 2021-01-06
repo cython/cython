@@ -139,10 +139,11 @@ For example::
 
     cdef list foo = []
 
-This requires an *exact* match of the class, it does not allow
-subclasses. This allows Cython to optimize code by accessing
-internals of the builtin class.
-For this kind of typing, Cython uses internally a C variable of type ``PyObject*``.
+This requires an *exact* match of the class, it does not allow subclasses.
+This allows Cython to optimize code by accessing internals of the builtin class,
+which is the main reason for declaring builtin types in the first place.
+
+For declared builtin types, Cython uses internally a C variable of type ``PyObject*``.
 The Python types int, long, and float are not available for static
 typing and instead interpreted as C ``int``, ``long``, and ``float``
 respectively, as statically typing variables with these Python
@@ -189,7 +190,7 @@ Python functions vs. C functions
 There are two kinds of function definition in Cython:
 
 Python functions are defined using the def statement, as in Python. They take
-Python objects as parameters and return Python objects.
+:term:`Python objects<Python object>` as parameters and return Python objects.
 
 C functions are defined using the new :keyword:`cdef` statement. They take
 either Python objects or C values as parameters, and can return either Python
@@ -366,27 +367,40 @@ of :ref:`error_return_values`.
 Error return values
 -------------------
 
-If you don't do anything special, a function declared with :keyword:`cdef` that
-does not return a Python object has no way of reporting Python exceptions to
-its caller. If an exception is detected in such a function, a warning message
-is printed and the exception is ignored.
+In Python (more specifically, in the CPython runtime), exceptions that occur
+inside of a function are signaled to the caller and propagated up the call stack
+through defined error return values.  For functions that return a Python object
+(and thus, a pointer to such an object), the error return value is simply the
+``NULL`` pointer, so any function returning a Python object has a well-defined
+error return value.
 
-If you want a C function that does not return a Python object to be able to
-propagate exceptions to its caller, you need to declare an exception value for
-it. Here is an example::
+While this is always the case for :keyword:`def` functions, functions
+defined as :keyword:`cdef` or :keyword:`cpdef` can return arbitrary C types,
+which do not have such a well-defined error return value.  Thus, if an
+exception is detected in such a function, a warning message is printed,
+the exception is ignored, and the function returns immediately without
+propagating the exception to its caller.
+
+If you want such a C function to be able to propagate exceptions, you need
+to declare an exception return value for it as a contract with the caller.
+Here is an example::
 
     cdef int spam() except -1:
         ...
 
-With this declaration, whenever an exception occurs inside spam, it will
-immediately return with the value ``-1``. Furthermore, whenever a call to spam
-returns ``-1``, an exception will be assumed to have occurred and will be
-propagated.
+With this declaration, whenever an exception occurs inside ``spam``, it will
+immediately return with the value ``-1``.  From the caller's side, whenever
+a call to spam returns ``-1``, the caller will assume that an exception has
+occurred and can now process or propagate it.
 
-When you declare an exception value for a function, you should never
-explicitly or implicitly return that value. In particular, if the exceptional return value
-is a ``False`` value, then you should ensure the function will never terminate via an implicit
-or empty return.
+When you declare an exception value for a function, you should never explicitly
+or implicitly return that value.  This includes empty :keyword:`return`
+statements, without a return value, for which Cython inserts the default return
+value (e.g. ``0`` for C number types).  In general, exception return values
+are best chosen from invalid or very unlikely return values of the function,
+such as a negative value for functions that return only non-negative results,
+or a very large value like ``INT_MAX`` for a function that "usually" only
+returns small results.
 
 If all possible return values are legal and you
 can't reserve one entirely for signalling errors, you can use an alternative
@@ -395,9 +409,10 @@ form of exception value declaration::
     cdef int spam() except? -1:
         ...
 
-The "?" indicates that the value ``-1`` only indicates a possible error. In this
-case, Cython generates a call to :c:func:`PyErr_Occurred` if the exception value is
-returned, to make sure it really is an error.
+The "?" indicates that the value ``-1`` only signals a possible error. In this
+case, Cython generates a call to :c:func:`PyErr_Occurred` if the exception value
+is returned, to make sure it really received an exception and not just a normal
+result.
 
 There is also a third form of exception value declaration::
 
@@ -405,10 +420,11 @@ There is also a third form of exception value declaration::
         ...
 
 This form causes Cython to generate a call to :c:func:`PyErr_Occurred` after
-every call to spam, regardless of what value it returns. If you have a
-function returning void that needs to propagate errors, you will have to use
-this form, since there isn't any return value to test.
-Otherwise there is little use for this form.
+*every* call to spam, regardless of what value it returns. If you have a
+function returning ``void`` that needs to propagate errors, you will have to
+use this form, since there isn't any error return value to test.
+Otherwise, an explicit error return value allows the C compiler to generate
+more efficient code and is thus generally preferable.
 
 An external C++ function that may raise an exception can be declared with::
 
@@ -418,22 +434,22 @@ See :ref:`wrapping-cplusplus` for more details.
 
 Some things to note:
 
-* Exception values can only declared for functions returning an integer, enum,
-  float or pointer type, and the value must be a constant expression.
-  Void functions can only use the ``except *`` form.
+* Exception values can only be declared for functions returning a C integer,
+  enum, float or pointer type, and the value must be a constant expression.
+  Functions that return ``void``, or a struct/union by value, can only use
+  the ``except *`` form.
 * The exception value specification is part of the signature of the function.
   If you're passing a pointer to a function as a parameter or assigning it
   to a variable, the declared type of the parameter or variable must have
-  the same exception value specification (or lack thereof). Here is an
-  example of a pointer-to-function declaration with an exception
-  value::
+  the same exception value specification (or lack thereof).  Here is an
+  example of a pointer-to-function declaration with an exception value::
 
       int (*grail)(int, char*) except -1
 
 * You don't need to (and shouldn't) declare exception values for functions
   which return Python objects. Remember that a function with no declared
-  return type implicitly returns a Python object. (Exceptions on such functions
-  are implicitly propagated by returning NULL.)
+  return type implicitly returns a Python object. (Exceptions on such
+  functions are implicitly propagated by returning ``NULL``.)
 
 
 .. _checking_return_values_of_non_cython_functions:
@@ -937,4 +953,3 @@ The expressions in the ``IF`` and ``ELIF`` clauses must be valid compile-time
 expressions as for the ``DEF`` statement, although they can evaluate to any
 Python value, and the truth of the result is determined in the usual Python
 way.
-
