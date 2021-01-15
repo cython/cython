@@ -99,6 +99,7 @@ _ERRORS = u"""
 37:6: Invalid base type for memoryview slice: int *
 40:0: Fused lambdas not allowed
 43:5: Fused types not allowed here
+43:21: cdef variable 'x' declared after it is used
 46:9: Fused types not allowed here
 61:0: Invalid use of fused types, type cannot be specialized
 61:29: ambiguous overloaded method
