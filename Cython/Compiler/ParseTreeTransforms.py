@@ -2161,7 +2161,7 @@ if VALUE is not None:
             entry = self.current_env().lookup(node.name)
             if (entry is None or entry.visibility != 'extern'
                     and not entry.scope.is_c_class_scope):
-                warning(node.pos, "cdef variable '%s' declared after it is used" % node.name, 2)
+                error(node.pos, "cdef variable '%s' declared after it is used" % node.name)
         self.visitchildren(node)
         return node
 
