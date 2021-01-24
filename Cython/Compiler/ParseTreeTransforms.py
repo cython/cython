@@ -1403,6 +1403,23 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
         if decorator_node is not None:
             decorator = decorator_node.decorator
             if decorator.is_name:
+                # If there is a DefNode with the same name, that is probably a mistake like
+                # cdef class A:
+                #    def p(self):
+                #       return self.value
+                #
+                #    @property
+                #    def p(self):
+                #        return self.p
+                #
+                # In a python class this will raise a runtime RecursionError
+                same_name = [n for n in self.scope_node.body.stats 
+                             if getattr(n,'name', '') == node.name and n is not node]
+                if len(same_name) > 0:
+                    import pdb;pdb.set_trace()
+                    error(decorator_node.pos,
+                          "Duplicate property decorator and other class attribute "
+                          "name '%s'" % node.name)
                 return self._add_property(node, node.name, decorator_node)
             else:
                 handler_name = self._map_property_attribute(decorator.attribute)
