@@ -1416,10 +1416,8 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
                 same_name = [n for n in self.scope_node.body.stats 
                              if getattr(n,'name', '') == node.name and n is not node]
                 if len(same_name) > 0:
-                    import pdb;pdb.set_trace()
                     error(decorator_node.pos,
-                          "Duplicate property decorator and other class attribute "
-                          "name '%s'" % node.name)
+                          "property hides existing attribute '%s'" % node.name)
                 return self._add_property(node, node.name, decorator_node)
             else:
                 handler_name = self._map_property_attribute(decorator.attribute)
