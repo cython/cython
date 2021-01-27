@@ -67,15 +67,15 @@ def type_remove_ref(ty):
 
 def pythran_binop_type(op, tA, tB):
     if op == '**':
-        return 'decltype(pythonic::numpy::functor::power{}(std::declval<%s>(), std::declval<%s>()))' % (
+        return 'decltype(pythonic::numpy::functor::power{}(std::declval<%s&>(), std::declval<%s&>()))' % (
             pythran_type(tA), pythran_type(tB))
     else:
-        return "decltype(std::declval<%s>() %s std::declval<%s>())" % (
+        return "decltype(std::declval<%s&>() %s std::declval<%s&>())" % (
             pythran_type(tA), op, pythran_type(tB))
 
 
 def pythran_unaryop_type(op, type_):
-    return "decltype(%sstd::declval<%s>())" % (
+    return "decltype(%sstd::declval<%s&>())" % (
         op, pythran_type(type_))
 
 
@@ -95,7 +95,7 @@ def _index_type_code(index_with_type):
     elif index_type.is_int:
         return "std::declval<%s>()" % index_type.sign_and_name()
     elif index_type.is_pythran_expr:
-        return "std::declval<%s>()" % index_type.pythran_type
+        return "std::declval<%s&>()" % index_type.pythran_type
     raise ValueError("unsupported indexing type %s!" % index_type)
 
 
@@ -117,7 +117,7 @@ def _index_code(idx):
 
 
 def pythran_indexing_type(type_, indices):
-    return type_remove_ref("decltype(std::declval<%s>()%s)" % (
+    return type_remove_ref("decltype(std::declval<%s&>()%s)" % (
         pythran_type(type_),
         _index_access(_index_type_code, indices),
     ))
@@ -150,7 +150,7 @@ def pythran_functor(func):
     return "pythonic::numpy::%s::%s" % (submodules, func[-1])
 
 def pythran_func_type(func, args):
-    args = ",".join(("std::declval<%s>()" % pythran_type(a.type) for a in args))
+    args = ",".join(("std::declval<%s&>()" % pythran_type(a.type) for a in args))
     return "decltype(%s{}(%s))" % (pythran_functor(func), args)
 
 

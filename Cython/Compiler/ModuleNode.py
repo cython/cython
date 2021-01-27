@@ -728,6 +728,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#define CYTHON_FUTURE_DIVISION %d" % (
             Future.division in env.context.future_directives))
 
+        if has_np_pythran(env):
+            # for pythran <> python conversion code
+            code.putln("#define ENABLE_PYTHON_MODULE")
+
         self._put_setup_code(code, "CModulePreamble")
         if env.context.options.cplus:
             self._put_setup_code(code, "CppInitCode")
