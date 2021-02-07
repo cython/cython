@@ -6938,7 +6938,11 @@ class AttributeNode(ExprNode):
         # FIXME: this is way too redundant with analyse_types()
         node = self.analyse_as_cimported_attribute_node(env, target=False)
         if node is not None:
-            return node.entry.type
+            if node.entry.type and node.entry.type.is_cfunction:
+                # special-case - function converted to pointer
+                return PyrexTypes.CPtrType(node.entry.type)
+            else:
+                return node.entry.type
         node = self.analyse_as_type_attribute(env)
         if node is not None:
             return node.entry.type
