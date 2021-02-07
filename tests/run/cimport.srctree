@@ -41,6 +41,8 @@ ctypedef int my_int
 
 ######## a.pyx ########
 
+
+
 from other cimport (
     A,
     foo,
@@ -48,7 +50,12 @@ from other cimport (
 print(A, foo(10))
 
 cimport other
-print(other.A, other.foo(10))
+
+def call_other_foo():
+    x = other.foo  # GH4000 - failed because other was untyped
+    return x(10)
+
+print(other.A, other.foo(10), call_other_foo()) 
 
 from pkg cimport sub
 cdef sub.my_int a = 100

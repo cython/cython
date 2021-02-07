@@ -6214,7 +6214,7 @@ class PyMethodCallNode(SimpleCallNode):
             # not an attribute itself, but might have been assigned from one (e.g. bound method)
             for assignment in self.function.cf_state:
                 value = assignment.rhs
-                if value and value.is_attribute and value.obj.type.is_pyobject:
+                if value and value.is_attribute and value.obj.type and value.obj.type.is_pyobject:
                     if attribute_is_likely_method(value):
                         likely_method = 'likely'
                         break
