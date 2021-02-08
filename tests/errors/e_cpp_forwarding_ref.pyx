@@ -17,10 +17,13 @@ cdef extern from *:
     cdef const char* one_arg[T](T&&)
 
 
-def test_insufficient_arguments():
+def test_too_few_arguments():
     cdef const char* result = one_arg()
 
+def test_too_many_arguments():
+    cdef const char* result = one_arg(1, 2)
 
 _ERRORS="""
 21:37: Call with wrong number of arguments (expected 1, got 0)
+24:37: Call with wrong number of arguments (expected 1, got 2)
 """
