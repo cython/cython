@@ -41,8 +41,6 @@ ctypedef int my_int
 
 ######## a.pyx ########
 
-
-
 from other cimport (
     A,
     foo,
@@ -57,8 +55,6 @@ cdef call_fooptr(int (*fptr)(int)):
 def call_other_foo():
     x = other.foo  # GH4000 - failed because other was untyped
     return call_fooptr(x) # check that x is correctly resolved as a function pointer
-    
-
 
 print(other.A, other.foo(10), call_other_foo())
 
