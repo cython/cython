@@ -6049,7 +6049,7 @@ class PyMethodCallNode(SimpleCallNode):
             # not an attribute itself, but might have been assigned from one (e.g. bound method)
             for assignment in self.function.cf_state:
                 value = assignment.rhs
-                if value and value.is_attribute and value.obj.type.is_pyobject:
+                if value and value.is_attribute and value.obj.type and value.obj.type.is_pyobject:
                     if attribute_is_likely_method(value):
                         likely_method = 'likely'
                         break
@@ -6851,7 +6851,11 @@ class AttributeNode(ExprNode):
         # FIXME: this is way too redundant with analyse_types()
         node = self.analyse_as_cimported_attribute_node(env, target=False)
         if node is not None:
-            return node.entry.type
+            if node.entry.type and node.entry.type.is_cfunction:
+                # special-case - function converted to pointer
+                return PyrexTypes.CPtrType(node.entry.type)
+            else:
+                return node.entry.type
         node = self.analyse_as_type_attribute(env)
         if node is not None:
             return node.entry.type
