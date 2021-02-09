@@ -1410,14 +1410,14 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
                 #
                 #    @property
                 #    def p(self):
-                #        return self.p
+                #        return self.p()
                 #
-                # In a python class this will raise a runtime RecursionError
-                same_name = [n for n in self.scope_node.body.stats 
-                             if getattr(n,'name', '') == node.name and n is not node]
-                if len(same_name) > 0:
+                # In a python class the later definition will override the earlier,
+                # leading to a RecursionError as the property calls itself.
+                if any(n is not node and getattr(n, 'name', '') == node.name
+                                for n in self.scope_node.body.stats):
                     error(decorator_node.pos,
-                          "property hides existing attribute '%s'" % node.name)
+                          "Property hides existing attribute '%s'" % node.name)
                 return self._add_property(node, node.name, decorator_node)
             else:
                 handler_name = self._map_property_attribute(decorator.attribute)

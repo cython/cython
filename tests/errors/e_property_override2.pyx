@@ -10,6 +10,6 @@ cdef class A:
         return 42
 
 _ERRORS = u"""
-5:4: Duplicate property decorator and other class attribute name 'fortytwo'
+5:4: Property hides existing attribute 'fortytwo'
 """
 

@@ -10,6 +10,6 @@ cdef class A:
         return self.fortytwo()
 
 _ERRORS = u"""
-8:4: Duplicate property decorator and other class attribute name 'fortytwo'
+8:4: Property hides existing attribute 'fortytwo'
 """
 
