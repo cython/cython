@@ -6,7 +6,6 @@ initial_file_path
 package_compilation
 
 carray_coercion
-ctuple
 int_float_builtins_as_casts_T400
 int_float_builtins_as_casts_T400_long_double
 list_pop

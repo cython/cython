@@ -11,8 +11,8 @@ Overview
 
 Cython has native support for most of the C++ language.  Specifically:
 
-* C++ objects can be dynamically allocated with ``new`` and ``del`` keywords.
-* C++ objects can be stack-allocated.
+* C++ objects can be :term:`dynamically allocated<Dynamic allocation>` with ``new`` and ``del`` keywords.
+* C++ objects can be :term:`stack-allocated<Stack allocation>`.
 * C++ classes can be declared with the new keyword ``cppclass``.
 * Templated classes and functions are supported.
 * Overloaded functions are supported.
@@ -482,6 +482,33 @@ Note, however, that it is unnecessary to declare the arguments of extern
 functions as references (const or otherwise) as it has no impact on the
 caller's syntax.
 
+Scoped Enumerations
+-------------------
+
+Cython supports scoped enumerations (:keyword:`enum class`) in C++ mode::
+
+    cdef enum class Cheese:
+        cheddar = 1
+        camembert = 2
+
+As with "plain" enums, you may access the enumerators as attributes of the type.
+Unlike plain enums however, the enumerators are not visible to the
+enclosing scope::
+
+    cdef Cheese c1 = Cheese.cheddar  # OK
+    cdef Cheese c2 = cheddar  # ERROR!
+
+Optionally, you may specify the underlying type of a scoped enumeration.
+This is especially important when declaring an external scoped enumeration
+with an underlying type::
+
+    cdef extern from "Foo.h":
+        cdef enum class Spam(unsigned int):
+	    x = 10
+	    y = 20
+	    ...
+
+Declaring an enum class as ``cpdef`` will create a :pep:`435`-style Python wrapper.
 
 ``auto`` Keyword
 ----------------

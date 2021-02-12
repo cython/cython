@@ -41,14 +41,16 @@ matrix:
   include:
     # slowest first
     - os: osx
-      env: PY=2
-      python: 2
+      osx_image: xcode10.3
+      env: PY=2 MACOSX_DEPLOYMENT_TARGET=10.9
+      python: 2.7
       language: c
       compiler: clang
       cache: false
     - os: osx
-      env: PY=3
-      python: 3
+      osx_image: xcode10.3
+      env: PY=3 MACOSX_DEPLOYMENT_TARGET=10.9
+      python: 3.9
       language: c
       compiler: clang
       cache: false
@@ -63,6 +65,25 @@ matrix:
       env: LIMITED_API=--limited-api EXCLUDE=--no-file
     - python: 3.6
       env: LIMITED_API=--limited-api EXCLUDE=--no-file
+    - python: 3.8
+      arch: arm64
+      env: BACKEND=c
+    - python: 3.8
+      arch: arm64
+      env: BACKEND=cpp
+    - python: 3.8
+      arch: ppc64le
+      env: BACKEND=c
+    - python: 3.8
+      arch: ppc64le
+      env: BACKEND=cpp
+# s390x currently shows test failures.
+#    - python: 3.8
+#      arch: s390x
+#      env: BACKEND=c
+#    - python: 3.8
+#      arch: s390x
+#      env: BACKEND=cpp
     - env: STACKLESS=true BACKEND=c PY=2
       python: 2.7
     - env: STACKLESS=true BACKEND=c PY=3
@@ -78,18 +99,13 @@ matrix:
     - python: pypy3
       env: BACKEND=c EXCLUDE="--listfile=tests/pypy_bugs.txt bugs"
   allow_failures:
-    - python: 3.9-dev
     - env: BACKEND=c EXCLUDE="--listfile=tests/pypy_bugs.txt bugs"
     - env: BACKEND=c EXCLUDE="--listfile=tests/pypy_bugs.txt --listfile=tests/pypy2_bugs.txt bugs"
 
-branches:
-  only:
-    - master
-    - release
 
 before_install:
   - |
-    if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+    if [ "$TRAVIS_OS_NAME" == "linux" ]; then
       # adding apt repos in travis is really fragile => retry a couple of times.
       for i in {1..10}; do travis_retry sudo apt-add-repository --yes 'ppa:ubuntu-toolchain-r/test' && break; sleep 2; done
       for i in {1..10}; do travis_retry sudo apt-get update && travis_retry sudo apt-get install --yes gcc-8  $(if [ -z "${BACKEND##*cpp*}" ]; then echo -n "g++-8"; fi ) && break; sleep 2; done
@@ -100,21 +116,23 @@ before_install:
     fi
 
   - |
-    if [[ "$TRAVIS_OS_NAME" == "osx" ]] || [[ "$STACKLESS" == "true" ]]; then # Install Miniconda
-      if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then CONDA_PLATFORM=MacOSX; else CONDA_PLATFORM=Linux; fi
-      travis_retry curl -s -o miniconda.sh https://repo.continuum.io/miniconda/Miniconda$PY-latest-${CONDA_PLATFORM}-x86_64.sh
-      bash miniconda.sh -b -p $HOME/miniconda && rm miniconda.sh
+    if [ "$TRAVIS_OS_NAME" == "osx" -o "$STACKLESS" == "true" ]; then
+      echo "Installing Miniconda"
+      if [ "$TRAVIS_OS_NAME" == "osx" ]; then CONDA_PLATFORM=MacOSX; else CONDA_PLATFORM=Linux; fi
+      travis_retry wget -O miniconda.sh https://repo.continuum.io/miniconda/Miniconda$PY-latest-${CONDA_PLATFORM}-x86_64.sh || exit 1
+      bash miniconda.sh -b -p $HOME/miniconda && rm miniconda.sh || exit 1
+      conda --version || exit 1
       #conda install --quiet --yes nomkl --file=test-requirements.txt --file=test-requirements-cpython.txt
-      if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
-        which clang && clang --version && export CC=clang || true
-        which clang++ && clang++ --version && export CXX=clang++ || true
+      if [ "$TRAVIS_OS_NAME" == "osx" ]; then
+        which clang && clang --version && export CC="clang -Wno-deprecated-declarations" || true
+        which clang++ && clang++ --version && export CXX="clang++ -stdlib=libc++ -Wno-deprecated-declarations" || true
       fi
     fi
 
-  - if [ -n "$CC" ]; then which $CC; $CC --version; fi
-  - if [ -n "$CXX" ]; then which $CXX; $CXX --version; fi
+  - if [ -n "$CC" ]; then which ${CC%% *}; $CC --version; fi
+  - if [ -n "$CXX" ]; then which ${CXX%% *}; $CXX --version; fi
 
-  - if [[ "$STACKLESS" == "true" ]]; then
+  - if [ "$STACKLESS" == "true" ]; then
       conda config --add channels stackless;
       travis_retry conda install --quiet --yes stackless;
     fi
@@ -138,6 +156,6 @@ script:
     fi
 # Need to clear the ccache? Try something like this:
 #  - if [ -n "${BACKEND##*cpp*}" -a -z "${TRAVIS_PYTHON_VERSION##*3.4}" ]; then ccache -C || true; fi
-  - if [ "$COVERAGE" != "1" ]; then CFLAGS="-O2 -ggdb -Wall -Wextra $(python -c 'import sys; print("-fno-strict-aliasing" if sys.version_info[0] == 2 else "")')" python setup.py build_ext -i; fi
+  - if [ "$COVERAGE" != "1" ]; then CFLAGS="-O2 -ggdb -Wall -Wextra $(python -c 'import sys; print("-fno-strict-aliasing" if sys.version_info[0] == 2 else "")')" python setup.py build_ext -i $(python -c 'import sys; print("-j5" if sys.version_info >= (3,5) else "")'); fi
   - CFLAGS="-O0 -ggdb -Wall -Wextra" python runtests.py -vv $STYLE_ARGS -x Debugger --backends=$BACKEND $LIMITED_API $EXCLUDE $(if [ "$COVERAGE" == "1" ]; then echo " --coverage"; fi) $(if [ -z "$TEST_CODE_STYLE" ]; then echo " -j7 "; fi)
   - ccache -s || true

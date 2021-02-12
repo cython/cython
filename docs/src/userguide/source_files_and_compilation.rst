@@ -117,6 +117,15 @@ would be::
         ext_modules = cythonize("example.pyx")
     )
 
+If your build depends directly on Cython in this way,
+then you may also want to inform pip that :mod:`Cython` is required for
+:file:`setup.py` to execute, following `PEP 518
+<https://www.python.org/dev/peps/pep-0518/>`, creating a :file:`pyproject.toml`
+file containing, at least::
+
+    [build-system]
+    requires = ["setuptools", "wheel", "Cython"]
+
 To understand the :file:`setup.py` more fully look at the official `setuptools
 documentation`_. To compile the extension for use in the current directory use:
 
@@ -149,12 +158,31 @@ the necessary include files, e.g. for NumPy::
     you have to add the path to NumPy include files. You need to add this path only
     if you use ``cimport numpy``.
 
-Despite this, you will still get warnings like the
-following from the compiler, because Cython is using a deprecated Numpy API::
+Despite this, you may still get warnings like the following from the compiler,
+because Cython is not disabling the usage of the old deprecated Numpy API::
 
    .../include/numpy/npy_1_7_deprecated_api.h:15:2: warning: #warning "Using deprecated NumPy API, disable it by " "#defining NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION" [-Wcpp]
 
-For the time being, it is just a warning that you can ignore.
+In Cython 3.0, you can get rid of this warning by defining the C macro
+``NPY_NO_DEPRECATED_API`` as ``NPY_1_7_API_VERSION``
+in your build, e.g.::
+
+    # distutils: define_macros=NPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION
+
+or (see below)::
+
+    Extension(
+        ...,
+        define_macros=[("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION")],
+    )
+
+With older Cython releases, setting this macro will fail the C compilation,
+because Cython generates code that uses this deprecated C-API.  However, the
+warning has no negative effects even in recent NumPy versions including 1.18.x.
+You can ignore it until you (or your library's users) switch to a newer NumPy
+version that removes this long deprecated API, in which case you also need to
+use Cython 3.0 or later.  Thus, the earlier you switch to Cython 3.0, the
+better for your users.
 
 If you need to specify compiler options, libraries to link with or other
 linker options you will need to create ``Extension`` instances manually
@@ -379,13 +407,16 @@ Another option is to make Cython a setup dependency of your system and use
 Cython's build_ext module which runs ``cythonize`` as part of the build process::
 
     setup(
-        setup_requires=[
-            'cython>=0.x',
-        ],
         extensions = [Extension("*", ["*.pyx"])],
-        cmdclass={'build_ext': Cython.Build.build_ext},
+        cmdclass={'build_ext': Cython.Build.new_build_ext},
         ...
     )
+
+This depends on pip knowing that :mod:`Cython` is a setup dependency, by having
+a :file:`pyproject.toml` file::
+
+    [build-system]
+    requires = ["setuptools", "wheel", "Cython"]
 
 If you want to expose the C-level interface of your library for other
 libraries to cimport from, use package_data to install the ``.pxd`` files,
@@ -788,11 +819,18 @@ Cython code.  Here is the list of currently supported directives:
     False.
 
 ``always_allow_keywords`` (True / False)
-    Avoid the ``METH_NOARGS`` and ``METH_O`` when constructing
-    functions/methods which take zero or one arguments. Has no effect
-    on special methods and functions with more than one argument. The
-    ``METH_NOARGS`` and ``METH_O`` signatures provide faster
+    When disabled, uses the ``METH_NOARGS`` and ``METH_O`` signatures when
+    constructing functions/methods which take zero or one arguments. Has no
+    effect on special methods and functions with more than one argument. The
+    ``METH_NOARGS`` and ``METH_O`` signatures provide slightly faster
     calling conventions but disallow the use of keywords.
+
+``c_api_binop_methods`` (True / False)
+    When enabled, makes the special binary operator methods (``__add__``, etc.)
+    behave according to the low-level C-API slot semantics, i.e. only a single
+    method implements both the normal and reversed operator.  This used to be
+    the default in Cython 0.x and was now replaced by Python semantics, i.e. the
+    default in Cython 3.x and later is ``False``.
 
 ``profile`` (True / False)
     Write hooks for Python profilers into the compiled C code.  Default

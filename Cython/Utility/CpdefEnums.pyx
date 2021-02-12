@@ -51,12 +51,38 @@ if PY_VERSION_HEX >= 0x03040000:
         ('{{item}}', {{item}}),
         {{endfor}}
     ]))
+    {{if enum_doc is not None}}
+    {{name}}.__doc__ = {{ repr(enum_doc) }}
+    {{endif}}
+
     {{for item in items}}
     __Pyx_globals['{{item}}'] = {{name}}.{{item}}
     {{endfor}}
 else:
     class {{name}}(__Pyx_EnumBase):
-        pass
+        {{ repr(enum_doc) if enum_doc is not None else 'pass' }}
     {{for item in items}}
     __Pyx_globals['{{item}}'] = {{name}}({{item}}, '{{item}}')
     {{endfor}}
+
+#################### CppScopedEnumType ####################
+#@requires: EnumBase
+cdef dict __Pyx_globals = globals()
+
+if PY_VERSION_HEX >= 0x03040000:
+    # create new IntEnum()
+    __Pyx_globals["{{name}}"] = __Pyx_EnumBase('{{name}}', __Pyx_OrderedDict([
+        {{for item in items}}
+        ('{{item}}', <{{underlying_type}}>({{name}}.{{item}})),
+        {{endfor}}
+    ]))
+
+else:
+    __Pyx_globals["{{name}}"] = type('{{name}}', (__Pyx_EnumBase,), {})
+    {{for item in items}}
+    __Pyx_globals["{{name}}"](<{{underlying_type}}>({{name}}.{{item}}), '{{item}}')
+    {{endfor}}
+
+{{if enum_doc is not None}}
+__Pyx_globals["{{name}}"].__doc__ = {{ repr(enum_doc) }}
+{{endif}}

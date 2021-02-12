@@ -1,5 +1,4 @@
-
-from __future__ import absolute_import
+# cython: language_level=3
 
 cimport cython
 
