@@ -145,6 +145,7 @@ class TestMROEntry(unittest.TestCase):
         self.assertEqual(D.__mro__, (D, A, object))
         self.assertEqual(D.__class__, Meta)
 
+    @unittest.skipIf(sys.version_info < (3, 7), "'type' checks for __mro_entries__ not implemented")
     def test_mro_entry_type_call(self):
         # Substitution should _not_ happen in direct type call
         class C:
@@ -155,18 +156,6 @@ class TestMROEntry(unittest.TestCase):
                                     "MRO entry resolution; "
                                     "use types.new_class()"):
             type('Bad', (c,), {})
-
-    if sys.version_info[0] == 2:
-        # lazy placeholder implementation that doesn't test as thoroughly
-        @contextlib.contextmanager
-        def assertRaisesRegex(self, exc_type, ignore):
-            # the error messages usually don't match, so we just ignore them
-            try:
-                yield
-            except exc_type:
-                self.assertTrue(True)
-            else:
-                self.assertTrue(False)
 
 
 class TestClassGetitem(unittest.TestCase):
