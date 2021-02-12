@@ -181,5 +181,3 @@ __doc__ = """
         "" if sys.version_info[0] > 2 else "# doctest: +IGNORE_EXCEPTION_DETAIL",
         " object" if cython.compiled else "",
         )
-
-

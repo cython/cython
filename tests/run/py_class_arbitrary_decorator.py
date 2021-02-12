@@ -142,4 +142,3 @@ __doc__ = """
         "Python object" if cython.compiled else "C",
         " object" if cython.compiled else "",
         )
-
