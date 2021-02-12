@@ -2195,6 +2195,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                         args=[func_arg],
                         py_name='float',
                         is_temp=node.is_temp,
+                        utility_code = UtilityCode.load_cached("pynumber_float", "TypeConversion.c"),
                         result_is_used=node.result_is_used,
                     ).coerce_to(node.type, self.current_env())
         return node
