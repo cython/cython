@@ -155,7 +155,8 @@ class ResultRefNode(AtomicExprNode):
         if type:
             self.type = type
         else:
-            if hasattr(self, "type"):
+            if type in self.__dict__:
+                # since the expression has changed the type is no longer valid
                 del self.type
 
     def analyse_types(self, env):
