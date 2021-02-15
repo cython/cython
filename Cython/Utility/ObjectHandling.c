@@ -1026,7 +1026,7 @@ static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *na
 
 /////////////// Py3UpdateBases.proto ///////////////
 
-static PyObject* __Pyx_PEP560update_bases(PyObject *bases); /* proto */
+static PyObject* __Pyx_PEP560_update_bases(PyObject *bases); /* proto */
 
 /////////////// Py3UpdateBases /////////////////////
 //@requires: PyObjectCallOneArg
@@ -1034,7 +1034,7 @@ static PyObject* __Pyx_PEP560update_bases(PyObject *bases); /* proto */
 
 /* Shamelessly adapted from cpython/bltinmodule.c update_bases */
 static PyObject*
-__Pyx_PEP560update_bases(PyObject *bases)
+__Pyx_PEP560_update_bases(PyObject *bases)
 {
     Py_ssize_t i, j;
     PyObject *base, *meth, *new_base, *result, *new_bases = NULL;
