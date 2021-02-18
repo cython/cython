@@ -438,6 +438,7 @@ VER_DEP_MODULES = {
                                          'run.mod__spec__',
                                          'run.pep526_variable_annotations',  # typing module
                                          'run.test_exceptions',  # copied from Py3.7+
+                                         'run.time_pxd',  # _PyTime_GetSystemClock doesn't exist in 3.4
                                          ]),
 }
 
