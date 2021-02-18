@@ -2,7 +2,7 @@
 Cython Changelog
 ================
 
-0.29.22 (2020-??-??)
+0.29.22 (2021-??-??)
 ====================
 
 Features added
@@ -24,11 +24,18 @@ Bugs fixed
 * ``const`` template declarations could not be nested.
   Patch by Ashwin Srinath.  (Github issue #1355)
 
+* The declarations in the ``cpython.pycapsule`` module were missing their
+  ``const`` modifiers and generated incorrect C code.
+  Patch by Warren Weckesser.  (Github issue #3964)
+
 * Casts to memory views failed for fused dtypes.
   Patch by David Woods.  (Github issue #3881)
 
 * ``repr()`` was assumed to return ``str`` instead of ``unicode`` with ``language_level=3``.
   (Github issue #3736)
+
+* Calling ``cpdef`` functions from cimported modules crashed the compiler.
+  Patch by David Woods.  (Github issue #4000)
 
 * Cython no longer validates the ABI size of the NumPy classes it compiled against.
   See the discussion in https://github.com/numpy/numpy/pull/432
@@ -43,6 +50,13 @@ Bugs fixed
 
 * Long type declarations could lead to (harmless) random changes in the
   C file when used in auto-generated Python wrappers or pickled classes.
+
+Other changes
+-------------
+
+* Variables defined as ``cpdef`` now generate a warning since this
+  is currently useless and thus does not do what users would expect.
+  Patch by David Woods.  (Github issue #3959)
 
 
 0.29.21 (2020-07-09)
