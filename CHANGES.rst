@@ -532,7 +532,7 @@ Other changes
 * Support for Python 2.6 was removed.
 
 
-0.29.22 (2021-??-??)
+0.29.22 (2021-02-20)
 ====================
 
 Features added
