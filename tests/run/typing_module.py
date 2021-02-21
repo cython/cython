@@ -1,5 +1,5 @@
 # mode: run
-# tag: pure35
+# tag: pure3.5
 
 from __future__ import print_function
 
@@ -9,7 +9,11 @@ try:
     import typing
     from typing import List
     from typing import Set as _SET_
+<<<<<<< HEAD
 except:
+=======
+except ImportError:
+>>>>>>> typing_support
     pass  # this should allow Cython to interpret the directives even when the module doesn't exist
 
 

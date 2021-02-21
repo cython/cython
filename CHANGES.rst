@@ -29,6 +29,9 @@ Features added
 * The value ``PyBUF_MAX_NDIM`` was added to the ``cpython.buffer`` module.
   Patch by John Kirkham.  (Github issue #3811)
 
+* More comprehensive support understanding ``typing`` module
+  annotations (Github issue #3910)
+
 Bugs fixed
 ----------
 
