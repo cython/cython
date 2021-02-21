@@ -3101,12 +3101,6 @@ class TransformBuiltinMethods(EnvTransform):
 
     def visit_cython_attribute(self, node):
         attribute = node.as_cython_attribute()
-        #if (not attribute and node.is_name
-        #        and node.name in ["typing.ClassVar", "dataclasses.InitVar"]  # not directives so don't get picked up correctly
-        #        ):
-        #    entry = self.current_env().lookup(node.name)
-        #    if entry and getattr(entry.scope, "is_cython_builtin"):
-        #        attribute = node.name
         if attribute:
             if attribute == u'__version__':
                 from .. import __version__ as version

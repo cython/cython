@@ -583,7 +583,7 @@ class CArrayDeclaratorNode(CDeclaratorNode):
     def analyse(self, base_type, env, nonempty=0, visibility=None, in_pxd=False):
         if ((base_type.is_cpp_class and base_type.is_template_type()) or
                 base_type.is_cfunction or
-                base_type.is_indexed_pytype):
+                base_type.is_python_type_constructor):
             from .ExprNodes import TupleNode
             if isinstance(self.dimension, TupleNode):
                 args = self.dimension.args
@@ -955,9 +955,9 @@ class CArgDeclNode(Node):
         base_type, arg_type = annotation.analyse_type_annotation(env, assigned_value=self.default)
         if base_type is not None:
             self.base_type = base_type
-        if arg_type and arg_type.is_typing_optional:
+        if arg_type and arg_type.is_special_python_type_constructor and arg_type.name == "typing.Optional":
             self.or_none = True
-        if arg_type and arg_type.is_pyobject:
+        if arg_type and arg_type.is_pyobject and not self.or_none:
             self.not_none = True
         return arg_type
 
@@ -1061,8 +1061,8 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
                     # TODO: probably not the best place to declare it?
                     from .CythonScope import get_known_python_import
                     found_entry = env.lookup(self.module_path[0])
-                    if found_entry and found_entry.unambiguous_import_path:
-                        scope = get_known_python_import(found_entry.unambiguous_import_path)
+                    if found_entry and found_entry.known_standard_library_import:
+                        scope = get_known_python_import(found_entry.known_standard_library_import)
                 if scope is None:
                     # Maybe it's a cimport.
                     scope = env.find_imported_module(self.module_path, self.pos)
@@ -1186,7 +1186,7 @@ class TemplatedTypeNode(CBaseTypeNode):
         if base_type.is_error: return base_type
 
         if ((base_type.is_cpp_class and base_type.is_template_type()) or
-                base_type.is_indexed_pytype):
+                base_type.is_python_type_constructor):
             # Templated class
             if self.keyword_args and self.keyword_args.key_value_pairs:
                 tp = "c++ templates" if base_type.is_cpp_class else "indexed type"
@@ -5715,9 +5715,9 @@ class SingleAssignmentNode(AssignmentNode):
         else:
             self.lhs.analyse_target_declaration(env)
             if (getattr(self.lhs, "entry", None) and
-                    self.lhs.entry.unambiguous_import_path is None and
-                    self.rhs.get_unambiguous_import_path()):
-                self.lhs.entry.unambiguous_import_path = self.rhs.get_unambiguous_import_path()
+                    self.lhs.entry.known_standard_library_import is None and
+                    self.rhs.get_known_standard_library_import()):
+                self.lhs.entry.known_standard_library_import = self.rhs.get_known_standard_library_import()
 
     def analyse_types(self, env, use_temp=0):
         from . import ExprNodes
@@ -8415,7 +8415,7 @@ class CImportStatNode(StatNode):
         else:
             name = self.as_name or self.module_name
             entry = env.declare_module(name, module_scope, self.pos)
-            entry.unambiguous_import_path = self.module_name
+            entry.known_standard_library_import = self.module_name
         if self.module_name in utility_code_for_cimports:
             env.use_utility_code(utility_code_for_cimports[self.module_name]())
 
@@ -8530,12 +8530,12 @@ class FromImportStatNode(StatNode):
             else:
                 target.analyse_target_declaration(env)
                 if target.entry:
-                    if target.get_unambiguous_import_path() is None:
-                        target.entry.unambiguous_import_path = "%s.%s" % (
+                    if target.get_known_standard_library_import() is None:
+                        target.entry.known_standard_library_import = "%s.%s" % (
                             self.module.module_name.value, name)
                 else:
                     # it isn't unambiguous
-                    target.entry.unambiguous_import_path = False
+                    target.entry.known_standard_library_import = False
 
 
     def analyse_expressions(self, env):

@@ -192,16 +192,14 @@ class PyrexType(BaseType):
     #  is_string             boolean     Is a C char * type
     #  is_pyunicode_ptr      boolean     Is a C PyUNICODE * type
     #  is_cpp_string         boolean     Is a C++ std::string type
-    #  is_indexed_pytype     boolean     Is a Python type identifier that can be indexed/"templated"
+    #  is_python_type_constructor     boolean     Is a Python type constructor that can be indexed/"templated"
+    #  is_special_python_type_constructor boolean   e.g. typing.Optional, dataclasses.InitVar
     #  is_unicode_char       boolean     Is either Py_UCS4 or Py_UNICODE
     #  is_returncode         boolean     Is used only to signal exceptions
     #  is_error              boolean     Is the dummy error type
     #  is_buffer             boolean     Is buffer access type
     #  is_pythran_expr       boolean     Is Pythran expr
     #  is_numpy_buffer       boolean     Is Numpy array buffer
-    #  is_dataclasses_initvar        boolean     Is a dataclasses InitVar
-    #  is_typing_classvar            boolean     Is a typing ClassVar
-    #  is_typing_optional            boolean     Is a typing Optional
     #  has_attributes        boolean     Has C dot-selectable attributes
     #  needs_cpp_construction  boolean     Needs C++ constructor and destructor when used in a cdef class
     #  needs_refcounting     boolean     Needs code to be generated similar to incref/gotref/decref.
@@ -257,7 +255,8 @@ class PyrexType(BaseType):
     is_cfunction = 0
     is_struct_or_union = 0
     is_cpp_class = 0
-    is_indexed_pytype = 0
+    is_python_type_constructor = 0
+    is_special_python_type_constructor = 0
     is_cpp_string = 0
     is_struct = 0
     is_enum = 0
@@ -273,9 +272,6 @@ class PyrexType(BaseType):
     is_memoryviewslice = 0
     is_pythran_expr = 0
     is_numpy_buffer = 0
-    is_dataclasses_initvar = 0
-    is_typing_classvar = 0
-    is_typing_optional = 0
     has_attributes = 0
     needs_cpp_construction = 0
     needs_refcounting = 0
@@ -4379,12 +4375,10 @@ class ErrorType(PyrexType):
         return "dummy"
 
 
-class IndexedPythonType(PyrexType):
+class PythonTypeConstructor(PyrexType):
     """Used to help Cython interpret indexed types from the typing module (or similar)
-    Although not really a CppClassType, it uses a template-like syntax.
-    So it mimics the interface to let existing code use it with minimal fuss.
     """
-    is_indexed_pytype = True
+    is_python_type_constructor = True
 
     def __init__(self, name, base_type=None):
         self.name = name
@@ -4410,27 +4404,29 @@ class IndexedPythonType(PyrexType):
         return True
 
 
-class TupleIndexedPythonType(IndexedPythonType):
+class PythonTupleTypeConstructor(PythonTypeConstructor):
     def specialize_here(self, pos, env, template_values=None):
         if (template_values and None not in template_values and
                 not any(v.is_pyobject for v in template_values)):
             entry = env.declare_tuple_type(pos, template_values)
             if entry:
                 return entry.type
-        return super(TupleIndexedPythonType, self).specialize_here(pos, env, template_values)
+        return super(PythonTupleTypeConstructor, self).specialize_here(pos, env, template_values)
 
 
-class SpecialIndexedPythonType(IndexedPythonType):
+class SpecialPythonTypeConstructor(PythonTypeConstructor):
     """
     For things like ClassVar, Optional, etc, which have extra features on top of being
     a "templated" type
     """
+    is_special_python_type_constructor = True
+
     @property
-    def is_indexed_pytype(self):
+    def is_python_type_constructor(self):
         return not bool(self.template_type)
 
     def __init__(self, name, template_type=None):
-        super(SpecialIndexedPythonType, self).__init__(name, None)
+        super(SpecialPythonTypeConstructor, self).__init__(name, None)
         if (name == "typing.ClassVar" and template_type
                 and not template_type.is_pyobject):
             # because classvars end up essentially used as globals they have
@@ -4442,35 +4438,28 @@ class SpecialIndexedPythonType(IndexedPythonType):
                 template_type = (builtin_scope.lookup_type(py_type_name)
                                         or py_object_type)
             else:
-                template_type = py_object_type
-        if name == "typing.ClassVar":
-            self.is_typing_classvar = True
-        elif name == "typing.Optional":
-            self.is_typing_optional = True
-            # the constraints on optional are enforced elsewhere
-        elif name == "dataclasses.InitVar":
-            self.is_dataclasses_initvar = True
+                template_type = py_object_types
         self.template_type = template_type
 
     def __getattribute__(self, attr):
         # order of lookup is:
-        # 1. specifically overridden in this class or IndexedPythonType
+        # 1. specifically overridden in this class or PythonTypeConstructor
         # 2. template type (if it exists)
         # 3. PyrexType
-        dict_ = super(IndexedPythonType, self).__getattribute__("__dict__")
+        dict_ = super(PythonTypeConstructor, self).__getattribute__("__dict__")
         if attr in dict_:
             return dict_[attr]
-        cls = super(IndexedPythonType, self).__getattribute__("__class__")
-        while issubclass(cls, IndexedPythonType):
+        cls = super(PythonTypeConstructor, self).__getattribute__("__class__")
+        while issubclass(cls, PythonTypeConstructor):
             if attr in cls.__dict__:
-                return super(IndexedPythonType, self).__getattribute__(attr)
+                return super(PythonTypeConstructor, self).__getattribute__(attr)
             cls = cls.__base__
 
-        tt = super(IndexedPythonType, self).__getattribute__("template_type")
+        tt = super(PythonTypeConstructor, self).__getattribute__("template_type")
         if tt:
             return getattr(tt, attr)
 
-        return super(IndexedPythonType, self).__getattribute__(attr)  # fallback to looking like a PyrexType
+        return super(PythonTypeConstructor, self).__getattribute__(attr)  # fallback to looking like a PyrexType
 
     def __repr__(self):
         if self.template_type:
@@ -4487,7 +4476,7 @@ class SpecialIndexedPythonType(IndexedPythonType):
             return error_type
         if len(template_values) != 1:
             error(pos, "'%s' takes exactly one template argument." % self.name)
-        return SpecialIndexedPythonType(self.name, template_values[0])
+        return SpecialPythonTypeConstructor(self.name, template_values[0])
 
 
 rank_to_type_name = (

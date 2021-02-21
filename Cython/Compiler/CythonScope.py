@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 
-from .Symtab import ModuleScope, Entry
+from .Symtab import ModuleScope
 from .PyrexTypes import *
 from .UtilityCode import CythonUtilityCode
 from .Errors import error
@@ -187,8 +187,10 @@ _known_module_scopes = {}
 def get_known_python_import(qualified_name):
     # I don't think this is in the right place, but it isn't clear where it should be
 
+    from .StringEncoding import EncodedString
+
     qualified_name = qualified_name.split(".")
-    module_name = qualified_name[0]
+    module_name = EncodedString(qualified_name[0])
     rest = qualified_name[1:]
 
     mod = _known_module_scopes.get(module_name, None)
@@ -203,19 +205,20 @@ def get_known_python_import(qualified_name):
                              ('FrozenSet', Builtin.frozenset_type),
                              ('DefaultDict', Builtin.dict_type),
                              ('OrderedDict', Builtin.dict_type)]:
+                name = EncodedString(name)
                 if name == "Tuple":
-                    indexed_type = TupleIndexedPythonType("typing."+name, tp)
+                    indexed_type = PythonTupleTypeConstructor(EncodedString("typing."+name), tp)
                 else:
-                    indexed_type = IndexedPythonType("typing."+name, tp)
+                    indexed_type = PythonTypeConstructor(EncodedString("typing."+name), tp)
                 entry = mod.declare_type(name, indexed_type, pos = None)
             for name in ['ClassVar', 'Optional']:
-                indexed_type = SpecialIndexedPythonType("typing."+name)
+                indexed_type = SpecialPythonTypeConstructor(EncodedString("typing."+name))
                 entry = mod.declare_type(name, indexed_type, pos = None)
             _known_module_scopes[module_name] = mod
         elif module_name == "dataclasses":
             mod = ModuleScope(module_name, None, None)
-            indexed_type = SpecialIndexedPythonType("dataclasses.InitVar")
-            entry = mod.declare_type("InitVar", indexed_type, pos = None)
+            indexed_type = SpecialPythonTypeConstructor(EncodedString("dataclasses.InitVar"))
+            entry = mod.declare_type(EncodedString("InitVar"), indexed_type, pos = None)
             _known_module_scopes[module_name] = mod
 
     entry = mod

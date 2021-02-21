@@ -158,7 +158,7 @@ class Entry(object):
     # is_fused_specialized boolean Whether this entry of a cdef or def function
     #                              is a specialization
     # is_cgetter       boolean    Is a c-level getter function
-    # unambiguous_import_path     Either None (default), False (definitely can't be determined)
+    # known_standard_library_import     Either None (default), False (definitely can't be determined)
     #                             or a string of "modulename.something.attribute"
     #                             Used for identifying imports from typing/dataclasses etc
 
@@ -233,7 +233,7 @@ class Entry(object):
     cf_used = True
     outer_entry = None
     is_cgetter = False
-    unambiguous_import_path = None
+    known_standard_library_import = None
 
     def __init__(self, name, cname, type, pos = None, init = None):
         self.name = name
@@ -986,9 +986,9 @@ class Scope(object):
                     return entry.type.specialize(self.fused_to_specific)
                 return entry.type
             # allow us to find types from the "typing" module and similar
-            if i<1 and entry and entry.unambiguous_import_path:
+            if i<1 and entry and entry.known_standard_library_import:
                 from .CythonScope import get_known_python_import
-                entry = get_known_python_import(entry.unambiguous_import_path)
+                entry = get_known_python_import(entry.known_standard_library_import)
 
 
     def lookup_operator(self, operator, operands):
@@ -2230,12 +2230,13 @@ class CClassScope(ClassScope):
                     api = 0, in_pxd = 0, is_cdef = 0):
         name = self.mangle_class_private_name(name)
 
-        if type.is_typing_classvar:
+        if type.is_special_python_type_constructor and type.name == "typing.ClassVar":
             is_cdef = 0
 
-        if type.is_dataclasses_initvar and 'dataclass' not in self.directives:
-            # no real reason to ban it, but it doesn't hugely make sense
-            warning(pos, "Use of cython.dataclasses.InitVar does not make sense outside a dataclass")
+        if (type.is_special_python_type_constructor and type.name == "dataclasses.InitVar" and
+                'dataclasses.dataclass' not in self.directives):
+            import pdb; pdb.set_trace()
+            error(pos, "Use of cython.dataclasses.InitVar does not make sense outside a dataclass")
 
         if is_cdef:
             # Add an entry for an attribute.

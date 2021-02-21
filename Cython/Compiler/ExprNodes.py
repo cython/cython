@@ -1156,7 +1156,7 @@ class ExprNode(Node):
                 kwargs[attr_name] = value
         return cls(node.pos, **kwargs)
 
-    def get_unambiguous_import_path(self):
+    def get_known_standard_library_import(self):
         """
         Gets the module.path that this node was imported from.
 
@@ -2017,16 +2017,18 @@ class NameNode(AtomicExprNode):
                           "'%s' cannot be specialized since its type is not a fused argument to this function" %
                           self.name)
                     atype = error_type
-            kwds = {}
+            visibility = 'private'
             if 'dataclasses.dataclass' in env.directives:
                 # handle "frozen" directive - full inspection of the dataclass directives happens
                 # in Dataclass.py
-                frozen_directive = env.directives['dataclasses.dataclass']
-                if frozen_directive:
-                    frozen_directive = frozen_directive[1].get('frozen', None)
+                frozen_directive = None
+                dataclass_directive = env.directives['dataclasses.dataclass']
+                if dataclass_directive:
+                    dataclass_directive_kwds = dataclass_directive[1]
+                    frozen_directive = dataclass_directive_kwds.get('frozen', None)
                 is_frozen = frozen_directive and frozen_directive.is_literal and frozen_directive.value
                 if atype.is_pyobject or atype.can_coerce_to_pyobject(env):
-                    kwds = {'visibility': 'readonly' if is_frozen else 'public'}
+                    visibility = 'readonly' if is_frozen else 'public'
                     # If the object can't be coerced that's fine - we just don't create a property
             if as_target and env.is_c_class_scope and not (atype.is_pyobject or atype.is_error):
                 # TODO: this will need revising slightly if either cdef dataclasses or
@@ -2034,7 +2036,7 @@ class NameNode(AtomicExprNode):
                 atype = py_object_type
                 warning(annotation.pos, "Annotation ignored since class-level attributes must be Python objects. "
                         "Were you trying to set up an instance attribute?", 2)
-            entry = self.entry = env.declare_var(name, atype, self.pos, is_cdef=not as_target, **kwds)
+            entry = self.entry = env.declare_var(name, atype, self.pos, is_cdef=not as_target, visibility=visibility)
         # Even if the entry already exists, make sure we're supplying an annotation if we can.
         if annotation and not entry.annotation:
             entry.annotation = annotation
@@ -2047,9 +2049,9 @@ class NameNode(AtomicExprNode):
             entry = env.lookup(self.name)
         if entry and entry.as_module:
             return entry.as_module
-        if entry and entry.unambiguous_import_path:
+        if entry and entry.known_standard_library_import:
             from .CythonScope import get_known_python_import
-            entry = get_known_python_import(entry.unambiguous_import_path)
+            entry = get_known_python_import(entry.known_standard_library_import)
             if entry and entry.is_module_scope:
                 return entry
         return None
@@ -2066,9 +2068,9 @@ class NameNode(AtomicExprNode):
             entry = env.lookup(self.name)
         if entry and entry.is_type:
             return entry.type
-        elif entry and entry.unambiguous_import_path:
+        elif entry and entry.known_standard_library_import:
             from .CythonScope import get_known_python_import
-            entry = get_known_python_import(entry.unambiguous_import_path)
+            entry = get_known_python_import(entry.known_standard_library_import)
             if entry and entry.is_type:
                 return entry.type
         else:
@@ -2089,7 +2091,7 @@ class NameNode(AtomicExprNode):
         if not self.entry:
             self.entry = env.lookup_here(self.name)
         if self.entry:
-            self.entry.unambiguous_import_path = False  # already exists somewhere and so is now ambiguous
+            self.entry.known_standard_library_import = False  # already exists somewhere and so is now ambiguous
         if not self.entry and self.annotation is not None:
             # name : type = ...
             is_dataclass = 'dataclasses.dataclass' in env.directives
@@ -2592,9 +2594,9 @@ class NameNode(AtomicExprNode):
                 style, text = 'c_call', 'c function (%s)'
             code.annotate(pos, AnnotationItem(style, text % self.type, size=len(self.name)))
 
-    def get_unambiguous_import_path(self):
+    def get_known_standard_library_import(self):
         if self.entry:
-            return self.entry.unambiguous_import_path
+            return self.entry.known_standard_library_import
         return None
 
 class BackquoteNode(ExprNode):
@@ -2706,7 +2708,7 @@ class ImportNode(ExprNode):
             code.error_goto_if_null(self.result(), self.pos)))
         self.generate_gotref(code)
 
-    def get_unambiguous_import_path(self):
+    def get_known_standard_library_import(self):
         return self.module_name.value
 
 
@@ -3617,7 +3619,7 @@ class IndexNode(_IndexingBaseNode):
     def analyse_as_type(self, env):
         base_type = self.base.analyse_as_type(env)
         if base_type and not base_type.is_pyobject:
-            if base_type.is_cpp_class or base_type.is_indexed_pytype:
+            if base_type.is_cpp_class or base_type.is_python_type_constructor:
                 if isinstance(self.index, TupleNode):
                     template_values = self.index.args
                 else:
@@ -7468,9 +7470,9 @@ class AttributeNode(ExprNode):
             style, text = 'c_attr', 'c attribute (%s)'
         code.annotate(self.pos, AnnotationItem(style, text % self.type, size=len(self.attribute)))
 
-    def get_unambiguous_import_path(self):
-        if self.obj.get_unambiguous_import_path():
-            return "%s.%s" % (self.obj.get_unambiguous_import_path(), self.attribute)
+    def get_known_standard_library_import(self):
+        if self.obj.get_known_standard_library_import():
+            return "%s.%s" % (self.obj.get_known_standard_library_import(), self.attribute)
         return None
 
 

@@ -18,9 +18,9 @@ def make_dataclasses_module_callnode(pos):
     loader_utilitycode = TempitaUtilityCode.load_cached("SpecificModuleLoader", "Dataclasses.c",
             context={'cname': "dataclasses", 'py_code': python_utility_code.as_c_string_literal()})
     return ExprNodes.PythonCapiCallNode(pos, "__Pyx_Load_dataclasses_Module",
-                                PyrexTypes.CFuncType(PyrexTypes.py_object_type, []),
-                                utility_code = loader_utilitycode,
-                                args=[])
+                                            PyrexTypes.CFuncType(PyrexTypes.py_object_type, []),
+                                            utility_code = loader_utilitycode,
+                                            args=[])
 
 _INTERNAL_DEFAULTSHOLDER_NAME = EncodedString('__pyx_dataclass_defaults')
 
@@ -115,7 +115,8 @@ def process_class_get_fields(node):
         fields = OrderedDict()
     for entry in var_entries:
         name = entry.name
-        is_initvar = entry.type.is_dataclasses_initvar
+        is_initvar = (entry.type.is_special_python_type_constructor and
+                        entry.type.name == "dataclasses.InitVar")
         if name in transform.removed_assignments:
             assignment = transform.removed_assignments[name]
             if (isinstance(assignment, ExprNodes.CallNode)
@@ -142,9 +143,7 @@ def process_class_get_fields(node):
                             or (isinstance(func, ExprNodes.AttributeNode)
                                 and func.attribute == "field")):
                         warning(assignment.pos, "Do you mean cython.dataclasses.field instead?", 1)
-                if assignment.type in [Builtin.list_type,
-                                    Builtin.dict_type,
-                                    Builtin.set_type]:
+                if assignment.type in [Builtin.list_type, Builtin.dict_type, Builtin.set_type]:
                     # The standard library module generates a TypeError at runtime
                     # in this situation
                     error(assignment.pos, "Mutable default passed argument for '{0}' - "
@@ -206,13 +205,25 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
                                stats=[dataclass_params_assignment]
                                     + dataclass_fields_stats)
 
-    init_stats = generate_init_code(kwargs['init'], node, fields)
-    repr_stats = generate_repr_code(kwargs['repr'], node, fields)
-    eq_stats = generate_eq_code(kwargs['eq'], node, fields)
-    order_stats = generate_order_code(kwargs['order'], node, fields)
-    hash_stats = generate_hash_code(kwargs['unsafe_hash'], kwargs['eq'], kwargs['frozen'], node, fields)
+    code_lines = []
+    placeholders = {}
+    extra_stats = []
+    for cl, ph, es in [ generate_init_code(kwargs['init'], node, fields),
+                        generate_repr_code(kwargs['repr'], node, fields),
+                        generate_eq_code(kwargs['eq'], node, fields),
+                        generate_order_code(kwargs['order'], node, fields),
+                        generate_hash_code(kwargs['unsafe_hash'], kwargs['eq'], kwargs['frozen'], node, fields) ]:
+        code_lines.append(cl)
+        placeholders.update(ph)
+        extra_stats.extend(extra_stats)
 
-    stats.stats = stats.stats + init_stats + repr_stats + eq_stats + order_stats + hash_stats
+    code_lines = "\n".join(code_lines)
+    code_tree = TreeFragment(code_lines, level='c_class',
+                             pipeline=[NormalizeTree(node.scope),
+                                       ]
+                              ).substitute(placeholders)
+
+    stats.stats = stats.stats + code_tree.stats + extra_stats
 
     # turn off annotation typing, so all arguments to __init__ are accepted as
     # generic objects and thus can accept _HAS_DEFAULT_FACTORY
@@ -231,8 +242,15 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     node.body.stats.append(comp_directives)
 
 def generate_init_code(init, node, fields):
+    """
+    All of these "generate_*_code functions return a tuple of:
+     code string
+     placeholder dict (often empty)
+     stat list (often empty)
+    which can then be combined later and processed once
+    """
     if not init or node.scope.lookup_here("__init__"):
-        return []
+        return "", {}, []
     # selfname behaviour copied from the cpython module
     selfname = "__dataclass_self__" if "self" in fields else "self"
     args = [selfname]
@@ -248,7 +266,7 @@ def generate_init_code(init, node, fields):
 
     def get_placeholder_name():
         while True:
-            name = "PLACEHOLDER_%s" % placeholder_count[0]
+            name = "INIT_PLACEHOLDER_%s" % placeholder_count[0]
             if (name not in placeholders
                     and name not in fields):
                 # make sure name isn't already used and doesn't
@@ -282,7 +300,7 @@ def generate_init_code(init, node, fields):
         elif seen_default:
             error(entry.pos, ("non-default argument %s follows default argument "
                              "in dataclass __init__") % name)
-            return []
+            return "", {}, []
 
         args.append(u"%s%s%s" % (name, annotation, assignment))
     args = u", ".join(args)
@@ -317,17 +335,12 @@ def generate_init_code(init, node, fields):
         code_lines.append("    %s.__post_init__(%s)" % (selfname, post_init_vars))
     code_lines = u"\n".join(code_lines)
 
-    code_tree = TreeFragment(code_lines, level='c_class',
-                             pipeline=[NormalizeTree(node.scope),
-                                       ]
-                              ).substitute(placeholders)
-
-    return code_tree.stats
+    return code_lines, placeholders, []
 
 
 def generate_repr_code(repr, node, fields):
     if not repr or node.scope.lookup("__repr__"):
-        return []
+        return "", {}, []
     code_lines = ["def __repr__(self):"]
     strs = [ u"%s={self.%s}" % (name, name)
             for name, field in fields.items() if field.repr.value and not field.is_initvar ]
@@ -335,20 +348,17 @@ def generate_repr_code(repr, node, fields):
     code_lines.append(u"    return f'{type(self).__name__}(%s)'" % format_string)
     code_lines = u"\n".join(code_lines)
 
-    code_tree = TreeFragment(code_lines,
-                              level='c_class', pipeline=[NormalizeTree(None)]
-                              ).substitute({})
-    return code_tree.stats
+    return code_lines, {}, []
 
 def generate_cmp_code(op, funcname, node, fields):
     if node.scope.lookup_here(funcname):
-        return []  # already exists
+        return "", {}, []
 
     names = [ name for name, field in fields.items()
                 if (field.compare.value and not field.is_initvar) ]
 
     if not names:
-        return []  # no comparable types
+        return "", {}, []  # no comparable types
 
     code_lines = ["def %s(self, other):" % funcname,
                   "    cdef %s other_cast" % node.class_name,
@@ -372,26 +382,28 @@ def generate_cmp_code(op, funcname, node, fields):
 
     code_lines = u"\n".join(code_lines)
 
-    code_tree = TreeFragment(code_lines,
-                              level='c_class', pipeline=[NormalizeTree(None)]
-                              ).substitute({})
-    return code_tree.stats
+    return code_lines, {}, []
 
 def generate_eq_code(eq, node, fields):
     if not eq:
-        return []
+        return code_lines, {}, []
     return generate_cmp_code("==", "__eq__", node, fields)
 
 def generate_order_code(order, node, fields):
     if not order:
-        return []
+        return "", {}, []
+    code_lines = []
+    placeholders = {}
     stats = []
     for op, name in [("<", "__lt__"),
                      ("<=", "__le__"),
                      (">", "__gt__"),
                      (">=", "__ge__")]:
-        stats.extend(generate_cmp_code(op, name, node, fields))
-    return stats
+        res = generate_cmp_code(op, name, node, fields)
+        code_lines.append(res[0])
+        placeholders.update(res[1])
+        stats.extend(res[2])
+    return "\n".join(code_lines), placeholders, stats
 
 def generate_hash_code(unsafe_hash, eq, frozen, node, fields):
     hash_entry = node.scope.lookup_here("__hash__")
@@ -401,20 +413,20 @@ def generate_hash_code(unsafe_hash, eq, frozen, node, fields):
         if unsafe_hash:
             error(node.pos, "Request for dataclass unsafe_hash when a '__hash__' function"
                   " already exists")
-        return []
+        return "", {}, []
     if not unsafe_hash:
         if eq and not frozen:
-            return [Nodes.SingleAssignmentNode(node.pos,
+            return "", {}, [Nodes.SingleAssignmentNode(node.pos,
                                         lhs = ExprNodes.NameNode(node.pos, name=EncodedString("__hash__")),
                                         rhs = ExprNodes.NoneNode(node.pos))]
         if not eq:
-            return []
+            return
 
     names = [ name for name, field in fields.items()
                 if (not field.is_initvar and
                     (field.compare.value if field.hash.value is None else field.hash.value)) ]
     if not names:
-        return []  # nothing to hash
+        return "", {}, []  # nothing to hash
 
     # make a tuple of the hashes
     tpl = u", ".join(u"hash(self.%s)" % name for name in names )
@@ -423,10 +435,8 @@ def generate_hash_code(unsafe_hash, eq, frozen, node, fields):
     code_lines = u"""def __hash__(self):
     return hash((%s))
 """ % tpl
-    code_tree = TreeFragment(code_lines,
-                              level='c_class', pipeline=[NormalizeTree(None)]
-                              ).substitute({})
-    return code_tree.stats
+
+    return code_lines, {}, []
 
 
 class GetTypeNode(ExprNodes.ExprNode):
@@ -455,16 +465,9 @@ class GetTypeNode(ExprNodes.ExprNode):
                 for name in names:
                     name = EncodedString(name)
                     nn = ExprNodes.NameNode(self.pos, name=name)
-                    # try to set the entry now to prevent the user accidentally shadowing
-                    # the name
-                    nn.entry = env.builtin_scope().lookup(name)
-                    if not nn.entry:
-                        try:
-                            nn.entry = env.declare_builtin(name, self.pos)
-                        except:
-                            pass  # not convinced a failure means much
+                    nn = nn.analyse_types(env)
                     if nn.entry:
-                        return nn.analyse_types(env)
+                        return nn
 
         # otherwise we're left to return a string
         s = self.entry.annotation.string.value if self.entry.annotation else None
