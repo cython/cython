@@ -1056,7 +1056,7 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
                     else:
                         scope = None
                         break
-                if scope is None and len(self.module_path)==1:
+                if scope is None and len(self.module_path) == 1:
                     # (may be possible to handle longer module paths?)
                     # TODO: probably not the best place to declare it?
                     from .CythonScope import get_known_python_import
@@ -1199,7 +1199,7 @@ class TemplatedTypeNode(CBaseTypeNode):
                     if type is None and base_type.is_cpp_class:
                         error(template_node.pos, "unknown type in template argument")
                         type = error_type
-                    # for indexed_ed_pytype we can be a bit more flexible and pass None
+                    # for indexed_pytype we can be a bit more flexible and pass None
                     template_types.append(type)
                 self.type = base_type.specialize_here(self.pos, env, template_types)
 

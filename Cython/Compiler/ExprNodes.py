@@ -1158,10 +1158,11 @@ class ExprNode(Node):
 
     def get_unambiguous_import_path(self):
         """
-        Gets the module.path that this node was imported from
+        Gets the module.path that this node was imported from.
 
-        Many nodes do not have one, or it is not unambiguous, in which case
-        this function returns a false value"""
+        Many nodes do not have one, or it is ambiguous, in which case
+        this function returns a false value.
+        """
         return None
 
 
