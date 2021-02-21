@@ -32,6 +32,9 @@ Features added
 * More comprehensive support understanding ``typing`` module
   annotations (Github issue #3910)
 
+* ``cdef classes`` can be made ``dataclasses`` using the ``@cython.dataclasses.dataclass``
+  decorator (Github issue #3400)
+
 Bugs fixed
 ----------
 
