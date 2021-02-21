@@ -24,6 +24,12 @@ TestClass().test_func()
 
 ############### cpp_exc.pxd ###################
 
+cdef extern from *:
+    """
+    void cppfunc() {}
+    """
+    void cppfunc() except +
+
 cdef inline void handle_exception():
     pass
 
@@ -35,4 +41,5 @@ cdef class TestClass:
 
 cdef class TestClass:
     cpdef test_func(self) except +handle_exception:
+        cppfunc()  # GH 3064 - cppfunc caused invalid code to be generated with +handle_exception
         print('test')

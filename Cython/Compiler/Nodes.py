@@ -2789,8 +2789,9 @@ class CFuncDefNode(FuncDefNode):
         if self.return_type.is_pyobject:
             return "0"
         else:
-            #return None
-            return self.entry.type.exception_value
+            # protect against the corner-case where the user has specified a c++ translation function
+            if not isinstance(self.entry.type.exception_value, Node):
+                return self.entry.type.exception_value
 
     def caller_will_check_exceptions(self):
         return self.entry.type.exception_check
