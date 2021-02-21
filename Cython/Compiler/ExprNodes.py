@@ -1158,10 +1158,11 @@ class ExprNode(Node):
 
     def get_unambiguous_import_path(self):
         """
-        Gets the module.path that this node was imported from
+        Gets the module.path that this node was imported from.
 
-        Many nodes do not have one, or it is not unambiguous, in which case
-        this function returns a false value"""
+        Many nodes do not have one, or it is ambiguous, in which case
+        this function returns a false value.
+        """
         return None
 
 
@@ -9836,7 +9837,7 @@ class LambdaNode(InnerFunctionNode):
 
     def analyse_declarations(self, env):
         if hasattr(self, "lambda_name"):
-            # this if statement makes it safe to run twice
+            # this if-statement makes it safe to run twice
             return
         self.lambda_name = self.def_node.lambda_name = env.next_id('lambda')
         self.def_node.no_assignment_synthesis = True
@@ -9868,7 +9869,7 @@ class GeneratorExpressionNode(LambdaNode):
 
     def analyse_declarations(self, env):
         if hasattr(self, "genexpr_name"):
-            # this if statement makes it safe to run twice
+            # this if-statement makes it safe to run twice
             return
         self.genexpr_name = env.next_id('genexpr')
         super(GeneratorExpressionNode, self).analyse_declarations(env)

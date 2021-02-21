@@ -56,7 +56,7 @@ class RemoveAssignments(VisitorTransform, SkipDeclarations):
         self.visitchildren(node)
         return node
 
-class _MISSING_TYPE:
+class _MISSING_TYPE(object):
     pass
 MISSING = _MISSING_TYPE()
 
@@ -210,8 +210,7 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     repr_stats = generate_repr_code(kwargs['repr'], node, fields)
     eq_stats = generate_eq_code(kwargs['eq'], node, fields)
     order_stats = generate_order_code(kwargs['order'], node, fields)
-    hash_stats = generate_hash_code(kwargs['unsafe_hash'], kwargs['eq'], kwargs['frozen'],
-                       node, fields)
+    hash_stats = generate_hash_code(kwargs['unsafe_hash'], kwargs['eq'], kwargs['frozen'], node, fields)
 
     stats.stats = stats.stats + init_stats + repr_stats + eq_stats + order_stats + hash_stats
 
@@ -219,7 +218,7 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     # generic objects and thus can accept _HAS_DEFAULT_FACTORY
     # type conversion comes later
     comp_directives = Nodes.CompilerDirectivesNode(node.pos,
-        directives = node.scope.directives.copy(),
+        directives=node.scope.directives.copy(),
         body=stats)
     comp_directives.directives['annotation_typing'] = False
 
@@ -244,8 +243,8 @@ def generate_init_code(init, node, fields):
     # create a temp to get _HAS_DEFAULT_FACTORY
     dataclass_module = make_dataclasses_module_callnode(node.pos)
     has_default_factory = ExprNodes.AttributeNode(node.pos,
-                                        obj = dataclass_module,
-                                        attribute = EncodedString("_HAS_DEFAULT_FACTORY"))
+        obj=dataclass_module,
+        attribute=EncodedString("_HAS_DEFAULT_FACTORY"))
 
     def get_placeholder_name():
         while True:
@@ -444,15 +443,14 @@ class GetTypeNode(ExprNodes.ExprNode):
         type = self.entry.type
 
         if type.is_extension_type or type.is_builtin_type:
-            return ExprNodes.RawCNameExprNode(self.pos, Builtin.type_type,
-                                                type.typeptr_cname).analyse_types(env)
+            return ExprNodes.RawCNameExprNode(
+                self.pos, Builtin.type_type, type.typeptr_cname).analyse_types(env)
         else:
             names = None
             py_name = type.py_type_name()
             # int types can return "(int, long)"
             if py_name:
-                names = py_name.split(",")
-                names = [ n.strip("() ") for n in names ]
+                names = [ name.strip("() ") for name in py_name.split(",") ]
             if names:
                 for name in names:
                     name = EncodedString(name)
@@ -530,9 +528,9 @@ def _set_up_dataclass_fields(node, fields, dataclass_module):
                 # the variable as a module-level constant
                 continue
             global_scope = node.scope.global_scope()
-            module_field_name = global_scope.mangle(global_scope.mangle(
-                                    Naming.dataclass_field_default_cname,
-                                    node.class_name), name)
+            module_field_name = global_scope.mangle(
+                global_scope.mangle(Naming.dataclass_field_default_cname, node.class_name),
+                name)
             # create an entry in the global scope for this variable to live
             nn = NameNode(f_def.pos, name=EncodedString(module_field_name))
             nn.entry = global_scope.declare_var(nn.name, type=f_def.type or PyrexTypes.unspecified_type,

@@ -29,11 +29,8 @@ static PyObject* __Pyx_LoadInternalModule(const char* name, const char* fallback
     module = PyImport_ImportModule(name);
     if (!module) {
         PyObject *localDict, *runValue, *builtins, *modulename;
-        if (PyErr_ExceptionMatches(PyExc_ImportError)) {
-            PyErr_Clear();  // this is reasonably likely (especially on older versions of Python)
-        } else {
-            goto bad;
-        }
+        if (!PyErr_ExceptionMatches(PyExc_ImportError)) goto bad;
+        PyErr_Clear();  // this is reasonably likely (especially on older versions of Python)
         modulename = PyBytes_FromFormat("_cython_" CYTHON_ABI ".%s", name);
         if (!modulename) goto bad;
 #if PY_MAJOR_VERSION >= 3 && CYTHON_COMPILING_IN_CPYTHON

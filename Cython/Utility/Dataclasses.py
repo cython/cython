@@ -13,7 +13,7 @@ except ImportError:
     # mutable fallback if unavailable
     MappingProxyType = lambda x: x
 
-class _MISSING_TYPE:
+class _MISSING_TYPE(object):
     pass
 MISSING = _MISSING_TYPE()
 

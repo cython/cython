@@ -1075,7 +1075,7 @@ class InterpretCompilerDirectives(CythonTransform):
             for rd in realdecs:
                 rd = rd.decorator
                 if ((rd.is_name and rd.name == "dataclass")
-                        or (isinstance(rd, ExprNodes.AttributeNode) and rd.attribute=="dataclass")):
+                        or (isinstance(rd, ExprNodes.AttributeNode) and rd.attribute == "dataclass")):
                     error(rd.pos,
                           "Use '@cython.dataclasses.dataclass' on cdef classes to create a dataclass")
             raise PostParseError(realdecs[0].pos, "Cdef functions/classes cannot take arbitrary decorators.")
@@ -3283,8 +3283,8 @@ class TransformBuiltinMethods(EnvTransform):
             elif function == u'dataclass':
                 from .Dataclass import make_dataclass_module_callnode
                 dataclass_module = make_dataclass_module_callnode(node.pos)
-                node.function = ExprNodes.AttributeNode(node.pos, obj=dataclass_module,
-                                               attribute=EncodedString(function))
+                node.function = ExprNodes.AttributeNode(
+                    node.pos, obj=dataclass_module, attribute=EncodedString(function))
             elif self.context.cython_scope.lookup_qualified_name(function):
                 pass
             else:

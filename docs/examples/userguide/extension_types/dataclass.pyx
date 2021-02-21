@@ -1,7 +1,7 @@
 cimport cython
 try:
-    import dataclasses
     import typing
+    import dataclasses
 except ImportError:
     pass  # The modules don't actually have to exists for Cython to use them as annotations
 
