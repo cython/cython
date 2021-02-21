@@ -1156,7 +1156,7 @@ class ExprNode(Node):
                 kwargs[attr_name] = value
         return cls(node.pos, **kwargs)
 
-    def get_unambiguous_import_path(self):
+    def get_known_standard_library_import(self):
         """
         Gets the module.path that this node was imported from.
 
@@ -2017,6 +2017,7 @@ class NameNode(AtomicExprNode):
                           "'%s' cannot be specialized since its type is not a fused argument to this function" %
                           self.name)
                     atype = error_type
+
             if as_target and env.is_c_class_scope and not (atype.is_pyobject or atype.is_error):
                 # TODO: this will need revising slightly if either cdef dataclasses or
                 # annotated cdef attributes are implemented
@@ -2036,9 +2037,9 @@ class NameNode(AtomicExprNode):
             entry = env.lookup(self.name)
         if entry and entry.as_module:
             return entry.as_module
-        if entry and entry.unambiguous_import_path:
+        if entry and entry.known_standard_library_import:
             from .CythonScope import get_known_python_import
-            entry = get_known_python_import(entry.unambiguous_import_path)
+            entry = get_known_python_import(entry.known_standard_library_import)
             if entry and entry.is_module_scope:
                 return entry
         return None
@@ -2055,9 +2056,9 @@ class NameNode(AtomicExprNode):
             entry = env.lookup(self.name)
         if entry and entry.is_type:
             return entry.type
-        elif entry and entry.unambiguous_import_path:
+        elif entry and entry.known_standard_library_import:
             from .CythonScope import get_known_python_import
-            entry = get_known_python_import(entry.unambiguous_import_path)
+            entry = get_known_python_import(entry.known_standard_library_import)
             if entry and entry.is_type:
                 return entry.type
         else:
@@ -2078,7 +2079,7 @@ class NameNode(AtomicExprNode):
         if not self.entry:
             self.entry = env.lookup_here(self.name)
         if self.entry:
-            self.entry.unambiguous_import_path = False  # already exists somewhere and so is now ambiguous
+            self.entry.known_standard_library_import = False  # already exists somewhere and so is now ambiguous
         if not self.entry and self.annotation is not None:
             # name : type = ...
             self.declare_from_annotation(env, as_target=True)
@@ -2578,9 +2579,9 @@ class NameNode(AtomicExprNode):
                 style, text = 'c_call', 'c function (%s)'
             code.annotate(pos, AnnotationItem(style, text % self.type, size=len(self.name)))
 
-    def get_unambiguous_import_path(self):
+    def get_known_standard_library_import(self):
         if self.entry:
-            return self.entry.unambiguous_import_path
+            return self.entry.known_standard_library_import
         return None
 
 class BackquoteNode(ExprNode):
@@ -2692,7 +2693,7 @@ class ImportNode(ExprNode):
             code.error_goto_if_null(self.result(), self.pos)))
         self.generate_gotref(code)
 
-    def get_unambiguous_import_path(self):
+    def get_known_standard_library_import(self):
         return self.module_name.value
 
 
@@ -3603,7 +3604,7 @@ class IndexNode(_IndexingBaseNode):
     def analyse_as_type(self, env):
         base_type = self.base.analyse_as_type(env)
         if base_type and not base_type.is_pyobject:
-            if base_type.is_cpp_class or base_type.is_indexed_pytype:
+            if base_type.is_cpp_class or base_type.is_python_type_constructor:
                 if isinstance(self.index, TupleNode):
                     template_values = self.index.args
                 else:
@@ -7454,9 +7455,9 @@ class AttributeNode(ExprNode):
             style, text = 'c_attr', 'c attribute (%s)'
         code.annotate(self.pos, AnnotationItem(style, text % self.type, size=len(self.attribute)))
 
-    def get_unambiguous_import_path(self):
-        if self.obj.get_unambiguous_import_path():
-            return "%s.%s" % (self.obj.get_unambiguous_import_path(), self.attribute)
+    def get_known_standard_library_import(self):
+        if self.obj.get_known_standard_library_import():
+            return "%s.%s" % (self.obj.get_known_standard_library_import(), self.attribute)
         return None
 
 

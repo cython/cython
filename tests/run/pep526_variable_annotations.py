@@ -10,7 +10,7 @@ try:
     import typing
     from typing import Set as _SET_
     from typing import ClassVar
-except:
+except ImportError:
     pass  # this should allow Cython to interpret the directives even when the module doesn't exist
 
 
