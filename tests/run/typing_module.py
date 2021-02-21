@@ -1,5 +1,5 @@
 # mode: run
-# tag: pure3.5
+# tag: pure3.6
 
 from __future__ import print_function
 
