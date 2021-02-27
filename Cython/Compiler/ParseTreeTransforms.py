@@ -1384,7 +1384,7 @@ class _IdentifyPropertiesTransform(ScopeTrackingTransform, SkipDeclarations):
             if decorator.is_name and decorator.name == 'property':
                 if len(node.decorators) > 1:
                     return self._reject_decorated_property(node, decorator_node, is_cfunction)
-                name = node.name
+                name = node.declared_name() if is_cfunction else node.name
                 if name in self.cant_be_properties:
                     return  # we've already eliminated it from consideration
                 prop = self.properties.setdefault(name, {})
