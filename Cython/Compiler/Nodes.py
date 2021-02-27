@@ -5127,6 +5127,10 @@ class CClassDefNode(ClassDefNode):
             scope.doc = embed_position(self.pos, self.doc)
 
         if has_body:
+            properties = {}
+            for stat in getattr(self.body, 'stats', []):
+                if isinstance(stat, FuncDefNode):
+                    stat._properties = properties  # deliberately shared between them
             self.body.analyse_declarations(scope)
             dict_entry = self.scope.lookup_here("__dict__")
             if dict_entry and dict_entry.is_variable and (not scope.defined and not scope.implemented):
@@ -5136,6 +5140,11 @@ class CClassDefNode(ClassDefNode):
                 scope.defined = 1
             else:
                 scope.implemented = 1
+            for stat in getattr(self.body, 'stats', []):
+                if isinstance(stat, FuncDefNode):
+                    del stat._properties
+            for prop in properties.values():
+                prop.analyse_declarations(scope)
 
         if len(self.bases.args) > 1:
             if not has_body or self.in_pxd:
@@ -5420,6 +5429,7 @@ class PropertyNode(StatNode):
     #  body   StatListNode
 
     child_attrs = ["body"]
+    created_from_decorator = 0  # just used in a deprecation warning
 
     def analyse_declarations(self, env):
         self.entry = env.declare_property(self.name, self.doc, self.pos)
