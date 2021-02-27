@@ -1379,12 +1379,12 @@ class _IdentifyPropertiesTransform(ScopeTrackingTransform, SkipDeclarations):
 
     def _find_property_decorator(self, node, is_cfunction):
         # at this stage the nodes are visited in the order they're defined
+        name = node.declared_name() if is_cfunction else node.name
         for decorator_node in node.decorators[::-1]:
             decorator = decorator_node.decorator
             if decorator.is_name and decorator.name == 'property':
                 if len(node.decorators) > 1:
                     return self._reject_decorated_property(node, decorator_node, is_cfunction)
-                name = node.declared_name() if is_cfunction else node.name
                 if name in self.cant_be_properties:
                     return  # we've already eliminated it from consideration
                 prop = self.properties.setdefault(name, {})
@@ -1402,27 +1402,28 @@ class _IdentifyPropertiesTransform(ScopeTrackingTransform, SkipDeclarations):
                 if len(node.decorators) > 1:
                     return self._reject_decorated_property(node, decorator_node, is_cfunction)
                 prop = self.properties[decorator.obj.name]
-                if decorator.obj.name != node.name:
+                if decorator.obj.name != name:
                     # CPython does not generate an error or warning.
                     # We follow the slightly CPython behaviour but generate a warning
                     # since it's odd and rarely what's desired
                     warning(decorator_node.pos,
                               "Mismatching property names, expected '%s', got '%s'" % (
-                                  decorator.obj.name, node.name))
+                                  decorator.obj.name, name))
                     prop = copy.deepcopy(prop)
                 if decorator.attribute in prop:
                     prop.setdefault('overridden', []).append(prop[decorator.attribute])
                 prop[decorator.attribute] = node
-                self.properties[node.name] = prop
+                self.properties[name] = prop
 
     def _reject_decorated_property(self, node, decorator_node, is_cfunction):
-        self.cant_be_properties.add(node.name)
-        self.properties.pop(node.name, None)
+        name = node.declared_name() if is_cfunction else node.name
+        self.cant_be_properties.add(name)
+        self.properties.pop(name, None)
         # restrict transformation to outermost decorator as wrapped properties will probably not work
         for deco in node.decorators:
             if deco != decorator_node:
                 if is_cfunction:
-                    error(dec.pos, "Property methods with additional decorators are not supported"
+                    error(deco.pos, "Property methods with additional decorators are not supported "
                             "for cdef functions")
                 else:
                     # no longer an error - they are handled just using "property" as a function
@@ -1475,6 +1476,9 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
             warning(node.pos, "'property %s:' syntax is deprecated, use '@property'" % node.name, level)
         return node
 
+    def visit_CPropertyNode(self, node):
+        return node  # don't analyse further to avoid eliminating the CFuncDefNode inside the property
+
     def visit_DefNode(self, node):
         scope_type = self.scope_type
         node = self.visit_FuncDefNode(node)
@@ -1516,13 +1520,14 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
             self._properties_node_sets[-1].add(overridden_node)
 
         getter_node = property_dict['getter']
-        is_cproperty = isinstance(node, Nodes.CFuncDefNode)
+        is_cproperty = isinstance(getter_node, Nodes.CFuncDefNode)
 
         if is_cproperty:
             body = Nodes.StatListNode(getter_node.pos, stats=[getter_node])
-            if 'inline' not in node.modifiers:
-                error(node.pos, "C property method must be declared 'inline'")
-            prop = Nodes.CPropertyNode(getter_node.pos, doc=node.doc, name=name, body=body)
+            if 'inline' not in getter_node.modifiers:
+                error(getter_node.pos, "C property method must be declared 'inline'")
+            prop = Nodes.CPropertyNode(getter_node.pos, doc=getter_node.doc, name=name, body=body)
+            self._properties_node_sets[-1].add(getter_node)
         else:
             prop = Nodes.PropertyNode(getter_node.pos, name=name)
             prop.created_from_decorator = True
@@ -1535,7 +1540,7 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
                 def_node.name = self._map_property_attribute(property_type)
                 prop.body.stats.append(def_node)
                 def_node.decorators = None
-            node.body.stats.append(prop)
+        node.body.stats.append(prop)
 
     @staticmethod
     def chain_decorators(node, decorators, name):
