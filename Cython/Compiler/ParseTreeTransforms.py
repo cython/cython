@@ -1462,7 +1462,7 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
         properties = id_props_transform.properties
         self._properties_node_sets.append(set())
         for name, property_dict in properties.items():
-            self._add_property(name, property_dict)
+            self._add_property(node, name, property_dict)
 
         node = super(DecoratorTransform, self).visit_CClassDefNode(node)
         self._properties_node_sets.pop()
@@ -1510,23 +1510,23 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
             return []  # drop the node from the cclass
         return node
 
-    def _add_property(self, name, property_dict):
+    def _add_property(self, node, name, property_dict):
         for overridden_node in property_dict.pop('overridden', []):
             # so that the node can correctly be replaced by nothing
             self._properties_node_sets[-1].add(overridden_node)
 
-        node = property_dict['getter']
+        getter_node = property_dict['getter']
         is_cproperty = isinstance(node, Nodes.CFuncDefNode)
 
         if is_cproperty:
-            body = Nodes.StatListNode(node.pos, stats=[node])
+            body = Nodes.StatListNode(getter_node.pos, stats=[getter_node])
             if 'inline' not in node.modifiers:
                 error(node.pos, "C property method must be declared 'inline'")
-            prop = Nodes.CPropertyNode(node.pos, doc=node.doc, name=name, body=body)
+            prop = Nodes.CPropertyNode(getter_node.pos, doc=node.doc, name=name, body=body)
         else:
-            prop = Nodes.PropertyNode(node.pos, name=name)
+            prop = Nodes.PropertyNode(getter_node.pos, name=name)
             prop.created_from_decorator = True
-            prop.body = Nodes.StatListNode(node.pos, stats=[])
+            prop.body = Nodes.StatListNode(getter_node.pos, stats=[])
 
             for property_type, def_node in property_dict.items():
                 if property_type == "getter":
