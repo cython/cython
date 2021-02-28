@@ -3011,8 +3011,9 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             )
     def _handle_any_slot__class__(self, node, function, args,
                                 is_unbound_method, kwargs=None):
-        # This could possible be optimized more, but the main thing is to
-        # handle it so it doesn't make it into the __Pyx_CallUnboundCMethod0 mechanism
+        # The purpose of this function is to handle calls to instance.__class__() so that
+        # it doesn't get handled by the __Pyx_CallUnboundCMethod0 mechanism.
+        # TODO: optimizations of the instance.__class__() call might be possible in future.
         return node
 
     ### methods of builtin types
