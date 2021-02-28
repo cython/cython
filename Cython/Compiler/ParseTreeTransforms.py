@@ -1502,8 +1502,34 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
             stats.append(node)
         return None
 
-    @staticmethod
-    def chain_decorators(node, decorators, name, use_as_stat0=None, is_fused_specialization=False):
+    class _NotBuiltinSimpleCallNode(ExprNodes.SimpleCallNode):
+        """
+        class used in "chain_decorators" only to selectively eliminate classmethod/staticmethod
+
+        For fused functions classmethod and staticmethod innermost decorators should not
+        end up evaluated when they are just the builtin since it blocks things like indexing.
+        This wrapper class detects that.
+        """
+        # wrapped_node     FuncDefNode
+
+        def analyse_types(self, env):
+            builtin_classstaticmethod = False
+            function = self.function.expression
+            if self.wrapped_node.has_fused_arguments and function.is_name:
+                if function.name == "classmethod":
+                    cm_entry = env.lookup('classmethod')
+                    if not cm_entry or cm_entry.cname == "__Pyx_Method_ClassMethod":
+                        builtin_classstaticmethod = True
+                elif function.name == "staticmethod":
+                    sm_entry = env.lookup('staticmethod')
+                    if not sm_entry or sm_entry.is_builtin:
+                        builtin_classstaticmethod = True
+            if builtin_classstaticmethod:
+                return self.args[0].analyse_types(env)
+            return super(DecoratorTransform._NotBuiltinSimpleCallNode, self).analyse_types(env)
+
+    @classmethod
+    def chain_decorators(cls, node, decorators, name, use_as_stat0=None):
         """
         Decorators are applied directly in DefNode and PyClassDefNode to avoid
         reassignments to the function/class name - except for cdef class methods.
@@ -1523,26 +1549,6 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
         if not use_as_stat0:
             use_as_stat0 = node
 
-        class NotBuiltinSimpleCallNode(ExprNodes.SimpleCallNode):
-            # for fused functions classmethod and staticmethod innermost decorators should not
-            # end up evaluated when they are just the builtin since it blocks things like indexing.
-            # This wrapper class detects that.
-            def analyse_types(self, env):
-                builtin_classstaticmethod = False
-                function = self.function.expression
-                fused = node.has_fused_arguments or is_fused_specialization
-                if node.has_fused_arguments and function.is_name and function.name == "classmethod":
-                    cm_entry = env.lookup('classmethod')
-                    if not cm_entry or cm_entry.cname == "__Pyx_Method_ClassMethod":
-                        builtin_classstaticmethod = True
-                elif node.has_fused_arguments and function.is_name and function.name == "staticmethod":
-                    sm_entry = env.lookup('staticmethod')
-                    if not sm_entry or sm_entry.is_builtin:
-                        builtin_classstaticmethod = True
-                if builtin_classstaticmethod:
-                    return self.args[0].analyse_types(env)
-                return super(NotBuiltinSimpleCallNode, self).analyse_types(env)
-
         # TODO a couple of issues:
         #  1. Any kind of arbitrary decorator on a fused node (including staticmethod/classmethod
         #     when not innermost) will probably hide the indexing - should this be warned about
@@ -1556,12 +1562,14 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
 
         decorator_result = ExprNodes.NameNode(node.pos, name=name)
         for n, decorator in enumerate(decorators[::-1]):
-            cls = NotBuiltinSimpleCallNode if n==0 else ExprNodes.SimpleCallNode
+            NodeCls = cls._NotBuiltinSimpleCallNode if n==0 else ExprNodes.SimpleCallNode
 
-            decorator_result = cls(
+            decorator_result = NodeCls(
                 decorator.pos,
                 function=decorator,
                 args=[decorator_result])
+            if n==0:
+                decorator_result.wrapped_node = node
 
         reassignment = Nodes.SingleAssignmentNode(
             node.pos,
@@ -1926,8 +1934,7 @@ if VALUE is not None:
             dummy_node.child_attrs = []  # this feels hacky
             reassignments = transform.chain_decorators(
                 def_node, decorators, def_node.name,
-                use_as_stat0=dummy_node,
-                is_fused_specialization=True)
+                use_as_stat0=dummy_node)
             reassignments.analyse_declarations(env)
 
             # replace the dummy_node after analysis to avoid node being analysed unnecessarily
