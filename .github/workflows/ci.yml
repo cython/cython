@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches:
+      - master
+      - 0.29.x
+
+jobs:
+  CI:
+    name: (${{ matrix.python-version }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        os: ["ubuntu-latest", "macos-latest"]
+        python-version: [3.6, 3.7, 3.8, 3.9]
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - uses: conda-incubator/setup-miniconda@v2
+      with:
+        auto-update-conda: true
+        python-version: ${{ matrix.python-version }}
+
+    - name: Conda info
+      shell: bash -l {0}
+      run: conda info
+
+    - name: Install Test Requirements
+      shell: bash -l {0}
+      run: pip install -f test-requirements.txt test-requirements-cpython.txt
+
+    - name: Build Cython
+      shell: bash -l {0}
+      run: python setup.py build_ext -i -j2
+      env:
+        CFLAGS: "-O2 -ggdb -Wall -Wextra"
+
+    - name: Run Test
+      shell: bash -l {0}
+      run: python runtests.py -vv --no-code-style --backends=c
+      env:
+        CFLAGS: "-O0 -ggdb -Wall -Wextra"
