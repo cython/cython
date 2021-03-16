@@ -25,6 +25,8 @@ cdef extern from "cpp_nested_classes_support.h":
     cdef cppclass SpecializedTypedClass(TypedClass[double]):
         pass
 
+    ctypedef A AliasA
+
 
 def test_nested_classes():
     """
@@ -45,6 +47,13 @@ def test_nested_typedef(py_x):
     >>> test_nested_typedef(5)
     """
     cdef A.my_int x = py_x
+    assert A.negate(x) == -py_x
+
+def test_typedef_for_nested(py_x):
+    """
+    >>> test_typedef_for_nested(5)
+    """
+    cdef AliasA.my_int x = py_x
     assert A.negate(x) == -py_x
 
 def test_typed_nested_typedef(x):
