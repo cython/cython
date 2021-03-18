@@ -102,7 +102,6 @@ matrix:
     - env: BACKEND=c EXCLUDE="--listfile=tests/pypy_bugs.txt bugs"
     - env: BACKEND=c EXCLUDE="--listfile=tests/pypy_bugs.txt --listfile=tests/pypy2_bugs.txt bugs"
 
-
 before_install:
   - |
     if [ "$TRAVIS_OS_NAME" == "linux" ]; then

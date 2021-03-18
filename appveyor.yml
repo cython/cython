@@ -88,6 +88,7 @@ branches:
   only:
     - master
     - release
+    - 0.29.x
 
 init:
   - "ECHO Python %PYTHON_VERSION% (%PYTHON_ARCH%bit) from %PYTHON%"
