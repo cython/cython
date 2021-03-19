@@ -2412,7 +2412,7 @@ class CCodeWriter(object):
         return self.error_goto_if("!%s" % cname, pos)
 
     def error_goto_if_neg(self, cname, pos):
-        return self.error_goto_if("%s < 0" % cname, pos)
+        return self.error_goto_if("(%s < 0)" % cname, pos)
 
     def error_goto_if_PyErr(self, pos):
         return self.error_goto_if("PyErr_Occurred()", pos)
