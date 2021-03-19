@@ -84,4 +84,8 @@ if cython.compiled:
     >>> c = C()
     >>> c.fused['double'].__self__ is c
     True
+
+    # The PR that changed __self__ also changed how __doc__ is set up slightly
+    >>> fused['double'].__doc__ == fused.__doc__ and isinstance(fused.__doc__, str)
+    True
     """

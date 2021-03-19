@@ -1370,6 +1370,10 @@ static PyMemberDef __pyx_FusedFunction_members[] = {
 
 static PyGetSetDef __pyx_FusedFunction_getsets[] = {
     {(char *) "__self__", (getter)__Pyx_FusedFunction_get_self, 0, 0, 0},
+    // __doc__ is None for the fused function type, but we need it to be
+    // a descriptor for the instance's __doc__, so rebuild the descriptor in our subclass
+    // (all other descriptors are inherited)
+    {(char *) "__doc__",  (getter)__Pyx_CyFunction_get_doc, (setter)__Pyx_CyFunction_set_doc, 0, 0},
     {0, 0, 0, 0, 0}
 };
 
