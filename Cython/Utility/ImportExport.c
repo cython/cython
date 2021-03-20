@@ -25,8 +25,7 @@ static PyObject *__Pyx__ImportDottedModule_Error(PyObject *name, PyObject *parts
     if (likely(PyTuple_GET_SIZE(parts_tuple) == count)) {
         partial_name = name;
     } else {
-        PyObject *sep;
-        PyObject *slice = PySequence_GetSlice(parts_tuple, 0, count);
+        slice = PySequence_GetSlice(parts_tuple, 0, count);
         if (unlikely(!slice))
             goto bad;
         sep = PyUnicode_FromStringAndSize(".", 1);
