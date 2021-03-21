@@ -2412,6 +2412,7 @@ class CCodeWriter(object):
         return self.error_goto_if("!%s" % cname, pos)
 
     def error_goto_if_neg(self, cname, pos):
+        # Add extra parentheses to silence clang warnings about constant conditions.
         return self.error_goto_if("(%s < 0)" % cname, pos)
 
     def error_goto_if_PyErr(self, pos):
