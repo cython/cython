@@ -1044,7 +1044,10 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
                 scope = env
                 for item in self.module_path:
                     entry = scope.lookup(item)
-                    if entry is not None and entry.is_cpp_class:
+                    if entry is not None and (
+                        entry.is_cpp_class or
+                        entry.is_type and entry.type.is_cpp_class
+                    ):
                         scope = entry.type.scope
                     else:
                         scope = None
