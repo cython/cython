@@ -150,7 +150,7 @@ script:
     else
       STYLE_ARGS=--no-code-style;
       if $PYTHON_DBG -V >&2; then CFLAGS="-O0 -ggdb" $PYTHON_DBG runtests.py -vv --no-code-style Debugger --backends=$BACKEND; fi;
-      if [ -z "${BACKEND##*cpp*}" -a -n "${TRAVIS_PYTHON_VERSION##*-dev}" ]; then pip install pythran; fi;
+      if [ -z "${BACKEND##*cpp*}" -a -n "${TRAVIS_PYTHON_VERSION##*-dev}" ]; then pip install pythran==0.9.7; fi;
       if [ "$BACKEND" != "cpp" -a -n "${TRAVIS_PYTHON_VERSION##2*}"  -a -n "${TRAVIS_PYTHON_VERSION##pypy*}" -a -n "${TRAVIS_PYTHON_VERSION##*-dev}" -a -n "${TRAVIS_PYTHON_VERSION##*3.4}" ]; then pip install mypy; fi;
     fi
 # Need to clear the ccache? Try something like this:
