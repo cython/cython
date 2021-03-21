@@ -22,7 +22,7 @@ try:
     from test.support.import_helper import import_module
 except ImportError:
     # Python 3.9 and older
-    from test.support import check_warnings
+    from test.support import check_warnings, TESTFN, unlink, import_module
 
 no_tracing = unittest.skip("For nested functions, Cython generates a C call without recursion checks.")
 
