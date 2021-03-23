@@ -948,6 +948,11 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                      See examples in :ref:`determining_where_to_add_types` or
                      :ref:`primes`.
 
+
+    :param annotate-fullc: If ``True`` will produce a colorized HTML version of
+                           the source which includes entire generated C/C++-code.
+
+
     :param compiler_directives: Allow to set compiler directives in the ``setup.py`` like this:
                                 ``compiler_directives={'embedsignature': True}``.
                                 See :ref:`compiler-directives`.
