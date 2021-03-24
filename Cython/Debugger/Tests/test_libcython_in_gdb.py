@@ -31,6 +31,9 @@ from ...Utils import add_metaclass
 # for some reason sys.argv is missing in gdb
 sys.argv = ['gdb']
 
+def setupModule():
+    if hasattr(sys, 'pypy_version_info'):
+        raise unittest.SkipTest("Cannot run these tests on PyPy")
 
 def print_on_call_decorator(func):
     @functools.wraps(func)
