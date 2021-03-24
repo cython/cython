@@ -599,7 +599,7 @@ class DependencyTree(object):
     def cimported_files(self, filename):
         if filename[-4:] == '.pyx' and path_exists(filename[:-4] + '.pxd'):
             pxd_list = [filename[:-4] + '.pxd']
-        elif filename[-3:] == '.py'and path_exists(filename[:-3] + '.pxd'):
+        elif filename[-3:] == '.py' and path_exists(filename[:-3] + '.pxd'):
             pxd_list = [filename[:-3] + '.pxd']
         else:
             pxd_list = []
