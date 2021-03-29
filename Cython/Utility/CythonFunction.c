@@ -370,8 +370,9 @@ __Pyx_CyFunction_get_annotations(__pyx_CyFunctionObject *op, CYTHON_UNUSED void 
 static PyObject *
 __Pyx_CyFunction_get_is_coroutine(__pyx_CyFunctionObject *op, CYTHON_UNUSED void *context) {
     int is_coroutine;
-    if (op->func_is_coroutine)
+    if (op->func_is_coroutine) {
         return __Pyx_NewRef(op->func_is_coroutine);
+    }
 
     is_coroutine = op->flags & __Pyx_CYFUNCTION_COROUTINE;
 #if PY_VERSION_HEX >= 0x03050000
@@ -385,11 +386,12 @@ __Pyx_CyFunction_get_is_coroutine(__pyx_CyFunctionObject *op, CYTHON_UNUSED void
         if (unlikely(!module)) goto ignore;
         op->func_is_coroutine = __Pyx_PyObject_GetAttrStr(module, marker);
         Py_DECREF(module);
-        if (unlikely(!op->func_is_coroutine)) goto ignore;
-        return __Pyx_NewRef(op->func_is_coroutine);
-    }
+        if (likely(op->func_is_coroutine)) {
+            return __Pyx_NewRef(op->func_is_coroutine);
+        }
 ignore:
-    PyErr_Clear();
+        PyErr_Clear();
+    }
 #endif
 
     op->func_is_coroutine = __Pyx_PyBool_FromLong(is_coroutine);
