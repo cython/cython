@@ -3511,7 +3511,7 @@ Features added
 
 * Extension type inheritance from builtin types, such as "cdef class MyUnicode(unicode)", now works without further external type redeclarations (which are also strongly discouraged now and continue to issue a warning).
 
-* GDB support. http://docs.cython.org/src/userguide/debugging.html
+* GDB support. https://docs.cython.org/src/userguide/debugging.html
 
 * A new build system with support for inline distutils directives, correct dependency tracking, and parallel compilation. https://github.com/cython/cython/wiki/enhancements-distutils_preprocessing
 

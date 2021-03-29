@@ -24,7 +24,7 @@ decide to use its double ended queue implementation.  To make the
 handling easier, however, you decide to wrap it in a Python extension
 type that can encapsulate all memory management.
 
-.. [CAlg] Simon Howard, C Algorithms library, http://c-algorithms.sourceforge.net/
+.. [CAlg] Simon Howard, C Algorithms library, https://fragglet.github.io/c-algorithms/
 
 
 Defining external declarations
