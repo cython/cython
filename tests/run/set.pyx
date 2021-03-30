@@ -417,7 +417,8 @@ def test_empty_frozenset():
     True
     >>> len(s)
     0
-    >>> s is frozenset()   # singleton!
+    >>> import sys
+    >>> sys.version_info >= (3, 10) or s is frozenset()   # singleton (in Python < 3.10)!
     True
     """
     return frozenset()
@@ -430,7 +431,8 @@ def test_empty_frozenset():
 )
 def test_singleton_empty_frozenset():
     """
-    >>> test_singleton_empty_frozenset()  # from CPython's test_set.py
+    >>> import sys
+    >>> test_singleton_empty_frozenset() if sys.version_info < (3, 10) else 1  # from CPython's test_set.py
     1
     """
     f = frozenset()
@@ -438,7 +440,7 @@ def test_singleton_empty_frozenset():
            frozenset(), frozenset([]), frozenset(()), frozenset(''),
            frozenset(range(0)), frozenset(frozenset()),
            frozenset(f), f]
-    return len(set(map(id, efs)))
+    return len(set(map(id, efs)))  # note, only a singleton in Python <3.10
 
 
 def sorted(it):
