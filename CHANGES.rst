@@ -133,20 +133,6 @@ Other changes
   homeless builtins, to help with debugging, and in order to avoid a CPython
   warning according to https://bugs.python.org/issue20204
 
-.. _2056: https://github.com/cython/cython/issues/2056
-.. _3090: https://github.com/cython/cython/issues/3090
-.. _2227: https://github.com/cython/cython/issues/2227
-.. _3625: https://github.com/cython/cython/issues/3625
-.. _3664: https://github.com/cython/cython/issues/3664
-.. _3616: https://github.com/cython/cython/issues/3616
-.. _3693: https://github.com/cython/cython/issues/3693
-.. _3707: https://github.com/cython/cython/issues/3707
-.. _3514: https://github.com/cython/cython/issues/3514
-.. _3663: https://github.com/cython/cython/issues/3663
-.. _3754: https://github.com/cython/cython/issues/3754
-.. _3637: https://github.com/cython/cython/issues/3637
-.. _3736: https://github.com/cython/cython/issues/3736
-
 3.0.0 alpha 5 (2020-05-19)
 ==========================
 
