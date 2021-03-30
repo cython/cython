@@ -46,6 +46,14 @@
               : 2012-05-02 andreasvc
               : (see revision control)
 """
+
+cdef extern from *:
+    """
+    #if CYTHON_COMPILING_IN_PYPY
+    #warning This module uses CPython specific internals of 'array.array', which are not available in PyPy.
+    #endif
+    """
+
 from libc.string cimport memset, memcpy
 
 from cpython.object cimport Py_SIZE
