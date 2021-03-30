@@ -1348,10 +1348,8 @@ bad:
 static PyObject *
 __Pyx_FusedFunction_get_self(__pyx_FusedFunctionObject *m, CYTHON_UNUSED void *closure)
 {
-    PyObject *self;
-
-    self = m->self;
-    if (self == NULL) {
+    PyObject *self = m->self;
+    if (unlikely(!self)) {
         PyErr_SetString(PyExc_AttributeError, "'function' object has no attribute '__self__'");
     } else {
         Py_INCREF(self);
