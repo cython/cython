@@ -532,6 +532,16 @@ Other changes
 * Support for Python 2.6 was removed.
 
 
+0.29.23 (2021-??-??)
+====================
+
+Bugs fixed
+----------
+
+* Some problems with Python 3.10 were resolved.
+  Patches by Victor Stinner and David Woods.  (Github issue #4046)
+
+
 0.29.22 (2021-02-20)
 ====================
 
