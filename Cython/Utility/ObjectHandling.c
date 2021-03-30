@@ -2103,7 +2103,7 @@ bad:
 /////////////// PyObjectFastCall.proto ///////////////
 
 #define __Pyx_PyObject_FastCall(func, args, nargs)  __Pyx_PyObject_FastCallDict(func, args, nargs, NULL)
-static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObject **args, Py_ssize_t nargs, PyObject *kwargs); /*proto*/
+static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObject **args, size_t nargs, PyObject *kwargs); /*proto*/
 
 /////////////// PyObjectFastCall ///////////////
 //@requires: PyObjectCall
@@ -2111,23 +2111,23 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
 //@requires: PyObjectCallMethO
 //@substitute: naming
 
-static PyObject* __Pyx_PyObject_FastCall_fallback(PyObject *func, PyObject **args, Py_ssize_t nargs, PyObject *kwargs) {
+static PyObject* __Pyx_PyObject_FastCall_fallback(PyObject *func, PyObject **args, size_t nargs, PyObject *kwargs) {
     PyObject *argstuple;
     PyObject *result;
-    Py_ssize_t i;
+    size_t i;
 
     argstuple = PyTuple_New(nargs);
     if (unlikely(!argstuple)) return NULL;
     for (i = 0; i < nargs; i++) {
         Py_INCREF(args[i]);
-        PyTuple_SET_ITEM(argstuple, i, args[i]);
+        PyTuple_SET_ITEM(argstuple, (Py_ssize_t)i, args[i]);
     }
     result = __Pyx_PyObject_Call(func, argstuple, kwargs);
     Py_DECREF(argstuple);
     return result;
 }
 
-static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObject **args, Py_ssize_t _nargs, PyObject *kwargs) {
+static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObject **args, size_t _nargs, PyObject *kwargs) {
     // Special fast paths for 0 and 1 arguments
     // NOTE: in many cases, this is called with a constant value for nargs
     // which is known at compile-time. So the branches below will typically
@@ -2181,20 +2181,20 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
     #if CYTHON_VECTORCALL
     vectorcallfunc f = _PyVectorcall_Function(func);
     if (f) {
-        return f(func, args, nargs, kwargs);
+        return f(func, args, (size_t)nargs, kwargs);
     }
     #elif defined(__Pyx_CyFunction_USED) && CYTHON_BACKPORT_VECTORCALL
     // exclude fused functions for now
     if (__Pyx_CyFunction_CheckExact(func)) {
         __pyx_vectorcallfunc f = __Pyx_CyFunction_func_vectorcall(func);
-        if (f) return f(func, args, nargs, kwargs);
+        if (f) return f(func, args, (size_t)nargs, kwargs);
     }
     #endif
 
     if (nargs == 0) {
         return __Pyx_PyObject_Call(func, $empty_tuple, kwargs);
     }
-    return __Pyx_PyObject_FastCall_fallback(func, args, nargs, kwargs);
+    return __Pyx_PyObject_FastCall_fallback(func, args, (size_t)nargs, kwargs);
 }
 
 
@@ -2559,14 +2559,14 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_CallNoArg(PyObject *func) {
 /////////////// PyVectorcallFastCallDict.proto ///////////////
 
 #if CYTHON_METH_FASTCALL
-static CYTHON_INLINE PyObject *__Pyx_PyVectorcall_FastCallDict(PyObject *func, __pyx_vectorcallfunc vc, PyObject *const *args, Py_ssize_t nargs, PyObject *kw);
+static CYTHON_INLINE PyObject *__Pyx_PyVectorcall_FastCallDict(PyObject *func, __pyx_vectorcallfunc vc, PyObject *const *args, size_t nargs, PyObject *kw);
 #endif
 
 /////////////// PyVectorcallFastCallDict ///////////////
 
 #if CYTHON_METH_FASTCALL
 // Slow path when kw is non-empty
-static PyObject *__Pyx_PyVectorcall_FastCallDict_kw(PyObject *func, __pyx_vectorcallfunc vc, PyObject *const *args, Py_ssize_t nargs, PyObject *kw)
+static PyObject *__Pyx_PyVectorcall_FastCallDict_kw(PyObject *func, __pyx_vectorcallfunc vc, PyObject *const *args, size_t nargs, PyObject *kw)
 {
     // Code based on _PyObject_FastCallDict() and _PyStack_UnpackDict() from CPython
     PyObject *res = NULL;
@@ -2574,17 +2574,18 @@ static PyObject *__Pyx_PyVectorcall_FastCallDict_kw(PyObject *func, __pyx_vector
     PyObject **newargs;
     PyObject **kwvalues;
     Py_ssize_t i, pos;
+    size_t j;
     PyObject *key, *value;
     unsigned long keys_are_strings;
     Py_ssize_t nkw = PyDict_GET_SIZE(kw);
 
     // Copy positional arguments
-    newargs = (PyObject **)PyMem_Malloc((nargs + nkw) * sizeof(args[0]));
+    newargs = (PyObject **)PyMem_Malloc((nargs + (size_t)nkw) * sizeof(args[0]));
     if (unlikely(newargs == NULL)) {
         PyErr_NoMemory();
         return NULL;
     }
-    for (i = 0; i < nargs; i++) newargs[i] = args[i];
+    for (j = 0; j < nargs; j++) newargs[j] = args[j];
 
     // Copy keyword arguments
     kwnames = PyTuple_New(nkw);
@@ -2619,7 +2620,7 @@ cleanup:
     return res;
 }
 
-static CYTHON_INLINE PyObject *__Pyx_PyVectorcall_FastCallDict(PyObject *func, __pyx_vectorcallfunc vc, PyObject *const *args, Py_ssize_t nargs, PyObject *kw)
+static CYTHON_INLINE PyObject *__Pyx_PyVectorcall_FastCallDict(PyObject *func, __pyx_vectorcallfunc vc, PyObject *const *args, size_t nargs, PyObject *kw)
 {
     if (likely(kw == NULL) || PyDict_GET_SIZE(kw) == 0) {
         return vc(func, args, nargs, NULL);
