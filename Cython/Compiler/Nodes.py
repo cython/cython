@@ -4889,19 +4889,19 @@ class PyClassDefNode(ClassDefNode):
         self.class_result.analyse_annotations(cenv)
 
     update_bases_functype = PyrexTypes.CFuncType(
-                    PyrexTypes.py_object_type, [
-                        PyrexTypes.CFuncTypeArg("bases",  PyrexTypes.py_object_type, None)
-                        ])
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("bases",  PyrexTypes.py_object_type, None)
+        ])
 
     def analyse_expressions(self, env):
-        if self.bases and not (self.bases.is_sequence_constructor and len(self.bases.args)==0):
+        if self.bases and not (self.bases.is_sequence_constructor and len(self.bases.args) == 0):
             from .ExprNodes import PythonCapiCallNode, CloneNode
             # handle the Python 3.7 __mro_entries__ transformation
             orig_bases = self.bases.analyse_expressions(env)
             self.bases = PythonCapiCallNode(orig_bases.pos,
-                function_name = "__Pyx_PEP560_update_bases",
-                func_type = self.update_bases_functype,
-                utility_code = UtilityCode.load_cached('Py3UpdateBases', 'ObjectHandling.c'),
+                function_name="__Pyx_PEP560_update_bases",
+                func_type=self.update_bases_functype,
+                utility_code=UtilityCode.load_cached('Py3UpdateBases', 'ObjectHandling.c'),
                 args=[CloneNode(orig_bases)])
             self.orig_bases = orig_bases
         if self.bases:

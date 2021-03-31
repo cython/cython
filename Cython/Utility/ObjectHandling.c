@@ -1041,20 +1041,20 @@ __Pyx_PEP560_update_bases(PyObject *bases)
     /*assert(PyTuple_Check(bases));*/
 
     for (i = 0; i < PyTuple_GET_SIZE(bases); i++) {
-        base  = PyTuple_GET_ITEM(bases, i); /* original code in CPython: base  = args[i]; */
+        // original code in CPython: base  = args[i];
+        base  = PyTuple_GET_ITEM(bases, i);
         if (PyType_Check(base)) {
             if (new_bases) {
-                /* If we already have made a replacement, then we append every normal base,
-                   otherwise just skip it. */
+                // If we already have made a replacement, then we append every normal base,
+                // otherwise just skip it.
                 if (PyList_Append(new_bases, base) < 0) {
                     goto error;
                 }
             }
             continue;
         }
-        /* original code in CPython:
-         * if (_PyObject_LookupAttrId(base, &PyId___mro_entries__, &meth) < 0) {
-         */
+        // original code in CPython:
+        // if (_PyObject_LookupAttrId(base, &PyId___mro_entries__, &meth) < 0) {
         meth = __Pyx_PyObject_GetAttrStrNoError(base, PYIDENT("__mro_entries__"));
         if (!meth && PyErr_Occurred()) {
             goto error;
@@ -1079,13 +1079,14 @@ __Pyx_PEP560_update_bases(PyObject *bases)
             goto error;
         }
         if (!new_bases) {
-            /* If this is a first successful replacement, create new_bases list and
-               copy previously encountered bases. */
+            // If this is a first successful replacement, create new_bases list and
+            // copy previously encountered bases.
             if (!(new_bases = PyList_New(i))) {
                 goto error;
             }
             for (j = 0; j < i; j++) {
-                base = PyTuple_GET_ITEM(bases, j); /* original code in CPython: base = args[j]; */
+                // original code in CPython: base = args[j];
+                base = PyTuple_GET_ITEM(bases, j);
                 PyList_SET_ITEM(new_bases, j, base);
                 Py_INCREF(base);
             }
@@ -1097,7 +1098,8 @@ __Pyx_PEP560_update_bases(PyObject *bases)
         Py_DECREF(new_base);
     }
     if (!new_bases) {
-        Py_INCREF(bases); /* unlike the CPython implementation, always return a new reference */
+        // unlike the CPython implementation, always return a new reference
+        Py_INCREF(bases);
         return bases;
     }
     result = PyList_AsTuple(new_bases);
