@@ -17,9 +17,10 @@ cache:
     - $HOME/.ccache
 
 python:
+  - 3.9
   - 3.8
   - 2.7
-  - 3.9-dev
+  - 3.10-dev
   - 3.7
   - 3.6
   - 3.5
