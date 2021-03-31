@@ -111,7 +111,7 @@ class MarkParallelAssignments(EnvTransform):
                 if not entry or entry.is_builtin:
                     if function.name == 'reversed' and len(sequence.args) == 1:
                         sequence = sequence.args[0]
-                    elif function.name == 'enumerate' and len(sequence.args) == 1:
+                    elif function.name == 'enumerate' and len(sequence.args) in {1, 2}:
                         if target.is_sequence_constructor and len(target.args) == 2:
                             iterator = sequence.args[0]
                             if iterator.is_name:
