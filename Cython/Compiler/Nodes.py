@@ -4939,7 +4939,7 @@ class PyClassDefNode(ClassDefNode):
             # update __orig_bases__ if needed
             code.putln("if (%s != %s) {" % (self.bases.result(), self.orig_bases.result()))
             code.putln(
-                code.error_goto_if('PyDict_SetItemString(%s, "__orig_bases__", %s) == -1' % (
+                code.error_goto_if_neg('PyDict_SetItemString(%s, "__orig_bases__", %s)' % (
                     self.dict.result(), self.orig_bases.result()),
                     self.pos
             ))
