@@ -968,6 +968,38 @@ class ControlFlowAnalysis(CythonTransform):
             self.flow.block = None
         return node
 
+    def _infer_enumerate_index(self, target, sequence):
+        def infer_index_type(iterator_type):
+            if iterator_type.is_builtin_type:
+                # assume that builtin types have a length within Py_ssize_t
+                return ExprNodes.IntNode(target.pos, value='PY_SSIZE_T_MAX',
+                                      type=PyrexTypes.c_py_ssize_t_type)
+            elif isinstance(iterator_type, PyrexTypes.CArrayType):
+                return ExprNodes.IntNode(target.pos, value='SIZE_MAX',
+                                      type=PyrexTypes.c_size_t_type)
+            else:
+                return None
+
+        if len(sequence.args) != 1:
+            return None
+
+        iterator = sequence.args[0]
+        if iterator.is_name:
+            return infer_index_type(iterator.infer_type(self.env))
+        elif isinstance(iterator, ExprNodes.CallNode):
+            index_type = infer_index_type(iterator.infer_type(self.env))
+            if index_type:
+                return index_type
+
+            function = iterator.function
+            if sequence.self is None and function.is_name:
+                entry = self.env.lookup(function.name)
+                if not entry or entry.is_builtin:
+                    # assume that builtins return a type which has a length within Py_ssize_t
+                    return ExprNodes.IntNode(target.pos, value='PY_SSIZE_T_MAX',
+                                          type=PyrexTypes.c_py_ssize_t_type)
+
+
     def mark_forloop_target(self, node):
         # TODO: Remove redundancy with range optimization...
         is_special = False
@@ -980,19 +1012,15 @@ class ControlFlowAnalysis(CythonTransform):
                 if not entry or entry.is_builtin:
                     if function.name == 'reversed' and len(sequence.args) == 1:
                         sequence = sequence.args[0]
-                    elif function.name == 'enumerate' and len(sequence.args) == 1:
+                    elif function.name == 'enumerate':
                         if target.is_sequence_constructor and len(target.args) == 2:
-                            iterator = sequence.args[0]
-                            if iterator.is_name:
-                                iterator_type = iterator.infer_type(self.env)
-                                if iterator_type.is_builtin_type:
-                                    # assume that builtin types have a length within Py_ssize_t
-                                    self.mark_assignment(
-                                        target.args[0],
-                                        ExprNodes.IntNode(target.pos, value='PY_SSIZE_T_MAX',
-                                                          type=PyrexTypes.c_py_ssize_t_type))
-                                    target = target.args[1]
-                                    sequence = sequence.args[0]
+                            index_node = self._infer_enumerate_index(target, sequence)
+
+                            if index_node:
+                                self.mark_assignment(target.args[0], index_node)
+                                target = target.args[1]
+                                sequence = sequence.args[0]
+
         if isinstance(sequence, ExprNodes.SimpleCallNode):
             function = sequence.function
             if sequence.self is None and function.is_name:
@@ -1016,7 +1044,9 @@ class ControlFlowAnalysis(CythonTransform):
             # Python strings, etc., while correctly falling back to an
             # object type when the base type cannot be handled.
 
-            self.mark_assignment(target, node.item)
+            # NextNode might have changed due to optimizations above
+            iterator = ExprNodes.IteratorNode(target.pos, sequence=sequence)
+            self.mark_assignment(target, ExprNodes.NextNode(iterator))
 
     def visit_AsyncForStatNode(self, node):
         return self.visit_ForInStatNode(node)
