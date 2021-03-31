@@ -162,3 +162,22 @@ def for_in_gen(N):
     """
     for i in range(N):
         yield i
+
+def test_range_args(arg):
+    """
+    >>> test_range_args([1])
+    [0]
+    >>> test_range_args([1, 2])
+    [1]
+    >>> test_range_args([1, 2,  -1])
+    []
+    >>> test_range_args([1, 2, 1])
+    [1]
+    >>> test_two_args([1, 2, 1, 1])     # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
+    """
+    results = []
+    for i in range(*arg):
+        results.append(i)
+    return results

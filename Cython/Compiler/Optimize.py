@@ -826,7 +826,7 @@ class IterationTransform(Visitor.EnvTransform):
             step_pos = range_function.pos
             step_value = 1
             step = ExprNodes.IntNode(step_pos, value='1', constant_result=1)
-        else:
+        elif len(args) == 3:
             step = args[2]
             step_pos = step.pos
             if not isinstance(step.constant_result, _py_int_types):
@@ -838,6 +838,8 @@ class IterationTransform(Visitor.EnvTransform):
                 return node
             step = ExprNodes.IntNode(step_pos, value=str(step_value),
                                      constant_result=step_value)
+        else:
+            return node
 
         if len(args) == 1:
             bound1 = ExprNodes.IntNode(range_function.pos, value='0',
