@@ -1016,7 +1016,11 @@ class ControlFlowAnalysis(CythonTransform):
             # Python strings, etc., while correctly falling back to an
             # object type when the base type cannot be handled.
 
-            self.mark_assignment(target, node.item)
+            self.mark_assignment(target, ExprNodes.IndexNode(
+                node.pos,
+                base=sequence,
+                index=ExprNodes.IntNode(target.pos, value='PY_SSIZE_T_MAX',
+                                        type=PyrexTypes.c_py_ssize_t_type)))
 
     def visit_AsyncForStatNode(self, node):
         return self.visit_ForInStatNode(node)
