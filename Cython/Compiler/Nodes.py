@@ -4938,8 +4938,11 @@ class PyClassDefNode(ClassDefNode):
         if self.orig_bases:
             # update __orig_bases__ if needed
             code.putln("if (%s != %s) {" % (self.bases.result(), self.orig_bases.result()))
-            code.putln('PyDict_SetItemString(%s, "__orig_bases__", %s);' % (
-                self.dict.result(), self.orig_bases.result()))
+            code.putln(
+                code.error_goto_if('PyDict_SetItemString(%s, "__orig_bases__", %s) == -1' % (
+                    self.dict.result(), self.orig_bases.result()),
+                    self.pos
+            ))
             code.putln("}")
             self.orig_bases.generate_disposal_code(code)
             self.orig_bases.free_temps(code)

@@ -1036,11 +1036,12 @@ static PyObject* __Pyx_PEP560_update_bases(PyObject *bases); /* proto */
 static PyObject*
 __Pyx_PEP560_update_bases(PyObject *bases)
 {
-    Py_ssize_t i, j;
+    Py_ssize_t i, j, size_bases;
     PyObject *base, *meth, *new_base, *result, *new_bases = NULL;
     /*assert(PyTuple_Check(bases));*/
 
-    for (i = 0; i < PyTuple_GET_SIZE(bases); i++) {
+    size_bases = PyTuple_GET_SIZE(bases);
+    for (i = 0; i < size_bases; i++) {
         // original code in CPython: base  = args[i];
         base  = PyTuple_GET_ITEM(bases, i);
         if (PyType_Check(base)) {
