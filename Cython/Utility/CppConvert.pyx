@@ -5,8 +5,8 @@
 
 cdef extern from *:
     cdef cppclass string "{{type}}":
-        string()
-        string(char* c_str, size_t size)
+        string() except +
+        string(char* c_str, size_t size) except +
     cdef const char* __Pyx_PyObject_AsStringAndSize(object, Py_ssize_t*) except NULL
 
 @cname("{{cname}}")
@@ -41,8 +41,8 @@ cdef extern from *:
     cdef cppclass vector "std::vector" [T]:
         ctypedef size_t size_type
 
-        void reserve(size_type)
-        void push_back(T&)
+        void reserve(size_type) except +
+        void push_back(T&) except +
 
 @cname("{{cname}}")
 cdef vector[X] {{cname}}(object o) except *:
@@ -70,7 +70,7 @@ cdef object {{cname}}(vector[X]& v):
 
 cdef extern from *:
     cdef cppclass cpp_list "std::list" [T]:
-        void push_back(T&)
+        void push_back(T&) except +
 
 @cname("{{cname}}")
 cdef cpp_list[X] {{cname}}(object o) except *:
@@ -107,7 +107,7 @@ cdef object {{cname}}(const cpp_list[X]& v):
 
 cdef extern from *:
     cdef cppclass set "std::{{maybe_unordered}}set" [T]:
-        void insert(T&)
+        void insert(T&) except +
 
 @cname("{{cname}}")
 cdef set[X] {{cname}}(object o) except *:
@@ -143,8 +143,8 @@ cdef object {{cname}}(const cpp_set[X]& s):
 
 cdef extern from *:
     cdef cppclass pair "std::pair" [T, U]:
-        pair()
-        pair(T&, U&)
+        pair() except +
+        pair(T&, U&) except +
 
 @cname("{{cname}}")
 cdef pair[X,Y] {{cname}}(object o) except *:
@@ -168,9 +168,9 @@ cdef object {{cname}}(const pair[X,Y]& p):
 
 cdef extern from *:
     cdef cppclass pair "std::pair" [T, U]:
-        pair(T&, U&)
+        pair(T&, U&) except +
     cdef cppclass map "std::{{maybe_unordered}}map" [T, U]:
-        void insert(pair[T, U]&)
+        void insert(pair[T, U]&) except +
     cdef cppclass vector "std::vector" [T]:
         pass
 
