@@ -4752,6 +4752,7 @@ class PyClassDefNode(ClassDefNode):
     #  entry    Symtab.Entry
     #  scope    PyClassScope
     #  decorators    [DecoratorNode]        list of decorators or None
+    #  bases    ExprNode        Expression that evaluates to a tuple of base classes
     #
     #  The following subnodes are constructed internally:
     #
@@ -4759,15 +4760,18 @@ class PyClassDefNode(ClassDefNode):
     #  dict     DictNode   Class dictionary or Py3 namespace
     #  classobj ClassNode  Class object
     #  target   NameNode   Variable to assign class object to
+    #  orig_bases  None or ExprNode  "bases" before transformation by PEP560 __mro_entries__,
+    #                                used to create the __orig_bases__ attribute
 
     child_attrs = ["doc_node", "body", "dict", "metaclass", "mkw", "bases", "class_result",
-                   "target", "class_cell", "decorators"]
+                   "target", "class_cell", "decorators", "orig_bases"]
     decorators = None
     class_result = None
     is_py3_style_class = False  # Python3 style class (kwargs)
     metaclass = None
     mkw = None
     doc_node = None
+    orig_bases = None
 
     def __init__(self, pos, name, bases, doc, body, decorators=None,
                  keyword_args=None, force_py3_semantics=False):
@@ -4893,7 +4897,22 @@ class PyClassDefNode(ClassDefNode):
         self.body.analyse_declarations(cenv)
         self.class_result.analyse_annotations(cenv)
 
+    update_bases_functype = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("bases",  PyrexTypes.py_object_type, None)
+        ])
+
     def analyse_expressions(self, env):
+        if self.bases and not (self.bases.is_sequence_constructor and len(self.bases.args) == 0):
+            from .ExprNodes import PythonCapiCallNode, CloneNode
+            # handle the Python 3.7 __mro_entries__ transformation
+            orig_bases = self.bases.analyse_expressions(env)
+            self.bases = PythonCapiCallNode(orig_bases.pos,
+                function_name="__Pyx_PEP560_update_bases",
+                func_type=self.update_bases_functype,
+                utility_code=UtilityCode.load_cached('Py3UpdateBases', 'ObjectHandling.c'),
+                args=[CloneNode(orig_bases)])
+            self.orig_bases = orig_bases
         if self.bases:
             self.bases = self.bases.analyse_expressions(env)
         if self.mkw:
@@ -4916,6 +4935,8 @@ class PyClassDefNode(ClassDefNode):
         code.mark_pos(self.pos)
         code.pyclass_stack.append(self)
         cenv = self.scope
+        if self.orig_bases:
+            self.orig_bases.generate_evaluation_code(code)
         if self.bases:
             self.bases.generate_evaluation_code(code)
         if self.mkw:
@@ -4923,6 +4944,17 @@ class PyClassDefNode(ClassDefNode):
         if self.metaclass:
             self.metaclass.generate_evaluation_code(code)
         self.dict.generate_evaluation_code(code)
+        if self.orig_bases:
+            # update __orig_bases__ if needed
+            code.putln("if (%s != %s) {" % (self.bases.result(), self.orig_bases.result()))
+            code.putln(
+                code.error_goto_if_neg('PyDict_SetItemString(%s, "__orig_bases__", %s)' % (
+                    self.dict.result(), self.orig_bases.result()),
+                    self.pos
+            ))
+            code.putln("}")
+            self.orig_bases.generate_disposal_code(code)
+            self.orig_bases.free_temps(code)
         cenv.namespace_cname = cenv.class_obj_cname = self.dict.result()
 
         class_cell = self.class_cell
