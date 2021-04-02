@@ -39,16 +39,11 @@ cdef inline object {{cname.replace("PyObject", py_type, 1)}}(const string& s):
 
 cdef extern from *:
     cdef cppclass vector "std::vector" [T]:
-        ctypedef size_t size_type
-
-        void reserve(size_type) except +
         void push_back(T&) except +
 
 @cname("{{cname}}")
 cdef vector[X] {{cname}}(object o) except *:
     cdef vector[X] v
-    if hasattr(o, '__len__'):
-        v.reserve(len(o))
     for item in o:
         v.push_back(<X>item)
     return v
