@@ -64,7 +64,7 @@ cdef extern from "Python.h":
 @cname("{{cname}}")
 cdef object {{cname}}(const vector[X]& v):
     o = PyList_New(<Py_ssize_t>v.size())
-    cdef Py_ssize_t i = 0
+    cdef Py_ssize_t i
     for i in range(v.size()):
         item = v[i]
         Py_INCREF(item)
