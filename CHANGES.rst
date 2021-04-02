@@ -11,6 +11,9 @@ Features added
 * ``__class_getitem__`` (`PEP-560`_) is supported for cdef classes.
   Patch by Kmol Yuan.  (Github issue :issue:`3764`)
 
+* ``__mro_entries__`` (`PEP-560`_) is supported for Python classes.
+  Patch by David Woods.  (Github issue :issue:`3537`)
+
 * ``cython.array`` supports simple, non-strided views.
   (Github issue :issue:`3775`)
 
@@ -28,8 +31,18 @@ Features added
 
 * The type ``cython.Py_hash_t`` is available in Python mode.
 
+* The ``cpython.fileobject`` C-API declarations were added.
+  Patch by Zackery Spytz.  (Github issue :issue:`3906`)
+
+* A new module ``cpython.time`` was added with some low-level alternatives to
+  Python's ``time`` module.
+  Patch by Brock Mendel.  (Github issue :issue:`3767`)
+
 * The value ``PyBUF_MAX_NDIM`` was added to the ``cpython.buffer`` module.
   Patch by John Kirkham.  (Github issue :issue:`3811`)
+
+* "Declaration after use" is now an error for variables.
+  Patch by David Woods.  (Github issue :issue:`3976`)
 
 Bugs fixed
 ----------
@@ -38,11 +51,24 @@ Bugs fixed
   inherit the compiler directives of the ``.pyx`` file that imported them.
   Patch by David Woods.  (Github issue :issue:`1071`)
 
+* Some issues were resolved that could lead to duplicated C names.
+  Patch by David Woods.  (Github issue :issue:`3716`, :issue:`3741`, :issue:`3734`)
+
 * ``ndarray.shape`` failed to compile with Pythran and recent NumPy.
   Patch by Serge Guelton.  (Github issue :issue:`3762`)
 
 * Casting to ctuples is now allowed.
   Patch by David Woods.  (Github issue :issue:`3808`)
+
+* Nested C++ types were not usable through ctypedefs.
+  Patch by Vadim Pushtaev.  (Github issue :issue:`4039`)
+
+* Cython compiled functions always provided a ``__self__`` attribute, regardless
+  of being used as a method or not.
+  Patch by David Woods.  (Github issue :issue:`4036`)
+
+* A reference leak on import failures was resolved.
+  Patch by Max Bachmann.  (Github issue :issue:`4056`)
 
 * A C compiler warning about unused code was resolved.
   (Github issue :issue:`3763`)
@@ -50,11 +76,20 @@ Bugs fixed
 * A C compiler warning about enum value casting was resolved in GCC.
   (Github issue :issue:`2749`)
 
+* Some C compiler warninge were resolved.
+  Patches by Max Bachmann.  (Github issue :issue:`4053`, :issue:`4059`, :issue:`4054`)
+
 * A compile failure for C++ enums in Py3.4 / MSVC was resolved.
   Patch by Ashwin Srinath.  (Github issue :issue:`3782`)
 
+* An unsupported C-API call in PyPy was fixed.
+  Patch by Max Bachmann.  (Github issue :issue:`4055`)
+
 * The Cython ``CodeWriter`` mishandled no-argument ``return`` statements.
   Patch by Tao He.  (Github issue :issue:`3795`)
+
+* ``complex`` wasn't supported in PEP-484 type annotations.
+  Patch by David Woods.  (Github issue :issue:`3949`)
 
 
 3.0.0 alpha 6 (2020-07-31)
@@ -547,7 +582,7 @@ Bugs fixed
 ----------
 
 * Some problems with Python 3.10 were resolved.
-  Patches by Victor Stinner and David Woods.  (Github issue #4046)
+  Patches by Victor Stinner and David Woods.  (Github issues #3919, #4046)
 
 
 0.29.22 (2021-02-20)
