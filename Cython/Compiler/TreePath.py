@@ -168,7 +168,7 @@ def handle_attribute(next, token):
                 if attr_value == value:
                     yield attr_value
                 elif (isinstance(attr_value, bytes) and isinstance(value, str) and
-                        attr_value.decode("utf-8") == value):
+                        attr_value == value.encode()):
                     # allow a bytes-to-string comparison too
                     yield attr_value
 
