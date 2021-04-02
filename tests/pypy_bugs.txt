@@ -2,6 +2,10 @@
 # either in PyPy, PyPy's cpyext, or Cython under PyPy,
 # which will be skipped in the normal testing run.
 
+# See https://foss.heptapod.net/pypy/pypy/-/issues/3375
+float_division
+specialfloat
+
 broken_exception
 bufaccess
 memoryview.memoryview$
