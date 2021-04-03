@@ -664,9 +664,60 @@ static CYTHON_INLINE double __Pyx_PyUnicode_AsDouble(PyObject *obj);/*proto*/
 /////////////// pyunicode_as_double.proto ///////////////
 //@requires: pybytes_as_double
 
+#if PY_MAJOR_VERSION >= 3 && !CYTHON_COMPILING_IN_PYPY
+static const char* __Pyx__PyUnicode_AsDouble_Copy(PyObject *obj, char* buffer, Py_ssize_t length) {
+    Py_ssize_t i, start, end;
+    int kind = PyUnicode_KIND(obj);
+    const void* data = PyUnicode_DATA(obj);
+
+    start = 0;
+    while (Py_UNICODE_ISSPACE(PyUnicode_READ(kind, data, start)))
+        start++;
+    end = length - 1;
+    while (start < end && Py_UNICODE_ISSPACE(PyUnicode_READ(kind, data, end)))
+        end--;
+
+    for (i=start; i <= end; i++) {
+        Py_UCS4 chr = PyUnicode_READ(kind, data, i);
+        *buffer = (char)chr;
+        buffer += chr != '_';
+        if (unlikely(chr > '_')) return NULL;
+    }
+    *buffer = '\0';
+    return buffer;
+}
+
+static double __Pyx_PyUnicode_AsDouble_WithSpaces(PyObject *obj) {
+    double value;
+    const char *last;
+    char *end;
+    Py_ssize_t length = PyUnicode_GET_LENGTH(obj);
+    if (length < 40) {
+        char number[40];
+        last = __Pyx__PyUnicode_AsDouble_Copy(obj, number, length);
+        if (unlikely(!last)) goto fallback;
+        value = PyOS_string_to_double(number, &end, NULL);
+    } else {
+        char *number = (char*) PyMem_Malloc((length + 1) * sizeof(char));
+        if (unlikely(!number)) goto fallback;
+        last = __Pyx__PyUnicode_AsDouble_Copy(obj, number, length);
+        if (unlikely(!last)) {
+            PyMem_Free(number);
+            goto fallback;
+        }
+        value = PyOS_string_to_double(number, &end, NULL);
+        PyMem_Free(number);
+    }
+    if (likely(end == last) || (value == (double)-1 && PyErr_Occurred())) {
+        return value;
+    }
+fallback:
+    return __Pyx_SlowPyString_AsDouble(obj);
+}
+#endif
+
 static CYTHON_INLINE double __Pyx_PyUnicode_AsDouble(PyObject *obj) {
-    // Currently not optimised for 1) Py2.7 and 2) Py3 unicode strings with non-ASCII whitespace.
-    // See __Pyx__PyBytes_AsDouble() below, the same byte buffer copying could be done here.
+    // Currently not optimised for Py2.7.
 #if PY_MAJOR_VERSION >= 3 && !CYTHON_COMPILING_IN_PYPY
     if (unlikely(PyUnicode_READY(obj) == -1))
         return (double)-1;
@@ -676,8 +727,10 @@ static CYTHON_INLINE double __Pyx_PyUnicode_AsDouble(PyObject *obj) {
         s = PyUnicode_AsUTF8AndSize(obj, &length);
         return __Pyx__PyBytes_AsDouble(obj, s, length);
     }
-#endif
+    return __Pyx_PyUnicode_AsDouble_WithSpaces(obj);
+#else
     return __Pyx_SlowPyString_AsDouble(obj);
+#endif
 }
 
 
@@ -722,7 +775,8 @@ static double __Pyx_SlowPyString_AsDouble(PyObject *obj) {
 static const char* __Pyx__PyBytes_AsDouble_Copy(const char* start, char* buffer, Py_ssize_t length) {
     Py_ssize_t i;
     for (i=0; i < length; i++) {
-        if (start[i] != '_') *buffer++ = start[i];
+        *buffer = start[i];
+        buffer += start[i] != '_';
     }
     *buffer = '\0';
     return buffer;

@@ -5,7 +5,7 @@ import cython
 import sys
 
 def fix_underscores(s):
-    if sys.version_info < (3, 6):
+    if sys.version_info < (3, 6) or getattr(sys, 'pypy_version_info', (9, 9)) < (3, 7, 4):
         # Py2 float() does not support PEP-515 underscore literals
         if isinstance(s, bytes):
             if not cython.compiled and b'_' in s:
@@ -155,6 +155,20 @@ def from_unicode(s: 'unicode'):
     1.23e+102
     >>> from_unicode(u"123.23\\N{PUNCTUATION SPACE}")
     123.23
+    >>> from_unicode(u"\\N{PUNCTUATION SPACE} 123.23 \\N{PUNCTUATION SPACE}")
+    123.23
+    >>> from_unicode(fix_underscores(u"\\N{PUNCTUATION SPACE} 12_3.2_3 \\N{PUNCTUATION SPACE}"))
+    123.23
+    >>> from_unicode(u"\\N{PUNCTUATION SPACE} " * 25 + u"123.54 " + u"\\N{PUNCTUATION SPACE} " * 22)  # >= 40 chars
+    123.54
+    >>> from_unicode(fix_underscores(u"\\N{PUNCTUATION SPACE} " * 25 + u"1_23.5_4 " + u"\\N{PUNCTUATION SPACE} " * 22))
+    123.54
+    >>> from_unicode(u"\\N{PUNCTUATION SPACE} " + u"123.54 " * 2 + u"\\N{PUNCTUATION SPACE}")  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ...123.54 123.54...
+    >>> from_unicode(u"\\N{PUNCTUATION SPACE} " * 25 + u"123.54 " * 2 + u"\\N{PUNCTUATION SPACE} " * 22)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ...123.54 123.54...
     >>> from_unicode(None)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError...
