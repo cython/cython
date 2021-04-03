@@ -622,8 +622,8 @@ class CFuncDeclaratorNode(CDeclaratorNode):
     # args             [CArgDeclNode]
     # templates        [TemplatePlaceholderType]
     # has_varargs      boolean
-    # exception_value  ConstNode
-    # exception_check  boolean    True if PyErr_Occurred check needed
+    # exception_value  ConstNode or NameNode    NameNode when the name of a c++ exception conversion function
+    # exception_check  boolean or "+"    True if PyErr_Occurred check needed, "+" for a c++ check
     # nogil            boolean    Can be called without gil
     # with_gil         boolean    Acquire gil around function body
     # is_const_method  boolean    Whether this is a const method
