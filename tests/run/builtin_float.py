@@ -60,6 +60,15 @@ def from_bytes(s: bytes):
     1.2413112312318938e+47
     >>> from_bytes(b"123E100")
     1.23e+102
+    >>> from_bytes(b"12__._3")  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ...12__._3...
+    >>> from_bytes(b"_12.3")  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ..._12.3...
+    >>> from_bytes(b"12.3_")  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ...12.3_...
     >>> from_bytes(None)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError...
@@ -95,6 +104,15 @@ def from_bytearray(s: bytearray):
     1.2413112312318938e+47
     >>> from_bytearray(bytearray(b"123E100"))
     1.23e+102
+    >>> from_bytearray(bytearray(b"12__._3"))  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ...12__._3...
+    >>> from_bytearray(bytearray(b"_12.3"))  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ..._12.3...
+    >>> from_bytearray(bytearray(b"12.3_"))  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ...12.3_...
     >>> from_bytearray(None)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError...
@@ -118,6 +136,15 @@ def from_str(s: 'str'):
     1.2413112312318938e+47
     >>> from_str("123E100")
     1.23e+102
+    >>> from_str("12__._3")  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ...12__._3...
+    >>> from_str("_12.3")  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ..._12.3...
+    >>> from_str("12.3_")  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ...12.3_...
     >>> from_str(None)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError...
@@ -169,6 +196,15 @@ def from_unicode(s: 'unicode'):
     >>> from_unicode(u"\\N{PUNCTUATION SPACE} " * 25 + u"123.54 " * 2 + u"\\N{PUNCTUATION SPACE} " * 22)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: ...123.54 123.54...
+    >>> from_unicode(u"_12__._3")  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ..._12__._3...
+    >>> from_unicode(u"_12.3")  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ..._12.3...
+    >>> from_unicode(u"12.3_")  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ...12.3_...
     >>> from_unicode(None)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError...

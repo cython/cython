@@ -666,6 +666,7 @@ static CYTHON_INLINE double __Pyx_PyUnicode_AsDouble(PyObject *obj);/*proto*/
 
 #if PY_MAJOR_VERSION >= 3 && !CYTHON_COMPILING_IN_PYPY
 static const char* __Pyx__PyUnicode_AsDouble_Copy(PyObject *obj, char* buffer, Py_ssize_t length) {
+    int last_was_punctuation;
     Py_ssize_t i, start, end;
     int kind = PyUnicode_KIND(obj);
     const void* data = PyUnicode_DATA(obj);
@@ -677,14 +678,24 @@ static const char* __Pyx__PyUnicode_AsDouble_Copy(PyObject *obj, char* buffer, P
     while (start < end && Py_UNICODE_ISSPACE(PyUnicode_READ(kind, data, end)))
         end--;
 
+    // number must not start with punctuation
+    last_was_punctuation = 1;
     for (i=start; i <= end; i++) {
         Py_UCS4 chr = PyUnicode_READ(kind, data, i);
+        int is_punctuation = (chr == '_') | (chr == '.');
         *buffer = (char)chr;
-        buffer += chr != '_';
-        if (unlikely(chr > '_')) return NULL;
+        // discard '_', but not sequences of '_' and '.' (so that they fail the parsing later)
+        buffer += (chr != '_');
+        if (unlikely(chr > '_')) goto parse_failure;
+        if (unlikely(last_was_punctuation & ((chr == '_') | (chr == '.')))) goto parse_failure;
+        last_was_punctuation = is_punctuation;
     }
+    if (unlikely(last_was_punctuation)) goto parse_failure;
     *buffer = '\0';
     return buffer;
+
+parse_failure:
+    return NULL;
 }
 
 static double __Pyx_PyUnicode_AsDouble_WithSpaces(PyObject *obj) {
@@ -773,13 +784,24 @@ static double __Pyx_SlowPyString_AsDouble(PyObject *obj) {
 }
 
 static const char* __Pyx__PyBytes_AsDouble_Copy(const char* start, char* buffer, Py_ssize_t length) {
+    // number must not start with punctuation
+    int last_was_punctuation = 1;
     Py_ssize_t i;
     for (i=0; i < length; i++) {
-        *buffer = start[i];
-        buffer += start[i] != '_';
+        char chr = start[i];
+        int is_punctuation = (chr == '_') | (chr == '.');
+        *buffer = chr;
+        // discard '_', but not sequences of '_' and '.' (so that they fail the parsing later)
+        buffer += (chr != '_');
+        if (unlikely(last_was_punctuation & ((chr == '_') | (chr == '.')))) goto parse_failure;
+        last_was_punctuation = is_punctuation;
     }
+    if (unlikely(last_was_punctuation)) goto parse_failure;
     *buffer = '\0';
     return buffer;
+
+parse_failure:
+    return NULL;
 }
 
 static CYTHON_UNUSED double __Pyx__PyBytes_AsDouble(PyObject *obj, const char* start, Py_ssize_t length) {
@@ -802,11 +824,16 @@ static CYTHON_UNUSED double __Pyx__PyBytes_AsDouble(PyObject *obj, const char* s
     } else if (digits < 40) {
         char number[40];
         last = __Pyx__PyBytes_AsDouble_Copy(start, number, length);
+        if (unlikely(!last)) goto fallback;
         value = PyOS_string_to_double(number, &end, NULL);
     } else {
         char *number = (char*) PyMem_Malloc((digits + 1) * sizeof(char));
         if (unlikely(!number)) goto fallback;
         last = __Pyx__PyBytes_AsDouble_Copy(start, number, length);
+        if (unlikely(!last)) {
+            PyMem_Free(number);
+            goto fallback;
+        }
         value = PyOS_string_to_double(number, &end, NULL);
         PyMem_Free(number);
     }
