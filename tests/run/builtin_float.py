@@ -69,6 +69,9 @@ def from_bytes(s: bytes):
     >>> from_bytes(b"12.3_")  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: ...12.3_...
+    >>> from_bytes(b"na_n")  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ...na_n...
     >>> from_bytes(None)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError...
@@ -113,6 +116,9 @@ def from_bytearray(s: bytearray):
     >>> from_bytearray(bytearray(b"12.3_"))  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: ...12.3_...
+    >>> from_bytearray(bytearray(b"in_f"))  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ...in_f...
     >>> from_bytearray(None)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError...
@@ -145,6 +151,9 @@ def from_str(s: 'str'):
     >>> from_str("12.3_")  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: ...12.3_...
+    >>> from_str("n_an")  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ...n_an...
     >>> from_str(None)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError...
@@ -205,6 +214,9 @@ def from_unicode(s: 'unicode'):
     >>> from_unicode(u"12.3_")  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: ...12.3_...
+    >>> from_unicode(u"i_nf")  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ...i_nf...
     >>> from_unicode(None)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError...

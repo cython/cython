@@ -665,19 +665,9 @@ static CYTHON_INLINE double __Pyx_PyUnicode_AsDouble(PyObject *obj);/*proto*/
 //@requires: pybytes_as_double
 
 #if PY_MAJOR_VERSION >= 3 && !CYTHON_COMPILING_IN_PYPY
-static const char* __Pyx__PyUnicode_AsDouble_Copy(PyObject *obj, char* buffer, Py_ssize_t length) {
+static const char* __Pyx__PyUnicode_AsDouble_Copy(const void* data, const int kind, char* buffer, Py_ssize_t start, Py_ssize_t end) {
     int last_was_punctuation;
-    Py_ssize_t i, start, end;
-    int kind = PyUnicode_KIND(obj);
-    const void* data = PyUnicode_DATA(obj);
-
-    start = 0;
-    while (Py_UNICODE_ISSPACE(PyUnicode_READ(kind, data, start)))
-        start++;
-    end = length - 1;
-    while (start < end && Py_UNICODE_ISSPACE(PyUnicode_READ(kind, data, end)))
-        end--;
-
+    Py_ssize_t i;
     // number must not start with punctuation
     last_was_punctuation = 1;
     for (i=start; i <= end; i++) {
@@ -686,8 +676,8 @@ static const char* __Pyx__PyUnicode_AsDouble_Copy(PyObject *obj, char* buffer, P
         *buffer = (char)chr;
         // reject sequences of '_' and '.'
         buffer += (chr != '_');
-        if (unlikely(chr > '_')) goto parse_failure;
-        if (unlikely(last_was_punctuation & ((chr == '_') | (chr == '.')))) goto parse_failure;
+        if (unlikely(chr > 127)) goto parse_failure;
+        if (unlikely(last_was_punctuation & is_punctuation)) goto parse_failure;
         last_was_punctuation = is_punctuation;
     }
     if (unlikely(last_was_punctuation)) goto parse_failure;
@@ -698,20 +688,89 @@ parse_failure:
     return NULL;
 }
 
+static double __Pyx__PyUnicode_AsDouble_inf_nan(const void* data, int kind, Py_ssize_t start, Py_ssize_t length) {
+    int matches = 1;
+    Py_UCS4 chr;
+    Py_UCS4 sign = PyUnicode_READ(kind, data, start);
+    int is_signed = (sign == '-') | (sign == '+');
+    start += is_signed;
+    length -= is_signed;
+
+    switch (PyUnicode_READ(kind, data, start)) {
+        #ifdef Py_NAN
+        case 'n':
+        case 'N':
+            if (unlikely(length != 3)) goto parse_failure;
+            chr = PyUnicode_READ(kind, data, start+1);
+            matches &= (chr == 'a') | (chr == 'A');
+            chr = PyUnicode_READ(kind, data, start+2);
+            matches &= (chr == 'n') | (chr == 'N');
+            if (unlikely(!matches)) goto parse_failure;
+            return (sign == '-') ? -Py_NAN : Py_NAN;
+        #endif
+        case 'i':
+        case 'I':
+            if (unlikely(length < 3)) goto parse_failure;
+            chr = PyUnicode_READ(kind, data, start+1);
+            matches &= (chr == 'n') | (chr == 'N');
+            chr = PyUnicode_READ(kind, data, start+2);
+            matches &= (chr == 'f') | (chr == 'F');
+            if (likely(length == 3 && matches))
+                return (sign == '-') ? -Py_HUGE_VAL : Py_HUGE_VAL;
+            if (unlikely(length != 8)) goto parse_failure;
+            chr = PyUnicode_READ(kind, data, start+3);
+            matches &= (chr == 'i') | (chr == 'I');
+            chr = PyUnicode_READ(kind, data, start+4);
+            matches &= (chr == 'n') | (chr == 'N');
+            chr = PyUnicode_READ(kind, data, start+5);
+            matches &= (chr == 'i') | (chr == 'I');
+            chr = PyUnicode_READ(kind, data, start+6);
+            matches &= (chr == 't') | (chr == 'T');
+            chr = PyUnicode_READ(kind, data, start+7);
+            matches &= (chr == 'y') | (chr == 'Y');
+            if (unlikely(!matches)) goto parse_failure;
+            return (sign == '-') ? -Py_HUGE_VAL : Py_HUGE_VAL;
+        case '.': case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':
+            break;
+        default:
+            goto parse_failure;
+    }
+    return 0.0;
+parse_failure:
+    return -1.0;
+}
+
 static double __Pyx_PyUnicode_AsDouble_WithSpaces(PyObject *obj) {
     double value;
     const char *last;
     char *end;
-    Py_ssize_t length = PyUnicode_GET_LENGTH(obj);
+    Py_ssize_t start, length = PyUnicode_GET_LENGTH(obj);
+    const int kind = PyUnicode_KIND(obj);
+    const void* data = PyUnicode_DATA(obj);
+
+    // strip spaces at start and end
+    start = 0;
+    while (Py_UNICODE_ISSPACE(PyUnicode_READ(kind, data, start)))
+        start++;
+    while (start < length - 1 && Py_UNICODE_ISSPACE(PyUnicode_READ(kind, data, length - 1)))
+        length--;
+    length -= start;
+    if (unlikely(length <= 0)) goto fallback;
+
+    // parse NaN / inf
+    value = __Pyx__PyUnicode_AsDouble_inf_nan(data, kind, start, length);
+    if (unlikely(value == -1.0)) goto fallback;
+    if (value != 0.0) return value;
+
     if (length < 40) {
         char number[40];
-        last = __Pyx__PyUnicode_AsDouble_Copy(obj, number, length);
+        last = __Pyx__PyUnicode_AsDouble_Copy(data, kind, number, start, start + length);
         if (unlikely(!last)) goto fallback;
         value = PyOS_string_to_double(number, &end, NULL);
     } else {
         char *number = (char*) PyMem_Malloc((length + 1) * sizeof(char));
         if (unlikely(!number)) goto fallback;
-        last = __Pyx__PyUnicode_AsDouble_Copy(obj, number, length);
+        last = __Pyx__PyUnicode_AsDouble_Copy(data, kind, number, start, start + length);
         if (unlikely(!last)) {
             PyMem_Free(number);
             goto fallback;
@@ -781,11 +840,11 @@ static const char* __Pyx__PyBytes_AsDouble_Copy(const char* start, char* buffer,
     Py_ssize_t i;
     for (i=0; i < length; i++) {
         char chr = start[i];
-        int is_punctuation = (chr == '_') | (chr == '.');
+        int is_punctuation = (chr == '_') | (chr == '.') | (chr == 'e') | (chr == 'E');
         *buffer = chr;
         buffer += (chr != '_');
         // reject sequences of '_' and '.'
-        if (unlikely(last_was_punctuation & ((chr == '_') | (chr == '.')))) goto parse_failure;
+        if (unlikely(last_was_punctuation & is_punctuation)) goto parse_failure;
         last_was_punctuation = is_punctuation;
     }
     if (unlikely(last_was_punctuation)) goto parse_failure;
@@ -796,17 +855,67 @@ parse_failure:
     return NULL;
 }
 
+static double __Pyx__PyBytes_AsDouble_inf_nan(const char* start, Py_ssize_t length) {
+    int matches = 1;
+    char sign = start[0];
+    int is_signed = (sign == '+') | (sign == '-');
+    start += is_signed;
+    length -= is_signed;
+
+    switch (start[0]) {
+        #ifdef Py_NAN
+        case 'n':
+        case 'N':
+            if (unlikely(length != 3)) goto parse_failure;
+            matches &= (start[1] == 'a' || start[1] == 'A');
+            matches &= (start[2] == 'n' || start[2] == 'N');
+            if (unlikely(!matches)) goto parse_failure;
+            return (sign == '-') ? -Py_NAN : Py_NAN;
+        #endif
+        case 'i':
+        case 'I':
+            if (unlikely(length < 3)) goto parse_failure;
+            matches &= (start[1] == 'n' || start[1] == 'N');
+            matches &= (start[2] == 'f' || start[2] == 'F');
+            if (likely(length == 3 && matches))
+                return (sign == '-') ? -Py_HUGE_VAL : Py_HUGE_VAL;
+            if (unlikely(length != 8)) goto parse_failure;
+            matches &= (start[3] == 'i' || start[3] == 'I');
+            matches &= (start[4] == 'n' || start[4] == 'N');
+            matches &= (start[5] == 'i' || start[5] == 'I');
+            matches &= (start[6] == 't' || start[6] == 'T');
+            matches &= (start[7] == 'y' || start[7] == 'Y');
+            if (unlikely(!matches)) goto parse_failure;
+            return (sign == '-') ? -Py_HUGE_VAL : Py_HUGE_VAL;
+        case '.': case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':
+            break;
+        default:
+            goto parse_failure;
+    }
+    return 0.0;
+parse_failure:
+    return -1.0;
+}
+
 static CYTHON_UNUSED double __Pyx__PyBytes_AsDouble(PyObject *obj, const char* start, Py_ssize_t length) {
     double value;
     Py_ssize_t i, digits;
     const char *last = start + length;
     char *end;
+
     // strip spaces at start and end
     while (Py_ISSPACE(*start))
         start++;
     while (start < last - 1 && Py_ISSPACE(last[-1]))
         last--;
     length = last - start;
+    if (unlikely(length <= 0)) goto fallback;
+
+    // parse NaN / inf
+    value = __Pyx__PyBytes_AsDouble_inf_nan(start, length);
+    if (unlikely(value == -1.0)) goto fallback;
+    if (value != 0.0) return value;
+
     // look for underscores
     digits = 0;
     for (i=0; i < length; digits += start[i++] != '_');
