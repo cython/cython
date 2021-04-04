@@ -1,0 +1,8 @@
+# This file contains tests corresponding to unresolved bugs using CPython's
+# Limited API which will be skipped in the normal testing run.
+
+convolve2
+dict_animal
+not_none
+queue3
+test_queue

@@ -55,3 +55,13 @@ def calculate_tax(cnp.ndarray[double, ndim=1] d):
         np.sum(seg3 * prog_seg3 + 939.57) +
         np.sum(seg4 * prog_seg4)
     ) / np.sum(d)
+
+def access_shape():
+    """
+    >>> access_shape()
+    10
+    """
+    cdef cnp.ndarray[double, ndim=2, mode='c'] array_in = \
+                    1e10 * np.ones((10, 10))
+
+    return array_in.shape[0]

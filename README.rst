@@ -15,19 +15,23 @@ This makes Cython the ideal language for wrapping external C libraries, and
 for fast C modules that speed up the execution of Python code.
 
 * Official website: https://cython.org/
-* Documentation: http://docs.cython.org/
+* Documentation: https://docs.cython.org/
 * Github repository: https://github.com/cython/cython
 * Wiki: https://github.com/cython/cython/wiki
+
+You can **support the Cython project** via
+`Github Sponsors <https://github.com/users/scoder/sponsorship>`_ or
+`Tidelift <https://tidelift.com/subscription/pkg/pypi-cython>`_.
 
 
 Installation:
 -------------
 
-If you already have a C compiler, just do::
+If you already have a C compiler, just run following command::
 
    pip install Cython
 
-otherwise, see `the installation page <http://docs.cython.org/en/latest/src/quickstart/install.html>`_.
+otherwise, see `the installation page <https://docs.cython.org/en/latest/src/quickstart/install.html>`_.
 
 
 License:
@@ -55,8 +59,9 @@ Get the full source history:
 
 Note that Cython used to ship the full version control repository in its source
 distribution, but no longer does so due to space constraints.  To get the
-full source history, make sure you have git installed, then step into the
-base directory of the Cython source distribution and type::
+full source history from a downloaded source archive, make sure you have git
+installed, then step into the base directory of the Cython source distribution
+and type::
 
     make repo
 
@@ -66,21 +71,21 @@ The following is from Pyrex:
 This is a development version of Pyrex, a language
 for writing Python extension modules.
 
-For more info, see:
+For more info, take a look at:
 
 * Doc/About.html for a description of the language
 * INSTALL.txt    for installation instructions
 * USAGE.txt      for usage instructions
 * Demos          for usage examples
 
-Comments, suggestions, bug reports, etc. are
+Comments, suggestions, bug reports, etc. are most
 welcome!
 
 Copyright stuff: Pyrex is free of restrictions. You
 may use, redistribute, modify and distribute modified
 versions.
 
-The latest version of Pyrex can be found `here <http://www.cosc.canterbury.ac.nz/~greg/python/Pyrex/>`_.
+The latest version of Pyrex can be found `here <https://www.cosc.canterbury.ac.nz/~greg/python/Pyrex/>`_.
 
 | Greg Ewing, Computer Science Dept
 | University of Canterbury

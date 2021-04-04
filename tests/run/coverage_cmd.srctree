@@ -40,6 +40,13 @@ def func2(a):
     return a * 2        # 11
 
 
+def func3(a):
+    x = 1               # 15
+    a *= 2              #     # pragma: no cover
+    a += x              #
+    return a * 42       # 18  # pragma: no cover
+
+
 ######## pkg/coverage_test_pyx.pyx ########
 # cython: linetrace=True
 # distutils: define_macros=CYTHON_TRACE=1
@@ -52,6 +59,13 @@ def func1(int a, int b):
 
 def func2(int a):
     return a * 2        # 11
+
+
+def func3(int a):
+    cdef int x = 1      # 15
+    a *= 2              #     # pragma: no cover
+    a += x              #
+    return a * 42       # 18  # pragma: no cover
 
 
 ######## coverage_test_include_pyx.pyx ########
@@ -152,8 +166,9 @@ def run_report():
                 missing.append(int(start))
         files[os.path.basename(name)] = (statements, missed, covered, missing)
 
-    assert  7 not in files['coverage_test_pyx.pyx'][-1], files['coverage_test_pyx.pyx']
-    assert 12 not in files['coverage_test_pyx.pyx'][-1], files['coverage_test_pyx.pyx']
+    report = files['coverage_test_pyx.pyx']
+    assert  7 not in report[-1], report
+    assert 12 not in report[-1], report
 
 
 def run_xml_report():
@@ -170,35 +185,74 @@ def run_xml_report():
             for line in module.findall('lines/line')
         )
 
-    assert files['pkg/coverage_test_pyx.pyx'][5] > 0, files['pkg/coverage_test_pyx.pyx']
-    assert files['pkg/coverage_test_pyx.pyx'][6] > 0, files['pkg/coverage_test_pyx.pyx']
-    assert files['pkg/coverage_test_pyx.pyx'][7] > 0, files['pkg/coverage_test_pyx.pyx']
+    report = files['pkg/coverage_test_pyx.pyx']
+    assert report[5] > 0, report
+    assert report[6] > 0, report
+    assert report[7] > 0, report
+
+
+def run_json_report():
+    import coverage
+    if coverage.version_info < (5, 0):
+        # JSON output comes in coverage 5.0
+        return
+
+    stdout = run_coverage_command('json', '-o', '-')
+
+    import json
+    files = json.loads(stdout.decode("ascii"))['files']
+
+    for filename in [
+        'pkg/coverage_test_py.py',
+        'pkg/coverage_test_pyx.pyx',
+    ]:
+        report = files[filename.replace('/', os.sep)]
+        summary = report['summary']
+        assert summary['missing_lines'] == 2, summary
+        assert summary['excluded_lines'] == 2, summary
+        assert report['missing_lines'] == [15, 17], report
+        assert report['excluded_lines'] == [16, 18], report
+
+        assert not frozenset(
+            report['missing_lines'] + report['excluded_lines']
+        ).intersection(report['executed_lines'])
 
 
 def run_html_report():
+    from collections import defaultdict
+
     stdout = run_coverage_command('html', '-d', 'html')
     _parse_lines = re.compile(
         r'<p[^>]* id=["\'][^0-9"\']*(?P<id>[0-9]+)[^0-9"\']*["\'][^>]*'
-        r' class=["\'][^"\']*(?P<run>mis|run)[^"\']*["\']').findall
+        r' class=["\'][^"\']*(?P<run>mis|run|exc)[^"\']*["\']').findall
 
     files = {}
     for file_path in iglob('html/*.html'):
         with open(file_path) as f:
             page = f.read()
-        executed = set()
-        missing = set()
-        for line, has_run in _parse_lines(page):
-            (executed if has_run == 'run' else missing).add(int(line))
-        files[file_path] = (executed, missing)
+        report = defaultdict(set)
+        for line, state in _parse_lines(page):
+            report[state].add(int(line))
+        files[file_path] = report
 
-    executed, missing = [data for path, data in files.items() if 'coverage_test_pyx' in path][0]
-    assert executed
-    assert 5 in executed, executed
-    assert 6 in executed, executed
-    assert 7 in executed, executed
+    for filename, report in files.items():
+        if "coverage_test_pyx" not in filename:
+            continue
+        executed = report["run"]
+        missing = report["mis"]
+        excluded = report["exc"]
+        assert executed
+        assert 5 in executed, executed
+        assert 6 in executed, executed
+        assert 7 in executed, executed
+        assert 15 in missing, missing
+        assert 16 in excluded, excluded
+        assert 17 in missing, missing
+        assert 18 in excluded, excluded
 
 
 if __name__ == '__main__':
     run_report()
     run_xml_report()
+    run_json_report()
     run_html_report()

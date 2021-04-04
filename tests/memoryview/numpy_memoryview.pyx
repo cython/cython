@@ -186,7 +186,7 @@ def test_transpose():
     numpy_obj = np.arange(4 * 3, dtype=np.int32).reshape(4, 3)
 
     a = numpy_obj
-    a_obj = a
+    cdef object a_obj = a
 
     cdef dtype_t[:, :] b = a.T
     print a.T.shape[0], a.T.shape[1]
@@ -244,7 +244,7 @@ def test_copy_and_contig_attributes(a):
     >>> test_copy_and_contig_attributes(a)
     """
     cdef np.int32_t[:, :] mslice = a
-    m = mslice
+    cdef object m = mslice  #  object copy
 
     # Test object copy attributes
     assert np.all(a == np.array(m.copy()))
@@ -718,3 +718,42 @@ def test_boundscheck_and_wraparound(double[:, :] x):
         x[i]
         x[i, ...]
         x[i, :]
+
+
+ctypedef struct SameTypeAfterArraysStructSimple:
+    double a[16]
+    double b[16]
+    double c
+
+@testcase
+def same_type_after_arrays_simple():
+    """
+    >>> same_type_after_arrays_simple()
+    """
+
+    cdef SameTypeAfterArraysStructSimple element
+    arr = np.ones(2, np.asarray(<SameTypeAfterArraysStructSimple[:1]>&element).dtype)
+    cdef SameTypeAfterArraysStructSimple[:] memview = arr
+
+
+ctypedef struct SameTypeAfterArraysStructComposite:
+    int a
+    float b[8]
+    float c
+    unsigned long d
+    int e[5]
+    int f
+    int g
+    double h[4]
+    int i
+
+@testcase
+def same_type_after_arrays_composite():
+    """
+    >>> same_type_after_arrays_composite() if sys.version_info[:2] >= (3, 5) else None
+    >>> same_type_after_arrays_composite() if sys.version_info[:2] == (2, 7) else None
+    """
+
+    cdef SameTypeAfterArraysStructComposite element
+    arr = np.ones(2, np.asarray(<SameTypeAfterArraysStructComposite[:1]>&element).dtype)
+    cdef SameTypeAfterArraysStructComposite[:] memview = arr

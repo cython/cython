@@ -1,5 +1,4 @@
-# tag: numpy_old
-# cannot be named "numpy" in order to not clash with the numpy module!
+# tag: numpy
 
 cimport numpy as np
 cimport cython
@@ -946,4 +945,16 @@ def test_broadcast_comparison(np.ndarray[double, ndim=1] a):
     return a == 0, obj == 0, a == 1, obj == 1
 
 
-include "numpy_common.pxi"
+@testcase
+def test_c_api_searchsorted(np.ndarray arr, other):
+    """
+    >>> arr = np.random.randn(10)
+    >>> other = np.random.randn(5)
+    >>> result, expected = test_c_api_searchsorted(arr, other)
+    >>> (result == expected).all()
+    True
+    """
+    result = np.PyArray_SearchSorted(arr, other, np.NPY_SEARCHRIGHT, NULL)
+
+    expected = arr.searchsorted(other, side="right")
+    return result, expected

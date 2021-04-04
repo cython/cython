@@ -33,7 +33,7 @@ cdef class Recurse:
     cdef public attr
     cdef int deallocated
 
-    def __init__(self, x):
+    def __cinit__(self, x):
         self.attr = x
 
     def __dealloc__(self):
@@ -68,7 +68,7 @@ cdef class RecurseFreelist:
     cdef public attr
     cdef int deallocated
 
-    def __init__(self, x):
+    def __cinit__(self, x):
         self.attr = x
 
     def __dealloc__(self):
@@ -92,7 +92,7 @@ cdef class RecurseList(list):
 
 
 # Some tests where the trashcan is NOT used. When the trashcan is not used
-# in a big recursive deallocation, the __dealloc__s of the base classs are
+# in a big recursive deallocation, the __dealloc__s of the base classes are
 # only run after the __dealloc__s of the subclasses.
 # We use this to detect trashcan usage.
 cdef int base_deallocated = 0
@@ -118,7 +118,7 @@ cdef class Sub1(Base):
     """
     cdef public attr
 
-    def __init__(self, x):
+    def __cinit__(self, x):
         self.attr = x
 
     def __dealloc__(self):
@@ -140,7 +140,7 @@ cdef class Sub2(Middle):
     """
     cdef public attr
 
-    def __init__(self, x):
+    def __cinit__(self, x):
         self.attr = x
 
     def __dealloc__(self):

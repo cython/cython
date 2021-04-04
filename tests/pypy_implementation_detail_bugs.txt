@@ -1,0 +1,45 @@
+# PyPy "bugs" that are probably implementation differences from
+# CPython rather than actual bugs. Therefore they aren't targets
+# to be fixed (but there *may* be other details in the testfile
+# that should be tested on PyPy?)
+
+run.starargs
+
+# refcounting-specific tests
+double_dealloc_T796
+run.exceptionrefcount
+run.capiimpl
+run.refcount_in_meth
+# Ideally just disable the reference-counting tests on PyPy?
+run.fused_types
+run.generator_frame_cycle
+run.generators_in_refcycles
+run.generators_py
+run.parallel
+
+# "sys.getsizeof(object, default) will always return default on PyPy, and
+# raise a TypeError if default is not provided."
+buildenv
+
+# tests for things that don't exist in cpyext
+compile.pylong
+run.datetime_pxd
+run.datetime_cimport
+run.datetime_members
+run.extern_builtins_T258
+run.line_trace
+run.line_profile_test
+run.pstats_profile_test
+run.longintrepr
+
+# tests probably rely on immediate GC (although maybe the tests could be tweaked so
+# only these bits don't run in PyPy?)
+buffers.buffer
+buffers.userbuffer
+memoryview.cythonarray
+memoryview.memoryview_pep484_typing
+run.cpp_classes
+run.cpp_classes_def
+
+# missing pypy feature?
+matrix_multiplier

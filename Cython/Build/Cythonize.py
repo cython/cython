@@ -192,6 +192,7 @@ def parse_args_raw(parser, args):
 def parse_args(args):
     parser = create_args_parser()
     options, args = parse_args_raw(parser, args)
+
     if not args:
         parser.error("no source files provided")
     if options.build_inplace:
@@ -201,11 +202,6 @@ def parse_args(args):
     if options.language_level:
         assert options.language_level in (2, 3, '3str')
         options.options['language_level'] = options.language_level
-    return options, args
-
-
-def main(args=None):
-    options, paths = parse_args(args)
 
     if options.lenient:
         # increase Python compatibility by ignoring compile time errors
@@ -213,10 +209,16 @@ def main(args=None):
         Options.error_on_uninitialized = False
 
     if options.annotate:
-        Options.annotate = True
+        Options.annotate = options.annotate
 
     if options.no_docstrings:
         Options.docstrings = False
+
+    return options, args
+
+
+def main(args=None):
+    options, paths = parse_args(args)
 
     for path in paths:
         cython_compile(path, options)
