@@ -13,6 +13,7 @@ cimport cpython.bytes
 cimport cpython.ceval
 cimport cpython.cobject
 cimport cpython.complex
+cimport cpython.contextvars
 cimport cpython.datetime
 cimport cpython.dict
 cimport cpython.exc
