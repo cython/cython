@@ -2239,10 +2239,10 @@ def main():
         pool = multiprocessing.Pool(options.shard_count)
         tasks = [(options, cmd_args, shard_num) for shard_num in range(options.shard_count)]
         error_shards = []
+        failure_outputs = []
         # NOTE: create process pool before time stamper thread to avoid forking issues.
         total_time = time.time()
         stats = Stats()
-        failure_outputs = []
         with time_stamper_thread(interval=keep_alive_interval):
             for shard_num, shard_stats, return_code, failure_output in pool.imap_unordered(runtests_callback, tasks):
                 if return_code != 0:
