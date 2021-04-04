@@ -2238,14 +2238,16 @@ def main():
         import multiprocessing
         pool = multiprocessing.Pool(options.shard_count)
         tasks = [(options, cmd_args, shard_num) for shard_num in range(options.shard_count)]
-        errors = []
+        error_shards = []
         # NOTE: create process pool before time stamper thread to avoid forking issues.
         total_time = time.time()
         stats = Stats()
+        failure_outputs = []
         with time_stamper_thread(interval=keep_alive_interval):
-            for shard_num, shard_stats, return_code in pool.imap_unordered(runtests_callback, tasks):
+            for shard_num, shard_stats, return_code, failure_output in pool.imap_unordered(runtests_callback, tasks):
                 if return_code != 0:
-                    errors.append(shard_num)
+                    error_shards.append(shard_num)
+                    failure_outputs.append(failure_output)
                     sys.stderr.write("FAILED (%s/%s)\n" % (shard_num, options.shard_count))
                 sys.stderr.write("ALL DONE (%s/%s)\n" % (shard_num, options.shard_count))
                 stats.update(shard_stats)
@@ -2253,14 +2255,16 @@ def main():
         pool.join()
         total_time = time.time() - total_time
         sys.stderr.write("Sharded tests run in %d seconds (%.1f minutes)\n" % (round(total_time), total_time / 60.))
-        if errors:
-            sys.stderr.write("Errors for shards %s\n" % ", ".join([str(e) for e in errors]))
+        if error_shards:
+            sys.stderr.write("Errors found in shards %s\n" % ", ".join([str(e) for e in error_shards]))
+            for failure_output in zip(error_shards, failure_outputs):
+                sys.stderr.write("\nErrors from shard %s:\n%s" % failure_output)
             return_code = 1
         else:
             return_code = 0
     else:
         with time_stamper_thread(interval=keep_alive_interval):
-            _, stats, return_code = runtests(options, cmd_args, coverage)
+            _, stats, return_code, _ = runtests(options, cmd_args, coverage)
 
     if coverage:
         if options.shard_count > 1 and options.shard_num == -1:
@@ -2639,10 +2643,27 @@ def runtests(options, cmd_args, coverage=None):
         import refnanny
         sys.stderr.write("\n".join([repr(x) for x in refnanny.reflog]))
 
-    if options.exit_ok:
-        return options.shard_num, stats, 0
+    result_code = 0 if options.exit_ok else not result.wasSuccessful()
+
+    if xml_output_dir:
+        failure_output = ""
     else:
-        return options.shard_num, stats, not result.wasSuccessful()
+        failure_output = "".join(collect_failure_output(result))
+
+    return options.shard_num, stats, result_code, failure_output
+
+
+def collect_failure_output(result):
+    """Extract test error/failure output from a TextTestResult."""
+    failure_output = []
+    for flavour, errors in (("ERROR", result.errors), ("FAIL", result.failures)):
+        for test, err in errors:
+            failure_output.append("%s\n%s: %s\n%s\n%s\n" % (
+                result.separator1,
+                flavour, result.getDescription(test),
+                result.separator2,
+                err))
+    return failure_output
 
 
 if __name__ == '__main__':
