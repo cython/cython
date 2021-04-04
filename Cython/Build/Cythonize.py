@@ -120,33 +120,8 @@ def run_distutils(args):
 
 
 def create_args_parser():
-    from argparse import ArgumentParser, Action
-
-    class ParseDirectivesAction(Action):
-        def __call__(self, parser, namespace, values, option_string=None):
-            old_directives = dict(getattr(namespace, self.dest,
-                                          Options.get_directive_defaults()))
-            directives = Options.parse_directive_list(
-                values, relaxed_bool=True, current_settings=old_directives)
-            setattr(namespace, self.dest, directives)
-
-    class ParseOptionsAction(Action):
-        def __call__(self, parser, namespace, values, option_string=None):
-            options = dict(getattr(namespace, self.dest, {}))
-            for opt in values.split(','):
-                if '=' in opt:
-                    n, v = opt.split('=', 1)
-                    v = v.lower() not in ('false', 'f', '0', 'no')
-                else:
-                    n, v = opt, True
-                options[n] = v
-            setattr(namespace, self.dest, options)
-
-    class ParseCompileTimeEnvAction(Action):
-        def __call__(self, parser, namespace, values, option_string=None):
-            old_env = dict(getattr(namespace, self.dest, {}))
-            new_env = Options.parse_compile_time_env(values, current_settings=old_env)
-            setattr(namespace, self.dest, new_env)
+    from argparse import ArgumentParser
+    from ..Compiler.CmdLine import ParseDirectivesAction, ParseOptionsAction, ParseCompileTimeEnvAction
 
     parser = ArgumentParser()
 
@@ -217,6 +192,7 @@ def parse_args_raw(parser, args):
 def parse_args(args):
     parser = create_args_parser()
     options, args = parse_args_raw(parser, args)
+
     if not args:
         parser.error("no source files provided")
     if options.build_inplace:
@@ -226,11 +202,6 @@ def parse_args(args):
     if options.language_level:
         assert options.language_level in (2, 3, '3str')
         options.options['language_level'] = options.language_level
-    return options, args
-
-
-def main(args=None):
-    options, paths = parse_args(args)
 
     if options.lenient:
         # increase Python compatibility by ignoring compile time errors
@@ -238,10 +209,16 @@ def main(args=None):
         Options.error_on_uninitialized = False
 
     if options.annotate:
-        Options.annotate = True
+        Options.annotate = options.annotate
 
     if options.no_docstrings:
         Options.docstrings = False
+
+    return options, args
+
+
+def main(args=None):
+    options, paths = parse_args(args)
 
     for path in paths:
         cython_compile(path, options)

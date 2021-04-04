@@ -14,15 +14,8 @@ from Cython.Compiler.Annotate import AnnotationCCodeWriter
 
 try:
     import IPython.testing.globalipapp
-    from IPython.utils import py3compat
 except ImportError:
     # Disable tests and fake helpers for initialisation below.
-    class _py3compat(object):
-        def str_to_unicode(self, s):
-            return s
-
-    py3compat = _py3compat()
-
     def skip_if_not_installed(_):
         return None
 else:
@@ -36,24 +29,24 @@ try:
 except ImportError:
     pass
 
-code = py3compat.str_to_unicode("""\
+code = u"""\
 def f(x):
     return 2*x
-""")
+"""
 
-cython3_code = py3compat.str_to_unicode("""\
+cython3_code = u"""\
 def f(int x):
     return 2 / x
 
 def call(x):
     return f(*(x,))
-""")
+"""
 
-pgo_cython3_code = cython3_code + py3compat.str_to_unicode("""\
+pgo_cython3_code = cython3_code + u"""\
 def main():
     for _ in range(100): call(5)
 main()
-""")
+"""
 
 
 if sys.platform == 'win32':
@@ -162,10 +155,10 @@ class TestIPythonMagic(CythonTest):
     @skip_win32('Skip on Windows')
     def test_extlibs(self):
         ip = self._ip
-        code = py3compat.str_to_unicode("""
+        code = u"""
 from libc.math cimport sin
 x = sin(0.0)
-        """)
+        """
         ip.user_ns['x'] = 1
         ip.run_cell_magic('cython', '-l m', code)
         self.assertEqual(ip.user_ns['x'], 0)

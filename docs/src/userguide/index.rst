@@ -16,6 +16,7 @@ Contents:
    wrapping_CPlusPlus
    fusedtypes
    pypy
+   migrating_to_cy30
    limitations
    pyrex_differences
    memoryviews
@@ -34,3 +35,4 @@ Indices and tables
 
 .. toctree::
 
+   glossary

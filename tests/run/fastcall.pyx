@@ -1,6 +1,8 @@
 # mode: run
 # tag: METH_FASTCALL
 
+cimport cython
+
 import sys
 import struct
 from collections import deque
@@ -63,3 +65,64 @@ cdef class SelfCast:
     """
     def index_of_self(self, list orbit not None):
         return orbit.index(self)
+
+
+cdef extern from *:
+    int PyCFunction_GET_FLAGS(op)
+
+
+def has_fastcall(meth):
+    """
+    Given a builtin_function_or_method or cyfunction ``meth``,
+    return whether it uses ``METH_FASTCALL``.
+    """
+    # Hardcode METH_FASTCALL constant equal to 0x80 for simplicity
+    return bool(PyCFunction_GET_FLAGS(meth) & 0x80)
+
+
+def assert_fastcall(meth):
+    """
+    Assert that ``meth`` uses ``METH_FASTCALL`` if the Python
+    implementation supports it.
+    """
+    # getattr uses METH_FASTCALL on CPython >= 3.7
+    if has_fastcall(getattr) and not has_fastcall(meth):
+        raise AssertionError(f"{meth} does not use METH_FASTCALL")
+
+
+@cython.binding(False)
+def fastcall_function(**kw):
+    """
+    >>> assert_fastcall(fastcall_function)
+    """
+    return kw
+
+@cython.binding(True)
+def fastcall_cyfunction(**kw):
+    """
+    >>> assert_fastcall(fastcall_cyfunction)
+    """
+    return kw
+
+cdef class Dummy:
+    @cython.binding(False)
+    def fastcall_method(self, x, *args, **kw):
+        """
+        >>> assert_fastcall(Dummy().fastcall_method)
+        """
+        return tuple(args) + tuple(kw)
+
+cdef class CyDummy:
+    @cython.binding(True)
+    def fastcall_method(self, x, *args, **kw):
+        """
+        >>> assert_fastcall(CyDummy.fastcall_method)
+        """
+        return tuple(args) + tuple(kw)
+
+class PyDummy:
+    def fastcall_method(self, x, *args, **kw):
+        """
+        >>> assert_fastcall(PyDummy.fastcall_method)
+        """
+        return tuple(args) + tuple(kw)

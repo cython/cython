@@ -2,6 +2,10 @@ from Cython.Build.Cythonize import (
     create_args_parser, parse_args_raw, parse_args,
     parallel_compiles
 )
+
+from Cython.Compiler import Options
+from Cython.Compiler.Tests.Utils import backup_Options, restore_Options, check_global_options
+
 from unittest import TestCase
 
 import sys
@@ -23,14 +27,14 @@ class TestCythonizeArgsParser(TestCase):
         empty_containers = ['directives', 'compile_time_env', 'options', 'excludes']
         are_none = ['language_level', 'annotate', 'build', 'build_inplace', 'force', 'quiet', 'lenient', 'keep_going', 'no_docstrings']
         for opt_name in empty_containers:
-            if len(getattr(options, opt_name))!=0 and (not opt_name in skip):
+            if len(getattr(options, opt_name))!=0 and (opt_name not in skip):
                 self.assertEqual(opt_name,"", msg="For option "+opt_name)
                 return False
         for opt_name in are_none:
-            if (getattr(options, opt_name) is not None) and (not opt_name in skip):
+            if (getattr(options, opt_name) is not None) and (opt_name not in skip):
                 self.assertEqual(opt_name,"", msg="For option "+opt_name)
                 return False
-        if options.parallel!=parallel_compiles and (not 'parallel' in skip):
+        if options.parallel!=parallel_compiles and ('parallel' not in skip):
             return False
         return True
 
@@ -108,8 +112,8 @@ class TestCythonizeArgsParser(TestCase):
 
     def test_directives_wrong(self):
         directives = {
-                'auto_pickle': 42,       # for bool type
-                'auto_pickle': 'NONONO', # for bool type
+                'auto_pickle': 42,        # for bool type
+                'auto_pickle': 'NONONO',  # for bool type
                 'c_string_type': 'bites',
                 #'c_string_encoding' : 'a',
                 #'language_level' : 4,
@@ -163,14 +167,14 @@ class TestCythonizeArgsParser(TestCase):
         self.assertFalse(args)
         self.assertTrue(self.are_default(options, ['options']))
         self.assertEqual(options.options['docstrings'], True)
-        self.assertEqual(options.options['buffer_max_dims'], True) #  really?
+        self.assertEqual(options.options['buffer_max_dims'], True)  #  really?
 
     def test_option_multiple_v2(self):
         options, args =  self.parse_args(['-s', 'docstrings=True,buffer_max_dims=8'])
         self.assertFalse(args)
         self.assertTrue(self.are_default(options, ['options']))
         self.assertEqual(options.options['docstrings'], True)
-        self.assertEqual(options.options['buffer_max_dims'], True) #  really?
+        self.assertEqual(options.options['buffer_max_dims'], True)  #  really?
 
     def test_option_value_yes(self):
         options, args =  self.parse_args(['-s', 'docstrings=YeS'])
@@ -438,7 +442,41 @@ class TestCythonizeArgsParser(TestCase):
 
 
 class TestParseArgs(TestCase):
+    def setUp(self):
+        self._options_backup = backup_Options()
+
+    def tearDown(self):
+        restore_Options(self._options_backup)
+
+    def check_default_global_options(self, white_list=[]):
+        self.assertEqual(check_global_options(self._options_backup, white_list), "")
 
     def test_build_set_for_inplace(self):
         options, args = parse_args(['foo.pyx', '-i'])
         self.assertEqual(options.build, True)
+        self.check_default_global_options()
+
+    def test_lenient(self):
+        options, sources = parse_args(['foo.pyx', '--lenient'])
+        self.assertEqual(sources, ['foo.pyx'])
+        self.assertEqual(Options.error_on_unknown_names, False)
+        self.assertEqual(Options.error_on_uninitialized, False)
+        self.check_default_global_options(['error_on_unknown_names', 'error_on_uninitialized'])
+
+    def test_annotate(self):
+        options, sources = parse_args(['foo.pyx', '--annotate'])
+        self.assertEqual(sources, ['foo.pyx'])
+        self.assertEqual(Options.annotate, 'default')
+        self.check_default_global_options(['annotate'])
+
+    def test_annotate_fullc(self):
+        options, sources = parse_args(['foo.pyx', '--annotate-fullc'])
+        self.assertEqual(sources, ['foo.pyx'])
+        self.assertEqual(Options.annotate, 'fullc')
+        self.check_default_global_options(['annotate'])
+
+    def test_no_docstrings(self):
+        options, sources = parse_args(['foo.pyx', '--no-docstrings'])
+        self.assertEqual(sources, ['foo.pyx'])
+        self.assertEqual(Options.docstrings, False)
+        self.check_default_global_options(['docstrings'])

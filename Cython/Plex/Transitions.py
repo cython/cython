@@ -1,14 +1,11 @@
+# cython: auto_pickle=False
 """
 Plex - Transition Maps
 
 This version represents state sets directly as dicts for speed.
 """
-from __future__ import absolute_import
 
-try:
-    from sys import maxsize as maxint
-except ImportError:
-    from sys import maxint
+maxint = 2**31-1  # sentinel value
 
 
 class TransitionMap(object):
@@ -39,23 +36,19 @@ class TransitionMap(object):
     kept separately in a dictionary.
     """
 
-    map = None      # The list of codes and states
-    special = None  # Mapping for special events
-
     def __init__(self, map=None, special=None):
         if not map:
             map = [-maxint, {}, maxint]
         if not special:
             special = {}
-        self.map = map
-        self.special = special
+        self.map = map          # The list of codes and states
+        self.special = special  # Mapping for special events
 
-    def add(self, event, new_state,
-            TupleType=tuple):
+    def add(self, event, new_state):
         """
         Add transition to |new_state| on |event|.
         """
-        if type(event) is TupleType:
+        if type(event) is tuple:
             code0, code1 = event
             i = self.split(code0)
             j = self.split(code1)
@@ -66,12 +59,11 @@ class TransitionMap(object):
         else:
             self.get_special(event)[new_state] = 1
 
-    def add_set(self, event, new_set,
-                TupleType=tuple):
+    def add_set(self, event, new_set):
         """
         Add transitions to the states in |new_set| on |event|.
         """
-        if type(event) is TupleType:
+        if type(event) is tuple:
             code0, code1 = event
             i = self.split(code0)
             j = self.split(code1)
@@ -88,8 +80,7 @@ class TransitionMap(object):
         """
         return self.special.get('')
 
-    def iteritems(self,
-                  len=len):
+    def iteritems(self):
         """
         Return the mapping as an iterable of ((code1, code2), state_set) and
         (special_event, state_set) pairs.
@@ -116,8 +107,7 @@ class TransitionMap(object):
 
     # ------------------- Private methods --------------------
 
-    def split(self, code,
-              len=len, maxint=maxint):
+    def split(self, code):
         """
         Search the list for the position of the split point for |code|,
         inserting a new split point if necessary. Returns index |i| such

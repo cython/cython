@@ -45,7 +45,7 @@ class TempRefNode(AtomicExprNode):
 
     def calculate_result_code(self):
         result = self.handle.temp
-        if result is None: result = "<error>" # might be called and overwritten
+        if result is None: result = "<error>"  # might be called and overwritten
         return result
 
     def generate_result_code(self, code):
@@ -122,8 +122,7 @@ class ResultRefNode(AtomicExprNode):
         self.may_hold_none = may_hold_none
         if expression is not None:
             self.pos = expression.pos
-            if hasattr(expression, "type"):
-                self.type = expression.type
+            self.type = getattr(expression, "type", None)
         if pos is not None:
             self.pos = pos
         if type is not None:
@@ -144,13 +143,14 @@ class ResultRefNode(AtomicExprNode):
 
     def update_expression(self, expression):
         self.expression = expression
-        if hasattr(expression, "type"):
-            self.type = expression.type
+        type = getattr(expression, "type", None)
+        if type:
+            self.type = type
 
     def analyse_types(self, env):
         if self.expression is not None:
             if not self.expression.type:
-              self.expression = self.expression.analyse_types(env)
+                self.expression = self.expression.analyse_types(env)
             self.type = self.expression.type
         return self
 
@@ -175,7 +175,7 @@ class ResultRefNode(AtomicExprNode):
             return self.expression.may_be_none()
         if self.type is not None:
             return self.type.is_pyobject
-        return True # play safe
+        return True  # play it safe
 
     def is_simple(self):
         return True
@@ -360,3 +360,6 @@ class TempResultFromStatNode(ExprNodes.ExprNode):
     def generate_result_code(self, code):
         self.result_ref.result_code = self.result()
         self.body.generate_execution_code(code)
+
+    def generate_function_definitions(self, env, code):
+        self.body.generate_function_definitions(env, code)
