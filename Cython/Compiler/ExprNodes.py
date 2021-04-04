@@ -9380,7 +9380,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         must_use_constants = env.is_c_class_scope or (self.def_node.is_wrapper and env.is_module_scope)
 
         for arg in self.def_node.args:
-            if arg.default and not must_use_constants:
+            if arg.default:  # and not must_use_constants:
                 if not arg.default.is_literal:
                     arg.is_dynamic = True
                     if arg.type.is_pyobject:

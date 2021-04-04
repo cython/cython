@@ -106,7 +106,7 @@ cpdef cp2(a, b=True):
     """
     >>> def py_cp2(a, b=True): pass
 
-    #>>> signatures_match(cp2, py_cp2)
+    >>> signatures_match(cp2, py_cp2)
     """
 
 
@@ -115,5 +115,5 @@ cpdef cp3(a=1, b=True):
     """
     >>> def py_cp3(a=1, b=True): pass
 
-    #>>> signatures_match(cp3, py_cp3)
+    >>> signatures_match(cp3, py_cp3)
     """
