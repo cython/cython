@@ -684,7 +684,7 @@ static const char* __Pyx__PyUnicode_AsDouble_Copy(PyObject *obj, char* buffer, P
         Py_UCS4 chr = PyUnicode_READ(kind, data, i);
         int is_punctuation = (chr == '_') | (chr == '.');
         *buffer = (char)chr;
-        // discard '_', but not sequences of '_' and '.' (so that they fail the parsing later)
+        // reject sequences of '_' and '.'
         buffer += (chr != '_');
         if (unlikely(chr > '_')) goto parse_failure;
         if (unlikely(last_was_punctuation & ((chr == '_') | (chr == '.')))) goto parse_failure;
@@ -791,8 +791,8 @@ static const char* __Pyx__PyBytes_AsDouble_Copy(const char* start, char* buffer,
         char chr = start[i];
         int is_punctuation = (chr == '_') | (chr == '.');
         *buffer = chr;
-        // discard '_', but not sequences of '_' and '.' (so that they fail the parsing later)
         buffer += (chr != '_');
+        // reject sequences of '_' and '.'
         if (unlikely(last_was_punctuation & ((chr == '_') | (chr == '.')))) goto parse_failure;
         last_was_punctuation = is_punctuation;
     }
