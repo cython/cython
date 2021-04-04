@@ -284,7 +284,7 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject 
     PyErr_SetObject(type, value);
 
     if (tb) {
-#if CYTHON_COMPILING_IN_PYPY
+#if CYTHON_COMPILING_IN_PYPY ||  CYTHON_COMPILING_IN_LIMITED_API
         PyObject *tmp_type, *tmp_value, *tmp_tb;
         PyErr_Fetch(&tmp_type, &tmp_value, &tmp_tb);
         Py_INCREF(tb);
@@ -705,6 +705,17 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
 #include "frameobject.h"
 #include "traceback.h"
 
+#if CYTHON_COMPILING_IN_LIMITED_API
+static void __Pyx_AddTraceback(const char *funcname, int c_line,
+                               int py_line, const char *filename) {
+    if (c_line) {
+        // Avoid "unused" warning as long as we don't use this.
+        (void) $cfilenm_cname;
+        c_line = __Pyx_CLineForTraceback(__Pyx_PyThreadState_Current, c_line);
+    }
+    _PyTraceback_Add(funcname, filename, c_line ? -c_line : py_line);
+}
+#else
 static PyCodeObject* __Pyx_CreateCodeObjectForTraceback(
             const char *funcname, int c_line,
             int py_line, const char *filename) {
@@ -735,6 +746,7 @@ static PyCodeObject* __Pyx_CreateCodeObjectForTraceback(
     if (!py_funcname) goto bad;
     py_code = __Pyx_PyCode_New(
         0,            /*int argcount,*/
+        0,            /*int posonlyargcount,*/
         0,            /*int kwonlyargcount,*/
         0,            /*int nlocals,*/
         0,            /*int stacksize,*/
@@ -790,3 +802,4 @@ bad:
     Py_XDECREF(py_code);
     Py_XDECREF(py_frame);
 }
+#endif

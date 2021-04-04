@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+# cython: language_level=3
 
 import cython
 
@@ -33,9 +33,9 @@ cdef class PyrexScanner(Scanner):
     cdef public list indentation_stack
     cdef public indentation_char
     cdef public int bracket_nesting_level
-    cdef bint async_enabled
-    cdef public sy
-    cdef public systring
+    cdef readonly bint async_enabled
+    cdef public unicode sy
+    cdef public systring  # EncodedString
 
     cdef long current_level(self)
     #cpdef commentline(self, text)

@@ -38,21 +38,21 @@ def mix_format(a, int b, list c):
 
 class PySubtype(unicode):
     def __rmod__(self, other):
-        return f'PyRMOD({other})'
+        return f'PyRMOD({self}, {other})'
 
 
 cdef class ExtSubtype(unicode):
-    def __mod__(one, other):
-        return f'ExtMOD({one}, {other})'
+    def __rmod__(self, other):
+        return f'ExtRMOD({self}, {other})'
 
 
 def subtypes():
     """
     >>> py, ext = subtypes()
     >>> print(py)
-    PyRMOD(-%s-)
+    PyRMOD(PySub, -%s-)
     >>> print(ext)
-    ExtMOD(-%s-, ExtSub)
+    ExtRMOD(ExtSub, -%s-)
     """
     return [
         '-%s-' % PySubtype("PySub"),

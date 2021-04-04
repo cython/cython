@@ -8,11 +8,17 @@ import cython
 
 try:
     import pythran
-    pythran_version = pythran.__version__
-    pythran_is_0_8_7 = pythran_version >= '0.9' or pythran_version >= '0.8.7'
+    pythran_is_pre_0_9 = tuple(map(int, pythran.__version__.split('.')[0:2])) < (0, 9)
+    pythran_is_pre_0_9_6 = tuple(map(int, pythran.__version__.split('.')[0:3])) < (0, 9, 6)
 except ImportError:
-    pythran_version = None
-    pythran_is_0_8_7 = False
+    pythran = None
+    pythran_is_pre_0_9 = True
+    pythran_is_pre_0_9_6 = True
+
+if pythran_is_pre_0_9_6:
+    pythran_builtins = '__builtin__'
+else:
+    pythran_builtins = 'builtins'
 
 
 # Pythran/Numpy specific operations
@@ -41,14 +47,14 @@ def pythran_type(Ty, ptype="ndarray"):
             ctype = dtype.typedef_cname
         else:
             raise ValueError("unsupported type %s!" % dtype)
-        if pythran_is_0_8_7:
-            return "pythonic::types::%s<%s,pythonic::types::pshape<%s>>" % (ptype,ctype, ",".join(("Py_ssize_t",)*ndim))
-        else:
+        if pythran_is_pre_0_9:
             return "pythonic::types::%s<%s,%d>" % (ptype,ctype, ndim)
+        else:
+            return "pythonic::types::%s<%s,pythonic::types::pshape<%s>>" % (ptype,ctype, ",".join(("long",)*ndim))
     if Ty.is_pythran_expr:
         return Ty.pythran_type
     #if Ty.is_none:
-    #    return "decltype(pythonic::__builtin__::None)"
+    #    return "decltype(pythonic::builtins::None)"
     if Ty.is_numeric:
         return Ty.sign_and_name()
     raise ValueError("unsupported pythran type %s (%s)" % (Ty, type(Ty)))
@@ -82,14 +88,10 @@ def _index_access(index_code, indices):
 def _index_type_code(index_with_type):
     idx, index_type = index_with_type
     if idx.is_slice:
-        if idx.step.is_none:
-            func = "contiguous_slice"
-            n = 2
-        else:
-            func = "slice"
-            n = 3
-        return "pythonic::types::%s(%s)" % (
-            func, ",".join(["0"]*n))
+        n = 2 + int(not idx.step.is_none)
+        return "pythonic::%s::functor::slice{}(%s)" % (
+            pythran_builtins,
+            ",".join(["0"]*n))
     elif index_type.is_int:
         return "std::declval<%s>()" % index_type.sign_and_name()
     elif index_type.is_pythran_expr:
@@ -129,7 +131,10 @@ def np_func_to_list(func):
         return []
     return np_func_to_list(func.obj) + [func.attribute]
 
-if pythran_version:
+if pythran is None:
+    def pythran_is_numpy_func_supported(name):
+        return False
+else:
     def pythran_is_numpy_func_supported(func):
         CurF = pythran.tables.MODULES['numpy']
         FL = np_func_to_list(func)
@@ -138,9 +143,6 @@ if pythran_version:
             if CurF is None:
                 return False
         return True
-else:
-    def pythran_is_numpy_func_supported(name):
-        return False
 
 def pythran_functor(func):
     func = np_func_to_list(func)
@@ -161,7 +163,7 @@ def to_pythran(op, ptype=None):
     if is_type(op_type, ["is_pythran_expr", "is_numeric", "is_float", "is_complex"]):
         return op.result()
     if op.is_none:
-        return "pythonic::__builtin__::None"
+        return "pythonic::%s::None" % pythran_builtins
     if ptype is None:
         ptype = pythran_type(op_type)
 
@@ -214,6 +216,7 @@ def include_pythran_generic(env):
     env.add_include_file("pythonic/types/bool.hpp")
     env.add_include_file("pythonic/types/ndarray.hpp")
     env.add_include_file("pythonic/numpy/power.hpp")
+    env.add_include_file("pythonic/%s/slice.hpp" % pythran_builtins)
     env.add_include_file("<new>")  # for placement new
 
     for i in (8, 16, 32, 64):

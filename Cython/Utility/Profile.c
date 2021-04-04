@@ -6,7 +6,7 @@
 // but maybe some other profilers don't.
 
 #ifndef CYTHON_PROFILE
-#if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_PYSTON
+#if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_PYSTON
   #define CYTHON_PROFILE 0
 #else
   #define CYTHON_PROFILE 1
@@ -289,24 +289,25 @@ static int __Pyx_TraceSetupAndCall(PyCodeObject** code,
 }
 
 static PyCodeObject *__Pyx_createFrameCodeObject(const char *funcname, const char *srcfile, int firstlineno) {
-    PyObject *py_srcfile = 0;
-    PyObject *py_funcname = 0;
     PyCodeObject *py_code = 0;
 
-    #if PY_MAJOR_VERSION < 3
+#if PY_MAJOR_VERSION >= 3
+    py_code = PyCode_NewEmpty(srcfile, funcname, firstlineno);
+    // make CPython use a fresh dict for "f_locals" at need (see GH #1836)
+    if (likely(py_code)) {
+        py_code->co_flags |= CO_OPTIMIZED | CO_NEWLOCALS;
+    }
+#else
+    PyObject *py_srcfile = 0;
+    PyObject *py_funcname = 0;
+
     py_funcname = PyString_FromString(funcname);
+    if (unlikely(!py_funcname)) goto bad;
     py_srcfile = PyString_FromString(srcfile);
-    #else
-    py_funcname = PyUnicode_FromString(funcname);
-    py_srcfile = PyUnicode_FromString(srcfile);
-    #endif
-    if (!py_funcname | !py_srcfile) goto bad;
+    if (unlikely(!py_srcfile)) goto bad;
 
     py_code = PyCode_New(
         0,                /*int argcount,*/
-        #if PY_MAJOR_VERSION >= 3
-        0,                /*int kwonlyargcount,*/
-        #endif
         0,                /*int nlocals,*/
         0,                /*int stacksize,*/
         // make CPython use a fresh dict for "f_locals" at need (see GH #1836)
@@ -326,6 +327,7 @@ static PyCodeObject *__Pyx_createFrameCodeObject(const char *funcname, const cha
 bad:
     Py_XDECREF(py_srcfile);
     Py_XDECREF(py_funcname);
+#endif
 
     return py_code;
 }

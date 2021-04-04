@@ -1,6 +1,8 @@
 # mode: run
 # tag: cpp, werror
 
+from __future__ import division
+
 from cython cimport typeof
 
 cimport cython.operator
@@ -239,7 +241,7 @@ def test_nonmember_binop():
     nonmember binary2 >> [const_char *]
     nonmember binary2 COMMA [const_char *]
     """
-    
+
     cdef TestOps* t = new TestOps()
     out(1 + t[0], typeof(1 + t[0]))
     out(1 - t[0], typeof(1 - t[0]))
@@ -251,10 +253,10 @@ def test_nonmember_binop():
     out(1 ^ t[0], typeof(1 ^ t[0]))
     out(1 << t[0], typeof(1 << t[0]))
     out(1 >> t[0], typeof(1 >> t[0]))
-    
+
     x = cython.operator.comma(1, t[0])
     out(x, typeof(x))
-    
+
     # now test float operators defined outside class
     out(1. + t[0], typeof(1. + t[0]))
     # operator - deliberately omitted
@@ -266,7 +268,7 @@ def test_nonmember_binop():
     out(1. ^ t[0], typeof(1. ^ t[0]))
     out(1. << t[0], typeof(1. << t[0]))
     out(1. >> t[0], typeof(1. >> t[0]))
-    
+
     # for some reason we need a cdef here - not sure this is quite right
     y = cython.operator.comma(1., t[0])
     out(y, typeof(y))

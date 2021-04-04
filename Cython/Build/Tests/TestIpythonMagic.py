@@ -10,18 +10,12 @@ import sys
 from contextlib import contextmanager
 from Cython.Build import IpythonMagic
 from Cython.TestUtils import CythonTest
+from Cython.Compiler.Annotate import AnnotationCCodeWriter
 
 try:
     import IPython.testing.globalipapp
-    from IPython.utils import py3compat
 except ImportError:
     # Disable tests and fake helpers for initialisation below.
-    class _py3compat(object):
-        def str_to_unicode(self, s):
-            return s
-
-    py3compat = _py3compat()
-
     def skip_if_not_installed(_):
         return None
 else:
@@ -35,24 +29,24 @@ try:
 except ImportError:
     pass
 
-code = py3compat.str_to_unicode("""\
+code = u"""\
 def f(x):
     return 2*x
-""")
+"""
 
-cython3_code = py3compat.str_to_unicode("""\
+cython3_code = u"""\
 def f(int x):
     return 2 / x
 
 def call(x):
     return f(*(x,))
-""")
+"""
 
-pgo_cython3_code = cython3_code + py3compat.str_to_unicode("""\
+pgo_cython3_code = cython3_code + u"""\
 def main():
     for _ in range(100): call(5)
 main()
-""")
+"""
 
 
 if sys.platform == 'win32':
@@ -161,10 +155,10 @@ class TestIPythonMagic(CythonTest):
     @skip_win32('Skip on Windows')
     def test_extlibs(self):
         ip = self._ip
-        code = py3compat.str_to_unicode("""
+        code = u"""
 from libc.math cimport sin
 x = sin(0.0)
-        """)
+        """
         ip.user_ns['x'] = 1
         ip.run_cell_magic('cython', '-l m', code)
         self.assertEqual(ip.user_ns['x'], 0)
@@ -210,3 +204,29 @@ x = sin(0.0)
             ip.ex('g = f(10)')
         self.assertEqual(ip.user_ns['g'], 20.0)
         self.assertEqual([normal_log.INFO], normal_log.thresholds)
+
+    def test_cython_no_annotate(self):
+        ip = self._ip
+        html = ip.run_cell_magic('cython', '', code)
+        self.assertTrue(html is None)
+
+    def test_cython_annotate(self):
+        ip = self._ip
+        html = ip.run_cell_magic('cython', '--annotate', code)
+        # somewhat brittle way to differentiate between annotated htmls
+        # with/without complete source code:
+        self.assertTrue(AnnotationCCodeWriter.COMPLETE_CODE_TITLE not in html.data)
+
+    def test_cython_annotate_default(self):
+        ip = self._ip
+        html = ip.run_cell_magic('cython', '-a', code)
+        # somewhat brittle way to differentiate between annotated htmls
+        # with/without complete source code:
+        self.assertTrue(AnnotationCCodeWriter.COMPLETE_CODE_TITLE not in html.data)
+
+    def test_cython_annotate_complete_c_code(self):
+        ip = self._ip
+        html = ip.run_cell_magic('cython', '--annotate-fullc', code)
+        # somewhat brittle way to differentiate between annotated htmls
+        # with/without complete source code:
+        self.assertTrue(AnnotationCCodeWriter.COMPLETE_CODE_TITLE in html.data)

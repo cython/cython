@@ -32,8 +32,23 @@ from .. import Utils
 from . import Options
 from .Options import CompilationOptions, default_options
 from .CmdLine import parse_command_line
+from .Lexicon import (unicode_start_ch_any, unicode_continuation_ch_any,
+                      unicode_start_ch_range, unicode_continuation_ch_range)
 
-module_name_pattern = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$")
+
+def _make_range_re(chrs):
+    out = []
+    for i in range(0, len(chrs), 2):
+        out.append(u"{0}-{1}".format(chrs[i], chrs[i+1]))
+    return u"".join(out)
+
+# py2 version looked like r"[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$"
+module_name_pattern = u"[{0}{1}][{0}{2}{1}{3}]*".format(
+    unicode_start_ch_any, _make_range_re(unicode_start_ch_range),
+    unicode_continuation_ch_any,
+    _make_range_re(unicode_continuation_ch_range))
+module_name_pattern = re.compile(u"{0}(\\.{0})*$".format(module_name_pattern))
+
 
 standard_include_path = os.path.abspath(
     os.path.join(os.path.dirname(os.path.dirname(__file__)), 'Includes'))
@@ -158,7 +173,7 @@ class Context(object):
 
         if not module_name_pattern.match(qualified_name):
             raise CompileError(pos or (module_name, 0, 0),
-                               "'%s' is not a valid module name" % module_name)
+                               u"'%s' is not a valid module name" % module_name)
 
         if relative_to:
             if debug_find_module:
@@ -275,7 +290,7 @@ class Context(object):
             if kind == "cimport":
                 dep_path = self.find_pxd_file(name, pos)
             elif kind == "include":
-                dep_path = self.search_include_directories(name, pos)
+                dep_path = self.search_include_directories(name, "", pos)
             else:
                 continue
             if dep_path and Utils.file_newer_than(dep_path, c_time):
@@ -433,8 +448,14 @@ def create_default_resultobj(compilation_source, options):
 def run_pipeline(source, options, full_module_name=None, context=None):
     from . import Pipeline
 
+    # ensure that the inputs are unicode (for Python 2)
+    if sys.version_info[0] == 2:
+        source = Utils.decode_filename(source)
+        if full_module_name:
+            full_module_name = Utils.decode_filename(full_module_name)
+
     source_ext = os.path.splitext(source)[1]
-    options.configure_language_defaults(source_ext[1:]) # py/pyx
+    options.configure_language_defaults(source_ext[1:])  # py/pyx
     if context is None:
         context = Context.from_options(options)
 
@@ -442,13 +463,14 @@ def run_pipeline(source, options, full_module_name=None, context=None):
     cwd = os.getcwd()
     abs_path = os.path.abspath(source)
     full_module_name = full_module_name or context.extract_module_name(source, options)
+    full_module_name = EncodedString(full_module_name)
 
     Utils.raise_error_if_module_name_forbidden(full_module_name)
 
     if options.relative_path_in_code_position_comments:
         rel_path = full_module_name.replace('.', os.sep) + source_ext
         if not abs_path.endswith(rel_path):
-            rel_path = source # safety measure to prevent printing incorrect paths
+            rel_path = source  # safety measure to prevent printing incorrect paths
     else:
         rel_path = abs_path
     source_desc = FileSourceDescriptor(abs_path, rel_path)
@@ -472,6 +494,12 @@ def run_pipeline(source, options, full_module_name=None, context=None):
         pipeline = Pipeline.create_pyx_pipeline(context, options, result)
 
     context.setup_errors(options, result)
+
+    if '.' in full_module_name and '.' in os.path.splitext(os.path.basename(abs_path))[0]:
+        warning((source_desc, 1, 0),
+                "Dotted filenames ('%s') are deprecated."
+                " Please use the normal Python package directory layout." % os.path.basename(abs_path), level=1)
+
     err, enddata = Pipeline.run_pipeline(pipeline, source)
     context.teardown_errors(err, options, result)
     return result
@@ -611,7 +639,6 @@ def search_include_directories(dirs, qualified_name, suffix, pos, include=False)
 
     The 'include' option will disable package dereferencing.
     """
-
     if pos:
         file_desc = pos[0]
         if not isinstance(file_desc, FileSourceDescriptor):
@@ -621,33 +648,57 @@ def search_include_directories(dirs, qualified_name, suffix, pos, include=False)
         else:
             dirs = (Utils.find_root_package_dir(file_desc.filename),) + dirs
 
+    # search for dotted filename e.g. <dir>/foo.bar.pxd
     dotted_filename = qualified_name
     if suffix:
         dotted_filename += suffix
 
-    if not include:
-        names = qualified_name.split('.')
-        package_names = tuple(names[:-1])
-        module_name = names[-1]
-        module_filename = module_name + suffix
-        package_filename = "__init__" + suffix
-
     for dirname in dirs:
         path = os.path.join(dirname, dotted_filename)
         if os.path.exists(path):
+            if '.' in qualified_name and '.' in os.path.splitext(dotted_filename)[0]:
+                warning(pos, "Dotted filenames ('%s') are deprecated."
+                             " Please use the normal Python package directory layout." % dotted_filename, level=1)
             return path
 
-        if not include:
-            package_dir = Utils.check_package_dir(dirname, package_names)
+    # search for filename in package structure e.g. <dir>/foo/bar.pxd or <dir>/foo/bar/__init__.pxd
+    if not include:
+
+        names = qualified_name.split('.')
+        package_names = tuple(names[:-1])
+        module_name = names[-1]
+
+        # search for standard packages first - PEP420
+        namespace_dirs = []
+        for dirname in dirs:
+            package_dir, is_namespace = Utils.check_package_dir(dirname, package_names)
             if package_dir is not None:
-                path = os.path.join(package_dir, module_filename)
-                if os.path.exists(path):
+                if is_namespace:
+                    namespace_dirs.append(package_dir)
+                    continue
+                path = search_module_in_dir(package_dir, module_name, suffix)
+                if path:
                     return path
-                path = os.path.join(package_dir, module_name,
-                                    package_filename)
-                if os.path.exists(path):
-                    return path
+
+        # search for namespaces second - PEP420
+        for package_dir in namespace_dirs:
+            path = search_module_in_dir(package_dir, module_name, suffix)
+            if path:
+                return path
+
     return None
+
+
+@Utils.cached_function
+def search_module_in_dir(package_dir, module_name, suffix):
+    # matches modules of the form: <dir>/foo/bar.pxd
+    path = Utils.find_versioned_file(package_dir, module_name, suffix)
+
+    # matches modules of the form: <dir>/foo/bar/__init__.pxd
+    if not path and suffix:
+        path = Utils.find_versioned_file(os.path.join(package_dir, module_name), "__init__", suffix)
+
+    return path
 
 
 # ------------------------------------------------------------------------

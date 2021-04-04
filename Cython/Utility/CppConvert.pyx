@@ -11,7 +11,7 @@ cdef extern from *:
 
 @cname("{{cname}}")
 cdef string {{cname}}(object o) except *:
-    cdef Py_ssize_t length
+    cdef Py_ssize_t length = 0
     cdef const char* data = __Pyx_PyObject_AsStringAndSize(o, &length)
     return string(data, length)
 

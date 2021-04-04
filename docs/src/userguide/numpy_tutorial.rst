@@ -61,7 +61,7 @@ Using Cython consists of these steps:
 
 However there are several options to automate these steps:
 
-1. The `SAGE <http://sagemath.org>`_ mathematics software system provides
+1. The `SAGE <https://sagemath.org>`_ mathematics software system provides
    excellent support for using Cython and NumPy from an interactive command
    line or through a notebook interface (like
    Maple/Mathematica). See `this documentation
@@ -73,7 +73,7 @@ However there are several options to automate these steps:
 3. A version of pyximport is shipped with Cython,
    so that you can import pyx-files dynamically into Python and
    have them compiled automatically (See :ref:`pyximport`).
-4. Cython supports distutils so that you can very easily create build scripts
+4. Cython supports setuptools so that you can very easily create build scripts
    which automate the process, this is the preferred method for
    Cython implemented libraries and packages.
    See :ref:`Basic setup.py <basic_setup.py>`.

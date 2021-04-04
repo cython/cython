@@ -29,9 +29,8 @@ class ShouldBeFromDirective(object):
         raise RuntimeError(repr(self))
 
     def __repr__(self):
-        return (
-        "Illegal access of '%s' from Options module rather than directive '%s'"
-        % (self.options_name, self.directive_name))
+        return "Illegal access of '%s' from Options module rather than directive '%s'" % (
+            self.options_name, self.directive_name)
 
 
 """
@@ -52,18 +51,17 @@ docstrings = True
 #: Embed the source code position in the docstrings of functions and classes.
 embed_pos_in_docstring = False
 
-#: Copy the original source code line by line into C code comments
-#: in the generated code file to help with understanding the output.
-#: This is also required for coverage analysis.
-emit_code_comments = True
-
 # undocumented
 pre_import = None
 
 #: Decref global variables in each module on exit for garbage collection.
 #: 0: None, 1+: interned objects, 2+: cdef globals, 3+: types objects
-#: Mostly for reducing noise in Valgrind, only executes at process exit
+#: Mostly for reducing noise in Valgrind as it typically executes at process exit
 #: (when all memory will be reclaimed anyways).
+#: Note that directly or indirectly executed cleanup code that makes use of global
+#: variables or types may no longer be safe when enabling the respective level since
+#: there is no guaranteed order in which the (reference counted) objects will
+#: be cleaned up.  The order can change due to live references and reference cycles.
 generate_cleanup_code = False
 
 #: Should tp_clear() set object fields to None instead of clearing them to NULL?
@@ -168,8 +166,19 @@ def get_directive_defaults():
                 _directive_defaults[old_option.directive_name] = value
     return _directive_defaults
 
+def copy_inherited_directives(outer_directives, **new_directives):
+    # A few directives are not copied downwards and this function removes them.
+    # For example, test_assert_path_exists and test_fail_if_path_exists should not be inherited
+    #  otherwise they can produce very misleading test failures
+    new_directives_out = dict(outer_directives)
+    for name in ('test_assert_path_exists', 'test_fail_if_path_exists'):
+        new_directives_out.pop(name, None)
+    new_directives_out.update(new_directives)
+    return new_directives_out
+
 # Declare compiler directives
 _directive_defaults = {
+    'binding': True,  # was False before 3.0
     'boundscheck' : True,
     'nonecheck' : False,
     'initializedcheck' : True,
@@ -178,9 +187,10 @@ _directive_defaults = {
     'auto_pickle': None,
     'cdivision': False,  # was True before 0.12
     'cdivision_warnings': False,
+    'c_api_binop_methods': False,  # was True before 3.0
     'overflowcheck': False,
     'overflowcheck.fold': True,
-    'always_allow_keywords': False,
+    'always_allow_keywords': True,
     'allow_none_for_extension_args': True,
     'wraparound' : True,
     'ccomplex' : False,  # use C99/C++ for complex types and arith
@@ -238,8 +248,6 @@ _directive_defaults = {
     'test_fail_if_path_exists' : [],
 
 # experimental, subject to change
-    'binding': None,
-
     'formal_grammar': False,
 }
 

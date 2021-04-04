@@ -24,6 +24,8 @@ class PyrexError(Exception):
 class PyrexWarning(Exception):
     pass
 
+class CannotSpecialize(PyrexError):
+    pass
 
 def context(position):
     source = position[0]
@@ -167,29 +169,34 @@ def report_error(err, use_stack=True):
         if Options.fast_fail:
             raise AbortError("fatal errors")
 
-
 def error(position, message):
     #print("Errors.error:", repr(position), repr(message)) ###
     if position is None:
         raise InternalError(message)
     err = CompileError(position, message)
-    if DebugFlags.debug_exception_on_error: raise Exception(err) # debug
+    if DebugFlags.debug_exception_on_error: raise Exception(err)  # debug
     report_error(err)
     return err
 
 
-LEVEL = 1 # warn about all errors level 1 or higher
+LEVEL = 1  # warn about all errors level 1 or higher
+
+def _write_file_encode(file, line):
+    try:
+        file.write(line)
+    except UnicodeEncodeError:
+        file.write(line.encode('ascii', 'replace'))
 
 
 def message(position, message, level=1):
     if level < LEVEL:
         return
     warn = CompileWarning(position, message)
-    line = "note: %s\n" % warn
+    line = u"note: %s\n" % warn
     if listing_file:
-        listing_file.write(line)
+        _write_file_encode(listing_file, line)
     if echo_file:
-        echo_file.write(line)
+        _write_file_encode(echo_file, line)
     return warn
 
 
@@ -199,11 +206,11 @@ def warning(position, message, level=0):
     if Options.warning_errors and position:
         return error(position, message)
     warn = CompileWarning(position, message)
-    line = "warning: %s\n" % warn
+    line = u"warning: %s\n" % warn
     if listing_file:
-        listing_file.write(line)
+        _write_file_encode(listing_file, line)
     if echo_file:
-        echo_file.write(line)
+        _write_file_encode(echo_file, line)
     return warn
 
 
@@ -212,11 +219,11 @@ def warn_once(position, message, level=0):
     if level < LEVEL or message in _warn_once_seen:
         return
     warn = CompileWarning(position, message)
-    line = "warning: %s\n" % warn
+    line = u"warning: %s\n" % warn
     if listing_file:
-        listing_file.write(line)
+        _write_file_encode(listing_file, line)
     if echo_file:
-        echo_file.write(line)
+        _write_file_encode(echo_file, line)
     _warn_once_seen[message] = True
     return warn
 
