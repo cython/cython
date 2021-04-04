@@ -751,18 +751,10 @@ static double __Pyx_SlowPyString_AsDouble(PyObject *obj);/*proto*/
 static double __Pyx__PyBytes_AsDouble(PyObject *obj, const char* start, Py_ssize_t length);/*proto*/
 
 static CYTHON_INLINE double __Pyx_PyBytes_AsDouble(PyObject *obj) {
-#if CYTHON_COMPILING_IN_PYPY
-    return __Pyx_SlowPyString_AsDouble(obj);
-#else
     return __Pyx__PyBytes_AsDouble(obj, PyBytes_AS_STRING(obj), PyBytes_GET_SIZE(obj));
-#endif
 }
 static CYTHON_INLINE double __Pyx_PyByteArray_AsDouble(PyObject *obj) {
-#if CYTHON_COMPILING_IN_PYPY
-    return __Pyx_SlowPyString_AsDouble(obj);
-#else
     return __Pyx__PyBytes_AsDouble(obj, PyByteArray_AS_STRING(obj), PyByteArray_GET_SIZE(obj));
-#endif
 }
 
 
