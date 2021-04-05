@@ -8120,11 +8120,14 @@ class TupleNode(SequenceNode):
             return
 
         if self.is_literal or self.is_partly_literal:
+            print("Dedup tuple node ")
+
             # The "mult_factor" is part of the deduplication if it is also constant, i.e. when
             # we deduplicate the multiplied result.  Otherwise, only deduplicate the constant part.
             dedup_key = make_dedup_key(self.type, [self.mult_factor if self.is_literal else None] + self.args)
             tuple_target = code.get_py_const(py_object_type, 'tuple', cleanup_level=2, dedup_key=dedup_key)
             const_code = code.get_cached_constants_writer(tuple_target)
+            print(tuple_target)
             if const_code is not None:
                 # constant is not yet initialised
                 const_code.mark_pos(self.pos)
@@ -8784,7 +8787,11 @@ class SetNode(ExprNode):
                 "PySet_Add(%s, %s)" % (self.result(), arg.py_result()))
             arg.generate_disposal_code(code)
             arg.free_temps(code)
+        #print("Set - code generation")
+        #print(code.getvalue())
 
+class FrozenSetNode(SetNode):
+    pass
 
 class DictNode(ExprNode):
     #  Dictionary constructor.
