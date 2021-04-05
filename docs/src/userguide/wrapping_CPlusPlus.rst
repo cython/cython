@@ -350,6 +350,8 @@ The following coercions are available:
 +------------------+------------------------+-----------------+
 | iterable (len 2) | std::pair              | tuple (len 2)   |
 +------------------+------------------------+-----------------+
+| complex          | std::complex           | complex         |
++------------------+------------------------+-----------------+
 
 All conversions create a new container and copy the data into it.
 The items in the containers are converted to a corresponding type
