@@ -2879,7 +2879,6 @@ class DefNode(FuncDefNode):
 
     is_staticmethod = False
     is_classmethod = False
-    has_class_reference = False
 
     lambda_name = None
     reqd_kw_flags_cname = "0"

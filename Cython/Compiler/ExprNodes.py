@@ -10079,9 +10079,11 @@ class LocalsDictItemNode(DictItemNode):
             self.value = None
         return self
 
+
 class FuncLocalsExprNode(DictNode):
     def __init__(self, pos, env):
-        local_vars = sorted([key for key, entry in env.entries.items() if entry.name])
+        local_vars = sorted([
+            entry.name for entry in env.entries.values() if entry.name])
         items = [LocalsDictItemNode(
             pos, key=IdentifierStringNode(pos, value=var),
             value=NameNode(pos, name=var, allow_null=True))

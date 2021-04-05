@@ -3063,6 +3063,9 @@ class TransformBuiltinMethods(EnvTransform):
     """
     Replace Cython's own cython.* builtins by the corresponding tree nodes.
     """
+    def __init__(self, *args, **kwds):
+        super(TransformBuiltinMethods, self).__init__(*args, **kwds)
+        self.def_node_body_insertions = dict()
 
     def visit_SingleAssignmentNode(self, node):
         if node.declaration_only:
@@ -3125,14 +3128,6 @@ class TransformBuiltinMethods(EnvTransform):
         # Handle __class__ injection
         def_node = self.current_scope_node()
 
-        if self._check_inside_class(def_node) and def_node.has_class_reference:
-
-            class_entry = lenv.lookup_here('__class__')
-
-            if not class_entry:
-                local_class_node, _ = self._get_current_class_and_scope()
-                lenv.entries[EncodedString(u'__class__')] = local_class_node.target.entry
-
         pos = node.pos
         if func_name in ('locals', 'vars'):
             if func_name == 'locals' and len(node.args) > 0:
@@ -3192,29 +3187,64 @@ class TransformBuiltinMethods(EnvTransform):
                     node.pos, self.current_scope_node(), lenv))
         return node
 
-    def _check_inside_class(self, def_node):
-        return isinstance(def_node, Nodes.DefNode) and any(isinstance(node, Nodes.ClassDefNode) for node, _ in self.env_stack)
-
-    def _get_current_class_and_scope(self):
-        return next(
-            (node, scope)
-            for node, scope in self.env_stack[::-1]
-            if isinstance(node, Nodes.ClassDefNode)
-        )
-
     def _inject_class(self, node):
         # bare __class__ reference inside function
-        def_node = self.current_scope_node()
+        current_def_node = self.current_scope_node()
 
-        if not self._check_inside_class(def_node):
+        if not isinstance(current_def_node, Nodes.FuncDefNode):
+            return node
+        for n in range(len(self.env_stack[-1::-1]), 0, -1):
+            class_node, class_scope = self.env_stack[n-1]
+            if isinstance(class_node, Nodes.ClassDefNode):
+                break
+        else:
+            # failed to find a suitable class node
             return node
 
-        class_node, class_scope = self._get_current_class_and_scope()
+        is_generator = False
+        # Now go from the class_node and find the first FuncDefNode in the stack
+        for n in range(n, len(self.env_stack)):
+            fdef_node, fdef_scope = self.env_stack[n]
+            if isinstance(fdef_node, Nodes.GeneratorDefNode):
+                original_fdef_node = fdef_node
+                fdef_node = fdef_node.gbody
+                is_generator = True
+                break
+            elif isinstance(fdef_node, Nodes.FuncDefNode):
+                break
 
-        if class_scope.is_py_class_scope:
-            def_node.has_class_reference = True
-            self_node = ExprNodes.NameNode(pos=node.pos, name=u'self')
-            return ExprNodes.AttributeNode(pos=node.pos, obj=self_node, attribute=EncodedString(u'__class__'))
+        else:
+            return node  # no suitable def_node in the stack
+
+        # now we arrange to inject:
+        #  __class__ = ... at the start of the def_node body
+        # The advantage of doing it like this is that it automatically appears in locals()
+        # and it can be captured by inner functions
+        if not fdef_node in self.def_node_body_insertions:
+            pos = fdef_node.body.pos
+            if class_scope.is_c_class_scope:
+                # c-classes can be resolved at compile-time, so they have a simpler
+                # implementation
+                rhs = ExprNodes.NameNode(
+                            pos, name=class_node.scope.name,
+                            entry=class_node.entry)
+            elif class_scope.is_py_class_scope:
+                rhs = ExprNodes.ClassCellNode(pos, is_generator=is_generator)
+                if is_generator:
+                    original_fdef_node.requires_classobj = True
+                else:
+                    fdef_node.requires_classobj = True
+                class_node.class_cell.is_active = True
+            else:
+                return node  # should never happen
+
+            assign_node = Nodes.SingleAssignmentNode(pos,
+                lhs=ExprNodes.NameNode(pos, name=EncodedString("__class__")),
+                rhs=rhs)
+
+            assign_node.analyse_declarations(fdef_scope)
+
+            self.def_node_body_insertions[fdef_node] = assign_node
 
         return node
 
@@ -3225,9 +3255,10 @@ class TransformBuiltinMethods(EnvTransform):
             return node
         # Inject no-args super
         def_node = self.current_scope_node()
-        if not self._check_inside_class(def_node) or not def_node.args:
+        if (not isinstance(def_node, Nodes.DefNode) or not def_node.args or
+            len(self.env_stack) < 2):
             return node
-        class_node, class_scope = self._get_current_class_and_scope()
+        class_node, class_scope = self.env_stack[-2]
         if class_scope.is_py_class_scope:
             def_node.requires_classobj = True
             class_node.class_cell.is_active = True
@@ -3243,6 +3274,25 @@ class TransformBuiltinMethods(EnvTransform):
                     entry=class_node.entry),
                 ExprNodes.NameNode(node.pos, name=def_node.args[0].name)
                 ]
+        return node
+
+    def _do_body_insertion(self, node):
+        body_insertion = self.def_node_body_insertions.pop(node, None)
+        if body_insertion:
+            if isinstance(node.body, Nodes.StatListNode):
+                node.body.stats.insert(0, body_insertion)
+            else:
+                node.body = Nodes.StatListNode(node.body.pos,
+                                               stats=[body_insertion, node.body])
+
+    def visit_FuncDefNode(self, node):
+        node = super(TransformBuiltinMethods, self).visit_FuncDefNode(node)
+        self._do_body_insertion(node)
+        return node
+
+    def visit_GeneratorBodyDefNode(self, node):
+        node = super(TransformBuiltinMethods, self).visit_GeneratorBodyDefNode(node)
+        self._do_body_insertion(node)
         return node
 
     def visit_SimpleCallNode(self, node):
