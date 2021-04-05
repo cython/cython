@@ -8787,11 +8787,34 @@ class SetNode(ExprNode):
                 "PySet_Add(%s, %s)" % (self.result(), arg.py_result()))
             arg.generate_disposal_code(code)
             arg.free_temps(code)
-        #print("Set - code generation")
-        #print(code.getvalue())
+        print("Set - code generation")
+        print(self.args)
 
 class FrozenSetNode(SetNode):
-    pass
+    def generate_evaluation_code(self, code):
+        for arg in self.args:
+            arg.generate_evaluation_code(code)
+        self.allocate_temp_result(code)
+        code.putln(
+            "%s = PySet_New(0); %s" % (
+                self.result(),
+                code.error_goto_if_null(self.result(), self.pos)))
+        self.generate_gotref(code)
+        for arg in self.args:
+            code.put_error_if_neg(
+                self.pos,
+                "PySet_Add(%s, %s)" % (self.result(), arg.py_result()))
+            arg.generate_disposal_code(code)
+            arg.free_temps(code)
+        return ExprNodes.PythonCapiCallNode(
+            node.pos, "__Pyx_PyFrozenSet_New",
+            self.PyFrozenSet_New_func_type,
+            args=pos_args,
+            is_temp=node.is_temp,
+            utility_code=UtilityCode.load_cached('pyfrozenset_new', 'Builtins.c'),
+            py_name="frozenset")
+        print("Frozenset - code generation")
+        print(self.args)
 
 class DictNode(ExprNode):
     #  Dictionary constructor.

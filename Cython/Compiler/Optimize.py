@@ -2006,8 +2006,9 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         for elem in pos_args[0].args:
             print(elem)
         print("=======END _handle_simple_function_frozenset======")
-        return pos_args[0]
-        #return node
+        return node
+        #return pos_args[0]
+        #return ExprNodes.FrozenSetNode(node.pos, args=[], constant_result=set())
         #return self._transform_list_set_genexpr(node, pos_args, Builtin.frozenset_type)
 
     def _handle_simple_function_list(self, node, pos_args):
@@ -2016,6 +2017,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         return self._transform_list_set_genexpr(node, pos_args, Builtin.list_type)
 
     def _handle_simple_function_set(self, node, pos_args):
+
         if not pos_args:
             return ExprNodes.SetNode(node.pos, args=[], constant_result=set())
         return self._transform_list_set_genexpr(node, pos_args, Builtin.set_type)
@@ -2023,9 +2025,14 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
     def _transform_list_set_genexpr(self, node, pos_args, target_type):
         """Replace set(genexpr) and list(genexpr) by an inlined comprehension.
         """
+        print("== _transform_list_set_genexpr ==")
+        print(node)
+        print(pos_args)
+        print(target_type)
         if len(pos_args) > 1:
             return node
         if not isinstance(pos_args[0], ExprNodes.GeneratorExpressionNode):
+            print("=== Early skip ===")
             return node
         gen_expr_node = pos_args[0]
         loop_node = gen_expr_node.loop
@@ -2581,27 +2588,34 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             PyrexTypes.CFuncTypeArg("it", PyrexTypes.py_object_type, None)
         ])
 
+    def _replace_sequence_with_set(self, node, pos_args, set_type=ExprNodes.SetNode):
+        args = []
+        temps = []
+        for arg in pos_args[0].args:
+            if not arg.is_simple():
+                arg = UtilNodes.LetRefNode(arg)
+                temps.append(arg)
+            args.append(arg)
+        result = set_type(node.pos, is_temp=1, args=args)
+        self.replace(node, result)
+        for temp in temps[::-1]:
+            result = UtilNodes.EvalWithTempExprNode(temp, result)
+        return result
+
     def _handle_simple_function_set(self, node, function, pos_args):
+        print("== Bulltin call set ==")
         if len(pos_args) != 1:
             return node
+        print(type(pos_args[0]))
+        print(pos_args[0].is_sequence_constructor)
         if pos_args[0].is_sequence_constructor:
             # We can optimise set([x,y,z]) safely into a set literal,
             # but only if we create all items before adding them -
             # adding an item may raise an exception if it is not
             # hashable, but creating the later items may have
             # side-effects.
-            args = []
-            temps = []
-            for arg in pos_args[0].args:
-                if not arg.is_simple():
-                    arg = UtilNodes.LetRefNode(arg)
-                    temps.append(arg)
-                args.append(arg)
-            result = ExprNodes.SetNode(node.pos, is_temp=1, args=args)
-            self.replace(node, result)
-            for temp in temps[::-1]:
-                result = UtilNodes.EvalWithTempExprNode(temp, result)
-            return result
+
+            return self._replace_sequence_with_set(node, pos_args, ExprNodes.SetNode)
         else:
             # PySet_New(it) is better than a generic Python call to set(it)
             return self.replace(node, ExprNodes.PythonCapiCallNode(
@@ -2617,6 +2631,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         ])
 
     def _handle_simple_function_frozenset(self, node, function, pos_args):
+        print("== Bulltin call frozenset ==")
         print(node)
         print(function)
         print(pos_args)
@@ -2627,14 +2642,18 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         elif pos_args[0].type is Builtin.frozenset_type and not pos_args[0].may_be_none():
             return pos_args[0]
         # PyFrozenSet_New(it) is better than a generic Python call to frozenset(it)
-        ignore_ret = ExprNodes.PythonCapiCallNode(
+        print(type(pos_args[0]))
+        print(pos_args[0].is_sequence_constructor)
+        if pos_args[0].is_sequence_constructor:
+            # We could only create a frozenset by
+            return self._replace_sequence_with_set(node, pos_args, ExprNodes.FrozenSetNode)
+        return ExprNodes.PythonCapiCallNode(
             node.pos, "__Pyx_PyFrozenSet_New",
             self.PyFrozenSet_New_func_type,
             args=pos_args,
             is_temp=node.is_temp,
             utility_code=UtilityCode.load_cached('pyfrozenset_new', 'Builtins.c'),
             py_name="frozenset")
-        return ignore_ret
 
     PyObject_AsDouble_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_double_type, [
@@ -4215,15 +4234,17 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         previously computed should be recomputed.
         """
         super(ConstantFolding, self).__init__()
-        print("Initializing Optimizer")
+        print("Initializing Optimizer ConstantFolding")
         self.reevaluate = reevaluate
 
     def _calculate_const(self, node):
         if (not self.reevaluate and
                 node.constant_result is not ExprNodes.constant_value_not_set):
             return
+        print("== Start _calculate_const ==")
         print(node)
         if node.is_name: print(node.name)
+        if node.is_name and node.name == 'set': print("!! SET !!")
         # make sure we always set the value
         not_a_constant = ExprNodes.not_a_constant
         node.constant_result = not_a_constant
@@ -4240,6 +4261,8 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
 
         # now try to calculate the real constant value
         try:
+            print("Const calc start")
+            print(node)
             node.calculate_constant_result()
         except (ValueError, TypeError, KeyError, IndexError, AttributeError, ArithmeticError):
             # ignore all 'normal' errors here => no constant result
@@ -4248,9 +4271,11 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             # this looks like a real error
             import traceback, sys
             traceback.print_exc(file=sys.stdout)
-        print("Const calc success")
         print(node.constant_result)
         print(node.__class__.__name__, node.constant_result)
+        print("Const calc success")
+
+        print("================")
 
     NODE_TYPE_ORDER = [ExprNodes.BoolNode, ExprNodes.CharNode,
                        ExprNodes.IntNode, ExprNodes.FloatNode]
