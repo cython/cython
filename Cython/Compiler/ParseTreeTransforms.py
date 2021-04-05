@@ -3118,16 +3118,11 @@ class TransformBuiltinMethods(EnvTransform):
 
     def _inject_locals(self, node, func_name):
         # locals()/dir()/vars() builtins
-
         lenv = self.current_env()
         entry = lenv.lookup_here(func_name)
         if entry:
             # not the builtin
             return node
-
-        # Handle __class__ injection
-        def_node = self.current_scope_node()
-
         pos = node.pos
         if func_name in ('locals', 'vars'):
             if func_name == 'locals' and len(node.args) > 0:
@@ -3139,8 +3134,8 @@ class TransformBuiltinMethods(EnvTransform):
                     error(self.pos, "Builtin 'vars()' called with wrong number of args, expected 0-1, got %d"
                           % len(node.args))
                 if len(node.args) > 0:
-                    return node # nothing to do
-            return ExprNodes.LocalsExprNode(pos, def_node, lenv)
+                    return node  # nothing to do
+            return ExprNodes.LocalsExprNode(pos, self.current_scope_node(), lenv)
         else:  # dir()
             if len(node.args) > 1:
                 error(self.pos, "Builtin 'dir()' called with wrong number of args, expected 0-1, got %d"
@@ -3220,7 +3215,7 @@ class TransformBuiltinMethods(EnvTransform):
         #  __class__ = ... at the start of the def_node body
         # The advantage of doing it like this is that it automatically appears in locals()
         # and it can be captured by inner functions
-        if not fdef_node in self.def_node_body_insertions:
+        if fdef_node not in self.def_node_body_insertions:
             pos = fdef_node.body.pos
             if class_scope.is_c_class_scope:
                 # c-classes can be resolved at compile-time, so they have a simpler
@@ -3255,8 +3250,7 @@ class TransformBuiltinMethods(EnvTransform):
             return node
         # Inject no-args super
         def_node = self.current_scope_node()
-        if (not isinstance(def_node, Nodes.DefNode) or not def_node.args or
-            len(self.env_stack) < 2):
+        if not isinstance(def_node, Nodes.DefNode) or not def_node.args or len(self.env_stack) < 2:
             return node
         class_node, class_scope = self.env_stack[-2]
         if class_scope.is_py_class_scope:
