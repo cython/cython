@@ -6761,10 +6761,10 @@ class MergedDictNode(ExprNode):
             for arg in self.keyword_args
         ]
 
-        if len(args) == 1 and args[0].type is dict_type:
+        if len(args) == 1 and args[0].type is dict_type and args[0].is_name and args[0].entry.is_arg:
             # strip this intermediate node and use the bare dict
             arg = args[0]
-            if arg.is_name and arg.entry.is_arg and len(arg.entry.cf_assignments) == 1:
+            if len(arg.entry.cf_assignments) == 1:
                 # passing **kwargs through to function call => allow NULL
                 arg.allow_null = True
             return arg
