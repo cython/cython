@@ -32,18 +32,16 @@ def ae(*args):
         if x != args[0]:
             raise AssertionError(args)
 
-__test__ = {}
-
-def testcase(f):
-    __test__[f.__name__] = f.__doc__
-    return f
-
 def testcase_numpy_1_5(f):
     major, minor, *rest = np.__version__.split('.')
-    if (int(major), int(minor)) >= (1, 5):
-        __test__[f.__name__] = f.__doc__
+    if not (int(major), int(minor)) >= (1, 5):
+        f.__doc__ = ""  # disable the tests
     return f
 
+def testcase_no_pypy(f):
+    if hasattr(sys, "pypy_version_info"):
+        f.__doc__ = ""  # disable the tests
+    return f
 
 def gc_collect_if_required():
     major, minor, *rest = np.__version__.split('.')
@@ -56,7 +54,6 @@ def gc_collect_if_required():
 ### Test slicing memoryview slices
 #
 
-@testcase
 def test_partial_slicing(array):
     """
     >>> test_partial_slicing(a)
@@ -72,7 +69,6 @@ def test_partial_slicing(array):
     ae(b.strides[0], c.strides[0], obj.strides[0])
     ae(b.strides[1], c.strides[1], obj.strides[1])
 
-@testcase
 def test_ellipsis(array):
     """
     >>> test_ellipsis(a)
@@ -114,7 +110,6 @@ def test_ellipsis(array):
 #
 ### Test slicing memoryview objects
 #
-@testcase
 def test_partial_slicing_memoryview(array):
     """
     >>> test_partial_slicing_memoryview(a)
@@ -131,7 +126,6 @@ def test_partial_slicing_memoryview(array):
     ae(b.strides[0], c.strides[0], obj.strides[0])
     ae(b.strides[1], c.strides[1], obj.strides[1])
 
-@testcase
 def test_ellipsis_memoryview(array):
     """
     >>> test_ellipsis_memoryview(a)
@@ -172,7 +166,6 @@ def test_ellipsis_memoryview(array):
     ae(e.strides[0], e_obj.strides[0])
 
 
-@testcase
 def test_transpose():
     """
     >>> test_transpose()
@@ -203,7 +196,6 @@ def test_transpose():
     print a[3, 2], a.T[2, 3], a_obj[3, 2], a_obj.T[2, 3], numpy_obj[3, 2], numpy_obj.T[2, 3]
 
 
-@testcase
 def test_transpose_type(a):
     """
     >>> a = np.zeros((5, 10), dtype=np.float64)
@@ -274,144 +266,144 @@ def build_numarray(array array):
 def index(array array):
     print build_numarray(array)[3, 2]
 
-if not hasattr(sys, "pypy_version_info"):
-    # unreliable on PyPy due to GC
-    @testcase_numpy_1_5
-    def test_coerce_to_numpy():
-        """
-        Test coercion to NumPy arrays, especially with automatically
-        generated format strings.
+@testcase_no_pypy
+@testcase_numpy_1_5
+def test_coerce_to_numpy():
+    """
+    Test coercion to NumPy arrays, especially with automatically
+    generated format strings.
 
-        >>> test_coerce_to_numpy()
-        [97, 98, 600, 700, 800]
-        deallocating...
-        (600, 700)
-        deallocating...
-        ((100, 200), (300, 400), 500)
-        deallocating...
-        (97, 900)
-        deallocating...
-        99
-        deallocating...
-        111
-        deallocating...
-        222
-        deallocating...
-        333
-        deallocating...
-        11.1
-        deallocating...
-        12.2
-        deallocating...
-        13.25
-        deallocating...
-        (14.4+15.5j)
-        deallocating...
-        (16.5+17.7j)
-        deallocating...
-        (18.8125+19.9375j)
-        deallocating...
-        22
-        deallocating...
-        33.33
-        deallocating...
-        44
-        deallocating...
-        """
-        #
-        ### First set up some C arrays that will be used to hold data
-        #
-        cdef MyStruct[20] mystructs
-        cdef SmallStruct[20] smallstructs
-        cdef NestedStruct[20] nestedstructs
-        cdef PackedStruct[20] packedstructs
+    >>> test_coerce_to_numpy()
+    [97, 98, 600, 700, 800]
+    deallocating...
+    (600, 700)
+    deallocating...
+    ((100, 200), (300, 400), 500)
+    deallocating...
+    (97, 900)
+    deallocating...
+    99
+    deallocating...
+    111
+    deallocating...
+    222
+    deallocating...
+    333
+    deallocating...
+    11.1
+    deallocating...
+    12.2
+    deallocating...
+    13.25
+    deallocating...
+    (14.4+15.5j)
+    deallocating...
+    (16.5+17.7j)
+    deallocating...
+    (18.8125+19.9375j)
+    deallocating...
+    22
+    deallocating...
+    33.33
+    deallocating...
+    44
+    deallocating...
+    """
+    #
+    ### First set up some C arrays that will be used to hold data
+    #
+    cdef MyStruct[20] mystructs
+    cdef SmallStruct[20] smallstructs
+    cdef NestedStruct[20] nestedstructs
+    cdef PackedStruct[20] packedstructs
 
-        cdef signed char[20] chars
-        cdef short[20] shorts
-        cdef int[20] ints
-        cdef long long[20] longlongs
-        cdef td_h_short[20] externs
+    cdef signed char[20] chars
+    cdef short[20] shorts
+    cdef int[20] ints
+    cdef long long[20] longlongs
+    cdef td_h_short[20] externs
 
-        cdef float[20] floats
-        cdef double[20] doubles
-        cdef long double[20] longdoubles
+    cdef float[20] floats
+    cdef double[20] doubles
+    cdef long double[20] longdoubles
 
-        cdef float complex[20] floatcomplex
-        cdef double complex[20] doublecomplex
-        cdef long double complex[20] longdoublecomplex
+    cdef float complex[20] floatcomplex
+    cdef double complex[20] doublecomplex
+    cdef long double complex[20] longdoublecomplex
 
-        cdef td_h_short[20] h_shorts
-        cdef td_h_double[20] h_doubles
-        cdef td_h_ushort[20] h_ushorts
+    cdef td_h_short[20] h_shorts
+    cdef td_h_double[20] h_doubles
+    cdef td_h_ushort[20] h_ushorts
 
-        cdef Py_ssize_t idx = 17
+    cdef Py_ssize_t idx = 17
 
-        #
-        ### Initialize one element in each array
-        #
-        mystructs[idx] = {
-            'a': 'a',
-            'b': 'b',
-            'c': 600,
-            'd': 700,
-            'e': 800,
-        }
+    #
+    ### Initialize one element in each array
+    #
+    mystructs[idx] = {
+        'a': 'a',
+        'b': 'b',
+        'c': 600,
+        'd': 700,
+        'e': 800,
+    }
 
-        smallstructs[idx] = { 'a': 600, 'b': 700 }
 
-        nestedstructs[idx] = {
-            'x': { 'a': 100, 'b': 200 },
-            'y': { 'a': 300, 'b': 400 },
-            'z': 500,
-        }
+    smallstructs[idx] = { 'a': 600, 'b': 700 }
 
-        packedstructs[idx] = { 'a': 'a', 'b': 900 }
+    nestedstructs[idx] = {
+        'x': { 'a': 100, 'b': 200 },
+        'y': { 'a': 300, 'b': 400 },
+        'z': 500,
+    }
 
-        chars[idx] = 99
-        shorts[idx] = 111
-        ints[idx] = 222
-        longlongs[idx] = 333
-        externs[idx] = 444
-        assert externs[idx] == 444  # avoid "set but not used" C compiler warning
+    packedstructs[idx] = { 'a': 'a', 'b': 900 }
 
-        floats[idx] = 11.1
-        doubles[idx] = 12.2
-        longdoubles[idx] = 13.25
+    chars[idx] = 99
+    shorts[idx] = 111
+    ints[idx] = 222
+    longlongs[idx] = 333
+    externs[idx] = 444
+    assert externs[idx] == 444  # avoid "set but not used" C compiler warning
 
-        floatcomplex[idx] = 14.4 + 15.5j
-        doublecomplex[idx] = 16.5 + 17.7j
-        longdoublecomplex[idx] = 18.8125 + 19.9375j  # x/64 to avoid float format rounding issues
+    floats[idx] = 11.1
+    doubles[idx] = 12.2
+    longdoubles[idx] = 13.25
 
-        h_shorts[idx] = 22
-        h_doubles[idx] = 33.33
-        h_ushorts[idx] = 44
+    floatcomplex[idx] = 14.4 + 15.5j
+    doublecomplex[idx] = 16.5 + 17.7j
+    longdoublecomplex[idx] = 18.8125 + 19.9375j  # x/64 to avoid float format rounding issues
 
-        #
-        ### Create a NumPy array and see if our element can be correctly retrieved
-        #
-        mystruct_array = build_numarray(<MyStruct[:4, :5]> <MyStruct *> mystructs)
-        print [int(x) for x in mystruct_array[3, 2]]
-        del mystruct_array
-        index(<SmallStruct[:4, :5]> <SmallStruct *> smallstructs)
-        index(<NestedStruct[:4, :5]> <NestedStruct *> nestedstructs)
-        index(<PackedStruct[:4, :5]> <PackedStruct *> packedstructs)
+    h_shorts[idx] = 22
+    h_doubles[idx] = 33.33
+    h_ushorts[idx] = 44
 
-        index(<signed char[:4, :5]> <signed char *> chars)
-        index(<short[:4, :5]> <short *> shorts)
-        index(<int[:4, :5]> <int *> ints)
-        index(<long long[:4, :5]> <long long *> longlongs)
+    #
+    ### Create a NumPy array and see if our element can be correctly retrieved
+    #
+    mystruct_array = build_numarray(<MyStruct[:4, :5]> <MyStruct *> mystructs)
+    print [int(x) for x in mystruct_array[3, 2]]
+    del mystruct_array
+    index(<SmallStruct[:4, :5]> <SmallStruct *> smallstructs)
+    index(<NestedStruct[:4, :5]> <NestedStruct *> nestedstructs)
+    index(<PackedStruct[:4, :5]> <PackedStruct *> packedstructs)
 
-        index(<float[:4, :5]> <float *> floats)
-        index(<double[:4, :5]> <double *> doubles)
-        index(<long double[:4, :5]> <long double *> longdoubles)
+    index(<signed char[:4, :5]> <signed char *> chars)
+    index(<short[:4, :5]> <short *> shorts)
+    index(<int[:4, :5]> <int *> ints)
+    index(<long long[:4, :5]> <long long *> longlongs)
 
-        index(<float complex[:4, :5]> <float complex *> floatcomplex)
-        index(<double complex[:4, :5]> <double complex *> doublecomplex)
-        index(<long double complex[:4, :5]> <long double complex *> longdoublecomplex)
+    index(<float[:4, :5]> <float *> floats)
+    index(<double[:4, :5]> <double *> doubles)
+    index(<long double[:4, :5]> <long double *> longdoubles)
 
-        index(<td_h_short[:4, :5]> <td_h_short *> h_shorts)
-        index(<td_h_double[:4, :5]> <td_h_double *> h_doubles)
-        index(<td_h_ushort[:4, :5]> <td_h_ushort *> h_ushorts)
+    index(<float complex[:4, :5]> <float complex *> floatcomplex)
+    index(<double complex[:4, :5]> <double complex *> doublecomplex)
+    index(<long double complex[:4, :5]> <long double complex *> longdoublecomplex)
+
+    index(<td_h_short[:4, :5]> <td_h_short *> h_shorts)
+    index(<td_h_double[:4, :5]> <td_h_double *> h_doubles)
+    index(<td_h_ushort[:4, :5]> <td_h_ushort *> h_ushorts)
 
 
 @testcase_numpy_1_5
@@ -633,7 +625,6 @@ cdef class SuboffsetsNoStridesBuffer(Buffer):
         getbuffer(self, info)
         info.suboffsets = self._shape
 
-@testcase
 def test_null_strides(Buffer buffer_obj):
     """
     >>> test_null_strides(Buffer())
@@ -653,7 +644,6 @@ def test_null_strides(Buffer buffer_obj):
             assert m2[i, j] == buffer_obj.m[i, j], (i, j, m2[i, j], buffer_obj.m[i, j])
             assert m3[i, j] == buffer_obj.m[i, j]
 
-@testcase
 def test_null_strides_error(buffer_obj):
     """
     >>> test_null_strides_error(Buffer())
@@ -727,7 +717,6 @@ ctypedef struct SameTypeAfterArraysStructSimple:
     double b[16]
     double c
 
-@testcase
 def same_type_after_arrays_simple():
     """
     >>> same_type_after_arrays_simple()
@@ -749,7 +738,6 @@ ctypedef struct SameTypeAfterArraysStructComposite:
     double h[4]
     int i
 
-@testcase
 def same_type_after_arrays_composite():
     """
     >>> same_type_after_arrays_composite() if sys.version_info[:2] >= (3, 5) else None
