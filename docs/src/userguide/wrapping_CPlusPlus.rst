@@ -344,9 +344,9 @@ The following coercions are available:
 +------------------+------------------------+-----------------+
 | iterable         | std::unordered_set     | set             |
 +------------------+------------------------+-----------------+
-| mapping          | std::map               | map             |
+| mapping          | std::map               | dict            |
 +------------------+------------------------+-----------------+
-| mapping          | std::unordered_map     | map             |
+| mapping          | std::unordered_map     | dict            |
 +------------------+------------------------+-----------------+
 | iterable (len 2) | std::pair              | tuple (len 2)   |
 +------------------+------------------------+-----------------+
