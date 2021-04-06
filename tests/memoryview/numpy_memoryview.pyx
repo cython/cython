@@ -406,6 +406,7 @@ def test_coerce_to_numpy():
     index(<td_h_ushort[:4, :5]> <td_h_ushort *> h_ushorts)
 
 
+@testcase_no_pypy
 @testcase_numpy_1_5
 def test_memslice_getbuffer():
     """
