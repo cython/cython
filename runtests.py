@@ -2309,7 +2309,7 @@ def runtests(options, cmd_args, coverage=None):
                              build_in_temp=True,
                              pyxbuild_dir=os.path.join(WORKDIR, "support"))
         sys.path.insert(0, os.path.split(libpath)[0])
-        CDEFS.append((CYTHON_REFNANNY, 1))
+        CDEFS.append(('CYTHON_REFNANNY', '1'))
 
     if xml_output_dir and options.fork:
         # doesn't currently work together
