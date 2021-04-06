@@ -8886,15 +8886,15 @@ class DictNode(ExprNode):
     @classmethod
     def from_pairs(cls, pos, pairs):
         return cls(pos, key_value_pairs=[
-            DictItemNode(pos, key=k, value=v) for k, v in pairs])
+                DictItemNode(pos, key=k, value=v) for k, v in pairs])
 
     def calculate_constant_result(self):
         self.constant_result = dict([
-            item.constant_result for item in self.key_value_pairs])
+                item.constant_result for item in self.key_value_pairs])
 
     def compile_time_value(self, denv):
         pairs = [(item.key.compile_time_value(denv), item.value.compile_time_value(denv))
-                 for item in self.key_value_pairs]
+            for item in self.key_value_pairs]
         try:
             return dict(pairs)
         except Exception as e:
@@ -9029,9 +9029,9 @@ class DictNode(ExprNode):
                     code.putln('}')
             else:
                 code.putln("%s.%s = %s;" % (
-                    self.result(),
-                    item.key.value,
-                    item.value.result()))
+                        self.result(),
+                        item.key.value,
+                        item.value.result()))
             item.generate_disposal_code(code)
             item.free_temps(code)
 
@@ -9175,11 +9175,11 @@ class ClassNode(ExprNode, ModuleNameMixin):
 
         if self.doc:
             code.put_error_if_neg(self.pos,
-                                  'PyDict_SetItem(%s, %s, %s)' % (
-                                      class_def_node.dict.py_result(),
-                                      code.intern_identifier(
-                                          StringEncoding.EncodedString("__doc__")),
-                                      self.doc.py_result()))
+                'PyDict_SetItem(%s, %s, %s)' % (
+                    class_def_node.dict.py_result(),
+                    code.intern_identifier(
+                        StringEncoding.EncodedString("__doc__")),
+                    self.doc.py_result()))
         py_mod_name = self.get_py_mod_name(code)
         qualname = self.get_py_qualified_name(code)
         code.putln(
@@ -9749,25 +9749,24 @@ class CodeObjectNode(ExprNode):
         if self.def_node.starstar_arg:
             flags.append('CO_VARKEYWORDS')
 
-        code.putln(
-            "%s = (PyObject*)__Pyx_PyCode_New(%d, %d, %d, %d, 0, %s, %s, %s, %s, %s, %s, %s, %s, %s, %d, %s); %s" % (
-                self.result_code,
-                len(func.args) - func.num_kwonly_args,  # argcount
-                func.num_posonly_args,  # posonlyargcount (Py3.8+ only)
-                func.num_kwonly_args,  # kwonlyargcount (Py3 only)
-                len(self.varnames.args),  # nlocals
-                '|'.join(flags) or '0',  # flags
-                Naming.empty_bytes,  # code
-                Naming.empty_tuple,  # consts
-                Naming.empty_tuple,  # names (FIXME)
-                self.varnames.result(),  # varnames
-                Naming.empty_tuple,  # freevars (FIXME)
-                Naming.empty_tuple,  # cellvars (FIXME)
-                file_path_const,  # filename
-                func_name,  # name
-                self.pos[1],  # firstlineno
-                Naming.empty_bytes,  # lnotab
-                code.error_goto_if_null(self.result_code, self.pos),
+        code.putln("%s = (PyObject*)__Pyx_PyCode_New(%d, %d, %d, %d, 0, %s, %s, %s, %s, %s, %s, %s, %s, %s, %d, %s); %s" % (
+            self.result_code,
+            len(func.args) - func.num_kwonly_args,  # argcount
+            func.num_posonly_args,     # posonlyargcount (Py3.8+ only)
+            func.num_kwonly_args,      # kwonlyargcount (Py3 only)
+            len(self.varnames.args),   # nlocals
+            '|'.join(flags) or '0',    # flags
+            Naming.empty_bytes,        # code
+            Naming.empty_tuple,        # consts
+            Naming.empty_tuple,        # names (FIXME)
+            self.varnames.result(),    # varnames
+            Naming.empty_tuple,        # freevars (FIXME)
+            Naming.empty_tuple,        # cellvars (FIXME)
+            file_path_const,           # filename
+            func_name,                 # name
+            self.pos[1],               # firstlineno
+            Naming.empty_bytes,        # lnotab
+            code.error_goto_if_null(self.result_code, self.pos),
             ))
 
 
@@ -10168,14 +10167,14 @@ class FuncLocalsExprNode(DictNode):
         items = [LocalsDictItemNode(
             pos, key=IdentifierStringNode(pos, value=var),
             value=NameNode(pos, name=var, allow_null=True))
-            for var in local_vars]
+                 for var in local_vars]
         DictNode.__init__(self, pos, key_value_pairs=items,
                           exclude_null_values=True)
 
     def analyse_types(self, env):
         node = super(FuncLocalsExprNode, self).analyse_types(env)
-        node.key_value_pairs = [i for i in node.key_value_pairs
-                                if i.value is not None]
+        node.key_value_pairs = [ i for i in node.key_value_pairs
+                                 if i.value is not None ]
         return node
 
 
@@ -10207,11 +10206,11 @@ def LocalsExprNode(pos, scope_node, env):
     return FuncLocalsExprNode(pos, env)
 
 
-# -------------------------------------------------------------------
+#-------------------------------------------------------------------
 #
 #  Unary operator nodes
 #
-# -------------------------------------------------------------------
+#-------------------------------------------------------------------
 
 compile_time_unary_operators = {
     'not': operator.not_,
@@ -10219,7 +10218,6 @@ compile_time_unary_operators = {
     '-': operator.neg,
     '+': operator.pos,
 }
-
 
 class UnopNode(ExprNode):
     #  operator     string
@@ -10244,8 +10242,8 @@ class UnopNode(ExprNode):
         func = compile_time_unary_operators.get(self.operator)
         if not func:
             error(self.pos,
-                  "Unary '%s' not supported in compile-time expression"
-                  % self.operator)
+                "Unary '%s' not supported in compile-time expression"
+                    % self.operator)
         operand = self.operand.compile_time_value(denv)
         try:
             return func(operand)
@@ -10323,9 +10321,9 @@ class UnopNode(ExprNode):
         elif self.is_temp:
             if self.is_cpp_operation() and self.exception_check == '+':
                 translate_cpp_exception(code, self.pos,
-                                        "%s = %s %s;" % (self.result(), self.operator, self.operand.result()),
-                                        self.result() if self.type.is_pyobject else None,
-                                        self.exception_value, self.in_nogil_context)
+                    "%s = %s %s;" % (self.result(), self.operator, self.operand.result()),
+                    self.result() if self.type.is_pyobject else None,
+                    self.exception_value, self.in_nogil_context)
             else:
                 code.putln("%s = %s %s;" % (self.result(), self.operator, self.operand.result()))
 
@@ -10342,7 +10340,7 @@ class UnopNode(ExprNode):
     def type_error(self):
         if not self.operand.type.is_error:
             error(self.pos, "Invalid operand type for '%s' (%s)" %
-                  (self.operator, self.operand.type))
+                (self.operator, self.operand.type))
         self.type = PyrexTypes.error_type
 
     def analyse_cpp_operation(self, env, overload_check=True):
@@ -10452,7 +10450,6 @@ class UnaryMinusNode(UnopNode):
         if value:
             return "(-%s)" % value
 
-
 class TildeNode(UnopNode):
     #  unary '~' operator
 
@@ -10476,7 +10473,6 @@ class CUnopNode(UnopNode):
 
     def is_py_operation(self):
         return False
-
 
 class DereferenceNode(CUnopNode):
     #  unary * operator
@@ -10519,7 +10515,6 @@ class DecrementIncrementNode(CUnopNode):
             return "(%s%s)" % (self.operator, self.operand.result())
         else:
             return "(%s%s)" % (self.operand.result(), self.operator)
-
 
 def inc_dec_constructor(is_prefix, operator):
     return lambda pos, **kwds: DecrementIncrementNode(pos, is_prefix=is_prefix, operator=operator, **kwds)
@@ -10569,29 +10564,28 @@ class AmpersandNode(CUnopNode):
     def generate_result_code(self, code):
         if (self.operand.type.is_cpp_class and self.exception_check == '+'):
             translate_cpp_exception(code, self.pos,
-                                    "%s = %s %s;" % (self.result(), self.operator, self.operand.result()),
-                                    self.result() if self.type.is_pyobject else None,
-                                    self.exception_value, self.in_nogil_context)
+                "%s = %s %s;" % (self.result(), self.operator, self.operand.result()),
+                self.result() if self.type.is_pyobject else None,
+                self.exception_value, self.in_nogil_context)
 
 
 unop_node_classes = {
-    "+": UnaryPlusNode,
-    "-": UnaryMinusNode,
-    "~": TildeNode,
+    "+":  UnaryPlusNode,
+    "-":  UnaryMinusNode,
+    "~":  TildeNode,
 }
-
 
 def unop_node(pos, operator, operand):
     # Construct unnop node of appropriate class for
     # given operator.
     if isinstance(operand, IntNode) and operator == '-':
-        return IntNode(pos=operand.pos, value=str(-Utils.str_to_number(operand.value)),
+        return IntNode(pos = operand.pos, value = str(-Utils.str_to_number(operand.value)),
                        longness=operand.longness, unsigned=operand.unsigned)
     elif isinstance(operand, UnopNode) and operand.operator == operator in '+-':
-        warning(pos, "Python has no increment/decrement operator: %s%sx == %s(%sx) == x" % ((operator,) * 4), 5)
+        warning(pos, "Python has no increment/decrement operator: %s%sx == %s(%sx) == x" % ((operator,)*4), 5)
     return unop_node_classes[operator](pos,
-                                       operator=operator,
-                                       operand=operand)
+        operator = operator,
+        operand = operand)
 
 
 class TypecastNode(ExprNode):
@@ -10626,7 +10620,7 @@ class TypecastNode(ExprNode):
             self.calculate_constant_result()
         if self.type.is_cfunction:
             error(self.pos,
-                  "Cannot cast to a function type")
+                "Cannot cast to a function type")
             self.type = PyrexTypes.error_type
         self.operand = self.operand.analyse_types(env)
         if self.type is PyrexTypes.c_bint_type:
@@ -10671,7 +10665,7 @@ class TypecastNode(ExprNode):
             self.operand = self.operand.coerce_to_simple(env)
         elif self.operand.type.is_fused:
             self.operand = self.operand.coerce_to(self.type, env)
-            # self.type = self.operand.type
+            #self.type = self.operand.type
         if self.type.is_ptr and self.type.base_type.is_cfunction and self.type.base_type.nogil:
             op_type = self.operand.type
             if op_type.is_ptr:
@@ -10702,7 +10696,7 @@ class TypecastNode(ExprNode):
     def calculate_constant_result(self):
         self.constant_result = self.calculate_result_code(self.operand.constant_result)
 
-    def calculate_result_code(self, operand_result=None):
+    def calculate_result_code(self, operand_result = None):
         if operand_result is None:
             operand_result = self.operand.result()
         if self.type.is_complex:
@@ -10714,9 +10708,9 @@ class TypecastNode(ExprNode):
                 real_part = self.type.real_type.cast_code(operand_result)
                 imag_part = "0"
             return "%s(%s, %s)" % (
-                self.type.from_parts,
-                real_part,
-                imag_part)
+                    self.type.from_parts,
+                    real_part,
+                    imag_part)
         else:
             return self.type.cast_code(operand_result)
 
@@ -10818,7 +10812,7 @@ class CythonArrayNode(ExprNode):
         elif self.operand.type.is_array and len(array_dimension_sizes) != ndim:
             error(self.operand.pos,
                   "Expected %d dimensions, array has %d dimensions" %
-                  (ndim, len(array_dimension_sizes)))
+                                            (ndim, len(array_dimension_sizes)))
             return self
 
         # Verify the start, stop and step values
@@ -10851,7 +10845,7 @@ class CythonArrayNode(ExprNode):
                 # '1' in the first or last dimension denotes F or C contiguity
                 axis.step = axis.step.analyse_types(env)
                 if (not axis.step.type.is_int and axis.step.is_literal and not
-                axis.step.type.is_error):
+                        axis.step.type.is_error):
                     error(axis.step.pos, "Expected an integer literal")
                     return self
 
@@ -10901,7 +10895,7 @@ class CythonArrayNode(ExprNode):
         from . import Buffer
 
         shapes = [self.shape_type.cast_code(shape.result())
-                  for shape in self.shapes]
+                      for shape in self.shapes]
         dtype = self.coercion_type.dtype
 
         shapes_temp = code.funcstate.allocate_temp(py_object_type, True)
@@ -10912,8 +10906,8 @@ class CythonArrayNode(ExprNode):
 
         if self.operand.type.is_ptr:
             code.putln("if (!%s) {" % self.operand.result())
-            code.putln('PyErr_SetString(PyExc_ValueError,'
-                       '"Cannot create cython.array from NULL pointer");')
+            code.putln(    'PyErr_SetString(PyExc_ValueError,'
+                                '"Cannot create cython.array from NULL pointer");')
             code.putln(code.error_goto(self.operand.pos))
             code.putln("}")
 
@@ -10960,7 +10954,7 @@ class CythonArrayNode(ExprNode):
 
         while base_type.is_array:
             axes.append(SliceNode(pos, start=none_node, stop=none_node,
-                                  step=none_node))
+                                       step=none_node))
             base_type = base_type.base_type
         axes[-1].step = IntNode(pos, value="1", is_c_literal=True)
 
@@ -10970,7 +10964,6 @@ class CythonArrayNode(ExprNode):
                                  operand=src_node, array_dtype=base_type)
         result = result.analyse_types(env)
         return result
-
 
 class SizeofNode(ExprNode):
     #  Abstract base class for sizeof(x) expression nodes.
@@ -11134,9 +11127,8 @@ class TypeidNode(ExprNode):
         else:
             arg_code = self.arg_type.result()
         translate_cpp_exception(code, self.pos,
-                                "%s = typeid(%s);" % (self.temp_code, arg_code),
-                                None, None, self.in_nogil_context)
-
+            "%s = typeid(%s);" % (self.temp_code, arg_code),
+            None, None, self.in_nogil_context)
 
 class TypeofNode(ExprNode):
     #  Compile-time type of an expression, as a string.
@@ -11151,7 +11143,7 @@ class TypeofNode(ExprNode):
 
     def analyse_types(self, env):
         self.operand = self.operand.analyse_types(env)
-        value = StringEncoding.EncodedString(str(self.operand.type))  # self.operand.type.typeof_name())
+        value = StringEncoding.EncodedString(str(self.operand.type))  #self.operand.type.typeof_name())
         literal = StringNode(self.pos, value=value)
         literal = literal.analyse_types(env)
         self.literal = literal.coerce_to_pyobject(env)
@@ -11170,12 +11162,11 @@ class TypeofNode(ExprNode):
     def calculate_result_code(self):
         return self.literal.calculate_result_code()
 
-
-# -------------------------------------------------------------------
+#-------------------------------------------------------------------
 #
 #  Binary operator nodes
 #
-# -------------------------------------------------------------------
+#-------------------------------------------------------------------
 
 try:
     matmul_operator = operator.matmul
@@ -11213,13 +11204,12 @@ compile_time_binary_operators = {
     'not_in': lambda x, seq: x not in seq,
 }
 
-
 def get_compile_time_binop(node):
     func = compile_time_binary_operators.get(node.operator)
     if not func:
         error(node.pos,
-              "Binary '%s' not supported in compile-time expression"
-              % node.operator)
+            "Binary '%s' not supported in compile-time expression"
+                % node.operator)
     return func
 
 
@@ -11298,7 +11288,7 @@ class BinopNode(ExprNode):
 
     def is_cpp_operation(self):
         return (self.operand1.type.is_cpp_class
-                or self.operand2.type.is_cpp_class)
+            or self.operand2.type.is_cpp_class)
 
     def analyse_cpp_operation(self, env):
         entry = env.lookup_operator(self.operator, [self.operand1, self.operand2])
@@ -11413,8 +11403,8 @@ class BinopNode(ExprNode):
         if not (self.operand1.type.is_error
                 or self.operand2.type.is_error):
             error(self.pos, "Invalid operand types for '%s' (%s; %s)" %
-                  (self.operator, self.operand1.type,
-                   self.operand2.type))
+                (self.operator, self.operand1.type,
+                    self.operand2.type))
         self.type = PyrexTypes.error_type
 
 
@@ -11448,9 +11438,7 @@ class CBinopNode(BinopNode):
 def c_binop_constructor(operator):
     def make_binop_node(pos, **operands):
         return CBinopNode(pos, operator=operator, **operands)
-
     return make_binop_node
-
 
 class NumBinopNode(BinopNode):
     #  Binary operation taking numeric arguments.
@@ -11469,18 +11457,18 @@ class NumBinopNode(BinopNode):
         if self.type.is_complex:
             self.infix = False
         if (self.type.is_int
-            and env.directives['overflowcheck']
-            and self.operator in self.overflow_op_names):
+                and env.directives['overflowcheck']
+                and self.operator in self.overflow_op_names):
             if (self.operator in ('+', '*')
-                and self.operand1.has_constant_result()
-                and not self.operand2.has_constant_result()):
+                    and self.operand1.has_constant_result()
+                    and not self.operand2.has_constant_result()):
                 self.operand1, self.operand2 = self.operand2, self.operand1
             self.overflow_check = True
             self.overflow_fold = env.directives['overflowcheck.fold']
             self.func = self.type.overflow_check_binop(
                 self.overflow_op_names[self.operator],
                 env,
-                const_rhs=self.operand2.has_constant_result())
+                const_rhs = self.operand2.has_constant_result())
             self.is_temp = True
         if not self.infix or (type1.is_numeric and type2.is_numeric):
             self.operand1 = self.operand1.coerce_to(self.type, env)
@@ -11522,7 +11510,7 @@ class NumBinopNode(BinopNode):
             return None
 
     def c_types_okay(self, type1, type2):
-        # print "NumBinopNode.c_types_okay:", type1, type2 ###
+        #print "NumBinopNode.c_types_okay:", type1, type2 ###
         return (type1.is_numeric or type1.is_enum) \
                and (type2.is_numeric or type2.is_enum)
 
@@ -11573,26 +11561,26 @@ class NumBinopNode(BinopNode):
         return function_name
 
     py_functions = {
-        "|": "PyNumber_Or",
-        "^": "PyNumber_Xor",
-        "&": "PyNumber_And",
-        "<<": "PyNumber_Lshift",
-        ">>": "PyNumber_Rshift",
-        "+": "PyNumber_Add",
-        "-": "PyNumber_Subtract",
-        "*": "PyNumber_Multiply",
-        "@": "__Pyx_PyNumber_MatrixMultiply",
-        "/": "__Pyx_PyNumber_Divide",
-        "//": "PyNumber_FloorDivide",
-        "%": "PyNumber_Remainder",
-        "**": "PyNumber_Power",
+        "|":        "PyNumber_Or",
+        "^":        "PyNumber_Xor",
+        "&":        "PyNumber_And",
+        "<<":       "PyNumber_Lshift",
+        ">>":       "PyNumber_Rshift",
+        "+":        "PyNumber_Add",
+        "-":        "PyNumber_Subtract",
+        "*":        "PyNumber_Multiply",
+        "@":        "__Pyx_PyNumber_MatrixMultiply",
+        "/":        "__Pyx_PyNumber_Divide",
+        "//":       "PyNumber_FloorDivide",
+        "%":        "PyNumber_Remainder",
+        "**":       "PyNumber_Power",
     }
 
     overflow_op_names = {
-        "+": "add",
-        "-": "sub",
-        "*": "mul",
-        "<<": "lshift",
+        "+":  "add",
+        "-":  "sub",
+        "*":  "mul",
+        "<<":  "lshift",
     }
 
 
@@ -11600,7 +11588,7 @@ class IntBinopNode(NumBinopNode):
     #  Binary operation taking integer arguments.
 
     def c_types_okay(self, type1, type2):
-        # print "IntBinopNode.c_types_okay:", type1, type2 ###
+        #print "IntBinopNode.c_types_okay:", type1, type2 ###
         return (type1.is_int or type1.is_enum) \
                and (type2.is_int or type2.is_enum)
 
@@ -11624,7 +11612,7 @@ class AddNode(NumBinopNode):
         return None
 
     def compute_c_result_type(self, type1, type2):
-        # print "AddNode.compute_c_result_type:", type1, self.operator, type2 ###
+        #print "AddNode.compute_c_result_type:", type1, self.operator, type2 ###
         if (type1.is_ptr or type1.is_array) and (type2.is_int or type2.is_enum):
             return type1
         elif (type2.is_ptr or type2.is_array) and (type1.is_int or type1.is_enum):
@@ -11653,7 +11641,7 @@ class AddNode(NumBinopNode):
                 func = '__Pyx_PyUnicode_Concat'
         elif type1 is str_type and type2 is str_type:
             code.globalstate.use_utility_code(
-                UtilityCode.load_cached("StrConcatInPlace", "ObjectHandling.c"))
+                    UtilityCode.load_cached("StrConcatInPlace", "ObjectHandling.c"))
             func = '__Pyx_PyStr_Concat'
 
         if func:
@@ -11685,7 +11673,7 @@ class MulNode(NumBinopNode):
 
     def is_py_operation_types(self, type1, type2):
         if ((type1.is_string and type2.is_int) or
-            (type2.is_string and type1.is_int)):
+                (type2.is_string and type1.is_int)):
             return 1
         else:
             return NumBinopNode.is_py_operation_types(self, type1, type2)
@@ -11722,7 +11710,7 @@ class DivNode(NumBinopNode):
     #  '/' or '//' operator.
 
     cdivision = None
-    truedivision = None  # == "unknown" if operator == '/'
+    truedivision = None   # == "unknown" if operator == '/'
     ctruedivision = False
     cdivision_warnings = False
     zerodivision_check = None
@@ -11835,9 +11823,9 @@ class DivNode(NumBinopNode):
                             type_of_op2, self.operand2.result(), type_of_op2)
                     code.putln("else if (sizeof(%s) == sizeof(long) && %s "
                                " && unlikely(__Pyx_UNARY_NEG_WOULD_OVERFLOW(%s))) {" % (
-                                   self.type.empty_declaration_code(),
-                                   minus1_check,
-                                   self.operand1.result()))
+                               self.type.empty_declaration_code(),
+                               minus1_check,
+                               self.operand1.result()))
                     if in_nogil:
                         code.put_ensure_gil()
                     code.putln('PyErr_SetString(PyExc_OverflowError, "value too large to perform division");')
@@ -11849,11 +11837,11 @@ class DivNode(NumBinopNode):
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("CDivisionWarning", "CMath.c"))
                 code.putln("if (unlikely((%s < 0) ^ (%s < 0))) {" % (
-                    self.operand1.result(),
-                    self.operand2.result()))
+                                self.operand1.result(),
+                                self.operand2.result()))
                 warning_code = "__Pyx_cdivision_warning(%(FILENAME)s, %(LINENO)s)" % {
                     'FILENAME': Naming.filename_cname,
-                    'LINENO': Naming.lineno_cname,
+                    'LINENO':  Naming.lineno_cname,
                 }
 
                 if in_nogil:
@@ -11933,7 +11921,7 @@ class ModNode(DivNode):
                         return type1
                 return basestring_type
             elif type1 is bytes_type and not type2.is_builtin_type:
-                return None  # RHS might implement '% operator differently in Py3
+                return None   # RHS might implement '% operator differently in Py3
             else:
                 return basestring_type  # either str or unicode, can't tell
         return None
@@ -11978,17 +11966,17 @@ class ModNode(DivNode):
                     self.operand2.result())
         else:
             return "__Pyx_mod_%s(%s, %s)" % (
-                self.type.specialization_name(),
-                self.operand1.result(),
-                self.operand2.result())
+                    self.type.specialization_name(),
+                    self.operand1.result(),
+                    self.operand2.result())
 
     def py_operation_function(self, code):
         type1, type2 = self.operand1.type, self.operand2.type
         # ("..." % x)  must call "x.__rmod__()" for string subtypes.
         if type1 is unicode_type:
             if self.operand1.may_be_none() or (
-                type2.is_extension_type and type2.subtype_of(type1) or
-                type2 is py_object_type and not isinstance(self.operand2, CoerceToPyTypeNode)):
+                    type2.is_extension_type and type2.subtype_of(type1) or
+                    type2 is py_object_type and not isinstance(self.operand2, CoerceToPyTypeNode)):
                 return '__Pyx_PyUnicode_FormatSafe'
             else:
                 return 'PyUnicode_Format'
@@ -12026,7 +12014,7 @@ class PowNode(NumBinopNode):
                     signed=self.type.signed and 1 or 0))
         elif not self.type.is_error:
             error(self.pos, "got unexpected types for C power operator: %s, %s" %
-                  (self.operand1.type, self.operand2.type))
+                            (self.operand1.type, self.operand2.type))
 
     def compute_c_result_type(self, type1, type2):
         c_result_type = super(PowNode, self).compute_c_result_type(type1, type2)
@@ -12041,7 +12029,6 @@ class PowNode(NumBinopNode):
                 return operand.result()
             else:
                 return self.type.cast_code(operand.result())
-
         return "%s(%s, %s)" % (
             self.pow_func,
             typecast(self.operand1),
@@ -12049,9 +12036,9 @@ class PowNode(NumBinopNode):
 
     def py_operation_function(self, code):
         if (self.type.is_pyobject and
-            self.operand1.constant_result == 2 and
-            isinstance(self.operand1.constant_result, _py_int_types) and
-            self.operand2.type is py_object_type):
+                self.operand1.constant_result == 2 and
+                isinstance(self.operand1.constant_result, _py_int_types) and
+                self.operand2.type is py_object_type):
             code.globalstate.use_utility_code(UtilityCode.load_cached('PyNumberPow2', 'Optimize.c'))
             if self.inplace:
                 return '__Pyx_PyNumber_InPlacePowerOf2'
@@ -12143,8 +12130,7 @@ class BoolBinopNode(ExprNode):
             operator=self.operator,
             operand1=operand1, operand2=operand2)
 
-    def generate_bool_evaluation_code(self, code, final_result_temp, final_result_type, and_label, or_label, end_label,
-                                      fall_through):
+    def generate_bool_evaluation_code(self, code, final_result_temp, final_result_type, and_label, or_label, end_label, fall_through):
         code.mark_pos(self.pos)
 
         outer_labels = (and_label, or_label)
@@ -12251,8 +12237,7 @@ class BoolBinopResultNode(ExprNode):
             test_result = self.arg.result()
         return (test_result, self.arg.type.is_pyobject)
 
-    def generate_bool_evaluation_code(self, code, final_result_temp, final_result_type, and_label, or_label, end_label,
-                                      fall_through):
+    def generate_bool_evaluation_code(self, code, final_result_temp, final_result_type, and_label, or_label, end_label, fall_through):
         code.mark_pos(self.pos)
 
         # x => x
@@ -12378,13 +12363,13 @@ class CondExprNode(ExprNode):
     def type_error(self):
         if not (self.true_val.type.is_error or self.false_val.type.is_error):
             error(self.pos, "Incompatible types in conditional expression (%s; %s)" %
-                  (self.true_val.type, self.false_val.type))
+                (self.true_val.type, self.false_val.type))
         self.type = PyrexTypes.error_type
 
     def check_const(self):
         return (self.test.check_const()
-                and self.true_val.check_const()
-                and self.false_val.check_const())
+            and self.true_val.check_const()
+            and self.false_val.check_const())
 
     def generate_evaluation_code(self, code):
         # Because subexprs may not be evaluated we can use a more optimal
@@ -12419,18 +12404,17 @@ class CondExprNode(ExprNode):
 
 
 richcmp_constants = {
-    "<": "Py_LT",
+    "<" : "Py_LT",
     "<=": "Py_LE",
     "==": "Py_EQ",
     "!=": "Py_NE",
     "<>": "Py_NE",
-    ">": "Py_GT",
+    ">" : "Py_GT",
     ">=": "Py_GE",
     # the following are faked by special compare functions
-    "in": "Py_EQ",
+    "in"    : "Py_EQ",
     "not_in": "Py_NE",
 }
-
 
 class CmpNode(object):
     #  Mixin class containing code common to PrimaryCmpNodes
@@ -12447,8 +12431,8 @@ class CmpNode(object):
         func = compile_time_binary_operators[self.operator]
         operand2_result = self.operand2.constant_result
         if (isinstance(operand1_result, any_string_type) and
-            isinstance(operand2_result, any_string_type) and
-            type(operand1_result) != type(operand2_result)):
+                isinstance(operand2_result, any_string_type) and
+                type(operand1_result) != type(operand2_result)):
             # string comparison of different types isn't portable
             return
 
@@ -12520,15 +12504,15 @@ class CmpNode(object):
 
         # catch general errors
         if (type1 == str_type and (type2.is_string or type2 in (bytes_type, unicode_type)) or
-            type2 == str_type and (type1.is_string or type1 in (bytes_type, unicode_type))):
+                type2 == str_type and (type1.is_string or type1 in (bytes_type, unicode_type))):
             error(self.pos, "Comparisons between bytes/unicode and str are not portable to Python 3")
             new_common_type = error_type
 
         # try to use numeric comparisons where possible
         elif type1.is_complex or type2.is_complex:
             if (op not in ('==', '!=')
-                and (type1.is_complex or type1.is_numeric)
-                and (type2.is_complex or type2.is_numeric)):
+                    and (type1.is_complex or type1.is_numeric)
+                    and (type2.is_complex or type2.is_numeric)):
                 error(self.pos, "complex types are unordered")
                 new_common_type = error_type
             elif type1.is_pyobject:
@@ -12600,10 +12584,10 @@ class CmpNode(object):
 
     def is_python_comparison(self):
         return (not self.is_ptr_contains()
-                and not self.is_c_string_contains()
-                and (self.has_python_operands()
-                     or (self.cascade and self.cascade.is_python_comparison())
-                     or self.operator in ('in', 'not_in')))
+            and not self.is_c_string_contains()
+            and (self.has_python_operands()
+                 or (self.cascade and self.cascade.is_python_comparison())
+                 or self.operator in ('in', 'not_in')))
 
     def coerce_operands_to(self, dst_type, env):
         operand2 = self.operand2
@@ -12618,7 +12602,7 @@ class CmpNode(object):
                  self.operator not in ('is', 'is_not', 'in', 'not_in') and
                  not self.is_c_string_contains() and
                  not self.is_ptr_contains())
-                or (self.cascade and self.cascade.is_python_result()))
+            or (self.cascade and self.cascade.is_python_result()))
 
     def is_c_string_contains(self):
         return self.operator in ('in', 'not_in') and \
@@ -12631,7 +12615,7 @@ class CmpNode(object):
         if self.operator in ('in', 'not_in'):
             container_type = self.operand2.type
             return (container_type.is_ptr or container_type.is_array) \
-                   and not container_type.is_string
+                and not container_type.is_string
 
     def find_special_bool_compare_function(self, env, operand1, result_is_bool=False):
         # note: currently operand1 must get coerced to a Python object if we succeed here!
@@ -12679,7 +12663,7 @@ class CmpNode(object):
         return False
 
     def generate_operation_code(self, code, result_code,
-                                operand1, op, operand2):
+            operand1, op , operand2):
         if self.type.is_pyobject:
             error_clause = code.error_goto_if_null
             got_ref = "__Pyx_XGOTREF(%s); " % result_code
@@ -12737,7 +12721,7 @@ class CmpNode(object):
             type1 = operand1.type
             type2 = operand2.type
             if (type1.is_extension_type or type2.is_extension_type) \
-                and not type1.same_as(type2):
+                    and not type1.same_as(type2):
                 common_type = py_object_type
             elif type1.is_numeric:
                 common_type = PyrexTypes.widest_numeric_type(type1, type2)
@@ -12769,7 +12753,6 @@ class CmpNode(object):
             return "!="
         else:
             return op
-
 
 class PrimaryCmpNode(ExprNode, CmpNode):
     #  Non-cascaded comparison or first comparison of
