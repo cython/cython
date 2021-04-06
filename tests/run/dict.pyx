@@ -117,3 +117,22 @@ def item_creation_sideeffect(L, sideeffect, unhashable):
     [2, 4, 5]
     """
     return {1:2, sideeffect(2): 3, 3: 4, unhashable(4): 5, sideeffect(5): 6}
+
+
+def dict_unpacking_not_for_arg_create_a_copy():
+    """
+    >>> dict_unpacking_not_for_arg_create_a_copy()
+    {'a': 1, 'b': 0}
+    {'a': 0, 'b': 0}
+    """
+    data = {'a': 0, 'b':0}
+
+    func = lambda: {**data}
+
+    call_once = func()
+    call_once['a'] = 1
+
+    call_twice = func()
+
+    print(call_once)
+    print(call_twice)

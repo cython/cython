@@ -6754,22 +6754,13 @@ class MergedDictNode(ExprNode):
         return dict_type
 
     def analyse_types(self, env):
-        args = [
+        self.keyword_args = [
             arg.analyse_types(env).coerce_to_pyobject(env).as_none_safe_node(
                 # FIXME: CPython's error message starts with the runtime function name
                 'argument after ** must be a mapping, not NoneType')
             for arg in self.keyword_args
         ]
 
-        if len(args) == 1 and args[0].type is dict_type and args[0].is_name and args[0].entry.is_arg:
-            # strip this intermediate node and use the bare dict
-            arg = args[0]
-            if len(arg.entry.cf_assignments) == 1:
-                # passing **kwargs through to function call => allow NULL
-                arg.allow_null = True
-            return arg
-
-        self.keyword_args = args
         return self
 
     def may_be_none(self):
