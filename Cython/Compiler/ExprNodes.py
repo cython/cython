@@ -11512,7 +11512,7 @@ class NumBinopNode(BinopNode):
     def c_types_okay(self, type1, type2):
         #print "NumBinopNode.c_types_okay:", type1, type2 ###
         return (type1.is_numeric or type1.is_enum) \
-               and (type2.is_numeric or type2.is_enum)
+            and (type2.is_numeric or type2.is_enum)
 
     def generate_evaluation_code(self, code):
         if self.overflow_check:
@@ -11590,7 +11590,7 @@ class IntBinopNode(NumBinopNode):
     def c_types_okay(self, type1, type2):
         #print "IntBinopNode.c_types_okay:", type1, type2 ###
         return (type1.is_int or type1.is_enum) \
-               and (type2.is_int or type2.is_enum)
+            and (type2.is_int or type2.is_enum)
 
 
 class AddNode(NumBinopNode):
@@ -11982,8 +11982,8 @@ class ModNode(DivNode):
                 return 'PyUnicode_Format'
         elif type1 is str_type:
             if self.operand1.may_be_none() or (
-                type2.is_extension_type and type2.subtype_of(type1) or
-                type2 is py_object_type and not isinstance(self.operand2, CoerceToPyTypeNode)):
+                    type2.is_extension_type and type2.subtype_of(type1) or
+                    type2 is py_object_type and not isinstance(self.operand2, CoerceToPyTypeNode)):
                 return '__Pyx_PyString_FormatSafe'
             else:
                 return '__Pyx_PyString_Format'
@@ -12701,12 +12701,12 @@ class CmpNode(object):
         elif operand1.type.is_pyobject and op not in ('is', 'is_not'):
             assert op not in ('in', 'not_in'), op
             code.putln("%s = PyObject_RichCompare(%s, %s, %s); %s%s" % (
-                result_code,
-                operand1.py_result(),
-                operand2.py_result(),
-                richcmp_constants[op],
-                got_ref,
-                error_clause(result_code, self.pos)))
+                    result_code,
+                    operand1.py_result(),
+                    operand2.py_result(),
+                    richcmp_constants[op],
+                    got_ref,
+                    error_clause(result_code, self.pos)))
 
         elif operand1.type.is_complex:
             code.putln("%s = %s(%s%s(%s, %s));" % (
@@ -12890,7 +12890,7 @@ class PrimaryCmpNode(ExprNode, CmpNode):
         entry = env.lookup_operator(self.operator, [self.operand1, self.operand2])
         if entry is None:
             error(self.pos, "Invalid types for '%s' (%s, %s)" %
-                  (self.operator, type1, type2))
+                (self.operator, type1, type2))
             self.type = PyrexTypes.error_type
             self.result_code = "<error>"
             return
@@ -12927,7 +12927,7 @@ class PrimaryCmpNode(ExprNode, CmpNode):
         if self.is_pycmp:
             # coercing to bool => may allow for more efficient comparison code
             if self.find_special_bool_compare_function(
-                env, self.operand1, result_is_bool=True):
+                    env, self.operand1, result_is_bool=True):
                 self.is_pycmp = False
                 self.type = PyrexTypes.c_bint_type
                 self.is_temp = 1
@@ -12942,7 +12942,7 @@ class PrimaryCmpNode(ExprNode, CmpNode):
 
     def has_python_operands(self):
         return (self.operand1.type.is_pyobject
-                or self.operand2.type.is_pyobject)
+            or self.operand2.type.is_pyobject)
 
     def check_const(self):
         if self.cascade:
@@ -12999,7 +12999,7 @@ class PrimaryCmpNode(ExprNode, CmpNode):
         if self.is_temp:
             self.allocate_temp_result(code)
             self.generate_operation_code(code, self.result(),
-                                         self.operand1, self.operator, self.operand2)
+                self.operand1, self.operator, self.operand2)
             if self.cascade:
                 self.cascade.generate_evaluation_code(
                     code, self.result(), self.coerced_operand2 or self.operand2,
@@ -13089,7 +13089,7 @@ class CascadedCmpNode(Node, CmpNode):
 
     def coerce_cascaded_operands_to_temp(self, env):
         if self.cascade:
-            # self.operand2 = self.operand2.coerce_to_temp(env) #CTT
+            #self.operand2 = self.operand2.coerce_to_temp(env) #CTT
             self.operand2 = self.operand2.coerce_to_simple(env)
             self.cascade.coerce_cascaded_operands_to_temp(env)
 
@@ -13103,7 +13103,7 @@ class CascadedCmpNode(Node, CmpNode):
             operand1.generate_evaluation_code(code)
         self.operand2.generate_evaluation_code(code)
         self.generate_operation_code(code, result,
-                                     operand1, self.operator, self.operand2)
+            operand1, self.operator, self.operand2)
         if self.cascade:
             self.cascade.generate_evaluation_code(
                 code, result, self.coerced_operand2 or self.operand2,
@@ -13123,21 +13123,21 @@ class CascadedCmpNode(Node, CmpNode):
 
 
 binop_node_classes = {
-    "or": BoolBinopNode,
-    "and": BoolBinopNode,
-    "|": IntBinopNode,
-    "^": IntBinopNode,
-    "&": IntBinopNode,
-    "<<": IntBinopNode,
-    ">>": IntBinopNode,
-    "+": AddNode,
-    "-": SubNode,
-    "*": MulNode,
-    "@": MatMultNode,
-    "/": DivNode,
-    "//": DivNode,
-    "%": ModNode,
-    "**": PowNode,
+    "or":       BoolBinopNode,
+    "and":      BoolBinopNode,
+    "|":        IntBinopNode,
+    "^":        IntBinopNode,
+    "&":        IntBinopNode,
+    "<<":       IntBinopNode,
+    ">>":       IntBinopNode,
+    "+":        AddNode,
+    "-":        SubNode,
+    "*":        MulNode,
+    "@":        MatMultNode,
+    "/":        DivNode,
+    "//":       DivNode,
+    "%":        ModNode,
+    "**":       PowNode,
 }
 
 
@@ -13153,7 +13153,7 @@ def binop_node(pos, operator, operand1, operand2, inplace=False, **kwargs):
         **kwargs)
 
 
-# -------------------------------------------------------------------
+#-------------------------------------------------------------------
 #
 #  Coercion nodes
 #
@@ -13162,7 +13162,7 @@ def binop_node(pos, operator, operand1, operand2, inplace=False, **kwargs):
 #  Their __init__ methods consequently incorporate some aspects
 #  of that phase.
 #
-# -------------------------------------------------------------------
+#-------------------------------------------------------------------
 
 class CoercionNode(ExprNode):
     #  Abstract base class for coercion nodes.
@@ -13186,7 +13186,7 @@ class CoercionNode(ExprNode):
         self.arg.annotate(code)
         if self.arg.type != self.type:
             file, line, col = self.pos
-            code.annotate((file, line, col - 1), AnnotationItem(
+            code.annotate((file, line, col-1), AnnotationItem(
                 style='coerce', tag='coerce', text='[%s] to [%s]' % (self.arg.type, self.type)))
 
 
@@ -13306,7 +13306,7 @@ class PyTypeTestNode(CoercionNode):
                 type_test, code.error_goto(self.pos)))
         else:
             error(self.pos, "Cannot test type of extern C class "
-                            "without type object name specification")
+                "without type object name specification")
 
     def generate_post_assignment_code(self, code):
         self.arg.generate_post_assignment_code(code)
@@ -13394,8 +13394,8 @@ class NoneCheckNode(CoercionNode):
                 self.exception_type_cname,
                 StringEncoding.escape_byte_string(
                     self.exception_message.encode('UTF-8')),
-                ', '.join(['"%s"' % escape(str(arg).encode('UTF-8'))
-                           for arg in self.exception_format_args])))
+                ', '.join([ '"%s"' % escape(str(arg).encode('UTF-8'))
+                            for arg in self.exception_format_args ])))
         else:
             code.putln('PyErr_SetString(%s, "%s");' % (
                 self.exception_type_cname,
@@ -13445,10 +13445,10 @@ class CoerceToPyTypeNode(CoercionNode):
             self.target_type = self.type
         elif arg.type.is_string or arg.type.is_cpp_string:
             if (type not in (bytes_type, bytearray_type)
-                and not env.directives['c_string_encoding']):
+                    and not env.directives['c_string_encoding']):
                 error(arg.pos,
-                      "default encoding required for conversion from '%s' to '%s'" %
-                      (arg.type, type))
+                    "default encoding required for conversion from '%s' to '%s'" %
+                    (arg.type, type))
             self.type = self.target_type = type
         else:
             # FIXME: check that the target type and the resulting type are compatible
@@ -13463,7 +13463,7 @@ class CoerceToPyTypeNode(CoercionNode):
     def coerce_to_boolean(self, env):
         arg_type = self.arg.type
         if (arg_type == PyrexTypes.c_bint_type or
-            (arg_type.is_pyobject and arg_type.name == 'bool')):
+                (arg_type.is_pyobject and arg_type.name == 'bool')):
             return self.arg.coerce_to_temp(env)
         else:
             return CoerceToBooleanNode(self, env)
@@ -13578,13 +13578,13 @@ class CoerceToBooleanNode(CoercionNode):
     type = PyrexTypes.c_bint_type
 
     _special_builtins = {
-        Builtin.list_type: 'PyList_GET_SIZE',
-        Builtin.tuple_type: 'PyTuple_GET_SIZE',
-        Builtin.set_type: 'PySet_GET_SIZE',
-        Builtin.frozenset_type: 'PySet_GET_SIZE',
-        Builtin.bytes_type: 'PyBytes_GET_SIZE',
-        Builtin.bytearray_type: 'PyByteArray_GET_SIZE',
-        Builtin.unicode_type: '__Pyx_PyUnicode_IS_TRUE',
+        Builtin.list_type:       'PyList_GET_SIZE',
+        Builtin.tuple_type:      'PyTuple_GET_SIZE',
+        Builtin.set_type:        'PySet_GET_SIZE',
+        Builtin.frozenset_type:  'PySet_GET_SIZE',
+        Builtin.bytes_type:      'PyBytes_GET_SIZE',
+        Builtin.bytearray_type:  'PyByteArray_GET_SIZE',
+        Builtin.unicode_type:    '__Pyx_PyUnicode_IS_TRUE',
     }
 
     def __init__(self, arg, env):
@@ -13643,16 +13643,15 @@ class CoerceToComplexNode(CoercionNode):
             real_part = self.arg.result()
             imag_part = "0"
         return "%s(%s, %s)" % (
-            self.type.from_parts,
-            real_part,
-            imag_part)
+                self.type.from_parts,
+                real_part,
+                imag_part)
 
     def generate_result_code(self, code):
         pass
 
     def analyse_types(self, env):
         return self
-
 
 class CoerceToTempNode(CoercionNode):
     #  This node is used to force the result of another node
@@ -13685,7 +13684,7 @@ class CoerceToTempNode(CoercionNode):
         return self
 
     def generate_result_code(self, code):
-        # self.arg.generate_evaluation_code(code) # Already done
+        #self.arg.generate_evaluation_code(code) # Already done
         # by generic generate_subexpr_evaluation_code!
         code.putln("%s = %s;" % (
             self.result(), self.arg.result_as(self.ctype())))
@@ -13694,8 +13693,7 @@ class CoerceToTempNode(CoercionNode):
                 code.put_incref(self.result(), self.ctype())
             else:
                 code.put_incref_memoryviewslice(self.result(), self.type,
-                                                have_gil=not self.in_nogil_context)
-
+                                            have_gil=not self.in_nogil_context)
 
 class ProxyNode(CoercionNode):
     """
@@ -13750,7 +13748,6 @@ class ProxyNode(CoercionNode):
 
     def free_temps(self, code):
         self.arg.free_temps(code)
-
 
 class CloneNode(CoercionNode):
     #  This node is employed when the result of another node needs
@@ -13847,7 +13844,6 @@ class ModuleRefNode(ExprNode):
     def generate_result_code(self, code):
         pass
 
-
 class DocstringRefNode(ExprNode):
     # Extracts the docstring of the body element
 
@@ -13869,7 +13865,6 @@ class DocstringRefNode(ExprNode):
             code.intern_identifier(StringEncoding.EncodedString("__doc__")),
             code.error_goto_if_null(self.result(), self.pos)))
         self.generate_gotref(code)
-
 
 class AnnotationNode(ExprNode):
     # Deals with the two possible uses of an annotation.
@@ -13961,18 +13956,17 @@ class AnnotationNode(ExprNode):
             warning(annotation.pos, "Unknown type declaration in annotation, ignoring")
         return base_type, arg_type
 
-
-# ------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------
 #
 #  Runtime support code
 #
-# ------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------
 
-pyerr_occurred_withgil_utility_code = UtilityCode(
-    proto="""
+pyerr_occurred_withgil_utility_code= UtilityCode(
+proto = """
 static CYTHON_INLINE int __Pyx_ErrOccurredWithGIL(void); /* proto */
 """,
-    impl="""
+impl = """
 static CYTHON_INLINE int __Pyx_ErrOccurredWithGIL(void) {
   int err;
   #ifdef WITH_THREAD
@@ -13987,23 +13981,23 @@ static CYTHON_INLINE int __Pyx_ErrOccurredWithGIL(void) {
 """
 )
 
-# ------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------
 
 raise_unbound_local_error_utility_code = UtilityCode(
-    proto="""
+proto = """
 static CYTHON_INLINE void __Pyx_RaiseUnboundLocalError(const char *varname);
 """,
-    impl="""
+impl = """
 static CYTHON_INLINE void __Pyx_RaiseUnboundLocalError(const char *varname) {
     PyErr_Format(PyExc_UnboundLocalError, "local variable '%s' referenced before assignment", varname);
 }
 """)
 
 raise_closure_name_error_utility_code = UtilityCode(
-    proto="""
+proto = """
 static CYTHON_INLINE void __Pyx_RaiseClosureNameError(const char *varname);
 """,
-    impl="""
+impl = """
 static CYTHON_INLINE void __Pyx_RaiseClosureNameError(const char *varname) {
     PyErr_Format(PyExc_NameError, "free variable '%s' referenced before assignment in enclosing scope", varname);
 }
@@ -14011,10 +14005,10 @@ static CYTHON_INLINE void __Pyx_RaiseClosureNameError(const char *varname) {
 
 # Don't inline the function, it should really never be called in production
 raise_unbound_memoryview_utility_code_nogil = UtilityCode(
-    proto="""
+proto = """
 static void __Pyx_RaiseUnboundMemoryviewSliceNogil(const char *varname);
 """,
-    impl="""
+impl = """
 static void __Pyx_RaiseUnboundMemoryviewSliceNogil(const char *varname) {
     #ifdef WITH_THREAD
     PyGILState_STATE gilstate = PyGILState_Ensure();
@@ -14025,9 +14019,9 @@ static void __Pyx_RaiseUnboundMemoryviewSliceNogil(const char *varname) {
     #endif
 }
 """,
-    requires=[raise_unbound_local_error_utility_code])
+requires = [raise_unbound_local_error_utility_code])
 
-# ------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------
 
 raise_too_many_values_to_unpack = UtilityCode.load_cached("RaiseTooManyValuesToUnpack", "ObjectHandling.c")
 raise_need_more_values_to_unpack = UtilityCode.load_cached("RaiseNeedMoreValuesToUnpack", "ObjectHandling.c")
