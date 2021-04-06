@@ -201,11 +201,8 @@ def create_pipeline(context, mode, exclude_classes=()):
         EmbedSignature(context),
         EarlyReplaceBuiltinCalls(context),  ## Necessary?
         TransformBuiltinMethods(context),
-
         MarkParallelAssignments(context),
-
         ControlFlowAnalysis(context),
-
         RemoveUnreachableCode(context),
         # MarkParallelAssignments(context),
         MarkOverflowingArithmetic(context),
@@ -217,16 +214,13 @@ def create_pipeline(context, mode, exclude_classes=()):
         ExpandInplaceOperators(context),
         IterationTransform(context),
         SwitchTransform(context),
-
         OptimizeBuiltinCalls(context),  ## Necessary?
-        PrintTree(),
         CreateClosureClasses(context),  ## After all lookups and type inference
         CalculateQualifiedNamesTransform(context),
         ConsolidateOverflowCheck(context),
         DropRefcountingTransform(),
         FinalOptimizePhase(context),
         GilCheck(),
-
         ]
     filtered_stages = []
     for s in stages:
