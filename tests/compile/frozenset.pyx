@@ -1,4 +1,4 @@
-#mode: comple
+#mode: compile
 
 def f():
     a = frozenset((1,2,3)) | {2,3,4}

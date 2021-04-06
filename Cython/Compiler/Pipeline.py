@@ -228,7 +228,6 @@ def create_pipeline(context, mode, exclude_classes=()):
             filtered_stages.append(s)
     return filtered_stages
 
-
 def create_pyx_pipeline(context, options, result, py=False, exclude_classes=()):
     if py:
         mode = 'py'

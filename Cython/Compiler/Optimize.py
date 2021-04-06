@@ -4245,17 +4245,13 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         previously computed should be recomputed.
         """
         super(ConstantFolding, self).__init__()
-        print("Initializing Optimizer ConstantFolding")
         self.reevaluate = reevaluate
 
     def _calculate_const(self, node):
         if (not self.reevaluate and
                 node.constant_result is not ExprNodes.constant_value_not_set):
             return
-        print("== Start _calculate_const ==")
-        print(node)
-        if node.is_name: print(node.name)
-        if node.is_name and node.name == 'set': print("!! SET !!")
+
         # make sure we always set the value
         not_a_constant = ExprNodes.not_a_constant
         node.constant_result = not_a_constant
