@@ -1292,11 +1292,16 @@ class GlobalState(object):
     # constant handling at code generation time
 
     def get_cached_constants_writer(self, target=None):
+        print("===get_cached_constants_writer===")
+        print(target)
+        print(self.initialised_constants)
         if target is not None:
             if target in self.initialised_constants:
                 # Return None on second/later calls to prevent duplicate creation code.
                 return None
             self.initialised_constants.add(target)
+        print(self.initialised_constants)
+        print(self.parts['cached_constants'])
         return self.parts['cached_constants']
 
     def get_int_const(self, str_value, longness=False):
@@ -1315,18 +1320,24 @@ class GlobalState(object):
         return c
 
     def get_py_const(self, type, prefix='', cleanup_level=None, dedup_key=None):
+        print("Global state py const")
+        print(dedup_key)
         if dedup_key is not None:
             const = self.dedup_const_index.get(dedup_key)
             if const is not None:
                 return const
         # create a new Python object constant
         const = self.new_py_const(type, prefix)
+        print("got const object")
+        assert(isinstance(const, PyObjectConst))
         if cleanup_level is not None \
                 and cleanup_level <= Options.generate_cleanup_code:
             cleanup_writer = self.parts['cleanup_globals']
             cleanup_writer.putln('Py_CLEAR(%s);' % const.cname)
         if dedup_key is not None:
             self.dedup_const_index[dedup_key] = const
+            print("added to const index")
+            print(self.dedup_const_index)
         return const
 
     def get_string_const(self, text, py_version=None):
@@ -1381,8 +1392,13 @@ class GlobalState(object):
         return c
 
     def new_py_const(self, type, prefix=''):
+        print("GlobalStage new py const")
+        print(type)
+        print(f'{type = }')
         cname = self.new_const_cname(prefix)
+        print(f'{cname =}')
         c = PyObjectConst(cname, type)
+        print(c.__dict__)
         self.py_constants.append(c)
         return c
 
@@ -1401,6 +1417,9 @@ class GlobalState(object):
         return cname
 
     def new_const_cname(self, prefix='', value=''):
+        print("new const name")
+        print(f'{prefix =}')
+        print(f'{value =}')
         value = replace_identifier('_', value)[:32].strip('_')
         used = self.const_cnames_used
         name_suffix = value
@@ -1909,6 +1928,9 @@ class CCodeWriter(object):
         return self.globalstate.get_float_const(str_value, value_code).cname
 
     def get_py_const(self, type, prefix='', cleanup_level=None, dedup_key=None):
+        print("Code object get const")
+        print(type)
+        print(dedup_key)
         return self.globalstate.get_py_const(type, prefix, cleanup_level, dedup_key).cname
 
     def get_string_const(self, text):
