@@ -203,7 +203,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         TransformBuiltinMethods(context),
 
         MarkParallelAssignments(context),
-        PrintTree(),
+
         ControlFlowAnalysis(context),
 
         RemoveUnreachableCode(context),
@@ -219,6 +219,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         SwitchTransform(context),
 
         OptimizeBuiltinCalls(context),  ## Necessary?
+        PrintTree(),
         CreateClosureClasses(context),  ## After all lookups and type inference
         CalculateQualifiedNamesTransform(context),
         ConsolidateOverflowCheck(context),

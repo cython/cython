@@ -8787,8 +8787,7 @@ class SetNode(ExprNode):
                 "PySet_Add(%s, %s)" % (self.result(), arg.py_result()))
             arg.generate_disposal_code(code)
             arg.free_temps(code)
-        print("Set - code generation")
-        print(self.args)
+
 
 class FrozenSetNode(SetNode):
     def generate_evaluation_code(self, code):
@@ -8800,7 +8799,32 @@ class FrozenSetNode(SetNode):
         """
         print("==== Generating frozen set code =====")
         print(self)
+        # assert tuple
 
+        call_node =  PythonCapiCallNode(
+            self.pos, "__Pyx_PyFrozenSet_New",
+            PyrexTypes.CFuncType(
+                Builtin.frozenset_type, [
+                    PyrexTypes.CFuncTypeArg("it", PyrexTypes.py_object_type, None)
+                ]),
+            args=self.args,
+            is_temp=self.is_temp,
+            utility_code=UtilityCode.load_cached('pyfrozenset_new', 'Builtins.c'),
+            py_name="frozenset")
+        #print(call_node)
+        self.args.generate_evaluation_code(code)
+        print(self.args)
+        print(self.args.__dict__)
+        print(self.args.py_result())
+        self.allocate_temp_result(code)
+        print(self.result())
+
+        code.putln(
+            "%s = PyFrozenSet_New(%s); %s" % (
+                self.result(),
+                self.args.py_result(),
+                code.error_goto_if_null(self.result(), self.pos)))
+        self.generate_gotref(code)
         # for arg in self.args:
         #     print("downstream calculate")
         #     print(arg)
