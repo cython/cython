@@ -32,12 +32,6 @@ def ae(*args):
         if x != args[0]:
             raise AssertionError(args)
 
-def testcase_numpy_1_5(f):
-    major, minor, *rest = np.__version__.split('.')
-    if not (int(major), int(minor)) >= (1, 5):
-        f.__doc__ = ""  # disable the tests
-    return f
-
 def testcase_no_pypy(f):
     if hasattr(sys, "pypy_version_info"):
         f.__doc__ = ""  # disable the tests
@@ -208,7 +202,6 @@ def test_transpose_type(a):
     print m_transpose[6, 4]
 
 
-@testcase_numpy_1_5
 def test_numpy_like_attributes(cyarray):
     """
     For some reason this fails in numpy 1.4, with shape () and strides (40, 8)
@@ -229,7 +222,6 @@ def test_numpy_like_attributes(cyarray):
     cdef int[:, :] mslice = numarray
     assert (<object> mslice).base is numarray
 
-@testcase_numpy_1_5
 def test_copy_and_contig_attributes(a):
     """
     >>> a = np.arange(20, dtype=np.int32).reshape(5, 4)
@@ -267,7 +259,6 @@ def index(array array):
     print build_numarray(array)[3, 2]
 
 @testcase_no_pypy
-@testcase_numpy_1_5
 def test_coerce_to_numpy():
     """
     Test coercion to NumPy arrays, especially with automatically
@@ -407,7 +398,6 @@ def test_coerce_to_numpy():
 
 
 @testcase_no_pypy
-@testcase_numpy_1_5
 def test_memslice_getbuffer():
     """
     >>> test_memslice_getbuffer(); gc_collect_if_required()
@@ -446,7 +436,6 @@ cdef packed struct StructArray:
     int a[4]
     signed char b[5]
 
-@testcase_numpy_1_5
 def test_memslice_structarray(data, dtype):
     """
     >>> def b(s): return s.encode('ascii')
@@ -502,7 +491,6 @@ def test_memslice_structarray(data, dtype):
             print myslice[i].a[j]
         print myslice[i].b.decode('ASCII')
 
-@testcase_numpy_1_5
 def test_structarray_errors(StructArray[:] a):
     """
     >>> dtype = np.dtype([('a', '4i'), ('b', '5b')])
@@ -549,7 +537,6 @@ def stringstructtest(StringStruct[:] view):
 def stringtest(String[:] view):
     pass
 
-@testcase_numpy_1_5
 def test_string_invalid_dims():
     """
     >>> def b(s): return s.encode('ascii')
@@ -570,7 +557,6 @@ ctypedef struct AttributesStruct:
     float attrib2
     StringStruct attrib3
 
-@testcase_numpy_1_5
 def test_struct_attributes():
     """
     >>> test_struct_attributes()

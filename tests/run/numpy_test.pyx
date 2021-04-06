@@ -16,12 +16,6 @@ def testcase(f):
     # but is a useful indicator of what functions are designed as tests
     return f
 
-def testcase_have_buffer_interface(f):
-    major, minor, *rest = np.__version__.split('.')
-    if (int(major), int(minor)) < (1, 5):
-        f.__doc__ = ""  # disable the test
-    return f
-
 if little_endian():
     my_endian = '<'
     other_endian = '>'
@@ -677,7 +671,6 @@ def get_Foo_array():
     data[5].b = 9.0
     return np.asarray(<Foo[:]>data).copy()
 
-@testcase_have_buffer_interface
 def test_fused_ndarray(fused_ndarray a):
     """
     >>> import cython
@@ -726,9 +719,6 @@ cpdef test_fused_cpdef_ndarray(fused_ndarray a):
     else:
         print b[5]
 
-testcase_have_buffer_interface(test_fused_cpdef_ndarray)
-
-@testcase_have_buffer_interface
 def test_fused_cpdef_ndarray_cdef_call():
     """
     >>> test_fused_cpdef_ndarray_cdef_call()
