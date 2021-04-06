@@ -2054,7 +2054,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             original_function = 'list'
         result_node = ExprNodes.InlinedGeneratorExpressionNode(
             node.pos, gen_expr_node,
-            orig_func=original_function,
+            orig_func='set' if target_type is Builtin.set_type else 'list',
             comprehension_type=target_type)
 
         for yield_expression, yield_stat_node in yield_statements:
