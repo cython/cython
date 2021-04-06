@@ -2017,7 +2017,6 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         return self._transform_list_set_genexpr(node, pos_args, Builtin.list_type)
 
     def _handle_simple_function_set(self, node, pos_args):
-
         if not pos_args:
             return ExprNodes.SetNode(node.pos, args=[], constant_result=set())
         return self._transform_list_set_genexpr(node, pos_args, Builtin.set_type)
@@ -2614,8 +2613,18 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             # adding an item may raise an exception if it is not
             # hashable, but creating the later items may have
             # side-effects.
-
-            return self._replace_sequence_with_set(node, pos_args, ExprNodes.SetNode)
+            args = []
+            temps = []
+            for arg in pos_args[0].args:
+                if not arg.is_simple():
+                    arg = UtilNodes.LetRefNode(arg)
+                    temps.append(arg)
+                args.append(arg)
+            result = ExprNodes.SetNode(node.pos, is_temp=1, args=args)
+            self.replace(node, result)
+            for temp in temps[::-1]:
+                result = UtilNodes.EvalWithTempExprNode(temp, result)
+            return result
         else:
             # PySet_New(it) is better than a generic Python call to set(it)
             return self.replace(node, ExprNodes.PythonCapiCallNode(
@@ -2645,8 +2654,10 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         print(type(pos_args[0]))
         print(pos_args[0].is_sequence_constructor)
         if pos_args[0].is_sequence_constructor:
-            # We could only create a frozenset by
-            return self._replace_sequence_with_set(node, pos_args, ExprNodes.FrozenSetNode)
+            # We could only create a frozenset by builtin name
+            result = ExprNodes.FrozenSetNode(node.pos, is_temp=1, args=pos_args[0])
+            self.replace(node, result)
+            return result
         return ExprNodes.PythonCapiCallNode(
             node.pos, "__Pyx_PyFrozenSet_New",
             self.PyFrozenSet_New_func_type,
@@ -4264,6 +4275,8 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             print("Const calc start")
             print(node)
             node.calculate_constant_result()
+#            if node.constant_result is not ExprNodes.not_a_constant:
+#                print node.__class__.__name__, node.constant_result
         except (ValueError, TypeError, KeyError, IndexError, AttributeError, ArithmeticError):
             # ignore all 'normal' errors here => no constant result
             pass

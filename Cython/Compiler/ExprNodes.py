@@ -8792,27 +8792,41 @@ class SetNode(ExprNode):
 
 class FrozenSetNode(SetNode):
     def generate_evaluation_code(self, code):
-        for arg in self.args:
-            arg.generate_evaluation_code(code)
-        self.allocate_temp_result(code)
-        code.putln(
-            "%s = PySet_New(0); %s" % (
-                self.result(),
-                code.error_goto_if_null(self.result(), self.pos)))
-        self.generate_gotref(code)
-        for arg in self.args:
-            code.put_error_if_neg(
-                self.pos,
-                "PySet_Add(%s, %s)" % (self.result(), arg.py_result()))
-            arg.generate_disposal_code(code)
-            arg.free_temps(code)
-        return ExprNodes.PythonCapiCallNode(
-            node.pos, "__Pyx_PyFrozenSet_New",
-            self.PyFrozenSet_New_func_type,
-            args=pos_args,
-            is_temp=node.is_temp,
-            utility_code=UtilityCode.load_cached('pyfrozenset_new', 'Builtins.c'),
-            py_name="frozenset")
+        """
+          __pyx_t_1 = __Pyx_PyFrozenSet_New(__pyx_tuple_); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 3, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_c, __pyx_t_1) < 0) __PYX_ERR(0, 3, __pyx_L1_error)
+  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+        """
+        print("==== Generating frozen set code =====")
+        print(self)
+
+        # for arg in self.args:
+        #     print("downstream calculate")
+        #     print(arg)
+        #     arg.generate_evaluation_code(code)
+        #     print(arg)
+        # self.allocate_temp_result(code)
+        # code.putln(
+        #     "%s = PySet_New(0); %s" % (
+        #         self.result(),
+        #         code.error_goto_if_null(self.result(), self.pos)))
+        # self.generate_gotref(code)
+        # for arg in self.args:
+        #     code.put_error_if_neg(
+        #         self.pos,
+        #         "PySet_Add(%s, %s)" % (self.result(), arg.py_result()))
+        #     arg.generate_disposal_code(code)
+        #     arg.free_temps(code)
+
+        # bare_create = PythonCapiCallNode(
+        #     self.pos, "__Pyx_PyFrozenSet_New",
+        #     PyFrozenSet_New_func_type,
+        #     args=args,
+        #     is_temp=self.is_temp,
+        #     utility_code=UtilityCode.load_cached('pyfrozenset_new', 'Builtins.c'),
+        #     py_name="frozenset")
+        # self = bare_create
         print("Frozenset - code generation")
         print(self.args)
 

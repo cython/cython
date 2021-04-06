@@ -201,8 +201,11 @@ def create_pipeline(context, mode, exclude_classes=()):
         EmbedSignature(context),
         EarlyReplaceBuiltinCalls(context),  ## Necessary?
         TransformBuiltinMethods(context),
+
         MarkParallelAssignments(context),
+        PrintTree(),
         ControlFlowAnalysis(context),
+
         RemoveUnreachableCode(context),
         # MarkParallelAssignments(context),
         MarkOverflowingArithmetic(context),
@@ -214,6 +217,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         ExpandInplaceOperators(context),
         IterationTransform(context),
         SwitchTransform(context),
+
         OptimizeBuiltinCalls(context),  ## Necessary?
         CreateClosureClasses(context),  ## After all lookups and type inference
         CalculateQualifiedNamesTransform(context),
@@ -221,13 +225,14 @@ def create_pipeline(context, mode, exclude_classes=()):
         DropRefcountingTransform(),
         FinalOptimizePhase(context),
         GilCheck(),
-        PrintTree(),
+
         ]
     filtered_stages = []
     for s in stages:
         if s.__class__ not in exclude_classes:
             filtered_stages.append(s)
     return filtered_stages
+
 
 def create_pyx_pipeline(context, options, result, py=False, exclude_classes=()):
     if py:
