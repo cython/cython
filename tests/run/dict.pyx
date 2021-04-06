@@ -122,10 +122,10 @@ def item_creation_sideeffect(L, sideeffect, unhashable):
 def dict_unpacking_not_for_arg_create_a_copy():
     """
     >>> dict_unpacking_not_for_arg_create_a_copy()
-    {'a': 1, 'b': 0}
-    {'a': 0, 'b': 0}
+    {'a': 1}
+    {'a': 0}
     """
-    data = {'a': 0, 'b':0}
+    data = {'a': 0}
 
     func = lambda: {**data}
 
