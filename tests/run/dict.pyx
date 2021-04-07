@@ -122,17 +122,17 @@ def item_creation_sideeffect(L, sideeffect, unhashable):
 def dict_unpacking_not_for_arg_create_a_copy():
     """
     >>> dict_unpacking_not_for_arg_create_a_copy()
-    {'a': 1}
-    {'a': 0}
+    [('a', 'modified'), ('b', 'original')]
+    [('a', 'original'), ('b', 'original')]
     """
-    data = {'a': 0}
+    data = {'a': 'original', 'b': 'original'}
 
     func = lambda: {**data}
 
     call_once = func()
-    call_once['a'] = 1
+    call_once['a'] = 'modified'
 
     call_twice = func()
 
-    print(call_once)
-    print(call_twice)
+    print(sorted(call_once.items()))
+    print(sorted(call_twice.items()))

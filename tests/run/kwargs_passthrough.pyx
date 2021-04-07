@@ -1,16 +1,13 @@
 cimport cython
 
 
-def modify_in_function(**kwargs):
-    """
-    >>> d = {'foo': 'bar'}
-    >>> modify_in_function(**d)
-    {'foo': 'modified'}
-    >>> print(d)
-    {'foo': 'bar'}
-    """
-    kwargs['foo'] = 'modified'
-    print(kwargs)
+def modify_in_function():
+    def inner(**kwds):
+        kwds['foo'] = 'modified'
+    d = {'foo': 'bar'}
+    print(d)
+    inner(**d)
+    print(d)
 
 
 @cython.test_fail_if_path_exists('//MergedDictNode')
