@@ -204,9 +204,6 @@ def test_transpose_type(a):
 
 def test_numpy_like_attributes(cyarray):
     """
-    For some reason this fails in numpy 1.4, with shape () and strides (40, 8)
-    instead of 20, 4 on my machine. Investigate this.
-
     >>> cyarray = create_array(shape=(8, 5), mode="c")
     >>> test_numpy_like_attributes(cyarray)
     >>> test_numpy_like_attributes(cyarray.memview)
