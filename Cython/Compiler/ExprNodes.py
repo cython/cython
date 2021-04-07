@@ -8801,11 +8801,9 @@ class FrozenSetNode(SetNode):
         code.putln("%s = PyFrozenSet_New(%s); %s" % (
             target, self.args.py_result(),
             code.error_goto_if_null(target, self.pos)))
-        code.put_gotref(target, py_object_type)
         self.result_code = target
 
     def _create_shared_frozenset_object(self, code):
-        tup = self.args
         #print(self.type)  # currently set object, should be frozenset
         dedup_key = make_dedup_key(self.type, self.args.args)
         set_target = code.get_py_const(py_object_type, 'frozenset', cleanup_level=2, dedup_key=dedup_key)

@@ -328,8 +328,7 @@ def test_set_of_list():
     return set([1, 2, 3])
 
 
-@cython.test_assert_path_exists("//PythonCapiCallNode")
-@cython.test_fail_if_path_exists("//SetNode")
+@cython.test_fail_if_path_exists("//SetNode", "//PythonCapiCallNode")
 def test_frozenset_of_list():
     """
     >>> s = test_frozenset_of_list()
@@ -354,8 +353,7 @@ def test_set_of_tuple():
     return set((1, 2, 3))
 
 
-@cython.test_assert_path_exists("//PythonCapiCallNode")
-@cython.test_fail_if_path_exists("//SetNode")
+@cython.test_fail_if_path_exists("//SetNode", "//PythonCapiCallNode")
 def test_frozenset_of_tuple():
     """
     >>> s = test_frozenset_of_tuple()

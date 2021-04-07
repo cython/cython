@@ -214,7 +214,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         ExpandInplaceOperators(context),
         IterationTransform(context),
         SwitchTransform(context),
-        OptimizeBuiltinCalls(context),  ## Necessary?
+        OptimizeBuiltinCalls(context),
         CreateClosureClasses(context),  ## After all lookups and type inference
         CalculateQualifiedNamesTransform(context),
         ConsolidateOverflowCheck(context),
