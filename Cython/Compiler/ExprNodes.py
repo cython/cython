@@ -8787,70 +8787,37 @@ class SetNode(ExprNode):
 
 
 class FrozenSetNode(SetNode):
+
+    result_code = None
+
     def calculate_result_code(self):
-        print(f'{self.result_code = }')
         return self.result_code
 
     def generate_sequence_packing_code(self, code, target, plain):
-        print("Frozenset generate_sequence_packing_code")
-
-        print(f'{target =}')
         if target is None:
             target = self.result()
         assert target is not None
-        print(type(self.type))
-        # Create frozen list from sequence
-        # Todo: will it work for iterators?
-
         self.args.generate_evaluation_code(code)
-        print(self.args)
-
         code.putln("%s = PyFrozenSet_New(%s); %s" % (
             target, self.args.py_result(),
             code.error_goto_if_null(target, self.pos)))
         code.put_gotref(target, py_object_type)
-        print(code)
-        print(code.getvalue())
         self.result_code = target
-
 
     def _create_shared_frozenset_object(self, code):
         tup = self.args
-        print(tup)
-        print(tup.__dict__)
-        print(self.type)  # currently set object, should be frozenset
-        print(tup.args)
-
+        #print(self.type)  # currently set object, should be frozenset
         dedup_key = make_dedup_key(self.type, self.args.args)
-        print(dedup_key)
-        print(type(code))
-
         set_target = code.get_py_const(py_object_type, 'frozenset', cleanup_level=2, dedup_key=dedup_key)
-        print(set_target)
-
+        assert set_target is not None
         const_code = code.get_cached_constants_writer(set_target)
-        print(const_code)
-#        assert const_code is not None # if not, what does it mean?
         if const_code is not None:
-            print("constant is not yet initialised")
             # constant is not yet initialised
             const_code.mark_pos(self.pos)
             self.generate_sequence_packing_code(const_code, set_target, plain=not self.is_literal)
-        print(f'{set_target=}')
-        print(self.__dict__)
-        print(code.__dict__)
         self.result_code = set_target
-           # const_code.put_giveref(set_target, py_object_type)
-
 
     def generate_evaluation_code(self, code):
-        """
-          __pyx_t_1 = __Pyx_PyFrozenSet_New(__pyx_tuple_); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 3, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_1);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_c, __pyx_t_1) < 0) __PYX_ERR(0, 3, __pyx_L1_error)
-  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-        """
-
         if self.args.is_literal:
             self.is_temp = False
             self._create_shared_frozenset_object(code)
