@@ -26,8 +26,8 @@ according to the system used:
    Windows distribution of gcc). See the appendix for instructions for
    setting up MinGW manually. Enthought Canopy and Python(x,y) bundle
    MinGW, but some of the configuration steps in the appendix might
-   still be necessary.  Another option is to use Microsoft's Visual C.
-   One must then use the same version which the installed Python was
+   still be necessary.  Another option is to use Microsoft Visual C/C++ 
+   (MSVC). One must then use the same version which the installed Python was
    compiled with.
 
 .. dagss tried other forms of ReST lists and they didn't look nice
