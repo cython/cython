@@ -2,6 +2,11 @@ cimport cython
 
 
 def modify_in_function():
+    """
+    >>> modify_in_function()
+    {'foo': 'bar'}
+    {'foo': 'bar'}
+    """
     def inner(**kwds):
         kwds['foo'] = 'modified'
     d = {'foo': 'bar'}
