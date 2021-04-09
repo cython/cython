@@ -1990,7 +1990,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         """
         if len(pos_args) != 1:
             return node
-        # TODO Doubt: What's the case for it
+        # If args is an empty sequence, remove it
         if pos_args[0].is_sequence_constructor and not pos_args[0].args:
             del pos_args[0]
         elif isinstance(pos_args[0], ExprNodes.ListNode):
