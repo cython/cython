@@ -1,4 +1,4 @@
-# ticket: 155
+# ticket: t155
 # tag: numpy
 
 """
