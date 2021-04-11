@@ -2580,33 +2580,24 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 is_temp=node.is_temp,
                 py_name="set"))
 
-    PyFrozenSet_New_func_type = PyrexTypes.CFuncType(
-        Builtin.frozenset_type, [
-            PyrexTypes.CFuncTypeArg("it", PyrexTypes.py_object_type, None)
-        ])
 
     def _handle_simple_function_frozenset(self, node, function, pos_args):
         if not pos_args:
-            pos_args = [ExprNodes.NullNode(node.pos)]
-        elif len(pos_args) > 1:
-            return node
-        elif pos_args[0].type is Builtin.frozenset_type and not pos_args[0].may_be_none():
-            return pos_args[0]
-        # PyFrozenSet_New(it) is better than a generic Python call to frozenset(it)
-        # print(type(pos_args[0]))
-        # print(pos_args[0].is_sequence_constructor)
-        if pos_args[0].is_sequence_constructor:
-            # We could only create a frozenset by builtin name
-            result = ExprNodes.FrozenSetNode(node.pos, is_temp=1, args=pos_args[0])
+            result = ExprNodes.FrozenSetNode(node.pos, is_temp=1, args=None)
             self.replace(node, result)
             return result
-        return ExprNodes.PythonCapiCallNode(
-            node.pos, "__Pyx_PyFrozenSet_New",
-            self.PyFrozenSet_New_func_type,
-            args=pos_args,
-            is_temp=node.is_temp,
-            utility_code=UtilityCode.load_cached('pyfrozenset_new', 'Builtins.c'),
-            py_name="frozenset")
+
+        # In Python 3.9 or earlier, frozenset() expects zero element, or one iterable element
+        # https://docs.python.org/3.9/library/stdtypes.html#frozenset
+        if len(pos_args) > 1:
+            return node
+        assert pos_args[0].is_sequence_constructor
+
+        # We could only create a frozenset by builtin name
+        result = ExprNodes.FrozenSetNode(node.pos, is_temp=1, args=pos_args[0])
+        self.replace(node, result)
+        return result
+
 
     PyObject_AsDouble_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_double_type, [

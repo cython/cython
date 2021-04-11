@@ -8787,8 +8787,13 @@ class SetNode(ExprNode):
 
 
 class FrozenSetNode(SetNode):
+    """
+    Frozenset constructor.
+    """
 
+    gil_message = "Constructing Python frozenset"
     result_code = None
+    is_literal = False
 
     def calculate_result_code(self):
         return self.result_code
@@ -8818,6 +8823,7 @@ class FrozenSetNode(SetNode):
     def generate_evaluation_code(self, code):
         if self.args.is_literal:
             self.is_temp = False
+            self.is_literal = True
             self._create_shared_frozenset_object(code)
             return
         self.allocate_temp_result(code)
