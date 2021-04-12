@@ -141,16 +141,16 @@ def wrap_modify_mix(f):
     (2, 1)
 
     >>> def py_modify(**kwargs):
-    ...     print(kwargs)
+    ...     print(sorted(kwargs.items()))
     ...     kwargs['new'] = len(kwargs)
     ...     return kwargs
 
     >>> wrapped_modify = wrap_modify_mix(py_modify)
-    >>> wrapped_modify(a=1)
+    >>> sorted(wrapped_modify(a=1).items())
     CALLED
-    {'a': 1}
-    {'a': 1, 'test': 1}
-    {'a': 1, 'test': 1, 'new': 2}
+    [('a', 1)]
+    [('a', 1), ('test', 1)]
+    [('a', 1), ('new', 2), ('test', 1)]
     """
     def wrapper(*args, **kwargs):
         print("CALLED")
