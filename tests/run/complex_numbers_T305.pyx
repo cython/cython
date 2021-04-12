@@ -1,4 +1,4 @@
-# ticket: 305
+# ticket: t305
 
 from cpython.object cimport Py_EQ, Py_NE
 

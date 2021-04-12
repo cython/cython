@@ -1,4 +1,4 @@
-# ticket: 252
+# ticket: t252
 
 cdef cf(default=None):
     return default

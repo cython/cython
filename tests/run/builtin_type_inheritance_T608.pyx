@@ -1,4 +1,4 @@
-# ticket: 608
+# ticket: t608
 
 cdef class MyInt(int):
     """

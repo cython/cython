@@ -575,7 +575,8 @@ Other changes
 .. _`PEP-563`: https://www.python.org/dev/peps/pep-0563
 .. _`PEP-479`: https://www.python.org/dev/peps/pep-0479
 
-0.29.23 (2021-??-??)
+
+0.29.23 (2021-04-11)
 ====================
 
 Bugs fixed

@@ -1,4 +1,4 @@
-# ticket: 228
+# ticket: t228
 
 __doc__ = u"""
 >>> def py_iterator():
