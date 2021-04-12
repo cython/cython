@@ -593,7 +593,7 @@ class Stats(object):
         if not self.test_times:
             return
         lines = ['Times:\n']
-        for metric, t in sorted(self.test_times.items()):
+        for metric, t in sorted(self.test_times.items(), key=operator.itemgetter(1), reverse=True):
             count = self.test_counts[metric]
             top = self.top_tests[metric]
             lines.append("%-12s: %8.2f sec  (%4d, %6.3f / run) - slowest: %s\n" % (
