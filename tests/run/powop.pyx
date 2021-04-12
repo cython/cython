@@ -153,9 +153,9 @@ def optimised_pow2_inplace(n):
     0.5
     >>> optimised_pow2_inplace(0.5) == 2 ** 0.5
     True
-    >>> optimised_pow2_inplace('test')
+    >>> optimised_pow2_inplace('test') #doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: unsupported operand type(s) for ** or pow(): 'int' and 'str'
+    TypeError: unsupported operand type(s) for ...: 'int' and 'str'
     """
     x = 2
     x **= n
