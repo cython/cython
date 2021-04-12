@@ -39,10 +39,10 @@ True
 Traceback (most recent call last):
 NameError: ...name 'RANK_3' is not defined
 
->>> set(PyxEnum) == set([TWO, THREE, FIVE])
+>>> set(PyxEnum) == {TWO, THREE, FIVE}
 True
->>> str(PyxEnum.TWO)
-'PyxEnum.TWO'
+>>> str(PyxEnum.TWO).split(".")[-1]  # Py3.10 changed the output here
+'TWO'
 >>> PyxEnum.TWO + PyxEnum.THREE == PyxEnum.FIVE
 True
 >>> PyxEnum(2) is PyxEnum["TWO"] is PyxEnum.TWO
