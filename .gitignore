@@ -41,3 +41,5 @@ MANIFEST
 /.idea
 /*.iml
 
+# Visual Studio Code files
+.vscode
