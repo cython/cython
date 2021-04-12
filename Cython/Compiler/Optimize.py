@@ -4251,6 +4251,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                 string_node.unicode_value = encoded_string(
                     string_node.unicode_value * multiplier,
                     string_node.unicode_value.encoding)
+            build_string = encoded_string if string_node.value.is_unicode else bytes_literal
         elif isinstance(string_node, ExprNodes.UnicodeNode):
             if string_node.bytes_value is not None:
                 string_node.bytes_value = bytes_literal(
@@ -4258,9 +4259,14 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                     string_node.bytes_value.encoding)
         else:
             assert False, "unknown string node type: %s" % type(string_node)
-        string_node.constant_result = string_node.value = build_string(
+        string_node.value = build_string(
             string_node.value * multiplier,
             string_node.value.encoding)
+        # follow constant-folding and use unicode_value in preference
+        if isinstance(string_node, ExprNodes.StringNode) and string_node.unicode_value is not None:
+            string_node.constant_result = string_node.unicode_value
+        else:
+            string_node.constant_result = string_node.value
         return string_node
 
     def _calculate_constant_seq(self, node, sequence_node, factor):
