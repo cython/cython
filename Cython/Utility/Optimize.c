@@ -904,9 +904,9 @@ static CYTHON_UNUSED double __Pyx__PyBytes_AsDouble(PyObject *obj, const char* s
     char *end;
 
     // strip spaces at start and end
-    while (Py_ISSPACE(*start))
+    while (Py_UNICODE_ISSPACE(*start))
         start++;
-    while (start < last - 1 && Py_ISSPACE(last[-1]))
+    while (start < last - 1 && Py_UNICODE_ISSPACE(last[-1]))
         last--;
     length = last - start;
     if (unlikely(length <= 0)) goto fallback;
