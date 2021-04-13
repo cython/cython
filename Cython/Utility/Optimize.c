@@ -897,6 +897,12 @@ parse_failure:
     return -1.0;
 }
 
+static CYTHON_INLINE int __Pyx__PyBytes_AsDouble_IsSpace(char ch) {
+    // see Py_ISSPACE() in CPython
+    // https://github.com/python/cpython/blob/master/Python/pyctype.c
+    return (ch == 0x20) | !((ch < 0x9) | (ch > 0xd));
+}
+
 static CYTHON_UNUSED double __Pyx__PyBytes_AsDouble(PyObject *obj, const char* start, Py_ssize_t length) {
     double value;
     Py_ssize_t i, digits;
@@ -904,9 +910,9 @@ static CYTHON_UNUSED double __Pyx__PyBytes_AsDouble(PyObject *obj, const char* s
     char *end;
 
     // strip spaces at start and end
-    while (Py_ISSPACE(*start))
+    while (__Pyx__PyBytes_AsDouble_IsSpace(*start))
         start++;
-    while (start < last - 1 && Py_ISSPACE(last[-1]))
+    while (start < last - 1 && __Pyx__PyBytes_AsDouble_IsSpace(last[-1]))
         last--;
     length = last - start;
     if (unlikely(length <= 0)) goto fallback;
