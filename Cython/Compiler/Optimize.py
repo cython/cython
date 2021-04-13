@@ -1236,7 +1236,7 @@ class SwitchTransform(Visitor.EnvTransform):
             # integers on iteration, whereas Py2 returns 1-char byte
             # strings
             characters = string_literal.value
-            characters = list(set([ characters[i:i+1] for i in range(len(characters)) ]))
+            characters = list({ characters[i:i+1] for i in range(len(characters)) })
             characters.sort()
             return [ ExprNodes.CharNode(string_literal.pos, value=charval,
                                         constant_result=charval)
@@ -1248,7 +1248,8 @@ class SwitchTransform(Visitor.EnvTransform):
             return self.NO_MATCH
         elif common_var is not None and not is_common_value(var, common_var):
             return self.NO_MATCH
-        elif not (var.type.is_int or var.type.is_enum) or sum([not (cond.type.is_int or cond.type.is_enum) for cond in conditions]):
+        elif not (var.type.is_int or var.type.is_enum) or any(
+                [not (cond.type.is_int or cond.type.is_enum) for cond in conditions]):
             return self.NO_MATCH
         return not_in, var, conditions
 
@@ -2750,7 +2751,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         Builtin.dict_type:       "PyDict_Size",
     }.get
 
-    _ext_types_with_pysize = set(["cpython.array.array"])
+    _ext_types_with_pysize = {"cpython.array.array"}
 
     def _handle_simple_function_len(self, node, function, pos_args):
         """Replace len(char*) by the equivalent call to strlen(),

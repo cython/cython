@@ -115,9 +115,11 @@ class VerboseCodeWriter(type):
 class CheckAnalysers(type):
     """Metaclass to check that type analysis functions return a node.
     """
-    methods = set(['analyse_types',
-                   'analyse_expressions',
-                   'analyse_target_types'])
+    methods = frozenset({
+        'analyse_types',
+        'analyse_expressions',
+        'analyse_target_types',
+    })
 
     def __new__(cls, name, bases, attrs):
         from types import FunctionType

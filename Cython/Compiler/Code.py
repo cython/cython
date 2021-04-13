@@ -100,12 +100,12 @@ uncachable_builtins = [
     '_',  # e.g. used by gettext
 ]
 
-special_py_methods = frozenset((
+special_py_methods = cython.declare(frozenset, frozenset((
     '__cinit__', '__dealloc__', '__richcmp__', '__next__',
     '__await__', '__aiter__', '__anext__',
     '__getreadbuffer__', '__getwritebuffer__', '__getsegcount__',
-    '__getcharbuffer__', '__getbuffer__', '__releasebuffer__'
-))
+    '__getcharbuffer__', '__getbuffer__', '__releasebuffer__',
+)))
 
 modifier_output_mapper = {
     'inline': 'CYTHON_INLINE'
