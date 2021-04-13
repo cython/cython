@@ -359,6 +359,8 @@ Features added
 * Preliminary support for the CPython's ``Py_LIMITED_API`` (stable ABI) is
   available by setting the  ``CYTHON_LIMITED_API`` C macro.  Note that the
   support is currently in an early stage and many features do not yet work.
+  You currently still have to define ``Py_LIMITED_API`` externally in order
+  to restrict the API usage.  This will change when the feature stabilises.
   Patches by Eddie Elizondo and David Woods.  (Github issues :issue:`3223`,
   :issue:`3311`, :issue:`3501`)
 
