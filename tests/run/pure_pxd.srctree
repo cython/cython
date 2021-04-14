@@ -55,6 +55,13 @@ def func(a, b, c):
     """
     return a + b + c
 
+def sum_generator_expression(a):
+    """
+    >>> sum_generator_expression(5)
+    10
+    """
+    return sum(i for i in range(a))
+
 
 def test(module):
     import os.path
@@ -95,3 +102,6 @@ cdef class TypedMethod:
 
 
 cpdef int func(x, int y, z) except? -1  # argument names should not matter, types should
+
+
+cdef int sum_generator_expression(int a)
