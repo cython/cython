@@ -1,8 +1,5 @@
 os: linux
-dist: trusty
 language: python
-# 'sudo' is enabled automatically by the 'apt' addon below.
-#sudo: false
 
 addons:
   apt:
