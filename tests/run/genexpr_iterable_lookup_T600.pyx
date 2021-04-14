@@ -1,5 +1,5 @@
 # mode: run
-# ticket: 600
+# ticket: t600
 # tag: genexpr
 # cython: language_level=3
 

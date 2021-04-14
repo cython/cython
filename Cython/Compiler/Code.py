@@ -100,12 +100,12 @@ uncachable_builtins = [
     '_',  # e.g. used by gettext
 ]
 
-special_py_methods = set([
+special_py_methods = cython.declare(frozenset, frozenset((
     '__cinit__', '__dealloc__', '__richcmp__', '__next__',
     '__await__', '__aiter__', '__anext__',
     '__getreadbuffer__', '__getwritebuffer__', '__getsegcount__',
-    '__getcharbuffer__', '__getbuffer__', '__releasebuffer__'
-])
+    '__getcharbuffer__', '__getbuffer__', '__releasebuffer__',
+)))
 
 modifier_output_mapper = {
     'inline': 'CYTHON_INLINE'
@@ -382,7 +382,7 @@ class UtilityCodeBase(object):
                 elif name == 'substitute':
                     # don't want to pass "naming" or "tempita" to the constructor
                     # since these will have been handled
-                    values = values - set(['naming', 'tempita'])
+                    values = values - {'naming', 'tempita'}
                     if not values:
                         continue
                 elif not values:

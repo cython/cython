@@ -17,6 +17,10 @@ include "../buffers/mockbuffers.pxi"
 
 ctypedef np.int32_t dtype_t
 
+IS_PYPY = hasattr(sys, 'pypy_version_info')
+NUMPY_VERSION = tuple(int(v) for v in np.__version__.split('.')[:2])
+print(NUMPY_VERSION)
+
 def get_array():
     # We need to type our array to get a __pyx_get_buffer() that typechecks
     # for np.ndarray and calls __getbuffer__ in numpy.pxd
@@ -32,14 +36,13 @@ def ae(*args):
         if x != args[0]:
             raise AssertionError(args)
 
-def testcase_no_pypy(f):
-    if hasattr(sys, "pypy_version_info"):
+def testcase_no_pypy(f, _is_pypy=hasattr(sys, "pypy_version_info")):
+    if _is_pypy:
         f.__doc__ = ""  # disable the tests
     return f
 
 def gc_collect_if_required():
-    major, minor, *rest = np.__version__.split('.')
-    if (int(major), int(minor)) >= (1, 14):
+    if NUMPY_VERSION >= (1, 14) or IS_PYPY:
         import gc
         gc.collect()
 

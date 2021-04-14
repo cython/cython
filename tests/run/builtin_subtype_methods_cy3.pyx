@@ -1,6 +1,6 @@
 # cython: language_level=3
 # mode: run
-# ticket: 653
+# ticket: t653
 
 
 class DictPySubtype(dict):
