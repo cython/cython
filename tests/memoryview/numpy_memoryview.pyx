@@ -36,17 +36,10 @@ def ae(*args):
         if x != args[0]:
             raise AssertionError(args)
 
-__test__ = {}
-
-def testcase(f):
-    __test__[f.__name__] = f.__doc__
+def testcase_no_pypy(f, _is_pypy=hasattr(sys, "pypy_version_info")):
+    if _is_pypy:
+        f.__doc__ = ""  # disable the tests
     return f
-
-def testcase_numpy_1_5(f):
-    if NUMPY_VERSION >= (1, 5) or IS_PYPY:
-        __test__[f.__name__] = f.__doc__
-    return f
-
 
 def gc_collect_if_required():
     if NUMPY_VERSION >= (1, 14) or IS_PYPY:
@@ -58,7 +51,6 @@ def gc_collect_if_required():
 ### Test slicing memoryview slices
 #
 
-@testcase
 def test_partial_slicing(array):
     """
     >>> test_partial_slicing(a)
@@ -74,7 +66,6 @@ def test_partial_slicing(array):
     ae(b.strides[0], c.strides[0], obj.strides[0])
     ae(b.strides[1], c.strides[1], obj.strides[1])
 
-@testcase
 def test_ellipsis(array):
     """
     >>> test_ellipsis(a)
@@ -116,7 +107,6 @@ def test_ellipsis(array):
 #
 ### Test slicing memoryview objects
 #
-@testcase
 def test_partial_slicing_memoryview(array):
     """
     >>> test_partial_slicing_memoryview(a)
@@ -133,7 +123,6 @@ def test_partial_slicing_memoryview(array):
     ae(b.strides[0], c.strides[0], obj.strides[0])
     ae(b.strides[1], c.strides[1], obj.strides[1])
 
-@testcase
 def test_ellipsis_memoryview(array):
     """
     >>> test_ellipsis_memoryview(a)
@@ -174,7 +163,6 @@ def test_ellipsis_memoryview(array):
     ae(e.strides[0], e_obj.strides[0])
 
 
-@testcase
 def test_transpose():
     """
     >>> test_transpose()
@@ -205,7 +193,6 @@ def test_transpose():
     print a[3, 2], a.T[2, 3], a_obj[3, 2], a_obj.T[2, 3], numpy_obj[3, 2], numpy_obj.T[2, 3]
 
 
-@testcase
 def test_transpose_type(a):
     """
     >>> a = np.zeros((5, 10), dtype=np.float64)
@@ -218,12 +205,8 @@ def test_transpose_type(a):
     print m_transpose[6, 4]
 
 
-@testcase_numpy_1_5
 def test_numpy_like_attributes(cyarray):
     """
-    For some reason this fails in numpy 1.4, with shape () and strides (40, 8)
-    instead of 20, 4 on my machine. Investigate this.
-
     >>> cyarray = create_array(shape=(8, 5), mode="c")
     >>> test_numpy_like_attributes(cyarray)
     >>> test_numpy_like_attributes(cyarray.memview)
@@ -239,7 +222,6 @@ def test_numpy_like_attributes(cyarray):
     cdef int[:, :] mslice = numarray
     assert (<object> mslice).base is numarray
 
-@testcase_numpy_1_5
 def test_copy_and_contig_attributes(a):
     """
     >>> a = np.arange(20, dtype=np.int32).reshape(5, 4)
@@ -276,7 +258,7 @@ def build_numarray(array array):
 def index(array array):
     print build_numarray(array)[3, 2]
 
-@testcase_numpy_1_5
+@testcase_no_pypy
 def test_coerce_to_numpy():
     """
     Test coercion to NumPy arrays, especially with automatically
@@ -357,6 +339,7 @@ def test_coerce_to_numpy():
         'e': 800,
     }
 
+
     smallstructs[idx] = { 'a': 600, 'b': 700 }
 
     nestedstructs[idx] = {
@@ -414,7 +397,7 @@ def test_coerce_to_numpy():
     index(<td_h_ushort[:4, :5]> <td_h_ushort *> h_ushorts)
 
 
-@testcase_numpy_1_5
+@testcase_no_pypy
 def test_memslice_getbuffer():
     """
     >>> test_memslice_getbuffer(); gc_collect_if_required()
@@ -453,7 +436,6 @@ cdef packed struct StructArray:
     int a[4]
     signed char b[5]
 
-@testcase_numpy_1_5
 def test_memslice_structarray(data, dtype):
     """
     >>> def b(s): return s.encode('ascii')
@@ -509,7 +491,6 @@ def test_memslice_structarray(data, dtype):
             print myslice[i].a[j]
         print myslice[i].b.decode('ASCII')
 
-@testcase_numpy_1_5
 def test_structarray_errors(StructArray[:] a):
     """
     >>> dtype = np.dtype([('a', '4i'), ('b', '5b')])
@@ -556,7 +537,6 @@ def stringstructtest(StringStruct[:] view):
 def stringtest(String[:] view):
     pass
 
-@testcase_numpy_1_5
 def test_string_invalid_dims():
     """
     >>> def b(s): return s.encode('ascii')
@@ -577,7 +557,6 @@ ctypedef struct AttributesStruct:
     float attrib2
     StringStruct attrib3
 
-@testcase_numpy_1_5
 def test_struct_attributes():
     """
     >>> test_struct_attributes()
@@ -633,7 +612,6 @@ cdef class SuboffsetsNoStridesBuffer(Buffer):
         getbuffer(self, info)
         info.suboffsets = self._shape
 
-@testcase
 def test_null_strides(Buffer buffer_obj):
     """
     >>> test_null_strides(Buffer())
@@ -653,7 +631,6 @@ def test_null_strides(Buffer buffer_obj):
             assert m2[i, j] == buffer_obj.m[i, j], (i, j, m2[i, j], buffer_obj.m[i, j])
             assert m3[i, j] == buffer_obj.m[i, j]
 
-@testcase
 def test_null_strides_error(buffer_obj):
     """
     >>> test_null_strides_error(Buffer())
@@ -727,7 +704,6 @@ ctypedef struct SameTypeAfterArraysStructSimple:
     double b[16]
     double c
 
-@testcase
 def same_type_after_arrays_simple():
     """
     >>> same_type_after_arrays_simple()
@@ -749,7 +725,6 @@ ctypedef struct SameTypeAfterArraysStructComposite:
     double h[4]
     int i
 
-@testcase
 def same_type_after_arrays_composite():
     """
     >>> same_type_after_arrays_composite() if sys.version_info[:2] >= (3, 5) else None
