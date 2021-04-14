@@ -1799,7 +1799,7 @@ class EmbedTest(unittest.TestCase):
         cython = os.path.abspath(os.path.join('..', '..', cython))
 
         try:
-            subprocess.check_output([
+            subprocess.check_call([
                 "make",
                 "PYTHON='%s'" % sys.executable,
                 "CYTHON='%s'" % cython,
