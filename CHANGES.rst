@@ -578,14 +578,24 @@ Other changes
 .. _`PEP-479`: https://www.python.org/dev/peps/pep-0479
 
 
-0.29.23 (2021-04-11)
+0.29.23 (2021-04-14)
 ====================
 
 Bugs fixed
 ----------
 
 * Some problems with Python 3.10 were resolved.
-  Patches by Victor Stinner and David Woods.  (Github issues #3919, #4046)
+  Patches by Victor Stinner and David Woods.  (Github issues #4046, #4100)
+
+* An incorrect "optimisation" was removed that allowed changes to a keyword
+  dict to leak into keyword arguments passed into a function.
+  Patch by Peng Weikang.  (Github issue #3227)
+
+* Multiplied str constants could end up as bytes constants with language_level=2.
+  Patch by Alphadelta14 and David Woods.  (Github issue #3951)
+
+* ``PY_SSIZE_T_CLEAN`` does not get defined any more if it is already defined.
+  Patch by Andrew Jones.  (Github issue #4104)
 
 
 0.29.22 (2021-02-20)
