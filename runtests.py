@@ -445,6 +445,7 @@ VER_DEP_MODULES = {
 INCLUDE_DIRS = [ d for d in os.getenv('INCLUDE', '').split(os.pathsep) if d ]
 CFLAGS = os.getenv('CFLAGS', '').split()
 CCACHE = os.getenv('CYTHON_RUNTESTS_CCACHE', '').split()
+CDEFS = []
 TEST_SUPPORT_DIR = 'testsupport'
 
 BACKENDS = ['c', 'cpp']
@@ -1105,6 +1106,7 @@ class CythonCompileTestCase(unittest.TestCase):
                 build_extension.compiler = COMPILER
 
             ext_compile_flags = CFLAGS[:]
+            ext_compile_defines = CDEFS[:]
 
             if  build_extension.compiler == 'mingw32':
                 ext_compile_flags.append('-Wno-format')
@@ -1119,6 +1121,7 @@ class CythonCompileTestCase(unittest.TestCase):
                 module,
                 sources=self.source_files(workdir, module, related_files),
                 extra_compile_args=ext_compile_flags,
+                define_macros=ext_compile_defines,
                 **extra_extension_args
                 )
 
@@ -2443,7 +2446,7 @@ def runtests(options, cmd_args, coverage=None):
                              build_in_temp=True,
                              pyxbuild_dir=os.path.join(WORKDIR, "support"))
         sys.path.insert(0, os.path.split(libpath)[0])
-        CFLAGS.append("-DCYTHON_REFNANNY=1")
+        CDEFS.append(('CYTHON_REFNANNY', '1'))
 
     if options.limited_api:
         CFLAGS.append("-DCYTHON_LIMITED_API=1")
