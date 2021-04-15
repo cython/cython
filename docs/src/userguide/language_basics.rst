@@ -139,10 +139,11 @@ For example::
 
     cdef list foo = []
 
-This requires an *exact* match of the class, it does not allow
-subclasses. This allows Cython to optimize code by accessing
-internals of the builtin class.
-For this kind of typing, Cython uses internally a C variable of type ``PyObject*``.
+This requires an *exact* match of the class, it does not allow subclasses.
+This allows Cython to optimize code by accessing internals of the builtin class,
+which is the main reason for declaring builtin types in the first place.
+
+For declared builtin types, Cython uses internally a C variable of type ``PyObject*``.
 The Python types int, long, and float are not available for static
 typing and instead interpreted as C ``int``, ``long``, and ``float``
 respectively, as statically typing variables with these Python

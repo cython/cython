@@ -705,7 +705,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("END: Cython Metadata */")
             code.putln("")
 
+        code.putln("#ifndef PY_SSIZE_T_CLEAN")
         code.putln("#define PY_SSIZE_T_CLEAN")
+        code.putln("#endif /* PY_SSIZE_T_CLEAN */")
         self._put_setup_code(code, "InitLimitedAPI")
 
         for inc in sorted(env.c_includes.values(), key=IncludeCode.sortkey):
@@ -1834,7 +1836,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("Py_CLEAR(p->%s.obj);" % entry.cname)
 
         if cclass_entry.cname == '__pyx_memoryviewslice':
-            code.putln("__PYX_XDEC_MEMVIEW(&p->from_slice, 1);")
+            code.putln("__PYX_XCLEAR_MEMVIEW(&p->from_slice, 1);")
 
         code.putln("return 0;")
         code.putln("}")

@@ -685,17 +685,19 @@ class InterpretCompilerDirectives(CythonTransform):
         'operator.comma'        : ExprNodes.c_binop_constructor(','),
     }
 
-    special_methods = set(['declare', 'union', 'struct', 'typedef',
-                           'sizeof', 'cast', 'pointer', 'compiled',
-                           'NULL', 'fused_type', 'parallel'])
+    special_methods = {
+        'declare', 'union', 'struct', 'typedef',
+        'sizeof', 'cast', 'pointer', 'compiled',
+        'NULL', 'fused_type', 'parallel',
+    }
     special_methods.update(unop_method_nodes)
 
-    valid_parallel_directives = set([
+    valid_parallel_directives = {
         "parallel",
         "prange",
         "threadid",
         #"threadsavailable",
-    ])
+    }
 
     def __init__(self, context, compilation_directive_defaults):
         super(InterpretCompilerDirectives, self).__init__(context)
@@ -2161,7 +2163,7 @@ if VALUE is not None:
             entry = self.current_env().lookup(node.name)
             if (entry is None or entry.visibility != 'extern'
                     and not entry.scope.is_c_class_scope):
-                warning(node.pos, "cdef variable '%s' declared after it is used" % node.name, 2)
+                error(node.pos, "cdef variable '%s' declared after it is used" % node.name)
         self.visitchildren(node)
         return node
 

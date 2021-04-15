@@ -183,7 +183,7 @@ def infer_sequence_item_type(env, seq_node, index_node=None, seq_type=None):
             else:
                 return item.infer_type(env)
         # if we're lucky, all items have the same type
-        item_types = set([item.infer_type(env) for item in seq_node.args])
+        item_types = {item.infer_type(env) for item in seq_node.args}
         if len(item_types) == 1:
             return item_types.pop()
     return None
@@ -6214,7 +6214,7 @@ class PyMethodCallNode(SimpleCallNode):
             # not an attribute itself, but might have been assigned from one (e.g. bound method)
             for assignment in self.function.cf_state:
                 value = assignment.rhs
-                if value and value.is_attribute and value.obj.type.is_pyobject:
+                if value and value.is_attribute and value.obj.type and value.obj.type.is_pyobject:
                     if attribute_is_likely_method(value):
                         likely_method = 'likely'
                         break
@@ -6535,8 +6535,10 @@ class GeneralCallNode(CallNode):
                                                      len(pos_args)))
             return None
 
-        matched_args = set([ arg.name for arg in declared_args[:len(pos_args)]
-                             if arg.name ])
+        matched_args = {
+            arg.name for arg in declared_args[:len(pos_args)]
+            if arg.name
+        }
         unmatched_args = declared_args[len(pos_args):]
         matched_kwargs_count = 0
         args = list(pos_args)
@@ -6754,22 +6756,13 @@ class MergedDictNode(ExprNode):
         return dict_type
 
     def analyse_types(self, env):
-        args = [
+        self.keyword_args = [
             arg.analyse_types(env).coerce_to_pyobject(env).as_none_safe_node(
                 # FIXME: CPython's error message starts with the runtime function name
                 'argument after ** must be a mapping, not NoneType')
             for arg in self.keyword_args
         ]
 
-        if len(args) == 1 and args[0].type is dict_type:
-            # strip this intermediate node and use the bare dict
-            arg = args[0]
-            if arg.is_name and arg.entry.is_arg and len(arg.entry.cf_assignments) == 1:
-                # passing **kwargs through to function call => allow NULL
-                arg.allow_null = True
-            return arg
-
-        self.keyword_args = args
         return self
 
     def may_be_none(self):
@@ -6938,7 +6931,11 @@ class AttributeNode(ExprNode):
         # FIXME: this is way too redundant with analyse_types()
         node = self.analyse_as_cimported_attribute_node(env, target=False)
         if node is not None:
-            return node.entry.type
+            if node.entry.type and node.entry.type.is_cfunction:
+                # special-case - function converted to pointer
+                return PyrexTypes.CPtrType(node.entry.type)
+            else:
+                return node.entry.type
         node = self.analyse_as_type_attribute(env)
         if node is not None:
             return node.entry.type
@@ -8756,7 +8753,7 @@ class SetNode(ExprNode):
         return False
 
     def calculate_constant_result(self):
-        self.constant_result = set([arg.constant_result for arg in self.args])
+        self.constant_result = {arg.constant_result for arg in self.args}
 
     def compile_time_value(self, denv):
         values = [arg.compile_time_value(denv) for arg in self.args]
@@ -11806,10 +11803,10 @@ _find_formatting_types = re.compile(
     br")").findall
 
 # These format conversion types can never trigger a Unicode string conversion in Py2.
-_safe_bytes_formats = set([
+_safe_bytes_formats = frozenset({
     # Excludes 's' and 'r', which can generate non-bytes strings.
     b'd', b'i', b'o', b'u', b'x', b'X', b'e', b'E', b'f', b'F', b'g', b'G', b'c', b'b', b'a',
-])
+})
 
 
 class ModNode(DivNode):
@@ -13857,6 +13854,9 @@ class AnnotationNode(ExprNode):
             warning(annotation.pos,
                     "Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.",
                     level=1)
+        elif arg_type is not None and arg_type.is_complex:
+            # creating utility code needs to be special-cased for complex types
+            arg_type.create_declaration_utility_code(env)
         if arg_type is not None:
             if explicit_pytype and not explicit_ctype and not arg_type.is_pyobject:
                 warning(annotation.pos,

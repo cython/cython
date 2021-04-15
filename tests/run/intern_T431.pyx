@@ -1,4 +1,4 @@
-# ticket: 431
+# ticket: t431
 
 __doc__ = u"""
 >>> s == s_interned

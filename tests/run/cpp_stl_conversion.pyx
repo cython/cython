@@ -15,7 +15,7 @@ py_set = set
 py_xrange = xrange
 py_unicode = unicode
 
-cdef string add_strings(string a, string b):
+cdef string add_strings(string a, string b) except *:
     return a + b
 
 def normalize(bytes b):

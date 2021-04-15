@@ -115,9 +115,11 @@ class VerboseCodeWriter(type):
 class CheckAnalysers(type):
     """Metaclass to check that type analysis functions return a node.
     """
-    methods = set(['analyse_types',
-                   'analyse_expressions',
-                   'analyse_target_types'])
+    methods = frozenset({
+        'analyse_types',
+        'analyse_expressions',
+        'analyse_target_types',
+    })
 
     def __new__(cls, name, bases, attrs):
         from types import FunctionType
@@ -1044,7 +1046,10 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
                 scope = env
                 for item in self.module_path:
                     entry = scope.lookup(item)
-                    if entry is not None and entry.is_cpp_class:
+                    if entry is not None and (
+                        entry.is_cpp_class or
+                        entry.is_type and entry.type.is_cpp_class
+                    ):
                         scope = entry.type.scope
                     else:
                         scope = None
@@ -1078,6 +1083,8 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
                         type = PyrexTypes.TemplatePlaceholderType(self.name)
                     else:
                         error(self.pos, "'%s' is not a type identifier" % self.name)
+        if type and type.is_fused and env.fused_to_specific:
+            type = type.specialize(env.fused_to_specific)
         if self.complex:
             if not type.is_numeric or type.is_complex:
                 error(self.pos, "can only complexify c numeric types")
@@ -1419,6 +1426,9 @@ class CVarDefNode(StatNode):
                     self.entry.type.create_to_py_utility_code(env)
                     self.entry.create_wrapper = True
             else:
+                if self.overridable:
+                    warning(self.pos, "cpdef variables will not be supported in Cython 3; "
+                            "currently they are no different from cdef variables", 2)
                 if self.directive_locals:
                     error(self.pos, "Decorators can only be followed by functions")
                 self.entry = dest_scope.declare_var(
@@ -1781,6 +1791,9 @@ class FuncDefNode(StatNode, BlockNode):
             error(type_node.pos, "Previous declaration here")
         else:
             arg.type = other_type
+            if arg.type.is_complex:
+                # utility code for complex types is special-cased and also important to ensure that it's run
+                arg.type.create_declaration_utility_code(env)
         return arg
 
     def need_gil_acquisition(self, lenv):
@@ -4755,6 +4768,7 @@ class PyClassDefNode(ClassDefNode):
     #  entry    Symtab.Entry
     #  scope    PyClassScope
     #  decorators    [DecoratorNode]        list of decorators or None
+    #  bases    ExprNode        Expression that evaluates to a tuple of base classes
     #
     #  The following subnodes are constructed internally:
     #
@@ -4762,15 +4776,18 @@ class PyClassDefNode(ClassDefNode):
     #  dict     DictNode   Class dictionary or Py3 namespace
     #  classobj ClassNode  Class object
     #  target   NameNode   Variable to assign class object to
+    #  orig_bases  None or ExprNode  "bases" before transformation by PEP560 __mro_entries__,
+    #                                used to create the __orig_bases__ attribute
 
     child_attrs = ["doc_node", "body", "dict", "metaclass", "mkw", "bases", "class_result",
-                   "target", "class_cell", "decorators"]
+                   "target", "class_cell", "decorators", "orig_bases"]
     decorators = None
     class_result = None
     is_py3_style_class = False  # Python3 style class (kwargs)
     metaclass = None
     mkw = None
     doc_node = None
+    orig_bases = None
 
     def __init__(self, pos, name, bases, doc, body, decorators=None,
                  keyword_args=None, force_py3_semantics=False):
@@ -4896,7 +4913,22 @@ class PyClassDefNode(ClassDefNode):
         self.body.analyse_declarations(cenv)
         self.class_result.analyse_annotations(cenv)
 
+    update_bases_functype = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("bases",  PyrexTypes.py_object_type, None)
+        ])
+
     def analyse_expressions(self, env):
+        if self.bases and not (self.bases.is_sequence_constructor and len(self.bases.args) == 0):
+            from .ExprNodes import PythonCapiCallNode, CloneNode
+            # handle the Python 3.7 __mro_entries__ transformation
+            orig_bases = self.bases.analyse_expressions(env)
+            self.bases = PythonCapiCallNode(orig_bases.pos,
+                function_name="__Pyx_PEP560_update_bases",
+                func_type=self.update_bases_functype,
+                utility_code=UtilityCode.load_cached('Py3UpdateBases', 'ObjectHandling.c'),
+                args=[CloneNode(orig_bases)])
+            self.orig_bases = orig_bases
         if self.bases:
             self.bases = self.bases.analyse_expressions(env)
         if self.mkw:
@@ -4919,6 +4951,8 @@ class PyClassDefNode(ClassDefNode):
         code.mark_pos(self.pos)
         code.pyclass_stack.append(self)
         cenv = self.scope
+        if self.orig_bases:
+            self.orig_bases.generate_evaluation_code(code)
         if self.bases:
             self.bases.generate_evaluation_code(code)
         if self.mkw:
@@ -4926,6 +4960,17 @@ class PyClassDefNode(ClassDefNode):
         if self.metaclass:
             self.metaclass.generate_evaluation_code(code)
         self.dict.generate_evaluation_code(code)
+        if self.orig_bases:
+            # update __orig_bases__ if needed
+            code.putln("if (%s != %s) {" % (self.bases.result(), self.orig_bases.result()))
+            code.putln(
+                code.error_goto_if_neg('PyDict_SetItemString(%s, "__orig_bases__", %s)' % (
+                    self.dict.result(), self.orig_bases.result()),
+                    self.pos
+            ))
+            code.putln("}")
+            self.orig_bases.generate_disposal_code(code)
+            self.orig_bases.free_temps(code)
         cenv.namespace_cname = cenv.class_obj_cname = self.dict.result()
 
         class_cell = self.class_cell
