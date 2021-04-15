@@ -5393,13 +5393,9 @@ class CClassDefNode(ClassDefNode):
             code.putln("#endif")
 
             code.putln("#if !CYTHON_USE_TYPE_SPECS")
-            if check_heap_type_bases:
-                code.globalstate.use_utility_code(
-                    UtilityCode.load_cached('PyType_Ready', 'ExtensionTypes.c'))
-                readyfunc = "__Pyx_PyType_Ready"
-            else:
-                readyfunc = "PyType_Ready"
-            code.put_error_if_neg(entry.pos, "%s(%s)" % (readyfunc, typeptr_cname))
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached('PyType_Ready', 'ExtensionTypes.c'))
+            code.put_error_if_neg(entry.pos, "__Pyx_PyType_Ready(%s)" % typeptr_cname)
             code.putln("#endif")
 
             # Don't inherit tp_print from builtin types in Python 2, restoring the
@@ -5463,6 +5459,7 @@ class CClassDefNode(ClassDefNode):
                     code.putln('#endif')
                     if preprocessor_guard:
                         code.putln('#endif')
+
             if type.vtable_cname:
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached('SetVTable', 'ImportExport.c'))
@@ -5474,6 +5471,7 @@ class CClassDefNode(ClassDefNode):
                     code.globalstate.use_utility_code(
                         UtilityCode.load_cached('MergeVTables', 'ImportExport.c'))
                     code.put_error_if_neg(entry.pos, "__Pyx_MergeVtables(%s)" % typeptr_cname)
+
             if not type.scope.is_internal and not type.scope.directives.get('internal'):
                 # scope.is_internal is set for types defined by
                 # Cython (such as closures), the 'internal'
@@ -5483,6 +5481,7 @@ class CClassDefNode(ClassDefNode):
                     code.intern_identifier(scope.class_name),
                     typeptr_cname,
                 ))
+
             weakref_entry = scope.lookup_here("__weakref__") if not scope.is_closure_class_scope else None
             if weakref_entry:
                 if weakref_entry.type is py_object_type:
@@ -5498,6 +5497,7 @@ class CClassDefNode(ClassDefNode):
                         weakref_entry.cname))
                 else:
                     error(weakref_entry.pos, "__weakref__ slot must be of type 'object'")
+
             if scope.lookup_here("__reduce_cython__") if not scope.is_closure_class_scope else None:
                 # Unfortunately, we cannot reliably detect whether a
                 # superclass defined __reduce__ at compile time, so we must
