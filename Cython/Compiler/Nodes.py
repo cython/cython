@@ -5248,13 +5248,13 @@ class CClassDefNode(ClassDefNode):
                 self.type_init_args.generate_disposal_code(code)
                 self.type_init_args.free_temps(code)
 
-            self.generate_type_ready_code(self.entry, code, True)
+            self.generate_type_ready_code(self.entry, code)
         if self.body:
             self.body.generate_execution_code(code)
 
     # Also called from ModuleNode for early init types.
     @staticmethod
-    def generate_type_ready_code(entry, code, heap_type_bases=False):
+    def generate_type_ready_code(entry, code):
         # Generate a call to PyType_Ready for an extension
         # type defined in this module.
         type = entry.type
@@ -5290,15 +5290,10 @@ class CClassDefNode(ClassDefNode):
             code.putln("#else")
             for slot in TypeSlots.slot_table:
                 slot.generate_dynamic_init_code(scope, code)
-            if heap_type_bases:
-                code.globalstate.use_utility_code(
-                    UtilityCode.load_cached('PyType_Ready', 'ExtensionTypes.c'))
-                readyfunc = "__Pyx_PyType_Ready"
-            else:
-                readyfunc = "PyType_Ready"
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached('PyType_Ready', 'ExtensionTypes.c'))
             code.putln(
-                "if (%s(&%s) < 0) %s" % (
-                    readyfunc,
+                "if (__Pyx_PyType_Ready(&%s) < 0) %s" % (
                     typeobj_cname,
                     code.error_goto(entry.pos)))
             # Don't inherit tp_print from builtin types in Python 2, restoring the
@@ -5377,12 +5372,11 @@ class CClassDefNode(ClassDefNode):
                         type.vtabptr_cname,
                         code.error_goto(entry.pos)))
                 code.putln("#endif")
-                if heap_type_bases:
-                    code.globalstate.use_utility_code(
-                        UtilityCode.load_cached('MergeVTables', 'ImportExport.c'))
-                    code.putln("if (__Pyx_MergeVtables(&%s) < 0) %s" % (
-                        typeobj_cname,
-                        code.error_goto(entry.pos)))
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached('MergeVTables', 'ImportExport.c'))
+                code.putln("if (__Pyx_MergeVtables(&%s) < 0) %s" % (
+                    typeobj_cname,
+                    code.error_goto(entry.pos)))
             if not type.scope.is_internal and not type.scope.directives.get('internal'):
                 # scope.is_internal is set for types defined by
                 # Cython (such as closures), the 'internal'
