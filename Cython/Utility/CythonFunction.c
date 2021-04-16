@@ -279,6 +279,8 @@ __Pyx_CyFunction_set_defaults(__pyx_CyFunctionObject *op, PyObject* value, CYTHO
                         "__defaults__ must be set to a tuple object");
         return -1;
     }
+    PyErr_WarnEx(PyExc_RuntimeWarning, "changes to cyfunction.__defaults__ will not "
+                 "affect the values used in function calls", 1);
     Py_INCREF(value);
     __Pyx_Py_XDECREF_SET(op->defaults_tuple, value);
     return 0;
@@ -309,6 +311,8 @@ __Pyx_CyFunction_set_kwdefaults(__pyx_CyFunctionObject *op, PyObject* value, CYT
                         "__kwdefaults__ must be set to a dict object");
         return -1;
     }
+    PyErr_WarnEx(PyExc_RuntimeWarning, "changes to cyfunction.__kwdefaults__ will not "
+                 "affect the values used in function calls", 1);
     Py_INCREF(value);
     __Pyx_Py_XDECREF_SET(op->defaults_kwdict, value);
     return 0;

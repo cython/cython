@@ -86,9 +86,48 @@ def test_defaults_nonliteral_func_call(f):
         return a
     return func
 
+def assign_defaults_and_check_warnings(func, value=None, delete=False):
+    import warnings
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        if delete:
+            del func.__defaults__
+        else:
+            func.__defaults__ = value
+        assert len(w) == 1, len(w)
+        assert issubclass(w[0].category, RuntimeWarning), w[0].category
+        assert "changes to cyfunction.__defaults__" in str(w[0].message), str(w[0].message)
+
+def test_assign_defaults():
+    """
+    >>> f = test_assign_defaults()
+    >>> f.__defaults__
+    (5, 10)
+    >>> assign_defaults_and_check_warnings(f, value=())
+    >>> f.__defaults__
+    ()
+    >>> assign_defaults_and_check_warnings(f, delete=True)
+    >>> f.__defaults__
+    >>> f.__defaults__ = "Not a tuple"
+    Traceback (most recent call last):
+    TypeError: __defaults__ must be set to a tuple object
+    """
+    def func(a=5, b=10):
+        return a, b
+    return func
+
 
 def cy_kwonly_default_args(a, x=1, *, b=2):
     l = m = 1
+
+def assign_kwdefaults_and_check_warnings(func, value):
+    import warnings
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        func.__kwdefaults__ = value
+        assert len(w) == 1, len(w)
+        assert issubclass(w[0].category, RuntimeWarning), w[0].category
+        assert "changes to cyfunction.__kwdefaults__" in str(w[0].message), str(w[0].message)
 
 def test_kwdefaults(value):
     """
@@ -111,12 +150,12 @@ def test_kwdefaults(value):
     >>> f.__kwdefaults__ = ()
     Traceback (most recent call last):
     TypeError: __kwdefaults__ must be set to a dict object
-    >>> f.__kwdefaults__ = None
+    >>> assign_kwdefaults_and_check_warnings(f, None)
     >>> f.__kwdefaults__
-    >>> f.__kwdefaults__ = {}
+    >>> assign_kwdefaults_and_check_warnings(f, {})
     >>> f.__kwdefaults__
     {}
-    >>> f.__kwdefaults__ = {'a': 2}
+    >>> assign_kwdefaults_and_check_warnings(f, {'a': 2})
     >>> f.__kwdefaults__
     {'a': 2}
     """
