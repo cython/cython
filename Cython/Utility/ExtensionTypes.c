@@ -1,10 +1,16 @@
 /////////////// PyType_Ready.proto ///////////////
 
-static int __Pyx_PyType_Ready(PyTypeObject *t);
+// FIXME: is this really suitable for CYTHON_COMPILING_IN_LIMITED_API?
+#if CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_LIMITED_API
+static int __Pyx_PyType_Ready(PyTypeObject *t);/*proto*/
+#else
+#define __Pyx_PyType_Ready(t) PyType_Ready(t)
+#endif
 
 /////////////// PyType_Ready ///////////////
 //@requires: ObjectHandling.c::PyObjectCallNoArg
 
+#if CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_LIMITED_API
 // Wrapper around PyType_Ready() with some runtime checks and fixes
 // to deal with multiple inheritance.
 static int __Pyx_PyType_Ready(PyTypeObject *t) {
@@ -136,6 +142,7 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
 
     return r;
 }
+#endif
 
 /////////////// PyTrashcan.proto ///////////////
 
