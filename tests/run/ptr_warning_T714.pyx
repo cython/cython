@@ -1,6 +1,6 @@
 # mode: run
 # tag: werror
-# ticket: 714
+# ticket: t714
 
 def test_ptr():
     """
