@@ -42,6 +42,10 @@ cdef extern from "cpp_operator_exc_handling_helper.hpp" nogil:
         wrapped_int &operator=(const wrapped_int &other) except +ArithmeticError
         wrapped_int &operator=(const long long &vao) except +
 
+    cdef cppclass second_call_is_different:
+        second_call_is_different()
+        bool operator<(const second_call_is_different&) except +
+
 
 def assert_raised(f, *args, **kwargs):
     err = kwargs.get('err', None)
@@ -268,3 +272,13 @@ def test_operator_exception_handling():
     assert_raised(separate_exceptions, 4, 1, 1, 1, 3, err=ArithmeticError)
     assert_raised(call_temp_separation, 2, 1, 4, err=AttributeError)
     assert_raised(call_temp_separation, 2, 4, 1, err=IndexError)
+
+def test_only_single_call():
+    """
+    Previous version of the operator handling code called the operator twice
+    (Resulting in a crash)
+    >>> test_only_single_call()
+    False
+    """
+    cdef second_call_is_different inst
+    return inst<inst

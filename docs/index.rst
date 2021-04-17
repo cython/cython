@@ -10,4 +10,6 @@ Also see the `Cython project homepage <https://cython.org/>`_.
    src/quickstart/index
    src/tutorial/index
    src/userguide/index
+   src/reference/index
+   Contributing <CONTRIBUTING>
    src/changes

@@ -142,6 +142,17 @@ cpdef (int, double) cpdef_ctuple_return_type(int x, double y):
     return x, y
 
 
+def cast_to_ctuple(*o):
+    """
+    >>> cast_to_ctuple(1, 2.)
+    (1, 2.0)
+    """
+    cdef int x
+    cdef double y
+    x, y = <(int, double)>o
+    return x, y
+
+
 @cython.infer_types(True)
 def test_type_inference():
     """

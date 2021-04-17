@@ -1,4 +1,4 @@
-# ticket: 284
+# ticket: t284
 
 def no_cdef():
     """

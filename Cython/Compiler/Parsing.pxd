@@ -1,3 +1,5 @@
+# cython: language_level=3
+
 # We declare all of these here to type the first argument.
 
 from __future__ import absolute_import
@@ -24,7 +26,7 @@ cdef p_lambdef_nocond(PyrexScanner s)
 cdef p_test(PyrexScanner s)
 cdef p_test_nocond(PyrexScanner s)
 cdef p_or_test(PyrexScanner s)
-cdef p_rassoc_binop_expr(PyrexScanner s, ops, p_sub_expr_func p_subexpr)
+cdef p_rassoc_binop_expr(PyrexScanner s, unicode op, p_sub_expr_func p_subexpr)
 cdef p_and_test(PyrexScanner s)
 cdef p_not_test(PyrexScanner s)
 cdef p_comparison(PyrexScanner s)
@@ -69,7 +71,8 @@ cdef bint check_for_non_ascii_characters(unicode string)
 @cython.locals(systr=unicode, is_python3_source=bint, is_raw=bint)
 cdef p_string_literal(PyrexScanner s, kind_override=*)
 cdef _append_escape_sequence(kind, builder, unicode escape_sequence, PyrexScanner s)
-@cython.locals(i=Py_ssize_t, size=Py_ssize_t, c=Py_UCS4)
+cdef tuple _f_string_error_pos(pos, string, Py_ssize_t i)
+@cython.locals(i=Py_ssize_t, size=Py_ssize_t, c=Py_UCS4, next_start=Py_ssize_t)
 cdef list p_f_string(PyrexScanner s, unicode_value, pos, bint is_raw)
 @cython.locals(i=Py_ssize_t, size=Py_ssize_t, c=Py_UCS4, quote_char=Py_UCS4, NO_CHAR=Py_UCS4)
 cdef tuple p_f_string_expr(PyrexScanner s, unicode_value, pos, Py_ssize_t starting_index, bint is_raw)
@@ -196,3 +199,4 @@ cdef dict p_compiler_directive_comments(PyrexScanner s)
 cdef p_template_definition(PyrexScanner s)
 cdef p_cpp_class_definition(PyrexScanner s, pos, ctx)
 cdef p_cpp_class_attribute(PyrexScanner s, ctx)
+cdef p_annotation(PyrexScanner s)

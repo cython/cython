@@ -140,6 +140,11 @@ def test_unordered_set_functionality():
     return "pass"
 
 
+cdef extern from "cpp_unordered_map_helper.h":
+    cdef cppclass IntVectorHash:
+        pass
+
+
 def test_unordered_map_functionality():
     """
     >>> test_unordered_map_functionality()
@@ -153,6 +158,8 @@ def test_unordered_map_functionality():
         unordered_map[int, int] int_map2
         unordered_map[int, int*] intptr_map
         const int* intptr
+        unordered_map[vector[int], int, IntVectorHash] int_vector_map
+        vector[int] intvec
     assert int_map[1] == 2
     assert int_map.size() == 1
     assert int_map.erase(1) == 1 # returns number of elements erased
@@ -183,4 +190,12 @@ def test_unordered_map_functionality():
 
     intptr_map[0] = NULL
     intptr = intptr_map.const_at(0)
+
+    intvec = [1, 2]
+    int_vector_map[intvec] = 3
+    intvec = [4, 5]
+    int_vector_map[intvec] = 6
+    assert int_vector_map[intvec] == 6
+    intvec = [1, 2]
+    assert int_vector_map[intvec] == 3
     return "pass"

@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
-# cython: language_level=3
 # mode: run
 # tag: pep3131, traceback
+
+# cython: language_level=3
 
 # Code with unicode identifiers can be compiled with Cython running either Python 2 or 3.
 # However Python access to unicode identifiers is only possible in Python 3. In Python 2
@@ -11,10 +12,13 @@
 # This is controlled by putting the Python3 only tests in the module __doc__ attribute
 # Most of the individual function and class docstrings are only present as a compile test
 
+cimport cython
+
 import sys
 
-if sys.version_info[0]>2:
-    __doc__ = """
+
+if sys.version_info[0] > 2:
+    __doc__ = u"""
     >>> f()()
     2
     >>> f().__name__
@@ -37,6 +41,9 @@ if sys.version_info[0]>2:
     >>> print(x.α)
     200
 
+    >>> B().Ƒ()
+    >>> C().Ƒ()
+
     Test generation of locals()
     >>> sorted(Γναμε2().boring_function(1,2).keys())
     ['self', 'somevalue', 'x', 'ναμε5', 'ναμε6']
@@ -45,16 +52,23 @@ if sys.version_info[0]>2:
     0
     >>> function_taking_fancy_argument(Γναμε2()).ναμε3
     1
+    >>> metho_function_taking_fancy_argument(Γναμε2()).ναμε3
+    1
     >>> NormalClassΓΓ().ναμε
     10
     >>> NormalClassΓΓ().εxciting_function(None).__qualname__
     'NormalClassΓΓ.εxciting_function.<locals>.nestεd'
 
     Do kwargs work?
-    >>> unicode_kwarg(αrg=5)
+    >>> unicode_kwarg(αrγ=5)
     5
     >>> unicode_kwarg_from_cy()
     1
+
+    Normalization of attributes
+    (The cdef class version is testable in Python 2 too)
+    >>> NormalizeAttrPy().get()
+    5
     """
 else:
     __doc__ = ""
@@ -76,10 +90,10 @@ cdef class A:
     def __init__(self):
         self.ναμε = 1
     cdef Ƒ(self):
-        return self.ναμε==1
+        return self.ναμε == 1
     def regular_function(self):
         """
-        Can use unicode cdef functions and (private) attributes iternally
+        Can use unicode cdef functions and (private) attributes internally
         >>> A().regular_function()
         True
         """
@@ -169,8 +183,15 @@ cdef class Derived(Γναμε2):
 
 cdef Γναμε2 global_ναμε3 = Γναμε2()
 
-def function_taking_fancy_argument(Γναμε2 αrg):
-    return αrg
+
+@cython.always_allow_keywords(False)  # METH_O signature
+def metho_function_taking_fancy_argument(Γναμε2 αrγ):
+    return αrγ
+
+@cython.always_allow_keywords(True)
+def function_taking_fancy_argument(Γναμε2 αrγ):
+    return αrγ
+
 
 class NormalClassΓΓ(Γναμε2):
     """
@@ -190,19 +211,23 @@ class NormalClassΓΓ(Γναμε2):
             pass
         return nestεd
 
-def unicode_kwarg(*,αrg):
-    return αrg
+def unicode_kwarg(*, αrγ):
+    return αrγ
 
 def unicode_kwarg_from_cy():
-    return unicode_kwarg(αrg=1)
+    return unicode_kwarg(αrγ=1)
+
+class NormalizeAttrPy:
+    """Python normalizes identifier names before they are used;
+    therefore ﬁ and fi should access the same attribute"""
+    def __init__(self):
+        self.ﬁ = 5 # note unicode ligature symbol
+    def get(self):
+        return self.fi
 
 cdef class NormalizeAttrCdef:
     """Python normalizes identifier names before they are used;
-    therefore ﬁ and fi should access the same attribute.
-    A more comprehensive version of this is in "unicode_identifiers_normalize.py"
-    comparing the behaviour to Python. The version here shows it
-    behaves the same in a cdef class and is tested with Python 2
-
+    therefore ﬁ and fi should access the same attribute
     >>> NormalizeAttrCdef().get()
     5
     """

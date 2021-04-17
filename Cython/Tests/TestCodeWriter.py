@@ -21,6 +21,7 @@ class TestCodeWriter(CythonTest):
         self.t(u"""
                     print(x + y ** 2)
                     print(x, y, z)
+                    print(x + y, x + y * z, x * (y + z))
                """)
 
     def test_if(self):
@@ -46,6 +47,20 @@ class TestCodeWriter(CythonTest):
                         pass
                """)
 
+    def test_cdef(self):
+        self.t(u"""
+                    cdef f(x, y, z):
+                        pass
+                    cdef public void (x = 34, y = 54, z):
+                        pass
+                    cdef f(int *x, void *y, Value *z):
+                        pass
+                    cdef f(int **x, void **y, Value **z):
+                        pass
+                    cdef inline f(int &x, Value &z):
+                        pass
+               """)
+
     def test_longness_and_signedness(self):
         self.t(u"def f(unsigned long long long long long int y):\n    pass")
 
@@ -68,14 +83,46 @@ class TestCodeWriter(CythonTest):
                     else:
                         print(43)
                 """)
+        self.t(u"""
+                    for abc in (1, 2, 3):
+                        print(x, y, z)
+                    else:
+                        print(43)
+                """)
+
+    def test_while_loop(self):
+        self.t(u"""
+                    while True:
+                        while True:
+                            while True:
+                                continue
+                """)
 
     def test_inplace_assignment(self):
         self.t(u"x += 43")
 
+    def test_cascaded_assignment(self):
+        self.t(u"x = y = z = abc = 43")
+
     def test_attribute(self):
         self.t(u"a.x")
+
+    def test_return_none(self):
+        self.t(u"""
+                    def f(x, y, z):
+                        return
+                    cdef f(x, y, z):
+                        return
+                    def f(x, y, z):
+                        return None
+                    cdef f(x, y, z):
+                        return None
+                    def f(x, y, z):
+                        return 1234
+                    cdef f(x, y, z):
+                        return 1234
+               """)
 
 if __name__ == "__main__":
     import unittest
     unittest.main()
-
