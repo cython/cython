@@ -7,12 +7,18 @@ cdef class C:
     cpdef float c
 
 def func():
-    cpdef d=C()
+    """
+    >>> c = func()
+    >>> isinstance(c, C) or c
+    True
+    """
+    cpdef d = C()
     return d
+
 
 _ERRORS = """
 3:6: Variables can not be cpdef
 4:6: Variables can not be cpdef
 7:10: Variables can not be cpdef
-10:10: Variables can not be cpdef
+15:10: Variables can not be cpdef
 """

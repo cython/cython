@@ -1,4 +1,4 @@
-# ticket: 276
+# ticket: t276
 # mode: compile
 
 __doc__ = u"""

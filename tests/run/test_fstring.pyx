@@ -55,10 +55,10 @@ class TestCase(CythonTest):
         def assertEqual(self, first, second, msg=None):
             # strip u'' string prefixes in Py2
             if first != second and isinstance(first, unicode):
-                stripped_first = first.replace("u'", "'").replace('u"', '"')
+                stripped_first = first.replace(u"u'", u"'").replace(u'u"', u'"')
                 if stripped_first == second:
                     first = stripped_first
-                elif stripped_first.decode('unicode_escape') == second:
+                elif u'\\' in stripped_first and stripped_first.decode('unicode_escape') == second:
                     first = stripped_first.decode('unicode_escape')
             super(TestCase, self).assertEqual(first, second, msg)
 

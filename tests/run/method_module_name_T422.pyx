@@ -1,4 +1,4 @@
-# ticket: 422
+# ticket: t422
 
 """
 >>> Foo.incr.__module__ is not None

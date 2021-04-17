@@ -1,5 +1,5 @@
 # mode: run
-# ticket: 593
+# ticket: t593
 # tag: property, decorator
 
 """

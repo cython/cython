@@ -1,4 +1,4 @@
-# ticket: 446
+# ticket: t446
 
 import cython
 
