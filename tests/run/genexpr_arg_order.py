@@ -175,4 +175,3 @@ def multiple_genexps_to_call_order():
         pass
 
     return takes_two_genexps((x for x in call1()), (x for x in call2()))
-

@@ -1379,7 +1379,7 @@ class _ComprehensionScopeTransformActivated(VisitorTransform, SkipDeclarations):
 
     def visit_CallNode(self, node):
         if (self.last_node_seen is None or
-            isinstance(self.last_node_seen, ExprNodes.AttributeNode)):
+                isinstance(self.last_node_seen, ExprNodes.AttributeNode)):
             self.last_node_seen = node
             self.visitchildren(node)
             return node
@@ -1436,7 +1436,7 @@ class _ComprehensionScopeTransformActivated(VisitorTransform, SkipDeclarations):
                 self.result_refs.append(a)
 
             if (isinstance(itseq.function, ExprNodes.AttributeNode) and
-                not itseq.function.obj.is_literal):
+                    not itseq.function.obj.is_literal):
 
                 function = ResultRefInCallNode(itseq.function)
                 itseq.function = function

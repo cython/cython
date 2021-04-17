@@ -367,7 +367,7 @@ class ResultRefInCallNode(ResultRefNode):
         # complicated behaviour here is main for the benefit
         # of SimpleCallNode.analyse_types (which sets obj)
         if (isinstance(obj, ExprNodes.CloneNode) and
-            obj.arg is self.attribute_self_argument):
+                obj.arg is self.attribute_self_argument):
             # specific workaround for the function self.self
             # attribute
             obj.arg.may_hold_none = obj.arg.expression.may_be_none()
