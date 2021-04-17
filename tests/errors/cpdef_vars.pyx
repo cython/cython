@@ -17,8 +17,8 @@ def func():
 
 
 _ERRORS = """
-3:6: Variables can not be cpdef
-4:6: Variables can not be cpdef
-7:10: Variables can not be cpdef
-15:10: Variables can not be cpdef
+3:6: Variables cannot be declared with 'cpdef'. Use 'cdef' instead.
+4:6: Variables cannot be declared with 'cpdef'. Use 'cdef' instead.
+7:10: Variables cannot be declared with 'cpdef'. Use 'cdef' instead.
+15:10: Variables cannot be declared with 'cpdef'. Use 'cdef' instead.
 """
