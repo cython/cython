@@ -2488,6 +2488,41 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
         return node
 
 
+class AutoCpdefFunctionDefinitions(CythonTransform):
+
+    def visit_ModuleNode(self, node):
+        self.scope = node.scope
+        self.directives = node.directives
+        self.imported_names = set()  # hack, see visit_FromImportStatNode()
+        self.visitchildren(node)
+        return node
+
+    def visit_DefNode(self, node):
+        pxd_def = self.scope.lookup(node.name)
+        if pxd_def and (not pxd_def.scope or not pxd_def.scope.is_builtin_scope):
+            pass
+        elif (self.scope.is_module_scope and self.directives['auto_cpdef']
+              and node.name not in self.imported_names
+              and node.is_cdef_func_compatible()):
+            # FIXME: cpdef-ing should be done in analyse_declarations()
+            node = node.as_cfunction(scope=self.scope)
+        # Enable this when nested cdef functions are allowed.
+        # self.visitchildren(node)
+        return node
+
+    def visit_FromImportStatNode(self, node):
+        # hack to prevent conditional import fallback functions from
+        # being cdpef-ed (global Python variables currently conflict
+        # with imports)
+        if self.scope.is_module_scope:
+            for name, _ in node.items:
+                self.imported_names.add(name)
+        return node
+
+    def visit_ExprNode(self, node):
+        # ignore lambdas and everything else that appears in expressions
+        return node
+
 class AlignFunctionDefinitions(CythonTransform):
     """
     This class takes the signatures from a .pxd file and applies them to
@@ -2496,8 +2531,6 @@ class AlignFunctionDefinitions(CythonTransform):
 
     def visit_ModuleNode(self, node):
         self.scope = node.scope
-        self.directives = node.directives
-        self.imported_names = set()  # hack, see visit_FromImportStatNode()
         self.visitchildren(node)
         return node
 
@@ -2535,22 +2568,6 @@ class AlignFunctionDefinitions(CythonTransform):
                     error(pxd_def.pos, "previous declaration here")
                 return None
             node = node.as_cfunction(pxd_def)
-        elif (self.scope.is_module_scope and self.directives['auto_cpdef']
-              and node.name not in self.imported_names
-              and node.is_cdef_func_compatible()):
-            # FIXME: cpdef-ing should be done in analyse_declarations()
-            node = node.as_cfunction(scope=self.scope)
-        # Enable this when nested cdef functions are allowed.
-        # self.visitchildren(node)
-        return node
-
-    def visit_FromImportStatNode(self, node):
-        # hack to prevent conditional import fallback functions from
-        # being cdpef-ed (global Python variables currently conflict
-        # with imports)
-        if self.scope.is_module_scope:
-            for name, _ in node.items:
-                self.imported_names.add(name)
         return node
 
     def visit_ExprNode(self, node):
