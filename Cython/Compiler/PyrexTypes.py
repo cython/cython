@@ -2766,7 +2766,7 @@ class CReferenceBaseType(BaseType):
         self.ref_base_type = base_type
 
     def __repr__(self):
-        return "<%s %s>" % repr(self.__class__.__name__, self.ref_base_type)
+        return "<%r %s>" % (self.__class__.__name__, self.ref_base_type)
 
     def specialize(self, values):
         base_type = self.ref_base_type.specialize(values)
