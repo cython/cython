@@ -1,5 +1,5 @@
 # mode: run
-# ticket: 264
+# ticket: t264
 # tag: property, decorator
 
 class Prop(object):

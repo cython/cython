@@ -193,18 +193,6 @@ __Pyx_CyFunction_set_qualname(__pyx_CyFunctionObject *op, PyObject *value, CYTHO
 }
 
 static PyObject *
-__Pyx_CyFunction_get_self(__pyx_CyFunctionObject *m, CYTHON_UNUSED void *closure)
-{
-    PyObject *self;
-
-    self = m->func_closure;
-    if (self == NULL)
-        self = Py_None;
-    Py_INCREF(self);
-    return self;
-}
-
-static PyObject *
 __Pyx_CyFunction_get_dict(__pyx_CyFunctionObject *op, CYTHON_UNUSED void *context)
 {
     if (unlikely(op->func_dict == NULL)) {
@@ -370,8 +358,9 @@ __Pyx_CyFunction_get_annotations(__pyx_CyFunctionObject *op, CYTHON_UNUSED void 
 static PyObject *
 __Pyx_CyFunction_get_is_coroutine(__pyx_CyFunctionObject *op, CYTHON_UNUSED void *context) {
     int is_coroutine;
-    if (op->func_is_coroutine)
+    if (op->func_is_coroutine) {
         return __Pyx_NewRef(op->func_is_coroutine);
+    }
 
     is_coroutine = op->flags & __Pyx_CYFUNCTION_COROUTINE;
 #if PY_VERSION_HEX >= 0x03050000
@@ -385,11 +374,12 @@ __Pyx_CyFunction_get_is_coroutine(__pyx_CyFunctionObject *op, CYTHON_UNUSED void
         if (unlikely(!module)) goto ignore;
         op->func_is_coroutine = __Pyx_PyObject_GetAttrStr(module, marker);
         Py_DECREF(module);
-        if (unlikely(!op->func_is_coroutine)) goto ignore;
-        return __Pyx_NewRef(op->func_is_coroutine);
-    }
+        if (likely(op->func_is_coroutine)) {
+            return __Pyx_NewRef(op->func_is_coroutine);
+        }
 ignore:
-    PyErr_Clear();
+        PyErr_Clear();
+    }
 #endif
 
     op->func_is_coroutine = __Pyx_PyBool_FromLong(is_coroutine);
@@ -427,7 +417,6 @@ static PyGetSetDef __pyx_CyFunction_getsets[] = {
     {(char *) "func_name", (getter)__Pyx_CyFunction_get_name, (setter)__Pyx_CyFunction_set_name, 0, 0},
     {(char *) "__name__", (getter)__Pyx_CyFunction_get_name, (setter)__Pyx_CyFunction_set_name, 0, 0},
     {(char *) "__qualname__", (getter)__Pyx_CyFunction_get_qualname, (setter)__Pyx_CyFunction_set_qualname, 0, 0},
-    {(char *) "__self__", (getter)__Pyx_CyFunction_get_self, 0, 0, 0},
     {(char *) "func_dict", (getter)__Pyx_CyFunction_get_dict, (setter)__Pyx_CyFunction_set_dict, 0, 0},
     {(char *) "__dict__", (getter)__Pyx_CyFunction_get_dict, (setter)__Pyx_CyFunction_set_dict, 0, 0},
     {(char *) "func_globals", (getter)__Pyx_CyFunction_get_globals, 0, 0, 0},
@@ -691,7 +680,7 @@ static PyObject *__Pyx_CyFunction_CallAsMethod(PyObject *func, PyObject *args, P
      __pyx_vectorcallfunc vc = __Pyx_CyFunction_func_vectorcall(cyfunc);
     if (vc) {
 #if CYTHON_ASSUME_SAFE_MACROS
-        return __Pyx_PyVectorcall_FastCallDict(func, vc, &PyTuple_GET_ITEM(args, 0), PyTuple_GET_SIZE(args), kw);
+        return __Pyx_PyVectorcall_FastCallDict(func, vc, &PyTuple_GET_ITEM(args, 0), (size_t)PyTuple_GET_SIZE(args), kw);
 #else
         // avoid unused function warning
         (void) &__Pyx_PyVectorcall_FastCallDict;
@@ -1358,6 +1347,18 @@ bad:
     return result;
 }
 
+static PyObject *
+__Pyx_FusedFunction_get_self(__pyx_FusedFunctionObject *m, CYTHON_UNUSED void *closure)
+{
+    PyObject *self = m->self;
+    if (unlikely(!self)) {
+        PyErr_SetString(PyExc_AttributeError, "'function' object has no attribute '__self__'");
+    } else {
+        Py_INCREF(self);
+    }
+    return self;
+}
+
 static PyMemberDef __pyx_FusedFunction_members[] = {
     {(char *) "__signatures__",
      T_OBJECT,
@@ -1367,6 +1368,15 @@ static PyMemberDef __pyx_FusedFunction_members[] = {
     {0, 0, 0, 0, 0},
 };
 
+static PyGetSetDef __pyx_FusedFunction_getsets[] = {
+    {(char *) "__self__", (getter)__Pyx_FusedFunction_get_self, 0, 0, 0},
+    // __doc__ is None for the fused function type, but we need it to be
+    // a descriptor for the instance's __doc__, so rebuild the descriptor in our subclass
+    // (all other descriptors are inherited)
+    {(char *) "__doc__",  (getter)__Pyx_CyFunction_get_doc, (setter)__Pyx_CyFunction_set_doc, 0, 0},
+    {0, 0, 0, 0, 0}
+};
+
 #if CYTHON_COMPILING_IN_LIMITED_API
 static PyType_Slot __pyx_FusedFunctionType_slots[] = {
     {Py_tp_dealloc, (void *)__pyx_FusedFunction_dealloc},
@@ -1374,7 +1384,7 @@ static PyType_Slot __pyx_FusedFunctionType_slots[] = {
     {Py_tp_traverse, (void *)__pyx_FusedFunction_traverse},
     {Py_tp_clear, (void *)__pyx_FusedFunction_clear},
     {Py_tp_members, (void *)__pyx_FusedFunction_members},
-    {Py_tp_getset, (void *)__pyx_CyFunction_getsets},
+    {Py_tp_getset, (void *)__pyx_FusedFunction_getsets},
     {Py_tp_descr_get, (void *)__pyx_FusedFunction_descr_get},
     {Py_mp_subscript, (void *)__pyx_FusedFunction_getitem},
     {0, 0},
@@ -1430,9 +1440,7 @@ static PyTypeObject __pyx_FusedFunctionType_type = {
     0,                                  /*tp_iternext*/
     0,                                  /*tp_methods*/
     __pyx_FusedFunction_members,        /*tp_members*/
-    // __doc__ is None for the fused function type, but we need it to be
-    // a descriptor for the instance's __doc__, so rebuild descriptors in our subclass
-    __pyx_CyFunction_getsets,           /*tp_getset*/
+    __pyx_FusedFunction_getsets,           /*tp_getset*/
     // NOTE: tp_base may be changed later during module initialisation when importing CyFunction across modules.
     &__pyx_CyFunctionType_type,         /*tp_base*/
     0,                                  /*tp_dict*/

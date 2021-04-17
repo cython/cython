@@ -1,5 +1,5 @@
 # cython: remove_unreachable=False
-# ticket: 135
+# ticket: t135
 # mode: error
 
 def _runtime_True():

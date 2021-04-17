@@ -1,4 +1,4 @@
-# ticket: 262
+# ticket: t262
 # mode: error
 
 cdef class Album

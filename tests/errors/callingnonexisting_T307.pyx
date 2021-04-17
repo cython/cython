@@ -1,4 +1,4 @@
-# ticket: 307
+# ticket: t307
 # mode: error
 
 nonexisting(3, with_kw_arg=4)

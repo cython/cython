@@ -264,7 +264,7 @@ class TestPosonlyMethods(object):
     Got type error
     >>> TestPosonlyMethods().f(1, b=2)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: f() got ... keyword argument... 'b'
+    TypeError: ...f() got ... keyword argument... 'b'
     """
     def f(self, a, b, /):
         return a, b
@@ -316,10 +316,10 @@ def test_closures1(x,y):
     10
     >>> test_closures1(1,2)(3)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: g() ... positional argument...
+    TypeError: ...g() ... positional argument...
     >>> test_closures1(1,2)(3,4,5)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: g() ... positional argument...
+    TypeError: ...g() ... positional argument...
     """
     def g(x2,/,y2):
         return x + y + x2 + y2
@@ -341,10 +341,10 @@ def test_closures3(x,/,y):
     10
     >>> test_closures3(1,2)(3)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: g() ... positional argument...
+    TypeError: ...g() ... positional argument...
     >>> test_closures3(1,2)(3,4,5)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: g() ... positional argument...
+    TypeError: ...g() ... positional argument...
     """
     def g(x2,/,y2):
         return x + y + x2 + y2
@@ -562,7 +562,7 @@ class TestExtensionClass:
     (1, 2, 4)
     >>> t.f(1, 2, 5, c=6)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: f() got multiple values for ...argument 'c'
+    TypeError: ...f() got multiple values for ...argument 'c'
     """
     def f(self, a, b, /, c=3):
         return (a,b,c)
