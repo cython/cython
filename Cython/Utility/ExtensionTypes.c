@@ -151,14 +151,21 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
 
 /////////////// PyType_Ready.proto ///////////////
 
+=======
+// FIXME: is this really suitable for CYTHON_COMPILING_IN_LIMITED_API?
+#if CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_LIMITED_API
 #if !CYTHON_USE_TYPE_SPECS
-static int __Pyx_PyType_Ready(PyTypeObject *t);
+static int __Pyx_PyType_Ready(PyTypeObject *t);/*proto*/
+#endif
+#else
+#define __Pyx_PyType_Ready(t) PyType_Ready(t)
 #endif
 
 /////////////// PyType_Ready ///////////////
 //@requires: ObjectHandling.c::PyObjectCallNoArg
 //@requires: ValidateBasesTuple
 
+#if CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_LIMITED_API
 // Wrapper around PyType_Ready() with some runtime checks and fixes
 // to deal with multiple inheritance.
 #if !CYTHON_USE_TYPE_SPECS
@@ -242,6 +249,8 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
     return r;
 }
 #endif
+#endif
+
 
 /////////////// PyTrashcan.proto ///////////////
 
