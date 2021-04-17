@@ -19,7 +19,7 @@ from . import Errors
 
 from .Visitor import VisitorTransform, TreeVisitor
 from .Visitor import CythonTransform, EnvTransform, ScopeTrackingTransform
-from .Visitor import tree_contains
+from .Visitor import tree_contains, recursively_replace_node
 from .UtilNodes import (LetNode, LetRefNode, ResultRefNode, EvalWithTempExprNode,
                         ResultRefInCallNode)
 from .TreeFragment import TreeFragment
@@ -1724,11 +1724,14 @@ class _ReplaceResultRefNodes(EnvTransform):
             # Since most of the types are known by now this is fairly basic
             self.call_parameters.append(self.orig_node)
             name_decl = Nodes.CNameDeclaratorNode(pos=pos, name=self.name)
-            name_decl.type = self.orig_node.type
+            type = self.orig_node.type
+            if type.is_reference:
+                type = type.ref_base_type
+            name_decl.type = type
             new_arg = Nodes.CArgDeclNode(pos=pos, declarator=name_decl,
                                             base_type=None, default=None, annotation=None)
             new_arg.name = name_decl.name
-            new_arg.type = name_decl.type
+            new_arg.type = type
 
             def_node = self.gen_node.def_node
 
@@ -1798,14 +1801,32 @@ class FixTempExprAcrossClosures(EnvTransform, SkipDeclarations):
         if (node.is_genexp_loop_scope and
                 isinstance(node.temp_expression, (ExprNodes.IndexNode, ExprNodes.DereferenceNode)) and
                 node.temp_expression.type.is_cpp_class):
-            node.temp_expression.type = PyrexTypes.CFakeReferenceType(node.temp_expression.type)
+            type = node.temp_expression.type
+            if type.is_reference:
+                type = type.ref_base_type
+            node.temp_expression.type = PyrexTypes.CFakeReferenceType(type)
             node.lazy_temp.type = node.temp_expression.type  # just refresh all the types
 
         # there a good chance that the subexpression of these nodes gets optimized out
         #  - remove them if that happens
         if not tree_contains(node.subexpression, temp_ref):
             return node.subexpression
+
         self.temp_expr_stack.pop()
+
+        # for genexp_loop_scope we often end up with multiple nested EvalWithTempExprNodes that are used
+        # in the others temp_expressions. In this case drop them out (for both efficiency reasons and
+        # because it sometimes avoids creating C++ temps)
+        if (node.is_genexp_loop_scope and isinstance(node.subexpression, EvalWithTempExprNode) and
+                node.subexpression.is_genexp_loop_scope and
+                tree_contains(node.subexpression.temp_expression, temp_ref) and
+                not tree_contains(node.subexpression.subexpression, temp_ref)):
+            recursively_replace_node(node.subexpression.temp_expression, temp_ref, temp_ref.expression)
+            was_temp = node.is_temp
+            node = node.subexpression
+            self.visitchildren(node)
+            return node
+
         return node
 
     def visit_GeneratorExpressionNode(self, node):
