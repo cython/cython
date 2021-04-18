@@ -48,6 +48,7 @@ from ..Utils import (cached_function, cached_method, path_exists,
 from ..Compiler import Errors
 from ..Compiler.Main import Context
 from ..Compiler.Options import CompilationOptions, default_options
+from ..Compiler.Scanning import FileSourceDescriptor
 
 join_path = cached_function(os.path.join)
 copy_once_if_newer = cached_function(copy_file_to_dir_if_newer)
@@ -534,7 +535,7 @@ class DependencyTree(object):
         for include in self.parse_dependencies(filename)[1]:
             include_path = join_path(os.path.dirname(filename), include)
             if not path_exists(include_path):
-                include_path = self.context.find_include_file(include, None)
+                include_path = self.context.find_include_file(include, (FileSourceDescriptor(filename),))
             if include_path:
                 if '.' + os.path.sep in include_path:
                     include_path = os.path.normpath(include_path)
@@ -588,12 +589,12 @@ class DependencyTree(object):
                     return None   # FIXME: error?
                 module_path.pop(0)
             relative = '.'.join(package_path + module_path)
-            pxd = self.context.find_pxd_file(relative, None)
+            pxd = self.context.find_pxd_file(relative, (FileSourceDescriptor(filename),))
             if pxd:
                 return pxd
         if is_relative:
             return None   # FIXME: error?
-        return self.context.find_pxd_file(module, None)
+        return self.context.find_pxd_file(module, (FileSourceDescriptor(filename),))
 
     @cached_method
     def cimported_files(self, filename):
