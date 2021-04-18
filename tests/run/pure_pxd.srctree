@@ -56,11 +56,15 @@ def func(a, b, c):
     return a + b + c
 
 def sum_generator_expression(a):
+    # GH-3477 - closure variables incorrectly captured in functions transformed to cdef
+    return sum(i for i in range(a))
+
+def run_sum_generator_expression(a):
     """
     >>> sum_generator_expression(5)
     10
     """
-    return sum(i for i in range(a))
+    return sum_generator_expression(a)
 
 
 def test(module):
