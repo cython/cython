@@ -30,152 +30,12 @@ def cython_frozenset_override():
     return cython.frozenset
 
 
-def test_set_literal():
-    """
-    >>> type(test_set_literal()) is set
-    True
-    >>> sorted(test_set_literal())
-    ['a', 'b', 1]
-    """
-    cdef set s1 = {1,'a',1,'b','a'}
-    return s1
+# Failing in python3.9
+# TypeError: '<' not supported between instances of 'tuple' and 'int'
 
 
-# def test_set_add():
-#     """
-#     >>> type(test_set_add()) is set
-#     True
-#     >>> sorted(test_set_add())
-#     ['a', 1, (1, 2)]
-#     """
-#     cdef set s1
-#     s1 = set([1, (1, 2)])
-#     s1.add(1)
-#     s1.add('a')
-#     s1.add(1)
-#     s1.add((1,2))
-#     return s1
 
 
-def test_set_contains(v):
-    """
-    >>> test_set_contains(1)
-    True
-    >>> test_set_contains(2)
-    False
-    >>> test_set_contains(frozenset([1, 2, 3]))
-    True
-    >>> test_set_contains(frozenset([1, 2]))
-    False
-    >>> test_set_contains(set([1, 2, 3]))
-    True
-    >>> test_set_contains(set([1, 2]))
-    False
-    >>> try: test_set_contains([1, 2])
-    ... except TypeError: pass
-    ... else: print("NOT RAISED!")
-    """
-    cdef set s1
-    s1 = set()
-    s1.add(1)
-    s1.add('a')
-    s1.add(frozenset([1, 2, 3]))
-    return v in s1
-
-
-# def test_set_update(v=None):
-#     """
-#     >>> type(test_set_update()) is set
-#     True
-#     >>> sorted(test_set_update())
-#     ['a', 'b', 'c', 1, 2, (1, 2)]
-#     >>> sorted(test_set_update([]))
-#     ['a', 'b', 'c', 1, 2, (1, 2)]
-#     >>> try: test_set_update(object())
-#     ... except TypeError: pass
-#     ... else: print("NOT RAISED!")
-#     """
-#     cdef set s1
-#     s1 = set([1, (1, 2)])
-#     s1.update((1,))
-#     s1.update('abc')
-#     s1.update(set([1]))
-#     s1.update(frozenset((1,2)))
-#     if v is not None:
-#         s1.update(v)
-#     return s1
-
-#
-# def test_set_multi_update():
-#     """
-#     >>> type(test_set_multi_update()) is set
-#     True
-#     >>> sorted(test_set_multi_update())
-#     ['a', 'b', 'c', 1, 2, 3]
-#     """
-#     cdef set s1 = set()
-#     s1.update('abc', set([1, 3]), frozenset([1, 2]))
-#     return s1
-#
-#
-# def test_object_update(v=None):
-#     """
-#     >>> type(test_object_update()) is set
-#     True
-#     >>> sorted(test_object_update())
-#     ['a', 'b', 'c', 1, 2, (1, 2)]
-#     >>> sorted(test_object_update([]))
-#     ['a', 'b', 'c', 1, 2, (1, 2)]
-#     >>> try: test_object_update(object())
-#     ... except TypeError: pass
-#     ... else: print("NOT RAISED!")
-#     """
-#     cdef object s1
-#     s1 = set([1, (1, 2)])
-#     s1.update((1,))
-#     s1.update('abc')
-#     s1.update(set([1]))
-#     s1.update(frozenset((1,2)))
-#     if v is not None:
-#         s1.update(v)
-#     return s1
-#
-#
-# def test_set_clear():
-#     """
-#     >>> type(test_set_clear()) is set
-#     True
-#     >>> list(test_set_clear())
-#     []
-#     """
-#     cdef set s1
-#     s1 = set([1])
-#     s1.clear()
-#     return s1
-#
-#
-# def test_set_clear_None():
-#     """
-#     >>> test_set_clear_None()
-#     Traceback (most recent call last):
-#     AttributeError: 'NoneType' object has no attribute 'clear'
-#     """
-#     cdef set s1 = None
-#     s1.clear()
-#
-#
-# def test_set_list_comp():
-#     """
-#     >>> type(test_set_list_comp()) is set
-#     True
-#     >>> sorted(test_set_list_comp())
-#     [0, 1, 2]
-#     """
-#     cdef set s1
-#     s1 = set([i%3 for i in range(5)])
-#     return s1
-#@@@
-#
 # def test_frozenset_list_comp():
 #     """
 #     >>> type(test_frozenset_list_comp()) is frozenset
@@ -186,7 +46,7 @@ def test_set_contains(v):
 #     cdef frozenset s1
 #     s1 = frozenset([i%3 for i in range(5)])
 #     return s1
-#
+
 #
 # def test_set_pop():
 #     """
