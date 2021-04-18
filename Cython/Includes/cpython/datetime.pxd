@@ -6,22 +6,73 @@ cdef extern from "Python.h":
 
 cdef extern from "datetime.h":
     """
-    #if PY_MAJOR_VERSION < 3 && !defined(PyDateTime_DELTA_GET_DAYS)
-    #define PyDateTime_DELTA_GET_DAYS(o)         (((PyDateTime_Delta*)o)->days)
-    #endif
-    #if PY_MAJOR_VERSION < 3 && !defined(PyDateTime_DELTA_GET_SECONDS)
-    #define PyDateTime_DELTA_GET_SECONDS(o)      (((PyDateTime_Delta*)o)->seconds)
-    #endif
-    #if PY_MAJOR_VERSION < 3 && !defined(PyDateTime_DELTA_GET_MICROSECONDS)
-    #define PyDateTime_DELTA_GET_MICROSECONDS(o)   (((PyDateTime_Delta*)o)->microseconds)
+    #if PY_MAJOR_VERSION < 3
+        #if PY_MINOR_VERSION < 3
+            #ifndef PyDateTime_DELTA_GET_DAYS
+                #define PyDateTime_DELTA_GET_DAYS(o) (((PyDateTime_Delta*)o)->days)
+            #endif
+            #ifndef PyDateTime_DELTA_GET_SECONDS
+                #define PyDateTime_DELTA_GET_SECONDS(o) (((PyDateTime_Delta*)o)->seconds)
+            #endif
+            #ifndef PyDateTime_DELTA_GET_MICROSECONDS
+                #define PyDateTime_DELTA_GET_MICROSECONDS(o) (((PyDateTime_Delta*)o)->microseconds)
+            #endif
+        #endif
+
+        #if PY_MINOR_VERSION < 6
+            #ifndef PyDateTime_FromDateAndTimeAndFold
+                #define PyDateTime_FromDateAndTimeAndFold(year, month, day, hour, minute, second, usecond, fold) \
+                    PyDateTime_FromDateAndTime(year, month, day, hour, minute, second, usecond)
+            #endif
+            #ifndef PyTime_FromTimeAndFold
+                #define PyTime_FromTimeAndFold(hour, minute, second, usecond, fold) \
+                    PyTime_FromTime(hour, minute, second, usecond)
+            #endif
+        #endif
+
+        #if PY_MINOR_VERSION < 7
+            #ifndef PyDateTime_TimeZone_UTC
+                #define PyDateTime_TimeZone_UTC NULL
+            #endif
+            #ifndef PyTimeZone_FromOffset
+                #define PyTimeZone_FromOffset(offset) NULL
+            #endif
+            #ifndef PyTimeZone_FromOffsetAndName
+                #define PyTimeZone_FromOffsetAndName(offset, name) PyTimeZone_FromOffsetAndName(offset, name)
+            #endif
+        #endif
     #endif
     """
 
     ctypedef extern class datetime.date[object PyDateTime_Date]:
-        pass
+        @property
+        cdef inline int year(self):
+            return PyDateTime_GET_YEAR(self)
+
+        @property
+        cdef inline int month(self):
+            return PyDateTime_GET_MONTH(self)
+
+        @property
+        cdef inline int day(self):
+            return PyDateTime_GET_DAY(self)
 
     ctypedef extern class datetime.time[object PyDateTime_Time]:
-        pass
+        @property
+        cdef inline int hour(self):
+            return PyDateTime_TIME_GET_HOUR(self)
+
+        @property
+        cdef inline int minute(self):
+            return PyDateTime_TIME_GET_MINUTE(self)
+
+        @property
+        cdef inline int second(self):
+            return PyDateTime_TIME_GET_SECOND(self)
+
+        @property
+        cdef inline int microsecond(self):
+            return PyDateTime_TIME_GET_MICROSECOND(self)
 
     ctypedef extern class datetime.datetime[object PyDateTime_DateTime]:
         @property
@@ -53,7 +104,17 @@ cdef extern from "datetime.h":
             return PyDateTime_DATE_GET_MICROSECOND(self)
 
     ctypedef extern class datetime.timedelta[object PyDateTime_Delta]:
-        pass
+        @property
+        cdef inline int day(self):
+            return PyDateTime_DELTA_GET_DAYS(self)
+
+        @property
+        cdef inline int second(self):
+            return PyDateTime_DELTA_GET_SECONDS(self)
+
+        @property
+        cdef inline int microsecond(self):
+            return PyDateTime_DELTA_GET_MICROSECONDS(self)
 
     ctypedef extern class datetime.tzinfo[object PyDateTime_TZInfo]:
         pass
@@ -89,9 +150,22 @@ cdef extern from "datetime.h":
         object (*Time_FromTime)(int, int, int, int, object, PyTypeObject*)
         object (*Delta_FromDelta)(int, int, int, int, PyTypeObject*)
 
+        # We cannot use the following because we still need to compile on previous versions,
+        # instead we use datetime.h's macros that we can do some C macro magic on top of.
+
+        # constructors
+        # object (*TimeZone_FromTimeZone)(PyObject *offset, PyObject *name)
+
+        # singletons
+        # PyObject *TimeZone_UTC
+
         # constructors for the DB API
-        object (*DateTime_FromTimestamp)(object, object, object)
-        object (*Date_FromTimestamp)(object, object)
+        # object (*DateTime_FromTimestamp)(PyTypeObject*, object, PyObject*)
+        # object (*Date_FromTimestamp)(PyTypeObject*, object)
+
+        # PEP 495 constructors
+        # object (*DateTime_FromDateAndTimeAndFold)(int, int, int, int, int, int, int, object, int, PyTypeObject*)
+        # object (*Time_FromTimeAndFold)(int, int, int ,int, object, int, PyTypeObject*)
 
     # Check type of the object.
     bint PyDate_Check(object op)
@@ -119,20 +193,40 @@ cdef extern from "datetime.h":
     int PyDateTime_DATE_GET_MINUTE(object o)
     int PyDateTime_DATE_GET_SECOND(object o)
     int PyDateTime_DATE_GET_MICROSECOND(object o)
+    int PyDateTime_DATE_GET_FOLD(object o)
+    object PyDateTime_DATE_GET_TZINFO(object o)
 
     # Getters for time (C macros).
     int PyDateTime_TIME_GET_HOUR(object o)
     int PyDateTime_TIME_GET_MINUTE(object o)
     int PyDateTime_TIME_GET_SECOND(object o)
     int PyDateTime_TIME_GET_MICROSECOND(object o)
+    int PyDateTime_TIME_GET_FOLD(object o)
+    object PyDateTime_TIME_GET_TZINFO(object o)
 
     # Getters for timedelta (C macros).
     int PyDateTime_DELTA_GET_DAYS(object o)
     int PyDateTime_DELTA_GET_SECONDS(object o)
     int PyDateTime_DELTA_GET_MICROSECONDS(object o)
 
+    # Constructors
+    object PyDateTime_FromDateAndTimeAndFold(
+        int year, int month, int day, int hour, int min, int sec, int usec, int fold
+    )
+    object PyTime_FromTimeAndFold(int hour, int minute, int second, int usecond, int fold)
+
+    # We don't need this first one
+    # object PyTimeZone_FromOffset(int offset)
+    object PyTimeZone_FromOffsetAndName(int offset, str name)
+
+    # Constructors for the DB API
+    object PyDateTime_FromTimeStamp(object args)
+    object PyDate_FromTimeStamp(object args)
+
     # PyDateTime CAPI object.
     PyDateTime_CAPI *PyDateTimeAPI
+
+    PyObject* PyDateTime_TimeZone_UTC
 
     void PyDateTime_IMPORT()
 
@@ -161,10 +255,33 @@ cdef inline object datetime_new(int year, int month, int day, int hour, int minu
 cdef inline object timedelta_new(int days, int seconds, int useconds):
     return PyDateTimeAPI.Delta_FromDelta(days, seconds, useconds, 1, PyDateTimeAPI.DeltaType)
 
+# Create datetime object using PEP 495 constructor.
+cdef inline object datetime_and_fold_new(int year, int month, int day, int hour, int minute, int second, int microsecond, int fold):
+    return PyDateTime_FromDateAndTimeAndFold(year, month, day, hour, minute, second, microsecond, fold)
+
+# Create time object using PEP 495 constructor.
+cdef inline object time_and_fold_new(int hour, int minute, int second, int usecond, int fold):
+    return PyTime_FromTimeAndFold(hour, minute, second, usecond, fold)
+
+cdef inline object timezone_new(int offset, str name=''):
+    return PyTimeZone_FromOffsetAndName(offset, name)
+
+# Create datetime object using DB API constructor.
+cdef inline object datetime_from_timestamp(int timestamp, object tz):
+    return PyDateTime_FromTimeStamp((timestamp, tz) if tz is not None else (timestamp,))
+
+# Create date object using DB API constructor.
+cdef inline object date_from_timestamp(int timestamp):
+    return PyDate_FromTimeStamp((timestamp,))
+
 # More recognizable getters for date/time/datetime/timedelta.
 # There are no setters because datetime.h hasn't them.
 # This is because of immutable nature of these objects by design.
 # If you would change time/date/datetime/timedelta object you need to recreate.
+
+# Get UTC singleton
+cdef inline object get_utc():
+    return <object>PyDateTime_TimeZone_UTC
 
 # Get tzinfo of time
 cdef inline object time_tzinfo(object o):
