@@ -748,10 +748,14 @@ bad:
 /////////////// MergeVTables.proto ///////////////
 //@requires: GetVTable
 
+// TODO: find a way to make this work with the Limited API!
+#if !CYTHON_COMPILING_IN_LIMITED_API
 static int __Pyx_MergeVtables(PyTypeObject *type); /*proto*/
+#endif
 
 /////////////// MergeVTables ///////////////
 
+#if !CYTHON_COMPILING_IN_LIMITED_API
 static int __Pyx_MergeVtables(PyTypeObject *type) {
     int i;
     void** base_vtables;
@@ -808,6 +812,7 @@ bad:
     free(base_vtables);
     return -1;
 }
+#endif
 
 
 /////////////// ImportNumPyArray.proto ///////////////
