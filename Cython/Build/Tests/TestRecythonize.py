@@ -16,194 +16,174 @@ class TestRecythonize(CythonTest):
 
     def setUp(self):
         CythonTest.setUp(self)
-
-    def test_recythonize_pyx_on_pxd_change(self):
-        temp_dir = (
+        self.temp_dir = (
             tempfile.mkdtemp(
                 prefix='recythonize-test',
                 dir='TEST_TMP' if os.path.isdir('TEST_TMP') else None
             )
         )
-        try:
-            src_dir = tempfile.mkdtemp(prefix='src', dir=temp_dir)
 
-            a_pxd = os.path.join(src_dir, 'a.pxd')
-            a_pyx = os.path.join(src_dir, 'a.pyx')
-            a_c = os.path.join(src_dir, 'a.c')
-            dep_tree = Cython.Build.Dependencies.create_dependency_tree()
+    def tearDown(self):
+        CythonTest.tearDown(self)
+        shutil.rmtree(self.temp_dir)
 
-            with open(a_pxd, 'w') as f:
-                f.write('cdef int value\n')
+    def test_recythonize_pyx_on_pxd_change(self):
 
-            with open(a_pyx, 'w') as f:
-                f.write('value = 1\n')
+        src_dir = tempfile.mkdtemp(prefix='src', dir=self.temp_dir)
 
+        a_pxd = os.path.join(src_dir, 'a.pxd')
+        a_pyx = os.path.join(src_dir, 'a.pyx')
+        a_c = os.path.join(src_dir, 'a.c')
+        dep_tree = Cython.Build.Dependencies.create_dependency_tree()
 
-            # The number of dependencies should be 2: "a.pxd" and "a.pyx"
-            self.assertEqual(2, len(dep_tree.all_dependencies(a_pyx)))
+        with open(a_pxd, 'w') as f:
+            f.write('cdef int value\n')
 
-            # Cythonize to create a.c
-            fresh_cythonize(a_pyx)
-
-            with open(a_c) as f:
-                a_c_contents1 = f.read()
-
-            with open(a_pxd, 'w') as f:
-                f.write('cdef double value\n')
-
-            fresh_cythonize(a_pyx)
-
-            with open(a_c) as f:
-                a_c_contents2 = f.read()
+        with open(a_pyx, 'w') as f:
+            f.write('value = 1\n')
 
 
-            self.assertNotEqual(a_c_contents1, a_c_contents2, 'C file not changed!')
-        finally:
-            shutil.rmtree(temp_dir)
+        # The number of dependencies should be 2: "a.pxd" and "a.pyx"
+        self.assertEqual(2, len(dep_tree.all_dependencies(a_pyx)))
+
+        # Cythonize to create a.c
+        fresh_cythonize(a_pyx)
+
+        with open(a_c) as f:
+            a_c_contents1 = f.read()
+
+        with open(a_pxd, 'w') as f:
+            f.write('cdef double value\n')
+
+        fresh_cythonize(a_pyx)
+
+        with open(a_c) as f:
+            a_c_contents2 = f.read()
+
+
+        self.assertNotEqual(a_c_contents1, a_c_contents2, 'C file not changed!')
+
 
 
     def test_recythonize_py_on_pxd_change(self):
-        temp_dir = (
-            tempfile.mkdtemp(
-                prefix='recythonize-test',
-                dir='TEST_TMP' if os.path.isdir('TEST_TMP') else None
-            )
-        )
-        try:
-            src_dir = tempfile.mkdtemp(prefix='src', dir=temp_dir)
 
-            a_pxd = os.path.join(src_dir, 'a.pxd')
-            a_py = os.path.join(src_dir, 'a.py')
-            a_c = os.path.join(src_dir, 'a.c')
-            dep_tree = Cython.Build.Dependencies.create_dependency_tree()
+        src_dir = tempfile.mkdtemp(prefix='src', dir=self.temp_dir)
 
-            with open(a_pxd, 'w') as f:
-                f.write('cdef int value\n')
+        a_pxd = os.path.join(src_dir, 'a.pxd')
+        a_py = os.path.join(src_dir, 'a.py')
+        a_c = os.path.join(src_dir, 'a.c')
+        dep_tree = Cython.Build.Dependencies.create_dependency_tree()
 
-            with open(a_py, 'w') as f:
-                f.write('value = 1\n')
+        with open(a_pxd, 'w') as f:
+            f.write('cdef int value\n')
+
+        with open(a_py, 'w') as f:
+            f.write('value = 1\n')
 
 
-            # The number of dependencies should be 2: "a.pxd" and "a.py"
-            self.assertEqual(2, len(dep_tree.all_dependencies(a_py)))
+        # The number of dependencies should be 2: "a.pxd" and "a.py"
+        self.assertEqual(2, len(dep_tree.all_dependencies(a_py)))
 
-            # Cythonize to create a.c
-            fresh_cythonize(a_py)
+        # Cythonize to create a.c
+        fresh_cythonize(a_py)
 
-            with open(a_c) as f:
-                a_c_contents1 = f.read()
+        with open(a_c) as f:
+            a_c_contents1 = f.read()
 
-            with open(a_pxd, 'w') as f:
-                f.write('cdef double value\n')
+        with open(a_pxd, 'w') as f:
+            f.write('cdef double value\n')
 
-            fresh_cythonize(a_py)
+        fresh_cythonize(a_py)
 
-            with open(a_c) as f:
-                a_c_contents2 = f.read()
+        with open(a_c) as f:
+            a_c_contents2 = f.read()
 
 
-            self.assertNotEqual(a_c_contents1, a_c_contents2, 'C file not changed!')
-        finally:
-            shutil.rmtree(temp_dir)
+        self.assertNotEqual(a_c_contents1, a_c_contents2, 'C file not changed!')
+
 
     def test_recythonize_pyx_on_dep_pxd_change(self):
-        temp_dir = (
-            tempfile.mkdtemp(
-                prefix='recythonize-test',
-                dir='TEST_TMP' if os.path.isdir('TEST_TMP') else None
-            )
-        )
-        try:
-            src_dir = tempfile.mkdtemp(prefix='src', dir=temp_dir)
+        src_dir = tempfile.mkdtemp(prefix='src', dir=self.temp_dir)
 
-            a_pxd = os.path.join(src_dir, 'a.pxd')
-            a_pyx = os.path.join(src_dir, 'a.pyx')
-            b_pyx = os.path.join(src_dir, 'b.pyx')
-            b_c = os.path.join(src_dir, 'b.c')
-            dep_tree = Cython.Build.Dependencies.create_dependency_tree()
+        a_pxd = os.path.join(src_dir, 'a.pxd')
+        a_pyx = os.path.join(src_dir, 'a.pyx')
+        b_pyx = os.path.join(src_dir, 'b.pyx')
+        b_c = os.path.join(src_dir, 'b.c')
+        dep_tree = Cython.Build.Dependencies.create_dependency_tree()
 
-            with open(a_pxd, 'w') as f:
-                f.write('cdef int value\n')
+        with open(a_pxd, 'w') as f:
+            f.write('cdef int value\n')
 
-            with open(a_pyx, 'w') as f:
-                f.write('value = 1\n')
+        with open(a_pyx, 'w') as f:
+            f.write('value = 1\n')
 
-            with open(b_pyx, 'w') as f:
-                f.write('cimport a\n' + 'a.value = 2\n')
+        with open(b_pyx, 'w') as f:
+            f.write('cimport a\n' + 'a.value = 2\n')
 
 
-            # The number of dependencies should be 2: "a.pxd" and "b.pyx"
-            self.assertEqual(2, len(dep_tree.all_dependencies(b_pyx)))
+        # The number of dependencies should be 2: "a.pxd" and "b.pyx"
+        self.assertEqual(2, len(dep_tree.all_dependencies(b_pyx)))
 
-            # Cythonize to create b.c
-            fresh_cythonize([a_pyx, b_pyx])
+        # Cythonize to create b.c
+        fresh_cythonize([a_pyx, b_pyx])
 
-            with open(b_c) as f:
-                b_c_contents1 = f.read()
+        with open(b_c) as f:
+            b_c_contents1 = f.read()
 
-            with open(a_pxd, 'w') as f:
-                f.write('cdef double value\n')
+        with open(a_pxd, 'w') as f:
+            f.write('cdef double value\n')
 
-            fresh_cythonize([a_pyx, b_pyx])
+        fresh_cythonize([a_pyx, b_pyx])
 
-            with open(b_c) as f:
-                b_c_contents2 = f.read()
+        with open(b_c) as f:
+            b_c_contents2 = f.read()
 
 
-            self.assertNotEqual(b_c_contents1, b_c_contents2, 'C file not changed!')
-        finally:
-            shutil.rmtree(temp_dir)
+        self.assertNotEqual(b_c_contents1, b_c_contents2, 'C file not changed!')
+
 
 
     def test_recythonize_py_on_dep_pxd_change(self):
-        temp_dir = (
-            tempfile.mkdtemp(
-                prefix='recythonize-test',
-                dir='TEST_TMP' if os.path.isdir('TEST_TMP') else None
-            )
-        )
-        try:
-            src_dir = tempfile.mkdtemp(prefix='src', dir=temp_dir)
 
-            a_pxd = os.path.join(src_dir, 'a.pxd')
-            a_pyx = os.path.join(src_dir, 'a.pyx')
-            b_pxd = os.path.join(src_dir, 'b.pxd')
-            b_py = os.path.join(src_dir, 'b.py')
-            b_c = os.path.join(src_dir, 'b.c')
-            dep_tree = Cython.Build.Dependencies.create_dependency_tree()
+        src_dir = tempfile.mkdtemp(prefix='src', dir=self.temp_dir)
 
-            with open(a_pxd, 'w') as f:
-                f.write('cdef int value\n')
+        a_pxd = os.path.join(src_dir, 'a.pxd')
+        a_pyx = os.path.join(src_dir, 'a.pyx')
+        b_pxd = os.path.join(src_dir, 'b.pxd')
+        b_py = os.path.join(src_dir, 'b.py')
+        b_c = os.path.join(src_dir, 'b.c')
+        dep_tree = Cython.Build.Dependencies.create_dependency_tree()
 
-            with open(a_pyx, 'w') as f:
-                f.write('value = 1\n')
+        with open(a_pxd, 'w') as f:
+            f.write('cdef int value\n')
 
-            with open(b_pxd, 'w') as f:
-                f.write('cimport a\n')
+        with open(a_pyx, 'w') as f:
+            f.write('value = 1\n')
 
-            with open(b_py, 'w') as f:
-                f.write('a.value = 2\n')
+        with open(b_pxd, 'w') as f:
+            f.write('cimport a\n')
+
+        with open(b_py, 'w') as f:
+            f.write('a.value = 2\n')
 
 
-            # The number of dependencies should be 3:
-            # "a.pxd", "b.pxd" and "b.py"
-            self.assertEqual(3, len(dep_tree.all_dependencies(b_py)))
+        # The number of dependencies should be 3:
+        # "a.pxd", "b.pxd" and "b.py"
+        self.assertEqual(3, len(dep_tree.all_dependencies(b_py)))
 
-            # Cythonize to create b.c
-            fresh_cythonize([a_pyx, b_py])
+        # Cythonize to create b.c
+        fresh_cythonize([a_pyx, b_py])
 
-            with open(b_c) as f:
-                b_c_contents1 = f.read()
+        with open(b_c) as f:
+            b_c_contents1 = f.read()
 
-            with open(a_pxd, 'w') as f:
-                f.write('cdef double value\n')
+        with open(a_pxd, 'w') as f:
+            f.write('cdef double value\n')
 
-            fresh_cythonize([a_pyx, b_py])
+        fresh_cythonize([a_pyx, b_py])
 
-            with open(b_c) as f:
-                b_c_contents2 = f.read()
+        with open(b_c) as f:
+            b_c_contents2 = f.read()
 
 
-            self.assertNotEqual(b_c_contents1, b_c_contents2, 'C file not changed!')
-        finally:
-            shutil.rmtree(temp_dir)
+        self.assertNotEqual(b_c_contents1, b_c_contents2, 'C file not changed!')
