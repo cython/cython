@@ -1,4 +1,4 @@
-# ticket: 158
+# ticket: t158
 # mode: error
 
 def mult_decl_test():

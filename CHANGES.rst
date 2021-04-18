@@ -359,6 +359,8 @@ Features added
 * Preliminary support for the CPython's ``Py_LIMITED_API`` (stable ABI) is
   available by setting the  ``CYTHON_LIMITED_API`` C macro.  Note that the
   support is currently in an early stage and many features do not yet work.
+  You currently still have to define ``Py_LIMITED_API`` externally in order
+  to restrict the API usage.  This will change when the feature stabilises.
   Patches by Eddie Elizondo and David Woods.  (Github issues :issue:`3223`,
   :issue:`3311`, :issue:`3501`)
 
@@ -575,14 +577,25 @@ Other changes
 .. _`PEP-563`: https://www.python.org/dev/peps/pep-0563
 .. _`PEP-479`: https://www.python.org/dev/peps/pep-0479
 
-0.29.23 (2021-??-??)
+
+0.29.23 (2021-04-14)
 ====================
 
 Bugs fixed
 ----------
 
 * Some problems with Python 3.10 were resolved.
-  Patches by Victor Stinner and David Woods.  (Github issues #3919, #4046)
+  Patches by Victor Stinner and David Woods.  (Github issues #4046, #4100)
+
+* An incorrect "optimisation" was removed that allowed changes to a keyword
+  dict to leak into keyword arguments passed into a function.
+  Patch by Peng Weikang.  (Github issue #3227)
+
+* Multiplied str constants could end up as bytes constants with language_level=2.
+  Patch by Alphadelta14 and David Woods.  (Github issue #3951)
+
+* ``PY_SSIZE_T_CLEAN`` does not get defined any more if it is already defined.
+  Patch by Andrew Jones.  (Github issue #4104)
 
 
 0.29.22 (2021-02-20)

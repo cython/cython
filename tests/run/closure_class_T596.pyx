@@ -1,6 +1,6 @@
 # mode: run
 # tag: closures
-# ticket: 596
+# ticket: t596
 
 def simple(a, b):
     """

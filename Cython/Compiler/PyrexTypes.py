@@ -1339,14 +1339,14 @@ class PyObjectType(PyrexType):
         return cname
 
 
-builtin_types_that_cannot_create_refcycles = set([
+builtin_types_that_cannot_create_refcycles = frozenset({
     'object', 'bool', 'int', 'long', 'float', 'complex',
-    'bytearray', 'bytes', 'unicode', 'str', 'basestring'
-])
+    'bytearray', 'bytes', 'unicode', 'str', 'basestring',
+})
 
-builtin_types_with_trashcan = set([
+builtin_types_with_trashcan = frozenset({
     'dict', 'list', 'set', 'frozenset', 'tuple', 'type',
-])
+})
 
 
 class BuiltinObjectType(PyObjectType):
@@ -2766,7 +2766,7 @@ class CReferenceBaseType(BaseType):
         self.ref_base_type = base_type
 
     def __repr__(self):
-        return "<%s %s>" % repr(self.__class__.__name__, self.ref_base_type)
+        return "<%r %s>" % (self.__class__.__name__, self.ref_base_type)
 
     def specialize(self, values):
         base_type = self.ref_base_type.specialize(values)

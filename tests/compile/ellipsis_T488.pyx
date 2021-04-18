@@ -1,4 +1,4 @@
-# ticket: 488
+# ticket: t488
 # mode: compile
 #from ... import foo
 
