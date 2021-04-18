@@ -44,7 +44,7 @@ class TestRecythonize(CythonTest):
             self.assertEqual(2, len(dep_tree.all_dependencies(a_pyx)))
 
             # Cythonize to create a.c
-            fresh_cythonize(a_pyx, include_path = [src_dir])
+            fresh_cythonize(a_pyx)
 
             with open(a_c) as f:
                 a_c_contents1 = f.read()
@@ -52,7 +52,7 @@ class TestRecythonize(CythonTest):
             with open(a_pxd, 'w') as f:
                 f.write('cdef double value\n')
 
-            fresh_cythonize(a_pyx, include_path = [src_dir])
+            fresh_cythonize(a_pyx)
 
             with open(a_c) as f:
                 a_c_contents2 = f.read()
@@ -90,7 +90,7 @@ class TestRecythonize(CythonTest):
             self.assertEqual(2, len(dep_tree.all_dependencies(a_py)))
 
             # Cythonize to create a.c
-            fresh_cythonize(a_py, include_path = [src_dir])
+            fresh_cythonize(a_py)
 
             with open(a_c) as f:
                 a_c_contents1 = f.read()
@@ -98,7 +98,7 @@ class TestRecythonize(CythonTest):
             with open(a_pxd, 'w') as f:
                 f.write('cdef double value\n')
 
-            fresh_cythonize(a_py, include_path = [src_dir])
+            fresh_cythonize(a_py)
 
             with open(a_c) as f:
                 a_c_contents2 = f.read()
