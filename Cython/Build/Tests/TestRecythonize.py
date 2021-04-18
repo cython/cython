@@ -27,7 +27,6 @@ class TestRecythonize(CythonTest):
         try:
             src_dir = tempfile.mkdtemp(prefix='src', dir=temp_dir)
 
-            content1 = 'value = 1\n'
             a_pxd = os.path.join(src_dir, 'a.pxd')
             a_pyx = os.path.join(src_dir, 'a.pyx')
             a_c = os.path.join(src_dir, 'a.c')
@@ -73,7 +72,6 @@ class TestRecythonize(CythonTest):
         try:
             src_dir = tempfile.mkdtemp(prefix='src', dir=temp_dir)
 
-            content1 = 'value = 1\n'
             a_pxd = os.path.join(src_dir, 'a.pxd')
             a_py = os.path.join(src_dir, 'a.py')
             a_c = os.path.join(src_dir, 'a.c')
