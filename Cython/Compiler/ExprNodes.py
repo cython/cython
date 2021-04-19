@@ -7014,8 +7014,8 @@ class AttributeNode(ExprNode):
                     else:
                         ubcm_entry = self._create_ubcm_entry(entry, env)
                         ubcm_entry.overloaded_alternatives = [
-                            self._create_ubcm_entry(overloaded_alternative, env) for overloaded_alternative in
-                            entry.overloaded_alternatives
+                            self._create_ubcm_entry(overloaded_alternative, env)
+                            for overloaded_alternative in entry.overloaded_alternatives
                         ]
                     return self.as_name_node(env, ubcm_entry, target=False)
             elif type.is_enum or type.is_cpp_enum:
