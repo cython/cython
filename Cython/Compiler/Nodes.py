@@ -5467,11 +5467,12 @@ class CClassDefNode(ClassDefNode):
                     typeptr_cname,
                     type.vtabptr_cname,
                 ))
-                if bases_tuple_cname:
-                    code.globalstate.use_utility_code(
-                        UtilityCode.load_cached('MergeVTables', 'ImportExport.c'))
-                    code.put_error_if_neg(entry.pos, "__Pyx_MergeVtables(%s)" % typeptr_cname)
-
+                # TODO: find a way to make this work with the Limited API!
+                code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached('MergeVTables', 'ImportExport.c'))
+                code.put_error_if_neg(entry.pos, "__Pyx_MergeVtables(%s)" % typeptr_cname)
+                code.putln("#endif")
             if not type.scope.is_internal and not type.scope.directives.get('internal'):
                 # scope.is_internal is set for types defined by
                 # Cython (such as closures), the 'internal'
