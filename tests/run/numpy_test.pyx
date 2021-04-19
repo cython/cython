@@ -16,6 +16,11 @@ def testcase(f):
     # but is a useful indicator of what functions are designed as tests
     return f
 
+def testcase_not_windows(f):
+    import sys
+    if not sys.platform.startswith('win'):
+        return f
+
 if little_endian():
     my_endian = '<'
     other_endian = '>'
@@ -783,6 +788,7 @@ cdef fused confusing_fused_typedef:
     unsigned char
     signed char
 
+@testcase_not_windows  # on Windows int and long are the same size so it's impossible for this test to distinguish between them
 def test_dispatch_external_typedef(np.ndarray[confusing_fused_typedef] a):
     """
     >>> test_dispatch_external_typedef(np.arange(-5, 5, dtype=np.long))
