@@ -7012,35 +7012,10 @@ class AttributeNode(ExprNode):
                             return None
                         ubcm_entry = entry
                     else:
-                        # Create a temporary entry describing the C method
-                        # as an ordinary function.
-                        def create_ubcm_entry(entry):
-                            if entry.func_cname and not hasattr(entry.type, 'op_arg_struct'):
-                                cname = entry.func_cname
-                                if entry.type.is_static_method or (
-                                        env.parent_scope and env.parent_scope.is_cpp_class_scope):
-                                    ctype = entry.type
-                                elif type.is_cpp_class:
-                                    error(self.pos, "%s not a static member of %s" % (entry.name, type))
-                                    ctype = PyrexTypes.error_type
-                                else:
-                                    # Fix self type.
-                                    ctype = copy.copy(entry.type)
-                                    ctype.args = ctype.args[:]
-                                    ctype.args[0] = PyrexTypes.CFuncTypeArg('self', type, 'self', None)
-                            else:
-                                cname = "%s->%s" % (type.vtabptr_cname, entry.cname)
-                                ctype = entry.type
-                            ubcm_entry = Symtab.Entry(entry.name, cname, ctype)
-                            ubcm_entry.is_cfunction = 1
-                            ubcm_entry.func_cname = entry.func_cname
-                            ubcm_entry.is_unbound_cmethod = 1
-                            ubcm_entry.scope = entry.scope
-                            return ubcm_entry
-                        ubcm_entry = create_ubcm_entry(entry)
+                        ubcm_entry = self._create_ubcm_entry(entry, env)
                         if entry.overloaded_alternatives:
                             ubcm_entry.overloaded_alternatives = [
-                                create_ubcm_entry(overloaded_alternative) for overloaded_alternative in
+                                self._create_ubcm_entry(overloaded_alternative, env) for overloaded_alternative in
                                 entry.overloaded_alternatives
                             ]
                     return self.as_name_node(env, ubcm_entry, target=False)
@@ -7054,6 +7029,32 @@ class AttributeNode(ExprNode):
                 else:
                     error(self.pos, "%s not a known value of %s" % (self.attribute, type))
         return None
+
+    def _create_ubcm_entry(self, entry, env):
+        # Create a temporary entry describing the unbound C method in `entry`
+        # as an ordinary function.
+        if entry.func_cname and not hasattr(entry.type, 'op_arg_struct'):
+            cname = entry.func_cname
+            if entry.type.is_static_method or (
+                    env.parent_scope and env.parent_scope.is_cpp_class_scope):
+                ctype = entry.type
+            elif type.is_cpp_class:
+                error(self.pos, "%s not a static member of %s" % (entry.name, type))
+                ctype = PyrexTypes.error_type
+            else:
+                # Fix self type.
+                ctype = copy.copy(entry.type)
+                ctype.args = ctype.args[:]
+                ctype.args[0] = PyrexTypes.CFuncTypeArg('self', type, 'self', None)
+        else:
+            cname = "%s->%s" % (type.vtabptr_cname, entry.cname)
+            ctype = entry.type
+        ubcm_entry = Symtab.Entry(entry.name, cname, ctype)
+        ubcm_entry.is_cfunction = 1
+        ubcm_entry.func_cname = entry.func_cname
+        ubcm_entry.is_unbound_cmethod = 1
+        ubcm_entry.scope = entry.scope
+        return ubcm_entry
 
     def analyse_as_type(self, env):
         module_scope = self.obj.analyse_as_module(env)
