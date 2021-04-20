@@ -2848,7 +2848,6 @@ class CFuncType(CType):
     cached_specialized_types = None
     from_fused = False
     is_const_method = False
-    op_arg_struct = None
 
     subtypes = ['return_type', 'args']
 
@@ -2871,6 +2870,7 @@ class CFuncType(CType):
         self.is_static_method = is_static_method
         self.templates = templates
         self.is_strict_signature = is_strict_signature
+        self.op_arg_struct = None
 
     def __repr__(self):
         arg_reprs = list(map(repr, self.args))
