@@ -8,6 +8,7 @@ static int __Pyx_PyType_Ready(PyTypeObject *t);/*proto*/
 #endif
 
 /////////////// PyType_Ready ///////////////
+//@requires: ObjectHandling.c::PyObjectCallMethod0
 
 #if CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_LIMITED_API
 // Wrapper around PyType_Ready() with some runtime checks and fixes
@@ -73,9 +74,14 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
         // For details, see https://github.com/cython/cython/issues/3603
         PyObject *ret, *py_status;
         int gc_was_enabled;
-        PyObject *gc = PyImport_Import(PYUNICODE("gc"));
+        PyObject *gc = NULL;
+        #if !CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM+0 >= 0x070304
+        // https://foss.heptapod.net/pypy/pypy/-/issues/3385
+        gc = PyImport_GetModule(PYUNICODE("gc"));
+        #endif
+        if (unlikely(!gc)) gc = PyImport_Import(PYUNICODE("gc"));
         if (unlikely(!gc)) return -1;
-        py_status = PyObject_CallMethodObjArgs(gc, PYUNICODE("isenabled"), NULL);
+        py_status = __Pyx_PyObject_CallMethod0(gc, PYUNICODE("isenabled"));
         if (unlikely(!py_status)) {
             Py_DECREF(gc);
             return -1;
@@ -83,7 +89,7 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
         gc_was_enabled = __Pyx_PyObject_IsTrue(py_status);
         Py_DECREF(py_status);
         if (gc_was_enabled > 0) {
-            ret = PyObject_CallMethodObjArgs(gc, PYUNICODE("disable"), NULL);
+            ret = __Pyx_PyObject_CallMethod0(gc, PYUNICODE("disable"));
             if (unlikely(!ret)) {
                 Py_DECREF(gc);
                 return -1;
@@ -112,7 +118,7 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
         if (gc_was_enabled) {
             PyObject *t, *v, *tb;
             PyErr_Fetch(&t, &v, &tb);
-            ret = PyObject_CallMethodObjArgs(gc, PYUNICODE("enable"), NULL);
+            ret = __Pyx_PyObject_CallMethod0(gc, PYUNICODE("enable"));
             if (likely(ret || r == -1)) {
                 Py_XDECREF(ret);
                 // do not overwrite exceptions raised by PyType_Ready() above
