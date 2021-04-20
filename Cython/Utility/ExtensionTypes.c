@@ -151,7 +151,6 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
 
 /////////////// PyType_Ready.proto ///////////////
 
-=======
 // FIXME: is this really suitable for CYTHON_COMPILING_IN_LIMITED_API?
 #if CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_LIMITED_API
 #if !CYTHON_USE_TYPE_SPECS
