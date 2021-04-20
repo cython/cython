@@ -55,7 +55,7 @@ __doc__ = u"""
     AttributeError: 'special_methods_T561.GetAttribute' object has no attribute '__getattr__'
     >>> g11 = object.__getattribute__(GetAttribute(), '__getattribute__')
     >>> g11('attr')
-    SetDelAttr delattr 'foo'
+    GetAttribute getattribute 'attr'
     >>> # If you define either set or delete, you get wrapper objects
     >>> # for both methods.  (This behavior is unchanged by #561.)
     >>> s_set = Set().__set__
@@ -101,7 +101,6 @@ cdef extern from *:
 
 if not CYTHON_USE_TYPE_SPECS or sys.version_info >= (3,8):
     __doc__ += u"""
-    GetAttribute getattribute 'attr'
     >>> # If you define either setattr or delattr, you get wrapper objects
     >>> # for both methods.  (This behavior is unchanged by #561.)
     >>> sa_setattr = SetAttr().__setattr__
@@ -125,6 +124,7 @@ if not CYTHON_USE_TYPE_SPECS or sys.version_info >= (3,8):
     SetDelAttr setattr 'foo' 'bar'
     >>> sda_delattr = SetDelAttr().__delattr__
     >>> sda_delattr('foo')
+    SetDelAttr delattr 'foo'
 """
 
 
