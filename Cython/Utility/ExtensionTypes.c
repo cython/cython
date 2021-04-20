@@ -75,7 +75,7 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
         PyObject *ret, *py_status;
         int gc_was_enabled;
         PyObject *gc = NULL;
-        #if !CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM+0 >= 0x070304
+        #if PY_VERSION_HEX >= 0x030700a1 && (!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM+0 >= 0x07030400)
         // https://foss.heptapod.net/pypy/pypy/-/issues/3385
         gc = PyImport_GetModule(PYUNICODE("gc"));
         #endif
