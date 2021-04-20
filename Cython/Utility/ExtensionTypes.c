@@ -108,6 +108,9 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
         // Other than this check, the Py_TPFLAGS_HEAPTYPE flag is unused
         // in PyType_Ready().
         t->tp_flags |= Py_TPFLAGS_HEAPTYPE;
+#else
+        // avoid C warning about unused helper function
+        (void)__Pyx_PyObject_CallMethod0;
 #endif
 
     r = PyType_Ready(t);
