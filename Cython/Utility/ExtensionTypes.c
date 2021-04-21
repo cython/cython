@@ -157,7 +157,8 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
 static int __Pyx_PyType_Ready(PyTypeObject *t);/*proto*/
 #endif
 #else
-#define __Pyx_PyType_Ready(t) PyType_Ready(t)
+// avoid C warning about unused helper function
+#define __Pyx_PyType_Ready(t) ((void)__Pyx_PyObject_CallMethod0, (void)__Pyx_validate_bases_tuple,  PyType_Ready(t))
 #endif
 
 /////////////// PyType_Ready ///////////////
