@@ -9382,7 +9382,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                             nonliteral_other.append(arg)
                     else:
                         arg.default = DefaultLiteralArgNode(arg.pos, arg.default)
-                if arg.type.is_pyobject or arg.type.is_numeric:
+                if arg.default.type and arg.default.type.can_coerce_to_pyobject(env):
                     if arg.kw_only:
                         default_kwargs.append(arg)
                     else:
