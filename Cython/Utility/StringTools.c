@@ -118,14 +118,25 @@ static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(PyObject* unicode, Py_UCS4 ch
 
 //////////////////// PyUCS4InUnicode ////////////////////
 
-#if PY_VERSION_HEX < 0x03090000
-#if Py_UNICODE_SIZE == 2
-static int __Pyx_PyUnicodeBufferContainsUCS4_SP(Py_UNICODE* buffer, Py_ssize_t length, Py_UCS4 character) {
+#if PY_VERSION_HEX < 0x03090000 || (defined(PyUnicode_WCHAR_KIND) && defined(PyUnicode_AS_UNICODE))
+
+#ifdef PyUnicode_AS_UNICODE
+#define __Pyx_UNICODE Py_UNICODE
+#define __Pyx_PyUnicode_AS_UNICODE(op) PyUnicode_AS_UNICODE(op)
+#define __Pyx_PyUnicode_GET_SIZE(op) PyUnicode_GET_SIZE(op)
+#else
+#define __Pyx_UNICODE wchar_t
+#define __Pyx_PyUnicode_AS_UNICODE(op) (((PyASCIIObject *)(op))->wstr)
+#define __Pyx_PyUnicode_GET_SIZE(op) PyUnicode_WSTR_LENGTH(op)
+#endif
+
+#if !defined(Py_UNICODE_SIZE) || Py_UNICODE_SIZE == 2
+static int __Pyx_PyUnicodeBufferContainsUCS4_SP(__Pyx_UNICODE* buffer, Py_ssize_t length, Py_UCS4 character) {
     /* handle surrogate pairs for Py_UNICODE buffers in 16bit Unicode builds */
-    Py_UNICODE high_val, low_val;
-    Py_UNICODE* pos;
-    high_val = (Py_UNICODE) (0xD800 | (((character - 0x10000) >> 10) & ((1<<10)-1)));
-    low_val  = (Py_UNICODE) (0xDC00 | ( (character - 0x10000)        & ((1<<10)-1)));
+    __Pyx_UNICODE high_val, low_val;
+    __Pyx_UNICODE* pos;
+    high_val = (__Pyx_UNICODE) (0xD800 | (((character - 0x10000) >> 10) & ((1<<10)-1)));
+    low_val  = (__Pyx_UNICODE) (0xDC00 | ( (character - 0x10000)        & ((1<<10)-1)));
     for (pos=buffer; pos < buffer+length-1; pos++) {
         if (unlikely((high_val == pos[0]) & (low_val == pos[1]))) return 1;
     }
@@ -133,10 +144,10 @@ static int __Pyx_PyUnicodeBufferContainsUCS4_SP(Py_UNICODE* buffer, Py_ssize_t l
 }
 #endif
 
-static int __Pyx_PyUnicodeBufferContainsUCS4_BMP(Py_UNICODE* buffer, Py_ssize_t length, Py_UCS4 character) {
-    Py_UNICODE uchar;
-    Py_UNICODE* pos;
-    uchar = (Py_UNICODE) character;
+static int __Pyx_PyUnicodeBufferContainsUCS4_BMP(__Pyx_UNICODE* buffer, Py_ssize_t length, Py_UCS4 character) {
+    __Pyx_UNICODE uchar;
+    __Pyx_UNICODE* pos;
+    uchar = (__Pyx_UNICODE) character;
     for (pos=buffer; pos < buffer+length; pos++) {
         if (unlikely(uchar == pos[0])) return 1;
     }
@@ -147,7 +158,10 @@ static int __Pyx_PyUnicodeBufferContainsUCS4_BMP(Py_UNICODE* buffer, Py_ssize_t 
 static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(PyObject* unicode, Py_UCS4 character) {
 #if CYTHON_PEP393_ENABLED
     const int kind = PyUnicode_KIND(unicode);
-    if (likely(kind != PyUnicode_WCHAR_KIND)) {
+    #ifdef PyUnicode_WCHAR_KIND
+    if (likely(kind != PyUnicode_WCHAR_KIND))
+    #endif
+    {
         Py_ssize_t i;
         const void* udata = PyUnicode_DATA(unicode);
         const Py_ssize_t length = PyUnicode_GET_LENGTH(unicode);
@@ -158,20 +172,23 @@ static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(PyObject* unicode, Py_UCS4 ch
     }
 #elif PY_VERSION_HEX >= 0x03090000
     #error Cannot use "UChar in Unicode" in Python 3.9 without PEP-393 unicode strings.
+#elif !defined(PyUnicode_AS_UNICODE)
+    #error Cannot use "UChar in Unicode" in Python < 3.9 without Py_UNICODE support.
 #endif
-#if PY_VERSION_HEX < 0x03090000
-#if Py_UNICODE_SIZE == 2
-    if (unlikely(character > 65535)) {
+
+#if PY_VERSION_HEX < 0x03090000 || (defined(PyUnicode_WCHAR_KIND) && defined(PyUnicode_AS_UNICODE))
+#if !defined(Py_UNICODE_SIZE) || Py_UNICODE_SIZE == 2
+    if ((sizeof(__Pyx_UNICODE) == 2) && unlikely(character > 65535)) {
         return __Pyx_PyUnicodeBufferContainsUCS4_SP(
-            PyUnicode_AS_UNICODE(unicode),
-            PyUnicode_GET_SIZE(unicode),
+            __Pyx_PyUnicode_AS_UNICODE(unicode),
+            __Pyx_PyUnicode_GET_SIZE(unicode),
             character);
     } else
 #endif
     {
         return __Pyx_PyUnicodeBufferContainsUCS4_BMP(
-            PyUnicode_AS_UNICODE(unicode),
-            PyUnicode_GET_SIZE(unicode),
+            __Pyx_PyUnicode_AS_UNICODE(unicode),
+            __Pyx_PyUnicode_GET_SIZE(unicode),
             character);
 
     }
