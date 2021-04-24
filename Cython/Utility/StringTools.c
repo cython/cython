@@ -176,6 +176,15 @@ static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(PyObject* unicode, Py_UCS4 ch
 
     }
 #endif
+    /* This should only happen if the user has manually created a non-PEP393 string
+     * (i.e. it's very unlikely)
+     * __Pyx_UnicodeContainsUCS4 is not checked for errors so returning a non-match is
+     * the only option, with a warning to try to be helpful
+     */
+    PyErr_WarnEx(PyExc_UnicodeWarning,
+                    "Unicode string in 'in' comparison with Py_UCS4 character had unexpected format "
+                    "(most likely you created a unicode string with a PyUnicode_WCHAR_KIND)", 1);
+    return 0;
 }
 
 
