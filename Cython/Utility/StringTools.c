@@ -124,6 +124,8 @@ static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(PyObject* unicode, Py_UCS4 ch
 #define __Pyx_PyUnicode_AS_UNICODE(op) PyUnicode_AS_UNICODE(op)
 #define __Pyx_PyUnicode_GET_SIZE(op) PyUnicode_GET_SIZE(op)
 #else
+// Avoid calling deprecated C-API functions in Py3.9+ that PEP-623 schedules for removal in Py3.12.
+// https://www.python.org/dev/peps/pep-0623/
 #define __Pyx_PyUnicode_AS_UNICODE(op) (((PyASCIIObject *)(op))->wstr)
 #define __Pyx_PyUnicode_GET_SIZE(op) ((PyCompactUnicodeObject *)(op))->wstr_length
 #endif
