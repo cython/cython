@@ -130,7 +130,7 @@ def prepare_captured(captured):
     return captured_bytes.decode('latin-1')
 
 
-def print_captured(captured, output, header_line):
+def print_captured(captured, output, header_line=None):
     captured = prepare_captured(captured)
     if captured:
         if header_line:
