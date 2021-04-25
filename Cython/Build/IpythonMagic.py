@@ -118,7 +118,7 @@ def get_encoding_candidates():
 
 
 def prepare_captured(captured):
-    captured_bytes = captured and captured().strip()
+    captured_bytes = captured.strip()
     if not captured_bytes:
         return None
     for encoding in get_encoding_candidates():
@@ -387,11 +387,11 @@ class CythonMagics(Magics):
                         extension, lib_dir, pgo_step_name='use' if args.pgo else None, quiet=args.quiet)
         except (distutils.errors.CompileError, distutils.errors.LinkError):
             # Build failed, print error message from compiler/linker
-            print_compiler_output(get_stdout, get_stderr, sys.stderr)
+            print_compiler_output(get_stdout(), get_stderr(), sys.stderr)
             return None
 
         # Build seems ok, but we might still want to show any warnings that occurred
-        print_compiler_output(get_stdout, get_stderr, sys.stdout)
+        print_compiler_output(get_stdout(), get_stderr(), sys.stdout)
 
         module = imp.load_dynamic(module_name, module_path)
         self._import_all(module)
