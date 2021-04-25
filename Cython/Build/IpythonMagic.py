@@ -55,7 +55,6 @@ import time
 import copy
 import distutils.log
 import textwrap
-from collections import OrderedDict
 
 IO_ENCODING = sys.getfilesystemencoding()
 IS_PY2 = sys.version_info[0] < 3
@@ -110,18 +109,12 @@ else:
 
 def get_encoding_candidates():
     candidates = [sys.getdefaultencoding()]
-    try:
-        candidates.extend([sys.stdout.encoding, sys.stdin.encoding])
-    except AttributeError:
-        pass
-    try:
-        candidates.extend([sys.__stdout__.encoding, sys.__stdin__.encoding])
-    except AttributeError:
-        pass
-    unique_candidates = OrderedDict.fromkeys(candidates)
-    # encoding might be None (i.e. somebody redirects stdout):
-    unique_candidates.pop(None, None)
-    return list(unique_candidates)
+    for stream in (sys.stdout, sys.stdin, sys.__stdout__, sys.__stdin__):
+        encoding = getattr(stream, 'encoding', None)
+        # encoding might be None (e.g. somebody redirects stdout):
+        if encoding is not None and encoding not in candidates:
+            candidates.append(encoding)
+    return candidates
 
 
 def prepare_captured(captured):
