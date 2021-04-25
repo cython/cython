@@ -2929,9 +2929,9 @@ static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_le
     PyObject *left = *p_left;
     Py_ssize_t left_len, right_len, new_len;
 
-    if (unlikely(PyUnicode_READY(left) == -1))
+    if (unlikely(__Pyx_PyUnicode_READY(left) == -1))
         return NULL;
-    if (unlikely(PyUnicode_READY(right) == -1))
+    if (unlikely(__Pyx_PyUnicode_READY(right) == -1))
         return NULL;
 
     // Shortcuts

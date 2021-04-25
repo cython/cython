@@ -56,4 +56,9 @@ def test_localtime():
         ltp = time.localtime()
         ltc = ctime.localtime()
 
+    if ltp.tm_sec != ltc.tm_sec:
+        # or three times in a row...
+        ltp = time.localtime()
+        ltc = ctime.localtime()
+
     return ltp, ltc
