@@ -67,7 +67,7 @@ cdef extern from "Python.h":
     # may optionally specify the default value for the context variable.
     # If an error has occurred, this function returns NULL.
 
-    int PyContextVar_Get1 "PyContextVar_Get" (PyObject* var, PyObject* default_value, PyObject** value) except -1
+    int PyContextVar_Get "PyContextVar_Get" (object var, PyObject* default_value, PyObject** value) except -1
     # Get the value of a context variable.
     # Returns -1 if an error has occurred during lookup, and 0 if no error
     # occurred, whether or not a value was found.
@@ -78,14 +78,14 @@ cdef extern from "Python.h":
     #   • `default_value`, if not NULL;
     #   • the default value of `var`, if not NULL;
     #   • NULL
-    int PyContextVar_Get2 "PyContextVar_Get" (object var, object default_value, PyObject** value) except -1
+    int PyContextVar_Get_with_default "PyContextVar_Get" (object var, object default_value, PyObject** value) except -1
     # a different declaration of PyContextVar_Get that requires default values
     # be passed on call.
 
     object PyContextVar_Set(object var, object value)
     # Return value: New reference.
     # Set the value of `var` to `value` in the current context.
-    # Returns a pointer to a PyObject object, or NULL if an error has occurred.
+    # Returns a token object for this value change, or NULL if an error has occurred.
 
     int PyContextVar_Reset(object var, object token) except -1
     # Reset the state of the `var` context variable to that it was in
