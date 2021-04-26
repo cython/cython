@@ -94,10 +94,13 @@ static int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject
 
 /////////////// ValidateBasesTuple.proto ///////////////
 
+#if CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_LIMITED_API || CYTHON_USE_TYPE_SPECS
 static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffset, PyObject *bases); /*proto*/
+#endif
 
 /////////////// ValidateBasesTuple ///////////////
 
+#if CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_LIMITED_API || CYTHON_USE_TYPE_SPECS
 static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffset, PyObject *bases) {
     // Loop over all bases (except the first) and check that those
     // really are heap types. Otherwise, it would not be safe to
@@ -147,29 +150,30 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
     }
     return 0;
 }
+#endif
 
 
 /////////////// PyType_Ready.proto ///////////////
 
-// FIXME: is this really suitable for CYTHON_COMPILING_IN_LIMITED_API?
-#if CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_LIMITED_API
-#if !CYTHON_USE_TYPE_SPECS
 static int __Pyx_PyType_Ready(PyTypeObject *t);/*proto*/
-#endif
-#else
-// avoid C warning about unused helper function
-#define __Pyx_PyType_Ready(t) ((void)__Pyx_PyObject_CallMethod0, (void)__Pyx_validate_bases_tuple,  PyType_Ready(t))
-#endif
 
 /////////////// PyType_Ready ///////////////
 //@requires: ObjectHandling.c::PyObjectCallMethod0
 //@requires: ValidateBasesTuple
 
-#if CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_LIMITED_API
 // Wrapper around PyType_Ready() with some runtime checks and fixes
 // to deal with multiple inheritance.
-#if !CYTHON_USE_TYPE_SPECS
 static int __Pyx_PyType_Ready(PyTypeObject *t) {
+
+// FIXME: is this really suitable for CYTHON_COMPILING_IN_LIMITED_API?
+#if CYTHON_USE_TYPE_SPECS || !(CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_LIMITED_API)
+    // avoid C warning about unused helper function
+    (void)__Pyx_PyObject_CallMethod0;
+    (void)__Pyx_validate_bases_tuple;
+
+    return PyType_Ready(t);
+
+#else
     int r;
     if (t->tp_bases && unlikely(__Pyx_validate_bases_tuple(t->tp_name, t->tp_dictoffset, t->tp_bases) == -1))
         return -1;
@@ -245,9 +249,8 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
 #endif
 
     return r;
+#endif
 }
-#endif
-#endif
 
 
 /////////////// PyTrashcan.proto ///////////////
