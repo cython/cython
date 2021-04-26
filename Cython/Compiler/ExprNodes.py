@@ -12972,12 +12972,11 @@ class CoerceToMemViewSliceNode(CoercionNode):
         CoercionNode.__init__(self, arg)
         self.type = dst_type
         self.is_temp = 1
-        self.env = env
         self.use_managed_ref = True
         self.arg = arg
+        self.type.create_from_py_utility_code(env)
 
     def generate_result_code(self, code):
-        self.type.create_from_py_utility_code(self.env)
         code.putln(self.type.from_py_call_code(
             self.arg.py_result(),
             self.result(),
