@@ -5468,7 +5468,7 @@ class CClassDefNode(ClassDefNode):
                     type.vtabptr_cname,
                 ))
                 # TODO: find a way to make this work with the Limited API!
-                code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+                code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached('MergeVTables', 'ImportExport.c'))
                 code.put_error_if_neg(entry.pos, "__Pyx_MergeVtables(%s)" % typeptr_cname)
