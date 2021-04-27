@@ -1,10 +1,12 @@
 # coding: utf-8
 
+import sys
+
 from cpython.datetime cimport import_datetime
 from cpython.datetime cimport date, time, datetime, timedelta, PyDateTime_IMPORT
 
 import_datetime()
-        
+
 def test_date(int year, int month, int day):
     '''
     >>> val = test_date(2012, 12, 31)
@@ -40,3 +42,19 @@ def test_timedelta(int days, int seconds, int useconds):
     '''
     val = timedelta(days, seconds, useconds)
     return val
+
+def test_timezone(int days, int seconds, int useconds, str name):
+    '''
+    >>> val = test_timezone(0, 3600, 0, 'CET')
+    >>> print(val)
+    True
+    '''
+    try:
+        val = timezone_new(timedelta(days, seconds, useconds), name)
+        return repr(val) == "datetime.timezone(datetime.timedelta(seconds=3600), 'CET')"
+    except RuntimeError:
+        if sys.version_info[:2] == (3, 7):
+            return True
+        else:
+            # It's only supposed to raise on Python < 3.7
+            return False
