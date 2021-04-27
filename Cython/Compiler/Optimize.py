@@ -2592,7 +2592,8 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         # https://docs.python.org/3.9/library/stdtypes.html#frozenset
         if len(pos_args) > 1:
             return node
-        assert pos_args[0].is_sequence_constructor
+        print(pos_args[0])#.is_sequence_constructor)
+        # assert pos_args[0].is_sequence_constructor
 
         # We could only create a frozenset by builtin name
         result = ExprNodes.FrozenSetNode(node.pos, is_temp=1, args=pos_args[0])

@@ -36,16 +36,16 @@ def cython_frozenset_override():
 
 
 
-# def test_frozenset_list_comp():
-#     """
-#     >>> type(test_frozenset_list_comp()) is frozenset
-#     True
-#     >>> sorted(test_frozenset_list_comp())
-#     [0, 1, 2]
-#     """
-#     cdef frozenset s1
-#     s1 = frozenset([i%3 for i in range(5)])
-#     return s1
+def test_frozenset_list_comp():
+    """
+    >>> type(test_frozenset_list_comp()) is frozenset
+    True
+    >>> sorted(test_frozenset_list_comp())
+    [0, 1, 2]
+    """
+    cdef frozenset s1
+    s1 = frozenset([i%3 for i in range(5)])
+    return s1
 
 #
 # def test_set_pop():
