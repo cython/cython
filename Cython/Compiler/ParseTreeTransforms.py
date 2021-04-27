@@ -2558,7 +2558,6 @@ class AutoCpdefFunctionDefinitions(AlignFunctionDefinitions):
         return node
 
     def visit_FromImportStatNode(self, node):
-        # return node
         # hack to prevent conditional import fallback functions from
         # being cdpef-ed (global Python variables currently conflict
         # with imports)
