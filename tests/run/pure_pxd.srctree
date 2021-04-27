@@ -61,7 +61,7 @@ def sum_generator_expression(a):
 
 def run_sum_generator_expression(a):
     """
-    >>> sum_generator_expression(5)
+    >>> run_sum_generator_expression(5)
     10
     """
     return sum_generator_expression(a)
