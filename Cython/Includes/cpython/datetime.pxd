@@ -281,6 +281,12 @@ cdef inline object datetime_new(int year, int month, int day, int hour, int minu
 cdef inline object timedelta_new(int days, int seconds, int useconds):
     return PyDateTimeAPI.Delta_FromDelta(days, seconds, useconds, 1, PyDateTimeAPI.DeltaType)
 
+# Create timedelta object using DateTime CAPI factory function.
+cdef inline object timezone_new(object offset, str name=None):
+    if PY_VERSION_HEX < 0x030700b1:
+        raise RuntimeError('Time zones are not available from the C-API.')
+    return PyTimeZone_FromOffsetAndName(offset, name)
+
 # Create datetime object using PEP 495 constructor.
 cdef inline object datetime_and_fold_new(
         int year, int month, int day, int hour, int minute, int second, int microsecond, object tz, int fold
@@ -294,11 +300,6 @@ cdef inline object time_and_fold_new(int hour, int minute, int second, int micro
     if PY_VERSION_HEX < 0x030600a4:
         raise RuntimeError('PEP 495 constructors are not available from the C-API.')
     return __Pyx_DateTime_TimeWithFold(hour, minute, second, microsecond, tz, fold)
-
-cdef inline object timezone_new(object offset, str name=None):
-    if PY_VERSION_HEX < 0x030700b1:
-        raise RuntimeError('Time zones are not available from the C-API.')
-    return PyTimeZone_FromOffsetAndName(offset, name)
 
 # Create datetime object using DB API constructor.
 cdef inline object datetime_from_timestamp(timestamp, tz=None):
