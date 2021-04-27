@@ -5371,12 +5371,13 @@ class CClassDefNode(ClassDefNode):
                         typeobj_cname,
                         type.vtabptr_cname,
                         code.error_goto(entry.pos)))
-                code.putln("#endif")
+                # TODO: find a way to make this work with the Limited API!
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached('MergeVTables', 'ImportExport.c'))
                 code.putln("if (__Pyx_MergeVtables(&%s) < 0) %s" % (
                     typeobj_cname,
                     code.error_goto(entry.pos)))
+                code.putln("#endif")
             if not type.scope.is_internal and not type.scope.directives.get('internal'):
                 # scope.is_internal is set for types defined by
                 # Cython (such as closures), the 'internal'

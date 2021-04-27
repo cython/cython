@@ -578,6 +578,22 @@ Other changes
 .. _`PEP-479`: https://www.python.org/dev/peps/pep-0479
 
 
+0.29.24 (2021-??-??)
+====================
+
+Bugs fixed
+----------
+
+* Inline functions in pxd files that used memory views could lead to invalid
+  C code if the module that imported from them does not use memory views.
+  Patch by David Woods.  (Github issue #1415)
+
+* The optimised ``in`` operator failed on unicode strings in Py3.9 and later
+  that were constructed from an external ``wchar_t`` source.
+  Also, related C compiler warnings about deprecated C-API usage were resolved.
+  (Github issue #3925)
+
+
 0.29.23 (2021-04-14)
 ====================
 
