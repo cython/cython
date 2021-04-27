@@ -8795,17 +8795,25 @@ class FrozenSetNode(SetNode):
         if target is None:
             target = self.result()
         assert target is not None
-        self.args.generate_evaluation_code(code)
+        if self.args is None:
+            constructor_parameter = 0
+        else:
+            self.args.generate_evaluation_code(code)
+            constructor_parameter = self.args.py_result()
         code.putln("%s = PyFrozenSet_New(%s); %s" % (
-            target, self.args.py_result(),
+            target, constructor_parameter,
             code.error_goto_if_null(target, self.pos)))
         self.result_code = target
 
     def _create_shared_frozenset_object(self, code):
-        #print(self.type)  # currently set object, should be frozenset
-        dedup_key = make_dedup_key(self.type, self.args.args)
+        # print(self.type)  # currently set object, should be frozenset
+        if self.args is None:
+            dedup_key = make_dedup_key(self.type, ())
+        else:
+            dedup_key = make_dedup_key(self.type, self.args.args)
         set_target = code.get_py_const(py_object_type, 'frozenset', cleanup_level=2, dedup_key=dedup_key)
         assert set_target is not None
+        # print(set_target)
         const_code = code.get_cached_constants_writer(set_target)
         if const_code is not None:
             # constant is not yet initialised
@@ -8814,18 +8822,14 @@ class FrozenSetNode(SetNode):
         self.result_code = set_target
 
     def generate_evaluation_code(self, code):
-        if self.args.is_literal:
+        if self.args is None or self.args.is_literal:
             self.is_temp = False
             self.is_literal = True
             self._create_shared_frozenset_object(code)
             return
 
-        print("========")
-        print(self.args)
-
         self.args.generate_evaluation_code(code)
         self.allocate_temp_result(code)
-        print(self.args.py_result())
         code.putln(
             "%s = PyFrozenSet_New(%s); %s" % (
                 self.result(),
