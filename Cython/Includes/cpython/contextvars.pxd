@@ -1,4 +1,5 @@
 from cpython.object cimport PyObject
+from cpython.ref cimport Py_XDECREF
 
 cdef extern from "Python.h":
 
@@ -60,14 +61,18 @@ cdef extern from "Python.h":
     # as the current context for the current thread.
     # Returns 0 on success, and -1 on error.
 
-    object PyContextVar_New(const char* name, object default_value)
+    object PyContextVar_New(const char* name, PyObject* default_value)
     # Return value: New reference.
     # Create a new ContextVar object. The `name` parameter is used
     # for introspection and debug purposes. The `default_value` parameter
     # may optionally specify the default value for the context variable.
     # If an error has occurred, this function returns NULL.
 
-    int PyContextVar_Get "PyContextVar_Get" (object var, PyObject* default_value, PyObject** value) except -1
+    object PyContextVar_New_with_default "PyContextVar_New" (const char* name, object default_value)
+    # A different declaration of PyContextVar_New that requires a default value
+    # to be passed on call.
+
+    int PyContextVar_Get(object var, PyObject* default_value, PyObject** value) except -1
     # Get the value of a context variable.
     # Returns -1 if an error has occurred during lookup, and 0 if no error
     # occurred, whether or not a value was found.
@@ -79,8 +84,8 @@ cdef extern from "Python.h":
     #   • the default value of `var`, if not NULL;
     #   • NULL
     int PyContextVar_Get_with_default "PyContextVar_Get" (object var, object default_value, PyObject** value) except -1
-    # a different declaration of PyContextVar_Get that requires default values
-    # be passed on call.
+    # A different declaration of PyContextVar_Get that requires a default value
+    # to be passed on call.
 
     object PyContextVar_Set(object var, object value)
     # Return value: New reference.
@@ -91,3 +96,34 @@ cdef extern from "Python.h":
     # Reset the state of the `var` context variable to that it was in
     # before `PyContextVar_Set()` that returned `token` was called.
     # This function returns 0 on success and -1 on error.
+
+
+cdef inline object get_value(var, default_value=None):
+    """Return a new reference to the value of the context variable,
+    or the default value of the context variable,
+    or None if no such value or default was found.
+    """
+    cdef PyObject *value
+    PyContextVar_Get(var, NULL, &value)
+    if value is NULL:
+        # context variable does not have a default
+        pyvalue = default_value
+    else:
+        # value or default value of context variable
+        pyvalue = <object>value
+        Py_XDECREF(value)  # PyContextVar_Get() returned an owned reference as 'PyObject*'
+    return pyvalue
+
+
+cdef inline object get_value_no_default(var, default_value=None):
+    """Return a new reference to the value of the context variable,
+    or the provided default value if no such value was found.
+
+    Ignores the default value of the context variable, if any.
+    """
+    cdef PyObject *value
+    PyContextVar_Get(var, <PyObject*>default_value, &value)
+    # value of context variable or 'default_value'
+    pyvalue = <object>value
+    Py_XDECREF(value)  # PyContextVar_Get() returned an owned reference as 'PyObject*'
+    return pyvalue

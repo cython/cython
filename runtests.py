@@ -440,6 +440,8 @@ VER_DEP_MODULES = {
                                          'run.test_exceptions',  # copied from Py3.7+
                                          'run.time_pxd',  # _PyTime_GetSystemClock doesn't exist in 3.4
                                          ]),
+    (3,7): (operator.lt, lambda x: x in ['run.pycontextvar',
+                                         ]),
 }
 
 INCLUDE_DIRS = [ d for d in os.getenv('INCLUDE', '').split(os.pathsep) if d ]
