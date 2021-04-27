@@ -122,25 +122,51 @@ def test_frozenset_of_iterable(x):
     return frozenset(x)
 
 
-@cython.test_fail_if_path_exists(
-    "//SimpleCallNode",
-    "//SetNode",
-    "//PythonCapiCallNode"
-)
-def test_empty_frozenset():
+def test_create_frozenset_from_string():
     """
-    >>> s = test_empty_frozenset()
+    >>> s = test_create_frozenset_from_string()
     >>> isinstance(s, frozenset)
     True
-    >>> len(s)
-    0
-    >>> import sys
-    >>> sys.version_info >= (3, 10) or s is frozenset()   # singleton (in Python < 3.10)!
-    True
+    >>> sorted(s)
+    ["1", "2", "3"]
     """
-    return frozenset()
+    return frozenset("1231")
 
+
+
+# @cython.test_fail_if_path_exists(
+#     "//SimpleCallNode",
+#     "//SetNode",
+#     "//PythonCapiCallNode"
+# )
+# def test_empty_frozenset():
+#     """
+#     >>> s = test_empty_frozenset()
+#     >>> isinstance(s, frozenset)
+#     True
+#     >>> len(s)
+#     0
+#     >>> import sys
+#     >>> sys.version_info >= (3, 10) or s is frozenset()   # singleton (in Python < 3.10)!
+#     True
+#     """
+#     return frozenset()
+
+# #TODO for next test
+# def test_singleton_empty_frozenset():
+#     """
+#     >>> import sys
+#     >>> test_singleton_empty_frozenset() if sys.version_info < (3, 10) else 1  # from CPython's test_set.py
+#     1
+#     """
+#     f = frozenset()
+#     efs = [frozenset(), frozenset([]), frozenset(()),
+#            frozenset(), frozenset([]), frozenset(()),
+#            frozenset(range(0)), frozenset(frozenset()),
+#            frozenset(f), f]
+#     return len(set(map(id, efs)))  # note, only a singleton in Python <3.10
 #
+
 # @cython.test_fail_if_path_exists(
 #     '//ListNode//ListNode',
 #     '//ListNode//PythonCapiCallNode//PythonCapiCallNode',
@@ -158,21 +184,21 @@ def test_empty_frozenset():
 #            frozenset(range(0)), frozenset(frozenset()),
 #            frozenset(f), f]
 #     return len(set(map(id, efs)))  # note, only a singleton in Python <3.10
-#
-#
-# def sorted(it):
-#     # Py3 can't compare different types
-#     chars = []
-#     nums = []
-#     tuples = []
-#     for item in it:
-#         if type(item) is int:
-#             nums.append(item)
-#         elif type(item) is tuple:
-#             tuples.append(item)
-#         else:
-#             chars.append(item)
-#     nums.sort()
-#     chars.sort()
-#     tuples.sort()
-#     return chars+nums+tuples
+
+
+def sorted(it):
+    # Py3 can't compare different types
+    chars = []
+    nums = []
+    tuples = []
+    for item in it:
+        if type(item) is int:
+            nums.append(item)
+        elif type(item) is tuple:
+            tuples.append(item)
+        else:
+            chars.append(item)
+    nums.sort()
+    chars.sort()
+    tuples.sort()
+    return chars+nums+tuples
