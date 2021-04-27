@@ -8819,15 +8819,21 @@ class FrozenSetNode(SetNode):
             self.is_literal = True
             self._create_shared_frozenset_object(code)
             return
-        self.allocate_temp_result(code)
-        self.args.generate_evaluation_code(code)
 
+        print("========")
+        print(self.args)
+
+        self.args.generate_evaluation_code(code)
+        self.allocate_temp_result(code)
+        print(self.args.py_result())
         code.putln(
             "%s = PyFrozenSet_New(%s); %s" % (
                 self.result(),
                 self.args.py_result(),
                 code.error_goto_if_null(self.result(), self.pos)))
         self.generate_gotref(code)
+        self.args.generate_disposal_code(code)
+        self.args.free_temps(code)
 
 
 class DictNode(ExprNode):
