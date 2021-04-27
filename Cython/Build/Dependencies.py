@@ -1146,7 +1146,7 @@ def fix_windows_unicode_modules(module_list):
     # https://bugs.python.org/issue39432
     if sys.platform != "win32":
         return
-    if sys.version_info < (3, 5):
+    if sys.version_info < (3, 5) or sys.version_info >= (3, 8, 2):
         return
 
     def make_filtered_list(ignored_symbol, old_entries):
