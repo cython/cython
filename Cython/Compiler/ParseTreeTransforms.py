@@ -2533,6 +2533,8 @@ class AlignFunctionDefinitions(CythonTransform):
                     error(pxd_def.pos, "previous declaration here")
                 return None
             node = node.as_cfunction(pxd_def)
+        # Enable this when nested cdef functions are allowed.
+        # self.visitchildren(node)
         return node
 
     def visit_ExprNode(self, node):
@@ -2554,6 +2556,7 @@ class AutoCpdefFunctionDefinitions(AlignFunctionDefinitions):
         elif (self.scope.is_module_scope and self.directives['auto_cpdef']
               and node.name not in self.imported_names
               and node.is_cdef_func_compatible()):
+            # FIXME: cpdef-ing should be done in analyse_declarations()
             node = node.as_cfunction(scope=self.scope)
         return node
 
