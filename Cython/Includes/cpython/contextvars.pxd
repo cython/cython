@@ -2,6 +2,14 @@ from cpython.object cimport PyObject
 from cpython.ref cimport Py_XDECREF
 
 cdef extern from "Python.h":
+    # Defining PyContextVar_Get() below to always return the default value for Py<3.7
+    # to make the inline functions sort-of work.
+    """
+    #if PY_VERSION_HEX < 0x030700b1 && !defined(PyContextVar_Get)
+    #define PyContextVar_Get(var, d, v) \
+        ((void)(var), (d) ? Py_INCREF(d) : NULL, (v)[0] = (d), 0)
+    #endif
+    """
 
     ############################################################################
     # Context Variables Objects
