@@ -8,14 +8,16 @@ cdef extern from "Python.h":
 cdef extern from "datetime.h":
     """
     /* Backport for Python < 3.3 */
-    #ifndef PyDateTime_DELTA_GET_DAYS
-        #define PyDateTime_DELTA_GET_DAYS(o) (((PyDateTime_Delta*)o)->days)
-    #endif
-    #ifndef PyDateTime_DELTA_GET_SECONDS
-        #define PyDateTime_DELTA_GET_SECONDS(o) (((PyDateTime_Delta*)o)->seconds)
-    #endif
-    #ifndef PyDateTime_DELTA_GET_MICROSECONDS
-        #define PyDateTime_DELTA_GET_MICROSECONDS(o) (((PyDateTime_Delta*)o)->microseconds)
+    #if PY_VERSION_HEX < 0x030100a1
+        #ifndef PyDateTime_DELTA_GET_DAYS
+            #define PyDateTime_DELTA_GET_DAYS(o) (((PyDateTime_Delta*)o)->days)
+        #endif
+        #ifndef PyDateTime_DELTA_GET_SECONDS
+            #define PyDateTime_DELTA_GET_SECONDS(o) (((PyDateTime_Delta*)o)->seconds)
+        #endif
+        #ifndef PyDateTime_DELTA_GET_MICROSECONDS
+            #define PyDateTime_DELTA_GET_MICROSECONDS(o) (((PyDateTime_Delta*)o)->microseconds)
+        #endif
     #endif
 
     /* Backport for Python < 3.6 */
