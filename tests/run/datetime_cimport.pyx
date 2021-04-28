@@ -3,7 +3,7 @@
 import sys
 
 from cpython.datetime cimport import_datetime
-from cpython.datetime cimport date, time, datetime, timedelta, PyDateTime_IMPORT
+from cpython.datetime cimport date, time, datetime, timedelta, timezone_new, PyDateTime_IMPORT
 
 import_datetime()
 

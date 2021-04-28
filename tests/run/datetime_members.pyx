@@ -8,7 +8,7 @@ from cpython.datetime cimport datetime_day, datetime_month, datetime_year
 from cpython.datetime cimport datetime_hour, datetime_minute, datetime_second, \
                               datetime_microsecond, datetime_fold
 from cpython.datetime cimport timedelta_days, timedelta_seconds, timedelta_microseconds
-from cpython.datetime cimport time_and_fold_new
+from cpython.datetime cimport time_and_fold_new, datetime_and_fold_new
 
 import_datetime()
 

@@ -247,7 +247,7 @@ def test_date_from_utc_timestamp():
     >>> tp == dt
     True
     """
-    tp = date_from_timestamp(1518185542, get_utc())
+    tp = date_from_timestamp(1518185542)
     dt = py_datetime.date(2018, 2, 9)
     return tp, dt
 
