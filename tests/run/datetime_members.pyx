@@ -1,8 +1,7 @@
 from cpython.datetime cimport import_datetime
 from cpython.datetime cimport time_new, date_new, datetime_new, timedelta_new
 from cpython.datetime cimport time_tzinfo, datetime_tzinfo
-from cpython.datetime cimport time_hour, time_minute, time_second, time_microsecond, \
-                              time_fold
+from cpython.datetime cimport time_hour, time_minute, time_second, time_microsecond, time_fold
 from cpython.datetime cimport date_day, date_month, date_year
 from cpython.datetime cimport datetime_day, datetime_month, datetime_year
 from cpython.datetime cimport datetime_hour, datetime_minute, datetime_second, \
@@ -87,4 +86,3 @@ def test_timedelta(int days, int seconds, int microseconds):
     return o.days == timedelta_days(o), \
            o.seconds == timedelta_seconds(o), \
            o.microseconds == timedelta_microseconds(o)
-
