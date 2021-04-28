@@ -243,21 +243,33 @@ def test_datetime_attrs_inlined(datetime dt):
 def test_date_from_utc_timestamp():
     """
     >>> from datetime import datetime
-    >>> tp, dt = test_date_from_utc_timestamp()
-    >>> tp == dt
+    >>> test_date_from_utc_timestamp()
     True
     """
-    tp = date_from_timestamp(1518185542)
-    dt = py_datetime.date(2018, 2, 9)
-    return tp, dt
+    try:
+        tp = date_from_timestamp(1518185542)
+        dt = py_datetime.date(2018, 2, 9)
+        return tp == dt
+    except RuntimeError:
+        if sys.version_info < (3, 7):
+            return True
+        else:
+            # It's only supposed to raise on Python < 3.7
+            return False
 
 def test_datetime_from_utc_timestamp():
     """
     >>> from datetime import datetime
-    >>> tp, dt = test_datetime_from_utc_timestamp()
-    >>> tp == dt
+    >>> test_datetime_from_utc_timestamp()
     True
     """
-    tp = datetime_from_timestamp(1618770890, get_utc())
-    dt = py_datetime.datetime(2021, 4, 18, 18, 34, 50, tzinfo=py_datetime.timezone.utc)
-    return tp, dt
+    try:
+        tp = datetime_from_timestamp(1618770890, get_utc())
+        dt = py_datetime.datetime(2021, 4, 18, 18, 34, 50, tzinfo=py_datetime.timezone.utc)
+        return tp == dt
+    except RuntimeError:
+        if sys.version_info < (3, 7):
+            return True
+        else:
+            # It's only supposed to raise on Python < 3.7
+            return False
