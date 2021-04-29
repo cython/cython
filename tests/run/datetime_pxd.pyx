@@ -240,7 +240,7 @@ def test_datetime_attrs_inlined(datetime dt):
         dt.microsecond,
     )
 
-def test_date_from_utc_timestamp():
+def test_date_from_timestamp():
     """
     >>> from datetime import datetime
     >>> tp, dt = test_date_from_utc_timestamp()
@@ -251,19 +251,30 @@ def test_date_from_utc_timestamp():
     dt = py_datetime.date(2018, 2, 9)
     return tp, dt
 
-def test_datetime_from_utc_timestamp():
+def test_get_utc():
     """
     >>> from datetime import datetime
     >>> test_datetime_from_utc_timestamp()
     True
     """
     try:
-        tp = datetime_from_timestamp(1618770890, get_utc())
-        dt = py_datetime.datetime(2021, 4, 18, 18, 34, 50, tzinfo=py_datetime.timezone.utc)
-        return tp == dt
+        utc = get_utc()
     except RuntimeError:
         if sys.version_info < (3, 7):
             return True
         else:
             # get_utc() is only supposed to raise on Python < 3.7
-            return False
+            raise
+    else:
+        return True
+
+def test_datetime_from_timestamp():
+    """
+    >>> from datetime import datetime
+    >>> tp, dt = test_datetime_from_timestamp()
+    >>> tp == dt
+    True
+    """
+    tp = datetime_from_timestamp(1618770890)
+    dt = py_datetime.datetime(2021, 4, 18, 20, 34, 50)
+    return tp, dt

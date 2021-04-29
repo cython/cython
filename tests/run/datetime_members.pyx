@@ -21,28 +21,13 @@ def test_date(int year, int month, int day):
            o.month == date_month(o), \
            o.day == date_day(o)
 
-def test_datetime(int year, int month, int day, 
-                  int hour, int minute, int second, int microsecond):
-    '''
-    >>> test_datetime(2012, 12, 31, 12, 30, 59, 12345)
-    (True, True, True, True, True, True, True)
-    '''
-    o = datetime_new(year, month, day, hour, minute, second, microsecond, None)
-    return o.year == datetime_year(o), \
-           o.month == datetime_month(o), \
-           o.day == datetime_day(o), \
-           o.hour == datetime_hour(o), \
-           o.minute == datetime_minute(o), \
-           o.second == datetime_second(o), \
-           o.microsecond == datetime_microsecond(o)
-
-def test_datetime_and_fold(int year, int month, int day, int hour,
+def test_datetime(int year, int month, int day, int hour,
                            int minute, int second, int microsecond, int fold):
     '''
-    >>> test_datetime(2012, 12, 31, 12, 30, 59, 12345, 1)
+    >>> test_datetime(2012, 12, 31, 12, 30, 59, 12345, 0)
     (True, True, True, True, True, True, True, True)
     '''
-    o = datetime_and_fold_new(
+    o = datetime_new(
         year, month, day, hour, minute, second, microsecond, None, fold
     )
     return o.year == datetime_year(o), \
@@ -52,30 +37,19 @@ def test_datetime_and_fold(int year, int month, int day, int hour,
            o.minute == datetime_minute(o), \
            o.second == datetime_second(o), \
            o.microsecond == datetime_microsecond(o), \
-           o.fold == datetime_fold(o)
+           fold == datetime_fold(o)
 
-def test_time(int hour, int minute, int second, int microsecond):
+def test_time(int hour, int minute, int second, int microsecond, int fold):
     '''
-    >>> test_time(12, 30, 59, 12345)
-    (True, True, True, True)
-    '''
-    o = time_new(hour, minute, second, microsecond, None)
-    return o.hour == time_hour(o), \
-           o.minute == time_minute(o), \
-           o.second == time_second(o), \
-           o.microsecond == time_microsecond(o)
-
-def test_time_and_fold(int hour, int minute, int second, int microsecond, int fold):
-    '''
-    >>> test_time(12, 30, 59, 12345, 1)
+    >>> test_time(12, 30, 59, 12345, 0)
     (True, True, True, True, True)
     '''
-    o = time_and_fold_new(hour, minute, second, microsecond, None, fold)
+    o = time_new(hour, minute, second, microsecond, None, fold)
     return o.hour == time_hour(o), \
            o.minute == time_minute(o), \
            o.second == time_second(o), \
            o.microsecond == time_microsecond(o), \
-           o.fold == time_fold(o)
+           fold == time_fold(o)
 
 def test_timedelta(int days, int seconds, int microseconds):
     '''
