@@ -8791,7 +8791,7 @@ class FrozenSetNode(SetNode):
     def calculate_result_code(self):
         return self.result_code
 
-    def generate_sequence_packing_code(self, code, target, plain):
+    def generate_creating_from_constant_code(self, code, target):
         if target is None:
             target = self.result()
         assert target is not None
@@ -8818,7 +8818,7 @@ class FrozenSetNode(SetNode):
         if const_code is not None:
             # constant is not yet initialised
             const_code.mark_pos(self.pos)
-            self.generate_sequence_packing_code(const_code, set_target, plain=not self.is_literal)
+            self.generate_creating_from_constant_code(const_code, set_target)
         self.result_code = set_target
 
     def generate_evaluation_code(self, code):
