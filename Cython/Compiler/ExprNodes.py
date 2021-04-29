@@ -9371,17 +9371,18 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         # so their optional arguments must be static, too.
         # TODO: change CyFunction implementation to pass both function object and owning object for method calls
         must_use_constants = env.is_c_class_scope or (self.def_node.is_wrapper and env.is_module_scope)
+
         for arg in self.def_node.args:
             if arg.default:
                 if not must_use_constants:
-                    if not arg.default.is_literal:
+                    if arg.default.is_literal:
+                        arg.default = DefaultLiteralArgNode(arg.pos, arg.default)
+                    else:
                         arg.is_dynamic = True
                         if arg.type.is_pyobject:
                             nonliteral_objects.append(arg)
                         else:
                             nonliteral_other.append(arg)
-                    else:
-                        arg.default = DefaultLiteralArgNode(arg.pos, arg.default)
                 if arg.default.type and arg.default.type.can_coerce_to_pyobject(env):
                     if arg.kw_only:
                         default_kwargs.append(arg)
