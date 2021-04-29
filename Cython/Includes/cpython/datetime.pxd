@@ -48,11 +48,9 @@ cdef extern from "datetime.h":
     /* Backport for Python < 3.7 */
     #if PY_VERSION_HEX < 0x030700b1
         #define __Pyx_TimeZone_UTC NULL
-        #define __Pyx_TimeZone_FromOffset(offset) NULL
-        #define __Pyx_TimeZone_FromOffsetAndName(offset, name) PyTimeZone_FromOffset(offset)
+        #define __Pyx_TimeZone_FromOffsetAndName(offset, name) NULL
     #else
         #define __Pyx_TimeZone_UTC PyDateTime_TimeZone_UTC
-        #define __Pyx_TimeZone_FromOffset(offset) PyTimeZone_FromOffset(offset)
         #define __Pyx_TimeZone_FromOffsetAndName(offset, name) PyTimeZone_FromOffsetAndName(offset, name)
     #endif
     """
@@ -239,7 +237,6 @@ cdef extern from "datetime.h":
     object PyTimeZone_FromOffsetAndName(object offset, object name)
 
     # The above macros is Python 3.7+ so we use these instead
-    object __Pyx_TimeZone_FromOffset(object offset)
     object __Pyx_TimeZone_FromOffsetAndName(object offset, PyObject* name)
 
     # Constructors for the DB API
