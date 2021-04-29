@@ -2584,6 +2584,10 @@ class AutoCpdefFunctionDefinitions(CythonTransform):
                 self.imported_names.add(name)
         return node
 
+    def visit_ExprNode(self, node):
+        # ignore lambdas and everything else that appears in expressions
+        return node
+
 
 class RemoveUnreachableCode(CythonTransform):
     def visit_StatListNode(self, node):
