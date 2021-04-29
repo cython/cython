@@ -22,7 +22,7 @@ def test_date(int year, int month, int day):
            o.day == date_day(o)
 
 def test_datetime(int year, int month, int day, int hour,
-                           int minute, int second, int microsecond, int fold):
+                  int minute, int second, int microsecond, int fold):
     '''
     >>> test_datetime(2012, 12, 31, 12, 30, 59, 12345, 0)
     (True, True, True, True, True, True, True, True)
