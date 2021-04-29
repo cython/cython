@@ -2542,12 +2542,14 @@ class AlignFunctionDefinitions(CythonTransform):
         return node
 
 
-class AutoCpdefFunctionDefinitions(AlignFunctionDefinitions):
+class AutoCpdefFunctionDefinitions(CythonTransform):
 
     def visit_ModuleNode(self, node):
         self.directives = node.directives
         self.imported_names = set()  # hack, see visit_FromImportStatNode()
-        return super(AutoCpdefFunctionDefinitions, self).visit_ModuleNode(node)
+        self.scope = node.scope
+        self.visitchildren(node)
+        return node
 
     def visit_DefNode(self, node):
         pxd_def = self.scope.lookup(node.name)
@@ -2558,6 +2560,19 @@ class AutoCpdefFunctionDefinitions(AlignFunctionDefinitions):
               and node.is_cdef_func_compatible()):
             # FIXME: cpdef-ing should be done in analyse_declarations()
             node = node.as_cfunction(scope=self.scope)
+        return node
+
+    def visit_CClassDefNode(self, node, pxd_def=None):
+        if pxd_def is None:
+            pxd_def = self.scope.lookup(node.class_name)
+        if pxd_def:
+            if not pxd_def.defined_in_pxd:
+                return node
+            outer_scope = self.scope
+            self.scope = pxd_def.type.scope
+        self.visitchildren(node)
+        if pxd_def:
+            self.scope = outer_scope
         return node
 
     def visit_FromImportStatNode(self, node):
