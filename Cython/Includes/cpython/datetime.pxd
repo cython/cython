@@ -7,8 +7,8 @@ cdef extern from "Python.h":
 
 cdef extern from "datetime.h":
     """
-    /* Backport for Python < 3.3 */
-    #if PY_VERSION_HEX < 0x030100a1
+    /* Backport for Python < 2.7.5 */
+    #if PY_VERSION_HEX < 0x02070500
         #ifndef PyDateTime_DELTA_GET_DAYS
             #define PyDateTime_DELTA_GET_DAYS(o) (((PyDateTime_Delta*)o)->days)
         #endif
@@ -32,25 +32,17 @@ cdef extern from "datetime.h":
 
     /* Backport for Python < 3.6 */
     #if PY_VERSION_HEX < 0x030600a4
-        #ifndef __Pyx_DateTime_DateTimeWithFold
-            #define __Pyx_DateTime_DateTimeWithFold(year, month, day, hour, minute, second, microsecond, tz, fold) \
-                PyDateTimeAPI->DateTime_FromDateAndTime(year, month, day, hour, minute, second, \
-                    microsecond, tz, PyDateTimeAPI->DateTimeType)
-        #endif
-        #ifndef __Pyx_DateTime_TimeWithFold
-            #define __Pyx_DateTime_TimeWithFold(hour, minute, second, usecond, tz, fold) \
-                PyDateTimeAPI->Time_FromTime(hour, minute, second, usecond, tz, PyDateTimeAPI->TimeType)
-        #endif
+        #define __Pyx_DateTime_DateTimeWithFold(year, month, day, hour, minute, second, microsecond, tz, fold) \
+            PyDateTimeAPI->DateTime_FromDateAndTime(year, month, day, hour, minute, second, \
+                microsecond, tz, PyDateTimeAPI->DateTimeType)
+        #define __Pyx_DateTime_TimeWithFold(hour, minute, second, usecond, tz, fold) \
+            PyDateTimeAPI->Time_FromTime(hour, minute, second, usecond, tz, PyDateTimeAPI->TimeType)
     #else /* For Python 3.6+ so that we can pass tz */
-        #ifndef __Pyx_DateTime_DateTimeWithFold
-            #define PyDateTime_FromDateAndTimeAndFold(hour, minute, second, usecond, tz, fold) \
-                PyDateTimeAPI->DateTime_FromDateAndTimeAndFold(year, month, day, hour, minute, second, \
-                    microsecond, tz, fold, PyDateTimeAPI->DateTimeType)
-        #endif
-        #ifndef __Pyx_DateTime_TimeWithFold
-            #define __Pyx_DateTime_TimeWithFold(hour, minute, second, usecond, tz, fold) \
-                PyDateTimeAPI->Time_FromTimeAndFold(hour, minute, second, usecond, tz, fold, PyDateTimeAPI->TimeType)
-        #endif
+        #define __Pyx_PyDateTime_FromDateAndTimeAndFold(hour, minute, second, usecond, tz, fold) \
+            PyDateTimeAPI->DateTime_FromDateAndTimeAndFold(year, month, day, hour, minute, second, \
+                microsecond, tz, fold, PyDateTimeAPI->DateTimeType)
+        #define __Pyx_DateTime_TimeWithFold(hour, minute, second, usecond, tz, fold) \
+            PyDateTimeAPI->Time_FromTimeAndFold(hour, minute, second, usecond, tz, fold, PyDateTimeAPI->TimeType)
     #endif
 
     /* Backport for Python < 3.7 */
@@ -246,7 +238,7 @@ cdef extern from "datetime.h":
 
     # Constructors
     object PyTimeZone_FromOffset(object offset)
-    object PyTimeZone_FromOffsetAndName(object offset, str name)
+    object PyTimeZone_FromOffsetAndName(object offset, object name)
 
     # Constructors for the DB API
     object PyDateTime_FromTimeStamp(object args)
@@ -289,10 +281,10 @@ cdef inline object timedelta_new(int days, int seconds, int useconds):
     return PyDateTimeAPI.Delta_FromDelta(days, seconds, useconds, 1, PyDateTimeAPI.DeltaType)
 
 # Create timedelta object using DateTime CAPI factory function.
-cdef inline object timezone_new(object offset, str name=None):
+cdef inline object timezone_new(object offset, object name=None):
     if PY_VERSION_HEX < 0x030700b1:
         raise RuntimeError('Time zones are not available from the C-API.')
-    return PyTimeZone_FromOffsetAndName(offset, name)
+    return PyTimeZone_FromOffsetAndName(offset, name) if name is not None else PyTimeZone_FromOffset(offset)
 
 # Create datetime object using PEP 495 constructor.
 cdef inline object datetime_and_fold_new(
