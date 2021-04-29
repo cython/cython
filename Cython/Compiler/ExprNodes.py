@@ -8822,9 +8822,7 @@ class FrozenSetNode(SetNode):
         self.result_code = set_target
 
     def generate_evaluation_code(self, code):
-        if self.args is None or self.args.is_literal:
-            self.is_temp = False
-            self.is_literal = True
+        if self.is_literal:
             self._create_shared_frozenset_object(code)
             return
 

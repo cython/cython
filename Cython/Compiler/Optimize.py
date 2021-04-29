@@ -2585,18 +2585,22 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
     def _handle_simple_function_frozenset(self, node, function, pos_args):
         if not pos_args:
             result = ExprNodes.FrozenSetNode(node.pos, is_temp=1, args=None)
-            self.replace(node, result)
+            result.is_temp = False
+            result.is_literal = True
             return result
 
         # In Python 3.9 or earlier, frozenset() expects zero element, or one iterable element
         # https://docs.python.org/3.9/library/stdtypes.html#frozenset
         if len(pos_args) > 1:
             return node
-        print(pos_args[0])#.is_sequence_constructor)
+        #print(pos_args[0])#.is_sequence_constructor)
         # assert pos_args[0].is_sequence_constructor
 
         # We could only create a frozenset by builtin name
         result = ExprNodes.FrozenSetNode(node.pos, is_temp=1, args=pos_args[0])
+        if pos_args[0].is_literal:
+            result.is_temp = False
+            result.is_literal = True
         return result
 
 
