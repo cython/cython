@@ -2757,6 +2757,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("__Pyx_PyMODINIT_FUNC PyInit___init__(void) { return %s(); }" % (
                 self.mod_init_func_cname('PyInit', env)))
             code.putln("#endif")
+        # Hack for a distutils bug - https://bugs.python.org/issue39432
+        # distutils attempts to make visible a slightly wrong PyInitU module name. Just create a dummy
+        # function to keep it quiet
+        wrong_punycode_module_name = self.wrong_punycode_module_name(env.module_name)
+        if wrong_punycode_module_name:
+            code.putln("#if !defined(CYTHON_NO_PYINIT_EXPORT) && (defined(_WIN32) || defined(WIN32) || defined(MS_WINDOWS))")
+            code.putln("void %s(void) {} /* workaround for https://bugs.python.org/issue39432 */" % wrong_punycode_module_name)
+            code.putln("#endif")
         code.putln(header3)
 
         # CPython 3.5+ supports multi-phase module initialisation (gives access to __spec__, __file__, etc.)
@@ -3192,6 +3200,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         except UnicodeEncodeError:
             name = 'U_' + name.encode('punycode').replace(b'-', b'_').decode('ascii')
         return "%s%s" % (prefix, name)
+
+    def wrong_punycode_module_name(self, name):
+        # to work around a distutils bug by also generating an incorrect symbol...
+        try:
+            name.encode("ascii")
+            return None  # workaround is not needed
+        except UnicodeEncodeError:
+            return "PyInitU" + (u"_"+name).encode('punycode').replace(b'-', b'_').decode('ascii')
 
     def mod_init_func_cname(self, prefix, env):
         # from PEP483
