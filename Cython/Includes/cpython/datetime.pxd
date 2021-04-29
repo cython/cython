@@ -235,8 +235,16 @@ cdef extern from "datetime.h":
     int PyDateTime_DELTA_GET_MICROSECONDS(object o)
 
     # Constructors
+    object PyTimeZone_FromOffset(object offset)
+    object PyTimeZone_FromOffsetAndName(object offset, object name)
+
+    # The above macros is Python 3.7+ so we use these instead
     object __Pyx_TimeZone_FromOffset(object offset)
     object __Pyx_TimeZone_FromOffsetAndName(object offset, object name)
+
+    # Constructors for the DB API
+    object PyDateTime_FromTimeStamp(object args)
+    object PyDate_FromTimeStamp(object args)
 
     # PEP 495 constructors but patched above to allow passing tz
     object __Pyx_DateTime_DateTimeWithFold(int, int, int, int, int, int, int, object, int)
@@ -245,6 +253,9 @@ cdef extern from "datetime.h":
     # PyDateTime CAPI object.
     PyDateTime_CAPI *PyDateTimeAPI
 
+    PyObject* PyDateTime_TimeZone_UTC
+
+    # PyDateTime_TimeZone_UTC is Python 3.7+ so instead we use the following macro
     PyObject* __Pyx_TimeZone_UTC
 
     void PyDateTime_IMPORT()
