@@ -2597,7 +2597,6 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
 
         # We could only create a frozenset by builtin name
         result = ExprNodes.FrozenSetNode(node.pos, is_temp=1, args=pos_args[0])
-        self.replace(node, result)
         return result
 
 
