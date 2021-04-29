@@ -2763,7 +2763,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         wrong_punycode_module_name = self.wrong_punycode_module_name(env.module_name)
         if wrong_punycode_module_name:
             code.putln("#if !defined(CYTHON_NO_PYINIT_EXPORT) && (defined(_WIN32) || defined(WIN32) || defined(MS_WINDOWS))")
-            code.putln("void %s(void) {} /* hacky workaround! */" % wrong_punycode_module_name)
+            code.putln("void %s(void) {} /* workaround for https://bugs.python.org/issue39432 */" % wrong_punycode_module_name)
             code.putln("#endif")
         code.putln(header3)
 
