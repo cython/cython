@@ -232,16 +232,16 @@ def for_pyucs4_in_enumerate_unicode(unicode s):
 def for_infered_type_in_enumerate_unicode(unicode s):
     """
     >>> for_infered_type_in_enumerate_unicode(unicode_abc)
-    ('Py_ssize_t', 'Py_UCS4')
+    Py_ssize_t Py_UCS4
     'X'
     >>> for_infered_type_in_enumerate_unicode(unicode_ABC)
-    ('Py_ssize_t', 'Py_UCS4')
+    Py_ssize_t Py_UCS4
     2
     >>> for_infered_type_in_enumerate_unicode(unicode_abc_null)
-    ('Py_ssize_t', 'Py_UCS4')
+    Py_ssize_t Py_UCS4
     'X'
     >>> for_infered_type_in_enumerate_unicode(unicode_ABC_null)
-    ('Py_ssize_t', 'Py_UCS4')
+    Py_ssize_t Py_UCS4
     4
     """
     print(typeof(i), typeof(c))
