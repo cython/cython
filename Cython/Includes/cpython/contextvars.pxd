@@ -7,7 +7,10 @@ cdef extern from "Python.h":
     """
     #if PY_VERSION_HEX < 0x030700b1 && !defined(PyContextVar_Get)
     #define PyContextVar_Get(var, d, v) \
-        ((void)(var), (d) ? Py_INCREF(d) : NULL, (v)[0] = (d), 0)
+        ((d) ? \
+            ((void)(var), Py_INCREF(d), (v)[0] = (d), 0) : \
+            ((v)[0] = NULL, 0) \
+        )
     #endif
     """
 
