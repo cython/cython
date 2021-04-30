@@ -7012,9 +7012,9 @@ class AttributeNode(ExprNode):
                             return None
                         ubcm_entry = entry
                     else:
-                        ubcm_entry = self._create_ubcm_entry(type, entry, env)
+                        ubcm_entry = self._create_unbound_cmethod_entry(type, entry, env)
                         ubcm_entry.overloaded_alternatives = [
-                            self._create_ubcm_entry(type, overloaded_alternative, env)
+                            self._create_unbound_cmethod_entry(type, overloaded_alternative, env)
                             for overloaded_alternative in entry.overloaded_alternatives
                         ]
                     return self.as_name_node(env, ubcm_entry, target=False)
@@ -7029,7 +7029,7 @@ class AttributeNode(ExprNode):
                     error(self.pos, "%s not a known value of %s" % (self.attribute, type))
         return None
 
-    def _create_ubcm_entry(self, type, entry, env):
+    def _create_unbound_cmethod_entry(self, type, entry, env):
         # Create a temporary entry describing the unbound C method in `entry`
         # as an ordinary function.
         if entry.func_cname and entry.type.op_arg_struct is None:
