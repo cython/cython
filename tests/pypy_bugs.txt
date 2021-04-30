@@ -10,6 +10,7 @@ sequential_parallel
 yield_from_pep380
 memoryview_inplace_division
 
+run.pycontextvar
 run.unicodeliterals
 run.unicodemethods
 run.unicode_imports
