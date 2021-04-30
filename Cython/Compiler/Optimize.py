@@ -2589,7 +2589,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             result.is_literal = True
             return result
 
-        # In Python 3.9 or earlier, frozenset() expects zero element, or one iterable element
+        # In Python 3.9 or earlier, frozenset() expects no arguments, or one iterable argument
         # https://docs.python.org/3.9/library/stdtypes.html#frozenset
         if len(pos_args) > 1:
             return node

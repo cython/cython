@@ -328,7 +328,10 @@ def test_set_of_list():
     return set([1, 2, 3])
 
 
-@cython.test_fail_if_path_exists("//SetNode", "//PythonCapiCallNode")
+@cython.test_fail_if_path_exists(
+    "//SetNode",
+    "//PythonCapiCallNode",
+)
 def test_frozenset_of_list():
     """
     >>> s = test_frozenset_of_list()
