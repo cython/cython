@@ -22,6 +22,7 @@ from cpython.datetime cimport (
 )
 
 import datetime as py_datetime
+import sys
 
 import_datetime()
 
