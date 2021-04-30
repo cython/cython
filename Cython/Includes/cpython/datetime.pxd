@@ -48,11 +48,9 @@ cdef extern from "datetime.h":
     /* Backport for Python < 3.7 */
     #if PY_VERSION_HEX < 0x030700b1
         #define __Pyx_TimeZone_UTC NULL
-        #define __Pyx_TimeZone_FromOffset(offset) NULL
-        #define __Pyx_TimeZone_FromOffsetAndName(offset, name) PyTimeZone_FromOffset(offset)
+        #define __Pyx_TimeZone_FromOffsetAndName(offset, name) NULL
     #else
         #define __Pyx_TimeZone_UTC PyDateTime_TimeZone_UTC
-        #define __Pyx_TimeZone_FromOffset(offset) PyTimeZone_FromOffset(offset)
         #define __Pyx_TimeZone_FromOffsetAndName(offset, name) PyTimeZone_FromOffsetAndName(offset, name)
     #endif
     """
@@ -239,8 +237,7 @@ cdef extern from "datetime.h":
     object PyTimeZone_FromOffsetAndName(object offset, object name)
 
     # The above macros is Python 3.7+ so we use these instead
-    object __Pyx_TimeZone_FromOffset(object offset)
-    object __Pyx_TimeZone_FromOffsetAndName(object offset, object name)
+    object __Pyx_TimeZone_FromOffsetAndName(object offset, PyObject* name)
 
     # Constructors for the DB API
     object PyDateTime_FromTimeStamp(object args)
@@ -289,7 +286,7 @@ cdef inline object timedelta_new(int days, int seconds, int useconds):
 cdef inline object timezone_new(object offset, object name=None):
     if PY_VERSION_HEX < 0x030700b1:
         raise RuntimeError('Time zones are not available from the C-API.')
-    return __Pyx_TimeZone_FromOffsetAndName(offset, name) if name is not None else PyTimeZone_FromOffset(offset)
+    return __Pyx_TimeZone_FromOffsetAndName(offset, <PyObject*>name if name is not None else NULL)
 
 # Create datetime object using DB API constructor.
 cdef inline object datetime_from_timestamp(timestamp, tz=None):
