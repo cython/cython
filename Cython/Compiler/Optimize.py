@@ -2589,12 +2589,26 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             result.is_literal = True
             return result
 
-        # In Python 3.9 or earlier, frozenset() expects no arguments, or one iterable argument
+        # frozenset() expects no arguments, or one iterable argument
         # https://docs.python.org/3.9/library/stdtypes.html#frozenset
         if len(pos_args) > 1:
             return node
-        #print(pos_args[0])#.is_sequence_constructor)
-        # assert pos_args[0].is_sequence_constructor
+        # TODO: Unicode process
+        if pos_args[0].is_string_literal:
+            arg_set = frozenset(pos_args[0].constant_result)
+            # print(arg_set)
+            transformed_result = [
+                ExprNodes.StringNode(node.pos, value=c, unicode_value=c,
+                constant_result=c, is_identifier=False)
+                for c in arg_set
+            ]
+            # print(transformed_result)
+            args_tuple = ExprNodes.TupleNode(node.pos, args=transformed_result)
+            result = ExprNodes.FrozenSetNode(node.pos, is_temp=1, args=args_tuple)
+            result.is_temp = False
+            result.is_literal = True
+            return result
+
 
         # We could only create a frozenset by builtin name
         result = ExprNodes.FrozenSetNode(node.pos, is_temp=1, args=pos_args[0])
