@@ -98,7 +98,16 @@ def test_frozenset_of_tuple():
 
 
 
-
+# def test_dedup_frozenset():
+#     """
+#     >>> import sys
+#     >>> test_dedup_frozenset()
+#     1
+#     """
+#     list1 = [1, 4, 8, -2]
+#     list2 = sorted(list1)
+#     efs = [frozenset(list1), frozenset(list2), frozenset(tuple(list1)), frozenset(list1)]
+#     return len(set(map(id, efs)))
 
 @cython.test_fail_if_path_exists(
     "//SimpleCallNode",

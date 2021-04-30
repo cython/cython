@@ -194,6 +194,7 @@ def make_dedup_key(outer_type, item_nodes):
     Recursively generate a deduplication key from a sequence of values.
     Includes Cython node types to work around the fact that (1, 2.0) == (1.0, 2), for example.
 
+    @type  outer_type: Cython.Compiler.PyrexTypes.BuiltinObjectType
     @param outer_type: The type of the outer container.
     @param item_nodes: A sequence of constant nodes that will be traversed recursively.
     @return: A tuple that can be used as a dict key for deduplication.
@@ -8791,7 +8792,7 @@ class FrozenSetNode(SetNode):
     def calculate_result_code(self):
         return self.result_code
 
-    def generate_creating_from_constant_code(self, code, target):
+    def _generate_creating_from_constant_code(self, code, target):
         if target is None:
             target = self.result()
         assert target is not None
@@ -8805,12 +8806,33 @@ class FrozenSetNode(SetNode):
             code.error_goto_if_null(target, self.pos)))
         self.result_code = target
 
+# TODO: for such case
+#     x = frozenset((1, 2, 3, 2))
+#     y = frozenset((1, 2, 3, 2, 3, 1))
+#     _get_dedup_values will generate same dedup key,
+#     but cython will still try to create frozenset from a tuple with duplicate elements
+
+    def _get_dedup_values(self, args):
+        result = []
+        result_set = set()
+        for argument in args:
+            val = argument.constant_result
+            if val is None:
+                return args  # We expect a constant value. If not, we skip this phase
+            if val not in result_set:
+                result.append(argument)
+                result_set.add(val)
+        result.sort(key=lambda x:x.constant_result)
+        print(result)
+        return result
+
+
     def _create_shared_frozenset_object(self, code):
         # print(self.type)  # currently set object, should be frozenset
         if self.args is None:
             dedup_key = make_dedup_key(self.type, ())
         else:
-            dedup_key = make_dedup_key(self.type, self.args.args)
+            dedup_key = make_dedup_key(self.type, self._get_dedup_values(self.args.args))
         set_target = code.get_py_const(py_object_type, 'frozenset', cleanup_level=2, dedup_key=dedup_key)
         assert set_target is not None
         # print(set_target)
@@ -8818,7 +8840,7 @@ class FrozenSetNode(SetNode):
         if const_code is not None:
             # constant is not yet initialised
             const_code.mark_pos(self.pos)
-            self.generate_creating_from_constant_code(const_code, set_target)
+            self._generate_creating_from_constant_code(const_code, set_target)
         self.result_code = set_target
 
     def generate_evaluation_code(self, code):
