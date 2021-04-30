@@ -2552,10 +2552,7 @@ class AutoCpdefFunctionDefinitions(CythonTransform):
         return node
 
     def visit_DefNode(self, node):
-        pxd_def = self.scope.lookup(node.name)
-        if pxd_def and (not pxd_def.scope or not pxd_def.scope.is_builtin_scope):
-            pass
-        elif (self.scope.is_module_scope and self.directives['auto_cpdef']
+        if (self.scope.is_module_scope and self.directives['auto_cpdef']
               and node.name not in self.imported_names
               and node.is_cdef_func_compatible()):
             # FIXME: cpdef-ing should be done in analyse_declarations()
