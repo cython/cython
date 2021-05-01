@@ -38,7 +38,7 @@ cdef extern from "datetime.h":
         #define __Pyx_DateTime_TimeWithFold(hour, minute, second, usecond, tz, fold) \
             PyDateTimeAPI->Time_FromTime(hour, minute, second, usecond, tz, PyDateTimeAPI->TimeType)
     #else /* For Python 3.6+ so that we can pass tz */
-        #define __Pyx_PyDateTime_FromDateAndTimeAndFold(hour, minute, second, usecond, tz, fold) \
+        #define __Pyx_DateTime_FromDateAndTimeAndFold(hour, minute, second, usecond, tz, fold) \
             PyDateTimeAPI->DateTime_FromDateAndTimeAndFold(year, month, day, hour, minute, second, \
                 microsecond, tz, fold, PyDateTimeAPI->DateTimeType)
         #define __Pyx_DateTime_TimeWithFold(hour, minute, second, usecond, tz, fold) \

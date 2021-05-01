@@ -244,7 +244,7 @@ def test_datetime_attrs_inlined(datetime dt):
 def test_date_from_timestamp():
     """
     >>> from datetime import datetime
-    >>> tp, dt = test_date_from_utc_timestamp()
+    >>> tp, dt = test_date_from_timestamp()
     >>> tp == dt
     True
     """
@@ -255,7 +255,7 @@ def test_date_from_timestamp():
 def test_get_utc():
     """
     >>> from datetime import datetime
-    >>> test_datetime_from_utc_timestamp()
+    >>> test_get_utc()
     True
     """
     try:
