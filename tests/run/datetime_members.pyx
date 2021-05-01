@@ -27,7 +27,7 @@ def test_datetime(int year, int month, int day, int hour,
     >>> test_datetime(2012, 12, 31, 12, 30, 59, 12345, 0)
     (True, True, True, True, True, True, True, True)
     '''
-    o = <datetime.datetime>datetime_new(
+    o = <datetime>datetime_new(
         year, month, day, hour, minute, second, microsecond, None, fold
     )
     return o.year == datetime_year(o), \

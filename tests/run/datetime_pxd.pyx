@@ -22,6 +22,7 @@ from cpython.datetime cimport (
 )
 
 import datetime as py_datetime
+import time as py_time
 import sys
 
 import_datetime()
@@ -276,6 +277,6 @@ def test_datetime_from_timestamp():
     >>> tp == dt
     True
     """
-    tp = datetime_from_timestamp(1618770890)
-    dt = py_datetime.datetime(2021, 4, 18, 20, 34, 50)
+    tp = datetime_from_timestamp(py_time.time())
+    dt = py_datetime.datetime.today()
     return tp, dt
