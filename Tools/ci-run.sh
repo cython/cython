@@ -97,4 +97,4 @@ python runtests.py \
    $LIMITED_API \
    $EXCLUDE \
    $(if [ "$COVERAGE" == "1" ]; then echo " --coverage"; fi) \
-   $(if [ -z "$TEST_CODE_STYLE" ]; then echo " -j9 "; fi)
+   $(if [ -z "$TEST_CODE_STYLE" ]; then echo " -j5 "; fi)
