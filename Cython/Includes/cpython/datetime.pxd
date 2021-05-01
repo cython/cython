@@ -35,14 +35,14 @@ cdef extern from "datetime.h":
         #define __Pyx_DateTime_DateTimeWithFold(year, month, day, hour, minute, second, microsecond, tz, fold) \
             PyDateTimeAPI->DateTime_FromDateAndTime(year, month, day, hour, minute, second, \
                 microsecond, tz, PyDateTimeAPI->DateTimeType)
-        #define __Pyx_DateTime_TimeWithFold(hour, minute, second, usecond, tz, fold) \
-            PyDateTimeAPI->Time_FromTime(hour, minute, second, usecond, tz, PyDateTimeAPI->TimeType)
+        #define __Pyx_DateTime_TimeWithFold(hour, minute, second, microsecond, tz, fold) \
+            PyDateTimeAPI->Time_FromTime(hour, minute, second, microsecond, tz, PyDateTimeAPI->TimeType)
     #else /* For Python 3.6+ so that we can pass tz */
-        #define __Pyx_DateTime_FromDateAndTimeAndFold(hour, minute, second, usecond, tz, fold) \
+        #define __Pyx_DateTime_DateTimeWithFold(year, month, day, hour, minute, second, microsecond, tz, fold) \
             PyDateTimeAPI->DateTime_FromDateAndTimeAndFold(year, month, day, hour, minute, second, \
                 microsecond, tz, fold, PyDateTimeAPI->DateTimeType)
-        #define __Pyx_DateTime_TimeWithFold(hour, minute, second, usecond, tz, fold) \
-            PyDateTimeAPI->Time_FromTimeAndFold(hour, minute, second, usecond, tz, fold, PyDateTimeAPI->TimeType)
+        #define __Pyx_DateTime_TimeWithFold(hour, minute, second, microsecond, tz, fold) \
+            PyDateTimeAPI->Time_FromTimeAndFold(hour, minute, second, microsecond, tz, fold, PyDateTimeAPI->TimeType)
     #endif
 
     /* Backport for Python < 3.7 */
