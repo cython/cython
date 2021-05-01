@@ -786,7 +786,8 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
       PyNumber_Add(a, b) : __Pyx_PyUnicode_Concat(a, b))
 #endif
 
-#if CYTHON_COMPILING_IN_PYPY && !defined(PyUnicode_Contains)
+#if CYTHON_COMPILING_IN_PYPY && (!defined(PyUnicode_Contains) || (PY_MAJOR_VERSION == 2 && PYPY_VERSION_NUM < 0x07030500))
+  #undef PyUnicode_Contains
   #define PyUnicode_Contains(u, s)  PySequence_Contains(u, s)
 #endif
 
