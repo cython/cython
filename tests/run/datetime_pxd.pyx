@@ -275,5 +275,5 @@ def test_datetime_from_timestamp():
     """
     time = py_time.time()
     tp = datetime_from_timestamp(time)
-    dt = py_datetime.datetime.from_timestamp(time)
+    dt = py_datetime.datetime.fromtimestamp(time)
     return tp, dt
