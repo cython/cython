@@ -34,7 +34,7 @@ from . import PyrexTypes
 from .PyrexTypes import py_object_type, c_long_type, typecast, error_type, \
     unspecified_type
 from . import TypeSlots
-from .Builtin import list_type, tuple_type, set_type, dict_type, type_type, \
+from .Builtin import list_type, tuple_type, set_type, frozenset_type, dict_type, type_type, \
      unicode_type, str_type, bytes_type, bytearray_type, basestring_type, slice_type
 from . import Builtin
 from . import Symtab
@@ -8786,8 +8786,8 @@ class FrozenSetNode(SetNode):
     """
 
     gil_message = "Constructing Python frozenset"
-    result_code = None
     is_literal = False
+    type = frozenset_type
 
     def calculate_result_code(self):
         return self.result_code
@@ -8813,6 +8813,8 @@ class FrozenSetNode(SetNode):
 #     but cython will still try to create frozenset from a tuple with duplicate elements
 
     def _get_dedup_values(self, args):
+        if args is None:
+            return ()
         print("===========")
         print(args)
         print(args.__dict__)
