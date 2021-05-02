@@ -8816,9 +8816,9 @@ class FrozenSetNode(SetNode):
         result = []
         result_set = set()
         for argument in args:
+            if not argument.has_constant_result():
+                return args  # Constant frozensets require constant items.
             val = argument.constant_result
-            if val is None:
-                return args  # We expect a constant value. If not, we skip this phase
             if val not in result_set:
                 result.append(argument)
                 result_set.add(val)
