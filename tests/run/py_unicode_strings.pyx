@@ -1,15 +1,17 @@
+# mode: run
 # tag: py_unicode_strings
 
 import sys
 
-cimport cython
-from libc.string cimport memcpy, strcpy
+from libc.string cimport memcpy
 
 cdef bint Py_UNICODE_equal(const Py_UNICODE* u1, const Py_UNICODE* u2):
-    while u1[0] != 0 and u2[0] != 0 and u1[0] == u2[0]:
-        u1 += 1
-        u2 += 1
-    return u1[0] == u2[0]
+    cdef size_t i = 0
+    while u1[i] != 0 and u2[i] != 0 and u1[i] == u2[i]:
+        i += 1
+    if u1[i] != u2[i]:
+        print(f"Mismatch at position {i}: {<long>u1[i]} != {<long>u2[i]}")
+    return u1[i] == u2[i]
 
 
 ctypedef Py_UNICODE* LPWSTR
@@ -48,9 +50,10 @@ def test_c_to_python():
     assert c_pu_str[1:7] == uobj[1:7]
     assert c_wstr[1:7] == uobj[1:7]
 
-    assert c_pu_arr[1] == uobj[1]
-    assert c_pu_str[1] == uobj[1]
-    assert c_wstr[1] == uobj[1]
+    cdef Py_UNICODE ch = uobj[1]  # Py_UCS4 is unsigned, Py_UNICODE is usually signed.
+    assert c_pu_arr[1] == ch
+    assert c_pu_str[1] == ch
+    assert c_wstr[1] == ch
 
     assert len(c_pu_str) == 8
     assert len(c_pu_arr) == 8
