@@ -7,8 +7,8 @@ cdef extern from "Python.h":
 
 cdef extern from "datetime.h":
     """
-    /* Backport for Python < 2.7.5 */
-    #if PY_VERSION_HEX < 0x02070500
+    /* Backport for Python 2.x */
+    #if PY_MAJOR_VERSION < 3
         #ifndef PyDateTime_DELTA_GET_DAYS
             #define PyDateTime_DELTA_GET_DAYS(o) (((PyDateTime_Delta*)o)->days)
         #endif
@@ -23,20 +23,20 @@ cdef extern from "datetime.h":
     /* Backport for Python < 3.6 */
     #if PY_VERSION_HEX < 0x030600a4
         #ifndef PyDateTime_TIME_GET_FOLD
-            #define PyDateTime_TIME_GET_FOLD(o) 0
+            #define PyDateTime_TIME_GET_FOLD(o) ((void)(o), 0)
         #endif
         #ifndef PyDateTime_DATE_GET_FOLD
-            #define PyDateTime_DATE_GET_FOLD(o) 0
+            #define PyDateTime_DATE_GET_FOLD(o) ((void)(o), 0)
         #endif
     #endif
 
     /* Backport for Python < 3.6 */
     #if PY_VERSION_HEX < 0x030600a4
         #define __Pyx_DateTime_DateTimeWithFold(year, month, day, hour, minute, second, microsecond, tz, fold) \
-            PyDateTimeAPI->DateTime_FromDateAndTime(year, month, day, hour, minute, second, \
-                microsecond, tz, PyDateTimeAPI->DateTimeType)
+            ((void)(fold), PyDateTimeAPI->DateTime_FromDateAndTime(year, month, day, hour, minute, second, \
+                microsecond, tz, PyDateTimeAPI->DateTimeType))
         #define __Pyx_DateTime_TimeWithFold(hour, minute, second, microsecond, tz, fold) \
-            PyDateTimeAPI->Time_FromTime(hour, minute, second, microsecond, tz, PyDateTimeAPI->TimeType)
+            ((void)(fold), PyDateTimeAPI->Time_FromTime(hour, minute, second, microsecond, tz, PyDateTimeAPI->TimeType))
     #else /* For Python 3.6+ so that we can pass tz */
         #define __Pyx_DateTime_DateTimeWithFold(year, month, day, hour, minute, second, microsecond, tz, fold) \
             PyDateTimeAPI->DateTime_FromDateAndTimeAndFold(year, month, day, hour, minute, second, \
@@ -48,7 +48,7 @@ cdef extern from "datetime.h":
     /* Backport for Python < 3.7 */
     #if PY_VERSION_HEX < 0x030700b1
         #define __Pyx_TimeZone_UTC NULL
-        #define __Pyx_TimeZone_FromOffsetAndName(offset, name) NULL
+        #define __Pyx_TimeZone_FromOffsetAndName(offset, name) ((void)(offset), (void)(name), NULL)
     #else
         #define __Pyx_TimeZone_UTC PyDateTime_TimeZone_UTC
         #define __Pyx_TimeZone_FromOffsetAndName(offset, name) PyTimeZone_FromOffsetAndName(offset, name)
