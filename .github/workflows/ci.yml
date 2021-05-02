@@ -124,6 +124,7 @@ jobs:
       CCACHE_SLOPPINESS: "pch_defines,time_macros"
       CCACHE_COMPRESS: 1
       CCACHE_MAXSIZE: "250M"
+      PATH="/usr/lib/ccache:$PATH"
 
     steps:
       - name: Checkout repo
