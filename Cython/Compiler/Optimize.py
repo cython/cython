@@ -2581,7 +2581,6 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 is_temp=node.is_temp,
                 py_name="set"))
 
-
     def _handle_simple_function_frozenset(self, node, function, pos_args):
         if not pos_args:
             result = ExprNodes.FrozenSetNode(node.pos, is_temp=1, args=None)
@@ -2593,6 +2592,16 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         # https://docs.python.org/3.9/library/stdtypes.html#frozenset
         if len(pos_args) > 1:
             return node
+        print("====")
+        print(pos_args[0].type)
+        print(pos_args[0].may_be_none())
+        print(pos_args[0].__dict__)
+
+        if pos_args[0].type is Builtin.frozenset_type :
+            # and not pos_args[0].may_be_none()
+            print(pos_args[0].may_be_none())
+            print(pos_args[0].__dict__)
+
         # TODO: Unicode process
         if pos_args[0].is_string_literal:
             arg_set = frozenset(pos_args[0].constant_result)
