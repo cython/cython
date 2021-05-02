@@ -84,6 +84,8 @@ else
 fi
 
 # Run tests
+ccache -s 2>/dev/null || true
+
 if [ "$COVERAGE" != "1" -a -n "${PYTHON_VERSION##pypy*}" ]; then
   export CFLAGS="-O2 -ggdb -Wall -Wextra $(python -c 'import sys; print("-fno-strict-aliasing" if sys.version_info[0] == 2 else "")')"
   python setup.py build_ext -i $(python -c 'import sys; print("-j5" if sys.version_info >= (3,5) else "")') || exit 1
@@ -98,3 +100,5 @@ python runtests.py \
    $EXCLUDE \
    $(if [ "$COVERAGE" == "1" ]; then echo " --coverage"; fi) \
    $(if [ -z "$TEST_CODE_STYLE" ]; then echo " -j7 "; fi)
+
+ccache -s 2>/dev/null || true
