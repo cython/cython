@@ -8813,6 +8813,7 @@ class FrozenSetNode(SetNode):
 #     but cython will still try to create frozenset from a tuple with duplicate elements
 
     def _get_dedup_values(self, args):
+        print(args)
         result = []
         result_set = set()
         for argument in args:
@@ -8825,7 +8826,6 @@ class FrozenSetNode(SetNode):
         result.sort(key=lambda x:x.constant_result)
         print(result)
         return result
-
 
     def _create_shared_frozenset_object(self, code):
         # print(self.type)  # currently set object, should be frozenset

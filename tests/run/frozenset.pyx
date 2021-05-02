@@ -2,16 +2,7 @@
 
 cimport cython
 
-#
-# def cython_set():
-#     """
-#     >>> cython_set() is set
-#     True
-#     """
-#     assert set is cython.set
-#     return cython.set
-#
-#
+
 # def cython_frozenset():
 #     """
 #     >>> cython_frozenset() is frozenset
@@ -19,9 +10,30 @@ cimport cython
 #     """
 #     assert frozenset is cython.frozenset
 #     return cython.frozenset
+
 #
+# @cython.test_fail_if_path_exists(
+#     '//ListNode//ListNode',
+#     '//ListNode//PythonCapiCallNode//PythonCapiCallNode',
+#     '//ListNode//SimpleCallNode//SimpleCallNode',
+# )
+# def test_empty_frozenset():
+#     """
+#     >>> test_empty_frozenset()
+#     """
+#     f = frozenset()
+#     efs = [frozenset(),
+#            frozenset([]), frozenset(()), frozenset(''),
+#            frozenset(), frozenset([]), frozenset(()), frozenset(''),
+#            frozenset(range(0)), frozenset(frozenset()),
+#            frozenset(f), f]
+#     for i in range(0, len(efs)):
+#         for j in range(i+1, len(efs)):
+#             assert efs[i] == efs[j]
+#     # print(efs)
+#     return None  # note, only a singleton in Python <3.10
 #
-# def cython_frozenset_override():
+# # def cython_frozenset_override():
 #     """
 #     >>> cython_frozenset_override() is frozenset
 #     True
@@ -72,17 +84,20 @@ cimport cython
 #     return frozenset([1, 2, 3])
 #
 #
-# @cython.test_assert_path_exists("//SetNode")
-# @cython.test_fail_if_path_exists("//SimpleCallNode")
-# def test_set_of_tuple():
-#     """
-#     >>> s = test_set_of_tuple()
-#     >>> isinstance(s, set)
-#     True
-#     >>> sorted(s)
-#     [1, 2, 3]
-#     """
-#     return set((1, 2, 3))
+@cython.test_fail_if_path_exists("//SetNode", "//PythonCapiCallNode")
+def test_frozenset_of_None_value():
+    """
+    >>> s = test_frozenset_of_None_value()
+    >>> isinstance(s, frozenset)
+    True
+    >>> len(s)
+    3
+    >>> None in s
+    True
+    """
+    return frozenset((1, 2, None, 1, None))
+
+
 #
 #
 # @cython.test_fail_if_path_exists("//SetNode", "//PythonCapiCallNode")
