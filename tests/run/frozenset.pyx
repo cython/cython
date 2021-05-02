@@ -17,21 +17,24 @@ cimport cython
 #     '//ListNode//PythonCapiCallNode//PythonCapiCallNode',
 #     '//ListNode//SimpleCallNode//SimpleCallNode',
 # )
-# def test_empty_frozenset():
-#     """
-#     >>> test_empty_frozenset()
-#     """
-#     f = frozenset()
-#     efs = [frozenset(),
-#            frozenset([]), frozenset(()), frozenset(''),
-#            frozenset(), frozenset([]), frozenset(()), frozenset(''),
-#            frozenset(range(0)), frozenset(frozenset()),
-#            frozenset(f), f]
-#     for i in range(0, len(efs)):
-#         for j in range(i+1, len(efs)):
-#             assert efs[i] == efs[j]
-#     # print(efs)
-#     return None  # note, only a singleton in Python <3.10
+def test_empty_frozenset():
+    """
+    >>> test_empty_frozenset()
+    """
+    f = frozenset()
+    efs = [frozenset(),
+           frozenset([]), frozenset(()), frozenset(''),
+           frozenset(), frozenset([]), frozenset(()), frozenset(''),
+           # frozenset(range(0)),
+           frozenset(frozenset()),
+           frozenset(f),
+           # f
+           ]
+    for i in range(0, len(efs)):
+        for j in range(i+1, len(efs)):
+            assert efs[i] == efs[j]
+    # print(efs)
+    return None
 #
 # # def cython_frozenset_override():
 #     """

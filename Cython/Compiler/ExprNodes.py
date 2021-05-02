@@ -8813,10 +8813,15 @@ class FrozenSetNode(SetNode):
 #     but cython will still try to create frozenset from a tuple with duplicate elements
 
     def _get_dedup_values(self, args):
+        print("===========")
         print(args)
+        print(args.__dict__)
         result = []
         result_set = set()
-        for argument in args:
+        for argument in args.args:
+            # print(argument)
+            # print(argument.__dict__)
+            # print(type(argument.pos))
             val = argument.constant_result
             if val is None:
                 return args  # We expect a constant value. If not, we skip this phase
@@ -8829,10 +8834,11 @@ class FrozenSetNode(SetNode):
 
     def _create_shared_frozenset_object(self, code):
         # print(self.type)  # currently set object, should be frozenset
-        if self.args is None:
-            dedup_key = make_dedup_key(self.type, ())
-        else:
-            dedup_key = make_dedup_key(self.type, self._get_dedup_values(self.args.args))
+        dedup_key = make_dedup_key(self.type, self._get_dedup_values(self.args))
+        # if self.args is None:
+        #     dedup_key = make_dedup_key(self.type, ())
+        # else:
+        #     dedup_key = make_dedup_key(self.type, self._get_dedup_values(self.args.args))
         set_target = code.get_py_const(py_object_type, 'frozenset', cleanup_level=2, dedup_key=dedup_key)
         assert set_target is not None
         # print(set_target)
