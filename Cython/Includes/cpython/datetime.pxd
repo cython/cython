@@ -53,6 +53,18 @@ cdef extern from "datetime.h":
         #define __Pyx_TimeZone_UTC PyDateTime_TimeZone_UTC
         #define __Pyx_TimeZone_FromOffsetAndName(offset, name) PyTimeZone_FromOffsetAndName(offset, name)
     #endif
+
+    /* Backport for Python < 3.10 */
+    #if PY_VERSION_HEX < 0x030a00a1
+        #ifndef PyDateTime_TIME_GET_TZINFO
+            #define PyDateTime_TIME_GET_TZINFO(o) \
+                ((((PyDateTime_Time*)o)->hastzinfo) ? ((PyDateTime_Time*)o)->tzinfo : Py_None)
+        #endif
+        #ifndef PyDateTime_DATE_GET_TZINFO
+            #define PyDateTime_DATE_GET_TZINFO(o) \
+                ((((PyDateTime_DateTime*)o)->hastzinfo) ? ((PyDateTime_DateTime*)o)->tzinfo : Py_None)
+        #endif
+    #endif
     """
 
     ctypedef extern class datetime.date[object PyDateTime_Date]:
@@ -84,6 +96,10 @@ cdef extern from "datetime.h":
         @property
         cdef inline int microsecond(self):
             return PyDateTime_TIME_GET_MICROSECOND(self)
+
+        @property
+        cdef inline object tzinfo(self):
+            return <object>PyDateTime_TIME_GET_TZINFO(self)
 
         @property
         cdef inline int fold(self):
@@ -118,6 +134,10 @@ cdef extern from "datetime.h":
         @property
         cdef inline int microsecond(self):
             return PyDateTime_DATE_GET_MICROSECOND(self)
+
+        @property
+        cdef inline object tzinfo(self):
+            return <object>PyDateTime_DATE_GET_TZINFO(self)
 
         @property
         cdef inline int fold(self):
@@ -217,7 +237,7 @@ cdef extern from "datetime.h":
     int PyDateTime_DATE_GET_SECOND(object o)
     int PyDateTime_DATE_GET_MICROSECOND(object o)
     int PyDateTime_DATE_GET_FOLD(object o)
-    object PyDateTime_DATE_GET_TZINFO(object o)
+    PyObject* PyDateTime_DATE_GET_TZINFO(object o)  # returns a borrowed reference
 
     # Getters for time (C macros).
     int PyDateTime_TIME_GET_HOUR(object o)
@@ -225,7 +245,7 @@ cdef extern from "datetime.h":
     int PyDateTime_TIME_GET_SECOND(object o)
     int PyDateTime_TIME_GET_MICROSECOND(object o)
     int PyDateTime_TIME_GET_FOLD(object o)
-    object PyDateTime_TIME_GET_TZINFO(object o)
+    PyObject* PyDateTime_TIME_GET_TZINFO(object o)  # returns a borrowed reference
 
     # Getters for timedelta (C macros).
     int PyDateTime_DELTA_GET_DAYS(object o)
@@ -310,17 +330,11 @@ cdef inline object get_utc():
 
 # Get tzinfo of time
 cdef inline object time_tzinfo(object o):
-    if (<PyDateTime_Time*>o).hastzinfo:
-        return <object>(<PyDateTime_Time*>o).tzinfo
-    else:
-        return None
+    return <object>PyDateTime_TIME_GET_TZINFO(o)
 
 # Get tzinfo of datetime
 cdef inline object datetime_tzinfo(object o):
-    if (<PyDateTime_DateTime*>o).hastzinfo:
-        return <object>(<PyDateTime_DateTime*>o).tzinfo
-    else:
-        return None
+    return <object>PyDateTime_DATE_GET_TZINFO(o)
 
 # Get year of date
 cdef inline int date_year(object o):
