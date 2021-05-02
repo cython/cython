@@ -174,8 +174,8 @@ cdef extern from "datetime.h":
         timedelta (*Delta_FromDelta)(int, int, int, int, PyTypeObject*)
 
         # constructors for the DB API
-        datetime (*DateTime_FromTimestamp)(object, object, PyObject*)
-        date (*Date_FromTimestamp)(object, object)
+        datetime (*DateTime_FromTimestamp)(PyTypeObject*, object, PyObject*)
+        date (*Date_FromTimestamp)(PyTypeObject*, object)
 
         # We cannot use the following because they do not compile in older Python versions.
         # Instead, we use datetime.h's macros here that we can backport in C.
@@ -291,11 +291,11 @@ cdef inline object timezone_new(object offset, object name=None):
 # Create datetime object using DB API constructor.
 cdef inline datetime datetime_from_timestamp(timestamp, tz=None):
     return PyDateTimeAPI.DateTime_FromTimestamp(
-        <object>PyDateTimeAPI.DateTimeType, (timestamp, tz) if tz is not None else (timestamp,), NULL)
+        PyDateTimeAPI.DateTimeType, (timestamp, tz) if tz is not None else (timestamp,), NULL)
 
 # Create date object using DB API constructor.
 cdef inline date date_from_timestamp(timestamp):
-    return PyDateTimeAPI.Date_FromTimestamp(<object>PyDateTimeAPI.DateType, (timestamp,))
+    return PyDateTimeAPI.Date_FromTimestamp(PyDateTimeAPI.DateType, (timestamp,))
 
 # More recognizable getters for date/time/datetime/timedelta.
 # There are no setters because datetime.h hasn't them.
