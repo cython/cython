@@ -3009,6 +3009,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 utility_code=utility_code,
                 is_temp=node.is_temp
             )
+
     def _handle_any_slot__class__(self, node, function, args,
                                 is_unbound_method, kwargs=None):
         # The purpose of this function is to handle calls to instance.__class__() so that
