@@ -48,7 +48,7 @@ cdef extern from "datetime.h":
     /* Backport for Python < 3.7 */
     #if PY_VERSION_HEX < 0x030700b1
         #define __Pyx_TimeZone_UTC NULL
-        #define __Pyx_TimeZone_FromOffsetAndName(offset, name) ((void)(offset), (void)(name), NULL)
+        #define __Pyx_TimeZone_FromOffsetAndName(offset, name) ((void)(offset), (void)(name), (PyObject*)NULL)
     #else
         #define __Pyx_TimeZone_UTC PyDateTime_TimeZone_UTC
         #define __Pyx_TimeZone_FromOffsetAndName(offset, name) PyTimeZone_FromOffsetAndName(offset, name)
