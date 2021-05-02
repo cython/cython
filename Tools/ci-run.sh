@@ -66,10 +66,6 @@ if [ "$TEST_CODE_STYLE" == "1" ]; then
 else
   STYLE_ARGS="--no-code-style";
 
-  # Run python-dbg if available
-  PYTHON_DBG="python$( python -c 'import sys; print("%d.%d" % sys.version_info[:2])' )-dbg"
-  if $PYTHON_DBG -V >&2; then CFLAGS="-O0 -ggdb" $PYTHON_DBG runtests.py -vv --no-code-style Debugger --backends=$BACKEND; fi;
-
   # Install more requirements
   if [ -n "${PYTHON_VERSION##*-dev}" ]; then
     if [ -z "${BACKEND##*cpp*}" ]; then
@@ -87,8 +83,14 @@ fi
 ccache -s 2>/dev/null || true
 
 if [ "$COVERAGE" != "1" -a -n "${PYTHON_VERSION##pypy*}" ]; then
-  export CFLAGS="-O2 -ggdb -Wall -Wextra $(python -c 'import sys; print("-fno-strict-aliasing" if sys.version_info[0] == 2 else "")')"
-  python setup.py build_ext -i $(python -c 'import sys; print("-j5" if sys.version_info >= (3,5) else "")') || exit 1
+  CFLAGS="-O2 -ggdb -Wall -Wextra $(python -c 'import sys; print("-fno-strict-aliasing" if sys.version_info[0] == 2 else "")')" \
+      python setup.py build_ext -i $(python -c 'import sys; print("-j5" if sys.version_info >= (3,5) else "")') || exit 1
+fi
+
+if [ "$TEST_CODE_STYLE" != "1" -a -n "${PYTHON_VERSION##pypy*}" ]; then
+  # Run python-dbg if available
+  PYTHON_DBG="python$( python -c 'import sys; print("%d.%d" % sys.version_info[:2])' )-dbg"
+  if $PYTHON_DBG -V >&2; then CFLAGS="-O0 -ggdb" $PYTHON_DBG runtests.py -vv --no-code-style Debugger --backends=$BACKEND; fi;
 fi
 
 export CFLAGS="-O0 -ggdb -Wall -Wextra"
