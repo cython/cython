@@ -260,7 +260,7 @@ def test_get_utc():
     True
     """
     try:
-        utc = get_utc()
+        get_utc()
     except RuntimeError:
         if sys.version_info >= (3, 7):
             raise  # get_utc() is only supposed to raise on Python < 3.7
