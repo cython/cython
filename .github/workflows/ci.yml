@@ -141,7 +141,7 @@ jobs:
         if: startsWith(runner.os, 'Linux')
         with:
           path: ~/.ccache
-          key: ${{ runner.os }}-ccache${{ matrix.extra_hash }}-${{ matrix.python-version }}-${{ matrix.backend == 'c' }}-${{ matrix.backend == 'cpp' }}-${{ matrix.backend == 'c,cpp' }}-${{ hashFiles('**/test-requirements*.txt', '**/ci.yml', '**/ci-run.sh') }}
+          key: ${{ runner.os }}-ccache${{ matrix.extra_hash }}-${{ matrix.python-version }}-${{ matrix.backend == 'c' || matrix.backend == 'c,cpp' }}-${{ contains(matrix.backend, 'cpp') }}-${{ hashFiles('**/test-requirements*.txt', '**/ci.yml', '**/ci-run.sh') }}
 
       - name: Run CI
         continue-on-error: ${{ matrix.allowed_failure || false }}
