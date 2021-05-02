@@ -365,7 +365,7 @@ cdef inline int time_microsecond(object o):
 # Get fold of time
 cdef inline int time_fold(object o):
     # For Python < 3.6 this returns 0 no matter what
-    return PyDateTime_DATE_GET_FOLD(o)
+    return PyDateTime_TIME_GET_FOLD(o)
 
 # Get hour of datetime
 cdef inline int datetime_hour(object o):
