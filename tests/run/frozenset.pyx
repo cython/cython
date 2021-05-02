@@ -134,7 +134,7 @@ def test_create_frozenset_from_string():
     >>> isinstance(s, frozenset)
     True
     >>> sorted(s)
-    ["1", "2", "3"]
+    ['1', '2', '3']
     """
     return frozenset("1231")
 
