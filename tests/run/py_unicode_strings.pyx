@@ -94,7 +94,7 @@ def test_python_to_c():
     u = uobj[1]
     assert Py_UNICODE_equal(<Py_UNICODE*>u"n", u)
 
-    assert Py_UNICODE_equal(uwide_literal, <Py_UNICODE*>c_pu_wide_literal)
+    assert Py_UNICODE_equal(uwide_literal, <Py_UNICODE*>c_pu_wide_literal), (uwide_literal, <unicode>c_pu_wide_literal)
 
     assert len(u"abc\0") == 4
     assert len(<Py_UNICODE*>u"abc\0") == 3
