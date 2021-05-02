@@ -277,6 +277,7 @@ def test_datetime_from_timestamp():
     >>> tp == dt
     True
     """
-    tp = datetime_from_timestamp(py_time.time())
-    dt = py_datetime.datetime.today()
+    time = py_time.time()
+    tp = datetime_from_timestamp(time)
+    dt = py_datetime.datetime.from_timestamp(time)
     return tp, dt
