@@ -5,13 +5,11 @@ import sys
 
 from libc.string cimport memcpy
 
-cdef bint Py_UNICODE_equal(const Py_UNICODE* u1, const Py_UNICODE* u2):
+cdef assert_Py_UNICODE_equal(const Py_UNICODE* u1, const Py_UNICODE* u2):
     cdef size_t i = 0
     while u1[i] != 0 and u2[i] != 0 and u1[i] == u2[i]:
         i += 1
-    if u1[i] != u2[i]:
-        print(f"Mismatch at position {i}: {<long>u1[i]} != {<long>u2[i]}")
-    return u1[i] == u2[i]
+    assert u1[i] == u2[i], f"Mismatch at position {i}: {<long>u1[i]} != {<long>u2[i]} ({u1!r} != {u2!r})"
 
 
 ctypedef Py_UNICODE* LPWSTR
@@ -84,20 +82,20 @@ def test_python_to_c():
     """
     cdef unicode u
 
-    assert Py_UNICODE_equal(c_pu_arr, uobj)
-    assert Py_UNICODE_equal(c_pu_str, uobj)
-    assert Py_UNICODE_equal(c_pu_str, <LPWSTR>uobj)
+    assert_Py_UNICODE_equal(c_pu_arr, uobj)
+    assert_Py_UNICODE_equal(c_pu_str, uobj)
+    assert_Py_UNICODE_equal(c_pu_str, <LPWSTR>uobj)
     u = uobj[1:]
-    assert Py_UNICODE_equal(c_pu_str + 1, u)
-    assert Py_UNICODE_equal(c_wstr + 1, u)
+    assert_Py_UNICODE_equal(c_pu_str + 1, u)
+    assert_Py_UNICODE_equal(c_wstr + 1, u)
     u = uobj[:1]
-    assert Py_UNICODE_equal(<Py_UNICODE*>u"u", u)
+    assert_Py_UNICODE_equal(<Py_UNICODE*>u"u", u)
     u = uobj[1:7]
-    assert Py_UNICODE_equal(<Py_UNICODE*>u"nicode", u)
+    assert_Py_UNICODE_equal(<Py_UNICODE*>u"nicode", u)
     u = uobj[1]
-    assert Py_UNICODE_equal(<Py_UNICODE*>u"n", u)
+    assert_Py_UNICODE_equal(<Py_UNICODE*>u"n", u)
 
-    assert Py_UNICODE_equal(uwide_literal, <Py_UNICODE*>c_pu_wide_literal), (uwide_literal, <unicode>c_pu_wide_literal)
+    assert_Py_UNICODE_equal(uwide_literal, <Py_UNICODE*>c_pu_wide_literal)
 
     assert len(u"abc\0") == 4
     assert len(<Py_UNICODE*>u"abc\0") == 3
