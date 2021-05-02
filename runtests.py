@@ -440,6 +440,8 @@ VER_DEP_MODULES = {
                                          'run.test_exceptions',  # copied from Py3.7+
                                          'run.time_pxd',  # _PyTime_GetSystemClock doesn't exist in 3.4
                                          ]),
+    (3,7): (operator.lt, lambda x: x in ['run.pycontextvar',
+                                         ]),
 }
 
 INCLUDE_DIRS = [ d for d in os.getenv('INCLUDE', '').split(os.pathsep) if d ]
@@ -2376,8 +2378,7 @@ def runtests_callback(args):
 
 def runtests(options, cmd_args, coverage=None):
     # faulthandler should be able to provide a limited traceback
-    # in the event of a segmentation fault. Hopefully better than Travis
-    # just keeping running until timeout. Only available on Python 3.3+
+    # in the event of a segmentation fault. Only available on Python 3.3+
     try:
         import faulthandler
     except ImportError:
@@ -2544,8 +2545,8 @@ def runtests(options, cmd_args, coverage=None):
         sys.stderr.write("Backends: %s\n" % ','.join(backends))
     languages = backends
 
-    if 'TRAVIS' in os.environ and sys.platform == 'darwin' and 'cpp' in languages:
-        bugs_file_name = 'travis_macos_cpp_bugs.txt'
+    if 'CI' in os.environ and sys.platform == 'darwin' and 'cpp' in languages:
+        bugs_file_name = 'macos_cpp_bugs.txt'
         exclude_selectors += [
             FileListExcluder(os.path.join(ROOTDIR, bugs_file_name),
                              verbose=verbose_excludes)

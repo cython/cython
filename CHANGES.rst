@@ -593,6 +593,11 @@ Bugs fixed
   Also, related C compiler warnings about deprecated C-API usage were resolved.
   (Github issue #3925)
 
+* The attributes ``gen.gi_frame`` and ``coro.cr_frame`` of Cython compiled
+  generators and coroutines now return an actual frame object for introspection,
+  instead of ``None``.
+  (Github issue #2306)
+
 
 0.29.23 (2021-04-14)
 ====================
