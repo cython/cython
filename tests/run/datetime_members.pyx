@@ -27,7 +27,7 @@ def test_datetime(int year, int month, int day, int hour,
     >>> test_datetime(2012, 12, 31, 12, 30, 59, 12345, 0)
     (True, True, True, True, True, True, True, True)
     '''
-    o = <datetime>datetime_new(
+    o = datetime_new(
         year, month, day, hour, minute, second, microsecond, None, fold
     )
     return o.year == datetime_year(o), \
@@ -44,7 +44,7 @@ def test_time(int hour, int minute, int second, int microsecond, int fold):
     >>> test_time(12, 30, 59, 12345, 0)
     (True, True, True, True, True)
     '''
-    o = <time>time_new(hour, minute, second, microsecond, None, fold)
+    o = time_new(hour, minute, second, microsecond, None, fold)
     return o.hour == time_hour(o), \
            o.minute == time_minute(o), \
            o.second == time_second(o), \
