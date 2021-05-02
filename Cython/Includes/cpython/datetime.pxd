@@ -168,14 +168,14 @@ cdef extern from "datetime.h":
         PyTypeObject *TZInfoType
 
         # constructors
-        object (*Date_FromDate)(int, int, int, PyTypeObject*)
-        object (*DateTime_FromDateAndTime)(int, int, int, int, int, int, int, object, PyTypeObject*)
-        object (*Time_FromTime)(int, int, int, int, object, PyTypeObject*)
-        object (*Delta_FromDelta)(int, int, int, int, PyTypeObject*)
+        date (*Date_FromDate)(int, int, int, PyTypeObject*)
+        datetime (*DateTime_FromDateAndTime)(int, int, int, int, int, int, int, object, PyTypeObject*)
+        time (*Time_FromTime)(int, int, int, int, object, PyTypeObject*)
+        timedelta (*Delta_FromDelta)(int, int, int, int, PyTypeObject*)
 
         # constructors for the DB API
-        object (*DateTime_FromTimestamp)(object, object, PyObject*)
-        object (*Date_FromTimestamp)(object, object)
+        datetime (*DateTime_FromTimestamp)(object, object, PyObject*)
+        date (*Date_FromTimestamp)(object, object)
 
         # We cannot use the following because they do not compile in older Python versions.
         # Instead, we use datetime.h's macros here that we can backport in C.
@@ -187,8 +187,8 @@ cdef extern from "datetime.h":
         PyObject *TimeZone_UTC
 
         # Python 3.6+ PEP 495 constructors
-        object (*DateTime_FromDateAndTimeAndFold)(int, int, int, int, int, int, int, object, int, PyTypeObject*)
-        object (*Time_FromTimeAndFold)(int, int, int ,int, object, int, PyTypeObject*)
+        datetime (*DateTime_FromDateAndTimeAndFold)(int, int, int, int, int, int, int, object, int, PyTypeObject*)
+        time (*Time_FromTimeAndFold)(int, int, int ,int, object, int, PyTypeObject*)
 
     # Check type of the object.
     bint PyDate_Check(object op)
@@ -240,12 +240,12 @@ cdef extern from "datetime.h":
     object __Pyx_TimeZone_FromOffsetAndName(object offset, PyObject* name)
 
     # Constructors for the DB API
-    object PyDateTime_FromTimeStamp(object args)
-    object PyDate_FromTimeStamp(object args)
+    datetime PyDateTime_FromTimeStamp(object args)
+    date PyDate_FromTimeStamp(object args)
 
     # PEP 495 constructors but patched above to allow passing tz
-    object __Pyx_DateTime_DateTimeWithFold(int, int, int, int, int, int, int, object, int)
-    object __Pyx_DateTime_TimeWithFold(int, int, int ,int, object, int)
+    datetime __Pyx_DateTime_DateTimeWithFold(int, int, int, int, int, int, int, object, int)
+    datetime __Pyx_DateTime_TimeWithFold(int, int, int ,int, object, int)
 
     # PyDateTime CAPI object.
     PyDateTime_CAPI *PyDateTimeAPI
@@ -264,22 +264,22 @@ cdef inline void import_datetime():
 
 # Create date object using DateTime CAPI factory function.
 # Note, there are no range checks for any of the arguments.
-cdef inline object date_new(int year, int month, int day):
+cdef inline date date_new(int year, int month, int day):
     return PyDateTimeAPI.Date_FromDate(year, month, day, PyDateTimeAPI.DateType)
 
 # Create time object using DateTime CAPI factory function
 # Note, there are no range checks for any of the arguments.
-cdef inline object time_new(int hour, int minute, int second, int microsecond, object tz, int fold=0):
+cdef inline time time_new(int hour, int minute, int second, int microsecond, object tz, int fold=0):
     return __Pyx_DateTime_TimeWithFold(hour, minute, second, microsecond, tz, fold)
 
 # Create datetime object using DateTime CAPI factory function.
 # Note, there are no range checks for any of the arguments.
-cdef inline object datetime_new(int year, int month, int day, int hour, int minute, int second, int microsecond, object tz, int fold=0):
+cdef inline datetime datetime_new(int year, int month, int day, int hour, int minute, int second, int microsecond, object tz, int fold=0):
     return __Pyx_DateTime_DateTimeWithFold(year, month, day, hour, minute, second, microsecond, tz, fold)
 
 # Create timedelta object using DateTime CAPI factory function.
 # Note, there are no range checks for any of the arguments.
-cdef inline object timedelta_new(int days, int seconds, int useconds):
+cdef inline timedelta timedelta_new(int days, int seconds, int useconds):
     return PyDateTimeAPI.Delta_FromDelta(days, seconds, useconds, 1, PyDateTimeAPI.DeltaType)
 
 # Create timedelta object using DateTime CAPI factory function.
@@ -289,12 +289,12 @@ cdef inline object timezone_new(object offset, object name=None):
     return __Pyx_TimeZone_FromOffsetAndName(offset, <PyObject*>name if name is not None else NULL)
 
 # Create datetime object using DB API constructor.
-cdef inline object datetime_from_timestamp(timestamp, tz=None):
+cdef inline datetime datetime_from_timestamp(timestamp, tz=None):
     return PyDateTimeAPI.DateTime_FromTimestamp(
         <object>PyDateTimeAPI.DateTimeType, (timestamp, tz) if tz is not None else (timestamp,), NULL)
 
 # Create date object using DB API constructor.
-cdef inline object date_from_timestamp(timestamp):
+cdef inline date date_from_timestamp(timestamp):
     return PyDateTimeAPI.Date_FromTimestamp(<object>PyDateTimeAPI.DateType, (timestamp,))
 
 # More recognizable getters for date/time/datetime/timedelta.
