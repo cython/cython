@@ -333,7 +333,7 @@ static long __Pyx__PyObject_Ord(PyObject* c) {
     } else {
         // FIXME: support character buffers - but CPython doesn't support them either
         PyErr_Format(PyExc_TypeError,
-            "ord() expected string of length 1, but %.200s found", c->ob_type->tp_name);
+            "ord() expected string of length 1, but %.200s found", Py_TYPE(c)->tp_name);
         return (long)(Py_UCS4)-1;
     }
     PyErr_Format(PyExc_TypeError,
