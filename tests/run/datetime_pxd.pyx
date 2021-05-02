@@ -11,8 +11,9 @@ from cpython.datetime cimport datetime_day, datetime_month, datetime_year
 from cpython.datetime cimport datetime_hour, datetime_minute, datetime_second, \
                               datetime_microsecond
 from cpython.datetime cimport datetime, total_seconds
+from cpython.datetime cimport date_from_timestamp, get_utc, datetime_from_timestamp
 
-# These were added in Py3, make sure that their backport works.
+# These were added in Python 2.7.5, make sure that their backport works.
 from cpython.datetime cimport (
     timedelta as timedelta_ext_type,
     PyDateTime_DELTA_GET_DAYS,
@@ -21,6 +22,8 @@ from cpython.datetime cimport (
 )
 
 import datetime as py_datetime
+import time as py_time
+import sys
 
 import_datetime()
 
@@ -238,3 +241,39 @@ def test_datetime_attrs_inlined(datetime dt):
         dt.second,
         dt.microsecond,
     )
+
+def test_date_from_timestamp():
+    """
+    >>> from datetime import datetime
+    >>> tp, dt = test_date_from_timestamp()
+    >>> tp == dt
+    True
+    """
+    tp = date_from_timestamp(1518185542)
+    dt = py_datetime.date(2018, 2, 9)
+    return tp, dt
+
+def test_get_utc():
+    """
+    >>> from datetime import datetime
+    >>> test_get_utc()
+    True
+    """
+    try:
+        get_utc()
+    except RuntimeError:
+        if sys.version_info >= (3, 7):
+            raise  # get_utc() is only supposed to raise on Python < 3.7
+    return True
+
+def test_datetime_from_timestamp():
+    """
+    >>> from datetime import datetime
+    >>> tp, dt = test_datetime_from_timestamp()
+    >>> tp == dt
+    True
+    """
+    time = py_time.time()
+    tp = datetime_from_timestamp(time)
+    dt = py_datetime.datetime.fromtimestamp(time)
+    return tp, dt
