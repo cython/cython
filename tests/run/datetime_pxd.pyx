@@ -13,7 +13,7 @@ from cpython.datetime cimport datetime_hour, datetime_minute, datetime_second, \
 from cpython.datetime cimport datetime, total_seconds
 from cpython.datetime cimport date_from_timestamp, get_utc, datetime_from_timestamp
 
-# These were added in Py3, make sure that their backport works.
+# These were added in Python 2.7.5, make sure that their backport works.
 from cpython.datetime cimport (
     timedelta as timedelta_ext_type,
     PyDateTime_DELTA_GET_DAYS,

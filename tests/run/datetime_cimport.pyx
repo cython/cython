@@ -51,10 +51,11 @@ def test_timezone(int days, int seconds, int useconds, str name):
     '''
     try:
         val = timezone_new(timedelta(days, seconds, useconds), name)
-        return repr(val) == "datetime.timezone(datetime.timedelta(seconds=3600), 'CET')"
     except RuntimeError:
         if sys.version_info < (3, 7):
             return True
         else:
             # It's only supposed to raise on Python < 3.7
             return False
+    else:
+        return True
