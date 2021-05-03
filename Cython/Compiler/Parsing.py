@@ -1149,16 +1149,13 @@ def p_f_string_expr(s, unicode_value, pos, starting_index, is_raw):
                   "format string cannot include #")
         elif nested_depth == 0 and c in '><=!:}':
             # allow special cases with '!' and '='
-            if i + 1 < size:
-                chars = c + unicode_value[i + 1]
-                if chars in ('!=', '==', '>=', '<='):
-                    i += 2  # we checked 2, so we can skip 2
+            if i + 1 < size and c in '!=><':
+                if unicode_value[i + 1] == '=':
+                    i += 2  # we checked 2, so we can skip 2: '!=', '==', '>=', '<='
                     continue
-
-                if c in '><':  # allow single '<' and '>'
+                elif c in '><':  # allow single '<' and '>'
                     i += 1
                     continue
-
             terminal_char = c
             break
         i += 1
