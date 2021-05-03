@@ -89,7 +89,7 @@ if [ "$COVERAGE" != "1" -a -n "${PYTHON_VERSION##pypy*}" ]; then
 fi
 
 if [ "$TEST_CODE_STYLE" != "1" -a -n "${PYTHON_VERSION##pypy*}" ]; then
-  # Run python-dbg if available
+  # Run the debugger tests in python-dbg if available (but don't fail, because they currently do fail)
   PYTHON_DBG="python$( python -c 'import sys; print("%d.%d" % sys.version_info[:2])' )-dbg"
   if $PYTHON_DBG -V >&2; then CFLAGS="-O0 -ggdb" $PYTHON_DBG runtests.py -vv --no-code-style Debugger --backends=$BACKEND; fi;
 fi
@@ -102,7 +102,10 @@ python runtests.py \
    $LIMITED_API \
    $EXCLUDE \
    $(if [ "$COVERAGE" == "1" ]; then echo " --coverage"; fi) \
-   $(if [ -z "$TEST_CODE_STYLE" ]; then echo " -j7 "; fi) \
-   || exit 1
+   $(if [ -z "$TEST_CODE_STYLE" ]; then echo " -j7 "; fi)
+
+EXIT_CODE = $?
 
 ccache -s 2>/dev/null || true
+
+exit $EXIT_CODE
