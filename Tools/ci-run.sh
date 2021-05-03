@@ -104,7 +104,7 @@ python runtests.py \
    $(if [ "$COVERAGE" == "1" ]; then echo " --coverage"; fi) \
    $(if [ -z "$TEST_CODE_STYLE" ]; then echo " -j7 "; fi)
 
-EXIT_CODE = $?
+EXIT_CODE=$?
 
 ccache -s 2>/dev/null || true
 
