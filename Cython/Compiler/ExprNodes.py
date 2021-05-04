@@ -211,6 +211,9 @@ def make_dedup_key(outer_type, item_nodes):
     ]
     if None in item_keys:
         return None
+
+    if outer_type.name == 'frozenset':
+        item_keys = frozenset(item_keys)
     return outer_type, tuple(item_keys)
 
 
@@ -8814,30 +8817,13 @@ class FrozenSetNode(SetNode):
     def _get_dedup_values(self, args):
         if args is None:
             return ()
-        print("===========")
-        print(args)
-        print(args.__dict__)
-        result = []
-        result_set = set()
-        return frozenset(args.args)
-        for argument in args.args:
-            print(argument)
-            if not argument.has_constant_result():
-                return args.args  # Constant frozensets require constant items.
-            val = argument.constant_result
-            if val not in result_set:
-                result.append(argument)
-                result_set.add(val)
-        for i in result:
-            print(i.__dict__)
-        result.sort(key=lambda x:x.pos)
-        print(result)
-        return result
+        return args.args
 
     def _create_shared_frozenset_object(self, code):
         # print(self.type)  # currently set object, should be frozenset
         dedup_key = make_dedup_key(self.type, self._get_dedup_values(self.args))
         print("==print dedup_key")
+        print(self.type)
         print(dedup_key)
         # if self.args is None:
         #     dedup_key = make_dedup_key(self.type, ())
