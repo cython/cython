@@ -123,7 +123,7 @@ jobs:
       USE_CCACHE: 1
       CCACHE_SLOPPINESS: "pch_defines,time_macros"
       CCACHE_COMPRESS: 1
-      CCACHE_MAXSIZE: "250M"
+      CCACHE_MAXSIZE: "200M"
 
     steps:
       - name: Checkout repo
@@ -141,7 +141,7 @@ jobs:
         if: startsWith(runner.os, 'Linux')
         with:
           path: ~/.ccache
-          key: ${{ runner.os }}-ccache${{ matrix.extra_hash }}-${{ matrix.python-version }}-${{ hashFiles('**/test-requirements*.txt', '**/ci.yml', '**/ci-run.sh') }}
+          key: ${{ runner.os }}-ccache${{ matrix.extra_hash }}-${{ matrix.python-version }}-${{ matrix.backend == 'c' || matrix.backend == 'c,cpp' }}-${{ contains(matrix.backend, 'cpp') }}-${{ hashFiles('**/test-requirements*.txt', '**/ci.yml', '**/ci-run.sh') }}
 
       - name: Run CI
         continue-on-error: ${{ matrix.allowed_failure || false }}
