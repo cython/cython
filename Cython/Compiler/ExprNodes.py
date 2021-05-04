@@ -194,7 +194,6 @@ def make_dedup_key(outer_type, item_nodes):
     Recursively generate a deduplication key from a sequence of values.
     Includes Cython node types to work around the fact that (1, 2.0) == (1.0, 2), for example.
 
-    @type  outer_type: Cython.Compiler.PyrexTypes.BuiltinObjectType
     @param outer_type: The type of the outer container.
     @param item_nodes: A sequence of constant nodes that will be traversed recursively.
     @return: A tuple that can be used as a dict key for deduplication.
@@ -8820,21 +8819,26 @@ class FrozenSetNode(SetNode):
         print(args.__dict__)
         result = []
         result_set = set()
-
+        return frozenset(args.args)
         for argument in args.args:
+            print(argument)
             if not argument.has_constant_result():
                 return args.args  # Constant frozensets require constant items.
             val = argument.constant_result
             if val not in result_set:
                 result.append(argument)
                 result_set.add(val)
-        result.sort(key=lambda x:x.constant_result)
+        for i in result:
+            print(i.__dict__)
+        result.sort(key=lambda x:x.pos)
         print(result)
         return result
 
     def _create_shared_frozenset_object(self, code):
         # print(self.type)  # currently set object, should be frozenset
         dedup_key = make_dedup_key(self.type, self._get_dedup_values(self.args))
+        print("==print dedup_key")
+        print(dedup_key)
         # if self.args is None:
         #     dedup_key = make_dedup_key(self.type, ())
         # else:
