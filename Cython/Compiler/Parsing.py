@@ -271,10 +271,10 @@ def p_cmp_op(s):
         op = '!='
     return op
 
-comparison_ops = cython.declare(set, set([
+comparison_ops = cython.declare(frozenset, frozenset((
     '<', '>', '==', '>=', '<=', '<>', '!=',
     'in', 'is', 'not'
-]))
+)))
 
 #expr: xor_expr ('|' xor_expr)*
 
@@ -843,7 +843,7 @@ def p_cat_string_literal(s):
             continue
         elif next_kind != kind:
             # concatenating f strings and normal strings is allowed and leads to an f string
-            if set([kind, next_kind]) in (set(['f', 'u']), set(['f', ''])):
+            if {kind, next_kind} in ({'f', 'u'}, {'f', ''}):
                 kind = 'f'
             else:
                 error(pos, "Cannot mix string literals of different types, expected %s'', got %s''" % (
@@ -1095,8 +1095,8 @@ def p_f_string(s, unicode_value, pos, is_raw):
                 if builder.chars:
                     values.append(ExprNodes.UnicodeNode(pos, value=builder.getstring()))
                     builder = StringEncoding.UnicodeLiteralBuilder()
-                next_start, expr_node = p_f_string_expr(s, unicode_value, pos, next_start, is_raw)
-                values.append(expr_node)
+                next_start, expr_nodes = p_f_string_expr(s, unicode_value, pos, next_start, is_raw)
+                values.extend(expr_nodes)
         elif c == '}':
             if part == '}}':
                 builder.append('}')
@@ -1112,12 +1112,16 @@ def p_f_string(s, unicode_value, pos, is_raw):
 
 
 def p_f_string_expr(s, unicode_value, pos, starting_index, is_raw):
-    # Parses a {}-delimited expression inside an f-string. Returns a FormattedValueNode
-    # and the index in the string that follows the expression.
+    # Parses a {}-delimited expression inside an f-string. Returns a list of nodes
+    # [UnicodeNode?, FormattedValueNode] and the index in the string that follows
+    # the expression.
+    #
+    # ? = Optional
     i = starting_index
     size = len(unicode_value)
     conversion_char = terminal_char = format_spec = None
     format_spec_str = None
+    expr_text = None
     NO_CHAR = 2**30
 
     nested_depth = 0
@@ -1157,12 +1161,15 @@ def p_f_string_expr(s, unicode_value, pos, starting_index, is_raw):
         elif c == '#':
             error(_f_string_error_pos(pos, unicode_value, i),
                   "format string cannot include #")
-        elif nested_depth == 0 and c in '!:}':
-            # allow != as a special case
-            if c == '!' and i + 1 < size and unicode_value[i + 1] == '=':
-                i += 1
-                continue
-
+        elif nested_depth == 0 and c in '><=!:}':
+            # allow special cases with '!' and '='
+            if i + 1 < size and c in '!=><':
+                if unicode_value[i + 1] == '=':
+                    i += 2  # we checked 2, so we can skip 2: '!=', '==', '>=', '<='
+                    continue
+                elif c in '><':  # allow single '<' and '>'
+                    i += 1
+                    continue
             terminal_char = c
             break
         i += 1
@@ -1174,6 +1181,16 @@ def p_f_string_expr(s, unicode_value, pos, starting_index, is_raw):
     if not expr_str.strip():
         error(_f_string_error_pos(pos, unicode_value, starting_index),
               "empty expression not allowed in f-string")
+
+    if terminal_char == '=':
+        i += 1
+        while i < size and unicode_value[i].isspace():
+            i += 1
+
+        if i < size:
+            terminal_char = unicode_value[i]
+            expr_text = unicode_value[starting_index:i]
+        # otherwise: error will be reported below
 
     if terminal_char == '!':
         i += 1
@@ -1212,6 +1229,9 @@ def p_f_string_expr(s, unicode_value, pos, starting_index, is_raw):
 
         format_spec_str = unicode_value[start_format_spec:i]
 
+    if expr_text and conversion_char is None and format_spec_str is None:
+        conversion_char = 'r'
+
     if terminal_char != '}':
         error(_f_string_error_pos(pos, unicode_value, i),
               "missing '}' in format string expression" + (
@@ -1230,8 +1250,12 @@ def p_f_string_expr(s, unicode_value, pos, starting_index, is_raw):
     if format_spec_str:
         format_spec = ExprNodes.JoinedStrNode(pos, values=p_f_string(s, format_spec_str, pos, is_raw))
 
-    return i + 1, ExprNodes.FormattedValueNode(
-        pos, value=expr, conversion_char=conversion_char, format_spec=format_spec)
+    nodes = []
+    if expr_text:
+        nodes.append(ExprNodes.UnicodeNode(pos, value=StringEncoding.EncodedString(expr_text)))
+    nodes.append(ExprNodes.FormattedValueNode(pos, value=expr, conversion_char=conversion_char, format_spec=format_spec))
+
+    return i + 1, nodes
 
 
 # since PEP 448:
@@ -1500,8 +1524,8 @@ def p_genexp(s, expr):
         expr.pos, expr = ExprNodes.YieldExprNode(expr.pos, arg=expr)))
     return ExprNodes.GeneratorExpressionNode(expr.pos, loop=loop)
 
-expr_terminators = cython.declare(set, set([
-    ')', ']', '}', ':', '=', 'NEWLINE']))
+expr_terminators = cython.declare(frozenset, frozenset((
+    ')', ']', '}', ':', '=', 'NEWLINE')))
 
 
 #-------------------------------------------------------
@@ -1806,7 +1830,8 @@ def p_from_import_statement(s, first_statement = 0):
             items = items)
 
 
-imported_name_kinds = cython.declare(set, set(['class', 'struct', 'union']))
+imported_name_kinds = cython.declare(frozenset, frozenset((
+    'class', 'struct', 'union')))
 
 def p_imported_name(s, is_cimport):
     pos = s.position()
@@ -1853,7 +1878,8 @@ def p_assert_statement(s):
     return Nodes.AssertStatNode(pos, condition=cond, value=value)
 
 
-statement_terminators = cython.declare(set, set([';', 'NEWLINE', 'EOF']))
+statement_terminators = cython.declare(frozenset, frozenset((
+    ';', 'NEWLINE', 'EOF')))
 
 def p_if_statement(s):
     # s.sy == 'if'
@@ -1963,7 +1989,8 @@ def p_for_from_step(s):
     else:
         return None
 
-inequality_relations = cython.declare(set, set(['<', '<=', '>', '>=']))
+inequality_relations = cython.declare(frozenset, frozenset((
+    '<', '<=', '>', '>=')))
 
 def p_target(s, terminator):
     pos = s.position()
@@ -2477,8 +2504,8 @@ def p_calling_convention(s):
         return ""
 
 
-calling_convention_words = cython.declare(
-    set, set(["__stdcall", "__cdecl", "__fastcall"]))
+calling_convention_words = cython.declare(frozenset, frozenset((
+    "__stdcall", "__cdecl", "__fastcall")))
 
 
 def p_c_complex_base_type(s, templates = None):
@@ -2719,7 +2746,7 @@ def looking_at_expr(s):
             s.put_back(*saved)
         elif s.sy == '[':
             s.next()
-            is_type = s.sy == ']'
+            is_type = s.sy == ']' or not looking_at_expr(s)  # could be a nested template type
             s.put_back(*saved)
 
         dotted_path.reverse()
@@ -2757,8 +2784,8 @@ def looking_at_call(s):
         s.start_line, s.start_col = position
     return result
 
-basic_c_type_names = cython.declare(
-    set, set(["void", "char", "int", "float", "double", "bint"]))
+basic_c_type_names = cython.declare(frozenset, frozenset((
+    "void", "char", "int", "float", "double", "bint")))
 
 special_basic_c_types = cython.declare(dict, {
     # name : (signed, longness)
@@ -2772,8 +2799,8 @@ special_basic_c_types = cython.declare(dict, {
     "Py_tss_t"   : (1, 0),
 })
 
-sign_and_longness_words = cython.declare(
-    set, set(["short", "long", "signed", "unsigned"]))
+sign_and_longness_words = cython.declare(frozenset, frozenset((
+    "short", "long", "signed", "unsigned")))
 
 base_type_start_words = cython.declare(
     set,
@@ -2781,8 +2808,8 @@ base_type_start_words = cython.declare(
     | sign_and_longness_words
     | set(special_basic_c_types))
 
-struct_enum_union = cython.declare(
-    set, set(["struct", "union", "enum", "packed"]))
+struct_enum_union = cython.declare(frozenset, frozenset((
+    "struct", "union", "enum", "packed")))
 
 def p_sign_and_longness(s):
     signed = 1
@@ -2867,13 +2894,13 @@ def p_c_func_declarator(s, pos, ctx, base, cmethod_flag):
         exception_value = exc_val, exception_check = exc_check,
         nogil = nogil or ctx.nogil or with_gil, with_gil = with_gil)
 
-supported_overloaded_operators = cython.declare(set, set([
+supported_overloaded_operators = cython.declare(frozenset, frozenset((
     '+', '-', '*', '/', '%',
     '++', '--', '~', '|', '&', '^', '<<', '>>', ',',
     '==', '!=', '>=', '>', '<=', '<',
     '[]', '()', '!', '=',
     'bool',
-]))
+)))
 
 def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
                           assignable, nonempty):
@@ -2995,7 +3022,8 @@ def p_exception_value_clause(s):
             exc_val = p_test(s)
     return exc_val, exc_check
 
-c_arg_list_terminators = cython.declare(set, set(['*', '**', '.', ')', ':', '/']))
+c_arg_list_terminators = cython.declare(frozenset, frozenset((
+    '*', '**', '.', ')', ':', '/')))
 
 def p_c_arg_list(s, ctx = Ctx(), in_pyfunc = 0, cmethod_flag = 0,
                  nonempty_declarators = 0, kw_only = 0, annotated = 1):

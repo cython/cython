@@ -183,7 +183,7 @@ def infer_sequence_item_type(env, seq_node, index_node=None, seq_type=None):
             else:
                 return item.infer_type(env)
         # if we're lucky, all items have the same type
-        item_types = set([item.infer_type(env) for item in seq_node.args])
+        item_types = {item.infer_type(env) for item in seq_node.args}
         if len(item_types) == 1:
             return item_types.pop()
     return None
@@ -3355,7 +3355,7 @@ class FormattedValueNode(ExprNode):
     # {}-delimited portions of an f-string
     #
     # value           ExprNode                The expression itself
-    # conversion_char str or None             Type conversion (!s, !r, !a, or none, or 'd' for integer conversion)
+    # conversion_char str or None             Type conversion (!s, !r, !a, none, or 'd' for integer conversion)
     # format_spec     JoinedStrNode or None   Format string passed to __format__
     # c_format_spec   str or None             If not None, formatting can be done at the C level
 
@@ -6229,7 +6229,7 @@ class PyMethodCallNode(SimpleCallNode):
             # not an attribute itself, but might have been assigned from one (e.g. bound method)
             for assignment in self.function.cf_state:
                 value = assignment.rhs
-                if value and value.is_attribute and value.obj.type.is_pyobject:
+                if value and value.is_attribute and value.obj.type and value.obj.type.is_pyobject:
                     if attribute_is_likely_method(value):
                         likely_method = 'likely'
                         break
@@ -6550,8 +6550,10 @@ class GeneralCallNode(CallNode):
                                                      len(pos_args)))
             return None
 
-        matched_args = set([ arg.name for arg in declared_args[:len(pos_args)]
-                             if arg.name ])
+        matched_args = {
+            arg.name for arg in declared_args[:len(pos_args)]
+            if arg.name
+        }
         unmatched_args = declared_args[len(pos_args):]
         matched_kwargs_count = 0
         args = list(pos_args)
@@ -6769,22 +6771,13 @@ class MergedDictNode(ExprNode):
         return dict_type
 
     def analyse_types(self, env):
-        args = [
+        self.keyword_args = [
             arg.analyse_types(env).coerce_to_pyobject(env).as_none_safe_node(
                 # FIXME: CPython's error message starts with the runtime function name
                 'argument after ** must be a mapping, not NoneType')
             for arg in self.keyword_args
         ]
 
-        if len(args) == 1 and args[0].type is dict_type:
-            # strip this intermediate node and use the bare dict
-            arg = args[0]
-            if arg.is_name and arg.entry.is_arg and len(arg.entry.cf_assignments) == 1:
-                # passing **kwargs through to function call => allow NULL
-                arg.allow_null = True
-            return arg
-
-        self.keyword_args = args
         return self
 
     def may_be_none(self):
@@ -6953,7 +6946,11 @@ class AttributeNode(ExprNode):
         # FIXME: this is way too redundant with analyse_types()
         node = self.analyse_as_cimported_attribute_node(env, target=False)
         if node is not None:
-            return node.entry.type
+            if node.entry.type and node.entry.type.is_cfunction:
+                # special-case - function converted to pointer
+                return PyrexTypes.CPtrType(node.entry.type)
+            else:
+                return node.entry.type
         node = self.analyse_as_type_attribute(env)
         if node is not None:
             return node.entry.type
@@ -7030,29 +7027,11 @@ class AttributeNode(ExprNode):
                             return None
                         ubcm_entry = entry
                     else:
-                        # Create a temporary entry describing the C method
-                        # as an ordinary function.
-                        if entry.func_cname and not hasattr(entry.type, 'op_arg_struct'):
-                            cname = entry.func_cname
-                            if entry.type.is_static_method or (
-                                    env.parent_scope and env.parent_scope.is_cpp_class_scope):
-                                ctype = entry.type
-                            elif type.is_cpp_class:
-                                error(self.pos, "%s not a static member of %s" % (entry.name, type))
-                                ctype = PyrexTypes.error_type
-                            else:
-                                # Fix self type.
-                                ctype = copy.copy(entry.type)
-                                ctype.args = ctype.args[:]
-                                ctype.args[0] = PyrexTypes.CFuncTypeArg('self', type, 'self', None)
-                        else:
-                            cname = "%s->%s" % (type.vtabptr_cname, entry.cname)
-                            ctype = entry.type
-                        ubcm_entry = Symtab.Entry(entry.name, cname, ctype)
-                        ubcm_entry.is_cfunction = 1
-                        ubcm_entry.func_cname = entry.func_cname
-                        ubcm_entry.is_unbound_cmethod = 1
-                        ubcm_entry.scope = entry.scope
+                        ubcm_entry = self._create_unbound_cmethod_entry(type, entry, env)
+                        ubcm_entry.overloaded_alternatives = [
+                            self._create_unbound_cmethod_entry(type, overloaded_alternative, env)
+                            for overloaded_alternative in entry.overloaded_alternatives
+                        ]
                     return self.as_name_node(env, ubcm_entry, target=False)
             elif type.is_enum or type.is_cpp_enum:
                 if self.attribute in type.values:
@@ -7064,6 +7043,32 @@ class AttributeNode(ExprNode):
                 else:
                     error(self.pos, "%s not a known value of %s" % (self.attribute, type))
         return None
+
+    def _create_unbound_cmethod_entry(self, type, entry, env):
+        # Create a temporary entry describing the unbound C method in `entry`
+        # as an ordinary function.
+        if entry.func_cname and entry.type.op_arg_struct is None:
+            cname = entry.func_cname
+            if entry.type.is_static_method or (
+                    env.parent_scope and env.parent_scope.is_cpp_class_scope):
+                ctype = entry.type
+            elif type.is_cpp_class:
+                error(self.pos, "%s not a static member of %s" % (entry.name, type))
+                ctype = PyrexTypes.error_type
+            else:
+                # Fix self type.
+                ctype = copy.copy(entry.type)
+                ctype.args = ctype.args[:]
+                ctype.args[0] = PyrexTypes.CFuncTypeArg('self', type, 'self', None)
+        else:
+            cname = "%s->%s" % (type.vtabptr_cname, entry.cname)
+            ctype = entry.type
+        ubcm_entry = Symtab.Entry(entry.name, cname, ctype)
+        ubcm_entry.is_cfunction = 1
+        ubcm_entry.func_cname = entry.func_cname
+        ubcm_entry.is_unbound_cmethod = 1
+        ubcm_entry.scope = entry.scope
+        return ubcm_entry
 
     def analyse_as_type(self, env):
         module_scope = self.obj.analyse_as_module(env)
@@ -8770,7 +8775,7 @@ class SetNode(ExprNode):
         return False
 
     def calculate_constant_result(self):
-        self.constant_result = set([arg.constant_result for arg in self.args])
+        self.constant_result = {arg.constant_result for arg in self.args}
 
     def compile_time_value(self, denv):
         values = [arg.compile_time_value(denv) for arg in self.args]
@@ -9390,19 +9395,21 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         must_use_constants = env.is_c_class_scope or (self.def_node.is_wrapper and env.is_module_scope)
 
         for arg in self.def_node.args:
-            if arg.default and not must_use_constants:
-                if not arg.default.is_literal:
-                    arg.is_dynamic = True
-                    if arg.type.is_pyobject:
-                        nonliteral_objects.append(arg)
+            if arg.default:
+                if not must_use_constants:
+                    if arg.default.is_literal:
+                        arg.default = DefaultLiteralArgNode(arg.pos, arg.default)
                     else:
-                        nonliteral_other.append(arg)
-                else:
-                    arg.default = DefaultLiteralArgNode(arg.pos, arg.default)
-                if arg.kw_only:
-                    default_kwargs.append(arg)
-                else:
-                    default_args.append(arg)
+                        arg.is_dynamic = True
+                        if arg.type.is_pyobject:
+                            nonliteral_objects.append(arg)
+                        else:
+                            nonliteral_other.append(arg)
+                if arg.default.type and arg.default.type.can_coerce_to_pyobject(env):
+                    if arg.kw_only:
+                        default_kwargs.append(arg)
+                    else:
+                        default_args.append(arg)
             if arg.annotation:
                 arg.annotation = arg.annotation.analyse_types(env)
                 annotations.append((arg.pos, arg.name, arg.annotation.string))
@@ -11820,10 +11827,10 @@ _find_formatting_types = re.compile(
     br")").findall
 
 # These format conversion types can never trigger a Unicode string conversion in Py2.
-_safe_bytes_formats = set([
+_safe_bytes_formats = frozenset({
     # Excludes 's' and 'r', which can generate non-bytes strings.
     b'd', b'i', b'o', b'u', b'x', b'X', b'e', b'E', b'f', b'F', b'g', b'G', b'c', b'b', b'a',
-])
+})
 
 
 class ModNode(DivNode):
@@ -13132,12 +13139,11 @@ class CoerceToMemViewSliceNode(CoercionNode):
         CoercionNode.__init__(self, arg)
         self.type = dst_type
         self.is_temp = 1
-        self.env = env
         self.use_managed_ref = True
         self.arg = arg
+        self.type.create_from_py_utility_code(env)
 
     def generate_result_code(self, code):
-        self.type.create_from_py_utility_code(self.env)
         code.putln(self.type.from_py_call_code(
             self.arg.py_result(),
             self.result(),
@@ -13871,6 +13877,9 @@ class AnnotationNode(ExprNode):
             warning(annotation.pos,
                     "Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.",
                     level=1)
+        elif arg_type is not None and arg_type.is_complex:
+            # creating utility code needs to be special-cased for complex types
+            arg_type.create_declaration_utility_code(env)
         if arg_type is not None:
             if explicit_pytype and not explicit_ctype and not arg_type.is_pyobject:
                 warning(annotation.pos,

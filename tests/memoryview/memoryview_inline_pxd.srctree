@@ -1,0 +1,35 @@
+# ticket: 1415
+
+# Utility code from an inline function in a pxd file was not
+# correctly included in a pyx file that cimported it.
+# Do not add more to this test - it is intentionally minimal
+# to avoid including the utility code through other means
+
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import uses_inline; uses_inline.main()"
+
+######## setup.py ########
+
+from distutils.core import setup
+from Cython.Distutils import build_ext
+from Cython.Distutils.extension import Extension
+
+setup(
+    ext_modules = [
+        Extension("uses_inline", ["uses_inline.pyx"]),
+    ],
+    cmdclass={'build_ext': build_ext},
+)
+
+######## has_inline.pxd ########
+
+from libc.stdlib cimport malloc
+cdef inline double[::1] mview(size_t size):
+    return <double[:size:1]>malloc(size * sizeof(double))
+    
+######## uses_inline.pyx ########
+
+from has_inline cimport mview
+def main():
+    return mview(1)
+

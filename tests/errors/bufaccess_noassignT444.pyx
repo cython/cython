@@ -1,4 +1,4 @@
-# ticket: 444
+# ticket: t444
 # mode: error
 
 def test():

@@ -1,9 +1,16 @@
 /////////////// PyType_Ready.proto ///////////////
 
-static int __Pyx_PyType_Ready(PyTypeObject *t);
+// FIXME: is this really suitable for CYTHON_COMPILING_IN_LIMITED_API?
+#if CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_LIMITED_API
+static int __Pyx_PyType_Ready(PyTypeObject *t);/*proto*/
+#else
+#define __Pyx_PyType_Ready(t) PyType_Ready(t)
+#endif
 
 /////////////// PyType_Ready ///////////////
+//@requires: ObjectHandling.c::PyObjectCallMethod0
 
+#if CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_LIMITED_API
 // Wrapper around PyType_Ready() with some runtime checks and fixes
 // to deal with multiple inheritance.
 static int __Pyx_PyType_Ready(PyTypeObject *t) {
@@ -65,11 +72,23 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
     {
         // Make sure GC does not pick up our non-heap type as heap type with this hack!
         // For details, see https://github.com/cython/cython/issues/3603
-        PyObject *ret, *py_status;
         int gc_was_enabled;
-        PyObject *gc = PyImport_Import(PYUNICODE("gc"));
+        #if PY_VERSION_HEX >= 0x030A00b1
+        // finally added in Py3.10 :)
+        gc_was_enabled = PyGC_Disable();
+        (void)__Pyx_PyObject_CallMethod0;
+
+        #else
+        // Call gc.disable() as a backwards compatible fallback, but only if needed.
+        PyObject *ret, *py_status;
+        PyObject *gc = NULL;
+        #if PY_VERSION_HEX >= 0x030700a1 && (!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM+0 >= 0x07030400)
+        // https://foss.heptapod.net/pypy/pypy/-/issues/3385
+        gc = PyImport_GetModule(PYUNICODE("gc"));
+        #endif
+        if (unlikely(!gc)) gc = PyImport_Import(PYUNICODE("gc"));
         if (unlikely(!gc)) return -1;
-        py_status = PyObject_CallMethodObjArgs(gc, PYUNICODE("isenabled"), NULL);
+        py_status = __Pyx_PyObject_CallMethod0(gc, PYUNICODE("isenabled"));
         if (unlikely(!py_status)) {
             Py_DECREF(gc);
             return -1;
@@ -77,7 +96,7 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
         gc_was_enabled = __Pyx_PyObject_IsTrue(py_status);
         Py_DECREF(py_status);
         if (gc_was_enabled > 0) {
-            ret = PyObject_CallMethodObjArgs(gc, PYUNICODE("disable"), NULL);
+            ret = __Pyx_PyObject_CallMethod0(gc, PYUNICODE("disable"));
             if (unlikely(!ret)) {
                 Py_DECREF(gc);
                 return -1;
@@ -87,6 +106,7 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
             Py_DECREF(gc);
             return -1;
         }
+        #endif
 
         // As of https://bugs.python.org/issue22079
         // PyType_Ready enforces that all bases of a non-heap type are
@@ -96,6 +116,9 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
         // Other than this check, the Py_TPFLAGS_HEAPTYPE flag is unused
         // in PyType_Ready().
         t->tp_flags |= Py_TPFLAGS_HEAPTYPE;
+#else
+        // avoid C warning about unused helper function
+        (void)__Pyx_PyObject_CallMethod0;
 #endif
 
     r = PyType_Ready(t);
@@ -104,9 +127,12 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
         t->tp_flags &= ~Py_TPFLAGS_HEAPTYPE;
 
         if (gc_was_enabled) {
+#if PY_VERSION_HEX >= 0x030A00b1
+            PyGC_Enable();
+#else
             PyObject *t, *v, *tb;
             PyErr_Fetch(&t, &v, &tb);
-            ret = PyObject_CallMethodObjArgs(gc, PYUNICODE("enable"), NULL);
+            ret = __Pyx_PyObject_CallMethod0(gc, PYUNICODE("enable"));
             if (likely(ret || r == -1)) {
                 Py_XDECREF(ret);
                 // do not overwrite exceptions raised by PyType_Ready() above
@@ -120,11 +146,13 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
             }
         }
         Py_DECREF(gc);
+#endif
     }
 #endif
 
     return r;
 }
+#endif
 
 /////////////// PyTrashcan.proto ///////////////
 

@@ -1,4 +1,4 @@
-# ticket: 158
+# ticket: t158
 # mode: error
 
 def mult_decl_test():
@@ -52,26 +52,19 @@ cdef int *baz
 print var[0][0]
 cdef unsigned long long[100][100] var
 
-# in 0.11.1 these are warnings
-FUTURE_ERRORS = u"""
-6:13: cdef variable 's' declared after it is used
-6:16: cdef variable 'vv' declared after it is used
-11:14: cdef variable 'i' declared after it is used
-17:14: cdef variable 'i' declared after it is used
-23:14: cdef variable 'i' declared after it is used
-26:9: cdef variable 's' declared after it is used
-32:17: cdef variable 't' declared after it is used
-36:13: cdef variable 'r' declared after it is used
-42:17: cdef variable 't' declared after it is used
-49:10: cdef variable 'baz' declared after it is used
-52:24: cdef variable 'var' declared after it is used
-"""
-
-syntax error
-
 _ERRORS = u"""
-42:17: cdef variable 't' declared after it is used
-49:10: cdef variable 'baz' declared after it is used
-52:24: cdef variable 'var' declared after it is used
-70:7: Syntax error in simple statement list
+5:17: local variable 'vv' referenced before assignment
+6:17: local variable 's' referenced before assignment
+7:13: cdef variable 's' declared after it is used
+7:16: cdef variable 'vv' declared after it is used
+12:14: cdef variable 'i' declared after it is used
+18:14: cdef variable 'i' declared after it is used
+24:14: cdef variable 'i' declared after it is used
+27:9: cdef variable 's' declared after it is used
+33:17: cdef variable 't' declared after it is used
+43:17: cdef variable 't' declared after it is used
+50:10: cdef variable 'baz' declared after it is used
+53:34: cdef variable 'var' declared after it is used
 """
+# FIXME not detected
+#37:13: cdef variable 'r' declared after it is used

@@ -1,4 +1,4 @@
-# ticket: 359
+# ticket: t359
 
 cdef unsigned char* some_c_unstring = 'test toast taste'
 

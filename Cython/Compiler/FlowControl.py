@@ -52,7 +52,7 @@ class ControlBlock(object):
         stats = [Assignment(a), NameReference(a), NameReference(c),
                      Assignment(b)]
         gen = {Entry(a): Assignment(a), Entry(b): Assignment(b)}
-        bounded = set([Entry(a), Entry(c)])
+        bounded = {Entry(a), Entry(c)}
 
     """
 
@@ -203,7 +203,7 @@ class ControlFlow(object):
 
     def normalize(self):
         """Delete unreachable and orphan blocks."""
-        queue = set([self.entry_point])
+        queue = {self.entry_point}
         visited = set()
         while queue:
             root = queue.pop()
@@ -983,7 +983,7 @@ class ControlFlowAnalysis(CythonTransform):
                 if not entry or entry.is_builtin:
                     if function.name == 'reversed' and len(sequence.args) == 1:
                         sequence = sequence.args[0]
-                    elif function.name == 'enumerate' and len(sequence.args) == 1:
+                    elif function.name == 'enumerate' and len(sequence.args) in (1, 2):
                         if target.is_sequence_constructor and len(target.args) == 2:
                             iterator = sequence.args[0]
                             if iterator.is_name:
@@ -1019,7 +1019,11 @@ class ControlFlowAnalysis(CythonTransform):
             # Python strings, etc., while correctly falling back to an
             # object type when the base type cannot be handled.
 
-            self.mark_assignment(target, node.item)
+            self.mark_assignment(target, ExprNodes.IndexNode(
+                node.pos,
+                base=sequence,
+                index=ExprNodes.IntNode(target.pos, value='PY_SSIZE_T_MAX',
+                                        type=PyrexTypes.c_py_ssize_t_type)))
 
     def visit_AsyncForStatNode(self, node):
         return self.visit_ForInStatNode(node)

@@ -1,6 +1,6 @@
 # mode: run
 # tag: kwargs, call
-# ticket: 717
+# ticket: t717
 
 def f(**kwargs):
     return sorted(kwargs.items())
