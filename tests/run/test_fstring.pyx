@@ -1174,11 +1174,10 @@ non-important content
         self.assertEqual(f'{0!=1}', 'True')
         self.assertEqual(f'{0<=1}', 'True')
         self.assertEqual(f'{0>=1}', 'False')
-        # Walrus not implemented yet, skip
-        # self.assertEqual(f'{(x:="5")}', '5')
-        # self.assertEqual(x, '5')
-        # self.assertEqual(f'{(x:=5)}', '5')
-        # self.assertEqual(x, 5)
+        self.assertEqual(f'{(x:="5")}', '5')
+        self.assertEqual(x, '5')
+        self.assertEqual(f'{(x:=5)}', '5')
+        self.assertEqual(x, 5)
         self.assertEqual(f'{"="}', '=')
 
         x = 20
