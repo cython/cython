@@ -17,25 +17,25 @@ cimport cython
 #     '//ListNode//PythonCapiCallNode//PythonCapiCallNode',
 #     '//ListNode//SimpleCallNode//SimpleCallNode',
 # )
-def test_empty_frozenset():
-    """
-    >>> test_empty_frozenset()
-    """
-    f = frozenset()
-    efs = [frozenset(),
-           frozenset([]), frozenset(()), frozenset(''),
-           frozenset(), frozenset([]), frozenset(()), frozenset(''),
-           # frozenset(range(0)),
-           frozenset(frozenset()),
-           frozenset(f),
-           # f
-           ]
-    for i in range(0, len(efs)):
-        for j in range(i+1, len(efs)):
-            assert efs[i] == efs[j]
-    # print(efs)
-    return None
-#
+# def test_empty_frozenset():
+#     """
+#     >>> test_empty_frozenset()
+#     """
+#     f = frozenset()
+#     efs = [frozenset(),
+#            frozenset([]), frozenset(()), frozenset(''),
+#            frozenset(), frozenset([]), frozenset(()), frozenset(''),
+#            # frozenset(range(0)),
+#            frozenset(frozenset()),
+#            frozenset(f),
+#            # f
+#            ]
+#     for i in range(0, len(efs)):
+#         for j in range(i+1, len(efs)):
+#             assert efs[i] == efs[j]
+#     # print(efs)
+#     return None
+# #
 # # def cython_frozenset_override():
 #     """
 #     >>> cython_frozenset_override() is frozenset
@@ -86,21 +86,31 @@ def test_empty_frozenset():
 #     """
 #     return frozenset([1, 2, 3])
 #
-#
-@cython.test_fail_if_path_exists("//SetNode", "//PythonCapiCallNode")
-def test_frozenset_of_None_value():
-    """
-    >>> s = test_frozenset_of_None_value()
-    >>> isinstance(s, frozenset)
-    True
-    >>> len(s)
-    3
-    >>> None in s
-    True
-    """
-    return frozenset((1, 2, None, 1, None))
+# #
+# @cython.test_fail_if_path_exists("//SetNode", "//PythonCapiCallNode")
+# def test_frozenset_of_None_value():
+#     """
+#     >>> s = test_frozenset_of_None_value()
+#     >>> isinstance(s, frozenset)
+#     True
+#     >>> len(s)
+#     3
+#     >>> None in s
+#     True
+#     """
+#     return frozenset((1, 2, None, 1, None))
 
-
+@cython.test_fail_if_path_exists("//SetNode")
+def test_frozenset_dedup_mixed_value():
+    """
+    >>> test_frozenset_dedup_mixed_value()
+    1
+    """
+    efs = [
+        frozenset((1, 2, None, 1, None, "b")), frozenset(frozenset((1, 2, None, "b", 1, None))),
+        frozenset((2, None, "b", 1, "b"))
+    ]
+    return len(set(map(id, efs)))
 #
 #
 # @cython.test_fail_if_path_exists("//SetNode", "//PythonCapiCallNode")
@@ -135,26 +145,26 @@ def test_frozenset_of_None_value():
 #     [1, 2, 3]
 #     """
 #     return frozenset(x)
+# #
+# def test_create_frozenset_from_characters():
+#     """
+#     >>> s = test_create_frozenset_from_characters()
+#     >>> isinstance(s, frozenset)
+#     True
+#     >>> sorted(s)
+#     ['1', '2', '3']
+#     """
+#     return frozenset(("1", "2", "3"))
 #
-def test_create_frozenset_from_characters():
-    """
-    >>> s = test_create_frozenset_from_characters()
-    >>> isinstance(s, frozenset)
-    True
-    >>> sorted(s)
-    ['1', '2', '3']
-    """
-    return frozenset(("1", "2", "3"))
-
-def test_create_frozenset_from_string():
-    """
-    >>> s = test_create_frozenset_from_string()
-    >>> isinstance(s, frozenset)
-    True
-    >>> sorted(s)
-    ['1', '2', '3']
-    """
-    return frozenset("1231")
+# def test_create_frozenset_from_string():
+#     """
+#     >>> s = test_create_frozenset_from_string()
+#     >>> isinstance(s, frozenset)
+#     True
+#     >>> sorted(s)
+#     ['1', '2', '3']
+#     """
+#     return frozenset("1231")
 
 # def test_create_frozenset_from_bytes():
 #     """

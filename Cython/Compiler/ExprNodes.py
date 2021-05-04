@@ -214,6 +214,8 @@ def make_dedup_key(outer_type, item_nodes):
 
     if outer_type.name == 'frozenset':
         item_keys = frozenset(item_keys)
+        item_keys = list(item_keys)
+        item_keys.sort(key=lambda tup:str(tup))
     return outer_type, tuple(item_keys)
 
 
@@ -8840,6 +8842,7 @@ class FrozenSetNode(SetNode):
         self.result_code = set_target
 
     def generate_evaluation_code(self, code):
+        print(self.__dict__)
         if self.is_literal:
             self._create_shared_frozenset_object(code)
             return
