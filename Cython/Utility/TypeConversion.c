@@ -475,12 +475,16 @@ static CYTHON_INLINE PyObject* __Pyx__PyNumber_Float(PyObject* obj); /* proto */
 
 static CYTHON_INLINE PyObject* __Pyx__PyNumber_Float(PyObject* obj) {
     // obj is PyFloat is handled in the calling macro
+    double val;
     if (PyUnicode_CheckExact(obj)) {
-        return PyFloat_FromDouble(__Pyx_PyUnicode_AsDouble(obj));
+        val = __Pyx_PyUnicode_AsDouble(obj);
+        return val == -1 && PyErr_Occurred() ? NULL : PyFloat_FromDouble(val);
     } else if (PyBytes_CheckExact(obj)) {
-        return PyFloat_FromDouble(__Pyx_PyBytes_AsDouble(obj));
+        val = __Pyx_PyBytes_AsDouble(obj);
+        return val == -1 && PyErr_Occurred() ? NULL : PyFloat_FromDouble(val);
     } else if (PyByteArray_CheckExact(obj)) {
-        return PyFloat_FromDouble(__Pyx_PyByteArray_AsDouble(obj));
+        val = __Pyx_PyByteArray_AsDouble(obj);
+        return val == -1 && PyErr_Occurred() ? NULL : PyFloat_FromDouble(val);
     } else {
         return PyNumber_Float(obj);
     }

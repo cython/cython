@@ -234,3 +234,22 @@ def from_unicode_literals():
     (123.0, 123.23, 123.45, 1e+100, 123.23)
     """
     return float(u"123"), float(u"123.23"), float(fix_underscores(u"12_3.4_5")), float(u"1e100"), float(u"123.23\N{PUNCTUATION SPACE}")
+
+
+def catch_valueerror(val):
+    """
+    >>> catch_valueerror("foo")
+    False
+    >>> catch_valueerror(u"foo")
+    False
+    >>> catch_valueerror(b"foo")
+    False
+    >>> catch_valueerror(bytearray(b"foo"))
+    False
+    >>> catch_valueerror("-1")
+    -1.0
+    """
+    try:
+        return float(val)
+    except ValueError:
+        return False
