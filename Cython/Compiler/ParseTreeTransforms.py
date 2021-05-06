@@ -203,7 +203,7 @@ class PostParse(ScopeTrackingTransform):
             node.pos, name=node.name, doc=None,
             args=[], star_arg=None, starstar_arg=None,
             body=node.loop, is_async_def=collector.has_await)
-        _AssignmentExpressionChecker.do_checks(node.loop, self.scope_type in ("pyclass", "cclass"))
+        _AssignmentExpressionChecker.do_checks(node.loop, scope_is_class=self.scope_type in ("pyclass", "cclass"))
         self.visitchildren(node)
         return node
 
@@ -214,7 +214,7 @@ class PostParse(ScopeTrackingTransform):
             collector.visitchildren(node.loop)
             if collector.has_await:
                 node.has_local_scope = True
-        _AssignmentExpressionChecker.do_checks(node.loop, self.scope_type in ("pyclass", "cclass"))
+        _AssignmentExpressionChecker.do_checks(node.loop, scope_is_class=self.scope_type in ("pyclass", "cclass"))
         self.visitchildren(node)
         return node
 

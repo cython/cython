@@ -1808,7 +1808,7 @@ class FuncDefNode(StatNode, BlockNode):
                                 outer_scope=genv,
                                 parent_scope=env,
                                 scope_name=self.entry.cname,
-                                is_genexpr_closure = isinstance(self, GeneratorDefNode))
+                                is_genexpr_closure=self.is_generator)
         else:
             lenv = LocalScope(name=self.entry.name,
                               outer_scope=genv,

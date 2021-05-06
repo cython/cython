@@ -162,13 +162,14 @@ def p_test_nocond(s, allow_assignment_expression=True):
 def p_walrus_test(s, allow_assignment_expression=True):
     lhs = p_or_test(s)
     if s.sy == ':=':
+        position = s.position()
         if not allow_assignment_expression:
             s.error("invalid syntax: assignment expression not allowed in this context")
         elif not lhs.is_name:
             s.error("Left-hand side of assignment expression must be an identifier")
         s.next()
         rhs = p_test(s)
-        return ExprNodes.AssignmentExpressionNode(s.position(), lhs=lhs, rhs=rhs)
+        return ExprNodes.AssignmentExpressionNode(position, lhs=lhs, rhs=rhs)
     return lhs
 
 #or_test: and_test ('or' and_test)*

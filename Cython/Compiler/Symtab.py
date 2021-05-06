@@ -736,7 +736,7 @@ class Scope(object):
             entry.used = 1
         return entry
 
-    def declare_var_assignment_expression(self, name, type, pos):
+    def declare_assignment_expression_target(self, name, type, pos):
         # In most cases declares the variable as normal.
         # For generator expressions and comprehensions the variable is declared in their parent
         return self.declare_var(name, type, pos)
@@ -967,7 +967,7 @@ class Scope(object):
     def lookup_here_unmangled(self, name):
         return self.entries.get(name, None)
 
-    def lookup_here_assignment_expression(self, name):
+    def lookup_here_assignment_expression_target(self, name):
         # For most cases behaves like "lookup_here".
         # However, it does look outwards for comprehension and generator expression scopes
         return self.lookup_here(name)
@@ -1975,7 +1975,7 @@ class GeneratorExpressionScope(Scope):
         self.entries[name] = entry
         return entry
 
-    def declare_var_assignment_expression(self, name, type, pos):
+    def declare_var_assignment_expression_target(self, name, type, pos):
         # should be declared in the parent scope instead
         return self.parent_scope.declare_var(name, type, pos)
 
@@ -1989,10 +1989,10 @@ class GeneratorExpressionScope(Scope):
     def add_lambda_def(self, def_node):
         return self.outer_scope.add_lambda_def(def_node)
 
-    def lookup_here_assignment_expression(self, name):
+    def lookup_here_assignment_expression_target(self, name):
         entry = self.lookup_here(name)
         if not entry:
-            entry = self.parent_scope.lookup_here_assignment_expression(name)
+            entry = self.parent_scope.lookup_here_assignment_expression_target(name)
         return entry
 
 
@@ -2018,7 +2018,7 @@ class ClosureScope(LocalScope):
     def declare_pyfunction(self, name, pos, allow_redefine=False):
         return LocalScope.declare_pyfunction(self, name, pos, allow_redefine, visibility='private')
 
-    def declare_var_assignment_expression(self, name, type, pos):
+    def declare_var_assignment_expression_target(self, name, type, pos):
         if self.is_genexpr_closure:
             entry = self.parent_scope.declare_var(name, type, pos)
             entry.in_closure = True
@@ -2028,10 +2028,10 @@ class ClosureScope(LocalScope):
             return inner_entry
         return self.declare_var(name, type, pos)
 
-    def lookup_here_assignment_expression(self, name):
+    def lookup_here_assignment_expression_target(self, name):
         entry = self.lookup_here(name)
         if not entry and self.is_genexpr_closure:
-            entry = self.parent_scope.lookup_here_assignment_expression(name)
+            entry = self.parent_scope.lookup_here_assignment_expression_target(name)
             if entry:
                 entry.in_closure = True
                 inner_entry = InnerEntry(entry, self)
@@ -2050,7 +2050,7 @@ class StructOrUnionScope(Scope):
     def declare_var(self, name, type, pos,
                     cname = None, visibility = 'private',
                     api = 0, in_pxd = 0, is_cdef = 0,
-                    allow_pyobject=False, allow_memoryview=False,):
+                    allow_pyobject=False, allow_memoryview=False):
         # Add an entry for an attribute.
         if not cname:
             cname = name
