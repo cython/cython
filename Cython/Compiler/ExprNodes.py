@@ -196,9 +196,9 @@ def make_dedup_key(outer_type, item_nodes):
 
     @param outer_type: The type of the outer container.
     @param item_nodes: A sequence of constant nodes that will be traversed recursively.
-    @return: A tuple that can be used as a dict key for deduplication.
+    @return: A hashable, constant sequence that can be used as a dict key for deduplication.
     """
-    item_keys = [
+    item_keys = tuple(
         (py_object_type, None, type(None)) if node is None
         # For sequences and their "mult_factor", see TupleNode.
         else make_dedup_key(node.type, [node.mult_factor if node.is_literal else None] + node.args) if node.is_sequence_constructor
@@ -208,15 +208,13 @@ def make_dedup_key(outer_type, item_nodes):
               type(node.constant_result) if node.type is py_object_type else None) if node.has_constant_result()
         else None  # something we cannot handle => short-circuit below
         for node in item_nodes
-    ]
+    )
     if None in item_keys:
         return None
 
     if outer_type.name == 'frozenset':
         item_keys = frozenset(item_keys)
-        item_keys = list(item_keys)
-        item_keys.sort(key=lambda tup:str(tup))
-    return outer_type, tuple(item_keys)
+    return outer_type, item_keys
 
 
 # Returns a block of code to translate the exception,

@@ -168,6 +168,7 @@ def test_empty_frozenset():
     >>> len(s)
     0
     >>> import sys
+    >>> print(id(s)); print(id(frozenset()))
     >>> sys.version_info >= (3, 10) or s is frozenset()   # singleton (in Python < 3.10)!
     True
     """
