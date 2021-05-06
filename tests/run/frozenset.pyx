@@ -168,7 +168,6 @@ def test_empty_frozenset():
     >>> len(s)
     0
     >>> import sys
-    >>> print(id(s)); print(id(frozenset()))
     >>> sys.version_info >= (3, 10) or s is frozenset()   # singleton (in Python < 3.10)!
     True
     """
@@ -188,11 +187,8 @@ def test_singleton_empty_frozenset():
     f = frozenset()
     efs = [frozenset(), frozenset([]), frozenset(()), frozenset(''),
            frozenset(), frozenset([]), frozenset(()), frozenset(''),
-           frozenset(frozenset()),
-           # FIXME: For these two cases, this PR will create new objects
-           # frozenset(f),
-           # frozenset(range(0)),
-           f]
+           frozenset(frozenset()), frozenset(frozenset(f)),
+           frozenset(f), frozenset(range(0)),f]
     return len(set(map(id, efs)))  # note, only a singleton in Python <3.10
 
 

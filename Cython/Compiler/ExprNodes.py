@@ -8811,7 +8811,10 @@ class FrozenSetNode(SetNode):
         else:
             self.args.generate_evaluation_code(code)
             constructor_parameter = self.args.py_result()
-        code.putln("%s = PyFrozenSet_New(%s); %s" % (
+        # TODO Avoid code duplication for creating a frozenset
+        code.globalstate.use_utility_code(UtilityCode.load_cached(
+            'pyfrozenset_new', 'Builtins.c'))
+        code.putln("%s = __Pyx_PyFrozenSet_New(%s); %s" % (
             target, constructor_parameter,
             code.error_goto_if_null(target, self.pos)))
         self.result_code = target
@@ -8828,18 +8831,10 @@ class FrozenSetNode(SetNode):
         return args.args
 
     def _create_shared_frozenset_object(self, code):
-        # print(self.type)  # currently set object, should be frozenset
+        assert self.type.name == 'frozenset'
         dedup_key = make_dedup_key(self.type, self._get_dedup_values(self.args))
-        print("==print dedup_key")
-        print(self.type)
-        print(dedup_key)
-        # if self.args is None:
-        #     dedup_key = make_dedup_key(self.type, ())
-        # else:
-        #     dedup_key = make_dedup_key(self.type, self._get_dedup_values(self.args.args))
         set_target = code.get_py_const(py_object_type, 'frozenset', cleanup_level=2, dedup_key=dedup_key)
         assert set_target is not None
-        # print(set_target)
         const_code = code.get_cached_constants_writer(set_target)
         if const_code is not None:
             # constant is not yet initialised
@@ -8855,8 +8850,11 @@ class FrozenSetNode(SetNode):
 
         self.args.generate_evaluation_code(code)
         self.allocate_temp_result(code)
+        code.globalstate.use_utility_code(UtilityCode.load_cached(
+            'pyfrozenset_new', 'Builtins.c'))
+
         code.putln(
-            "%s = PyFrozenSet_New(%s); %s" % (
+            "%s = __Pyx_PyFrozenSet_New(%s); %s" % (
                 self.result(),
                 self.args.py_result(),
                 code.error_goto_if_null(self.result(), self.pos)))

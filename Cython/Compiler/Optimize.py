@@ -2593,17 +2593,11 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             result.is_literal = True
             return result
 
-        # print(pos_args[0].type)
-        # print(pos_args[0].may_be_none())
-        # print(pos_args[0].__dict__)
         # frozenset() expects no arguments, or one iterable argument
         # https://docs.python.org/3.9/library/stdtypes.html#frozenset
         if len(pos_args) > 1:
             return node
 
-        # print(pos_args[0].type)
-        # print(pos_args[0].may_be_none())
-        # print(pos_args[0].__dict__)
 
         if pos_args[0].type is Builtin.frozenset_type :
             # and not pos_args[0].may_be_none()
@@ -2634,9 +2628,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         if pos_args[0].is_literal:
             result.is_temp = False
             result.is_literal = True
-        # print("result")
-        # print(result)
-        # print(result.__dict__)
+
         return result
 
 
