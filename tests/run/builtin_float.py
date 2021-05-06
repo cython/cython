@@ -44,6 +44,29 @@ def float_call_conjugate():
     return x
 
 
+def from_int(i):
+    """
+    >>> from_int(0)
+    0.0
+    >>> from_int(1)
+    1.0
+    >>> from_int(-1)
+    -1.0
+    >>> from_int(99)
+    99.0
+    >>> from_int(-99)
+    -99.0
+
+    >>> for exp in (14, 15, 16, 30, 31, 32, 52, 53, 54, 60, 61, 62, 63, 64):
+    ...     for sign in (1, 0, -1):
+    ...         value = (sign or 1) * 2**exp + sign
+    ...         float_value = from_int(value)
+    ...         assert float_value == float(value), "expected %s2**%s+%s == %r, got %r, difference %r" % (
+    ...             '-' if sign < 0 else '', exp, sign, float(value), float_value, float_value - float(value))
+    """
+    return float(i)
+
+
 @cython.test_assert_path_exists(
     "//CoerceToPyTypeNode",
     "//CoerceToPyTypeNode//PythonCapiCallNode",
