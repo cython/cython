@@ -478,13 +478,13 @@ static CYTHON_INLINE PyObject* __Pyx__PyNumber_Float(PyObject* obj) {
     double val;
     if (PyUnicode_CheckExact(obj)) {
         val = __Pyx_PyUnicode_AsDouble(obj);
-        return val == -1 && PyErr_Occurred() ? NULL : PyFloat_FromDouble(val);
+        return unlikely(val == -1 && PyErr_Occurred()) ? NULL : PyFloat_FromDouble(val);
     } else if (PyBytes_CheckExact(obj)) {
         val = __Pyx_PyBytes_AsDouble(obj);
-        return val == -1 && PyErr_Occurred() ? NULL : PyFloat_FromDouble(val);
+        return unlikely(val == -1 && PyErr_Occurred()) ? NULL : PyFloat_FromDouble(val);
     } else if (PyByteArray_CheckExact(obj)) {
         val = __Pyx_PyByteArray_AsDouble(obj);
-        return val == -1 && PyErr_Occurred() ? NULL : PyFloat_FromDouble(val);
+        return unlikely(val == -1 && PyErr_Occurred()) ? NULL : PyFloat_FromDouble(val);
     } else {
         return PyNumber_Float(obj);
     }
