@@ -1975,7 +1975,7 @@ class GeneratorExpressionScope(Scope):
         self.entries[name] = entry
         return entry
 
-    def declare_var_assignment_expression_target(self, name, type, pos):
+    def declare_assignment_expression_target(self, name, type, pos):
         # should be declared in the parent scope instead
         return self.parent_scope.declare_var(name, type, pos)
 
@@ -2018,7 +2018,7 @@ class ClosureScope(LocalScope):
     def declare_pyfunction(self, name, pos, allow_redefine=False):
         return LocalScope.declare_pyfunction(self, name, pos, allow_redefine, visibility='private')
 
-    def declare_var_assignment_expression_target(self, name, type, pos):
+    def declare_assignment_expression_target(self, name, type, pos):
         if self.is_genexpr_closure:
             entry = self.parent_scope.declare_var(name, type, pos)
             entry.in_closure = True

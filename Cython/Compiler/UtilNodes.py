@@ -148,7 +148,8 @@ class ResultRefNode(AtomicExprNode):
             self.type = type
 
     def analyse_target_declaration(self, env):
-        return  # because it can be the left-hand sides
+        # function implemented because it can be this node can be the left-hand side of an assignment
+        return
 
     def analyse_types(self, env):
         if self.expression is not None:
@@ -204,7 +205,7 @@ class ResultRefNode(AtomicExprNode):
         if self.type.is_pyobject:
             rhs.make_owned_reference(code)
             if not self.lhs_of_first_assignment:
-                code.put_xdecref(self.result(), self.ctype())
+                code.put_decref(self.result(), self.ctype())
         code.putln('%s = %s;' % (
             self.result(),
             rhs.result() if overloaded_assignment else rhs.result_as(self.ctype()),

@@ -2067,7 +2067,7 @@ class NameNode(AtomicExprNode):
     def analyse_target_declaration_shared(self, env, is_assignment_expression):
         if not self.entry:
             if is_assignment_expression:
-                self.entry = env.lookup_here_assignment_expression(self.name)
+                self.entry = env.lookup_here_assignment_expression_target(self.name)
             else:
                 self.entry = env.lookup_here(self.name)
         if not self.entry and self.annotation is not None:
@@ -2081,7 +2081,7 @@ class NameNode(AtomicExprNode):
             else:
                 type = py_object_type
             if is_assignment_expression:
-                self.entry = env.declare_var_assignment_expression(self.name, type, self.pos)
+                self.entry = env.declare_assignment_expression_target(self.name, type, self.pos)
             else:
                 self.entry = env.declare_var(self.name, type, self.pos)
         if self.entry.is_declared_generic:
@@ -8406,6 +8406,7 @@ class ScopedExprNode(ExprNode):
                 code.put_var_decref_set(entry, "Py_None")
             else:
                 code.put_var_xdecref_clear(entry)
+
 
 class ComprehensionNode(ScopedExprNode):
     # A list/set/dict comprehension
