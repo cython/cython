@@ -474,16 +474,43 @@ static CYTHON_INLINE PyObject* __Pyx__PyNumber_Float(PyObject* obj); /* proto */
 //@requires: Optimize.c::pyunicode_as_double
 
 static CYTHON_INLINE PyObject* __Pyx__PyNumber_Float(PyObject* obj) {
-    // obj is PyFloat is handled in the calling macro
-    if (PyUnicode_CheckExact(obj)) {
-        return PyFloat_FromDouble(__Pyx_PyUnicode_AsDouble(obj));
+    // 'obj is PyFloat' is handled in the calling macro
+    double val;
+    if (PyLong_CheckExact(obj)) {
+#if CYTHON_USE_PYLONG_INTERNALS
+        const digit* digits = ((PyLongObject*)obj)->ob_digit;
+        switch (Py_SIZE(obj)) {
+            case 0:
+                val = 0.0;
+                goto no_error;
+            // single digit PyLong values always cast safely to double
+            case 1:
+                val = (double) digits[0];
+                goto no_error;
+            case -1:
+                val = (double) - (sdigit) digits[0];
+                goto no_error;
+            default:
+                val = PyLong_AsDouble(obj);
+        }
+#else
+        val = PyLong_AsDouble(obj);
+#endif
+    } else if (PyUnicode_CheckExact(obj)) {
+        val = __Pyx_PyUnicode_AsDouble(obj);
     } else if (PyBytes_CheckExact(obj)) {
-        return PyFloat_FromDouble(__Pyx_PyBytes_AsDouble(obj));
+        val = __Pyx_PyBytes_AsDouble(obj);
     } else if (PyByteArray_CheckExact(obj)) {
-        return PyFloat_FromDouble(__Pyx_PyByteArray_AsDouble(obj));
+        val = __Pyx_PyByteArray_AsDouble(obj);
     } else {
         return PyNumber_Float(obj);
     }
+
+    if (unlikely(val == -1 && PyErr_Occurred())) {
+        return NULL;
+    }
+no_error:
+    return PyFloat_FromDouble(val);
 }
 
 /////////////// GCCDiagnostics.proto ///////////////
