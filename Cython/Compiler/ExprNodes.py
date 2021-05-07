@@ -13893,51 +13893,97 @@ class AnnotationNode(ExprNode):
             warning(annotation.pos, "Unknown type declaration in annotation, ignoring")
         return base_type, arg_type
 
+
+class AssignmentExpressionRhsNode(ExprNode):
+    """
+    A very thin wrapper around an ExprNode. It gets its type and tempness from the right-hand side of
+    the AssignmentExpressionNode that it's linked to. At the analyse_types stage it converts itself
+    to a CloneNode
+
+    Attribute:
+    parent_expression  - AssignmentExpressionNode
+    """
+    subexprs = []
+
+    @property
+    def arg(self):
+        return self.parent_expression.rhs
+
+    @property
+    def type(self):
+        return self.arg.type
+
+    @property
+    def is_temp(self):
+        return self.arg.is_temp
+
+    def infer_type(self, env):
+        return self.arg.infer_type(env)
+
+    def analyse_types(self, env):
+        return CloneNode(self.arg)
+
+
 class AssignmentExpressionNode(ExprNode):
     """
     Also known as a named expression or the walrus operator
 
     Arguments
-    lhs - NameNode
-    rhs - ExprNode  (not stored as an attribute because it is likely to be heavily transformed)
+    lhs - NameNode - not stored directly as an attribute of the node
+    rhs - ExprNode
 
-    internally uses
-    impl - UtilNodes.TempResultFromStatNode
+    Attributes
+    lhs        - ExprNode (really should be a NameNode but this is validated later)
+    rhs        - ExprNode
+    assignment - SingleAssignmentNode
     """
-    # unusually, child_attrs and subexprs are deliberately not the same because it's
-    # sort of a hybrid node
-    subexprs = ["impl"]
+    # subexprs and child_attrs are intentionally different here, because the assignment is not an expression
+    subexprs = ["rhs"]
+    child_attrs = ["assignment", "rhs"]
 
-    impl = None
-    is_temp = True
+    is_temp = False
 
     def __init__(self, pos, lhs, rhs, **kwds):
-        from .UtilNodes import TempResultFromStatNode, ResultRefWithTypePropertyNode
-        super(AssignmentExpressionNode, self).__init__(pos, lhs=lhs, **kwds)
+        super(AssignmentExpressionNode, self).__init__(pos, lhs=lhs, rhs=rhs, **kwds)
+        assign_expr_rhs = AssignmentExpressionRhsNode(rhs.pos, parent_expression=self)
+        self.assignment = SingleAssignmentNode(pos=pos, lhs=lhs,
+                                            rhs=assign_expr_rhs,
+                                            is_assignment_expression=True)
 
-        temp = ResultRefWithTypePropertyNode(pos=pos,
-                    type_getter = lambda: self.impl.body.stats[0].rhs.type if self.impl else None)
-        assignment1 = Nodes.SingleAssignmentNode(pos=pos, lhs=temp, rhs=rhs, first=True)
-        assignment2 = Nodes.SingleAssignmentNode(pos=pos, lhs=lhs, rhs=temp, first=True,
-                                                 is_assignment_expression=True)
-
-        self.impl = TempResultFromStatNode(result_ref=temp, body=Nodes.StatListNode(pos,
-            stats=[assignment1, assignment2]))
+    @property
+    def type(self):
+        return self.rhs.type
 
     def infer_type(self, env):
-        return self.impl.infer_type(env)
+        return self.rhs.infer_type(env)
+
+    def analyse_declarations(self, env):
+        self.assignment.analyse_declarations(env)
 
     def analyse_types(self, env):
-        self.impl = self.impl.analyse_types(env)
-        self.type = self.impl.type
+        # we're trying to generate code that looks roughly like:
+        #   __pyx_t_1 = rhs
+        #   lhs = __pyx_t_1
+        #   __pyx_t_1
+        # (plus any reference counting that's needed)
+
+        self.rhs = self.rhs.analyse_types(env)
+        if not self.rhs.is_temp and (not self.rhs.is_literal or self.rhs.is_name):
+            # for anything but the simplest cases (where it can be used directly)
+            # we convert rhs to a temp
+            self.rhs = self.rhs.coerce_to_temp(env)
+
+        # at this stage the AssignmentExpressionRhsNode converts itself to a CloneNode
+        self.assignment = self.assignment.analyse_types(env)
         return self
 
+    def calculate_result_code(self):
+        return self.rhs.result()
+
     def generate_result_code(self, code):
-        # TODO: There's almost certainly some shuffling to be done to take ownership of impl's result
-        code.putln("%s = %s;" % (
-            self.result(), self.impl.result()))
-        code.put_incref(self.result(), self.type)
-        #self.impl.generate_execution_code(code)
+        # we have to do this manually because it isn't a subexpression
+        self.assignment.generate_execution_code(code)
+
 
 #------------------------------------------------------------------------------------
 #

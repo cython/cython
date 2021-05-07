@@ -2300,6 +2300,11 @@ if VALUE is not None:
         property.doc = entry.doc
         return property
 
+    def visit_AssignmentExpressionNode(self, node):
+        self.visitchildren(node)
+        node.analyse_declarations(self.current_env())
+        return node
+
 
 class CalculateQualifiedNamesTransform(EnvTransform):
     """

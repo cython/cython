@@ -147,10 +147,6 @@ class ResultRefNode(AtomicExprNode):
         if type:
             self.type = type
 
-    def analyse_target_declaration(self, env):
-        # function implemented because it can be this node can be the left-hand side of an assignment
-        return
-
     def analyse_types(self, env):
         if self.expression is not None:
             if not self.expression.type:
@@ -351,16 +347,11 @@ class TempResultFromStatNode(ExprNodes.ExprNode):
         self.type = result_ref.type
         self.is_temp = 1
 
-    def infer_type(self, env):
-        return self.result_ref.infer_type(env)
-
     def analyse_declarations(self, env):
         self.body.analyse_declarations(env)
 
     def analyse_types(self, env):
         self.body = self.body.analyse_expressions(env)
-        if self.type is None:
-            self.type = self.result_ref.type
         return self
 
     def may_be_none(self):
@@ -372,18 +363,3 @@ class TempResultFromStatNode(ExprNodes.ExprNode):
 
     def generate_function_definitions(self, env, code):
         self.body.generate_function_definitions(env, code)
-
-
-class ResultRefWithTypePropertyNode(ResultRefNode):
-    # it's occasionally useful to have a ResultRefNode
-    # where the type is auto-calculated from some other class.
-    def __init__(self, type_getter, **kwds):
-        super(ResultRefWithTypePropertyNode, self).__init__(**kwds)
-        self.type_getter = type_getter
-
-    @property
-    def type(self):
-        return self.type_getter()
-
-    def infer_type(self, env):
-        return self.type
