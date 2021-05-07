@@ -51,7 +51,10 @@ def test_frozenset_sideeffect_unhashable_failure():
     return L
 
 
-@cython.test_fail_if_path_exists("//SetNode", "//PythonCapiCallNode")
+@cython.test_fail_if_path_exists(
+    "//SetNode",
+    "//PythonCapiCallNode"
+)
 def test_frozenset_of_list():
     """
     >>> s = test_frozenset_of_list()
@@ -62,7 +65,7 @@ def test_frozenset_of_list():
     """
     return frozenset([1, 2, 3])
 
-#
+
 @cython.test_fail_if_path_exists("//SetNode", "//PythonCapiCallNode")
 def test_frozenset_of_None_value():
     """
