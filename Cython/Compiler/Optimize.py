@@ -2583,12 +2583,8 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
 
     # SimpleCallNode is replaced
     def _handle_simple_function_frozenset(self, node, function, pos_args):
-        print("==== _handle_simple_function_frozenset view")
-        print(node)
-        print(node.__dict__)
+        # empty frozenset is singleton, so we never try to free them
         if not pos_args:
-            # pos_args = [ExprNodes.NullNode(node.pos)]
-            # print("!! Returning empty frozenset")
             result = ExprNodes.FrozenSetNode(node.pos, is_temp=False, args=None)
             result.is_literal = True
             return result
@@ -2597,8 +2593,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         # https://docs.python.org/3.9/library/stdtypes.html#frozenset
         if len(pos_args) > 1:
             return node
-
-
+        print(pos_args[0].__dict__)
         if pos_args[0].type is Builtin.frozenset_type :
             # and not pos_args[0].may_be_none()
             # print(pos_args[0].may_be_none())
