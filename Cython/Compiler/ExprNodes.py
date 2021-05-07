@@ -2059,15 +2059,15 @@ class NameNode(AtomicExprNode):
         return None
 
     def analyse_target_declaration(self, env):
-        return self.analyse_target_declaration_shared(env, False)
+        return self._analyse_target_declaration(env, is_assignment_expression=False)
 
     def analyse_assignment_expression_target_declaration(self, env):
-        return self.analyse_target_declaration_shared(env, True)
+        return self._analyse_target_declaration(env, is_assignment_expression=True)
 
-    def analyse_target_declaration_shared(self, env, is_assignment_expression):
+    def _analyse_target_declaration(self, env, is_assignment_expression):
         if not self.entry:
             if is_assignment_expression:
-                self.entry = env.lookup_here_assignment_expression_target(self.name)
+                self.entry = env.lookup_assignment_expression_target(self.name)
             else:
                 self.entry = env.lookup_here(self.name)
         if not self.entry and self.annotation is not None:

@@ -967,7 +967,7 @@ class Scope(object):
     def lookup_here_unmangled(self, name):
         return self.entries.get(name, None)
 
-    def lookup_here_assignment_expression_target(self, name):
+    def lookup_assignment_expression_target(self, name):
         # For most cases behaves like "lookup_here".
         # However, it does look outwards for comprehension and generator expression scopes
         return self.lookup_here(name)
@@ -1989,10 +1989,10 @@ class GeneratorExpressionScope(Scope):
     def add_lambda_def(self, def_node):
         return self.outer_scope.add_lambda_def(def_node)
 
-    def lookup_here_assignment_expression_target(self, name):
+    def lookup_assignment_expression_target(self, name):
         entry = self.lookup_here(name)
         if not entry:
-            entry = self.parent_scope.lookup_here_assignment_expression_target(name)
+            entry = self.parent_scope.lookup_assignment_expression_target(name)
         return entry
 
 
@@ -2028,10 +2028,10 @@ class ClosureScope(LocalScope):
             return inner_entry
         return self.declare_var(name, type, pos)
 
-    def lookup_here_assignment_expression_target(self, name):
+    def lookup_assignment_expression_target(self, name):
         entry = self.lookup_here(name)
         if not entry and self.is_genexpr_closure:
-            entry = self.parent_scope.lookup_here_assignment_expression_target(name)
+            entry = self.parent_scope.lookup_assignment_expression_target(name)
             if entry:
                 entry.in_closure = True
                 inner_entry = InnerEntry(entry, self)
