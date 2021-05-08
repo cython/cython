@@ -331,7 +331,7 @@
 # elif defined(__ICC) || (defined(__INTEL_COMPILER) && !defined(_MSC_VER))
 #   define CYTHON_UNUSED __attribute__ ((__unused__))
 # elif defined(_MSC_VER)
-#   define CYTHON_UNUSED __pragma(warning(suppress: 4100 4101))
+#   define CYTHON_UNUSED __pragma(warning(suppress: 4100 4101 4505))
 # else
 #   define CYTHON_UNUSED
 # endif
