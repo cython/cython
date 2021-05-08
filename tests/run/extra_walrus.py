@@ -1,5 +1,5 @@
 # mode: run
-# tag: pure3.7
+# tag: pure3.8
 
 # These are extra tests for the assignment expression/walrus operator/named expression that cover things
 # additional to the standard Python test-suite in tests/run/test_named_expressions.pyx
