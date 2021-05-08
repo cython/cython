@@ -13746,6 +13746,9 @@ class CloneNode(CoercionNode):
     def generate_disposal_code(self, code):
         pass
 
+    def generate_post_assignment_code(self, code):
+        pass
+
     def free_temps(self, code):
         pass
 
@@ -13894,36 +13897,6 @@ class AnnotationNode(ExprNode):
         return base_type, arg_type
 
 
-class AssignmentExpressionRhsNode(ExprNode):
-    """
-    A very thin wrapper around an ExprNode. It gets its type and tempness from the right-hand side of
-    the AssignmentExpressionNode that it's linked to. At the analyse_types stage it converts itself
-    to a CloneNode
-
-    Attribute:
-    parent_expression  - AssignmentExpressionNode
-    """
-    subexprs = []
-
-    @property
-    def arg(self):
-        return self.parent_expression.rhs
-
-    @property
-    def type(self):
-        return self.arg.type
-
-    @property
-    def is_temp(self):
-        return self.arg.is_temp
-
-    def infer_type(self, env):
-        return self.arg.infer_type(env)
-
-    def analyse_types(self, env):
-        return CloneNode(self.arg)
-
-
 class AssignmentExpressionNode(ExprNode):
     """
     Also known as a named expression or the walrus operator
@@ -13936,16 +13909,33 @@ class AssignmentExpressionNode(ExprNode):
     lhs        - ExprNode (really should be a NameNode but this is validated later)
     rhs        - ExprNode
     assignment - SingleAssignmentNode
+    clone_node - CloneNode (or None) - tracks what's inside the assignment
     """
     # subexprs and child_attrs are intentionally different here, because the assignment is not an expression
     subexprs = ["rhs"]
     child_attrs = ["rhs", "assignment"]  # This order is important for control-flow (i.e. xdecref) to be right
 
     is_temp = False
+    assignment = None
+    _rhs = None
+    clone_node = None
+
+    @property
+    def rhs(self):
+        return self._rhs
+    @rhs.setter
+    def rhs(self, value):
+        old_rhs = self._rhs
+        self._rhs = value
+        if old_rhs is not value and self.assignment and self.clone_node:
+            # make sure that the contents of the CloneNode are kept up-to-date
+            self.clone_node.arg = value
+
 
     def __init__(self, pos, lhs, rhs, **kwds):
-        super(AssignmentExpressionNode, self).__init__(pos, lhs=lhs, rhs=rhs, **kwds)
-        assign_expr_rhs = AssignmentExpressionRhsNode(rhs.pos, parent_expression=self)
+        super(AssignmentExpressionNode, self).__init__(pos, lhs=lhs, **kwds)
+        self.rhs = rhs  # separately, because it's a property
+        self.clone_node = assign_expr_rhs = CloneNode(rhs)
         self.assignment = SingleAssignmentNode(pos=pos, lhs=lhs,
                                             rhs=assign_expr_rhs,
                                             is_assignment_expression=True)
@@ -13968,14 +13958,17 @@ class AssignmentExpressionNode(ExprNode):
         # (plus any reference counting that's needed)
 
         self.rhs = self.rhs.analyse_types(env)
-        if not self.rhs.is_temp and not self.rhs.is_literal:
-            # for anything but the simplest cases (where it can be used directly)
-            # we convert rhs to a temp
-            # (it would be tempting to including self.rhs.is_name in here but that can end up
-            # wrong for assignment expressions run in parallel e.g. `(a := b) + (b := a + c)`)
-            self.rhs = self.rhs.coerce_to_temp(env)
+        if not self.rhs.is_temp:
+            if not self.rhs.is_literal:
+                # for anything but the simplest cases (where it can be used directly)
+                # we convert rhs to a temp
+                # (it would be tempting to including self.rhs.is_name in here but that can end up
+                # wrong for assignment expressions run in parallel e.g. `(a := b) + (b := a + c)`)
+                self.rhs = self.rhs.coerce_to_temp(env)
+            else:
+                self.assignment.rhs = copy.copy(self.rhs)
+                self.clone_node = None
 
-        # at this stage the AssignmentExpressionRhsNode converts itself to a CloneNode
         self.assignment = self.assignment.analyse_types(env)
         return self
 
@@ -13985,10 +13978,15 @@ class AssignmentExpressionNode(ExprNode):
             # we can optimize the coercion out by sharing it between
             # this and the assignment
             old_rhs = self.rhs
-            self.rhs = self.rhs.coerce_to(dst_type, env)
-            if self.rhs is not old_rhs:
-                assert(self.rhs.is_temp)
-                self.assignment.rhs = CloneNode(self.rhs)
+            if isinstance(old_rhs, CoerceToTempNode):
+                old_rhs = old_rhs.arg
+            rhs = old_rhs.coerce_to(dst_type, env)
+            if rhs is not old_rhs:
+                self.rhs = rhs
+                # clean up the old coercion node that the assignment has likely generated
+                if (isinstance(self.assignment.rhs, CoercionNode)
+                        and not isinstance(self.assignment.rhs, CloneNode)):
+                    self.assignment.rhs = self.assignment.rhs.arg
                 return self
         return super(AssignmentExpressionNode, self).coerce_to(dst_type, env)
 
@@ -13996,8 +13994,13 @@ class AssignmentExpressionNode(ExprNode):
         return self.rhs.result()
 
     def generate_result_code(self, code):
+        # incref to account for the assignment
+        code.put_incref(self.rhs.result(), self.rhs.ctype())
         # we have to do this manually because it isn't a subexpression
         self.assignment.generate_execution_code(code)
+
+    # TODO there's a potential saving to be made with "result_in_temp" that'd avoid one bit of reference counting
+    # it hasn't been done yet because I'm struggling to get it right
 
 
 #------------------------------------------------------------------------------------
