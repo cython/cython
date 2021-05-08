@@ -2204,7 +2204,7 @@ static PyObject* __Pyx_PyObject_FastCall_fallback(PyObject *func, PyObject **arg
     PyObject *result;
     size_t i;
 
-    argstuple = PyTuple_New(nargs);
+    argstuple = PyTuple_New((Py_ssize_t)nargs);
     if (unlikely(!argstuple)) return NULL;
     for (i = 0; i < nargs; i++) {
         Py_INCREF(args[i]);
