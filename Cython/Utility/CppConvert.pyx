@@ -60,9 +60,14 @@ cdef extern from "Python.h":
     void Py_INCREF(object)
     list PyList_New(Py_ssize_t size)
     void PyList_SET_ITEM(object list, Py_ssize_t i, object o)
+    cdef Py_ssize_t PY_SSIZE_T_MAX
 
 @cname("{{cname}}")
 cdef object {{cname}}(const vector[X]& v):
+    cdef object item
+    if v.size() > PY_SSIZE_T_MAX:
+        raise MemoryError()
+
     o = PyList_New(<Py_ssize_t>v.size())
     cdef Py_ssize_t i
     for i in range(v.size()):
@@ -103,9 +108,14 @@ cdef extern from "Python.h":
     void Py_INCREF(object)
     list PyList_New(Py_ssize_t size)
     void PyList_SET_ITEM(object list, Py_ssize_t i, object o)
+    cdef Py_ssize_t PY_SSIZE_T_MAX
 
 @cname("{{cname}}")
 cdef object {{cname}}(const cpp_list[X]& v):
+    cdef object item
+    if v.size() > PY_SSIZE_T_MAX:
+        raise MemoryError()
+
     o = PyList_New(<Py_ssize_t>v.size())
     cdef Py_ssize_t i = 0
     cdef cpp_list[X].const_iterator iter = v.begin()
