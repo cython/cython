@@ -64,16 +64,19 @@ cdef extern from "Python.h":
 
 @cname("{{cname}}")
 cdef object {{cname}}(const vector[X]& v):
-    cdef object item
-    if v.size() > PY_SSIZE_T_MAX:
+    if v.size() > <size_t> PY_SSIZE_T_MAX:
         raise MemoryError()
 
-    o = PyList_New(<Py_ssize_t>v.size())
+    o = PyList_New(<Py_ssize_t> v.size())
+
     cdef Py_ssize_t i
+    cdef object item
+
     for i in range(v.size()):
         item = v[i]
         Py_INCREF(item)
         PyList_SET_ITEM(o, i, item)
+
     return o
 
 #################### list.from_py ####################
@@ -112,19 +115,22 @@ cdef extern from "Python.h":
 
 @cname("{{cname}}")
 cdef object {{cname}}(const cpp_list[X]& v):
-    cdef object item
-    if v.size() > PY_SSIZE_T_MAX:
+    if v.size() > <size_t> PY_SSIZE_T_MAX:
         raise MemoryError()
 
-    o = PyList_New(<Py_ssize_t>v.size())
+    o = PyList_New(<Py_ssize_t> v.size())
+
+    cdef object item
     cdef Py_ssize_t i = 0
     cdef cpp_list[X].const_iterator iter = v.begin()
+
     while iter != v.end():
         item = cython.operator.dereference(iter)
         Py_INCREF(item)
         PyList_SET_ITEM(o, i, item)
         cython.operator.preincrement(iter)
         i += 1
+
     return o
 
 
