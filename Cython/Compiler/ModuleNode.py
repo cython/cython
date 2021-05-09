@@ -1444,6 +1444,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(
             "static PyObject *%s(PyTypeObject *t, %sPyObject *a, %sPyObject *k) {" % (
                 slot_func, unused_marker, unused_marker))
+        # silence unused warnings when CYTHON_UNUSED does not work (e.g. on msvc)
+        if unused_marker:
+            code.putln("CYTHON_UNUSED_VAR(a);")
+            code.putln("CYTHON_UNUSED_VAR(k);")
 
         need_self_cast = (type.vtabslot_cname or
                           (py_buffers or memoryview_slices or py_attrs) or
@@ -1797,6 +1801,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln("")
         code.putln("static int %s(%sPyObject *o) {" % (slot_func, unused))
+
+        # silence unused warnings when CYTHON_UNUSED does not work (e.g. on msvc)
+        if unused:
+            code.putln("CYTHON_UNUSED_VAR(o);")
 
         if py_attrs and Options.clear_to_none:
             code.putln("PyObject* tmp;")
@@ -2328,6 +2336,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(
             "static PyObject *%s(PyObject *o, CYTHON_UNUSED void *x) {" % (
                 property_entry.getter_cname))
+        code.putln("CYTHON_UNUSED_VAR(x);")
         code.putln(
             "return %s(o);" % (
                 get_entry.func_cname))
@@ -2344,6 +2353,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(
             "static int %s(PyObject *o, PyObject *v, CYTHON_UNUSED void *x) {" % (
                 property_entry.setter_cname))
+        code.putln("CYTHON_UNUSED_VAR(x);")
         code.putln(
             "if (v) {")
         if set_entry:
@@ -2457,6 +2467,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         dict_name = dict_attr.cname
         code.putln("")
         code.putln("static PyObject *%s(PyObject *o, CYTHON_UNUSED void *x) {" % func_name)
+        code.putln("CYTHON_UNUSED_VAR(x);")
         self.generate_self_cast(scope, code)
         code.putln("if (unlikely(!p->%s)){" % dict_name)
         code.putln("p->%s = PyDict_New();" % dict_name)
@@ -3113,6 +3124,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln('static void %s(CYTHON_UNUSED PyObject *self) {' %
                    Naming.cleanup_cname)
+        code.putln("CYTHON_UNUSED_VAR(self);")
         code.enter_cfunc_scope(env)
 
         if Options.generate_cleanup_code >= 2:

@@ -265,6 +265,7 @@ __Pyx_async_gen_anext(PyObject *g)
 
 static PyObject *
 __Pyx_async_gen_anext_method(PyObject *g, CYTHON_UNUSED PyObject *arg) {
+    CYTHON_UNUSED_VAR(arg);
     return __Pyx_async_gen_anext(g);
 }
 
@@ -282,6 +283,7 @@ __Pyx_async_gen_asend(__pyx_PyAsyncGenObject *o, PyObject *arg)
 static PyObject *
 __Pyx_async_gen_aclose(__pyx_PyAsyncGenObject *o, CYTHON_UNUSED PyObject *arg)
 {
+    CYTHON_UNUSED_VAR(arg);
     if (unlikely(__Pyx_async_gen_init_hooks(o))) {
         return NULL;
     }
@@ -301,6 +303,7 @@ __Pyx_async_gen_athrow(__pyx_PyAsyncGenObject *o, PyObject *args)
 
 static PyObject *
 __Pyx_async_gen_self_method(PyObject *g, CYTHON_UNUSED PyObject *arg) {
+    CYTHON_UNUSED_VAR(arg);
     return __Pyx_NewRef(g);
 }
 
@@ -588,6 +591,7 @@ __Pyx_async_gen_asend_throw(__pyx_PyAsyncGenASend *o, PyObject *args)
 static PyObject *
 __Pyx_async_gen_asend_close(PyObject *g, CYTHON_UNUSED PyObject *args)
 {
+    CYTHON_UNUSED_VAR(args);
     __pyx_PyAsyncGenASend *o = (__pyx_PyAsyncGenASend*) g;
     o->ags_state = __PYX_AWAITABLE_STATE_CLOSED;
     Py_RETURN_NONE;
@@ -1023,6 +1027,7 @@ __Pyx_async_gen_athrow_iternext(__pyx_PyAsyncGenAThrow *o)
 static PyObject *
 __Pyx_async_gen_athrow_close(PyObject *g, CYTHON_UNUSED PyObject *args)
 {
+    CYTHON_UNUSED_VAR(args);
     __pyx_PyAsyncGenAThrow *o = (__pyx_PyAsyncGenAThrow*) g;
     o->agt_state = __PYX_AWAITABLE_STATE_CLOSED;
     Py_RETURN_NONE;

@@ -331,6 +331,7 @@ static void __Pyx_Generator_Replace_StopIteration(int in_async_gen); /*proto*/
 //@requires: Exceptions.c::GetException
 
 static void __Pyx_Generator_Replace_StopIteration(CYTHON_UNUSED int in_async_gen) {
+    CYTHON_UNUSED_VAR(in_async_gen);
     PyObject *exc, *val, *tb, *cur_exc;
     __Pyx_PyThreadState_declare
     #ifdef __Pyx_StopAsyncIteration_USED
@@ -508,6 +509,7 @@ static int __pyx_Generator_init(void); /*proto*/
 //   If any other exception is set, returns -1 and leaves
 //   pvalue unchanged.
 static int __Pyx_PyGen__FetchStopIterationValue(CYTHON_UNUSED PyThreadState *$local_tstate_cname, PyObject **pvalue) {
+    CYTHON_UNUSED_VAR($local_tstate_cname);
     PyObject *et, *ev, *tb;
     PyObject *value = NULL;
 
@@ -615,6 +617,7 @@ void __Pyx_Coroutine_ExceptionClear(__Pyx_ExcInfoStruct *exc_state) {
 
 #define __Pyx_Coroutine_AlreadyRunningError(gen)  (__Pyx__Coroutine_AlreadyRunningError(gen), (PyObject*)NULL)
 static void __Pyx__Coroutine_AlreadyRunningError(CYTHON_UNUSED __pyx_CoroutineObject *gen) {
+    CYTHON_UNUSED_VAR(gen);
     const char *msg;
     if ((0)) {
     #ifdef __Pyx_Coroutine_USED
@@ -633,6 +636,7 @@ static void __Pyx__Coroutine_AlreadyRunningError(CYTHON_UNUSED __pyx_CoroutineOb
 
 #define __Pyx_Coroutine_NotStartedError(gen)  (__Pyx__Coroutine_NotStartedError(gen), (PyObject*)NULL)
 static void __Pyx__Coroutine_NotStartedError(CYTHON_UNUSED PyObject *gen) {
+    CYTHON_UNUSED_VAR(gen);
     const char *msg;
     if ((0)) {
     #ifdef __Pyx_Coroutine_USED
@@ -651,6 +655,8 @@ static void __Pyx__Coroutine_NotStartedError(CYTHON_UNUSED PyObject *gen) {
 
 #define __Pyx_Coroutine_AlreadyTerminatedError(gen, value, closing)  (__Pyx__Coroutine_AlreadyTerminatedError(gen, value, closing), (PyObject*)NULL)
 static void __Pyx__Coroutine_AlreadyTerminatedError(CYTHON_UNUSED PyObject *gen, PyObject *value, CYTHON_UNUSED int closing) {
+    CYTHON_UNUSED_VAR(gen);
+    CYTHON_UNUSED_VAR(closing);
     #ifdef __Pyx_Coroutine_USED
     if (!closing && __Pyx_Coroutine_Check(gen)) {
         // `self` is an exhausted coroutine: raise an error,
@@ -781,6 +787,7 @@ static CYTHON_INLINE void __Pyx_Coroutine_ResetFrameBackpointer(__Pyx_ExcInfoStr
 
 static CYTHON_INLINE
 PyObject *__Pyx_Coroutine_MethodReturn(CYTHON_UNUSED PyObject* gen, PyObject *retval) {
+    CYTHON_UNUSED_VAR(gen);
     if (unlikely(!retval)) {
         __Pyx_PyThreadState_declare
         __Pyx_PyThreadState_assign
@@ -985,6 +992,7 @@ static PyObject *__Pyx_Generator_Next(PyObject *self) {
 }
 
 static PyObject *__Pyx_Coroutine_Close_Method(PyObject *self, CYTHON_UNUSED PyObject *arg) {
+    CYTHON_UNUSED_VAR(arg);
     return __Pyx_Coroutine_Close(self);
 }
 
@@ -1317,6 +1325,7 @@ static void __Pyx_Coroutine_del(PyObject *self) {
 static PyObject *
 __Pyx_Coroutine_get_name(__pyx_CoroutineObject *self, CYTHON_UNUSED void *context)
 {
+    CYTHON_UNUSED_VAR(context);
     PyObject *name = self->gi_name;
     // avoid NULL pointer dereference during garbage collection
     if (unlikely(!name)) name = Py_None;
@@ -1327,6 +1336,7 @@ __Pyx_Coroutine_get_name(__pyx_CoroutineObject *self, CYTHON_UNUSED void *contex
 static int
 __Pyx_Coroutine_set_name(__pyx_CoroutineObject *self, PyObject *value, CYTHON_UNUSED void *context)
 {
+    CYTHON_UNUSED_VAR(context);
 #if PY_MAJOR_VERSION >= 3
     if (unlikely(value == NULL || !PyUnicode_Check(value)))
 #else
@@ -1345,6 +1355,7 @@ __Pyx_Coroutine_set_name(__pyx_CoroutineObject *self, PyObject *value, CYTHON_UN
 static PyObject *
 __Pyx_Coroutine_get_qualname(__pyx_CoroutineObject *self, CYTHON_UNUSED void *context)
 {
+    CYTHON_UNUSED_VAR(context);
     PyObject *name = self->gi_qualname;
     // avoid NULL pointer dereference during garbage collection
     if (unlikely(!name)) name = Py_None;
@@ -1355,6 +1366,7 @@ __Pyx_Coroutine_get_qualname(__pyx_CoroutineObject *self, CYTHON_UNUSED void *co
 static int
 __Pyx_Coroutine_set_qualname(__pyx_CoroutineObject *self, PyObject *value, CYTHON_UNUSED void *context)
 {
+    CYTHON_UNUSED_VAR(context);
 #if PY_MAJOR_VERSION >= 3
     if (unlikely(value == NULL || !PyUnicode_Check(value)))
 #else
@@ -1373,6 +1385,7 @@ __Pyx_Coroutine_set_qualname(__pyx_CoroutineObject *self, PyObject *value, CYTHO
 static PyObject *
 __Pyx_Coroutine_get_frame(__pyx_CoroutineObject *self, CYTHON_UNUSED void *context)
 {
+    CYTHON_UNUSED_VAR(context);
     PyObject *frame = self->gi_frame;
     if (!frame) {
         if (unlikely(!self->gi_code)) {
@@ -1469,6 +1482,7 @@ static PyObject *__Pyx_CoroutineAwait_Throw(__pyx_CoroutineAwaitObject *self, Py
 }
 
 static PyObject *__Pyx_CoroutineAwait_Close(__pyx_CoroutineAwaitObject *self, CYTHON_UNUSED PyObject *arg) {
+    CYTHON_UNUSED_VAR(arg);
     return __Pyx_Coroutine_Close(self->coroutine);
 }
 
@@ -1479,6 +1493,9 @@ static PyObject *__Pyx_CoroutineAwait_self(PyObject *self) {
 
 #if !CYTHON_COMPILING_IN_PYPY
 static PyObject *__Pyx_CoroutineAwait_no_new(CYTHON_UNUSED PyTypeObject *type, CYTHON_UNUSED PyObject *args, CYTHON_UNUSED PyObject *kwargs) {
+    CYTHON_UNUSED_VAR(type);
+    CYTHON_UNUSED_VAR(args);
+    CYTHON_UNUSED_VAR(kwargs);
     PyErr_SetString(PyExc_TypeError, "cannot instantiate type, use 'await coroutine' instead");
     return NULL;
 }
@@ -1573,6 +1590,7 @@ static CYTHON_INLINE PyObject *__Pyx__Coroutine_await(PyObject *coroutine) {
 
 #if PY_VERSION_HEX < 0x030500B1
 static PyObject *__Pyx_Coroutine_await_method(PyObject *coroutine, CYTHON_UNUSED PyObject *arg) {
+    CYTHON_UNUSED_VAR(arg);
     return __Pyx__Coroutine_await(coroutine);
 }
 #endif
