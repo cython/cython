@@ -3448,7 +3448,7 @@ class CFuncTypeArg(BaseType):
 
     subtypes = ['type']
 
-    def __init__(self, name, type, pos, cname=None, annotation=None):
+    def __init__(self, name, type, pos=None, cname=None, annotation=None):
         self.name = name
         if cname is not None:
             self.cname = cname
@@ -4484,6 +4484,11 @@ c_threadstate_ptr_type = CPtrType(c_threadstate_type)
 
 # PEP-539 "Py_tss_t" type
 c_pytss_t_type = CPyTSSTType()
+
+# Py3.10+ "PySendResult" for "am_send" slot functions: ["PYGEN_RETURN", "PYGEN_ERROR", "PYGEN_NEXT"]
+PySendResult_type = CEnumType("PySendResult", "__Pyx_PySendResult", typedef_flag=True)
+py_objptr_type = CPtrType(CStructOrUnionType(
+    "PyObject", "struct", scope=None, typedef_flag=True, cname="PyObject"))
 
 # the Py_buffer type is defined in Builtin.py
 c_py_buffer_type = CStructOrUnionType("Py_buffer", "struct", None, 1, "Py_buffer")

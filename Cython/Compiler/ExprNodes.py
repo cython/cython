@@ -8628,7 +8628,7 @@ class InlinedGeneratorExpressionNode(ExprNode):
         return self
 
     def generate_result_code(self, code):
-        code.putln("%s = __Pyx_Generator_Next(%s); %s" % (
+        code.putln("%s = __Pyx_Generator_GetInlinedResult(%s); %s" % (
             self.result(), self.gen.result(),
             code.error_goto_if_null(self.result(), self.pos)))
         self.generate_gotref(code)
@@ -10023,11 +10023,14 @@ class _YieldDelegationExprNode(YieldExprNode):
     def generate_evaluation_code(self, code, source_cname=None, decref_source=False):
         if source_cname is None:
             self.arg.generate_evaluation_code(code)
-        code.putln("%s = %s(%s, %s);" % (
-            Naming.retval_cname,
+        result_temp = code.funcstate.allocate_temp(PyrexTypes.PySendResult_type, manage_ref=False)
+        code.putln("%s = %s(%s, %s, &%s);" % (
+            result_temp,
             self.yield_from_func(code),
             Naming.generator_cname,
-            self.arg.py_result() if source_cname is None else source_cname))
+            self.arg.py_result() if source_cname is None else source_cname,
+            Naming.retval_cname))
+
         if source_cname is None:
             self.arg.generate_disposal_code(code)
             self.arg.free_temps(code)
@@ -10035,21 +10038,25 @@ class _YieldDelegationExprNode(YieldExprNode):
             code.put_decref_clear(source_cname, py_object_type)
         code.put_xgotref(Naming.retval_cname, py_object_type)
 
-        code.putln("if (likely(%s)) {" % Naming.retval_cname)
+        code.putln("if (likely(%s == PYGEN_NEXT)) {" % result_temp)
+        code.funcstate.release_temp(result_temp)  # before generating the yield code
         self.generate_yield_code(code)
-        code.putln("} else {")
-        # either error or sub-generator has normally terminated: return value => node result
+        code.putln("} else if (likely(%s == PYGEN_RETURN)) {" % result_temp)
         if self.result_is_used:
             self.fetch_iteration_result(code)
         else:
-            self.handle_iteration_exception(code)
+            code.putln("__Pyx_CLEAR(%s);" % Naming.retval_cname)
+        code.putln("} else {")
+        code.putln(code.error_goto(self.pos))
         code.putln("}")
 
     def fetch_iteration_result(self, code):
         # YieldExprNode has allocated the result temp for us
-        code.putln("%s = NULL;" % self.result())
-        code.put_error_if_neg(self.pos, "__Pyx_PyGen_FetchStopIterationValue(&%s)" % self.result())
-        self.generate_gotref(code)
+        code.putln("%s = %s; %s = NULL;" % (
+            self.result(),
+            Naming.retval_cname,
+            Naming.retval_cname,
+        ))
 
     def handle_iteration_exception(self, code):
         code.putln("PyObject* exc_type = __Pyx_PyErr_Occurred();")
@@ -10112,8 +10119,12 @@ class AwaitIterNextExprNode(AwaitExprNode):
 
     def fetch_iteration_result(self, code):
         assert code.break_label, "AwaitIterNextExprNode outside of 'async for' loop"
-        self._generate_break(code)
         super(AwaitIterNextExprNode, self).fetch_iteration_result(code)
+        code.putln("if (likely(%s == Py_None)) break;" % self.result())
+        code.putln("else {")
+        # FIXME: Don't actually know if this is really unreachable, but it's an error. Needs testing. And I like the macro.
+        code.putln("Py_UNREACHABLE();")
+        code.putln("}")
 
     def generate_sent_value_handling_code(self, code, value_cname):
         assert code.break_label, "AwaitIterNextExprNode outside of 'async for' loop"

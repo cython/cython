@@ -222,17 +222,22 @@ import asyncio
 def await_future(loop):
     events = []
     async def worker():
+        print("worker running")
         fut = asyncio.Future()
 
         def setval():
+            print("setval running")
             events.append('setval')
             fut.set_result(123)
+            print("setval done")
 
         events.append('setup')
         loop.call_later(0.2, setval)
         events.append(await fut)
+        print("worker done")
 
     async def test():
+        print("Test running")
         await worker()
 
     expected = ['setup', 'setval', 123]

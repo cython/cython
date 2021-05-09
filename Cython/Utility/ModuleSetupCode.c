@@ -451,6 +451,10 @@
   #endif
 #endif
 
+#ifndef Py_UNREACHABLE
+  #define Py_UNREACHABLE()  assert(0); abort()
+#endif
+
 /////////////// CInitCode ///////////////
 
 // inline attribute
@@ -1055,24 +1059,51 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define __Pyx_PyInt_AsHash_t   __Pyx_PyIndex_AsSsize_t
 #endif
 
-// backport of PyAsyncMethods from Py3.5 to older Py3.x versions
-// (mis-)using the "tp_reserved" type slot which is re-activated as "tp_as_async" in Py3.5
+// backport of PyAsyncMethods from Py3.10 to older Py3.x versions
+// (mis-)using the "tp_reserved" type slot in Py<3.5 which is re-activated as "tp_as_async" in Py3.5
 #if CYTHON_USE_ASYNC_SLOTS
-  #if PY_VERSION_HEX >= 0x030500B1
-    #define __Pyx_PyAsyncMethodsStruct PyAsyncMethods
-    #define __Pyx_PyType_AsAsync(obj) (Py_TYPE(obj)->tp_as_async)
-  #else
-    #define __Pyx_PyType_AsAsync(obj) ((__Pyx_PyAsyncMethodsStruct*) (Py_TYPE(obj)->tp_reserved))
+  // PyAsyncMethods in 3.5 ... 3.9 lacks "am_send"
+  #if PY_VERSION_HEX >= 0x030A00A3
+      #define __Pyx_PyAsyncMethodsStruct PyAsyncMethods
+      #define __Pyx_SlotTpAsAsync(s) (&(s))
+      #define __Pyx_PySendResult PySendResult
+      #define __Pyx_pyiter_sendfunc sendfunc
+      #define __Pyx_PyType_AsAsync(obj) (Py_TYPE(obj)->tp_as_async)
+  #elif PY_VERSION_HEX >= 0x030500B1
+      #define __Pyx_SlotTpAsAsync(s) ((PyAsyncMethods*)&(s))
+      #define __Pyx_PyType_AsAsync(obj) ((__Pyx_PyAsyncMethodsStruct*) (Py_TYPE(obj)->tp_as_async))
   #endif
 #else
-  #define __Pyx_PyType_AsAsync(obj) NULL
+    #define __Pyx_SlotTpAsAsync(s)  0
+    #define __Pyx_PyType_AsAsync(obj) NULL
+#endif
+
+#ifndef Py_TPFLAGS_HAVE_AM_SEND
+    #define Py_TPFLAGS_HAVE_AM_SEND (1UL << 21)
+#endif
+#ifndef __Pyx_PySendResult
+    typedef enum {
+        PYGEN_RETURN = 0,
+        PYGEN_ERROR = -1,
+        PYGEN_NEXT = 1,
+    } __Pyx_PySendResult;
+#endif
+#ifndef __Pyx_pyiter_sendfunc
+    typedef __Pyx_PySendResult (*__Pyx_pyiter_sendfunc)(PyObject *iter, PyObject *value, PyObject **result);
 #endif
 #ifndef __Pyx_PyAsyncMethodsStruct
     typedef struct {
         unaryfunc am_await;
         unaryfunc am_aiter;
         unaryfunc am_anext;
+        __Pyx_pyiter_sendfunc am_send;
     } __Pyx_PyAsyncMethodsStruct;
+#endif
+#ifndef __Pyx_SlotTpAsAsync
+    #define __Pyx_SlotTpAsAsync(s) ((PyAsyncMethods*)&(s))
+#endif
+#ifndef __Pyx_PyType_AsAsync
+    #define __Pyx_PyType_AsAsync(obj) ((__Pyx_PyAsyncMethodsStruct*) (Py_TYPE(obj)->tp_reserved))
 #endif
 
 
@@ -1126,13 +1157,16 @@ static CYTHON_INLINE int __Pyx_IsSubtype(PyTypeObject *a, PyTypeObject *b);/*pro
 static CYTHON_INLINE int __Pyx_IsAnySubtype2(PyTypeObject *cls, PyTypeObject *a, PyTypeObject *b);/*proto*/
 static CYTHON_INLINE int __Pyx_PyErr_GivenExceptionMatches(PyObject *err, PyObject *type);/*proto*/
 static CYTHON_INLINE int __Pyx_PyErr_GivenExceptionMatches2(PyObject *err, PyObject *type1, PyObject *type2);/*proto*/
+#define __Pyx_PyErr_ExceptionMatches2(err1, err2)  __Pyx_PyErr_GivenExceptionMatches2(__Pyx_PyErr_Occurred(), err1, err2)
 #else
 #define __Pyx_TypeCheck(obj, type) PyObject_TypeCheck(obj, (PyTypeObject *)type)
 #define __Pyx_TypeCheck2(obj, type1, type2) (PyObject_TypeCheck(obj, (PyTypeObject *)type1) || PyObject_TypeCheck(obj, (PyTypeObject *)type2))
 #define __Pyx_PyErr_GivenExceptionMatches(err, type) PyErr_GivenExceptionMatches(err, type)
-#define __Pyx_PyErr_GivenExceptionMatches2(err, type1, type2) (PyErr_GivenExceptionMatches(err, type1) || PyErr_GivenExceptionMatches(err, type2))
+static CYTHON_INLINE int __Pyx_PyErr_GivenExceptionMatches2(PyObject *err, PyObject *type1, PyObject *type2) {
+    return PyErr_GivenExceptionMatches(err, type1) || PyErr_GivenExceptionMatches(err, type2);
+}
+#define __Pyx_PyErr_ExceptionMatches2(type1, type2) (PyErr_ExceptionMatches(type1) || PyErr_ExceptionMatches(type2))
 #endif
-#define __Pyx_PyErr_ExceptionMatches2(err1, err2)  __Pyx_PyErr_GivenExceptionMatches2(__Pyx_PyErr_Occurred(), err1, err2)
 
 #define __Pyx_PyException_Check(obj) __Pyx_TypeCheck(obj, PyExc_Exception)
 

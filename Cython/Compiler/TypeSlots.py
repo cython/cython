@@ -866,6 +866,17 @@ initproc = Signature("T*", 'r')            # typedef int (*initproc)(PyObject *,
 getbufferproc = Signature("TBi", "r")      # typedef int (*getbufferproc)(PyObject *, Py_buffer *, int);
 releasebufferproc = Signature("TB", "v")   # typedef void (*releasebufferproc)(PyObject *, Py_buffer *);
 
+# typedef PySendResult (*sendfunc)(PyObject* iter, PyObject* value, PyObject** result);
+sendfunc = PyrexTypes.CPtrType(PyrexTypes.CFuncType(
+        return_type=PyrexTypes.PySendResult_type,
+        args=[
+            PyrexTypes.CFuncTypeArg("iter", PyrexTypes.py_object_type),
+            PyrexTypes.CFuncTypeArg("value", PyrexTypes.py_object_type),
+            PyrexTypes.CFuncTypeArg("result", PyrexTypes.CPtrType(PyrexTypes.py_objptr_type)),
+        ],
+        exception_value="PYGEN_ERROR",
+    ))
+
 
 #------------------------------------------------------------------------------------------
 #
@@ -1005,7 +1016,9 @@ class SlotTable(object):
             MethodSlot(unaryfunc, "am_await", "__await__", method_name_to_slot),
             MethodSlot(unaryfunc, "am_aiter", "__aiter__", method_name_to_slot),
             MethodSlot(unaryfunc, "am_anext", "__anext__", method_name_to_slot),
-            EmptySlot("am_send", ifdef="PY_VERSION_HEX >= 0x030A00A3"),
+            # TODO: need to generate an appropriate C wrapper function in order to map .send() to the async slot.
+            # TODO: should we really map any .send() method to an async slot?
+            MethodSlot(sendfunc, "am_send", "send", method_name_to_slot),
         )
 
         self.slot_table = (

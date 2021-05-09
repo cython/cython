@@ -4600,11 +4600,7 @@ class GeneratorBodyDefNode(DefNode):
         # on normal generator termination, we do not take the exception propagation
         # path: no traceback info is required and not creating it is much faster
         if not self.is_inlined and not self.body.is_terminator:
-            if self.is_async_gen_body:
-                code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("StopAsyncIteration", "Coroutine.c"))
-            code.putln('PyErr_SetNone(%s);' % (
-                '__Pyx_PyExc_StopAsyncIteration' if self.is_async_gen_body else 'PyExc_StopIteration'))
+            code.put_init_to_py_none(Naming.retval_cname, py_object_type)
         # ----- Error cleanup
         if code.label_used(code.error_label):
             if not self.body.is_terminator:
@@ -4622,10 +4618,7 @@ class GeneratorBodyDefNode(DefNode):
 
         # ----- Non-error return cleanup
         code.put_label(code.return_label)
-        if self.is_inlined:
-            code.put_xgiveref(Naming.retval_cname, py_object_type)
-        else:
-            code.put_xdecref_clear(Naming.retval_cname, py_object_type)
+        code.put_xgiveref(Naming.retval_cname, py_object_type)
         # For Py3.7, clearing is already done below.
         code.putln("#if !CYTHON_USE_EXC_INFO_STACK")
         code.putln("__Pyx_Coroutine_ResetAndClearException(%s);" % Naming.generator_cname)
@@ -6556,14 +6549,6 @@ class ReturnStatNode(StatNode):
                     code=code,
                     have_gil=self.in_nogil_context)
                 value.generate_post_assignment_code(code)
-            elif self.in_generator:
-                # return value == raise StopIteration(value), but uncatchable
-                code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("ReturnWithStopIteration", "Coroutine.c"))
-                code.putln("%s = NULL; __Pyx_ReturnWithStopIteration(%s);" % (
-                    Naming.retval_cname,
-                    value.py_result()))
-                value.generate_disposal_code(code)
             else:
                 value.make_owned_reference(code)
                 code.putln("%s = %s;" % (
@@ -6573,14 +6558,7 @@ class ReturnStatNode(StatNode):
             value.free_temps(code)
         else:
             if self.return_type.is_pyobject:
-                if self.in_generator:
-                    if self.in_async_gen:
-                        code.globalstate.use_utility_code(
-                            UtilityCode.load_cached("StopAsyncIteration", "Coroutine.c"))
-                        code.put("PyErr_SetNone(__Pyx_PyExc_StopAsyncIteration); ")
-                    code.putln("%s = NULL;" % Naming.retval_cname)
-                else:
-                    code.put_init_to_py_none(Naming.retval_cname, self.return_type)
+                code.put_init_to_py_none(Naming.retval_cname, self.return_type)
             elif self.return_type.is_returncode:
                 self.put_return(code, self.return_type.default_value)
 
@@ -8210,12 +8188,6 @@ class TryFinallyStatNode(StatNode):
             code.putln('%s: {' % new_label)
             ret_temp = None
             if old_label == return_label:
-                # return actually raises an (uncatchable) exception in generators that we must preserve
-                if self.in_generator:
-                    exc_vars = tuple([
-                        code.funcstate.allocate_temp(py_object_type, manage_ref=False)
-                        for _ in range(6)])
-                    self.put_error_catcher(code, [], exc_vars)
                 if not self.finally_clause.is_terminator:
                     # store away return value for later reuse
                     if (self.func_return_type and
@@ -8235,10 +8207,6 @@ class TryFinallyStatNode(StatNode):
                     if self.func_return_type.is_pyobject:
                         code.putln("%s = 0;" % ret_temp)
                     code.funcstate.release_temp(ret_temp)
-                if self.in_generator:
-                    self.put_error_uncatcher(code, exc_vars)
-                    for cname in exc_vars:
-                        code.funcstate.release_temp(cname)
 
             if not self.finally_clause.is_terminator:
                 code.put_goto(old_label)
