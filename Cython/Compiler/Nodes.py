@@ -2504,8 +2504,15 @@ class CFuncDefNode(FuncDefNode):
                   "Function with optional arguments may not be declared public or api")
 
         if typ.exception_check == '+' and self.visibility != 'extern':
-            warning(self.cfunc_declarator.pos,
+            if typ.exception_value and typ.exception_value.is_name:
+                # it really is impossible to reason about what the user wants to happens
+                # if they've specified a C++ exception translation function. Therefore,
+                # raise an error.
+                error(self.cfunc_declarator.pos,
                     "Only extern functions can throw C++ exceptions.")
+            else:
+                warning(self.cfunc_declarator.pos,
+                    "Only extern functions can throw C++ exceptions.", 2)
 
         for formal_arg, type_arg in zip(self.args, typ.args):
             self.align_argument_type(env, type_arg)
@@ -2789,9 +2796,7 @@ class CFuncDefNode(FuncDefNode):
         if self.return_type.is_pyobject:
             return "0"
         else:
-            # protect against the corner-case where the user has specified a c++ translation function
-            if not isinstance(self.entry.type.exception_value, Node):
-                return self.entry.type.exception_value
+            return self.entry.type.exception_value
 
     def caller_will_check_exceptions(self):
         return self.entry.type.exception_check
