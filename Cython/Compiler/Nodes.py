@@ -2686,16 +2686,13 @@ class CFuncDefNode(FuncDefNode):
             arg_decl = arg.declaration_code()
             entry = scope.lookup(arg.name)
             if not entry.cf_used:
-                arg_decl = 'CYTHON_UNUSED %s' % arg_decl
                 unused_args.append(arg.cname)
             arg_decls.append(arg_decl)
         if with_dispatch and self.overridable:
             dispatch_arg = PyrexTypes.c_int_type.declaration_code(
                 Naming.skip_dispatch_cname)
-            if self.override:
-                arg_decls.append(dispatch_arg)
-            else:
-                arg_decls.append('CYTHON_UNUSED %s' % dispatch_arg)
+            arg_decls.append(dispatch_arg)
+            if not self.override:
                 unused_args.append(Naming.skip_dispatch_cname)
         if type.optional_arg_count and with_opt_args:
             arg_decls.append(type.op_arg_struct.declaration_code(Naming.optional_args_cname))
@@ -2724,7 +2721,7 @@ class CFuncDefNode(FuncDefNode):
             code.globalstate.parts['module_declarations'].putln(
                 "%s%s%s; /* proto*/" % (storage_class, modifiers, header))
         code.putln("%s%s%s {" % (storage_class, modifiers, header))
-        # silence unused warnings when CYTHON_UNUSED does not work (e.g. on msvc)
+        # todo will cause problems on c89
         for arg in unused_args:
             code.putln("CYTHON_UNUSED_VAR(%s);" % arg)
 
@@ -3356,7 +3353,6 @@ class DefNode(FuncDefNode):
         if self.entry.signature.has_dummy_arg:
             self_arg = 'PyObject *%s' % Naming.self_cname
             if not self.needs_outer_scope:
-                self_arg = 'CYTHON_UNUSED ' + self_arg
                 unused_args.append(Naming.self_cname)
             arg_code_list.append(self_arg)
 
@@ -3368,7 +3364,6 @@ class DefNode(FuncDefNode):
                 cname = entry.cname
             decl = entry.type.declaration_code(cname)
             if not entry.cf_used:
-                decl = 'CYTHON_UNUSED ' + decl
                 # todo: appending here is pretty unclean
                 unused_args.append(cname)
             return decl
@@ -3394,7 +3389,7 @@ class DefNode(FuncDefNode):
         if preprocessor_guard:
             decls_code.putln("#endif")
         code.putln("static %s(%s) {" % (dc, arg_code))
-        # silence unused warnings when CYTHON_UNUSED does not work (e.g. on msvc)
+        # todo will cause problems on c89
         for arg in unused_args:
             code.putln("CYTHON_UNUSED_VAR(%s);" % arg)
 
@@ -3589,7 +3584,6 @@ class DefNodeWrapper(FuncDefNode):
         if sig.has_dummy_arg or self.self_in_stararg:
             arg_code = "PyObject *%s" % Naming.self_cname
             if not sig.has_dummy_arg:
-                arg_code = 'CYTHON_UNUSED ' + arg_code
                 unused_args.append(Naming.self_cname)
             arg_code_list.append(arg_code)
 
@@ -3602,10 +3596,10 @@ class DefNodeWrapper(FuncDefNode):
                         arg.hdr_type.declaration_code(arg.hdr_cname))
         entry = self.target.entry
         if not entry.is_special and sig.method_flags() == [TypeSlots.method_noargs]:
-            arg_code_list.append("CYTHON_UNUSED PyObject *unused")
+            arg_code_list.append("PyObject *unused")
             unused_args.append("unused")
         if entry.scope.is_c_class_scope and entry.name == "__ipow__":
-            arg_code_list.append("CYTHON_UNUSED PyObject *unused")
+            arg_code_list.append("PyObject *unused")
             unused_args.append("unused")
         if sig.has_generic_args:
             varargs_args = "PyObject *%s, PyObject *%s" % (
@@ -3621,14 +3615,12 @@ class DefNodeWrapper(FuncDefNode):
         arg_code = ", ".join(arg_code_list)
 
         # Prevent warning: unused function '__pyx_pw_5numpy_7ndarray_1__getbuffer__'
-        mf = ""
         if (entry.name in ("__getbuffer__", "__releasebuffer__")
                 and entry.scope.is_c_class_scope):
-            mf = "CYTHON_UNUSED "
             with_pymethdef = False
 
         dc = self.return_type.declaration_code(entry.func_cname)
-        header = "static %s%s(%s)" % (mf, dc, arg_code)
+        header = "static %s(%s)" % (dc, arg_code)
         code.putln("%s; /*proto*/" % header)
 
         if proto_only:
@@ -3666,7 +3658,7 @@ class DefNodeWrapper(FuncDefNode):
                 "static PyMethodDef %s = " % entry.pymethdef_cname)
             code.put_pymethoddef(self.target.entry, ";", allow_skip=False)
         code.putln("%s {" % header)
-        # silence unused warnings when CYTHON_UNUSED does not work (e.g. on msvc)
+        # todo this will cause problems on c89
         for arg in unused_args:
             code.putln("CYTHON_UNUSED_VAR(%s);" % arg)
 
@@ -3684,7 +3676,7 @@ class DefNodeWrapper(FuncDefNode):
 
         # Assign nargs variable as len(args), but avoid an "unused" warning in the few cases where we don't need it.
         if self.signature_has_generic_args():
-            nargs_code = "CYTHON_UNUSED const Py_ssize_t %s = PyTuple_GET_SIZE(%s);" % (
+            nargs_code = "const Py_ssize_t %s = PyTuple_GET_SIZE(%s);" % (
                         Naming.nargs_cname, Naming.args_cname)
             unused_args.append(Naming.nargs_cname)
             if self.signature.use_fastcall:
@@ -3697,10 +3689,10 @@ class DefNodeWrapper(FuncDefNode):
         # Array containing the values of keyword arguments when using METH_FASTCALL.
         code.globalstate.use_utility_code(
             UtilityCode.load_cached("fastcall", "FunctionArguments.c"))
-        code.putln('CYTHON_UNUSED PyObject *const *%s = __Pyx_KwValues_%s(%s, %s);' % (
+        code.putln('PyObject *const *%s = __Pyx_KwValues_%s(%s, %s);' % (
             Naming.kwvalues_cname, self.signature.fastvar, Naming.args_cname, Naming.nargs_cname))
         unused_args.append(Naming.kwvalues_cname)
-        # silence unused warnings when CYTHON_UNUSED does not work (e.g. on msvc)
+        # todo I think this should cause no problems
         for arg in unused_args:
             code.putln("CYTHON_UNUSED_VAR(%s);" % arg)
 
@@ -4502,7 +4494,7 @@ class GeneratorBodyDefNode(DefNode):
         self.declare_generator_body(env)
 
     def generate_function_header(self, code, proto=False):
-        header = "static PyObject *%s(__pyx_CoroutineObject *%s, CYTHON_UNUSED PyThreadState *%s, PyObject *%s)" % (
+        header = "static PyObject *%s(__pyx_CoroutineObject *%s, PyThreadState *%s, PyObject *%s)" % (
             self.entry.func_cname,
             Naming.generator_cname,
             Naming.local_tstate_cname,
@@ -4511,6 +4503,7 @@ class GeneratorBodyDefNode(DefNode):
             code.putln('%s; /* proto */' % header)
         else:
             code.putln('%s /* generator body */\n{' % header)
+            # todo this will cause problems on c89
             code.putln("CYTHON_UNUSED_VAR(%s);" % Naming.local_tstate_cname)
 
     def generate_function_definitions(self, env, code):

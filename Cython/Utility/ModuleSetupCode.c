@@ -1221,9 +1221,9 @@ static CYTHON_SMALL_CODE int __Pyx_copy_spec_to_module(PyObject *spec, PyObject 
     return result;
 }
 
-static CYTHON_SMALL_CODE PyObject* ${pymodule_create_func_cname}(PyObject *spec, CYTHON_UNUSED PyModuleDef *def) {
-    CYTHON_UNUSED_VAR(def);
+static CYTHON_SMALL_CODE PyObject* ${pymodule_create_func_cname}(PyObject *spec, PyModuleDef *def) {
     PyObject *module = NULL, *moddict, *modname;
+    CYTHON_UNUSED_VAR(def);
 
     // For now, we only have exactly one module instance.
     if (__Pyx_check_single_interpreter())
@@ -1545,7 +1545,7 @@ static int __Pyx_RegisterCleanup(void); /*proto*/
 //@substitute: naming
 
 #if PY_MAJOR_VERSION < 3 || CYTHON_COMPILING_IN_PYPY
-static PyObject* ${cleanup_cname}_atexit(PyObject *module, CYTHON_UNUSED PyObject *unused) {
+static PyObject* ${cleanup_cname}_atexit(PyObject *module, PyObject *unused) {
     CYTHON_UNUSED_VAR(unused);
     ${cleanup_cname}(module);
     Py_INCREF(Py_None); return Py_None;
@@ -1781,7 +1781,7 @@ static void __Pyx_FastGilFuncInit0(void) {
 #else
 
 static void __Pyx_FastGilFuncInit0(void) {
-  CYTHON_UNUSED void* force_use = (void*)&__Pyx_FetchCommonPointer;
+  void* force_use = (void*)&__Pyx_FetchCommonPointer;
   CYTHON_UNUSED_VAR(force_use);
 }
 

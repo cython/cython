@@ -1419,11 +1419,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if cinit_func_entry and not cinit_func_entry.is_special:
             cinit_func_entry = None
 
-        if base_type or (cinit_func_entry and not cinit_func_entry.trivial_signature):
-            unused_marker = ''
-        else:
-            unused_marker = 'CYTHON_UNUSED '
-
         if base_type:
             freelist_size = 0  # not currently supported
         else:
@@ -1441,13 +1436,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 freelist_size))
             code.putln("static int %s = 0;" % freecount_name)
             code.putln("")
-        code.putln(
-            "static PyObject *%s(PyTypeObject *t, %sPyObject *a, %sPyObject *k) {" % (
-                slot_func, unused_marker, unused_marker))
-        # silence unused warnings when CYTHON_UNUSED does not work (e.g. on msvc)
-        if unused_marker:
-            code.putln("CYTHON_UNUSED_VAR(a);")
-            code.putln("CYTHON_UNUSED_VAR(k);")
+        code.putln("static PyObject *%s(PyTypeObject *t, PyObject *a, PyObject *k) {" % slot_func)
 
         need_self_cast = (type.vtabslot_cname or
                           (py_buffers or memoryview_slices or py_attrs) or
@@ -1505,6 +1494,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("p = %s;" % type.cast_code("o"))
         #if need_self_cast:
         #    self.generate_self_cast(scope, code)
+
+        # silence warnings about unused variables
+        if not base_type and (not cinit_func_entry or cinit_func_entry.trivial_signature):
+            code.putln("CYTHON_UNUSED_VAR(a);")
+            code.putln("CYTHON_UNUSED_VAR(k);")
 
         # from this point on, ensure DECREF(o) on failure
         needs_error_cleanup = False
@@ -1794,23 +1788,18 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         have_entries, (py_attrs, py_buffers, memoryview_slices) = (
             scope.get_refcounted_entries(include_gc_simple=False))
 
-        if py_attrs or py_buffers or base_type:
-            unused = ''
-        else:
-            unused = 'CYTHON_UNUSED '
-
         code.putln("")
-        code.putln("static int %s(%sPyObject *o) {" % (slot_func, unused))
-
-        # silence unused warnings when CYTHON_UNUSED does not work (e.g. on msvc)
-        if unused:
-            code.putln("CYTHON_UNUSED_VAR(o);")
+        code.putln("static int %s(PyObject *o) {" % slot_func)
 
         if py_attrs and Options.clear_to_none:
             code.putln("PyObject* tmp;")
 
         if py_attrs or py_buffers:
             self.generate_self_cast(scope, code)
+
+        # silence unused warnings about unused variables
+        if not py_attrs and not py_buffers and not base_type:
+            code.putln("CYTHON_UNUSED_VAR(o);")
 
         if base_type:
             # want to call it explicitly if possible so inlining can be performed
@@ -2334,7 +2323,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         get_entry = property_scope.lookup_here("__get__")
         code.putln("")
         code.putln(
-            "static PyObject *%s(PyObject *o, CYTHON_UNUSED void *x) {" % (
+            "static PyObject *%s(PyObject *o, void *x) {" % (
                 property_entry.getter_cname))
         code.putln("CYTHON_UNUSED_VAR(x);")
         code.putln(
@@ -2351,7 +2340,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         del_entry = property_scope.lookup_here("__del__")
         code.putln("")
         code.putln(
-            "static int %s(PyObject *o, PyObject *v, CYTHON_UNUSED void *x) {" % (
+            "static int %s(PyObject *o, PyObject *v, void *x) {" % (
                 property_entry.setter_cname))
         code.putln("CYTHON_UNUSED_VAR(x);")
         code.putln(
@@ -2466,9 +2455,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         func_name = scope.mangle_internal("__dict__getter")
         dict_name = dict_attr.cname
         code.putln("")
-        code.putln("static PyObject *%s(PyObject *o, CYTHON_UNUSED void *x) {" % func_name)
-        code.putln("CYTHON_UNUSED_VAR(x);")
+        code.putln("static PyObject *%s(PyObject *o, void *x) {" % func_name)
         self.generate_self_cast(scope, code)
+        code.putln("CYTHON_UNUSED_VAR(x);")
         code.putln("if (unlikely(!p->%s)){" % dict_name)
         code.putln("p->%s = PyDict_New();" % dict_name)
         code.putln("}")
@@ -3122,7 +3111,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if not Options.generate_cleanup_code:
             return
 
-        code.putln('static void %s(CYTHON_UNUSED PyObject *self) {' %
+        code.putln('static void %s(PyObject *self) {' %
                    Naming.cleanup_cname)
         code.putln("CYTHON_UNUSED_VAR(self);")
         code.enter_cfunc_scope(env)

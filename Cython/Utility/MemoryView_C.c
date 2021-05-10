@@ -230,7 +230,7 @@ fail:
 }
 
 static int
-__pyx_check_suboffsets(Py_buffer *buf, int dim, CYTHON_UNUSED int ndim, int spec)
+__pyx_check_suboffsets(Py_buffer *buf, int dim, int ndim, int spec)
 {
     CYTHON_UNUSED_VAR(ndim);
     // Todo: without PyBUF_INDIRECT we may not have suboffset information, i.e., the

@@ -330,13 +330,13 @@ static void __Pyx_Generator_Replace_StopIteration(int in_async_gen); /*proto*/
 //////////////////// pep479 ////////////////////
 //@requires: Exceptions.c::GetException
 
-static void __Pyx_Generator_Replace_StopIteration(CYTHON_UNUSED int in_async_gen) {
-    CYTHON_UNUSED_VAR(in_async_gen);
+static void __Pyx_Generator_Replace_StopIteration(int in_async_gen) {
     PyObject *exc, *val, *tb, *cur_exc;
     __Pyx_PyThreadState_declare
     #ifdef __Pyx_StopAsyncIteration_USED
     int is_async_stopiteration = 0;
     #endif
+    CYTHON_UNUSED_VAR(in_async_gen);
 
     cur_exc = PyErr_Occurred();
     if (likely(!__Pyx_PyErr_GivenExceptionMatches(cur_exc, PyExc_StopIteration))) {
@@ -508,10 +508,10 @@ static int __pyx_Generator_init(void); /*proto*/
 //   Returns 0 if no exception or StopIteration is set.
 //   If any other exception is set, returns -1 and leaves
 //   pvalue unchanged.
-static int __Pyx_PyGen__FetchStopIterationValue(CYTHON_UNUSED PyThreadState *$local_tstate_cname, PyObject **pvalue) {
-    CYTHON_UNUSED_VAR($local_tstate_cname);
+static int __Pyx_PyGen__FetchStopIterationValue(PyThreadState *$local_tstate_cname, PyObject **pvalue) {
     PyObject *et, *ev, *tb;
     PyObject *value = NULL;
+    CYTHON_UNUSED_VAR($local_tstate_cname);
 
     __Pyx_ErrFetch(&et, &ev, &tb);
 
@@ -616,9 +616,9 @@ void __Pyx_Coroutine_ExceptionClear(__Pyx_ExcInfoStruct *exc_state) {
 }
 
 #define __Pyx_Coroutine_AlreadyRunningError(gen)  (__Pyx__Coroutine_AlreadyRunningError(gen), (PyObject*)NULL)
-static void __Pyx__Coroutine_AlreadyRunningError(CYTHON_UNUSED __pyx_CoroutineObject *gen) {
-    CYTHON_UNUSED_VAR(gen);
+static void __Pyx__Coroutine_AlreadyRunningError(__pyx_CoroutineObject *gen) {
     const char *msg;
+    CYTHON_UNUSED_VAR(gen);
     if ((0)) {
     #ifdef __Pyx_Coroutine_USED
     } else if (__Pyx_Coroutine_Check((PyObject*)gen)) {
@@ -635,9 +635,9 @@ static void __Pyx__Coroutine_AlreadyRunningError(CYTHON_UNUSED __pyx_CoroutineOb
 }
 
 #define __Pyx_Coroutine_NotStartedError(gen)  (__Pyx__Coroutine_NotStartedError(gen), (PyObject*)NULL)
-static void __Pyx__Coroutine_NotStartedError(CYTHON_UNUSED PyObject *gen) {
-    CYTHON_UNUSED_VAR(gen);
+static void __Pyx__Coroutine_NotStartedError(PyObject *gen) {
     const char *msg;
+    CYTHON_UNUSED_VAR(gen);
     if ((0)) {
     #ifdef __Pyx_Coroutine_USED
     } else if (__Pyx_Coroutine_Check(gen)) {
@@ -654,7 +654,7 @@ static void __Pyx__Coroutine_NotStartedError(CYTHON_UNUSED PyObject *gen) {
 }
 
 #define __Pyx_Coroutine_AlreadyTerminatedError(gen, value, closing)  (__Pyx__Coroutine_AlreadyTerminatedError(gen, value, closing), (PyObject*)NULL)
-static void __Pyx__Coroutine_AlreadyTerminatedError(CYTHON_UNUSED PyObject *gen, PyObject *value, CYTHON_UNUSED int closing) {
+static void __Pyx__Coroutine_AlreadyTerminatedError(PyObject *gen, PyObject *value, int closing) {
     CYTHON_UNUSED_VAR(gen);
     CYTHON_UNUSED_VAR(closing);
     #ifdef __Pyx_Coroutine_USED
@@ -786,7 +786,7 @@ static CYTHON_INLINE void __Pyx_Coroutine_ResetFrameBackpointer(__Pyx_ExcInfoStr
 }
 
 static CYTHON_INLINE
-PyObject *__Pyx_Coroutine_MethodReturn(CYTHON_UNUSED PyObject* gen, PyObject *retval) {
+PyObject *__Pyx_Coroutine_MethodReturn(PyObject* gen, PyObject *retval) {
     CYTHON_UNUSED_VAR(gen);
     if (unlikely(!retval)) {
         __Pyx_PyThreadState_declare
@@ -991,7 +991,7 @@ static PyObject *__Pyx_Generator_Next(PyObject *self) {
     return __Pyx_Coroutine_SendEx(gen, Py_None, 0);
 }
 
-static PyObject *__Pyx_Coroutine_Close_Method(PyObject *self, CYTHON_UNUSED PyObject *arg) {
+static PyObject *__Pyx_Coroutine_Close_Method(PyObject *self, PyObject *arg) {
     CYTHON_UNUSED_VAR(arg);
     return __Pyx_Coroutine_Close(self);
 }
@@ -1323,10 +1323,10 @@ static void __Pyx_Coroutine_del(PyObject *self) {
 }
 
 static PyObject *
-__Pyx_Coroutine_get_name(__pyx_CoroutineObject *self, CYTHON_UNUSED void *context)
+__Pyx_Coroutine_get_name(__pyx_CoroutineObject *self, void *context)
 {
-    CYTHON_UNUSED_VAR(context);
     PyObject *name = self->gi_name;
+    CYTHON_UNUSED_VAR(context);
     // avoid NULL pointer dereference during garbage collection
     if (unlikely(!name)) name = Py_None;
     Py_INCREF(name);
@@ -1334,7 +1334,7 @@ __Pyx_Coroutine_get_name(__pyx_CoroutineObject *self, CYTHON_UNUSED void *contex
 }
 
 static int
-__Pyx_Coroutine_set_name(__pyx_CoroutineObject *self, PyObject *value, CYTHON_UNUSED void *context)
+__Pyx_Coroutine_set_name(__pyx_CoroutineObject *self, PyObject *value, void *context)
 {
     CYTHON_UNUSED_VAR(context);
 #if PY_MAJOR_VERSION >= 3
@@ -1353,10 +1353,10 @@ __Pyx_Coroutine_set_name(__pyx_CoroutineObject *self, PyObject *value, CYTHON_UN
 }
 
 static PyObject *
-__Pyx_Coroutine_get_qualname(__pyx_CoroutineObject *self, CYTHON_UNUSED void *context)
+__Pyx_Coroutine_get_qualname(__pyx_CoroutineObject *self, void *context)
 {
-    CYTHON_UNUSED_VAR(context);
     PyObject *name = self->gi_qualname;
+    CYTHON_UNUSED_VAR(context);
     // avoid NULL pointer dereference during garbage collection
     if (unlikely(!name)) name = Py_None;
     Py_INCREF(name);
@@ -1364,7 +1364,7 @@ __Pyx_Coroutine_get_qualname(__pyx_CoroutineObject *self, CYTHON_UNUSED void *co
 }
 
 static int
-__Pyx_Coroutine_set_qualname(__pyx_CoroutineObject *self, PyObject *value, CYTHON_UNUSED void *context)
+__Pyx_Coroutine_set_qualname(__pyx_CoroutineObject *self, PyObject *value, void *context)
 {
     CYTHON_UNUSED_VAR(context);
 #if PY_MAJOR_VERSION >= 3
@@ -1383,10 +1383,10 @@ __Pyx_Coroutine_set_qualname(__pyx_CoroutineObject *self, PyObject *value, CYTHO
 }
 
 static PyObject *
-__Pyx_Coroutine_get_frame(__pyx_CoroutineObject *self, CYTHON_UNUSED void *context)
+__Pyx_Coroutine_get_frame(__pyx_CoroutineObject *self, void *context)
 {
-    CYTHON_UNUSED_VAR(context);
     PyObject *frame = self->gi_frame;
+    CYTHON_UNUSED_VAR(context);
     if (!frame) {
         if (unlikely(!self->gi_code)) {
             // Avoid doing something stupid, e.g. during garbage collection.
@@ -1481,7 +1481,7 @@ static PyObject *__Pyx_CoroutineAwait_Throw(__pyx_CoroutineAwaitObject *self, Py
     return __Pyx_Coroutine_Throw(self->coroutine, args);
 }
 
-static PyObject *__Pyx_CoroutineAwait_Close(__pyx_CoroutineAwaitObject *self, CYTHON_UNUSED PyObject *arg) {
+static PyObject *__Pyx_CoroutineAwait_Close(__pyx_CoroutineAwaitObject *self, PyObject *arg) {
     CYTHON_UNUSED_VAR(arg);
     return __Pyx_Coroutine_Close(self->coroutine);
 }
@@ -1492,7 +1492,7 @@ static PyObject *__Pyx_CoroutineAwait_self(PyObject *self) {
 }
 
 #if !CYTHON_COMPILING_IN_PYPY
-static PyObject *__Pyx_CoroutineAwait_no_new(CYTHON_UNUSED PyTypeObject *type, CYTHON_UNUSED PyObject *args, CYTHON_UNUSED PyObject *kwargs) {
+static PyObject *__Pyx_CoroutineAwait_no_new(PyTypeObject *type, PyObject *args, PyObject *kwargs) {
     CYTHON_UNUSED_VAR(type);
     CYTHON_UNUSED_VAR(args);
     CYTHON_UNUSED_VAR(kwargs);
@@ -1589,7 +1589,7 @@ static CYTHON_INLINE PyObject *__Pyx__Coroutine_await(PyObject *coroutine) {
 #endif
 
 #if PY_VERSION_HEX < 0x030500B1
-static PyObject *__Pyx_Coroutine_await_method(PyObject *coroutine, CYTHON_UNUSED PyObject *arg) {
+static PyObject *__Pyx_Coroutine_await_method(PyObject *coroutine, PyObject *arg) {
     CYTHON_UNUSED_VAR(arg);
     return __Pyx__Coroutine_await(coroutine);
 }

@@ -2068,8 +2068,6 @@ class CCodeWriter(object):
             return
         if storage_class:
             self.put("%s " % storage_class)
-        if not entry.cf_used:
-            self.put('CYTHON_UNUSED ')
         self.put(entry.type.declaration_code(
             entry.cname, dll_linkage=dll_linkage))
         if entry.init is not None:
@@ -2077,7 +2075,6 @@ class CCodeWriter(object):
         elif entry.type.is_pyobject:
             self.put(" = NULL")
         self.putln(";")
-        # silence unused warnings when CYTHON_UNUSED does not work (e.g. on msvc)
         if not entry.cf_used:
             self.putln("CYTHON_UNUSED_VAR(%s);" % entry.cname)
 
@@ -2092,15 +2089,10 @@ class CCodeWriter(object):
                 self.putln("%s%s;" % (static and "static " or "", decl))
 
         if func_context.should_declare_error_indicator:
-            if self.funcstate.uses_error_indicator:
-                unused = ''
-            else:
-                unused = 'CYTHON_UNUSED '
             # Initialize these variables to silence compiler warnings
-            self.putln("%sint %s = 0;" % (unused, Naming.lineno_cname))
-            self.putln("%sconst char *%s = NULL;" % (unused, Naming.filename_cname))
-            self.putln("%sint %s = 0;" % (unused, Naming.clineno_cname))
-            # silence unused warnings when CYTHON_UNUSED does not work (e.g. on msvc)
+            self.putln("int %s = 0;" % Naming.lineno_cname)
+            self.putln("const char *%s = NULL;" % Naming.filename_cname)
+            self.putln("int %s = 0;" % Naming.clineno_cname)
             if not self.funcstate.uses_error_indicator:
                 self.putln("CYTHON_UNUSED_VAR(%s);" % Naming.lineno_cname)
                 self.putln("CYTHON_UNUSED_VAR(%s);" % Naming.filename_cname)
@@ -2294,7 +2286,7 @@ class CCodeWriter(object):
             if method_noargs in method_flags:
                 # Special NOARGS methods really take no arguments besides 'self', but PyCFunction expects one.
                 func_cname = Naming.method_wrapper_prefix + func_cname
-                self.putln("static PyObject *%s(PyObject *self, CYTHON_UNUSED PyObject *arg) {CYTHON_UNUSED_VAR(arg); return %s(self);}" % (
+                self.putln("static PyObject *%s(PyObject *self, PyObject *arg) {CYTHON_UNUSED_VAR(arg); return %s(self);}" % (
                     func_cname, entry.func_cname))
         return func_cname
 

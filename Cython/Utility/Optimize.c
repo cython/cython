@@ -227,7 +227,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *ke
 /////////////// dict_setdefault ///////////////
 
 static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *default_value,
-                                                       CYTHON_UNUSED int is_safe_type) {
+                                                       int is_safe_type) {
     CYTHON_UNUSED_VAR(is_safe_type);
     PyObject* value;
 #if PY_VERSION_HEX >= 0x030400A0
@@ -1038,7 +1038,7 @@ return_compare = (
     )
 }}
 
-static CYTHON_INLINE {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHON_UNUSED long intval, CYTHON_UNUSED long inplace) {
+static CYTHON_INLINE {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(PyObject *op1, PyObject *op2, long intval, long inplace) {
     CYTHON_UNUSED_VAR(intval);
     CYTHON_UNUSED_VAR(inplace);
     if (op1 == op2) {
@@ -1146,7 +1146,7 @@ def zerodiv_check(operand, optype='integer', _is_mod=op == 'Remainder', _needs_c
     ) if _needs_check else '')
 }}
 
-static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, CYTHON_UNUSED long intval, int inplace, int zerodivision_check) {
+static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, long intval, int inplace, int zerodivision_check) {
     CYTHON_UNUSED_VAR(intval);
     // Prevent "unused" warnings.
     (void)inplace; (void)zerodivision_check;
