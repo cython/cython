@@ -1994,8 +1994,15 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         # If args is an empty sequence, remove it
         if pos_args[0].is_sequence_constructor and not pos_args[0].args:
             del pos_args[0]
-        elif isinstance(pos_args[0], ExprNodes.ListNode):
+            return node
+        if isinstance(pos_args[0], ExprNodes.ListNode):
             pos_args[0] = pos_args[0].as_tuple()
+        # Currently, if a tuple is constant, a permanent tuple would be created
+        # Therefore, we convert this tuple to list, only keeping a permanent frozenset
+        # See https://github.com/cython/cython/pull/4098#issuecomment-834234964
+        if isinstance(pos_args[0], ExprNodes.TupleNode) and \
+            not isinstance(pos_args[0].constant_result, ExprNodes.NotConstant):
+                pos_args[0] = pos_args[0].as_list()
         return node
 
     def _handle_simple_function_list(self, node, pos_args):
@@ -2593,7 +2600,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         # https://docs.python.org/3.9/library/stdtypes.html#frozenset
         if len(pos_args) > 1:
             return node
-        print(pos_args[0].__dict__)
+
         if pos_args[0].type is Builtin.frozenset_type:
             # and not pos_args[0].may_be_none()
             # print(pos_args[0].may_be_none())
@@ -2611,12 +2618,15 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 for c in arg_set
             ]
             # print(transformed_result)
+            # TODO avoid code duplication
             args_tuple = ExprNodes.TupleNode(node.pos, args=transformed_result)
             result = ExprNodes.FrozenSetNode(node.pos, is_temp=1, args=args_tuple)
             result.is_temp = False
             result.is_literal = True
             return result
 
+        # if isinstance(pos_args[0], ExprNodes.TupleNode) and pos_args[0].is_literal:
+        #     pos_args[0] = pos_args[0].as_list()
         # We could only create a frozenset by builtin name
         result = ExprNodes.FrozenSetNode(node.pos, is_temp=node.is_temp, args=pos_args[0])
         if pos_args[0].is_literal:
