@@ -197,7 +197,7 @@ def make_dedup_key(outer_type, item_nodes):
     @param outer_type: The type of the outer container.
     @param item_nodes: A sequence of constant nodes that will be traversed recursively.
     @rtype:  tuple
-    @return: A tuple that can be used as a dict key for deduplication.
+    @return: A 2-element tuple that can be used as a dict key for deduplication.
                 The first element is outer_type.
                 The second element is a hashable, constant sequence
     """
