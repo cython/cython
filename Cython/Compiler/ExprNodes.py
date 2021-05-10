@@ -8825,13 +8825,6 @@ class FrozenSetNode(SetNode):
 
         self.result_code = target
 
-
-# TODO: for such case
-#     x = frozenset((1, 2, 3, 2))
-#     y = frozenset((1, 2, 3, 2, 3, 1))
-#     _get_dedup_values will generate same dedup key,
-#     but cython will still try to create frozenset from a tuple with duplicate elements
-
     def _get_dedup_values(self, args):
         if args is None:
             return ()
