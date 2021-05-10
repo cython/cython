@@ -1,6 +1,6 @@
 # mode: run
 # tag: cpp, werror
-# ticket: gh3065
+# ticket: 3065
 
 # This is intentionally in a file on its own. The issue was that it failed to generate utility-code
 # and so putting it with the other c++ exception checks wouldn't be a useful test

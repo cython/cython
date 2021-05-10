@@ -272,7 +272,7 @@ def needs_cpp_exception_conversion(node):
     if node.exception_value.is_name:
         return False
     # or a CharNode with a value of "*"
-    if isinstance(node.exception_value, CharNode) and node.exception_value.value == "*":
+    if node.exception_value.constant_result == "*":
         return True
     # Most other const-nodes are disallowed after "+" by the parser
     return False
