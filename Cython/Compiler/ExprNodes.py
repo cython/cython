@@ -198,7 +198,7 @@ def make_dedup_key(outer_type, item_nodes):
     @param item_nodes: A sequence of constant nodes that will be traversed recursively.
     @return: A hashable, constant sequence that can be used as a dict key for deduplication.
     """
-    item_keys = tuple(
+    item_keys = [
         (py_object_type, None, type(None)) if node is None
         # For sequences and their "mult_factor", see TupleNode.
         else make_dedup_key(node.type, [node.mult_factor if node.is_literal else None] + node.args) if node.is_sequence_constructor
@@ -208,7 +208,7 @@ def make_dedup_key(outer_type, item_nodes):
               type(node.constant_result) if node.type is py_object_type else None) if node.has_constant_result()
         else None  # something we cannot handle => short-circuit below
         for node in item_nodes
-    )
+    ]  # Use list comprehensions intentionally
     if None in item_keys:
         return None
 
@@ -8811,13 +8811,16 @@ class FrozenSetNode(SetNode):
         else:
             self.args.generate_evaluation_code(code)
             constructor_parameter = self.args.py_result()
+
         # TODO Avoid code duplication for creating a frozenset
         code.globalstate.use_utility_code(UtilityCode.load_cached(
             'pyfrozenset_new', 'Builtins.c'))
         code.putln("%s = __Pyx_PyFrozenSet_New(%s); %s" % (
             target, constructor_parameter,
             code.error_goto_if_null(target, self.pos)))
+
         self.result_code = target
+
 
 # TODO: for such case
 #     x = frozenset((1, 2, 3, 2))
@@ -8843,6 +8846,7 @@ class FrozenSetNode(SetNode):
         self.result_code = set_target
 
     def generate_evaluation_code(self, code):
+        print("generate_evaluation_code")
         print(self.__dict__)
         if self.is_literal:
             self._create_shared_frozenset_object(code)
