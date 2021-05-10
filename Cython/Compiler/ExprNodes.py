@@ -214,12 +214,11 @@ def make_dedup_key(outer_type, item_nodes):
     ]  # Use list comprehensions intentionally
     if None in item_keys:
         return None
-
-    if outer_type.name == 'frozenset':
-        item_keys = frozenset(item_keys)
+    if outer_type.is_builtin_type and outer_type.name == 'frozenset':
+        key_type = frozenset
     else:
-        item_keys = tuple(item_keys)
-    return outer_type, item_keys
+        key_type = tuple
+    return outer_type, key_type(item_keys)
 
 
 # Returns a block of code to translate the exception,
