@@ -217,6 +217,8 @@ def make_dedup_key(outer_type, item_nodes):
 
     if outer_type.name == 'frozenset':
         item_keys = frozenset(item_keys)
+    else:
+        item_keys = tuple(item_keys)
     return outer_type, item_keys
 
 
