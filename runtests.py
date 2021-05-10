@@ -443,6 +443,7 @@ VER_DEP_MODULES = {
                                          'run.time_pxd',  # _PyTime_GetSystemClock doesn't exist in 3.4
                                          ]),
     (3,7): (operator.lt, lambda x: x in ['run.pycontextvar',
+                                         'run.pep557_dataclasses',  # dataclasses module
                                          ]),
 }
 

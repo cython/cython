@@ -4875,7 +4875,7 @@ class PyClassDefNode(ClassDefNode):
         return cenv
 
     def analyse_declarations(self, env):
-        class_result = self.classobj
+        unwrapped_class_result = class_result = self.classobj
         if self.decorators:
             from .ExprNodes import SimpleCallNode
             for decorator in self.decorators[::-1]:
@@ -4897,7 +4897,7 @@ class PyClassDefNode(ClassDefNode):
         if self.doc_node:
             self.doc_node.analyse_target_declaration(cenv)
         self.body.analyse_declarations(cenv)
-        self.class_result.analyse_annotations(cenv)
+        unwrapped_class_result.analyse_annotations(cenv)
 
     update_bases_functype = PyrexTypes.CFuncType(
         PyrexTypes.py_object_type, [
