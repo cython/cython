@@ -2610,21 +2610,22 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             return pos_args[0]
 
         # TODO: Unicode process
-        if pos_args[0].is_string_literal:
-            arg_set = frozenset(pos_args[0].constant_result)
-            # print(arg_set)
-            transformed_result = [
-                ExprNodes.StringNode(node.pos, value=c, unicode_value=c,
-                constant_result=c, is_identifier=False)
-                for c in arg_set
-            ]
-            # print(transformed_result)
-            # TODO avoid code duplication
-            args_tuple = ExprNodes.TupleNode(node.pos, args=transformed_result)
-            result = ExprNodes.FrozenSetNode(node.pos, is_temp=1, args=args_tuple)
-            result.is_temp = False
-            result.is_literal = True
-            return result
+        # if pos_args[0].is_string_literal:
+        #     arg_set = frozenset(pos_args[0].constant_result)
+        #     print(arg_set)
+        #     transformed_result = [
+        #         ExprNodes.StringNode(node.pos, value=c, unicode_value=c,
+        #         constant_result=c, is_identifier=False)
+        #         for c in arg_set
+        #     ]
+        #     # print(transformed_result)
+        #     # TODO avoid code duplication
+        #     args_tuple = ExprNodes.TupleNode(node.pos, args=transformed_result)
+        #     print(args_tuple.__dict__)
+        #     result = ExprNodes.FrozenSetNode(node.pos, is_temp=1, args=args_tuple)
+        #     result.is_temp = False
+        #     result.is_literal = True
+        #     return result
 
         # if isinstance(pos_args[0], ExprNodes.TupleNode) and pos_args[0].is_literal:
         #     pos_args[0] = pos_args[0].as_list()
