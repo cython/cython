@@ -198,8 +198,8 @@ def make_dedup_key(outer_type, item_nodes):
     @param item_nodes: A sequence of constant nodes that will be traversed recursively.
     @rtype:  tuple
     @return: A 2-element tuple that can be used as a dict key for deduplication.
-                The first element is outer_type.
-                The second element is a hashable, constant sequence
+                The first element is "outer_type", as passed in.
+                The second element is a hashable, constant data container, specific to the "outer_type".
     """
     item_keys = [
         (py_object_type, None, type(None)) if node is None
