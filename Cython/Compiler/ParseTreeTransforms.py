@@ -2496,8 +2496,6 @@ class AlignFunctionDefinitions(CythonTransform):
 
     def visit_ModuleNode(self, node):
         self.scope = node.scope
-        self.directives = node.directives
-        self.imported_names = set()  # hack, see visit_FromImportStatNode()
         self.visitchildren(node)
         return node
 
@@ -2535,13 +2533,43 @@ class AlignFunctionDefinitions(CythonTransform):
                     error(pxd_def.pos, "previous declaration here")
                 return None
             node = node.as_cfunction(pxd_def)
-        elif (self.scope.is_module_scope and self.directives['auto_cpdef']
-              and node.name not in self.imported_names
-              and node.is_cdef_func_compatible()):
-            # FIXME: cpdef-ing should be done in analyse_declarations()
-            node = node.as_cfunction(scope=self.scope)
         # Enable this when nested cdef functions are allowed.
         # self.visitchildren(node)
+        return node
+
+    def visit_ExprNode(self, node):
+        # ignore lambdas and everything else that appears in expressions
+        return node
+
+
+class AutoCpdefFunctionDefinitions(CythonTransform):
+
+    def visit_ModuleNode(self, node):
+        self.directives = node.directives
+        self.imported_names = set()  # hack, see visit_FromImportStatNode()
+        self.scope = node.scope
+        self.visitchildren(node)
+        return node
+
+    def visit_DefNode(self, node):
+        if (self.scope.is_module_scope and self.directives['auto_cpdef']
+                and node.name not in self.imported_names
+                and node.is_cdef_func_compatible()):
+            # FIXME: cpdef-ing should be done in analyse_declarations()
+            node = node.as_cfunction(scope=self.scope)
+        return node
+
+    def visit_CClassDefNode(self, node, pxd_def=None):
+        if pxd_def is None:
+            pxd_def = self.scope.lookup(node.class_name)
+        if pxd_def:
+            if not pxd_def.defined_in_pxd:
+                return node
+            outer_scope = self.scope
+            self.scope = pxd_def.type.scope
+        self.visitchildren(node)
+        if pxd_def:
+            self.scope = outer_scope
         return node
 
     def visit_FromImportStatNode(self, node):
