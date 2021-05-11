@@ -1988,6 +1988,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
 
     def _handle_simple_function_frozenset(self, node, pos_args):
         """Replace frozenset([...]) by frozenset((...)) as tuples are more efficient.
+        Exception: If a list/tuple is constant, convert it into list.
         """
         if len(pos_args) != 1:
             return node
@@ -1995,14 +1996,17 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         if pos_args[0].is_sequence_constructor and not pos_args[0].args:
             del pos_args[0]
             return node
-        if isinstance(pos_args[0], ExprNodes.ListNode):
+
+        if isinstance(pos_args[0], ExprNodes.ListNode) and \
+            isinstance(pos_args[0].constant_result, ExprNodes.NotConstant):
             pos_args[0] = pos_args[0].as_tuple()
+
         # Currently, if a tuple is constant, a permanent tuple would be created
         # Therefore, we convert this tuple to list, only keeping a permanent frozenset
         # See https://github.com/cython/cython/pull/4098#issuecomment-834234964
         if isinstance(pos_args[0], ExprNodes.TupleNode) and \
             not isinstance(pos_args[0].constant_result, ExprNodes.NotConstant):
-                pos_args[0] = pos_args[0].as_list()
+            pos_args[0] = pos_args[0].as_list()
         return node
 
     def _handle_simple_function_list(self, node, pos_args):
