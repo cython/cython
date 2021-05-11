@@ -2588,7 +2588,6 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 is_temp=node.is_temp,
                 py_name="set"))
 
-    # When calling frozenset(), we replace SimpleCallNode
     def _handle_simple_function_frozenset(self, node, function, pos_args):
         # empty frozenset is singleton, so we never try to free them
         if not pos_args:
