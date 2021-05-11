@@ -9899,6 +9899,8 @@ class YieldExprNode(ExprNode):
             save_cname = code.funcstate.closure_temps.allocate_temp(type)
             saved.append((cname, save_cname, type))
             code.put_xgiveref(cname, type)
+            if type.is_cpp_class:
+                cname = "__PYX_STD_MOVE_IF_SUPPORTED(%s)" % cname
             code.putln('%s->%s = %s;' % (Naming.cur_scope_cname, save_cname, cname))
 
         code.put_xgiveref(Naming.retval_cname, py_object_type)
@@ -9929,9 +9931,12 @@ class YieldExprNode(ExprNode):
 
         code.put_label(label_name)
         for cname, save_cname, type in saved:
-            code.putln('%s = %s->%s;' % (cname, Naming.cur_scope_cname, save_cname))
+            save_cname = "%s->%s" % (Naming.cur_scope_cname, save_cname)
+            if type.is_cpp_class:
+                save_cname = "__PYX_STD_MOVE_IF_SUPPORTED(%s)" % save_cname
+            code.putln('%s = %s;' % (cname, save_cname))
             if type.is_pyobject:
-                code.putln('%s->%s = 0;' % (Naming.cur_scope_cname, save_cname))
+                code.putln('%s = 0;' % save_cname)
                 code.put_xgotref(cname, type)
         self.generate_sent_value_handling_code(code, Naming.sent_value_cname)
         if self.result_is_used:
