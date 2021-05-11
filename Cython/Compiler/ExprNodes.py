@@ -8831,8 +8831,7 @@ class FrozenSetNode(SetNode):
         return args.args
 
     def _create_shared_frozenset_object(self, code):
-        assert self.type.name == 'frozenset'
-        dedup_key = make_dedup_key(self.type, self._get_dedup_values(self.args))
+        dedup_key = make_dedup_key(frozenset_type, self._get_dedup_values(self.args))
         set_target = code.get_py_const(py_object_type, 'frozenset', cleanup_level=2, dedup_key=dedup_key)
         assert set_target is not None
         const_code = code.get_cached_constants_writer(set_target)
