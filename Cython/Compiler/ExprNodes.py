@@ -211,7 +211,7 @@ def make_dedup_key(outer_type, item_nodes):
               type(node.constant_result) if node.type is py_object_type else None) if node.has_constant_result()
         else None  # something we cannot handle => short-circuit below
         for node in item_nodes
-    ]  # Use list comprehensions intentionally
+    ]
     if None in item_keys:
         return None
     if outer_type.is_builtin_type and outer_type.name == 'frozenset':
