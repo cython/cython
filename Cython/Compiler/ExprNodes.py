@@ -9898,9 +9898,10 @@ class YieldExprNode(ExprNode):
         for cname, type, manage_ref in code.funcstate.temps_in_use():
             save_cname = code.funcstate.closure_temps.allocate_temp(type)
             saved.append((cname, save_cname, type))
-            code.put_xgiveref(cname, type)
             if type.is_cpp_class:
                 cname = "__PYX_STD_MOVE_IF_SUPPORTED(%s)" % cname
+            else:
+                code.put_xgiveref(cname, type)
             code.putln('%s->%s = %s;' % (Naming.cur_scope_cname, save_cname, cname))
 
         code.put_xgiveref(Naming.retval_cname, py_object_type)
