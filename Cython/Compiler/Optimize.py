@@ -2633,8 +2633,10 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         #     pos_args[0] = pos_args[0].as_list()
         # We could only create a frozenset by builtin name
         result = ExprNodes.FrozenSetNode(node.pos, is_temp=node.is_temp, args=pos_args[0])
-        print(pos_args[0].__dict__)
-        if pos_args[0].is_literal:
+
+     #   if pos_args[0].is_literal:
+        if pos_args[0].constant_result is not None \
+                and not isinstance(pos_args[0].constant_result, ExprNodes.NotConstant):
             result.is_temp = False
             result.is_literal = True
 

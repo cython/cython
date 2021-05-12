@@ -8806,24 +8806,14 @@ class FrozenSetNode(SetNode):
     def calculate_result_code(self):
         return self.result_code
 
-    def _generate_creating_from_constant_code(self, code, target):
-        if target is None:
-            target = self.result()
-        assert target is not None
-        if self.args is None:
-            constructor_parameter = 0
-        else:
-            self.args.generate_evaluation_code(code)
-            constructor_parameter = self.args.py_result()
-
-        # TODO Avoid code duplication for creating a frozenset
+    def _generate_frozenset_code(self, code, frozenset_target, args_py_result):
         code.globalstate.use_utility_code(UtilityCode.load_cached(
             'pyfrozenset_new', 'Builtins.c'))
-        code.putln("%s = __Pyx_PyFrozenSet_New(%s); %s" % (
-            target, constructor_parameter,
-            code.error_goto_if_null(target, self.pos)))
-
-        self.result_code = target
+        code.putln(
+            "%s = __Pyx_PyFrozenSet_New(%s); %s" % (
+                frozenset_target,
+                args_py_result,
+                code.error_goto_if_null(frozenset_target, self.pos)))
 
     def _get_dedup_values(self, args):
         if args is None:
@@ -8833,6 +8823,7 @@ class FrozenSetNode(SetNode):
         return args.args
 
     def _create_shared_frozenset_object(self, code):
+        assert self.args is not None
         dedup_key = make_dedup_key(frozenset_type, self._get_dedup_values(self.args))
         print(dedup_key)
         set_target = code.get_py_const(py_object_type, 'frozenset', cleanup_level=2, dedup_key=dedup_key)
@@ -8841,25 +8832,21 @@ class FrozenSetNode(SetNode):
         if const_code is not None:
             # constant is not yet initialised
             const_code.mark_pos(self.pos)
-            self._generate_creating_from_constant_code(const_code, set_target)
+            self.args.generate_evaluation_code(code)
+            self._generate_frozenset_code(const_code, set_target, code)
         self.result_code = set_target
 
     def generate_evaluation_code(self, code):
-        print(self.__dict__)
+        if self.args is None:
+            exit(1)#TODO
         if self.is_literal:
             self._create_shared_frozenset_object(code)
             return
 
         self.args.generate_evaluation_code(code)
         self.allocate_temp_result(code)
-        code.globalstate.use_utility_code(UtilityCode.load_cached(
-            'pyfrozenset_new', 'Builtins.c'))
 
-        code.putln(
-            "%s = __Pyx_PyFrozenSet_New(%s); %s" % (
-                self.result(),
-                self.args.py_result(),
-                code.error_goto_if_null(self.result(), self.pos)))
+        self._generate_frozenset_code(code, self.temp_code, self.args.py_result())
         self.generate_gotref(code)
         self.args.generate_disposal_code(code)
         self.args.free_temps(code)
