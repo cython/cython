@@ -149,13 +149,44 @@ jobs:
           key: ${{ runner.os }}-ccache${{ matrix.extra_hash }}-${{ matrix.python-version }}-${{ matrix.backend == 'c' || matrix.backend == 'c,cpp' }}-${{ contains(matrix.backend, 'cpp') }}-${{ hashFiles('**/test-requirements*.txt', '**/ci.yml', '**/ci-run.sh') }}
 
       - name: Run CI
-        if: env.coverage != 1
         continue-on-error: ${{ matrix.allowed_failure || false }}
         env: ${{ matrix.env }}
         run: exit; #bash ./Tools/ci-run.sh
         
+
+  static_analysis:
+    strategy:
+      # Allows for matrix sub-jobs to fail without canceling the rest
+      fail-fast: false
+    runs-on: ubuntu-18.04
+
+    env:
+      BACKEND: c
+      OS_NAME: ubuntu-18.04
+      PYTHON_VERSION: 3.9
+      USE_CCACHE: 1
+      CCACHE_SLOPPINESS: "pch_defines,time_macros"
+      CCACHE_COMPRESS: 1
+      CCACHE_MAXSIZE: "200M"
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+
+      - name: Setup python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+
+      - name: Cache [ccache]
+        uses: pat-s/always-upload-cache@v2.1.3
+        if: startsWith(runner.os, 'Linux')
+        with:
+          path: ~/.ccache
+          key: ${{ runner.os }}-static_analysis-${{ hashFiles('**/test-requirements*.txt', '**/ci.yml', '**/ci-run.sh') }}
+
       - name: Run Coverage
-        if: ${{ matrix.COVERAGE == 1 }}
-        continue-on-error: ${{ matrix.allowed_failure || false }}
-        env: ${{ matrix.env }}
-        run: echo ${{ matrix.env.COVERAGE }} #bash ./Tools/ci-run.sh
+        env: COVERAGE=1
+        run: bash ./Tools/ci-run.sh
