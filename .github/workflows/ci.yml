@@ -155,7 +155,7 @@ jobs:
         run: exit; #bash ./Tools/ci-run.sh
         
       - name: Run Coverage
-        if: env.coverage == 1
+        if: ${{ env.coverage == 1 }}
         continue-on-error: ${{ matrix.allowed_failure || false }}
         env: ${{ matrix.env }}
         run: bash ./Tools/ci-run.sh
