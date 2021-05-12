@@ -188,5 +188,5 @@ jobs:
           key: ${{ runner.os }}-static_analysis-${{ hashFiles('**/test-requirements*.txt', '**/ci.yml', '**/ci-run.sh') }}
 
       - name: Run Coverage
-        env: COVERAGE=1
+        env: { COVERAGE: 1 }
         run: bash ./Tools/ci-run.sh
