@@ -8832,8 +8832,8 @@ class FrozenSetNode(SetNode):
         if const_code is not None:
             # constant is not yet initialised
             const_code.mark_pos(self.pos)
-            self.args.generate_evaluation_code(code)
-            self._generate_frozenset_code(const_code, set_target, code)
+            self.args.generate_evaluation_code(const_code)
+            self._generate_frozenset_code(const_code, set_target, self.args.py_result())
         self.result_code = set_target
 
     def generate_evaluation_code(self, code):
