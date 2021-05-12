@@ -149,6 +149,13 @@ jobs:
           key: ${{ runner.os }}-ccache${{ matrix.extra_hash }}-${{ matrix.python-version }}-${{ matrix.backend == 'c' || matrix.backend == 'c,cpp' }}-${{ contains(matrix.backend, 'cpp') }}-${{ hashFiles('**/test-requirements*.txt', '**/ci.yml', '**/ci-run.sh') }}
 
       - name: Run CI
+        if: env.coverage != 1
         continue-on-error: ${{ matrix.allowed_failure || false }}
         env: ${{ matrix.env }}
         run: exit; #bash ./Tools/ci-run.sh
+        
+      - name: Run Coverage
+        if: env.coverage == 1
+        continue-on-error: ${{ matrix.allowed_failure || false }}
+        env: ${{ matrix.env }}
+        run: bash ./Tools/ci-run.sh
