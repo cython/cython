@@ -179,7 +179,7 @@ jobs:
         uses: pat-s/always-upload-cache@v2.1.3
         with:
           path: ~/.ccache
-          key: ${{ runner.os }}-ccache-${{ github.workflow }}-${{ hashFiles('**/test-requirements*.txt', '**/ci.yml', '**/ci-run.sh') }}
+          key: ${{ runner.os }}-ccache-code_quality-${{ hashFiles('**/test-requirements*.txt', '**/ci.yml', '**/ci-run.sh') }}
 
       - name: Run Coverage
         continue-on-error: true
