@@ -6874,7 +6874,6 @@ class AttributeNode(ExprNode):
     is_attribute = 1
     subexprs = ['obj']
 
-    type = PyrexTypes.error_type
     entry = None
     is_called = 0
     needs_none_check = True
@@ -6964,6 +6963,7 @@ class AttributeNode(ExprNode):
         return node
 
     def analyse_types(self, env, target = 0):
+        self.type = PyrexTypes.error_type  # default value if it isn't analysed
         self.initialized_check = env.directives['initializedcheck']
         node = self.analyse_as_cimported_attribute_node(env, target)
         if node is None and not target:
@@ -10989,8 +10989,6 @@ class TypeidNode(ExprNode):
     #  arg_type      ExprNode
     #  is_variable   boolean
 
-    type = PyrexTypes.error_type
-
     subexprs = ['operand']
 
     arg_type = None
@@ -11008,6 +11006,7 @@ class TypeidNode(ExprNode):
     cpp_message = 'typeid operator'
 
     def analyse_types(self, env):
+        self.type = PyrexTypes.error_type  # default value if it isn't analysed successfully
         self.cpp_check(env)
         type_info = self.get_type_info_type(env)
         if not type_info:
