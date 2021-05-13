@@ -101,7 +101,7 @@ python runtests.py \
   --backends=$BACKEND \
    $LIMITED_API \
    $EXCLUDE \
-   $(if [ "$COVERAGE" == "1" ]; then echo " --coverage"; fi) \
+   $(if [ "$COVERAGE" == "1" ]; then echo " --coverage-html coverage.html"; fi) \
    $(if [ -z "$TEST_CODE_STYLE" ]; then echo " -j7 "; fi)
 
 EXIT_CODE=$?
