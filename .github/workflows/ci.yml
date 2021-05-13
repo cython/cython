@@ -177,11 +177,11 @@ jobs:
 
       - name: Cache [ccache]
         uses: pat-s/always-upload-cache@v2.1.3
-        if: startsWith(runner.os, 'Linux')
         with:
           path: ~/.ccache
           key: ${{ runner.os }}-static_analysis-${{ hashFiles('**/test-requirements*.txt', '**/ci.yml', '**/ci-run.sh') }}
 
       - name: Run Coverage
+        continue-on-error: true
         env: { COVERAGE: 1 }
         run: bash ./Tools/ci-run.sh
