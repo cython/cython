@@ -188,6 +188,6 @@ jobs:
         
       - name: Upload Coverage Report
         uses: actions/upload-artifact@v2
-          with:
-            path: coverage-report-html  
+        with:
+          path: coverage-report-html  
         
