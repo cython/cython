@@ -11005,6 +11005,9 @@ class TypeidNode(ExprNode):
 
     cpp_message = 'typeid operator'
 
+    def type_dependencies(self, env):
+        return ()
+
     def analyse_types(self, env):
         self.type = PyrexTypes.error_type  # default value if it isn't analysed successfully
         self.cpp_check(env)
@@ -11015,6 +11018,7 @@ class TypeidNode(ExprNode):
         self.type = type_info
         as_type = self.operand.analyse_as_specialized_type(env)
         if as_type:
+            self.operand.type = as_type  # because it doesn't get analysed otherwise
             self.arg_type = as_type
             self.is_type = True
         else:
