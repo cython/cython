@@ -184,4 +184,10 @@ jobs:
       - name: Run Coverage
         continue-on-error: true
         env: { COVERAGE: 1 }
-        run: bash ./Tools/ci-run.sh
+        run: bash ./Tools/ci-run.sh; ls
+        
+      - name: Upload Coverage Report
+        uses: actions/upload-artifact@v2
+          with:
+            path: coverage-report-html  
+        
