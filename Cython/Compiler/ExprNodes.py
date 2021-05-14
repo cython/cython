@@ -11005,25 +11005,26 @@ class TypeidNode(ExprNode):
 
     cpp_message = 'typeid operator'
 
-    def type_dependencies(self, env):
-        return ()
-
     def analyse_types(self, env):
-        self.type = PyrexTypes.error_type  # default value if it isn't analysed successfully
+        if not self.type:
+            self.type = PyrexTypes.error_type  # default value if it isn't analysed successfully
         self.cpp_check(env)
         type_info = self.get_type_info_type(env)
         if not type_info:
             self.error("The 'libcpp.typeinfo' module must be cimported to use the typeid() operator")
             return self
+        if self.operand is None:
+            return self  # already analysed, no need to repeat
         self.type = type_info
         as_type = self.operand.analyse_as_specialized_type(env)
         if as_type:
-            self.operand.type = as_type  # because it doesn't get analysed otherwise
             self.arg_type = as_type
             self.is_type = True
+            self.operand = None  # nothing further uses self.operand - will only cause problems if its used in code generation
         else:
             self.arg_type = self.operand.analyse_types(env)
             self.is_type = False
+            self.operand = None  # nothing further uses self.operand - will only cause problems if its used in code generation
             if self.arg_type.type.is_pyobject:
                 self.error("Cannot use typeid on a Python object")
                 return self
