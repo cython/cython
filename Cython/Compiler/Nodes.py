@@ -318,6 +318,7 @@ class Node(object):
         return u'"%s":%d:%d\n%s\n' % (
             source_desc.get_escaped_description(), line, col, u''.join(lines))
 
+
 class CompilerDirectivesNode(Node):
     """
     Sets compiler directives for the children nodes
@@ -360,6 +361,7 @@ class CompilerDirectivesNode(Node):
         self.body.annotate(code)
         code.globalstate.directives = old
 
+
 class BlockNode(object):
     #  Mixin class for nodes representing a declaration block.
 
@@ -372,6 +374,7 @@ class BlockNode(object):
     def generate_lambda_definitions(self, env, code):
         for node in env.lambda_defs:
             node.generate_function_definitions(env, code)
+
 
 class StatListNode(Node):
     # stats     a list of StatNode
