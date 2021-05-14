@@ -172,7 +172,6 @@ jobs:
           python-version: 3.9
 
       - name: Run Coverage
-        continue-on-error: true
         env: { COVERAGE: 1 }
         run: bash ./Tools/ci-run.sh
         
