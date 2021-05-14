@@ -156,7 +156,7 @@ jobs:
     runs-on: ubuntu-18.04
 
     env:
-      BACKEND: cpp
+      BACKEND: c,cpp
       OS_NAME: ubuntu-18.04
       PYTHON_VERSION: 3.9
 
