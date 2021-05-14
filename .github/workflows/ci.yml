@@ -178,32 +178,32 @@ jobs:
         with:
           name: pycoverage_html
           path: coverage-report-html
-        
-  cycoverage:
-    runs-on: ubuntu-18.04
 
-    env:
-      BACKEND: c,cpp
-      OS_NAME: ubuntu-18.04
-      PYTHON_VERSION: 3.9
-
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 1
-
-      - name: Setup python
-        uses: actions/setup-python@v2
-        with:
-          python-version: 3.9
-
-      - name: Run Coverage
-        env: { COVERAGE: 1 }
-        run: bash ./Tools/ci-run.sh
-
-      - name: Upload Coverage Report
-        uses: actions/upload-artifact@v2
-        with:
-          name: cycoverage_html
-          path: coverage-report-html
+#  cycoverage:
+#    runs-on: ubuntu-18.04
+#
+#    env:
+#      BACKEND: c,cpp
+#      OS_NAME: ubuntu-18.04
+#      PYTHON_VERSION: 3.9
+#
+#    steps:
+#      - name: Checkout repo
+#        uses: actions/checkout@v2
+#        with:
+#          fetch-depth: 1
+#
+#      - name: Setup python
+#        uses: actions/setup-python@v2
+#        with:
+#          python-version: 3.9
+#
+#      - name: Run Coverage
+#        env: { COVERAGE: 1 }
+#        run: bash ./Tools/ci-run.sh
+#
+#      - name: Upload Coverage Report
+#        uses: actions/upload-artifact@v2
+#        with:
+#          name: cycoverage_html
+#          path: coverage-report-html
