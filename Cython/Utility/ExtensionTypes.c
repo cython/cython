@@ -121,7 +121,7 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
         (void)__Pyx_PyObject_CallMethod0;
 #endif
 
-        r = PyType_Ready(t);
+    r = PyType_Ready(t);
 
 #if PY_VERSION_HEX >= 0x03050000
         t->tp_flags &= ~Py_TPFLAGS_HEAPTYPE;
@@ -131,16 +131,16 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
             PyGC_Enable();
     #else
         if (gc_was_enabled) {
-            PyObject *ty, *v, *tb;
-            PyErr_Fetch(&ty, &v, &tb);
+            PyObject *tp, *v, *tb;
+            PyErr_Fetch(&tp, &v, &tb);
             ret = __Pyx_PyObject_CallMethod0(gc, PYUNICODE("enable"));
             if (likely(ret || r == -1)) {
                 Py_XDECREF(ret);
                 // do not overwrite exceptions raised by PyType_Ready() above
-                PyErr_Restore(ty, v, tb);
+                PyErr_Restore(tp, v, tb);
             } else {
                 // PyType_Ready() succeeded, but gc.enable() failed.
-                Py_XDECREF(ty);
+                Py_XDECREF(tp);
                 Py_XDECREF(v);
                 Py_XDECREF(tb);
                 r = -1;
