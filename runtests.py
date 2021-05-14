@@ -711,6 +711,9 @@ class TestBuilder(object):
                 mode = 'pyregr'
 
             if ext == '.srctree':
+                if self.cython_only:
+                    # EndToEnd tests always execute arbitrary build and test code
+                    continue
                 if 'cpp' not in tags['tag'] or 'cpp' in self.languages:
                     suite.addTest(EndToEndTest(filepath, workdir,
                              self.cleanup_workdir, stats=self.stats,
