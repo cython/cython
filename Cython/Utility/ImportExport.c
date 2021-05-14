@@ -73,8 +73,8 @@ static PyObject *__Pyx__ImportDottedModule_Lookup(PyObject *name) {
 
 static PyObject *__Pyx__ImportDottedModule(PyObject *name, PyObject *parts_tuple) {
 #if PY_MAJOR_VERSION < 3
-    CYTHON_UNUSED_VAR(parts_tuple);
     PyObject *module, *from_list, *star = PYIDENT("*");
+    CYTHON_UNUSED_VAR(parts_tuple);
     from_list = PyList_New(1);
     if (unlikely(!from_list))
         return NULL;

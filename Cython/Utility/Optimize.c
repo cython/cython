@@ -228,8 +228,8 @@ static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *ke
 
 static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *default_value,
                                                        int is_safe_type) {
-    CYTHON_UNUSED_VAR(is_safe_type);
     PyObject* value;
+    CYTHON_UNUSED_VAR(is_safe_type);
 #if PY_VERSION_HEX >= 0x030400A0
     // we keep the method call at the end to avoid "unused" C compiler warnings
     if ((1)) {
@@ -1148,8 +1148,8 @@ def zerodiv_check(operand, optype='integer', _is_mod=op == 'Remainder', _needs_c
 
 static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, long intval, int inplace, int zerodivision_check) {
     CYTHON_UNUSED_VAR(intval);
-    // Prevent "unused" warnings.
-    (void)inplace; (void)zerodivision_check;
+    CYTHON_UNUSED_VAR(inplace);
+    CYTHON_UNUSED_VAR(zerodivision_check);
 
     {{if op in ('Eq', 'Ne')}}
     if (op1 == op2) {
