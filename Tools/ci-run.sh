@@ -84,9 +84,12 @@ fi
 ccache -s 2>/dev/null || true
 export PATH="/usr/lib/ccache:$PATH"
 
-if [ "$COVERAGE" != "1" -a -n "${PYTHON_VERSION##pypy*}" ]; then
+if [ "$NO_CYTHON_COMPILE" != "1" -a -n "${PYTHON_VERSION##pypy*}" ]; then
   CFLAGS="-O2 -ggdb -Wall -Wextra $(python -c 'import sys; print("-fno-strict-aliasing" if sys.version_info[0] == 2 else "")')" \
-      python setup.py build_ext -i $(python -c 'import sys; print("-j5" if sys.version_info >= (3,5) else "")') || exit 1
+  python setup.py build_ext -i \
+          $(if [ "$COVERAGE" == "1" ]; then echo " --cython-coverage"; fi) \
+          $(python -c 'import sys; print("-j5" if sys.version_info >= (3,5) else "")') \
+      || exit 1
 fi
 
 if [ "$TEST_CODE_STYLE" != "1" -a -n "${PYTHON_VERSION##pypy*}" ]; then

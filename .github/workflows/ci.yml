@@ -71,17 +71,18 @@ jobs:
           - os: ubuntu-18.04
             python-version: pypy-2.7
             backend: c
-            env: {}
+            env: { NO_CYTHON_COMPILE: 1 }
           - os: ubuntu-18.04
             python-version: pypy-3.7
             backend: c
-            env: {}
+            env: { NO_CYTHON_COMPILE: 1 }
           # Pypy [allowed-failures] - These specifically test known bugs
           - os: ubuntu-18.04
             python-version: pypy-2.7
             backend: c
             env:
               {
+                NO_CYTHON_COMPILE: 1,
                 EXCLUDE: "--listfile=tests/pypy_bugs.txt --listfile=tests/pypy2_bugs.txt bugs",
               }
             allowed_failure: true
@@ -89,7 +90,7 @@ jobs:
           - os: ubuntu-18.04
             python-version: pypy-3.7
             backend: c
-            env: { EXCLUDE: "--listfile=tests/pypy_bugs.txt bugs" }
+            env: { NO_CYTHON_COMPILE: 1, EXCLUDE: "--listfile=tests/pypy_bugs.txt bugs" }
             allowed_failure: true
             extra_hash: "-allowed_failures"
           # Coverage - Disabled due to taking too long to run
@@ -149,10 +150,36 @@ jobs:
         run: bash ./Tools/ci-run.sh
         
 
-  code_quality:
-    strategy:
-      # Allows for matrix sub-jobs to fail without canceling the rest
-      fail-fast: false
+  pycoverage:
+    runs-on: ubuntu-18.04
+
+    env:
+      BACKEND: c,cpp
+      OS_NAME: ubuntu-18.04
+      PYTHON_VERSION: 3.9
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+
+      - name: Setup python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+
+      - name: Run Coverage
+        env: { COVERAGE: 1, NO_CYTHON_COMPILE: 1 }
+        run: bash ./Tools/ci-run.sh
+        
+      - name: Upload Coverage Report
+        uses: actions/upload-artifact@v2
+        with:
+          name: pycoverage_html
+          path: coverage-report-html
+        
+  cycoverage:
     runs-on: ubuntu-18.04
 
     env:
@@ -174,9 +201,9 @@ jobs:
       - name: Run Coverage
         env: { COVERAGE: 1 }
         run: bash ./Tools/ci-run.sh
-        
+
       - name: Upload Coverage Report
         uses: actions/upload-artifact@v2
         with:
-          path: coverage-report-html  
-        
+          name: cycoverage_html
+          path: coverage-report-html
