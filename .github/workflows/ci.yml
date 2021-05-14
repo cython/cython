@@ -147,3 +147,36 @@ jobs:
         continue-on-error: ${{ matrix.allowed_failure || false }}
         env: ${{ matrix.env }}
         run: bash ./Tools/ci-run.sh
+        
+
+  code_quality:
+    strategy:
+      # Allows for matrix sub-jobs to fail without canceling the rest
+      fail-fast: false
+    runs-on: ubuntu-18.04
+
+    env:
+      BACKEND: c,cpp
+      OS_NAME: ubuntu-18.04
+      PYTHON_VERSION: 3.9
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+
+      - name: Setup python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+
+      - name: Run Coverage
+        env: { COVERAGE: 1 }
+        run: bash ./Tools/ci-run.sh
+        
+      - name: Upload Coverage Report
+        uses: actions/upload-artifact@v2
+        with:
+          path: coverage-report-html  
+        
