@@ -298,7 +298,7 @@ static int __Pyx_TraceSetupAndCall(PyCodeObject** code,
     tstate->tracing--;
     if (retval) {
         __Pyx_ErrRestoreInState(tstate, type, value, traceback);
-        return tstate->use_tracing && retval;
+        return __Pyx_IsTracing(tstate, 0, 0) && retval;
     } else {
         Py_XDECREF(type);
         Py_XDECREF(value);
