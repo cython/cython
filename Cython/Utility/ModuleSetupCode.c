@@ -1781,8 +1781,7 @@ static void __Pyx_FastGilFuncInit0(void) {
 #else
 
 static void __Pyx_FastGilFuncInit0(void) {
-  void* force_use = (void*)&__Pyx_FetchCommonPointer;
-  CYTHON_UNUSED_VAR(force_use);
+  CYTHON_UNUSED_VAR(&__Pyx_FetchCommonPointer);
 }
 
 #endif

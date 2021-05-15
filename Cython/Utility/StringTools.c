@@ -952,8 +952,8 @@ bad:
 #else
     // non-CPython fallback
     CYTHON_UNUSED_VAR(max_char);
-    result_ulength++;
-    value_count++;
+    CYTHON_UNUSED_VAR(result_ulength);
+    CYTHON_UNUSED_VAR(value_count);
     return PyUnicode_Join($empty_unicode, value_tuple);
 #endif
 }
