@@ -9936,8 +9936,6 @@ class YieldExprNode(ExprNode):
         for cname, save_cname, type in saved:
             save_cname = "%s->%s" % (Naming.cur_scope_cname, save_cname)
             if type.is_cpp_class:
-                code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("MoveIfSupported", "CppSupport.cpp"))
                 save_cname = "__PYX_STD_MOVE_IF_SUPPORTED(%s)" % save_cname
             code.putln('%s = %s;' % (cname, save_cname))
             if type.is_pyobject:
