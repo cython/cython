@@ -57,18 +57,18 @@
 
 #if PY_VERSION_HEX >= 0x030a00b1
   #define __Pyx_IsTracing(tstate, check_tracing, check_funcs) \
-     (unlikely(tstate->cframe->use_tracing) && \
-         (!(check_tracing) || !tstate->tracing) && \
-         (!(check_funcs) || tstate->c_profilefunc || (CYTHON_TRACE && tstate->c_tracefunc)))
+     (unlikely((tstate)->cframe->use_tracing) && \
+         (!(check_tracing) || !(tstate)->tracing) && \
+         (!(check_funcs) || (tstate)->c_profilefunc || (CYTHON_TRACE && (tstate)->c_tracefunc)))
 
   #define __Pyx_SetTracing(tstate, enable) \
       (tstate)->cframe->use_tracing = (enable)
 
 #else
   #define __Pyx_IsTracing(tstate, check_tracing, check_funcs) \
-     (unlikely(tstate->use_tracing) && \
-         (!(check_tracing) || !tstate->tracing) && \
-         (!(check_funcs) || tstate->c_profilefunc || (CYTHON_TRACE && tstate->c_tracefunc)))
+     (unlikely((tstate)->use_tracing) && \
+         (!(check_tracing) || !(tstate)->tracing) && \
+         (!(check_funcs) || (tstate)->c_profilefunc || (CYTHON_TRACE && (tstate)->c_tracefunc)))
 
   #define __Pyx_SetTracing(tstate, enable) \
       (tstate)->use_tracing = (enable)
