@@ -8158,9 +8158,9 @@ class TryFinallyStatNode(StatNode):
 
         # not using preprocessor here to avoid warnings about
         # unused utility functions and/or temps
-        code.putln("if (PY_MAJOR_VERSION >= 3)"
+        code.putln("if (__PYX_CONST_CONDITION(PY_MAJOR_VERSION >= 3))"
                    " __Pyx_ExceptionSwap(&%s, &%s, &%s);" % exc_vars[3:])
-        code.putln("if ((PY_MAJOR_VERSION < 3) ||"
+        code.putln("if (__PYX_CONST_CONDITION(PY_MAJOR_VERSION < 3) ||"
                    # if __Pyx_GetException() fails in Py3,
                    # store the newly raised exception instead
                    " unlikely(__Pyx_GetException(&%s, &%s, &%s) < 0)) "
@@ -8185,7 +8185,7 @@ class TryFinallyStatNode(StatNode):
 
         # not using preprocessor here to avoid warnings about
         # unused utility functions and/or temps
-        code.putln("if (PY_MAJOR_VERSION >= 3) {")
+        code.putln("if (__PYX_CONST_CONDITION(PY_MAJOR_VERSION >= 3)) {")
         for var in exc_vars[3:]:
             code.put_xgiveref(var, py_object_type)
         code.putln("__Pyx_ExceptionReset(%s, %s, %s);" % exc_vars[3:])
@@ -8211,7 +8211,7 @@ class TryFinallyStatNode(StatNode):
 
         # not using preprocessor here to avoid warnings about
         # unused utility functions and/or temps
-        code.putln("if (PY_MAJOR_VERSION >= 3) {")
+        code.putln("if (__PYX_CONST_CONDITION(PY_MAJOR_VERSION >= 3)) {")
         for var in exc_vars[3:]:
             code.put_xgiveref(var, py_object_type)
         code.putln("__Pyx_ExceptionReset(%s, %s, %s);" % exc_vars[3:])

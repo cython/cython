@@ -397,7 +397,7 @@ static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject* b) {
   PyObject *x;
 #if PY_MAJOR_VERSION < 3
   if (likely(PyInt_CheckExact(b))) {
-    if (sizeof(Py_ssize_t) >= sizeof(long))
+    if (__PYX_CONST_CONDITION(sizeof(Py_ssize_t) >= sizeof(long)))
         return PyInt_AS_LONG(b);
     else
         return PyInt_AsSsize_t(b);
@@ -417,7 +417,7 @@ static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject* b) {
          {{for _size in (2, 3, 4)}}
          {{for _case in (_size, -_size)}}
          case {{_case}}:
-           if (8 * sizeof(Py_ssize_t) > {{_size}} * PyLong_SHIFT) {
+           if (__PYX_CONST_CONDITION(8 * sizeof(Py_ssize_t) > {{_size}} * PyLong_SHIFT)) {
              return {{'-' if _case < 0 else ''}}(Py_ssize_t) {{pylong_join(_size, 'digits', 'size_t')}};
            }
            break;
@@ -437,7 +437,7 @@ static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject* b) {
 
 
 static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject* o) {
-  if (sizeof(Py_hash_t) == sizeof(Py_ssize_t)) {
+  if (__PYX_CONST_CONDITION(sizeof(Py_hash_t) == sizeof(Py_ssize_t))) {
     return (Py_hash_t) __Pyx_PyIndex_AsSsize_t(o);
 #if PY_MAJOR_VERSION < 3
   } else if (likely(PyInt_CheckExact(o))) {
@@ -724,20 +724,20 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
 #endif
     const int is_unsigned = neg_one > const_zero;
     if (is_unsigned) {
-        if (sizeof({{TYPE}}) < sizeof(long)) {
+        if (__PYX_CONST_CONDITION(sizeof({{TYPE}}) < sizeof(long))) {
             return PyInt_FromLong((long) value);
-        } else if (sizeof({{TYPE}}) <= sizeof(unsigned long)) {
+        } else if (__PYX_CONST_CONDITION(sizeof({{TYPE}}) <= sizeof(unsigned long))) {
             return PyLong_FromUnsignedLong((unsigned long) value);
 #ifdef HAVE_LONG_LONG
-        } else if (sizeof({{TYPE}}) <= sizeof(unsigned PY_LONG_LONG)) {
+        } else if (__PYX_CONST_CONDITION(sizeof({{TYPE}}) <= sizeof(unsigned PY_LONG_LONG))) {
             return PyLong_FromUnsignedLongLong((unsigned PY_LONG_LONG) value);
 #endif
         }
     } else {
-        if (sizeof({{TYPE}}) <= sizeof(long)) {
+        if (__PYX_CONST_CONDITION(sizeof({{TYPE}}) <= sizeof(long))) {
             return PyInt_FromLong((long) value);
 #ifdef HAVE_LONG_LONG
-        } else if (sizeof({{TYPE}}) <= sizeof(PY_LONG_LONG)) {
+        } else if (__PYX_CONST_CONDITION(sizeof({{TYPE}}) <= sizeof(PY_LONG_LONG))) {
             return PyLong_FromLongLong((PY_LONG_LONG) value);
 #endif
         }
@@ -914,12 +914,12 @@ static CYTHON_INLINE PyObject* __Pyx_PyInt_FromDouble(double value) {
 #define __PYX__VERIFY_RETURN_INT(target_type, func_type, func_value, exc) \
     {                                                                     \
         func_type value = func_value;                                     \
-        if (sizeof(target_type) < sizeof(func_type)) {                    \
-            if (unlikely(value != (func_type) (target_type) value)) {     \
-                func_type zero = 0;                                       \
-                if (exc && unlikely(value == (func_type)-1 && PyErr_Occurred()))  \
+        if (__PYX_CONST_CONDITION(sizeof(target_type) < sizeof(func_type))) {  \
+            if (unlikely(__PYX_CONST_CONDITION(value != (func_type) (target_type) value))) { \
+                func_type zero = 0;\
+                if (__PYX_CONST_CONDITION(exc) && unlikely(value == (func_type)-1 && PyErr_Occurred()))  \
                     return (target_type) -1;                              \
-                if (is_unsigned && unlikely(value < zero))                \
+                if (__PYX_CONST_CONDITION(is_unsigned && unlikely(value < zero))) \
                     goto raise_neg_overflow;                              \
                 else                                                      \
                     goto raise_overflow;                                  \
@@ -951,7 +951,7 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
     const int is_unsigned = neg_one > const_zero;
 #if PY_MAJOR_VERSION < 3
     if (likely(PyInt_Check(x))) {
-        if ((sizeof({{TYPE}}) < sizeof(long))) {
+        if (__PYX_CONST_CONDITION(sizeof({{TYPE}}) < sizeof(long))) {
             __PYX_VERIFY_RETURN_INT({{TYPE}}, long, PyInt_AS_LONG(x))
         } else {
             long val = PyInt_AS_LONG(x);
@@ -971,10 +971,10 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
                 case  1: __PYX_VERIFY_RETURN_INT({{TYPE}}, digit, digits[0])
                 {{for _size in (2, 3, 4)}}
                 case {{_size}}:
-                    if ((8 * sizeof({{TYPE}}) > {{_size-1}} * PyLong_SHIFT)) {
-                        if ((8 * sizeof(unsigned long) > {{_size}} * PyLong_SHIFT)) {
+                    if (__PYX_CONST_CONDITION(8 * sizeof({{TYPE}}) > {{_size-1}} * PyLong_SHIFT)) {
+                        if (__PYX_CONST_CONDITION(8 * sizeof(unsigned long) > {{_size}} * PyLong_SHIFT)) {
                             __PYX_VERIFY_RETURN_INT({{TYPE}}, unsigned long, {{pylong_join(_size, 'digits')}})
-                        } else if ((8 * sizeof({{TYPE}}) >= {{_size}} * PyLong_SHIFT)) {
+                        } else if (__PYX_CONST_CONDITION(8 * sizeof({{TYPE}}) >= {{_size}} * PyLong_SHIFT)) {
                             return ({{TYPE}}) {{pylong_join(_size, 'digits', TYPE)}};
                         }
                     }
@@ -996,10 +996,10 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
                     goto raise_neg_overflow;
             }
 #endif
-            if ((sizeof({{TYPE}}) <= sizeof(unsigned long))) {
+            if (__PYX_CONST_CONDITION(sizeof({{TYPE}}) <= sizeof(unsigned long))) {
                 __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, unsigned long, PyLong_AsUnsignedLong(x))
 #ifdef HAVE_LONG_LONG
-            } else if ((sizeof({{TYPE}}) <= sizeof(unsigned PY_LONG_LONG))) {
+            } else if (__PYX_CONST_CONDITION(sizeof({{TYPE}}) <= sizeof(unsigned PY_LONG_LONG))) {
                 __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, unsigned PY_LONG_LONG, PyLong_AsUnsignedLongLong(x))
 #endif
             }
@@ -1014,10 +1014,10 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
                 {{for _size in (2, 3, 4)}}
                 {{for _case in (-_size, _size)}}
                 case {{_case}}:
-                    if ((8 * sizeof({{TYPE}}){{' - 1' if _case < 0 else ''}} > {{_size-1}} * PyLong_SHIFT)) {
-                        if ((8 * sizeof(unsigned long) > {{_size}} * PyLong_SHIFT)) {
+                    if (__PYX_CONST_CONDITION(8 * sizeof({{TYPE}}){{' - 1' if _case < 0 else ''}} > {{_size-1}} * PyLong_SHIFT)) {
+                        if (__PYX_CONST_CONDITION(8 * sizeof(unsigned long) > {{_size}} * PyLong_SHIFT)) {
                             __PYX_VERIFY_RETURN_INT({{TYPE}}, {{'long' if _case < 0 else 'unsigned long'}}, {{'-(long) ' if _case < 0 else ''}}{{pylong_join(_size, 'digits')}})
-                        } else if ((8 * sizeof({{TYPE}}) - 1 > {{_size}} * PyLong_SHIFT)) {
+                        } else if (__PYX_CONST_CONDITION(8 * sizeof({{TYPE}}) - 1 > {{_size}} * PyLong_SHIFT)) {
                             return ({{TYPE}}) ({{'((%s)-1)*' % TYPE if _case < 0 else ''}}{{pylong_join(_size, 'digits', TYPE)}});
                         }
                     }
@@ -1026,10 +1026,10 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
                 {{endfor}}
             }
 #endif
-            if ((sizeof({{TYPE}}) <= sizeof(long))) {
+            if (__PYX_CONST_CONDITION(sizeof({{TYPE}}) <= sizeof(long))) {
                 __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, long, PyLong_AsLong(x))
 #ifdef HAVE_LONG_LONG
-            } else if ((sizeof({{TYPE}}) <= sizeof(PY_LONG_LONG))) {
+            } else if (__PYX_CONST_CONDITION(sizeof({{TYPE}}) <= sizeof(PY_LONG_LONG))) {
                 __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, PY_LONG_LONG, PyLong_AsLongLong(x))
 #endif
             }

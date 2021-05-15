@@ -307,6 +307,12 @@
   #define __has_cpp_attribute(x) 0
 #endif
 
+/* This macro can be used to suppress warnings about constant conditional expressions */
+#ifndef __PYX_CONST_CONDITION
+  static int __Pyx_const_condition(int b) { return b; }
+  #define __PYX_CONST_CONDITION(CONDITION) __Pyx_const_condition((int)(CONDITION))
+#endif
+
 // restrict
 #ifndef CYTHON_RESTRICT
   #if defined(__GNUC__)

@@ -1453,7 +1453,7 @@ class BuiltinObjectType(PyObjectType):
         if not notnone:
             check += '||((%s) == Py_None)' % arg
         if self.name == 'basestring':
-            name = '(PY_MAJOR_VERSION < 3 ? "basestring" : "str")'
+            name = '(__PYX_CONST_CONDITION(PY_MAJOR_VERSION < 3) ? "basestring" : "str")'
         else:
             name = '"%s"' % self.name
         return check + ' || __Pyx_RaiseUnexpectedTypeError(%s, %s)' % (name, arg)

@@ -323,7 +323,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_Keys(PyObject* d); /*proto*/
 //////////////////// py_dict_keys ////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_Keys(PyObject* d) {
-    if (PY_MAJOR_VERSION >= 3)
+    if (__PYX_CONST_CONDITION(PY_MAJOR_VERSION >= 3))
         return CALL_UNBOUND_METHOD(PyDict_Type, "keys", d);
     else
         return PyDict_Keys(d);
@@ -336,7 +336,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_Values(PyObject* d); /*proto*/
 //////////////////// py_dict_values ////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_Values(PyObject* d) {
-    if (PY_MAJOR_VERSION >= 3)
+    if (__PYX_CONST_CONDITION(PY_MAJOR_VERSION >= 3))
         return CALL_UNBOUND_METHOD(PyDict_Type, "values", d);
     else
         return PyDict_Values(d);
@@ -349,7 +349,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_Items(PyObject* d); /*proto*/
 //////////////////// py_dict_items ////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_Items(PyObject* d) {
-    if (PY_MAJOR_VERSION >= 3)
+    if (__PYX_CONST_CONDITION(PY_MAJOR_VERSION >= 3))
         return CALL_UNBOUND_METHOD(PyDict_Type, "items", d);
     else
         return PyDict_Items(d);
@@ -362,7 +362,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_IterKeys(PyObject* d); /*proto*/
 //////////////////// py_dict_iterkeys ////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_IterKeys(PyObject* d) {
-    if (PY_MAJOR_VERSION >= 3)
+    if (__PYX_CONST_CONDITION(PY_MAJOR_VERSION >= 3))
         return CALL_UNBOUND_METHOD(PyDict_Type, "keys", d);
     else
         return CALL_UNBOUND_METHOD(PyDict_Type, "iterkeys", d);
@@ -375,7 +375,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_IterValues(PyObject* d); /*proto*/
 //////////////////// py_dict_itervalues ////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_IterValues(PyObject* d) {
-    if (PY_MAJOR_VERSION >= 3)
+    if (__PYX_CONST_CONDITION(PY_MAJOR_VERSION >= 3))
         return CALL_UNBOUND_METHOD(PyDict_Type, "values", d);
     else
         return CALL_UNBOUND_METHOD(PyDict_Type, "itervalues", d);
@@ -388,7 +388,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_IterItems(PyObject* d); /*proto*/
 //////////////////// py_dict_iteritems ////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_IterItems(PyObject* d) {
-    if (PY_MAJOR_VERSION >= 3)
+    if (__PYX_CONST_CONDITION(PY_MAJOR_VERSION >= 3))
         return CALL_UNBOUND_METHOD(PyDict_Type, "items", d);
     else
         return CALL_UNBOUND_METHOD(PyDict_Type, "iteritems", d);
@@ -401,7 +401,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewKeys(PyObject* d); /*proto*/
 //////////////////// py_dict_viewkeys ////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewKeys(PyObject* d) {
-    if (PY_MAJOR_VERSION >= 3)
+    if (__PYX_CONST_CONDITION(PY_MAJOR_VERSION >= 3))
         return CALL_UNBOUND_METHOD(PyDict_Type, "keys", d);
     else
         return CALL_UNBOUND_METHOD(PyDict_Type, "viewkeys", d);
@@ -414,7 +414,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewValues(PyObject* d); /*proto*/
 //////////////////// py_dict_viewvalues ////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewValues(PyObject* d) {
-    if (PY_MAJOR_VERSION >= 3)
+    if (__PYX_CONST_CONDITION(PY_MAJOR_VERSION >= 3))
         return CALL_UNBOUND_METHOD(PyDict_Type, "values", d);
     else
         return CALL_UNBOUND_METHOD(PyDict_Type, "viewvalues", d);
@@ -427,7 +427,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewItems(PyObject* d); /*proto*/
 //////////////////// py_dict_viewitems ////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewItems(PyObject* d) {
-    if (PY_MAJOR_VERSION >= 3)
+    if (__PYX_CONST_CONDITION(PY_MAJOR_VERSION >= 3))
         return CALL_UNBOUND_METHOD(PyDict_Type, "items", d);
     else
         return CALL_UNBOUND_METHOD(PyDict_Type, "viewitems", d);
@@ -461,7 +461,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it) {
         result = PyFrozenSet_New(it);
         if (unlikely(!result))
             return NULL;
-        if ((PY_VERSION_HEX >= 0x031000A1) || likely(PySet_GET_SIZE(result)))
+        if (__PYX_CONST_CONDITION(PY_VERSION_HEX >= 0x031000A1) || likely(PySet_GET_SIZE(result)))
             return result;
         // empty frozenset is a singleton (on Python <3.10)
         // seems wasteful, but CPython does the same
