@@ -3478,7 +3478,7 @@ class DefNodeWrapper(FuncDefNode):
         if self.signature.has_dummy_arg:
             args.append(Naming.self_cname)
         for arg in self.args:
-            if arg.hdr_type and arg.type.is_cpp_class:
+            if arg.type.is_cpp_class:
                 # it's safe to move converted C++ types because they aren't
                 # used again afterwards
                 code.globalstate.use_utility_code(
