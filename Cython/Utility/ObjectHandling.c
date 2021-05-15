@@ -648,7 +648,7 @@ static CYTHON_INLINE int __Pyx_PyObject_SetSlice(PyObject* obj, PyObject* value,
 {{endif}}
         Py_ssize_t cstart, Py_ssize_t cstop,
         PyObject** _py_start, PyObject** _py_stop, PyObject** _py_slice,
-        int has_cstart, int has_cstop, CYTHON_UNUSED int wraparound) {
+        int has_cstart, int has_cstop, int wraparound) {
     __Pyx_TypeName obj_type_name;
 #if CYTHON_USE_TYPE_SLOTS
     PyMappingMethods* mp;
@@ -693,6 +693,8 @@ static CYTHON_INLINE int __Pyx_PyObject_SetSlice(PyObject* obj, PyObject* value,
         return ms->sq_ass_slice(obj, cstart, cstop, value);
 {{endif}}
     }
+#else
+    CYTHON_UNUSED_VAR(wraparound);
 #endif
 
     mp = Py_TYPE(obj)->tp_as_mapping;
@@ -701,6 +703,8 @@ static CYTHON_INLINE int __Pyx_PyObject_SetSlice(PyObject* obj, PyObject* value,
 {{else}}
     if (likely(mp && mp->mp_ass_subscript))
 {{endif}}
+#else
+    CYTHON_UNUSED_VAR(wraparound);
 #endif
     {
         {{if access == 'Get'}}PyObject*{{else}}int{{endif}} result;
@@ -2865,7 +2869,8 @@ static CYTHON_INLINE int __Pyx_object_dict_version_matches(PyObject* obj, PY_UIN
 #if PY_MAJOR_VERSION >= 3
 // This should be an actual function (not a macro), such that we can put it
 // directly in a tp_descr_get slot.
-static PyObject *__Pyx_PyMethod_New(PyObject *func, PyObject *self, CYTHON_UNUSED PyObject *typ) {
+static PyObject *__Pyx_PyMethod_New(PyObject *func, PyObject *self, PyObject *typ) {
+    CYTHON_UNUSED_VAR(typ);
     if (!self)
         return __Pyx_NewRef(func);
     return PyMethod_New(func, self);
