@@ -5,7 +5,10 @@ from __future__ import absolute_import
 import os
 import shutil
 import tempfile
-from distutils.core import setup
+try:
+    from setuptools import setup
+except ImportError:
+    from distutils.core import setup
 
 from .Dependencies import cythonize, extended_iglob
 from ..Utils import is_package_dir
