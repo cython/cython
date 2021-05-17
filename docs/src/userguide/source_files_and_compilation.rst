@@ -819,11 +819,18 @@ Cython code.  Here is the list of currently supported directives:
     False.
 
 ``always_allow_keywords`` (True / False)
-    Avoid the ``METH_NOARGS`` and ``METH_O`` when constructing
-    functions/methods which take zero or one arguments. Has no effect
-    on special methods and functions with more than one argument. The
-    ``METH_NOARGS`` and ``METH_O`` signatures provide faster
+    When disabled, uses the ``METH_NOARGS`` and ``METH_O`` signatures when
+    constructing functions/methods which take zero or one arguments. Has no
+    effect on special methods and functions with more than one argument. The
+    ``METH_NOARGS`` and ``METH_O`` signatures provide slightly faster
     calling conventions but disallow the use of keywords.
+
+``c_api_binop_methods`` (True / False)
+    When enabled, makes the special binary operator methods (``__add__``, etc.)
+    behave according to the low-level C-API slot semantics, i.e. only a single
+    method implements both the normal and reversed operator.  This used to be
+    the default in Cython 0.x and was now replaced by Python semantics, i.e. the
+    default in Cython 3.x and later is ``False``.
 
 ``profile`` (True / False)
     Write hooks for Python profilers into the compiled C code.  Default

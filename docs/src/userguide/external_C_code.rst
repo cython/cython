@@ -223,6 +223,38 @@ See also use of :ref:`external_extension_types`.
 Note that in all the cases below, you refer to the type in Cython code simply
 as :c:type:`Foo`, not ``struct Foo``.
 
+Pointers
+--------
+When interacting with a C-api there may be functions that require pointers as arguments.
+Pointers are variables that contain a memory address to another variable.
+
+For example::
+
+    cdef extern from "<my_lib.h>":
+        cdef void increase_by_one(int *my_var)
+
+This function takes a pointer to an integer as argument.  Knowing the address of the
+integer allows the function to modify the value in place, so that the caller can see
+the changes afterwards.  In order to get the address from an existing variable,
+use the ``&`` operator::
+
+    cdef int some_int = 42
+    cdef int *some_int_pointer = &some_int
+    increase_by_one(some_int_pointer)
+    # Or without creating the extra variable
+    increase_by_one(&some_int)
+    print(some_int)  # prints 44 (== 42+1+1)
+
+If you want to manipulate the variable the pointer points to, you can access it by
+referencing its first element like you would in python ``my_pointer[0]``. For example::
+
+    cdef void increase_by_one(int *my_var):
+        my_var[0] += 1
+
+For a deeper introduction to pointers, you can read `this tutorial at tutorialspoint
+<https://www.tutorialspoint.com/cprogramming/c_pointers.htm>`_. For differences between
+Cython and C syntax for manipulating pointers, see :ref:`statements_and_expressions`.
+
 Accessing Python/C API routines
 ---------------------------------
 
@@ -335,7 +367,7 @@ Including verbatim C code
 For advanced use cases, Cython allows you to directly write C code
 as "docstring" of a ``cdef extern from`` block:
 
-.. literalinclude:: ../../examples/userguide/external_C_code/c_code_docstring.pyx
+.. literalinclude:: ../../examples/userguide/external_C_code/verbatim_c_code.pyx
 
 The above is essentially equivalent to having the C code in a file
 ``header.h`` and writing ::
@@ -343,6 +375,11 @@ The above is essentially equivalent to having the C code in a file
     cdef extern from "header.h":
         long square(long x)
         void assign(long& x, long y)
+
+This feature is commonly used for platform specific adaptations at
+compile time, for example:
+
+.. literalinclude:: ../../examples/userguide/external_C_code/platform_adaptation.pyx
 
 It is also possible to combine a header file and verbatim C code::
 

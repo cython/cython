@@ -25,8 +25,7 @@ static PyObject *__Pyx__ImportDottedModule_Error(PyObject *name, PyObject *parts
     if (likely(PyTuple_GET_SIZE(parts_tuple) == count)) {
         partial_name = name;
     } else {
-        PyObject *sep;
-        PyObject *slice = PySequence_GetSlice(parts_tuple, 0, count);
+        slice = PySequence_GetSlice(parts_tuple, 0, count);
         if (unlikely(!slice))
             goto bad;
         sep = PyUnicode_FromStringAndSize(".", 1);
@@ -59,7 +58,7 @@ bad:
 #if PY_MAJOR_VERSION >= 3
 static PyObject *__Pyx__ImportDottedModule_Lookup(PyObject *name) {
     PyObject *imported_module;
-#if PY_VERSION_HEX < 0x030700A1
+#if PY_VERSION_HEX < 0x030700A1 || (CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM  < 0x07030400)
     PyObject *modules = PyImport_GetModuleDict();
     if (unlikely(!modules))
         return NULL;
@@ -72,9 +71,10 @@ static PyObject *__Pyx__ImportDottedModule_Lookup(PyObject *name) {
 }
 #endif
 
-static PyObject *__Pyx__ImportDottedModule(PyObject *name, CYTHON_UNUSED PyObject *parts_tuple) {
+static PyObject *__Pyx__ImportDottedModule(PyObject *name, PyObject *parts_tuple) {
 #if PY_MAJOR_VERSION < 3
     PyObject *module, *from_list, *star = PYIDENT("*");
+    CYTHON_UNUSED_VAR(parts_tuple);
     from_list = PyList_New(1);
     if (unlikely(!from_list))
         return NULL;
@@ -296,11 +296,12 @@ __Pyx_import_all_from(PyObject *locals, PyObject *v)
         }
         if (skip_leading_underscores &&
 #if PY_MAJOR_VERSION < 3
-            PyString_Check(name) &&
+            likely(PyString_Check(name)) &&
             PyString_AS_STRING(name)[0] == '_')
 #else
-            PyUnicode_Check(name) &&
-            PyUnicode_AS_UNICODE(name)[0] == '_')
+            likely(PyUnicode_Check(name)) &&
+            likely(__Pyx_PyUnicode_GET_LENGTH(name)) &&
+            __Pyx_PyUnicode_READ_CHAR(name, 0) == '_')
 #endif
         {
             Py_DECREF(name);
@@ -748,13 +749,19 @@ bad:
 /////////////// MergeVTables.proto ///////////////
 //@requires: GetVTable
 
+// TODO: find a way to make this work with the Limited API!
+#if !CYTHON_COMPILING_IN_LIMITED_API
 static int __Pyx_MergeVtables(PyTypeObject *type); /*proto*/
+#endif
 
 /////////////// MergeVTables ///////////////
 
+#if !CYTHON_COMPILING_IN_LIMITED_API
 static int __Pyx_MergeVtables(PyTypeObject *type) {
     int i;
     void** base_vtables;
+    __Pyx_TypeName tp_base_name;
+    __Pyx_TypeName base_name;
     void* unknown = (void*)-1;
     PyObject* bases = type->tp_bases;
     int base_depth = 0;
@@ -797,13 +804,16 @@ static int __Pyx_MergeVtables(PyTypeObject *type) {
     free(base_vtables);
     return 0;
 bad:
-    PyErr_Format(
-        PyExc_TypeError,
-        "multiple bases have vtable conflict: '%s' and '%s'",
-        type->tp_base->tp_name, ((PyTypeObject*)PyTuple_GET_ITEM(bases, i))->tp_name);
+    tp_base_name = __Pyx_PyType_GetName(type->tp_base);
+    base_name = __Pyx_PyType_GetName((PyTypeObject*)PyTuple_GET_ITEM(bases, i));
+    PyErr_Format(PyExc_TypeError,
+        "multiple bases have vtable conflict: '" __Pyx_FMT_TYPENAME "' and '" __Pyx_FMT_TYPENAME "'", tp_base_name, base_name);
+    __Pyx_DECREF_TypeName(tp_base_name);
+    __Pyx_DECREF_TypeName(base_name);
     free(base_vtables);
     return -1;
 }
+#endif
 
 
 /////////////// ImportNumPyArray.proto ///////////////

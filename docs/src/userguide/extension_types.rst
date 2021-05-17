@@ -11,7 +11,7 @@ Introduction
 
 As well as creating normal user-defined classes with the Python class
 statement, Cython also lets you create new built-in Python types, known as
-extension types. You define an extension type using the :keyword:`cdef` class
+:term:`extension types<Extension type>`. You define an extension type using the :keyword:`cdef` class
 statement.  Here's an example:
 
 .. literalinclude:: ../../examples/userguide/extension_types/shrubbery.pyx
@@ -669,6 +669,8 @@ objects from memory. Clearing is implemented in the ``tp_clear`` slot.
 As we just explained, it is sufficient that one object in the cycle
 implements ``tp_clear``.
 
+.. _trashcan:
+
 Enabling the deallocation trashcan
 ----------------------------------
 
@@ -897,8 +899,7 @@ write ``dtype.itemsize`` in Cython code which will be compiled into direct
 access of the C struct field, without going through a C-API equivalent of
 ``dtype.__getattr__('itemsize')``.
 
-For example we may have an extension
-module ``foo_extension``::
+For example, we may have an extension module ``foo_extension``::
 
     cdef class Foo:
         cdef public int field0, field1, field2;
@@ -959,6 +960,19 @@ the FooStructNominal fields. This is useful when directly processing Python
 code. No changes to Python need be made to achieve significant speedups, even
 though the field names in Python and C are different. Of course, one should
 make sure the fields are equivalent.
+
+C inline properties
+-------------------
+
+Similar to Python property attributes, Cython provides a way to declare C-level
+properties on external extension types.  This is often used to shadow Python
+attributes through faster C level data access, but can also be used to add certain
+functionality to existing types when using them from Cython. The declarations
+must use `cdef inline`.
+
+For example, the above ``complex`` type could also be declared like this:
+
+.. literalinclude:: ../../examples/userguide/extension_types/c_property.pyx
 
 Implicit importing
 ------------------

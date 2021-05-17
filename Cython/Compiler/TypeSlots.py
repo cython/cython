@@ -221,13 +221,14 @@ class SlotDescriptor(object):
     #  ifdef                         Full #ifdef string that slot is wrapped in. Using this causes py3, py2 and flags to be ignored.)
 
     def __init__(self, slot_name, dynamic=False, inherited=False,
-                 py3=True, py2=True, ifdef=None):
+                 py3=True, py2=True, ifdef=None, is_binop=False):
         self.slot_name = slot_name
         self.is_initialised_dynamically = dynamic
         self.is_inherited = inherited
         self.ifdef = ifdef
         self.py3 = py3
         self.py2 = py2
+        self.is_binop = is_binop
 
     def slot_code(self, scope):
         raise NotImplemented()
@@ -431,7 +432,7 @@ class ConstructorSlot(InternalMethodSlot):
         if (scope.parent_type.base_type
                 and not scope.has_pyobject_attrs
                 and not scope.has_memoryview_attrs
-                and not scope.has_cpp_class_attrs
+                and not scope.has_cpp_constructable_attrs
                 and not (self.slot_name == 'tp_new' and scope.parent_type.vtabslot_cname)):
             entry = scope.lookup_here(self.method) if self.method else None
             if not (entry and entry.is_special):
@@ -500,6 +501,17 @@ class SyntheticSlot(InternalMethodSlot):
         if self.slot_name == "tp_getattro" and not scope.defines_any_special(self.user_methods):
             return "PyObject_GenericGetAttr"
         return self.slot_code(scope)
+
+
+class BinopSlot(SyntheticSlot):
+    def __init__(self, signature, slot_name, left_method, **kargs):
+        assert left_method.startswith('__')
+        right_method = '__r' + left_method[2:]
+        SyntheticSlot.__init__(
+                self, slot_name, [left_method, right_method], "0", is_binop=True, **kargs)
+        # MethodSlot causes special method registration.
+        self.left_slot = MethodSlot(signature, "", left_method)
+        self.right_slot = MethodSlot(signature, "", right_method)
 
 
 class RichcmpSlot(MethodSlot):
@@ -776,7 +788,7 @@ ssizessizeargfunc = Signature("Tzz", "O")  # typedef PyObject *(*ssizessizeargfu
 intobjargproc = Signature("TiO", 'r')      # typedef int(*intobjargproc)(PyObject *, int, PyObject *);
 ssizeobjargproc = Signature("TzO", 'r')    # typedef int(*ssizeobjargproc)(PyObject *, Py_ssize_t, PyObject *);
 intintobjargproc = Signature("TiiO", 'r')  # typedef int(*intintobjargproc)(PyObject *, int, int, PyObject *);
-ssizessizeobjargproc = Signature("TzzO", 'r') # typedef int(*ssizessizeobjargproc)(PyObject *, Py_ssize_t, Py_ssize_t, PyObject *);
+ssizessizeobjargproc = Signature("TzzO", 'r')  # typedef int(*ssizessizeobjargproc)(PyObject *, Py_ssize_t, Py_ssize_t, PyObject *);
 
 intintargproc = Signature("Tii", 'r')
 ssizessizeargproc = Signature("Tzz", 'r')
@@ -836,23 +848,23 @@ property_accessor_signatures = {
 PyNumberMethods_Py3_GUARD = "PY_MAJOR_VERSION < 3 || (CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX < 0x03050000)"
 
 PyNumberMethods = (
-    MethodSlot(binaryfunc, "nb_add", "__add__"),
-    MethodSlot(binaryfunc, "nb_subtract", "__sub__"),
-    MethodSlot(binaryfunc, "nb_multiply", "__mul__"),
-    MethodSlot(binaryfunc, "nb_divide", "__div__", ifdef = PyNumberMethods_Py3_GUARD),
-    MethodSlot(binaryfunc, "nb_remainder", "__mod__"),
-    MethodSlot(binaryfunc, "nb_divmod", "__divmod__"),
-    MethodSlot(ternaryfunc, "nb_power", "__pow__"),
+    BinopSlot(binaryfunc, "nb_add", "__add__"),
+    BinopSlot(binaryfunc, "nb_subtract", "__sub__"),
+    BinopSlot(binaryfunc, "nb_multiply", "__mul__"),
+    BinopSlot(binaryfunc, "nb_divide", "__div__", ifdef = PyNumberMethods_Py3_GUARD),
+    BinopSlot(binaryfunc, "nb_remainder", "__mod__"),
+    BinopSlot(binaryfunc, "nb_divmod", "__divmod__"),
+    BinopSlot(ternaryfunc, "nb_power", "__pow__"),
     MethodSlot(unaryfunc, "nb_negative", "__neg__"),
     MethodSlot(unaryfunc, "nb_positive", "__pos__"),
     MethodSlot(unaryfunc, "nb_absolute", "__abs__"),
     MethodSlot(inquiry, "nb_nonzero", "__nonzero__", py3 = ("nb_bool", "__bool__")),
     MethodSlot(unaryfunc, "nb_invert", "__invert__"),
-    MethodSlot(binaryfunc, "nb_lshift", "__lshift__"),
-    MethodSlot(binaryfunc, "nb_rshift", "__rshift__"),
-    MethodSlot(binaryfunc, "nb_and", "__and__"),
-    MethodSlot(binaryfunc, "nb_xor", "__xor__"),
-    MethodSlot(binaryfunc, "nb_or", "__or__"),
+    BinopSlot(binaryfunc, "nb_lshift", "__lshift__"),
+    BinopSlot(binaryfunc, "nb_rshift", "__rshift__"),
+    BinopSlot(binaryfunc, "nb_and", "__and__"),
+    BinopSlot(binaryfunc, "nb_xor", "__xor__"),
+    BinopSlot(binaryfunc, "nb_or", "__or__"),
     EmptySlot("nb_coerce", ifdef = PyNumberMethods_Py3_GUARD),
     MethodSlot(unaryfunc, "nb_int", "__int__", fallback="__long__"),
     MethodSlot(unaryfunc, "nb_long", "__long__", fallback="__int__", py3 = "<RESERVED>"),
@@ -866,7 +878,7 @@ PyNumberMethods = (
     MethodSlot(ibinaryfunc, "nb_inplace_multiply", "__imul__"),
     MethodSlot(ibinaryfunc, "nb_inplace_divide", "__idiv__", ifdef = PyNumberMethods_Py3_GUARD),
     MethodSlot(ibinaryfunc, "nb_inplace_remainder", "__imod__"),
-    MethodSlot(ibinaryfunc, "nb_inplace_power", "__ipow__"), # actually ternaryfunc!!!
+    MethodSlot(ibinaryfunc, "nb_inplace_power", "__ipow__"),  # actually ternaryfunc!!!
     MethodSlot(ibinaryfunc, "nb_inplace_lshift", "__ilshift__"),
     MethodSlot(ibinaryfunc, "nb_inplace_rshift", "__irshift__"),
     MethodSlot(ibinaryfunc, "nb_inplace_and", "__iand__"),
@@ -875,8 +887,8 @@ PyNumberMethods = (
 
     # Added in release 2.2
     # The following require the Py_TPFLAGS_HAVE_CLASS flag
-    MethodSlot(binaryfunc, "nb_floor_divide", "__floordiv__"),
-    MethodSlot(binaryfunc, "nb_true_divide", "__truediv__"),
+    BinopSlot(binaryfunc, "nb_floor_divide", "__floordiv__"),
+    BinopSlot(binaryfunc, "nb_true_divide", "__truediv__"),
     MethodSlot(ibinaryfunc, "nb_inplace_floor_divide", "__ifloordiv__"),
     MethodSlot(ibinaryfunc, "nb_inplace_true_divide", "__itruediv__"),
 
@@ -884,21 +896,21 @@ PyNumberMethods = (
     MethodSlot(unaryfunc, "nb_index", "__index__"),
 
     # Added in release 3.5
-    MethodSlot(binaryfunc, "nb_matrix_multiply", "__matmul__", ifdef="PY_VERSION_HEX >= 0x03050000"),
+    BinopSlot(binaryfunc, "nb_matrix_multiply", "__matmul__", ifdef="PY_VERSION_HEX >= 0x03050000"),
     MethodSlot(ibinaryfunc, "nb_inplace_matrix_multiply", "__imatmul__", ifdef="PY_VERSION_HEX >= 0x03050000"),
 )
 
 PySequenceMethods = (
     MethodSlot(lenfunc, "sq_length", "__len__"),
-    EmptySlot("sq_concat"), # nb_add used instead
-    EmptySlot("sq_repeat"), # nb_multiply used instead
+    EmptySlot("sq_concat"),  # nb_add used instead
+    EmptySlot("sq_repeat"),  # nb_multiply used instead
     SyntheticSlot("sq_item", ["__getitem__"], "0"),    #EmptySlot("sq_item"),   # mp_subscript used instead
     MethodSlot(ssizessizeargfunc, "sq_slice", "__getslice__"),
-    EmptySlot("sq_ass_item"), # mp_ass_subscript used instead
+    EmptySlot("sq_ass_item"),  # mp_ass_subscript used instead
     SyntheticSlot("sq_ass_slice", ["__setslice__", "__delslice__"], "0"),
     MethodSlot(cmpfunc, "sq_contains", "__contains__"),
-    EmptySlot("sq_inplace_concat"), # nb_inplace_add used instead
-    EmptySlot("sq_inplace_repeat"), # nb_inplace_multiply used instead
+    EmptySlot("sq_inplace_concat"),  # nb_inplace_add used instead
+    EmptySlot("sq_inplace_repeat"),  # nb_inplace_multiply used instead
 )
 
 PyMappingMethods = (
@@ -952,8 +964,8 @@ slot_table = (
     MethodSlot(callfunc, "tp_call", "__call__"),
     MethodSlot(reprfunc, "tp_str", "__str__"),
 
-    SyntheticSlot("tp_getattro", ["__getattr__","__getattribute__"], "0"), #"PyObject_GenericGetAttr"),
-    SyntheticSlot("tp_setattro", ["__setattr__", "__delattr__"], "0"), #"PyObject_GenericSetAttr"),
+    SyntheticSlot("tp_getattro", ["__getattr__","__getattribute__"], "0"),  #"PyObject_GenericGetAttr"),
+    SyntheticSlot("tp_setattro", ["__setattr__", "__delattr__"], "0"),  #"PyObject_GenericSetAttr"),
 
     SuiteSlot(PyBufferProcs, "PyBufferProcs", "tp_as_buffer"),
 
@@ -974,7 +986,7 @@ slot_table = (
     MemberTableSlot("tp_members"),
     GetSetSlot("tp_getset"),
 
-    BaseClassSlot("tp_base"), #EmptySlot("tp_base"),
+    BaseClassSlot("tp_base"),  #EmptySlot("tp_base"),
     EmptySlot("tp_dict"),
 
     SyntheticSlot("tp_descr_get", ["__get__"], "0"),
@@ -983,7 +995,7 @@ slot_table = (
     DictOffsetSlot("tp_dictoffset"),
 
     MethodSlot(initproc, "tp_init", "__init__"),
-    EmptySlot("tp_alloc"), #FixedSlot("tp_alloc", "PyType_GenericAlloc"),
+    EmptySlot("tp_alloc"),  #FixedSlot("tp_alloc", "PyType_GenericAlloc"),
     ConstructorSlot("tp_new", "__cinit__"),
     EmptySlot("tp_free"),
 

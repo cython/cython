@@ -45,6 +45,7 @@ except:
 from .. import Utils
 from ..Utils import (cached_function, cached_method, path_exists,
     safe_makedirs, copy_file_to_dir_if_newer, is_package_dir, replace_suffix)
+from ..Compiler import Errors
 from ..Compiler.Main import Context
 from ..Compiler.Options import CompilationOptions, default_options
 
@@ -323,7 +324,8 @@ def strip_string_literals(code, prefix='__Pyx_L'):
     in_quote = False
     hash_mark = single_q = double_q = -1
     code_len = len(code)
-    quote_type = quote_len = None
+    quote_type = None
+    quote_len = -1
 
     while True:
         if hash_mark < q:
@@ -611,10 +613,10 @@ class DependencyTree(object):
 
     @cached_method
     def immediate_dependencies(self, filename):
-        all = set([filename])
-        all.update(self.cimported_files(filename))
-        all.update(self.included_files(filename))
-        return all
+        all_deps = {filename}
+        all_deps.update(self.cimported_files(filename))
+        all_deps.update(self.included_files(filename))
+        return all_deps
 
     def all_dependencies(self, filename):
         return self.transitive_merge(filename, self.immediate_dependencies, set.union)
@@ -757,7 +759,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
         return [], {}
     elif isinstance(patterns, basestring) or not isinstance(patterns, Iterable):
         patterns = [patterns]
-    explicit_modules = set([m.name for m in patterns if isinstance(m, Extension)])
+    explicit_modules = {m.name for m in patterns if isinstance(m, Extension)}
     seen = set()
     deps = create_dependency_tree(ctx, quiet=quiet)
     to_exclude = set()
@@ -881,7 +883,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
 
 # This is the user-exposed entry point.
 def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, force=False, language=None,
-              exclude_failures=False, **options):
+              exclude_failures=False, show_all_warnings=False, **options):
     """
     Compile a set of source modules into C/C++ files and return a list of distutils
     Extension objects for them.
@@ -931,6 +933,9 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                              really makes sense for compiling ``.py`` files which can also
                              be used without compilation.
 
+    :param show_all_warnings: By default, not all Cython warnings are printed.
+                              Set to true to show all warnings.
+
     :param annotate: If ``True``, will produce a HTML file for each of the ``.pyx`` or ``.py``
                      files compiled. The HTML file gives an indication
                      of how much Python interaction there is in
@@ -942,6 +947,11 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                      in general, a ``nogil`` block may contain only "white" code.
                      See examples in :ref:`determining_where_to_add_types` or
                      :ref:`primes`.
+
+
+    :param annotate-fullc: If ``True`` will produce a colorized HTML version of
+                           the source which includes entire generated C/C++-code.
+
 
     :param compiler_directives: Allow to set compiler directives in the ``setup.py`` like this:
                                 ``compiler_directives={'embedsignature': True}``.
@@ -1023,7 +1033,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                 # setup for out of place build directory if enabled
                 if build_dir:
                     if os.path.isabs(c_file):
-                      warnings.warn("build_dir has no effect for absolute source paths")
+                        warnings.warn("build_dir has no effect for absolute source paths")
                     c_file = os.path.join(build_dir, c_file)
                     dir = os.path.dirname(c_file)
                     safe_makedirs_once(dir)
@@ -1057,7 +1067,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                     to_compile.append((
                         priority, source, c_file, fingerprint, quiet,
                         options, not exclude_failures, module_metadata.get(m.name),
-                        full_module_name))
+                        full_module_name, show_all_warnings))
                 new_sources.append(c_file)
                 modules_by_cfile[c_file].append(m)
             else:
@@ -1100,7 +1110,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
             pool.terminate()
             raise
         pool.join()
-    if not nthreads:
+    else:
         for args in to_compile:
             cythonize_one(*args)
 
@@ -1205,7 +1215,8 @@ else:
 # TODO: Share context? Issue: pyx processing leaks into pxd module
 @record_results
 def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None,
-                  raise_on_failure=True, embedded_metadata=None, full_module_name=None,
+                  raise_on_failure=True, embedded_metadata=None,
+                  full_module_name=None, show_all_warnings=False,
                   progress=""):
     from ..Compiler.Main import compile_single, default_options
     from ..Compiler.Errors import CompileError, PyrexError
@@ -1241,6 +1252,10 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None,
     options.output_file = c_file
     options.embedded_metadata = embedded_metadata
 
+    old_warning_level = Errors.LEVEL
+    if show_all_warnings:
+        Errors.LEVEL = 0
+
     any_failures = 0
     try:
         result = compile_single(pyx_file, options, full_module_name=full_module_name)
@@ -1258,6 +1273,10 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None,
         import traceback
         traceback.print_exc()
         any_failures = 1
+    finally:
+        if show_all_warnings:
+            Errors.LEVEL = old_warning_level
+
     if any_failures:
         if raise_on_failure:
             raise CompileError(None, pyx_file)
@@ -1275,7 +1294,7 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None,
         else:
             fingerprint_file = zip_fingerprint_file
             with contextlib.closing(zipfile.ZipFile(
-                fingerprint_file + '.tmp', 'w', zipfile_compression_mode)) as zip:
+                    fingerprint_file + '.tmp', 'w', zipfile_compression_mode)) as zip:
                 for artifact in artifacts:
                     zip.write(artifact, os.path.basename(artifact))
         os.rename(fingerprint_file + '.tmp', fingerprint_file)

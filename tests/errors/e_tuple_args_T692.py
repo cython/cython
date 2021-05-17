@@ -1,4 +1,4 @@
-# ticket: 692
+# ticket: t692
 # mode: error
 
 def func((a, b)):
@@ -9,4 +9,3 @@ _ERRORS = u"""
 5:11: undeclared name not builtin: a
 5:15: undeclared name not builtin: b
 """
-

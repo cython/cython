@@ -111,6 +111,7 @@ typedef struct {
 
 #if PY_MAJOR_VERSION < 3
 static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {
+    __Pyx_TypeName obj_type_name;
     if (PyObject_CheckBuffer(obj)) return PyObject_GetBuffer(obj, view, flags);
 
     {{for type_ptr, getbuffer, releasebuffer in types}}
@@ -119,7 +120,11 @@ static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {
       {{endif}}
     {{endfor}}
 
-    PyErr_Format(PyExc_TypeError, "'%.200s' does not have the buffer interface", Py_TYPE(obj)->tp_name);
+    obj_type_name = __Pyx_PyType_GetName(Py_TYPE(obj));
+    PyErr_Format(PyExc_TypeError,
+                 "'" __Pyx_FMT_TYPENAME "' does not have the buffer interface",
+                 obj_type_name);
+    __Pyx_DECREF_TypeName(obj_type_name);
     return -1;
 }
 
@@ -372,7 +377,8 @@ typedef struct { char c; void *x; } __Pyx_st_void_p;
 typedef struct { char c; PY_LONG_LONG x; } __Pyx_st_longlong;
 #endif
 
-static size_t __Pyx_BufFmt_TypeCharToAlignment(char ch, CYTHON_UNUSED int is_complex) {
+static size_t __Pyx_BufFmt_TypeCharToAlignment(char ch, int is_complex) {
+  CYTHON_UNUSED_VAR(is_complex);
   switch (ch) {
     case '?': case 'c': case 'b': case 'B': case 's': case 'p': return 1;
     case 'h': case 'H': return sizeof(__Pyx_st_short) - sizeof(short);
@@ -406,7 +412,8 @@ typedef struct { void *x; char c; } __Pyx_pad_void_p;
 typedef struct { PY_LONG_LONG x; char c; } __Pyx_pad_longlong;
 #endif
 
-static size_t __Pyx_BufFmt_TypeCharToPadding(char ch, CYTHON_UNUSED int is_complex) {
+static size_t __Pyx_BufFmt_TypeCharToPadding(char ch, int is_complex) {
+  CYTHON_UNUSED_VAR(is_complex);
   switch (ch) {
     case '?': case 'c': case 'b': case 'B': case 's': case 'p': return 1;
     case 'h': case 'H': return sizeof(__Pyx_pad_short) - sizeof(short);
@@ -602,9 +609,8 @@ static PyObject *
 __pyx_buffmt_parse_array(__Pyx_BufFmt_Context* ctx, const char** tsp)
 {
     const char *ts = *tsp;
-    int i = 0, number;
-    int ndim = ctx->head->field->type->ndim;
-;
+    int i = 0, number, ndim;
+
     ++ts;
     if (ctx->new_count != 1) {
         PyErr_SetString(PyExc_ValueError,
@@ -614,6 +620,9 @@ __pyx_buffmt_parse_array(__Pyx_BufFmt_Context* ctx, const char** tsp)
 
     /* Process the previous element */
     if (__Pyx_BufFmt_ProcessTypeChunk(ctx) == -1) return NULL;
+
+    // store ndim now, as field advanced by __Pyx_BufFmt_ProcessTypeChunk call
+    ndim = ctx->head->field->type->ndim;
 
     /* Parse all numbers in the format string */
     while (*ts && *ts != ')') {
@@ -757,8 +766,8 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
       case 'l': case 'L': case 'q': case 'Q':
       case 'f': case 'd': case 'g':
       case 'O': case 'p':
-        if (ctx->enc_type == *ts && got_Z == ctx->is_complex &&
-            ctx->enc_packmode == ctx->new_packmode) {
+        if ((ctx->enc_type == *ts) && (got_Z == ctx->is_complex) &&
+            (ctx->enc_packmode == ctx->new_packmode) && (!ctx->is_valid_array)) {
           /* Continue pooling same type */
           ctx->enc_count += ctx->new_count;
           ctx->new_count = 1;

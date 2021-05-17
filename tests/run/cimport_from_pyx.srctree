@@ -15,13 +15,21 @@ setup(
 
 ######## a.pyx ########
 
-from b cimport Bclass, Bfunc, Bstruct, Benum, Benum_value, Btypedef, Py_EQ, Py_NE
+from b cimport (Bclass, Bfunc, Bstruct, Benum, Benum_value, Btypedef, Py_EQ, Py_NE,
+                DecoratedClass, cfuncOutside)
 cdef Bclass b = Bclass(5)
 assert Bfunc(&b.value) == b.value
+assert b.anotherValue == 6, b.anotherValue
 assert b.asStruct().value == b.value
 cdef Btypedef b_type = &b.value
 cdef Benum b_enum = Benum_value
 cdef int tmp = Py_EQ
+
+cdef DecoratedClass dc = DecoratedClass()
+assert dc.cfuncInClass().value == 5
+assert dc.cpdefInClass() == 1.0
+
+assert cfuncOutside().value == 2
 
 #from c cimport ClassC
 #cdef ClassC c = ClassC()
@@ -30,6 +38,8 @@ cdef int tmp = Py_EQ
 ######## b.pyx ########
 
 from cpython.object cimport Py_EQ, Py_NE
+
+cimport cython
 
 cdef enum Benum:
     Benum_value
@@ -41,13 +51,33 @@ ctypedef long *Btypedef
 
 cdef class Bclass:
     cdef long value
+    anotherValue: cython.double
     def __init__(self, value):
         self.value = value
+        self.anotherValue = value + 1
     cdef Bstruct asStruct(self):
         return Bstruct(value=self.value)
+    cdef double getOtherValue(self):
+        return self.anotherValue
 
 cdef long Bfunc(Btypedef x):
     return x[0]
+
+@cython.cclass
+class DecoratedClass:
+    @cython.cfunc
+    @cython.returns(Bstruct)
+    def cfuncInClass(self):
+        return Bstruct(value=5)
+    @cython.ccall
+    @cython.returns(cython.double)
+    def cpdefInClass(self):
+        return 1.0
+
+@cython.cfunc
+@cython.returns(Bstruct)
+def cfuncOutside():
+    return Bstruct(value=2)
 
 ######## c.pxd ########
 

@@ -75,9 +75,8 @@ cpdef int test_raise_in_nogil_func(x) nogil except -1:
 @cython.test_assert_path_exists(
     "//GILStatNode",
     "//GILStatNode//AssertStatNode",
-)
-@cython.test_fail_if_path_exists(
-    "//GILStatNode//GILStatNode",
+    "//GILStatNode//AssertStatNode//GILStatNode",
+    "//GILStatNode//AssertStatNode//GILStatNode//RaiseStatNode",
 )
 def assert_in_nogil_section(int x):
     """
@@ -93,9 +92,8 @@ def assert_in_nogil_section(int x):
 @cython.test_assert_path_exists(
     "//GILStatNode",
     "//GILStatNode//AssertStatNode",
-)
-@cython.test_fail_if_path_exists(
-    "//GILStatNode//GILStatNode",
+    "//GILStatNode//AssertStatNode//GILStatNode",
+    "//GILStatNode//AssertStatNode//GILStatNode//RaiseStatNode",
 )
 def assert_in_nogil_section_ustring(int x):
     """
@@ -111,9 +109,8 @@ def assert_in_nogil_section_ustring(int x):
 @cython.test_assert_path_exists(
     "//GILStatNode",
     "//GILStatNode//AssertStatNode",
-)
-@cython.test_fail_if_path_exists(
-    "//GILStatNode//GILStatNode",
+    "//GILStatNode//AssertStatNode//GILStatNode",
+    "//GILStatNode//AssertStatNode//GILStatNode//RaiseStatNode",
 )
 def assert_in_nogil_section_string(int x):
     """
@@ -126,8 +123,10 @@ def assert_in_nogil_section_string(int x):
         assert x, "failed!"
 
 
-@cython.test_fail_if_path_exists(
-    "//GILStatNode",
+@cython.test_assert_path_exists(
+    "//AssertStatNode",
+    "//AssertStatNode//GILStatNode",
+    "//AssertStatNode//GILStatNode//RaiseStatNode",
 )
 cpdef int assert_in_nogil_func(int x) nogil except -1:
     """

@@ -70,6 +70,12 @@ except ImportError:
         return (<PyObject*>obj).ob_refcnt
 
 
+def no_pypy(f):
+    import platform
+    if platform.python_implementation() == 'PyPy':
+        return unittest.skip("excluded in PyPy")
+
+
 # compiled exec()
 def exec(code_string, l, g):
     from Cython.Shadow import inline
@@ -109,7 +115,7 @@ class AsyncYield(object):
 
 def run_async(coro):
     #assert coro.__class__ is types.GeneratorType
-    assert coro.__class__.__name__ in ('coroutine', '_GeneratorWrapper'), coro.__class__.__name__
+    assert coro.__class__.__name__.rsplit('.', 1)[-1] in ('coroutine', '_GeneratorWrapper'), coro.__class__.__name__
 
     buffer = []
     result = None
@@ -123,7 +129,7 @@ def run_async(coro):
 
 
 def run_async__await__(coro):
-    assert coro.__class__.__name__ in ('coroutine', '_GeneratorWrapper'), coro.__class__.__name__
+    assert coro.__class__.__name__.rsplit('.', 1)[-1] in ('coroutine', '_GeneratorWrapper'), coro.__class__.__name__
     aw = coro.__await__()
     buffer = []
     result = None
@@ -895,7 +901,7 @@ class CoroutineTest(unittest.TestCase):
             raise StopIteration
 
         with silence_coro_gc():
-            self.assertRegex(repr(foo()), '^<coroutine object.* at 0x.*>$')
+            self.assertRegex(repr(foo()), '^<[^\s]*coroutine object.* at 0x.*>$')
 
     def test_func_4(self):
         async def foo():
@@ -2406,6 +2412,7 @@ class CoroutineTest(unittest.TestCase):
         finally:
             aw.close()
 
+    @no_pypy
     def test_fatal_coro_warning(self):
         # Issue 27811
         async def func(): pass

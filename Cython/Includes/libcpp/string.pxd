@@ -67,19 +67,19 @@ cdef extern from "<string>" namespace "std" nogil:
         iterator erase(iterator first, iterator last)
         iterator erase(const_iterator first, const_iterator last)
 
-        char& at(size_t)
+        char& at(size_t) except +
         char& operator[](size_t)
         char& front()  # C++11
         char& back()   # C++11
         int compare(const string&)
 
-        string& append(const string&)
-        string& append(const string&, size_t, size_t)
-        string& append(const char *)
-        string& append(const char *, size_t)
-        string& append(size_t, char)
+        string& append(const string&) except +
+        string& append(const string&, size_t, size_t) except +
+        string& append(const char *) except +
+        string& append(const char *, size_t) except +
+        string& append(size_t, char) except +
 
-        void push_back(char c)
+        void push_back(char c) except +
 
         string& assign (const string&)
         string& assign (const string&, size_t, size_t)
@@ -87,63 +87,74 @@ cdef extern from "<string>" namespace "std" nogil:
         string& assign (const char *)
         string& assign (size_t n, char c)
 
-        string& insert(size_t, const string&)
-        string& insert(size_t, const string&, size_t, size_t)
-        string& insert(size_t, const char* s, size_t)
+        string& insert(size_t, const string&) except +
+        string& insert(size_t, const string&, size_t, size_t) except +
+        string& insert(size_t, const char* s, size_t) except +
 
 
-        string& insert(size_t, const char* s)
-        string& insert(size_t, size_t, char c)
+        string& insert(size_t, const char* s) except +
+        string& insert(size_t, size_t, char c) except +
 
-        size_t copy(char *, size_t, size_t)
+        size_t copy(char *, size_t, size_t) except +
 
+        size_t find(const string&, size_t pos)
         size_t find(const string&)
-        size_t find(const string&, size_t)
-        size_t find(const char*, size_t pos, size_t)
+        size_t find(const char*, size_t pos, size_t n)
         size_t find(const char*, size_t pos)
-        size_t find(char, size_t pos)
+        size_t find(const char*)
+        size_t find(char c, size_t pos)
+        size_t find(char c)
 
-        size_t rfind(const string&, size_t)
-        size_t rfind(const char* s, size_t, size_t)
+        size_t rfind(const string&, size_t pos)
+        size_t rfind(const string&)
+        size_t rfind(const char* s, size_t pos, size_t n)
         size_t rfind(const char*, size_t pos)
-        size_t rfind(char c, size_t)
+        size_t rfind(const char*)
+        size_t rfind(char c, size_t pos)
         size_t rfind(char c)
 
-        size_t find_first_of(const string&, size_t)
-        size_t find_first_of(const char* s, size_t, size_t)
+        size_t find_first_of(const string&, size_t pos)
+        size_t find_first_of(const string&)
+        size_t find_first_of(const char* s, size_t pos, size_t n)
         size_t find_first_of(const char*, size_t pos)
-        size_t find_first_of(char c, size_t)
+        size_t find_first_of(const char*)
+        size_t find_first_of(char c, size_t pos)
         size_t find_first_of(char c)
 
-        size_t find_first_not_of(const string&, size_t)
+        size_t find_first_not_of(const string&, size_t pos)
+        size_t find_first_not_of(const string&)
         size_t find_first_not_of(const char* s, size_t, size_t)
         size_t find_first_not_of(const char*, size_t pos)
-        size_t find_first_not_of(char c, size_t)
+        size_t find_first_not_of(const char*)
+        size_t find_first_not_of(char c, size_t pos)
         size_t find_first_not_of(char c)
 
-        size_t find_last_of(const string&, size_t)
-        size_t find_last_of(const char* s, size_t, size_t)
+        size_t find_last_of(const string&, size_t pos)
+        size_t find_last_of(const string&)
+        size_t find_last_of(const char* s, size_t pos, size_t n)
         size_t find_last_of(const char*, size_t pos)
-        size_t find_last_of(char c, size_t)
+        size_t find_last_of(const char*)
+        size_t find_last_of(char c, size_t pos)
         size_t find_last_of(char c)
 
-        size_t find_last_not_of(const string&, size_t)
-        size_t find_last_not_of(const char* s, size_t, size_t)
+        size_t find_last_not_of(const string&, size_t pos)
+        size_t find_last_not_of(const string&)
+        size_t find_last_not_of(const char* s, size_t pos, size_t n)
         size_t find_last_not_of(const char*, size_t pos)
-
-        string substr(size_t, size_t)
-        string substr()
-        string substr(size_t)
-
-        size_t find_last_not_of(char c, size_t)
+        size_t find_last_not_of(const char*)
+        size_t find_last_not_of(char c, size_t pos)
         size_t find_last_not_of(char c)
+
+        string substr(size_t, size_t) except +
+        string substr()
+        string substr(size_t) except +
 
         #string& operator= (const string&)
         #string& operator= (const char*)
         #string& operator= (char)
 
-        string operator+ (const string& rhs)
-        string operator+ (const char* rhs)
+        string operator+ (const string& rhs) except +
+        string operator+ (const char* rhs) except +
 
         bint operator==(const string&)
         bint operator==(const char*)
@@ -162,3 +173,14 @@ cdef extern from "<string>" namespace "std" nogil:
 
         bint operator>= (const string&)
         bint operator>= (const char*)
+
+
+    string to_string(int val)
+    string to_string(long val)
+    string to_string (long long val)
+    string to_string (unsigned val)
+    string to_string (unsigned long val)
+    string to_string (unsigned long long val)
+    string to_string (float val)
+    string to_string (double val)
+    string to_string (long double val)

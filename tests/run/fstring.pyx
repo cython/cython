@@ -533,31 +533,35 @@ def format_decoded_bytes(bytes value):
     "//FormattedValueNode",
     "//JoinedStrNode",
 )
-def generated_fstring(int i, unicode u not None, o):
+def generated_fstring(int i, float f, unicode u not None, o):
     """
-    >>> i, u, o = 11, u'xyz', [1]
+    >>> i, f, u, o = 11, 1.3125, u'xyz', [1]
     >>> print(((
-    ...     u"(i) %s-%.3s-%r-%.3r-%d-%3d-%o-%04o-%x-%4x-%X-%03X-%.1f-%04.2f %% "
-    ...     u"(u) %s-%.2s-%r-%.7r %% "
-    ...     u"(o) %s-%.2s-%r-%.2r"
+    ...     u"(i) %s-%.3s-%r-%.3r-%d-%3d-%-3d-%o-%04o-%x-%4x-%X-%03X-%.1f-%04.2f %% "
+    ...     u"(u) %s-%.2s-%r-%.7r-%05s-%-5s %% "
+    ...     u"(o) %s-%.2s-%r-%.2r %% "
+    ...     u"(f) %.2f-%d"
     ... ) % (
-    ...     i, i, i, i, i, i, i, i, i, i, i, i, i, i,
-    ...     u, u, u, u,
+    ...     i, i, i, i, i, i, i, i, i, i, i, i, i, i, i,
+    ...     u, u, u, u, u, u,
     ...     o, o, o, o,
+    ...     f, f,
     ... )).replace("-u'xyz'", "-'xyz'"))
-    (i) 11-11-11-11-11- 11-13-0013-b-   b-B-00B-11.0-11.00 % (u) xyz-xy-'xyz'-'xyz' % (o) [1]-[1-[1]-[1
+    (i) 11-11-11-11-11- 11-11 -13-0013-b-   b-B-00B-11.0-11.00 % (u) xyz-xy-'xyz'-'xyz'-  xyz-xyz   % (o) [1]-[1-[1]-[1 % (f) 1.31-1
 
-    >>> print(generated_fstring(i, u, o).replace("-u'xyz'", "-'xyz'"))
-    (i) 11-11-11-11-11- 11-13-0013-b-   b-B-00B-11.0-11.00 % (u) xyz-xy-'xyz'-'xyz' % (o) [1]-[1-[1]-[1
+    >>> print(generated_fstring(i, f, u, o).replace("-u'xyz'", "-'xyz'"))
+    (i) 11-11-11-11-11- 11-11 -13-0013-b-   b-B-00B-11.0-11.00 % (u) xyz-xy-'xyz'-'xyz'-  xyz-xyz   % (o) [1]-[1-[1]-[1 % (f) 1.31-1
     """
     return (
-        u"(i) %s-%.3s-%r-%.3r-%d-%3d-%o-%04o-%x-%4x-%X-%03X-%.1f-%04.2f %% "
-        u"(u) %s-%.2s-%r-%.7r %% "
-        u"(o) %s-%.2s-%r-%.2r"
+        u"(i) %s-%.3s-%r-%.3r-%d-%3d-%-3d-%o-%04o-%x-%4x-%X-%03X-%.1f-%04.2f %% "
+        u"(u) %s-%.2s-%r-%.7r-%05s-%-5s %% "
+        u"(o) %s-%.2s-%r-%.2r %% "
+        u"(f) %.2f-%d"
     ) % (
-        i, i, i, i, i, i, i, i, i, i, i, i, i, i,
-        u, u, u, u,
+        i, i, i, i, i, i, i, i, i, i, i, i, i, i, i,
+        u, u, u, u, u, u,
         o, o, o, o,
+        f, f,
     )
 
 
@@ -572,6 +576,27 @@ def percent_s_unicode(u, int i):
     x\u0194z-12
     """
     return u"%s-%d" % (u, i)
+
+
+@cython.test_assert_path_exists(
+    "//FormattedValueNode",
+)
+def sideeffect(l):
+    """
+    >>> class Listish(list):
+    ...     def __format__(self, format_spec):
+    ...         self.append("format called")
+    ...         return repr(self)
+    ...     def append(self, item):
+    ...         list.append(self, item)
+    ...         return self
+
+    >>> l = Listish()
+    >>> sideeffect(l)  if getattr(sys, 'pypy_version_info', ())[:3] != (7,3,4) else [123, 'format called']
+    [123, 'format called']
+    """
+    f"{l.append(123)}"  # unused f-string !
+    return list(l)
 
 
 ########################################
