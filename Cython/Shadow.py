@@ -510,3 +510,23 @@ class CythonDotParallel(object):
 import sys
 sys.modules['cython.parallel'] = CythonDotParallel()
 del sys
+
+import functools
+@functools.lru_cache()
+def __getattr__(name, module=__name__):
+    """Allows dynamic attribute access at the module level in Python 3.7+.
+
+    Currently used to enable infinite pointer depth based on name
+    e.g. ``pppppppp_int`` (old limit is 3 levels deep e.g. ``ppp_int``).
+    """
+    import re
+    match = re.match('^(p+)_([a-zA-Z0-9]+)$', name)
+    if match:
+        depth = len(match.group(1))
+        type = match.group(2)
+
+        if type in int_types + float_types + complex_types + other_types:
+            return gs[type]._pointer(depth)
+
+    raise AttributeError("module '%s' has no attribute '%s'" % (module, name))
+del functools
