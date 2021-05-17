@@ -1,21 +1,15 @@
-# tag: cpp
+# tag: cpp,cpp11
 # mode: compile
 
 cdef extern from *:
     """
     class NoAssignIterator {
         public:
-        #if __cplusplus >= 201103L || (defined(_MSC_VER) && _MSC_VER >= 1600)
             explicit NoAssignIterator(int pos) : pos_(pos) {}
             NoAssignIterator(NoAssignIterator&) = delete;
             NoAssignIterator(NoAssignIterator&&) {}
             NoAssignIterator& operator=(NoAssignIterator&) = delete;
             NoAssignIterator& operator=(NoAssignIterator&&) { return *this; }
-        #else
-            // the test becomes meaningless
-            // (but just declare something to ensure it passes)
-            explicit NoAssignIterator(int pos) : pos_(pos) {}
-        #endif
             // Default constructor of temp variable is needed by Cython
             // as of 3.0a6.
             NoAssignIterator() : pos_(0) {}
@@ -32,13 +26,7 @@ cdef extern from *:
     };
     class NoAssign {
         public:
-        #if __cplusplus >= 201103L || (defined(_MSC_VER) && _MSC_VER >= 1600)
             NoAssign() {}
-        #else
-            // the test becomes meaningless
-            // (but just declare something to ensure it passes)
-            NoAssign() {}
-        #endif
             NoAssign(NoAssign&) = delete;
             NoAssign(NoAssign&&) {}
             NoAssign& operator=(NoAssign&) = delete;
