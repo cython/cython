@@ -5,7 +5,7 @@ cdef extern from *:
     """
     class NoAssignIterator {
         public:
-        #if __cplusplus >= 201103L
+        #if __cplusplus >= 201103L || (defined(_MSC_VER) && _MSC_VER >= 1600)
             explicit NoAssignIterator(int pos) : pos_(pos) {}
             NoAssignIterator(NoAssignIterator&) = delete;
             NoAssignIterator(NoAssignIterator&&) {}
@@ -32,7 +32,7 @@ cdef extern from *:
     };
     class NoAssign {
         public:
-        #if __cplusplus >= 201103L
+        #if __cplusplus >= 201103L || (defined(_MSC_VER) && _MSC_VER >= 1600)
             NoAssign() {}
         #else
             // the test becomes meaningless
