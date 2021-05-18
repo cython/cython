@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This Code of Conduct applies to all spaces managed by the Cython project, including all public and private mailing lists, issue trackers, wikis, and any other communication channel used by our community. The Cython project does not organise in-person events, however events related to our community should have a code of conduct similar in spirit to this one.
+This Code of Conduct applies to all spaces managed by the Cython project, including all public and private mailing lists, issue trackers, wikis, and any other communication channel used by our community. The Cython project may also organise or participate in-person  or virtual events. This Code of Conduct applies to events organized by the Cython project, and we expect other events related to our community to have a code of conduct similar in spirit to this one.
 
 This Code of Conduct should be honored by everyone who participates in the Cython community formally or informally, or claims any affiliation with the project, in any project-related activities and especially when representing the project, in any role.
 
@@ -40,7 +40,7 @@ Standards for behaviour in the Cython community are detailed in the Code of Cond
 
 ## Reporting Guidelines
 
-We know that it is painfully common for internet communication to start at or devolve into obvious and flagrant abuse. We also recognize that sometimes people may have a bad day, or be unaware of some of the guidelines in this Code of Conduct. Please keep this in mind when deciding on how to respond to a breach of this Code.
+We know that it is painfully common for Internet communication to start at or devolve into obvious and flagrant abuse. We also recognize that sometimes people may have a bad day, or be unaware of some of the guidelines in this Code of Conduct. Please keep this in mind when deciding on how to respond to a breach of this Code.
 
 For clearly intentional breaches, report those to the Code of Conduct Committee (see below). For possibly unintentional breaches, you may reply to the person and point out this code of conduct (either in public or in private, whatever is most appropriate). If you would prefer not to do that, please feel free to report to the Code of Conduct Committee directly, or ask the Committee for advice, in confidence.
 
@@ -52,7 +52,7 @@ Currently, the Committee consists of:
 * Robert Bradshaw
 * Ralf Gommers
 
-If your report involves any members of the Committee, or if they feel they have a conflict of interest in handling it, then they will recuse themselves from considering your report. Alternatively, if for any reason you feel uncomfortable making a report to the Committee, then you can also contact senior NumFOCUS staff at [conduct@numfocus.org](https://numfocus.org/code-of-conduct#persons-responsible).
+If your report involves any members of the Committee, or if they feel they have a conflict of interest in handling it, then they will step aside and not involve themselves from considering your report. Alternatively, if for any reason you feel uncomfortable making a report to the Committee, then you can also contact senior NumFOCUS staff at [conduct@numfocus.org](https://numfocus.org/code-of-conduct#persons-responsible).
 
 ## Incident reporting resolution & Code of Conduct enforcement
 
