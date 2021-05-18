@@ -2089,7 +2089,7 @@ def main():
             args.append(arg)
 
     from optparse import OptionParser
-    parser = OptionParser()
+    parser = OptionParser(usage="usage: %prog [options] [selector ...]")
     parser.add_option("--no-cleanup", dest="cleanup_workdir",
                       action="store_false", default=True,
                       help="do not delete the generated C files (allows passing --no-cython on next run)")
