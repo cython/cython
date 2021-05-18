@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This Code of Conduct applies to all spaces managed by the Cython project, including all public and private mailing lists, issue trackers, wikis, and any other communication channel used by our community. The Cython project may also organise or participate in-person  or virtual events. This Code of Conduct applies to events organized by the Cython project, and we expect other events related to our community to have a code of conduct similar in spirit to this one.
+This Code of Conduct applies to all spaces managed by the Cython project, including all public and private mailing lists, issue trackers, wikis, and any other communication channel used by our community. The Cython project may also organise or participate in in-person or virtual events. This Code of Conduct applies to events organized by the Cython project, and we expect other events related to our community to have a code of conduct similar in spirit to this one.
 
 This Code of Conduct should be honored by everyone who participates in the Cython community formally or informally, or claims any affiliation with the project, in any project-related activities and especially when representing the project, in any role.
 
