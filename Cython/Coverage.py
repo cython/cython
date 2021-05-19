@@ -165,7 +165,7 @@ class Plugin(CoveragePlugin):
             py_source_file = os.path.splitext(c_file)[0] + '.py'
             if not os.path.exists(py_source_file):
                 py_source_file = None
-            if not is_cython_generated_file(c_file, must_exist=False):
+            if not is_cython_generated_file(c_file, if_not_found=False):
                 if py_source_file and os.path.exists(c_file):
                     # if we did not generate the C file,
                     # then we probably also shouldn't care about the .py file.

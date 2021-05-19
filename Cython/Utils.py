@@ -95,6 +95,9 @@ def castrate_file(path, st):
     #  failed compilation.
     #  Also sets access and modification times back to
     #  those specified by st (a stat struct).
+    if not is_cython_generated_file(path, allow_failed=True, if_not_found=False):
+        return
+
     try:
         f = open_new_file(path)
     except EnvironmentError:
@@ -107,7 +110,7 @@ def castrate_file(path, st):
             os.utime(path, (st.st_atime, st.st_mtime-1))
 
 
-def is_cython_generated_file(path, allow_failed=False, must_exist=True):
+def is_cython_generated_file(path, allow_failed=False, if_not_found=True):
     failure_marker = b"#error Do not use this file, it is the result of a failed Cython compilation."
     file_content = None
     if os.path.exists(path):
@@ -118,7 +121,8 @@ def is_cython_generated_file(path, allow_failed=False, must_exist=True):
             pass  # Probably just doesn't exist any more
 
     if file_content is None:
-        return False if must_exist else True
+        # file does not exist (yet)
+        return if_not_found
 
     return (
         # Cython C file?
