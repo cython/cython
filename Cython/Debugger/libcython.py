@@ -239,7 +239,7 @@ class CythonBase(object):
         if self.is_cython_function(frame):
             filename = self.get_cython_function(frame).module.filename
             filename_and_lineno = self.get_cython_lineno(frame)
-            assert filename == filename_and_lineno[0]
+            filename = filename_and_lineno[0]
             lineno = filename_and_lineno[1]
             if pygments:
                 lexer = pygments.lexers.CythonLexer(stripall=False)
