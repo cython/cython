@@ -4156,6 +4156,10 @@ class GeneratorBodyDefNode(DefNode):
                                 cname=cname, visibility='private')
         entry.func_cname = cname
         entry.qualified_name = EncodedString(self.name)
+        # Work-around for https://github.com/cython/cython/issues/1699
+        # We don't currently determine whether the generator entry is used or not,
+        # so mark it as used to avoid false warnings.
+        entry.used = True
         self.entry = entry
 
     def analyse_declarations(self, env):
