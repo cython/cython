@@ -366,6 +366,7 @@ __Pyx_CyFunction_get_is_coroutine(__pyx_CyFunctionObject *op, CYTHON_UNUSED void
 #if PY_VERSION_HEX >= 0x03050000
     if (is_coroutine) {
         PyObject *module, *fromlist, *marker = PYIDENT("_is_coroutine");
+        Py_INCREF(marker);
         fromlist = PyList_New(1);
         if (unlikely(!fromlist)) return NULL;
         PyList_SET_ITEM(fromlist, 0, marker);
