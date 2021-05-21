@@ -387,6 +387,7 @@ __Pyx_CyFunction_get_is_coroutine(__pyx_CyFunctionObject *op, void *context) {
         PyObject *module, *fromlist, *marker = PYIDENT("_is_coroutine");
         fromlist = PyList_New(1);
         if (unlikely(!fromlist)) return NULL;
+        Py_INCREF(marker);
         PyList_SET_ITEM(fromlist, 0, marker);
         module = PyImport_ImportModuleLevelObject(PYIDENT("asyncio.coroutines"), NULL, NULL, fromlist, 0);
         Py_DECREF(fromlist);
