@@ -150,7 +150,11 @@ def test_struct(n, x):
     a = cython.declare(MyStruct3)
     a[0] = MyStruct(is_integral=True, data=MyUnion(n=n))
     a[1] = MyStruct(is_integral=False, data={'x': x})
-    a[2] = MyStruct(False, MyUnion(x=x))
+    if sys.version_info >= (3, 6):
+        # dict is ordered => struct creation via keyword arguments above was deterministic!
+        a[2] = MyStruct(False, MyUnion(x=x))
+    else:
+        a[2] = MyStruct(is_integral=False, data=MyUnion(x=x))
     return a[0].data.n, a[1].data.x, a[2].is_integral
 
 import cython as cy
