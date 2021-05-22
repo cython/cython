@@ -79,6 +79,13 @@ class NormalizeTree(CythonTransform):
         self.is_in_statlist = False
         self.is_in_expr = False
 
+    def visit_ModuleNode(self, node):
+        self.visitchildren(node)
+        if not isinstance(node.body, Nodes.StatListNode):
+            # This can happen when the body only consists of a single (unused) declaration and no statements.
+            node.body = Nodes.StatListNode(pos=node.pos, stats=[node.body])
+        return node
+
     def visit_ExprNode(self, node):
         stacktmp = self.is_in_expr
         self.is_in_expr = True
