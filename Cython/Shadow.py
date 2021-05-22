@@ -278,18 +278,36 @@ class ArrayType(PointerType):
 
 class StructType(CythonType):
 
-    def __init__(self, cast_from=_Unspecified, **data):
-        if cast_from is not _Unspecified:
-            # do cast
-            if len(data) > 0:
-                raise ValueError('Cannot accept keyword arguments when casting.')
-            if type(cast_from) is not type(self):
-                raise ValueError('Cannot cast from %s' % cast_from)
-            for key, value in cast_from.__dict__.items():
-                setattr(self, key, value)
+    def __init__(self, *posargs, **data):
+        if not (posargs or data):
+            return
+        if posargs and data:
+            raise ValueError('Cannot accept both positional and keyword arguments.')
+
+        # Allow 'cast_from' as single positional or keyword argument.
+        if data and len(data) == 1 and 'cast_from' in data:
+            cast_from = data.pop('cast_from')
+        elif len(posargs) == 1 and type(posargs[0]) is type(self):
+            cast_from, posargs = posargs[0], ()
+        elif posargs:
+            for key, arg in zip(self._members, posargs):
+                setattr(self, key, arg)
+            return
         else:
             for key, value in data.items():
+                if key not in self._members:
+                    raise ValueError("Invalid struct attribute for %s: %s" % (
+                        self.__class__.__name__, key))
                 setattr(self, key, value)
+            return
+
+        # do cast
+        if data:
+            raise ValueError('Cannot accept keyword arguments when casting.')
+        if type(cast_from) is not type(self):
+            raise ValueError('Cannot cast from %s' % cast_from)
+        for key, value in cast_from.__dict__.items():
+            setattr(self, key, value)
 
     def __setattr__(self, key, value):
         if key in self._members:
