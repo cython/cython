@@ -776,8 +776,15 @@ class InterpretCompilerDirectives(CythonTransform):
 
     def visit_CImportStatNode(self, node):
         module_name = node.module_name
-        if module_name == u"cython.cimports" or module_name.startswith(u"cython.cimports."):
-            error(node.pos, "Python cimports must use 'from cython.cimports... import ...', not just 'import ...'")
+        if module_name == u"cython.cimports":
+            error(node.pos, "Cannot cimport the 'cython.cimports' package directly, only submodules.")
+        if module_name.startswith(u"cython.cimports."):
+            if node.as_name and node.as_name != u'cython':
+                node.module_name = module_name[len(u"cython.cimports."):]
+                return node
+            error(node.pos,
+                  "Python cimports must use 'from cython.cimports... import ...'"
+                  " or 'import ... as ...', not just 'import ...'")
 
         if module_name == u"cython":
             self.cython_module_names.add(node.as_name or u"cython")
@@ -874,7 +881,6 @@ class InterpretCompilerDirectives(CythonTransform):
                 imported_names=imported_names)
         else:
             # from cython.cimports import x, y, z  =>  cimport x; cimport y; cimport z
-            print(imported_names)
             return [
                 Nodes.CImportStatNode(
                     pos,
@@ -887,19 +893,11 @@ class InterpretCompilerDirectives(CythonTransform):
     def visit_SingleAssignmentNode(self, node):
         if isinstance(node.rhs, ExprNodes.ImportNode):
             module_name = node.rhs.module_name.value
-            if module_name == u"cython.cimports" or module_name.startswith(u"cython.cimports."):
-                error(node.pos, "Python cimports must use 'from cython.cimports... import ...', not just 'import ...'")
-            is_parallel = (module_name + u".").startswith(u"cython.parallel.")
-
-            if module_name != u"cython" and not is_parallel:
+            is_special_module = (module_name + u".").startswith((u"cython.parallel.", u"cython.cimports."))
+            if module_name != u"cython" and not is_special_module:
                 return node
 
-            module_name = node.rhs.module_name.value
-            as_name = node.lhs.name
-
-            node = Nodes.CImportStatNode(node.pos,
-                                         module_name = module_name,
-                                         as_name = as_name)
+            node = Nodes.CImportStatNode(node.pos, module_name=module_name, as_name=node.lhs.name)
             node = self.visit_CImportStatNode(node)
         else:
             self.visitchildren(node)
