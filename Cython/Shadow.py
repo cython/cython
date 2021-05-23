@@ -525,6 +525,22 @@ class CythonDotParallel(object):
     # def threadsavailable(self):
         # return 1
 
-import sys
+
+class CythonCImports(object):
+    """
+    Simplistic module mock to make cimports sort-of work in Python code.
+    """
+    def __init__(self, module):
+        self.__path__ = []
+        self.__package__ = module
+
+    def __getattr__(self, item):
+        return __import__(item)
+
+
+import math, sys
 sys.modules['cython.parallel'] = CythonDotParallel()
-del sys
+sys.modules['cython.cimports'] = CythonCImports('cython.cimports')
+sys.modules['cython.cimports.libc'] = CythonCImports('cython.cimports.libc')
+sys.modules['cython.cimports.libc.math'] = math
+del math, sys
