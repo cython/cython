@@ -6990,6 +6990,7 @@ class AttributeNode(ExprNode):
                     or entry.is_type or entry.is_const):
                 return self.as_name_node(env, entry, target)
             if self.is_cimported_module_without_shadow(env):
+                # TODO: search for submodule
                 error(self.pos, "cimported module has no attribute '%s'" % self.attribute)
                 return self
         return None
