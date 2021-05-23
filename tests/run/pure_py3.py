@@ -85,12 +85,3 @@ def call_cdef_inline(x):
     """
     ret = cdef_inline(x)
     return ret, cython.typeof(ret)
-
-
-def literal_list_ptr():
-    """
-    >>> literal_list_ptr()
-    4
-    """
-    a : cython.p_int = [1, 2, 3, 4, 5]
-    return a[3]

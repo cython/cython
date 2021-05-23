@@ -152,6 +152,15 @@ def iter_declared_dict_arg(d : Dict[float, float]):
     return s
 
 
+def literal_list_ptr():
+    """
+    >>> literal_list_ptr()
+    4
+    """
+    a : cython.p_int = [1, 2, 3, 4, 5]
+    return a[3]
+
+
 _WARNINGS = """
 37:19: Unknown type declaration in annotation, ignoring
 38:12: Unknown type declaration in annotation, ignoring
