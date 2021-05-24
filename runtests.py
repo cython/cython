@@ -443,6 +443,7 @@ VER_DEP_MODULES = {
                                          'run.time_pxd',  # _PyTime_GetSystemClock doesn't exist in 3.4
                                          ]),
     (3,7): (operator.lt, lambda x: x in ['run.pycontextvar',
+                                         'run.pep557_dataclasses',  # dataclasses module
                                          ]),
 }
 
@@ -640,7 +641,7 @@ class TestBuilder(object):
         self.cleanup_failures = options.cleanup_failures
         self.with_pyregr = with_pyregr
         self.cython_only = options.cython_only
-        self.doctest_selector = re.compile(options.only_pattern).search if options.only_pattern else None
+        self.test_selector = re.compile(options.only_pattern).search if options.only_pattern else None
         self.languages = languages
         self.test_bugs = test_bugs
         self.fork = options.fork
@@ -711,6 +712,9 @@ class TestBuilder(object):
                 mode = 'pyregr'
 
             if ext == '.srctree':
+                if self.cython_only:
+                    # EndToEnd tests always execute arbitrary build and test code
+                    continue
                 if 'cpp' not in tags['tag'] or 'cpp' in self.languages:
                     suite.addTest(EndToEndTest(filepath, workdir,
                              self.cleanup_workdir, stats=self.stats,
@@ -810,7 +814,7 @@ class TestBuilder(object):
                           cleanup_sharedlibs=self.cleanup_sharedlibs,
                           cleanup_failures=self.cleanup_failures,
                           cython_only=self.cython_only,
-                          doctest_selector=self.doctest_selector,
+                          test_selector=self.test_selector,
                           fork=self.fork,
                           language_level=language_level or self.language_level,
                           warning_errors=warning_errors,
@@ -848,10 +852,21 @@ def filter_stderr(stderr_bytes):
     return stderr_bytes
 
 
+def filter_test_suite(test_suite, selector):
+    filtered_tests = []
+    for test in test_suite._tests:
+        if isinstance(test, unittest.TestSuite):
+            filter_test_suite(test, selector)
+        elif not selector(test.id()):
+            continue
+        filtered_tests.append(test)
+    test_suite._tests[:] = filtered_tests
+
+
 class CythonCompileTestCase(unittest.TestCase):
     def __init__(self, test_directory, workdir, module, tags, language='c', preparse='id',
                  expect_errors=False, expect_warnings=False, annotate=False, cleanup_workdir=True,
-                 cleanup_sharedlibs=True, cleanup_failures=True, cython_only=False, doctest_selector=None,
+                 cleanup_sharedlibs=True, cleanup_failures=True, cython_only=False, test_selector=None,
                  fork=True, language_level=2, warning_errors=False,
                  test_determinism=False,
                  common_utility_dir=None, pythran_dir=None, stats=None):
@@ -869,7 +884,7 @@ class CythonCompileTestCase(unittest.TestCase):
         self.cleanup_sharedlibs = cleanup_sharedlibs
         self.cleanup_failures = cleanup_failures
         self.cython_only = cython_only
-        self.doctest_selector = doctest_selector
+        self.test_selector = test_selector
         self.fork = fork
         self.language_level = language_level
         self.warning_errors = warning_errors
@@ -1341,8 +1356,8 @@ class CythonRunTestCase(CythonCompileTestCase):
             else:
                 module = module_or_name
             tests = doctest.DocTestSuite(module)
-            if self.doctest_selector is not None:
-                tests._tests[:] = [test for test in tests._tests if self.doctest_selector(test.id())]
+            if self.test_selector:
+                filter_test_suite(tests, self.test_selector)
             with self.stats.time(self.name, self.language, 'run'):
                 tests.run(result)
         run_forked_test(result, run_test, self.shortDescription(), self.fork)
@@ -1539,6 +1554,8 @@ class CythonUnitTestCase(CythonRunTestCase):
         with self.stats.time(self.name, self.language, 'import'):
             module = import_ext(self.module, ext_so_path)
         tests = unittest.defaultTestLoader.loadTestsFromModule(module)
+        if self.test_selector:
+            filter_test_suite(tests, self.test_selector)
         with self.stats.time(self.name, self.language, 'run'):
             tests.run(result)
 
@@ -2072,7 +2089,7 @@ def main():
             args.append(arg)
 
     from optparse import OptionParser
-    parser = OptionParser()
+    parser = OptionParser(usage="usage: %prog [options] [selector ...]")
     parser.add_option("--no-cleanup", dest="cleanup_workdir",
                       action="store_false", default=True,
                       help="do not delete the generated C files (allows passing --no-cython on next run)")

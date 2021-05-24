@@ -52,7 +52,8 @@ echo "===================="
 echo "Installing requirements [python]"
 if [ -z "${PYTHON_VERSION##2.7}" ]; then
   pip install -r test-requirements-27.txt || exit 1
-
+elif [ -z "${PYTHON_VERSION##3.[45]*}" ]; then
+  python -m pip install -r test-requirements-34.txt || exit 1
 elif [ -n "${PYTHON_VERSION##*-dev}" ]; then
   python -m pip install -r test-requirements.txt || exit 1
 
@@ -83,9 +84,12 @@ fi
 ccache -s 2>/dev/null || true
 export PATH="/usr/lib/ccache:$PATH"
 
-if [ "$COVERAGE" != "1" -a -n "${PYTHON_VERSION##pypy*}" ]; then
+if [ "$NO_CYTHON_COMPILE" != "1" -a -n "${PYTHON_VERSION##pypy*}" ]; then
   CFLAGS="-O2 -ggdb -Wall -Wextra $(python -c 'import sys; print("-fno-strict-aliasing" if sys.version_info[0] == 2 else "")')" \
-      python setup.py build_ext -i $(python -c 'import sys; print("-j5" if sys.version_info >= (3,5) else "")') || exit 1
+  python setup.py build_ext -i \
+          $(if [ "$COVERAGE" == "1" ]; then echo " --cython-coverage"; fi) \
+          $(python -c 'import sys; print("-j5" if sys.version_info >= (3,5) else "")') \
+      || exit 1
 fi
 
 if [ "$TEST_CODE_STYLE" != "1" -a -n "${PYTHON_VERSION##pypy*}" ]; then
@@ -101,7 +105,7 @@ python runtests.py \
   --backends=$BACKEND \
    $LIMITED_API \
    $EXCLUDE \
-   $(if [ "$COVERAGE" == "1" ]; then echo " --coverage"; fi) \
+   $(if [ "$COVERAGE" == "1" ]; then echo " --coverage --coverage-html --cython-only"; fi) \
    $(if [ -z "$TEST_CODE_STYLE" ]; then echo " -j7 "; fi)
 
 EXIT_CODE=$?

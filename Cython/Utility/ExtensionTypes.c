@@ -73,12 +73,12 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
         // Make sure GC does not pick up our non-heap type as heap type with this hack!
         // For details, see https://github.com/cython/cython/issues/3603
         int gc_was_enabled;
-        #if PY_VERSION_HEX >= 0x030A00b1
+    #if PY_VERSION_HEX >= 0x030A00b1
         // finally added in Py3.10 :)
         gc_was_enabled = PyGC_Disable();
         (void)__Pyx_PyObject_CallMethod0;
 
-        #else
+    #else
         // Call gc.disable() as a backwards compatible fallback, but only if needed.
         PyObject *ret, *py_status;
         PyObject *gc = NULL;
@@ -106,7 +106,7 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
             Py_DECREF(gc);
             return -1;
         }
-        #endif
+    #endif
 
         // As of https://bugs.python.org/issue22079
         // PyType_Ready enforces that all bases of a non-heap type are
@@ -126,27 +126,28 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
 #if PY_VERSION_HEX >= 0x03050000
         t->tp_flags &= ~Py_TPFLAGS_HEAPTYPE;
 
-        if (gc_was_enabled) {
-#if PY_VERSION_HEX >= 0x030A00b1
+    #if PY_VERSION_HEX >= 0x030A00b1
+        if (gc_was_enabled)
             PyGC_Enable();
-#else
-            PyObject *t, *v, *tb;
-            PyErr_Fetch(&t, &v, &tb);
+    #else
+        if (gc_was_enabled) {
+            PyObject *tp, *v, *tb;
+            PyErr_Fetch(&tp, &v, &tb);
             ret = __Pyx_PyObject_CallMethod0(gc, PYUNICODE("enable"));
             if (likely(ret || r == -1)) {
                 Py_XDECREF(ret);
                 // do not overwrite exceptions raised by PyType_Ready() above
-                PyErr_Restore(t, v, tb);
+                PyErr_Restore(tp, v, tb);
             } else {
                 // PyType_Ready() succeeded, but gc.enable() failed.
-                Py_XDECREF(t);
+                Py_XDECREF(tp);
                 Py_XDECREF(v);
                 Py_XDECREF(tb);
                 r = -1;
             }
         }
         Py_DECREF(gc);
-#endif
+    #endif
     }
 #endif
 

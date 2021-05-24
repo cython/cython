@@ -608,7 +608,7 @@ static void __Pyx_WriteUnraisable(const char *name, int clineno,
     CYTHON_UNUSED_VAR(clineno);
     CYTHON_UNUSED_VAR(lineno);
     CYTHON_UNUSED_VAR(filename);
-    CYTHON_UNUSED_VAR(nogil);
+    CYTHON_MAYBE_UNUSED_VAR(nogil);
 
     __Pyx_PyThreadState_assign
     __Pyx_ErrFetch(&old_exc, &old_val, &old_tb);

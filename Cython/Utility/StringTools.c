@@ -895,7 +895,7 @@ static PyObject* __Pyx_PyUnicode_Join(PyObject* value_tuple, Py_ssize_t value_co
     int result_ukind, kind_shift;
     Py_ssize_t i, char_pos;
     void *result_udata;
-    CYTHON_UNUSED_VAR(max_char);
+    CYTHON_MAYBE_UNUSED_VAR(max_char);
 #if CYTHON_PEP393_ENABLED
     // Py 3.3+  (post PEP-393)
     result_uval = PyUnicode_New(result_ulength, max_char);
@@ -952,8 +952,8 @@ bad:
 #else
     // non-CPython fallback
     CYTHON_UNUSED_VAR(max_char);
-    result_ulength++;
-    value_count++;
+    CYTHON_UNUSED_VAR(result_ulength);
+    CYTHON_UNUSED_VAR(value_count);
     return PyUnicode_Join($empty_unicode, value_tuple);
 #endif
 }
