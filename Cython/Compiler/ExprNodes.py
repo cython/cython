@@ -6874,7 +6874,6 @@ class AttributeNode(ExprNode):
     is_attribute = 1
     subexprs = ['obj']
 
-    type = PyrexTypes.error_type
     entry = None
     is_called = 0
     needs_none_check = True
@@ -6964,6 +6963,8 @@ class AttributeNode(ExprNode):
         return node
 
     def analyse_types(self, env, target = 0):
+        if not self.type:
+            self.type = PyrexTypes.error_type  # default value if it isn't analysed successfully
         self.initialized_check = env.directives['initializedcheck']
         node = self.analyse_as_cimported_attribute_node(env, target)
         if node is None and not target:
@@ -10998,8 +10999,6 @@ class TypeidNode(ExprNode):
     #  arg_type      ExprNode
     #  is_variable   boolean
 
-    type = PyrexTypes.error_type
-
     subexprs = ['operand']
 
     arg_type = None
@@ -11017,19 +11016,25 @@ class TypeidNode(ExprNode):
     cpp_message = 'typeid operator'
 
     def analyse_types(self, env):
+        if not self.type:
+            self.type = PyrexTypes.error_type  # default value if it isn't analysed successfully
         self.cpp_check(env)
         type_info = self.get_type_info_type(env)
         if not type_info:
             self.error("The 'libcpp.typeinfo' module must be cimported to use the typeid() operator")
             return self
+        if self.operand is None:
+            return self  # already analysed, no need to repeat
         self.type = type_info
         as_type = self.operand.analyse_as_specialized_type(env)
         if as_type:
             self.arg_type = as_type
             self.is_type = True
+            self.operand = None  # nothing further uses self.operand - will only cause problems if its used in code generation
         else:
             self.arg_type = self.operand.analyse_types(env)
             self.is_type = False
+            self.operand = None  # nothing further uses self.operand - will only cause problems if its used in code generation
             if self.arg_type.type.is_pyobject:
                 self.error("Cannot use typeid on a Python object")
                 return self
