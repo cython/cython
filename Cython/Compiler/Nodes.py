@@ -858,7 +858,6 @@ class CArgDeclNode(Node):
     # kw_only        boolean            Is a keyword-only argument
     # is_dynamic     boolean            Non-literal arg stored inside CyFunction
     # pos_only       boolean            Is a positional-only argument
-    # _type_set_manually boolean         Used in overriding the type of self arguments - otherwise unimportant
     #
     # name_cstring                         property that converts the name to a cstring taking care of unicode
     #                                      and quoting it
@@ -878,7 +877,6 @@ class CArgDeclNode(Node):
     default_value = None
     annotation = None
     is_dynamic = 0
-    _type_set_manually = 0
 
     def declared_name(self):
         return self.declarator.declared_name()
@@ -886,15 +884,6 @@ class CArgDeclNode(Node):
     @property
     def name_cstring(self):
         return self.name.as_c_string_literal()
-
-    @property
-    def type_set_manually(self):
-        if self._type_set_manually:
-            return True
-        return bool(getattr(self.base_type, "name", False))
-    @type_set_manually.setter
-    def type_set_manually(self, value):
-        self._type_set_manually = value
 
     @property
     def hdr_cname(self):
@@ -1732,6 +1721,8 @@ class FuncDefNode(StatNode, BlockNode):
     #       Whether this cdef function has fused parameters. This is needed
     #       by AnalyseDeclarationsTransform, so it can replace CFuncDefNodes
     #       with fused argument types with a FusedCFuncDefNode
+    #  self_type_overridden   boolean   The type of the "self" argument has been overridden
+    #                                  and so shouldn't be automatically inferred
 
     py_func = None
     needs_closure = False
@@ -1749,6 +1740,7 @@ class FuncDefNode(StatNode, BlockNode):
     is_cyfunction = False
     code_object = None
     return_type_annotation = None
+    self_type_overridden = False
 
     def analyse_default_values(self, env):
         default_seen = 0
@@ -1794,7 +1786,7 @@ class FuncDefNode(StatNode, BlockNode):
             error(type_node.pos, "Previous declaration here")
         else:
             arg.type = other_type
-            arg.type_set_manually = True
+            self.self_type_overridden = True
             if arg.type.is_complex:
                 # utility code for complex types is special-cased and also important to ensure that it's run
                 arg.type.create_declaration_utility_code(env)
@@ -3178,16 +3170,17 @@ class DefNode(FuncDefNode):
             arg = self.args[i]
             arg.is_generic = 0
             if sig.is_self_arg(i) and not self.is_staticmethod:
-                self_type_overridden = arg.type_set_manually
+                self.self_type_overridden = (self.self_type_overridden or
+                                                bool(getattr(arg.base_type, "name", False)))
                 if self.is_classmethod:
                     arg.is_type_arg = 1
                     usual_type = Builtin.type_type
-                    if not arg.type_set_manually:
+                    if not self.self_type_overridden:
                         arg.hdr_type = arg.type = usual_type
                 else:
                     arg.is_self_arg = 1
                     usual_type = env.parent_type
-                    if self.is_in_arbitrary_decorator and not self_type_overridden:
+                    if self.is_in_arbitrary_decorator and not self.self_type_overridden:
                         if env.directives['fused_types_arbitrary_decorators']:
                             usual_type = PyrexTypes.FusedType([env.parent_type, PyrexTypes.py_object_type],
                                                                 name="fused self or object")
@@ -3197,14 +3190,13 @@ class DefNode(FuncDefNode):
                                         "Consider setting the type explicitly or enabling "
                                         "'cython.fused_types_arbitrary_decorators'" % (
                                                arg.name, env.parent_type), 2)
-                    if not self_type_overridden:
+                    if not self.self_type_overridden:
                         arg.hdr_type = arg.type = usual_type
                     if arg.type.is_fused:
-                        arg.type_set_manually = True
-                        self_type_overridden = True
+                        self.self_type_overridden = True
                         self.has_fused_arguments = True
                 arg.needs_conversion = 0
-                if self_type_overridden:
+                if self.self_type_overridden:
                     if arg.type.same_as(usual_type):
                         arg.hdr_type = usual_type
                     else:
