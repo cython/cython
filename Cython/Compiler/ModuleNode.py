@@ -2109,9 +2109,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     "right, left" if reverse else "left, right",
                     extra_arg)
             else:
-                return '%s_maybe_call_slot(%s, left, right %s)' % (
+                #if scope.name == "OverloadLeft" and method_name == "__radd__":
+                #    import pdb; pdb.set_trace()
+                return '%s_maybe_call_slot(%s->tp_base, left, right %s)' % (
                     func_name,
-                    'Py_TYPE(right)->tp_base' if reverse else 'Py_TYPE(left)->tp_base',
+                    scope.parent_type.typeptr_cname,
                     extra_arg)
 
         if get_slot_method_cname(slot.left_slot.method_name) and not get_slot_method_cname(slot.right_slot.method_name):
