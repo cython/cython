@@ -19,6 +19,7 @@ cdef extern from *:
     """
     void cppf(int) except+*
 
+
 def callcppf(int raiseCpp):
     """
     >>> callcppf(0)
