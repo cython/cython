@@ -17,22 +17,40 @@ Features added
 * ``cython.array`` supports simple, non-strided views.
   (Github issue :issue:`3775`)
 
+* Self-documenting f-strings (``=``) were implemented.
+  Patch by davfsa.  (Github issue :issue:`3796`)
+
 * The destructor is now called for fields in C++ structs.
   Patch by David Woods.  (Github issue :issue:`3226`)
+
+* ``std::move()`` is now also called for temps during ``yield``.
+  Patch by Yu Feng.  (Github issue :issue:`4154`)
 
 * ``asyncio.iscoroutinefunction()`` now recognises coroutine functions
   also when compiled by Cython.
   Patch by Pedro Marques da Luz.  (Github issue :issue:`2273`)
 
+* C compiler warnings and errors are now shown in Jupyter notebooks.
+  Patch by Egor Dranischnikow.  (Github issue :issue:`3751`)
+
 * ``float(…)`` is optimised for string arguments (str/bytes/bytearray).
+
+* Converting C++ containers to Python lists uses less memory allocations.
+  Patch by Max Bachmann.  (Github issue :issue:`4081`)
 
 * Docstrings of ``cpdef`` enums are now copied to the enum class.
   Patch by matham.  (Github issue :issue:`3805`)
 
 * The type ``cython.Py_hash_t`` is available in Python mode.
 
-* The ``cpython.fileobject`` C-API declarations were added.
+* C-API declarations for ``cpython.fileobject`` were added.
   Patch by Zackery Spytz.  (Github issue :issue:`3906`)
+
+* C-API declarations for context variables in Python 3.7 were added.
+  Original patch by Zolisa Bleki.  (Github issue :issues:`2281`)
+
+* More C-API declarations for ``cpython.datetime``  were added.
+  Patch by Bluenix2.  (Github issue :issue:`4128`)
 
 * A new module ``cpython.time`` was added with some low-level alternatives to
   Python's ``time`` module.
@@ -44,8 +62,18 @@ Features added
 * "Declaration after use" is now an error for variables.
   Patch by David Woods.  (Github issue :issue:`3976`)
 
+* More declarations for C++ string methods were added.
+
+* Cython now detects when existing output files were not previously generated
+  by itself and refuses to overwrite them.  It is a common mistake to name
+  the module file of a wrapper after the library (source file) that it wraps,
+  which can lead to surprising errors when the file gets overwritten.
+
 Bugs fixed
 ----------
+
+* Annotations were not exposed on annotated (data-)classes.
+  Patch by matsjoyce.  (Github issue :issue:`4151`)
 
 * Inline functions and other code in ``.pxd`` files could accidentally
   inherit the compiler directives of the ``.pyx`` file that imported them.
@@ -54,18 +82,37 @@ Bugs fixed
 * Some issues were resolved that could lead to duplicated C names.
   Patch by David Woods.  (Github issue :issue:`3716`, :issue:`3741`, :issue:`3734`)
 
+* Modules with unicode names failed to build on Windows.
+  Patch by David Woods.  (Github issue :issue:`4125`)
+
 * ``ndarray.shape`` failed to compile with Pythran and recent NumPy.
   Patch by Serge Guelton.  (Github issue :issue:`3762`)
 
 * Casting to ctuples is now allowed.
   Patch by David Woods.  (Github issue :issue:`3808`)
 
+* Structs could not be instantiated with positional arguments in
+  pure Python mode.
+
+* Literal list assignments to pointers declared in PEP-526 notation
+  failed to compile.
+
 * Nested C++ types were not usable through ctypedefs.
   Patch by Vadim Pushtaev.  (Github issue :issue:`4039`)
 
-* Cython compiled functions always provided a ``__self__`` attribute, regardless
-  of being used as a method or not.
+* Overloaded C++ static methods were lost.
+  Patch by Ashwin Srinath.  (Github :issue:`1851`)
+
+* Cython compiled functions always provided a ``__self__`` attribute,
+  regardless of being used as a method or not.
   Patch by David Woods.  (Github issue :issue:`4036`)
+
+* Calls to ``.__class__()`` of a known extension type failed.
+  Patch by David Woods.  (Github issue :issue:`3954`)
+
+* Generator expressions in pxd-overridden ``cdef`` functions could
+  fail to compile.
+  Patch by Matus Valo.  (Github issue :issue:`3477`)
 
 * A reference leak on import failures was resolved.
   Patch by Max Bachmann.  (Github issue :issue:`4056`)
@@ -77,10 +124,13 @@ Bugs fixed
   (Github issue :issue:`2749`)
 
 * Some C compiler warninge were resolved.
-  Patches by Max Bachmann.  (Github issue :issue:`4053`, :issue:`4059`, :issue:`4054`)
+  Patches by Max Bachmann.  (Github issue :issue:`4053`, :issue:`4059`, :issue:`4054`, :issue:`4148`, :issue:`4162`)
 
 * A compile failure for C++ enums in Py3.4 / MSVC was resolved.
   Patch by Ashwin Srinath.  (Github issue :issue:`3782`)
+
+* Some C++ STL methods did not propagate exceptions.
+  Patch by Max Bachmann.  (Github issue :issue:`4079`)
 
 * An unsupported C-API call in PyPy was fixed.
   Patch by Max Bachmann.  (Github issue :issue:`4055`)
@@ -90,6 +140,18 @@ Bugs fixed
 
 * ``complex`` wasn't supported in PEP-484 type annotations.
   Patch by David Woods.  (Github issue :issue:`3949`)
+
+* Default arguments of methods were not exposed for introspection.
+  Patch by Vladimir Matveev.  (Github issue :issue:`4061`)
+
+* Extension types inheriting from Python classes could not safely
+  be exposed in ``.pxd``  files.
+  (Github issue :issue:`4106`)
+
+* The profiling/tracing code was adapted to work with Python 3.10b1.
+
+* The internal CPython macro ``Py_ISSPACE()`` is no longer used.
+  Original patch by Andrew Jones.  (Github issue :issue:`4111`)
 
 
 3.0.0 alpha 6 (2020-07-31)
