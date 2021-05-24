@@ -793,7 +793,7 @@ def test_bound_methods():
 def test_builtin_max():
     """
     # builtin max is slightly complicated because it gets transformed to EvalWithTempExprNode
-    # GH4155
+    # See https://github.com/cython/cython/issues/4155
     >>> test_builtin_max()
     """
     class C:
