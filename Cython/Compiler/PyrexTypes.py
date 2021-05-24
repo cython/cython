@@ -4614,7 +4614,8 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
                 [pattern.type.deduce_template_params(actual) for (pattern, actual) in zip(func_type.args, arg_types_for_deduction)],
                 {})
             if deductions is None:
-                errors.append((func, "Unable to deduce type parameters for %s given (%s)" % (func_type, ', '.join(map(str, arg_types_for_deduction)))))
+                errors.append((func, "Unable to deduce type parameters for %s given (%s)" % (
+                    func_type, ', '.join(map(str, arg_types_for_deduction)))))
             elif len(deductions) < len(func_type.templates):
                 errors.append((func, "Unable to deduce type parameter %s" % (
                     ", ".join([param.name for param in set(func_type.templates) - set(deductions.keys())]))))
