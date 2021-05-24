@@ -2,7 +2,7 @@
 Cython Changelog
 ================
 
-3.0.0 alpha 7 (2020-0?-??)
+3.0.0 alpha 7 (2020-05-24)
 ==========================
 
 Features added
@@ -94,8 +94,8 @@ Bugs fixed
 * Structs could not be instantiated with positional arguments in
   pure Python mode.
 
-* Literal list assignments to pointers declared in PEP-526 notation
-  failed to compile.
+* Literal list assignments to pointer variables declared in PEP-526
+  notation failed to compile.
 
 * Nested C++ types were not usable through ctypedefs.
   Patch by Vadim Pushtaev.  (Github issue :issue:`4039`)
