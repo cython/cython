@@ -264,7 +264,7 @@ def translate_cpp_exception(code, pos, inside, py_result, exception_value, nogil
     code.putln("}")
 
 def needs_cpp_exception_conversion(node):
-    # This is only called after confirming that node.exception_check == "+"
+    assert node.exception_check == "+"
     if node.exception_value is None:
         return True
     # exception_value can be a NameNode
