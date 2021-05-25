@@ -9352,13 +9352,13 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
     is_specialization = False
 
     @classmethod
-    def from_defnode(cls, node, binding):
+    def from_defnode(cls, node, binding, code_object = None):
         return cls(node.pos,
                    def_node=node,
                    pymethdef_cname=node.entry.pymethdef_cname,
                    binding=binding or node.specialized_cpdefs,
                    specialized_cpdefs=node.specialized_cpdefs,
-                   code_object=CodeObjectNode(node))
+                   code_object=code_object or CodeObjectNode(node))
 
     def analyse_types(self, env):
         if self.binding:
@@ -9630,8 +9630,9 @@ class CodeObjectNode(ExprNode):
     subexprs = ['varnames']
     is_temp = False
     result_code = None
+    func_name = None
 
-    def __init__(self, def_node):
+    def __init__(self, def_node, func_name = None):
         ExprNode.__init__(self, def_node.pos, def_node=def_node)
         args = list(def_node.args)
         # if we have args/kwargs, then the first two in var_entries are those
@@ -9642,6 +9643,9 @@ class CodeObjectNode(ExprNode):
                   for arg in args + local_vars],
             is_temp=0,
             is_literal=1)
+
+        if func_name:
+            self.func_name = func_name
 
     def may_be_none(self):
         return False
@@ -9660,8 +9664,13 @@ class CodeObjectNode(ExprNode):
             return  # already initialised
         code.mark_pos(self.pos)
         func = self.def_node
+
+        from .StringEncoding import EncodedString
+        func_name = EncodedString(self.func_name if self.func_name else func.get_trace_name())
+
         func_name = code.get_py_string_const(
-            func.name, identifier=True, is_str=False, unicode_value=func.name)
+            func_name, identifier=True, is_str=False, unicode_value=func_name)
+
         # FIXME: better way to get the module file path at module init time? Encoding to use?
         file_path = StringEncoding.bytes_literal(func.pos[0].get_filenametable_entry().encode('utf8'), 'utf8')
         file_path_const = code.get_py_string_const(file_path, identifier=False, is_str=True)
