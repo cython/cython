@@ -173,6 +173,6 @@ _WARNINGS = """
 115:5: total_ordering directive used, but no equality method defined
 126:5: total_ordering directive used, but no equality method defined
 140:5: total_ordering directive used, but no comparison methods defined
-172:5: total_ordering directive used, but no comparison methods defined
+145:5: total_ordering directive used, but no comparison methods defined
 150:5: total_ordering directive used, but no comparison methods defined
 """
