@@ -4,6 +4,8 @@
 
 from __future__ import annotations
 
+import sys
+
 try:
     from typing import ClassVar
 except ImportError:  # Py<=3.5
@@ -40,8 +42,13 @@ class PyAnnotatedClass:
 
 class PyVanillaClass:
     """
-    >>> PyVanillaClass.__annotations__
-    Traceback (most recent call last):
-      ...
-    AttributeError: type object 'PyVanillaClass' has no attribute '__annotations__'
+    Before Py3.10, unannotated classes did not have '__annotations__'.
+
+    >>> try:
+    ...     a = PyVanillaClass.__annotations__
+    ... except AttributeError:
+    ...     assert sys.version_info < (3, 10)
+    ... else:
+    ...     assert sys.version_info >= (3, 10)
+    ...     assert a == {}
     """

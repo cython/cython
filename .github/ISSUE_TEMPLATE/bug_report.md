@@ -8,7 +8,7 @@ assignees: ''
 ---
 
 <!--
-**Note:**
+**PLEASE READ THIS FIRST:**
 - Do not use the bug and feature tracker for support requests. Use the `cython-users` mailing list instead.
 - Did you search for similar issues already? Please do, it helps to save us precious time that we otherwise could not invest into development.
 - Did you try the latest master branch or pre-release? It might already have what you want to report. Also see the [Changelog](https://github.com/cython/cython/blob/master/CHANGES.rst) regarding recent changes.

@@ -227,6 +227,8 @@ Some things to note about this example:
   when you try to use them from a dependent package.
   To prevent this, include ``zip_safe=False`` in the arguments to ``setup()``.
 
+.. _versioning:
+
 Versioning
 ==========
   

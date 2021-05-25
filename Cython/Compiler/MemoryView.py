@@ -22,10 +22,6 @@ ERR_UNINITIALIZED = ("Cannot check if memoryview %s is initialized without the "
                      "GIL, consider using initializedcheck(False)")
 
 
-def concat_flags(*flags):
-    return "(%s)" % "|".join(flags)
-
-
 format_flag = "PyBUF_FORMAT"
 
 memview_c_contiguous = "(PyBUF_C_CONTIGUOUS | PyBUF_FORMAT)"
@@ -100,6 +96,12 @@ def put_acquire_memoryviewslice(lhs_cname, lhs_type, lhs_pos, rhs, code,
 
 def put_assign_to_memviewslice(lhs_cname, rhs, rhs_cname, memviewslicetype, code,
                                have_gil=False, first_assignment=False):
+    if lhs_cname == rhs_cname:
+        # self assignment is tricky because memoryview xdecref clears the memoryview
+        # thus invalidating both sides of the assignment. Therefore make it actually do nothing
+        code.putln("/* memoryview self assignment no-op */")
+        return
+
     if not first_assignment:
         code.put_xdecref(lhs_cname, memviewslicetype,
                          have_gil=have_gil)
@@ -508,7 +510,8 @@ def get_copy_new_utility(pos, from_memview, to_memview):
     if to_memview.is_c_contig:
         mode = 'c'
         contig_flag = memview_c_contiguous
-    elif to_memview.is_f_contig:
+    else:
+        assert to_memview.is_f_contig
         mode = 'fortran'
         contig_flag = memview_f_contiguous
 
@@ -851,7 +854,7 @@ view_utility_code = load_memview_cy_utility(
                   copy_contents_new_utility,
                   ModuleNode.capsule_utility_code],
 )
-view_utility_whitelist = ('array', 'memoryview', 'array_cwrapper',
+view_utility_allowlist = ('array', 'memoryview', 'array_cwrapper',
                           'generic', 'strided', 'indirect', 'contiguous',
                           'indirect_contiguous')
 

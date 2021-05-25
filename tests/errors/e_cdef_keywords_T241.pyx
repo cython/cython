@@ -1,4 +1,4 @@
-# ticket: 241
+# ticket: t241
 # mode: error
 
 cdef some_function(x, y):

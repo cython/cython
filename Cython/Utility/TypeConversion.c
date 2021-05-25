@@ -126,7 +126,8 @@ static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject*);
 #else
 #define __Pyx_PyNumber_Int(x) (PyInt_CheckExact(x) ? __Pyx_NewRef(x) : PyNumber_Int(x))
 #endif
-#define __Pyx_PyNumber_Float(x) (PyFloat_CheckExact(x) ? __Pyx_NewRef(x) : PyNumber_Float(x))
+// __Pyx_PyNumber_Float is now in it's own section since it has dependencies (needed to make
+// string conversion work the same in all circumstances)
 
 #if PY_MAJOR_VERSION < 3 && __PYX_DEFAULT_STRING_ENCODING_IS_ASCII
 static int __Pyx_sys_getdefaultencoding_not_ascii;
@@ -463,6 +464,54 @@ static CYTHON_INLINE PyObject * __Pyx_PyInt_FromSize_t(size_t ival) {
     return PyInt_FromSize_t(ival);
 }
 
+/////////////// pynumber_float.proto ///////////////
+
+static CYTHON_INLINE PyObject* __Pyx__PyNumber_Float(PyObject* obj); /* proto */
+#define __Pyx_PyNumber_Float(x) (PyFloat_CheckExact(x) ? __Pyx_NewRef(x) : __Pyx__PyNumber_Float(x))
+
+/////////////// pynumber_float ///////////////
+//@requires: Optimize.c::pybytes_as_double
+//@requires: Optimize.c::pyunicode_as_double
+
+static CYTHON_INLINE PyObject* __Pyx__PyNumber_Float(PyObject* obj) {
+    // 'obj is PyFloat' is handled in the calling macro
+    double val;
+    if (PyLong_CheckExact(obj)) {
+#if CYTHON_USE_PYLONG_INTERNALS
+        const digit* digits = ((PyLongObject*)obj)->ob_digit;
+        switch (Py_SIZE(obj)) {
+            case 0:
+                val = 0.0;
+                goto no_error;
+            // single digit PyLong values always cast safely to double
+            case 1:
+                val = (double) digits[0];
+                goto no_error;
+            case -1:
+                val = (double) - (sdigit) digits[0];
+                goto no_error;
+            default:
+                val = PyLong_AsDouble(obj);
+        }
+#else
+        val = PyLong_AsDouble(obj);
+#endif
+    } else if (PyUnicode_CheckExact(obj)) {
+        val = __Pyx_PyUnicode_AsDouble(obj);
+    } else if (PyBytes_CheckExact(obj)) {
+        val = __Pyx_PyBytes_AsDouble(obj);
+    } else if (PyByteArray_CheckExact(obj)) {
+        val = __Pyx_PyByteArray_AsDouble(obj);
+    } else {
+        return PyNumber_Float(obj);
+    }
+
+    if (unlikely(val == -1 && PyErr_Occurred())) {
+        return NULL;
+    }
+no_error:
+    return PyFloat_FromDouble(val);
+}
 
 /////////////// GCCDiagnostics.proto ///////////////
 
@@ -902,7 +951,7 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
     const int is_unsigned = neg_one > const_zero;
 #if PY_MAJOR_VERSION < 3
     if (likely(PyInt_Check(x))) {
-        if (sizeof({{TYPE}}) < sizeof(long)) {
+        if ((sizeof({{TYPE}}) < sizeof(long))) {
             __PYX_VERIFY_RETURN_INT({{TYPE}}, long, PyInt_AS_LONG(x))
         } else {
             long val = PyInt_AS_LONG(x);
@@ -922,10 +971,10 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
                 case  1: __PYX_VERIFY_RETURN_INT({{TYPE}}, digit, digits[0])
                 {{for _size in (2, 3, 4)}}
                 case {{_size}}:
-                    if (8 * sizeof({{TYPE}}) > {{_size-1}} * PyLong_SHIFT) {
-                        if (8 * sizeof(unsigned long) > {{_size}} * PyLong_SHIFT) {
+                    if ((8 * sizeof({{TYPE}}) > {{_size-1}} * PyLong_SHIFT)) {
+                        if ((8 * sizeof(unsigned long) > {{_size}} * PyLong_SHIFT)) {
                             __PYX_VERIFY_RETURN_INT({{TYPE}}, unsigned long, {{pylong_join(_size, 'digits')}})
-                        } else if (8 * sizeof({{TYPE}}) >= {{_size}} * PyLong_SHIFT) {
+                        } else if ((8 * sizeof({{TYPE}}) >= {{_size}} * PyLong_SHIFT)) {
                             return ({{TYPE}}) {{pylong_join(_size, 'digits', TYPE)}};
                         }
                     }
@@ -947,10 +996,10 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
                     goto raise_neg_overflow;
             }
 #endif
-            if (sizeof({{TYPE}}) <= sizeof(unsigned long)) {
+            if ((sizeof({{TYPE}}) <= sizeof(unsigned long))) {
                 __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, unsigned long, PyLong_AsUnsignedLong(x))
 #ifdef HAVE_LONG_LONG
-            } else if (sizeof({{TYPE}}) <= sizeof(unsigned PY_LONG_LONG)) {
+            } else if ((sizeof({{TYPE}}) <= sizeof(unsigned PY_LONG_LONG))) {
                 __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, unsigned PY_LONG_LONG, PyLong_AsUnsignedLongLong(x))
 #endif
             }
@@ -965,10 +1014,10 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
                 {{for _size in (2, 3, 4)}}
                 {{for _case in (-_size, _size)}}
                 case {{_case}}:
-                    if (8 * sizeof({{TYPE}}){{' - 1' if _case < 0 else ''}} > {{_size-1}} * PyLong_SHIFT) {
-                        if (8 * sizeof(unsigned long) > {{_size}} * PyLong_SHIFT) {
+                    if ((8 * sizeof({{TYPE}}){{' - 1' if _case < 0 else ''}} > {{_size-1}} * PyLong_SHIFT)) {
+                        if ((8 * sizeof(unsigned long) > {{_size}} * PyLong_SHIFT)) {
                             __PYX_VERIFY_RETURN_INT({{TYPE}}, {{'long' if _case < 0 else 'unsigned long'}}, {{'-(long) ' if _case < 0 else ''}}{{pylong_join(_size, 'digits')}})
-                        } else if (8 * sizeof({{TYPE}}) - 1 > {{_size}} * PyLong_SHIFT) {
+                        } else if ((8 * sizeof({{TYPE}}) - 1 > {{_size}} * PyLong_SHIFT)) {
                             return ({{TYPE}}) ({{'((%s)-1)*' % TYPE if _case < 0 else ''}}{{pylong_join(_size, 'digits', TYPE)}});
                         }
                     }
@@ -977,10 +1026,10 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
                 {{endfor}}
             }
 #endif
-            if (sizeof({{TYPE}}) <= sizeof(long)) {
+            if ((sizeof({{TYPE}}) <= sizeof(long))) {
                 __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, long, PyLong_AsLong(x))
 #ifdef HAVE_LONG_LONG
-            } else if (sizeof({{TYPE}}) <= sizeof(PY_LONG_LONG)) {
+            } else if ((sizeof({{TYPE}}) <= sizeof(PY_LONG_LONG))) {
                 __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, PY_LONG_LONG, PyLong_AsLongLong(x))
 #endif
             }
