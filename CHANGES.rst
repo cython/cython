@@ -153,6 +153,8 @@ Bugs fixed
 * The internal CPython macro ``Py_ISSPACE()`` is no longer used.
   Original patch by Andrew Jones.  (Github issue :issue:`4111`)
 
+* Includes all bug-fixes from the 0.29.23 release.
+
 
 3.0.0 alpha 6 (2020-07-31)
 ==========================
