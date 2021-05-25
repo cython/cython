@@ -1,22 +1,24 @@
 #!/usr/bin/bash
 
+GCC_VERSION=${GCC_VERSION:=8}
+
 # Set up compilers
 if [ "${OS_NAME##ubuntu*}" == "" - "$TEST_CODE_STYLE" != "1" ]; then
   echo "Installing requirements [apt]"
   sudo apt-add-repository -y "ppa:ubuntu-toolchain-r/test"
   sudo apt update -y -q
-  sudo apt install -y -q ccache gdb python-dbg python3-dbg gcc-8 || exit 1
+  sudo apt install -y -q ccache gdb python-dbg python3-dbg gcc-$GCC_VERSION || exit 1
   if [ -z "${BACKEND##*cpp*}" ]; then
-    sudo apt install -y -q g++-8 || exit 1
+    sudo apt install -y -q g++-$GCC_VERSION || exit 1
   fi
   sudo /usr/sbin/update-ccache-symlinks
   echo "/usr/lib/ccache" >> $GITHUB_PATH # export ccache to path
 
-  sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 60 $(if [ -z "${BACKEND##*cpp*}" ]; then echo " --slave /usr/bin/g++ g++ /usr/bin/g++-8"; fi)
+  sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-$GCC_VERSION 60 $(if [ -z "${BACKEND##*cpp*}" ]; then echo " --slave /usr/bin/g++ g++ /usr/bin/g++-$GCC_VERSION"; fi)
 
   export CC="gcc"
   if [ -z "${BACKEND##*cpp*}" ]; then
-    sudo update-alternatives --set g++ /usr/bin/g++-8
+    sudo update-alternatives --set g++ /usr/bin/g++-$GCC_VERSION
     export CXX="g++"
   fi
 fi

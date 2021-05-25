@@ -29,6 +29,14 @@ jobs:
         env: [{}]
 
         include:
+          - python-version: 3.9
+            backend: c
+            env: { GCC_VERSION: 11 }
+            allowed_failure: true
+          - python-version: 3.9
+            backend: cpp
+            env: { GCC_VERSION: 11 }
+            allowed_failure: true
           # Temporary - Allow failure on all 3.10-dev jobs until beta comes out
           - python-version: 3.10-dev
             allowed_failure: true
@@ -121,6 +129,7 @@ jobs:
       BACKEND: ${{ matrix.backend }}
       OS_NAME: ${{ matrix.os }}
       PYTHON_VERSION: ${{ matrix.python-version }}
+      GCC_VERSION: 8
       USE_CCACHE: 1
       CCACHE_SLOPPINESS: "pch_defines,time_macros"
       CCACHE_COMPRESS: 1
