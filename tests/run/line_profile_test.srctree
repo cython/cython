@@ -109,6 +109,9 @@ def cy_generator(int n):
    x = 1
    for i in range(n):
        yield x + 2
+       # waste some time to avoid 0 runtimes (line profiler cannot handle those)
+       while <object>(i + x) < n + 10:
+           i += 2
 
 
 @cython.binding(True)

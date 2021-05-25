@@ -2841,12 +2841,14 @@ class CFuncType(CType):
     #                               (used for optimisation overrides)
     #  is_const_method  boolean
     #  is_static_method boolean
+    #  op_arg_struct    CPtrType   Pointer to optional argument struct
 
     is_cfunction = 1
     original_sig = None
     cached_specialized_types = None
     from_fused = False
     is_const_method = False
+    op_arg_struct = None
 
     subtypes = ['return_type', 'args']
 

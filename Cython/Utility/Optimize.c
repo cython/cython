@@ -227,8 +227,9 @@ static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *ke
 /////////////// dict_setdefault ///////////////
 
 static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *default_value,
-                                                       CYTHON_UNUSED int is_safe_type) {
+                                                       int is_safe_type) {
     PyObject* value;
+    CYTHON_MAYBE_UNUSED_VAR(is_safe_type);
 #if PY_VERSION_HEX >= 0x030400A0
     // we keep the method call at the end to avoid "unused" C compiler warnings
     if ((1)) {
@@ -789,7 +790,7 @@ fallback:
 static CYTHON_INLINE double __Pyx_PyUnicode_AsDouble(PyObject *obj) {
     // Currently not optimised for Py2.7.
 #if PY_MAJOR_VERSION >= 3 && !CYTHON_COMPILING_IN_PYPY
-    if (unlikely(PyUnicode_READY(obj) == -1))
+    if (unlikely(__Pyx_PyUnicode_READY(obj) == -1))
         return (double)-1;
     if (likely(PyUnicode_IS_ASCII(obj))) {
         const char *s;
@@ -1037,7 +1038,9 @@ return_compare = (
     )
 }}
 
-static CYTHON_INLINE {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHON_UNUSED long intval, CYTHON_UNUSED long inplace) {
+static CYTHON_INLINE {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(PyObject *op1, PyObject *op2, long intval, long inplace) {
+    CYTHON_MAYBE_UNUSED_VAR(intval);
+    CYTHON_UNUSED_VAR(inplace);
     if (op1 == op2) {
         {{return_true if op == 'Eq' else return_false}};
     }
@@ -1143,9 +1146,10 @@ def zerodiv_check(operand, optype='integer', _is_mod=op == 'Remainder', _needs_c
     ) if _needs_check else '')
 }}
 
-static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, CYTHON_UNUSED long intval, int inplace, int zerodivision_check) {
-    // Prevent "unused" warnings.
-    (void)inplace; (void)zerodivision_check;
+static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, long intval, int inplace, int zerodivision_check) {
+    CYTHON_MAYBE_UNUSED_VAR(intval);
+    CYTHON_MAYBE_UNUSED_VAR(inplace);
+    CYTHON_UNUSED_VAR(zerodivision_check);
 
     {{if op in ('Eq', 'Ne')}}
     if (op1 == op2) {

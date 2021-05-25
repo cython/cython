@@ -251,3 +251,51 @@ def test_func_default_scope_local():
         return arg
     print i  # genexprs don't leak
     return func
+
+cdef class C:
+    def f1(self, a, b=1, c=[]):
+        pass
+    def f2(self, a, b=1,/, c=[1]):
+        pass
+    def f3(self, a, /, b=1, *, c=[1]):
+        pass
+    cpdef f4(self, a, char*c=NULL):
+        pass
+    cpdef f5(self, a, str s = "123"):
+        pass
+    cpdef f6(self, a, int s = 4):
+        pass
+    cpdef f7(self, a, dict s = {'a':22}):
+        pass
+    cpdef f8(self, a, list s = [15]):
+        pass
+
+
+def check_defaults_on_methods_for_introspection():
+    """
+    >>> C.f1.__defaults__
+    (1, [])
+    >>> C.f1.__kwdefaults__
+    >>> C.f2.__defaults__
+    (1, [1])
+    >>> C.f2.__kwdefaults__
+    >>> C.f3.__defaults__
+    (1,)
+    >>> C.f3.__kwdefaults__
+    {'c': [1]}
+    >>> C.f4.__defaults__
+    >>> C.f4.__kwdefaults__
+    >>> C.f5.__defaults__
+    ('123',)
+    >>> C.f5.__kwdefaults__
+    >>> C.f6.__defaults__
+    (4,)
+    >>> C.f6.__kwdefaults__
+    >>> C.f7.__defaults__
+    ({'a': 22},)
+    >>> C.f7.__kwdefaults__
+    >>> C.f8.__defaults__
+    ([15],)
+    >>> C.f8.__kwdefaults__
+    """
+    pass

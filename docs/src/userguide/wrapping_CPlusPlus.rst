@@ -462,7 +462,7 @@ Static member method
 
 If the Rectangle class has a static member:
 
-.. sourcecode:: c++
+.. code-block:: c++
 
     namespace shapes {
         class Rectangle {
