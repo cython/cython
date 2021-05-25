@@ -3,7 +3,7 @@
 GCC_VERSION=${GCC_VERSION:=8}
 
 # Set up compilers
-if [ "${OS_NAME##ubuntu*}" == "" - "$TEST_CODE_STYLE" != "1" ]; then
+if [ "${OS_NAME##ubuntu*}" == "" -a "$TEST_CODE_STYLE" != "1" ]; then
   echo "Installing requirements [apt]"
   sudo apt-add-repository -y "ppa:ubuntu-toolchain-r/test"
   sudo apt update -y -q
