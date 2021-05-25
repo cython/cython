@@ -276,7 +276,7 @@ class SlotDescriptor(object):
                 # PyPy currently has a broken PyType_Ready() that fails to
                 # inherit some slots.  To work around this, we explicitly
                 # set inherited slots here, but only in PyPy since CPython
-                # handles this better than we do.
+                # handles this better than we do (except for buffer slots in type specs).
                 inherited_value = value
                 current_scope = scope
                 while (inherited_value == "0"
@@ -286,7 +286,9 @@ class SlotDescriptor(object):
                     current_scope = current_scope.parent_type.base_type.scope
                     inherited_value = self.slot_code(current_scope)
                 if inherited_value != "0":
-                    code.putln("#if CYTHON_COMPILING_IN_PYPY")
+                    # we always need inherited buffer slots for the type spec
+                    is_buffer_slot = int(self.slot_name in ("bf_getbuffer", "bf_releasebuffer"))
+                    code.putln("#if CYTHON_COMPILING_IN_PYPY || %d" % is_buffer_slot)
                     code.putln("%s, /*%s*/" % (inherited_value, self.slot_name))
                     code.putln("#else")
                     end_pypy_guard = True
@@ -315,11 +317,14 @@ class SlotDescriptor(object):
     def generate_set_slot_code(self, value, scope, code):
         if value == "0":
             return
-        code.putln("%s.%s = %s;" % (
-            scope.parent_type.typeobj_cname,
-            self.slot_name,
-            value,
-        ))
+
+        if scope.parent_type.typeptr_cname:
+            target = "%s->%s" % (scope.parent_type.typeptr_cname, self.slot_name)
+        else:
+            assert scope.parent_type.typeobj_cname
+            target = "%s.%s" % (scope.parent_type.typeobj_cname, self.slot_name)
+
+        code.putln("%s = %s;" % (target, value))
 
 
 class FixedSlot(SlotDescriptor):
@@ -458,9 +463,11 @@ class ConstructorSlot(InternalMethodSlot):
         return InternalMethodSlot.slot_code(self, scope)
 
     def spec_value(self, scope):
-        if self.slot_name == "tp_dealloc" and not scope.lookup_here("__dealloc__"):
+        slot_function = self.slot_code(scope)
+        if self.slot_name == "tp_dealloc" and slot_function != scope.mangle_internal("tp_dealloc"):
+            # Not used => inherit from base type.
             return "0"
-        return self.slot_code(scope)
+        return slot_function
 
     def generate_dynamic_init_code(self, scope, code):
         if self.slot_code(scope) != '0':
@@ -468,10 +475,10 @@ class ConstructorSlot(InternalMethodSlot):
         # If we don't have our own slot function and don't know the
         # parent function statically, copy it dynamically.
         base_type = scope.parent_type.base_type
-        if base_type.is_extension_type and base_type.typeobj_cname:
-            src = '%s.%s' % (base_type.typeobj_cname, self.slot_name)
-        elif base_type.typeptr_cname:
+        if base_type.typeptr_cname:
             src = '%s->%s' % (base_type.typeptr_cname, self.slot_name)
+        elif base_type.is_extension_type and base_type.typeobj_cname:
+            src = '%s.%s' % (base_type.typeobj_cname, self.slot_name)
         else:
             return
 
@@ -498,8 +505,6 @@ class SyntheticSlot(InternalMethodSlot):
             return self.default_value
 
     def spec_value(self, scope):
-        if self.slot_name == "tp_getattro" and not scope.defines_any_special(self.user_methods):
-            return "PyObject_GenericGetAttr"
         return self.slot_code(scope)
 
 
@@ -623,7 +628,42 @@ class MemberTableSlot(SlotDescriptor):
     #  Slot descriptor for the table of Python-accessible attributes.
 
     def slot_code(self, scope):
+        # Only used in specs.
         return "0"
+
+    def get_member_specs(self, scope):
+        return [
+            get_slot_by_name("tp_dictoffset").members_slot_value(scope),
+            #get_slot_by_name("tp_weaklistoffset").spec_value(scope),
+        ]
+
+    def is_empty(self, scope):
+        for member_entry in self.get_member_specs(scope):
+            if member_entry:
+                return False
+        return True
+
+    def substructure_cname(self, scope):
+        return "%s%s_%s" % (Naming.pyrex_prefix, self.slot_name, scope.class_name)
+
+    def generate_substructure_spec(self, scope, code):
+        if self.is_empty(scope):
+            return
+        from .Code import UtilityCode
+        code.globalstate.use_utility_code(UtilityCode.load_cached("IncludeStructmemberH", "ModuleSetupCode.c"))
+
+        ext_type = scope.parent_type
+        code.putln("static struct PyMemberDef %s[] = {" % self.substructure_cname(scope))
+        for member_entry in self.get_member_specs(scope):
+            if member_entry:
+                code.putln(member_entry)
+        code.putln("{NULL, 0, 0, 0, NULL}")
+        code.putln("};")
+
+    def spec_value(self, scope):
+        if self.is_empty(scope):
+            return "0"
+        return self.substructure_cname(scope)
 
 
 class GetSetSlot(SlotDescriptor):
@@ -645,8 +685,8 @@ class BaseClassSlot(SlotDescriptor):
     def generate_dynamic_init_code(self, scope, code):
         base_type = scope.parent_type.base_type
         if base_type:
-            code.putln("%s.%s = %s;" % (
-                scope.parent_type.typeobj_cname,
+            code.putln("%s->%s = %s;" % (
+                scope.parent_type.typeptr_cname,
                 self.slot_name,
                 base_type.typeptr_cname))
 
@@ -670,6 +710,13 @@ class DictOffsetSlot(SlotDescriptor):
                         dict_entry.cname))
         else:
             return "0"
+
+    def members_slot_value(self, scope):
+        dict_offset = self.slot_code(scope)
+        if dict_offset == "0":
+            return None
+        return '{"__dictoffset__", T_PYSSIZET, %s, READONLY, NULL},' % dict_offset
+
 
 
 # The following dictionary maps __xxx__ method names to slot descriptors.
@@ -712,7 +759,7 @@ def get_base_slot_function(scope, slot):
     #  This is useful for enabling the compiler to optimize calls
     #  that recursively climb the class hierarchy.
     base_type = scope.parent_type.base_type
-    if scope.parent_scope is base_type.scope.parent_scope:
+    if base_type and scope.parent_scope is base_type.scope.parent_scope:
         parent_slot = slot.slot_code(base_type.scope)
         if parent_slot != '0':
             entry = scope.parent_scope.lookup_here(scope.parent_type.base_type.name)
@@ -739,6 +786,11 @@ def get_slot_by_name(slot_name):
         if slot.slot_name == slot_name:
             return slot
     assert False, "Slot not found: %s" % slot_name
+
+
+def get_slot_by_method_name(method_name):
+    # For now, only search the type struct, no referenced sub-structs.
+    return method_name_to_slot[method_name]
 
 
 def get_slot_code_by_name(scope, slot_name):
@@ -845,38 +897,38 @@ property_accessor_signatures = {
 #
 #------------------------------------------------------------------------------------------
 
-PyNumberMethods_Py3_GUARD = "PY_MAJOR_VERSION < 3 || (CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX < 0x03050000)"
+PyNumberMethods_Py2only_GUARD = "PY_MAJOR_VERSION < 3 || (CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX < 0x03050000)"
 
 PyNumberMethods = (
     BinopSlot(binaryfunc, "nb_add", "__add__"),
     BinopSlot(binaryfunc, "nb_subtract", "__sub__"),
     BinopSlot(binaryfunc, "nb_multiply", "__mul__"),
-    BinopSlot(binaryfunc, "nb_divide", "__div__", ifdef = PyNumberMethods_Py3_GUARD),
+    BinopSlot(binaryfunc, "nb_divide", "__div__", ifdef = PyNumberMethods_Py2only_GUARD),
     BinopSlot(binaryfunc, "nb_remainder", "__mod__"),
     BinopSlot(binaryfunc, "nb_divmod", "__divmod__"),
     BinopSlot(ternaryfunc, "nb_power", "__pow__"),
     MethodSlot(unaryfunc, "nb_negative", "__neg__"),
     MethodSlot(unaryfunc, "nb_positive", "__pos__"),
     MethodSlot(unaryfunc, "nb_absolute", "__abs__"),
-    MethodSlot(inquiry, "nb_nonzero", "__nonzero__", py3 = ("nb_bool", "__bool__")),
+    MethodSlot(inquiry, "nb_bool", "__bool__", py2 = ("nb_nonzero", "__nonzero__")),
     MethodSlot(unaryfunc, "nb_invert", "__invert__"),
     BinopSlot(binaryfunc, "nb_lshift", "__lshift__"),
     BinopSlot(binaryfunc, "nb_rshift", "__rshift__"),
     BinopSlot(binaryfunc, "nb_and", "__and__"),
     BinopSlot(binaryfunc, "nb_xor", "__xor__"),
     BinopSlot(binaryfunc, "nb_or", "__or__"),
-    EmptySlot("nb_coerce", ifdef = PyNumberMethods_Py3_GUARD),
+    EmptySlot("nb_coerce", ifdef = PyNumberMethods_Py2only_GUARD),
     MethodSlot(unaryfunc, "nb_int", "__int__", fallback="__long__"),
     MethodSlot(unaryfunc, "nb_long", "__long__", fallback="__int__", py3 = "<RESERVED>"),
     MethodSlot(unaryfunc, "nb_float", "__float__"),
-    MethodSlot(unaryfunc, "nb_oct", "__oct__", ifdef = PyNumberMethods_Py3_GUARD),
-    MethodSlot(unaryfunc, "nb_hex", "__hex__", ifdef = PyNumberMethods_Py3_GUARD),
+    MethodSlot(unaryfunc, "nb_oct", "__oct__", ifdef = PyNumberMethods_Py2only_GUARD),
+    MethodSlot(unaryfunc, "nb_hex", "__hex__", ifdef = PyNumberMethods_Py2only_GUARD),
 
     # Added in release 2.0
     MethodSlot(ibinaryfunc, "nb_inplace_add", "__iadd__"),
     MethodSlot(ibinaryfunc, "nb_inplace_subtract", "__isub__"),
     MethodSlot(ibinaryfunc, "nb_inplace_multiply", "__imul__"),
-    MethodSlot(ibinaryfunc, "nb_inplace_divide", "__idiv__", ifdef = PyNumberMethods_Py3_GUARD),
+    MethodSlot(ibinaryfunc, "nb_inplace_divide", "__idiv__", ifdef = PyNumberMethods_Py2only_GUARD),
     MethodSlot(ibinaryfunc, "nb_inplace_remainder", "__imod__"),
     MethodSlot(ibinaryfunc, "nb_inplace_power", "__ipow__"),  # actually ternaryfunc!!!
     MethodSlot(ibinaryfunc, "nb_inplace_lshift", "__ilshift__"),
@@ -992,7 +1044,7 @@ slot_table = (
     SyntheticSlot("tp_descr_get", ["__get__"], "0"),
     SyntheticSlot("tp_descr_set", ["__set__", "__delete__"], "0"),
 
-    DictOffsetSlot("tp_dictoffset"),
+    DictOffsetSlot("tp_dictoffset", ifdef="!CYTHON_USE_TYPE_SPECS"),  # otherwise set via "__dictoffset__" member
 
     MethodSlot(initproc, "tp_init", "__init__"),
     EmptySlot("tp_alloc"),  #FixedSlot("tp_alloc", "PyType_GenericAlloc"),
