@@ -182,6 +182,7 @@ def get_known_python_import(qualified_name):
     qualified_name = qualified_name.split(".")
     module_name = EncodedString(qualified_name[0])
     rest = qualified_name[1:]
+    assert(len(rest)<=1)  # for now, we don't know how to deal with any nested modules
 
     mod = _known_module_scopes.get(module_name, None)
     if not mod:
@@ -206,8 +207,6 @@ def get_known_python_import(qualified_name):
                 entry = mod.declare_type(name, indexed_type, pos = None)
             _known_module_scopes[module_name] = mod
 
-    entry = mod
-    for attr in rest:
-        if entry:
-            entry = entry.lookup_here(attr)
-    return entry
+    # eventually handle more sophisticated multiple lookups if needed
+    if rest:
+        return mod.lookup_here(rest[0])
