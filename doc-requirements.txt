@@ -1,0 +1,3 @@
+sphinx==3.5.3
+sphinx-issues==1.2.0
+jupyter

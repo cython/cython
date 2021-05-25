@@ -1,4 +1,4 @@
-# ticket: 287
+# ticket: t287
 
 __doc__ = u"""
 >>> print( "%d" % Int() )

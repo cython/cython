@@ -1,6 +1,6 @@
 # mode: run
 # tag: closures
-# ticket: 537
+# ticket: t537
 
 __doc__ = u"""
 >>> f1 = nested1()

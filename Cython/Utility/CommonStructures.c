@@ -13,12 +13,14 @@ static PyObject *__Pyx_FetchSharedCythonABIModule(void) {
 
 /////////////// FetchCommonType.proto ///////////////
 
+#if !CYTHON_USE_TYPE_SPECS
 static PyTypeObject* __Pyx_FetchCommonType(PyTypeObject* type);
-#if CYTHON_COMPILING_IN_LIMITED_API
-static PyTypeObject* __Pyx_FetchCommonTypeFromSpec(PyType_Spec *spec, PyObject *bases);
+#else
+static PyTypeObject* __Pyx_FetchCommonTypeFromSpec(PyObject *module, PyType_Spec *spec, PyObject *bases);
 #endif
 
 /////////////// FetchCommonType ///////////////
+//@requires:ExtensionTypes.c::FixUpExtensionType
 //@requires: FetchSharedCythonModule
 
 static int __Pyx_VerifyCachedType(PyObject *cached_type,
@@ -39,6 +41,7 @@ static int __Pyx_VerifyCachedType(PyObject *cached_type,
     return 0;
 }
 
+#if !CYTHON_USE_TYPE_SPECS
 static PyTypeObject* __Pyx_FetchCommonType(PyTypeObject* type) {
     PyObject* abi_module;
     PyTypeObject *cached_type = NULL;
@@ -75,22 +78,28 @@ bad:
     cached_type = NULL;
     goto done;
 }
+#else
 
-#if CYTHON_COMPILING_IN_LIMITED_API
-static PyTypeObject *__Pyx_FetchCommonTypeFromSpec(PyType_Spec *spec, PyObject *bases) {
-    PyObject *abi_module, *py_basicsize, *cached_type = NULL;
-    Py_ssize_t basicsize;
+static PyTypeObject *__Pyx_FetchCommonTypeFromSpec(PyObject *module, PyType_Spec *spec, PyObject *bases) {
+    PyObject *abi_module, *cached_type = NULL;
 
     abi_module = __Pyx_FetchSharedCythonABIModule();
     if (!abi_module) return NULL;
+
     cached_type = PyObject_GetAttrString(abi_module, spec->name);
     if (cached_type) {
+        Py_ssize_t basicsize;
+#if CYTHON_COMPILING_IN_LIMITED_API
+        PyObject *py_basicsize;
         py_basicsize = PyObject_GetAttrString(cached_type, "__basicsize__");
-        if (!py_basicsize) goto bad;
+        if (unlikely(!py_basicsize)) goto bad;
         basicsize = PyLong_AsSsize_t(py_basicsize);
         Py_DECREF(py_basicsize);
         py_basicsize = 0;
-        if (basicsize == (Py_ssize_t)-1 && PyErr_Occurred()) goto bad;
+        if (unlikely(basicsize == (Py_ssize_t)-1) && PyErr_Occurred()) goto bad;
+#else
+        basicsize = likely(PyType_Check(cached_type)) ? ((PyTypeObject*) cached_type)->tp_basicsize : -1;
+#endif
         if (__Pyx_VerifyCachedType(
               cached_type,
               spec->name,
@@ -103,8 +112,11 @@ static PyTypeObject *__Pyx_FetchCommonTypeFromSpec(PyType_Spec *spec, PyObject *
 
     if (!PyErr_ExceptionMatches(PyExc_AttributeError)) goto bad;
     PyErr_Clear();
-    cached_type = PyType_FromSpecWithBases(spec, bases);
+    // We pass the ABI module reference to avoid keeping the user module alive by foreign type usages.
+    (void) module;
+    cached_type = __Pyx_PyType_FromModuleAndSpec(abi_module, spec, bases);
     if (unlikely(!cached_type)) goto bad;
+    if (unlikely(__Pyx_fix_up_extension_type_from_spec(spec, (PyTypeObject *) cached_type) < 0)) goto bad;
     if (PyObject_SetAttrString(abi_module, spec->name, cached_type) < 0) goto bad;
 
 done:

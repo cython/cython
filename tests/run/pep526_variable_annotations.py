@@ -148,7 +148,16 @@ def iter_declared_dict_arg(d : Dict[float, float]):
         s += d[key]
     return s
 
-
+  
+def literal_list_ptr():
+    """
+    >>> literal_list_ptr()
+    4
+    """
+    a : cython.p_int = [1, 2, 3, 4, 5]
+    return a[3]
+  
+  
 def test_subscripted_types():
     """
     >>> test_subscripted_types()

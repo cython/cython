@@ -79,7 +79,7 @@ else:
         scripts = ["cython.py", "cythonize.py", "cygdb.py"]
 
 
-def compile_cython_modules(profile=False, compile_more=False, cython_with_refnanny=False):
+def compile_cython_modules(profile=False, coverage=False, compile_more=False, cython_with_refnanny=False):
     source_root = os.path.abspath(os.path.dirname(__file__))
     compiled_modules = [
         "Cython.Plex.Scanners",
@@ -135,6 +135,8 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
     defines = []
     if cython_with_refnanny:
         defines.append(('CYTHON_REFNANNY', '1'))
+    if coverage:
+        defines.append(('CYTHON_TRACE', '1'))
 
     extensions = []
     for module in compiled_modules:
@@ -168,6 +170,9 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
     if profile:
         get_directive_defaults()['profile'] = True
         sys.stderr.write("Enabled profiling for the Cython binary modules\n")
+    if coverage:
+        get_directive_defaults()['linetrace'] = True
+        sys.stderr.write("Enabled line tracing and profiling for the Cython binary modules\n")
 
     # not using cythonize() directly to let distutils decide whether building extensions was requested
     add_command_class("build_ext", new_build_ext)
@@ -177,6 +182,10 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
 cython_profile = '--cython-profile' in sys.argv
 if cython_profile:
     sys.argv.remove('--cython-profile')
+
+cython_coverage = '--cython-coverage' in sys.argv
+if cython_coverage:
+    sys.argv.remove('--cython-coverage')
 
 try:
     sys.argv.remove("--cython-compile-all")
@@ -230,7 +239,7 @@ packages = [
 
 def run_build():
     if compile_cython_itself and (is_cpython or cython_compile_more):
-        compile_cython_modules(cython_profile, cython_compile_more, cython_with_refnanny)
+        compile_cython_modules(cython_profile, cython_coverage, cython_compile_more, cython_with_refnanny)
 
     from Cython import __version__ as version
     setup(
@@ -279,6 +288,7 @@ def run_build():
             "Programming Language :: Python :: 3.6",
             "Programming Language :: Python :: 3.7",
             "Programming Language :: Python :: 3.8",
+            "Programming Language :: Python :: 3.9",
             "Programming Language :: Python :: Implementation :: CPython",
             "Programming Language :: Python :: Implementation :: PyPy",
             "Programming Language :: C",
