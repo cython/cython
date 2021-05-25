@@ -21,11 +21,6 @@ YEAR = datetime.date.today().strftime('%Y')
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 sys.path.insert(0, os.path.abspath('..'))
-sys.path.append(os.path.abspath('sphinxext'))
-
-# Import support for ipython console session syntax highlighting (lives
-# in the sphinxext directory defined above)
-import ipython_console_highlighting
 
 # -- General configuration -----------------------------------------------------
 
@@ -39,8 +34,6 @@ highlight_language = 'cython'
 # Add any Sphinx extension module names here, as strings. They can be extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = [
-    'ipython_console_highlighting',
-    'cython_highlighting',
     'sphinx.ext.imgmath',
     'sphinx.ext.todo',
     'sphinx.ext.intersphinx',
