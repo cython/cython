@@ -39,7 +39,7 @@ cdef extern from "<list>" namespace "std" nogil:
         bint operator>(list&, list&)
         bint operator<=(list&, list&)
         bint operator>=(list&, list&)
-        void assign(size_t, T&)
+        void assign(size_t, T&) except +
         T& back()
         iterator begin()
         const_iterator const_begin "begin"()
@@ -53,22 +53,22 @@ cdef extern from "<list>" namespace "std" nogil:
         iterator insert(iterator, T&)
         void insert(iterator, size_t, T&)
         size_t max_size()
-        void merge(list&)
+        void merge(list&) except +
         #void merge(list&, BinPred)
         void pop_back()
         void pop_front()
-        void push_back(T&)
-        void push_front(T&)
+        void push_back(T&) except +
+        void push_front(T&) except +
         reverse_iterator rbegin()
         const_reverse_iterator const_rbegin "rbegin"()
-        void remove(T&)
+        void remove(T&) except +
         #void remove_if(UnPred)
         reverse_iterator rend()
         const_reverse_iterator const_rend "rend"()
-        void resize(size_t, T&)
+        void resize(size_t, T&) except +
         void reverse()
         size_t size()
-        void sort()
+        void sort() except +
         #void sort(BinPred)
         void splice(iterator, list&)
         void splice(iterator, list&, iterator)
