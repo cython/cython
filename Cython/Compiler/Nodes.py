@@ -1465,7 +1465,7 @@ class CStructOrUnionDefNode(StatNode):
     def analyse_declarations(self, env):
         scope = None
         if self.attributes is not None:
-            scope = StructOrUnionScope(self.name)
+            scope = StructOrUnionScope(self.name, self.visibility)
         self.declare(env, scope)
         if self.attributes is not None:
             if self.in_pxd and not env.in_cinclude:
@@ -1641,9 +1641,9 @@ class CEnumDefNode(StatNode):
                     item.cname,
                     code.error_goto_if_null(temp, item.pos)))
                 code.put_gotref(temp, PyrexTypes.py_object_type)
-                code.putln('if (PyDict_SetItemString(%s, "%s", %s) < 0) %s' % (
+                code.putln('if (PyDict_SetItemString(%s, %s, %s) < 0) %s' % (
                     Naming.moddict_cname,
-                    item.name,
+                    item.name.as_c_string_literal(),
                     temp,
                     code.error_goto(item.pos)))
                 code.put_decref_clear(temp, PyrexTypes.py_object_type)

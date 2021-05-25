@@ -146,6 +146,25 @@ class EncodedString(_unicode):
             s = bytes_literal(self.byteencode(), self.encoding)
         return s.as_c_string_literal()
 
+    def as_cu_string(self):
+        r"""Encodes to \u escaped. Not quotes"""
+        return encoded_string(
+                self.encode('ASCII', errors='backslashreplace').decode('ASCII'),
+                'ASCII')
+
+    @property
+    def unnormalized(self):
+        """Returns the unnormalized string if available, otherwise returns self
+
+        Sometimes a unicode string will differ after normalization; it's
+        sometimes useful to store the original and this decorator helps with
+        that"""
+        return getattr(self, '_unnormalized', self)
+
+    @unnormalized.setter
+    def unnormalized(self, value):
+        self._unnormalized = value
+
     if not hasattr(_unicode, "isascii"):
         def isascii(self):
             # not defined for Python3.7+ since the class already has it
