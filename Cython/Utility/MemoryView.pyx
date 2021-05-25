@@ -56,7 +56,7 @@ cdef extern from *:
         Py_ssize_t suboffsets[{{max_dims}}]
 
     void __PYX_INC_MEMVIEW({{memviewslice_name}} *memslice, int have_gil)
-    void __PYX_XDEC_MEMVIEW({{memviewslice_name}} *memslice, int have_gil)
+    void __PYX_XCLEAR_MEMVIEW({{memviewslice_name}} *memslice, int have_gil)
 
     ctypedef struct __pyx_buffer "Py_buffer":
         PyObject *obj
@@ -177,26 +177,29 @@ cdef class array:
     @cname('getbuffer')
     def __getbuffer__(self, Py_buffer *info, int flags):
         cdef int bufmode = -1
-        if self.mode == u"c":
-            bufmode = PyBUF_C_CONTIGUOUS | PyBUF_ANY_CONTIGUOUS
-        elif self.mode == u"fortran":
-            bufmode = PyBUF_F_CONTIGUOUS | PyBUF_ANY_CONTIGUOUS
-        if not (flags & bufmode):
-            raise ValueError, "Can only create a buffer that is contiguous in memory."
+        if flags & (PyBUF_C_CONTIGUOUS | PyBUF_F_CONTIGUOUS | PyBUF_ANY_CONTIGUOUS):
+            if self.mode == u"c":
+                bufmode = PyBUF_C_CONTIGUOUS | PyBUF_ANY_CONTIGUOUS
+            elif self.mode == u"fortran":
+                bufmode = PyBUF_F_CONTIGUOUS | PyBUF_ANY_CONTIGUOUS
+            if not (flags & bufmode):
+                raise ValueError, "Can only create a buffer that is contiguous in memory."
         info.buf = self.data
         info.len = self.len
-        info.ndim = self.ndim
-        info.shape = self._shape
-        info.strides = self._strides
+
+        if flags & PyBUF_STRIDES:
+            info.ndim = self.ndim
+            info.shape = self._shape
+            info.strides = self._strides
+        else:
+            info.ndim = 1
+            info.shape = &self.len if flags & PyBUF_ND else NULL
+            info.strides = NULL
+
         info.suboffsets = NULL
         info.itemsize = self.itemsize
         info.readonly = 0
-
-        if flags & PyBUF_FORMAT:
-            info.format = self.format
-        else:
-            info.format = NULL
-
+        info.format = self.format if flags & PyBUF_FORMAT else NULL
         info.obj = self
 
     __pyx_getbuffer = capsule(<void *> &__pyx_array_getbuffer, "getbuffer(obj, view, flags)")
@@ -984,7 +987,7 @@ cdef class _memoryviewslice(memoryview):
     cdef int (*to_dtype_func)(char *, object) except 0
 
     def __dealloc__(self):
-        __PYX_XDEC_MEMVIEW(&self.from_slice, 1)
+        __PYX_XCLEAR_MEMVIEW(&self.from_slice, 1)
 
     cdef convert_item_to_object(self, char *itemp):
         if self.to_object_func != NULL:
@@ -1468,7 +1471,8 @@ cdef bytes format_from_typeinfo(__Pyx_TypeInfo *type):
     cdef Py_ssize_t i
 
     if type.typegroup == 'S':
-        assert type.fields != NULL and type.fields.type != NULL
+        assert type.fields != NULL
+        assert type.fields.type != NULL
 
         if type.flags & __PYX_BUF_FLAGS_PACKED_STRUCT:
             alignment = b'^'

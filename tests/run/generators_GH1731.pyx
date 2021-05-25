@@ -1,5 +1,5 @@
 # mode: run
-# ticket: gh1731
+# ticket: 1731
 
 
 def cygen():

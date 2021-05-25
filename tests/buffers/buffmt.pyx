@@ -3,10 +3,6 @@ import struct
 
 # Tests buffer format string parsing.
 
-__test__ = {}
-def testcase(func):
-    __test__[func.__name__] = func.__doc__
-    return func
 
 from libc cimport stdlib
 
@@ -56,7 +52,6 @@ cdef class MockBuffer:
         info.format = self.format
         info.itemsize = self.itemsize
 
-@testcase
 def _int(fmt):
     """
     >>> _int("i")
@@ -78,14 +73,12 @@ def _int(fmt):
     """
     cdef object[int] buf = MockBuffer(fmt, sizeof(int))
 
-@testcase
 def _ulong(fmt):
     """
     >>> _ulong("L")
     """
     cdef object[unsigned long] buf = MockBuffer(fmt, sizeof(unsigned long))
 
-@testcase
 def wrongsize():
     """
     >>> wrongsize()
@@ -96,7 +89,6 @@ def wrongsize():
     """
     cdef object[float] buf = MockBuffer("f", 1)
 
-@testcase
 def _obj(fmt):
     """
     >>> _obj("O")
@@ -151,7 +143,6 @@ cdef struct UnpackedStruct4:
     char d
     int e, f, g
 
-@testcase
 def char3int(fmt):
     """
     >>> char3int("ciii")
@@ -185,7 +176,6 @@ def char3int(fmt):
     cdef object[Char3Int, ndim=1] buf = obj
 
 
-@testcase
 def long_string(fmt):
     """
     >>> long_string("90198s")
@@ -194,7 +184,6 @@ def long_string(fmt):
     cdef object[LongString, ndim=1] buf = obj
 
 
-@testcase
 def unpacked_struct(fmt):
     """
     Native formats:
@@ -218,7 +207,6 @@ def unpacked_struct(fmt):
 cdef struct ComplexTest:
     ComplexFloat a, b, c
 
-@testcase
 def complex_test(fmt):
     """
     >>> complex_test("ZfZfZf")
@@ -236,7 +224,6 @@ def complex_test(fmt):
     cdef object[ComplexTest] buf1 = obj
 
 
-@testcase
 def alignment_string(fmt, exc=None):
     """
     >>> alignment_string("@i")
@@ -258,7 +245,6 @@ def alignment_string(fmt, exc=None):
         print "fail"
 
 
-@testcase
 def int_and_long_are_same():
     """
     >>> int_and_long_are_same()
@@ -273,7 +259,6 @@ cdef struct MixedComplex:
     double real
     float imag
 
-@testcase
 def mixed_complex_struct():
     """
     Triggering a specific execution path for this case.
@@ -311,7 +296,6 @@ cdef packed struct PartiallyPackedStruct2:
     char b
     int c
 
-@testcase
 def packed_struct(fmt):
     """
     Assuming int is four bytes:
@@ -334,7 +318,6 @@ def packed_struct(fmt):
     """
     cdef object[PackedStruct] buf = MockBuffer(fmt, sizeof(PackedStruct))
 
-@testcase
 def partially_packed_struct(fmt):
     """
     Assuming int is four bytes:
@@ -362,7 +345,6 @@ def partially_packed_struct(fmt):
     cdef object[PartiallyPackedStruct] buf = MockBuffer(
         fmt, sizeof(PartiallyPackedStruct))
 
-@testcase
 def partially_packed_struct_2(fmt):
     """
     Assuming int is four bytes:
@@ -380,7 +362,7 @@ def partially_packed_struct_2(fmt):
     Traceback (most recent call last):
         ...
     ValueError: Buffer dtype mismatch; next field is at offset 8 but 5 expected
-    
+
     >>> partially_packed_struct_2("ccici")
     Traceback (most recent call last):
         ...
@@ -398,7 +380,6 @@ cdef packed struct PackedStructWithCharArrays:
     char[3] d
 
 
-@testcase
 def packed_struct_with_strings(fmt):
     """
     >>> packed_struct_with_strings("T{f:a:i:b:5s:c:3s:d:}")
@@ -430,7 +411,6 @@ ctypedef struct PackedStructWithNDArrays:
     float d
 
 
-@testcase
 def packed_struct_with_arrays(fmt):
     """
     >>> packed_struct_with_arrays("T{(16)d:a:(16)d:b:d:c:}")
@@ -440,7 +420,6 @@ def packed_struct_with_arrays(fmt):
         fmt, sizeof(PackedStructWithArrays))
 
 
-@testcase
 def unpacked_struct_with_arrays(fmt):
     """
     >>> if struct.calcsize('P') == 8:  # 64 bit
@@ -453,7 +432,6 @@ def unpacked_struct_with_arrays(fmt):
         fmt, sizeof(UnpackedStructWithArrays))
 
 
-@testcase
 def packed_struct_with_ndarrays(fmt):
     """
     >>> packed_struct_with_ndarrays("T{d:a:(2,2)d:b:f:c:f:d:}")

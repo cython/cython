@@ -125,7 +125,7 @@ class CythonScope(ModuleScope):
 
         view_utility_scope = MemoryView.view_utility_code.declare_in_scope(
                                             self.viewscope, cython_scope=self,
-                                            whitelist=MemoryView.view_utility_whitelist)
+                                            allowlist=MemoryView.view_utility_allowlist)
 
         # Marks the types as being cython_builtin_type so that they can be
         # extended from without Cython attempting to import cython.view

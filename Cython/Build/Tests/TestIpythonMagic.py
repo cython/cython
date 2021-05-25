@@ -6,6 +6,7 @@
 from __future__ import absolute_import
 
 import os
+import io
 import sys
 from contextlib import contextmanager
 from Cython.Build import IpythonMagic
@@ -29,6 +30,26 @@ try:
 except ImportError:
     pass
 
+
+@contextmanager
+def capture_output():
+    backup = sys.stdout, sys.stderr
+    try:
+        replacement = [
+             io.TextIOWrapper(io.BytesIO(), encoding=sys.stdout.encoding),
+             io.TextIOWrapper(io.BytesIO(), encoding=sys.stderr.encoding),
+        ]
+        sys.stdout, sys.stderr = replacement
+        output = []
+        yield output
+    finally:
+        sys.stdout, sys.stderr = backup
+        for wrapper in replacement:
+            wrapper.seek(0)  # rewind
+            output.append(wrapper.read())
+            wrapper.close()
+
+
 code = u"""\
 def f(x):
     return 2*x
@@ -47,6 +68,27 @@ def main():
     for _ in range(100): call(5)
 main()
 """
+
+compile_error_code = u'''\
+cdef extern from *:
+    """
+    xxx a=1;
+    """
+    int a;
+def doit():
+    return a
+'''
+
+compile_warning_code = u'''\
+cdef extern from *:
+    """
+    #pragma message ( "CWarning" )
+    int a = 42;
+    """
+    int a;
+def doit():
+    return a
+'''
 
 
 if sys.platform == 'win32':
@@ -142,6 +184,39 @@ class TestIPythonMagic(CythonTest):
         ip.ex('g = f(10); h = call(10)')
         self.assertEqual(ip.user_ns['g'], 2 // 10)
         self.assertEqual(ip.user_ns['h'], 2 // 10)
+
+    def test_cython_compile_error_shown(self):
+        ip = self._ip
+        with capture_output() as out:
+            ip.run_cell_magic('cython', '-3', compile_error_code)
+        captured_out, captured_err = out
+
+        # it could be that c-level output is captured by distutil-extension
+        # (and not by us) and is printed to stdout:
+        captured_all = captured_out + "\n" + captured_err
+        self.assertTrue("error" in captured_all, msg="error in " + captured_all)
+
+    def test_cython_link_error_shown(self):
+        ip = self._ip
+        with capture_output() as out:
+            ip.run_cell_magic('cython', '-3 -l=xxxxxxxx', code)
+        captured_out, captured_err = out
+
+        # it could be that c-level output is captured by distutil-extension
+        # (and not by us) and is printed to stdout:
+        captured_all = captured_out + "\n!" + captured_err
+        self.assertTrue("error" in captured_all, msg="error in " + captured_all)
+
+    def test_cython_warning_shown(self):
+        ip = self._ip
+        with capture_output() as out:
+            # force rebuild, otherwise no warning as after the first success
+            # no build step is performed
+            ip.run_cell_magic('cython', '-3 -f', compile_warning_code)
+        captured_out, captured_err = out
+
+        # check that warning was printed to stdout even if build hasn't failed
+        self.assertTrue("CWarning" in captured_out)
 
     @skip_win32('Skip on Windows')
     def test_cython3_pgo(self):

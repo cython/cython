@@ -1,5 +1,5 @@
 # mode: run
-# ticket: 1772
+# ticket: t1772
 
 cimport cython
 from cython.view cimport array
@@ -328,6 +328,8 @@ def test_fused_memslice_dtype(cython.floating[:] array):
     cdef cython.floating[:] otherarray = array[0:100:1]
     print cython.typeof(array), cython.typeof(otherarray), \
           array[5], otherarray[6]
+    cdef cython.floating value;
+    cdef cython.floating[:] test_cast = <cython.floating[:1:1]>&value
 
 def test_fused_memslice_dtype_repeated(cython.floating[:] array1, cython.floating[:] array2):
     """
@@ -484,3 +486,27 @@ def test_fused_in_check():
     print(in_check_2(1.0, 2.0))
     print(in_check_2[float, double](1.0, 2.0))
     print(in_check_3[float](1.0))
+
+
+### see GH3642 - presence of cdef inside "unrelated" caused a type to be incorrectly inferred
+cdef unrelated(cython.floating x):
+    cdef cython.floating t = 1
+    return t
+
+cdef handle_float(float* x): return 'float'
+
+cdef handle_double(double* x): return 'double'
+
+def convert_to_ptr(cython.floating x):
+    """
+    >>> convert_to_ptr(1.0)
+    'double'
+    >>> convert_to_ptr['double'](1.0)
+    'double'
+    >>> convert_to_ptr['float'](1.0)
+    'float'
+    """
+    if cython.floating is float:
+        return handle_float(&x)
+    elif cython.floating is double:
+        return handle_double(&x)

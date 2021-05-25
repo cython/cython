@@ -1,4 +1,4 @@
-# ticket: 203
+# ticket: t203
 
 cdef int get_bound(int m):
     print u"get_bound(%s)"%m

@@ -18,7 +18,7 @@ serve for now.) The Cython compiler will convert it into C code which makes
 equivalent calls to the Python/C API.
 
 But Cython is much more than that, because parameters and variables can be
-declared to have C data types. Code which manipulates Python values and C
+declared to have C data types. Code which manipulates :term:`Python values<Python object>` and C
 values can be freely intermixed, with conversions occurring automatically
 wherever possible. Reference count maintenance and error checking of Python
 operations is also automatic, and the full power of Python's exception
@@ -49,7 +49,7 @@ see :ref:`compilation`). Your :file:`setup.py` should look like::
 
 To use this to build your Cython file use the commandline options:
 
-.. sourcecode:: text
+.. code-block:: text
 
     $ python setup.py build_ext --inplace
 
@@ -109,7 +109,7 @@ module name, doing this we have:
 
 Build the extension with the same command used for the helloworld.pyx:
 
-.. sourcecode:: text
+.. code-block:: text
 
     $ python setup.py build_ext --inplace
 
@@ -148,7 +148,7 @@ The result is stored in the C array ``p`` during processing,
 and will be copied into a Python list at the end (line 22).
 
 .. NOTE:: You cannot create very large arrays in this manner, because
-          they are allocated on the C function call stack, which is a
+          they are allocated on the C function call :term:`stack<Stack allocation>`, which is a
           rather precious and scarce resource.
           To request larger arrays,
           or even arrays with a length only known at runtime,

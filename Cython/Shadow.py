@@ -1,7 +1,7 @@
 # cython.* namespace for pure mode.
 from __future__ import absolute_import
 
-__version__ = "3.0a5"
+__version__ = "3.0a7"
 
 try:
     from __builtin__ import basestring
@@ -168,7 +168,7 @@ def cast(t, *args, **kwargs):
 
     if isinstance(t, typedef):
         return t(*args)
-    elif isinstance(t, type): #Doesn't work with old-style classes of Python 2.x
+    elif isinstance(t, type):  # Doesn't work with old-style classes of Python 2.x
         if len(args) != 1 or not (args[0] is None or isinstance(args[0], t)):
             return t(*args)
 
@@ -278,18 +278,36 @@ class ArrayType(PointerType):
 
 class StructType(CythonType):
 
-    def __init__(self, cast_from=_Unspecified, **data):
-        if cast_from is not _Unspecified:
-            # do cast
-            if len(data) > 0:
-                raise ValueError('Cannot accept keyword arguments when casting.')
-            if type(cast_from) is not type(self):
-                raise ValueError('Cannot cast from %s'%cast_from)
-            for key, value in cast_from.__dict__.items():
-                setattr(self, key, value)
+    def __init__(self, *posargs, **data):
+        if not (posargs or data):
+            return
+        if posargs and data:
+            raise ValueError('Cannot accept both positional and keyword arguments.')
+
+        # Allow 'cast_from' as single positional or keyword argument.
+        if data and len(data) == 1 and 'cast_from' in data:
+            cast_from = data.pop('cast_from')
+        elif len(posargs) == 1 and type(posargs[0]) is type(self):
+            cast_from, posargs = posargs[0], ()
+        elif posargs:
+            for key, arg in zip(self._members, posargs):
+                setattr(self, key, arg)
+            return
         else:
             for key, value in data.items():
+                if key not in self._members:
+                    raise ValueError("Invalid struct attribute for %s: %s" % (
+                        self.__class__.__name__, key))
                 setattr(self, key, value)
+            return
+
+        # do cast
+        if data:
+            raise ValueError('Cannot accept keyword arguments when casting.')
+        if type(cast_from) is not type(self):
+            raise ValueError('Cannot cast from %s' % cast_from)
+        for key, value in cast_from.__dict__.items():
+            setattr(self, key, value)
 
     def __setattr__(self, key, value):
         if key in self._members:
@@ -310,7 +328,7 @@ class UnionType(CythonType):
             elif type(cast_from) is type(self):
                 datadict = cast_from.__dict__
             else:
-                raise ValueError('Cannot cast from %s'%cast_from)
+                raise ValueError('Cannot cast from %s' % cast_from)
         else:
             datadict = data
         if len(datadict) > 1:
@@ -407,10 +425,34 @@ py_complex = typedef(complex, "double complex")
 
 # Predefined types
 
-int_types = ['char', 'short', 'Py_UNICODE', 'int', 'Py_UCS4', 'long', 'longlong', 'Py_ssize_t', 'size_t']
-float_types = ['longdouble', 'double', 'float']
-complex_types = ['longdoublecomplex', 'doublecomplex', 'floatcomplex', 'complex']
-other_types = ['bint', 'void', 'Py_tss_t']
+int_types = [
+    'char',
+    'short',
+    'Py_UNICODE',
+    'int',
+    'Py_UCS4',
+    'long',
+    'longlong',
+    'Py_hash_t',
+    'Py_ssize_t',
+    'size_t',
+]
+float_types = [
+    'longdouble',
+    'double',
+    'float',
+]
+complex_types = [
+    'longdoublecomplex',
+    'doublecomplex',
+    'floatcomplex',
+    'complex',
+]
+other_types = [
+    'bint',
+    'void',
+    'Py_tss_t',
+]
 
 to_repr = {
     'longlong': 'long long',
@@ -483,6 +525,26 @@ class CythonDotParallel(object):
     # def threadsavailable(self):
         # return 1
 
-import sys
+
+class CythonCImports(object):
+    """
+    Simplistic module mock to make cimports sort-of work in Python code.
+    """
+    def __init__(self, module):
+        self.__path__ = []
+        self.__file__ = None
+        self.__name__ = module
+        self.__package__ = module
+
+    def __getattr__(self, item):
+        if item.startswith('__') and item.endswith('__'):
+            raise AttributeError(item)
+        return __import__(item)
+
+
+import math, sys
 sys.modules['cython.parallel'] = CythonDotParallel()
-del sys
+sys.modules['cython.cimports'] = CythonCImports('cython.cimports')
+sys.modules['cython.cimports.libc'] = CythonCImports('cython.cimports.libc')
+sys.modules['cython.cimports.libc.math'] = math
+del math, sys

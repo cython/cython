@@ -561,3 +561,23 @@ def test_generator_kwds3(**kwargs):
     a
     """
     yield from kwargs.keys()
+
+
+def test_generator_frame(a=1):
+    """
+    >>> gen = test_generator_frame()
+    >>> import types
+    >>> isinstance(gen.gi_frame, types.FrameType) or gen.gi_frame
+    True
+    >>> gen.gi_frame is gen.gi_frame  # assert that it's cached
+    True
+    >>> gen.gi_frame.f_code is not None
+    True
+    >>> code_obj = gen.gi_frame.f_code
+    >>> code_obj.co_argcount
+    1
+    >>> code_obj.co_varnames
+    ('a', 'b')
+    """
+    b = a + 1
+    yield b

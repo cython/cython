@@ -140,16 +140,22 @@ def test_with_nogil(nogil, should_raise=False):
 MyUnion = cython.union(n=cython.int, x=cython.double)
 MyStruct = cython.struct(is_integral=cython.bint, data=MyUnion)
 MyStruct2 = cython.typedef(MyStruct[2])
+MyStruct3 = cython.typedef(MyStruct[3])
 
 def test_struct(n, x):
     """
     >>> test_struct(389, 1.64493)
-    (389, 1.64493)
+    (389, 1.64493, False)
     """
-    a = cython.declare(MyStruct2)
+    a = cython.declare(MyStruct3)
     a[0] = MyStruct(is_integral=True, data=MyUnion(n=n))
     a[1] = MyStruct(is_integral=False, data={'x': x})
-    return a[0].data.n, a[1].data.x
+    if sys.version_info >= (3, 6):
+        # dict is ordered => struct creation via keyword arguments above was deterministic!
+        a[2] = MyStruct(False, MyUnion(x=x))
+    else:
+        a[2] = MyStruct(is_integral=False, data=MyUnion(x=x))
+    return a[0].data.n, a[1].data.x, a[2].is_integral
 
 import cython as cy
 from cython import declare, cast, locals, address, typedef, p_void, compiled
@@ -217,6 +223,8 @@ def test_declare_c_types(n):
 @cython.ccall
 @cython.returns(cython.double)
 def c_call(x):
+    if x == -2.0:
+        raise RuntimeError("huhu!")
     return x
 
 
@@ -235,6 +243,10 @@ def call_ccall(x):
     1.0
     >>> (is_compiled and 1) or result
     1
+
+    >>> call_ccall(-2)
+    Traceback (most recent call last):
+    RuntimeError: huhu!
     """
     ret = c_call(x)
     return ret, cython.typeof(ret)
@@ -244,6 +256,8 @@ def call_ccall(x):
 @cython.inline
 @cython.returns(cython.double)
 def cdef_inline(x):
+    if x == -2.0:
+        raise RuntimeError("huhu!")
     return x + 1
 
 
@@ -258,6 +272,10 @@ def call_cdef_inline(x):
     'int'
     >>> result == 2.0  or  result
     True
+
+    >>> call_cdef_inline(-2)
+    Traceback (most recent call last):
+    RuntimeError: huhu!
     """
     ret = cdef_inline(x)
     return ret, cython.typeof(ret)
@@ -386,6 +404,23 @@ def ccall_except_check_always(x):
     >>> ccall_except_check_always(0)
     Traceback (most recent call last):
     ValueError
+    """
+    if x == 0:
+        raise ValueError
+    return x+1
+
+
+@cython.test_fail_if_path_exists("//CFuncDeclaratorNode//IntNode[@value = '-1']")
+@cython.test_assert_path_exists("//CFuncDeclaratorNode")
+@cython.ccall
+@cython.returns(cython.long)
+@cython.exceptval(check=False)
+def ccall_except_no_check(x):
+    """
+    >>> ccall_except_no_check(41)
+    42
+    >>> try: _ = ccall_except_no_check(0)  # no exception propagated!
+    ... except ValueError: assert not is_compiled
     """
     if x == 0:
         raise ValueError
@@ -547,4 +582,3 @@ def array_init_with_list():
     x[12] = 42
 
     return [x[10], x[12]]
-
