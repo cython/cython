@@ -2138,7 +2138,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         code.putln("ret = Py_False;")
                         code.putln("} else {")
                     elif comp_op == '||':
-                        code.putln("if (%s order_res) {" % ('!' if if invert_comp else '')
+                        code.putln("if (%s order_res) {" % ('!' if invert_comp else '')
                         code.putln("ret = Py_True;")
                         code.putln("} else {")
                     else:
