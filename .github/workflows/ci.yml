@@ -40,13 +40,11 @@ jobs:
             backend: c
             env: { GCC_VERSION: 11 }
             extra_hash: "-gcc11"
-            allowed_failure: true
           - os: ubuntu-18.04
             python-version: 3.9
             backend: cpp
             env: { GCC_VERSION: 11 }
             extra_hash: "-gcc11"
-            allowed_failure: true
           # Linting
           - os: ubuntu-18.04
             python-version: 3.7
