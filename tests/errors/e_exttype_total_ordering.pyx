@@ -159,13 +159,13 @@ _WARNINGS = """
 10:5: total_ordering directive used, but no comparison and equality methods defined
 14:5: total_ordering directive used, but no equality method defined
 19:5: total_ordering directive used, but no equality method defined
-19:5: total_ordering directive used, but no equality method defined
 24:5: total_ordering directive used, but no equality method defined
 32:5: total_ordering directive used, but no equality method defined
 37:5: total_ordering directive used, but no equality method defined
 45:5: total_ordering directive used, but no equality method defined
 53:5: total_ordering directive used, but no equality method defined
 64:5: total_ordering directive used, but no equality method defined
+69:5: total_ordering directive used, but no equality method defined
 77:5: total_ordering directive used, but no equality method defined
 85:5: total_ordering directive used, but no equality method defined
 96:5: total_ordering directive used, but no equality method defined
