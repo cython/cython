@@ -2159,8 +2159,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         code.putln("ret = eq_res ? Py_False : Py_True;")
                     else:
                         code.putln("ret = eq_res ? Py_True : Py_False;")
-                    code.putln("}") # equals success
-                    code.putln("}") # Needs to try equals
+                    code.putln("}")  # equals success
+                    code.putln("}")  # Needs to try equals
                 else:
                     # Convert direct to a string.
                     if invert_comp:
