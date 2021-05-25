@@ -2094,15 +2094,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             comp_names = [from_name for from_name, to_name in TOTAL_ORDERING if from_name in comp_entry]
             if not comp_names:
                 if '__eq__' not in comp_entry:
-                    error(scope.parent_type.pos,
-                          "total_ordering directive used, but no comparison and equality methods defined")
+                    warning(scope.parent_type.pos,
+                            "total_ordering directive used, but no comparison and equality methods defined")
                 else:
                     warning(scope.parent_type.pos,
                           "total_ordering directive used, but no comparison methods defined")
                 total_ordering = False
             else:
                 if '__eq__' not in comp_entry:
-                    error(scope.parent_type.pos, "total_ordering directive used, but no equality method defined")
+                    warning(scope.parent_type.pos, "total_ordering directive used, but no equality method defined")
                     total_ordering = False
 
                 # Same priority as functools, prefers
