@@ -314,7 +314,7 @@ when it is deleted.::
     del shop.cheese
     print(shop.cheese)
 
-.. sourcecode:: text
+.. code-block:: text
 
     # Test output
     We don't have: []
@@ -402,7 +402,7 @@ compared to a :keyword:`cdef` method::
     print("p2:")
     p2.describe()
 
-.. sourcecode:: text
+.. code-block:: text
 
     # Output
     p1:
@@ -824,7 +824,7 @@ built-in complex object.::
        because, in the Python header files, the ``PyComplexObject`` struct is
        declared with:
 
-       .. sourcecode:: c
+       .. code-block:: c
 
         typedef struct {
             ...
@@ -909,7 +909,9 @@ For example, we may have an extension module ``foo_extension``::
             self.field1 = f1
             self.field2 = f2
 
-but a C struct in a file ``foo_nominal.h``::
+but a C struct in a file ``foo_nominal.h``:
+
+.. code-block:: c
 
    typedef struct {
         PyObject_HEAD
