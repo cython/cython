@@ -47,7 +47,7 @@ u"""
     200
     >>> short_stats['m_cdef']
     100
-    >>> short_stats['m_cpdef'] // (2 if CPDEF_METHODS_COUNT_TWICE else 1)  # FIXME!
+    >>> short_stats['m_cpdef'] - (200 if CPDEF_METHODS_COUNT_TWICE else 0)  # FIXME!
     300
 
     >>> try:
