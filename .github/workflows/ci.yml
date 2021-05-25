@@ -148,7 +148,14 @@ jobs:
         continue-on-error: ${{ matrix.allowed_failure || false }}
         env: ${{ matrix.env }}
         run: bash ./Tools/ci-run.sh
-        
+
+      - name: Upload HTML docs
+        uses: actions/upload-artifact@v2
+        with:
+          name: htmldocs
+          path: docs/build/html
+          if-no-files-found: ignore
+
 
   pycoverage:
     runs-on: ubuntu-18.04
