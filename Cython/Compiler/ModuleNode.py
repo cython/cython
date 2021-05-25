@@ -2159,15 +2159,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         code.putln("ret = eq_res ? Py_False : Py_True;")
                     else:
                         code.putln("ret = eq_res ? Py_True : Py_False;")
+                    code.putln("Py_INCREF(ret);")
                     code.putln("}")  # equals success
                     code.putln("}")  # Needs to try equals
                 else:
-                    # Convert direct to a string.
+                    # Convert direct to a boolean.
                     if invert_comp:
                         code.putln("ret = order_res ? Py_False : Py_True;")
                     else:
                         code.putln("ret = order_res ? Py_True : Py_False;")
-                code.putln("Py_INCREF(ret);")
+                    code.putln("Py_INCREF(ret);")
                 code.putln("}")  # comp_op
                 code.putln("return ret;")
             else:
