@@ -1765,7 +1765,7 @@ class FuncDefNode(StatNode, BlockNode):
         if self.return_type_annotation:
             self.return_type_annotation = self.return_type_annotation.analyse_types(env)
 
-    def align_argument_type(self, env, arg):
+    def align_argument_type(self, env, arg, maybe_self):
         # @cython.locals()
         directive_locals = self.directive_locals
         orig_type = arg.type
@@ -1786,7 +1786,11 @@ class FuncDefNode(StatNode, BlockNode):
             error(type_node.pos, "Previous declaration here")
         else:
             arg.type = other_type
-            self.self_type_overridden = True
+            if maybe_self:
+                # Ideally we'd check the signature to see if it's self, but that isn't
+                # initialized yet. However, it doesn't matter if "self_type_overridden" is
+                # set when there isn't a self argument, so set it for any first argument
+                self.self_type_overridden = True
             if arg.type.is_complex:
                 # utility code for complex types is special-cased and also important to ensure that it's run
                 arg.type.create_declaration_utility_code(env)
@@ -2508,8 +2512,10 @@ class CFuncDefNode(FuncDefNode):
             warning(self.cfunc_declarator.pos,
                     "Only extern functions can throw C++ exceptions.")
 
+        first_arg = True
         for formal_arg, type_arg in zip(self.args, typ.args):
-            self.align_argument_type(env, type_arg)
+            self.align_argument_type(env, type_arg, maybe_self=first_arg)
+            first_arg = False
             formal_arg.type = type_arg.type
             formal_arg.name = type_arg.name
             formal_arg.cname = type_arg.cname
@@ -3057,7 +3063,7 @@ class DefNode(FuncDefNode):
         f2s = env.fused_to_specific
         env.fused_to_specific = None
 
-        for arg in self.args:
+        for n, arg in enumerate(self.args):
             if hasattr(arg, 'name'):
                 name_declarator = None
             else:
@@ -3074,7 +3080,7 @@ class DefNode(FuncDefNode):
                 arg.name = name_declarator.name
                 arg.type = type
 
-            self.align_argument_type(env, arg)
+            self.align_argument_type(env, arg, maybe_self=(n==0))
             if name_declarator and name_declarator.cname:
                 error(self.pos, "Python function argument cannot have C name specification")
             arg.type = arg.type.as_argument_type()
