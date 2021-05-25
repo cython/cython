@@ -47,7 +47,7 @@ Features added
   Patch by Zackery Spytz.  (Github issue :issue:`3906`)
 
 * C-API declarations for context variables in Python 3.7 were added.
-  Original patch by Zolisa Bleki.  (Github issue :issues:`2281`)
+  Original patch by Zolisa Bleki.  (Github issue :issue:`2281`)
 
 * More C-API declarations for ``cpython.datetime``  were added.
   Patch by Bluenix2.  (Github issue :issue:`4128`)
@@ -153,7 +153,7 @@ Bugs fixed
 * The internal CPython macro ``Py_ISSPACE()`` is no longer used.
   Original patch by Andrew Jones.  (Github issue :issue:`4111`)
 
-* Includes all bug-fixes from the 0.29.23 release.
+* Includes all bug-fixes from the :ref:`0.29.23` release.
 
 
 3.0.0 alpha 6 (2020-07-31)
@@ -217,7 +217,7 @@ Bugs fixed
 * ``repr()`` was assumed to return ``str`` instead of ``unicode`` with ``language_level=3``.
   (Github issue :issue:`3736`)
 
-* Includes all bug-fixes from the 0.29.21 release.
+* Includes all bug-fixes from the :ref:`0.29.21` release.
 
 Other changes
 -------------
@@ -267,7 +267,7 @@ Bugs fixed
   declarations were removed so that buffers declared as ``ndarray``
   now use the normal implementation in NumPy.
 
-* Includes all bug-fixes from the :ref:0.29.18 release.
+* Includes all bug-fixes from the :ref:`0.29.18` release.
 
 
 3.0.0 alpha 4 (2020-05-05)
@@ -340,7 +340,7 @@ Features added
 Bugs fixed
 ----------
 
-* Includes all bug-fixes from the :ref:0.29.17 release.
+* Includes all bug-fixes from the :ref:`0.29.17` release.
 
 
 3.0.0 alpha 2 (2020-04-23)
@@ -642,6 +642,8 @@ Other changes
 .. _`PEP-479`: https://www.python.org/dev/peps/pep-0479
 
 
+.. _0.29.24:
+
 0.29.24 (2021-??-??)
 ====================
 
@@ -663,6 +665,8 @@ Bugs fixed
   (Github issue #2306)
 
 
+.. _0.29.23:
+
 0.29.23 (2021-04-14)
 ====================
 
@@ -682,6 +686,8 @@ Bugs fixed
 * ``PY_SSIZE_T_CLEAN`` does not get defined any more if it is already defined.
   Patch by Andrew Jones.  (Github issue #4104)
 
+
+.. _0.29.22:
 
 0.29.22 (2021-02-20)
 ====================
@@ -740,6 +746,8 @@ Other changes
   Patch by David Woods.  (Github issue #3959)
 
 
+.. _0.29.21:
+
 0.29.21 (2020-07-09)
 ====================
 
@@ -780,6 +788,8 @@ Bugs fixed
   (Github issue #3708)
 
 
+.. _0.29.20:
+
 0.29.20 (2020-06-10)
 ====================
 
@@ -818,6 +828,8 @@ Bugs fixed
   only be set to True (the current default value).  It can be disabled in Cython 3.0.
 
 
+.. _0.29.19:
+
 0.29.19 (2020-05-20)
 ====================
 
@@ -830,6 +842,8 @@ Bugs fixed
 * A platform specific test failure in 0.29.18 was fixed.
   Patch by smutch.  (Github issue #3620)
 
+
+.. _0.29.18:
 
 0.29.18 (2020-05-18)
 ====================
@@ -886,6 +900,8 @@ Bugs fixed
   Patch by Brock Mendel.  (Github issue #3606)
 
 
+.. _0.29.17:
+
 0.29.17 (2020-04-26)
 ====================
 
@@ -928,6 +944,8 @@ Bugs fixed
 
 * The deprecated ``PyUnicode_GET_SIZE()`` function is no longer used in Py3.
 
+
+.. _0.29.16:
 
 0.29.16 (2020-03-24)
 ====================
@@ -982,6 +1000,9 @@ Bugs fixed
   Patch by Matti Picus.  (Github issue #3437)
 
 
+.. _0.29.15:
+
+
 0.29.15 (2020-02-06)
 ====================
 
@@ -1009,6 +1030,8 @@ Bugs fixed
 * Deprecated import failed in Python 3.9.
   (Github issue #3266)
 
+
+.. _0.29.14:
 
 0.29.14 (2019-11-01)
 ====================
