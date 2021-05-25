@@ -74,12 +74,17 @@ cdef class ExtTypeNoTotalOrdering:
     False
     >>> b > a
     True
-    >>> a >= b
-    Traceback (most recent call last):
-    TypeError: '>=' not supported between instances of 'exttype_total_ordering.ExtTypeNoTotalOrdering' and 'exttype_total_ordering.ExtTypeNoTotalOrdering'
-    >>> a <= b
-    Traceback (most recent call last):
-    TypeError: '<=' not supported between instances of 'exttype_total_ordering.ExtTypeNoTotalOrdering' and 'exttype_total_ordering.ExtTypeNoTotalOrdering'
+    >>> import sys
+    >>> try: a >= b
+    ... except TypeError:
+    ...     assert sys.version_info[0] >= 3
+    ... else:
+    ...     assert sys.version_info[0] < 3
+    >>> try: a <= b
+    ... except TypeError:
+    ...     assert sys.version_info[0] >= 3
+    ... else:
+    ...     assert sys.version_info[0] < 3
     """
     cdef public int value
     def __init__(self, val):
