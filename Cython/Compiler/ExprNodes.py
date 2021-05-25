@@ -2038,8 +2038,8 @@ class NameNode(AtomicExprNode):
         if entry and entry.as_module:
             return entry.as_module
         if entry and entry.known_standard_library_import:
-            from .CythonScope import get_known_python_import
-            entry = get_known_python_import(entry.known_standard_library_import)
+            from .CythonScope import get_known_standard_library_entry
+            entry = get_known_standard_library_entry(entry.known_standard_library_import)
             if entry and entry.is_module_scope:
                 return entry
         return None
@@ -2057,8 +2057,8 @@ class NameNode(AtomicExprNode):
         if entry and entry.is_type:
             return entry.type
         elif entry and entry.known_standard_library_import:
-            from .CythonScope import get_known_python_import
-            entry = get_known_python_import(entry.known_standard_library_import)
+            from .CythonScope import get_known_standard_library_entry
+            entry = get_known_standard_library_entry(entry.known_standard_library_import)
             if entry and entry.is_type:
                 return entry.type
         else:

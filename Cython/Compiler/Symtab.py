@@ -987,8 +987,8 @@ class Scope(object):
                 return entry.type
             # allow us to find types from the "typing" module and similar
             if i<1 and entry and entry.known_standard_library_import:
-                from .CythonScope import get_known_python_import
-                entry = get_known_python_import(entry.known_standard_library_import)
+                from .CythonScope import get_known_standard_library_entry
+                entry = get_known_standard_library_entry(entry.known_standard_library_import)
 
 
     def lookup_operator(self, operator, operands):

@@ -174,15 +174,9 @@ cythonview_testscope_utility_code = load_testscope_utility("View.TestScope")
 
 _known_module_scopes = {}
 
-def get_known_python_import(qualified_name):
+def get_known_standard_library_module(module_name):
     # I don't think this is in the right place, but it isn't clear where it should be
-
     from .StringEncoding import EncodedString
-
-    qualified_name = qualified_name.split(".")
-    module_name = EncodedString(qualified_name[0])
-    rest = qualified_name[1:]
-    assert(len(rest)<=1)  # for now, we don't know how to deal with any nested modules
 
     mod = _known_module_scopes.get(module_name, None)
     if not mod:
@@ -206,7 +200,21 @@ def get_known_python_import(qualified_name):
                 indexed_type = SpecialPythonTypeConstructor(EncodedString("typing."+name))
                 entry = mod.declare_type(name, indexed_type, pos = None)
             _known_module_scopes[module_name] = mod
+    return mod
+
+
+def get_known_standard_library_entry(qualified_name):
+    from .StringEncoding import EncodedString
+
+    qualified_name = qualified_name.split(".")
+    module_name = EncodedString(qualified_name[0])
+    rest = qualified_name[1:]
+
+    if len(rest) > 1:  # for now, we don't know how to deal with any nested modules
+        return None
+
+    mod = get_known_standard_library_module(module_name)
 
     # eventually handle more sophisticated multiple lookups if needed
-    if rest and mod:
+    if mod and rest:
         return mod.lookup_here(rest[0])
