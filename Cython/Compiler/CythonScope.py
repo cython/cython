@@ -208,5 +208,5 @@ def get_known_python_import(qualified_name):
             _known_module_scopes[module_name] = mod
 
     # eventually handle more sophisticated multiple lookups if needed
-    if rest:
+    if rest and mod:
         return mod.lookup_here(rest[0])
