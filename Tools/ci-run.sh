@@ -1,7 +1,7 @@
 #!/usr/bin/bash
 
 # Set up compilers
-if [ "${OS_NAME##ubuntu*}" == "" ]; then
+if [ "${OS_NAME##ubuntu*}" == "" - "$TEST_CODE_STYLE" != "1" ]; then
   echo "Installing requirements [apt]"
   sudo apt-add-repository -y "ppa:ubuntu-toolchain-r/test"
   sudo apt update -y -q

@@ -38,7 +38,7 @@ jobs:
           - os: ubuntu-18.04
             python-version: 3.7
             backend: "c,cpp"
-            env: { TEST_CODE_STYLE: 1 }
+            env: { TEST_CODE_STYLE: 1, NO_CYTHON_COMPILE: 1 }
             extra_hash: "-codestyle"
           # Limited API
           - os: ubuntu-18.04
