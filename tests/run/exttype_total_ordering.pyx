@@ -1,6 +1,9 @@
-from __future__ import print_function
 # mode: run
-__doc__ = u"""
+# tag: total_ordering
+
+from __future__ import print_function
+
+"""
     >>> class PyTotalOrdering:
     ...     def __init__(self, value):
     ...         self.value = value

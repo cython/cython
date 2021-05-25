@@ -1,5 +1,6 @@
 # mode: error
-# tag: warnings
+# tag: total_ordering, warnings
+
 cimport cython
 
 
