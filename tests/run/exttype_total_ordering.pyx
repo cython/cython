@@ -75,12 +75,12 @@ cdef class ExtTypeNoTotalOrdering:
     >>> b > a
     True
     >>> import sys
-    >>> try: a >= b
+    >>> try: _ =  a >= b
     ... except TypeError:
     ...     assert sys.version_info[0] >= 3
     ... else:
     ...     assert sys.version_info[0] < 3
-    >>> try: a <= b
+    >>> try: _ =  a <= b
     ... except TypeError:
     ...     assert sys.version_info[0] >= 3
     ... else:
