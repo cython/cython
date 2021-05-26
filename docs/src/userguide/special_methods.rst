@@ -171,7 +171,8 @@ Depending on the application, one way or the other may be better:
 * Use the 6 Python
   `special methods <https://docs.python.org/3/reference/datamodel.html#basic-customization>`_
   :meth:`__eq__`, :meth:`__lt__`, etc.
-  This is new since Cython 0.27 and works exactly as in plain Python classes.
+  This is supported since Cython 0.27 and works exactly as in plain Python classes.
+
 * Use a single special method :meth:`__richcmp__`.
   This implements all rich comparison operations in one method.
   The signature is ``def __richcmp__(self, other, int op)``.
@@ -194,10 +195,11 @@ Depending on the application, one way or the other may be better:
 
   These constants can be cimported from the ``cpython.object`` module.
 
-* Use a ``cython.total_ordering`` decorator, which is a re-implementation of
-  the `functools.total_ordering
+* Use the ``@cython.total_ordering`` decorator, which is a low-level
+  re-implementation of the `functools.total_ordering
   <https://docs.python.org/3/library/functools.html#functools.total_ordering>`_
-  decorator. It can only be used on a ``cdef`` class:
+  decorator specifically for ``cdef`` classes.  (Normal Python classes can use
+  the original ``functools`` decorator.)
 
   .. code-block:: cython
 
@@ -212,6 +214,7 @@ Depending on the application, one way or the other may be better:
 
         def __eq__(self, other):
             return isinstance(other, ExtGe) and self.x == (<ExtGe>other).x
+
 
 .. _the__next__method:
 
