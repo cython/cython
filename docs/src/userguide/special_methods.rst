@@ -160,7 +160,7 @@ This change in behaviour also applies to the in-place arithmetic method :meth:`_
 It does not apply to any of the other in-place methods (:meth:`__iadd__`, etc.)
 which always take `self` as the first argument.
 
-.. _righ_comparisons:
+.. _rich_comparisons:
 
 Rich comparisons
 -----------------
