@@ -49,7 +49,7 @@ see :ref:`compilation`). Your :file:`setup.py` should look like::
 
 To use this to build your Cython file use the commandline options:
 
-.. sourcecode:: text
+.. code-block:: text
 
     $ python setup.py build_ext --inplace
 
@@ -109,7 +109,7 @@ module name, doing this we have:
 
 Build the extension with the same command used for the helloworld.pyx:
 
-.. sourcecode:: text
+.. code-block:: text
 
     $ python setup.py build_ext --inplace
 
