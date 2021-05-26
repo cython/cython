@@ -195,9 +195,9 @@ cdef class TestFrozen:
     >>> inst = TestFrozen(a=5)
     >>> inst.a
     5.0
-    >>> inst.a = 2.
+    >>> inst.a = 2.  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    AttributeError: attribute 'a' of 'cdef_class_dataclass.TestFrozen' objects is not writable
+    AttributeError: attribute 'a' of '...TestFrozen' objects is not writable
     """
     a: double = 2.0
 
