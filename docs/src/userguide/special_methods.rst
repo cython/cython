@@ -195,16 +195,24 @@ Depending on the application, one way or the other may be better:
 
   These constants can be cimported from the ``cpython.object`` module.
 
+<<<<<<< HEAD
 * Use the ``@cython.total_ordering`` decorator, which is a low-level
   re-implementation of the `functools.total_ordering
   <https://docs.python.org/3/library/functools.html#functools.total_ordering>`_
   decorator specifically for ``cdef`` classes.  (Normal Python classes can use
   the original ``functools`` decorator.)
+=======
+* Use a ``cython.total_ordering`` decorator, which is a re-implementation of
+  the `functools.total_ordering
+  <https://docs.python.org/3/library/functools.html#functools.total_ordering>`_
+  decorator. It can only be used on a ``cdef`` class:
+>>>>>>> DOC: add documentation for total_ordering
 
   .. code-block:: cython
 
     @cython.total_ordering
     cdef class ExtGe:
+<<<<<<< HEAD
         cdef int x
 
         def __ge__(self, other):
@@ -215,6 +223,10 @@ Depending on the application, one way or the other may be better:
         def __eq__(self, other):
             return isinstance(other, ExtGe) and self.x == (<ExtGe>other).x
 
+=======
+        def __ge__(self, other):
+            return False
+>>>>>>> DOC: add documentation for total_ordering
 
 .. _the__next__method:
 
