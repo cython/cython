@@ -326,6 +326,7 @@ directive_types = {
     'c_string_type': one_of('bytes', 'bytearray', 'str', 'unicode'),
     'c_string_encoding': normalise_encoding_name,
     'trashcan': bool,
+    'total_ordering': bool,
     'dataclasses.dataclass': Ellipsis,  # use Ellipsis as a flag to defer analysis of the arguments
             # instead of analysing it in InterpretCompilerDirectives. The dataclass directives are quite
             # complicated and it's easier to deal with them at the point the dataclass is created
@@ -374,6 +375,7 @@ directive_scopes = {  # defaults to available everywhere
     'fast_gil': ('module',),
     'iterable_coroutine': ('module', 'function'),
     'trashcan' : ('cclass',),
+    'total_ordering': ('cclass', ),
     'dataclasses.dataclass' : ('class', 'cclass',)
 }
 

@@ -2,6 +2,31 @@
 Cython Changelog
 ================
 
+3.0.0 alpha 8 (2021-??-??)
+==========================
+
+Features added
+--------------
+
+* A ``@cython.total_ordering`` decorator has been added to automatically
+  implement all comparison operators, similar to ``functools.total_ordering``.
+  Patch by Spencer Brown.  (Github issue :issue:`2090`)
+
+* C++17 execution policies are supported in ``libcpp.algorithm``.
+  Patch by Ashwin Srinath.  (Github issue :issue:`3790`)
+
+* New C feature flags: ``CYTHON_USE_MODULE_STATE``, ``CYTHON_USE_TYPE_SPECS``
+  Both are currently considered experimental.
+  (Github issue :issue:`3611`)
+
+Bugs fixed
+----------
+
+* The signature of ``PyFloat_FromString()`` in ``cpython.float`` was changed
+  to match the signature in Py3.  It still has an automatic fallback for Py2.
+  (Github issue :issue:`3909`)
+
+
 3.0.0 alpha 7 (2021-05-24)
 ==========================
 
