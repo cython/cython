@@ -11,6 +11,8 @@ try:
 except ImportError:  # Py<=3.5
     ClassVar = {int: int}
 
+class NotAStr:
+    pass
 
 class PyAnnotatedClass:
     """
@@ -38,6 +40,9 @@ class PyAnnotatedClass:
     literal: "int"
     recurse: "PyAnnotatedClass"
     default: bool = False
+    # https://github.com/cython/cython/issues/4196 and https://github.com/cython/cython/issues/4198
+    not_object: float = 0.1  # Shouldn't try to create a c attribute
+    lie_about_type: str = NotAStr  # Shouldn't generate a runtime type-check
 
 
 class PyVanillaClass:
