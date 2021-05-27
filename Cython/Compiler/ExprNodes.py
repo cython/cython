@@ -9,7 +9,7 @@ cython.declare(error=object, warning=object, warn_once=object, InternalError=obj
                CompileError=object, UtilityCode=object, TempitaUtilityCode=object,
                StringEncoding=object, operator=object, local_errors=object, report_error=object,
                Naming=object, Nodes=object, PyrexTypes=object, py_object_type=object,
-               list_type=object, tuple_type=object, set_type=object, dict_type=object,
+               list_type=object, tuple_type=object, set_type=object, frozenset_type=object, dict_type=object,
                unicode_type=object, str_type=object, bytes_type=object, type_type=object,
                Builtin=object, Symtab=object, Utils=object, find_coercion_error=object,
                debug_disposal_code=object, debug_temp_alloc=object, debug_coercion=object,
@@ -34,7 +34,7 @@ from . import PyrexTypes
 from .PyrexTypes import py_object_type, c_long_type, typecast, error_type, \
     unspecified_type
 from . import TypeSlots
-from .Builtin import list_type, tuple_type, set_type, dict_type, type_type, \
+from .Builtin import list_type, tuple_type, set_type, frozenset_type, dict_type, type_type, \
      unicode_type, str_type, bytes_type, bytearray_type, basestring_type, slice_type
 from . import Builtin
 from . import Symtab
@@ -4894,6 +4894,7 @@ class SliceIndexNode(ExprNode):
     subexprs = ['base', 'start', 'stop', 'slice']
 
     slice = None
+    to_py_func = None
 
     def infer_type(self, env):
         base_type = self.base.infer_type(env)
@@ -5095,11 +5096,50 @@ class SliceIndexNode(ExprNode):
                     "default encoding required for conversion from '%s' to '%s'" %
                     (self.base.type, dst_type))
             self.type = dst_type
-        if dst_type.is_array and self.base.type.is_array:
-            if not self.start and not self.stop:
-                # redundant slice building, copy C arrays directly
-                return self.base.coerce_to(dst_type, env)
-            # else: check array size if possible
+        elif self.base.type.is_array:
+            if dst_type.is_pyobject:
+                if dst_type in (list_type, tuple_type, set_type, frozenset_type):
+                    to_py_obj_type = dst_type.name
+                elif dst_type is py_object_type:
+                    to_py_obj_type = 'list'
+                else:
+                    error(self.pos,
+                          "Cannot convert slice of C array to '%s'" % dst_type)
+
+                if to_py_obj_type == 'frozenset':
+                    env.use_utility_code(
+                        UtilityCode.load_cached('pyfrozenset_new', 'Builtins.c'))
+
+                self.type = dst_type
+                to_py_func_cname = "__Pyx_slice_carray_%s_to_py_%s" % (
+                    self.base.type.specialization_name(),
+                    to_py_obj_type)
+
+                context = {
+                    'cname': to_py_func_cname,
+                    'base_type': self.base.type.base_type,
+                    'to_py_obj_type': to_py_obj_type
+                }
+
+                util_compiler_directives = {
+                    'c_string_encoding': env.directives['c_string_encoding'],
+                    'c_string_type': env.directives['c_string_type']
+                    }
+
+                from .UtilityCode import CythonUtilityCode
+                env.use_utility_code(CythonUtilityCode.load(
+                    "c_array_slice.to_py", "CConvert.pyx",
+                    outer_module_scope=env.global_scope(),  # need access to types declared in module
+                    context=context, compiler_directives=util_compiler_directives))
+
+                self.to_py_func = to_py_func_cname
+                return self
+            elif dst_type.is_array:
+                if not self.start and not self.stop:
+                    # redundant slice building, copy C arrays directly
+                    return self.base.coerce_to(dst_type, env)
+                # else: check array size if possible
+
         return super(SliceIndexNode, self).coerce_to(dst_type, env)
 
     def generate_result_code(self, code):
@@ -5169,6 +5209,21 @@ class SliceIndexNode(ExprNode):
                     start_code,
                     stop_code,
                     code.error_goto_if_null(result, self.pos)))
+        elif self.base.type.is_array:
+            if self.to_py_func:
+                code.putln('%s = %s(%s, %s, %s, %s, %d, %d); %s' % (
+                    result,
+                    self.to_py_func,
+                    base_result,
+                    self.base.type.size,
+                    start_code,
+                    stop_code,
+                    bool(code.globalstate.directives['wraparound']),
+                    bool(code.globalstate.directives['boundscheck']),
+                    code.error_goto_if_null(result, self.pos)))
+            else:
+                error(self.pos,
+                      "Function for coercing has been not defined for '%s'." % self.type)
         elif self.type is py_object_type:
             code.globalstate.use_utility_code(self.get_slice_utility_code)
             (has_c_start, has_c_stop, c_start, c_stop,
@@ -10557,7 +10612,8 @@ class TypecastNode(ExprNode):
         if to_py and not from_py:
             if self.type is bytes_type and self.operand.type.is_int:
                 return CoerceIntToBytesNode(self.operand, env)
-            elif self.operand.type.can_coerce_to_pyobject(env):
+            elif self.operand.type.can_coerce_to_pyobject(env) or \
+                    (isinstance(self.operand, SliceIndexNode) and self.operand.base.type.is_array):
                 self.result_ctype = py_object_type
                 self.operand = self.operand.coerce_to(self.type, env)
             else:
