@@ -116,16 +116,16 @@ static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS_METHOD(PyObject 
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
 
 static CYTHON_INLINE void __Pyx__CyFunction_SetClassObj(__pyx_CyFunctionObject* f, PyObject* classobj) {
-    __Pyx_Py_XDECREF_SET(
 #if PY_VERSION_HEX < 0x030900B1
+    __Pyx_Py_XDECREF_SET(
         __Pyx_CyFunction_GetClassObj(f),
+            ((classobj) ? __Pyx_NewRef(classobj) : NULL));
 #else
+    __Pyx_Py_XDECREF_SET(
         // assigning to "mm_class", which is a "PyTypeObject*"
         ((PyCMethodObject *) (f))->mm_class,
-        (PyTypeObject*)
+        (PyTypeObject*)((classobj) ? __Pyx_NewRef(classobj) : NULL));
 #endif
-            ((classobj) ? __Pyx_NewRef(classobj) : NULL)
-    );
 }
 
 static PyObject *
