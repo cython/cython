@@ -222,6 +222,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         DropRefcountingTransform(),
         FinalOptimizePhase(context),
         GilCheck(),
+        PrintTree(),
         ]
     filtered_stages = []
     for s in stages:

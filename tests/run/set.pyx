@@ -328,8 +328,10 @@ def test_set_of_list():
     return set([1, 2, 3])
 
 
-@cython.test_assert_path_exists("//PythonCapiCallNode")
-@cython.test_fail_if_path_exists("//SetNode")
+@cython.test_fail_if_path_exists(
+    "//SetNode",
+    "//PythonCapiCallNode",
+)
 def test_frozenset_of_list():
     """
     >>> s = test_frozenset_of_list()
@@ -354,8 +356,7 @@ def test_set_of_tuple():
     return set((1, 2, 3))
 
 
-@cython.test_assert_path_exists("//PythonCapiCallNode")
-@cython.test_fail_if_path_exists("//SetNode")
+@cython.test_fail_if_path_exists("//SetNode", "//PythonCapiCallNode")
 def test_frozenset_of_tuple():
     """
     >>> s = test_frozenset_of_tuple()
@@ -382,65 +383,6 @@ def test_set_of_iterable(x):
     """
     return set(x)
 
-
-@cython.test_assert_path_exists("//PythonCapiCallNode")
-@cython.test_fail_if_path_exists(
-    "//SimpleCallNode",
-    "//SetNode"
-)
-def test_frozenset_of_iterable(x):
-    """
-    >>> s = test_frozenset_of_iterable([1, 2, 3])
-    >>> isinstance(s, frozenset)
-    True
-    >>> sorted(s)
-    [1, 2, 3]
-
-    >>> s = test_frozenset_of_iterable(frozenset([1, 2, 3]))
-    >>> isinstance(s, frozenset)
-    True
-    >>> sorted(s)
-    [1, 2, 3]
-    """
-    return frozenset(x)
-
-
-@cython.test_assert_path_exists("//PythonCapiCallNode")
-@cython.test_fail_if_path_exists(
-    "//SimpleCallNode",
-    "//SetNode"
-)
-def test_empty_frozenset():
-    """
-    >>> s = test_empty_frozenset()
-    >>> isinstance(s, frozenset)
-    True
-    >>> len(s)
-    0
-    >>> import sys
-    >>> sys.version_info >= (3, 10) or s is frozenset()   # singleton (in Python < 3.10)!
-    True
-    """
-    return frozenset()
-
-
-@cython.test_fail_if_path_exists(
-    '//ListNode//ListNode',
-    '//ListNode//PythonCapiCallNode//PythonCapiCallNode',
-    '//ListNode//SimpleCallNode//SimpleCallNode',
-)
-def test_singleton_empty_frozenset():
-    """
-    >>> import sys
-    >>> test_singleton_empty_frozenset() if sys.version_info < (3, 10) else 1  # from CPython's test_set.py
-    1
-    """
-    f = frozenset()
-    efs = [frozenset(), frozenset([]), frozenset(()), frozenset(''),
-           frozenset(), frozenset([]), frozenset(()), frozenset(''),
-           frozenset(range(0)), frozenset(frozenset()),
-           frozenset(f), f]
-    return len(set(map(id, efs)))  # note, only a singleton in Python <3.10
 
 
 def sorted(it):

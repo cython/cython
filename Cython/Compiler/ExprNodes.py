@@ -34,7 +34,7 @@ from . import PyrexTypes
 from .PyrexTypes import py_object_type, c_long_type, typecast, error_type, \
     unspecified_type
 from . import TypeSlots
-from .Builtin import list_type, tuple_type, set_type, dict_type, type_type, \
+from .Builtin import list_type, tuple_type, set_type, frozenset_type, dict_type, type_type, \
      unicode_type, str_type, bytes_type, bytearray_type, basestring_type, slice_type
 from . import Builtin
 from . import Symtab
@@ -196,7 +196,10 @@ def make_dedup_key(outer_type, item_nodes):
 
     @param outer_type: The type of the outer container.
     @param item_nodes: A sequence of constant nodes that will be traversed recursively.
-    @return: A tuple that can be used as a dict key for deduplication.
+    @rtype:  tuple
+    @return: A 2-element tuple that can be used as a dict key for deduplication.
+                The first element is "outer_type", as passed in.
+                The second element is a hashable, constant data container, specific to the "outer_type".
     """
     item_keys = [
         (py_object_type, None, type(None)) if node is None
@@ -211,7 +214,11 @@ def make_dedup_key(outer_type, item_nodes):
     ]
     if None in item_keys:
         return None
-    return outer_type, tuple(item_keys)
+    if outer_type.is_builtin_type and outer_type.name == 'frozenset':
+        key_type = frozenset
+    else:
+        key_type = tuple
+    return outer_type, key_type(item_keys)
 
 
 # Returns a block of code to translate the exception,
@@ -8777,6 +8784,64 @@ class SetNode(ExprNode):
                 "PySet_Add(%s, %s)" % (self.result(), arg.py_result()))
             arg.generate_disposal_code(code)
             arg.free_temps(code)
+
+
+class FrozenSetNode(SetNode):
+    """
+    Frozenset constructor.
+    """
+
+    gil_message = "Constructing Python frozenset"
+    is_literal = False
+    type = frozenset_type
+
+    def calculate_result_code(self):
+        return self.result_code
+
+    def _generate_frozenset_code(self, code, frozenset_target, args_py_result):
+        code.globalstate.use_utility_code(UtilityCode.load_cached(
+            'pyfrozenset_new', 'Builtins.c'))
+        code.putln(
+            "%s = __Pyx_PyFrozenSet_New(%s); %s" % (
+                frozenset_target,
+                args_py_result,
+                code.error_goto_if_null(frozenset_target, self.pos)))
+
+    def _get_dedup_values(self, args):
+        if args is None:
+            return ()
+        if args.is_string_literal:
+            return [args]
+        return args.args
+
+    def _create_shared_frozenset_object(self, code):
+        assert self.args is not None
+        dedup_key = make_dedup_key(frozenset_type, self._get_dedup_values(self.args))
+        print(dedup_key)
+        set_target = code.get_py_const(py_object_type, 'frozenset', cleanup_level=2, dedup_key=dedup_key)
+        assert set_target is not None
+        const_code = code.get_cached_constants_writer(set_target)
+        if const_code is not None:
+            # constant is not yet initialised
+            const_code.mark_pos(self.pos)
+            self.args.generate_evaluation_code(const_code)
+            self._generate_frozenset_code(const_code, set_target, self.args.py_result())
+        self.result_code = set_target
+
+    def generate_evaluation_code(self, code):
+        if self.args is None:
+            exit(1)#TODO
+        if self.is_literal:
+            self._create_shared_frozenset_object(code)
+            return
+
+        self.args.generate_evaluation_code(code)
+        self.allocate_temp_result(code)
+
+        self._generate_frozenset_code(code, self.temp_code, self.args.py_result())
+        self.generate_gotref(code)
+        self.args.generate_disposal_code(code)
+        self.args.free_temps(code)
 
 
 class DictNode(ExprNode):

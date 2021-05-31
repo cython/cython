@@ -71,6 +71,7 @@ interned_prefixes = {
     'slice': pyrex_prefix + "slice_",
     'ustring': pyrex_prefix + "ustring_",
     'umethod': pyrex_prefix + "umethod_",
+    'frozenset': pyrex_prefix + "frozenset_"
 }
 
 ctuple_type_prefix = pyrex_prefix + "ctuple_"

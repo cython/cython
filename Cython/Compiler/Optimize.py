@@ -1988,13 +1988,27 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
 
     def _handle_simple_function_frozenset(self, node, pos_args):
         """Replace frozenset([...]) by frozenset((...)) as tuples are more efficient.
+        Exception: If a list/tuple is constant, convert it into list.
         """
         if len(pos_args) != 1:
             return node
+        # If args is an empty sequence, remove it
         if pos_args[0].is_sequence_constructor and not pos_args[0].args:
             del pos_args[0]
-        elif isinstance(pos_args[0], ExprNodes.ListNode):
+            return node
+
+        if isinstance(pos_args[0], ExprNodes.ListNode) and \
+            isinstance(pos_args[0].constant_result, ExprNodes.NotConstant):
             pos_args[0] = pos_args[0].as_tuple()
+
+        # Currently, if a tuple is constant, a permanent tuple would be created
+        # Therefore, we convert this tuple to list, only keeping a permanent frozenset
+        # See https://github.com/cython/cython/pull/4098#issuecomment-834234964
+        if isinstance(pos_args[0], ExprNodes.TupleNode) and \
+            not isinstance(pos_args[0].constant_result, ExprNodes.NotConstant):
+            pos_args[0] = pos_args[0].as_list()
+            # print("!!")
+            # print(pos_args[0].__dict__)
         return node
 
     def _handle_simple_function_list(self, node, pos_args):
@@ -2580,26 +2594,54 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 is_temp=node.is_temp,
                 py_name="set"))
 
-    PyFrozenSet_New_func_type = PyrexTypes.CFuncType(
-        Builtin.frozenset_type, [
-            PyrexTypes.CFuncTypeArg("it", PyrexTypes.py_object_type, None)
-        ])
-
     def _handle_simple_function_frozenset(self, node, function, pos_args):
+        # empty frozenset is singleton, so we never try to free them
         if not pos_args:
-            pos_args = [ExprNodes.NullNode(node.pos)]
-        elif len(pos_args) > 1:
+            result = ExprNodes.FrozenSetNode(node.pos, is_temp=False, args=None)
+            result.is_literal = True
+            return result
+
+        if len(pos_args) > 1:
             return node
-        elif pos_args[0].type is Builtin.frozenset_type and not pos_args[0].may_be_none():
+
+        if pos_args[0].type is Builtin.frozenset_type:
+            # and not pos_args[0].may_be_none()
+            # print(pos_args[0].may_be_none())
+            # DOUBT: when do we need to care about may_be_none()
+            # DOUBT: do we need to edit is_temp
             return pos_args[0]
-        # PyFrozenSet_New(it) is better than a generic Python call to frozenset(it)
-        return ExprNodes.PythonCapiCallNode(
-            node.pos, "__Pyx_PyFrozenSet_New",
-            self.PyFrozenSet_New_func_type,
-            args=pos_args,
-            is_temp=node.is_temp,
-            utility_code=UtilityCode.load_cached('pyfrozenset_new', 'Builtins.c'),
-            py_name="frozenset")
+
+        # TODO: Unicode process
+        # if pos_args[0].is_string_literal:
+        #     arg_set = frozenset(pos_args[0].constant_result)
+        #     print(arg_set)
+        #     transformed_result = [
+        #         ExprNodes.StringNode(node.pos, value=c, unicode_value=c,
+        #         constant_result=c, is_identifier=False)
+        #         for c in arg_set
+        #     ]
+        #     # print(transformed_result)
+        #     # TODO avoid code duplication
+        #     args_tuple = ExprNodes.TupleNode(node.pos, args=transformed_result)
+        #     print(args_tuple.__dict__)
+        #     result = ExprNodes.FrozenSetNode(node.pos, is_temp=1, args=args_tuple)
+        #     result.is_temp = False
+        #     result.is_literal = True
+        #     return result
+
+        # if isinstance(pos_args[0], ExprNodes.TupleNode) and pos_args[0].is_literal:
+        #     pos_args[0] = pos_args[0].as_list()
+        # We could only create a frozenset by builtin name
+        result = ExprNodes.FrozenSetNode(node.pos, is_temp=node.is_temp, args=pos_args[0])
+
+     #   if pos_args[0].is_literal:
+        if pos_args[0].constant_result is not None \
+                and not isinstance(pos_args[0].constant_result, ExprNodes.NotConstant):
+            result.is_temp = False
+            result.is_literal = True
+
+        return result
+
 
     PyObject_AsDouble_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_double_type, [
