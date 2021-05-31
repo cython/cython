@@ -186,6 +186,8 @@ class PyrexType(BaseType):
     #  is_cfunction          boolean     Is a C function type
     #  is_struct_or_union    boolean     Is a C struct or union type
     #  is_struct             boolean     Is a C struct type
+    #  is_cpp_class          boolean     Is a C++ class
+    #  if_optional_cpp_class boolean     Is a C++ class with variable lifetime handled with std::optional
     #  is_enum               boolean     Is a C enum type
     #  is_cpp_enum           boolean     Is a C++ scoped enum type
     #  is_typedef            boolean     Is a typedef type
@@ -253,6 +255,7 @@ class PyrexType(BaseType):
     is_cfunction = 0
     is_struct_or_union = 0
     is_cpp_class = 0
+    is_optional_cpp_class = 0
     is_cpp_string = 0
     is_struct = 0
     is_enum = 0
@@ -3774,6 +3777,7 @@ class CppClassType(CType):
         return False
 
     def create_from_py_utility_code(self, env):
+        import pdb; pdb.set_trace()
         if self.from_py_function is not None:
             return True
         if self.cname in builtin_cpp_conversions or self.cname in cpp_string_conversions:
@@ -3802,7 +3806,7 @@ class CppClassType(CType):
             from .UtilityCode import CythonUtilityCode
             env.use_utility_code(CythonUtilityCode.load(
                 cls.replace('unordered_', '') + ".from_py", "CppConvert.pyx",
-                context=context, compiler_directives=env.directives))
+                context=context))
             self.from_py_function = cname
             return True
 
@@ -3847,7 +3851,7 @@ class CppClassType(CType):
             from .UtilityCode import CythonUtilityCode
             env.use_utility_code(CythonUtilityCode.load(
                 cls.replace('unordered_', '') + ".to_py", "CppConvert.pyx",
-                context=context, compiler_directives=env.directives))
+                context=context))
             self.to_py_function = cname
             return True
 
@@ -4137,6 +4141,24 @@ class CppScopedEnumType(CType):
             outer_module_scope=env.global_scope())
 
         env.use_utility_code(rst)
+
+
+class OptionalCppClassType(CPtrType):
+    """
+    A c++ class stored in a std::optional
+    (Using CPointerBaseType because it should largely be accessed by dereferencing and ->)
+    """
+    is_optional_cpp_class = True
+
+    def declaration_code(self, entity_code,
+                        for_display=0, dll_linkage=None, pyrex=0):
+        if pyrex or for_display:
+            return self.base_type.declaration_code(entity_code, for_display, dll_linkage, pyrex)
+        else:
+            return "__Pyx_Optional_Type<%s> %s" % (
+                self.base_type.declaration_code("", for_display, dll_linkage, pyrex),
+                entity_code)
+
 
 
 class TemplatePlaceholderType(CType):
