@@ -83,7 +83,7 @@ class OverloadLeft(Base):
     derived_implemented: cython.int
 
     def __init__(self, derived_implemented):
-        super().__init__(1)
+        super().__init__(derived_implemented)
         self.derived_implemented = derived_implemented
 
     def __add__(self, other):
@@ -97,18 +97,36 @@ class OverloadLeft(Base):
 @cython.cclass
 class OverloadRight(Base):
     """
-    >>> OverloadRight() + 2
+    >>> OverloadRight(1) + 2
     'Base.__add__(OverloadRight(), 2)'
-    >>> 2 + OverloadRight()
+    >>> 2 + OverloadRight(1)
     'OverloadRight.__radd__(OverloadRight(), 2)'
 
-    >>> OverloadRight() + Base()
+    >>> OverloadRight(1) + Base(1)
     'Base.__add__(OverloadRight(), Base())'
-    >>> Base() + OverloadRight()
+    >>> Base(1) + OverloadRight(1)
     'OverloadRight.__radd__(OverloadRight(), Base())'
+
+    >>> OverloadRight(0) + Base(0)  #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    TypeError: unsupported operand type...
+    >>> Base(0) + OverloadRight(0)  #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    TypeError: unsupported operand type...
     """
+    derived_implemented: cython.int
+
+    def __init__(self, derived_implemented):
+        super().__init__(derived_implemented)
+        self.derived_implemented = derived_implemented
+
     def __radd__(self, other):
-        return "OverloadRight.__radd__(%s, %s)" % (self, other)
+        if (<OverloadRight>self).derived_implemented:
+            return "OverloadRight.__radd__(%s, %s)" % (self, other)
+        else:
+            return NotImplemented
 
 @cython.c_api_binop_methods(True)
 @cython.cclass
@@ -149,3 +167,4 @@ class OverloadCApi(Base):
         else:
             return NotImplemented
 
+# TODO: Only defines right?
