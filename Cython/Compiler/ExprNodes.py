@@ -5796,18 +5796,8 @@ class SimpleCallNode(CallNode):
             else:
                 alternatives = overloaded_entry.all_alternatives()
 
-            # For any argument/parameter pair A/P, if P is a forwarding reference,
-            # use lvalue-reference-to-A for deduction in place of A when the
-            # function call argument is an lvalue. See:
-            # https://en.cppreference.com/w/cpp/language/template_argument_deduction#Deduction_from_a_function_call
-            arg_types = [arg.type for arg in args]
-            if func_type.is_cfunction:
-                for i, formal_arg in enumerate(func_type.args):
-                    if formal_arg.is_forwarding_reference():
-                        if self.args[i].is_lvalue():
-                            arg_types[i] = PyrexTypes.c_ref_type(arg_types[i])
-
-            entry = PyrexTypes.best_match(arg_types, alternatives, self.pos, env, args)
+            entry = PyrexTypes.best_match([arg.type for arg in args],
+                                          alternatives, self.pos, env, args)
 
             if not entry:
                 self.type = PyrexTypes.error_type
@@ -6881,7 +6871,6 @@ class AttributeNode(ExprNode):
     is_attribute = 1
     subexprs = ['obj']
 
-    type = PyrexTypes.error_type
     entry = None
     is_called = 0
     needs_none_check = True
@@ -6971,6 +6960,8 @@ class AttributeNode(ExprNode):
         return node
 
     def analyse_types(self, env, target = 0):
+        if not self.type:
+            self.type = PyrexTypes.error_type  # default value if it isn't analysed successfully
         self.initialized_check = env.directives['initializedcheck']
         node = self.analyse_as_cimported_attribute_node(env, target)
         if node is None and not target:
@@ -6997,6 +6988,7 @@ class AttributeNode(ExprNode):
                     or entry.is_type or entry.is_const):
                 return self.as_name_node(env, entry, target)
             if self.is_cimported_module_without_shadow(env):
+                # TODO: search for submodule
                 error(self.pos, "cimported module has no attribute '%s'" % self.attribute)
                 return self
         return None
@@ -9963,7 +9955,12 @@ class YieldExprNode(ExprNode):
         for cname, type, manage_ref in code.funcstate.temps_in_use():
             save_cname = code.funcstate.closure_temps.allocate_temp(type)
             saved.append((cname, save_cname, type))
-            code.put_xgiveref(cname, type)
+            if type.is_cpp_class:
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("MoveIfSupported", "CppSupport.cpp"))
+                cname = "__PYX_STD_MOVE_IF_SUPPORTED(%s)" % cname
+            else:
+                code.put_xgiveref(cname, type)
             code.putln('%s->%s = %s;' % (Naming.cur_scope_cname, save_cname, cname))
 
         code.put_xgiveref(Naming.retval_cname, py_object_type)
@@ -9994,9 +9991,12 @@ class YieldExprNode(ExprNode):
 
         code.put_label(label_name)
         for cname, save_cname, type in saved:
-            code.putln('%s = %s->%s;' % (cname, Naming.cur_scope_cname, save_cname))
+            save_cname = "%s->%s" % (Naming.cur_scope_cname, save_cname)
+            if type.is_cpp_class:
+                save_cname = "__PYX_STD_MOVE_IF_SUPPORTED(%s)" % save_cname
+            code.putln('%s = %s;' % (cname, save_cname))
             if type.is_pyobject:
-                code.putln('%s->%s = 0;' % (Naming.cur_scope_cname, save_cname))
+                code.putln('%s = 0;' % save_cname)
                 code.put_xgotref(cname, type)
         self.generate_sent_value_handling_code(code, Naming.sent_value_cname)
         if self.result_is_used:
@@ -11054,8 +11054,6 @@ class TypeidNode(ExprNode):
     #  arg_type      ExprNode
     #  is_variable   boolean
 
-    type = PyrexTypes.error_type
-
     subexprs = ['operand']
 
     arg_type = None
@@ -11073,19 +11071,25 @@ class TypeidNode(ExprNode):
     cpp_message = 'typeid operator'
 
     def analyse_types(self, env):
+        if not self.type:
+            self.type = PyrexTypes.error_type  # default value if it isn't analysed successfully
         self.cpp_check(env)
         type_info = self.get_type_info_type(env)
         if not type_info:
             self.error("The 'libcpp.typeinfo' module must be cimported to use the typeid() operator")
             return self
+        if self.operand is None:
+            return self  # already analysed, no need to repeat
         self.type = type_info
         as_type = self.operand.analyse_as_specialized_type(env)
         if as_type:
             self.arg_type = as_type
             self.is_type = True
+            self.operand = None  # nothing further uses self.operand - will only cause problems if its used in code generation
         else:
             self.arg_type = self.operand.analyse_types(env)
             self.is_type = False
+            self.operand = None  # nothing further uses self.operand - will only cause problems if its used in code generation
             if self.arg_type.type.is_pyobject:
                 self.error("Cannot use typeid on a Python object")
                 return self
