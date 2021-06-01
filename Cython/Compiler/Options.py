@@ -328,6 +328,7 @@ directive_types = {
     'c_string_encoding': normalise_encoding_name,
     'trashcan': bool,
     'total_ordering': bool,
+    'hpy': bool,
 }
 
 for key, val in _directive_defaults.items():
@@ -373,6 +374,7 @@ directive_scopes = {  # defaults to available everywhere
     'trashcan' : ('cclass',),
     'total_ordering': ('cclass', ),
     'cpp_locals': ('module', 'function', 'cclass'),  # I don't think they make sense in a with_statement
+    'hpy': ('module', 'function'),
 }
 
 
@@ -740,5 +742,6 @@ default_options = dict(
     build_dir=None,
     cache=None,
     create_extension=None,
-    np_pythran=False
+    np_pythran=False,
+    hpy=False,
 )

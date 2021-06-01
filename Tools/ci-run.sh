@@ -1,5 +1,6 @@
 #!/usr/bin/bash
 
+
 GCC_VERSION=${GCC_VERSION:=8}
 
 # Set up compilers

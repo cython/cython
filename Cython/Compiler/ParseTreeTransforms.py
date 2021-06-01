@@ -3709,3 +3709,18 @@ class DebugTransform(CythonTransform):
 
             self.tb.start('LocalVar', attrs)
             self.tb.end('LocalVar')
+
+class HPy(CythonTransform):
+    """
+    If a @cpython.hyp decorator is used
+    - set the global context option
+    - set a node attribute
+    In the future, this could replace a cpython node with an hpy node
+    """
+
+    def visit_Node(self, node):
+        if self.current_directives.get('hpy', False):
+            node.is_hpy = 1
+            self.context.options.hpy = True
+        self.visitchildren(node)
+        return node

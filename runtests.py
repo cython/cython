@@ -129,6 +129,7 @@ EXT_DEP_MODULES = {
     'tag:ipython':  'IPython.testing.globalipapp',
     'tag:jedi':     'jedi_BROKEN_AND_DISABLED',
     'tag:test.support': 'test.support',  # support module for CPython unit tests
+    'tag:hpy':      'hpy.devel',  
 }
 
 def patch_inspect_isfunction():
@@ -836,19 +837,24 @@ class TestBuilder(object):
         add_cython_import = self.add_cython_import and module_path.endswith('.py')
 
         preparse_list = tags.get('preparse', ['id'])
+        hpy = 'hpy' in tags.get('tag', '')
         tests = [ self.build_test(test_class, path, workdir, module, module_path,
                                   tags, language, language_level,
                                   expect_errors, expect_warnings, warning_errors, preparse,
                                   pythran_dir if language == "cpp" else None,
-                                  add_cython_import=add_cython_import)
+                                  add_cython_import=add_cython_import,
+                                  hpy=hpy,
+                                 )
                   for language in languages
                   for preparse in preparse_list
                   for language_level in language_levels
         ]
         return tests
 
-    def build_test(self, test_class, path, workdir, module, module_path, tags, language, language_level,
-                   expect_errors, expect_warnings, warning_errors, preparse, pythran_dir, add_cython_import):
+    def build_test(self, test_class, path, workdir, module, module_path, tags,
+                   language, language_level, expect_errors, expect_warnings,
+                   warning_errors, preparse, pythran_dir, add_cython_import,
+                   hpy=False):
         language_workdir = os.path.join(workdir, language)
         if not os.path.exists(language_workdir):
             os.makedirs(language_workdir)
@@ -876,6 +882,7 @@ class TestBuilder(object):
                           pythran_dir=pythran_dir,
                           stats=self.stats,
                           add_cython_import=add_cython_import,
+                          hpy=hpy,
                           )
 
 
@@ -922,7 +929,7 @@ class CythonCompileTestCase(unittest.TestCase):
     def __init__(self, test_directory, workdir, module, module_path, tags, language='c', preparse='id',
                  expect_errors=False, expect_warnings=False, annotate=False, cleanup_workdir=True,
                  cleanup_sharedlibs=True, cleanup_failures=True, cython_only=False, test_selector=None,
-                 fork=True, language_level=2, warning_errors=False,
+                 fork=True, language_level=2, warning_errors=False, hpy=False,
                  test_determinism=False,
                  common_utility_dir=None, pythran_dir=None, stats=None, add_cython_import=False):
         self.test_directory = test_directory
@@ -947,6 +954,7 @@ class CythonCompileTestCase(unittest.TestCase):
         self.test_determinism = test_determinism
         self.common_utility_dir = common_utility_dir
         self.pythran_dir = pythran_dir
+        self.hpy = hpy
         self.stats = stats
         self.add_cython_import = add_cython_import
         unittest.TestCase.__init__(self)
@@ -1198,6 +1206,8 @@ class CythonCompileTestCase(unittest.TestCase):
 
             ext_compile_flags = CFLAGS[:]
             ext_compile_defines = CDEFS[:]
+            if self.hpy:
+                ext_compile_defines.append(('HPY', 1))
 
             if  build_extension.compiler == 'mingw32':
                 ext_compile_flags.append('-Wno-format')

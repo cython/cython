@@ -7,7 +7,7 @@ from __future__ import absolute_import
 import cython
 cython.declare(Naming=object, Options=object, PyrexTypes=object, TypeSlots=object,
                error=object, warning=object, py_object_type=object, UtilityCode=object,
-               EncodedString=object, re=object)
+               EncodedString=object, re=object, textwrap=object)
 
 from collections import defaultdict
 import json
@@ -15,6 +15,7 @@ import operator
 import os
 import re
 import sys
+import textwrap
 
 from .PyrexTypes import CPtrType
 from . import Future
@@ -198,6 +199,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 entry.type.create_type_wrapper(env)
 
     def process_implementation(self, options, result):
+        """ called in the pipeline as the implementation of the top-level
+            ``generate_pyx_code stage``.
+        """
         env = self.scope
         env.return_type = PyrexTypes.c_void_type
         self.referenced_modules = []
@@ -360,7 +364,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             h_code.putln('#ifdef __MINGW64__')
             h_code.putln('#define MS_WIN64')
             h_code.putln('#endif')
-
             h_code.putln('#include "Python.h"')
             if result.h_file:
                 h_filename = os.path.basename(result.h_file)
@@ -749,6 +752,18 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put(UtilityCode.load_as_string(name, "ModuleSetupCode.c")[1])
 
     def generate_module_preamble(self, env, options, cimported_modules, metadata, code):
+        if options.hpy:
+            inc = Code.IncludeCode(initial=True, verbatim=textwrap.dedent("""
+            #ifdef HPY
+              #include "HPy.h"
+              #error asdfasdfasdf
+            #else
+              #include "Python.h"
+            #endif
+            """))
+        else:
+            inc = Code.IncludeCode("Python.h", initial=True)
+        env.process_include(inc)
         code.put_generated_by()
         if metadata:
             code.putln("/* BEGIN: Cython Metadata")

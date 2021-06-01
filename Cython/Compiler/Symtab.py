@@ -1270,7 +1270,8 @@ class ModuleScope(Scope):
         for var_name in ['__builtins__', '__name__', '__file__', '__doc__', '__path__',
                          '__spec__', '__loader__', '__package__', '__cached__']:
             self.declare_var(EncodedString(var_name), py_object_type, None)
-        self.process_include(Code.IncludeCode("Python.h", initial=True))
+        # now done in ModuleNode as env.process_include() for HPy
+        # self.process_include(Code.IncludeCode("Python.h", initial=True))
 
     def qualifying_scope(self):
         return self.parent_module

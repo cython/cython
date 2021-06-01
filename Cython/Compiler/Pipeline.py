@@ -150,7 +150,7 @@ def create_pipeline(context, mode, exclude_classes=()):
     from .ParseTreeTransforms import CalculateQualifiedNamesTransform
     from .TypeInference import MarkParallelAssignments, MarkOverflowingArithmetic
     from .ParseTreeTransforms import AdjustDefByDirectives, AlignFunctionDefinitions, AutoCpdefFunctionDefinitions
-    from .ParseTreeTransforms import RemoveUnreachableCode, GilCheck, CoerceCppTemps
+    from .ParseTreeTransforms import RemoveUnreachableCode, GilCheck, CoerceCppTemps, HPy
     from .FlowControl import ControlFlowAnalysis
     from .AnalysedTreeTransforms import AutoTestDictTransform
     from .AutoDocTransforms import EmbedSignature
@@ -213,6 +213,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         AnalyseExpressionsTransform(context),
         FindInvalidUseOfFusedTypes(context),
         ExpandInplaceOperators(context),
+        HPy(context),
         IterationTransform(context),
         SwitchTransform(context),
         OptimizeBuiltinCalls(context),  ## Necessary?
