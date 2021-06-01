@@ -237,6 +237,12 @@ def update_linetrace_extension(ext):
     ext.define_macros.append(('CYTHON_TRACE', 1))
     return ext
 
+def update_hpy_extension(ext):
+    ext.define_macros.append(('HPY', 1))
+    import hpy.devel
+    basedir =  hpy.devel.HPyDevel._DEFAULT_BASE_DIR
+    ext.include_dirs.append(str(basedir.joinpath('include')))
+    return ext
 
 def update_numpy_extension(ext, set_api17_macro=True):
     import numpy
@@ -436,7 +442,8 @@ EXT_EXTRAS = {
     'tag:bytesformat':  exclude_extension_in_pyver((3, 3), (3, 4)),  # no %-bytes formatting
     'tag:no-macos':  exclude_extension_on_platform('darwin'),
     'tag:py3only':  exclude_extension_in_pyver((2, 7)),
-    'tag:cppexecpolicies': require_gcc("9.1")
+    'tag:cppexecpolicies': require_gcc("9.1"),
+    'tag:hpy': update_hpy_extension,
 }
 
 
@@ -1206,8 +1213,6 @@ class CythonCompileTestCase(unittest.TestCase):
 
             ext_compile_flags = CFLAGS[:]
             ext_compile_defines = CDEFS[:]
-            if self.hpy:
-                ext_compile_defines.append(('HPY', 1))
 
             if  build_extension.compiler == 'mingw32':
                 ext_compile_flags.append('-Wno-format')
@@ -1991,7 +1996,7 @@ class MissingDependencyExcluder(object):
         except AttributeError:
             stdlib_dir = os.path.dirname(shutil.__file__) + os.sep
             module_path = getattr(module, '__file__', stdlib_dir)  # no __file__? => builtin stdlib module
-            if module_path.startswith(stdlib_dir):
+            if module_path and module_path.startswith(stdlib_dir):
                 # stdlib module
                 version = sys.version.partition(' ')[0]
             elif '.' in name:

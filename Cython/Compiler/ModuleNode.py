@@ -755,8 +755,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if options.hpy:
             inc = Code.IncludeCode(initial=True, verbatim=textwrap.dedent("""
             #ifdef HPY
-              #include "HPy.h"
-              #error asdfasdfasdf
+              #include "hpy.h"
             #else
               #include "Python.h"
             #endif
