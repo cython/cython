@@ -1612,8 +1612,8 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
         return PyClassMethod_New(method);
     }
 #else
-#if CYTHON_COMPILING_IN_PYSTON || CYTHON_COMPILING_IN_PYPY
-    // special C-API function only in Pyston and PyPy >= 5.9
+#if CYTHON_COMPILING_IN_PYPY
+    // special C-API function only in PyPy >= 5.9
     if (PyMethodDescr_Check(method))
 #else
     #if PY_MAJOR_VERSION == 2
