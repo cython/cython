@@ -754,12 +754,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_module_preamble(self, env, options, cimported_modules, metadata, code):
         if options.hpy:
             inc = Code.IncludeCode(initial=True, verbatim=textwrap.dedent("""
-            #ifdef HPY
-              #include "hpy.h"
-            #else
-              #include "Python.h"
-            #endif
-            """))
+                #ifdef HPY
+                  #include "hpy.h"
+                #else
+                  #include "Python.h"
+                #endif
+                """))
         else:
             inc = Code.IncludeCode("Python.h", initial=True)
         env.process_include(inc)
@@ -2903,6 +2903,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             # at this point py2_mod_name is largely a placeholder and the value doesn't matter
             py2_mod_name = env.module_name.encode("ascii", errors="ignore").decode("utf8")
 
+        if env.context.options.hpy:
+            code.put(textwrap.dedent("""
+                #ifdef HPY
+                  static HPy init_%s_impl(HPyContext *ctx);
+                #endif
+                """ % env.module_name))
         header2 = "__Pyx_PyMODINIT_FUNC init%s(void)" % py2_mod_name
         header3 = "__Pyx_PyMODINIT_FUNC %s(void)" % self.mod_init_func_cname('PyInit', env)
         header3 = EncodedString(header3)
@@ -3478,6 +3484,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 doc,
                 env.module_cname))
         code.putln(code.error_goto_if_null(env.module_cname, self.pos))
+
+        if env.context.options.hpy:
+            code.putln("#elif defined(HPY)")
+            code.putln('%s = _h2py(init_%s_impl(_HPyGetContext()));' % (
+                env.module_cname,
+                env.module_name))
+
         code.putln("#elif CYTHON_COMPILING_IN_LIMITED_API")
         module_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
         code.putln(
