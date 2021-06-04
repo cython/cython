@@ -380,6 +380,7 @@ class Scope(object):
         self.arg_entries = []
         self.var_entries = []
         self.pyfunc_entries = []
+        self.hpyfunc_entries = []
         self.cfunc_entries = []
         self.c_class_entries = []
         self.defined_c_classes = []
@@ -1210,6 +1211,7 @@ class ModuleScope(Scope):
     # module_cname         string             C name of Python module object
     # #module_dict_cname   string             C name of module dict object
     # method_table_cname   string             C name of method table
+    # hpy_defines_cname    string             C name of HPyDef array
     # doc                  string             Module doc string
     # doc_cname            string             C name of module doc string
     # utility_code_list    [UtilityCode]      Queuing utility codes for forwarding to Code.py
@@ -1252,6 +1254,7 @@ class ModuleScope(Scope):
         self.module_cname = Naming.module_cname
         self.module_dict_cname = Naming.moddict_cname
         self.method_table_cname = Naming.methtable_cname
+        self.hpy_defines_cname = Naming.hpy_defines_cname
         self.doc = ""
         self.doc_cname = Naming.moddoc_cname
         self.utility_code_list = []

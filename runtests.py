@@ -240,8 +240,20 @@ def update_linetrace_extension(ext):
 def update_hpy_extension(ext):
     ext.define_macros.append(('HPY', 1))
     import hpy.devel
-    basedir =  hpy.devel.HPyDevel._DEFAULT_BASE_DIR
-    ext.include_dirs.append(str(basedir.joinpath('include')))
+    # This should be set up by using the setuptools entrypoint
+    # hpy.devel.handle_hpy_ext_module via a
+    # setup(setup_requires=['hpy.devel'], ...)
+    # but this testrunner does not support that yet?
+    # so instead monkeypatch around to get hpy_ext._finalize_hpy_ext to work
+    hpy_ext = hpy.devel.build_hpy_ext_mixin()
+    hpy_ext.hpydevel = hpy.devel.HPyDevel()
+    dist = get_distutils_distro()
+    if not hasattr(dist, 'hpy_abi'):
+        # can be 'cpython' or 'universal'
+        # for now, always use 'cpython'
+        dist.hpy_abi = 'cpython'
+    hpy_ext.distribution = dist
+    hpy_ext._finalize_hpy_ext(ext)
     return ext
 
 def update_numpy_extension(ext, set_api17_macro=True):

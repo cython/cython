@@ -506,6 +506,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.mark_pos(None)
         self.generate_typeobj_definitions(env, code)
         self.generate_method_table(env, code)
+        self.generate_hpy_define_array(env, code)
         if env.has_import_star:
             self.generate_import_star(env, code)
 
@@ -2615,6 +2616,28 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if wrapper_code_writer.getvalue():
             wrapper_code_writer.putln("")
 
+    def generate_hpy_define_array(self, env, code):
+        if env.is_c_class_scope or not env.hpyfunc_entries:
+            return
+        binding = env.directives['binding']
+
+        code.putln("")
+        wrapper_code_writer = code.insertion_point()
+
+        code.putln(
+            "static HPyDef *%s[] = {" % (
+                env.hpy_defines_cname))
+        if env.hpyfunc_entries:
+            for entry in env.hpyfunc_entries:
+                # TBD
+                code.put_hpymethoddef(entry)
+            code.putln("NULL")
+        code.putln(
+            "};")
+
+        if wrapper_code_writer.getvalue():
+            wrapper_code_writer.putln("")
+
     def generate_dict_getter_function(self, scope, code):
         dict_attr = scope.lookup_here("__dict__")
         if not dict_attr or not dict_attr.is_variable:
@@ -2890,7 +2913,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_module_init_func(self, imported_modules, env, code):
         subfunction = self.mod_init_subfunction(self.pos, self.scope, code)
 
-        self.generate_pymoduledef_struct(env, code)
+        if env.context.options.hpy:
+            code.putln("#ifdef HPY /* HPy moduledef */")
+            self.generate_hpymoduledef_struct_and_func(env, code)
+            code.putln("#else /* HPy moduledef */")
+            self.generate_pymoduledef_struct(env, code)
+            code.putln("#endif /* HPy moduledef */")
+        else:
+            self.generate_pymoduledef_struct(env, code)
 
         code.enter_cfunc_scope(self.scope)
         code.putln("")
@@ -2903,12 +2933,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             # at this point py2_mod_name is largely a placeholder and the value doesn't matter
             py2_mod_name = env.module_name.encode("ascii", errors="ignore").decode("utf8")
 
-        if env.context.options.hpy:
-            code.put(textwrap.dedent("""
-                #ifdef HPY
-                  static HPy init_%s_impl(HPyContext *ctx);
-                #endif
-                """ % env.module_name))
         header2 = "__Pyx_PyMODINIT_FUNC init%s(void)" % py2_mod_name
         header3 = "__Pyx_PyMODINIT_FUNC %s(void)" % self.mod_init_func_cname('PyInit', env)
         header3 = EncodedString(header3)
@@ -3460,6 +3484,66 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('} /* anonymous namespace */')
         code.putln('#endif')
         code.putln("#endif")
+
+    def generate_hpymoduledef_struct_and_func(self, env, code):
+        if env.doc:
+            doc = "%s" % code.get_string_const(env.doc)
+        else:
+            doc = "0"
+
+        code.putln("")
+        if 0:
+            # TBD once HPy moves to multiphase init
+            code.putln("#if PY_MAJOR_VERSION >= 3")
+            code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
+            exec_func_cname = self.module_init_func_cname()
+            code.putln("static PyObject* %s(PyObject *spec, PyModuleDef *def); /*proto*/" %
+                       Naming.pymodule_create_func_cname)
+            code.putln("static int %s(PyObject* module); /*proto*/" % exec_func_cname)
+
+            code.putln("static PyModuleDef_Slot %s[] = {" % Naming.pymoduledef_slots_cname)
+            code.putln("{Py_mod_create, (void*)%s}," % Naming.pymodule_create_func_cname)
+            code.putln("{Py_mod_exec, (void*)%s}," % exec_func_cname)
+            code.putln("{0, NULL}")
+            code.putln("};")
+            if not env.module_name.isascii():
+                code.putln("#else /* CYTHON_PEP489_MULTI_PHASE_INIT */")
+                code.putln('#error "Unicode module names are only supported with multi-phase init'
+                           ' as per PEP489"')
+            code.putln("#endif")
+
+        code.putln("")
+        code.putln('#ifdef __cplusplus')
+        code.putln('namespace {')
+        code.putln("HPyModuleDef %s =" % Naming.hpymoduledef_cname)
+        code.putln('#else')
+        code.putln("static HPyModuleDef %s =" % Naming.hpymoduledef_cname)
+        code.putln('#endif')
+        code.putln('{')
+        code.putln("  HPyModuleDef_HEAD_INIT,")
+        code.putln('  .m_name = %s,' % env.module_name.as_c_string_literal())
+        code.putln("  .m_doc = %s," % doc)
+        code.putln("  .m_size = -1,")
+        code.putln("  .legacy_methods = %s," % env.method_table_cname)
+        if env.is_c_class_scope and not env.hpyfunc_entries:
+            # no HPyDef to add
+            pass
+        else:
+            code.putln("  .defines = %s," % env.hpy_defines_cname)
+        code.putln("};")
+        code.putln('#ifdef __cplusplus')
+        code.putln('} /* anonymous namespace */')
+        code.putln('#endif')
+        # declaration
+        code.putln("static HPy init_%s_impl(HPyContext *ctx);" % env.module_name)
+        # definition
+        code.putln("static HPy init_%s_impl(HPyContext *ctx)" % env.module_name)
+        code.putln("{")
+        code.putln("HPy m;")
+        code.putln("m = HPyModule_Create(ctx, &%s);" % Naming.hpymoduledef_cname)
+        code.putln("if (HPy_IsNull(m)) return HPy_NULL;")
+        code.putln("return m;")
+        code.putln("}")
 
     def generate_module_creation_code(self, env, code):
         # Generate code to create the module object and
