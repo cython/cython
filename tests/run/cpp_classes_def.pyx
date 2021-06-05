@@ -9,6 +9,7 @@ from libcpp cimport bool
 from libcpp.memory cimport unique_ptr
 from libcpp.vector cimport vector
 from cython.operator cimport dereference as deref
+import cython
 
 cdef extern from "shapes.h" namespace "shapes":
     cdef cppclass Shape:
@@ -23,6 +24,9 @@ cdef cppclass RegularPolygon(Shape):
     float area() const:
         cdef double theta = pi / this.n
         return this.radius * this.radius * sin(theta) * cos(theta) * this.n
+    @cython.test_assert_path_exists('//SwitchCaseNode')  # optimized correctly (https://github.com/cython/cython/issues/4212)
+    int in_list(int x):
+        return x in [1,2,3]
 
 def test_Poly(int n, float radius=1):
     """
