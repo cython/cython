@@ -1057,6 +1057,7 @@ class BuiltinScope(Scope):
             type = self.lookup('type').type, # make sure "type" is the first type declared...
             pos = entry.pos,
             cname = entry.type.typeptr_cname)
+        var_entry.qualified_name = self.qualify_name(name)
         var_entry.is_variable = 1
         var_entry.is_cglobal = 1
         var_entry.is_readonly = 1

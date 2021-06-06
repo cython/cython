@@ -230,6 +230,12 @@ def py_float_default(price : float=None, ndigits=4):
     """
     return price, ndigits
 
+def subscripted_list(values: list[EarlyClass]):
+    # this caused a compiler crash (https://github.com/cython/cython/issues/4214)
+    # eventually it'll be optimized more fully but for now it just has to compile successfully
+    for v in values:
+        return v
+
 
 _WARNINGS = """
 8:32: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
@@ -240,6 +246,7 @@ _WARNINGS = """
 8:85: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
 211:44: Unknown type declaration in annotation, ignoring
 218:29: Ambiguous types in annotation, ignoring
+233:33: Unknown type declaration in annotation, ignoring
 # BUG:
 46:6: 'pytypes_cpdef' redeclared
 121:0: 'struct_io' redeclared
