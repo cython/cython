@@ -719,7 +719,7 @@ PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value, i
 
     exc_state = &self->gi_exc_state;
     if (exc_state->exc_type) {
-        #if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_PYSTON
+        #if CYTHON_COMPILING_IN_PYPY
         // FIXME: what to do in PyPy?
         #else
         // Generators always return to their most recent caller, not
@@ -775,7 +775,7 @@ static CYTHON_INLINE void __Pyx_Coroutine_ResetFrameBackpointer(__Pyx_ExcInfoStr
     PyObject *exc_tb = exc_state->exc_traceback;
 
     if (likely(exc_tb)) {
-#if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_PYSTON
+#if CYTHON_COMPILING_IN_PYPY
     // FIXME: what to do in PyPy?
 #else
         PyTracebackObject *tb = (PyTracebackObject *) exc_tb;
@@ -2122,7 +2122,7 @@ static void __Pyx__ReturnWithStopIteration(PyObject* value); /*proto*/
 
 static void __Pyx__ReturnWithStopIteration(PyObject* value) {
     PyObject *exc, *args;
-#if CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_PYSTON
+#if CYTHON_COMPILING_IN_CPYTHON
     __Pyx_PyThreadState_declare
     if ((PY_VERSION_HEX >= 0x03030000 && PY_VERSION_HEX < 0x030500B1)
             || unlikely(PyTuple_Check(value) || PyExceptionInstance_Check(value))) {
