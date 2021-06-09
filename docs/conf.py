@@ -41,7 +41,7 @@ highlight_language = 'cython'
 extensions = [
     'ipython_console_highlighting',
     'cython_highlighting',
-    'sphinx.ext.pngmath',
+    'sphinx.ext.imgmath',
     'sphinx.ext.todo',
     'sphinx.ext.intersphinx',
     'sphinx.ext.autodoc'
