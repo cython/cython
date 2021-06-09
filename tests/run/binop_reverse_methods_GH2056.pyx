@@ -167,4 +167,4 @@ class OverloadCApi(Base):
         else:
             return NotImplemented
 
-# TODO: Only defines right?
+# TODO: Test a class that only defines the `__r...__()` methods.
