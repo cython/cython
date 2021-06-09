@@ -4,31 +4,31 @@ cimport cython
 @cython.cclass
 class Base(object):
     """
-    >>> Base(1) + 2
+    >>> Base(implemented=True) + 2
     'Base.__add__(Base(), 2)'
-    >>> 2 + Base(1)
+    >>> 2 + Base(implemented=True)
     'Base.__radd__(Base(), 2)'
 
-    >>> Base(0) + 2  #doctest: +ELLIPSIS
+    >>> Base(implemented=False) + 2  #doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
     TypeError: unsupported operand type...
-    >>> 2 + Base(0)  #doctest: +ELLIPSIS
+    >>> 2 + Base(implemented=False)  #doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
     TypeError: unsupported operand type...
 
-    >>> Base(1) ** 2
+    >>> Base(implemented=True) ** 2
     'Base.__pow__(Base(), 2, None)'
-    >>> 2 ** Base(1)
+    >>> 2 ** Base(implemented=True)
     'Base.__rpow__(Base(), 2, None)'
-    >>> pow(Base(1), 2, 100)
+    >>> pow(Base(implemented=True), 2, 100)
     'Base.__pow__(Base(), 2, 100)'
     """
     implemented: cython.int
 
-    def __init__(self, implemented):
-        self.implemented = implemented
+    def __init__(self, *, implemented):
+        self.implemented = int(implemented)
 
     def __add__(self, other):
         if (<Base>self).implemented:
@@ -61,30 +61,30 @@ class Base(object):
 @cython.cclass
 class OverloadLeft(Base):
     """
-    >>> OverloadLeft(1) + 2
+    >>> OverloadLeft(implemented=True) + 2
     'OverloadLeft.__add__(OverloadLeft(), 2)'
-    >>> 2 + OverloadLeft(1)
+    >>> 2 + OverloadLeft(implemented=True)
     'Base.__radd__(OverloadLeft(), 2)'
 
-    >>> OverloadLeft(1) + Base(1)
+    >>> OverloadLeft(implemented=True) + Base(implemented=True)
     'OverloadLeft.__add__(OverloadLeft(), Base())'
-    >>> Base(1) + OverloadLeft(1)
+    >>> Base(implemented=True) + OverloadLeft(implemented=True)
     'Base.__add__(Base(), OverloadLeft())'
 
-    >>> OverloadLeft(0) + Base(0)  #doctest: +ELLIPSIS
+    >>> OverloadLeft(implemented=False) + Base(implemented=False)  #doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
     TypeError: unsupported operand type...
-    >>> Base(0) + OverloadLeft(0)  #doctest: +ELLIPSIS
+    >>> Base(implemented=False) + OverloadLeft(implemented=False)  #doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
     TypeError: unsupported operand type...
     """
     derived_implemented: cython.int
 
-    def __init__(self, derived_implemented):
-        super().__init__(derived_implemented)
-        self.derived_implemented = derived_implemented
+    def __init__(self, *, implemented):
+        super().__init__(implemented=implemented)
+        self.derived_implemented = int(implemented)
 
     def __add__(self, other):
         if (<OverloadLeft>self).derived_implemented:
@@ -97,30 +97,30 @@ class OverloadLeft(Base):
 @cython.cclass
 class OverloadRight(Base):
     """
-    >>> OverloadRight(1) + 2
+    >>> OverloadRight(implemented=True) + 2
     'Base.__add__(OverloadRight(), 2)'
-    >>> 2 + OverloadRight(1)
+    >>> 2 + OverloadRight(implemented=True)
     'OverloadRight.__radd__(OverloadRight(), 2)'
 
-    >>> OverloadRight(1) + Base(1)
+    >>> OverloadRight(implemented=True) + Base(implemented=True)
     'Base.__add__(OverloadRight(), Base())'
-    >>> Base(1) + OverloadRight(1)
+    >>> Base(implemented=True) + OverloadRight(implemented=True)
     'OverloadRight.__radd__(OverloadRight(), Base())'
 
-    >>> OverloadRight(0) + Base(0)  #doctest: +ELLIPSIS
+    >>> OverloadRight(implemented=False) + Base(implemented=False)  #doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
     TypeError: unsupported operand type...
-    >>> Base(0) + OverloadRight(0)  #doctest: +ELLIPSIS
+    >>> Base(implemented=False) + OverloadRight(implemented=False)  #doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
     TypeError: unsupported operand type...
     """
     derived_implemented: cython.int
 
-    def __init__(self, derived_implemented):
-        super().__init__(derived_implemented)
-        self.derived_implemented = derived_implemented
+    def __init__(self, *, implemented):
+        super().__init__(implemented=implemented)
+        self.derived_implemented = int(implemented)
 
     def __radd__(self, other):
         if (<OverloadRight>self).derived_implemented:
@@ -132,30 +132,30 @@ class OverloadRight(Base):
 @cython.cclass
 class OverloadCApi(Base):
     """
-    >>> OverloadCApi(1) + 2
+    >>> OverloadCApi(derived_implemented=True) + 2
     'OverloadCApi.__add__(OverloadCApi(), 2)'
-    >>> 2 + OverloadCApi(1)
+    >>> 2 + OverloadCApi(derived_implemented=True)
     'OverloadCApi.__add__(2, OverloadCApi())'
 
-    >>> OverloadCApi(1) + Base(1)
+    >>> OverloadCApi(derived_implemented=True) + Base(implemented=True)
     'OverloadCApi.__add__(OverloadCApi(), Base())'
-    >>> Base(1) + OverloadCApi(1)
+    >>> Base(implemented=True) + OverloadCApi(derived_implemented=True)
     'OverloadCApi.__add__(Base(), OverloadCApi())'
 
-    >>> OverloadCApi(0) + 2 #doctest: +ELLIPSIS
+    >>> OverloadCApi(derived_implemented=False) + 2 #doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
     TypeError: unsupported operand type...
-    >>> 2 + OverloadCApi(0) #doctest: +ELLIPSIS
+    >>> 2 + OverloadCApi(derived_implemented=False) #doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
     TypeError: unsupported operand type...
     """
     derived_implemented: cython.int
 
-    def __init__(self, derived_implemented):
-        super().__init__(1)
-        self.derived_implemented = derived_implemented
+    def __init__(self, *, derived_implemented):
+        super().__init__(implemented=True)
+        self.derived_implemented = int(derived_implemented)
 
     def __add__(self, other):
         if isinstance(self, OverloadCApi):
