@@ -26,6 +26,12 @@ Bugs fixed
   to match the signature in Py3.  It still has an automatic fallback for Py2.
   (Github issue :issue:`3909`)
 
+Other changes
+-------------
+
+* The ``Cython.Build.BuildExecutable`` tool no longer executes the program automatically.
+  Use ``cythonrun`` for that.
+
 
 3.0.0 alpha 7 (2021-05-24)
 ==========================
