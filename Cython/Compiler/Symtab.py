@@ -822,6 +822,7 @@ class Scope(object):
         if overridable:
             # names of cpdef functions can be used as variables and can be assigned to
             var_entry = Entry(name, cname, py_object_type)   # FIXME: cname?
+            var_entry.qualified_name = self.qualify_name(name)
             var_entry.is_variable = 1
             var_entry.is_pyglobal = 1
             var_entry.scope = entry.scope
@@ -1034,6 +1035,7 @@ class BuiltinScope(Scope):
             else:
                 python_equiv = EncodedString(python_equiv)
             var_entry = Entry(python_equiv, python_equiv, py_object_type)
+            var_entry.qualified_name = self.qualify_name(name)
             var_entry.is_variable = 1
             var_entry.is_builtin = 1
             var_entry.utility_code = utility_code
@@ -1057,6 +1059,7 @@ class BuiltinScope(Scope):
             type = self.lookup('type').type, # make sure "type" is the first type declared...
             pos = entry.pos,
             cname = entry.type.typeptr_cname)
+        var_entry.qualified_name = self.qualify_name(name)
         var_entry.is_variable = 1
         var_entry.is_cglobal = 1
         var_entry.is_readonly = 1
@@ -1244,6 +1247,7 @@ class ModuleScope(Scope):
         else:
             entry.is_builtin = 1
             entry.name = name
+        entry.qualified_name = self.builtin_scope().qualify_name(name)
         return entry
 
     def find_module(self, module_name, pos, relative_level=-1):
@@ -1707,6 +1711,7 @@ class ModuleScope(Scope):
             type = Builtin.type_type,
             pos = entry.pos,
             cname = entry.type.typeptr_cname)
+        var_entry.qualified_name = entry.qualified_name
         var_entry.is_variable = 1
         var_entry.is_cglobal = 1
         var_entry.is_readonly = 1
@@ -2290,6 +2295,7 @@ class CClassScope(ClassScope):
         entry = self.declare_cfunction(name, type, None, cname, visibility='extern',
                                        utility_code=utility_code)
         var_entry = Entry(name, name, py_object_type)
+        var_entry.qualified_name = name
         var_entry.is_variable = 1
         var_entry.is_builtin = 1
         var_entry.utility_code = utility_code
