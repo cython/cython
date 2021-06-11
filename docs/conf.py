@@ -39,6 +39,7 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.autodoc',
     'sphinx_issues',  # if this is missing, pip install sphinx-issues
+    'sphinx_tabs.tabs',  # if this is missing, pip install sphinx-tabs
     ]
 
 try: import rst2pdf
@@ -132,6 +133,10 @@ imgmath_image_format = "svg"
 # For sphinx-issues
 
 issues_github_path = "cython/cython"
+
+# For sphinx-tabs
+
+sphinx_tabs_disable_tab_closing = True
 
 # -- Options for HTML output ---------------------------------------------------
 
