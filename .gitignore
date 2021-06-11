@@ -42,6 +42,7 @@ callgrind.out.*
 
 .ipynb_checkpoints
 docs/build
+docs/_build
 
 tags
 TAGS
