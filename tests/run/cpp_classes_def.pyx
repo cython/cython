@@ -24,9 +24,11 @@ cdef cppclass RegularPolygon(Shape):
     float area() const:
         cdef double theta = pi / this.n
         return this.radius * this.radius * sin(theta) * cos(theta) * this.n
-    @cython.test_assert_path_exists('//SwitchCaseNode')  # optimized correctly (https://github.com/cython/cython/issues/4212)
-    int in_list(int x):
-        return x in [1,2,3]
+    void do_with() except *:
+        # only a compile test - the file doesn't actually have to exist
+        # "with" was broken by https://github.com/cython/cython/issues/4212
+        with open("doesnt matter") as f:
+            return
 
 def test_Poly(int n, float radius=1):
     """
