@@ -18,6 +18,6 @@ def primes(int nb_primes):
             len_p += 1
         n += 1
 
-    # Let's return the result in a python list:
+    # Let's put the result in a python list:
     result_as_list  = [prime for prime in p[:len_p]]
     return result_as_list
