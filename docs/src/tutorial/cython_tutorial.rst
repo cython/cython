@@ -295,7 +295,16 @@ Cython has a way to visualise where interaction with Python objects and
 Python's C-API is taking place. For this, pass the
 ``annotate=True`` parameter to ``cythonize()``. It produces a HTML file. Let's see:
 
-.. figure:: htmlreport.png
+.. tabs::
+    .. group-tab:: Cython
+
+        .. figure:: htmlreport.png
+            :scale: 90 %
+
+    .. group-tab:: Pure Python
+
+        .. figure:: htmlreport_pure.png
+            :scale: 90 %
 
 If a line is white, it means that the code generated doesn't interact
 with Python, so will run as fast as normal C code.  The darker the yellow, the more
@@ -307,7 +316,14 @@ sense for those lines to be yellow. Same for the list comprehension because
 it involves the creation of a Python object. But the line ``if n % i == 0:``, why?
 We can examine the generated C code to understand:
 
-.. figure:: python_division.png
+.. tabs::
+    .. group-tab:: Cython
+
+        .. figure:: python_division.png
+
+    .. group-tab:: Pure Python
+
+        .. figure:: python_division_pure.png
 
 We can see that some checks happen. Because Cython defaults to the
 Python behavior, the language will perform division checks at runtime,
