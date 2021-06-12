@@ -8,7 +8,6 @@ Note that this module is deprecated.  Use cythonize() instead.
 
 __revision__ = "$Id:$"
 
-import inspect
 import sys
 import os
 from distutils.errors import DistutilsPlatformError
@@ -16,32 +15,11 @@ from distutils.dep_util import newer, newer_group
 from distutils import log
 from distutils.command import build_ext as _build_ext
 from distutils import sysconfig
-import warnings
-
 
 try:
     from __builtin__ import basestring
 except ImportError:
     basestring = str
-
-
-def _check_stack(path):
-    try:
-        for frame in inspect.getouterframes(inspect.currentframe(), 0):
-            if path in frame[1].replace(os.sep, '/'):
-                return True
-    except Exception:
-        pass
-    return False
-
-
-if (not _check_stack('setuptools/extensions.py')
-        and not _check_stack('pyximport/pyxbuild.py')
-        and not _check_stack('Cython/Distutils/build_ext.py')):
-    warnings.warn(
-        "Cython.Distutils.old_build_ext does not properly handle dependencies "
-        "and is deprecated.")
-
 
 extension_name_re = _build_ext.extension_name_re
 
