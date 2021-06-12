@@ -145,7 +145,7 @@ them as a Python list.
             :caption: primes.py
 
 You'll see that it starts out just like a normal Python function definition,
-except that the parameter ``nb_primes`` is declared to be of type ``int`` . This
+except that the parameter ``nb_primes`` is declared to be of type ``int``. This
 means that the object passed will be converted to a C integer (or a
 ``TypeError.`` will be raised if it can't be).
 
@@ -181,8 +181,8 @@ Now, let's dig into the core of the function:
         and will be copied into a Python list at the end (line 22).
 
 .. NOTE:: You cannot create very large arrays in this manner, because
-          they are allocated on the C function call :term:`stack<Stack allocation>`, which is a
-          rather precious and scarce resource.
+          they are allocated on the C function call :term:`stack<Stack allocation>`,
+          which is a rather precious and scarce resource.
           To request larger arrays,
           or even arrays with a length only known at runtime,
           you can learn how to make efficient use of
@@ -279,8 +279,7 @@ Because the variable ``result_as_list`` hasn't been explicitly declared with a t
 it is assumed to hold a Python object, and from the assignment, Cython also knows
 that the exact type is a Python list.
 
-Finally, at line 18, a normal
-Python return statement returns the result list.
+Finally, at line 27, a normal Python return statement returns the result list.
 
 Compiling primes.pyx with the Cython compiler produces an extension module
 which we can try out in the interactive interpreter as follows::
@@ -291,7 +290,6 @@ which we can try out in the interactive interpreter as follows::
 
 See, it works! And if you're curious about how much work Cython has saved you,
 take a look at the C code generated for this module.
-
 
 Cython has a way to visualise where interaction with Python objects and
 Python's C-API is taking place. For this, pass the
