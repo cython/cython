@@ -190,10 +190,10 @@ Now, let's dig into the core of the function:
           :ref:`Python arrays <array-array>`
           or :ref:`NumPy arrays <memoryviews>` with Cython.
 
-::
-
-    if nb_primes > 1000:
-        nb_primes = 1000
+.. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.pyx
+    :lines: 5,6
+    :dedent:
+    :lineno-start: 5
 
 As in C, declaring a static array requires knowing the size at compile time.
 We make sure the user doesn't set a value above 1000 (or we would have a
@@ -217,24 +217,29 @@ segmentation fault, just like in C)
 Lines 10-13 set up for a loop which will test candidate numbers for primeness
 until the required number of primes has been found.
 
-Lines 11-12, which try dividing a candidate by all the primes found so far,
+.. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.pyx
+    :lines: 14-17
+    :dedent:
+    :lineno-start: 14
+
+Lines 15-16, which try dividing a candidate by all the primes found so far,
 are of particular interest. Because no Python objects are referred to,
 the loop is translated entirely into C code, and thus runs very fast.
-You will notice the way we iterate over the ``p`` C array.  ::
+You will notice the way we iterate over the ``p`` C array.
 
-    for i in p[:len_p]:
+.. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.pyx
+    :lines: 15
+    :dedent:
+    :lineno-start: 15
 
 The loop gets translated into a fast C loop and works just like iterating
 over a Python list or NumPy array.  If you don't slice the C array with
 ``[:len_p]``, then Cython will loop over the 1000 elements of the array.
 
-::
-
-    # If no break occurred in the loop
-    else:
-        p[len_p] = n
-        len_p += 1
-    n += 1
+.. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.pyx
+    :lines: 19-23
+    :dedent:
+    :lineno-start: 19
 
 If no breaks occurred, it means that we found a prime, and the block of code
 after the ``else`` line 16 will be executed. We add the prime found to ``p``.
@@ -244,11 +249,10 @@ C speed for you.
 If the for-else syntax confuses you, see this excellent
 `blog post <https://shahriar.svbtle.com/pythons-else-clause-in-loops>`_.
 
-::
-
-    # Let's put the result in a python list:
-    result_as_list  = [prime for prime in p[:len_p]]
-    return result_as_list
+.. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.pyx
+    :lines: 25-27
+    :dedent:
+    :lineno-start: 25
 
 In line 22, before returning the result, we need to copy our C array into a
 Python list, because Python can't read C arrays.  Cython can automatically
