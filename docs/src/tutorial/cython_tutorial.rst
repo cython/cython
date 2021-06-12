@@ -149,14 +149,36 @@ except that the parameter ``nb_primes`` is declared to be of type ``int`` . This
 means that the object passed will be converted to a C integer (or a
 ``TypeError.`` will be raised if it can't be).
 
-Now, let's dig into the core of the function::
+Now, let's dig into the core of the function:
 
-    cdef int n, i, len_p
-    cdef int p[1000]
+.. tabs::
+    .. group-tab:: Cython
 
-Lines 2 and 3 use the ``cdef`` statement to define some local C variables.
-The result is stored in the C array ``p`` during processing,
-and will be copied into a Python list at the end (line 22).
+        .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.pyx
+            :lines: 2,3
+            :dedent:
+            :lineno-start: 2
+
+        Lines 2 and 3 use the ``cdef`` statement to define some local C variables.
+        The result is stored in the C array ``p`` during processing,
+        and will be copied into a Python list at the end (line 22).
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.py
+            :lines: 2,3
+            :dedent:
+            :lineno-start: 2
+
+        .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.py
+            :lines: 11,12
+            :dedent:
+            :lineno-start: 11
+        
+        Lines 2, 3, 11 and 12 use the variable annotations
+        to definesome local C variables.
+        The result is stored in the C array ``p`` during processing,
+        and will be copied into a Python list at the end (line 22).
 
 .. NOTE:: You cannot create very large arrays in this manner, because
           they are allocated on the C function call :term:`stack<Stack allocation>`, which is a
@@ -175,19 +197,25 @@ and will be copied into a Python list at the end (line 22).
 
 As in C, declaring a static array requires knowing the size at compile time.
 We make sure the user doesn't set a value above 1000 (or we would have a
-segmentation fault, just like in C).  ::
+segmentation fault, just like in C)
 
-    len_p = 0  # The number of elements in p
-    n = 2
-    while len_p < nb_primes:
+.. tabs::
+    .. group-tab:: Cython
 
-Lines 7-9 set up for a loop which will test candidate numbers for primeness
-until the required number of primes has been found. ::
+        .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.pyx
+            :lines: 10-13
+            :dedent:
+            :lineno-start: 10
 
-    # Is n prime?
-    for i in p[:len_p]:
-        if n % i == 0:
-            break
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.py
+            :lines: 10-13
+            :dedent:
+            :lineno-start: 10
+
+Lines 10-13 set up for a loop which will test candidate numbers for primeness
+until the required number of primes has been found.
 
 Lines 11-12, which try dividing a candidate by all the primes found so far,
 are of particular interest. Because no Python objects are referred to,
