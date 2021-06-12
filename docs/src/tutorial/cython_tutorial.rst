@@ -338,7 +338,7 @@ Primes with C++
 With Cython, it is also possible to take advantage of the C++ language, notably,
 part of the C++ standard library is directly importable from Cython code.
 
-Let's see what our :file:`primes.pyx` becomes when
+Let's see what our code becomes when
 using `vector <https://en.cppreference.com/w/cpp/container/vector>`_ from the C++
 standard library.
 
@@ -351,8 +351,27 @@ standard library.
     how many elements you are going to put in the vector. For more details
     see `this page from cppreference <https://en.cppreference.com/w/cpp/container/vector>`_.
 
-.. literalinclude:: ../../examples/tutorial/cython_tutorial/primes_cpp.pyx
-    :linenos:
+.. tabs::
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes_cpp.pyx
+            :linenos:
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes_cpp_pure.pyx
+            :linenos:
+
+        .. warning::
+
+            This code uses ``cimports``, cython understands this
+            and imports the necessary modules, but python cannot do this,
+            therefore it will not work and will raise an exception.
+
+            And since there is no direct analogue of a vector in python,
+            with the same functions, we cannot use it if we run it through python.
+            This is described in more detail
+            :ref:`calling-c-functions`.
 
 The first line is a compiler directive. It tells Cython to compile your code to C++.
 This will enable the use of C++ language features and the C++ standard library.
