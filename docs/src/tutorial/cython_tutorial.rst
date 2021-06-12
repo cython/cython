@@ -281,8 +281,18 @@ that the exact type is a Python list.
 
 Finally, at line 27, a normal Python return statement returns the result list.
 
-Compiling primes.pyx with the Cython compiler produces an extension module
-which we can try out in the interactive interpreter as follows::
+.. tabs::
+    .. group-tab:: Cython
+
+        Compiling primes.pyx with the Cython compiler produces an extension module
+        which we can try out in the interactive interpreter as follows:
+
+    .. group-tab:: Pure Python
+
+        Compiling primes.py with the Cython compiler produces an extension module
+        which we can try out in the interactive interpreter as follows:
+
+.. code-block:: python
 
     >>> import primes
     >>> primes.primes(10)
