@@ -225,7 +225,7 @@ segmentation fault, just like in C)
             :dedent:
             :lineno-start: 10
 
-Lines 10-13 set up for a loop which will test candidate numbers for primeness
+Lines 11-13 set up for a loop which will test candidate numbers for primeness
 until the required number of primes has been found.
 
 .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.pyx
@@ -253,7 +253,7 @@ over a Python list or NumPy array.  If you don't slice the C array with
     :lineno-start: 19
 
 If no breaks occurred, it means that we found a prime, and the block of code
-after the ``else`` line 16 will be executed. We add the prime found to ``p``.
+after the ``else`` line 20 will be executed. We add the prime found to ``p``.
 If you find having an ``else`` after a for-loop strange, just know that it's a
 lesser known features of the Python language, and that Cython executes it at
 C speed for you.
