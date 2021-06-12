@@ -1,8 +1,12 @@
 def primes(int nb_primes):
     cdef int n, i, len_p
     cdef int p[1000]
+
     if nb_primes > 1000:
         nb_primes = 1000
+
+
+
 
     len_p = 0  # The current number of elements in p.
     n = 2
