@@ -3777,7 +3777,6 @@ class CppClassType(CType):
         return False
 
     def create_from_py_utility_code(self, env):
-        import pdb; pdb.set_trace()
         if self.from_py_function is not None:
             return True
         if self.cname in builtin_cpp_conversions or self.cname in cpp_string_conversions:
@@ -4143,12 +4142,18 @@ class CppScopedEnumType(CType):
         env.use_utility_code(rst)
 
 
-class OptionalCppClassType(CPtrType):
+class OptionalCppClassType(CType): #CPtrType):
     """
     A c++ class stored in a std::optional
     (Using CPointerBaseType because it should largely be accessed by dereferencing and ->)
     """
     is_optional_cpp_class = True
+
+    subtypes = ['base_type']
+
+    def __init__(self, base_type):
+        super(OptionalCppClassType, self).__init__()
+        self.base_type = base_type
 
     def declaration_code(self, entity_code,
                         for_display=0, dll_linkage=None, pyrex=0):
@@ -4159,6 +4164,12 @@ class OptionalCppClassType(CPtrType):
                 self.base_type.declaration_code("", for_display, dll_linkage, pyrex),
                 entity_code)
 
+    def check_for_null_code(self, cname):
+        # TODO make this configurable
+        return "(%s.has_value())" % cname
+
+    def assignable_from(self, other_type):
+        return super(OptionalCppClassType, self).assignable_from(other_type) or self.base_type == other_type
 
 
 class TemplatePlaceholderType(CType):

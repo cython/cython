@@ -2346,7 +2346,7 @@ class NameNode(AtomicExprNode):
 
             memslice_check = entry.type.is_memoryviewslice and self.initialized_check
 
-            if null_code and raise_unbound and (entry.type.is_pyobject or memslice_check):
+            if null_code and raise_unbound and (entry.type.is_pyobject or memslice_check or entry.type.is_optional_cpp_class):
                 code.put_error_if_unbound(self.pos, entry, self.in_nogil_context)
 
     def generate_assignment_code(self, rhs, code, overloaded_assignment=False,
@@ -7131,6 +7131,9 @@ class AttributeNode(ExprNode):
         elif obj_type.is_extension_type or obj_type.is_builtin_type:
             self.op = "->"
         elif obj_type.is_reference and obj_type.is_fake_reference:
+            self.op = "->"
+        elif obj_type.is_optional_cpp_class:
+            obj_type = obj_type.base_type
             self.op = "->"
         else:
             self.op = "."
@@ -13620,6 +13623,7 @@ class CoerceToTempNode(CoercionNode):
             else:
                 code.put_incref_memoryviewslice(self.result(), self.type,
                                             have_gil=not self.in_nogil_context)
+
 
 class ProxyNode(CoercionNode):
     """
