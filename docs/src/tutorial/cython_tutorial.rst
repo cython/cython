@@ -161,7 +161,7 @@ Now, let's dig into the core of the function:
 
         Lines 2 and 3 use the ``cdef`` statement to define some local C variables.
         The result is stored in the C array ``p`` during processing,
-        and will be copied into a Python list at the end (line 27).
+        and will be copied into a Python list at the end (line 26).
 
     .. group-tab:: Pure Python
 
@@ -178,7 +178,7 @@ Now, let's dig into the core of the function:
         Lines 2, 3, 11 and 12 use the variable annotations
         to definesome local C variables.
         The result is stored in the C array ``p`` during processing,
-        and will be copied into a Python list at the end (line 27).
+        and will be copied into a Python list at the end (line 26).
 
 .. NOTE:: You cannot create very large arrays in this manner, because
           they are allocated on the C function call :term:`stack<Stack allocation>`,
