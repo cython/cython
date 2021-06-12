@@ -389,7 +389,7 @@ standard library.
 
     .. group-tab:: Pure Python
 
-        .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes_cpp_pure.pyx
+        .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes_cpp.py
             :linenos:
 
         .. warning::
