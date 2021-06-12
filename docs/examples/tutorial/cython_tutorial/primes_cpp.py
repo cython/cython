@@ -8,7 +8,7 @@ def primes(nb_primes: cython.uint):
     p: vector[cython.int]
     p.reserve(nb_primes)  # allocate memory for 'nb_primes' elements.
 
-    n: cython.int = 2
+    n: cint = 2
     while p.size() < nb_primes:  # size() for vectors is similar to len()
         for i in p:
             if n % i == 0:
