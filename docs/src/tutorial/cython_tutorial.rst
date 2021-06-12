@@ -210,6 +210,17 @@ segmentation fault, just like in C)
     .. group-tab:: Pure Python
 
         .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.py
+            :lines: 8,9
+            :dedent:
+            :lineno-start: 8
+
+        If we run the code from python, then we must initialize the array,
+        the easiest way is to fill it with zeros as on lines 8-9.
+        If we compile this, then the array will already be filled with
+        random data from the allocated memory, since we will change them anyway,
+        we do not need to overwrite this random data.
+
+        .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.py
             :lines: 10-13
             :dedent:
             :lineno-start: 10
