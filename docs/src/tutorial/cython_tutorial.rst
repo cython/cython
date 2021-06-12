@@ -265,7 +265,7 @@ If the for-else syntax confuses you, see this excellent
     :dedent:
     :lineno-start: 25
 
-In line 22, before returning the result, we need to copy our C array into a
+In line 26, before returning the result, we need to copy our C array into a
 Python list, because Python can't read C arrays.  Cython can automatically
 convert many C types from and to Python types, as described in the
 documentation on :ref:`type conversion <type-conversion>`, so we can use
