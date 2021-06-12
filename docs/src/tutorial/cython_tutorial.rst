@@ -130,11 +130,19 @@ Primes
 Here's a small example showing some of what can be done. It's a routine for
 finding prime numbers. You tell it how many primes you want, and it returns
 them as a Python list.
+ 
+.. tabs::
+    .. group-tab:: Cython
 
-:file:`primes.pyx`:
+        .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.pyx
+            :linenos:
+            :caption: primes.pyx
 
-.. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.pyx
-    :linenos:
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.py
+            :linenos:
+            :caption: primes.py
 
 You'll see that it starts out just like a normal Python function definition,
 except that the parameter ``nb_primes`` is declared to be of type ``int`` . This
