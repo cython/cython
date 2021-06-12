@@ -344,7 +344,7 @@ improve the type analysis in Cython.
 Tips and Tricks
 ---------------
 
-.. _calling_c_functions:
+.. _calling-c-functions:
 
 Calling C functions
 ^^^^^^^^^^^^^^^^^^^
