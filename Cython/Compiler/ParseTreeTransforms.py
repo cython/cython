@@ -2402,7 +2402,6 @@ class FindInvalidUseOfFusedTypes(CythonTransform):
 
 
 class ExpandInplaceOperators(EnvTransform):
-
     def visit_InPlaceAssignmentNode(self, node):
         lhs = node.lhs
         rhs = node.rhs
@@ -3145,6 +3144,31 @@ class GilCheck(VisitorTransform):
         return node
 
 
+class FudgeCppTemps(EnvTransform, SkipDeclarations):
+    """
+    For temporary expression that are implemented using std::optional it's necessary the temps are
+    assigned using `__pyx_t_x = value;` but accessed using `something = (*__pyx_t_x)`. This transform
+    inserts a coercion node to take care of this, and runs absolutely last (once nothing else can be
+    inserted into the tree)
+
+    TODO: a possible alternative would be to split ExprNode.result() into ExprNode.rhs_rhs() and ExprNode.lhs_rhs()???
+    """
+    def visit_ModuleNode(self, node):
+        if self.current_env().cpp:
+            # skipping this makes it essentially free for C files
+            self.visitchildren(node)
+        return node
+
+    def visit_ExprNode(self, node):
+        self.visitchildren(node)
+        if (self.current_env().directives['cpp_locals'] and
+                node.is_temp and node.type.is_cpp_class):
+            node = ExprNodes.CppOptionalTempCoercion(node)
+
+        return node
+
+
+
 class TransformBuiltinMethods(EnvTransform):
     """
     Replace Cython's own cython.* builtins by the corresponding tree nodes.
@@ -3700,11 +3724,6 @@ class CppVariablesTransform(CythonTransform):
                     entry.type = PyrexTypes.OptionalCppClassType(entry.type)
                     scope.use_utility_code(
                         UtilityCode.load_cached("OptionalLocals", "CppSupport.cpp"))
-
-    #def visit_FuncDefNode(self, node):
-    #    self.visitchildren(node)
-    #    self.replace_types(node.local_scope)
-    #    return node
 
     def visit_CClassDefNode(self, node):
         self.visitchildren(node)

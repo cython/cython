@@ -13743,6 +13743,23 @@ class CloneNode(CoercionNode):
         pass
 
 
+class CppOptionalTempCoercion(CoercionNode):
+    """
+    Used only in FudgeCppTemps - handles cases the temp is actually a OptionalCppClassType (and thus needs dereferencing when on the rhs)
+    """
+    is_temp = False
+
+    @property
+    def type(self):
+        return self.arg.type
+
+    def calculate_result_code(self):
+        return "(*%s)" % self.arg.result()
+
+    def generate_result_code(self, code):
+        pass # self.arg.generate_result_code(code)
+
+
 class CMethodSelfCloneNode(CloneNode):
     # Special CloneNode for the self argument of builtin C methods
     # that accepts subtypes of the builtin type.  This is safe only

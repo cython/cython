@@ -536,8 +536,8 @@ def simply_type(result_type, pos):
         result_type = result_type.ref_base_type
     if result_type.is_cv_qualified:
         result_type = result_type.cv_base_type
-    if result_type.is_cpp_class:
-        result_type.check_nullary_constructor(pos)
+#    if result_type.is_cpp_class:
+#        result_type.check_nullary_constructor(pos)
     if result_type.is_array:
         result_type = PyrexTypes.c_ptr_type(result_type.base_type)
     return result_type

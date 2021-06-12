@@ -176,7 +176,6 @@ def error(position, message):
     err = CompileError(position, message)
     if DebugFlags.debug_exception_on_error: raise Exception(err)  # debug
     report_error(err)
-    import pdb; pdb.set_trace()
     return err
 
 

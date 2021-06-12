@@ -150,7 +150,7 @@ def create_pipeline(context, mode, exclude_classes=()):
     from .ParseTreeTransforms import CalculateQualifiedNamesTransform, CppVariablesTransform
     from .TypeInference import MarkParallelAssignments, MarkOverflowingArithmetic
     from .ParseTreeTransforms import AdjustDefByDirectives, AlignFunctionDefinitions, AutoCpdefFunctionDefinitions
-    from .ParseTreeTransforms import RemoveUnreachableCode, GilCheck
+    from .ParseTreeTransforms import RemoveUnreachableCode, GilCheck, FudgeCppTemps
     from .FlowControl import ControlFlowAnalysis
     from .AnalysedTreeTransforms import AutoTestDictTransform
     from .AutoDocTransforms import EmbedSignature
@@ -211,7 +211,6 @@ def create_pipeline(context, mode, exclude_classes=()):
         IntroduceBufferAuxiliaryVars(context),
         _check_c_declarations,
         InlineDefNodeCalls(context),
-        PrintTree(),
         AnalyseExpressionsTransform(context),
         FindInvalidUseOfFusedTypes(context),
         ExpandInplaceOperators(context),
@@ -224,6 +223,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         DropRefcountingTransform(),
         FinalOptimizePhase(context),
         GilCheck(),
+        FudgeCppTemps(context),
         ]
     filtered_stages = []
     for s in stages:

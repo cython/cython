@@ -849,6 +849,9 @@ class FunctionState(object):
         elif type.is_cfunction:
             from . import PyrexTypes
             type = PyrexTypes.c_ptr_type(type)  # A function itself isn't an l-value
+        elif type.is_cpp_class and self.scope.directives['cpp_locals']:
+            from . import PyrexTypes
+            type = PyrexTypes.OptionalCppClassType(type)
         if not type.is_pyobject and not type.is_memoryviewslice:
             # Make manage_ref canonical, so that manage_ref will always mean
             # a decref is needed.

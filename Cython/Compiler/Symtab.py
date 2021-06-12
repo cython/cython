@@ -475,9 +475,6 @@ class Scope(object):
             # See https://www.gnu.org/software/libc/manual/html_node/Reserved-Names.html#Reserved-Names
             warning(pos, "'%s' is a reserved name in C." % cname, -1)
 
-        if name=="y":
-            import pdb; pdb.set_trace()
-
         entries = self.entries
         if name and name in entries and not shadow:
             old_entry = entries[name]
