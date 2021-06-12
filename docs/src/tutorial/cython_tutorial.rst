@@ -344,6 +344,7 @@ Now let's see if, even if we have division checks, we obtained a boost in speed.
 Let's write the same program, but Python-style:
 
 .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes_python.py
+    :caption: primes_python.py / primes_python_compiled.py
 
 It is also possible to take a plain ``.py`` file and to compile it with Cython.
 Let's take ``primes_python``, change the function name to ``primes_python_compiled`` and
