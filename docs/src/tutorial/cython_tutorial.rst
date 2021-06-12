@@ -362,20 +362,21 @@ Now the ``setup.py`` looks like this:
 
 Now we can ensure that those two programs output the same values::
 
-    >>> primes_python(1000) == primes(1000)
+    >>> import primes, primes_python, primes_python_compiled
+    >>> primes_python.primes(1000) == primes.primes(1000)
     True
-    >>> primes_python_compiled(1000) == primes(1000)
+    >>> primes_python_compiled.primes(1000) == primes.primes(1000)
     True
 
 It's possible to compare the speed now::
 
-    python -m timeit -s 'from example_py import primes_python' 'primes_python(1000)'
+    python -m timeit -s 'from primes_python import primes' 'primes(1000)'
     10 loops, best of 3: 23 msec per loop
 
-    python -m timeit -s 'from example_py_cy import primes_python_compiled' 'primes_python_compiled(1000)'
+    python -m timeit -s 'from primes_python_compiled import primes' 'primes(1000)'
     100 loops, best of 3: 11.9 msec per loop
 
-    python -m timeit -s 'from example import primes' 'primes(1000)'
+    python -m timeit -s 'from primes import primes' 'primes(1000)'
     1000 loops, best of 3: 1.65 msec per loop
 
 The cythonize version of ``primes_python`` is 2 times faster than the Python one,
