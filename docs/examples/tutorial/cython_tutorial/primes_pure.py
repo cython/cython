@@ -1,8 +1,12 @@
 def primes(nb_primes: cython.int):
     i: cython.int
     p: cython.int[1000]
+
     if nb_primes > 1000:
         nb_primes = 1000
+
+    if not cython.compiled:
+        p = [0] * 1000
 
     len_p: cython.int = 0  # The current number of elements in p.
     n: cython.int = 2
