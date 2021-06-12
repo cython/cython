@@ -325,14 +325,14 @@ compile it with Cython (without changing the code). We will also change the name
 file to ``example_py_cy.py`` to differentiate it from the others.
 Now the ``setup.py`` looks like this::
 
-    from setuptools import setup
-    from Cython.Build import cythonize
+.. tabs::
+    .. group-tab:: Cython
 
-    setup(
-        ext_modules=cythonize(['example.pyx',        # Cython code file with primes() function
-                               'example_py_cy.py'],  # Python code file with primes_python_compiled() function
-                              annotate=True),        # enables generation of the html annotation file
-    )
+        .. literalinclude:: ../../examples/tutorial/cython_tutorial/setup_primes.py
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/cython_tutorial/setup_primes_pure.py
 
 Now we can ensure that those two programs output the same values::
 
