@@ -340,17 +340,16 @@ Python behavior, the language will perform division checks at runtime,
 just like Python does. You can deactivate those checks by using the
 :ref:`compiler directives<compiler-directives>`.
 
-Now let's see if, even if we have division checks, we obtained a boost in speed.
-Let's write the same program, but Python-style:
+Now let's see if we get a speed increase even if there is a division check.
+Let's write the same program, but in Python:
 
 .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes_python.py
     :caption: primes_python.py / primes_python_compiled.py
 
-It is also possible to take a plain ``.py`` file and to compile it with Cython.
-Let's take ``primes_python``, change the function name to ``primes_python_compiled`` and
-compile it with Cython (without changing the code). We will also change the name of the
-file to ``example_py_cy.py`` to differentiate it from the others.
-Now the ``setup.py`` looks like this::
+It is possible to take a plain ``.py`` file and to compile it with Cython.
+Let's create a copy of ``primes_python`` and name it ``primes_python_compiled`` and
+compile it with Cython (without changing the code).
+Now the ``setup.py`` looks like this:
 
 .. tabs::
     .. group-tab:: Cython
