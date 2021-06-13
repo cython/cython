@@ -329,11 +329,11 @@ We can examine the generated C code to understand:
 .. tabs::
     .. group-tab:: Cython
 
-        .. figure:: python_division.png
+        .. figure:: python_division_pyx.png
 
     .. group-tab:: Pure Python
 
-        .. figure:: python_division_pure.png
+        .. figure:: python_division_py.png
 
 We can see that some checks happen. Because Cython defaults to the
 Python behavior, the language will perform division checks at runtime,
