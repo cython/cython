@@ -132,17 +132,17 @@ finding prime numbers. You tell it how many primes you want, and it returns
 them as a Python list.
  
 .. tabs::
-    .. group-tab:: Cython
-
-        .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.pyx
-            :linenos:
-            :caption: primes.pyx
-
     .. group-tab:: Pure Python
 
         .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.py
             :linenos:
             :caption: primes.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.pyx
+            :linenos:
+            :caption: primes.pyx
 
 You'll see that it starts out just like a normal Python function definition,
 except that the parameter ``nb_primes`` is declared to be of type ``int``. This
@@ -152,17 +152,6 @@ means that the object passed will be converted to a C integer (or a
 Now, let's dig into the core of the function:
 
 .. tabs::
-    .. group-tab:: Cython
-
-        .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.pyx
-            :lines: 2,3
-            :dedent:
-            :lineno-start: 2
-
-        Lines 2 and 3 use the ``cdef`` statement to define some local C variables.
-        The result is stored in the C array ``p`` during processing,
-        and will be copied into a Python list at the end (line 26).
-
     .. group-tab:: Pure Python
 
         .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.py
@@ -177,6 +166,17 @@ Now, let's dig into the core of the function:
         
         Lines 2, 3, 11 and 12 use the variable annotations
         to define some local C variables.
+        The result is stored in the C array ``p`` during processing,
+        and will be copied into a Python list at the end (line 26).
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.pyx
+            :lines: 2,3
+            :dedent:
+            :lineno-start: 2
+
+        Lines 2 and 3 use the ``cdef`` statement to define some local C variables.
         The result is stored in the C array ``p`` during processing,
         and will be copied into a Python list at the end (line 26).
 
@@ -200,13 +200,6 @@ We make sure the user doesn't set a value above 1000 (or we would have a
 segmentation fault, just like in C)
 
 .. tabs::
-    .. group-tab:: Cython
-
-        .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.pyx
-            :lines: 10-13
-            :dedent:
-            :lineno-start: 10
-
     .. group-tab:: Pure Python
 
         .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.py
@@ -221,6 +214,13 @@ segmentation fault, just like in C)
         we do not need to overwrite this random data.
 
         .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.py
+            :lines: 10-13
+            :dedent:
+            :lineno-start: 10
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.pyx
             :lines: 10-13
             :dedent:
             :lineno-start: 10
@@ -282,14 +282,14 @@ that the exact type is a Python list.
 Finally, at line 27, a normal Python return statement returns the result list.
 
 .. tabs::
-    .. group-tab:: Cython
-
-        Compiling primes.pyx with the Cython compiler produces an extension module
-        which we can try out in the interactive interpreter as follows:
-
     .. group-tab:: Pure Python
 
         Compiling primes.py with the Cython compiler produces an extension module
+        which we can try out in the interactive interpreter as follows:
+
+    .. group-tab:: Cython
+
+        Compiling primes.pyx with the Cython compiler produces an extension module
         which we can try out in the interactive interpreter as follows:
 
 .. code-block:: python
@@ -306,14 +306,14 @@ Python's C-API is taking place. For this, pass the
 ``annotate=True`` parameter to ``cythonize()``. It produces a HTML file. Let's see:
 
 .. tabs::
-    .. group-tab:: Cython
-
-        .. figure:: htmlreport_pyx.png
-            :scale: 90 %
-
     .. group-tab:: Pure Python
 
         .. figure:: htmlreport_py.png
+            :scale: 90 %
+
+    .. group-tab:: Cython
+
+        .. figure:: htmlreport_pyx.png
             :scale: 90 %
 
 If a line is white, it means that the code generated doesn't interact
@@ -327,13 +327,13 @@ it involves the creation of a Python object. But the line ``if n % i == 0:``, wh
 We can examine the generated C code to understand:
 
 .. tabs::
-    .. group-tab:: Cython
-
-        .. figure:: python_division_pyx.png
-
     .. group-tab:: Pure Python
 
         .. figure:: python_division_py.png
+
+    .. group-tab:: Cython
+
+        .. figure:: python_division_pyx.png
 
 We can see that some checks happen. Because Cython defaults to the
 Python behavior, the language will perform division checks at runtime,
@@ -353,13 +353,13 @@ Then we compile that file with Cython, without changing the code.
 Now the ``setup.py`` looks like this:
 
 .. tabs::
-    .. group-tab:: Cython
-
-        .. literalinclude:: ../../examples/tutorial/cython_tutorial/setup_primes.py
-
     .. group-tab:: Pure Python
 
         .. literalinclude:: ../../examples/tutorial/cython_tutorial/setup_primes_pure.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/cython_tutorial/setup_primes.py
 
 Now we can ensure that those two programs output the same values::
 
@@ -419,11 +419,6 @@ standard library.
     see `this page from cppreference <https://en.cppreference.com/w/cpp/container/vector>`_.
 
 .. tabs::
-    .. group-tab:: Cython
-
-        .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes_cpp.pyx
-            :linenos:
-
     .. group-tab:: Pure Python
 
         .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes_cpp.py
@@ -439,6 +434,11 @@ standard library.
             with the same functions, we cannot use it if we run it through python.
             This is described in more detail
             :ref:`calling-c-functions`.
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes_cpp.pyx
+            :linenos:
 
 The first line is a compiler directive. It tells Cython to compile your code to C++.
 This will enable the use of C++ language features and the C++ standard library.
