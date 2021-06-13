@@ -308,12 +308,12 @@ Python's C-API is taking place. For this, pass the
 .. tabs::
     .. group-tab:: Cython
 
-        .. figure:: htmlreport.png
+        .. figure:: htmlreport_pyx.png
             :scale: 90 %
 
     .. group-tab:: Pure Python
 
-        .. figure:: htmlreport_pure.png
+        .. figure:: htmlreport_py.png
             :scale: 90 %
 
 If a line is white, it means that the code generated doesn't interact
