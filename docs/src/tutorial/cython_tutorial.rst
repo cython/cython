@@ -346,7 +346,7 @@ Let's write the same program, but in Python:
 .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes_python.py
     :caption: primes_python.py / primes_python_compiled.py
 
-It is possible to take a plain ``.py`` file and to compile it with Cython.
+It is possible to take a plain (unannotated) ``.py`` file and to compile it with Cython.
 Let's create a copy of ``primes_python`` and name it ``primes_python_compiled`` and
 compile it with Cython (without changing the code).
 Now the ``setup.py`` looks like this:
