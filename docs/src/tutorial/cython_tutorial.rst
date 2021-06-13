@@ -176,7 +176,7 @@ Now, let's dig into the core of the function:
             :lineno-start: 11
         
         Lines 2, 3, 11 and 12 use the variable annotations
-        to definesome local C variables.
+        to define some local C variables.
         The result is stored in the C array ``p`` during processing,
         and will be copied into a Python list at the end (line 26).
 
@@ -455,4 +455,3 @@ Language Details
 For more about the Cython language, see :ref:`language-basics`.
 To dive right in to using Cython in a numerical computation context,
 see :ref:`memoryviews`.
-
