@@ -543,10 +543,23 @@ def _list_pyregr_data_files(test_directory):
         if is_data_file(filename)]
 
 
+def import_module_from_file(module_name, file_path, execute=True):
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(module_name, file_path)
+    m = importlib.util.module_from_spec(spec)
+    if execute:
+        sys.modules[module_name] = m
+        spec.loader.exec_module(m)
+    return m
+
+
 def import_ext(module_name, file_path=None):
     if file_path:
-        import imp
-        return imp.load_dynamic(module_name, file_path)
+        if sys.version_info >= (3, 5):
+            return import_module_from_file(module_name, file_path)
+        else:
+            import imp
+            return imp.load_dynamic(module_name, file_path)
     else:
         try:
             from importlib import invalidate_caches
@@ -1500,9 +1513,13 @@ class PureDoctestTestCase(unittest.TestCase):
         try:
             self.setUp()
 
-            import imp
             with self.stats.time(self.name, 'py', 'pyimport'):
-                m = imp.load_source(loaded_module_name, self.module_path)
+                if sys.version_info >= (3, 5):
+                    m = import_module_from_file(self.module_name, self.module_path)
+                else:
+                    import imp
+                    m = imp.load_source(loaded_module_name, self.module_path)
+
             try:
                 with self.stats.time(self.name, 'py', 'pyrun'):
                     doctest.DocTestSuite(m).run(result)
