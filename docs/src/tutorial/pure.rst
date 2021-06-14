@@ -218,11 +218,7 @@ libraries become available to Python code.  It only means that you can
 tell Cython what cimports you want to use, without requiring special
 syntax.  Running such code in plain Python will fail.
 
-::
-
-    from cython.cimports.libc import math
-
-    print(math.ceil(5.5))
+.. literalinclude:: ../../examples/tutorial/pure/py_cimport.py
 
 Since such code must necessarily refer to the non-existing
 ``cython.cimports`` 'package', the plain cimport form

@@ -980,6 +980,15 @@ class CythonCompileTestCase(unittest.TestCase):
         if self.workdir not in sys.path:
             sys.path.insert(0, self.workdir)
 
+        if self.add_cython_import:
+            with open(self.module_path, 'rb') as f:
+                source = f.read()
+                if b'cython.cimports.' in source:
+                    from Cython.Shadow import CythonCImports
+                    for name in set(re.findall(br"(cython\.cimports(?:\.\w+)+)", source)):
+                        name = name.decode()
+                        sys.modules[name] = CythonCImports(name)
+
     def tearDown(self):
         from Cython.Compiler import Options
         for name, value in self._saved_options:
@@ -995,6 +1004,13 @@ class CythonCompileTestCase(unittest.TestCase):
             del sys.modules[self.module]
         except KeyError:
             pass
+
+        # remove any stubs of cimported modules in pure Python mode
+        if self.add_cython_import:
+            for name in list(sys.modules):
+                if name.startswith('cython.cimports.'):
+                    del sys.modules[name]
+
         cleanup = self.cleanup_failures or self.success
         cleanup_c_files = WITH_CYTHON and self.cleanup_workdir and cleanup
         cleanup_lib_files = self.cleanup_sharedlibs and cleanup
