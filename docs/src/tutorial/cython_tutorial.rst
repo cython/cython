@@ -234,7 +234,7 @@ until the required number of primes has been found.
     :dedent:
     :lineno-start: 14
 
-Lines 15-16, which try dividing a candidate by all the primes found so far,
+Lines 15-16, which try to divide a candidate by all the primes found so far,
 are of particular interest. Because no Python objects are referred to,
 the loop is translated entirely into C code, and thus runs very fast.
 You will notice the way we iterate over the ``p`` C array.
