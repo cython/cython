@@ -226,7 +226,7 @@ segmentation fault, just like in C)
             :dedent:
             :lineno-start: 10
 
-Lines 11-13 set up for a loop which will test candidate numbers for primeness
+Lines 11-13 set up a while loop which will test numbers-candidates to primes
 until the required number of primes has been found.
 
 .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.pyx
