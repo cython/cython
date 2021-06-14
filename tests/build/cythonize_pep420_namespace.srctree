@@ -10,7 +10,8 @@ from distutils.core import setup, Extension
 setup(
   ext_modules=cythonize([
     Extension("nsp.m1.a", ["nsp/m1/a.pyx"]),
-    Extension("nsp.m2.b", ["nsp/m2/b.pyx"])
+    Extension("nsp.m2.b", ["nsp/m2/b.pyx"]),
+    Extension("nsp.m3.c.d", ["nsp/m3/c/d.pyx"]),
   ]),
 )
 
@@ -31,14 +32,28 @@ cdef class A:
 ######## nsp/m2/b.pyx ########
 
 from nsp.m1.a cimport A
+from nsp.m3.c.d cimport D
 
 cdef class B(A):
     pass
+
+######## nsp/m3/__init__.py ########
+
+######## nsp/m3/c/d.pyx ########
+
+cdef class D:
+  pass
+
+######## nsp/m3/c/d.pxd ########
+
+cdef class D:
+  pass
 
 ######## runner.py ########
 
 from nsp.m1.a import A
 from nsp.m2.b import B
+from nsp.m3.c.d import D
 
 a = A()
 b = B()

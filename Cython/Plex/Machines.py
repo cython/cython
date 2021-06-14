@@ -121,7 +121,8 @@ class Node(object):
         return self.number < other.number
 
     def __hash__(self):
-        return id(self)
+        # Prevent overflowing hash values due to arbitrarily large unsigned addresses.
+        return id(self) & maxint
 
 
 class FastMachine(object):

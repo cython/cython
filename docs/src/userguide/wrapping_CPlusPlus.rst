@@ -11,8 +11,8 @@ Overview
 
 Cython has native support for most of the C++ language.  Specifically:
 
-* C++ objects can be dynamically allocated with ``new`` and ``del`` keywords.
-* C++ objects can be stack-allocated.
+* C++ objects can be :term:`dynamically allocated<Dynamic allocation>` with ``new`` and ``del`` keywords.
+* C++ objects can be :term:`stack-allocated<Stack allocation>`.
 * C++ classes can be declared with the new keyword ``cppclass``.
 * Templated classes and functions are supported.
 * Overloaded functions are supported.
@@ -331,19 +331,27 @@ arguments) or by an explicit cast, e.g.:
 
 The following coercions are available:
 
-+------------------+----------------+-----------------+
-| Python type =>   | *C++ type*     | => Python type  |
-+==================+================+=================+
-| bytes            | std::string    | bytes           |
-+------------------+----------------+-----------------+
-| iterable         | std::vector    | list            |
-+------------------+----------------+-----------------+
-| iterable         | std::list      | list            |
-+------------------+----------------+-----------------+
-| iterable         | std::set       | set             |
-+------------------+----------------+-----------------+
-| iterable (len 2) | std::pair      | tuple (len 2)   |
-+------------------+----------------+-----------------+
++------------------+------------------------+-----------------+
+| Python type =>   | *C++ type*             | => Python type  |
++==================+========================+=================+
+| bytes            | std::string            | bytes           |
++------------------+------------------------+-----------------+
+| iterable         | std::vector            | list            |
++------------------+------------------------+-----------------+
+| iterable         | std::list              | list            |
++------------------+------------------------+-----------------+
+| iterable         | std::set               | set             |
++------------------+------------------------+-----------------+
+| iterable         | std::unordered_set     | set             |
++------------------+------------------------+-----------------+
+| mapping          | std::map               | dict            |
++------------------+------------------------+-----------------+
+| mapping          | std::unordered_map     | dict            |
++------------------+------------------------+-----------------+
+| iterable (len 2) | std::pair              | tuple (len 2)   |
++------------------+------------------------+-----------------+
+| complex          | std::complex           | complex         |
++------------------+------------------------+-----------------+
 
 All conversions create a new container and copy the data into it.
 The items in the containers are converted to a corresponding type
@@ -454,7 +462,7 @@ Static member method
 
 If the Rectangle class has a static member:
 
-.. sourcecode:: c++
+.. code-block:: c++
 
     namespace shapes {
         class Rectangle {

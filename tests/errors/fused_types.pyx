@@ -76,6 +76,16 @@ ctypedef fused fused2:
 
 func(x, y)
 
+cdef floating return_type_unfindable1(cython.integral x):
+    return 1.0
+
+cpdef floating return_type_unfindable2(cython.integral x):
+    return 1.0
+
+cdef void contents_unfindable1(cython.integral x):
+    z: floating = 1  # note: cdef variables also fail with an error but not by the time this test aborts
+    sz = sizeof(floating)
+
 
 _ERRORS = u"""
 11:15: fused_type does not take keyword arguments
@@ -89,7 +99,17 @@ _ERRORS = u"""
 37:6: Invalid base type for memoryview slice: int *
 40:0: Fused lambdas not allowed
 43:5: Fused types not allowed here
+43:21: cdef variable 'x' declared after it is used
 46:9: Fused types not allowed here
 61:0: Invalid use of fused types, type cannot be specialized
 61:29: ambiguous overloaded method
+# Possibly duplicates the errors more often than we want
+79:5: Return type is a fused type that cannot be determined from the function arguments
+82:6: Return type is a fused type that cannot be determined from the function arguments
+86:4: 'z' cannot be specialized since its type is not a fused argument to this function
+86:4: 'z' cannot be specialized since its type is not a fused argument to this function
+86:4: 'z' cannot be specialized since its type is not a fused argument to this function
+87:24: Type cannot be specialized since it is not a fused argument to this function
+87:24: Type cannot be specialized since it is not a fused argument to this function
+87:24: Type cannot be specialized since it is not a fused argument to this function
 """

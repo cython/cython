@@ -20,9 +20,9 @@ amount of overhead, which can then makes a case for doing manual memory
 management in C.
 
 Simple C values and structs (such as a local variable ``cdef double x``) are
-usually allocated on the stack and passed by value, but for larger and more
+usually :term:`allocated on the stack<Stack allocation>` and passed by value, but for larger and more
 complicated objects (e.g. a dynamically-sized list of doubles), the memory must
-be manually requested and released.  C provides the functions :c:func:`malloc`,
+be :term:`manually requested and released<Heap allocation>`.  C provides the functions :c:func:`malloc`,
 :c:func:`realloc`, and :c:func:`free` for this purpose, which can be imported
 in cython from ``clibc.stdlib``. Their signatures are:
 

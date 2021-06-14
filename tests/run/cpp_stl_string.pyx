@@ -3,7 +3,7 @@
 
 cimport cython
 
-from libcpp.string cimport string
+from libcpp.string cimport string, to_string
 
 b_asdf = b'asdf'
 b_asdg = b'asdg'
@@ -344,6 +344,18 @@ def test_iteration(string s):
     []
     """
     return [c for c in s]
+
+
+def test_to_string(x):
+    """
+    >>> print(test_to_string(5))
+    si=5 sl=5
+    >>> print(test_to_string(-5))
+    si=-5 sl=-5
+    """
+    si = to_string(<int>x).decode('ascii')
+    sl = to_string(<long>x).decode('ascii')
+    return f"si={si} sl={sl}"
 
 
 _WARNINGS = """

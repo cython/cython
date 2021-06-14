@@ -82,7 +82,7 @@ in the :file:`.pxd`, that is, to be accessible from Python,
 
 
 In the example above, the type of the local variable `a` in `myfunction()`
-is not fixed and will thus be a Python object.  To statically type it, one
+is not fixed and will thus be a :term:`Python object`.  To statically type it, one
 can use Cython's ``@cython.locals`` decorator (see :ref:`magic_attributes`,
 and :ref:`magic_attributes_pxd`).
 
@@ -207,6 +207,27 @@ Here is an example of a :keyword:`cdef` function::
     @cython.locals(a=cython.int, b=cython.int)
     def c_compare(a,b):
         return a == b
+
+
+cimports
+^^^^^^^^
+
+The special ``cython.cimports`` package name gives access to cimports
+in code that uses Python syntax.  Note that this does not mean that C
+libraries become available to Python code.  It only means that you can
+tell Cython what cimports you want to use, without requiring special
+syntax.  Running such code in plain Python will fail.
+
+::
+
+    from cython.cimports.libc import math
+
+    print(math.ceil(5.5))
+
+Since such code must necessarily refer to the non-existing
+``cython.cimports`` 'package', the plain cimport form
+``cimport cython.cimports...`` is not available.
+You must use the form ``from cython.cimports...``.
 
 
 Further Cython functions and declarations

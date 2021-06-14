@@ -1,4 +1,4 @@
-# ticket: 494
+# ticket: t494
 
 __doc__ = """
     >>> A.foo = foo

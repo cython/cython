@@ -1,4 +1,4 @@
-# ticket: 4
+# ticket: t4
 # mode: compile
 
 from a cimport b

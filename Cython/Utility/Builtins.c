@@ -78,7 +78,7 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
                 "code object passed to exec() may not contain free variables");
             goto bad;
         }
-        #if CYTHON_COMPILING_IN_PYPY || PY_VERSION_HEX < 0x030200B1
+        #if PY_VERSION_HEX < 0x030200B1
         result = PyEval_EvalCode((PyCodeObject *)o, globals, locals);
         #else
         result = PyEval_EvalCode(o, globals, locals);
@@ -461,9 +461,9 @@ static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it) {
         result = PyFrozenSet_New(it);
         if (unlikely(!result))
             return NULL;
-        if (likely(PySet_GET_SIZE(result)))
+        if ((PY_VERSION_HEX >= 0x031000A1) || likely(PySet_GET_SIZE(result)))
             return result;
-        // empty frozenset is a singleton
+        // empty frozenset is a singleton (on Python <3.10)
         // seems wasteful, but CPython does the same
         Py_DECREF(result);
 #endif

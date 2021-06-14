@@ -346,15 +346,15 @@ builtin_types_table = [
 ]
 
 
-types_that_construct_their_instance = set([
+types_that_construct_their_instance = frozenset({
     # some builtin types do not always return an instance of
     # themselves - these do:
     'type', 'bool', 'long', 'float', 'complex',
     'bytes', 'unicode', 'bytearray',
-    'tuple', 'list', 'dict', 'set', 'frozenset'
+    'tuple', 'list', 'dict', 'set', 'frozenset',
     # 'str',             # only in Py3.x
     # 'file',            # only in Py2.x
-])
+})
 
 
 builtin_structs_table = [
@@ -430,7 +430,7 @@ def init_builtins():
 
     global list_type, tuple_type, dict_type, set_type, frozenset_type
     global bytes_type, str_type, unicode_type, basestring_type, slice_type
-    global float_type, bool_type, type_type, complex_type, bytearray_type
+    global float_type, long_type, bool_type, type_type, complex_type, bytearray_type
     type_type  = builtin_scope.lookup('type').type
     list_type  = builtin_scope.lookup('list').type
     tuple_type = builtin_scope.lookup('tuple').type
@@ -444,6 +444,7 @@ def init_builtins():
     basestring_type = builtin_scope.lookup('basestring').type
     bytearray_type = builtin_scope.lookup('bytearray').type
     float_type = builtin_scope.lookup('float').type
+    long_type = builtin_scope.lookup('long').type
     bool_type  = builtin_scope.lookup('bool').type
     complex_type  = builtin_scope.lookup('complex').type
 

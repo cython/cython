@@ -30,6 +30,8 @@ your code is being compiled with, you can do this:
 
 .. literalinclude:: ../../examples/tutorial/external/py_version_hex.pyx
 
+.. _libc.math:
+
 Cython also provides declarations for the C math library:
 
 .. literalinclude:: ../../examples/tutorial/external/libc_sin.pyx

@@ -1,4 +1,4 @@
-# ticket: 235
+# ticket: t235
 
 __doc__ = u"""
     >>> class FakeSeq(object):

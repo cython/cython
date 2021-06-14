@@ -1,4 +1,4 @@
-# ticket: 561
+# ticket: t561
 # tag: py3
 # This file tests the behavior of special methods under Python 3
 # after #561.  (Only methods whose behavior differs between Python 2 and 3

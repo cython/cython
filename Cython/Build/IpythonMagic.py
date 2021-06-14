@@ -82,6 +82,7 @@ from ..Shadow import __version__ as cython_version
 from ..Compiler.Errors import CompileError
 from .Inline import cython_inline
 from .Dependencies import cythonize
+from ..Utils import captured_fd
 
 
 PGO_CONFIG = {
@@ -104,6 +105,37 @@ if IS_PY2:
 else:
     def encode_fs(name):
         return name
+
+
+def get_encoding_candidates():
+    candidates = [sys.getdefaultencoding()]
+    for stream in (sys.stdout, sys.stdin, sys.__stdout__, sys.__stdin__):
+        encoding = getattr(stream, 'encoding', None)
+        # encoding might be None (e.g. somebody redirects stdout):
+        if encoding is not None and encoding not in candidates:
+            candidates.append(encoding)
+    return candidates
+
+
+def prepare_captured(captured):
+    captured_bytes = captured.strip()
+    if not captured_bytes:
+        return None
+    for encoding in get_encoding_candidates():
+        try:
+            return captured_bytes.decode(encoding)
+        except UnicodeDecodeError:
+            pass
+    # last resort: print at least the readable ascii parts correctly.
+    return captured_bytes.decode('latin-1')
+
+
+def print_captured(captured, output, header_line=None):
+    captured = prepare_captured(captured)
+    if captured:
+        if header_line:
+            output.write(header_line)
+        output.write(captured)
 
 
 @magics_class
@@ -342,12 +374,24 @@ class CythonMagics(Magics):
             if args.pgo:
                 self._profile_pgo_wrapper(extension, lib_dir)
 
+        def print_compiler_output(stdout, stderr, where):
+            # On windows, errors are printed to stdout, we redirect both to sys.stderr.
+            print_captured(stdout, where, u"Content of stdout:\n")
+            print_captured(stderr, where, u"Content of stderr:\n")
+
+        get_stderr = get_stdout = None
         try:
-            self._build_extension(extension, lib_dir, pgo_step_name='use' if args.pgo else None,
-                                  quiet=args.quiet)
-        except distutils.errors.CompileError:
-            # Build failed and printed error message
+            with captured_fd(1) as get_stdout:
+                with captured_fd(2) as get_stderr:
+                    self._build_extension(
+                        extension, lib_dir, pgo_step_name='use' if args.pgo else None, quiet=args.quiet)
+        except (distutils.errors.CompileError, distutils.errors.LinkError):
+            # Build failed, print error message from compiler/linker
+            print_compiler_output(get_stdout(), get_stderr(), sys.stderr)
             return None
+
+        # Build seems ok, but we might still want to show any warnings that occurred
+        print_compiler_output(get_stdout(), get_stderr(), sys.stdout)
 
         module = imp.load_dynamic(module_name, module_path)
         self._import_all(module)

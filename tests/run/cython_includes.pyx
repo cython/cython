@@ -10,12 +10,17 @@ cimport cpython.bool
 cimport cpython.buffer
 cimport cpython.bytearray
 cimport cpython.bytes
+cimport cpython.cellobject
 cimport cpython.ceval
 cimport cpython.cobject
+cimport cpython.codecs
 cimport cpython.complex
+cimport cpython.contextvars
+cimport cpython.conversion
 cimport cpython.datetime
 cimport cpython.dict
 cimport cpython.exc
+cimport cpython.fileobject
 cimport cpython.float
 cimport cpython.function
 cimport cpython.genobject

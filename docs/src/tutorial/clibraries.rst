@@ -24,7 +24,7 @@ decide to use its double ended queue implementation.  To make the
 handling easier, however, you decide to wrap it in a Python extension
 type that can encapsulate all memory management.
 
-.. [CAlg] Simon Howard, C Algorithms library, http://c-algorithms.sourceforge.net/
+.. [CAlg] Simon Howard, C Algorithms library, https://fragglet.github.io/c-algorithms/
 
 
 Defining external declarations
@@ -223,11 +223,15 @@ The ``sources`` compiler directive gives the path of the C
 files that setuptools is going to compile and
 link (statically) into the resulting extension module.
 In general all relevant header files should be found in ``include_dirs``.
-Now we can build the project using::
+Now we can build the project using:
+
+.. code-block:: bash
 
     $ python setup.py build_ext -i
 
-And test whether our build was successful::
+And test whether our build was successful:
+
+.. code-block:: bash
 
     $ python -c 'import queue; Q = queue.Queue()'
 
@@ -239,14 +243,18 @@ Dynamic linking is useful, if the library we are going to wrap is already
 installed on the system. To perform dynamic linking we first need to
 build and install c-alg.
 
-To build c-algorithms on your system::
+To build c-algorithms on your system:
+
+.. code-block:: bash
 
     $ cd c-algorithms
     $ sh autogen.sh
     $ ./configure
     $ make
 
-to install CAlg run::
+to install CAlg run:
+
+.. code-block:: bash
 
     $ make install
 
@@ -274,13 +282,17 @@ to
                   libraries=["calg"])
         ])
 
-Now we should be able to build the project using::
+Now we should be able to build the project using:
+
+.. code-block:: bash
 
     $ python setup.py build_ext -i
 
 If the `libcalg` is not installed in a 'normal' location, users can provide the
 required parameters externally by passing appropriate C compiler
-flags, such as::
+flags, such as:
+
+.. code-block:: bash
 
     CFLAGS="-I/usr/local/otherdir/calg/include"  \
     LDFLAGS="-L/usr/local/otherdir/calg/lib"     \
@@ -289,12 +301,16 @@ flags, such as::
 
 
 Before we run the module, we also need to make sure that `libcalg` is in
-the `LD_LIBRARY_PATH` environment variable, e.g. by setting::
+the `LD_LIBRARY_PATH` environment variable, e.g. by setting:
+
+.. code-block:: bash
 
    $ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
 
 Once we have compiled the module for the first time, we can now import
-it and instantiate a new Queue::
+it and instantiate a new Queue:
+
+.. code-block:: bash
 
     $ export PYTHONPATH=.
     $ python -c 'import queue; Q = queue.Queue()'

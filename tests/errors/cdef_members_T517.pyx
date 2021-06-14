@@ -1,4 +1,4 @@
-# ticket: 517
+# ticket: t517
 # mode: error
 
 ctypedef void* VoidP

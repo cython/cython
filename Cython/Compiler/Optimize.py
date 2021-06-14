@@ -192,7 +192,7 @@ class IterationTransform(Visitor.EnvTransform):
     def _optimise_for_loop(self, node, iterable, reversed=False):
         annotation_type = None
         if (iterable.is_name or iterable.is_attribute) and iterable.entry and iterable.entry.annotation:
-            annotation = iterable.entry.annotation
+            annotation = iterable.entry.annotation.expr
             if annotation.is_subscript:
                 annotation = annotation.base  # container base type
             # FIXME: generalise annotation evaluation => maybe provide a "qualified name" also for imported names?
@@ -1236,7 +1236,7 @@ class SwitchTransform(Visitor.EnvTransform):
             # integers on iteration, whereas Py2 returns 1-char byte
             # strings
             characters = string_literal.value
-            characters = list(set([ characters[i:i+1] for i in range(len(characters)) ]))
+            characters = list({ characters[i:i+1] for i in range(len(characters)) })
             characters.sort()
             return [ ExprNodes.CharNode(string_literal.pos, value=charval,
                                         constant_result=charval)
@@ -1248,7 +1248,8 @@ class SwitchTransform(Visitor.EnvTransform):
             return self.NO_MATCH
         elif common_var is not None and not is_common_value(var, common_var):
             return self.NO_MATCH
-        elif not (var.type.is_int or var.type.is_enum) or sum([not (cond.type.is_int or cond.type.is_enum) for cond in conditions]):
+        elif not (var.type.is_int or var.type.is_enum) or any(
+                [not (cond.type.is_int or cond.type.is_enum) for cond in conditions]):
             return self.NO_MATCH
         return not_in, var, conditions
 
@@ -2189,12 +2190,13 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 func_arg = arg.args[0]
                 if func_arg.type is Builtin.float_type:
                     return func_arg.as_none_safe_node("float() argument must be a string or a number, not 'NoneType'")
-                elif func_arg.type.is_pyobject:
+                elif func_arg.type.is_pyobject and arg.function.cname == "__Pyx_PyObject_AsDouble":
                     return ExprNodes.PythonCapiCallNode(
                         node.pos, '__Pyx_PyNumber_Float', self.PyNumber_Float_func_type,
                         args=[func_arg],
                         py_name='float',
                         is_temp=node.is_temp,
+                        utility_code = UtilityCode.load_cached("pynumber_float", "TypeConversion.c"),
                         result_is_used=node.result_is_used,
                     ).coerce_to(node.type, self.current_env())
         return node
@@ -2619,6 +2621,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         elif len(pos_args) != 1:
             self._error_wrong_arg_count('float', node, pos_args, '0 or 1')
             return node
+
         func_arg = pos_args[0]
         if isinstance(func_arg, ExprNodes.CoerceToPyTypeNode):
             func_arg = func_arg.arg
@@ -2627,12 +2630,37 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         elif node.type.assignable_from(func_arg.type) or func_arg.type.is_numeric:
             return ExprNodes.TypecastNode(
                 node.pos, operand=func_arg, type=node.type)
+
+        arg = None
+        if func_arg.type is Builtin.bytes_type:
+            cfunc_name = "__Pyx_PyBytes_AsDouble"
+            utility_code_name = 'pybytes_as_double'
+        elif func_arg.type is Builtin.bytearray_type:
+            cfunc_name = "__Pyx_PyByteArray_AsDouble"
+            utility_code_name = 'pybytes_as_double'
+        elif func_arg.type is Builtin.unicode_type:
+            cfunc_name = "__Pyx_PyUnicode_AsDouble"
+            utility_code_name = 'pyunicode_as_double'
+        elif func_arg.type is Builtin.str_type:
+            cfunc_name = "__Pyx_PyString_AsDouble"
+            utility_code_name = 'pystring_as_double'
+        elif func_arg.type is Builtin.long_type:
+            cfunc_name = "PyLong_AsDouble"
+        else:
+            arg = func_arg  # no need for an additional None check
+            cfunc_name = "__Pyx_PyObject_AsDouble"
+            utility_code_name = 'pyobject_as_double'
+
+        if arg is None:
+            arg = func_arg.as_none_safe_node(
+                "float() argument must be a string or a number, not 'NoneType'")
+
         return ExprNodes.PythonCapiCallNode(
-            node.pos, "__Pyx_PyObject_AsDouble",
+            node.pos, cfunc_name,
             self.PyObject_AsDouble_func_type,
-            args = pos_args,
+            args = [arg],
             is_temp = node.is_temp,
-            utility_code = load_c_utility('pyobject_as_double'),
+            utility_code = load_c_utility(utility_code_name) if utility_code_name else None,
             py_name = "float")
 
     PyNumber_Int_func_type = PyrexTypes.CFuncType(
@@ -2723,7 +2751,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         Builtin.dict_type:       "PyDict_Size",
     }.get
 
-    _ext_types_with_pysize = set(["cpython.array.array"])
+    _ext_types_with_pysize = {"cpython.array.array"}
 
     def _handle_simple_function_len(self, node, function, pos_args):
         """Replace len(char*) by the equivalent call to strlen(),
@@ -2983,6 +3011,13 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 utility_code=utility_code,
                 is_temp=node.is_temp
             )
+
+    def _handle_any_slot__class__(self, node, function, args,
+                                is_unbound_method, kwargs=None):
+        # The purpose of this function is to handle calls to instance.__class__() so that
+        # it doesn't get handled by the __Pyx_CallUnboundCMethod0 mechanism.
+        # TODO: optimizations of the instance.__class__() call might be possible in future.
+        return node
 
     ### methods of builtin types
 
@@ -4398,6 +4433,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                 string_node.unicode_value = encoded_string(
                     string_node.unicode_value * multiplier,
                     string_node.unicode_value.encoding)
+            build_string = encoded_string if string_node.value.is_unicode else bytes_literal
         elif isinstance(string_node, ExprNodes.UnicodeNode):
             if string_node.bytes_value is not None:
                 string_node.bytes_value = bytes_literal(
@@ -4405,9 +4441,14 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                     string_node.bytes_value.encoding)
         else:
             assert False, "unknown string node type: %s" % type(string_node)
-        string_node.constant_result = string_node.value = build_string(
+        string_node.value = build_string(
             string_node.value * multiplier,
             string_node.value.encoding)
+        # follow constant-folding and use unicode_value in preference
+        if isinstance(string_node, ExprNodes.StringNode) and string_node.unicode_value is not None:
+            string_node.constant_result = string_node.unicode_value
+        else:
+            string_node.constant_result = string_node.value
         return string_node
 
     def _calculate_constant_seq(self, node, sequence_node, factor):

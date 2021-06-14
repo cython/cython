@@ -206,7 +206,7 @@ def run_json_report():
         'pkg/coverage_test_py.py',
         'pkg/coverage_test_pyx.pyx',
     ]:
-        report = files[filename]
+        report = files[filename.replace('/', os.sep)]
         summary = report['summary']
         assert summary['missing_lines'] == 2, summary
         assert summary['excluded_lines'] == 2, summary

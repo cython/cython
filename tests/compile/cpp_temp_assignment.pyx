@@ -1,9 +1,29 @@
-# tag: cpp
+# tag: cpp,cpp11
 # mode: compile
 
 cdef extern from *:
     """
-    #if __cplusplus >= 201103L
+    class NoAssignIterator {
+        public:
+            explicit NoAssignIterator(int pos) : pos_(pos) {}
+            NoAssignIterator(NoAssignIterator&) = delete;
+            NoAssignIterator(NoAssignIterator&&) {}
+            NoAssignIterator& operator=(NoAssignIterator&) = delete;
+            NoAssignIterator& operator=(NoAssignIterator&&) { return *this; }
+            // Default constructor of temp variable is needed by Cython
+            // as of 3.0a6.
+            NoAssignIterator() : pos_(0) {}
+            int operator*() {
+                return pos_;
+            }
+            NoAssignIterator operator++() {
+                return NoAssignIterator(pos_ + 1);
+            }
+            int operator!=(NoAssignIterator other) {
+                return pos_ != other.pos_;
+            }
+            int pos_;
+    };
     class NoAssign {
         public:
             NoAssign() {}
@@ -12,15 +32,13 @@ cdef extern from *:
             NoAssign& operator=(NoAssign&) = delete;
             NoAssign& operator=(NoAssign&&) { return *this; }
             void func() {}
+            NoAssignIterator begin() {
+                return NoAssignIterator(0);
+            }
+            NoAssignIterator end() {
+                return NoAssignIterator(2);
+            }
     };
-    #else
-    // the test becomes meaningless
-    // (but just declare something to ensure it passes)
-    class NoAssign {
-        public:
-            void func() {}
-    };
-    #endif
 
     NoAssign get_NoAssign_Py() {
         return NoAssign();
@@ -28,9 +46,17 @@ cdef extern from *:
     NoAssign get_NoAssign_Cpp() {
         return NoAssign();
     }
+
     """
+    cdef cppclass NoAssignIterator:
+        int operator*()
+        NoAssignIterator operator++()
+        int operator!=(NoAssignIterator)
+
     cdef cppclass NoAssign:
         void func()
+        NoAssignIterator begin()
+        NoAssignIterator end()
 
     # might raise Python exception (thus needs a temp)
     NoAssign get_NoAssign_Py() except *
@@ -63,3 +89,7 @@ cdef class AssignToClassAttr:
     def __init__(self):
         self.attr = get_NoAssign_Py()
         self.attr = get_NoAssign_Cpp()
+
+def test_generator_cpp_iterator_as_temp():
+    for i in get_NoAssign_Py():
+        yield i
