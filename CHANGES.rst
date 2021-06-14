@@ -22,12 +22,26 @@ Features added
 Bugs fixed
 ----------
 
+* Code optimisations were not applied to methods of Cython implemented C++ classes.
+  Patch by David Woods.  (Github issue #4212)
+
+* An unnecessary slow-down at import time was removed from ``Cython.Distutils``.
+  Original patch by Anthony Sottile.  (Github issue #4224)
+
 * The signature of ``PyFloat_FromString()`` in ``cpython.float`` was changed
   to match the signature in Py3.  It still has an automatic fallback for Py2.
   (Github issue :issue:`3909`)
 
+* A compile error on MSVC was resolved.
+  Patch by David Woods.  (Github issue #4202)
+
+* A C compiler warning in PyPy3 regarding ``PyEval_EvalCode()`` was resolved.
+
 Other changes
 -------------
+
+* Support for the now unsupported Pyston V1 was removed in favour of Pyston V2.
+  Patch by Marius Wachtler.  (Github issue #4211)
 
 * The ``Cython.Build.BuildExecutable`` tool no longer executes the program automatically.
   Use ``cythonrun`` for that.
