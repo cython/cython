@@ -207,11 +207,12 @@ segmentation fault, just like in C)
             :dedent:
             :lineno-start: 8
 
-        If we run the code from python, then we must initialize the array,
-        the easiest way is to fill it with zeros as on lines 8-9.
-        If we compile this, then the array will already be filled with
-        random data from the allocated memory, since we will change them anyway,
-        we do not need to overwrite this random data.
+        When we run this code from Python, we have to initialize the items in the array.
+        This is most easily done by filling it with zeros (as seen on line 8-9).
+        When we compile this with Cython, on the other hand, the array will
+        behave as in C.  It is allocated on the function call stack with a fixed
+        length of 1000 items that contain arbitrary data from the last time that
+        memory was used.  We will then overwrite those items in our calculation.
 
         .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.py
             :lines: 10-13
