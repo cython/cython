@@ -17,6 +17,6 @@ def primes(unsigned int nb_primes):
             p.push_back(n)  # push_back is similar to append()
         n += 1
 
-    # Vectors are automatically converted to Python
-    # lists when converted to Python objects.
-    return p
+    # If possible, C values and C++ objects are automatically
+    # converted to Python objects at need.
+    return p  # so here, the vector will be copied into a Python list.
