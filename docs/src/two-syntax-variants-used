@@ -1,5 +1,6 @@
 This page uses two different syntax variants: the Cython specific ``cdef`` syntax
-and static Cython type declarations in pure Python code,
+and static Cython type declarations in
+`pure Python code <https://cython.readthedocs.io/en/latest/src/tutorial/pure.html#pep-484-type-annotations>`_,
 following `PEP-484 <https://www.python.org/dev/peps/pep-0484/>`_ type hints
 and `PEP 526 <https://www.python.org/dev/peps/pep-0526/>`_ variable annotations.
 To make good use of the latter, including C data types etc., you need
