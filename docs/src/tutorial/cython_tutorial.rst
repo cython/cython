@@ -406,9 +406,9 @@ Primes with C++
 With Cython, it is also possible to take advantage of the C++ language, notably,
 part of the C++ standard library is directly importable from Cython code.
 
-Let's see what our code becomes when
-using `vector <https://en.cppreference.com/w/cpp/container/vector>`_ from the C++
-standard library.
+Let's see what our code becomes when using
+`vector <https://en.cppreference.com/w/cpp/container/vector>`_
+from the C++ standard library.
 
 .. note::
 
