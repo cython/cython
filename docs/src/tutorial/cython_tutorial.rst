@@ -106,9 +106,14 @@ Now following the steps for the Hello World example we first rename the file
 to have a `.pyx` extension, lets say :file:`fib.pyx`, then we create the
 :file:`setup.py` file. Using the file created for the Hello World example, all
 that you need to change is the name of the Cython filename, and the resulting
-module name, doing this we have:
+module name, doing this we have::
 
-.. literalinclude:: ../../examples/tutorial/cython_tutorial/setup.py
+    from setuptools import setup
+    from Cython.Build import cythonize
+
+    setup(
+        ext_modules=cythonize("fib.pyx"),
+    )
 
 Build the extension with the same command used for the helloworld.pyx:
 
@@ -356,11 +361,31 @@ Now the ``setup.py`` looks like this:
 .. tabs::
     .. group-tab:: Pure Python
 
-        .. literalinclude:: ../../examples/tutorial/cython_tutorial/setup_primes_pure.py
+        .. code-block:: python
+
+            from setuptools import setup
+            from Cython.Build import cythonize
+            
+            setup(
+                ext_modules=cythonize(
+                    ['primes.py',                   # Cython code file with primes() function
+                     'primes_python_compiled.py'],  # Python code file with primes() function
+                    annotate=True),                 # enables generation of the html annotation file
+            )
 
     .. group-tab:: Cython
 
-        .. literalinclude:: ../../examples/tutorial/cython_tutorial/setup_primes.py
+        .. code-block:: python
+
+            from setuptools import setup
+            from Cython.Build import cythonize
+
+            setup(
+                ext_modules=cythonize(
+                    ['primes.pyx',                  # Cython code file with primes() function
+                     'primes_python_compiled.py'],  # Python code file with primes() function
+                    annotate=True),                 # enables generation of the html annotation file
+            )
 
 Now we can ensure that those two programs output the same values::
 
