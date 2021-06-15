@@ -254,15 +254,15 @@ Running this shows an interesting result:
            1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
 
 First note the tremendous speed gain: this version only takes 1/50 of the time
-of our first Cython version. Also note that recip_square has vanished from the
-table like we wanted. But the most peculiar and import change is that
-approx_pi also got much faster. This is a problem with all profiling: calling a
-function in a profile run adds a certain overhead to the function call. This
+of our first Cython version.  Also note that recip_square has vanished from the
+table like we wanted.  But the most peculiar and important change is that
+approx_pi also got much faster.  This is a problem with all profiling: calling a
+function in a profile run adds a certain overhead to the function call.  This
 overhead is **not** added to the time spent in the called function, but to the
-time spent in the **calling** function. In this example, approx_pi didn't need 2.622
+time spent in the **calling** function.  In this example, approx_pi didn't need 2.622
 seconds in the last run; but it called recip_square 10000000 times, each time taking a
-little to set up profiling for it. This adds up to the massive time loss of
-around 2.6 seconds. Having disabled profiling for the often called function now
+little to set up profiling for it.  This adds up to the massive time loss of
+around 2.6 seconds.  Having disabled profiling for the often called function now
 reveals realistic timings for approx_pi; we could continue optimizing it now if
 needed.
 
