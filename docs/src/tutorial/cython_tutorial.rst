@@ -332,14 +332,7 @@ sense for those lines to be yellow. Same for the list comprehension because
 it involves the creation of a Python object. But the line ``if n % i == 0:``, why?
 We can examine the generated C code to understand:
 
-.. tabs::
-    .. group-tab:: Pure Python
-
-        .. figure:: python_division_py.png
-
-    .. group-tab:: Cython
-
-        .. figure:: python_division_pyx.png
+.. figure:: python_division.png
 
 We can see that some checks happen. Because Cython defaults to the
 Python behavior, the language will perform division checks at runtime,
