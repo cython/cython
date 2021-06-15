@@ -23,5 +23,5 @@ def primes(nb_primes: cython.int):
         n += 1
 
     # Let's copy the result into a Python list:
-    result_as_list  = [prime for prime in p[:len_p]]
+    result_as_list = [prime for prime in p[:len_p]]
     return result_as_list
