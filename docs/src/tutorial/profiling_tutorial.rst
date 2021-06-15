@@ -200,17 +200,20 @@ profile script then at all. The script now outputs the following:
            1    0.000    0.000    4.406    4.406 <string>:1(<module>)
            1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
 
-We gained 1.8 seconds. Not too shabby. Comparing the output to the previous, we
-see that recip_square function got faster while the approx_pi function has not
-changed a lot. Let's concentrate on the recip_square function a bit more. First
-note, that this function is not to be called from code outside of our module;
-so it would be wise to turn it into a cdef to reduce call overhead. We should
-also get rid of the power operator: it is turned into a pow(i,2) function call by
-Cython, but we could instead just write i*i which could be faster. The
+We gained 1.8 seconds.  Not too shabby.  Comparing the output to the previous, we
+see that the ``recip_square()`` function got faster while the ``approx_pi()``
+function has not changed a lot.  Let's concentrate on the recip_square function
+a bit more.  First, note that this function is not to be called from code outside
+of our module; so it would be wise to turn it into a cdef to reduce call overhead.
+We should also get rid of the power operator: it is turned into a pow(i,2) function
+call by Cython, but we could instead just write i*i which could be faster.  The
 whole function is also a good candidate for inlining.  Let's look at the
 necessary changes for these ideas:
 
 .. literalinclude:: ../../examples/tutorial/profiling_tutorial/calc_pi_3.pyx
+
+Note that the ``except`` declaration is needed in the signature of ``recip_square()``
+in order to propagate division by zero errors.
 
 Now running the profile script yields:
 
