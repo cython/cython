@@ -1,0 +1,13 @@
+This page uses two different syntax variants: the Cython specific ``cdef`` syntax
+and static Cython type declarations in
+:ref:`pure Python code <pep484_type_annotations>`,
+following `PEP-484 <https://www.python.org/dev/peps/pep-0484/>`_ type hints
+and `PEP 526 <https://www.python.org/dev/peps/pep-0526/>`_ variable annotations.
+To make good use of the latter, including C data types, etc., you need
+the special ``cython`` module, which you can import with
+
+.. code-block:: python
+
+    import cython
+
+in the Python module that you want to compile.
