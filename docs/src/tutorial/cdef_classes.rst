@@ -24,6 +24,15 @@ single inheritance.  Normal Python classes, on the other hand, can
 inherit from any number of Python classes and extension types, both in
 Cython code and pure Python code.
 
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/cdef_classes/math_function_2.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/cdef_classes/math_function_2.pyx
+
 So far our integration example has not been very useful as it only
 integrates a single hard-coded function. In order to remedy this,
 with hardly sacrificing speed, we will use a cdef class to represent a
