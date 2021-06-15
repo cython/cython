@@ -425,16 +425,8 @@ from the C++ standard library.
         .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes_cpp.py
             :linenos:
 
-        .. warning::
-
-            This code uses ``cimports``, cython understands this
-            and imports the necessary modules, but python cannot do this,
-            therefore it will not work and will raise an exception.
-
-            And since there is no direct analogue of a vector in python,
-            with the same functions, we cannot use it if we run it through python.
-            This is described in more detail
-            :ref:`calling-c-functions`.
+        .. include::
+            ../cimport-warning
 
     .. group-tab:: Cython
 
