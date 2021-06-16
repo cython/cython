@@ -100,16 +100,16 @@ def test_int_vector(o):
 cdef vector[int] takes_vector(vector[int] x):
     return x
 
-def test_list_to_vector_directly():
+def test_list_literal_to_vector():
     """
-    >>> test_list_to_vector_directly()
+    >>> test_list_literal_to_vector()
     [1, 2, 3]
     """
     return takes_vector([1, 2, 3])
 
-def test_tuple_to_vector_directly():
+def test_tuple_literal_to_vector():
     """
-    >>> test_list_to_vector_directly()
+    >>> test_tuple_literal_to_vector()
     [1, 2, 3]
     """
     return takes_vector((1, 2, 3))
@@ -262,9 +262,9 @@ def test_enum_map(o):
 cdef map[unsigned int, unsigned int] takes_map(map[unsigned int, unsigned int] m):
     return m
 
-def test_pass_directly_to_function():
+def test_dict_literal_to_map():
     """
-    >>> test_pass_directly_to_function()
+    >>> test_dict_literal_to_map()
     {1: 1}
     """
     return takes_map({1: 1})  # https://github.com/cython/cython/pull/4228
