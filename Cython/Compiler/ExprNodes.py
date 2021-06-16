@@ -8866,7 +8866,7 @@ class DictNode(ExprNode):
                         if isinstance(value, CoerceToPyTypeNode):
                             value = value.arg
                         item.value = value.coerce_to(member.type, env)
-        elif dst_type.can_coerce_from_pyobject(env):
+        elif dst_type.is_cpp_class and dst_type.can_coerce_from_pyobject(env):
             # not guaranteed that we can coerce from this particular PyObject, but worth a try
             # Note that other places seem to try calling create_from_py_utility_code instead
             return CoerceFromPyTypeNode(dst_type, self, env)
