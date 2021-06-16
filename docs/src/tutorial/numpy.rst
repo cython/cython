@@ -170,6 +170,16 @@ function call.)
     The actual rules are a bit more complicated but the main message is clear:
     Do not use typed objects without knowing that they are not set to None.
 
+What typing does not do
+==================
+
+The main purpose of typing things as :obj:`ndarray` is to allow efficient
+indexing of single elements, and to speed up access to a small number of
+attributes such as ``.shape``. Typing does not allow Cython to speed
+up mathematical operations on the whole array (for example, adding two arrays
+together). Typing does not allow Cython to speed up calls to Numpy global
+functions or to methods of the array.
+
 More generic code
 ==================
 
