@@ -4,9 +4,9 @@ cimport cython
 @cython.cclass
 class Base(object):
     """
-    >>> Base(implemented=True) + 2
+    >>> Base() + 2
     'Base.__add__(Base(), 2)'
-    >>> 2 + Base(implemented=True)
+    >>> 2 + Base()
     'Base.__radd__(Base(), 2)'
 
     >>> Base(implemented=False) + 2  #doctest: +ELLIPSIS
@@ -18,17 +18,17 @@ class Base(object):
     ...
     TypeError: unsupported operand type...
 
-    >>> Base(implemented=True) ** 2
+    >>> Base() ** 2
     'Base.__pow__(Base(), 2, None)'
-    >>> 2 ** Base(implemented=True)
+    >>> 2 ** Base()
     'Base.__rpow__(Base(), 2, None)'
-    >>> pow(Base(implemented=True), 2, 100)
+    >>> pow(Base(), 2, 100)
     'Base.__pow__(Base(), 2, 100)'
     """
-    implemented: cython.int
+    implemented: cython.bint
 
-    def __init__(self, *, implemented):
-        self.implemented = int(implemented)
+    def __init__(self, *, implemented=True):
+        self.implemented = implemented
 
     def __add__(self, other):
         if (<Base>self).implemented:
@@ -61,14 +61,14 @@ class Base(object):
 @cython.cclass
 class OverloadLeft(Base):
     """
-    >>> OverloadLeft(implemented=True) + 2
+    >>> OverloadLeft() + 2
     'OverloadLeft.__add__(OverloadLeft(), 2)'
-    >>> 2 + OverloadLeft(implemented=True)
+    >>> 2 + OverloadLeft()
     'Base.__radd__(OverloadLeft(), 2)'
 
-    >>> OverloadLeft(implemented=True) + Base(implemented=True)
+    >>> OverloadLeft() + Base()
     'OverloadLeft.__add__(OverloadLeft(), Base())'
-    >>> Base(implemented=True) + OverloadLeft(implemented=True)
+    >>> Base() + OverloadLeft()
     'Base.__add__(Base(), OverloadLeft())'
 
     >>> OverloadLeft(implemented=False) + Base(implemented=False)  #doctest: +ELLIPSIS
@@ -80,11 +80,11 @@ class OverloadLeft(Base):
     ...
     TypeError: unsupported operand type...
     """
-    derived_implemented: cython.int
+    derived_implemented: cython.bint
 
-    def __init__(self, *, implemented):
+    def __init__(self, *, implemented=True):
         super().__init__(implemented=implemented)
-        self.derived_implemented = int(implemented)
+        self.derived_implemented = implemented
 
     def __add__(self, other):
         if (<OverloadLeft>self).derived_implemented:
@@ -97,14 +97,14 @@ class OverloadLeft(Base):
 @cython.cclass
 class OverloadRight(Base):
     """
-    >>> OverloadRight(implemented=True) + 2
+    >>> OverloadRight() + 2
     'Base.__add__(OverloadRight(), 2)'
-    >>> 2 + OverloadRight(implemented=True)
+    >>> 2 + OverloadRight()
     'OverloadRight.__radd__(OverloadRight(), 2)'
 
-    >>> OverloadRight(implemented=True) + Base(implemented=True)
+    >>> OverloadRight() + Base()
     'Base.__add__(OverloadRight(), Base())'
-    >>> Base(implemented=True) + OverloadRight(implemented=True)
+    >>> Base() + OverloadRight()
     'OverloadRight.__radd__(OverloadRight(), Base())'
 
     >>> OverloadRight(implemented=False) + Base(implemented=False)  #doctest: +ELLIPSIS
@@ -116,11 +116,11 @@ class OverloadRight(Base):
     ...
     TypeError: unsupported operand type...
     """
-    derived_implemented: cython.int
+    derived_implemented: cython.bint
 
-    def __init__(self, *, implemented):
+    def __init__(self, *, implemented=True):
         super().__init__(implemented=implemented)
-        self.derived_implemented = int(implemented)
+        self.derived_implemented = implemented
 
     def __radd__(self, other):
         if (<OverloadRight>self).derived_implemented:
@@ -132,14 +132,14 @@ class OverloadRight(Base):
 @cython.cclass
 class OverloadCApi(Base):
     """
-    >>> OverloadCApi(derived_implemented=True) + 2
+    >>> OverloadCApi() + 2
     'OverloadCApi.__add__(OverloadCApi(), 2)'
-    >>> 2 + OverloadCApi(derived_implemented=True)
+    >>> 2 + OverloadCApi()
     'OverloadCApi.__add__(2, OverloadCApi())'
 
-    >>> OverloadCApi(derived_implemented=True) + Base(implemented=True)
+    >>> OverloadCApi() + Base()
     'OverloadCApi.__add__(OverloadCApi(), Base())'
-    >>> Base(implemented=True) + OverloadCApi(derived_implemented=True)
+    >>> Base() + OverloadCApi()
     'OverloadCApi.__add__(Base(), OverloadCApi())'
 
     >>> OverloadCApi(derived_implemented=False) + 2 #doctest: +ELLIPSIS
@@ -151,11 +151,11 @@ class OverloadCApi(Base):
     ...
     TypeError: unsupported operand type...
     """
-    derived_implemented: cython.int
+    derived_implemented: cython.bint
 
-    def __init__(self, *, derived_implemented):
+    def __init__(self, *, derived_implemented=True):
         super().__init__(implemented=True)
-        self.derived_implemented = int(derived_implemented)
+        self.derived_implemented = derived_implemented
 
     def __add__(self, other):
         if isinstance(self, OverloadCApi):
