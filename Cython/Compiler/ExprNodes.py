@@ -34,8 +34,11 @@ from . import PyrexTypes
 from .PyrexTypes import py_object_type, c_long_type, typecast, error_type, \
     unspecified_type
 from . import TypeSlots
-from .Builtin import list_type, tuple_type, set_type, dict_type, type_type, \
-     unicode_type, str_type, bytes_type, bytearray_type, basestring_type, slice_type
+from .Builtin import (
+    list_type, tuple_type, set_type, dict_type, type_type,
+    unicode_type, str_type, bytes_type, bytearray_type, basestring_type,
+    slice_type, long_type,
+)
 from . import Builtin
 from . import Symtab
 from .. import Utils
@@ -7523,9 +7526,10 @@ class SequenceNode(ExprNode):
                 arg = arg.analyse_types(env)
             self.args[i] = arg.coerce_to_pyobject(env)
         if self.mult_factor:
-            self.mult_factor = self.mult_factor.analyse_types(env)
-            if not self.mult_factor.type.is_int:
-                self.mult_factor = self.mult_factor.coerce_to_pyobject(env)
+            mult_factor = self.mult_factor.analyse_types(env)
+            if not mult_factor.type.is_int:
+                mult_factor = mult_factor.coerce_to_pyobject(env)
+            self.mult_factor = mult_factor.coerce_to_simple(env)
         self.is_temp = 1
         # not setting self.type here, subtypes do this
         return self
@@ -11597,6 +11601,24 @@ class SubNode(NumBinopNode):
 
 class MulNode(NumBinopNode):
     #  '*' operator.
+
+    def analyse_types(self, env):
+        # TODO: we could also optimise the case of "[...] * 2 * n", i.e. with an existing 'mult_factor'
+        if self.operand1.is_sequence_constructor and self.operand1.mult_factor is None:
+            operand2 = self.operand2.analyse_types(env)
+            if operand2.type.is_int or operand2.type is long_type:
+                return self.analyse_sequence_mul(env, self.operand1, operand2)
+        elif self.operand2.is_sequence_constructor and self.operand2.mult_factor is None:
+            operand1 = self.operand1.analyse_types(env)
+            if operand1.type.is_int or operand1.type is long_type:
+                return self.analyse_sequence_mul(env, self.operand2, operand1)
+
+        return NumBinopNode.analyse_types(self, env)
+
+    def analyse_sequence_mul(self, env, seq, mult):
+        assert seq.mult_factor is None
+        seq.mult_factor = mult
+        return seq.analyse_types(env)
 
     def is_py_operation_types(self, type1, type2):
         if ((type1.is_string and type2.is_int) or
