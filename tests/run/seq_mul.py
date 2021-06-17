@@ -1,5 +1,5 @@
 # mode: run
-# tag: list, mulop
+# tag: list, mulop, pure3.0
 
 import cython
 
@@ -112,8 +112,7 @@ def list_times_pyint(n: cython.longlong):
 
 
 @cython.cfunc
-@cython.returns(cython.int)
-def sideeffect(x):
+def sideeffect(x) -> cython.int:
     global _sideeffect_value
     _sideeffect_value += 1
     return _sideeffect_value + x
