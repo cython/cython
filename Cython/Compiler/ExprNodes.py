@@ -8871,8 +8871,7 @@ class DictNode(ExprNode):
                             value = value.arg
                         item.value = value.coerce_to(member.type, env)
         else:
-            self.type = error_type
-            error(self.pos, "Cannot interpret dict as type '%s'" % dst_type)
+            return super(DictNode, self).coerce_to(dst_type, env)
         return self
 
     def release_errors(self):
