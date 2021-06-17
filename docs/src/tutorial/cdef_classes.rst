@@ -66,7 +66,16 @@ implements them, we define them in:
 
 Using this, we can now change our integration example:
 
-.. literalinclude:: ../../examples/tutorial/cdef_classes/integrate.pyx
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/cdef_classes/integrate.py
+            :caption: integrate.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/cdef_classes/integrate.pyx
+             :caption: integrate.pyx
 
 This is almost as fast as the previous code, however it is much more flexible
 as the function to integrate can be changed. We can even pass in a new
