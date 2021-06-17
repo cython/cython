@@ -41,7 +41,16 @@ function on floating point numbers:
 The directive cpdef makes two versions of the method available; one
 fast for use from Cython and one slower for use from Python. Then:
 
-.. literalinclude:: ../../examples/tutorial/cdef_classes/sin_of_square.pyx
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/cdef_classes/sin_of_square.py
+            :caption: sin_of_square.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/cdef_classes/sin_of_square.pyx
+            :caption: sin_of_square.pyx
 
 This does slightly more than providing a python wrapper for a cdef
 method: unlike a cdef method, a cpdef method is fully overridable by
