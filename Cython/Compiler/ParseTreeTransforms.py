@@ -2336,9 +2336,9 @@ class AnalyseExpressionsTransform(CythonTransform):
     def replace_cpp_locals_types(self, scope):
         if self.current_directives['cpp_locals']:
             for entry in scope.entries.values():
-                if (entry.type.is_cpp_class and not entry.type.is_optional_cpp_class
-                        and not entry.is_arg):
-                    entry.type = PyrexTypes.OptionalCppClassType(entry.type)
+                if entry.type.is_cpp_class and not entry.is_arg:
+                    entry.type = entry.type.make_optional_type(
+                        check_initialized=not self.current_directives['cpp_locals_nocheck'])
                     scope.use_utility_code(
                         UtilityCode.load_cached("OptionalLocals", "CppSupport.cpp"))
 
@@ -3721,7 +3721,8 @@ class CppVariablesTransform(CythonTransform):
             for entry in scope.entries.values():
                 if (entry.type.is_cpp_class and not entry.type.is_optional_cpp_class
                         and not entry.is_arg):
-                    entry.type = PyrexTypes.OptionalCppClassType(entry.type)
+                    entry.type = entry_type.make_optional_type(
+                        check_initialized=self.current_directives['cpp_locals_nocheck'])
                     scope.use_utility_code(
                         UtilityCode.load_cached("OptionalLocals", "CppSupport.cpp"))
 

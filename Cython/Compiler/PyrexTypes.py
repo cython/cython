@@ -3805,7 +3805,7 @@ class CppClassType(CType):
             from .UtilityCode import CythonUtilityCode
             env.use_utility_code(CythonUtilityCode.load(
                 cls.replace('unordered_', '') + ".from_py", "CppConvert.pyx",
-                context=context))
+                context=context, compiler_directives=env.directives))
             self.from_py_function = cname
             return True
 
@@ -3850,7 +3850,7 @@ class CppClassType(CType):
             from .UtilityCode import CythonUtilityCode
             env.use_utility_code(CythonUtilityCode.load(
                 cls.replace('unordered_', '') + ".to_py", "CppConvert.pyx",
-                context=context))
+                context=context, compiler_directives=env.directives))
             self.to_py_function = cname
             return True
 
@@ -4071,6 +4071,15 @@ class CppClassType(CType):
         if constructor is not None and best_match([], constructor.all_alternatives()) is None:
             error(pos, "C++ class must have a nullary constructor to be %s" % msg)
 
+    def make_optional_type(self, check_initialized):
+        # defined here to try to make the OptionalCppClassType instances
+        # closer to singletons
+        if not hasattr(self, "_optional_types"):
+            self._optional_types = [None, None]
+        if not self._optional_types[int(check_initialized)]:
+            self._optional_types[int(check_initialized)] = OptionalCppClassType(self, check_initialized)
+        return self._optional_types[int(check_initialized)]
+
 class CppScopedEnumType(CType):
     # name    string
     # doc     string or None
@@ -4142,7 +4151,7 @@ class CppScopedEnumType(CType):
         env.use_utility_code(rst)
 
 
-class OptionalCppClassType(CType): #CPtrType):
+class OptionalCppClassType(CType):
     """
     A c++ class stored in a std::optional
     (Using CPointerBaseType because it should largely be accessed by dereferencing and ->)
@@ -4151,9 +4160,10 @@ class OptionalCppClassType(CType): #CPtrType):
 
     subtypes = ['base_type']
 
-    def __init__(self, base_type):
+    def __init__(self, base_type, check_initialized):
         super(OptionalCppClassType, self).__init__()
         self.base_type = base_type
+        self.check_initialized = check_initialized
 
     def declaration_code(self, entity_code,
                         for_display=0, dll_linkage=None, pyrex=0):
@@ -4165,11 +4175,17 @@ class OptionalCppClassType(CType): #CPtrType):
                 entity_code)
 
     def check_for_null_code(self, cname):
-        # TODO make this configurable
-        return "(%s.has_value())" % cname
+        if self.check_initialized:
+            return "(%s.has_value())" % cname
+        else:
+            return None
 
     def assignable_from(self, other_type):
-        return super(OptionalCppClassType, self).assignable_from(other_type) or self.base_type == other_type
+        return (super(OptionalCppClassType, self).assignable_from(other_type)
+                or self.base_type == other_type
+                # not this last case would just represent a difference in "check_initialized"
+                or (other_type.is_optional_cpp_class and other_type.base_type == base_type)
+            )
 
 
 class TemplatePlaceholderType(CType):
