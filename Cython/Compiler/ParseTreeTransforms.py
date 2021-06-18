@@ -2332,6 +2332,7 @@ class CalculateQualifiedNamesTransform(EnvTransform):
 
 
 class AnalyseExpressionsTransform(CythonTransform):
+
     def visit_ModuleNode(self, node):
         node.scope.infer_types()
         node.body = node.body.analyse_expressions(node.scope)
