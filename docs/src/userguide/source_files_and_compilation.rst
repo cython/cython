@@ -912,6 +912,16 @@ Cython code.  Here is the list of currently supported directives:
     Copy the original source code line by line into C code comments in the generated
     code file to help with understanding the output.
     This is also required for coverage analysis.
+    
+``cpp_locals`` (True / False)
+    Make C++ variables behave more like Python variables by allowing them to be
+    "unbound" instead of always default-constructing them at the start of a
+    function. See :ref:`cpp_locals directive` for more detail.
+    
+``cpp_locals_nocheck`` (True / False)
+    when the ``cpp_locals`` directive is set, this disables the safety check for 
+    whether they are bound before accessing them. See :ref:`cpp_locals directive` 
+    for more detail.
 
 .. _configurable_optimisations:
 
