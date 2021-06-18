@@ -2349,6 +2349,16 @@ class NameNode(AtomicExprNode):
             if null_code and raise_unbound and (entry.type.is_pyobject or memslice_check or entry.type.is_optional_cpp_class):
                 code.put_error_if_unbound(self.pos, entry, self.in_nogil_context)
 
+        elif entry.is_cglobal and entry.type.is_optional_cpp_class:
+            null_code = entry.type.check_for_null_code(entry.cname)
+            if null_code:
+                code.putln(
+                    'if (unlikely(!%s)) {'
+                        'PyErr_SetString(PyExc_NameError,'
+                                        '"C++ global \'%s\' is not initialized");'
+                        '%s'
+                    '}' % (null_code, self.name, code.error_goto(self.pos)))
+
     def generate_assignment_code(self, rhs, code, overloaded_assignment=False,
                                  exception_check=None, exception_value=None):
         #print "NameNode.generate_assignment_code:", self.name ###

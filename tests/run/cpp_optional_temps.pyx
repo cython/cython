@@ -147,3 +147,21 @@ cdef class HoldsC:
 
     def getCX(self):
         return self.value.getX()
+
+cdef C global_var
+
+def initialize_global_var():
+    global global_var
+    global_var = C(-1)
+
+def read_global_var():
+    """
+    >>> read_global_var()
+    Traceback (most recent call last):
+        ...
+    NameError: C++ global 'global_var' is not initialized
+    >>> initialize_global_var()
+    >>> read_global_var()
+    -1
+    """
+    print(global_var.getX())
