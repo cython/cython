@@ -851,6 +851,7 @@ class FunctionState(object):
             type = PyrexTypes.c_ptr_type(type)  # A function itself isn't an l-value
         elif type.is_cpp_class and self.scope.directives['cpp_locals']:
             type = type.make_optional_type(check_initialized=False)  # check_initialized isn't relevant for temps
+            self.scope.use_utility_code(UtilityCode.load_cached("OptionalLocals", "CppSupport.cpp"))
         if not type.is_pyobject and not type.is_memoryviewslice:
             # Make manage_ref canonical, so that manage_ref will always mean
             # a decref is needed.
