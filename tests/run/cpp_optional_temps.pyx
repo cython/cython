@@ -135,9 +135,10 @@ cdef class HoldsC:
     >>> inst.getCX()
     10
     >>> inst = HoldsC(False)
-
-    # >>> inst.getCX()  # FIXME not yet working
-    # AttributeError
+    >>> inst.getCX()
+    Traceback (most recent call last):
+        ...
+    AttributeError: C++ class attribute is not initialized
     """
     cdef C value
     def __cinit__(self, initialize):

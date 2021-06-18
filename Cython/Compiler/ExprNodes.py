@@ -7343,6 +7343,15 @@ class AttributeNode(ExprNode):
                                         '"Memoryview is not initialized");'
                         '%s'
                     '}' % (self.result(), code.error_goto(self.pos)))
+        elif self.type.is_optional_cpp_class:
+            null_code = self.type.check_for_null_code(self.result())
+            if null_code:
+                code.putln(
+                    'if (unlikely(!%s)) {'
+                        'PyErr_SetString(PyExc_AttributeError,'
+                                        '"C++ class attribute is not initialized");'
+                        '%s'
+                    '}' % (null_code, code.error_goto(self.pos)))
         else:
             # result_code contains what is needed, but we may need to insert
             # a check and raise an exception
@@ -13757,7 +13766,7 @@ class CppOptionalTempCoercion(CoercionNode):
         return "(*%s)" % self.arg.result()
 
     def generate_result_code(self, code):
-        pass # self.arg.generate_result_code(code)
+        pass
 
 
 class CMethodSelfCloneNode(CloneNode):
