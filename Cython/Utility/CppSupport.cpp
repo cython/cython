@@ -82,6 +82,7 @@ auto __Pyx_pythran_to_python(T &&value) -> decltype(to_python(
 #endif
 
 ////////////// OptionalLocals.proto ////////////////
+//@proto_block: utility_code_proto_before_types
 
 #if defined(CYTHON_USE_BOOST_OPTIONAL)
     // fallback mode - std::optional is preferred but this gives

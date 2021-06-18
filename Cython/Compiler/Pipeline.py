@@ -147,7 +147,7 @@ def create_pipeline(context, mode, exclude_classes=()):
     from .ParseTreeTransforms import CreateClosureClasses, MarkClosureVisitor, DecoratorTransform
     from .ParseTreeTransforms import TrackNumpyAttributes, InterpretCompilerDirectives, TransformBuiltinMethods
     from .ParseTreeTransforms import ExpandInplaceOperators, ParallelRangeTransform
-    from .ParseTreeTransforms import CalculateQualifiedNamesTransform, CppVariablesTransform
+    from .ParseTreeTransforms import CalculateQualifiedNamesTransform
     from .TypeInference import MarkParallelAssignments, MarkOverflowingArithmetic
     from .ParseTreeTransforms import AdjustDefByDirectives, AlignFunctionDefinitions, AutoCpdefFunctionDefinitions
     from .ParseTreeTransforms import RemoveUnreachableCode, GilCheck, FudgeCppTemps
@@ -198,7 +198,6 @@ def create_pipeline(context, mode, exclude_classes=()):
         ForwardDeclareTypes(context),
         InjectGilHandling(),
         AnalyseDeclarationsTransform(context),
-        CppVariablesTransform(context),
         AutoTestDictTransform(context),
         EmbedSignature(context),
         EarlyReplaceBuiltinCalls(context),  ## Necessary?

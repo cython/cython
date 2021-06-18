@@ -725,7 +725,14 @@ class Scope(object):
             else:
                 cname = self.mangle(Naming.var_prefix, name)
         if type.is_cpp_class and visibility != 'extern':
-            type.check_nullary_constructor(pos)
+            if self.directives['cpp_locals']:
+                # transform into a C++ optional type
+                type = type.make_optional_type(
+                        check_initialized=not self.directives['cpp_locals_nocheck'])
+                self.use_utility_code(
+                        Code.UtilityCode.load_cached("OptionalLocals", "CppSupport.cpp"))
+            else:
+                type.check_nullary_constructor(pos)
         entry = self.declare(name, cname, type, pos, visibility)
         entry.is_variable = 1
         if in_pxd and visibility != 'extern':
@@ -2235,7 +2242,14 @@ class CClassScope(ClassScope):
                     cname = c_safe_identifier(cname)
                 cname = punycodify_name(cname, Naming.unicode_structmember_prefix)
             if type.is_cpp_class and visibility != 'extern':
-                type.check_nullary_constructor(pos)
+                if self.directives['cpp_locals']:
+                    # transform into a C++ optional type
+                    type = type.make_optional_type(
+                            check_initialized=not self.directives['cpp_locals_nocheck'])
+                    self.use_utility_code(
+                            Code.UtilityCode.load_cached("OptionalLocals", "CppSupport.cpp"))
+                else:
+                    type.check_nullary_constructor(pos)
             entry = self.declare(name, cname, type, pos, visibility)
             entry.is_variable = 1
             self.var_entries.append(entry)

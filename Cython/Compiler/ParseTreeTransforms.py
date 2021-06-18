@@ -2332,16 +2332,6 @@ class CalculateQualifiedNamesTransform(EnvTransform):
 
 
 class AnalyseExpressionsTransform(CythonTransform):
-
-    def replace_cpp_locals_types(self, scope):
-        if self.current_directives['cpp_locals']:
-            for entry in scope.entries.values():
-                if entry.type.is_cpp_class and not entry.is_arg:
-                    entry.type = entry.type.make_optional_type(
-                        check_initialized=not self.current_directives['cpp_locals_nocheck'])
-                    scope.use_utility_code(
-                        UtilityCode.load_cached("OptionalLocals", "CppSupport.cpp"))
-
     def visit_ModuleNode(self, node):
         node.scope.infer_types()
         node.body = node.body.analyse_expressions(node.scope)
@@ -2350,7 +2340,6 @@ class AnalyseExpressionsTransform(CythonTransform):
 
     def visit_FuncDefNode(self, node):
         node.local_scope.infer_types()
-        self.replace_cpp_locals_types(node.local_scope)
         node.body = node.body.analyse_expressions(node.local_scope)
         self.visitchildren(node)
         return node
@@ -2402,6 +2391,7 @@ class FindInvalidUseOfFusedTypes(CythonTransform):
 
 
 class ExpandInplaceOperators(EnvTransform):
+
     def visit_InPlaceAssignmentNode(self, node):
         lhs = node.lhs
         rhs = node.rhs
@@ -3707,26 +3697,3 @@ class DebugTransform(CythonTransform):
             self.tb.start('LocalVar', attrs)
             self.tb.end('LocalVar')
 
-
-class CppVariablesTransform(CythonTransform):
-    # FIXME currently done in two places to capture inferred types, and class variables
-    def __new__(cls, context, *args, **kwds):
-        if not context.cpp:
-            return None  # there's no point wasting time on this transform in C mode
-        else:
-            return super(CppVariablesTransform, cls).__new__(cls, *args, **kwds)
-
-    def replace_types(self, scope):
-        if self.current_directives['cpp_locals']:
-            for entry in scope.entries.values():
-                if (entry.type.is_cpp_class and not entry.type.is_optional_cpp_class
-                        and not entry.is_arg):
-                    entry.type = entry_type.make_optional_type(
-                        check_initialized=self.current_directives['cpp_locals_nocheck'])
-                    scope.use_utility_code(
-                        UtilityCode.load_cached("OptionalLocals", "CppSupport.cpp"))
-
-    def visit_CClassDefNode(self, node):
-        self.visitchildren(node)
-        self.replace_types(node.scope)
-        return node
