@@ -1,7 +1,7 @@
-.. glossary::
-
 Glossary
 ========
+
+.. glossary::
 
    Extension type
       "Extension type" can refer to either a Cython class defined with ``cdef class`` or more generally to any Python type that is ultimately implemented as a native C struct (including the built-in types like `int` or `dict`).
