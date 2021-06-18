@@ -2,6 +2,9 @@
 Extension types (aka. cdef classes)
 ***********************************
 
+.. include::
+    ../two-syntax-variants-used
+
 To support object-oriented programming, Cython supports writing normal
 Python classes exactly as in Python:
 
