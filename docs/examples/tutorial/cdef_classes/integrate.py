@@ -1,7 +1,6 @@
 from cython.cimports.sin_of_square import Function, SinOfSquareFunction
 
-@cython.locals(f=Function, a=cython.double, b=cython.double, N=cython.int)
-def integrate(f, a, b, N):
+def integrate(f: Function, a: cython.double, b: cython.double, N: cython.int):
     i: cython.int
 
     if f is None:
