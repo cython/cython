@@ -120,7 +120,16 @@ There is a *compiler directive* ``nonecheck`` which turns on checks
 for this, at the cost of decreased speed. Here's how compiler directives
 are used to dynamically switch on or off ``nonecheck``:
 
-.. literalinclude:: ../../examples/tutorial/cdef_classes/nonecheck.pyx
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/cdef_classes/nonecheck.py
+            :caption: nonecheck.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/cdef_classes/nonecheck.pyx
+            :caption: nonecheck.pyx
 
 Attributes in cdef classes behave differently from attributes in regular classes:
 
