@@ -128,4 +128,13 @@ Attributes in cdef classes behave differently from attributes in regular classes
 -   Attributes are by default only accessible from Cython (typed access)
 -   Properties can be declared to expose dynamic attributes to Python-space
 
-.. literalinclude:: ../../examples/tutorial/cdef_classes/wave_function.pyx
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/cdef_classes/wave_function.py
+            :caption: wave_function.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/cdef_classes/wave_function.pyx
+            :caption: wave_function.pyx
