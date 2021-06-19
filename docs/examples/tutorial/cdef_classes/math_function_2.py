@@ -1,5 +1,5 @@
 @cython.cclass
 class Function:
     @cython.ccall
-    def evaluate(self, x: cython.double) -> cython.double:
+    def evaluate(self, x: float) -> float:
         return 0

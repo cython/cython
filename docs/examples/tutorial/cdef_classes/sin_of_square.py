@@ -6,11 +6,11 @@ else:
 @cython.cclass
 class Function:
     @cython.ccall
-    def evaluate(self, x: cython.double) -> cython.double:
+    def evaluate(self, x: float) -> float:
         return 0
 
 @cython.cclass
 class SinOfSquareFunction(Function):
     @cython.ccall
-    def evaluate(self, x: cython.double) -> cython.double:
+    def evaluate(self, x: float) -> float:
         return sin(x ** 2)
