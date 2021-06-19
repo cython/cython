@@ -1,6 +1,5 @@
 from sin_of_square cimport Function, SinOfSquareFunction
 
-
 def integrate(Function f, double a, double b, int N):
     cdef int i
     cdef double s, dx
