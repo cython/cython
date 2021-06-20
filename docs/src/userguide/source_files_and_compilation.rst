@@ -778,9 +778,12 @@ Cython code.  Here is the list of currently supported directives:
     Default is True.
 
 ``initializedcheck`` (True / False)
-    If set to True, Cython checks that a memoryview is initialized
-    whenever its elements are accessed or assigned to. Setting this
-    to False disables these checks.
+    If set to True, Cython checks that 
+     - a memoryview is initialized whenever its elements are accessed 
+       or assigned to. 
+     - a C++ class is initialized when it is accessed 
+       (only when ``cpp_locals`` is on)
+    Setting this to False disables these checks.
     Default is True.
 
 ``nonecheck``  (True / False)
@@ -917,11 +920,6 @@ Cython code.  Here is the list of currently supported directives:
     Make C++ variables behave more like Python variables by allowing them to be
     "unbound" instead of always default-constructing them at the start of a
     function. See :ref:`cpp_locals directive` for more detail.
-    
-``cpp_locals_nocheck`` (True / False)
-    when the ``cpp_locals`` directive is set, this disables the safety check for 
-    whether they are bound before accessing them. See :ref:`cpp_locals directive` 
-    for more detail.
 
 .. _configurable_optimisations:
 

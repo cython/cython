@@ -539,8 +539,7 @@ def simply_type(result_type, pos, scope):
     if result_type.is_cpp_class:
         if scope.directives['cpp_locals']:
             # transform into a C++ optional type
-            result_type = result_type.make_optional_type(
-                    check_initialized=not scope.directives['cpp_locals_nocheck'])
+            result_type = result_type.make_optional_type()
             from .Code import UtilityCode
             scope.use_utility_code(
                     UtilityCode.load_cached("OptionalLocals", "CppSupport.cpp"))

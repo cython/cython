@@ -659,7 +659,7 @@ they are assigned, for cases where Cython needs to use such objects in its
 own code-generation (often for return values of functions that can throw
 exceptions).
 
-For extra speed, the ``cpp_locals_nocheck`` directive disables the check for an
+For extra speed, the ``initializedcheck`` directive disables the check for an
 unbound-local. With this directive on, accessing a variable that has not
 been initialized will trigger undefined behaviour, and it is entirely the user's
 responsibility to avoid such access.

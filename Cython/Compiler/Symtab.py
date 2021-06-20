@@ -727,8 +727,7 @@ class Scope(object):
         if type.is_cpp_class and visibility != 'extern':
             if self.directives['cpp_locals']:
                 # transform into a C++ optional type
-                type = type.make_optional_type(
-                        check_initialized=not self.directives['cpp_locals_nocheck'])
+                type = type.make_optional_type()
                 self.use_utility_code(
                         Code.UtilityCode.load_cached("OptionalLocals", "CppSupport.cpp"))
             else:
@@ -2244,8 +2243,7 @@ class CClassScope(ClassScope):
             if type.is_cpp_class and visibility != 'extern':
                 if self.directives['cpp_locals']:
                     # transform into a C++ optional type
-                    type = type.make_optional_type(
-                            check_initialized=not self.directives['cpp_locals_nocheck'])
+                    type = type.make_optional_type()
                     self.use_utility_code(
                             Code.UtilityCode.load_cached("OptionalLocals", "CppSupport.cpp"))
                 else:

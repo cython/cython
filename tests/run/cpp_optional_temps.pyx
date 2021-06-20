@@ -96,7 +96,6 @@ def maybe_assign_directive2(assign, value):
         x = C(value)
     print(x.getX())
 
-@cython.cpp_locals_nocheck(False)
 def maybe_assign_nocheck(assign, value):
     """
     >>> maybe_assign_nocheck(True, 5)
@@ -106,7 +105,8 @@ def maybe_assign_nocheck(assign, value):
     """
     if assign:
         x = C(value)
-    print(x.getX())
+    with cython.initializedcheck(False):
+        print(x.getX())
 
 def uses_temp(value):
     """

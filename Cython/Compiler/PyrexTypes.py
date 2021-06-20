@@ -4079,14 +4079,12 @@ class CppClassType(CType):
         if constructor is not None and best_match([], constructor.all_alternatives()) is None:
             error(pos, "C++ class must have a nullary constructor to be %s" % msg)
 
-    def make_optional_type(self, check_initialized):
+    def make_optional_type(self):
         # defined here to try to make the OptionalCppClassType instances
         # closer to singletons
-        if not hasattr(self, "_optional_types"):
-            self._optional_types = [None, None]
-        if not self._optional_types[int(check_initialized)]:
-            self._optional_types[int(check_initialized)] = OptionalCppClassType(self, check_initialized)
-        return self._optional_types[int(check_initialized)]
+        if not hasattr(self, "_optional_type"):
+            self._optional_type = OptionalCppClassType(self)
+        return self._optional_type
 
 class CppScopedEnumType(CType):
     # name    string
@@ -4168,10 +4166,9 @@ class OptionalCppClassType(CType):
 
     subtypes = ['base_type']
 
-    def __init__(self, base_type, check_initialized):
+    def __init__(self, base_type):
         super(OptionalCppClassType, self).__init__()
         self.base_type = base_type
-        self.check_initialized = check_initialized
 
     def declaration_code(self, entity_code,
                         for_display=0, dll_linkage=None, pyrex=0):
@@ -4183,16 +4180,11 @@ class OptionalCppClassType(CType):
                 entity_code)
 
     def check_for_null_code(self, cname):
-        if self.check_initialized:
-            return "(%s.has_value())" % cname
-        else:
-            return None
+        return "(%s.has_value())" % cname
 
     def assignable_from(self, other_type):
         return (super(OptionalCppClassType, self).assignable_from(other_type)
                 or self.base_type == other_type
-                # not this last case would just represent a difference in "check_initialized"
-                or (other_type.is_optional_cpp_class and other_type.base_type == base_type)
             )
 
 

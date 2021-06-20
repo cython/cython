@@ -2345,19 +2345,20 @@ class NameNode(AtomicExprNode):
             null_code = entry.type.check_for_null_code(entry.cname)
 
             memslice_check = entry.type.is_memoryviewslice and self.initialized_check
+            optional_cpp_check = entry.type.is_optional_cpp_class and self.initialized_check
 
-            if null_code and raise_unbound and (entry.type.is_pyobject or memslice_check or entry.type.is_optional_cpp_class):
+
+            if null_code and raise_unbound and (entry.type.is_pyobject or memslice_check or optional_cpp_check):
                 code.put_error_if_unbound(self.pos, entry, self.in_nogil_context)
 
-        elif entry.is_cglobal and entry.type.is_optional_cpp_class:
+        elif entry.is_cglobal and entry.type.is_optional_cpp_class and self.initialized_check:
             null_code = entry.type.check_for_null_code(entry.cname)
-            if null_code:
-                code.putln(
-                    'if (unlikely(!%s)) {'
-                        'PyErr_SetString(PyExc_NameError,'
-                                        '"C++ global \'%s\' is not initialized");'
-                        '%s'
-                    '}' % (null_code, self.name, code.error_goto(self.pos)))
+            code.putln(
+                'if (unlikely(!%s)) {'
+                    'PyErr_SetString(PyExc_NameError,'
+                                    '"C++ global \'%s\' is not initialized");'
+                    '%s'
+                '}' % (null_code, self.name, code.error_goto(self.pos)))
 
     def generate_assignment_code(self, rhs, code, overloaded_assignment=False,
                                  exception_check=None, exception_value=None):
@@ -7353,15 +7354,14 @@ class AttributeNode(ExprNode):
                                         '"Memoryview is not initialized");'
                         '%s'
                     '}' % (self.result(), code.error_goto(self.pos)))
-        elif self.type.is_optional_cpp_class:
+        elif self.type.is_optional_cpp_class and self.initialized_check:
             null_code = self.type.check_for_null_code(self.result())
-            if null_code:
-                code.putln(
-                    'if (unlikely(!%s)) {'
-                        'PyErr_SetString(PyExc_AttributeError,'
-                                        '"C++ class attribute is not initialized");'
-                        '%s'
-                    '}' % (null_code, code.error_goto(self.pos)))
+            code.putln(
+                'if (unlikely(!%s)) {'
+                    'PyErr_SetString(PyExc_AttributeError,'
+                                    '"C++ class attribute is not initialized");'
+                    '%s'
+                '}' % (null_code, code.error_goto(self.pos)))
         else:
             # result_code contains what is needed, but we may need to insert
             # a check and raise an exception
