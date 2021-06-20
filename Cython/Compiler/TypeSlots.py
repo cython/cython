@@ -219,13 +219,17 @@ class SlotDescriptor(object):
     #  py3                           Indicates presence of slot in Python 3
     #  py2                           Indicates presence of slot in Python 2
     #  ifdef                         Full #ifdef string that slot is wrapped in. Using this causes py3, py2 and flags to be ignored.)
+    #  used_ifdef                    Full #ifdef string that the slot value is wrapped in (otherwise it is assigned NULL)
+    #                                Unlike "ifdef" the slot is defined and this just controls if it receives a value
 
     def __init__(self, slot_name, dynamic=False, inherited=False,
-                 py3=True, py2=True, ifdef=None, is_binop=False):
+                 py3=True, py2=True, ifdef=None, is_binop=False,
+                 used_ifdef=None):
         self.slot_name = slot_name
         self.is_initialised_dynamically = dynamic
         self.is_inherited = inherited
         self.ifdef = ifdef
+        self.used_ifdef = used_ifdef
         self.py3 = py3
         self.py2 = py2
         self.is_binop = is_binop
@@ -291,7 +295,13 @@ class SlotDescriptor(object):
                     code.putln("#else")
                     end_pypy_guard = True
 
+        if self.used_ifdef:
+            code.putln("#if %s" % self.used_ifdef)
         code.putln("%s, /*%s*/" % (value, self.slot_name))
+        if self.used_ifdef:
+            code.putln("#else")
+            code.putln("NULL, /*%s*/" % self.slot_name)
+            code.putln("#endif")
 
         if end_pypy_guard:
             code.putln("#endif")
@@ -501,23 +511,6 @@ class SyntheticSlot(InternalMethodSlot):
         if self.slot_name == "tp_getattro" and not scope.defines_any_special(self.user_methods):
             return "PyObject_GenericGetAttr"
         return self.slot_code(scope)
-
-
-class DelSlot(SyntheticSlot):
-    # For __del__ if defined
-    def __init__(self, slot_name, user_methods, default_value, **kwargs):
-        super(DelSlot, self).__init__(slot_name, user_methods, default_value, **kwargs)
-
-    def slot_code(self, scope):
-        if not scope.lookup_here("__del__"):
-            return 0
-        return """
-        #if CYTHON_USE_TP_FINALIZE
-        %s
-        #else
-        NULL
-        #endif
-        """ % InternalMethodSlot.slot_code(self, scope)
 
 
 class BinopSlot(SyntheticSlot):
@@ -1027,7 +1020,8 @@ slot_table = (
     EmptySlot("tp_weaklist"),
     EmptySlot("tp_del"),
     EmptySlot("tp_version_tag"),
-    DelSlot("tp_finalize", ["__del__"], "0", ifdef="PY_VERSION_HEX >= 0x030400a1"),
+    SyntheticSlot("tp_finalize", ["__del__"], "0", ifdef="PY_VERSION_HEX >= 0x030400a1",
+                    used_ifdef="CYTHON_USE_TP_FINALIZE"),
     EmptySlot("tp_vectorcall", ifdef="PY_VERSION_HEX >= 0x030800b1"),
     EmptySlot("tp_print", ifdef="PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000"),
     # PyPy specific extension - only here to avoid C compiler warnings.
