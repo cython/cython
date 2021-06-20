@@ -330,7 +330,6 @@ def update_cpp17_extension(ext):
         if sys.version_info[0] < 3:
             ext.extra_compile_args.append('-Wno-register')  # the Python 2.7 headers contain register
                 # which clang warns about with C++17 on
-        ext.extra_compile_args.
         if sys.platform == "darwin":
           ext.extra_compile_args.append("-stdlib=libc++")
           ext.extra_compile_args.append("-mmacosx-version-min=10.13")
