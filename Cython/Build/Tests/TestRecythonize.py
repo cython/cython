@@ -71,11 +71,9 @@ class TestRecythonize(CythonTest):
             a_c_before = f.read()
 
         if creating_pxd:
-            self.assertTrue("a_x = 1;" not in a_c_before,
-                            INCOR + '"a_x = 1;" in a_c_before')
+            self.assertTrue("a_x = 1;" not in a_c_before, INCOR)
         else:
-            self.assertTrue("a_x = 1;" in a_c_before,
-                            INCOR + '"a_x = 1;" not in a_c_before')
+            self.assertTrue("a_x = 1;" in a_c_before, INCOR)
 
         with open(a_pxd, 'w') as f:
             f.write('cdef float x\n')
@@ -92,10 +90,8 @@ class TestRecythonize(CythonTest):
         with open(a_c) as f:
             a_c_after = f.read()
 
-        self.assertTrue("a_x = 1;" not in a_c_after,
-                        SAME + '"a_x = 1;" in a_c_after')
-        self.assertTrue("a_x = 1.0;" in a_c_after,
-                        INCOR + '"a_x = 1.0;" not in a_c_after')
+        self.assertTrue("a_x = 1;" not in a_c_after, SAME)
+        self.assertTrue("a_x = 1.0;" in a_c_after, INCOR)
 
     # creating_pxd is not used because cimport requires pxd
     # to import another script.
@@ -134,10 +130,8 @@ class TestRecythonize(CythonTest):
         with open(b_c) as f:
             b_c_before = f.read()
 
-        self.assertTrue("a_x = 1;" in a_c_before,
-                        INCOR + '"a_x = 1;" not in a_c_before')
-        self.assertTrue("a_x = 2;" in b_c_before,
-                        INCOR + '"a_x = 2;" not in b_c_before')
+        self.assertTrue("a_x = 1;" in a_c_before, INCOR)
+        self.assertTrue("a_x = 2;" in b_c_before, INCOR)
 
         with open(a_pxd, 'w') as f:
             f.write('cdef float x\n')
@@ -151,14 +145,10 @@ class TestRecythonize(CythonTest):
         with open(b_c) as f:
             b_c_after = f.read()
 
-        self.assertTrue("a_x = 1;" not in a_c_after,
-                        SAME + '"a_x = 1;" in file a.c')
-        self.assertTrue("a_x = 2;" not in b_c_after,
-                        SAME + '"a_x = 2;" in b_c_after')
-        self.assertTrue("a_x = 1.0;" in a_c_after,
-                        INCOR + '"a_x = 1.0;" not in a_c_after')
-        self.assertTrue("a_x = 2.0;" in b_c_after,
-                        INCOR + '"a_x = 2.0;" not in b_c_after')
+        self.assertTrue("a_x = 1;" not in a_c_after, SAME)
+        self.assertTrue("a_x = 2;" not in b_c_after, SAME)
+        self.assertTrue("a_x = 1.0;" in a_c_after, INCOR)
+        self.assertTrue("a_x = 2.0;" in b_c_after,INCOR)
 
     def test_recythonize_py_on_pxd_change(self):
         self.recythonize_on_pxd_change(".py", False)
