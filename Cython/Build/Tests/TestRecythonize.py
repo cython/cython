@@ -25,6 +25,7 @@ class TestRecythonize(CythonTest):
         )
         self.src_dir = tempfile.mkdtemp(prefix='src', dir=self.temp_dir)
         self.dep_tree = Cython.Build.Dependencies.create_dependency_tree()
+        self.language_level = 3
 
     def tearDown(self):
         CythonTest.tearDown(self)
@@ -33,6 +34,7 @@ class TestRecythonize(CythonTest):
     def fresh_cythonize(self, *args, **kwargs):
         Cython.Utils.clear_function_caches()
         Cython.Build.Dependencies._dep_tree = None  # discard method caches
+        kwargs.update(language_level=self.language_level)
         Cython.Build.Dependencies.cythonize(*args, **kwargs)
 
     def refresh_dep_tree(self):
@@ -173,3 +175,6 @@ class TestRecythonize(CythonTest):
 
     def test_recythonize_pyx_pyx_on_dep_pxd_change(self):
         self.recythonize_on_dep_pxd_change(".pyx", ".pyx")
+
+if __name__ == "__main__":
+    main()
