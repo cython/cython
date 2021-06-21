@@ -54,6 +54,21 @@ def cached_function(f):
     return wrapper
 
 
+# or clear_instance_method_caches
+def clear_method_caches(instance):
+    pattern = re.compile(r"__(.+)_cache")
+
+    for attr_name in dir(instance):
+        match = pattern.fullmatch(attr_name)
+        if match is None:
+            continue
+
+        func_name = match.group(1)
+        # additional check that the function exists
+        if getattr(instance, func_name, None) is not None:
+            delattr(instance, attr_name)
+
+
 def cached_method(f):
     cache_name = '__%s_cache' % f.__name__
 
