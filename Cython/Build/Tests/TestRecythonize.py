@@ -7,12 +7,13 @@ import Cython.Utils
 from Cython.TestUtils import CythonTest
 
 
-SAME = "The result of cytonization is the same: "
-INCOR = "Incorrect cythonization: "
+
+SAME = "The result of cytonization is the same"
+INCOR = "Incorrect cythonization"
+LINE_1 = '  /* "{name}{ext}":1\n'
+VARS_LINE = '  /*--- Wrapped vars code ---*/\n'
 
 
-# assertIn and assertNotIn are not used to validate the generated code
-# as a failure causes an unreadable mess
 class TestRecythonize(CythonTest):
 
     def setUp(self):
@@ -46,10 +47,31 @@ class TestRecythonize(CythonTest):
         self.refresh_dep_tree()
         return self.dep_tree.all_dependencies(*args, **kwargs)
 
+    def relative_lines(self, lines, line, start, end):
+        try:
+            ind = lines.index(line)
+            return lines[ind+start: ind+end]
+        except ValueError:
+            # XXX: It is assumed that VARS_LINE is always present.
+            ind = lines.index(VARS_LINE)
+            raise ValueError(
+                "{0!r} was not found, presumably in {1}".format(
+                    line, lines[ind-10: ind-1]))
+        except Exception as e:
+            raise e
+
+    def relative_lines_from_file(self, path, line, start, end):
+        with open(path) as f:
+            lines = f.readlines()
+
+        return self.relative_lines(lines, line, start, end)
+
     def recythonize_on_pxd_change(self, ext, creating_pxd):
         a_pxd = os.path.join(self.src_dir, 'a.pxd')  # will be changed
         a_source = os.path.join(self.src_dir, 'a' + ext)
         a_c = os.path.join(self.src_dir, 'a.c')  # change check
+
+        a_line_1 = LINE_1.format(name="a", ext=ext)
 
         if not creating_pxd:
             with open(a_pxd, 'w') as f:
@@ -69,13 +91,13 @@ class TestRecythonize(CythonTest):
         # Create a.c
         self.fresh_cythonize(a_source)
 
-        with open(a_c) as f:
-            a_c_before = f.read()
+        definition_before = "".join(
+            self.relative_lines_from_file(a_c, a_line_1, 0, 7))
 
         if creating_pxd:
-            self.assertTrue("a_x = 1;" not in a_c_before, INCOR)
+            self.assertNotIn("a_x = 1;", definition_before, INCOR)
         else:
-            self.assertTrue("a_x = 1;" in a_c_before, INCOR)
+            self.assertIn("a_x = 1;", definition_before, INCOR)
 
         with open(a_pxd, 'w') as f:
             f.write('cdef float x\n')
@@ -89,11 +111,11 @@ class TestRecythonize(CythonTest):
         # Change a.c
         self.fresh_cythonize(a_source)
 
-        with open(a_c) as f:
-            a_c_after = f.read()
+        definition_after = "".join(
+            self.relative_lines_from_file(a_c, a_line_1, 0, 7))
 
-        self.assertTrue("a_x = 1;" not in a_c_after, SAME)
-        self.assertTrue("a_x = 1.0;" in a_c_after, INCOR)
+        self.assertNotIn("a_x = 1;", definition_after, SAME)
+        self.assertIn("a_x = 1.0;", definition_after, INCOR)
 
     # creating_pxd is not used because cimport requires pxd
     # to import another script.
@@ -104,6 +126,9 @@ class TestRecythonize(CythonTest):
         b_pxd = os.path.join(self.src_dir, 'b.pxd')  # for cimport
         b_source = os.path.join(self.src_dir, 'b' + ext_b)  # reason for change
         b_c = os.path.join(self.src_dir, 'b.c')  # change check
+
+        a_line_1 = LINE_1.format(name="a", ext=ext_a)
+        b_line_1 = LINE_1.format(name="b", ext=ext_b)
 
         with open(a_pxd, 'w') as f:
             f.write('cdef int x\n')
@@ -126,14 +151,14 @@ class TestRecythonize(CythonTest):
         # Create a.c and b.c
         self.fresh_cythonize([a_source, b_source])
 
-        with open(a_c) as f:
-            a_c_before = f.read()
+        a_definition_before = "".join(
+            self.relative_lines_from_file(a_c, a_line_1, 0, 7))
 
-        with open(b_c) as f:
-            b_c_before = f.read()
+        b_definition_before = "".join(
+            self.relative_lines_from_file(b_c, b_line_1, 0, 7))
 
-        self.assertTrue("a_x = 1;" in a_c_before, INCOR)
-        self.assertTrue("a_x = 2;" in b_c_before, INCOR)
+        self.assertIn("a_x = 1;", a_definition_before, INCOR)
+        self.assertIn("a_x = 2;", b_definition_before, INCOR)
 
         with open(a_pxd, 'w') as f:
             f.write('cdef float x\n')
@@ -141,16 +166,16 @@ class TestRecythonize(CythonTest):
         # Change a.c and b.c
         self.fresh_cythonize([a_source, b_source])
 
-        with open(a_c) as f:
-            a_c_after = f.read()
+        a_definition_after = "".join(
+            self.relative_lines_from_file(a_c, a_line_1, 0, 7))
 
-        with open(b_c) as f:
-            b_c_after = f.read()
+        b_definition_after = "".join(
+            self.relative_lines_from_file(b_c, b_line_1, 0, 7))
 
-        self.assertTrue("a_x = 1;" not in a_c_after, SAME)
-        self.assertTrue("a_x = 2;" not in b_c_after, SAME)
-        self.assertTrue("a_x = 1.0;" in a_c_after, INCOR)
-        self.assertTrue("a_x = 2.0;" in b_c_after,INCOR)
+        self.assertNotIn("a_x = 1;", a_definition_after, SAME)
+        self.assertNotIn("a_x = 2;", b_definition_after, SAME)
+        self.assertIn("a_x = 1.0;", a_definition_after, INCOR)
+        self.assertIn("a_x = 2.0;", b_definition_after, INCOR)
 
     def test_recythonize_py_on_pxd_change(self):
         self.recythonize_on_pxd_change(".py", False)
