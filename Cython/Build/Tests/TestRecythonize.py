@@ -34,7 +34,7 @@ class TestRecythonize(CythonTest):
         Cython.Utils.clear_function_caches()
         Cython.Build.Dependencies._dep_tree = None  # discard method caches
         Cython.Build.Dependencies.cythonize(*args, **kwargs)
-        
+
     def refresh_dep_tree(self):
         Cython.Utils.clear_function_caches()
         Cython.Utils.clear_method_caches(self.dep_tree)
@@ -165,7 +165,7 @@ class TestRecythonize(CythonTest):
 
     def test_recythonize_pyx_on_pxd_change(self):
         self.recythonize_on_pxd_change(".pyx", False)
-        
+
     def test_recythonize_py_on_pxd_creating(self):
         self.recythonize_on_pxd_change(".py", True)
 
