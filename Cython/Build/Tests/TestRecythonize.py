@@ -175,6 +175,3 @@ class TestRecythonize(CythonTest):
 
     def test_recythonize_pyx_pyx_on_dep_pxd_change(self):
         self.recythonize_on_dep_pxd_change(".pyx", ".pyx")
-
-if __name__ == "__main__":
-    main()
