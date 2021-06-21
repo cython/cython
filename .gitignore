@@ -10,9 +10,13 @@ __pycache__
 *venv*/
 
 Cython/Compiler/*.c
+Cython/Compiler/*.pyd
 Cython/Plex/*.c
+Cython/Plex/*.pyd
 Cython/Runtime/refnanny.c
+Cython/Runtime/refnanny.*.pyd
 Cython/Tempita/*.c
+Cython/Tempita/*.pyd
 Cython/*.c
 Cython/*.html
 Cython/*/*.html
