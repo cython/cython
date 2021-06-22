@@ -31,7 +31,8 @@ class TestRecythonize(CythonTest):
                 dir='TEST_TMP' if os.path.isdir('TEST_TMP') else None
             )
         )
-        self.src_dir = tempfile.mkdtemp(prefix='src', dir=self.temp_dir)
+        self.src_dir = os.path.join(self.temp_dir, 'src')
+        os.mkdir(self.src_dir)  # self.temp_dir is already a temp
 
     def tearDown(self):
         CythonTest.tearDown(self)
