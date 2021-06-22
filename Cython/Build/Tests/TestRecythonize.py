@@ -9,7 +9,7 @@ from Cython.TestUtils import CythonTest
 
 
 SAME = "The result of cytonization is the same"
-INCOR = "Incorrect cythonization"
+INCORRECT = "Incorrect cythonization"
 LINE_1 = '  /* "{name}{ext}":1\n'
 VARS_LINE = '  /*--- Wrapped vars code ---*/\n'
 
@@ -95,9 +95,9 @@ class TestRecythonize(CythonTest):
             self.relative_lines_from_file(a_c, a_line_1, 0, 7))
 
         if creating_pxd:
-            self.assertNotIn("a_x = 1;", definition_before, INCOR)
+            self.assertNotIn("a_x = 1;", definition_before, INCORRECT)
         else:
-            self.assertIn("a_x = 1;", definition_before, INCOR)
+            self.assertIn("a_x = 1;", definition_before, INCORRECT)
 
         with open(a_pxd, 'w') as f:
             f.write('cdef float x\n')
@@ -115,7 +115,7 @@ class TestRecythonize(CythonTest):
             self.relative_lines_from_file(a_c, a_line_1, 0, 7))
 
         self.assertNotIn("a_x = 1;", definition_after, SAME)
-        self.assertIn("a_x = 1.0;", definition_after, INCOR)
+        self.assertIn("a_x = 1.0;", definition_after, INCORRECT)
 
     # creating_pxd is not used because cimport requires pxd
     # to import another script.
@@ -157,8 +157,8 @@ class TestRecythonize(CythonTest):
         b_definition_before = "".join(
             self.relative_lines_from_file(b_c, b_line_1, 0, 7))
 
-        self.assertIn("a_x = 1;", a_definition_before, INCOR)
-        self.assertIn("a_x = 2;", b_definition_before, INCOR)
+        self.assertIn("a_x = 1;", a_definition_before, INCORRECT)
+        self.assertIn("a_x = 2;", b_definition_before, INCORRECT)
 
         with open(a_pxd, 'w') as f:
             f.write('cdef float x\n')
@@ -174,8 +174,8 @@ class TestRecythonize(CythonTest):
 
         self.assertNotIn("a_x = 1;", a_definition_after, SAME)
         self.assertNotIn("a_x = 2;", b_definition_after, SAME)
-        self.assertIn("a_x = 1.0;", a_definition_after, INCOR)
-        self.assertIn("a_x = 2.0;", b_definition_after, INCOR)
+        self.assertIn("a_x = 1.0;", a_definition_after, INCORRECT)
+        self.assertIn("a_x = 2.0;", b_definition_after, INCORRECT)
 
     def test_recythonize_py_on_pxd_change(self):
         self.recythonize_on_pxd_change(".py", False)
