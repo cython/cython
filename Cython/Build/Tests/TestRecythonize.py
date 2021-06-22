@@ -66,14 +66,14 @@ class TestRecythonize(CythonTest):
 
         return self.relative_lines(lines, line, start, end)
 
-    def recythonize_on_pxd_change(self, ext, creating_pxd):
+    def recythonize_on_pxd_change(self, ext, pxd_exists_for_first_check):
         a_pxd = os.path.join(self.src_dir, 'a.pxd')  # will be changed
         a_source = os.path.join(self.src_dir, 'a' + ext)
         a_c = os.path.join(self.src_dir, 'a.c')  # change check
 
         a_line_1 = LINE_1.format(name="a", ext=ext)
 
-        if not creating_pxd:
+        if pxd_exists_for_first_check:
             with open(a_pxd, 'w') as f:
                 f.write('cdef int x\n')
 
@@ -82,11 +82,11 @@ class TestRecythonize(CythonTest):
 
         dependencies = self.fresh_all_dependencies(a_source)
         self.assertIn(a_source, dependencies)
-        if creating_pxd:
-            self.assertEqual(1, len(dependencies))
-        else:
+        if pxd_exists_for_first_check:
             self.assertIn(a_pxd, dependencies)
             self.assertEqual(2, len(dependencies))
+        else:
+            self.assertEqual(1, len(dependencies))
 
         # Create a.c
         self.fresh_cythonize(a_source)
@@ -94,15 +94,16 @@ class TestRecythonize(CythonTest):
         definition_before = "".join(
             self.relative_lines_from_file(a_c, a_line_1, 0, 7))
 
-        if creating_pxd:
-            self.assertNotIn("a_x = 1;", definition_before, INCORRECT)
-        else:
+        if pxd_exists_for_first_check:
             self.assertIn("a_x = 1;", definition_before, INCORRECT)
+        else:
+            self.assertNotIn("a_x = 1;", definition_before, INCORRECT)
 
         with open(a_pxd, 'w') as f:
             f.write('cdef float x\n')
 
-        if creating_pxd:
+        # otherwise nothing changes since there are no new files
+        if not pxd_exists_for_first_check:
             dependencies = self.fresh_all_dependencies(a_source)
             self.assertIn(a_source, dependencies)
             self.assertIn(a_pxd, dependencies)
@@ -117,7 +118,7 @@ class TestRecythonize(CythonTest):
         self.assertNotIn("a_x = 1;", definition_after, SAME)
         self.assertIn("a_x = 1.0;", definition_after, INCORRECT)
 
-    # creating_pxd is not used because cimport requires pxd
+    # pxd_exists_for_first_check is not used because cimport requires pxd
     # to import another script.
     def recythonize_on_dep_pxd_change(self, ext_a, ext_b):
         a_pxd = os.path.join(self.src_dir, 'a.pxd')  # will be changed
@@ -178,16 +179,16 @@ class TestRecythonize(CythonTest):
         self.assertIn("a_x = 2.0;", b_definition_after, INCORRECT)
 
     def test_recythonize_py_on_pxd_change(self):
-        self.recythonize_on_pxd_change(".py", False)
+        self.recythonize_on_pxd_change(".py", pxd_exists_for_first_check=True)
 
     def test_recythonize_pyx_on_pxd_change(self):
-        self.recythonize_on_pxd_change(".pyx", False)
+        self.recythonize_on_pxd_change(".pyx", pxd_exists_for_first_check=True)
 
     def test_recythonize_py_on_pxd_creating(self):
-        self.recythonize_on_pxd_change(".py", True)
+        self.recythonize_on_pxd_change(".py", pxd_exists_for_first_check=False)
 
     def test_recythonize_pyx_on_pxd_creating(self):
-        self.recythonize_on_pxd_change(".pyx", True)
+        self.recythonize_on_pxd_change(".pyx", pxd_exists_for_first_check=False)
 
     def test_recythonize_py_py_on_dep_pxd_change(self):
         self.recythonize_on_dep_pxd_change(".py", ".py")
