@@ -80,7 +80,7 @@ class TestRecythonize(CythonTest):
         
         pxd_to_be_modified = os.path.join(self.src_dir, 'a.pxd')
         source = os.path.join(self.src_dir, source_filename)
-        generated_c_what_should_change = os.path.join(self.src_dir, 'a.c')
+        generated_c = os.path.join(self.src_dir, 'a.c')  # should change
 
         source_line_1 = LINE_BEFORE_IMPLEMENTATION.format(
             filename=source_filename, at_line=1)
@@ -104,7 +104,7 @@ class TestRecythonize(CythonTest):
         self.fresh_cythonize(source)
 
         definition_before = self.relative_lines_from_file(
-            generated_c_what_should_change, source_line_1, 0, 7)
+            generated_c, source_line_1, 0, 7)
 
         if pxd_exists_for_first_check:
             self.assertIn("a_x = 1;", definition_before, INCORRECT)
@@ -125,7 +125,7 @@ class TestRecythonize(CythonTest):
         self.fresh_cythonize(source)
 
         definition_after = self.relative_lines_from_file(
-            generated_c_what_should_change, source_line_1, 0, 7)
+            generated_c, source_line_1, 0, 7)
 
         self.assertNotIn("a_x = 1;", definition_after, SAME)
         self.assertIn("a_x = 1.0;", definition_after, INCORRECT)
@@ -137,10 +137,10 @@ class TestRecythonize(CythonTest):
 
         pxd_to_be_modified = os.path.join(self.src_dir, 'a.pxd')
         source_dependency = os.path.join(self.src_dir, dep_filename)
-        c_generated_from_dep_that_should_change = os.path.join(self.src_dir, 'a.c')
+        c_generated_from_dep = os.path.join(self.src_dir, 'a.c')  # should change
         pxd_for_cimport = os.path.join(self.src_dir, 'b.pxd')
         source = os.path.join(self.src_dir, source_filename)
-        c_generated_from_source_that_should_change = os.path.join(self.src_dir, 'b.c')
+        c_generated_from_source = os.path.join(self.src_dir, 'b.c')  # should change
 
         dep_line_1 = LINE_BEFORE_IMPLEMENTATION.format(
             filename=dep_filename, at_line=1)
@@ -169,10 +169,10 @@ class TestRecythonize(CythonTest):
         self.fresh_cythonize([source_dependency, source])
 
         a_definition_before = self.relative_lines_from_file(
-            c_generated_from_dep_that_should_change, dep_line_1, 0, 7)
+            c_generated_from_dep, dep_line_1, 0, 7)
 
         b_definition_before = self.relative_lines_from_file(
-            c_generated_from_source_that_should_change, source_line_1, 0, 7)
+            c_generated_from_source, source_line_1, 0, 7)
 
         self.assertIn("a_x = 1;", a_definition_before, INCORRECT)
         self.assertIn("a_x = 2;", b_definition_before, INCORRECT)
@@ -184,10 +184,10 @@ class TestRecythonize(CythonTest):
         self.fresh_cythonize([source_dependency, source])
 
         a_definition_after = self.relative_lines_from_file(
-            c_generated_from_dep_that_should_change, dep_line_1, 0, 7)
+            c_generated_from_dep, dep_line_1, 0, 7)
 
         b_definition_after = self.relative_lines_from_file(
-            c_generated_from_source_that_should_change, source_line_1, 0, 7)
+            c_generated_from_source, source_line_1, 0, 7)
 
         self.assertNotIn("a_x = 1;", a_definition_after, SAME)
         self.assertNotIn("a_x = 2;", b_definition_after, SAME)
