@@ -69,7 +69,7 @@ class TestRecythonize(CythonTest):
         with open(path) as f:
             lines = f.readlines()
 
-        lines = self.relative_lines(lines, line, start, end, join)
+        lines = self.relative_lines(lines, line, start, end)
         if join:
             return "".join(lines)
         return lines
