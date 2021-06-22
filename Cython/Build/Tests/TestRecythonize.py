@@ -69,59 +69,59 @@ class TestRecythonize(CythonTest):
         with open(path) as f:
             lines = f.readlines()
 
-
         lines = self.relative_lines(lines, line, start, end, join)
         if join:
             return "".join(lines)
         return lines
+
     def recythonize_on_pxd_change(self, ext, pxd_exists_for_first_check):
-        a_pxd = os.path.join(self.src_dir, 'a.pxd')  # will be changed
-        a_source = os.path.join(self.src_dir, 'a' + ext)
-        a_c = os.path.join(self.src_dir, 'a.c')  # change check
+        pxd_to_be_modified = os.path.join(self.src_dir, 'a.pxd')
+        source = os.path.join(self.src_dir, 'a' + ext)
+        generated_c_what_should_change = os.path.join(self.src_dir, 'a.c')
 
         a_line_1 = LINE_1.format(name="a", ext=ext)
 
         if pxd_exists_for_first_check:
-            with open(a_pxd, 'w') as f:
+            with open(pxd_to_be_modified, 'w') as f:
                 f.write('cdef int x\n')
 
-        with open(a_source, 'w') as f:
+        with open(source, 'w') as f:
             f.write('x = 1\n')
 
-        dependencies = self.fresh_all_dependencies(a_source)
-        self.assertIn(a_source, dependencies)
+        dependencies = self.fresh_all_dependencies(source)
+        self.assertIn(source, dependencies)
         if pxd_exists_for_first_check:
-            self.assertIn(a_pxd, dependencies)
+            self.assertIn(pxd_to_be_modified, dependencies)
             self.assertEqual(2, len(dependencies))
         else:
             self.assertEqual(1, len(dependencies))
 
         # Create a.c
-        self.fresh_cythonize(a_source)
+        self.fresh_cythonize(source)
 
         definition_before = self.relative_lines_from_file(
-            a_c, a_line_1, 0, 7)
+            generated_c_what_should_change, a_line_1, 0, 7)
 
         if pxd_exists_for_first_check:
             self.assertIn("a_x = 1;", definition_before, INCORRECT)
         else:
             self.assertNotIn("a_x = 1;", definition_before, INCORRECT)
 
-        with open(a_pxd, 'w') as f:
+        with open(pxd_to_be_modified, 'w') as f:
             f.write('cdef float x\n')
 
         # otherwise nothing changes since there are no new files
         if not pxd_exists_for_first_check:
-            dependencies = self.fresh_all_dependencies(a_source)
-            self.assertIn(a_source, dependencies)
-            self.assertIn(a_pxd, dependencies)
+            dependencies = self.fresh_all_dependencies(source)
+            self.assertIn(source, dependencies)
+            self.assertIn(pxd_to_be_modified, dependencies)
             self.assertEqual(2, len(dependencies))
 
         # Change a.c
-        self.fresh_cythonize(a_source)
+        self.fresh_cythonize(source)
 
         definition_after = self.relative_lines_from_file(
-            a_c, a_line_1, 0, 7)
+            generated_c_what_should_change, a_line_1, 0, 7)
 
         self.assertNotIn("a_x = 1;", definition_after, SAME)
         self.assertIn("a_x = 1.0;", definition_after, INCORRECT)
@@ -129,53 +129,57 @@ class TestRecythonize(CythonTest):
     # pxd_exists_for_first_check is not used because cimport requires pxd
     # to import another script.
     def recythonize_on_dep_pxd_change(self, ext_a, ext_b):
-        a_pxd = os.path.join(self.src_dir, 'a.pxd')  # will be changed
-        a_source = os.path.join(self.src_dir, 'a' + ext_a)  # dependency
-        a_c = os.path.join(self.src_dir, 'a.c')  # change check
-        b_pxd = os.path.join(self.src_dir, 'b.pxd')  # for cimport
-        b_source = os.path.join(self.src_dir, 'b' + ext_b)  # reason for change
-        b_c = os.path.join(self.src_dir, 'b.c')  # change check
+        pxd_to_be_modified = os.path.join(self.src_dir, 'a.pxd')
+        source_dependency = os.path.join(self.src_dir, 'a' + ext_a)
+        c_generated_from_dep_that_should_change = os.path.join(self.src_dir, 'a.c')
+        pxd_for_cimport = os.path.join(self.src_dir, 'b.pxd')
+        source = os.path.join(self.src_dir, 'b' + ext_b)
+        c_generated_from_source_that_should_change = os.path.join(self.src_dir, 'b.c')
 
         a_line_1 = LINE_1.format(name="a", ext=ext_a)
         b_line_1 = LINE_1.format(name="b", ext=ext_b)
 
-        with open(a_pxd, 'w') as f:
+        with open(pxd_to_be_modified, 'w') as f:
             f.write('cdef int x\n')
 
-        with open(a_source, 'w') as f:
+        with open(source_dependency, 'w') as f:
             f.write('x = 1\n')
 
-        with open(b_pxd, 'w') as f:
+        with open(pxd_for_cimport, 'w') as f:
             f.write('cimport a\n')
 
-        with open(b_source, 'w') as f:
+        with open(source, 'w') as f:
             f.write('a.x = 2\n')
 
-        dependencies = self.fresh_all_dependencies(b_source)
-        self.assertIn(b_pxd, dependencies)
-        self.assertIn(b_source, dependencies)
-        self.assertIn(a_pxd, dependencies)
+        dependencies = self.fresh_all_dependencies(source)
+        self.assertIn(pxd_for_cimport, dependencies)
+        self.assertIn(source, dependencies)
+        self.assertIn(pxd_to_be_modified, dependencies)
         self.assertEqual(3, len(dependencies))
 
         # Create a.c and b.c
-        self.fresh_cythonize([a_source, b_source])
+        self.fresh_cythonize([source_dependency, source])
 
-        a_definition_before = self.relative_lines_from_file(a_c, a_line_1, 0, 7)
+        a_definition_before = self.relative_lines_from_file(
+            c_generated_from_dep_that_should_change, a_line_1, 0, 7)
 
-        b_definition_before = self.relative_lines_from_file(b_c, b_line_1, 0, 7)
+        b_definition_before = self.relative_lines_from_file(
+            c_generated_from_source_that_should_change, b_line_1, 0, 7)
 
         self.assertIn("a_x = 1;", a_definition_before, INCORRECT)
         self.assertIn("a_x = 2;", b_definition_before, INCORRECT)
 
-        with open(a_pxd, 'w') as f:
+        with open(pxd_to_be_modified, 'w') as f:
             f.write('cdef float x\n')
 
         # Change a.c and b.c
-        self.fresh_cythonize([a_source, b_source])
+        self.fresh_cythonize([source_dependency, source])
 
-        a_definition_after = self.relative_lines_from_file(a_c, a_line_1, 0, 7)
+        a_definition_after = self.relative_lines_from_file(
+            c_generated_from_dep_that_should_change, a_line_1, 0, 7)
 
-        b_definition_after = self.relative_lines_from_file(b_c, b_line_1, 0, 7)
+        b_definition_after = self.relative_lines_from_file(
+            c_generated_from_source_that_should_change, b_line_1, 0, 7)
 
         self.assertNotIn("a_x = 1;", a_definition_after, SAME)
         self.assertNotIn("a_x = 2;", b_definition_after, SAME)
