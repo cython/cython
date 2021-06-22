@@ -101,7 +101,7 @@ def maybe_assign_nocheck(assign, value):
     >>> maybe_assign_nocheck(True, 5)
     5
 
-    # unfortunately it's quite difficult to test not assigning because there's a decent change it'll crash
+    # unfortunately it's quite difficult to test not assigning because there's a decent chance it'll crash
     """
     if assign:
         x = C(value)

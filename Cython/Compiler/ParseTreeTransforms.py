@@ -3135,7 +3135,7 @@ class GilCheck(VisitorTransform):
         return node
 
 
-class FudgeCppTemps(EnvTransform, SkipDeclarations):
+class CoerceCppTemps(EnvTransform, SkipDeclarations):
     """
     For temporary expression that are implemented using std::optional it's necessary the temps are
     assigned using `__pyx_t_x = value;` but accessed using `something = (*__pyx_t_x)`. This transform

@@ -187,7 +187,7 @@ class PyrexType(BaseType):
     #  is_struct_or_union    boolean     Is a C struct or union type
     #  is_struct             boolean     Is a C struct type
     #  is_cpp_class          boolean     Is a C++ class
-    #  if_optional_cpp_class boolean     Is a C++ class with variable lifetime handled with std::optional
+    #  is_optional_cpp_class boolean     Is a C++ class with variable lifetime handled with std::optional
     #  is_enum               boolean     Is a C enum type
     #  is_cpp_enum           boolean     Is a C++ scoped enum type
     #  is_typedef            boolean     Is a typedef type

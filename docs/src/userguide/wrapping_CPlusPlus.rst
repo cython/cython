@@ -165,7 +165,7 @@ attribute access, you could just implement some properties:
 
 Cython initializes C++ class attributes of a cdef class using the nullary constructor.
 If the class you're wrapping does not have a nullary constructor, you must store a pointer
-to the wrapped class and manually allocate and deallocate it. Alternatively the
+to the wrapped class and manually allocate and deallocate it.  Alternatively, the
 :ref:`cpp_locals directive` avoids the need for the pointer and only initializes the
 C++ class attribute when it is assigned to.
 A convenient and safe place to do so is in the `__cinit__` and `__dealloc__` methods
@@ -642,9 +642,9 @@ on with the ``--cplus`` option.
 The ``cpp_locals`` compiler directive is an experimental feature that makes
 C++ variables behave like normal Python object variables.  With this
 directive they are only initialized at their first assignment, and thus
-they no longer require a nullary constructor to be stack-allocated. Trying to
+they no longer require a nullary constructor to be stack-allocated.  Trying to
 access an uninitialized C++ variable will generate an ``UnboundLocalError``
-(or similar) in the same way as a Python variable would. For example::
+(or similar) in the same way as a Python variable would.  For example::
 
     def function(dont_write):
         cdef SomeCppClass c  # not initialized
@@ -654,22 +654,23 @@ access an uninitialized C++ variable will generate an ``UnboundLocalError``
             c = SomeCppClass(...)  # initialized
             return c.some_cpp_function()  # OK
             
-Additionally the directive avoids initializing temporary C++ objects before
+Additionally, the directive avoids initializing temporary C++ objects before
 they are assigned, for cases where Cython needs to use such objects in its
 own code-generation (often for return values of functions that can throw
 exceptions).
 
 For extra speed, the ``initializedcheck`` directive disables the check for an
-unbound-local. With this directive on, accessing a variable that has not
+unbound-local.  With this directive on, accessing a variable that has not
 been initialized will trigger undefined behaviour, and it is entirely the user's
 responsibility to avoid such access.
 
 The ``cpp_locals`` directive is currently implemented using ``std::optional``
 and thus requires a C++17 compatible compiler. Defining
 ``CYTHON_USE_BOOST_OPTIONAL`` (as define for the C++ compiler) uses ``boost::optional``
-instead (but is even more experimental and untested). The directive does
+instead (but is even more experimental and untested).  The directive may
 come with a memory and performance cost due to the need to store and check 
-a boolean that tracks if a variable is initialized.
+a boolean that tracks if a variable is initialized, but the C++ compiler should
+be able to eliminate the check in most cases.
 
 
 Caveats and Limitations

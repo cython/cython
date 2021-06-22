@@ -919,7 +919,7 @@ Cython code.  Here is the list of currently supported directives:
 ``cpp_locals`` (True / False)
     Make C++ variables behave more like Python variables by allowing them to be
     "unbound" instead of always default-constructing them at the start of a
-    function. See :ref:`cpp_locals directive` for more detail.
+    function.  See :ref:`cpp_locals directive` for more detail.
 
 .. _configurable_optimisations:
 

@@ -13764,7 +13764,7 @@ class CloneNode(CoercionNode):
 
 class CppOptionalTempCoercion(CoercionNode):
     """
-    Used only in FudgeCppTemps - handles cases the temp is actually a OptionalCppClassType (and thus needs dereferencing when on the rhs)
+    Used only in CoerceCppTemps - handles cases the temp is actually a OptionalCppClassType (and thus needs dereferencing when on the rhs)
     """
     is_temp = False
 
