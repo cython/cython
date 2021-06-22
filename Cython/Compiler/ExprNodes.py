@@ -2013,6 +2013,9 @@ class NameNode(AtomicExprNode):
                 or not env.directives['annotation_typing']
             ):
                 atype = None
+            elif env.is_py_class_scope:
+                # For Python class scopes every attribute is a Python object
+                atype = py_object_type
             else:
                 _, atype = annotation.analyse_type_annotation(env)
             if atype is None:
