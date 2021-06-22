@@ -15,6 +15,7 @@ VARS_LINE = '  /*--- Wrapped vars code ---*/\n'
 
 
 class TestRecythonize(CythonTest):
+    language_level = 3
 
     def setUp(self):
         CythonTest.setUp(self)
@@ -26,7 +27,6 @@ class TestRecythonize(CythonTest):
         )
         self.src_dir = tempfile.mkdtemp(prefix='src', dir=self.temp_dir)
         self.dep_tree = Cython.Build.Dependencies.create_dependency_tree()
-        self.language_level = 3
 
     def tearDown(self):
         CythonTest.tearDown(self)
