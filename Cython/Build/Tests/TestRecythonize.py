@@ -39,6 +39,10 @@ class TestRecythonize(CythonTest):
         self.сlear_function_and_Dependencies_caches()
         shutil.rmtree(self.temp_dir)
 
+    def write_to_file(self, path, text):
+        with open(path, "w") as f:
+            f.write(text)
+
     def fresh_cythonize(self, *args, **kwargs):
         self.сlear_function_and_Dependencies_caches()
         kwargs.update(language_level=self.language_level)
@@ -86,11 +90,9 @@ class TestRecythonize(CythonTest):
             filename=source_filename, at_line=1)
 
         if pxd_exists_for_first_check:
-            with open(pxd_to_be_modified, 'w') as f:
-                f.write('cdef int x\n')
+            self.write_to_file(pxd_to_be_modified, 'cdef int x\n')
 
-        with open(source, 'w') as f:
-            f.write('x = 1\n')
+        self.write_to_file(source, 'x = 1\n')
 
         dependencies = self.fresh_all_dependencies(source)
         self.assertIn(source, dependencies)
@@ -111,8 +113,7 @@ class TestRecythonize(CythonTest):
         else:
             self.assertNotIn("a_x = 1;", definition_before, INCORRECT)
 
-        with open(pxd_to_be_modified, 'w') as f:
-            f.write('cdef float x\n')
+        self.write_to_file(pxd_to_be_modified, 'cdef float x\n')
 
         # otherwise nothing changes since there are no new files
         if not pxd_exists_for_first_check:
@@ -147,17 +148,10 @@ class TestRecythonize(CythonTest):
         source_line_1 = LINE_BEFORE_IMPLEMENTATION.format(
             filename=source_filename, at_line=1)
 
-        with open(pxd_to_be_modified, 'w') as f:
-            f.write('cdef int x\n')
-
-        with open(source_dependency, 'w') as f:
-            f.write('x = 1\n')
-
-        with open(pxd_for_cimport, 'w') as f:
-            f.write('cimport a\n')
-
-        with open(source, 'w') as f:
-            f.write('a.x = 2\n')
+        self.write_to_file(pxd_to_be_modified, 'cdef int x\n')
+        self.write_to_file(source_dependency, 'x = 1\n')
+        self.write_to_file(pxd_for_cimport, 'cimport a\n')
+        self.write_to_file(source, 'a.x = 2\n')
 
         dependencies = self.fresh_all_dependencies(source)
         self.assertIn(pxd_for_cimport, dependencies)
@@ -177,8 +171,7 @@ class TestRecythonize(CythonTest):
         self.assertIn("a_x = 1;", dep_definition_before, INCORRECT)
         self.assertIn("a_x = 2;", source_definition_before, INCORRECT)
 
-        with open(pxd_to_be_modified, 'w') as f:
-            f.write('cdef float x\n')
+        self.write_to_file(pxd_to_be_modified, 'cdef float x\n')
 
         # Change a.c and b.c
         self.fresh_cythonize([source_dependency, source])
