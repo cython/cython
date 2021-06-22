@@ -168,14 +168,14 @@ class TestRecythonize(CythonTest):
         # Create a.c and b.c
         self.fresh_cythonize([source_dependency, source])
 
-        a_definition_before = self.relative_lines_from_file(
+        dep_definition_before = self.relative_lines_from_file(
             c_generated_from_dep, dep_line_1, 0, 7)
 
-        b_definition_before = self.relative_lines_from_file(
+        source_definition_before = self.relative_lines_from_file(
             c_generated_from_source, source_line_1, 0, 7)
 
-        self.assertIn("a_x = 1;", a_definition_before, INCORRECT)
-        self.assertIn("a_x = 2;", b_definition_before, INCORRECT)
+        self.assertIn("a_x = 1;", dep_definition_before, INCORRECT)
+        self.assertIn("a_x = 2;", source_definition_before, INCORRECT)
 
         with open(pxd_to_be_modified, 'w') as f:
             f.write('cdef float x\n')
@@ -183,16 +183,16 @@ class TestRecythonize(CythonTest):
         # Change a.c and b.c
         self.fresh_cythonize([source_dependency, source])
 
-        a_definition_after = self.relative_lines_from_file(
+        dep_definition_after = self.relative_lines_from_file(
             c_generated_from_dep, dep_line_1, 0, 7)
 
-        b_definition_after = self.relative_lines_from_file(
+        source_definition_after = self.relative_lines_from_file(
             c_generated_from_source, source_line_1, 0, 7)
 
-        self.assertNotIn("a_x = 1;", a_definition_after, SAME)
-        self.assertNotIn("a_x = 2;", b_definition_after, SAME)
-        self.assertIn("a_x = 1.0;", a_definition_after, INCORRECT)
-        self.assertIn("a_x = 2.0;", b_definition_after, INCORRECT)
+        self.assertNotIn("a_x = 1;", dep_definition_after, SAME)
+        self.assertNotIn("a_x = 2;", source_definition_after, SAME)
+        self.assertIn("a_x = 1.0;", dep_definition_after, INCORRECT)
+        self.assertIn("a_x = 2.0;", source_definition_after, INCORRECT)
 
     def test_recythonize_py_on_pxd_change(self):
         self.recythonize_on_pxd_change(".py", pxd_exists_for_first_check=True)
