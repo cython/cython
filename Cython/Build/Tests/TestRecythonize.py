@@ -65,12 +65,15 @@ class TestRecythonize(CythonTest):
         except Exception as e:
             raise e
 
-    def relative_lines_from_file(self, path, line, start, end):
+    def relative_lines_from_file(self, path, line, start, end, join=True):
         with open(path) as f:
             lines = f.readlines()
 
-        return self.relative_lines(lines, line, start, end)
 
+        lines = self.relative_lines(lines, line, start, end, join)
+        if join:
+            return "".join(lines)
+        return lines
     def recythonize_on_pxd_change(self, ext, pxd_exists_for_first_check):
         a_pxd = os.path.join(self.src_dir, 'a.pxd')  # will be changed
         a_source = os.path.join(self.src_dir, 'a' + ext)
@@ -96,8 +99,8 @@ class TestRecythonize(CythonTest):
         # Create a.c
         self.fresh_cythonize(a_source)
 
-        definition_before = "".join(
-            self.relative_lines_from_file(a_c, a_line_1, 0, 7))
+        definition_before = self.relative_lines_from_file(
+            a_c, a_line_1, 0, 7)
 
         if pxd_exists_for_first_check:
             self.assertIn("a_x = 1;", definition_before, INCORRECT)
@@ -117,8 +120,8 @@ class TestRecythonize(CythonTest):
         # Change a.c
         self.fresh_cythonize(a_source)
 
-        definition_after = "".join(
-            self.relative_lines_from_file(a_c, a_line_1, 0, 7))
+        definition_after = self.relative_lines_from_file(
+            a_c, a_line_1, 0, 7)
 
         self.assertNotIn("a_x = 1;", definition_after, SAME)
         self.assertIn("a_x = 1.0;", definition_after, INCORRECT)
@@ -157,11 +160,9 @@ class TestRecythonize(CythonTest):
         # Create a.c and b.c
         self.fresh_cythonize([a_source, b_source])
 
-        a_definition_before = "".join(
-            self.relative_lines_from_file(a_c, a_line_1, 0, 7))
+        a_definition_before = self.relative_lines_from_file(a_c, a_line_1, 0, 7)
 
-        b_definition_before = "".join(
-            self.relative_lines_from_file(b_c, b_line_1, 0, 7))
+        b_definition_before = self.relative_lines_from_file(b_c, b_line_1, 0, 7)
 
         self.assertIn("a_x = 1;", a_definition_before, INCORRECT)
         self.assertIn("a_x = 2;", b_definition_before, INCORRECT)
@@ -172,11 +173,9 @@ class TestRecythonize(CythonTest):
         # Change a.c and b.c
         self.fresh_cythonize([a_source, b_source])
 
-        a_definition_after = "".join(
-            self.relative_lines_from_file(a_c, a_line_1, 0, 7))
+        a_definition_after = self.relative_lines_from_file(a_c, a_line_1, 0, 7)
 
-        b_definition_after = "".join(
-            self.relative_lines_from_file(b_c, b_line_1, 0, 7))
+        b_definition_after = self.relative_lines_from_file(b_c, b_line_1, 0, 7)
 
         self.assertNotIn("a_x = 1;", a_definition_after, SAME)
         self.assertNotIn("a_x = 2;", b_definition_after, SAME)
