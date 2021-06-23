@@ -81,7 +81,7 @@ class TestRecythonize(CythonTest):
 
     def recythonize_on_pxd_change(self, ext, pxd_exists_for_first_check):
         module_filename = 'a' + ext
-        
+
         pxd_to_be_modified = os.path.join(self.src_dir, 'a.pxd')
         module = os.path.join(self.src_dir, module_filename)
         module_c_file = os.path.join(self.src_dir, 'a.c')  # should change
@@ -210,4 +210,3 @@ class TestRecythonize(CythonTest):
 
     def test_recythonize_pyx_pyx_on_dep_pxd_change(self):
         self.recythonize_on_dep_pxd_change(".pyx", ".pyx")
-
