@@ -65,8 +65,8 @@ class TestRecythonize(CythonTest):
             # XXX: It is assumed that VARS_LINE is always present.
             ind = lines.index(VARS_LINE)
             raise ValueError(
-                "{0!r} was not found, presumably in {1}".format(
-                    line, lines[ind-10: ind-1]))
+                "{0!r} was not found, presumably in \n{1}".format(
+                    line, "\n".join(map(repr, lines[ind-10: ind-1]))))
         except Exception as e:
             raise e
 
