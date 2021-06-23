@@ -45,14 +45,43 @@ C variable and type definitions
 ===============================
 
 The :keyword:`cdef` statement is used to declare C variables, either local or
-module-level::
+module-level
 
-    cdef int i, j, k
-    cdef float f, g[42], *h
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            import cython
+
+            i: cython.int
+            j: cython.int
+            k: cython.int
+            f: cython.float
+            g: cython.int[42]
+            h: cython.p_float
+
+
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef int i, j, k
+            cdef float f, g[42], *h
 
 and C :keyword:`struct`, :keyword:`union` or :keyword:`enum` types:
 
-.. literalinclude:: ../../examples/userguide/language_basics/struct_union_enum.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/language_basics/struct_union_enum.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/language_basics/struct_union_enum.pyx
 
 See also :ref:`struct-union-enum-styles`
 
@@ -96,10 +125,22 @@ an anonymous :keyword:`enum` declaration for this purpose, for example,::
 
 It is also possible to declare functions with :keyword:`cdef`, making them c functions.
 
-::
+.. tabs::
 
-    cdef int eggs(unsigned long l, float f):
-        ...
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.cfunc
+            def eggs(l: cython.ulong, f: cython.float) -> cython.int:
+                ...
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef int eggs(unsigned long l, float f):
+                ...
 
 You can read more about them in :ref:`python_functions_vs_c_functions`.
 
@@ -109,7 +150,15 @@ internally to store attributes.
 
 Here is a simple example:
 
-.. literalinclude:: ../../examples/userguide/extension_types/shrubbery.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/extension_types/shrubbery.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/extension_types/shrubbery.pyx
 
 You can read more about them in :ref:`extension-types`.
 
@@ -135,9 +184,21 @@ whereas ``x[0]`` is.
 
 Also, the Python types ``list``, ``dict``, ``tuple``, etc. may be used for
 static typing, as well as any user defined :ref:`extension-types`.
-For example::
+For example
 
-    cdef list foo = []
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            foo: list = []
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef list foo = []
 
 This requires an *exact* match of the class, it does not allow subclasses.
 This allows Cython to optimize code by accessing internals of the builtin class,
@@ -150,9 +211,21 @@ respectively, as statically typing variables with these Python
 types has zero advantages.
 
 Cython provides an accelerated and typed equivalent of a Python tuple, the ``ctuple``.
-A ``ctuple`` is assembled from any valid C types. For example::
+A ``ctuple`` is assembled from any valid C types. For example
 
-    cdef (double, int) bar
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            bar: (double, int)
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef (double, int) bar
 
 They compile down to C-structures and can be used as efficient alternatives to
 Python tuples.
@@ -209,28 +282,77 @@ there is a tiny overhead in calling a :keyword:`cpdef` method from Cython compar
 calling a :keyword:`cdef` method.
 
 Parameters of either type of function can be declared to have C data types,
-using normal C declaration syntax. For example,::
+using normal C declaration syntax. For example,
 
-    def spam(int i, char *s):
-        ...
+.. tabs::
 
-    cdef int eggs(unsigned long l, float f):
-        ...
+    .. group-tab:: Pure Python
 
-``ctuples`` may also be used::
+        .. code-block:: python
 
-    cdef (int, float) chips((long, long, double) t):
-        ...
+            def spam(i: cython.int, s: cython.p_char):
+                ...
+
+            @cython.cfunc
+            def eggs(l: cython.ulong, f: cython.float) -> cython.int:
+                ...
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            def spam(int i, char *s):
+                ...
+
+            cdef int eggs(unsigned long l, float f):
+                ...
+
+
+
+``ctuples`` may also be used
+
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+         def chips(t: (long, long, double)) -> (int, float)
+            ...
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef (int, float) chips((long, long, double) t):
+                ...
 
 When a parameter of a Python function is declared to have a C data type, it is
 passed in as a Python object and automatically converted to a C value, if
 possible. In other words, the definition of ``spam`` above is equivalent to
-writing::
+writing
 
-    def spam(python_i, python_s):
-        cdef int i = python_i
-        cdef char* s = python_s
-        ...
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            def spam(python_i, python_s):
+                i: cython.int = python_i
+                s: cython.p_char = python_s
+                ...
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            def spam(python_i, python_s):
+                cdef int i = python_i
+                cdef char* s = python_s
+                ...
+
+
 
 Automatic conversion is currently only possible for numeric types,
 string types and structs (composed recursively of any of these types);
@@ -257,10 +379,24 @@ Python objects as parameters and return values
 If no type is specified for a parameter or return value, it is assumed to be a
 Python object. (Note that this is different from the C convention, where it
 would default to int.) For example, the following defines a C function that
-takes two Python objects as parameters and returns a Python object::
+takes two Python objects as parameters and returns a Python object
 
-    cdef spamobjs(x, y):
-        ...
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.cfunc
+            def spamobjs(x, y):
+                ...
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef spamobjs(x, y):
+                ...
 
 Reference counting for these objects is performed automatically according to
 the standard Python/C API rules (i.e. borrowed references are taken as
@@ -274,10 +410,24 @@ parameters and a new reference is returned).
 
 The name object can also be used to explicitly declare something as a Python
 object. This can be useful if the name being declared would otherwise be taken
-as the name of a type, for example,::
+as the name of a type, for example,
 
-    cdef ftang(object int):
-        ...
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.cfunc
+            def ftang(int: object):
+                ...
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef ftang(object int):
+                ...
 
 declares a parameter called int which is a Python object. You can also use
 object as the explicit return type of a function, e.g.::
@@ -315,7 +465,15 @@ the implementation (in ``.pyx`` files).
 
 When in a ``.pyx`` file, the signature is the same as it is in Python itself:
 
-.. literalinclude:: ../../examples/userguide/language_basics/optional_subclassing.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/language_basics/optional_subclassing.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/language_basics/optional_subclassing.pyx
 
 When in a ``.pxd`` file, the signature is different like this example: ``cdef foo(x=*)``.
 This is because the program calling the function just needs to know what signatures are
@@ -383,10 +541,24 @@ propagating the exception to its caller.
 
 If you want such a C function to be able to propagate exceptions, you need
 to declare an exception return value for it as a contract with the caller.
-Here is an example::
+Here is an example
 
-    cdef int spam() except -1:
-        ...
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.exceptval(-1)
+            def spam() -> int:
+                ...
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef int spam() except -1:
+                ...
 
 With this declaration, whenever an exception occurs inside ``spam``, it will
 immediately return with the value ``-1``.  From the caller's side, whenever
@@ -404,20 +576,47 @@ returns small results.
 
 If all possible return values are legal and you
 can't reserve one entirely for signalling errors, you can use an alternative
-form of exception value declaration::
+form of exception value declaration
 
-    cdef int spam() except? -1:
-        ...
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.exceptval(-1, check=True)
+            def spam() -> int:
+                ...
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef int spam() except? -1:
+                ...
 
 The "?" indicates that the value ``-1`` only signals a possible error. In this
 case, Cython generates a call to :c:func:`PyErr_Occurred` if the exception value
 is returned, to make sure it really received an exception and not just a normal
 result.
 
-There is also a third form of exception value declaration::
+There is also a third form of exception value declaration
 
-    cdef int spam() except *:
-        ...
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.exceptval(check=True)
+            def spam() -> int:
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef int spam() except *:
+                ...
 
 This form causes Cython to generate a call to :c:func:`PyErr_Occurred` after
 *every* call to spam, regardless of what value it returns. If you have a
@@ -470,7 +669,15 @@ function or a C function that calls Python/C API routines. To get an exception
 from a non-Python-aware function such as :func:`fopen`, you will have to check the
 return value and raise it yourself, for example:
 
-.. literalinclude:: ../../examples/userguide/language_basics/open_file.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/language_basics/open_file.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/language_basics/open_file.pyx
 
 .. _overriding_in_extension_types:
 
@@ -480,13 +687,29 @@ Overriding in extension types
 
 ``cpdef`` methods can override ``cdef`` methods:
 
-.. literalinclude:: ../../examples/userguide/language_basics/optional_subclassing.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/language_basics/optional_subclassing.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/language_basics/optional_subclassing.pyx
 
 When subclassing an extension type with a Python class,
 ``def`` methods can override ``cpdef`` methods but not ``cdef``
 methods:
 
-.. literalinclude:: ../../examples/userguide/language_basics/override.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/language_basics/override.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/language_basics/override.pyx
 
 If ``C`` above would be an extension type (``cdef class``),
 this would not work correctly.
@@ -548,10 +771,23 @@ as the C string is needed. If you can't guarantee that the Python string will
 live long enough, you will need to copy the C string.
 
 Cython detects and prevents some mistakes of this kind. For instance, if you
-attempt something like::
+attempt something like
 
-    cdef char *s
-    s = pystring1 + pystring2
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            s: cython.p_char
+            s = pystring1 + pystring2
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef char *s
+            s = pystring1 + pystring2
 
 then Cython will produce the error message ``Storing unsafe C derivative of temporary
 Python reference``. The reason is that concatenating the two Python strings
@@ -562,11 +798,25 @@ leaving ``s`` dangling. Since this code could not possibly work, Cython refuses 
 compile it.
 
 The solution is to assign the result of the concatenation to a Python
-variable, and then obtain the ``char*`` from that, i.e.::
+variable, and then obtain the ``char*`` from that, i.e.
 
-    cdef char *s
-    p = pystring1 + pystring2
-    s = p
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            s: cython.p_char
+            p = pystring1 + pystring2
+            s = p
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef char *s
+            p = pystring1 + pystring2
+            s = p
 
 It is then your responsibility to hold the reference p for as long as
 necessary.
@@ -581,11 +831,25 @@ be careful what you do.
 Type Casting
 ------------
 
-Where C uses ``"("`` and ``")"``, Cython uses ``"<"`` and ``">"``. For example::
+Where C uses ``"("`` and ``")"``, Cython uses ``"<"`` and ``">"``. For example
 
-    cdef char *p
-    cdef float *q
-    p = <char*>q
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            p: cython.p_char
+            q: cython.p_float
+            p = cython.cast(cython.p_char, q)
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef char *p
+            cdef float *q
+            p = <char*>q
 
 When casting a C value to a Python object type or vice versa,
 Cython will attempt a coercion. Simple examples are casts like ``<int>pyobj``,
@@ -657,10 +921,24 @@ direct equivalent in Python.
 * There is no unary ``*`` operator in Cython. Instead of ``*p``, use ``p[0]``
 * There is an ``&`` operator, with the same semantics as in C.
 * The null C pointer is called ``NULL``, not ``0`` (and ``NULL`` is a reserved word).
-* Type casts are written ``<type>value`` , for example,::
+* Type casts are written ``<type>value`` , for example,
 
-        cdef char* p, float* q
-        p = <char*>q
+  .. tabs::
+
+      .. group-tab:: Pure Python
+
+          .. code-block:: python
+
+              p: cython.p_char
+              q: cython.p_float
+              p = cython.cast(cython.p_char, q)
+
+      .. group-tab:: Cython
+
+          .. code-block:: cython
+
+              cdef char* p, float* q
+              p = <char*>q
 
 Scope rules
 -----------
