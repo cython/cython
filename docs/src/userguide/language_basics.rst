@@ -868,7 +868,19 @@ with ``<object>``, or a more specific builtin or extension type
 the object by one, i.e. the cast returns an owned reference.
 Here is an example:
 
-.. literalinclude:: ../../examples/userguide/language_basics/casting_python.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/language_basics/casting_python.pxd
+            :caption: casting_python.pxd
+        .. literalinclude:: ../../examples/userguide/language_basics/casting_python.py
+            :caption: casting_python.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/language_basics/casting_python.pyx
+            :caption: casting_python.pyx
 
 The precedence of ``<...>`` is such that ``<type>a.b.c`` is interpreted as ``<type>(a.b.c)``.
 
