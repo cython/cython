@@ -1,6 +1,7 @@
 import os
 import shutil
 import tempfile
+import time
 
 import Cython.Build.Dependencies
 import Cython.Utils
@@ -38,6 +39,10 @@ class TestRecythonize(CythonTest):
         shutil.rmtree(self.temp_dir)
 
     def write_to_file(self, path, text):
+        # BUG: without sleep on Linux-like systems,
+        # cythonize not working properly #4245
+        time.sleep(0.01)
+
         with open(path, "w") as f:
             f.write(text)
 
