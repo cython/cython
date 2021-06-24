@@ -79,48 +79,50 @@ and C :keyword:`struct`, :keyword:`union` or :keyword:`enum` types:
 
         .. literalinclude:: ../../examples/userguide/language_basics/struct_union_enum.py
 
+        .. NOTE:: Currently, Pure Python mode does not support enums.
+
     .. group-tab:: Cython
 
         .. literalinclude:: ../../examples/userguide/language_basics/struct_union_enum.pyx
 
-See also :ref:`struct-union-enum-styles`
+        See also :ref:`struct-union-enum-styles`
 
-.. note::
+        .. note::
 
-    Structs can be declared as ``cdef packed struct``, which has
-    the same effect as the C directive ``#pragma pack(1)``.
+            Structs can be declared as ``cdef packed struct``, which has
+            the same effect as the C directive ``#pragma pack(1)``.
 
-Declaring an enum as ``cpdef`` will create a :pep:`435`-style Python wrapper::
+        Declaring an enum as ``cpdef`` will create a :pep:`435`-style Python wrapper::
 
-    cpdef enum CheeseState:
-        hard = 1
-        soft = 2
-        runny = 3
+            cpdef enum CheeseState:
+                hard = 1
+                soft = 2
+                runny = 3
 
 
 
-There is currently no special syntax for defining a constant, but you can use
-an anonymous :keyword:`enum` declaration for this purpose, for example,::
+        There is currently no special syntax for defining a constant, but you can use
+        an anonymous :keyword:`enum` declaration for this purpose, for example,::
 
-    cdef enum:
-        tons_of_spam = 3
+            cdef enum:
+                tons_of_spam = 3
 
-.. note::
-    the words ``struct``, ``union`` and ``enum`` are used only when
-    defining a type, not when referring to it. For example, to declare a variable
-    pointing to a ``Grail`` you would write::
+        .. note::
+            the words ``struct``, ``union`` and ``enum`` are used only when
+            defining a type, not when referring to it. For example, to declare a variable
+            pointing to a ``Grail`` you would write::
 
-        cdef Grail *gp
+                cdef Grail *gp
 
-    and not::
+            and not::
 
-        cdef struct Grail *gp # WRONG
+                cdef struct Grail *gp # WRONG
 
-    There is also a ``ctypedef`` statement for giving names to types, e.g.::
+            There is also a ``ctypedef`` statement for giving names to types, e.g.::
 
-        ctypedef unsigned long ULong
+                ctypedef unsigned long ULong
 
-        ctypedef int* IntPtr
+                ctypedef int* IntPtr
 
 
 It is also possible to declare functions with :keyword:`cdef`, making them c functions.
