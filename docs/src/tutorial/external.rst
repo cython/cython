@@ -112,6 +112,9 @@ This allows the C declaration to be reused in other Cython modules,
 while still providing an automatically generated Python wrapper in
 this specific module.
 
+.. note:: External declarations must be placed in .pxd file in Pure
+    Python mode.
+
 
 Naming parameters
 -----------------
@@ -132,7 +135,19 @@ You can now make it clear which of the two arguments does what in
 your call, thus avoiding any ambiguities and often making your code
 more readable:
 
-.. literalinclude:: ../../examples/tutorial/external/keyword_args_call.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/external/keyword_args_call.pxd
+            :caption: keyword_args_call.pxd
+        .. literalinclude:: ../../examples/tutorial/external/keyword_args_call.py
+            :caption: keyword_args_call.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/external/keyword_args_call.pyx
+            :caption: keyword_args_call.pyx
 
 Note that changing existing parameter names later is a backwards
 incompatible API modification, just as for Python code.  Thus, if
