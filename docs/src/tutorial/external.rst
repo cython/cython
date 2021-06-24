@@ -15,7 +15,17 @@ For example, let's say you need a low-level way to parse a number from
 a ``char*`` value.  You could use the ``atoi()`` function, as defined
 by the ``stdlib.h`` header file.  This can be done as follows:
 
-.. literalinclude:: ../../examples/tutorial/external/atoi.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/external/atoi.py
+            :caption: atoi.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/external/atoi.pyx
+            :caption: atoi.pyx
 
 You can find a complete list of these standard cimport files in
 Cython's source package
@@ -28,14 +38,33 @@ Cython also has a complete set of declarations for CPython's C-API.
 For example, to test at C compilation time which CPython version
 your code is being compiled with, you can do this:
 
-.. literalinclude:: ../../examples/tutorial/external/py_version_hex.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/external/py_version_hex.py
+            :caption: py_version_hex.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/external/py_version_hex.pyx
+            :caption: py_version_hex.pyx
 
 .. _libc.math:
 
 Cython also provides declarations for the C math library:
 
-.. literalinclude:: ../../examples/tutorial/external/libc_sin.pyx
+.. tabs::
 
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/external/libc_sin.py
+            :caption: libc_sin.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/external/libc_sin.pyx
+            :caption: libc_sin.pyx
 
 Dynamic linking
 ---------------
