@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 import os
 import shutil
 import tempfile
@@ -19,13 +17,13 @@ class TestRecythonize(CythonTest):
     language_level = 3
     dep_tree = Cython.Build.Dependencies.create_dependency_tree()
 
-    def сlear_function_and_Dependencies_caches(self):
+    def clear_function_and_Dependencies_caches(self):
         Cython.Utils.clear_function_caches()
         Cython.Build.Dependencies._dep_tree = None  # discard method caches
 
     def setUp(self):
         CythonTest.setUp(self)
-        self.сlear_function_and_Dependencies_caches()
+        self.clear_function_and_Dependencies_caches()
         self.temp_dir = (
             tempfile.mkdtemp(
                 prefix='recythonize-test',
@@ -37,7 +35,7 @@ class TestRecythonize(CythonTest):
 
     def tearDown(self):
         CythonTest.tearDown(self)
-        self.сlear_function_and_Dependencies_caches()
+        self.clear_function_and_Dependencies_caches()
         shutil.rmtree(self.temp_dir)
 
     def write_to_file(self, path, text):
@@ -49,7 +47,7 @@ class TestRecythonize(CythonTest):
             f.write(text)
 
     def fresh_cythonize(self, *args, **kwargs):
-        self.сlear_function_and_Dependencies_caches()
+        self.clear_function_and_Dependencies_caches()
         kwargs.update(language_level=self.language_level)
         Cython.Build.Dependencies.cythonize(*args, **kwargs)
 
