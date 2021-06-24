@@ -1182,6 +1182,11 @@ Conditional Compilation
 Some features are available for conditional compilation and compile-time
 constants within a Cython source file.
 
+.. note::
+
+    Cython currently does not support conditional compilation and compile-time
+    definitions in Pure Python mode.
+
 Compile-Time Definitions
 ------------------------
 
