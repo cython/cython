@@ -1,12 +1,10 @@
-import shutil
 import os
+import shutil
 import tempfile
 
 import Cython.Build.Dependencies
 import Cython.Utils
 from Cython.TestUtils import CythonTest
-
-
 
 SAME = "The result of cytonization is the same"
 INCORRECT = "Incorrect cythonization"
