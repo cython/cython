@@ -1,4 +1,3 @@
-import cython
 from cython.cimports.libc.math import sin
 
 @cython.cfunc

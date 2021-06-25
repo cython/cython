@@ -1,5 +1,3 @@
-import cython
-
 from cython.cimports.libc.stdlib import atoi
 
 @cython.cfunc

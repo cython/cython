@@ -1,6 +1,9 @@
 Calling C functions
 ====================
 
+.. include::
+    ../two-syntax-variants-used
+
 This tutorial describes shortly what you need to know in order to call
 C library functions from Cython code.  For a longer and more
 comprehensive tutorial about using external C libraries, wrapping them
