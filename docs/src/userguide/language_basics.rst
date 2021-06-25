@@ -224,7 +224,7 @@ A ``ctuple`` is assembled from any valid C types. For example
 
         .. code-block:: python
 
-            bar: (double, int)
+            bar: (cython.double, cython.int)
 
     .. group-tab:: Cython
 
@@ -323,7 +323,7 @@ using normal C declaration syntax. For example,
 
         .. code-block:: python
 
-         def chips(t: (long, long, double)) -> (int, float)
+         def chips(t: (cython.long, cython.long, cython.double)) -> (cython.int, cython.float)
             ...
 
     .. group-tab:: Cython
@@ -486,6 +486,7 @@ This is because the program calling the function just needs to know what signatu
 possible in C, but doesn't need to know the value of the default arguments.:
 
 .. literalinclude:: ../../examples/userguide/language_basics/optional_subclassing.pxd
+    :caption: optional_subclassing.pxd
 
 .. note::
     The number of arguments may increase when subclassing,
@@ -556,7 +557,7 @@ Here is an example
         .. code-block:: python
 
             @cython.exceptval(-1)
-            def spam() -> int:
+            def spam() -> cython.int:
                 ...
 
     .. group-tab:: Cython
@@ -591,7 +592,7 @@ form of exception value declaration
         .. code-block:: python
 
             @cython.exceptval(-1, check=True)
-            def spam() -> int:
+            def spam() -> cython.int:
                 ...
 
     .. group-tab:: Cython
@@ -615,7 +616,7 @@ There is also a third form of exception value declaration
         .. code-block:: python
 
             @cython.exceptval(check=True)
-            def spam() -> int:
+            def spam() -> cython.int:
                 ...
 
     .. group-tab:: Cython
