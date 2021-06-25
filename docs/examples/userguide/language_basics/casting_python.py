@@ -1,4 +1,3 @@
-import cython
 from cython.cimports.cpython.ref import PyObject
 
 def main():

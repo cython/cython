@@ -1,10 +1,10 @@
-import cython
 from cython.cimports.libc.stdio import FILE, fopen
 from cython.cimports.libc.stdlib import malloc, free
 from cython.cimports.cpython.exc import PyErr_SetFromErrnoWithFilenameObject
 
 def open_file():
     p: cython.pointer(FILE) = fopen("spam.txt", "r")
+
     if p is cython.NULL:
         PyErr_SetFromErrnoWithFilenameObject(OSError, "spam.txt")
     ...

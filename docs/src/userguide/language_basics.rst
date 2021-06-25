@@ -11,6 +11,9 @@
 Language Basics
 *****************
 
+.. include::
+    ../two-syntax-variants-used
+
 .. _declaring_data_types:
 
 Declaring Data Types
@@ -305,6 +308,7 @@ using normal C declaration syntax. For example,
 
             def spam(int i, char *s):
                 ...
+
 
             cdef int eggs(unsigned long l, float f):
                 ...
@@ -612,6 +616,7 @@ There is also a third form of exception value declaration
 
             @cython.exceptval(check=True)
             def spam() -> int:
+                ...
 
     .. group-tab:: Cython
 
@@ -952,6 +957,7 @@ direct equivalent in Python.
           .. code-block:: cython
 
               cdef char* p, float* q
+
               p = <char*>q
 
 Scope rules
