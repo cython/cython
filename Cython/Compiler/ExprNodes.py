@@ -7151,7 +7151,8 @@ class AttributeNode(ExprNode):
         if obj_type.has_attributes:
             if obj_type.attributes_known():
                 entry = obj_type.scope.lookup_here(self.attribute)
-                if obj_type.is_cpp_class and self.obj.entry and self.obj.entry.is_cpp_optional:
+                if (obj_type.is_cpp_class and (self.obj.is_name or self.obj.is_attribute) and
+                        self.obj.entry and self.obj.entry.is_cpp_optional):
                     self.op = "->"
                 if obj_type.is_memoryviewslice and not entry:
                     if self.attribute == 'T':
