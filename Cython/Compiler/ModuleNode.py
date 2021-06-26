@@ -1277,8 +1277,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 attr_type = py_object_type
             else:
                 attr_type = attr.type
+            extra_args = {}
+            if attr.is_cpp_optional:
+                extra_args['cpp_optional'] = True
             code.putln(
-                "%s;" % attr_type.declaration_code(attr.cname))
+                "%s;" % attr_type.declaration_code(attr.cname, **extra_args))
         code.putln(footer)
         if type.objtypedef_cname is not None:
             # Only for exposing public typedef name.
@@ -1357,8 +1360,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
             if storage_class:
                 code.put("%s " % storage_class)
+            extra_args = {}
+            if entry.is_cpp_optional:
+                extra_args['cpp_optional'] = True
             code.put(type.declaration_code(
-                cname, dll_linkage=dll_linkage))
+                cname, dll_linkage=dll_linkage, **extra_args))
             if init is not None:
                 code.put_safe(" = %s" % init)
             code.putln(";")
@@ -1471,7 +1477,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             # internal classes (should) never need None inits, normal zeroing will do
             py_attrs = []
         cpp_constructable_attrs = [entry for entry in scope.var_entries
-                                   if entry.type.needs_cpp_construction]
+                                   if (entry.type.needs_cpp_construction and not entry.is_cpp_optional)]
 
         cinit_func_entry = scope.lookup_here("__cinit__")
         if cinit_func_entry and not cinit_func_entry.is_special:

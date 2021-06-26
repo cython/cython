@@ -158,6 +158,7 @@ class Entry(object):
     # is_fused_specialized boolean Whether this entry of a cdef or def function
     #                              is a specialization
     # is_cgetter       boolean    Is a c-level getter function
+    # is_cpp_optional  boolean    Entry should be declared as std::optional (cpp_locals directive)
 
     # TODO: utility_code and utility_code_definition serves the same purpose...
 
@@ -229,6 +230,7 @@ class Entry(object):
     cf_used = True
     outer_entry = None
     is_cgetter = False
+    is_cpp_optional = False
 
     def __init__(self, name, cname, type, pos = None, init = None):
         self.name = name
@@ -724,16 +726,15 @@ class Scope(object):
                 cname = name
             else:
                 cname = self.mangle(Naming.var_prefix, name)
+        entry = self.declare(name, cname, type, pos, visibility)
+        entry.is_variable = 1
         if type.is_cpp_class and visibility != 'extern':
             if self.directives['cpp_locals']:
-                # transform into a C++ optional type
-                type = type.make_optional_type()
+                entry.is_cpp_optional = True
                 self.use_utility_code(
                         Code.UtilityCode.load_cached("OptionalLocals", "CppSupport.cpp"))
             else:
                 type.check_nullary_constructor(pos)
-        entry = self.declare(name, cname, type, pos, visibility)
-        entry.is_variable = 1
         if in_pxd and visibility != 'extern':
             entry.defined_in_pxd = 1
             entry.used = 1
@@ -2240,17 +2241,17 @@ class CClassScope(ClassScope):
                 if visibility == 'private':
                     cname = c_safe_identifier(cname)
                 cname = punycodify_name(cname, Naming.unicode_structmember_prefix)
+            entry = self.declare(name, cname, type, pos, visibility)
+            entry.is_variable = 1
+            self.var_entries.append(entry)
             if type.is_cpp_class and visibility != 'extern':
                 if self.directives['cpp_locals']:
                     # transform into a C++ optional type
-                    type = type.make_optional_type()
+                    entry.is_cpp_optional = True
                     self.use_utility_code(
                             Code.UtilityCode.load_cached("OptionalLocals", "CppSupport.cpp"))
                 else:
                     type.check_nullary_constructor(pos)
-            entry = self.declare(name, cname, type, pos, visibility)
-            entry.is_variable = 1
-            self.var_entries.append(entry)
             if type.is_memoryviewslice:
                 self.has_memoryview_attrs = True
             elif type.needs_cpp_construction:

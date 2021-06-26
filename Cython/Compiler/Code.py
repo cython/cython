@@ -850,7 +850,7 @@ class FunctionState(object):
             from . import PyrexTypes
             type = PyrexTypes.c_ptr_type(type)  # A function itself isn't an l-value
         elif type.is_cpp_class and self.scope.directives['cpp_locals']:
-            type = type.make_optional_type()
+            #type = type.make_optional_type()
             self.scope.use_utility_code(UtilityCode.load_cached("OptionalLocals", "CppSupport.cpp"))
         if not type.is_pyobject and not type.is_memoryviewslice:
             # Make manage_ref canonical, so that manage_ref will always mean
@@ -2073,8 +2073,11 @@ class CCodeWriter(object):
             self.put("%s " % storage_class)
         if not entry.cf_used:
             self.put('CYTHON_UNUSED ')
+        extra_kwds = {}
+        if entry.is_cpp_optional:
+            extra_kwds['cpp_optional'] = True
         self.put(entry.type.declaration_code(
-            entry.cname, dll_linkage=dll_linkage))
+            entry.cname, dll_linkage=dll_linkage, **extra_kwds))
         if entry.init is not None:
             self.put_safe(" = %s" % entry.type.literal_code(entry.init))
         elif entry.type.is_pyobject:
@@ -2083,7 +2086,10 @@ class CCodeWriter(object):
 
     def put_temp_declarations(self, func_context):
         for name, type, manage_ref, static in func_context.temps_allocated:
-            decl = type.declaration_code(name)
+            extra_args = {}
+            if type.is_cpp_class and func_context.scope.directives['cpp_locals']:
+                extra_args['cpp_optional'] = True
+            decl = type.declaration_code(name, **extra_args)
             if type.is_pyobject:
                 self.putln("%s = NULL;" % decl)
             elif type.is_memoryviewslice:
@@ -2366,7 +2372,7 @@ class CCodeWriter(object):
         # return self.putln("if (unlikely(%s < 0)) %s" % (value, self.error_goto(pos)))
         return self.putln("if (%s < 0) %s" % (value, self.error_goto(pos)))
 
-    def put_error_if_unbound(self, pos, entry, in_nogil_context=False):
+    def put_error_if_unbound(self, pos, entry, in_nogil_context=False, null_code=None):
         from . import ExprNodes
         if entry.from_closure:
             func = '__Pyx_RaiseClosureNameError'
@@ -2381,8 +2387,10 @@ class CCodeWriter(object):
             self.globalstate.use_utility_code(
                 ExprNodes.raise_unbound_local_error_utility_code)
 
+        if not null_code:
+            null_code = entry.type.check_for_null_code(entry.cname)
         self.putln('if (unlikely(!%s)) { %s("%s"); %s }' % (
-                                entry.type.check_for_null_code(entry.cname),
+                                null_code,
                                 func,
                                 entry.name,
                                 self.error_goto(pos)))

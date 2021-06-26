@@ -2342,17 +2342,20 @@ class NameNode(AtomicExprNode):
             # Raise UnboundLocalError for objects and memoryviewslices
             raise_unbound = (
                 (self.cf_maybe_null or self.cf_is_null) and not self.allow_null)
-            null_code = entry.type.check_for_null_code(entry.cname)
 
             memslice_check = entry.type.is_memoryviewslice and self.initialized_check
-            optional_cpp_check = entry.type.is_optional_cpp_class and self.initialized_check
+            optional_cpp_check = entry.is_cpp_optional and self.initialized_check
 
+            if optional_cpp_check:
+                null_code = entry.type.cpp_optional_check_for_null_code(entry.cname)
+            else:
+                null_code = entry.type.check_for_null_code(entry.cname)
 
             if null_code and raise_unbound and (entry.type.is_pyobject or memslice_check or optional_cpp_check):
-                code.put_error_if_unbound(self.pos, entry, self.in_nogil_context)
+                code.put_error_if_unbound(self.pos, entry, self.in_nogil_context, null_code=null_code)
 
-        elif entry.is_cglobal and entry.type.is_optional_cpp_class and self.initialized_check:
-            null_code = entry.type.check_for_null_code(entry.cname)
+        elif entry.is_cglobal and entry.is_cpp_optional and self.initialized_check:
+            null_code = entry.type.cpp_optional_check_for_null_code(entry.cname)
             code.putln(
                 'if (unlikely(!%s)) {'
                     'PyErr_SetString(PyExc_NameError,'
@@ -7143,14 +7146,13 @@ class AttributeNode(ExprNode):
             self.op = "->"
         elif obj_type.is_reference and obj_type.is_fake_reference:
             self.op = "->"
-        elif obj_type.is_optional_cpp_class:
-            obj_type = obj_type.base_type
-            self.op = "->"
         else:
             self.op = "."
         if obj_type.has_attributes:
             if obj_type.attributes_known():
                 entry = obj_type.scope.lookup_here(self.attribute)
+                if obj_type.is_cpp_class and self.obj.entry and self.obj.entry.is_cpp_optional:
+                    self.op = "->"
                 if obj_type.is_memoryviewslice and not entry:
                     if self.attribute == 'T':
                         self.is_memslice_transpose = True
@@ -7354,8 +7356,8 @@ class AttributeNode(ExprNode):
                                         '"Memoryview is not initialized");'
                         '%s'
                     '}' % (self.result(), code.error_goto(self.pos)))
-        elif self.type.is_optional_cpp_class and self.initialized_check:
-            null_code = self.type.check_for_null_code(self.result())
+        elif self.entry.is_cpp_optional and self.initialized_check:
+            null_code = self.type.cpp_optional_check_for_null_code(self.result())
             code.putln(
                 'if (unlikely(!%s)) {'
                     'PyErr_SetString(PyExc_AttributeError,'

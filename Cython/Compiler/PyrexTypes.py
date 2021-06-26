@@ -3974,7 +3974,12 @@ class CppClassType(CType):
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0,
-            template_params = None):
+            template_params = None, cpp_optional = False):
+        if cpp_optional and not (for_display or pyrex):
+            return "__Pyx_Optional_Type<%s> %s" % (
+                    self.declaration_code("", for_display, dll_linkage, pyrex,
+                                        template_params, False),
+                    entity_code)
         if template_params is None:
             template_params = self.templates
         if self.templates:
@@ -4079,12 +4084,10 @@ class CppClassType(CType):
         if constructor is not None and best_match([], constructor.all_alternatives()) is None:
             error(pos, "C++ class must have a nullary constructor to be %s" % msg)
 
-    def make_optional_type(self):
-        # defined here to try to make the OptionalCppClassType instances
-        # closer to singletons
-        if not hasattr(self, "_optional_type"):
-            self._optional_type = OptionalCppClassType(self)
-        return self._optional_type
+    def cpp_optional_check_for_null_code(self, cname):
+        # only applies to c++ classes that are being declared as std::optional
+        return "(%s.has_value())" % cname
+
 
 class CppScopedEnumType(CType):
     # name    string
@@ -4155,37 +4158,6 @@ class CppScopedEnumType(CType):
             outer_module_scope=env.global_scope())
 
         env.use_utility_code(rst)
-
-
-class OptionalCppClassType(CType):
-    """
-    A c++ class stored in a std::optional
-    (Using CPointerBaseType because it should largely be accessed by dereferencing and ->)
-    """
-    is_optional_cpp_class = True
-
-    subtypes = ['base_type']
-
-    def __init__(self, base_type):
-        super(OptionalCppClassType, self).__init__()
-        self.base_type = base_type
-
-    def declaration_code(self, entity_code,
-                        for_display=0, dll_linkage=None, pyrex=0):
-        if pyrex or for_display:
-            return self.base_type.declaration_code(entity_code, for_display, dll_linkage, pyrex)
-        else:
-            return "__Pyx_Optional_Type<%s> %s" % (
-                self.base_type.declaration_code("", for_display, dll_linkage, pyrex),
-                entity_code)
-
-    def check_for_null_code(self, cname):
-        return "(%s.has_value())" % cname
-
-    def assignable_from(self, other_type):
-        return (super(OptionalCppClassType, self).assignable_from(other_type)
-                or self.base_type == other_type
-            )
 
 
 class TemplatePlaceholderType(CType):
