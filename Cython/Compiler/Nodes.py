@@ -4494,6 +4494,7 @@ class GeneratorBodyDefNode(DefNode):
     def analyse_declarations(self, env):
         self.analyse_argument_types(env)
         self.declare_generator_body(env)
+        self.body.iterator.outer_scope = env
 
     def generate_function_header(self, code, proto=False):
         header = "static PyObject *%s(__pyx_CoroutineObject *%s, CYTHON_UNUSED PyThreadState *%s, PyObject *%s)" % (

@@ -412,6 +412,15 @@ class EnvTransform(CythonTransform):
             self._process_children(node)
         return node
 
+    def visit_IteratorNode(self, node):
+        if node.outer_scope:
+            self.enter_scope(node, node.outer_scope)
+            self._process_children(node)
+            self.exit_scope()
+        else:
+            self._process_children(node)
+        return node
+
 
 class NodeRefCleanupMixin(object):
     """

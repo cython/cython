@@ -2699,10 +2699,13 @@ class IteratorNode(ExprNode):
     counter_cname = None
     reversed = False      # currently only used for list/tuple types (see Optimize.py)
     is_async = False
+    outer_scope = None    # non-None if sequence should be evaluated in a different scope
 
     subexprs = ['sequence']
 
     def analyse_types(self, env):
+        if self.outer_scope:
+            env = self.outer_scope  # actually evaluate sequence in this scope instead
         self.sequence = self.sequence.analyse_types(env)
         if (self.sequence.type.is_array or self.sequence.type.is_ptr) and \
                 not self.sequence.type.is_string:
@@ -2725,7 +2728,7 @@ class IteratorNode(ExprNode):
             ]))
 
     def type_dependencies(self, env):
-        return self.sequence.type_dependencies(env)
+        return self.sequence.type_dependencies(self.outer_scope if self.outer_scope else env)
 
     def infer_type(self, env):
         sequence_type = self.sequence.infer_type(env)
@@ -8420,6 +8423,7 @@ class ComprehensionNode(ScopedExprNode):
     def analyse_declarations(self, env):
         self.append.target = self  # this is used in the PyList_Append of the inner loop
         self.init_scope(env)
+        self.loop.iterator.outer_scope = env
 
     def analyse_scoped_declarations(self, env):
         self.loop.analyse_declarations(env)
