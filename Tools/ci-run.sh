@@ -1,22 +1,24 @@
 #!/usr/bin/bash
 
+GCC_VERSION=${GCC_VERSION:=8}
+
 # Set up compilers
-if [ "${OS_NAME##ubuntu*}" == "" ]; then
+if [ "${OS_NAME##ubuntu*}" == "" -a "$TEST_CODE_STYLE" != "1" ]; then
   echo "Installing requirements [apt]"
   sudo apt-add-repository -y "ppa:ubuntu-toolchain-r/test"
   sudo apt update -y -q
-  sudo apt install -y -q ccache gdb python-dbg python3-dbg gcc-8 || exit 1
+  sudo apt install -y -q ccache gdb python-dbg python3-dbg gcc-$GCC_VERSION || exit 1
   if [ -z "${BACKEND##*cpp*}" ]; then
-    sudo apt install -y -q g++-8 || exit 1
+    sudo apt install -y -q g++-$GCC_VERSION || exit 1
   fi
   sudo /usr/sbin/update-ccache-symlinks
   echo "/usr/lib/ccache" >> $GITHUB_PATH # export ccache to path
 
-  sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 60 $(if [ -z "${BACKEND##*cpp*}" ]; then echo " --slave /usr/bin/g++ g++ /usr/bin/g++-8"; fi)
+  sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-$GCC_VERSION 60 $(if [ -z "${BACKEND##*cpp*}" ]; then echo " --slave /usr/bin/g++ g++ /usr/bin/g++-$GCC_VERSION"; fi)
 
   export CC="gcc"
   if [ -z "${BACKEND##*cpp*}" ]; then
-    sudo update-alternatives --set g++ /usr/bin/g++-8
+    sudo update-alternatives --set g++ /usr/bin/g++-$GCC_VERSION
     export CXX="g++"
   fi
 fi
@@ -54,16 +56,21 @@ if [ -z "${PYTHON_VERSION##2.7}" ]; then
   pip install -r test-requirements-27.txt || exit 1
 elif [ -z "${PYTHON_VERSION##3.[45]*}" ]; then
   python -m pip install -r test-requirements-34.txt || exit 1
-elif [ -n "${PYTHON_VERSION##*-dev}" ]; then
-  python -m pip install -r test-requirements.txt || exit 1
+else
+  python -m pip install -U pip setuptools wheel || exit 1
 
-  if [ "${PYTHON_VERSION##pypy*}" -a "${PYTHON_VERSION##3.[4789]*}" ]; then
-    python -m pip install -r test-requirements-cpython.txt || exit 1
+  if [ -n "${PYTHON_VERSION##*-dev}" ]; then
+    python -m pip install -r test-requirements.txt || exit 1
+
+    if [ "${PYTHON_VERSION##pypy*}" -a "${PYTHON_VERSION##3.[4789]*}" ]; then
+      python -m pip install -r test-requirements-cpython.txt || exit 1
+    fi
   fi
 fi
 
 if [ "$TEST_CODE_STYLE" == "1" ]; then
   STYLE_ARGS="--no-unit --no-doctest --no-file --no-pyregr --no-examples";
+  python -m pip install -r doc-requirements.txt || exit 1
 else
   STYLE_ARGS="--no-code-style";
 
@@ -92,13 +99,15 @@ if [ "$NO_CYTHON_COMPILE" != "1" -a -n "${PYTHON_VERSION##pypy*}" ]; then
       || exit 1
 fi
 
-if [ "$TEST_CODE_STYLE" != "1" -a -n "${PYTHON_VERSION##pypy*}" ]; then
+if [ "$TEST_CODE_STYLE" == "1" ]; then
+    make -C docs html || exit 1
+elif [ -n "${PYTHON_VERSION##pypy*}" ]; then
   # Run the debugger tests in python-dbg if available (but don't fail, because they currently do fail)
   PYTHON_DBG="python$( python -c 'import sys; print("%d.%d" % sys.version_info[:2])' )-dbg"
   if $PYTHON_DBG -V >&2; then CFLAGS="-O0 -ggdb" $PYTHON_DBG runtests.py -vv --no-code-style Debugger --backends=$BACKEND; fi;
 fi
 
-export CFLAGS="-O0 -ggdb -Wall -Wextra"
+export CFLAGS="-O0 -ggdb -Wall -Wextra $EXTRA_CFLAGS"
 python runtests.py \
   -vv $STYLE_ARGS \
   -x Debugger \

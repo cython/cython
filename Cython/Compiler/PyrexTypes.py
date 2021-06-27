@@ -4718,12 +4718,23 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
             errors.append((func, error_mesg))
             continue
         if func_type.templates:
+            # For any argument/parameter pair A/P, if P is a forwarding reference,
+            # use lvalue-reference-to-A for deduction in place of A when the
+            # function call argument is an lvalue. See:
+            # https://en.cppreference.com/w/cpp/language/template_argument_deduction#Deduction_from_a_function_call
+            arg_types_for_deduction = list(arg_types)
+            if func.type.is_cfunction and args:
+                for i, formal_arg in enumerate(func.type.args):
+                    if formal_arg.is_forwarding_reference():
+                        if args[i].is_lvalue():
+                            arg_types_for_deduction[i] = c_ref_type(arg_types[i])
             deductions = reduce(
                 merge_template_deductions,
-                [pattern.type.deduce_template_params(actual) for (pattern, actual) in zip(func_type.args, arg_types)],
+                [pattern.type.deduce_template_params(actual) for (pattern, actual) in zip(func_type.args, arg_types_for_deduction)],
                 {})
             if deductions is None:
-                errors.append((func, "Unable to deduce type parameters for %s given (%s)" % (func_type, ', '.join(map(str, arg_types)))))
+                errors.append((func, "Unable to deduce type parameters for %s given (%s)" % (
+                    func_type, ', '.join(map(str, arg_types_for_deduction)))))
             elif len(deductions) < len(func_type.templates):
                 errors.append((func, "Unable to deduce type parameter %s" % (
                     ", ".join([param.name for param in set(func_type.templates) - set(deductions.keys())]))))

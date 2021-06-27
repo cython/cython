@@ -1579,6 +1579,7 @@ static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name)
 #endif
 {
     PyObject *result;
+// FIXME: clean up the macro guard order here: limited API first, then borrowed refs, then cpython
 #if !CYTHON_AVOID_BORROWED_REFS
 #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030500A1
     // Identifier names are always interned and have a pre-calculated hash value.

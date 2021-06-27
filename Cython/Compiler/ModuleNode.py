@@ -72,6 +72,41 @@ def generate_c_code_config(env, options):
         emit_code_comments=env.directives['emit_code_comments'],
         c_line_in_traceback=options.c_line_in_traceback)
 
+# The code required to generate one comparison from another.
+# The keys are (from, to).
+# The comparison operator always goes first, with equality possibly second.
+# The first value specifies if the comparison is inverted. The second is the
+# logic op to use, and the third is if the equality is inverted or not.
+TOTAL_ORDERING = {
+    # a > b from (not a < b) and (a != b)
+    ('__lt__', '__gt__'): (True, '&&', True),
+    # a <= b from (a < b) or (a == b)
+    ('__lt__', '__le__'): (False, '||', False),
+    # a >= b from (not a < b).
+    ('__lt__', '__ge__'): (True, '', None),
+
+    # a >= b from (not a <= b) or (a == b)
+    ('__le__', '__ge__'): (True, '||', False),
+    # a < b, from (a <= b) and (a != b)
+    ('__le__', '__lt__'): (False, '&&', True),
+    # a > b from (not a <= b)
+    ('__le__', '__gt__'): (True, '', None),
+
+    # a < b from (not a > b) and (a != b)
+    ('__gt__', '__lt__'): (True, '&&', True),
+    # a >= b from (a > b) or (a == b)
+    ('__gt__', '__ge__'): (False, '||', False),
+    # a <= b from (not a > b)
+    ('__gt__', '__le__'): (True, '', None),
+
+    # Return a <= b from (not a >= b) or (a == b)
+    ('__ge__', '__le__'): (True, '||', False),
+    # a > b from (a >= b) and (a != b)
+    ('__ge__', '__gt__'): (False, '&&', True),
+    # a < b from (not a >= b)
+    ('__ge__', '__lt__'): (True, '', None),
+}
+
 
 class ModuleNode(Nodes.Node, Nodes.BlockNode):
     #  doc       string or None
@@ -819,7 +854,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put(Nodes.branch_prediction_macros)
         code.putln('static CYTHON_INLINE void __Pyx_pretend_to_initialize(void* ptr) { (void)ptr; }')
         code.putln('')
-        code.putln('#if !CYTHON_COMPILING_IN_LIMITED_API')
+        code.putln('#if !CYTHON_USE_MODULE_STATE')
         code.putln('static PyObject *%s = NULL;' % env.module_cname)
         code.putln('static PyObject *%s;' % env.module_dict_cname)
         code.putln('static PyObject *%s;' % Naming.builtins_cname)
@@ -1254,7 +1289,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state_defines = globalstate['module_state_defines']
         module_state_clear = globalstate['module_state_clear']
         module_state_traverse = globalstate['module_state_traverse']
-        code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
+        code.putln("#if !CYTHON_USE_MODULE_STATE")
         for entry in env.c_class_entries:
             if definition or entry.defined_in_pxd:
                 code.putln("static PyTypeObject *%s = 0;" % (
@@ -1356,6 +1391,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     self.generate_exttype_vtable(scope, code)
                     self.generate_new_function(scope, code, entry)
                     self.generate_dealloc_function(scope, code)
+
                     if scope.needs_gc():
                         self.generate_traverse_function(scope, code, entry)
                         if scope.needs_tp_clear():
@@ -1383,15 +1419,22 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         self.generate_descr_set_function(scope, code)
                     if not scope.is_closure_class_scope and scope.defines_any(["__dict__"]):
                         self.generate_dict_getter_function(scope, code)
+
                     if scope.defines_any_special(TypeSlots.richcmp_special_methods):
                         self.generate_richcmp_function(scope, code)
+                    elif scope.directives.get('total_ordering'):
+                        # Warn if this is used when it can't have any effect.
+                        warning(scope.parent_type.pos,
+                                "total_ordering directive used, but no comparison and equality methods defined")
+
                     for slot in TypeSlots.PyNumberMethods:
                         if slot.is_binop and scope.defines_any_special(slot.user_methods):
                             self.generate_binop_function(scope, slot, code, entry.pos)
+
                     self.generate_property_accessors(scope, code)
                     self.generate_method_table(scope, code)
                     self.generate_getset_table(scope, code)
-                    code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+                    code.putln("#if CYTHON_USE_TYPE_SPECS")
                     self.generate_typeobj_spec(entry, code)
                     code.putln("#else")
                     self.generate_typeobj_definition(full_module_name, entry, code)
@@ -1581,11 +1624,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         slot_func_cname = scope.mangle_internal("tp_dealloc")
         code.putln("")
-        cdealloc_func_entry = scope.lookup_here("__dealloc__")
-        if cdealloc_func_entry and not cdealloc_func_entry.is_special:
-            cdealloc_func_entry = None
-        if cdealloc_func_entry is None:
-            code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
         code.putln(
             "static void %s(PyObject *o) {" % slot_func_cname)
 
@@ -1715,8 +1753,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln(
             "}")
-        if cdealloc_func_entry is None:
-            code.putln("#endif")
 
     def generate_usr_dealloc_call(self, scope, code):
         entry = scope.lookup_here("__dealloc__")
@@ -2042,37 +2078,112 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             # need to call up into base classes as we may not know all implemented comparison methods
             extern_parent = cls if cls.typeptr_cname else scope.parent_type.base_type
 
-        eq_entry = None
-        has_ne = False
+        total_ordering = scope.directives.get('total_ordering', False)
+
+        comp_entry = {}
+
         for cmp_method in TypeSlots.richcmp_special_methods:
             for class_scope in class_scopes:
                 entry = class_scope.lookup_here(cmp_method)
                 if entry is not None:
+                    comp_entry[cmp_method] = entry
                     break
+
+        if total_ordering:
+            # Check this is valid - we must have at least 1 operation defined.
+            comp_names = [from_name for from_name, to_name in TOTAL_ORDERING if from_name in comp_entry]
+            if not comp_names:
+                if '__eq__' not in comp_entry and '__ne__'  not in comp_entry:
+                    warning(scope.parent_type.pos,
+                            "total_ordering directive used, but no comparison and equality methods defined")
+                else:
+                    warning(scope.parent_type.pos,
+                          "total_ordering directive used, but no comparison methods defined")
+                total_ordering = False
             else:
+                if '__eq__' not in comp_entry and '__ne__' not in comp_entry:
+                    warning(scope.parent_type.pos, "total_ordering directive used, but no equality method defined")
+                    total_ordering = False
+
+                # Same priority as functools, prefers
+                # __lt__ to __le__ to __gt__ to __ge__
+                ordering_source = max(comp_names)
+
+        for cmp_method in TypeSlots.richcmp_special_methods:
+            cmp_type = cmp_method.strip('_').upper()  # e.g. "__eq__" -> EQ
+            entry = comp_entry.get(cmp_method)
+            if entry is None and (not total_ordering or cmp_type in ('NE', 'EQ')):
+                # No definition, fall back to superclasses.
+                # eq/ne methods shouldn't use the total_ordering code.
                 continue
 
-            cmp_type = cmp_method.strip('_').upper()  # e.g. "__eq__" -> EQ
             code.putln("case Py_%s: {" % cmp_type)
-            if cmp_method == '__eq__':
-                eq_entry = entry
-                # Python itself does not do this optimisation, it seems...
-                #code.putln("if (o1 == o2) return __Pyx_NewRef(Py_True);")
-            elif cmp_method == '__ne__':
-                has_ne = True
-                # Python itself does not do this optimisation, it seems...
-                #code.putln("if (o1 == o2) return __Pyx_NewRef(Py_False);")
-            code.putln("return %s(o1, o2);" % entry.func_cname)
-            code.putln("}")
+            if entry is None:
+                assert total_ordering
+                # We need to generate this from the other methods.
+                invert_comp, comp_op, invert_equals = TOTAL_ORDERING[ordering_source, cmp_method]
 
-        if eq_entry and not has_ne and not extern_parent:
+                # First we always do the comparison.
+                code.putln("PyObject *ret;")
+                code.putln("ret = %s(o1, o2);" % comp_entry[ordering_source].func_cname)
+                code.putln("if (likely(ret && ret != Py_NotImplemented)) {")
+                code.putln("int order_res = __Pyx_PyObject_IsTrue(ret);")
+                code.putln("Py_DECREF(ret);")
+                code.putln("if (unlikely(order_res < 0)) return NULL;")
+                # We may need to check equality too. For some combos it's never required.
+                if invert_equals is not None:
+                    # Implement the and/or check with an if.
+                    if comp_op == '&&':
+                        code.putln("if (%s order_res) {" % ('!!' if invert_comp else '!'))
+                        code.putln("ret = Py_False;")
+                        code.putln("} else {")
+                    elif comp_op == '||':
+                        code.putln("if (%s order_res) {" % ('!' if invert_comp else ''))
+                        code.putln("ret = Py_True;")
+                        code.putln("} else {")
+                    else:
+                        raise AssertionError('Unknown op %s' % (comp_op, ))
+                    if '__eq__' in comp_entry:
+                        eq_func = '__eq__'
+                    else:
+                        # Fall back to NE, which is defined here.
+                        eq_func = '__ne__'
+                        invert_equals = not invert_equals
+
+                    code.putln("ret = %s(o1, o2);" % comp_entry[eq_func].func_cname)
+                    code.putln("if (likely(ret && ret != Py_NotImplemented)) {")
+                    code.putln("int eq_res = __Pyx_PyObject_IsTrue(ret);")
+                    code.putln("Py_DECREF(ret);")
+                    code.putln("if (unlikely(eq_res < 0)) return NULL;")
+                    if invert_equals:
+                        code.putln("ret = eq_res ? Py_False : Py_True;")
+                    else:
+                        code.putln("ret = eq_res ? Py_True : Py_False;")
+                    code.putln("Py_INCREF(ret);")
+                    code.putln("}")  # equals success
+                    code.putln("}")  # Needs to try equals
+                else:
+                    # Convert direct to a boolean.
+                    if invert_comp:
+                        code.putln("ret = order_res ? Py_False : Py_True;")
+                    else:
+                        code.putln("ret = order_res ? Py_True : Py_False;")
+                    code.putln("Py_INCREF(ret);")
+                code.putln("}")  # comp_op
+                code.putln("return ret;")
+            else:
+                code.putln("return %s(o1, o2);" % entry.func_cname)
+            code.putln("}")  # Case
+
+        if '__eq__' in comp_entry and '__ne__' not in comp_entry and not extern_parent:
             code.putln("case Py_NE: {")
             code.putln("PyObject *ret;")
             # Python itself does not do this optimisation, it seems...
             #code.putln("if (o1 == o2) return __Pyx_NewRef(Py_False);")
-            code.putln("ret = %s(o1, o2);" % eq_entry.func_cname)
+            code.putln("ret = %s(o1, o2);" % comp_entry['__eq__'].func_cname)
             code.putln("if (likely(ret && ret != Py_NotImplemented)) {")
-            code.putln("int b = __Pyx_PyObject_IsTrue(ret); Py_DECREF(ret);")
+            code.putln("int b = __Pyx_PyObject_IsTrue(ret);")
+            code.putln("Py_DECREF(ret);")
             code.putln("if (unlikely(b < 0)) return NULL;")
             code.putln("ret = (b) ? Py_False : Py_True;")
             code.putln("Py_INCREF(ret);")
@@ -2391,6 +2502,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_typeobj_spec(self, entry, code):
         ext_type = entry.type
         scope = ext_type.scope
+
+        members_slot = TypeSlots.get_slot_by_name("tp_members")
+        members_slot.generate_substructure_spec(scope, code)
+
+        buffer_slot = TypeSlots.get_slot_by_name("tp_as_buffer")
+        if not buffer_slot.is_empty(scope):
+            code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
+            buffer_slot.generate_substructure(scope, code)
+            code.putln("#endif")
+
         code.putln("static PyType_Slot %s_slots[] = {" % ext_type.typeobj_cname)
         for slot in TypeSlots.slot_table:
             slot.generate_spec(scope, code)
@@ -2582,8 +2703,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.exit_cfunc_scope()  # done with labels
 
     def generate_module_state_start(self, env, code):
-        # TODO: Reactor LIMITED_API struct decl closer to the static decl
-        code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+        # TODO: Refactor to move module state struct decl closer to the static decl
+        code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln('typedef struct {')
         code.putln('PyObject *%s;' % env.module_dict_cname)
         code.putln('PyObject *%s;' % Naming.builtins_cname)
@@ -2637,7 +2758,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state_traverse.putln("#endif")
 
     def generate_module_state_defines(self, env, code):
-        code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+        code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln('#define %s %s->%s' % (
             env.module_dict_cname,
             Naming.modulestateglobal_cname,
@@ -2681,7 +2802,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('#endif')
 
     def generate_module_state_clear(self, env, code):
-        code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+        code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln("static int %s_clear(PyObject *m) {" % Naming.module_cname)
         code.putln("%s *clear_module_state = %s(m);" % (
             Naming.modulestate_cname,
@@ -2709,7 +2830,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('#endif')
 
     def generate_module_state_traverse(self, env, code):
-        code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+        code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln("static int %s_traverse(PyObject *m, visitproc visit, void *arg) {" % Naming.module_cname)
         code.putln("%s *traverse_module_state = %s(m);" % (
             Naming.modulestate_cname,
@@ -2861,7 +2982,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         for ext_type in ('CyFunction', 'FusedFunction', 'Coroutine', 'Generator', 'AsyncGen', 'StopAsyncIteration'):
             code.putln("#ifdef __Pyx_%s_USED" % ext_type)
-            code.put_error_if_neg(self.pos, "__pyx_%s_init()" % ext_type)
+            code.put_error_if_neg(self.pos, "__pyx_%s_init(%s)" % (ext_type, env.module_cname))
             code.putln("#endif")
 
         code.putln("/*--- Library function declarations ---*/")
@@ -3278,7 +3399,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("  %s, /* m_doc */" % doc)
         code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
         code.putln("  0, /* m_size */")
-        code.putln("#elif CYTHON_COMPILING_IN_LIMITED_API")
+        code.putln("#elif CYTHON_USE_MODULE_STATE")  # FIXME: should allow combination with PEP-489
         code.putln("  sizeof(%s), /* m_size */" % Naming.modulestate_cname)
         code.putln("#else")
         code.putln("  -1, /* m_size */")
@@ -3289,7 +3410,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#else")
         code.putln("  NULL, /* m_reload */")
         code.putln("#endif")
-        code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+        code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln("  %s_traverse, /* m_traverse */" % Naming.module_cname)
         code.putln("  %s_clear, /* m_clear */" % Naming.module_cname)
         code.putln("  %s /* m_free */" % cleanup_func)
