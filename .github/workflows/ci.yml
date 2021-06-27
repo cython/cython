@@ -143,11 +143,19 @@ jobs:
           # ==============
           - os: macos-10.15
             python-version: 2.7
-            backend: "c,cpp"
+            backend: c
             env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
           - os: macos-10.15
-            python-version: 3.8
-            backend: "c,cpp"
+            python-version: 2.7
+            backend: cpp
+            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
+          - os: macos-10.15
+            python-version: 3.9
+            backend: c
+            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
+          - os: macos-10.15
+            python-version: 3.9
+            backend: cpp
             env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
 
     # This defaults to 360 minutes (6h) which is way too long and if a test gets stuck, it can block other pipelines.

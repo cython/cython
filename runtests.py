@@ -543,10 +543,23 @@ def _list_pyregr_data_files(test_directory):
         if is_data_file(filename)]
 
 
+def import_module_from_file(module_name, file_path, execute=True):
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(module_name, file_path)
+    m = importlib.util.module_from_spec(spec)
+    if execute:
+        sys.modules[module_name] = m
+        spec.loader.exec_module(m)
+    return m
+
+
 def import_ext(module_name, file_path=None):
     if file_path:
-        import imp
-        return imp.load_dynamic(module_name, file_path)
+        if sys.version_info >= (3, 5):
+            return import_module_from_file(module_name, file_path)
+        else:
+            import imp
+            return imp.load_dynamic(module_name, file_path)
     else:
         try:
             from importlib import invalidate_caches
@@ -661,7 +674,7 @@ class TestBuilder(object):
                  with_pyregr, languages, test_bugs, language_level,
                  common_utility_dir, pythran_dir=None,
                  default_mode='run', stats=None,
-                 add_embedded_test=False):
+                 add_embedded_test=False, add_cython_import=False):
         self.rootdir = rootdir
         self.workdir = workdir
         self.selectors = selectors
@@ -683,6 +696,7 @@ class TestBuilder(object):
         self.default_mode = default_mode
         self.stats = stats
         self.add_embedded_test = add_embedded_test
+        self.add_cython_import = add_cython_import
         self.capture = options.capture
 
     def build_suite(self):
@@ -768,7 +782,7 @@ class TestBuilder(object):
                 raise KeyError('Invalid test mode: ' + mode)
 
             for test in self.build_tests(test_class, path, workdir,
-                                         module, mode == 'error', tags):
+                                         module, filepath, mode == 'error', tags):
                 suite.addTest(test)
 
             if mode == 'run' and ext == '.py' and not self.cython_only and not filename.startswith('test_'):
@@ -779,11 +793,11 @@ class TestBuilder(object):
                     if pyver
                 ]
                 if not min_py_ver or any(sys.version_info >= min_ver for min_ver in min_py_ver):
-                    suite.addTest(PureDoctestTestCase(module, os.path.join(path, filename), tags, stats=self.stats))
+                    suite.addTest(PureDoctestTestCase(module, filepath, tags, stats=self.stats))
 
         return suite
 
-    def build_tests(self, test_class, path, workdir, module, expect_errors, tags):
+    def build_tests(self, test_class, path, workdir, module, module_path, expect_errors, tags):
         warning_errors = 'werror' in tags['tag']
         expect_warnings = 'warnings' in tags['tag']
 
@@ -815,18 +829,22 @@ class TestBuilder(object):
                 pythran_ext = pythran.config.make_extension()
             pythran_dir = pythran_ext['include_dirs'][0]
 
+        add_cython_import = self.add_cython_import and module_path.endswith('.py')
+
         preparse_list = tags.get('preparse', ['id'])
-        tests = [ self.build_test(test_class, path, workdir, module, tags, language, language_level,
+        tests = [ self.build_test(test_class, path, workdir, module, module_path,
+                                  tags, language, language_level,
                                   expect_errors, expect_warnings, warning_errors, preparse,
-                                  pythran_dir if language == "cpp" else None)
+                                  pythran_dir if language == "cpp" else None,
+                                  add_cython_import=add_cython_import)
                   for language in languages
                   for preparse in preparse_list
                   for language_level in language_levels
         ]
         return tests
 
-    def build_test(self, test_class, path, workdir, module, tags, language, language_level,
-                   expect_errors, expect_warnings, warning_errors, preparse, pythran_dir):
+    def build_test(self, test_class, path, workdir, module, module_path, tags, language, language_level,
+                   expect_errors, expect_warnings, warning_errors, preparse, pythran_dir, add_cython_import):
         language_workdir = os.path.join(workdir, language)
         if not os.path.exists(language_workdir):
             os.makedirs(language_workdir)
@@ -835,7 +853,7 @@ class TestBuilder(object):
             workdir += '_%s' % (preparse,)
         if language_level:
             workdir += '_cy%d' % (language_level,)
-        return test_class(path, workdir, module, tags,
+        return test_class(path, workdir, module, module_path, tags,
                           language=language,
                           preparse=preparse,
                           expect_errors=expect_errors,
@@ -852,7 +870,9 @@ class TestBuilder(object):
                           test_determinism=self.test_determinism,
                           common_utility_dir=self.common_utility_dir,
                           pythran_dir=pythran_dir,
-                          stats=self.stats)
+                          stats=self.stats,
+                          add_cython_import=add_cython_import,
+                          )
 
 
 def skip_c(tags):
@@ -895,16 +915,17 @@ def filter_test_suite(test_suite, selector):
 
 
 class CythonCompileTestCase(unittest.TestCase):
-    def __init__(self, test_directory, workdir, module, tags, language='c', preparse='id',
+    def __init__(self, test_directory, workdir, module, module_path, tags, language='c', preparse='id',
                  expect_errors=False, expect_warnings=False, annotate=False, cleanup_workdir=True,
                  cleanup_sharedlibs=True, cleanup_failures=True, cython_only=False, test_selector=None,
                  fork=True, language_level=2, warning_errors=False,
                  test_determinism=False,
-                 common_utility_dir=None, pythran_dir=None, stats=None):
+                 common_utility_dir=None, pythran_dir=None, stats=None, add_cython_import=False):
         self.test_directory = test_directory
         self.tags = tags
         self.workdir = workdir
         self.module = module
+        self.module_path = module_path
         self.language = language
         self.preparse = preparse
         self.name = module if self.preparse == "id" else "%s_%s" % (module, preparse)
@@ -923,6 +944,7 @@ class CythonCompileTestCase(unittest.TestCase):
         self.common_utility_dir = common_utility_dir
         self.pythran_dir = pythran_dir
         self.stats = stats
+        self.add_cython_import = add_cython_import
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
@@ -958,6 +980,15 @@ class CythonCompileTestCase(unittest.TestCase):
         if self.workdir not in sys.path:
             sys.path.insert(0, self.workdir)
 
+        if self.add_cython_import:
+            with open(self.module_path, 'rb') as f:
+                source = f.read()
+                if b'cython.cimports.' in source:
+                    from Cython.Shadow import CythonCImports
+                    for name in set(re.findall(br"(cython\.cimports(?:\.\w+)+)", source)):
+                        name = name.decode()
+                        sys.modules[name] = CythonCImports(name)
+
     def tearDown(self):
         from Cython.Compiler import Options
         for name, value in self._saved_options:
@@ -973,6 +1004,13 @@ class CythonCompileTestCase(unittest.TestCase):
             del sys.modules[self.module]
         except KeyError:
             pass
+
+        # remove any stubs of cimported modules in pure Python mode
+        if self.add_cython_import:
+            for name in list(sys.modules):
+                if name.startswith('cython.cimports.'):
+                    del sys.modules[name]
+
         cleanup = self.cleanup_failures or self.success
         cleanup_c_files = WITH_CYTHON and self.cleanup_workdir and cleanup
         cleanup_lib_files = self.cleanup_sharedlibs and cleanup
@@ -1025,8 +1063,9 @@ class CythonCompileTestCase(unittest.TestCase):
 
     def runCompileTest(self):
         return self.compile(
-            self.test_directory, self.module, self.workdir,
-            self.test_directory, self.expect_errors, self.expect_warnings, self.annotate)
+            self.test_directory, self.module, self.module_path, self.workdir,
+            self.test_directory, self.expect_errors, self.expect_warnings, self.annotate,
+            self.add_cython_import)
 
     def find_module_source_file(self, source_file):
         if not os.path.exists(source_file):
@@ -1064,9 +1103,7 @@ class CythonCompileTestCase(unittest.TestCase):
             [filename for filename in file_list
              if not os.path.isfile(os.path.join(workdir, filename))])
 
-    def split_source_and_output(self, test_directory, module, workdir):
-        source_file = self.find_module_source_file(os.path.join(test_directory, module) + '.pyx')
-
+    def split_source_and_output(self, source_file, workdir, add_cython_import=False):
         from Cython.Utils import detect_opened_file_encoding
         with io_open(source_file, 'rb') as f:
             # encoding is passed to ErrorWriter but not used on the source
@@ -1075,17 +1112,23 @@ class CythonCompileTestCase(unittest.TestCase):
 
         with io_open(source_file, 'r', encoding='ISO-8859-1') as source_and_output:
             error_writer = warnings_writer = None
-            out = io_open(os.path.join(workdir, module + os.path.splitext(source_file)[1]),
+            out = io_open(os.path.join(workdir, os.path.basename(source_file)),
                           'w', encoding='ISO-8859-1')
             try:
                 for line in source_and_output:
-                    if line.startswith("_ERRORS"):
+                    if line.startswith(u"_ERRORS"):
                         out.close()
                         out = error_writer = ErrorWriter(encoding=encoding)
-                    elif line.startswith("_WARNINGS"):
+                    elif line.startswith(u"_WARNINGS"):
                         out.close()
                         out = warnings_writer = ErrorWriter(encoding=encoding)
                     else:
+                        if add_cython_import and line.strip() and not (
+                                line.startswith(u'#') or line.startswith(u"from __future__ import ")):
+                            # insert "import cython" statement after any directives or future imports
+                            if line !=  u"import cython\n":
+                                out.write(u"import cython\n")
+                            add_cython_import = False
                         out.write(line)
             finally:
                 out.close()
@@ -1093,18 +1136,16 @@ class CythonCompileTestCase(unittest.TestCase):
         return (error_writer.geterrors() if error_writer else [],
                 warnings_writer.geterrors() if warnings_writer else [])
 
-    def run_cython(self, test_directory, module, targetdir, incdir, annotate,
+    def run_cython(self, test_directory, module, module_path, targetdir, incdir, annotate,
                    extra_compile_options=None):
         include_dirs = INCLUDE_DIRS + [os.path.join(test_directory, '..', TEST_SUPPORT_DIR)]
         if incdir:
             include_dirs.append(incdir)
 
-        if self.preparse == 'id':
-            source = self.find_module_source_file(
-                os.path.join(test_directory, module + '.pyx'))
-        else:
-            self.copy_files(test_directory, targetdir, [module + '.pyx'])
-            source = os.path.join(targetdir, module + '.pyx')
+        if self.preparse != 'id' and test_directory != targetdir:
+            file_name = os.path.basename(module_path)
+            self.copy_files(test_directory, targetdir, [file_name])
+            module_path = os.path.join(targetdir, file_name)
         target = os.path.join(targetdir, self.build_target_filename(module))
 
         if extra_compile_options is None:
@@ -1136,8 +1177,7 @@ class CythonCompileTestCase(unittest.TestCase):
             common_utility_include_dir = common_utility_include_dir,
             **extra_compile_options
             )
-        cython_compile(source, options=options,
-                       full_module_name=module)
+        cython_compile(module_path, options=options, full_module_name=module)
 
     def run_distutils(self, test_directory, module, workdir, incdir,
                       extra_extension_args=None):
@@ -1233,27 +1273,28 @@ class CythonCompileTestCase(unittest.TestCase):
 
         return get_ext_fullpath(module)
 
-    def compile(self, test_directory, module, workdir, incdir,
-                expect_errors, expect_warnings, annotate):
+    def compile(self, test_directory, module, module_path, workdir, incdir,
+                expect_errors, expect_warnings, annotate, add_cython_import):
         expected_errors = expected_warnings = errors = warnings = ()
-        if expect_errors or expect_warnings:
+        if expect_errors or expect_warnings or add_cython_import:
             expected_errors, expected_warnings = self.split_source_and_output(
-                test_directory, module, workdir)
+                module_path, workdir, add_cython_import)
             test_directory = workdir
+            module_path = os.path.join(workdir, os.path.basename(module_path))
 
         if WITH_CYTHON:
             old_stderr = sys.stderr
             try:
                 sys.stderr = ErrorWriter()
                 with self.stats.time(self.name, self.language, 'cython'):
-                    self.run_cython(test_directory, module, workdir, incdir, annotate)
+                    self.run_cython(test_directory, module, module_path, workdir, incdir, annotate)
                 errors, warnings = sys.stderr.getall()
             finally:
                 sys.stderr = old_stderr
             if self.test_determinism and not expect_errors:
                 workdir2 = workdir + '-again'
                 os.mkdir(workdir2)
-                self.run_cython(test_directory, module, workdir2, incdir, annotate)
+                self.run_cython(test_directory, module, module_path, workdir2, incdir, annotate)
                 diffs = []
                 for file in os.listdir(workdir2):
                     if (open(os.path.join(workdir, file)).read()
@@ -1488,9 +1529,13 @@ class PureDoctestTestCase(unittest.TestCase):
         try:
             self.setUp()
 
-            import imp
             with self.stats.time(self.name, 'py', 'pyimport'):
-                m = imp.load_source(loaded_module_name, self.module_path)
+                if sys.version_info >= (3, 5):
+                    m = import_module_from_file(self.module_name, self.module_path)
+                else:
+                    import imp
+                    m = imp.load_source(loaded_module_name, self.module_path)
+
             try:
                 with self.stats.time(self.name, 'py', 'pyrun'):
                     doctest.DocTestSuite(m).run(result)
@@ -2623,6 +2668,7 @@ def runtests(options, cmd_args, coverage=None):
                                 options.language_level, common_utility_dir,
                                 options.pythran_dir, add_embedded_test=True, stats=stats)
         test_suite.addTest(filetests.build_suite())
+
     if options.examples and languages:
         examples_workdir = os.path.join(WORKDIR, 'examples')
         for subdirectory in glob.glob(os.path.join(options.examples_dir, "*/")):
@@ -2630,7 +2676,7 @@ def runtests(options, cmd_args, coverage=None):
                                     options, options.pyregr, languages, test_bugs,
                                     options.language_level, common_utility_dir,
                                     options.pythran_dir,
-                                    default_mode='compile', stats=stats)
+                                    default_mode='compile', stats=stats, add_cython_import=True)
             test_suite.addTest(filetests.build_suite())
 
     if options.system_pyregr and languages:

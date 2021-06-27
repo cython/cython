@@ -52,6 +52,12 @@ class SkipDeclarations(object):
     def visit_CStructOrUnionDefNode(self, node):
         return node
 
+    def visit_CppClassNode(self, node):
+        if node.visibility != "extern":
+            # Need to traverse methods.
+            self.visitchildren(node)
+        return node
+
 
 class NormalizeTree(CythonTransform):
     """

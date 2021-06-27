@@ -34,8 +34,11 @@ from . import PyrexTypes
 from .PyrexTypes import py_object_type, c_long_type, typecast, error_type, \
     unspecified_type
 from . import TypeSlots
-from .Builtin import list_type, tuple_type, set_type, dict_type, type_type, \
-     unicode_type, str_type, bytes_type, bytearray_type, basestring_type, slice_type
+from .Builtin import (
+    list_type, tuple_type, set_type, dict_type, type_type,
+    unicode_type, str_type, bytes_type, bytearray_type, basestring_type,
+    slice_type, long_type,
+)
 from . import Builtin
 from . import Symtab
 from .. import Utils
@@ -262,6 +265,20 @@ def translate_cpp_exception(code, pos, inside, py_result, exception_value, nogil
         code.put_release_ensured_gil()
     code.putln(code.error_goto(pos))
     code.putln("}")
+
+def needs_cpp_exception_conversion(node):
+    assert node.exception_check == "+"
+    if node.exception_value is None:
+        return True
+    # exception_value can be a NameNode
+    # (in which case it's used as a handler function and no conversion is needed)
+    if node.exception_value.is_name:
+        return False
+    # or a CharNode with a value of "*"
+    if isinstance(node.exception_value, CharNode) and node.exception_value.value == "*":
+        return True
+    # Most other const-nodes are disallowed after "+" by the parser
+    return False
 
 
 # Used to handle the case where an lvalue expression and an overloaded assignment
@@ -2005,6 +2022,9 @@ class NameNode(AtomicExprNode):
                 or not env.directives['annotation_typing']
             ):
                 atype = None
+            elif env.is_py_class_scope:
+                # For Python class scopes every attribute is a Python object
+                atype = py_object_type
             else:
                 _, atype = annotation.analyse_type_annotation(env)
             if atype is None:
@@ -3916,7 +3936,7 @@ class IndexNode(_IndexingBaseNode):
         if self.exception_check:
             if not setting:
                 self.is_temp = True
-            if self.exception_value is None:
+            if needs_cpp_exception_conversion(self):
                 env.use_utility_code(UtilityCode.load_cached("CppExceptionConversion", "CppSupport.cpp"))
         self.index = self.index.coerce_to(func_type.args[0].type, env)
         self.type = func_type.return_type
@@ -6000,7 +6020,7 @@ class SimpleCallNode(CallNode):
             env.use_utility_code(pyerr_occurred_withgil_utility_code)
         # C++ exception handler
         if func_type.exception_check == '+':
-            if func_type.exception_value is None:
+            if needs_cpp_exception_conversion(func_type):
                 env.use_utility_code(UtilityCode.load_cached("CppExceptionConversion", "CppSupport.cpp"))
 
         self.overflowcheck = env.directives['overflowcheck']
@@ -7574,9 +7594,10 @@ class SequenceNode(ExprNode):
                 arg = arg.analyse_types(env)
             self.args[i] = arg.coerce_to_pyobject(env)
         if self.mult_factor:
-            self.mult_factor = self.mult_factor.analyse_types(env)
-            if not self.mult_factor.type.is_int:
-                self.mult_factor = self.mult_factor.coerce_to_pyobject(env)
+            mult_factor = self.mult_factor.analyse_types(env)
+            if not mult_factor.type.is_int:
+                mult_factor = mult_factor.coerce_to_pyobject(env)
+            self.mult_factor = mult_factor.coerce_to_simple(env)
         self.is_temp = 1
         # not setting self.type here, subtypes do this
         return self
@@ -8918,8 +8939,7 @@ class DictNode(ExprNode):
                             value = value.arg
                         item.value = value.coerce_to(member.type, env)
         else:
-            self.type = error_type
-            error(self.pos, "Cannot interpret dict as type '%s'" % dst_type)
+            return super(DictNode, self).coerce_to(dst_type, env)
         return self
 
     def release_errors(self):
@@ -10333,7 +10353,7 @@ class UnopNode(ExprNode):
             self.exception_value = entry.type.exception_value
             if self.exception_check == '+':
                 self.is_temp = True
-                if self.exception_value is None:
+                if needs_cpp_exception_conversion(self):
                     env.use_utility_code(UtilityCode.load_cached("CppExceptionConversion", "CppSupport.cpp"))
         else:
             self.exception_check = ''
@@ -11286,7 +11306,7 @@ class BinopNode(ExprNode):
             # Used by NumBinopNodes to break up expressions involving multiple
             # operators so that exceptions can be handled properly.
             self.is_temp = 1
-            if self.exception_value is None:
+            if needs_cpp_exception_conversion(self):
                 env.use_utility_code(UtilityCode.load_cached("CppExceptionConversion", "CppSupport.cpp"))
         if func_type.is_ptr:
             func_type = func_type.base_type
@@ -11654,6 +11674,24 @@ class SubNode(NumBinopNode):
 
 class MulNode(NumBinopNode):
     #  '*' operator.
+
+    def analyse_types(self, env):
+        # TODO: we could also optimise the case of "[...] * 2 * n", i.e. with an existing 'mult_factor'
+        if self.operand1.is_sequence_constructor and self.operand1.mult_factor is None:
+            operand2 = self.operand2.analyse_types(env)
+            if operand2.type.is_int or operand2.type is long_type:
+                return self.analyse_sequence_mul(env, self.operand1, operand2)
+        elif self.operand2.is_sequence_constructor and self.operand2.mult_factor is None:
+            operand1 = self.operand1.analyse_types(env)
+            if operand1.type.is_int or operand1.type is long_type:
+                return self.analyse_sequence_mul(env, self.operand2, operand1)
+
+        return NumBinopNode.analyse_types(self, env)
+
+    def analyse_sequence_mul(self, env, seq, mult):
+        assert seq.mult_factor is None
+        seq.mult_factor = mult
+        return seq.analyse_types(env)
 
     def is_py_operation_types(self, type1, type2):
         if ((type1.is_string and type2.is_int) or
@@ -12885,7 +12923,7 @@ class PrimaryCmpNode(ExprNode, CmpNode):
         self.exception_value = func_type.exception_value
         if self.exception_check == '+':
             self.is_temp = True
-            if self.exception_value is None:
+            if needs_cpp_exception_conversion(self):
                 env.use_utility_code(UtilityCode.load_cached("CppExceptionConversion", "CppSupport.cpp"))
         if len(func_type.args) == 1:
             self.operand2 = self.operand2.coerce_to(func_type.args[0].type, env)
