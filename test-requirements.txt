@@ -1,3 +1,4 @@
 numpy
 coverage
 pycodestyle
+git+https://github.com/hpyproject/hpy.git@0.0.2rc1
