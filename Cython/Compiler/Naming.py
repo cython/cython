@@ -17,6 +17,7 @@ pyunicode_identifier_prefix = pyrex_prefix + 'U'
 
 builtin_prefix    = pyrex_prefix + "builtin_"
 arg_prefix        = pyrex_prefix + "arg_"
+genexpr_arg_prefix = pyrex_prefix + "genexpr_arg_"
 funcdoc_prefix    = pyrex_prefix + "doc_"
 enum_prefix       = pyrex_prefix + "e_"
 func_prefix       = pyrex_prefix + "f_"

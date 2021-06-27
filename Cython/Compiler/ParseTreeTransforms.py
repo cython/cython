@@ -1397,6 +1397,114 @@ class WithTransform(CythonTransform, SkipDeclarations):
         return node
 
 
+class MarkGeneratorExpressionArguments(VisitorTransform, SkipDeclarations):
+    def visit_GeneratorExpressionNode(self, node):
+        self.visitchildren(node)
+        if not isinstance(node.loop, Nodes.ForInStatNode):
+            # Possibly should handle ForFromStatNode
+            # but for now do nothing
+            return node
+        itseq = node.loop.iterator.sequence
+        # literals do not need replacing with an argument
+        if itseq.is_literal:
+            return node
+        itseq.generator_arg_tag = 0
+        arg_count = 1
+        if isinstance(itseq, ExprNodes.SimpleCallNode):
+            if (itseq.function.is_attribute and
+                    not itseq.function.obj.is_literal):
+                itseq.function.generator_arg_tag = arg_count
+                arg_count += 1
+            for a in itseq.args:
+                if a.is_literal:
+                    continue
+                a.generator_arg_tag = arg_count
+                arg_count += 1
+        elif isinstance(itseq, ExprNodes.SliceIndexNode):
+            self._process_slices(itseq, ('base', 'start', 'stop', 'slice'), arg_count)
+        elif isinstance(itseq, ExprNodes.IndexNode):
+            self._process_slices(itseq, ('base', 'index'), arg_count)
+        return node
+
+    def _process_slices(self, itseq, attrs, arg_count):
+        # returns the new arg_count
+        for attr in attrs:
+            obj = getatt(itseq, attr)
+            if obj is None or obj.is_literal:
+                continue
+            if isinstance(obj, ExprNodes.SliceNode):
+                arg_count = self._process_slices(obj, ("start", "stop", "step"), arg_count)
+            else:
+                obj.generator_arg_tag = arg_count
+                arg_count += 1
+        return arg_count
+
+    def visit_Node(self, node):
+        self.visitchildren(node)
+        return node
+
+
+class HandleGeneratorArguments(EnvTransform, SkipDeclarations):
+    gen_node = None
+    def visit_GeneratorExpressionNode(self, node):
+        self.gen_node = node
+        # make a copy and of the arguments and replace it afterwards, since
+        # otherwise it gets messed up by the "visitchildren" process
+        self.args = list(node.def_node.args)
+        self.visitchildren(node)
+        self.gen_node = None
+        node.def_node.args = self.args
+        return node
+
+
+    def visit_ExprNode(self, node):
+        if node.generator_arg_tag is not None and self.gen_node is not None:
+            pos = node.pos
+            # The reason for using ".x" as the name is that this is how CPython
+            # tracks internal variables in loops (e.g.
+            #  { locals() for v in range(10) }
+            # will produce "v" and ".0"). We don't replicate this behaviour completely
+            # but use it as a starting point
+            name = EncodedString(".{0}".format(node.generator_arg_tag))
+            cname = EncodedString(Naming.genexpr_arg_prefix + str(node.generator_arg_tag))
+            name_decl = Nodes.CNameDeclaratorNode(pos=pos, name=name)
+            type = node.type
+            if type.is_reference:
+                type = type.ref_base_type
+            name_decl.type = type
+            new_arg = Nodes.CArgDeclNode(pos=pos, declarator=name_decl,
+                                            base_type=None, default=None, annotation=None)
+            new_arg.name = name_decl.name
+            new_arg.type = type
+
+            def_node = self.gen_node.def_node
+            self.args.append(new_arg)
+            node.generator_arg_tag = None  # avoid the possibility of this being caught again
+            self.gen_node.call_parameters.append(node)
+            new_arg.entry = def_node.declare_argument(def_node.local_scope, new_arg)
+            new_arg.entry.cname = cname
+            new_arg.entry.in_closure = True
+
+            # now visit the Nodes's children (but remove self.gen_node to not to further
+            # argument substitution)
+            gen_node = self.gen_node
+            self.gen_node = None
+            self.visitchildren(node)
+            self.gen_node = gen_node
+
+            # replace the node inside the generator with a looked-up name
+            name_node = ExprNodes.NameNode(pos=pos, name=name)
+            name_node.entry = self.current_env().lookup(name_node.name)
+            name_node.type = name_node.entry.type
+            return name_node
+        self.visitchildren(node)
+        return node
+
+    def visit_node(self, node):
+        self.visitchildren(node)
+        return node
+
+
 class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
     """
     Transforms method decorators in cdef classes into nested calls or properties.
