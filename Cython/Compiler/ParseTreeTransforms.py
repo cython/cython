@@ -1398,6 +1398,7 @@ class WithTransform(CythonTransform, SkipDeclarations):
 
 
 class MarkGeneratorExpressionArguments(VisitorTransform, SkipDeclarations):
+    current_tag = None
     def visit_GeneratorExpressionNode(self, node):
         self.visitchildren(node)
         if not isinstance(node.loop, Nodes.ForInStatNode):
@@ -1408,36 +1409,23 @@ class MarkGeneratorExpressionArguments(VisitorTransform, SkipDeclarations):
         # literals do not need replacing with an argument
         if itseq.is_literal:
             return node
-        itseq.generator_arg_tag = 0
-        arg_count = 1
-        if isinstance(itseq, ExprNodes.SimpleCallNode):
-            if (itseq.function.is_attribute and
-                    not itseq.function.obj.is_literal):
-                itseq.function.generator_arg_tag = arg_count
-                arg_count += 1
-            for a in itseq.args:
-                if a.is_literal:
-                    continue
-                a.generator_arg_tag = arg_count
-                arg_count += 1
-        elif isinstance(itseq, ExprNodes.SliceIndexNode):
-            self._process_slices(itseq, ('base', 'start', 'stop', 'slice'), arg_count)
-        elif isinstance(itseq, ExprNodes.IndexNode):
-            self._process_slices(itseq, ('base', 'index'), arg_count)
+        current_tag = self.current_tag
+        if self.current_tag is None:
+            self.current_tag = 0
+        itseq.generator_arg_tag = self.current_tag
+        self.current_tag += 1
+        self.visitchildren(itseq)
+        self.current_tag = current_tag
         return node
 
-    def _process_slices(self, itseq, attrs, arg_count):
-        # returns the new arg_count
-        for attr in attrs:
-            obj = getatt(itseq, attr)
-            if obj is None or obj.is_literal:
-                continue
-            if isinstance(obj, ExprNodes.SliceNode):
-                arg_count = self._process_slices(obj, ("start", "stop", "step"), arg_count)
-            else:
-                obj.generator_arg_tag = arg_count
-                arg_count += 1
-        return arg_count
+    def visit_ExprNode(self, node):
+        if self.current_tag is not None and not node.is_literal:
+            # Don't bother tagging literal nodes
+            # we're inside a generator expression loop
+            node.generator_arg_tag = self.current_tag
+            self.current_tag += 1
+        self.visitchildren(node)
+        return node
 
     def visit_Node(self, node):
         self.visitchildren(node)
@@ -1446,16 +1434,26 @@ class MarkGeneratorExpressionArguments(VisitorTransform, SkipDeclarations):
 
 class HandleGeneratorArguments(EnvTransform, SkipDeclarations):
     gen_node = None
+    args = None
+    call_parameters = None
+
     def visit_GeneratorExpressionNode(self, node):
         self.gen_node = node
         # make a copy and of the arguments and replace it afterwards, since
         # otherwise it gets messed up by the "visitchildren" process
+        args = self.args
+        call_parameters = self.call_parameters
         self.args = list(node.def_node.args)
+        self.call_parameters = list(node.call_parameters)
+
         self.visitchildren(node)
         self.gen_node = None
-        node.def_node.args = self.args
-        return node
 
+        node.def_node.args = self.args
+        node.call_parameters = self.call_parameters
+        self.args = args
+        self.call_parameters = call_parameters
+        return node
 
     def visit_ExprNode(self, node):
         if node.generator_arg_tag is not None and self.gen_node is not None:
@@ -1465,25 +1463,28 @@ class HandleGeneratorArguments(EnvTransform, SkipDeclarations):
             #  { locals() for v in range(10) }
             # will produce "v" and ".0"). We don't replicate this behaviour completely
             # but use it as a starting point
-            name = EncodedString(".{0}".format(node.generator_arg_tag))
-            cname = EncodedString(Naming.genexpr_arg_prefix + str(node.generator_arg_tag))
-            name_decl = Nodes.CNameDeclaratorNode(pos=pos, name=name)
-            type = node.type
-            if type.is_reference:
-                type = type.ref_base_type
-            name_decl.type = type
-            new_arg = Nodes.CArgDeclNode(pos=pos, declarator=name_decl,
-                                            base_type=None, default=None, annotation=None)
-            new_arg.name = name_decl.name
-            new_arg.type = type
-
+            name_source = node.name if node.is_name else node.generator_arg_tag
+            name = EncodedString(".{0}".format(name_source))
             def_node = self.gen_node.def_node
-            self.args.append(new_arg)
-            node.generator_arg_tag = None  # avoid the possibility of this being caught again
-            self.gen_node.call_parameters.append(node)
-            new_arg.entry = def_node.declare_argument(def_node.local_scope, new_arg)
-            new_arg.entry.cname = cname
-            new_arg.entry.in_closure = True
+            if not def_node.local_scope.lookup(name):
+                from . import Symtab
+                cname = EncodedString(Naming.genexpr_arg_prefix+Symtab.punycodify_name(str(name_source)))
+                name_decl = Nodes.CNameDeclaratorNode(pos=pos, name=name)
+                type = node.type
+                if type.is_reference:
+                    type = type.ref_base_type
+                name_decl.type = type
+                new_arg = Nodes.CArgDeclNode(pos=pos, declarator=name_decl,
+                                                base_type=None, default=None, annotation=None)
+                new_arg.name = name_decl.name
+                new_arg.type = type
+
+                self.args.append(new_arg)
+                node.generator_arg_tag = None  # avoid the possibility of this being caught again
+                self.call_parameters.append(node)
+                new_arg.entry = def_node.declare_argument(def_node.local_scope, new_arg)
+                new_arg.entry.cname = cname
+                new_arg.entry.in_closure = True
 
             # now visit the Nodes's children (but remove self.gen_node to not to further
             # argument substitution)
@@ -1500,9 +1501,19 @@ class HandleGeneratorArguments(EnvTransform, SkipDeclarations):
         self.visitchildren(node)
         return node
 
-    def visit_node(self, node):
-        self.visitchildren(node)
+    # duplicate some of the work of EnvTransform here (to make sure these are handled correctly)
+    def visit_ScopedExprNode(self, node):
+        if node.expr_scope:
+            self.enter_scope(node, node.expr_scope)
+            node = self.visit_ExprNode(node)
+            self.exit_scope()
+        else:
+            node = self.visit_ExprNode(node)
         return node
+
+    def visit_IteratorNode(self, node):
+        # TODO - for reasons I don't quite understand this doesn't work with the iterator outer_scope
+        return self.visit_ExprNode(node)
 
 
 class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):

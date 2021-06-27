@@ -219,6 +219,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         IterationTransform(context),
         SwitchTransform(context),
         OptimizeBuiltinCalls(context),  ## Necessary?
+        PrintTree(),
         HandleGeneratorArguments(context),
         CreateClosureClasses(context),  ## After all lookups and type inference
         CalculateQualifiedNamesTransform(context),
@@ -226,6 +227,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         DropRefcountingTransform(),
         FinalOptimizePhase(context),
         GilCheck(),
+        PrintTree(),
         ]
     filtered_stages = []
     for s in stages:
