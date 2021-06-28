@@ -102,8 +102,6 @@ and C :keyword:`struct`, :keyword:`union` or :keyword:`enum` types:
                 soft = 2
                 runny = 3
 
-
-
         There is currently no special syntax for defining a constant, but you can use
         an anonymous :keyword:`enum` declaration for this purpose, for example,::
 
