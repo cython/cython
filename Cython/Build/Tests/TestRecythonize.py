@@ -50,9 +50,6 @@ class TestRecythonize(CythonTest):
         # Cythonize to create a.c
         fresh_cythonize(a_pyx)
 
-        # Sleep to address coarse time-stamp precision.
-        time.sleep(1)
-
         with open(a_c) as f:
             a_c_contents1 = f.read()
 
@@ -92,8 +89,6 @@ class TestRecythonize(CythonTest):
         # Cythonize to create a.c
         fresh_cythonize(a_py)
 
-        # Sleep to address coarse time-stamp precision.
-        time.sleep(1)
 
         with open(a_c) as f:
             a_c_contents1 = f.read()
@@ -138,8 +133,6 @@ class TestRecythonize(CythonTest):
         # Cythonize to create b.c
         fresh_cythonize([a_pyx, b_pyx])
 
-        # Sleep to address coarse time-stamp precision.
-        time.sleep(1)
 
         with open(b_c) as f:
             b_c_contents1 = f.read()
@@ -192,8 +185,6 @@ class TestRecythonize(CythonTest):
         # Cythonize to create b.c
         fresh_cythonize([a_pyx, b_py])
 
-        # Sleep to address coarse time-stamp precision.
-        time.sleep(1)
 
         with open(b_c) as f:
             b_c_contents1 = f.read()
