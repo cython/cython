@@ -119,7 +119,22 @@ and C :keyword:`struct`, :keyword:`union` or :keyword:`enum` types:
 
                 cdef struct Grail *gp # WRONG
 
-            There is also a ``ctypedef`` statement for giving names to types, e.g.::
+.. note::
+    There is also a ``ctypedef`` statement for giving names to types, e.g.
+
+    .. tabs::
+
+        .. group-tab:: Pure Python
+
+            .. code-block:: python
+
+                 ULong = cython.typedef(cython.ulong)
+
+                 IntPtr = cython.typedef(cython.p_int)
+
+        .. group-tab:: Cython
+
+            .. code-block:: cython
 
                 ctypedef unsigned long ULong
 
@@ -321,8 +336,8 @@ using normal C declaration syntax. For example,
 
         .. code-block:: python
 
-         def chips(t: (cython.long, cython.long, cython.double)) -> (cython.int, cython.float)
-            ...
+            def chips(t: (cython.long, cython.long, cython.double)) -> (cython.int, cython.float):
+                ...
 
     .. group-tab:: Cython
 
