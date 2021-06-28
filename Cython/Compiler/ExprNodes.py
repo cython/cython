@@ -7489,7 +7489,8 @@ class AttributeNode(ExprNode):
 
     def get_known_standard_library_import(self):
         if self.obj.get_known_standard_library_import():
-            return "%s.%s" % (self.obj.get_known_standard_library_import(), self.attribute)
+            return StringEncoding.EncodedString(
+                "%s.%s" % (self.obj.get_known_standard_library_import(), self.attribute))
         return None
 
 

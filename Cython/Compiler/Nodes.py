@@ -8656,8 +8656,8 @@ class FromImportStatNode(StatNode):
                 target.analyse_target_declaration(env)
                 if target.entry:
                     if target.get_known_standard_library_import() is None:
-                        target.entry.known_standard_library_import = "%s.%s" % (
-                            self.module.module_name.value, name)
+                        target.entry.known_standard_library_import = EncodedString(
+                            "%s.%s" % (self.module.module_name.value, name))
                 else:
                     # it isn't unambiguous
                     target.entry.known_standard_library_import = False
