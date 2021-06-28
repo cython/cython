@@ -267,6 +267,10 @@ routines in the Python/C API. For example,::
 
 will allow you to create Python strings containing null bytes.
 
+Note that Cython comes with ready-to-use declarations of (almost) all C-API functions
+in the cimportable ``cpython.*`` modules.  See the list in
+https://github.com/cython/cython/tree/master/Cython/Includes/cpython
+
 Special Types
 --------------
 
@@ -418,12 +422,12 @@ You can make C types, variables and functions defined in a Cython module
 accessible to C code that is linked together with the Cython-generated C file,
 by declaring them with the public keyword::
 
-    cdef public struct Bunny: # public type declaration
+    cdef public struct Bunny:  # a public type declaration
         int vorpalness
 
-    cdef public int spam # public variable declaration
+    cdef public int spam  # a public variable declaration
 
-    cdef public void grail(Bunny *) # public function declaration
+    cdef public void grail(Bunny *)  # a public function declaration
 
 If there are any public declarations in a Cython module, a header file called
 :file:`modulename.h` file is generated containing equivalent C declarations for
@@ -525,7 +529,7 @@ the call to :func:`import_modulename`, it is likely that this wasn't done.
 You can use both :keyword:`public` and :keyword:`api` on the same function to
 make it available by both methods, e.g.::
 
-    cdef public api void belt_and_braces():
+    cdef public api void belt_and_braces() except *:
         ...
 
 However, note that you should include either :file:`modulename.h` or
@@ -550,8 +554,8 @@ You can declare a whole group of items as :keyword:`public` and/or
 example,::
 
     cdef public api:
-        void order_spam(int tons)
-        char *get_lunch(float tomato_size)
+        void order_spam(int tons) except *
+        char *get_lunch(float tomato_size) except NULL
 
 This can be a useful thing to do in a ``.pxd`` file (see
 :ref:`sharing-declarations`) to make the module's public interface

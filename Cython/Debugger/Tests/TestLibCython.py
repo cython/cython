@@ -99,6 +99,7 @@ class DebuggerTestCase(unittest.TestCase):
             opts = dict(
                 test_directory=self.tempdir,
                 module='codefile',
+                module_path=self.destfile,
             )
 
             optimization_disabler = build_ext.Optimization()

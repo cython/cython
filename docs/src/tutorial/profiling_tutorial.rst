@@ -200,17 +200,20 @@ profile script then at all. The script now outputs the following:
            1    0.000    0.000    4.406    4.406 <string>:1(<module>)
            1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
 
-We gained 1.8 seconds. Not too shabby. Comparing the output to the previous, we
-see that recip_square function got faster while the approx_pi function has not
-changed a lot. Let's concentrate on the recip_square function a bit more. First
-note, that this function is not to be called from code outside of our module;
-so it would be wise to turn it into a cdef to reduce call overhead. We should
-also get rid of the power operator: it is turned into a pow(i,2) function call by
-Cython, but we could instead just write i*i which could be faster. The
+We gained 1.8 seconds.  Not too shabby.  Comparing the output to the previous, we
+see that the ``recip_square()`` function got faster while the ``approx_pi()``
+function has not changed a lot.  Let's concentrate on the recip_square function
+a bit more.  First, note that this function is not to be called from code outside
+of our module; so it would be wise to turn it into a cdef to reduce call overhead.
+We should also get rid of the power operator: it is turned into a pow(i,2) function
+call by Cython, but we could instead just write i*i which could be faster.  The
 whole function is also a good candidate for inlining.  Let's look at the
 necessary changes for these ideas:
 
 .. literalinclude:: ../../examples/tutorial/profiling_tutorial/calc_pi_3.pyx
+
+Note that the ``except`` declaration is needed in the signature of ``recip_square()``
+in order to propagate division by zero errors.
 
 Now running the profile script yields:
 
@@ -254,15 +257,15 @@ Running this shows an interesting result:
            1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
 
 First note the tremendous speed gain: this version only takes 1/50 of the time
-of our first Cython version. Also note that recip_square has vanished from the
-table like we wanted. But the most peculiar and import change is that
-approx_pi also got much faster. This is a problem with all profiling: calling a
-function in a profile run adds a certain overhead to the function call. This
+of our first Cython version.  Also note that recip_square has vanished from the
+table like we wanted.  But the most peculiar and important change is that
+approx_pi also got much faster.  This is a problem with all profiling: calling a
+function in a profile run adds a certain overhead to the function call.  This
 overhead is **not** added to the time spent in the called function, but to the
-time spent in the **calling** function. In this example, approx_pi didn't need 2.622
+time spent in the **calling** function.  In this example, approx_pi didn't need 2.622
 seconds in the last run; but it called recip_square 10000000 times, each time taking a
-little to set up profiling for it. This adds up to the massive time loss of
-around 2.6 seconds. Having disabled profiling for the often called function now
+little to set up profiling for it.  This adds up to the massive time loss of
+around 2.6 seconds.  Having disabled profiling for the often called function now
 reveals realistic timings for approx_pi; we could continue optimizing it now if
 needed.
 
