@@ -8657,7 +8657,7 @@ class FromImportStatNode(StatNode):
                             self.module.module_name.value, name)
                 else:
                     # it isn't unambiguous
-                    target.entry.known_standard_library_import = False
+                    target.entry.known_standard_library_import = ""
 
 
     def analyse_expressions(self, env):
