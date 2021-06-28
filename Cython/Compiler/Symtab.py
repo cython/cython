@@ -158,7 +158,7 @@ class Entry(object):
     # is_fused_specialized boolean Whether this entry of a cdef or def function
     #                              is a specialization
     # is_cgetter       boolean    Is a c-level getter function
-    # known_standard_library_import     Either None (default), False (definitely can't be determined)
+    # known_standard_library_import     Either None (default), an empty string (definitely can't be determined)
     #                             or a string of "modulename.something.attribute"
     #                             Used for identifying imports from typing/dataclasses etc
 

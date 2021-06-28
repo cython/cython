@@ -2111,7 +2111,7 @@ class NameNode(AtomicExprNode):
         if not self.entry:
             self.entry = env.lookup_here(self.name)
         if self.entry:
-            self.entry.known_standard_library_import = False  # already exists somewhere and so is now ambiguous
+            self.entry.known_standard_library_import = ""  # already exists somewhere and so is now ambiguous
         if not self.entry and self.annotation is not None:
             # name : type = ...
             is_dataclass = 'dataclasses.dataclass' in env.directives
