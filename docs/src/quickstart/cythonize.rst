@@ -33,6 +33,7 @@ Typing Variables
 Consider the following pure Python code:
 
 .. literalinclude:: ../../examples/quickstart/cythonize/integrate.py
+    :caption: integrate.py
 
 Simply compiling this in Cython merely gives a 35% speedup.  This is
 better than nothing, but adding some static types can make a much larger
@@ -40,7 +41,17 @@ difference.
 
 With additional type declarations, this might look like:
 
-.. literalinclude:: ../../examples/quickstart/cythonize/integrate_cy.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/quickstart/cythonize/integrate_cy.py
+            :caption: integrate_cy.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/quickstart/cythonize/integrate_cy.pyx
+            :caption: integrate_cy.pyx
 
 Since the iterator variable ``i`` is typed with C semantics, the for-loop will be compiled
 to pure C code.  Typing ``a``, ``s`` and ``dx`` is important as they are involved
@@ -62,7 +73,15 @@ argument in order to pass it.
 Therefore Cython provides a syntax for declaring a C-style function,
 the cdef keyword:
 
-.. literalinclude:: ../../examples/quickstart/cythonize/cdef_keyword.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/quickstart/cythonize/cdef_keyword.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/quickstart/cythonize/cdef_keyword.pyx
 
 Some form of except-modifier should usually be added, otherwise Cython
 will not be able to propagate exceptions raised in the function (or a
