@@ -1353,6 +1353,7 @@ class ControlFlowAnalysis(CythonTransform):
                                   self.env.lookup(node.target.name))
         self.env_stack.append(self.env)
         self.env = node.scope
+        self.flows[self.env] = self.flow
         self.flow.nextblock()
         if node.doc_node:
             self.flow.mark_assignment(node.doc_node, fake_rhs_expr, node.doc_node.entry)

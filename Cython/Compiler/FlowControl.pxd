@@ -63,7 +63,7 @@ cdef class ControlFlow:
      cpdef bint is_tracked(self, entry)
      cpdef bint is_statically_assigned(self, entry)
      cpdef mark_position(self, node)
-     cpdef mark_assignment(self, lhs, rhs, entry)
+     cpdef mark_assignment(self, lhs, rhs, entry, rhs_scope=*)
      cpdef mark_argument(self, lhs, rhs, entry)
      cpdef mark_deletion(self, node, entry)
      cpdef mark_reference(self, node, entry)
@@ -108,5 +108,5 @@ cdef class ControlFlowAnalysis(CythonTransform):
     cdef object object_expr
     cdef bint in_inplace_assignment
 
-    cpdef mark_assignment(self, lhs, rhs=*)
+    cpdef mark_assignment(self, lhs, rhs=*, rhs_scope=*)
     cpdef mark_position(self, node)
