@@ -43,8 +43,8 @@ class TestRecythonize(CythonTest):
             f.write('value = 1\n')
 
 
-        # The number of dependencies should be 2: "a.pxd" and "a.pyx"
-        self.assertEqual(2, len(dep_tree.all_dependencies(a_pyx)))
+        # The dependencies for "a.pyx" are "a.pxd" and "a.pyx".
+        self.assertEqual({a_pxd, a_pyx}, dep_tree.all_dependencies(a_pyx))
 
         # Cythonize to create a.c
         fresh_cythonize(a_pyx)
@@ -81,8 +81,8 @@ class TestRecythonize(CythonTest):
             f.write('value = 1\n')
 
 
-        # The number of dependencies should be 2: "a.pxd" and "a.py"
-        self.assertEqual(2, len(dep_tree.all_dependencies(a_py)))
+        # The dependencies for "a.py" are "a.pxd" and "a.py".
+        self.assertEqual({a_pxd, a_py}, dep_tree.all_dependencies(a_py))
 
         # Cythonize to create a.c
         fresh_cythonize(a_py)
@@ -121,8 +121,9 @@ class TestRecythonize(CythonTest):
             f.write('cimport a\n' + 'a.value = 2\n')
 
 
-        # The number of dependencies should be 2: "a.pxd" and "b.pyx"
-        self.assertEqual(2, len(dep_tree.all_dependencies(b_pyx)))
+        # The dependencies for "b.pyx" are "a.pxd" and "b.pyx".
+        self.assertEqual({a_pxd, b_pyx}, dep_tree.all_dependencies(b_pyx))
+
 
         # Cythonize to create b.c
         fresh_cythonize([a_pyx, b_pyx])
@@ -167,9 +168,9 @@ class TestRecythonize(CythonTest):
             f.write('a.value = 2\n')
 
 
-        # The number of dependencies should be 3:
-        # "a.pxd", "b.pxd" and "b.py"
-        self.assertEqual(3, len(dep_tree.all_dependencies(b_py)))
+        # The dependencies for b.py are "a.pxd", "b.pxd" and "b.py".
+        self.assertEqual({a_pxd, b_pxd, b_py}, dep_tree.all_dependencies(b_py))
+
 
         # Cythonize to create b.c
         fresh_cythonize([a_pyx, b_py])
