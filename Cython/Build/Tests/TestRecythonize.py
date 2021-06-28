@@ -1,6 +1,7 @@
 import shutil
 import os
 import tempfile
+import time
 
 import Cython.Build.Dependencies
 import Cython.Utils
@@ -49,6 +50,9 @@ class TestRecythonize(CythonTest):
         # Cythonize to create a.c
         fresh_cythonize(a_pyx)
 
+        # Sleep to address coarse time-stamp precision.
+        time.sleep(1)
+
         with open(a_c) as f:
             a_c_contents1 = f.read()
 
@@ -60,9 +64,10 @@ class TestRecythonize(CythonTest):
         with open(a_c) as f:
             a_c_contents2 = f.read()
 
-
-        self.assertNotEqual(a_c_contents1, a_c_contents2, 'C file not changed!')
-
+        self.assertTrue("__pyx_v_1a_value = 1;" in a_c_contents1)
+        self.assertFalse("__pyx_v_1a_value = 1;" in a_c_contents2)
+        self.assertTrue("__pyx_v_1a_value = 1.0;" in a_c_contents2)
+        self.assertFalse("__pyx_v_1a_value = 1.0;" in a_c_contents1)
 
 
     def test_recythonize_py_on_pxd_change(self):
@@ -87,6 +92,9 @@ class TestRecythonize(CythonTest):
         # Cythonize to create a.c
         fresh_cythonize(a_py)
 
+        # Sleep to address coarse time-stamp precision.
+        time.sleep(1)
+
         with open(a_c) as f:
             a_c_contents1 = f.read()
 
@@ -99,8 +107,10 @@ class TestRecythonize(CythonTest):
             a_c_contents2 = f.read()
 
 
-        self.assertNotEqual(a_c_contents1, a_c_contents2, 'C file not changed!')
-
+        self.assertTrue("__pyx_v_1a_value = 1;" in a_c_contents1)
+        self.assertFalse("__pyx_v_1a_value = 1;" in a_c_contents2)
+        self.assertTrue("__pyx_v_1a_value = 1.0;" in a_c_contents2)
+        self.assertFalse("__pyx_v_1a_value = 1.0;" in a_c_contents1)
 
     def test_recythonize_pyx_on_dep_pxd_change(self):
         src_dir = tempfile.mkdtemp(prefix='src', dir=self.temp_dir)
@@ -128,6 +138,9 @@ class TestRecythonize(CythonTest):
         # Cythonize to create b.c
         fresh_cythonize([a_pyx, b_pyx])
 
+        # Sleep to address coarse time-stamp precision.
+        time.sleep(1)
+
         with open(b_c) as f:
             b_c_contents1 = f.read()
 
@@ -140,7 +153,11 @@ class TestRecythonize(CythonTest):
             b_c_contents2 = f.read()
 
 
-        self.assertNotEqual(b_c_contents1, b_c_contents2, 'C file not changed!')
+
+        self.assertTrue("__pyx_v_1a_value = 2;" in b_c_contents1)
+        self.assertFalse("__pyx_v_1a_value = 2;" in b_c_contents2)
+        self.assertTrue("__pyx_v_1a_value = 2.0;" in b_c_contents2)
+        self.assertFalse("__pyx_v_1a_value = 2.0;" in b_c_contents1)
 
 
 
@@ -175,6 +192,9 @@ class TestRecythonize(CythonTest):
         # Cythonize to create b.c
         fresh_cythonize([a_pyx, b_py])
 
+        # Sleep to address coarse time-stamp precision.
+        time.sleep(1)
+
         with open(b_c) as f:
             b_c_contents1 = f.read()
 
@@ -186,5 +206,7 @@ class TestRecythonize(CythonTest):
         with open(b_c) as f:
             b_c_contents2 = f.read()
 
-
-        self.assertNotEqual(b_c_contents1, b_c_contents2, 'C file not changed!')
+        self.assertTrue("__pyx_v_1a_value = 2;" in b_c_contents1)
+        self.assertFalse("__pyx_v_1a_value = 2;" in b_c_contents2)
+        self.assertTrue("__pyx_v_1a_value = 2.0;" in b_c_contents2)
+        self.assertFalse("__pyx_v_1a_value = 2.0;" in b_c_contents1)
