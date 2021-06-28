@@ -270,6 +270,11 @@ class Entry(object):
     def cf_is_reassigned(self):
         return len(self.cf_assignments) > 1
 
+    def make_cpp_optional(self):
+        self.is_cpp_optional = True
+        assert not self.utility_code  # we're not overwriting anything?
+        self.utility_code = Code.UtilityCode.load_cached("OptionalLocals", "CppSupport.cpp")
+
 
 class InnerEntry(Entry):
     """
@@ -730,9 +735,7 @@ class Scope(object):
         entry.is_variable = 1
         if type.is_cpp_class and visibility != 'extern':
             if self.directives['cpp_locals']:
-                entry.is_cpp_optional = True
-                self.use_utility_code(
-                        Code.UtilityCode.load_cached("OptionalLocals", "CppSupport.cpp"))
+                entry.make_cpp_optional()
             else:
                 type.check_nullary_constructor(pos)
         if in_pxd and visibility != 'extern':
@@ -2246,10 +2249,7 @@ class CClassScope(ClassScope):
             self.var_entries.append(entry)
             if type.is_cpp_class and visibility != 'extern':
                 if self.directives['cpp_locals']:
-                    # transform into a C++ optional type
-                    entry.is_cpp_optional = True
-                    self.use_utility_code(
-                            Code.UtilityCode.load_cached("OptionalLocals", "CppSupport.cpp"))
+                    entry.make_cpp_optional()
                 else:
                     type.check_nullary_constructor(pos)
             if type.is_memoryviewslice:

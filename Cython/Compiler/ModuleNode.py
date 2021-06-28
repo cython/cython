@@ -1277,11 +1277,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 attr_type = py_object_type
             else:
                 attr_type = attr.type
-            extra_args = {}
             if attr.is_cpp_optional:
-                extra_args['cpp_optional'] = True
-            code.putln(
-                "%s;" % attr_type.declaration_code(attr.cname, **extra_args))
+                decl = attr_type.cpp_optional_declaration_code(attr.cname)
+            else:
+                decl = attr_type.declaration_code(attr.cname)
+            code.putln("%s;" % decl)
         code.putln(footer)
         if type.objtypedef_cname is not None:
             # Only for exposing public typedef name.
@@ -1360,11 +1360,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
             if storage_class:
                 code.put("%s " % storage_class)
-            extra_args = {}
             if entry.is_cpp_optional:
-                extra_args['cpp_optional'] = True
-            code.put(type.declaration_code(
-                cname, dll_linkage=dll_linkage, **extra_args))
+                code.put(type.cpp_optional_declaration_code(
+                    cname, dll_linkage=dll_linkage))
+            else:
+                code.put(type.declaration_code(
+                    cname, dll_linkage=dll_linkage))
             if init is not None:
                 code.put_safe(" = %s" % init)
             code.putln(";")

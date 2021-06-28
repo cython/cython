@@ -366,10 +366,7 @@ class SimpleAssignmentTypeInferer(object):
                 e.init = e.type.default_value
             if e.type.is_cpp_class:
                 if scope.directives['cpp_locals']:
-                    e.is_cpp_optional = True
-                    from .Code import UtilityCode
-                    scope.use_utility_code(
-                            UtilityCode.load_cached("OptionalLocals", "CppSupport.cpp"))
+                    e.make_cpp_optional()
                 else:
                     e.type.check_nullary_constructor(entry.pos)
 

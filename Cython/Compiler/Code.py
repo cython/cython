@@ -2073,11 +2073,12 @@ class CCodeWriter(object):
             self.put("%s " % storage_class)
         if not entry.cf_used:
             self.put('CYTHON_UNUSED ')
-        extra_kwds = {}
         if entry.is_cpp_optional:
-            extra_kwds['cpp_optional'] = True
-        self.put(entry.type.declaration_code(
-            entry.cname, dll_linkage=dll_linkage, **extra_kwds))
+            self.put(entry.type.cpp_optional_declaration_code(
+                entry.cname, dll_linkage=dll_linkage))
+        else:
+            self.put(entry.type.declaration_code(
+                entry.cname, dll_linkage=dll_linkage))
         if entry.init is not None:
             self.put_safe(" = %s" % entry.type.literal_code(entry.init))
         elif entry.type.is_pyobject:
@@ -2086,10 +2087,10 @@ class CCodeWriter(object):
 
     def put_temp_declarations(self, func_context):
         for name, type, manage_ref, static in func_context.temps_allocated:
-            extra_args = {}
             if type.is_cpp_class and func_context.scope.directives['cpp_locals']:
-                extra_args['cpp_optional'] = True
-            decl = type.declaration_code(name, **extra_args)
+                decl = type.cpp_optional_declaration_code(name)
+            else:
+                decl = type.declaration_code(name)
             if type.is_pyobject:
                 self.putln("%s = NULL;" % decl)
             elif type.is_memoryviewslice:

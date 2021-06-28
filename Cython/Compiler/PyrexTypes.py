@@ -376,6 +376,10 @@ class PyrexType(BaseType):
                                       self)
         code.putln("1")
 
+    def cpp_optional_declaration_code(self, entity_code, dll_linkage=None):
+        # declares an std::optional c++ variable
+        raise NotImplementedError("cpp_optional_declaration_code only implemented for c++ classes "
+                                "and not type %s" % self)
 
 
 def public_decl(base_code, dll_linkage):
@@ -3973,12 +3977,7 @@ class CppClassType(CType):
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0,
-            template_params = None, cpp_optional = False):
-        if cpp_optional and not (for_display or pyrex):
-            return "__Pyx_Optional_Type<%s> %s" % (
-                    self.declaration_code("", for_display, dll_linkage, pyrex,
-                                        template_params, False),
-                    entity_code)
+            template_params = None):
         if template_params is None:
             template_params = self.templates
         if self.templates:
@@ -4000,6 +3999,12 @@ class CppClassType(CType):
                 base_code = "%s::%s" % (self.namespace.empty_declaration_code(), base_code)
             base_code = public_decl(base_code, dll_linkage)
         return self.base_declaration_code(base_code, entity_code)
+
+    def cpp_optional_declaration_code(self, entity_code, dll_linkage=None, template_params=None):
+        return "__Pyx_Optional_Type<%s> %s" % (
+                self.declaration_code("", False, dll_linkage, False,
+                                    template_params),
+                entity_code)
 
     def is_subclass(self, other_type):
         if self.same_as_resolved_type(other_type):
