@@ -1397,8 +1397,33 @@ class WithTransform(CythonTransform, SkipDeclarations):
         return node
 
 
+class _GeneratorExpressionArgumentsMarker(TreeVisitor, SkipDeclarations):
+    def __init__(self, gen_expr):
+        super(_GeneratorExpressionArgumentsMarker, self).__init__()
+        self.gen_expr = gen_expr
+        self.tag = 0
+
+    def visit_ExprNode(self, node):
+        if not node.is_literal:
+            # Don't bother tagging literal nodes
+            assert (not node.generator_arg_tag)  # nobody has tagged this first
+            node.generator_arg_tag = (self.tag, self.gen_expr)
+            self.tag +=1
+        self.visitchildren(node)
+
+    def visit_Node(self, node):
+        return  # we're only interested in the expressions that make up the iterator sequence
+                # so don't go beyond ExprNodes (e.g. into ForFromStatNode)
+
+    def visit_GeneratorExpressionNode(self, node):
+        node.generator_arg_tag = (self.tag, self.gen_expr)
+        self.tag += 1
+        # don't visit children, can't handle overlapping tags
+        # (and assume generator expressions don't end up optimized out in a way
+        #  that would require overlapping tags)
+
+
 class MarkGeneratorExpressionArguments(VisitorTransform, SkipDeclarations):
-    current_tag = None
     def visit_GeneratorExpressionNode(self, node):
         self.visitchildren(node)
         if not isinstance(node.loop, Nodes.ForInStatNode):
@@ -1409,30 +1434,13 @@ class MarkGeneratorExpressionArguments(VisitorTransform, SkipDeclarations):
         # literals do not need replacing with an argument
         if itseq.is_literal:
             return node
-        current_tag = self.current_tag
-        if self.current_tag is None:
-            self.current_tag = 0
-        itseq.generator_arg_tag = self.current_tag
-        self.current_tag += 1
-        self.visitchildren(itseq)
-        self.current_tag = current_tag
+        _GeneratorExpressionArgumentsMarker(node).visit(itseq)
         return node
 
-    def visit_ExprNode(self, node):
-        if self.current_tag is not None and not node.is_literal:
-            # Don't bother tagging literal nodes
-            # we're inside a generator expression loop
-            node.generator_arg_tag = self.current_tag
-            self.current_tag += 1
-        self.visitchildren(node)
-        return node
-
-    def visit_Node(self, node):
-        self.visitchildren(node)
-        return node
+    visit_Node = VisitorTransform.recurse_to_children
 
 
-class HandleGeneratorArguments(EnvTransform, SkipDeclarations):
+class HandleGeneratorArguments(VisitorTransform, SkipDeclarations):
     gen_node = None
     args = None
     call_parameters = None
@@ -1456,23 +1464,30 @@ class HandleGeneratorArguments(EnvTransform, SkipDeclarations):
         return node
 
     def visit_ExprNode(self, node):
-        if node.generator_arg_tag is not None and self.gen_node is not None:
+        if (node.generator_arg_tag is not None and self.gen_node is not None and
+                self.gen_node == node.generator_arg_tag[1]):
             pos = node.pos
             # The reason for using ".x" as the name is that this is how CPython
             # tracks internal variables in loops (e.g.
             #  { locals() for v in range(10) }
             # will produce "v" and ".0"). We don't replicate this behaviour completely
             # but use it as a starting point
-            name_source = node.name if node.is_name else node.generator_arg_tag
+            #name_source = #node.name if node.is_name else node.generator_arg_tag[0]
+            name_source = node.generator_arg_tag[0]
             name = EncodedString(".{0}".format(name_source))
             def_node = self.gen_node.def_node
-            if not def_node.local_scope.lookup(name):
+            if not def_node.local_scope.lookup_here(name):
                 from . import Symtab
                 cname = EncodedString(Naming.genexpr_arg_prefix+Symtab.punycodify_name(str(name_source)))
                 name_decl = Nodes.CNameDeclaratorNode(pos=pos, name=name)
                 type = node.type
-                if type.is_reference:
-                    type = type.ref_base_type
+                if type.is_reference and not type.is_fake_reference:
+                    # TODO - suppress this warning for inlined generator expressions
+                    warning(pos, "Generator expression has captured type '%s'. "
+                            "Be careful that the original object lifetime is greater than the "
+                            "generator expression" % type.declaration_code("", for_display=True))
+                    type = PyrexTypes.CFakeReferenceType(type.ref_base_type)
+
                 name_decl.type = type
                 new_arg = Nodes.CArgDeclNode(pos=pos, declarator=name_decl,
                                                 base_type=None, default=None, annotation=None)
@@ -1488,32 +1503,19 @@ class HandleGeneratorArguments(EnvTransform, SkipDeclarations):
 
             # now visit the Nodes's children (but remove self.gen_node to not to further
             # argument substitution)
-            gen_node = self.gen_node
-            self.gen_node = None
+            gen_node, self.gen_node = self.gen_node, None
             self.visitchildren(node)
             self.gen_node = gen_node
 
             # replace the node inside the generator with a looked-up name
             name_node = ExprNodes.NameNode(pos=pos, name=name)
-            name_node.entry = self.current_env().lookup(name_node.name)
+            name_node.entry = self.gen_node.def_node.gbody.local_scope.lookup(name_node.name)
             name_node.type = name_node.entry.type
             return name_node
         self.visitchildren(node)
         return node
 
-    # duplicate some of the work of EnvTransform here (to make sure these are handled correctly)
-    def visit_ScopedExprNode(self, node):
-        if node.expr_scope:
-            self.enter_scope(node, node.expr_scope)
-            node = self.visit_ExprNode(node)
-            self.exit_scope()
-        else:
-            node = self.visit_ExprNode(node)
-        return node
-
-    def visit_IteratorNode(self, node):
-        # TODO - for reasons I don't quite understand this doesn't work with the iterator outer_scope
-        return self.visit_ExprNode(node)
+    visit_Node = VisitorTransform.recurse_to_children
 
 
 class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
