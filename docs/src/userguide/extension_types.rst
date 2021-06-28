@@ -669,6 +669,8 @@ objects from memory. Clearing is implemented in the ``tp_clear`` slot.
 As we just explained, it is sufficient that one object in the cycle
 implements ``tp_clear``.
 
+.. _trashcan:
+
 Enabling the deallocation trashcan
 ----------------------------------
 
@@ -965,7 +967,8 @@ C inline properties
 Similar to Python property attributes, Cython provides a way to declare C-level
 properties on external extension types.  This is often used to shadow Python
 attributes through faster C level data access, but can also be used to add certain
-functionality to existing types when using them from Cython.
+functionality to existing types when using them from Cython. The declarations
+must use `cdef inline`.
 
 For example, the above ``complex`` type could also be declared like this:
 

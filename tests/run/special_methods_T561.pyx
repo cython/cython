@@ -1,6 +1,6 @@
 # mode: run
-# ticket: 561
-# ticket: 3
+# ticket: t561
+# ticket: t3
 
 # The patch in #561 changes code generation for most special methods
 # to remove the Cython-generated wrapper and let PyType_Ready()

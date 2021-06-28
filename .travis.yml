@@ -17,9 +17,10 @@ cache:
     - $HOME/.ccache
 
 python:
+  - 3.9
   - 3.8
   - 2.7
-  - 3.9-dev
+  - 3.10-dev
   - 3.7
   - 3.6
   - 3.5
@@ -138,7 +139,8 @@ before_install:
 
 install:
   - python -c 'import sys; print("Python %s" % (sys.version,))'
-  - if [ -n "${TRAVIS_PYTHON_VERSION##*-dev}" ]; then pip install -r test-requirements.txt $( [ -z "${TRAVIS_PYTHON_VERSION##pypy*}" -o -z "${TRAVIS_PYTHON_VERSION##3.[4789]*}" ] || echo " -r test-requirements-cpython.txt" ) ; fi
+  - if [ -z "${TRAVIS_PYTHON_VERSION##2.7}" ]; then [ "$TRAVIS_OS_NAME" == "osx" -a "$PY" == "3" ] || pip install -r test-requirements-27.txt ; fi
+  - if [ -n "${TRAVIS_PYTHON_VERSION##*-dev}" -a -n "${TRAVIS_PYTHON_VERSION##2.7}" ]; then pip install -r test-requirements.txt $( [ -z "${TRAVIS_PYTHON_VERSION##pypy*}" -o -z "${TRAVIS_PYTHON_VERSION##3.[47891]*}" ] || echo " -r test-requirements-cpython.txt" ) ; fi
 #  - CFLAGS="-O2 -ggdb -Wall -Wextra $(python -c 'import sys; print("-fno-strict-aliasing" if sys.version_info[0] == 2 else "")')" python setup.py build
 
 before_script: ccache -s || true

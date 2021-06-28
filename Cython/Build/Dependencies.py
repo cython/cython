@@ -614,10 +614,10 @@ class DependencyTree(object):
 
     @cached_method
     def immediate_dependencies(self, filename):
-        all = set([filename])
-        all.update(self.cimported_files(filename))
-        all.update(self.included_files(filename))
-        return all
+        all_deps = {filename}
+        all_deps.update(self.cimported_files(filename))
+        all_deps.update(self.included_files(filename))
+        return all_deps
 
     def all_dependencies(self, filename):
         return self.transitive_merge(filename, self.immediate_dependencies, set.union)
@@ -760,7 +760,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
         return [], {}
     elif isinstance(patterns, basestring) or not isinstance(patterns, Iterable):
         patterns = [patterns]
-    explicit_modules = set([m.name for m in patterns if isinstance(m, Extension)])
+    explicit_modules = {m.name for m in patterns if isinstance(m, Extension)}
     seen = set()
     deps = create_dependency_tree(ctx, quiet=quiet)
     to_exclude = set()
@@ -948,6 +948,11 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                      in general, a ``nogil`` block may contain only "white" code.
                      See examples in :ref:`determining_where_to_add_types` or
                      :ref:`primes`.
+
+
+    :param annotate-fullc: If ``True`` will produce a colorized HTML version of
+                           the source which includes entire generated C/C++-code.
+
 
     :param compiler_directives: Allow to set compiler directives in the ``setup.py`` like this:
                                 ``compiler_directives={'embedsignature': True}``.

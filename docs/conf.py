@@ -44,7 +44,8 @@ extensions = [
     'sphinx.ext.imgmath',
     'sphinx.ext.todo',
     'sphinx.ext.intersphinx',
-    'sphinx.ext.autodoc'
+    'sphinx.ext.autodoc',
+    'sphinx_issues',  # if this is missing, pip install sphinx-issues
     ]
 
 try: import rst2pdf
@@ -135,6 +136,9 @@ intersphinx_mapping = {'python': ('https://docs.python.org/3/', None)}
 # The output image format. The default is 'png'. It should be either 'png' or 'svg'.
 imgmath_image_format = "svg"
 
+# For sphinx-issues
+
+issues_github_path = "cython/cython"
 
 # -- Options for HTML output ---------------------------------------------------
 

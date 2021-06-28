@@ -1,5 +1,5 @@
 # mode: run
-# ticket: 466
+# ticket: t466
 # extension to T409
 
 cimport cython

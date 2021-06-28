@@ -1,4 +1,4 @@
-# ticket: 582
+# ticket: t582
 
 cimport cython
 

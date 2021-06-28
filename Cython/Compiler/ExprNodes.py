@@ -183,7 +183,7 @@ def infer_sequence_item_type(env, seq_node, index_node=None, seq_type=None):
             else:
                 return item.infer_type(env)
         # if we're lucky, all items have the same type
-        item_types = set([item.infer_type(env) for item in seq_node.args])
+        item_types = {item.infer_type(env) for item in seq_node.args}
         if len(item_types) == 1:
             return item_types.pop()
     return None
@@ -6535,8 +6535,10 @@ class GeneralCallNode(CallNode):
                                                      len(pos_args)))
             return None
 
-        matched_args = set([ arg.name for arg in declared_args[:len(pos_args)]
-                             if arg.name ])
+        matched_args = {
+            arg.name for arg in declared_args[:len(pos_args)]
+            if arg.name
+        }
         unmatched_args = declared_args[len(pos_args):]
         matched_kwargs_count = 0
         args = list(pos_args)
@@ -6754,22 +6756,13 @@ class MergedDictNode(ExprNode):
         return dict_type
 
     def analyse_types(self, env):
-        args = [
+        self.keyword_args = [
             arg.analyse_types(env).coerce_to_pyobject(env).as_none_safe_node(
                 # FIXME: CPython's error message starts with the runtime function name
                 'argument after ** must be a mapping, not NoneType')
             for arg in self.keyword_args
         ]
 
-        if len(args) == 1 and args[0].type is dict_type:
-            # strip this intermediate node and use the bare dict
-            arg = args[0]
-            if arg.is_name and arg.entry.is_arg and len(arg.entry.cf_assignments) == 1:
-                # passing **kwargs through to function call => allow NULL
-                arg.allow_null = True
-            return arg
-
-        self.keyword_args = args
         return self
 
     def may_be_none(self):
@@ -8760,7 +8753,7 @@ class SetNode(ExprNode):
         return False
 
     def calculate_constant_result(self):
-        self.constant_result = set([arg.constant_result for arg in self.args])
+        self.constant_result = {arg.constant_result for arg in self.args}
 
     def compile_time_value(self, denv):
         values = [arg.compile_time_value(denv) for arg in self.args]
@@ -11810,10 +11803,10 @@ _find_formatting_types = re.compile(
     br")").findall
 
 # These format conversion types can never trigger a Unicode string conversion in Py2.
-_safe_bytes_formats = set([
+_safe_bytes_formats = frozenset({
     # Excludes 's' and 'r', which can generate non-bytes strings.
     b'd', b'i', b'o', b'u', b'x', b'X', b'e', b'E', b'f', b'F', b'g', b'G', b'c', b'b', b'a',
-])
+})
 
 
 class ModNode(DivNode):

@@ -520,7 +520,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if not target_file_dir.startswith(target_dir):
                 # any other directories may not be writable => avoid trying
                 continue
-            source_file = search_include_file(included_file, "", self.pos, include=True)
+            source_file = search_include_file(included_file, source_pos=self.pos, include=True)
             if not source_file:
                 continue
             if target_file_dir != target_dir and not os.path.exists(target_file_dir):
@@ -705,7 +705,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("END: Cython Metadata */")
             code.putln("")
 
+        code.putln("#ifndef PY_SSIZE_T_CLEAN")
         code.putln("#define PY_SSIZE_T_CLEAN")
+        code.putln("#endif /* PY_SSIZE_T_CLEAN */")
         self._put_setup_code(code, "InitLimitedAPI")
 
         for inc in sorted(env.c_includes.values(), key=IncludeCode.sortkey):

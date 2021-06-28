@@ -115,9 +115,11 @@ class VerboseCodeWriter(type):
 class CheckAnalysers(type):
     """Metaclass to check that type analysis functions return a node.
     """
-    methods = set(['analyse_types',
-                   'analyse_expressions',
-                   'analyse_target_types'])
+    methods = frozenset({
+        'analyse_types',
+        'analyse_expressions',
+        'analyse_target_types',
+    })
 
     def __new__(cls, name, bases, attrs):
         from types import FunctionType
@@ -4752,6 +4754,7 @@ class PyClassDefNode(ClassDefNode):
     #  entry    Symtab.Entry
     #  scope    PyClassScope
     #  decorators    [DecoratorNode]        list of decorators or None
+    #  bases    ExprNode        Expression that evaluates to a tuple of base classes
     #
     #  The following subnodes are constructed internally:
     #
@@ -4759,15 +4762,18 @@ class PyClassDefNode(ClassDefNode):
     #  dict     DictNode   Class dictionary or Py3 namespace
     #  classobj ClassNode  Class object
     #  target   NameNode   Variable to assign class object to
+    #  orig_bases  None or ExprNode  "bases" before transformation by PEP560 __mro_entries__,
+    #                                used to create the __orig_bases__ attribute
 
     child_attrs = ["doc_node", "body", "dict", "metaclass", "mkw", "bases", "class_result",
-                   "target", "class_cell", "decorators"]
+                   "target", "class_cell", "decorators", "orig_bases"]
     decorators = None
     class_result = None
     is_py3_style_class = False  # Python3 style class (kwargs)
     metaclass = None
     mkw = None
     doc_node = None
+    orig_bases = None
 
     def __init__(self, pos, name, bases, doc, body, decorators=None,
                  keyword_args=None, force_py3_semantics=False):
@@ -4893,7 +4899,22 @@ class PyClassDefNode(ClassDefNode):
         self.body.analyse_declarations(cenv)
         self.class_result.analyse_annotations(cenv)
 
+    update_bases_functype = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("bases",  PyrexTypes.py_object_type, None)
+        ])
+
     def analyse_expressions(self, env):
+        if self.bases and not (self.bases.is_sequence_constructor and len(self.bases.args) == 0):
+            from .ExprNodes import PythonCapiCallNode, CloneNode
+            # handle the Python 3.7 __mro_entries__ transformation
+            orig_bases = self.bases.analyse_expressions(env)
+            self.bases = PythonCapiCallNode(orig_bases.pos,
+                function_name="__Pyx_PEP560_update_bases",
+                func_type=self.update_bases_functype,
+                utility_code=UtilityCode.load_cached('Py3UpdateBases', 'ObjectHandling.c'),
+                args=[CloneNode(orig_bases)])
+            self.orig_bases = orig_bases
         if self.bases:
             self.bases = self.bases.analyse_expressions(env)
         if self.mkw:
@@ -4916,6 +4937,8 @@ class PyClassDefNode(ClassDefNode):
         code.mark_pos(self.pos)
         code.pyclass_stack.append(self)
         cenv = self.scope
+        if self.orig_bases:
+            self.orig_bases.generate_evaluation_code(code)
         if self.bases:
             self.bases.generate_evaluation_code(code)
         if self.mkw:
@@ -4923,6 +4946,17 @@ class PyClassDefNode(ClassDefNode):
         if self.metaclass:
             self.metaclass.generate_evaluation_code(code)
         self.dict.generate_evaluation_code(code)
+        if self.orig_bases:
+            # update __orig_bases__ if needed
+            code.putln("if (%s != %s) {" % (self.bases.result(), self.orig_bases.result()))
+            code.putln(
+                code.error_goto_if_neg('PyDict_SetItemString(%s, "__orig_bases__", %s)' % (
+                    self.dict.result(), self.orig_bases.result()),
+                    self.pos
+            ))
+            code.putln("}")
+            self.orig_bases.generate_disposal_code(code)
+            self.orig_bases.free_temps(code)
         cenv.namespace_cname = cenv.class_obj_cname = self.dict.result()
 
         class_cell = self.class_cell
@@ -5214,13 +5248,13 @@ class CClassDefNode(ClassDefNode):
                 self.type_init_args.generate_disposal_code(code)
                 self.type_init_args.free_temps(code)
 
-            self.generate_type_ready_code(self.entry, code, True)
+            self.generate_type_ready_code(self.entry, code)
         if self.body:
             self.body.generate_execution_code(code)
 
     # Also called from ModuleNode for early init types.
     @staticmethod
-    def generate_type_ready_code(entry, code, heap_type_bases=False):
+    def generate_type_ready_code(entry, code):
         # Generate a call to PyType_Ready for an extension
         # type defined in this module.
         type = entry.type
@@ -5256,15 +5290,10 @@ class CClassDefNode(ClassDefNode):
             code.putln("#else")
             for slot in TypeSlots.slot_table:
                 slot.generate_dynamic_init_code(scope, code)
-            if heap_type_bases:
-                code.globalstate.use_utility_code(
-                    UtilityCode.load_cached('PyType_Ready', 'ExtensionTypes.c'))
-                readyfunc = "__Pyx_PyType_Ready"
-            else:
-                readyfunc = "PyType_Ready"
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached('PyType_Ready', 'ExtensionTypes.c'))
             code.putln(
-                "if (%s(&%s) < 0) %s" % (
-                    readyfunc,
+                "if (__Pyx_PyType_Ready(&%s) < 0) %s" % (
                     typeobj_cname,
                     code.error_goto(entry.pos)))
             # Don't inherit tp_print from builtin types in Python 2, restoring the
@@ -5342,13 +5371,13 @@ class CClassDefNode(ClassDefNode):
                         typeobj_cname,
                         type.vtabptr_cname,
                         code.error_goto(entry.pos)))
+                # TODO: find a way to make this work with the Limited API!
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached('MergeVTables', 'ImportExport.c'))
+                code.putln("if (__Pyx_MergeVtables(&%s) < 0) %s" % (
+                    typeobj_cname,
+                    code.error_goto(entry.pos)))
                 code.putln("#endif")
-                if heap_type_bases:
-                    code.globalstate.use_utility_code(
-                        UtilityCode.load_cached('MergeVTables', 'ImportExport.c'))
-                    code.putln("if (__Pyx_MergeVtables(&%s) < 0) %s" % (
-                        typeobj_cname,
-                        code.error_goto(entry.pos)))
             if not type.scope.is_internal and not type.scope.directives.get('internal'):
                 # scope.is_internal is set for types defined by
                 # Cython (such as closures), the 'internal'

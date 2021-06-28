@@ -1339,14 +1339,14 @@ class PyObjectType(PyrexType):
         return cname
 
 
-builtin_types_that_cannot_create_refcycles = set([
+builtin_types_that_cannot_create_refcycles = frozenset({
     'object', 'bool', 'int', 'long', 'float', 'complex',
-    'bytearray', 'bytes', 'unicode', 'str', 'basestring'
-])
+    'bytearray', 'bytes', 'unicode', 'str', 'basestring',
+})
 
-builtin_types_with_trashcan = set([
+builtin_types_with_trashcan = frozenset({
     'dict', 'list', 'set', 'frozenset', 'tuple', 'type',
-])
+})
 
 
 class BuiltinObjectType(PyObjectType):
@@ -2766,7 +2766,7 @@ class CReferenceBaseType(BaseType):
         self.ref_base_type = base_type
 
     def __repr__(self):
-        return "<%s %s>" % repr(self.__class__.__name__, self.ref_base_type)
+        return "<%r %s>" % (self.__class__.__name__, self.ref_base_type)
 
     def specialize(self, values):
         base_type = self.ref_base_type.specialize(values)
@@ -3252,7 +3252,16 @@ class CFuncType(CType):
         if not self.can_coerce_to_pyobject(env):
             return False
         from .UtilityCode import CythonUtilityCode
-        to_py_function = "__Pyx_CFunc_%s_to_py" % type_identifier(self, pyrex=True)
+
+        # include argument names into the c function name to ensure cname is unique
+        # between functions with identical types but different argument names
+        from .Symtab import punycodify_name
+        def arg_name_part(arg):
+            return "%s%s" % (len(arg.name), punycodify_name(arg.name)) if arg.name else "0"
+        arg_names = [ arg_name_part(arg) for arg in self.args ]
+        arg_names = "_".join(arg_names)
+        safe_typename = type_identifier(self, pyrex=True)
+        to_py_function = "__Pyx_CFunc_%s_to_py_%s" % (safe_typename, arg_names)
 
         for arg in self.args:
             if not arg.type.is_pyobject and not arg.type.create_from_py_utility_code(env):

@@ -15,7 +15,7 @@ This makes Cython the ideal language for wrapping external C libraries, and
 for fast C modules that speed up the execution of Python code.
 
 * Official website: https://cython.org/
-* Documentation: http://docs.cython.org/
+* Documentation: https://docs.cython.org/
 * Github repository: https://github.com/cython/cython
 * Wiki: https://github.com/cython/cython/wiki
 
@@ -31,7 +31,7 @@ If you already have a C compiler, just run following command::
 
    pip install Cython
 
-otherwise, see `the installation page <http://docs.cython.org/en/latest/src/quickstart/install.html>`_.
+otherwise, see `the installation page <https://docs.cython.org/en/latest/src/quickstart/install.html>`_.
 
 
 License:
@@ -85,7 +85,7 @@ Copyright stuff: Pyrex is free of restrictions. You
 may use, redistribute, modify and distribute modified
 versions.
 
-The latest version of Pyrex can be found `here <http://www.cosc.canterbury.ac.nz/~greg/python/Pyrex/>`_.
+The latest version of Pyrex can be found `here <https://www.cosc.canterbury.ac.nz/~greg/python/Pyrex/>`_.
 
 | Greg Ewing, Computer Science Dept
 | University of Canterbury

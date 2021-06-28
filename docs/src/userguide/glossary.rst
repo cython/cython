@@ -1,10 +1,12 @@
 .. glossary::
 
+Glossary
+========
+
    Extension type
       "Extension type" can refer to either a Cython class defined with ``cdef class`` or more generally to any Python type that is ultimately implemented as a native C struct (including the built-in types like `int` or `dict`).
       
-   Dynamic allocation
-   Heap allocation
+   Dynamic allocation or Heap allocation
       A C variable allocated with ``malloc`` (in C) or ``new`` (in C++) is
       `allocated dynamically/heap allocated <https://en.wikipedia.org/wiki/C_dynamic_memory_allocation>`_.
       Its lifetime is until the user deletes it explicitly (with ``free`` in C or ``del`` in C++).
@@ -19,9 +21,9 @@
    Python object
       When using Python, the contents of every variable is a Python object
       (including Cython extension types). Key features of Python objects are that
-      they are passed _by reference_ and that their lifetime is _managed_ automatically
+      they are passed *by reference* and that their lifetime is *managed* automatically
       so that they are destroyed when no more references exist to them.
-      In Cython, they are distinct from C types, which are passed _by value_ and whose
+      In Cython, they are distinct from C types, which are passed *by value* and whose
       lifetime is managed depending on whether they are allocated on the stack or heap.
       To explicitly declare a Python object variable in Cython use ``cdef object abc``.
       Internally in C, they are referred to as ``PyObject*``.

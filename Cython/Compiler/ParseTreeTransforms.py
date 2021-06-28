@@ -685,17 +685,19 @@ class InterpretCompilerDirectives(CythonTransform):
         'operator.comma'        : ExprNodes.c_binop_constructor(','),
     }
 
-    special_methods = set(['declare', 'union', 'struct', 'typedef',
-                           'sizeof', 'cast', 'pointer', 'compiled',
-                           'NULL', 'fused_type', 'parallel'])
+    special_methods = {
+        'declare', 'union', 'struct', 'typedef',
+        'sizeof', 'cast', 'pointer', 'compiled',
+        'NULL', 'fused_type', 'parallel',
+    }
     special_methods.update(unop_method_nodes)
 
-    valid_parallel_directives = set([
+    valid_parallel_directives = {
         "parallel",
         "prange",
         "threadid",
         #"threadsavailable",
-    ])
+    }
 
     def __init__(self, context, compilation_directive_defaults):
         super(InterpretCompilerDirectives, self).__init__(context)

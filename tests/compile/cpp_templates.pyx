@@ -1,6 +1,6 @@
 # tag: cpp
 # mode: compile
-# ticket: 767
+# ticket: t767
 
 cdef extern from "templates.h":
     cdef cppclass TemplateTest1[T]:

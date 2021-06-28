@@ -1,4 +1,4 @@
-# ticket: 494
+# ticket: t494
 # cython: binding=True
 
 __doc__ = """

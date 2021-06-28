@@ -55,3 +55,6 @@ MANIFEST
 
 # Komodo EDIT/IDE project files
 /*.komodoproject
+
+# Visual Studio Code files
+.vscode
