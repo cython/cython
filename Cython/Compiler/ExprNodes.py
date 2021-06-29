@@ -2364,12 +2364,21 @@ class NameNode(AtomicExprNode):
             # Raise UnboundLocalError for objects and memoryviewslices
             raise_unbound = (
                 (self.cf_maybe_null or self.cf_is_null) and not self.allow_null)
-            null_code = entry.type.check_for_null_code(entry.cname)
 
             memslice_check = entry.type.is_memoryviewslice and self.initialized_check
+            optional_cpp_check = entry.is_cpp_optional and self.initialized_check
 
-            if null_code and raise_unbound and (entry.type.is_pyobject or memslice_check):
-                code.put_error_if_unbound(self.pos, entry, self.in_nogil_context)
+            if optional_cpp_check:
+                unbound_check_code = entry.type.cpp_optional_check_for_null_code(entry.cname)
+            else:
+                unbound_check_code = entry.type.check_for_null_code(entry.cname)
+
+            if unbound_check_code and raise_unbound and (entry.type.is_pyobject or memslice_check or optional_cpp_check):
+                code.put_error_if_unbound(self.pos, entry, self.in_nogil_context, unbound_check_code=unbound_check_code)
+
+        elif entry.is_cglobal and entry.is_cpp_optional and self.initialized_check:
+            unbound_check_code = entry.type.cpp_optional_check_for_null_code(entry.cname)
+            code.put_error_if_unbound(self.pos, entry, unbound_check_code=unbound_check_code)
 
     def generate_assignment_code(self, rhs, code, overloaded_assignment=False,
                                  exception_check=None, exception_value=None):
@@ -7152,6 +7161,9 @@ class AttributeNode(ExprNode):
             self.op = "->"
         elif obj_type.is_reference and obj_type.is_fake_reference:
             self.op = "->"
+        elif (obj_type.is_cpp_class and (self.obj.is_name or self.obj.is_attribute) and
+                self.obj.entry and self.obj.entry.is_cpp_optional):
+            self.op = "->"
         else:
             self.op = "."
         if obj_type.has_attributes:
@@ -7360,6 +7372,9 @@ class AttributeNode(ExprNode):
                                         '"Memoryview is not initialized");'
                         '%s'
                     '}' % (self.result(), code.error_goto(self.pos)))
+        elif self.entry.is_cpp_optional and self.initialized_check:
+            unbound_check_code = self.type.cpp_optional_check_for_null_code(self.result())
+            code.put_error_if_unbound(self.pos, self.entry, unbound_check_code=unbound_check_code)
         else:
             # result_code contains what is needed, but we may need to insert
             # a check and raise an exception
@@ -13664,6 +13679,7 @@ class CoerceToTempNode(CoercionNode):
                 code.put_incref_memoryviewslice(self.result(), self.type,
                                             have_gil=not self.in_nogil_context)
 
+
 class ProxyNode(CoercionNode):
     """
     A node that should not be replaced by transforms or other means,
@@ -13779,6 +13795,23 @@ class CloneNode(CoercionNode):
         pass
 
     def free_temps(self, code):
+        pass
+
+
+class CppOptionalTempCoercion(CoercionNode):
+    """
+    Used only in CoerceCppTemps - handles cases the temp is actually a OptionalCppClassType (and thus needs dereferencing when on the rhs)
+    """
+    is_temp = False
+
+    @property
+    def type(self):
+        return self.arg.type
+
+    def calculate_result_code(self):
+        return "(*%s)" % self.arg.result()
+
+    def generate_result_code(self, code):
         pass
 
 

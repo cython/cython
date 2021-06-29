@@ -3082,3 +3082,21 @@ static void __Pyx_RaiseUnboundMemoryviewSliceNogil(const char *varname) {
     PyGILState_Release(gilstate);
     #endif
 }
+
+//////////////// RaiseCppGlobalNameError.proto ///////////////////////
+static CYTHON_INLINE void __Pyx_RaiseCppGlobalNameError(const char *varname); /*proto*/
+
+/////////////// RaiseCppGlobalNameError //////////////////////////////
+static CYTHON_INLINE void __Pyx_RaiseCppGlobalNameError(const char *varname) {
+    PyErr_Format(PyExc_NameError, "C++ global '%s' is not initialized", varname);
+}
+
+//////////////// RaiseCppAttributeError.proto ///////////////////////
+static CYTHON_INLINE void __Pyx_RaiseCppAttributeError(const char *varname); /*proto*/
+
+/////////////// RaiseCppAttributeError //////////////////////////////
+static CYTHON_INLINE void __Pyx_RaiseCppAttributeError(const char *varname) {
+    PyErr_Format(PyExc_AttributeError, "C++ attribute '%s' is not initialized", varname);
+}
+
+
