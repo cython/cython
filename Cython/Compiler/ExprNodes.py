@@ -2377,13 +2377,8 @@ class NameNode(AtomicExprNode):
                 code.put_error_if_unbound(self.pos, entry, self.in_nogil_context, unbound_check_code=unbound_check_code)
 
         elif entry.is_cglobal and entry.is_cpp_optional and self.initialized_check:
-            null_code = entry.type.cpp_optional_check_for_null_code(entry.cname)
-            code.putln(
-                'if (unlikely(!%s)) {'
-                    'PyErr_SetString(PyExc_NameError,'
-                                    '"C++ global \'%s\' is not initialized");'
-                    '%s'
-                '}' % (null_code, self.name, code.error_goto(self.pos)))
+            unbound_check_code = entry.type.cpp_optional_check_for_null_code(entry.cname)
+            code.put_error_if_unbound(self.pos, entry, unbound_check_code=unbound_check_code)
 
     def generate_assignment_code(self, rhs, code, overloaded_assignment=False,
                                  exception_check=None, exception_value=None):
@@ -7167,7 +7162,7 @@ class AttributeNode(ExprNode):
         elif obj_type.is_reference and obj_type.is_fake_reference:
             self.op = "->"
         elif (obj_type.is_cpp_class and (self.obj.is_name or self.obj.is_attribute) and
-                        self.obj.entry and self.obj.entry.is_cpp_optional):
+                self.obj.entry and self.obj.entry.is_cpp_optional):
             self.op = "->"
         else:
             self.op = "."
@@ -7378,13 +7373,8 @@ class AttributeNode(ExprNode):
                         '%s'
                     '}' % (self.result(), code.error_goto(self.pos)))
         elif self.entry.is_cpp_optional and self.initialized_check:
-            null_code = self.type.cpp_optional_check_for_null_code(self.result())
-            code.putln(
-                'if (unlikely(!%s)) {'
-                    'PyErr_SetString(PyExc_AttributeError,'
-                                    '"C++ class attribute is not initialized");'
-                    '%s'
-                '}' % (null_code, code.error_goto(self.pos)))
+            unbound_check_code = self.type.cpp_optional_check_for_null_code(self.result())
+            code.put_error_if_unbound(self.pos, self.entry, unbound_check_code=unbound_check_code)
         else:
             # result_code contains what is needed, but we may need to insert
             # a check and raise an exception

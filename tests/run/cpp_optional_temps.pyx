@@ -138,7 +138,7 @@ cdef class HoldsC:
     >>> inst.getCX()
     Traceback (most recent call last):
         ...
-    AttributeError: C++ class attribute is not initialized
+    AttributeError: C++ attribute 'value' is not initialized
     """
     cdef C value
     def __cinit__(self, initialize):

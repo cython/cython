@@ -2381,6 +2381,16 @@ class CCodeWriter(object):
             func = '__Pyx_RaiseUnboundMemoryviewSliceNogil'
             self.globalstate.use_utility_code(
                 UtilityCode.load_cached("RaiseUnboundMemoryviewSliceNogil", "ObjectHandling.c"))
+        elif entry.type.is_cpp_class and entry.is_cglobal:
+            func = '__Pyx_RaiseCppGlobalNameError'
+            self.globalstate.use_utility_code(
+                UtilityCode.load_cached("RaiseCppGlobalNameError", "ObjectHandling.c"))
+        elif entry.type.is_cpp_class and entry.is_variable and not entry.is_member and entry.scope.is_c_class_scope:
+            # there doesn't seem to be a good way to detecting an instance-attribute of a C class
+            # (is_member is only set for class attributes)
+            func = '__Pyx_RaiseCppAttributeError'
+            self.globalstate.use_utility_code(
+                UtilityCode.load_cached("RaiseCppAttributeError", "ObjectHandling.c"))
         else:
             func = '__Pyx_RaiseUnboundLocalError'
             self.globalstate.use_utility_code(
