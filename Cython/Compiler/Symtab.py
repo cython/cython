@@ -271,6 +271,7 @@ class Entry(object):
         return len(self.cf_assignments) > 1
 
     def make_cpp_optional(self):
+        assert self.type.is_cpp_class
         self.is_cpp_optional = True
         assert not self.utility_code  # we're not overwriting anything?
         self.utility_code = Code.UtilityCode.load_cached("OptionalLocals", "CppSupport.cpp")

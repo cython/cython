@@ -850,7 +850,6 @@ class FunctionState(object):
             from . import PyrexTypes
             type = PyrexTypes.c_ptr_type(type)  # A function itself isn't an l-value
         elif type.is_cpp_class and self.scope.directives['cpp_locals']:
-            #type = type.make_optional_type()
             self.scope.use_utility_code(UtilityCode.load_cached("OptionalLocals", "CppSupport.cpp"))
         if not type.is_pyobject and not type.is_memoryviewslice:
             # Make manage_ref canonical, so that manage_ref will always mean
@@ -2373,7 +2372,7 @@ class CCodeWriter(object):
         # return self.putln("if (unlikely(%s < 0)) %s" % (value, self.error_goto(pos)))
         return self.putln("if (%s < 0) %s" % (value, self.error_goto(pos)))
 
-    def put_error_if_unbound(self, pos, entry, in_nogil_context=False, null_code=None):
+    def put_error_if_unbound(self, pos, entry, in_nogil_context=False, unbound_check_code=None):
         from . import ExprNodes
         if entry.from_closure:
             func = '__Pyx_RaiseClosureNameError'
@@ -2388,10 +2387,10 @@ class CCodeWriter(object):
             self.globalstate.use_utility_code(
                 ExprNodes.raise_unbound_local_error_utility_code)
 
-        if not null_code:
-            null_code = entry.type.check_for_null_code(entry.cname)
+        if not unbound_check_code:
+            unbound_check_code = entry.type.check_for_null_code(entry.cname)
         self.putln('if (unlikely(!%s)) { %s("%s"); %s }' % (
-                                null_code,
+                                unbound_check_code,
                                 func,
                                 entry.name,
                                 self.error_goto(pos)))

@@ -2347,12 +2347,12 @@ class NameNode(AtomicExprNode):
             optional_cpp_check = entry.is_cpp_optional and self.initialized_check
 
             if optional_cpp_check:
-                null_code = entry.type.cpp_optional_check_for_null_code(entry.cname)
+                unbound_check_code = entry.type.cpp_optional_check_for_null_code(entry.cname)
             else:
-                null_code = entry.type.check_for_null_code(entry.cname)
+                unbound_check_code = entry.type.check_for_null_code(entry.cname)
 
-            if null_code and raise_unbound and (entry.type.is_pyobject or memslice_check or optional_cpp_check):
-                code.put_error_if_unbound(self.pos, entry, self.in_nogil_context, null_code=null_code)
+            if unbound_check_code and raise_unbound and (entry.type.is_pyobject or memslice_check or optional_cpp_check):
+                code.put_error_if_unbound(self.pos, entry, self.in_nogil_context, unbound_check_code=unbound_check_code)
 
         elif entry.is_cglobal and entry.is_cpp_optional and self.initialized_check:
             null_code = entry.type.cpp_optional_check_for_null_code(entry.cname)
@@ -7146,14 +7146,14 @@ class AttributeNode(ExprNode):
             self.op = "->"
         elif obj_type.is_reference and obj_type.is_fake_reference:
             self.op = "->"
+        elif (obj_type.is_cpp_class and (self.obj.is_name or self.obj.is_attribute) and
+                        self.obj.entry and self.obj.entry.is_cpp_optional):
+            self.op = "->"
         else:
             self.op = "."
         if obj_type.has_attributes:
             if obj_type.attributes_known():
                 entry = obj_type.scope.lookup_here(self.attribute)
-                if (obj_type.is_cpp_class and (self.obj.is_name or self.obj.is_attribute) and
-                        self.obj.entry and self.obj.entry.is_cpp_optional):
-                    self.op = "->"
                 if obj_type.is_memoryviewslice and not entry:
                     if self.attribute == 'T':
                         self.is_memslice_transpose = True

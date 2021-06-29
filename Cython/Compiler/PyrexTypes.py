@@ -378,8 +378,8 @@ class PyrexType(BaseType):
 
     def cpp_optional_declaration_code(self, entity_code, dll_linkage=None):
         # declares an std::optional c++ variable
-        raise NotImplementedError("cpp_optional_declaration_code only implemented for c++ classes "
-                                "and not type %s" % self)
+        raise NotImplementedError(
+            "cpp_optional_declaration_code only implemented for c++ classes and not type %s" % self)
 
 
 def public_decl(base_code, dll_linkage):
