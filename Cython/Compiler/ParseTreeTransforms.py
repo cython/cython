@@ -3159,7 +3159,6 @@ class CoerceCppTemps(EnvTransform, SkipDeclarations):
         return node
 
 
-
 class TransformBuiltinMethods(EnvTransform):
     """
     Replace Cython's own cython.* builtins by the corresponding tree nodes.
