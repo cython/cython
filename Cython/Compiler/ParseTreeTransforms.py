@@ -52,6 +52,12 @@ class SkipDeclarations(object):
     def visit_CStructOrUnionDefNode(self, node):
         return node
 
+    def visit_CppClassNode(self, node):
+        if node.visibility != "extern":
+            # Need to traverse methods.
+            self.visitchildren(node)
+        return node
+
 
 class NormalizeTree(CythonTransform):
     """
@@ -921,6 +927,13 @@ class InterpretCompilerDirectives(CythonTransform):
         if node.as_cython_attribute() == "compiled":
             return ExprNodes.BoolNode(node.pos, value=True)  # replace early so unused branches can be dropped
                 # before they have a chance to cause compile-errors
+        return node
+
+    def visit_AnnotationNode(self, node):
+        # for most transforms annotations are left unvisited (because they're unevaluated)
+        # however, it is important to pick up compiler directives from them
+        if node.expr:
+            self.visitchildren(node.expr)
         return node
 
     def visit_NewExprNode(self, node):

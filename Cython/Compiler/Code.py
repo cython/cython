@@ -2373,19 +2373,18 @@ class CCodeWriter(object):
         return self.putln("if (%s < 0) %s" % (value, self.error_goto(pos)))
 
     def put_error_if_unbound(self, pos, entry, in_nogil_context=False, unbound_check_code=None):
-        from . import ExprNodes
         if entry.from_closure:
             func = '__Pyx_RaiseClosureNameError'
             self.globalstate.use_utility_code(
-                ExprNodes.raise_closure_name_error_utility_code)
+                UtilityCode.load_cached("RaiseClosureNameError", "ObjectHandling.c"))
         elif entry.type.is_memoryviewslice and in_nogil_context:
             func = '__Pyx_RaiseUnboundMemoryviewSliceNogil'
             self.globalstate.use_utility_code(
-                ExprNodes.raise_unbound_memoryview_utility_code_nogil)
+                UtilityCode.load_cached("RaiseUnboundMemoryviewSliceNogil", "ObjectHandling.c"))
         else:
             func = '__Pyx_RaiseUnboundLocalError'
             self.globalstate.use_utility_code(
-                ExprNodes.raise_unbound_local_error_utility_code)
+                UtilityCode.load_cached("RaiseUnboundLocalError", "ObjectHandling.c"))
 
         if not unbound_check_code:
             unbound_check_code = entry.type.check_for_null_code(entry.cname)

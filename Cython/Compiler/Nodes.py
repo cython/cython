@@ -627,8 +627,8 @@ class CFuncDeclaratorNode(CDeclaratorNode):
     # args             [CArgDeclNode]
     # templates        [TemplatePlaceholderType]
     # has_varargs      boolean
-    # exception_value  ConstNode
-    # exception_check  boolean    True if PyErr_Occurred check needed
+    # exception_value  ConstNode or NameNode    NameNode when the name of a c++ exception conversion function
+    # exception_check  boolean or "+"    True if PyErr_Occurred check needed, "+" for a c++ check
     # nogil            boolean    Can be called without gil
     # with_gil         boolean    Acquire gil around function body
     # is_const_method  boolean    Whether this is a const method
@@ -2512,8 +2512,15 @@ class CFuncDefNode(FuncDefNode):
                   "Function with optional arguments may not be declared public or api")
 
         if typ.exception_check == '+' and self.visibility != 'extern':
-            warning(self.cfunc_declarator.pos,
+            if typ.exception_value and typ.exception_value.is_name:
+                # it really is impossible to reason about what the user wants to happens
+                # if they've specified a C++ exception translation function. Therefore,
+                # raise an error.
+                error(self.cfunc_declarator.pos,
                     "Only extern functions can throw C++ exceptions.")
+            else:
+                warning(self.cfunc_declarator.pos,
+                    "Only extern functions can throw C++ exceptions.", 2)
 
         for formal_arg, type_arg in zip(self.args, typ.args):
             self.align_argument_type(env, type_arg)
@@ -2804,7 +2811,6 @@ class CFuncDefNode(FuncDefNode):
         if self.return_type.is_pyobject:
             return "0"
         else:
-            #return None
             return self.entry.type.exception_value
 
     def caller_will_check_exceptions(self):

@@ -39,6 +39,7 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.autodoc',
     'sphinx_issues',  # if this is missing, pip install sphinx-issues
+    'sphinx_tabs.tabs',  # if this is missing, pip install sphinx-tabs
     ]
 
 try: import rst2pdf
@@ -133,6 +134,10 @@ imgmath_image_format = "svg"
 
 issues_github_path = "cython/cython"
 
+# For sphinx-tabs
+
+sphinx_tabs_disable_tab_closing = True
+
 # -- Options for HTML output ---------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
@@ -173,6 +178,11 @@ html_favicon = "_static/favicon.ico"
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
+
+# Overwriting css from extensions
+html_context = {
+    'css_files': ['_static/css/tabs.css'],
+}
 
 # If not '', a 'Last updated on:' timestamp is inserted at every page bottom,
 # using the given strftime format.

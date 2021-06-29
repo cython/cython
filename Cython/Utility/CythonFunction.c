@@ -116,16 +116,16 @@ static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS_METHOD(PyObject 
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
 
 static CYTHON_INLINE void __Pyx__CyFunction_SetClassObj(__pyx_CyFunctionObject* f, PyObject* classobj) {
-    __Pyx_Py_XDECREF_SET(
 #if PY_VERSION_HEX < 0x030900B1
+    __Pyx_Py_XDECREF_SET(
         __Pyx_CyFunction_GetClassObj(f),
+            ((classobj) ? __Pyx_NewRef(classobj) : NULL));
 #else
+    __Pyx_Py_XDECREF_SET(
         // assigning to "mm_class", which is a "PyTypeObject*"
         ((PyCMethodObject *) (f))->mm_class,
-        (PyTypeObject*)
+        (PyTypeObject*)((classobj) ? __Pyx_NewRef(classobj) : NULL));
 #endif
-            ((classobj) ? __Pyx_NewRef(classobj) : NULL)
-    );
 }
 
 static PyObject *
@@ -1612,8 +1612,8 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
         return PyClassMethod_New(method);
     }
 #else
-#if CYTHON_COMPILING_IN_PYSTON || CYTHON_COMPILING_IN_PYPY
-    // special C-API function only in Pyston and PyPy >= 5.9
+#if CYTHON_COMPILING_IN_PYPY
+    // special C-API function only in PyPy >= 5.9
     if (PyMethodDescr_Check(method))
 #else
     #if PY_MAJOR_VERSION == 2

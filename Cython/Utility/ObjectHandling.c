@@ -3030,6 +3030,7 @@ __Pyx_PyType_GetName(PyTypeObject* tp)
 }
 #endif
 
+
 /////////////// RaiseUnexpectedTypeError.proto ///////////////
 
 static int __Pyx_RaiseUnexpectedTypeError(const char *expected, PyObject *obj); /*proto*/
@@ -3044,4 +3045,40 @@ __Pyx_RaiseUnexpectedTypeError(const char *expected, PyObject *obj)
                  expected, obj_type_name);
     __Pyx_DECREF_TypeName(obj_type_name);
     return 0;
+}
+
+
+/////////////// RaiseUnboundLocalError.proto ///////////////
+static CYTHON_INLINE void __Pyx_RaiseUnboundLocalError(const char *varname);/*proto*/
+
+/////////////// RaiseUnboundLocalError ///////////////
+static CYTHON_INLINE void __Pyx_RaiseUnboundLocalError(const char *varname) {
+    PyErr_Format(PyExc_UnboundLocalError, "local variable '%s' referenced before assignment", varname);
+}
+
+
+/////////////// RaiseClosureNameError.proto ///////////////
+static CYTHON_INLINE void __Pyx_RaiseClosureNameError(const char *varname);/*proto*/
+
+/////////////// RaiseClosureNameError ///////////////
+static CYTHON_INLINE void __Pyx_RaiseClosureNameError(const char *varname) {
+    PyErr_Format(PyExc_NameError, "free variable '%s' referenced before assignment in enclosing scope", varname);
+}
+
+
+/////////////// RaiseUnboundMemoryviewSliceNogil.proto ///////////////
+static void __Pyx_RaiseUnboundMemoryviewSliceNogil(const char *varname);/*proto*/
+
+/////////////// RaiseUnboundMemoryviewSliceNogil ///////////////
+//@requires: RaiseUnboundLocalError
+
+// Don't inline the function, it should really never be called in production
+static void __Pyx_RaiseUnboundMemoryviewSliceNogil(const char *varname) {
+    #ifdef WITH_THREAD
+    PyGILState_STATE gilstate = PyGILState_Ensure();
+    #endif
+    __Pyx_RaiseUnboundLocalError(varname);
+    #ifdef WITH_THREAD
+    PyGILState_Release(gilstate);
+    #endif
 }

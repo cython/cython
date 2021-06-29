@@ -8,7 +8,6 @@ Note that this module is deprecated.  Use cythonize() instead.
 
 __revision__ = "$Id:$"
 
-import inspect
 import sys
 import os
 from distutils.errors import DistutilsPlatformError
@@ -16,7 +15,6 @@ from distutils.dep_util import newer, newer_group
 from distutils import log
 from distutils.command import build_ext as _build_ext
 from distutils import sysconfig
-import warnings
 
 
 try:
@@ -24,6 +22,13 @@ try:
 except ImportError:
     basestring = str
 
+
+# FIXME: the below does not work as intended since importing 'Cython.Distutils' already
+#        imports this module through 'Cython/Distutils/build_ext.py', so the condition is
+#        always false and never prints the warning.
+"""
+import inspect
+import warnings
 
 def _check_stack(path):
     try:
@@ -41,7 +46,7 @@ if (not _check_stack('setuptools/extensions.py')
     warnings.warn(
         "Cython.Distutils.old_build_ext does not properly handle dependencies "
         "and is deprecated.")
-
+"""
 
 extension_name_re = _build_ext.extension_name_re
 
