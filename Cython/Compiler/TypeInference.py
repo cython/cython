@@ -370,7 +370,6 @@ class SimpleAssignmentTypeInferer(object):
                 else:
                     e.type.check_nullary_constructor(entry.pos)
 
-
     def infer_types(self, scope):
         enabled = scope.directives['infer_types']
         verbose = scope.directives['infer_types.verbose']
