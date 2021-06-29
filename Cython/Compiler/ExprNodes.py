@@ -245,6 +245,8 @@ def get_exception_handler(exception_value):
 def maybe_check_py_error(code, check_py_exception, pos, nogil):
     if check_py_exception:
         if nogil:
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("ErrOccurredWithGIL", "Exceptions.c"))
             code.putln(code.error_goto_if("__Pyx_ErrOccurredWithGIL()", pos))
         else:
             code.putln(code.error_goto_if("PyErr_Occurred()", pos))
@@ -5969,10 +5971,6 @@ class SimpleCallNode(CallNode):
 
         # Called in 'nogil' context?
         self.nogil = env.nogil
-        if (self.nogil and
-                func_type.exception_check and
-                func_type.exception_check != '+'):
-            env.use_utility_code(pyerr_occurred_withgil_utility_code)
         # C++ exception handler
         if func_type.exception_check == '+':
             if needs_cpp_exception_conversion(func_type):
@@ -6118,6 +6116,8 @@ class SimpleCallNode(CallNode):
                     exc_checks.append("%s == %s" % (self.result(), func_type.return_type.cast_code(exc_val)))
                 if exc_check:
                     if self.nogil:
+                        code.globalstate.use_utility_code(
+                            UtilityCode.load_cached("ErrOccurredWithGIL", "Exceptions.c"))
                         exc_checks.append("__Pyx_ErrOccurredWithGIL()")
                     else:
                         exc_checks.append("PyErr_Occurred()")
@@ -7792,10 +7792,12 @@ class SequenceNode(ExprNode):
         # list/tuple => check size
         code.putln("Py_ssize_t size = __Pyx_PySequence_SIZE(sequence);")
         code.putln("if (unlikely(size != %d)) {" % len(self.args))
-        code.globalstate.use_utility_code(raise_too_many_values_to_unpack)
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("RaiseTooManyValuesToUnpack", "ObjectHandling.c"))
         code.putln("if (size > %d) __Pyx_RaiseTooManyValuesError(%d);" % (
             len(self.args), len(self.args)))
-        code.globalstate.use_utility_code(raise_need_more_values_to_unpack)
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("RaiseNeedMoreValuesToUnpack", "ObjectHandling.c"))
         code.putln("else if (size >= 0) __Pyx_RaiseNeedMoreValuesError(size);")
         # < 0 => exception
         code.putln(code.error_goto(self.pos))
@@ -7858,8 +7860,10 @@ class SequenceNode(ExprNode):
             code.putln("}")
 
     def generate_generic_parallel_unpacking_code(self, code, rhs, unpacked_items, use_loop, terminate=True):
-        code.globalstate.use_utility_code(raise_need_more_values_to_unpack)
-        code.globalstate.use_utility_code(UtilityCode.load_cached("IterFinish", "ObjectHandling.c"))
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("RaiseNeedMoreValuesToUnpack", "ObjectHandling.c"))
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("IterFinish", "ObjectHandling.c"))
         code.putln("Py_ssize_t index = -1;")  # must be at the start of a C block!
 
         if use_loop:
@@ -7967,7 +7971,8 @@ class SequenceNode(ExprNode):
             rhs.generate_disposal_code(code)
 
         if unpacked_fixed_items_right:
-            code.globalstate.use_utility_code(raise_need_more_values_to_unpack)
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("RaiseNeedMoreValuesToUnpack", "ObjectHandling.c"))
             length_temp = code.funcstate.allocate_temp(PyrexTypes.c_py_ssize_t_type, manage_ref=False)
             code.putln('%s = PyList_GET_SIZE(%s);' % (length_temp, target_list))
             code.putln("if (unlikely(%s < %d)) {" % (length_temp, len(unpacked_fixed_items_right)))
@@ -13919,74 +13924,3 @@ class AnnotationNode(ExprNode):
         else:
             warning(annotation.pos, "Unknown type declaration in annotation, ignoring")
         return base_type, arg_type
-
-#------------------------------------------------------------------------------------
-#
-#  Runtime support code
-#
-#------------------------------------------------------------------------------------
-
-pyerr_occurred_withgil_utility_code= UtilityCode(
-proto = """
-static CYTHON_INLINE int __Pyx_ErrOccurredWithGIL(void); /* proto */
-""",
-impl = """
-static CYTHON_INLINE int __Pyx_ErrOccurredWithGIL(void) {
-  int err;
-  #ifdef WITH_THREAD
-  PyGILState_STATE _save = PyGILState_Ensure();
-  #endif
-  err = !!PyErr_Occurred();
-  #ifdef WITH_THREAD
-  PyGILState_Release(_save);
-  #endif
-  return err;
-}
-"""
-)
-
-#------------------------------------------------------------------------------------
-
-raise_unbound_local_error_utility_code = UtilityCode(
-proto = """
-static CYTHON_INLINE void __Pyx_RaiseUnboundLocalError(const char *varname);
-""",
-impl = """
-static CYTHON_INLINE void __Pyx_RaiseUnboundLocalError(const char *varname) {
-    PyErr_Format(PyExc_UnboundLocalError, "local variable '%s' referenced before assignment", varname);
-}
-""")
-
-raise_closure_name_error_utility_code = UtilityCode(
-proto = """
-static CYTHON_INLINE void __Pyx_RaiseClosureNameError(const char *varname);
-""",
-impl = """
-static CYTHON_INLINE void __Pyx_RaiseClosureNameError(const char *varname) {
-    PyErr_Format(PyExc_NameError, "free variable '%s' referenced before assignment in enclosing scope", varname);
-}
-""")
-
-# Don't inline the function, it should really never be called in production
-raise_unbound_memoryview_utility_code_nogil = UtilityCode(
-proto = """
-static void __Pyx_RaiseUnboundMemoryviewSliceNogil(const char *varname);
-""",
-impl = """
-static void __Pyx_RaiseUnboundMemoryviewSliceNogil(const char *varname) {
-    #ifdef WITH_THREAD
-    PyGILState_STATE gilstate = PyGILState_Ensure();
-    #endif
-    __Pyx_RaiseUnboundLocalError(varname);
-    #ifdef WITH_THREAD
-    PyGILState_Release(gilstate);
-    #endif
-}
-""",
-requires = [raise_unbound_local_error_utility_code])
-
-#------------------------------------------------------------------------------------
-
-raise_too_many_values_to_unpack = UtilityCode.load_cached("RaiseTooManyValuesToUnpack", "ObjectHandling.c")
-raise_need_more_values_to_unpack = UtilityCode.load_cached("RaiseNeedMoreValuesToUnpack", "ObjectHandling.c")
-tuple_unpacking_error_code = UtilityCode.load_cached("UnpackTupleError", "ObjectHandling.c")
