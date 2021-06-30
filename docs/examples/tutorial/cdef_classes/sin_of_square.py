@@ -1,7 +1,4 @@
-if cython.compiled:
-    from cython.cimports.libc.math import sin
-else:
-    from math import sin
+from cython.cimports.libc.math import sin
 
 @cython.cclass
 class Function:
