@@ -78,8 +78,6 @@ class TestRecythonize(CythonTest):
             raise ValueError(
                 "{0!r} was not found, presumably in \n{1}".format(
                     line, "\n".join(map(repr, lines[ind-10: ind-1]))))
-        except Exception as e:
-            raise e
 
     def relative_lines_from_file(self, path, line, start, end, join=True):
         with open(path) as f:
