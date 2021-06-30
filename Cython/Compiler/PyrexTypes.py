@@ -186,6 +186,8 @@ class PyrexType(BaseType):
     #  is_cfunction          boolean     Is a C function type
     #  is_struct_or_union    boolean     Is a C struct or union type
     #  is_struct             boolean     Is a C struct type
+    #  is_cpp_class          boolean     Is a C++ class
+    #  is_optional_cpp_class boolean     Is a C++ class with variable lifetime handled with std::optional
     #  is_enum               boolean     Is a C enum type
     #  is_cpp_enum           boolean     Is a C++ scoped enum type
     #  is_typedef            boolean     Is a typedef type
@@ -255,6 +257,7 @@ class PyrexType(BaseType):
     is_cfunction = 0
     is_struct_or_union = 0
     is_cpp_class = 0
+    is_optional_cpp_class = 0
     is_python_type_constructor = 0
     is_special_python_type_constructor = 0
     is_cpp_string = 0
@@ -377,6 +380,10 @@ class PyrexType(BaseType):
                                       self)
         code.putln("1")
 
+    def cpp_optional_declaration_code(self, entity_code, dll_linkage=None):
+        # declares an std::optional c++ variable
+        raise NotImplementedError(
+            "cpp_optional_declaration_code only implemented for c++ classes and not type %s" % self)
 
 
 def public_decl(base_code, dll_linkage):
@@ -3805,10 +3812,13 @@ class CppClassType(CType):
                 'maybe_unordered': self.maybe_unordered(),
                 'type': self.cname,
             })
+            # Override directives that should not be inherited from user code.
+            # TODO: filter directives with an allow list to keep only those that are safe and relevant.
+            directives = dict(env.directives, cpp_locals=False)
             from .UtilityCode import CythonUtilityCode
             env.use_utility_code(CythonUtilityCode.load(
                 cls.replace('unordered_', '') + ".from_py", "CppConvert.pyx",
-                context=context, compiler_directives=env.directives))
+                context=context, compiler_directives=directives))
             self.from_py_function = cname
             return True
 
@@ -3850,10 +3860,13 @@ class CppClassType(CType):
                 'maybe_unordered': self.maybe_unordered(),
                 'type': self.cname,
             })
+            # Override directives that should not be inherited from user code.
+            # TODO: filter directives with an allow list to keep only those that are safe and relevant.
+            directives = dict(env.directives, cpp_locals=False)
             from .UtilityCode import CythonUtilityCode
             env.use_utility_code(CythonUtilityCode.load(
                 cls.replace('unordered_', '') + ".to_py", "CppConvert.pyx",
-                context=context, compiler_directives=env.directives))
+                context=context, compiler_directives=directives))
             self.to_py_function = cname
             return True
 
@@ -3992,6 +4005,12 @@ class CppClassType(CType):
             base_code = public_decl(base_code, dll_linkage)
         return self.base_declaration_code(base_code, entity_code)
 
+    def cpp_optional_declaration_code(self, entity_code, dll_linkage=None, template_params=None):
+        return "__Pyx_Optional_Type<%s> %s" % (
+                self.declaration_code("", False, dll_linkage, False,
+                                    template_params),
+                entity_code)
+
     def is_subclass(self, other_type):
         if self.same_as_resolved_type(other_type):
             return 1
@@ -4073,6 +4092,11 @@ class CppClassType(CType):
         constructor = self.scope.lookup(u'<init>')
         if constructor is not None and best_match([], constructor.all_alternatives()) is None:
             error(pos, "C++ class must have a nullary constructor to be %s" % msg)
+
+    def cpp_optional_check_for_null_code(self, cname):
+        # only applies to c++ classes that are being declared as std::optional
+        return "(%s.has_value())" % cname
+
 
 class CppScopedEnumType(CType):
     # name    string

@@ -932,6 +932,13 @@ class InterpretCompilerDirectives(CythonTransform):
                 # before they have a chance to cause compile-errors
         return node
 
+    def visit_AnnotationNode(self, node):
+        # for most transforms annotations are left unvisited (because they're unevaluated)
+        # however, it is important to pick up compiler directives from them
+        if node.expr:
+            self.visitchildren(node.expr)
+        return node
+
     def visit_NewExprNode(self, node):
         self.visit(node.cppclass)
         self.visitchildren(node)
@@ -3155,6 +3162,30 @@ class GilCheck(VisitorTransform):
             self.visitchildren(node)
         if self.nogil:
             node.in_nogil_context = True
+        return node
+
+
+class CoerceCppTemps(EnvTransform, SkipDeclarations):
+    """
+    For temporary expression that are implemented using std::optional it's necessary the temps are
+    assigned using `__pyx_t_x = value;` but accessed using `something = (*__pyx_t_x)`. This transform
+    inserts a coercion node to take care of this, and runs absolutely last (once nothing else can be
+    inserted into the tree)
+
+    TODO: a possible alternative would be to split ExprNode.result() into ExprNode.rhs_rhs() and ExprNode.lhs_rhs()???
+    """
+    def visit_ModuleNode(self, node):
+        if self.current_env().cpp:
+            # skipping this makes it essentially free for C files
+            self.visitchildren(node)
+        return node
+
+    def visit_ExprNode(self, node):
+        self.visitchildren(node)
+        if (self.current_env().directives['cpp_locals'] and
+                node.is_temp and node.type.is_cpp_class):
+            node = ExprNodes.CppOptionalTempCoercion(node)
+
         return node
 
 

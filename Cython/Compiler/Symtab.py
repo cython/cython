@@ -158,6 +158,7 @@ class Entry(object):
     # is_fused_specialized boolean Whether this entry of a cdef or def function
     #                              is a specialization
     # is_cgetter       boolean    Is a c-level getter function
+    # is_cpp_optional  boolean    Entry should be declared as std::optional (cpp_locals directive)
     # known_standard_library_import     Either None (default), an empty string (definitely can't be determined)
     #                             or a string of "modulename.something.attribute"
     #                             Used for identifying imports from typing/dataclasses etc
@@ -233,6 +234,7 @@ class Entry(object):
     cf_used = True
     outer_entry = None
     is_cgetter = False
+    is_cpp_optional = False
     known_standard_library_import = None
 
     def __init__(self, name, cname, type, pos = None, init = None):
@@ -272,6 +274,12 @@ class Entry(object):
     @property
     def cf_is_reassigned(self):
         return len(self.cf_assignments) > 1
+
+    def make_cpp_optional(self):
+        assert self.type.is_cpp_class
+        self.is_cpp_optional = True
+        assert not self.utility_code  # we're not overwriting anything?
+        self.utility_code = Code.UtilityCode.load_cached("OptionalLocals", "CppSupport.cpp")
 
 
 class InnerEntry(Entry):
@@ -729,10 +737,13 @@ class Scope(object):
                 cname = name
             else:
                 cname = self.mangle(Naming.var_prefix, name)
-        if type.is_cpp_class and visibility != 'extern':
-            type.check_nullary_constructor(pos)
         entry = self.declare(name, cname, type, pos, visibility)
         entry.is_variable = 1
+        if type.is_cpp_class and visibility != 'extern':
+            if self.directives['cpp_locals']:
+                entry.make_cpp_optional()
+            else:
+                type.check_nullary_constructor(pos)
         if in_pxd and visibility != 'extern':
             entry.defined_in_pxd = 1
             entry.used = 1
@@ -2253,11 +2264,14 @@ class CClassScope(ClassScope):
                 if visibility == 'private':
                     cname = c_safe_identifier(cname)
                 cname = punycodify_name(cname, Naming.unicode_structmember_prefix)
-            if type.is_cpp_class and visibility != 'extern':
-                type.check_nullary_constructor(pos)
             entry = self.declare(name, cname, type, pos, visibility)
             entry.is_variable = 1
             self.var_entries.append(entry)
+            if type.is_cpp_class and visibility != 'extern':
+                if self.directives['cpp_locals']:
+                    entry.make_cpp_optional()
+                else:
+                    type.check_nullary_constructor(pos)
             if type.is_memoryviewslice:
                 self.has_memoryview_attrs = True
             elif type.needs_cpp_construction:
