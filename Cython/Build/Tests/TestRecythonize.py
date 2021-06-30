@@ -41,7 +41,7 @@ class TestRecythonize(CythonTest):
     def write_to_file(self, path, text):
         try:
             res = os.path.getmtime(path)
-        except FileNotFoundError:
+        except OSError:  # not FileNotFoundError for compatibility
             res = .0
 
         with open(path, "w") as f:
