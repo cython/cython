@@ -920,10 +920,6 @@ class InterpretCompilerDirectives(CythonTransform):
             directive = self.directive_names.get(node.name)
             if directive is not None:
                 node.cython_attribute = directive
-        if node.annotation:
-            # may not seem necessary but annotation can have cython attrributes
-            # and isn't a child attribute - TODO should this need this special case?
-            self.visitchildren(node.annotation.expr)
         if node.as_cython_attribute() == "compiled":
             return ExprNodes.BoolNode(node.pos, value=True)  # replace early so unused branches can be dropped
                 # before they have a chance to cause compile-errors
