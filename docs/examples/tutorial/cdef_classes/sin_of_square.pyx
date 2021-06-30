@@ -1,7 +1,4 @@
- 
 from libc.math cimport sin
-
-
 
 
 cdef class Function:
