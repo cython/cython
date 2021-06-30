@@ -377,7 +377,7 @@ directive_scopes = {  # defaults to available everywhere
     'iterable_coroutine': ('module', 'function'),
     'trashcan' : ('cclass',),
     'total_ordering': ('cclass', ),
-    'dataclasses.dataclass' : ('class', 'cclass',)
+    'dataclasses.dataclass' : ('class', 'cclass',),
     'cpp_locals': ('module', 'function', 'cclass'),  # I don't think they make sense in a with_statement
 }
 
