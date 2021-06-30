@@ -40,9 +40,9 @@ class TestRecythonize(CythonTest):
 
     def write_to_file(self, path, text):
         try:
-            res = os.path.getmtime(path)
+            timestamp_before_change = os.path.getmtime(path)
         except OSError:  # not FileNotFoundError for compatibility
-            res = .0
+            timestamp_before_change = .0
 
         with open(path, "w") as f:
             f.write(text)
@@ -51,7 +51,7 @@ class TestRecythonize(CythonTest):
         # otherwise cythonize does not work as expected
         # on Linux-like systems #4245
         while 1:
-            if os.path.getmtime(path) != res:
+            if os.path.getmtime(path) != timestamp_before_change:
                 return
 
     def fresh_cythonize(self, *args, **kwargs):
