@@ -79,14 +79,11 @@ class TestRecythonize(CythonTest):
                 "{0!r} was not found, presumably in \n{1}".format(
                     line, "\n".join(map(repr, lines[ind-10: ind-1]))))
 
-    def relative_lines_from_file(self, path, line, start, end, join=True):
+    def relative_lines_from_file(self, path, line, start, end):
         with open(path) as f:
             lines = f.readlines()
 
-        lines = self.relative_lines(lines, line, start, end)
-        if join:
-            return "".join(lines)
-        return lines
+        return "".join(self.relative_lines(lines, line, start, end))
 
     def recythonize_on_pxd_change(self, ext, pxd_exists_for_first_check):
         module_filename = 'a' + ext
