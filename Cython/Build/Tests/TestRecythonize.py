@@ -39,12 +39,20 @@ class TestRecythonize(CythonTest):
         shutil.rmtree(self.temp_dir)
 
     def write_to_file(self, path, text):
-        # BUG: without sleep on Linux-like systems,
-        # cythonize not working properly #4245
-        time.sleep(0.01)
+        try:
+            res = os.path.getmtime(path)
+        except FileNotFoundError:
+            res = .0
 
         with open(path, "w") as f:
             f.write(text)
+
+        # Make sure the file has a newer timestamp,
+        # otherwise cythonize does not work as expected
+        # on Linux-like systems #4245
+        while 1:
+            if os.path.getmtime(path) != res:
+                return
 
     def fresh_cythonize(self, *args, **kwargs):
         self.clear_function_and_Dependencies_caches()
