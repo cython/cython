@@ -52,6 +52,12 @@ class SkipDeclarations(object):
     def visit_CStructOrUnionDefNode(self, node):
         return node
 
+    def visit_CppClassNode(self, node):
+        if node.visibility != "extern":
+            # Need to traverse methods.
+            self.visitchildren(node)
+        return node
+
 
 class NormalizeTree(CythonTransform):
     """
@@ -78,6 +84,13 @@ class NormalizeTree(CythonTransform):
         super(NormalizeTree, self).__init__(context)
         self.is_in_statlist = False
         self.is_in_expr = False
+
+    def visit_ModuleNode(self, node):
+        self.visitchildren(node)
+        if not isinstance(node.body, Nodes.StatListNode):
+            # This can happen when the body only consists of a single (unused) declaration and no statements.
+            node.body = Nodes.StatListNode(pos=node.pos, stats=[node.body])
+        return node
 
     def visit_ExprNode(self, node):
         stacktmp = self.is_in_expr
@@ -869,22 +882,33 @@ class InterpretCompilerDirectives(CythonTransform):
         return result
 
     def visit_CImportStatNode(self, node):
-        if node.module_name == u"cython":
+        module_name = node.module_name
+        if module_name == u"cython.cimports":
+            error(node.pos, "Cannot cimport the 'cython.cimports' package directly, only submodules.")
+        if module_name.startswith(u"cython.cimports."):
+            if node.as_name and node.as_name != u'cython':
+                node.module_name = module_name[len(u"cython.cimports."):]
+                return node
+            error(node.pos,
+                  "Python cimports must use 'from cython.cimports... import ...'"
+                  " or 'import ... as ...', not just 'import ...'")
+
+        if module_name == u"cython":
             self.cython_module_names.add(node.as_name or u"cython")
-        elif node.module_name.startswith(u"cython."):
-            if node.module_name.startswith(u"cython.parallel."):
+        elif module_name.startswith(u"cython."):
+            if module_name.startswith(u"cython.parallel."):
                 error(node.pos, node.module_name + " is not a module")
-            if node.module_name == u"cython.parallel":
+            if module_name == u"cython.parallel":
                 if node.as_name and node.as_name != u"cython":
-                    self.parallel_directives[node.as_name] = node.module_name
+                    self.parallel_directives[node.as_name] = module_name
                 else:
                     self.cython_module_names.add(u"cython")
                     self.parallel_directives[
-                                    u"cython.parallel"] = node.module_name
+                                    u"cython.parallel"] = module_name
                 self.module_scope.use_utility_code(
                     UtilityCode.load_cached("InitThreads", "ModuleSetupCode.c"))
             elif node.as_name:
-                self.directive_names[node.as_name] = node.module_name[7:]
+                self.directive_names[node.as_name] = module_name[7:]
             else:
                 self.cython_module_names.add(u"cython")
             # if this cimport was a compiler directive, we don't
@@ -893,9 +917,14 @@ class InterpretCompilerDirectives(CythonTransform):
         return node
 
     def visit_FromCImportStatNode(self, node):
-        if not node.relative_level and (
-                node.module_name == u"cython" or node.module_name.startswith(u"cython.")):
-            submodule = (node.module_name + u".")[7:]
+        module_name = node.module_name
+        if module_name == u"cython.cimports" or module_name.startswith(u"cython.cimports."):
+            # only supported for convenience
+            return self._create_cimport_from_import(
+                node.pos, module_name, node.relative_level, node.imported_names)
+        elif not node.relative_level and (
+                module_name == u"cython" or module_name.startswith(u"cython.")):
+            submodule = (module_name + u".")[7:]
             newimp = []
 
             for pos, name, as_name, kind in node.imported_names:
@@ -921,9 +950,17 @@ class InterpretCompilerDirectives(CythonTransform):
         return node
 
     def visit_FromImportStatNode(self, node):
-        if (node.module.module_name.value == u"cython") or \
-               node.module.module_name.value.startswith(u"cython."):
-            submodule = (node.module.module_name.value + u".")[7:]
+        import_node = node.module
+        module_name = import_node.module_name.value
+        if module_name == u"cython.cimports" or module_name.startswith(u"cython.cimports."):
+            imported_names = []
+            for name, name_node in node.items:
+                imported_names.append(
+                    (name_node.pos, name, None if name == name_node.name else name_node.name, None))
+            return self._create_cimport_from_import(
+                node.pos, module_name, import_node.level, imported_names)
+        elif module_name == u"cython" or module_name.startswith(u"cython."):
+            submodule = (module_name + u".")[7:]
             newimp = []
             for name, name_node in node.items:
                 full_name = submodule + name
@@ -939,20 +976,35 @@ class InterpretCompilerDirectives(CythonTransform):
             node.items = newimp
         return node
 
+    def _create_cimport_from_import(self, node_pos, module_name, level, imported_names):
+        if module_name == u"cython.cimports" or module_name.startswith(u"cython.cimports."):
+            module_name = EncodedString(module_name[len(u"cython.cimports."):])  # may be empty
+
+        if module_name:
+            # from cython.cimports.a.b import x, y, z  =>  from a.b cimport x, y, z
+            return Nodes.FromCImportStatNode(
+                node_pos, module_name=module_name,
+                relative_level=level,
+                imported_names=imported_names)
+        else:
+            # from cython.cimports import x, y, z  =>  cimport x; cimport y; cimport z
+            return [
+                Nodes.CImportStatNode(
+                    pos,
+                    module_name=dotted_name,
+                    as_name=as_name,
+                    is_absolute=level == 0)
+                for pos, dotted_name, as_name, _ in imported_names
+            ]
+
     def visit_SingleAssignmentNode(self, node):
         if isinstance(node.rhs, ExprNodes.ImportNode):
             module_name = node.rhs.module_name.value
-            is_parallel = (module_name + u".").startswith(u"cython.parallel.")
-
-            if module_name != u"cython" and not is_parallel:
+            is_special_module = (module_name + u".").startswith((u"cython.parallel.", u"cython.cimports."))
+            if module_name != u"cython" and not is_special_module:
                 return node
 
-            module_name = node.rhs.module_name.value
-            as_name = node.lhs.name
-
-            node = Nodes.CImportStatNode(node.pos,
-                                         module_name = module_name,
-                                         as_name = as_name)
+            node = Nodes.CImportStatNode(node.pos, module_name=module_name, as_name=node.lhs.name)
             node = self.visit_CImportStatNode(node)
         else:
             self.visitchildren(node)
@@ -976,6 +1028,13 @@ class InterpretCompilerDirectives(CythonTransform):
         if node.as_cython_attribute() == "compiled":
             return ExprNodes.BoolNode(node.pos, value=True)  # replace early so unused branches can be dropped
                 # before they have a chance to cause compile-errors
+        return node
+
+    def visit_AnnotationNode(self, node):
+        # for most transforms annotations are left unvisited (because they're unevaluated)
+        # however, it is important to pick up compiler directives from them
+        if node.expr:
+            self.visitchildren(node.expr)
         return node
 
     def visit_NewExprNode(self, node):
@@ -2602,8 +2661,6 @@ class AlignFunctionDefinitions(CythonTransform):
 
     def visit_ModuleNode(self, node):
         self.scope = node.scope
-        self.directives = node.directives
-        self.imported_names = set()  # hack, see visit_FromImportStatNode()
         self.visitchildren(node)
         return node
 
@@ -2641,13 +2698,43 @@ class AlignFunctionDefinitions(CythonTransform):
                     error(pxd_def.pos, "previous declaration here")
                 return None
             node = node.as_cfunction(pxd_def)
-        elif (self.scope.is_module_scope and self.directives['auto_cpdef']
-              and node.name not in self.imported_names
-              and node.is_cdef_func_compatible()):
-            # FIXME: cpdef-ing should be done in analyse_declarations()
-            node = node.as_cfunction(scope=self.scope)
         # Enable this when nested cdef functions are allowed.
         # self.visitchildren(node)
+        return node
+
+    def visit_ExprNode(self, node):
+        # ignore lambdas and everything else that appears in expressions
+        return node
+
+
+class AutoCpdefFunctionDefinitions(CythonTransform):
+
+    def visit_ModuleNode(self, node):
+        self.directives = node.directives
+        self.imported_names = set()  # hack, see visit_FromImportStatNode()
+        self.scope = node.scope
+        self.visitchildren(node)
+        return node
+
+    def visit_DefNode(self, node):
+        if (self.scope.is_module_scope and self.directives['auto_cpdef']
+                and node.name not in self.imported_names
+                and node.is_cdef_func_compatible()):
+            # FIXME: cpdef-ing should be done in analyse_declarations()
+            node = node.as_cfunction(scope=self.scope)
+        return node
+
+    def visit_CClassDefNode(self, node, pxd_def=None):
+        if pxd_def is None:
+            pxd_def = self.scope.lookup(node.class_name)
+        if pxd_def:
+            if not pxd_def.defined_in_pxd:
+                return node
+            outer_scope = self.scope
+            self.scope = pxd_def.type.scope
+        self.visitchildren(node)
+        if pxd_def:
+            self.scope = outer_scope
         return node
 
     def visit_FromImportStatNode(self, node):
@@ -3164,6 +3251,30 @@ class GilCheck(VisitorTransform):
             self.visitchildren(node)
         if self.nogil:
             node.in_nogil_context = True
+        return node
+
+
+class CoerceCppTemps(EnvTransform, SkipDeclarations):
+    """
+    For temporary expression that are implemented using std::optional it's necessary the temps are
+    assigned using `__pyx_t_x = value;` but accessed using `something = (*__pyx_t_x)`. This transform
+    inserts a coercion node to take care of this, and runs absolutely last (once nothing else can be
+    inserted into the tree)
+
+    TODO: a possible alternative would be to split ExprNode.result() into ExprNode.rhs_rhs() and ExprNode.lhs_rhs()???
+    """
+    def visit_ModuleNode(self, node):
+        if self.current_env().cpp:
+            # skipping this makes it essentially free for C files
+            self.visitchildren(node)
+        return node
+
+    def visit_ExprNode(self, node):
+        self.visitchildren(node)
+        if (self.current_env().directives['cpp_locals'] and
+                node.is_temp and node.type.is_cpp_class):
+            node = ExprNodes.CppOptionalTempCoercion(node)
+
         return node
 
 

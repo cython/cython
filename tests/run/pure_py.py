@@ -140,16 +140,22 @@ def test_with_nogil(nogil, should_raise=False):
 MyUnion = cython.union(n=cython.int, x=cython.double)
 MyStruct = cython.struct(is_integral=cython.bint, data=MyUnion)
 MyStruct2 = cython.typedef(MyStruct[2])
+MyStruct3 = cython.typedef(MyStruct[3])
 
 def test_struct(n, x):
     """
     >>> test_struct(389, 1.64493)
-    (389, 1.64493)
+    (389, 1.64493, False)
     """
-    a = cython.declare(MyStruct2)
+    a = cython.declare(MyStruct3)
     a[0] = MyStruct(is_integral=True, data=MyUnion(n=n))
     a[1] = MyStruct(is_integral=False, data={'x': x})
-    return a[0].data.n, a[1].data.x
+    if sys.version_info >= (3, 6):
+        # dict is ordered => struct creation via keyword arguments above was deterministic!
+        a[2] = MyStruct(False, MyUnion(x=x))
+    else:
+        a[2] = MyStruct(is_integral=False, data=MyUnion(x=x))
+    return a[0].data.n, a[1].data.x, a[2].is_integral
 
 import cython as cy
 from cython import declare, cast, locals, address, typedef, p_void, compiled

@@ -44,7 +44,7 @@ Compiling with the ``cython`` command
 One way is to compile it manually with the Cython
 compiler, e.g.:
 
-.. sourcecode:: text
+.. code-block:: text
 
     $ cython primes.pyx
 
@@ -62,7 +62,9 @@ Compiling with the ``cythonize`` command
 ----------------------------------------
 
 Run the ``cythonize`` compiler command with your options and list of
-``.pyx`` files to generate an extension module.  For example::
+``.pyx`` files to generate an extension module.  For example:
+
+.. code-block:: bash
 
     $ cythonize -a -i yourmod.pyx
 
@@ -82,7 +84,9 @@ There simpler command line tool ``cython`` only invokes the source code translat
 In the case of manual compilation, how to compile your ``.c`` files will vary
 depending on your operating system and compiler.  The Python documentation for
 writing extension modules should have some details for your system.  On a Linux
-system, for example, it might look similar to this::
+system, for example, it might look similar to this:
+
+.. code-block:: bash
 
     $ gcc -shared -pthread -fPIC -fwrapv -O2 -Wall -fno-strict-aliasing \
           -I/usr/include/python3.5 -o yourmod.so yourmod.c
@@ -121,7 +125,10 @@ If your build depends directly on Cython in this way,
 then you may also want to inform pip that :mod:`Cython` is required for
 :file:`setup.py` to execute, following `PEP 518
 <https://www.python.org/dev/peps/pep-0518/>`, creating a :file:`pyproject.toml`
-file containing, at least::
+file containing, at least:
+
+.. code-block:: ini
+
 
     [build-system]
     requires = ["setuptools", "wheel", "Cython"]
@@ -129,7 +136,7 @@ file containing, at least::
 To understand the :file:`setup.py` more fully look at the official `setuptools
 documentation`_. To compile the extension for use in the current directory use:
 
-.. sourcecode:: text
+.. code-block:: text
 
     $ python setup.py build_ext --inplace
 
@@ -771,9 +778,12 @@ Cython code.  Here is the list of currently supported directives:
     Default is True.
 
 ``initializedcheck`` (True / False)
-    If set to True, Cython checks that a memoryview is initialized
-    whenever its elements are accessed or assigned to. Setting this
-    to False disables these checks.
+    If set to True, Cython checks that 
+     - a memoryview is initialized whenever its elements are accessed 
+       or assigned to. 
+     - a C++ class is initialized when it is accessed 
+       (only when ``cpp_locals`` is on)
+    Setting this to False disables these checks.
     Default is True.
 
 ``nonecheck``  (True / False)
@@ -905,6 +915,11 @@ Cython code.  Here is the list of currently supported directives:
     Copy the original source code line by line into C code comments in the generated
     code file to help with understanding the output.
     This is also required for coverage analysis.
+    
+``cpp_locals`` (True / False)
+    Make C++ variables behave more like Python variables by allowing them to be
+    "unbound" instead of always default-constructing them at the start of a
+    function.  See :ref:`cpp_locals directive` for more detail.
 
 .. _configurable_optimisations:
 
@@ -975,7 +990,9 @@ One can set compiler directives through a special header comment near the top of
 The comment must appear before any code (but can appear after other
 comments or whitespace).
 
-One can also pass a directive on the command line by using the -X switch::
+One can also pass a directive on the command line by using the -X switch:
+
+.. code-block:: bash
 
     $ cython -X boundscheck=True ...
 

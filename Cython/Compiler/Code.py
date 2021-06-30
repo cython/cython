@@ -849,6 +849,8 @@ class FunctionState(object):
         elif type.is_cfunction:
             from . import PyrexTypes
             type = PyrexTypes.c_ptr_type(type)  # A function itself isn't an l-value
+        elif type.is_cpp_class and self.scope.directives['cpp_locals']:
+            self.scope.use_utility_code(UtilityCode.load_cached("OptionalLocals", "CppSupport.cpp"))
         if not type.is_pyobject and not type.is_memoryviewslice:
             # Make manage_ref canonical, so that manage_ref will always mean
             # a decref is needed.
@@ -1476,7 +1478,7 @@ class GlobalState(object):
                   for c in self.py_constants]
         consts.sort()
         decls_writer = self.parts['decls']
-        decls_writer.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
+        decls_writer.putln("#if !CYTHON_USE_MODULE_STATE")
         for _, cname, c in consts:
             self.parts['module_state'].putln("%s;" % c.type.declaration_code(cname))
             self.parts['module_state_defines'].putln(
@@ -1551,16 +1553,16 @@ class GlobalState(object):
             w = self.parts['pystring_table']
             w.putln("")
             w.putln("static __Pyx_StringTabEntry %s[] = {" % Naming.stringtab_cname)
-            w.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-            w_limited_writer = w.insertion_point()
+            w.putln("#if CYTHON_USE_MODULE_STATE")
+            w_in_module_state = w.insertion_point()
             w.putln("#else")
-            w_not_limited_writer = w.insertion_point()
+            w_not_in_module_state = w.insertion_point()
             w.putln("#endif")
-            decls_writer.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
+            decls_writer.putln("#if !CYTHON_USE_MODULE_STATE")
             not_limited_api_decls_writer = decls_writer.insertion_point()
             decls_writer.putln("#endif")
-            init_globals.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-            init_globals_limited_api = init_globals.insertion_point()
+            init_globals.putln("#if CYTHON_USE_MODULE_STATE")
+            init_globals_in_module_state = init_globals.insertion_point()
             init_globals.putln("#endif")
             for idx, py_string_args in enumerate(py_strings):
                 c_cname, _, py_string = py_string_args
@@ -1583,16 +1585,16 @@ class GlobalState(object):
                 not_limited_api_decls_writer.putln(
                     "static PyObject *%s;" % py_string.cname)
                 if py_string.py3str_cstring:
-                    w_not_limited_writer.putln("#if PY_MAJOR_VERSION >= 3")
-                    w_not_limited_writer.putln("{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
+                    w_not_in_module_state.putln("#if PY_MAJOR_VERSION >= 3")
+                    w_not_in_module_state.putln("{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
                         py_string.cname,
                         py_string.py3str_cstring.cname,
                         py_string.py3str_cstring.cname,
                         '0', 1, 0,
                         py_string.intern
                         ))
-                    w_not_limited_writer.putln("#else")
-                w_not_limited_writer.putln("{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
+                    w_not_in_module_state.putln("#else")
+                w_not_in_module_state.putln("{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
                     py_string.cname,
                     c_cname,
                     c_cname,
@@ -1602,8 +1604,8 @@ class GlobalState(object):
                     py_string.intern
                     ))
                 if py_string.py3str_cstring:
-                    w_not_limited_writer.putln("#endif")
-                w_limited_writer.putln("{0, %s, sizeof(%s), %s, %d, %d, %d}," % (
+                    w_not_in_module_state.putln("#endif")
+                w_in_module_state.putln("{0, %s, sizeof(%s), %s, %d, %d, %d}," % (
                     c_cname if not py_string.py3str_cstring else py_string.py3str_cstring.cname,
                     c_cname if not py_string.py3str_cstring else py_string.py3str_cstring.cname,
                     encoding if not py_string.py3str_cstring else '0',
@@ -1611,7 +1613,7 @@ class GlobalState(object):
                     py_string.is_str,
                     py_string.intern
                     ))
-                init_globals_limited_api.putln("if (__Pyx_InitString(%s[%d], &%s) < 0) %s;" % (
+                init_globals_in_module_state.putln("if (__Pyx_InitString(%s[%d], &%s) < 0) %s;" % (
                     Naming.stringtab_cname,
                     idx,
                     py_string.cname,
@@ -1619,7 +1621,7 @@ class GlobalState(object):
             w.putln("{0, 0, 0, 0, 0, 0, 0}")
             w.putln("};")
 
-            init_globals.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
+            init_globals.putln("#if !CYTHON_USE_MODULE_STATE")
             init_globals.putln(
                 "if (__Pyx_InitStrings(%s) < 0) %s;" % (
                     Naming.stringtab_cname,
@@ -1631,7 +1633,7 @@ class GlobalState(object):
                   for c in self.num_const_index.values()]
         consts.sort()
         decls_writer = self.parts['decls']
-        decls_writer.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
+        decls_writer.putln("#if !CYTHON_USE_MODULE_STATE")
         init_globals = self.parts['init_globals']
         for py_type, _, _, value, value_code, c in consts:
             cname = c.cname
@@ -2070,8 +2072,12 @@ class CCodeWriter(object):
             self.put("%s " % storage_class)
         if not entry.cf_used:
             self.put('CYTHON_UNUSED ')
-        self.put(entry.type.declaration_code(
-            entry.cname, dll_linkage=dll_linkage))
+        if entry.is_cpp_optional:
+            self.put(entry.type.cpp_optional_declaration_code(
+                entry.cname, dll_linkage=dll_linkage))
+        else:
+            self.put(entry.type.declaration_code(
+                entry.cname, dll_linkage=dll_linkage))
         if entry.init is not None:
             self.put_safe(" = %s" % entry.type.literal_code(entry.init))
         elif entry.type.is_pyobject:
@@ -2080,7 +2086,10 @@ class CCodeWriter(object):
 
     def put_temp_declarations(self, func_context):
         for name, type, manage_ref, static in func_context.temps_allocated:
-            decl = type.declaration_code(name)
+            if type.is_cpp_class and func_context.scope.directives['cpp_locals']:
+                decl = type.cpp_optional_declaration_code(name)
+            else:
+                decl = type.declaration_code(name)
             if type.is_pyobject:
                 self.putln("%s = NULL;" % decl)
             elif type.is_memoryviewslice:
@@ -2363,23 +2372,34 @@ class CCodeWriter(object):
         # return self.putln("if (unlikely(%s < 0)) %s" % (value, self.error_goto(pos)))
         return self.putln("if (%s < 0) %s" % (value, self.error_goto(pos)))
 
-    def put_error_if_unbound(self, pos, entry, in_nogil_context=False):
-        from . import ExprNodes
+    def put_error_if_unbound(self, pos, entry, in_nogil_context=False, unbound_check_code=None):
         if entry.from_closure:
             func = '__Pyx_RaiseClosureNameError'
             self.globalstate.use_utility_code(
-                ExprNodes.raise_closure_name_error_utility_code)
+                UtilityCode.load_cached("RaiseClosureNameError", "ObjectHandling.c"))
         elif entry.type.is_memoryviewslice and in_nogil_context:
             func = '__Pyx_RaiseUnboundMemoryviewSliceNogil'
             self.globalstate.use_utility_code(
-                ExprNodes.raise_unbound_memoryview_utility_code_nogil)
+                UtilityCode.load_cached("RaiseUnboundMemoryviewSliceNogil", "ObjectHandling.c"))
+        elif entry.type.is_cpp_class and entry.is_cglobal:
+            func = '__Pyx_RaiseCppGlobalNameError'
+            self.globalstate.use_utility_code(
+                UtilityCode.load_cached("RaiseCppGlobalNameError", "ObjectHandling.c"))
+        elif entry.type.is_cpp_class and entry.is_variable and not entry.is_member and entry.scope.is_c_class_scope:
+            # there doesn't seem to be a good way to detecting an instance-attribute of a C class
+            # (is_member is only set for class attributes)
+            func = '__Pyx_RaiseCppAttributeError'
+            self.globalstate.use_utility_code(
+                UtilityCode.load_cached("RaiseCppAttributeError", "ObjectHandling.c"))
         else:
             func = '__Pyx_RaiseUnboundLocalError'
             self.globalstate.use_utility_code(
-                ExprNodes.raise_unbound_local_error_utility_code)
+                UtilityCode.load_cached("RaiseUnboundLocalError", "ObjectHandling.c"))
 
+        if not unbound_check_code:
+            unbound_check_code = entry.type.check_for_null_code(entry.cname)
         self.putln('if (unlikely(!%s)) { %s("%s"); %s }' % (
-                                entry.type.check_for_null_code(entry.cname),
+                                unbound_check_code,
                                 func,
                                 entry.name,
                                 self.error_goto(pos)))

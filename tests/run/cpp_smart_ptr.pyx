@@ -81,6 +81,15 @@ cdef cppclass C(B):
 
 cdef shared_ptr[A] holding_subclass = shared_ptr[A](new C())
 
+
+def test_assignment_to_base_class():
+    """
+    >>> test_assignment_to_base_class()
+    """
+    cdef shared_ptr[C] derived = shared_ptr[C](new C())
+    cdef shared_ptr[A] base = derived
+
+
 def test_dynamic_pointer_cast():
     """
     >>> test_dynamic_pointer_cast()

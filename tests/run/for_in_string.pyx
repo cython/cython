@@ -1,6 +1,4 @@
-from __future__ import print_function
 cimport cython
-from cython cimport typeof
 
 bytes_abc = b'abc'
 bytes_ABC = b'ABC'
@@ -221,30 +219,6 @@ def for_pyucs4_in_enumerate_unicode(unicode s):
     """
     cdef Py_UCS4 c
     cdef Py_ssize_t i
-    for i, c in enumerate(s):
-        if c == u'C':
-            return i
-    else:
-        return 'X'
-
-@cython.test_assert_path_exists("//ForFromStatNode")
-@cython.test_fail_if_path_exists("//ForInStatNode")
-def for_infered_type_in_enumerate_unicode(unicode s):
-    """
-    >>> for_infered_type_in_enumerate_unicode(unicode_abc)
-    Py_ssize_t Py_UCS4
-    'X'
-    >>> for_infered_type_in_enumerate_unicode(unicode_ABC)
-    Py_ssize_t Py_UCS4
-    2
-    >>> for_infered_type_in_enumerate_unicode(unicode_abc_null)
-    Py_ssize_t Py_UCS4
-    'X'
-    >>> for_infered_type_in_enumerate_unicode(unicode_ABC_null)
-    Py_ssize_t Py_UCS4
-    4
-    """
-    print(typeof(i), typeof(c))
     for i, c in enumerate(s):
         if c == u'C':
             return i

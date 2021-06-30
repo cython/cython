@@ -160,7 +160,7 @@ class ControlFlow(object):
                 (entry.type.is_struct_or_union or
                  entry.type.is_complex or
                  entry.type.is_array or
-                 entry.type.is_cpp_class)):
+                 (entry.type.is_cpp_class and not entry.is_cpp_optional))):
             # stack allocated structured variable => never uninitialised
             return True
         return False
@@ -983,7 +983,7 @@ class ControlFlowAnalysis(CythonTransform):
                 if not entry or entry.is_builtin:
                     if function.name == 'reversed' and len(sequence.args) == 1:
                         sequence = sequence.args[0]
-                    elif function.name == 'enumerate' and len(sequence.args) in (1, 2):
+                    elif function.name == 'enumerate' and len(sequence.args) == 1:
                         if target.is_sequence_constructor and len(target.args) == 2:
                             iterator = sequence.args[0]
                             if iterator.is_name:
@@ -1019,11 +1019,7 @@ class ControlFlowAnalysis(CythonTransform):
             # Python strings, etc., while correctly falling back to an
             # object type when the base type cannot be handled.
 
-            self.mark_assignment(target, ExprNodes.IndexNode(
-                node.pos,
-                base=sequence,
-                index=ExprNodes.IntNode(target.pos, value='PY_SSIZE_T_MAX',
-                                        type=PyrexTypes.c_py_ssize_t_type)))
+            self.mark_assignment(target, node.item)
 
     def visit_AsyncForStatNode(self, node):
         return self.visit_ForInStatNode(node)

@@ -1552,15 +1552,19 @@ def p_nonlocal_statement(s):
 
 def p_expression_or_assignment(s):
     expr = p_testlist_star_expr(s)
+    has_annotation = False
     if s.sy == ':' and (expr.is_name or expr.is_subscript or expr.is_attribute):
+        has_annotation = True
         s.next()
         expr.annotation = p_annotation(s)
+
     if s.sy == '=' and expr.is_starred:
         # This is a common enough error to make when learning Cython to let
         # it fail as early as possible and give a very clear error message.
         s.error("a starred assignment target must be in a list or tuple"
                 " - maybe you meant to use an index assignment: var[0] = ...",
                 pos=expr.pos)
+
     expr_list = [expr]
     while s.sy == '=':
         s.next()
@@ -1592,7 +1596,7 @@ def p_expression_or_assignment(s):
 
     rhs = expr_list[-1]
     if len(expr_list) == 2:
-        return Nodes.SingleAssignmentNode(rhs.pos, lhs=expr_list[0], rhs=rhs)
+        return Nodes.SingleAssignmentNode(rhs.pos, lhs=expr_list[0], rhs=rhs, first=has_annotation)
     else:
         return Nodes.CascadedAssignmentNode(rhs.pos, lhs_list=expr_list[:-1], rhs=rhs)
 

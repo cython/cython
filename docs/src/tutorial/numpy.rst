@@ -28,7 +28,7 @@ systems, it will be :file:`yourmod.pyd`). We
 run a Python session to test both the Python version (imported from
 ``.py``-file) and the compiled Cython module.
 
-.. sourcecode:: ipython
+.. code-block:: ipythonconsole
 
     In [1]: import numpy as np
     In [2]: import convolve_py
@@ -69,7 +69,7 @@ compatibility. Consider this code (*read the comments!*) :
 
 After building this and continuing my (very informal) benchmarks, I get:
 
-.. sourcecode:: ipython
+.. code-block:: ipythonconsole
 
     In [21]: import convolve2
     In [22]: %timeit -n2 -r3 convolve2.naive_convolve(f, g)
@@ -97,7 +97,7 @@ These are the needed changes::
 
 Usage:
 
-.. sourcecode:: ipython
+.. code-block:: ipythonconsole
 
     In [18]: import convolve3
     In [19]: %timeit -n3 -r100 convolve3.naive_convolve(f, g)
@@ -143,7 +143,7 @@ if we try to actually use negative indices with this disabled.
 The function call overhead now starts to play a role, so we compare the latter
 two examples with larger N:
 
-.. sourcecode:: ipython
+.. code-block:: ipythonconsole
 
     In [11]: %timeit -n3 -r100 convolve4.naive_convolve(f, g)
     3 loops, best of 100: 5.97 ms per loop

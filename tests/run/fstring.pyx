@@ -592,7 +592,7 @@ def sideeffect(l):
     ...         return self
 
     >>> l = Listish()
-    >>> sideeffect(l)  if getattr(sys, 'pypy_version_info', ())[:3] != (7,3,4) else [123, 'format called']
+    >>> sideeffect(l)  if getattr(sys, 'pypy_version_info', ())[:2] != (7,3) else [123, 'format called']   # 7.3.4, 7.3.5
     [123, 'format called']
     """
     f"{l.append(123)}"  # unused f-string !

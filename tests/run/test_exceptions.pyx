@@ -26,7 +26,7 @@ except ImportError:
 
 no_tracing = unittest.skip("For nested functions, Cython generates a C call without recursion checks.")
 
-cpython_only = unittest.skip("Tests for _testcapi make no sense here.")
+cpython_only = unittest.skip("Tests for _testcapi or Python error messages make no sense here.")
 
 
 class NaiveException(Exception):
@@ -143,6 +143,7 @@ class ExceptionTests(unittest.TestCase):
 
         self.raise_catch(StopAsyncIteration, "StopAsyncIteration")
 
+    @cpython_only
     def testSyntaxErrorMessage(self):
         # make sure the right exception message is raised for each of
         # these code fragments
@@ -165,6 +166,7 @@ class ExceptionTests(unittest.TestCase):
         ckmsg(s, "'continue' not properly in loop")
         ckmsg("continue\n", "'continue' not properly in loop")
 
+    @cpython_only
     def testSyntaxErrorMissingParens(self):
         def ckmsg(src, msg, exception=SyntaxError):
             try:
@@ -193,6 +195,7 @@ class ExceptionTests(unittest.TestCase):
         s = '''if True:\n        print()\n\texec "mixed tabs and spaces"'''
         ckmsg(s, "inconsistent use of tabs and spaces in indentation", TabError)
 
+    @cpython_only
     def testSyntaxErrorOffset(self):
         def check(src, lineno, offset):
             with self.assertRaises(SyntaxError) as cm:
