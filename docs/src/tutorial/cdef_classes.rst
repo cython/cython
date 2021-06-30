@@ -63,7 +63,8 @@ little calling overhead compared to a cdef method.
 
 To make the class definitions visible to other modules, and thus allow for
 efficient C-level usage and inheritance outside of the module that
-implements them, we define them in:
+implements them, we define them in a ``.pxd`` file with the same name
+as the module:
 
 .. literalinclude:: ../../examples/tutorial/cdef_classes/sin_of_square.pxd
     :caption: sin_of_square.pxd
