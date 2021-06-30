@@ -1281,6 +1281,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 decl = attr_type.cpp_optional_declaration_code(attr.cname)
             else:
                 decl = attr_type.declaration_code(attr.cname)
+            if attr.utility_code_definition:
+                type.scope.use_utility_code(attr.utility_code_definition)
             code.putln("%s;" % decl)
         code.putln(footer)
         if type.objtypedef_cname is not None:
@@ -1371,6 +1373,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(";")
             if entry.cname != cname:
                 code.putln("#define %s (*%s)" % (entry.cname, cname))
+            if entry.utility_code_definition:
+                env.use_utility_code(entry.utility_code_definition)
 
     def generate_cfunction_declarations(self, env, code, definition):
         for entry in env.cfunc_entries:
@@ -1477,8 +1481,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if scope.is_internal:
             # internal classes (should) never need None inits, normal zeroing will do
             py_attrs = []
-        cpp_constructable_attrs = [entry for entry in scope.var_entries
-                                   if (entry.type.needs_cpp_construction and not entry.is_cpp_optional)]
+        cpp_constructable_attrs = [entry for entry in scope.var_entries if entry.type.needs_cpp_construction]
 
         cinit_func_entry = scope.lookup_here("__cinit__")
         if cinit_func_entry and not cinit_func_entry.is_special:
@@ -1583,8 +1586,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 struct_type_cast, type.vtabptr_cname))
 
         for entry in cpp_constructable_attrs:
+            if entry.is_cpp_optional:
+                decl_code = entry.type.cpp_optional_declaration_code("")
+            else:
+                decl_code = entry.type.empty_declaration_code()
             code.putln("new((void*)&(p->%s)) %s();" % (
-                entry.cname, entry.type.empty_declaration_code()))
+                entry.cname, decl_code))
 
         for entry in py_attrs:
             if entry.name == "__dict__":

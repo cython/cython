@@ -2083,6 +2083,8 @@ class CCodeWriter(object):
         elif entry.type.is_pyobject:
             self.put(" = NULL")
         self.putln(";")
+        if entry.utility_code_definition:
+            self.funcstate.scope.use_utility_code(entry.utility_code_definition)
 
     def put_temp_declarations(self, func_context):
         for name, type, manage_ref, static in func_context.temps_allocated:
