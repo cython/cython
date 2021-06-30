@@ -527,31 +527,32 @@ class CythonDotParallel(object):
 
 class CythonDotImportedFromElsewhere(object):
     """
-    cython.dataclasses and cython.typing just shadow the standard library modules of the same name
+    cython.dataclasses just shadows the standard library modules of the same name
     """
     def __init__(self, name):
-        self.__name = name
+        self.__path__ = []
+        self.__file__ = None
+        self.__name__ = module
+        self.__package__ = module
 
     def __getattr__(self, attr):
         # we typically only expect this to be called once
         from importlib import import_module
         import sys
         try:
-            mod = import_module(self.__name)
+            mod = import_module(self.__name__)
         except ImportError:
             # but if they don't exist (Python is not sufficiently up-to-date) then
             # you can't use them
             raise AttributeError("%s: the standard library module %s is not available" %
-                                 (attr, self.__name))
-        sys.modules['cython.%s' % self.__name] = mod
+                                 (attr, self.__name__))
+        sys.modules['cython.%s' % self.__name__] = mod
         return getattr(mod, attr)
 
 import sys
-sys.modules['cython.parallel'] = CythonDotParallel()
 # In pure Python mode @cython.dataclasses.dataclass and dataclass field should just
 # shadow the standard library ones (if they are available)
 dataclasses = sys.modules['cython.dataclasses'] = CythonDotImportedFromElsewhere('dataclasses')
-typing = sys.modules['cython.typing'] = CythonDotImportedFromElsewhere('typing')
 del sys
 
 class CythonCImports(object):
