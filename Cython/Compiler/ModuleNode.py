@@ -1281,8 +1281,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 decl = attr_type.cpp_optional_declaration_code(attr.cname)
             else:
                 decl = attr_type.declaration_code(attr.cname)
-            if attr.utility_code_definition:
-                type.scope.use_utility_code(attr.utility_code_definition)
+            type.scope.use_entry_utility_code(attr)
             code.putln("%s;" % decl)
         code.putln(footer)
         if type.objtypedef_cname is not None:
@@ -1373,8 +1372,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(";")
             if entry.cname != cname:
                 code.putln("#define %s (*%s)" % (entry.cname, cname))
-            if entry.utility_code_definition:
-                env.use_utility_code(entry.utility_code_definition)
+            env.use_entry_utility_code(entry)
 
     def generate_cfunction_declarations(self, env, code, definition):
         for entry in env.cfunc_entries:
