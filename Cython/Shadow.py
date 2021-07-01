@@ -529,7 +529,7 @@ class CythonDotImportedFromElsewhere(object):
     """
     cython.dataclasses just shadows the standard library modules of the same name
     """
-    def __init__(self, name):
+    def __init__(self, module):
         self.__path__ = []
         self.__file__ = None
         self.__name__ = module
