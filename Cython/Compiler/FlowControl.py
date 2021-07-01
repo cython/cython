@@ -1362,6 +1362,11 @@ class ControlFlowAnalysis(CythonTransform):
         self.env = self.env_stack.pop()
         return node
 
+    def visit_CClassDefNode(self, node):
+        self.flows[node.scope] = self.flow  # just make sure the nodes scope is findable in-case there is a list comprehension in it
+        self.visitchildren(node)
+        return node
+
     def visit_AmpersandNode(self, node):
         if node.operand.is_name:
             # Fake assignment to silence warning

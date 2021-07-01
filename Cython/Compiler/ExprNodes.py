@@ -8446,7 +8446,10 @@ class ComprehensionNode(ScopedExprNode):
     def analyse_declarations(self, env):
         self.append.target = self  # this is used in the PyList_Append of the inner loop
         self.init_scope(env)
-        self.loop.iterator.outer_scope = env
+        if isinstance(self.loop, Nodes.ForInStatNode):
+            self.loop.iterator.outer_scope = env
+        else:
+            assert isinstance(self.loop, Nodes.ForFromStatNode)
 
     def analyse_scoped_declarations(self, env):
         self.loop.analyse_declarations(env)
@@ -9878,7 +9881,10 @@ class GeneratorExpressionNode(LambdaNode):
         self.def_node.is_cyfunction = False
         # Force genexpr signature
         self.def_node.entry.signature = TypeSlots.pyfunction_noargs
-        self.loop.iterator.outer_scope = env
+        if isinstance(self.loop, Nodes.ForInStatNode):
+            self.loop.iterator.outer_scope = env
+        else:
+            assert isinstance(self.loop, Nodes.ForFromStatNode)
 
     def generate_result_code(self, code):
         args_to_call = ([self.closure_result_code()] +
