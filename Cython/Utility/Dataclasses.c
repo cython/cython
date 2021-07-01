@@ -31,7 +31,11 @@ static PyObject* __Pyx_LoadInternalModule(const char* name, const char* fallback
         PyObject *localDict, *runValue, *builtins, *modulename;
         if (!PyErr_ExceptionMatches(PyExc_ImportError)) goto bad;
         PyErr_Clear();  // this is reasonably likely (especially on older versions of Python)
+#if PY_MAJOR_VERSION < 3
         modulename = PyBytes_FromFormat("_cython_" CYTHON_ABI ".%s", name);
+#else
+        modulename = PyUnicode_FromFormat("_cython_" CYTHON_ABI ".%s", name);
+#endif
         if (!modulename) goto bad;
 #if PY_MAJOR_VERSION >= 3 && CYTHON_COMPILING_IN_CPYTHON
         module = PyImport_AddModuleObject(modulename); // borrowed
