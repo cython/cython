@@ -534,7 +534,7 @@ class DependencyTree(object):
         for include in self.parse_dependencies(filename)[1]:
             include_path = join_path(os.path.dirname(filename), include)
             if not path_exists(include_path):
-                include_path = self.context.find_include_file(include, None)
+                include_path = self.context.find_include_file(include, source_file_path=filename)
             if include_path:
                 if '.' + os.path.sep in include_path:
                     include_path = os.path.normpath(include_path)
@@ -588,17 +588,18 @@ class DependencyTree(object):
                     return None   # FIXME: error?
                 module_path.pop(0)
             relative = '.'.join(package_path + module_path)
-            pxd = self.context.find_pxd_file(relative, None)
+            pxd = self.context.find_pxd_file(relative, source_file_path=filename)
             if pxd:
                 return pxd
         if is_relative:
             return None   # FIXME: error?
-        return self.context.find_pxd_file(module, None)
+        return self.context.find_pxd_file(module, source_file_path=filename)
 
     @cached_method
     def cimported_files(self, filename):
-        if filename[-4:] == '.pyx' and path_exists(filename[:-4] + '.pxd'):
-            pxd_list = [filename[:-4] + '.pxd']
+        filename_root, filename_ext = os.path.splitext(filename)
+        if filename_ext in ('.pyx', '.py') and path_exists(filename_root + '.pxd'):
+            pxd_list = [filename_root + '.pxd']
         else:
             pxd_list = []
         # Cimports generates all possible combinations package.module

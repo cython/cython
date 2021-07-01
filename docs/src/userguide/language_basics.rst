@@ -553,8 +553,8 @@ attempt something like::
     cdef char *s
     s = pystring1 + pystring2
 
-then Cython will produce the error message ``Obtaining char* from temporary
-Python value``. The reason is that concatenating the two Python strings
+then Cython will produce the error message ``Storing unsafe C derivative of temporary
+Python reference``. The reason is that concatenating the two Python strings
 produces a new Python string object that is referenced only by a temporary
 internal variable that Cython generates. As soon as the statement has finished,
 the temporary variable will be decrefed and the Python string deallocated,

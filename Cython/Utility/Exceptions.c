@@ -6,6 +6,23 @@
 // __Pyx_GetException()
 
 
+/////////////// ErrOccurredWithGIL.proto ///////////////
+static CYTHON_INLINE int __Pyx_ErrOccurredWithGIL(void); /* proto */
+
+/////////////// ErrOccurredWithGIL ///////////////
+static CYTHON_INLINE int __Pyx_ErrOccurredWithGIL(void) {
+  int err;
+  #ifdef WITH_THREAD
+  PyGILState_STATE _save = PyGILState_Ensure();
+  #endif
+  err = !!PyErr_Occurred();
+  #ifdef WITH_THREAD
+  PyGILState_Release(_save);
+  #endif
+  return err;
+}
+
+
 /////////////// PyThreadStateGet.proto ///////////////
 //@substitute: naming
 
