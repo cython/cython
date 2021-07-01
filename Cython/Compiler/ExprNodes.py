@@ -9878,6 +9878,7 @@ class GeneratorExpressionNode(LambdaNode):
         self.def_node.is_cyfunction = False
         # Force genexpr signature
         self.def_node.entry.signature = TypeSlots.pyfunction_noargs
+        self.loop.iterator.outer_scope = env
 
     def generate_result_code(self, code):
         args_to_call = ([self.closure_result_code()] +
