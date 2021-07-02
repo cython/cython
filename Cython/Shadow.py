@@ -116,10 +116,10 @@ returns = wraparound = boundscheck = initializedcheck = nonecheck = \
 exceptval = lambda _=None, check=True: _EmptyDecoratorAndManager()
 
 overflowcheck = lambda _: _EmptyDecoratorAndManager()
-optimization = _Optimization()
+optimize = _Optimization()
 
-overflowcheck.fold = optimization.use_switch = \
-    optimization.unpack_method_calls = lambda arg: _EmptyDecoratorAndManager()
+overflowcheck.fold = optimize.use_switch = \
+    optimize.unpack_method_calls = lambda arg: _EmptyDecoratorAndManager()
 
 final = internal = type_version_tag = no_gc_clear = no_gc = total_ordering = _empty_decorator
 
