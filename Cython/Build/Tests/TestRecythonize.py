@@ -39,13 +39,16 @@ class TestRecythonize(CythonTest):
         shutil.rmtree(self.temp_dir)
 
     def write_to_file(self, path, text):
+        with open(path, "w") as f:
+            f.write(text)
+
+    def write_to_file_with_timestamp_update(self, path, text):
         try:
             timestamp_before_change = os.path.getmtime(path)
         except OSError:  # not FileNotFoundError for compatibility
             timestamp_before_change = .0
 
-        with open(path, "w") as f:
-            f.write(text)
+        self.write_to_file(path, text)
 
         # Make sure the file has a newer timestamp,
         # otherwise cythonize does not work as expected
@@ -53,6 +56,7 @@ class TestRecythonize(CythonTest):
         while 1:
             if os.path.getmtime(path) != timestamp_before_change:
                 return
+            time.sleep(0.001)
 
     def fresh_cythonize(self, *args, **kwargs):
         self.clear_function_and_Dependencies_caches()
