@@ -744,7 +744,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.generate_cvariable_declarations(module, modulecode, defined_here)
             self.generate_cfunction_declarations(module, modulecode, defined_here)
 
-    def _put_setup_code(self, code, name):
+    @staticmethod
+    def _put_setup_code(code, name):
         code.put(UtilityCode.load_as_string(name, "ModuleSetupCode.c")[1])
 
     def generate_module_preamble(self, env, options, cimported_modules, metadata, code):
@@ -1277,8 +1278,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 attr_type = py_object_type
             else:
                 attr_type = attr.type
-            code.putln(
-                "%s;" % attr_type.declaration_code(attr.cname))
+            if attr.is_cpp_optional:
+                decl = attr_type.cpp_optional_declaration_code(attr.cname)
+            else:
+                decl = attr_type.declaration_code(attr.cname)
+            type.scope.use_entry_utility_code(attr)
+            code.putln("%s;" % decl)
         code.putln(footer)
         if type.objtypedef_cname is not None:
             # Only for exposing public typedef name.
@@ -1357,13 +1362,18 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
             if storage_class:
                 code.put("%s " % storage_class)
-            code.put(type.declaration_code(
-                cname, dll_linkage=dll_linkage))
+            if entry.is_cpp_optional:
+                code.put(type.cpp_optional_declaration_code(
+                    cname, dll_linkage=dll_linkage))
+            else:
+                code.put(type.declaration_code(
+                    cname, dll_linkage=dll_linkage))
             if init is not None:
                 code.put_safe(" = %s" % init)
             code.putln(";")
             if entry.cname != cname:
                 code.putln("#define %s (*%s)" % (entry.cname, cname))
+            env.use_entry_utility_code(entry)
 
     def generate_cfunction_declarations(self, env, code, definition):
         for entry in env.cfunc_entries:
@@ -1470,8 +1480,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if scope.is_internal:
             # internal classes (should) never need None inits, normal zeroing will do
             py_attrs = []
-        cpp_constructable_attrs = [entry for entry in scope.var_entries
-                                   if entry.type.needs_cpp_construction]
+        cpp_constructable_attrs = [entry for entry in scope.var_entries if entry.type.needs_cpp_construction]
 
         cinit_func_entry = scope.lookup_here("__cinit__")
         if cinit_func_entry and not cinit_func_entry.is_special:
@@ -1576,8 +1585,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 struct_type_cast, type.vtabptr_cname))
 
         for entry in cpp_constructable_attrs:
+            if entry.is_cpp_optional:
+                decl_code = entry.type.cpp_optional_declaration_code("")
+            else:
+                decl_code = entry.type.empty_declaration_code()
             code.putln("new((void*)&(p->%s)) %s();" % (
-                entry.cname, entry.type.empty_declaration_code()))
+                entry.cname, decl_code))
 
         for entry in py_attrs:
             if entry.name == "__dict__":
@@ -2235,9 +2248,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     "right, left" if reverse else "left, right",
                     extra_arg)
             else:
-                return '%s_maybe_call_slot(%s, left, right %s)' % (
+                return '%s_maybe_call_slot(%s->tp_base, left, right %s)' % (
                     func_name,
-                    'Py_TYPE(right)->tp_base' if reverse else 'Py_TYPE(left)->tp_base',
+                    scope.parent_type.typeptr_cname,
                     extra_arg)
 
         if get_slot_method_cname(slot.left_slot.method_name) and not get_slot_method_cname(slot.right_slot.method_name):
@@ -2248,13 +2261,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 slot.right_slot.method_name,
             ))
 
+        overloads_left = int(bool(get_slot_method_cname(slot.left_slot.method_name)))
+        overloads_right = int(bool(get_slot_method_cname(slot.right_slot.method_name)))
         code.putln(
             TempitaUtilityCode.load_as_string(
                 "BinopSlot", "ExtensionTypes.c",
                 context={
                     "func_name": func_name,
                     "slot_name": slot.slot_name,
-                    "overloads_left": int(bool(get_slot_method_cname(slot.left_slot.method_name))),
+                    "overloads_left": overloads_left,
+                    "overloads_right": overloads_right,
                     "call_left": call_slot_method(slot.left_slot.method_name, reverse=False),
                     "call_right": call_slot_method(slot.right_slot.method_name, reverse=True),
                     "type_cname": scope.parent_type.typeptr_cname,
