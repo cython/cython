@@ -54,7 +54,6 @@ def cached_function(f):
     return wrapper
 
 
-# or clear_instance_method_caches
 def clear_method_caches(instance):
     pattern = re.compile(r"^__(.+)_cache$")
 
