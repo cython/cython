@@ -744,7 +744,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.generate_cvariable_declarations(module, modulecode, defined_here)
             self.generate_cfunction_declarations(module, modulecode, defined_here)
 
-    def _put_setup_code(self, code, name):
+    @staticmethod
+    def _put_setup_code(code, name):
         code.put(UtilityCode.load_as_string(name, "ModuleSetupCode.c")[1])
 
     def generate_module_preamble(self, env, options, cimported_modules, metadata, code):
