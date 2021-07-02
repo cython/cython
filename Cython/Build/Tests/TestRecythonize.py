@@ -120,6 +120,7 @@ class TestRecythonize(CythonTest):
         else:
             self.assertNotIn("a_x = 1;", definition_before, INCORRECT)
 
+        time.sleep(0.01)  # localization of the problem
         self.write_to_file(pxd_to_be_modified, 'cdef float x\n')
 
         # otherwise nothing changes since there are no new files
