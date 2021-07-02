@@ -1430,8 +1430,7 @@ class CVarDefNode(StatNode):
                     self.entry.create_wrapper = True
             else:
                 if self.overridable:
-                    warning(self.pos, "cpdef variables will not be supported in Cython 3; "
-                            "currently they are no different from cdef variables", 2)
+                    error(self.pos, "Variables cannot be declared with 'cpdef'. Use 'cdef' instead.")
                 if self.directive_locals:
                     error(self.pos, "Decorators can only be followed by functions")
                 self.entry = dest_scope.declare_var(
