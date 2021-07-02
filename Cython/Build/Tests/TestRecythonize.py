@@ -68,22 +68,19 @@ class TestRecythonize(CythonTest):
         self.refresh_dep_tree()
         return self.dep_tree.all_dependencies(*args, **kwargs)
 
-    def relative_lines(self, lines, line, start, end):
+    def relative_lines_from_file(self, path, line, start, end):
+        with open(path) as f:
+            lines = f.readlines()
+
         try:
             ind = lines.index(line)
-            return lines[ind+start: ind+end]
+            return "".join(lines[ind+start: ind+end])
         except ValueError:
             # XXX: It is assumed that VARS_LINE is always present.
             ind = lines.index(VARS_LINE)
             raise ValueError(
                 "{0!r} was not found, presumably in \n{1}".format(
                     line, "\n".join(map(repr, lines[ind-10: ind-1]))))
-
-    def relative_lines_from_file(self, path, line, start, end):
-        with open(path) as f:
-            lines = f.readlines()
-
-        return "".join(self.relative_lines(lines, line, start, end))
 
     def recythonize_on_pxd_change(self, ext, pxd_exists_for_first_check):
         module_filename = 'a' + ext
