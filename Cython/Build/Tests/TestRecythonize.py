@@ -31,7 +31,7 @@ class TestRecythonize(CythonTest):
             )
         )
         self.src_dir = os.path.join(self.temp_dir, 'src')
-        os.mkdir(self.src_dir)  # self.temp_dir is already a temp
+        os.mkdir(self.src_dir)
 
     def tearDown(self):
         CythonTest.tearDown(self)
