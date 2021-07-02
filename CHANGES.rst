@@ -37,6 +37,9 @@ Bugs fixed
 
 * A C compiler warning in PyPy3 regarding ``PyEval_EvalCode()`` was resolved.
 
+* Allow ``cythonize`` to recompile in Pure Python mode when ``.pxd`` file has changed.
+  Patch by Golden Rockefeller.  (Github issue :issue:`1428`)
+
 Other changes
 -------------
 
