@@ -171,7 +171,7 @@ function call.)
     Do not use typed objects without knowing that they are not set to None.
 
 What typing does not do
-==================
+=======================
 
 The main purpose of typing things as :obj:`ndarray` is to allow efficient
 indexing of single elements, and to speed up access to a small number of
