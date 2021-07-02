@@ -2247,9 +2247,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     "right, left" if reverse else "left, right",
                     extra_arg)
             else:
-                return '%s_maybe_call_slot(%s, left, right %s)' % (
+                return '%s_maybe_call_slot(%s->tp_base, left, right %s)' % (
                     func_name,
-                    'Py_TYPE(right)->tp_base' if reverse else 'Py_TYPE(left)->tp_base',
+                    scope.parent_type.typeptr_cname,
                     extra_arg)
 
         if get_slot_method_cname(slot.left_slot.method_name) and not get_slot_method_cname(slot.right_slot.method_name):
@@ -2260,13 +2260,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 slot.right_slot.method_name,
             ))
 
+        overloads_left = int(bool(get_slot_method_cname(slot.left_slot.method_name)))
+        overloads_right = int(bool(get_slot_method_cname(slot.right_slot.method_name)))
         code.putln(
             TempitaUtilityCode.load_as_string(
                 "BinopSlot", "ExtensionTypes.c",
                 context={
                     "func_name": func_name,
                     "slot_name": slot.slot_name,
-                    "overloads_left": int(bool(get_slot_method_cname(slot.left_slot.method_name))),
+                    "overloads_left": overloads_left,
+                    "overloads_right": overloads_right,
                     "call_left": call_slot_method(slot.left_slot.method_name, reverse=False),
                     "call_right": call_slot_method(slot.right_slot.method_name, reverse=True),
                     "type_cname": scope.parent_type.typeptr_cname,
