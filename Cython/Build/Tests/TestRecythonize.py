@@ -179,6 +179,7 @@ class TestRecythonize(CythonTest):
         self.assertIn("a_x = 1;", dep_definition_before, INCORRECT)
         self.assertIn("a_x = 2;", module_definition_before, INCORRECT)
 
+        time.sleep(0.01)  # localization of the problem
         self.write_to_file(pxd_to_be_modified, 'cdef float x\n')
 
         # Change a.c and b.c
