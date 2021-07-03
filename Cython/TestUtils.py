@@ -249,7 +249,7 @@ def write_newer_file(file_path, newer_than, content, dedent=False):
     try:
         other_time = os.path.getmtime(newer_than)
     except OSError:
-        # Support
+        # Support writing a fresh file (which is always newer than a non-existant one)
         other_time = None
 
     while other_time is None or other_time >= os.path.getmtime(file_path):
