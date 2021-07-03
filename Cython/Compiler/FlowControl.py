@@ -324,8 +324,8 @@ class NameAssignment(object):
         self.is_arg = False
         self.is_deletion = False
         self.inferred_type = None
-        self.rhs_scope = rhs_scope  # for generator expression targets, the rhs can have a different scope
-                                    # to the lhs
+        # For generator expression targets, the rhs can have a different scope than the lhs.
+        self.rhs_scope = rhs_scope
 
     def __repr__(self):
         return '%s(entry=%r)' % (self.__class__.__name__, self.entry)

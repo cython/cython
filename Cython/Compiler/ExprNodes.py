@@ -2742,7 +2742,7 @@ class IteratorNode(ExprNode):
             ]))
 
     def type_dependencies(self, env):
-        return self.sequence.type_dependencies(self.outer_scope if self.outer_scope else env)
+        return self.sequence.type_dependencies(self.outer_scope or env)
 
     def infer_type(self, env):
         sequence_type = self.sequence.infer_type(env)
