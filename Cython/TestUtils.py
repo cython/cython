@@ -233,6 +233,7 @@ def unpack_source_tree(tree_file, workdir, cython_root):
 
 
 def fresh_cythonize(*args, language_level=3, **kwargs):
+    """Clear function caches and run cythonize"""
     clear_function_and_Dependencies_caches()
     Dependencies.cythonize(*args, language_level=language_level, **kwargs)
 
