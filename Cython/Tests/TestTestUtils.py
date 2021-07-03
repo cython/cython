@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import os.path
 import unittest
 import tempfile
@@ -25,7 +27,8 @@ class TestTestUtils(unittest.TestCase):
         assert found == expected, repr(found)
 
     def test_write_file_text(self):
-        self._test_write_file("abcüöä", b'abc\xc3\xbc\xc3\xb6\xc3\xa4')
+        text = u"abcüöä"
+        self._test_write_file(text, text.encode('utf8'))
 
     def test_write_file_bytes(self):
         self._test_write_file(b"ab\0c", b"ab\0c")
