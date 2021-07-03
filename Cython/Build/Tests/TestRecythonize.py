@@ -50,7 +50,8 @@ class TestRecythonize(CythonTest):
 
         self.write_to_file(path, text)
 
-        # on Linux-like systems.
+        # Make sure the file has a newer timestamp,
+        # otherwise cythonize may not consider it updated.
         # See https://github.com/cython/cython/issues/4245
         while 1:
             if os.path.getmtime(path) != timestamp_before_change:
