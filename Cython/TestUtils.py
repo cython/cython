@@ -1,18 +1,19 @@
 from __future__ import absolute_import
 
 import os
-import unittest
 import shlex
 import sys
 import tempfile
 import textwrap
+import unittest
 from io import open
 
-from .Compiler import Errors
+from . import Utils
+from .Build import Dependencies
 from .CodeWriter import CodeWriter
+from .Compiler import Errors, TreePath
 from .Compiler.TreeFragment import TreeFragment, strip_common_indent
 from .Compiler.Visitor import TreeVisitor, VisitorTransform
-from .Compiler import TreePath
 
 
 class NodeTypeWriter(TreeVisitor):
@@ -69,7 +70,8 @@ class CythonTest(unittest.TestCase):
             self.assertEqual(expected_line, result_line,
                              "Line %d:\nExp: %s\nGot: %s" % (idx, expected_line, result_line))
         self.assertEqual(len(expected), len(result),
-                         "Unmatched lines. Got:\n%s\nExpected:\n%s" % ("\n".join(expected), u"\n".join(result)))
+                         "Unmatched lines. Got:\n%s\nExpected:\n%s" %
+                         ("\n".join(expected), u"\n".join(result)))
 
     def codeToLines(self, tree):
         writer = CodeWriter()
@@ -88,7 +90,8 @@ class CythonTest(unittest.TestCase):
             self.assertEqual(expected_line, line,
                              "Line %d:\nGot: %s\nExp: %s" % (idx, line, expected_line))
         self.assertEqual(len(result_lines), len(expected_lines),
-                         "Unmatched lines. Got:\n%s\nExpected:\n%s" % ("\n".join(result_lines), expected))
+                         "Unmatched lines. Got:\n%s\nExpected:\n%s" %
+                         ("\n".join(result_lines), expected))
 
     def assertNodeExists(self, path, result_tree):
         self.assertNotEqual(TreePath.find_first(result_tree, path), None,
@@ -202,7 +205,8 @@ def unpack_source_tree(tree_file, workdir, cython_root):
         try:
             for line in f:
                 if line[:5] == b'#####':
-                    filename = line.strip().strip(b'#').strip().decode('utf8').replace('/', os.path.sep)
+                    filename = line.strip().strip(b'#').strip().decode(
+                        'utf8').replace('/', os.path.sep)
                     path = os.path.join(workdir, filename)
                     if not os.path.exists(os.path.dirname(path)):
                         os.makedirs(os.path.dirname(path))
