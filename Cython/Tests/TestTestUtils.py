@@ -3,6 +3,7 @@
 import os.path
 import unittest
 import tempfile
+import textwrap
 import shutil
 
 from ..TestUtils import write_file, write_newer_file
@@ -10,25 +11,38 @@ from ..TestUtils import write_file, write_newer_file
 
 class TestTestUtils(unittest.TestCase):
     def setUp(self):
+        super(TestTestUtils, self).setUp()
         self.temp_dir = tempfile.mkdtemp()
-        self._test_path = lambda filename: os.path.join(self.temp_dir, filename)
 
     def tearDown(self):
         if self.temp_dir and os.path.isdir(self.temp_dir):
             shutil.rmtree(self.temp_dir)
+        super(TestTestUtils, self).tearDown()
+
+    def _test_path(self, filename):
+        return os.path.join(self.temp_dir, filename)
 
     def _test_write_file(self, content, expected, **kwargs):
         file_path = self._test_path("abcfile")
-        write_file(file_path, content)
+        write_file(file_path, content, **kwargs)
         assert os.path.isfile(file_path)
 
         with open(file_path, 'rb') as f:
             found = f.read()
-        assert found == expected, repr(found)
+        assert found == expected, (repr(expected), repr(found))
 
     def test_write_file_text(self):
         text = u"abcüöä"
         self._test_write_file(text, text.encode('utf8'))
+
+    def test_write_file_dedent(self):
+        text = u"""
+        A horse is a horse,
+        of course, of course,
+        And no one can talk to a horse
+        of course
+        """
+        self._test_write_file(text, textwrap.dedent(text).encode('utf8'), dedent=True)
 
     def test_write_file_bytes(self):
         self._test_write_file(b"ab\0c", b"ab\0c")
