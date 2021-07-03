@@ -25,7 +25,7 @@ Features added
   (Github issue :issue:`3611`)
 
 * ``[...] * N`` is optimised for C integer multipliers ``N``.
-  (Github issue 3922)
+  (Github issue :issue:`3922`)
 
 Bugs fixed
 ----------
