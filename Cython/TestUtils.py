@@ -232,6 +232,16 @@ def unpack_source_tree(tree_file, workdir, cython_root):
     return workdir, header
 
 
+def fresh_cythonize(*args, language_level=3, **kwargs):
+    clear_function_and_Dependencies_caches()
+    Dependencies.cythonize(*args, language_level=language_level, **kwargs)
+
+
+def clear_function_and_Dependencies_caches():
+    Utils.clear_function_caches()
+    Dependencies._dep_tree = None  # discard method caches
+
+
 def write_file(file_path, content, dedent=False):
     """
     Write some content (text or bytes) to the file at "file_path".
