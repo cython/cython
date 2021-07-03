@@ -2148,11 +2148,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     # Implement the and/or check with an if.
                     if comp_op == '&&':
                         code.putln("if (%s order_res) {" % ('!!' if invert_comp else '!'))
-                        code.putln("ret = Py_False;")
+                        code.putln("ret = __Pyx_NewRef(Py_False);")
                         code.putln("} else {")
                     elif comp_op == '||':
                         code.putln("if (%s order_res) {" % ('!' if invert_comp else ''))
-                        code.putln("ret = Py_True;")
+                        code.putln("ret = __Pyx_NewRef(Py_True);")
                         code.putln("} else {")
                     else:
                         raise AssertionError('Unknown op %s' % (comp_op, ))
