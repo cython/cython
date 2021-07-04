@@ -15,6 +15,7 @@ VARS_LINE = '  /*--- Wrapped vars code ---*/\n'
 
 
 class TestRecythonize(CythonTest):
+    language_level = 3
     dep_tree = Cython.Build.Dependencies.create_dependency_tree()
 
     def setUp(self):
@@ -33,6 +34,10 @@ class TestRecythonize(CythonTest):
         CythonTest.tearDown(self)
         clear_function_and_Dependencies_caches()
         shutil.rmtree(self.temp_dir)
+
+    def fresh_cythonize(self, *args, **kwargs):
+        kwargs.update(language_level=self.language_level)
+        fresh_cythonize(*args, **kwargs)
 
     def refresh_dep_tree(self):
         Cython.Utils.clear_function_caches()
@@ -81,7 +86,7 @@ class TestRecythonize(CythonTest):
             self.assertEqual(1, len(dependencies))
 
         # Create a.c
-        fresh_cythonize(module)
+        self.fresh_cythonize(module)
 
         definition_before = self.relative_lines_from_file(
             module_c_file, module_line_1, 0, 7)
@@ -102,7 +107,7 @@ class TestRecythonize(CythonTest):
             self.assertEqual(2, len(dependencies))
 
         # Change a.c
-        fresh_cythonize(module)
+        self.fresh_cythonize(module)
 
         definition_after = self.relative_lines_from_file(
             module_c_file, module_line_1, 0, 7)
@@ -139,7 +144,7 @@ class TestRecythonize(CythonTest):
         self.assertEqual(3, len(dependencies))
 
         # Create a.c and b.c
-        fresh_cythonize([module_dependency, module])
+        self.fresh_cythonize([module_dependency, module])
 
         dep_definition_before = self.relative_lines_from_file(
             dep_c_file, dep_line_1, 0, 7)
@@ -154,7 +159,7 @@ class TestRecythonize(CythonTest):
         write_newer_file(pxd_to_be_modified, pxd_to_be_modified, 'cdef float x\n')
 
         # Change a.c and b.c
-        fresh_cythonize([module_dependency, module])
+        self.fresh_cythonize([module_dependency, module])
 
         dep_definition_after = self.relative_lines_from_file(
             dep_c_file, dep_line_1, 0, 7)
