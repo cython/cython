@@ -6,7 +6,7 @@ import tempfile
 
 import Cython.Build.Dependencies
 import Cython.Utils
-from Cython.TestUtils import CythonTest
+from Cython.TestUtils import CythonTest, write_file, fresh_cythonize
 
 
 class TestCyCache(CythonTest):
@@ -23,9 +23,8 @@ class TestCyCache(CythonTest):
         return glob.glob(os.path.join(self.cache_dir, file_glob))
 
     def fresh_cythonize(self, *args, **kwargs):
-        Cython.Utils.clear_function_caches()
-        Cython.Build.Dependencies._dep_tree = None  # discard method caches
-        Cython.Build.Dependencies.cythonize(*args, **kwargs)
+        kwargs.update(cache=self.cache_dir)
+        fresh_cythonize(*args, **kwargs)
 
     def test_cycache_switch(self):
         content1 = 'value = 1\n'
@@ -33,18 +32,16 @@ class TestCyCache(CythonTest):
         a_pyx = os.path.join(self.src_dir, 'a.pyx')
         a_c = a_pyx[:-4] + '.c'
 
-        with open(a_pyx, 'w') as f:
-            f.write(content1)
-        self.fresh_cythonize(a_pyx, cache=self.cache_dir)
-        self.fresh_cythonize(a_pyx, cache=self.cache_dir)
+        write_file(a_pyx, content1)
+        self.fresh_cythonize(a_pyx)
+        self.fresh_cythonize(a_pyx)
         self.assertEqual(1, len(self.cache_files('a.c*')))
         with open(a_c) as f:
             a_contents1 = f.read()
         os.unlink(a_c)
 
-        with open(a_pyx, 'w') as f:
-            f.write(content2)
-        self.fresh_cythonize(a_pyx, cache=self.cache_dir)
+        write_file(a_pyx, content2)
+        self.fresh_cythonize(a_pyx)
         with open(a_c) as f:
             a_contents2 = f.read()
         os.unlink(a_c)
@@ -52,9 +49,8 @@ class TestCyCache(CythonTest):
         self.assertNotEqual(a_contents1, a_contents2, 'C file not changed!')
         self.assertEqual(2, len(self.cache_files('a.c*')))
 
-        with open(a_pyx, 'w') as f:
-            f.write(content1)
-        self.fresh_cythonize(a_pyx, cache=self.cache_dir)
+        write_file(a_pyx, content1)
+        self.fresh_cythonize(a_pyx)
         self.assertEqual(2, len(self.cache_files('a.c*')))
         with open(a_c) as f:
             a_contents = f.read()
@@ -66,13 +62,12 @@ class TestCyCache(CythonTest):
     def test_cycache_uses_cache(self):
         a_pyx = os.path.join(self.src_dir, 'a.pyx')
         a_c = a_pyx[:-4] + '.c'
-        with open(a_pyx, 'w') as f:
-            f.write('pass')
-        self.fresh_cythonize(a_pyx, cache=self.cache_dir)
+        write_file(a_pyx, 'pass')
+        self.fresh_cythonize(a_pyx)
         a_cache = os.path.join(self.cache_dir, os.listdir(self.cache_dir)[0])
         gzip.GzipFile(a_cache, 'wb').write('fake stuff'.encode('ascii'))
         os.unlink(a_c)
-        self.fresh_cythonize(a_pyx, cache=self.cache_dir)
+        self.fresh_cythonize(a_pyx)
         with open(a_c) as f:
             a_contents = f.read()
         self.assertEqual(a_contents, 'fake stuff',
@@ -83,14 +78,13 @@ class TestCyCache(CythonTest):
         a_c = a_pyx[:-4] + '.c'
         a_h = a_pyx[:-4] + '.h'
         a_api_h = a_pyx[:-4] + '_api.h'
-        with open(a_pyx, 'w') as f:
-            f.write('cdef public api int foo(int x): return x\n')
-        self.fresh_cythonize(a_pyx, cache=self.cache_dir)
+        write_file(a_pyx, 'cdef public api int foo(int x): return x\n')
+        self.fresh_cythonize(a_pyx)
         expected = [a_c, a_h, a_api_h]
         for output in expected:
             self.assertTrue(os.path.exists(output), output)
             os.unlink(output)
-        self.fresh_cythonize(a_pyx, cache=self.cache_dir)
+        self.fresh_cythonize(a_pyx)
         for output in expected:
             self.assertTrue(os.path.exists(output), output)
 
@@ -98,19 +92,18 @@ class TestCyCache(CythonTest):
         hash_pyx = os.path.join(self.src_dir, 'options.pyx')
         hash_c = hash_pyx[:-len('.pyx')] + '.c'
 
-        with open(hash_pyx, 'w') as f:
-            f.write('pass')
-        self.fresh_cythonize(hash_pyx, cache=self.cache_dir, cplus=False)
+        write_file(hash_pyx, 'pass')
+        self.fresh_cythonize(hash_pyx, cplus=False)
         self.assertEqual(1, len(self.cache_files('options.c*')))
 
         os.unlink(hash_c)
-        self.fresh_cythonize(hash_pyx, cache=self.cache_dir, cplus=True)
+        self.fresh_cythonize(hash_pyx, cplus=True)
         self.assertEqual(2, len(self.cache_files('options.c*')))
 
         os.unlink(hash_c)
-        self.fresh_cythonize(hash_pyx, cache=self.cache_dir, cplus=False, show_version=False)
+        self.fresh_cythonize(hash_pyx, cplus=False, show_version=False)
         self.assertEqual(2, len(self.cache_files('options.c*')))
 
         os.unlink(hash_c)
-        self.fresh_cythonize(hash_pyx, cache=self.cache_dir, cplus=False, show_version=True)
+        self.fresh_cythonize(hash_pyx, cplus=False, show_version=True)
         self.assertEqual(2, len(self.cache_files('options.c*')))
