@@ -322,6 +322,10 @@ def update_cpp17_extension(ext):
     gcc_version = get_gcc_version(ext.language)
     if gcc_version:
         compiler_version = gcc_version.group(1)
+        if sys.version_info[0] < 3:
+            # The Python 2.7 headers contain the 'register' modifier
+            # which gcc warns about in C++17 mode.
+            ext.extra_compile_args.append('-Wno-register')
         if float(compiler_version) >= 5.0:
             ext.extra_compile_args.append("-std=c++17")
         return ext
@@ -823,7 +827,8 @@ class TestBuilder(object):
         if 'cpp' in languages and 'no-cpp' in tags['tag']:
             languages = list(languages)
             languages.remove('cpp')
-        if self.add_cpp_locals_extra_tests and 'cpp' in tags['tag'] and not 'no_cpp_locals' in tags['tag']:
+        if (self.add_cpp_locals_extra_tests and 'cpp' in languages and
+                'cpp' in tags['tag'] and not 'no_cpp_locals' in tags['tag']):
             languages.append('cpp_locals')
         if not languages:
             return []

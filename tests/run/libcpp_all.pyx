@@ -1,4 +1,4 @@
-# tag: cpp
+# tag: cpp, no_cpp_locals
 
 import cython
 
