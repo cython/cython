@@ -5,7 +5,8 @@ import time
 
 import Cython.Build.Dependencies
 import Cython.Utils
-from Cython.TestUtils import CythonTest
+from Cython.TestUtils import (CythonTest, clear_function_and_Dependencies_caches,
+                              fresh_cythonize, write_file, write_newer_file)
 
 SAME = "The result of cytonization is the same"
 INCORRECT = "Incorrect cythonization"
@@ -14,16 +15,11 @@ VARS_LINE = '  /*--- Wrapped vars code ---*/\n'
 
 
 class TestRecythonize(CythonTest):
-    language_level = 3
     dep_tree = Cython.Build.Dependencies.create_dependency_tree()
-
-    def clear_function_and_Dependencies_caches(self):
-        Cython.Utils.clear_function_caches()
-        Cython.Build.Dependencies._dep_tree = None  # discard method caches
 
     def setUp(self):
         CythonTest.setUp(self)
-        self.clear_function_and_Dependencies_caches()
+        clear_function_and_Dependencies_caches()
         self.temp_dir = (
             tempfile.mkdtemp(
                 prefix='recythonize-test',
@@ -35,33 +31,8 @@ class TestRecythonize(CythonTest):
 
     def tearDown(self):
         CythonTest.tearDown(self)
-        self.clear_function_and_Dependencies_caches()
+        clear_function_and_Dependencies_caches()
         shutil.rmtree(self.temp_dir)
-
-    def write_to_file(self, path, text):
-        with open(path, "w") as f:
-            f.write(text)
-
-    def write_to_file_with_timestamp_update(self, path, text):
-        try:
-            timestamp_before_change = os.path.getmtime(path)
-        except OSError:  # not FileNotFoundError for compatibility
-            timestamp_before_change = .0
-
-        self.write_to_file(path, text)
-
-        # Make sure the file has a newer timestamp,
-        # otherwise cythonize may not consider it updated.
-        # See https://github.com/cython/cython/issues/4245
-        while 1:
-            if os.path.getmtime(path) != timestamp_before_change:
-                return
-            time.sleep(0.001)
-
-    def fresh_cythonize(self, *args, **kwargs):
-        self.clear_function_and_Dependencies_caches()
-        kwargs.update(language_level=self.language_level)
-        Cython.Build.Dependencies.cythonize(*args, **kwargs)
 
     def refresh_dep_tree(self):
         Cython.Utils.clear_function_caches()
@@ -97,9 +68,9 @@ class TestRecythonize(CythonTest):
             filename=module_filename, at_line=1)
 
         if pxd_exists_for_first_check:
-            self.write_to_file(pxd_to_be_modified, 'cdef int x\n')
+            write_file(pxd_to_be_modified, 'cdef int x\n')
 
-        self.write_to_file(module, 'x = 1\n')
+        write_file(module, 'x = 1\n')
 
         dependencies = self.fresh_all_dependencies(module)
         self.assertIn(module, dependencies)
@@ -110,7 +81,7 @@ class TestRecythonize(CythonTest):
             self.assertEqual(1, len(dependencies))
 
         # Create a.c
-        self.fresh_cythonize(module)
+        fresh_cythonize(module)
 
         definition_before = self.relative_lines_from_file(
             module_c_file, module_line_1, 0, 7)
@@ -120,8 +91,8 @@ class TestRecythonize(CythonTest):
         else:
             self.assertNotIn("a_x = 1;", definition_before, INCORRECT)
 
-        time.sleep(0.01)  # localization of the problem
-        self.write_to_file(pxd_to_be_modified, 'cdef float x\n')
+        # See https://github.com/cython/cython/issues/4245
+        write_newer_file(pxd_to_be_modified, pxd_to_be_modified, 'cdef float x\n')
 
         # otherwise nothing changes since there are no new files
         if not pxd_exists_for_first_check:
@@ -131,7 +102,7 @@ class TestRecythonize(CythonTest):
             self.assertEqual(2, len(dependencies))
 
         # Change a.c
-        self.fresh_cythonize(module)
+        fresh_cythonize(module)
 
         definition_after = self.relative_lines_from_file(
             module_c_file, module_line_1, 0, 7)
@@ -156,10 +127,10 @@ class TestRecythonize(CythonTest):
         module_line_1 = LINE_BEFORE_IMPLEMENTATION.format(
             filename=module_filename, at_line=1)
 
-        self.write_to_file(pxd_to_be_modified, 'cdef int x\n')
-        self.write_to_file(module_dependency, 'x = 1\n')
-        self.write_to_file(pxd_for_cimport, 'cimport a\n')
-        self.write_to_file(module, 'a.x = 2\n')
+        write_file(pxd_to_be_modified, 'cdef int x\n')
+        write_file(module_dependency, 'x = 1\n')
+        write_file(pxd_for_cimport, 'cimport a\n')
+        write_file(module, 'a.x = 2\n')
 
         dependencies = self.fresh_all_dependencies(module)
         self.assertIn(pxd_for_cimport, dependencies)
@@ -168,7 +139,7 @@ class TestRecythonize(CythonTest):
         self.assertEqual(3, len(dependencies))
 
         # Create a.c and b.c
-        self.fresh_cythonize([module_dependency, module])
+        fresh_cythonize([module_dependency, module])
 
         dep_definition_before = self.relative_lines_from_file(
             dep_c_file, dep_line_1, 0, 7)
@@ -179,11 +150,11 @@ class TestRecythonize(CythonTest):
         self.assertIn("a_x = 1;", dep_definition_before, INCORRECT)
         self.assertIn("a_x = 2;", module_definition_before, INCORRECT)
 
-        time.sleep(0.01)  # localization of the problem
-        self.write_to_file(pxd_to_be_modified, 'cdef float x\n')
+        # See https://github.com/cython/cython/issues/4245
+        write_newer_file(pxd_to_be_modified, pxd_to_be_modified, 'cdef float x\n')
 
         # Change a.c and b.c
-        self.fresh_cythonize([module_dependency, module])
+        fresh_cythonize([module_dependency, module])
 
         dep_definition_after = self.relative_lines_from_file(
             dep_c_file, dep_line_1, 0, 7)
