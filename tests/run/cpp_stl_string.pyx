@@ -361,5 +361,5 @@ def test_to_string(x):
 
 
 _WARNINGS = """
-22:31: Cannot pass Python object as C++ data structure reference (string &), will pass by copy.
+23:31: Cannot pass Python object as C++ data structure reference (string &), will pass by copy.
 """
