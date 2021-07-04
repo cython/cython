@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, werror, cpp_locals
+# tag: cpp, werror
 
 cdef extern from "shapes.h" namespace "shapes":
     cdef cppclass Shape:

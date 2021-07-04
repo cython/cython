@@ -1,5 +1,5 @@
 # tag: cpp
-# mode: run
+# mode: run, no_cpp_locals
 
 cdef extern from *:
     """

@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, werror, cpp11, cpp_locals
+# tag: cpp, werror, cpp11
 
 import sys
 from libcpp.map cimport map

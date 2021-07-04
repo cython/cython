@@ -823,7 +823,7 @@ class TestBuilder(object):
         if 'cpp' in languages and 'no-cpp' in tags['tag']:
             languages = list(languages)
             languages.remove('cpp')
-        if 'cpp' in languages and self.add_cpp_locals_extra_tests and 'cpp_locals' in tags['tag']:
+        if self.add_cpp_locals_extra_tests and 'cpp' in tags['tag'] and not 'no_cpp_locals' in tags['tag']:
             languages.append('cpp_locals')
         if not languages:
             return []

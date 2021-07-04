@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, werror, cpp11
+# tag: cpp, werror, cpp11, no_cpp_locals
 
 from libcpp.memory cimport unique_ptr, shared_ptr, default_delete, dynamic_pointer_cast
 from libcpp cimport nullptr

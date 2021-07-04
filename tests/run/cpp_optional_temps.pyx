@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, cpp17
+# tag: cpp, cpp17, no_cpp_locals  # no_cpp_locals because the test is already run with it explicitly set
 
 # cython: cpp_locals=True
 
@@ -48,9 +48,8 @@ cdef extern from *:
     C make_C(int) except +  # needs a temp to receive
 
 # this function just makes sure the output from the destructor can be captured by doctest
-cdef void print_C_destructor "print_C_destructor" () nogil:
-    with gil:
-        print("~C()")
+cdef void print_C_destructor "print_C_destructor" () with gil:
+    print("~C()")
 
 def maybe_assign_infer(assign, value, do_print):
     """

@@ -1,4 +1,4 @@
-# tag: cpp, cpp_locals
+# tag: cpp
 
 from libcpp cimport bool
 

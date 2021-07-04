@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, cpp11, cpp_locals
+# tag: cpp, cpp11
 
 from libcpp.functional cimport function
 cimport cpp_function_lib

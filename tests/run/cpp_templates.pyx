@@ -1,4 +1,4 @@
-# tag: cpp, cpp_locals
+# tag: cpp
 
 cimport cython
 from cython.operator import dereference as deref
