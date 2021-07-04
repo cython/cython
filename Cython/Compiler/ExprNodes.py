@@ -1923,6 +1923,7 @@ class NameNode(AtomicExprNode):
     allow_null = False
     nogil = False
     inferred_type = None
+    dereference_cpp_optional = False  # only set if not a target
 
     def as_cython_attribute(self):
         return self.cython_attribute
@@ -2115,6 +2116,8 @@ class NameNode(AtomicExprNode):
             from . import Buffer
             Buffer.used_buffer_aux_vars(entry)
         self.analyse_rvalue_entry(env)
+        if entry.is_cpp_optional:
+            self.dereference_cpp_optional = True
         return self
 
     def analyse_target_types(self, env):
@@ -2287,6 +2290,8 @@ class NameNode(AtomicExprNode):
         entry = self.entry
         if not entry:
             return "<error>"  # There was an error earlier
+        if self.dereference_cpp_optional:
+            return "(*%s)" % entry.cname
         return entry.cname
 
     def generate_result_code(self, code):
@@ -6899,6 +6904,7 @@ class AttributeNode(ExprNode):
     is_memslice_transpose = False
     is_special_lookup = False
     is_py_attr = 0
+    dereference_cpp_optional = False  # only set if not a target
 
     def as_cython_attribute(self):
         if (isinstance(self.obj, NameNode) and
@@ -7140,6 +7146,8 @@ class AttributeNode(ExprNode):
             error(self.pos, "Assignment to a read-only property")
         #elif self.type.is_memoryviewslice and not target:
         #    self.is_temp = True
+        if not target and self.entry and self.entry.is_cpp_optional:
+            self.dereference_cpp_optional = True
         return self
 
     def analyse_attribute(self, env, obj_type = None):
@@ -7160,9 +7168,6 @@ class AttributeNode(ExprNode):
         elif obj_type.is_extension_type or obj_type.is_builtin_type:
             self.op = "->"
         elif obj_type.is_reference and obj_type.is_fake_reference:
-            self.op = "->"
-        elif (obj_type.is_cpp_class and (self.obj.is_name or self.obj.is_attribute) and
-                self.obj.entry and self.obj.entry.is_cpp_optional):
             self.op = "->"
         else:
             self.op = "."
@@ -7330,7 +7335,10 @@ class AttributeNode(ExprNode):
             if obj.type.is_builtin_type and self.entry and self.entry.is_variable:
                 # accessing a field of a builtin type, need to cast better than result_as() does
                 obj_code = obj.type.cast_code(obj.result(), to_object_struct = True)
-            return "%s%s%s" % (obj_code, self.op, self.member)
+            result = "%s%s%s" % (obj_code, self.op, self.member)
+            if self.dereference_cpp_optional:
+                result = "(*%s)" % result
+            return result
 
     def generate_result_code(self, code):
         if self.is_py_attr:
@@ -7373,7 +7381,11 @@ class AttributeNode(ExprNode):
                         '%s'
                     '}' % (self.result(), code.error_goto(self.pos)))
         elif self.entry.is_cpp_optional and self.initialized_check:
-            unbound_check_code = self.type.cpp_optional_check_for_null_code(self.result())
+            undereferenced_result = self.result()
+            if self.dereference_cpp_optional:
+                assert undereferenced_result.startswith("(*") and undereferenced_result.endswith(")")
+                undereferenced_result = undereferenced_result[2:-1]
+            unbound_check_code = self.type.cpp_optional_check_for_null_code(undereferenced_result)
             code.put_error_if_unbound(self.pos, self.entry, unbound_check_code=unbound_check_code)
         else:
             # result_code contains what is needed, but we may need to insert
