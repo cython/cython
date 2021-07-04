@@ -97,7 +97,7 @@ class TestRecythonize(CythonTest):
             self.assertNotIn("a_x = 1;", definition_before, INCORRECT)
 
         # See https://github.com/cython/cython/issues/4245
-        write_newer_file(pxd_to_be_modified, pxd_to_be_modified, 'cdef float x\n')
+        write_newer_file(pxd_to_be_modified, module_c_file, 'cdef float x\n')
 
         # otherwise nothing changes since there are no new files
         if not pxd_exists_for_first_check:
@@ -156,7 +156,7 @@ class TestRecythonize(CythonTest):
         self.assertIn("a_x = 2;", module_definition_before, INCORRECT)
 
         # See https://github.com/cython/cython/issues/4245
-        write_newer_file(pxd_to_be_modified, pxd_to_be_modified, 'cdef float x\n')
+        write_newer_file(pxd_to_be_modified, module_c_file, 'cdef float x\n')
 
         # Change a.c and b.c
         self.fresh_cythonize([module_dependency, module])
