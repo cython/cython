@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, cpp11
+# tag: cpp, cpp11, cpp_locals
 
 from libcpp.limits cimport numeric_limits
 
@@ -75,14 +75,14 @@ def test_compare_enums():
         y == Enum1.Item1
     )
 
-        
+
 def test_compare_namespace_enums():
     """
     >>> test_compare_enums()
     (True, True, False, False)
     """
     cdef Enum2 z, w
-    
+
     z = Enum2.Item1
     w = Enum2.Item2
 

@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, werror
+# tag: cpp, werror, cpp_locals
 # cython: c_string_encoding=utf-8, c_string_type=unicode
 
 cimport cython

@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, cpp11
+# tag: cpp, cpp11, cpp_locals
 
 from libcpp.functional cimport function
 cimport cpp_function_lib
@@ -48,10 +48,10 @@ cdef class FunctionKeeper:
     False
     """
     cdef cpp_function_lib.FunctionKeeper* function_keeper
-    
+
     cdef function[double(double, int)]* _get_function_ptr_from_name(self, function_name):
         cdef function[double(double, int)] *f
-        
+
         if function_name == 'add_one':
             f = new function[double(double, int)](cpp_function_lib.add_one)
         elif function_name == 'add_two':
@@ -63,9 +63,9 @@ cdef class FunctionKeeper:
             f = new function[double(double, int)](NULL)
         elif function_name == 'default':
             f = new function[double(double, int)]()
-            
+
         return f
-   
+
     def __cinit__(self, function_name):
         cdef function[double(double, int)] *f = self._get_function_ptr_from_name(function_name)
         self.function_keeper = new cpp_function_lib.FunctionKeeper(f[0])

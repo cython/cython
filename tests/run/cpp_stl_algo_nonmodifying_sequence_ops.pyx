@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, werror, cpp11
+# tag: cpp, werror, cpp11, cpp_locals
 
 from cython.operator cimport dereference as deref
 

@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, werror
+# tag: cpp, werror, cpp_locals
 
 cdef extern from "cpp_namespaces_helper.h" namespace "A":
     ctypedef int A_t

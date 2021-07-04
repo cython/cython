@@ -1,5 +1,6 @@
 # mode: run
 # tag: cpp, warnings
+## tag: cpp_locals FIXME - should work but doesn't
 
 cimport cython
 
@@ -359,5 +360,5 @@ def test_to_string(x):
 
 
 _WARNINGS = """
-21:31: Cannot pass Python object as C++ data structure reference (string &), will pass by copy.
+22:31: Cannot pass Python object as C++ data structure reference (string &), will pass by copy.
 """

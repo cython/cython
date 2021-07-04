@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, werror, cpp11
+# tag: cpp, werror, cpp11, cpp_locals
 
 from libcpp.numeric cimport inner_product, iota, accumulate, adjacent_difference, partial_sum
 from libcpp.vector cimport vector

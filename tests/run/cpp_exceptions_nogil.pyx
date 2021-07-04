@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, werror
+# tag: cpp, werror, cpp_locals
 
 cdef int raise_TypeError() except *:
     raise TypeError("custom")

@@ -297,9 +297,10 @@ def update_cpp11_extension(ext):
         update cpp11 extensions that will run on versions of gcc >4.8
     """
     gcc_version = get_gcc_version(ext.language)
+    already_has_std = any(ca for ca in ext.extra_compile_args if ca.find("-std") != -1)
     if gcc_version:
         compiler_version = gcc_version.group(1)
-        if float(compiler_version) > 4.8:
+        if float(compiler_version) > 4.8 and not already_has_std:
             ext.extra_compile_args.append("-std=c++11")
         return ext
 
@@ -307,7 +308,8 @@ def update_cpp11_extension(ext):
     if clang_version:
         ext.extra_compile_args.append("-std=c++11")
         if sys.platform == "darwin":
-          ext.extra_compile_args.append("-stdlib=libc++")
+          if not already_has_std:
+              ext.extra_compile_args.append("-stdlib=libc++")
           ext.extra_compile_args.append("-mmacosx-version-min=10.7")
         return ext
 
@@ -351,7 +353,7 @@ def get_cc_version(language):
     """
         finds gcc version using Popen
     """
-    if language == 'cpp':
+    if language in ['cpp', 'cpp_locals']:
         cc = sysconfig.get_config_var('CXX')
     else:
         cc = sysconfig.get_config_var('CC')
@@ -678,7 +680,8 @@ class TestBuilder(object):
                  with_pyregr, languages, test_bugs, language_level,
                  common_utility_dir, pythran_dir=None,
                  default_mode='run', stats=None,
-                 add_embedded_test=False, add_cython_import=False):
+                 add_embedded_test=False, add_cython_import=False,
+                 add_cpp_locals_extra_tests=False):
         self.rootdir = rootdir
         self.workdir = workdir
         self.selectors = selectors
@@ -702,6 +705,7 @@ class TestBuilder(object):
         self.add_embedded_test = add_embedded_test
         self.add_cython_import = add_cython_import
         self.capture = options.capture
+        self.add_cpp_locals_extra_tests = add_cpp_locals_extra_tests
 
     def build_suite(self):
         suite = unittest.TestSuite()
@@ -819,6 +823,8 @@ class TestBuilder(object):
         if 'cpp' in languages and 'no-cpp' in tags['tag']:
             languages = list(languages)
             languages.remove('cpp')
+        if 'cpp' in languages and self.add_cpp_locals_extra_tests and 'cpp_locals' in tags['tag']:
+            languages.append('cpp_locals')
         if not languages:
             return []
 
@@ -978,6 +984,8 @@ class CythonCompileTestCase(unittest.TestCase):
         Options.warning_errors = self.warning_errors
         if sys.version_info >= (3, 4):
             Options._directive_defaults['autotestdict'] = False
+        if self.language == "cpp_locals":
+            Options._directive_defaults['cpp_locals'] = True
 
         if not os.path.exists(self.workdir):
             os.makedirs(self.workdir)
@@ -1077,7 +1085,10 @@ class CythonCompileTestCase(unittest.TestCase):
         return source_file
 
     def build_target_filename(self, module_name):
-        target = '%s.%s' % (module_name, self.language)
+        ext = self.language
+        if self.language == "cpp_locals":
+            ext = ".cpp"
+        target = '%s.%s' % (module_name, ext)
         return target
 
     def related_files(self, test_directory, module_name):
@@ -1173,7 +1184,7 @@ class CythonCompileTestCase(unittest.TestCase):
             output_file = target,
             annotate = annotate,
             use_listing_file = False,
-            cplus = self.language == 'cpp',
+            cplus = self.language == 'cpp' or self.language == 'cpp_locals',
             np_pythran = self.pythran_dir is not None,
             language_level = self.language_level,
             generate_pxi = False,
@@ -1216,9 +1227,13 @@ class CythonCompileTestCase(unittest.TestCase):
                 **extra_extension_args
                 )
 
-            if self.language == 'cpp':
+            if self.language in [ 'cpp', 'cpp_locals' ]:
                 # Set the language now as the fixer might need it
                 extension.language = 'c++'
+                if self.language == 'cpp_locals':
+                    extension = update_cpp17_extension(extension)
+                    if extension is EXCLUDE_EXT:
+                        return
 
             if 'distutils' in self.tags:
                 from Cython.Build.Dependencies import DistutilsInfo
@@ -1248,7 +1263,7 @@ class CythonCompileTestCase(unittest.TestCase):
                         return skip_test("Test '%s' excluded due to tags '%s'" % (
                             self.name, ', '.join(self.tags.get('tag', ''))))
                     extension = newext or extension
-            if self.language == 'cpp':
+            if self.language == 'cpp' or self.language == 'cpp_locals':
                 extension.language = 'c++'
             if IS_PY2:
                 workdir = str(workdir)  # work around type check in distutils that disallows unicode strings
@@ -2193,6 +2208,9 @@ def main():
     parser.add_option("--no-cpp", dest="use_cpp",
                       action="store_false", default=True,
                       help="do not test C++ compilation backend")
+    parser.add_option("--no-cpp-locals", dest="use_cpp_locals",
+                      action="store_false", default=True,
+                      help="do not rerun select C++ tests with cpp_locals directive")
     parser.add_option("--no-unit", dest="unittests",
                       action="store_false", default=True,
                       help="do not run the unit tests")
@@ -2670,7 +2688,8 @@ def runtests(options, cmd_args, coverage=None):
         filetests = TestBuilder(ROOTDIR, WORKDIR, selectors, exclude_selectors,
                                 options, options.pyregr, languages, test_bugs,
                                 options.language_level, common_utility_dir,
-                                options.pythran_dir, add_embedded_test=True, stats=stats)
+                                options.pythran_dir, add_embedded_test=True, stats=stats,
+                                add_cpp_locals_extra_tests=options.use_cpp_locals)
         test_suite.addTest(filetests.build_suite())
 
     if options.examples and languages:

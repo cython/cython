@@ -1,5 +1,6 @@
 # mode: run
 # tag: cpp, werror
+## tag: cpp_locals  # FIXME - should work but doesn't
 
 from __future__ import division
 
