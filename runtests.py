@@ -309,8 +309,8 @@ def update_cpp11_extension(ext):
         if not already_has_std:
             ext.extra_compile_args.append("-std=c++11")
         if sys.platform == "darwin":
-              ext.extra_compile_args.append("-stdlib=libc++")
-          ext.extra_compile_args.append("-mmacosx-version-min=10.7")
+            ext.extra_compile_args.append("-stdlib=libc++")
+            ext.extra_compile_args.append("-mmacosx-version-min=10.7")
         return ext
 
     return EXCLUDE_EXT
