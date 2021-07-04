@@ -1,6 +1,6 @@
 # tag: cpp,cpp11
 # mode: compile
-# tag: no_cpp_locals
+# tag: no-cpp-locals
 # FIXME - cpp_locals should work
 
 cdef extern from *:

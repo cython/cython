@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, cpp11, no_cpp_locals
+# tag: cpp, cpp11, no-cpp-locals
 
 from libcpp.utility cimport move
 

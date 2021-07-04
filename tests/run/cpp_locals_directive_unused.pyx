@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, cpp17, no_cpp_locals
+# tag: cpp, cpp17, no-cpp-locals
 # no cpp_locals because this test is already run with cpp_locals explicitly set
 
 # cython: cpp_locals=True

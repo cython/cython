@@ -1,6 +1,6 @@
 # mode: run
 # tag: cpp, warnings
-# tag: no_cpp_locals
+# tag: no-cpp-locals
 # FIXME - cpp_locals should work but doesn't
 
 cimport cython

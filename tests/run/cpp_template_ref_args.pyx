@@ -1,4 +1,4 @@
-# tag: cpp, no_cpp_locals
+# tag: cpp, no-cpp-locals
 
 from libcpp.vector cimport vector
 

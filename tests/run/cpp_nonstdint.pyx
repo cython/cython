@@ -1,4 +1,4 @@
-# tag: cpp, no_cpp_locals
+# tag: cpp, no-cpp-locals
 
 cdef extern from "cpp_nonstdint.h":
     ctypedef int Int24
