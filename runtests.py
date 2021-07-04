@@ -1095,7 +1095,7 @@ class CythonCompileTestCase(unittest.TestCase):
     def build_target_filename(self, module_name):
         ext = self.language
         if self.language == "cpp_locals":
-            ext = ".cpp"
+            ext = "cpp"
         target = '%s.%s' % (module_name, ext)
         return target
 

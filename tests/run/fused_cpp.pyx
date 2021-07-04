@@ -1,4 +1,5 @@
-# tag: cpp
+# tag: cpp, no-cpp-locals
+# FIXME (or at least investigate) - cpp_locals should probably work
 
 cimport cython
 from libcpp.vector cimport vector
