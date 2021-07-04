@@ -1,5 +1,6 @@
 # mode: run
-# tag: cpp, cpp17, no_cpp_locals  # no_cpp_locals because the test is already run with it explicitly set
+# tag: cpp, cpp17, no_cpp_locals
+# no_cpp_locals because the test is already run with it explicitly set
 
 # cython: cpp_locals=True
 
