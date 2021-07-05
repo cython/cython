@@ -275,4 +275,4 @@ def write_newer_file(file_path, newer_than, content, dedent=False):
         other_time = None
 
     while other_time is None or other_time >= os.path.getmtime(file_path):
-        os.utime(file_path, None)
+        os.utime(file_path, times=None)
