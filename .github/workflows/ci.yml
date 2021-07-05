@@ -204,6 +204,12 @@ jobs:
           path: docs/build/html
           if-no-files-found: ignore
 
+      - name: Upload wheels
+        uses: actions/upload-artifact@v2
+        with:
+          path: dist/*.whl
+          if-no-files-found: ignore
+
 
   pycoverage:
     runs-on: ubuntu-18.04
