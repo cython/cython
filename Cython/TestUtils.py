@@ -242,19 +242,29 @@ def clear_function_and_Dependencies_caches():
 
 def write_file(file_path, content, dedent=False):
     """
-    Write some content (text or bytes) to the file at "file_path".
+    Write some content (text or bytes) to the file at `file_path` in utf-8.
     """
-    mode = 'wb' if isinstance(content, bytes) else 'w'
+
+    kwargs = {}
+    
+    mode = "w"    
+    if isinstance(content, bytes):
+        mode += "b"
+    else:
+        # unlike OS X or Linux,
+        # Windows defaults to 8-bit character set like windows-1252
+        kwargs["encoding"] = "utf-8"
+
     if dedent:
         content = textwrap.dedent(content)
 
-    with open(file_path, mode=mode) as f:
+    with open(file_path, mode=mode, **kwargs) as f:
         f.write(content)
 
 
 def write_newer_file(file_path, newer_than, content, dedent=False):
     """
-    Write 'content' to the file 'file_path' and make sure it is newer than the file 'newer_than'.
+    Write `content` to the file `file_path` in utf-8 and make sure it is newer than the file `newer_than`.
     """
     write_file(file_path, content, dedent=dedent)
 
@@ -265,4 +275,4 @@ def write_newer_file(file_path, newer_than, content, dedent=False):
         other_time = None
 
     while other_time is None or other_time >= os.path.getmtime(file_path):
-        write_file(file_path, content, dedent=dedent)
+        os.utime(file_path)
