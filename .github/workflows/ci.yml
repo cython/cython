@@ -224,8 +224,8 @@ jobs:
       - name: Upload wheels
         uses: actions/upload-artifact@v2
         with:
-          name: dist-${{ runner.os }}-py${{ matrix.python-version }}${{ matrix.extra_hash }}
-          path: dist
+          name: wheels-${{ runner.os }}
+          path: dist/*.whl
           if-no-files-found: ignore
 
 
