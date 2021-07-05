@@ -99,7 +99,7 @@ if [ "$NO_CYTHON_COMPILE" != "1" -a -n "${PYTHON_VERSION##pypy*}" ]; then
           $(if [ "$COVERAGE" == "1" ]; then echo " --cython-coverage"; fi) \
           $(python -c 'import sys; print("-j5" if sys.version_info >= (3,5) else "")') \
       || exit 1
-  if [ -z "$COVERAGE" -a -z "$STACKLESS" -a -z "$LIMITED_API" -a -n "${BACKEND//*cpp*}" ]; then
+  if [ -z "$COVERAGE" -a -z "$STACKLESS" -a -z "$LIMITED_API" -a -z "$EXTRA_CFLAGS" -a -n "${BACKEND//*cpp*}" ]; then
     python setup.py bdist_wheel || exit 1
   fi
 fi
