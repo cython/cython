@@ -246,8 +246,8 @@ def write_file(file_path, content, dedent=False):
     """
 
     kwargs = {}
-    
-    mode = "w"    
+
+    mode = "w"
     if isinstance(content, bytes):
         mode += "b"
     else:
