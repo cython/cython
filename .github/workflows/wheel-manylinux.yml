@@ -1,0 +1,43 @@
+name: Linux wheel build
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v1
+      with:
+        python-version: 3.8
+
+    - name: Build manylinux1 x86 Python wheels
+      uses: RalfG/python-wheels-manylinux-build@v0.3.4-manylinux1_i686
+      with:
+        python-versions: 'cp27-cp27m cp27-cp27mu cp35-cp35m cp36-cp36m cp37-cp37m cp38-cp38m cp39-cp39m'
+
+    - name: Build manylinux1 AMD64 Python wheels
+      uses: RalfG/python-wheels-manylinux-build@v0.3.4-manylinux1_x86_64
+      with:
+        python-versions: 'cp27-cp27m cp27-cp27mu cp35-cp35m cp36-cp36m cp37-cp37m cp38-cp38m cp39-cp39m'
+
+    - name: Build manylinux2014 x86 Python wheels
+      uses: RalfG/python-wheels-manylinux-build@v0.3.4-manylinux2014_i686
+      with:
+        python-versions: 'cp35-cp35m cp36-cp36m cp37-cp37m cp38-cp38m cp39-cp39m'
+
+    - name: Build manylinux2014 AMD64 Python wheels
+      uses: RalfG/python-wheels-manylinux-build@v0.3.4-manylinux2014_x86_64
+      with:
+        python-versions: 'cp35-cp35m cp36-cp36m cp37-cp37m cp38-cp38m cp39-cp39m'
+
+    - name: Upload wheels
+      uses: actions/upload-artifact@v2
+      with:
+        name: wheels
+        path: dist/*-manylinux*.whl
+        if-no-files-found: ignore
