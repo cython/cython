@@ -8,9 +8,9 @@ import textwrap
 import unittest
 
 try:
-    from collections import Iterator, Sized  # Py2
+    from collections import Iterable, Sized  # Py2
 except ImportError:
-    from collections.abc import Iterator, Sized  # Py3
+    from collections.abc import Iterable, Sized  # Py3
 
 from io import open
 
@@ -256,16 +256,16 @@ def touch_file(path):
 def relative_lines(lines, line, start, end, fallback=None):
     """Returns the lines specified by `start` and `end` relative to `line`.
 
-    If `fallback` (Sized Iterator) is specified, it will be used for `line`, `start`, `end`
+    If `fallback` (Sized Iterable) is specified, it will be used for `line`, `start`, `end`
     applied to `lines` to generate a message for a ValueError
     if the original `line` is not found in `lines`."""
 
     if fallback:
         if not isinstance(fallback, Sized):
-            raise TypeError("'fallback' must be an instance of the Sized")
+            raise TypeError("'fallback' must be a Sized instance")
 
-        if not isinstance(fallback, Iterator):
-            raise TypeError("'fallback' must be an instance of the Iterator")
+        if not isinstance(fallback, Iterable):
+            raise TypeError("'fallback' must be an instance of the Iterable")
 
         if len(fallback) != 3:
             raise ValueError("'fallback' must contain three values"
