@@ -241,11 +241,12 @@ def clear_function_and_Dependencies_caches():
 
 
 def write_file(file_path, content, dedent=False):
-    """
-    Write some content (text or bytes) to the file at `file_path` in utf-8.
+    r"""Write some content (text or bytes) to the file
+    at `file_path` in utf-8 without translating `'\n'` into `os.linesep`.
     """
 
     encoding = None
+    newline = None
     mode = "w"
     if isinstance(content, bytes):
         mode += "b"
@@ -254,16 +255,21 @@ def write_file(file_path, content, dedent=False):
         # Windows defaults to 8-bit character set like windows-1252
         encoding = "utf-8"
 
+        # any '\n' characters written are not translated
+        # to the system default line separator, os.linesep
+        newline = "\n"
+
     if dedent:
         content = textwrap.dedent(content)
 
-    with open(file_path, mode=mode, encoding=encoding) as f:
+    with open(file_path, mode=mode, encoding=encoding, newline=newline) as f:
         f.write(content)
 
 
 def write_newer_file(file_path, newer_than, content, dedent=False):
-    """
-    Write `content` to the file `file_path` in utf-8 and make sure it is newer than the file `newer_than`.
+    r"""
+    Write `content` to the file `file_path` in utf-8 without translating `'\n'`
+    into `os.linesep` and make sure it is newer than the file `newer_than`.
     """
     write_file(file_path, content, dedent=dedent)
 
