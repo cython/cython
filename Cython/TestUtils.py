@@ -229,15 +229,22 @@ def unpack_source_tree(tree_file, workdir, cython_root):
     return workdir, header
 
 
+def clear_function_and_Dependencies_caches():
+    Utils.clear_function_caches()
+    Dependencies._dep_tree = None  # discard method caches
+
+
 def fresh_cythonize(*args, **kwargs):
     """Clear function caches and run cythonize"""
     clear_function_and_Dependencies_caches()
     Dependencies.cythonize(*args, **kwargs)
 
 
-def clear_function_and_Dependencies_caches():
-    Utils.clear_function_caches()
-    Dependencies._dep_tree = None  # discard method caches
+def touch_file(path):
+    """Set the access and modified times of the file
+    specified by path as the current time"""
+
+    os.utime(path, None)
 
 
 def write_file(file_path, content, dedent=False):
@@ -280,4 +287,4 @@ def write_newer_file(file_path, newer_than, content, dedent=False):
         other_time = None
 
     while other_time is None or other_time >= os.path.getmtime(file_path):
-        os.utime(file_path, times=None)
+        touch_file(file_path)
