@@ -6,6 +6,7 @@ import sys
 import tempfile
 import textwrap
 import unittest
+from collections.abc import Collection
 from io import open
 
 from . import Utils
@@ -245,6 +246,45 @@ def touch_file(path):
     specified by path as the current time"""
 
     os.utime(path, None)
+
+
+def relative_lines(lines, line, start, end, fallback=None):
+    """Returns the lines specified by `start` and `end` relative to `line`.
+
+    If `fallback` Colection is specified, it will be used for `line`, `start`, `end`
+    applied to `lines` to generate a message for a ValueError
+    if the original `line` is not found in `lines`."""
+
+    if fallback:
+        if not isinstance(fallback, Collection):
+            raise TypeError("'fallback' must be an instance of the Collection")
+
+        if len(fallback) != 3:
+            raise ValueError("'fallback' must contain three values"
+                             " for 'line', 'start', 'end'")
+
+    try:
+        ind = lines.index(line)
+        return lines[ind+start: ind+end]
+    except ValueError as e:
+        if fallback is None:
+            raise e
+
+        fallback_lines = map(repr, relative_lines(lines, *fallback))
+
+        raise ValueError(
+            "{0!r} was not found, presumably in \n{1}".format(
+                line, "\n".join(fallback_lines)))
+
+
+def relative_lines_from_file(path, line, start, end, fallback=None):
+    """Same as `relative_lines`, but uses `path`
+    as source for `lines` and returns joined lines."""
+
+    with open(path) as f:
+        lines = f.readlines()
+
+    return "".join(relative_lines(lines, line, start, end, fallback))
 
 
 def write_file(file_path, content, dedent=False):
