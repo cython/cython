@@ -263,7 +263,7 @@ def relative_lines(lines, line, start, end, fallback=None):
     if fallback:
         if not isinstance(fallback, Sized):
             raise TypeError("'fallback' must be an instance of the Sized")
-        
+
         if not isinstance(fallback, Iterator):
             raise TypeError("'fallback' must be an instance of the Iterator")
 
