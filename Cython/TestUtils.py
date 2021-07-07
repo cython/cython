@@ -6,7 +6,12 @@ import sys
 import tempfile
 import textwrap
 import unittest
-from collections.abc import Collection
+
+try:
+    from collections import Iterator, Sized  # Py2
+except ImportError:
+    from collections.abc import Iterator, Sized  # Py3
+
 from io import open
 
 from . import Utils
@@ -251,13 +256,16 @@ def touch_file(path):
 def relative_lines(lines, line, start, end, fallback=None):
     """Returns the lines specified by `start` and `end` relative to `line`.
 
-    If `fallback` Colection is specified, it will be used for `line`, `start`, `end`
+    If `fallback` (Sized Iterator) is specified, it will be used for `line`, `start`, `end`
     applied to `lines` to generate a message for a ValueError
     if the original `line` is not found in `lines`."""
 
     if fallback:
-        if not isinstance(fallback, Collection):
-            raise TypeError("'fallback' must be an instance of the Collection")
+        if not isinstance(fallback, Sized):
+            raise TypeError("'fallback' must be an instance of the Sized")
+        
+        if not isinstance(fallback, Iterator):
+            raise TypeError("'fallback' must be an instance of the Iterator")
 
         if len(fallback) != 3:
             raise ValueError("'fallback' must contain three values"
