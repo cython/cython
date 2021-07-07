@@ -245,20 +245,19 @@ def write_file(file_path, content, dedent=False):
     Write some content (text or bytes) to the file at `file_path` in utf-8.
     """
 
-    kwargs = {}
-
+    encoding = None
     mode = "w"
     if isinstance(content, bytes):
         mode += "b"
     else:
         # unlike OS X or Linux,
         # Windows defaults to 8-bit character set like windows-1252
-        kwargs["encoding"] = "utf-8"
+        encoding = "utf-8"
 
     if dedent:
         content = textwrap.dedent(content)
 
-    with open(file_path, mode=mode, **kwargs) as f:
+    with open(file_path, mode=mode, encoding=encoding) as f:
         f.write(content)
 
 
