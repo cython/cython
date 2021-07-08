@@ -5,8 +5,9 @@ import time
 
 import Cython.Build.Dependencies
 import Cython.Utils
-from Cython.TestUtils import (CythonTest, clear_function_and_Dependencies_caches,
-                              fresh_cythonize, write_file, write_newer_file)
+from Cython.TestUtils import (
+    CythonTest, clear_function_and_Dependencies_caches, fresh_cythonize,
+    relative_lines_from_file, write_file, write_newer_file)
 
 SAME = "The result of cytonization is the same"
 INCORRECT = "Incorrect cythonization"
@@ -17,6 +18,8 @@ VARS_LINE = '  /*--- Wrapped vars code ---*/\n'
 class TestRecythonize(CythonTest):
     language_level = 3
     dep_tree = Cython.Build.Dependencies.create_dependency_tree()
+    fallback_lines = (
+        VARS_LINE, -10, -1)  # XXX: VARS_LINE is assumed to always be present
 
     def setUp(self):
         CythonTest.setUp(self)
@@ -49,18 +52,8 @@ class TestRecythonize(CythonTest):
         return self.dep_tree.all_dependencies(*args, **kwargs)
 
     def relative_lines_from_file(self, path, line, start, end):
-        with open(path) as f:
-            lines = f.readlines()
-
-        try:
-            ind = lines.index(line)
-            return "".join(lines[ind+start: ind+end])
-        except ValueError:
-            # XXX: It is assumed that VARS_LINE is always present.
-            ind = lines.index(VARS_LINE)
-            raise ValueError(
-                "{0!r} was not found, presumably in \n{1}".format(
-                    line, "\n".join(map(repr, lines[ind-10: ind-1]))))
+        return relative_lines_from_file(
+            path, line, start, end, fallback=self.fallback_lines)
 
     def recythonize_on_pxd_change(self, ext, pxd_exists_for_first_check):
         module_filename = 'a' + ext
