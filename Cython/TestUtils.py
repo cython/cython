@@ -292,7 +292,7 @@ def relative_lines_from_file(path, line, start, end, fallback=None):
     with open(path) as f:
         lines = f.readlines()
 
-    return "".join(relative_lines(lines, line, start, end, fallback))
+    return "".join(relative_lines(lines, line, start, end, fallback=fallback))
 
 
 def write_file(file_path, content, dedent=False):
