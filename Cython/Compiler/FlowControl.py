@@ -52,7 +52,7 @@ class ControlBlock(object):
         stats = [Assignment(a), NameReference(a), NameReference(c),
                      Assignment(b)]
         gen = {Entry(a): Assignment(a), Entry(b): Assignment(b)}
-        bounded = set([Entry(a), Entry(c)])
+        bounded = {Entry(a), Entry(c)}
 
     """
 
@@ -160,7 +160,7 @@ class ControlFlow(object):
                 (entry.type.is_struct_or_union or
                  entry.type.is_complex or
                  entry.type.is_array or
-                 entry.type.is_cpp_class)):
+                 (entry.type.is_cpp_class and not entry.is_cpp_optional))):
             # stack allocated structured variable => never uninitialised
             return True
         return False
@@ -203,7 +203,7 @@ class ControlFlow(object):
 
     def normalize(self):
         """Delete unreachable and orphan blocks."""
-        queue = set([self.entry_point])
+        queue = {self.entry_point}
         visited = set()
         while queue:
             root = queue.pop()

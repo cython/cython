@@ -1236,7 +1236,7 @@ class SwitchTransform(Visitor.EnvTransform):
             # integers on iteration, whereas Py2 returns 1-char byte
             # strings
             characters = string_literal.value
-            characters = list(set([ characters[i:i+1] for i in range(len(characters)) ]))
+            characters = list({ characters[i:i+1] for i in range(len(characters)) })
             characters.sort()
             return [ ExprNodes.CharNode(string_literal.pos, value=charval,
                                         constant_result=charval)
@@ -1248,7 +1248,8 @@ class SwitchTransform(Visitor.EnvTransform):
             return self.NO_MATCH
         elif common_var is not None and not is_common_value(var, common_var):
             return self.NO_MATCH
-        elif not (var.type.is_int or var.type.is_enum) or sum([not (cond.type.is_int or cond.type.is_enum) for cond in conditions]):
+        elif not (var.type.is_int or var.type.is_enum) or any(
+                [not (cond.type.is_int or cond.type.is_enum) for cond in conditions]):
             return self.NO_MATCH
         return not_in, var, conditions
 
@@ -2750,7 +2751,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         Builtin.dict_type:       "PyDict_Size",
     }.get
 
-    _ext_types_with_pysize = set(["cpython.array.array"])
+    _ext_types_with_pysize = {"cpython.array.array"}
 
     def _handle_simple_function_len(self, node, function, pos_args):
         """Replace len(char*) by the equivalent call to strlen(),
@@ -3010,6 +3011,13 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 utility_code=utility_code,
                 is_temp=node.is_temp
             )
+
+    def _handle_any_slot__class__(self, node, function, args,
+                                is_unbound_method, kwargs=None):
+        # The purpose of this function is to handle calls to instance.__class__() so that
+        # it doesn't get handled by the __Pyx_CallUnboundCMethod0 mechanism.
+        # TODO: optimizations of the instance.__class__() call might be possible in future.
+        return node
 
     ### methods of builtin types
 
@@ -4425,6 +4433,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                 string_node.unicode_value = encoded_string(
                     string_node.unicode_value * multiplier,
                     string_node.unicode_value.encoding)
+            build_string = encoded_string if string_node.value.is_unicode else bytes_literal
         elif isinstance(string_node, ExprNodes.UnicodeNode):
             if string_node.bytes_value is not None:
                 string_node.bytes_value = bytes_literal(
@@ -4432,9 +4441,14 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                     string_node.bytes_value.encoding)
         else:
             assert False, "unknown string node type: %s" % type(string_node)
-        string_node.constant_result = string_node.value = build_string(
+        string_node.value = build_string(
             string_node.value * multiplier,
             string_node.value.encoding)
+        # follow constant-folding and use unicode_value in preference
+        if isinstance(string_node, ExprNodes.StringNode) and string_node.unicode_value is not None:
+            string_node.constant_result = string_node.unicode_value
+        else:
+            string_node.constant_result = string_node.value
         return string_node
 
     def _calculate_constant_seq(self, node, sequence_node, factor):

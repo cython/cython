@@ -1,5 +1,5 @@
 # mode: run
-# ticket: 731
+# ticket: t731
 # tag: locals, vars, dir
 
 cimport cython

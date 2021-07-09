@@ -1,5 +1,5 @@
 # mode: run
-# ticket: 5
+# ticket: t5
 
 # A small number of extra tests checking:
 # 1) this works correctly with pure-Python-mode decorators - methodmangling_pure.py.

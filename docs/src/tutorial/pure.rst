@@ -209,6 +209,23 @@ Here is an example of a :keyword:`cdef` function::
         return a == b
 
 
+cimports
+^^^^^^^^
+
+The special ``cython.cimports`` package name gives access to cimports
+in code that uses Python syntax.  Note that this does not mean that C
+libraries become available to Python code.  It only means that you can
+tell Cython what cimports you want to use, without requiring special
+syntax.  Running such code in plain Python will fail.
+
+.. literalinclude:: ../../examples/tutorial/pure/py_cimport.py
+
+Since such code must necessarily refer to the non-existing
+``cython.cimports`` 'package', the plain cimport form
+``cimport cython.cimports...`` is not available.
+You must use the form ``from cython.cimports...``.
+
+
 Further Cython functions and declarations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -322,6 +339,8 @@ improve the type analysis in Cython.
 
 Tips and Tricks
 ---------------
+
+.. _calling-c-functions:
 
 Calling C functions
 ^^^^^^^^^^^^^^^^^^^

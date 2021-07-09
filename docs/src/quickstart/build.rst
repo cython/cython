@@ -63,7 +63,7 @@ Cython can be used conveniently and interactively from a web browser
 through the Jupyter notebook.  To install Jupyter notebook, e.g. into a virtualenv,
 use pip:
 
-.. sourcecode:: bash
+.. code-block:: bash
 
     (venv)$ pip install jupyter
     (venv)$ jupyter notebook

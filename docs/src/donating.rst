@@ -1,3 +1,5 @@
+:orphan:
+
 🌷️ Thank you for your interest in supporting Cython! 🌷️
 =========================================================
 

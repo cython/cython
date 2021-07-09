@@ -149,8 +149,8 @@ def create_pipeline(context, mode, exclude_classes=()):
     from .ParseTreeTransforms import ExpandInplaceOperators, ParallelRangeTransform
     from .ParseTreeTransforms import CalculateQualifiedNamesTransform
     from .TypeInference import MarkParallelAssignments, MarkOverflowingArithmetic
-    from .ParseTreeTransforms import AdjustDefByDirectives, AlignFunctionDefinitions
-    from .ParseTreeTransforms import RemoveUnreachableCode, GilCheck
+    from .ParseTreeTransforms import AdjustDefByDirectives, AlignFunctionDefinitions, AutoCpdefFunctionDefinitions
+    from .ParseTreeTransforms import RemoveUnreachableCode, GilCheck, CoerceCppTemps
     from .FlowControl import ControlFlowAnalysis
     from .AnalysedTreeTransforms import AutoTestDictTransform
     from .AutoDocTransforms import EmbedSignature
@@ -186,10 +186,11 @@ def create_pipeline(context, mode, exclude_classes=()):
         TrackNumpyAttributes(),
         InterpretCompilerDirectives(context, context.compiler_directives),
         ParallelRangeTransform(context),
-        AdjustDefByDirectives(context),
         WithTransform(context),
-        MarkClosureVisitor(context),
+        AdjustDefByDirectives(context),
         _align_function_definitions,
+        MarkClosureVisitor(context),
+        AutoCpdefFunctionDefinitions(context),
         RemoveUnreachableCode(context),
         ConstantFolding(),
         FlattenInListTransform(),
@@ -220,6 +221,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         ConsolidateOverflowCheck(context),
         DropRefcountingTransform(),
         FinalOptimizePhase(context),
+        CoerceCppTemps(context),
         GilCheck(),
         ]
     filtered_stages = []

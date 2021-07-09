@@ -9,6 +9,7 @@ environment:
     WITH_ENV: "cmd /E:ON /V:ON /C .\\appveyor\\run_with_env.cmd"
     BACKEND: c
     PARALLEL: "-j4"
+    EXTRA_CFLAGS: ""
 
   matrix:
     - PYTHON: "C:\\Python27"
@@ -38,6 +39,11 @@ environment:
     - PYTHON: "C:\\Python38-x64"
       PYTHON_VERSION: "3.8"
       PYTHON_ARCH: "64"
+      EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1"
+
+    - PYTHON: "C:\\Python38-x64"
+      PYTHON_VERSION: "3.8"
+      PYTHON_ARCH: "64"
       BACKEND: c,cpp
 
     - PYTHON: "C:\\Python37"
@@ -48,6 +54,16 @@ environment:
     - PYTHON: "C:\\Python37-x64"
       PYTHON_VERSION: "3.7"
       PYTHON_ARCH: "64"
+
+    - PYTHON: "C:\\Python37-x64"
+      PYTHON_VERSION: "3.7"
+      PYTHON_ARCH: "64"
+      EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1"
+
+    - PYTHON: "C:\\Python37-x64"
+      PYTHON_VERSION: "3.7"
+      PYTHON_ARCH: "64"
+      BACKEND: cpp
 
     - PYTHON: "C:\\Python36"
       PYTHON_VERSION: "3.6"
@@ -108,7 +124,7 @@ test: off
 test_script:
   - "%PYTHON%\\Scripts\\pip.exe install -r test-requirements.txt"
   - "%PYTHON%\\Scripts\\pip.exe install win_unicode_console"
-  - "set CFLAGS=/Od /W3"
+  - "set CFLAGS=/Od /W3 %EXTRA_CFLAGS%"
   - "%WITH_ENV% %PYTHON%\\python.exe runtests.py -vv --backend=%BACKEND% --no-code-style -j5"
 
 artifacts:

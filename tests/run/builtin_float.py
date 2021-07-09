@@ -5,7 +5,7 @@ import cython
 import sys
 
 def fix_underscores(s):
-    if sys.version_info < (3, 6):
+    if sys.version_info < (3, 6) or getattr(sys, 'pypy_version_info', (9, 9)) < (3, 7, 4):
         # Py2 float() does not support PEP-515 underscore literals
         if isinstance(s, bytes):
             if not cython.compiled and b'_' in s:
@@ -44,6 +44,29 @@ def float_call_conjugate():
     return x
 
 
+def from_int(i):
+    """
+    >>> from_int(0)
+    0.0
+    >>> from_int(1)
+    1.0
+    >>> from_int(-1)
+    -1.0
+    >>> from_int(99)
+    99.0
+    >>> from_int(-99)
+    -99.0
+
+    >>> for exp in (14, 15, 16, 30, 31, 32, 52, 53, 54, 60, 61, 62, 63, 64):
+    ...     for sign in (1, 0, -1):
+    ...         value = (sign or 1) * 2**exp + sign
+    ...         float_value = from_int(value)
+    ...         assert float_value == float(value), "expected %s2**%s+%s == %r, got %r, difference %r" % (
+    ...             '-' if sign < 0 else '', exp, sign, float(value), float_value, float_value - float(value))
+    """
+    return float(i)
+
+
 @cython.test_assert_path_exists(
     "//CoerceToPyTypeNode",
     "//CoerceToPyTypeNode//PythonCapiCallNode",
@@ -60,6 +83,18 @@ def from_bytes(s: bytes):
     1.2413112312318938e+47
     >>> from_bytes(b"123E100")
     1.23e+102
+    >>> from_bytes(b"12__._3")  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ...12__._3...
+    >>> from_bytes(b"_12.3")  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ..._12.3...
+    >>> from_bytes(b"12.3_")  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ...12.3_...
+    >>> from_bytes(b"na_n")  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ...na_n...
     >>> from_bytes(None)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError...
@@ -95,6 +130,18 @@ def from_bytearray(s: bytearray):
     1.2413112312318938e+47
     >>> from_bytearray(bytearray(b"123E100"))
     1.23e+102
+    >>> from_bytearray(bytearray(b"12__._3"))  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ...12__._3...
+    >>> from_bytearray(bytearray(b"_12.3"))  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ..._12.3...
+    >>> from_bytearray(bytearray(b"12.3_"))  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ...12.3_...
+    >>> from_bytearray(bytearray(b"in_f"))  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ...in_f...
     >>> from_bytearray(None)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError...
@@ -118,6 +165,18 @@ def from_str(s: 'str'):
     1.2413112312318938e+47
     >>> from_str("123E100")
     1.23e+102
+    >>> from_str("12__._3")  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ...12__._3...
+    >>> from_str("_12.3")  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ..._12.3...
+    >>> from_str("12.3_")  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ...12.3_...
+    >>> from_str("n_an")  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ...n_an...
     >>> from_str(None)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError...
@@ -155,6 +214,32 @@ def from_unicode(s: 'unicode'):
     1.23e+102
     >>> from_unicode(u"123.23\\N{PUNCTUATION SPACE}")
     123.23
+    >>> from_unicode(u"\\N{PUNCTUATION SPACE} 123.23 \\N{PUNCTUATION SPACE}")
+    123.23
+    >>> from_unicode(fix_underscores(u"\\N{PUNCTUATION SPACE} 12_3.2_3 \\N{PUNCTUATION SPACE}"))
+    123.23
+    >>> from_unicode(u"\\N{PUNCTUATION SPACE} " * 25 + u"123.54 " + u"\\N{PUNCTUATION SPACE} " * 22)  # >= 40 chars
+    123.54
+    >>> from_unicode(fix_underscores(u"\\N{PUNCTUATION SPACE} " * 25 + u"1_23.5_4 " + u"\\N{PUNCTUATION SPACE} " * 22))
+    123.54
+    >>> from_unicode(u"\\N{PUNCTUATION SPACE} " + u"123.54 " * 2 + u"\\N{PUNCTUATION SPACE}")  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ...123.54 123.54...
+    >>> from_unicode(u"\\N{PUNCTUATION SPACE} " * 25 + u"123.54 " * 2 + u"\\N{PUNCTUATION SPACE} " * 22)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ...123.54 123.54...
+    >>> from_unicode(u"_12__._3")  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ..._12__._3...
+    >>> from_unicode(u"_12.3")  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ..._12.3...
+    >>> from_unicode(u"12.3_")  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ...12.3_...
+    >>> from_unicode(u"i_nf")  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ...i_nf...
     >>> from_unicode(None)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError...
@@ -172,3 +257,22 @@ def from_unicode_literals():
     (123.0, 123.23, 123.45, 1e+100, 123.23)
     """
     return float(u"123"), float(u"123.23"), float(fix_underscores(u"12_3.4_5")), float(u"1e100"), float(u"123.23\N{PUNCTUATION SPACE}")
+
+
+def catch_valueerror(val):
+    """
+    >>> catch_valueerror("foo")
+    False
+    >>> catch_valueerror(u"foo")
+    False
+    >>> catch_valueerror(b"foo")
+    False
+    >>> catch_valueerror(bytearray(b"foo"))
+    False
+    >>> catch_valueerror("-1")
+    -1.0
+    """
+    try:
+        return float(val)
+    except ValueError:
+        return False

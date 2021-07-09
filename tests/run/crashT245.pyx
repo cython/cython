@@ -1,4 +1,4 @@
-# ticket: 245
+# ticket: t245
 
 cimport crashT245_pxd
 

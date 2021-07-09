@@ -76,7 +76,7 @@ cdef extern from "<vector>" namespace "std" nogil:
         const_reverse_iterator const_rbegin "crbegin"()
         reverse_iterator rend()
         const_reverse_iterator const_rend "crend"()
-        void reserve(size_type)
+        void reserve(size_type) except +
         void resize(size_type) except +
         void resize(size_type, T&) except +
         size_type size()
@@ -85,4 +85,4 @@ cdef extern from "<vector>" namespace "std" nogil:
         # C++11 methods
         T* data()
         const T* const_data "data"()
-        void shrink_to_fit()
+        void shrink_to_fit() except +

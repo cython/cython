@@ -50,7 +50,9 @@ namespaces, similar to ``__init__.py`` files in Python.
 Continuing the integration example, we could package the module as follows:
 
 1.  Place the module files in a directory tree as one usually would for
-    Python::
+    Python:
+
+    .. code-block:: text
 
         CyIntegration/
         ├── __init__.pyx

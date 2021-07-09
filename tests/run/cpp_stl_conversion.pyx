@@ -15,7 +15,7 @@ py_set = set
 py_xrange = xrange
 py_unicode = unicode
 
-cdef string add_strings(string a, string b):
+cdef string add_strings(string a, string b) except *:
     return a + b
 
 def normalize(bytes b):
@@ -96,6 +96,23 @@ def test_int_vector(o):
     """
     cdef vector[int] v = o
     return v
+
+cdef vector[int] takes_vector(vector[int] x):
+    return x
+
+def test_list_literal_to_vector():
+    """
+    >>> test_list_literal_to_vector()
+    [1, 2, 3]
+    """
+    return takes_vector([1, 2, 3])
+
+def test_tuple_literal_to_vector():
+    """
+    >>> test_tuple_literal_to_vector()
+    [1, 2, 3]
+    """
+    return takes_vector((1, 2, 3))
 
 def test_string_vector(s):
     """
@@ -241,3 +258,14 @@ def test_enum_map(o):
     """
     cdef map[Color, Color] m = o
     return m
+
+cdef map[unsigned int, unsigned int] takes_map(map[unsigned int, unsigned int] m):
+    return m
+
+def test_dict_literal_to_map():
+    """
+    >>> test_dict_literal_to_map()
+    {1: 1}
+    """
+    return takes_map({1: 1})  # https://github.com/cython/cython/pull/4228
+                              # DictNode could not be converted directly

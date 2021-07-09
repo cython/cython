@@ -1,4 +1,4 @@
-# ticket: 355
+# ticket: t355
 # mode: compile
 
 ctypedef public class Time [type MyTime_Type, object MyTimeObject]:
