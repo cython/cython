@@ -10,7 +10,7 @@ from libcpp.algorithm cimport copy, copy_if, copy_n, copy_backward, move, move_b
 from libcpp.algorithm cimport generate, generate_n, remove, remove_if, remove_copy, remove_copy_if, replace, replace_if
 from libcpp.algorithm cimport replace_copy, replace_copy_if, swap, swap_ranges, iter_swap, reverse, reverse_copy
 from libcpp.algorithm cimport rotate, rotate_copy, unique, unique_copy
-from libcpp.algorithm cimport sort, upper_bound, min_element
+from libcpp.algorithm cimport sort, upper_bound, min_element, max_element
 from libcpp.iterator cimport back_inserter
 from libcpp.string cimport string
 from libcpp.vector cimport vector
@@ -316,17 +316,19 @@ def test_swap_ranges():
     print(a, b)
 
 
-def selection_sort(vector[int] values):
+def selection_sort(vector[int] values, reversed=False):
     """
-    Test iter_swap using cppreference example.
+    Test iter_swap using cppreference example. Extra "reversed argument tests max_element
 
     >>> selection_sort([-7, 6, 2, 4, -1, 6, -9, -1, 2, -5, 10, -9, -5, -3, -5, -3, 6, 6, 1, 8])
     [-9, -9, -7, -5, -5, -5, -3, -3, -1, -1, 1, 2, 2, 4, 6, 6, 6, 6, 8, 10]
+    >>> selection_sort([-7, 6, 2, 4, -1, 6, -9, -1, 2, -5, 10, -9, -5, -3, -5, -3, 6, 6, 1, 8], reversed)
+    [10, 8, 6, 6, 6, 6, 4, 2, 2, 1, -1, -1, -3, -3, -5, -5, -5, -7, -9, -9]
     """
     i = values.begin()
     end = values.end()
     while i < end:
-        iter_swap(i, min_element(i, end))
+        iter_swap(i, min_element(i, end) if not reversed else max_element(i,end))
         preincrement(i)
     return values
 
