@@ -53,6 +53,15 @@ cdef extern from "Python.h":
     # before, undefined behavior occurs. If p is NULL, no operation is
     # performed.
 
+    void* PyMem_RawCalloc(size_t nelem, size_t elsize) nogil
+    void* PyMem_Calloc(size_t nelem, size_t elsize)
+    # Allocates nelem elements each whose size in bytes is elsize and
+    # returns a pointer of type void* to the allocated memory, or NULL
+    # if the request fails. The memory is initialized to zeros.
+    # Requesting zero elements or elements of size zero bytes returns a
+    # distinct non-NULL pointer if possible, as if PyMem_Calloc(1, 1)
+    # had been called instead.
+
     # The following type-oriented macros are provided for
     # convenience. Note that TYPE refers to any C type.
 
