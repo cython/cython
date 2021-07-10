@@ -1,7 +1,5 @@
 # mode: run
 # tag: cpp
-# tag: no-cpp-locals
-# FIXME - cpp_locals should work but doesn't
 
 from libcpp.vector cimport vector
 

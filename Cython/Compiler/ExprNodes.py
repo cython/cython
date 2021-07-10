@@ -2899,6 +2899,7 @@ class CppIteratorNode(ExprNode):
     # Created at the analyse_types stage by IteratorNode
     cpp_sequence_cname = None
     cpp_attribute_op = "."
+    extra_dereference = ""
     is_temp = True
 
     subexprs = ['sequence']
@@ -2923,6 +2924,8 @@ class CppIteratorNode(ExprNode):
             return self
         iter_type = begin.type.return_type
         if iter_type.is_cpp_class:
+            if env.directives['cpp_locals']:
+                self.extra_dereference = "*"
             if env.lookup_operator_for_types(
                     self.pos,
                     "!=",
@@ -2967,7 +2970,7 @@ class CppIteratorNode(ExprNode):
                     #    make the temp a pointer so we are not sensitive to users reassigning
                     #    the pointer than it came from
                     temp_type = PyrexTypes.CPtrType(sequence_type.ref_base_type)
-                if temp_type.is_ptr:
+                if temp_type.is_ptr or code.funcstate.scope.directives['cpp_locals']:
                     self.cpp_attribute_op = "->"
                 # 3) (otherwise) sequence comes from a function call or similar, so we must
                 #    create a temp to store it in
@@ -2981,14 +2984,16 @@ class CppIteratorNode(ExprNode):
     def generate_iter_next_result_code(self, result_name, code):
         # end call isn't cached to support containers that allow adding while iterating
         # (much as this is usually a bad idea)
-        code.putln("if (!(%s != %s%send())) break;" % (
+        code.putln("if (!(%s%s != %s%send())) break;" % (
+                        self.extra_dereference,
                         self.result(),
                         self.cpp_sequence_cname or self.sequence.result(),
                         self.cpp_attribute_op))
-        code.putln("%s = *%s;" % (
+        code.putln("%s = *%s%s;" % (
                         result_name,
+                        self.extra_dereference,
                         self.result()))
-        code.putln("++%s;" % self.result())
+        code.putln("++%s%s;" % (self.extra_dereference, self.result()))
 
     def free_temps(self, code):
         if self.cpp_sequence_cname:
