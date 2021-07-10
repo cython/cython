@@ -9,7 +9,7 @@ from Cython.TestUtils import (
     CythonTest, clear_function_and_Dependencies_caches, fresh_cythonize,
     relative_lines_from_file, write_file, write_newer_file)
 
-SAME = "The result of cytonization is the same"
+SAME = "The result of cythonization is the same"
 INCORRECT = "Incorrect cythonization"
 LINE_BEFORE_IMPLEMENTATION = '  /* "{filename}":{at_line}\n'
 VARS_LINE = '  /*--- Wrapped vars code ---*/\n'
