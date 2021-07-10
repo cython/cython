@@ -1,12 +1,10 @@
-import difflib
 import glob
 import gzip
 import os
 import tempfile
 
-import Cython.Build.Dependencies
-import Cython.Utils
-from Cython.TestUtils import CythonTest, write_file, fresh_cythonize, relative_lines_from_file
+from Cython.TestUtils import (CythonTest, write_file, fresh_cythonize,
+                              relative_lines_from_file)
 
 SAME = "The result of cytonization is the same"
 INCORRECT = "Incorrect cythonization"
@@ -43,7 +41,7 @@ class TestCyCache(CythonTest):
         content2 = 'value = 2\n'
         a_pyx = os.path.join(self.src_dir, a_filename)
         a_c = a_pyx[:-4] + '.c'
-        
+
         module_line_1 = LINE_BEFORE_IMPLEMENTATION.format(
             filename=a_filename, at_line=1)
         definition_1 = "PyDict_SetItem(__pyx_d, __pyx_n_s_value, __pyx_int_1)"
