@@ -6,7 +6,7 @@ import tempfile
 from Cython.TestUtils import (CythonTest, write_file, fresh_cythonize,
                               relative_lines_from_file)
 
-SAME = "The result of cytonization is the same"
+SAME = "The result of cythonization is the same"
 INCORRECT = "Incorrect cythonization"
 LINE_BEFORE_IMPLEMENTATION = '  /* "{filename}":{at_line}\n'
 VARS_LINE = '  /*--- Wrapped vars code ---*/\n'
