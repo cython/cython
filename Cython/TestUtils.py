@@ -56,6 +56,7 @@ def treetypes(root):
 
 
 class CythonTest(unittest.TestCase):
+    longMessage = True  # for consistency between python versions
 
     def setUp(self):
         self.listing_file = Errors.listing_file
