@@ -1,7 +1,6 @@
 import os
 import shutil
 import tempfile
-import time
 
 import Cython.Build.Dependencies
 import Cython.Utils
