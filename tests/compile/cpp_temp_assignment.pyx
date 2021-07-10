@@ -1,5 +1,7 @@
 # tag: cpp,cpp11
-# mode: compile
+# mode: compile, no-cpp-locals
+# TODO cpp_locals works fine with the standard library that comes with gcc11
+# but not with gcc8. Therefore disable the test for now
 
 cdef extern from *:
     """
