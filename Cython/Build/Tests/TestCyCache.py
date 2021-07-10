@@ -3,8 +3,8 @@ import gzip
 import os
 import tempfile
 
-from Cython.TestUtils import (CythonTest, write_file, fresh_cythonize,
-                              relative_lines_from_file)
+from Cython.TestUtils import (
+    CythonTest, fresh_cythonize, relative_lines_from_file, write_file)
 
 SAME = "The result of cythonization is the same"
 INCORRECT = "Incorrect cythonization"
