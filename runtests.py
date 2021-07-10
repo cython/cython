@@ -831,8 +831,6 @@ class TestBuilder(object):
                 'cpp' in tags['tag'] and not 'no-cpp-locals' in tags['tag']):
             languages = list(languages)
             languages.append('cpp_locals')
-            if module.find("exthash") != -1:
-                import pdb; pdb.set_trace()
         if not languages:
             return []
 
