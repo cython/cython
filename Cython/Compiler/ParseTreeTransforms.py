@@ -213,7 +213,8 @@ class PostParse(ScopeTrackingTransform):
         node.def_node = Nodes.DefNode(
             node.pos, name=node.name, doc=None,
             args=[], star_arg=None, starstar_arg=None,
-            body=node.loop, is_async_def=collector.has_await)
+            body=node.loop, is_async_def=collector.has_await,
+            is_generator_expression=True)
         self.visitchildren(node)
         return node
 
@@ -2220,7 +2221,7 @@ if VALUE is not None:
         env = self.current_env()
         node.analyse_declarations(env)
         # the node may or may not have a local scope
-        if node.has_local_scope:
+        if node.expr_scope:
             self.seen_vars_stack.append(set(self.seen_vars_stack[-1]))
             self.enter_scope(node, node.expr_scope)
             node.analyse_scoped_declarations(node.expr_scope)
@@ -2228,6 +2229,7 @@ if VALUE is not None:
             self.exit_scope()
             self.seen_vars_stack.pop()
         else:
+
             node.analyse_scoped_declarations(env)
             self.visitchildren(node)
         return node
@@ -2916,7 +2918,8 @@ class MarkClosureVisitor(CythonTransform):
             star_arg=node.star_arg, starstar_arg=node.starstar_arg,
             doc=node.doc, decorators=node.decorators,
             gbody=gbody, lambda_name=node.lambda_name,
-            return_type_annotation=node.return_type_annotation)
+            return_type_annotation=node.return_type_annotation,
+            is_generator_expression=node.is_generator_expression)
         return coroutine
 
     def visit_CFuncDefNode(self, node):

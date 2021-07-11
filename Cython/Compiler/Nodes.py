@@ -1738,6 +1738,7 @@ class FuncDefNode(StatNode, BlockNode):
     needs_outer_scope = False
     pymethdef_required = False
     is_generator = False
+    is_generator_expression = False  # this can be True alongside is_generator
     is_coroutine = False
     is_asyncgen = False
     is_generator_body = False
@@ -1811,6 +1812,8 @@ class FuncDefNode(StatNode, BlockNode):
                                 outer_scope=genv,
                                 parent_scope=env,
                                 scope_name=self.entry.cname)
+            if self.is_generator_expression:
+                lenv.is_generator_expression_scope = True
         else:
             lenv = LocalScope(name=self.entry.name,
                               outer_scope=genv,

@@ -761,19 +761,6 @@ class ControlFlowAnalysis(CythonTransform):
     def visit_CTypeDefNode(self, node):
         return node
 
-    def visit_IteratorNode(self, node):
-        if node.outer_scope:
-            self.env_stack.append(self.env)
-            self.env = node.outer_scope
-            flow = self.flow
-            self.flow = self.flows[self.env]
-            self.visitchildren(node)
-            self.flow = flow
-            self.env = self.env_stack.pop()
-        else:
-            self.visitchildren(node)
-        return node
-
     def mark_assignment(self, lhs, rhs=None, rhs_scope=None):
         if not self.flow.block:
             return
@@ -988,7 +975,7 @@ class ControlFlowAnalysis(CythonTransform):
         is_special = False
         sequence = node.iterator.sequence
         target = node.target
-        env = node.iterator.outer_scope or self.env
+        env = node.iterator.expr_scope or self.env
         if isinstance(sequence, ExprNodes.SimpleCallNode):
             function = sequence.function
             if sequence.self is None and function.is_name:
@@ -1018,14 +1005,14 @@ class ControlFlowAnalysis(CythonTransform):
                     if function.name in ('range', 'xrange'):
                         is_special = True
                         for arg in sequence.args[:2]:
-                            self.mark_assignment(target, arg, rhs_scope=node.iterator.outer_scope)
+                            self.mark_assignment(target, arg, rhs_scope=node.iterator.expr_scope)
                         if len(sequence.args) > 2:
                             self.mark_assignment(target, self.constant_folder(
                                 ExprNodes.binop_node(node.pos,
                                                      '+',
                                                      sequence.args[0],
                                                      sequence.args[2])),
-                                                rhs_scope=node.iterator.outer_scope)
+                                                rhs_scope=node.iterator.expr_scope)
 
         if not is_special:
             # A for-loop basically translates to subsequent calls to
@@ -1034,7 +1021,7 @@ class ControlFlowAnalysis(CythonTransform):
             # Python strings, etc., while correctly falling back to an
             # object type when the base type cannot be handled.
 
-            self.mark_assignment(target, node.item, rhs_scope=node.iterator.outer_scope)
+            self.mark_assignment(target, node.item, rhs_scope=node.iterator.expr_scope)
 
     def visit_AsyncForStatNode(self, node):
         return self.visit_ForInStatNode(node)
@@ -1336,15 +1323,20 @@ class ControlFlowAnalysis(CythonTransform):
             self.env = self.env_stack.pop()
         return node
 
-    def visit_ScopedExprNode(self, node):
+    def visit_IteratorNode(self, node):
         if node.expr_scope:
             self.env_stack.append(self.env)
             self.env = node.expr_scope
-            self.flows[self.env] = self.flow
+            flow = self.flow
+            self.flow = self.flows[self.env]
         self.visitchildren(node)
         if node.expr_scope:
+            self.flow = flow
             self.env = self.env_stack.pop()
         return node
+
+    def visit_ScopedExprNode(self, node):
+        assert False  # should be covered by either visit_ComprehensionNode or visit_IteratorNode
 
     def visit_PyClassDefNode(self, node):
         self.visitchildren(node, ('dict', 'metaclass',
