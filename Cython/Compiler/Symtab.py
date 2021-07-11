@@ -330,6 +330,7 @@ class Scope(object):
     # is_py_class_scope boolean            Is a Python class scope
     # is_c_class_scope  boolean            Is an extension type scope
     # is_closure_scope  boolean            Is a closure scope
+    # is_generator_expression_scope boolean   A subset of closure scope used for generator expressions
     # is_passthrough    boolean            Outer scope is passed directly
     # is_cpp_class_scope  boolean          Is a C++ class scope
     # is_property_scope boolean            Is a extension type property scope
@@ -346,6 +347,8 @@ class Scope(object):
     is_py_class_scope = 0
     is_c_class_scope = 0
     is_closure_scope = 0
+    is_generator_expression_scope = 0  # note - distinct from "is_gexpr_scope" which no longer refers to
+                        # generator expressions (see PR #4275)
     is_genexpr_scope = 0
     is_passthrough = 0
     is_cpp_class_scope = 0
@@ -2010,12 +2013,10 @@ class GeneratorExpressionScope(Scope):
 class ClosureScope(LocalScope):
 
     is_closure_scope = True
-    is_genexpr_closure = False
 
-    def __init__(self, name, scope_name, outer_scope, parent_scope=None, is_genexpr_closure=False):
+    def __init__(self, name, scope_name, outer_scope, parent_scope=None):
         LocalScope.__init__(self, name, outer_scope, parent_scope)
         self.closure_cname = "%s%s" % (Naming.closure_scope_prefix, scope_name)
-        self.is_genexpr_closure = is_genexpr_closure
 
 #    def mangle_closure_cnames(self, scope_var):
 #        for entry in self.entries.values() + self.temp_entries:
@@ -2030,7 +2031,7 @@ class ClosureScope(LocalScope):
         return LocalScope.declare_pyfunction(self, name, pos, allow_redefine, visibility='private')
 
     def declare_assignment_expression_target(self, name, type, pos):
-        if self.is_genexpr_closure:
+        if self.is_generator_expression_scope:
             entry = self.parent_scope.declare_var(name, type, pos)
             entry.in_closure = True
             inner_entry = InnerEntry(entry, self)
@@ -2041,7 +2042,7 @@ class ClosureScope(LocalScope):
 
     def lookup_assignment_expression_target(self, name):
         entry = self.lookup_here(name)
-        if not entry and self.is_genexpr_closure:
+        if not entry and self.is_generator_expression_scope:
             entry = self.parent_scope.lookup_assignment_expression_target(name)
             if entry:
                 entry.in_closure = True

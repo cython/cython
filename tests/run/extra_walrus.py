@@ -48,3 +48,11 @@ def avoid_extra_coercion(x : cython.double):
     """
     y : object = "I'm an object"
     return (y := x)
+
+async def async_func():
+    """
+    DW doesn't understand async functions well enough to make it a runtime test, but it was causing
+    a compile-time failure at one point
+    """
+    if variable := 1:
+        pass
