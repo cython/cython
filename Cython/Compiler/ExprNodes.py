@@ -8360,7 +8360,7 @@ class ScopedExprNode(ExprNode):
         if expr_scope is not None:
             self.expr_scope = expr_scope
         elif self.has_local_scope:
-            self.expr_scope = Symtab.GeneratorExpressionScope(outer_scope)
+            self.expr_scope = Symtab.ComprehensionScope(outer_scope)
         else:
             self.expr_scope = None
 
