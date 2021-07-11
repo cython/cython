@@ -461,7 +461,15 @@ about object parameters in C functions.
 To create a borrowed reference, specify the parameter type as ``PyObject*``.
 Cython won't perform automatic ``Py_INCREF``, or ``Py_DECREF``, e.g.:
 
-.. literalinclude:: ../../examples/userguide/language_basics/parameter_refcount.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/language_basics/parameter_refcount.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/language_basics/parameter_refcount.pyx
 
 will display::
 
