@@ -1433,7 +1433,7 @@ class _GeneratorExpressionArgumentsMarker(TreeVisitor, SkipDeclarations):
 class MarkGeneratorExpressionArguments(VisitorTransform, SkipDeclarations):
     def visit_GeneratorExpressionNode(self, node):
         self.visitchildren(node)
-        if not isinstance(node.loop, Nodes.ForInStatNode):
+        if not isinstance(node.loop, Nodes._ForInStatNode):
             # Possibly should handle ForFromStatNode
             # but for now do nothing
             return node
@@ -1453,7 +1453,10 @@ class HandleGeneratorArguments(VisitorTransform, SkipDeclarations):
     call_parameters = None
 
     def visit_GeneratorExpressionNode(self, node):
-        self.gen_node = node
+          # a generator can also be substituted itself, so handle that case first
+        new_node = self._handle_ExprNode(node, do_visit_children=False)
+
+        old_gen_node, self.gen_node = self.gen_node, node
         # make a copy and of the arguments and replace it afterwards, since
         # otherwise it gets messed up by the "visitchildren" process
         args = self.args
@@ -1468,9 +1471,9 @@ class HandleGeneratorArguments(VisitorTransform, SkipDeclarations):
         node.call_parameters = self.call_parameters
         self.args = args
         self.call_parameters = call_parameters
-        return node
+        return new_node
 
-    def visit_ExprNode(self, node):
+    def _handle_ExprNode(self, node, do_visit_children):
         if (node.generator_arg_tag is not None and self.gen_node is not None and
                 self.gen_node == node.generator_arg_tag[1]):
             pos = node.pos
@@ -1479,7 +1482,6 @@ class HandleGeneratorArguments(VisitorTransform, SkipDeclarations):
             #  { locals() for v in range(10) }
             # will produce "v" and ".0"). We don't replicate this behaviour completely
             # but use it as a starting point
-            #name_source = #node.name if node.is_name else node.generator_arg_tag[0]
             name_source = node.generator_arg_tag[0]
             name = EncodedString(".{0}".format(name_source))
             def_node = self.gen_node.def_node
@@ -1508,19 +1510,24 @@ class HandleGeneratorArguments(VisitorTransform, SkipDeclarations):
                 new_arg.entry.cname = cname
                 new_arg.entry.in_closure = True
 
-            # now visit the Nodes's children (but remove self.gen_node to not to further
-            # argument substitution)
-            gen_node, self.gen_node = self.gen_node, None
-            self.visitchildren(node)
-            self.gen_node = gen_node
+            if do_visit_children:
+                # now visit the Nodes's children (but remove self.gen_node to not to further
+                # argument substitution)
+                gen_node, self.gen_node = self.gen_node, None
+                self.visitchildren(node)
+                self.gen_node = gen_node
 
             # replace the node inside the generator with a looked-up name
             name_node = ExprNodes.NameNode(pos=pos, name=name)
             name_node.entry = self.gen_node.def_node.gbody.local_scope.lookup(name_node.name)
             name_node.type = name_node.entry.type
             return name_node
-        self.visitchildren(node)
+        if do_visit_children:
+            self.visitchildren(node)
         return node
+
+    def visit_ExprNode(self, node):
+        return self._handle_ExprNode(node, True)
 
     visit_Node = VisitorTransform.recurse_to_children
 
