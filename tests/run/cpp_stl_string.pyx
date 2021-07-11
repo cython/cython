@@ -3,7 +3,7 @@
 
 cimport cython
 
-from libcpp.string cimport string, to_string
+from libcpp.string cimport string, npos, to_string, stoi, stof
 
 b_asdf = b'asdf'
 b_asdg = b'asdg'
@@ -102,6 +102,15 @@ def test_push_back(char *a):
     s.push_back(<char>ord('s'))
     return s.c_str()
 
+def test_pop_back(char *a):
+    """
+    >>> test_pop_back(b'abc') == b'ab'
+    True
+    """
+    cdef string s = string(a)
+    s.pop_back()
+    return s
+
 def test_insert(char *a, char *b, int i):
     """
     >>> test_insert('AAAA'.encode('ASCII'), 'BBBB'.encode('ASCII'), 2) == 'AABBBBAA'.encode('ASCII')
@@ -133,6 +142,17 @@ def test_find(char *a, char *b):
     cdef size_t i = s.find(t)
     return i
 
+def test_npos(char *a, char *b):
+    """
+    >>> test_npos(b'abc', b'x')
+    True
+    >>> test_npos(b'abc', b'a')
+    False
+    """
+    cdef string s = string(a)
+    cdef string st = string(b)
+    return s.find(st) == npos
+
 def test_clear():
     """
     >>> test_clear() == ''.encode('ASCII')
@@ -141,6 +161,18 @@ def test_clear():
     cdef string s = string(<char *>"asdf")
     s.clear()
     return s.c_str()
+
+def test_erase(char *a, size_t pos=0, size_t count=npos):
+    """
+    >>> test_erase(b'abc') == b''
+    True
+    >>> test_erase(b'abc', 1) == b'a'
+    True
+    >>> test_erase(b'abc', 1, 1) == b'ac'
+    True
+    """
+    cdef string s = string(a)
+    return s.erase(pos, count)
 
 def test_assign(char *a):
     """
@@ -357,6 +389,22 @@ def test_to_string(x):
     sl = to_string(<long>x).decode('ascii')
     return f"si={si} sl={sl}"
 
+
+def test_stoi(char *a):
+    """
+    >>> test_stoi(b'5')
+    5
+    """
+    cdef string s = string(a)
+    return stoi(s)
+
+def test_stof(char *a):
+    """
+    >>> test_stof(b'5.5')
+    5.5
+    """
+    cdef string s = string(a)
+    return stof(s)
 
 _WARNINGS = """
 21:31: Cannot pass Python object as C++ data structure reference (string &), will pass by copy.
