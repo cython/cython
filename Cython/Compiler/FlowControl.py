@@ -1323,7 +1323,10 @@ class ControlFlowAnalysis(CythonTransform):
             self.env = self.env_stack.pop()
         return node
 
-    def visit_IteratorNode(self, node):
+    def visit_ScopedExprNode(self, node):
+        # currently this is written to deal with these two types
+        # (with comprehensions covered in their own function)
+        assert isinstance(node, (ExprNodes.IteratorNode, ExprNodes.AsyncIteratorNode)), node
         if node.expr_scope:
             self.env_stack.append(self.env)
             self.env = node.expr_scope
@@ -1334,9 +1337,6 @@ class ControlFlowAnalysis(CythonTransform):
             self.flow = flow
             self.env = self.env_stack.pop()
         return node
-
-    def visit_ScopedExprNode(self, node):
-        assert False  # should be covered by either visit_ComprehensionNode or visit_IteratorNode
 
     def visit_PyClassDefNode(self, node):
         self.visitchildren(node, ('dict', 'metaclass',

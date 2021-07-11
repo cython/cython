@@ -2808,10 +2808,6 @@ class IteratorNode(ScopedExprNode):
 
     subexprs = ['sequence']
 
-    def analyse_declarations(self, env):
-        if env.is_comprehension_scope or env.is_generator_expression_scope:
-            self.init_scope(None, env.outer_scope)
-
     def analyse_types(self, env):
         if self.expr_scope:
             env = self.expr_scope  # actually evaluate sequence in this scope instead
@@ -3144,7 +3140,7 @@ class NextNode(AtomicExprNode):
         self.iterator.generate_iter_next_result_code(self.result(), code)
 
 
-class AsyncIteratorNode(ExprNode):
+class AsyncIteratorNode(ScopedExprNode):
     #  Used as part of 'async for' statement implementation.
     #
     #  Implements result = sequence.__aiter__()
@@ -3156,6 +3152,7 @@ class AsyncIteratorNode(ExprNode):
     is_async = True
     type = py_object_type
     is_temp = 1
+    has_local_scope = False
 
     def infer_type(self, env):
         return py_object_type
@@ -8450,6 +8447,12 @@ class ComprehensionNode(ScopedExprNode):
     def analyse_declarations(self, env):
         self.append.target = self  # this is used in the PyList_Append of the inner loop
         self.init_scope(env)
+        # setup loop scope
+        if isinstance(self.loop, Nodes._ForInStatNode):
+            assert isinstance(self.loop.iterator, ScopedExprNode), self.loop.iterator
+            self.loop.iterator.init_scope(None, env)
+        else:
+            assert isinstance(self.loop, Nodes.ForFromStatNode), self.loop
 
     def analyse_scoped_declarations(self, env):
         self.loop.analyse_declarations(env)
@@ -9881,6 +9884,12 @@ class GeneratorExpressionNode(LambdaNode):
         self.def_node.is_cyfunction = False
         # Force genexpr signature
         self.def_node.entry.signature = TypeSlots.pyfunction_noargs
+        # setup loop scope
+        if isinstance(self.loop, Nodes._ForInStatNode):
+            assert isinstance(self.loop.iterator, ScopedExprNode)
+            self.loop.iterator.init_scope(None, env)
+        else:
+            assert isinstance(self.loop, Nodes.ForFromStatNode)
 
     def generate_result_code(self, code):
         args_to_call = ([self.closure_result_code()] +
