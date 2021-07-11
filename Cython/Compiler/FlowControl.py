@@ -994,7 +994,7 @@ class ControlFlowAnalysis(CythonTransform):
                                         target.args[0],
                                         ExprNodes.IntNode(target.pos, value='PY_SSIZE_T_MAX',
                                                           type=PyrexTypes.c_py_ssize_t_type),
-                                        rhs_scope=node.iterator.outer_scope)
+                                        rhs_scope=node.iterator.expr_scope)
                                     target = target.args[1]
                                     sequence = sequence.args[0]
         if isinstance(sequence, ExprNodes.SimpleCallNode):
