@@ -3158,6 +3158,8 @@ class AsyncIteratorNode(ScopedExprNode):
         return py_object_type
 
     def analyse_types(self, env):
+        if self.expr_scope:
+            env = self.expr_scope
         self.sequence = self.sequence.analyse_types(env)
         if not self.sequence.type.is_pyobject:
             error(self.pos, "async for loops not allowed on C/C++ types")
