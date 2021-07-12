@@ -1,12 +1,16 @@
 # -*- coding: utf-8 -*-
 
 import os.path
-import unittest
+import shutil
 import tempfile
 import textwrap
-import shutil
+import unittest
+from copy import deepcopy
 
-from ..TestUtils import write_file, write_newer_file
+from Cython import Utils
+from Cython.TestUtils import (
+    filled_function_caches, number_of_filled_caches,
+    sandbox_for_function_caches, write_file, write_newer_file)
 
 
 class TestTestUtils(unittest.TestCase):
