@@ -23,6 +23,8 @@ class TestTestUtils(unittest.TestCase):
             shutil.rmtree(self.temp_dir)
         super(TestTestUtils, self).tearDown()
 
+    ################################# Writing ##################################
+
     def _test_path(self, filename):
         return os.path.join(self.temp_dir, filename)
 
@@ -72,3 +74,56 @@ class TestTestUtils(unittest.TestCase):
         self.assertFalse(os.path.exists(file_path))
         write_newer_file(file_path, file_path, "xyz")
         self.assertTrue(os.path.isfile(file_path))
+
+    ################################# Sandbox ##################################
+
+    def _sandbox_set_up(self):
+        Utils._function_caches = self._function_caches
+
+    def sandboxed(self):
+        # setup value
+        self.assertEqual(Utils._function_caches, self._function_caches)
+
+        Utils._function_caches = [
+            "What is the airspeed velocity of an unladen swallow?",
+            "I don't know that"]
+
+    def _test_sandbox_for_function_caches(self, add_setup_func, asserted):
+        self.assertFalse(hasattr(self, "set_up_test_in_sandbox"))
+        if add_setup_func:
+            self.set_up_test_in_sandbox = self._sandbox_set_up
+
+        caches_before = Utils._function_caches
+        caches_contents = Utils._function_caches[:]
+        caches_copy = deepcopy(Utils._function_caches)
+
+        sandboxed = sandbox_for_function_caches(asserted)(self.sandboxed)
+
+        self.assertIs(caches_before, Utils._function_caches)
+        self.assertEqual(caches_copy, Utils._function_caches)
+        for cache1, cache2 in zip(caches_contents, Utils._function_caches):
+            # each cache is still linked with its own decorator
+            self.assertIs(cache1, cache2)
+
+        if add_setup_func:
+            del self.set_up_test_in_sandbox
+        self.assertFalse(hasattr(self, "set_up_test_in_sandbox"))
+
+    def _test_sandbox(self, *args, **kwargs):
+        self._function_caches = []
+        self._test_sandbox_for_function_caches(*args, **kwargs)
+
+        self._function_caches = [1, 2, 3]
+        self._test_sandbox_for_function_caches(*args, **kwargs)
+
+    def test_sandbox_with_setup(self):
+        self._test_sandbox(add_setup_func=True, asserted=False)
+
+    def test_sandbox_without_setup(self):
+        self._test_sandbox(add_setup_func=False, asserted=False)
+
+    def test_asserted_sandbox_with_setup(self):
+        self._test_sandbox(add_setup_func=True, asserted=True)
+
+    def test_asserted_sandbox_without_setup(self):
+        self._test_sandbox(add_setup_func=False, asserted=True)
