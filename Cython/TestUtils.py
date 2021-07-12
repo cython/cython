@@ -332,3 +332,31 @@ def filled_function_caches():
 
 def number_of_filled_caches():
     return len(list(filled_function_caches()))
+
+
+# or function_caches_sandbox
+def sandbox_for_function_caches(asserted=True):
+    """Isolates the function from `_function_caches`, and replaces
+    `_function_caches` with empty for the duration of the function,
+    and then replaces it back with the original
+    Use set_up_test_in_sandbox function to setup test"""
+
+    def decorator(function):
+        def wrapper(self):
+            _function_caches_before = Utils._function_caches
+            Utils._function_caches = []
+            if asserted:
+                self.assertEqual(number_of_filled_caches(), 0)
+
+            try:
+                self.set_up_test_in_sandbox()
+            except AttributeError: pass
+
+            function(self)
+
+            Utils._function_caches = _function_caches_before
+            if asserted:
+                self.assertEqual(number_of_filled_caches(), 0)
+
+        return wrapper
+    return decorator
