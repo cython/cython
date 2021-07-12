@@ -29,6 +29,9 @@ from . import __version__ as cython_version
 
 PACKAGE_FILES = ("__init__.py", "__init__.pyc", "__init__.pyx", "__init__.pxd")
 
+_CACHE_METHOD_NAME = "__{0}_cache"
+_METHOD_CACHE_PATTERN = re.compile(r"^__(.+)_cache$")
+
 modification_time = os.path.getmtime
 
 _function_caches = []
@@ -54,22 +57,28 @@ def cached_function(f):
     return wrapper
 
 
-def clear_method_caches(instance):
-    pattern = re.compile(r"^__(.+)_cache$")
+def method_and_cache_names(instance):
+    """Yields the method name and cache name,
+    the cache name already exists in the instance,
+    whereas the method name may be missing"""
 
     for attr_name in dir(instance):
-        match = pattern.match(attr_name)
+        match = _METHOD_CACHE_PATTERN.match(attr_name)
         if match is None:
             continue
 
-        func_name = match.group(1)
-        # additional check that the function exists
-        if getattr(instance, func_name, None) is not None:
-            delattr(instance, attr_name)
+        yield match.group(1), attr_name
+
+
+def clear_method_caches(instance):
+    for method_name, cache_name in method_and_cache_names(instance):
+        # additional check that the method exists
+        if getattr(instance, method_name, None) is not None:
+            delattr(instance, cache_name)
 
 
 def cached_method(f):
-    cache_name = '__%s_cache' % f.__name__
+    cache_name = _CACHE_METHOD_NAME.format(f.__name__)
 
     def wrapper(self, *args):
         cache = getattr(self, cache_name, None)
