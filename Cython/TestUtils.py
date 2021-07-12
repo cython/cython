@@ -322,3 +322,13 @@ def write_newer_file(file_path, newer_than, content, dedent=False):
 
     while other_time is None or other_time >= os.path.getmtime(file_path):
         touch_file(file_path)
+
+
+def filled_function_caches():
+    for cache in Utils._function_caches:
+        if len(cache) != 0:
+            yield cache
+
+
+def number_of_filled_caches():
+    return len(list(filled_function_caches()))
