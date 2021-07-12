@@ -1,6 +1,9 @@
 import unittest
 
-from ..Utils import build_hex_version
+from Cython.Utils import (
+    _CACHE_METHOD_NAME, _METHOD_CACHE_PATTERN, build_hex_version,
+    cached_function, cached_method, clear_function_caches, clear_method_caches,
+    method_and_cache_names)
 
 class TestCythonUtils(unittest.TestCase):
     def test_build_hex_version(self):
