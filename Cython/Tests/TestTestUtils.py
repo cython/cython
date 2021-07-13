@@ -85,8 +85,9 @@ class TestTestUtils(unittest.TestCase):
         self.assertEqual(Utils._function_caches, self._function_caches)
 
         Utils._function_caches = [
-            "What is the airspeed velocity of an unladen swallow?",
-            "I don't know that"]
+            "WHAT is the airspeed velocity of an unladen swallow?",
+            "What do you mean? African or European swallow?",
+            "I, I don't know that!"]
 
     def _test_sandbox_for_function_caches(self, add_setup_func, asserted):
         self.assertFalse(hasattr(self, "set_up_test_in_sandbox"))
