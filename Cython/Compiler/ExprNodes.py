@@ -2078,6 +2078,7 @@ class NameNode(AtomicExprNode):
         return None
 
     def analyse_target_declaration(self, env):
+        self.is_target = True
         if not self.entry:
             self.entry = env.lookup_here(self.name)
         if not self.entry and self.annotation is not None:
@@ -3210,7 +3211,7 @@ class TempNode(ExprNode):
         return self
 
     def analyse_target_declaration(self, env):
-        pass
+        self.is_target = True
 
     def generate_result_code(self, code):
         pass
@@ -6971,7 +6972,7 @@ class AttributeNode(ExprNode):
         return self.type
 
     def analyse_target_declaration(self, env):
-        pass
+        self.is_target = True
 
     def analyse_target_types(self, env):
         node = self.analyse_types(env, target = 1)
