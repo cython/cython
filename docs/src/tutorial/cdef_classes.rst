@@ -86,13 +86,13 @@ This is almost as fast as the previous code, however it is much more flexible
 as the function to integrate can be changed. We can even pass in a new
 function defined in Python-space::
 
-    >>> import integrate
-    >>> class MyPolynomial(integrate.Function):
-    ...     def evaluate(self, x):
-    ...         return 2*x*x + 3*x - 10
-    ...
-    >>> integrate(MyPolynomial(), 0, 1, 10000)
-    -7.8335833300000077
+  >>> import integrate
+  >>> class MyPolynomial(integrate.Function):
+  ...     def evaluate(self, x):
+  ...         return 2*x*x + 3*x - 10
+  ...
+  >>> integrate(MyPolynomial(), 0, 1, 10000)
+  -7.8335833300000077
 
 This is about 20 times slower, but still about 10 times faster than
 the original Python-only integration code.  This shows how large the
