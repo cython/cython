@@ -104,8 +104,8 @@ def test_push_back(char *a):
 
 def test_pop_back(char *a):
     """
-    >>> test_pop_back(b'abc') == b'ab'
-    True
+    >>> test_pop_back(b'abc')
+    b'ab'
     """
     cdef string s = string(a)
     s.pop_back()
@@ -164,12 +164,12 @@ def test_clear():
 
 def test_erase(char *a, size_t pos=0, size_t count=npos):
     """
-    >>> test_erase(b'abc') == b''
-    True
-    >>> test_erase(b'abc', 1) == b'a'
-    True
-    >>> test_erase(b'abc', 1, 1) == b'ac'
-    True
+    >>> test_erase(b'abc')
+    b''
+    >>> test_erase(b'abc', 1)
+    b'a'
+    >>> test_erase(b'abc', 1, 1)
+    b'ac'
     """
     cdef string s = string(a)
     return s.erase(pos, count)
@@ -377,18 +377,18 @@ def test_iteration(string s):
     """
     return [c for c in s]
 
-
 def test_to_string(x):
     """
     >>> print(test_to_string(5))
-    si=5 sl=5
+    si=5 sl=5 ss=5 sss=5
     >>> print(test_to_string(-5))
-    si=-5 sl=-5
+    si=-5 sl=-5 ss=5 sss=-5
     """
     si = to_string(<int>x).decode('ascii')
     sl = to_string(<long>x).decode('ascii')
-    return f"si={si} sl={sl}"
-
+    ss = to_string(<size_t>abs(x)).decode('ascii')
+    sss = to_string(<ssize_t>x).decode('ascii')
+    return f"si={si} sl={sl} ss={ss} sss={sss}"
 
 def test_stoi(char *a):
     """

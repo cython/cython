@@ -183,6 +183,8 @@ cdef extern from "<string>" namespace "std" nogil:
     string to_string(long)
     string to_string(long long)
     string to_string(unsigned)
+    string to_string(size_t)
+    string to_string(ssize_t)
     string to_string(unsigned long)
     string to_string(unsigned long long)
     string to_string(float)
