@@ -1,5 +1,8 @@
 import unittest
 
+from Cython import Utils
+from Cython.TestUtils import (
+    number_of_filled_caches, sandbox_for_function_caches)
 from Cython.Utils import (
     _CACHE_METHOD_NAME, _METHOD_CACHE_PATTERN, build_hex_version,
     cached_function, cached_method, clear_function_caches, clear_method_caches,
@@ -50,8 +53,14 @@ class TestCythonUtils(unittest.TestCase):
         self.assertEqual(set(method_and_cache_names(test)),
                          {NAMES, (method_name, cache_name)})
 
+    def the_last_cache_is(self, cache):
+        self.assertEqual(Utils._function_caches[-1], cache)
+
     def list_of_names_equal(self, instance, value):
         self.assertEqual(list(method_and_cache_names(instance)), value)
+
+    def number_of_filled_caches_is(self, number):
+        self.assertEqual(number_of_filled_caches(), number)
 
     def test_cached_method(self):
         test = Cached()
@@ -82,3 +91,40 @@ class TestCythonUtils(unittest.TestCase):
         self.assertEqual(test.cached_next(value), 1)
         self.list_of_names_equal(test, [NAMES])
         self.assertEqual(getattr(test, CACHE_NAME), cache)
+
+    def set_up_test_in_sandbox(self):
+        @cached_function
+        def cached_next(x):
+            return next(x)
+
+        self.cached_next = cached_next
+
+    @sandbox_for_function_caches(asserted=True)
+    def test_cached_function(self):
+        value = iter(range(3))  # iter for Py2
+        cache = {(value,): 0}
+
+        # cache args
+        self.assertEqual(self.cached_next(value), 0)
+        self.number_of_filled_caches_is(1)
+        self.the_last_cache_is(cache)
+
+        # use cache
+        self.assertEqual(self.cached_next(value), 0)
+        self.number_of_filled_caches_is(1)
+        self.the_last_cache_is(cache)
+
+    @sandbox_for_function_caches(asserted=True)
+    def test_clear_function_caches(self):
+        value = iter(range(3))  # iter for Py2
+        cache = {(value,): 1}
+
+        self.cached_next(value)  # cache args
+        self.cached_next(value)  # use cache
+
+        clear_function_caches()
+        self.number_of_filled_caches_is(0)
+
+        self.assertEqual(self.cached_next(value), 1)
+        self.number_of_filled_caches_is(1)
+        self.the_last_cache_is(cache)
