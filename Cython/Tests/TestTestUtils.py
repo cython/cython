@@ -9,8 +9,9 @@ from copy import deepcopy
 
 from Cython import Utils
 from Cython.TestUtils import (
-    filled_function_caches, number_of_filled_caches,
-    sandbox_for_function_caches, write_file, write_newer_file)
+    filled_function_caches, number_of_filled_caches, relative_items,
+    relative_lines_from_file, sandbox_for_function_caches, write_file,
+    write_newer_file)
 
 
 class TestTestUtils(unittest.TestCase):
@@ -167,3 +168,33 @@ class TestTestUtils(unittest.TestCase):
     @sandbox_for_function_caches(asserted=True)
     def test_asserted_number_of_filled_caches(self):
         self._test_number_of_filled_caches()
+
+    ############################# Relative things ##############################
+
+    def test_relative_items(self):
+        self.assertEqual(relative_items(range(10), 5, -1, 1), range(4, 6))
+
+        with self.assertRaises(ValueError):
+            relative_items(range(10), 10, 0, 0)
+
+        with self.assertRaisesRegex(
+            ValueError, r"^10 was not found, presumably in \n4\n5$"
+        ):
+            relative_items(range(10), 10, 0, 0, fallback=(5, -1, 1))
+
+    def test_relative_lines_from_file(self):
+        path = self._test_path("source of lines")
+        write_file(path, "\n".join(map(str, range(10))))
+
+        # same as in test_relative_items
+        self.assertEqual(relative_lines_from_file(path, "5\n", -1, 1), "4\n5\n")
+
+        with self.assertRaises(ValueError):
+            relative_lines_from_file(path, "10\n", 0, 0)
+
+        with self.assertRaisesRegex(
+            ValueError,
+            r"^'10\\n' was not found, presumably in \n'4\\n'\n'5\\n'$"
+        ):
+            relative_lines_from_file(path, "10\n", 0, 0,
+                                     fallback=("5\n", -1, 1))
