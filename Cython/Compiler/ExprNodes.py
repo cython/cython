@@ -2177,7 +2177,6 @@ class NameNode(AtomicExprNode):
     gil_message = "Accessing Python global or builtin"
 
     def analyse_entry(self, env, is_target=False):
-        self.is_target = is_target
         #print "NameNode.analyse_entry:", self.name ###
         self.check_identifier_kind()
         entry = self.entry
@@ -6991,7 +6990,6 @@ class AttributeNode(ExprNode):
         return node
 
     def analyse_types(self, env, target = 0):
-        self.is_target = target
         if not self.type:
             self.type = PyrexTypes.error_type  # default value if it isn't analysed successfully
         self.initialized_check = env.directives['initializedcheck']
