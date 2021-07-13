@@ -48,7 +48,8 @@ C variable and type definitions
 ===============================
 
 C variables can be declared by using the :keyword:`cdef` statement, by annotating
-variable by special cython type or using function ``declare()``. Statement :keyword:`cdef` and function ``declare()`` can declare either local or
+variable by special cython type or using function ``declare()``. Statement :keyword:`cdef`
+and function ``declare()`` can declare either local or
 module-level variables, but annotated version currently supports only local variables:
 
 .. tabs::
@@ -480,6 +481,9 @@ object as the explicit return type of a function, e.g.::
 
     cdef object ftang(object int):
         ...
+
+.. note:: Currently, Cython contains a bug not allowing returning ``object`` in
+    pure python from C function.
 
 In the interests of clarity, it is probably a good idea to always be explicit
 about object parameters in C functions.
