@@ -355,8 +355,5 @@ def sandbox_for_function_caches(asserted=True):
             function(self)
 
             Utils._function_caches = _function_caches_before
-            if asserted:
-                self.assertEqual(number_of_filled_caches(), 0)
-
         return wrapper
     return decorator
