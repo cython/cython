@@ -7,6 +7,7 @@ cdef extern from "<string>" namespace "std::string" nogil:
 
 cdef extern from "<string>" namespace "std" nogil:
     cdef cppclass string:
+
         cppclass iterator:
             iterator()
             char& operator*()
@@ -15,6 +16,7 @@ cdef extern from "<string>" namespace "std" nogil:
             iterator operator--()
             bint operator==(iterator)
             bint operator!=(iterator)
+
         cppclass reverse_iterator:
             char& operator*()
             iterator operator++()
@@ -27,8 +29,10 @@ cdef extern from "<string>" namespace "std" nogil:
             bint operator>(reverse_iterator)
             bint operator<=(reverse_iterator)
             bint operator>=(reverse_iterator)
+
         cppclass const_iterator(iterator):
             pass
+
         cppclass const_reverse_iterator(reverse_iterator):
             pass
 
@@ -62,6 +66,7 @@ cdef extern from "<string>" namespace "std" nogil:
         void reserve(size_t) except +
         void clear()
         bint empty()
+
         iterator erase(iterator first, iterator last)
         iterator erase(iterator p)
         iterator erase(const_iterator first, const_iterator last)
@@ -90,11 +95,11 @@ cdef extern from "<string>" namespace "std" nogil:
         void push_back(char c) except +
         void pop_back()
 
-        string& assign (const string& s) except +
-        string& assign (const string& s, size_t subpos, size_t sublen) except +
-        string& assign (const char* s, size_t n) except +
-        string& assign (const char* s) except +
-        string& assign (size_t n, char c) except +
+        string& assign(const string& s) except +
+        string& assign(const string& s, size_t subpos, size_t sublen) except +
+        string& assign(const char* s, size_t n) except +
+        string& assign(const char* s) except +
+        string& assign(size_t n, char c) except +
 
         string& insert(size_t pos, const string& s, size_t subpos, size_t sublen) except +
         string& insert(size_t pos, const string& s) except +
