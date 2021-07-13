@@ -33,8 +33,8 @@ cdef extern from "<string>" namespace "std" nogil:
             pass
 
         string() except +
-        string(const char *) except +
-        string(const char *, size_t) except +
+        string(const char*) except +
+        string(const char*, size_t) except +
         string(const string&) except +
         # as a string formed by a repetition of character c, n times.
         string(size_t, char) except +
@@ -83,8 +83,8 @@ cdef extern from "<string>" namespace "std" nogil:
 
         string& append(const string&) except +
         string& append(const string&, size_t, size_t) except +
-        string& append(const char *) except +
-        string& append(const char *, size_t) except +
+        string& append(const char*) except +
+        string& append(const char*, size_t) except +
         string& append(size_t, char) except +
 
         void push_back(char c) except +
@@ -92,8 +92,8 @@ cdef extern from "<string>" namespace "std" nogil:
 
         string& assign (const string&) except +
         string& assign (const string&, size_t, size_t) except +
-        string& assign (const char *, size_t) except +
-        string& assign (const char *) except +
+        string& assign (const char*, size_t) except +
+        string& assign (const char*) except +
         string& assign (size_t n, char c) except +
 
         string& insert(size_t, const string&, size_t, size_t) except +
@@ -104,8 +104,8 @@ cdef extern from "<string>" namespace "std" nogil:
         void insert(iterator, size_t, char) except +
         iterator insert(iterator, char) except +
 
-        size_t copy(char *, size_t, size_t) except +
-        size_t copy(char *, size_t) except +
+        size_t copy(char*, size_t, size_t) except +
+        size_t copy(char*, size_t) except +
 
         size_t find(const string&, size_t pos)
         size_t find(const string&)
