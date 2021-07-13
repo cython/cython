@@ -4951,7 +4951,7 @@ class PyClassDefNode(ClassDefNode):
         self.class_result = self.class_result.analyse_expressions(env)
         cenv = self.scope
         self.body = self.body.analyse_expressions(cenv)
-        self.target.analyse_target_expression(env, self.classobj)
+        self.target = self.target.analyse_target_expression(env, self.classobj)
         self.class_cell = self.class_cell.analyse_expressions(cenv)
         return self
 
@@ -5842,8 +5842,8 @@ class SingleAssignmentNode(AssignmentNode):
         elif self.lhs.type.is_array:
             if not isinstance(self.lhs, ExprNodes.SliceIndexNode):
                 # cannot assign to C array, only to its full slice
-                self.lhs = ExprNodes.SliceIndexNode(self.lhs.pos, base=self.lhs, start=None, stop=None)
-                self.lhs = self.lhs.analyse_target_types(env)
+                lhs = ExprNodes.SliceIndexNode(self.lhs.pos, base=self.lhs, start=None, stop=None)
+                self.lhs = lhs.analyse_target_types(env)
 
         if self.lhs.type.is_cpp_class:
             op = env.lookup_operator_for_types(self.pos, '=', [self.lhs.type, self.rhs.type])

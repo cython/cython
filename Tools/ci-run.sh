@@ -53,8 +53,10 @@ echo "===================="
 # Install python requirements
 echo "Installing requirements [python]"
 if [ -z "${PYTHON_VERSION##2.7}" ]; then
+  pip install wheel || exit 1
   pip install -r test-requirements-27.txt || exit 1
 elif [ -z "${PYTHON_VERSION##3.[45]*}" ]; then
+  python -m pip install wheel || exit 1
   python -m pip install -r test-requirements-34.txt || exit 1
 else
   python -m pip install -U pip setuptools wheel || exit 1
@@ -97,6 +99,9 @@ if [ "$NO_CYTHON_COMPILE" != "1" -a -n "${PYTHON_VERSION##pypy*}" ]; then
           $(if [ "$COVERAGE" == "1" ]; then echo " --cython-coverage"; fi) \
           $(python -c 'import sys; print("-j5" if sys.version_info >= (3,5) else "")') \
       || exit 1
+  if [ -z "$COVERAGE" -a -z "$STACKLESS" -a -z "$LIMITED_API" -a -z "$EXTRA_CFLAGS" -a -n "${BACKEND//*cpp*}" ]; then
+    python setup.py bdist_wheel || exit 1
+  fi
 fi
 
 if [ "$TEST_CODE_STYLE" == "1" ]; then
