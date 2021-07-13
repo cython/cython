@@ -116,6 +116,8 @@ class TestTestUtils(unittest.TestCase):
         self._function_caches = [1, 2, 3]
         self._test_sandbox_for_function_caches(*args, **kwargs)
 
+        del self._function_caches
+
     def test_sandbox_with_setup(self):
         self._test_sandbox(add_setup_func=True, asserted=False)
 
@@ -127,3 +129,40 @@ class TestTestUtils(unittest.TestCase):
 
     def test_asserted_sandbox_without_setup(self):
         self._test_sandbox(add_setup_func=False, asserted=True)
+
+    ############################# Function caches ##############################
+
+    def _test_filled_function_caches(self):
+        cache_value = {(69,): "ends on the 42nd decimal place of Pi"}
+
+        self.assertFalse(hasattr(self, "set_up_test_in_sandbox"))
+        self.assertEqual(list(filled_function_caches()), [])
+
+        Utils._function_caches.append(cache_value)
+        self.assertEqual(list(filled_function_caches()), [cache_value])
+
+    def _test_number_of_filled_caches(self):
+        cache_value = {("The first",): "42 decimals of Pi have 6 9s"}
+
+        self.assertFalse(hasattr(self, "set_up_test_in_sandbox"))
+        self.assertEqual(number_of_filled_caches(), 0)
+
+        Utils._function_caches.append(cache_value)
+        self.assertEqual(number_of_filled_caches(), 1)
+
+    # if asserted = True then uses the functionality being tested
+    @sandbox_for_function_caches(asserted=False)
+    def test_filled_function_caches(self):
+        self._test_filled_function_caches()
+
+    @sandbox_for_function_caches(asserted=False)
+    def test_number_of_filled_caches(self):
+        self._test_number_of_filled_caches()
+
+    @sandbox_for_function_caches(asserted=True)
+    def test_asserted_filled_function_caches(self):
+        self._test_filled_function_caches()
+
+    @sandbox_for_function_caches(asserted=True)
+    def test_asserted_number_of_filled_caches(self):
+        self._test_number_of_filled_caches()
