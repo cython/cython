@@ -2970,7 +2970,7 @@ class CppIteratorNode(ExprNode):
                     #    make the temp a pointer so we are not sensitive to users reassigning
                     #    the pointer than it came from
                     temp_type = PyrexTypes.CPtrType(sequence_type.ref_base_type)
-                if temp_type.is_ptr or code.funcstate.scope.directives['cpp_locals']:
+                if temp_type.is_ptr or code.globalstate.directives['cpp_locals']:
                     self.cpp_attribute_op = "->"
                 # 3) (otherwise) sequence comes from a function call or similar, so we must
                 #    create a temp to store it in
