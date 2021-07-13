@@ -104,7 +104,7 @@ def test_push_back(char *a):
 
 def test_pop_back(char *a):
     """
-    >>> test_pop_back(b'abc') == b'ab'
+    >>> test_pop_back(b'abc') == b'ab' or test_pop_back(b'abc')
     True
     """
     cdef string s = string(a)
@@ -164,11 +164,11 @@ def test_clear():
 
 def test_erase(char *a, size_t pos=0, size_t count=npos):
     """
-    >>> test_erase(b'abc') == b''
+    >>> test_erase(b'abc') == b'' or test_erase(b'abc')
     True
-    >>> test_erase(b'abc', 1) == b'a'
+    >>> test_erase(b'abc', 1) == b'a' or test_erase(b'abc', 1)
     True
-    >>> test_erase(b'abc', 1, 1) == b'ac'
+    >>> test_erase(b'abc', 1, 1) == b'ac' or test_erase(b'abc', 1, 1)
     True
     """
     cdef string s = string(a)
