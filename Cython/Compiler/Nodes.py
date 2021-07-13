@@ -4951,7 +4951,7 @@ class PyClassDefNode(ClassDefNode):
         self.class_result = self.class_result.analyse_expressions(env)
         cenv = self.scope
         self.body = self.body.analyse_expressions(cenv)
-        self.target.analyse_target_expression(env, self.classobj)
+        self.target = self.target.analyse_target_expression(env, self.classobj)
         self.class_cell = self.class_cell.analyse_expressions(cenv)
         return self
 
