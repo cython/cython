@@ -47,8 +47,8 @@ the use of ‘early binding’ programming techniques.
 C variable and type definitions
 ===============================
 
-C variables can be declared by using the :keyword:`cdef` statement or by annotating
-variable by special cython type. Statement :keyword:`cdef` can declare either local or
+C variables can be declared by using the :keyword:`cdef` statement, by annotating
+variable by special cython type or using function ``declare()``. Statement :keyword:`cdef` and function ``declare()`` can declare either local or
 module-level variables, but annotated version currently supports only local variables:
 
 .. tabs::
@@ -57,6 +57,7 @@ module-level variables, but annotated version currently supports only local vari
 
         .. code-block:: python
 
+            global_x = declare(cython.int)
             def main():
                 i: cython.int
                 j: cython.int
@@ -127,9 +128,9 @@ Moreover, C :keyword:`struct`, :keyword:`union` or :keyword:`enum` are supported
 
             .. code-block:: python
 
-                 ULong = cython.typedef(cython.ulong)
+                 ULong = typedef(cython.ulong)
 
-                 IntPtr = cython.typedef(cython.p_int)
+                 IntPtr = typedef(cython.p_int)
 
         .. group-tab:: Cython
 
@@ -148,7 +149,7 @@ It is also possible to create c function by declaring functions with :keyword:`c
 
         .. code-block:: python
 
-            @cython.cfunc
+            @cfunc
             def eggs(l: cython.ulong, f: cython.float) -> cython.int:
                 ...
 
@@ -337,7 +338,7 @@ using normal C declaration syntax. For example,
             def spam(i: cython.int, s: cython.p_char):
                 ...
 
-            @cython.cfunc
+            @cfunc
             def eggs(l: cython.ulong, f: cython.float) -> cython.int:
                 ...
 
@@ -362,7 +363,7 @@ using normal C declaration syntax. For example,
 
         .. code-block:: python
 
-            @cython.cfunc
+            @cfunc
             def chips(t: (cython.long, cython.long, cython.double)) -> (cython.int, cython.float):
                 ...
 
@@ -432,7 +433,7 @@ takes two Python objects as parameters and returns a Python object
 
         .. code-block:: python
 
-            @cython.cfunc
+            @cfunc
             def spamobjs(x, y):
                 ...
 
@@ -463,7 +464,7 @@ as the name of a type, for example,
 
         .. code-block:: python
 
-            @cython.cfunc
+            @cfunc
             def ftang(int: object):
                 ...
 
@@ -523,10 +524,12 @@ When in a ``.pyx``/``.py`` file, the signature is the same as it is in Python it
     .. group-tab:: Pure Python
 
         .. literalinclude:: ../../examples/userguide/language_basics/optional_subclassing.py
+            :caption: optional_subclassing.py
 
     .. group-tab:: Cython
 
         .. literalinclude:: ../../examples/userguide/language_basics/optional_subclassing.pyx
+            :caption: optional_subclassing.pyx
 
 When in a ``.pxd`` file, the signature is different like this example: ``cdef foo(x=*)``.
 This is because the program calling the function just needs to know what signatures are
@@ -603,7 +606,7 @@ Here is an example
 
         .. code-block:: python
 
-            @cython.exceptval(-1)
+            @exceptval(-1)
             def spam() -> cython.int:
                 ...
 
@@ -638,7 +641,7 @@ form of exception value declaration
 
         .. code-block:: python
 
-            @cython.exceptval(-1, check=True)
+            @exceptval(-1, check=True)
             def spam() -> cython.int:
                 ...
 
@@ -670,7 +673,7 @@ There is also a third form of exception value declaration
 
         .. code-block:: python
 
-            @cython.exceptval(check=True)
+            @exceptval(check=True)
             def spam() -> cython.int:
                 ...
 
@@ -709,6 +712,8 @@ Some things to note:
   example of a pointer-to-function declaration with an exception value::
 
       int (*grail)(int, char*) except -1
+
+  .. note:: Pointer to function is currently not supported by pure python mode.
 
 * You don't need to (and shouldn't) declare exception values for functions
   which return Python objects. Remember that a function with no declared
@@ -750,7 +755,7 @@ Overriding in extension types
 -----------------------------
 
 
-``cpdef`` methods can override ``cdef`` methods:
+Hybrid methods can override C methods:
 
 .. tabs::
 
@@ -909,7 +914,7 @@ Cython uses ``"<"`` and ``">"``. In pure python mode, ``cast()`` function is use
             def main():
                 p: cython.p_char
                 q: cython.p_float
-                p = cython.cast(cython.p_char, q)
+                p = cast(cython.p_char, q)
 
         When casting a C value to a Python object type or vice versa,
         Cython will attempt a coercion. Simple examples are casts like ``cast(int, pyobj)``,
@@ -1034,13 +1039,15 @@ direct equivalent in Python.
               def main():
                   p: cython.p_char
                   q: cython.p_float
-                  p = cython.cast(cython.p_char, q)
+
+                  p = cast(cython.p_char, q)
 
       .. group-tab:: Cython
 
           .. code-block:: cython
 
-              cdef char* p, float* q
+              cdef char* p
+              cdef float* q
 
               p = <char*>q
 

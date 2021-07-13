@@ -7,7 +7,7 @@ def main():
     # Note that the variables below are automatically inferred
     # as the correct pointer type that is assigned to them.
     # They do not need to be typed explicitly.
-    
+
     ptr = cython.cast(cython.p_void, python_string)
     adress_in_c = cython.cast(Py_intptr_t, ptr)
     address_from_void = adress_in_c        # address_from_void is a python int
