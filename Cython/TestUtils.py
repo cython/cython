@@ -281,38 +281,37 @@ def relative_lines_from_file(path, line, start, end, fallback=None):
     return "".join(relative_items(lines, line, start, end, fallback=fallback))
 
 
-def write_file(file_path, content, dedent=False):
+def write_file(file_path, content, dedent=False, encoding="utf-8"):
     r"""Write some content (text or bytes) to the file
-    at `file_path` in utf-8 without translating `'\n'` into `os.linesep`.
+    at `file_path` without translating `'\n'` into `os.linesep`.
     """
 
-    encoding = None
+    _encoding = None
     newline = None
     mode = "w"
     if isinstance(content, bytes):
         mode += "b"
     else:
-        # unlike OS X or Linux,
-        # Windows defaults to 8-bit character set like windows-1252
-        encoding = "utf-8"
+        _encoding = encoding
 
-        # any '\n' characters written are not translated
+        # any "\n" characters written are not translated
         # to the system default line separator, os.linesep
         newline = "\n"
 
     if dedent:
         content = textwrap.dedent(content)
 
-    with open(file_path, mode=mode, encoding=encoding, newline=newline) as f:
+    with open(file_path, mode=mode, encoding=_encoding, newline=newline) as f:
         f.write(content)
 
 
-def write_newer_file(file_path, newer_than, content, dedent=False):
+def write_newer_file(file_path, newer_than, content, dedent=False,
+                     encoding="utf-8"):
     r"""
-    Write `content` to the file `file_path` in utf-8 without translating `'\n'`
+    Write `content` to the file `file_path` without translating `'\n'`
     into `os.linesep` and make sure it is newer than the file `newer_than`.
     """
-    write_file(file_path, content, dedent=dedent)
+    write_file(file_path, content, dedent=dedent, encoding=encoding)
 
     try:
         other_time = os.path.getmtime(newer_than)
