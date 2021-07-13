@@ -55,11 +55,11 @@ cdef extern from "<string>" namespace "std" nogil:
         size_t size()
         size_t max_size()
         size_t length()
-        void resize(size_t)
-        void resize(size_t, char c)
-        void shrink_to_fit()
+        void resize(size_t) except +
+        void resize(size_t, char) except +
+        void shrink_to_fit() except +
         size_t capacity()
-        void reserve(size_t)
+        void reserve(size_t) except +
         void clear()
         bint empty()
         iterator erase(iterator, iterator)
@@ -75,6 +75,11 @@ cdef extern from "<string>" namespace "std" nogil:
         char& front()
         char& back()
         int compare(const string&)
+        int compare(size_t, size_t, const string&) except +
+        int compare(size_t, size_t, const string&, size_t, size_t) except +
+        int compare(const char*) except +
+        int compare(size_t, size_t, const char*) except +
+        int compare(size_t, size_t, const char*, size_t) except +
 
         string& append(const string&) except +
         string& append(const string&, size_t, size_t) except +
@@ -85,21 +90,22 @@ cdef extern from "<string>" namespace "std" nogil:
         void push_back(char c) except +
         void pop_back()
 
-        string& assign (const string&)
-        string& assign (const string&, size_t, size_t)
-        string& assign (const char *, size_t)
-        string& assign (const char *)
-        string& assign (size_t n, char c)
+        string& assign (const string&) except +
+        string& assign (const string&, size_t, size_t) except +
+        string& assign (const char *, size_t) except +
+        string& assign (const char *) except +
+        string& assign (size_t n, char c) except +
 
         string& insert(size_t, const string&, size_t, size_t) except +
         string& insert(size_t, const string&) except +
         string& insert(size_t, const char* s, size_t) except +
         string& insert(size_t, const char* s) except +
         string& insert(size_t, size_t, char c) except +
-        void insert(iterator, size_t, char)
-        iterator insert(iterator, char)
+        void insert(iterator, size_t, char) except +
+        iterator insert(iterator, char) except +
 
         size_t copy(char *, size_t, size_t) except +
+        size_t copy(char *, size_t) except +
 
         size_t find(const string&, size_t pos)
         size_t find(const string&)
@@ -179,17 +185,17 @@ cdef extern from "<string>" namespace "std" nogil:
         bint operator>= (const char*)
 
 
-    string to_string(int)
-    string to_string(long)
-    string to_string(long long)
-    string to_string(unsigned)
-    string to_string(size_t)
-    string to_string(ssize_t)
-    string to_string(unsigned long)
-    string to_string(unsigned long long)
-    string to_string(float)
-    string to_string(double)
-    string to_string(long double)
+    string to_string(int) except +
+    string to_string(long) except +
+    string to_string(long long) except +
+    string to_string(unsigned) except +
+    string to_string(size_t) except +
+    string to_string(ssize_t) except +
+    string to_string(unsigned long) except +
+    string to_string(unsigned long long) except +
+    string to_string(float) except +
+    string to_string(double) except +
+    string to_string(long double) except +
 
     int stoi(const string&, size_t*, int) except +
     int stoi(const string&, size_t*) except +
