@@ -610,6 +610,7 @@ Here is an example
 
         .. code-block:: python
 
+            @cfunc
             @exceptval(-1)
             def spam() -> cython.int:
                 ...
@@ -645,6 +646,7 @@ form of exception value declaration
 
         .. code-block:: python
 
+            @cfunc
             @exceptval(-1, check=True)
             def spam() -> cython.int:
                 ...
@@ -677,6 +679,7 @@ There is also a third form of exception value declaration
 
         .. code-block:: python
 
+            @cfunc
             @exceptval(check=True)
             def spam() -> cython.int:
                 ...
