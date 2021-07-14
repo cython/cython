@@ -54,7 +54,8 @@ C variables can be declared by
 * using the function ``cython.declare()``.
 
 The :keyword:`cdef` statement and ``declare()`` can define function-local and
-module-level variables, but type annotations only affect local variables.
+module-level variables as well as attributes in classes, but type annotations only
+affect local variables and attributes and are ignored at the module level.
 This is because type annotations are not Cython specific, so Cython keeps
 the variables in the module dict (as Python values) instead of making them
 module internal C variables. Use ``declare()`` in Python code to explicitly
