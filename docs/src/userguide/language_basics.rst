@@ -47,9 +47,13 @@ the use of ‘early binding’ programming techniques.
 C variable and type definitions
 ===============================
 
-C variables can be declared by using the :keyword:`cdef` statement, by annotating
-variable by special cython type or using function ``declare()``. Statement :keyword:`cdef`
-and function ``declare()`` can declare either local or
+C variables can be declared by 
+
+* using the Cython language :keyword:`cdef` statement,
+* annotating variable by special cython type or
+* using function ``declare()``.
+
+Statement :keyword:`cdef` and function ``declare()`` can declare either local or
 module-level variables, but annotated version currently supports only local variables:
 
 .. tabs::
