@@ -1,4 +1,5 @@
 import cython
+from cython.cimports.strstr import strstr
 
 def main():
     data: p_char = "hfvcakdfagbcffvschvxcdfgccbcfhvgcsnfxjh"

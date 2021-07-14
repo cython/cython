@@ -142,8 +142,8 @@ more readable:
 
     .. group-tab:: Pure Python
 
-        .. literalinclude:: ../../examples/tutorial/external/keyword_args_call.pxd
-            :caption: keyword_args_call.pxd
+        .. literalinclude:: ../../examples/tutorial/external/strstr.pxd
+            :caption: strstr.pxd
         .. literalinclude:: ../../examples/tutorial/external/keyword_args_call.py
             :caption: keyword_args_call.py
 
