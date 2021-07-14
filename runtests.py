@@ -999,7 +999,7 @@ class CythonCompileTestCase(unittest.TestCase):
         if sys.version_info >= (3, 4):
             Options._directive_defaults['autotestdict'] = False
         if self.extra_directives:
-            for k,v in self.extra_directives.items:
+            for k,v in self.extra_directives.items():
                 Options._directive_defaults[k] = v
 
         if not os.path.exists(self.workdir):
