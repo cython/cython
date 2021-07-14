@@ -1,11 +1,9 @@
-import cython
-
-def f(x:cython.double):
+def f(x: cython.double):
     return x ** 2 - x
 
 
 def integrate_f(a: cython.double, b: cython.double, N: cython.int):
-    i: int
+    i: cython.int
     s: cython.double
     dx: cython.double
     s = 0

@@ -1,6 +1,9 @@
 Faster code via static typing
 =============================
 
+.. include::
+    ../two-syntax-variants-used
+
 Cython is a Python compiler.  This means that it can compile normal
 Python code without changes (with a few obvious exceptions of some as-yet
 unsupported language features, see :ref:`Cython limitations<cython-limitations>`).
@@ -66,12 +69,14 @@ Typing Functions
 
 Python function calls can be expensive -- in Cython doubly so because
 one might need to convert to and from Python objects to do the call.
-In our example above, the argument is assumed to be a C double both inside f()
+In our example above, the argument is assumed to be a C double both inside ``f()``
 and in the call to it, yet a Python ``float`` object must be constructed around the
 argument in order to pass it.
 
-Therefore Cython provides a syntax for declaring a C-style function,
-the cdef keyword:
+Therefore Cython language provides a syntax for declaring a C-style function,
+the ``cdef`` keyword. Moreover, Cython library provides ``@cfunc`` decorator to
+declare C-style function without need of using Cython language. Both aproaches are
+equivalent and produces same C code:
 
 .. tabs::
 
@@ -87,14 +92,17 @@ Some form of except-modifier should usually be added, otherwise Cython
 will not be able to propagate exceptions raised in the function (or a
 function it calls). The ``except? -2`` means that an error will be checked
 for if ``-2`` is returned (though the ``?`` indicates that ``-2`` may also
-be used as a valid return value).
+be used as a valid return value). The same can be expressed using only python
+language by ``@exceptval(-2, check=True)`` decorator.
+
 Alternatively, the slower ``except *`` is always
 safe. An except clause can be left out if the function returns a Python
 object or if it is guaranteed that an exception will not be raised
-within the function call.
+within the function call. Again, Cython provides decorator ``@exceptval(check=True)``
+providing the same functionality.
 
-A side-effect of cdef is that the function is no longer available from
-Python-space, as Python wouldn't know how to call it. It is also no
+A side-effect of ``cdef`` (and ``@cfunc`` decorator) is that the function is no longer
+available from Python-space, as Python wouldn't know how to call it. It is also no
 longer possible to change :func:`f` at runtime.
 
 Using the ``cpdef`` keyword instead of ``cdef``, a Python wrapper is also
@@ -103,7 +111,8 @@ typed values directly) and from Python (wrapping values in Python
 objects). In fact, ``cpdef`` does not just provide a Python wrapper, it also
 installs logic to allow the method to be overridden by python methods, even
 when called from within cython. This does add a tiny overhead compared to ``cdef``
-methods.
+methods. Again, Cython provides ``@ccall`` decorator which provides same
+functionality as ``cpdef`` keyword.
 
 Speedup: 150 times over pure Python.
 
@@ -137,7 +146,15 @@ This report is invaluable when optimizing a function for speed,
 and for determining when to :ref:`release the GIL <nogil>`:
 in general, a ``nogil`` block may contain only "white" code.
 
-.. figure:: htmlreport.png
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. figure:: htmlreport_py.png
+
+    .. group-tab:: Cython
+
+        .. figure:: htmlreport_pyx.png
 
 Note that Cython deduces the type of local variables based on their assignments
 (including as loop variable targets) which can also cut down on the need to
