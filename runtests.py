@@ -813,7 +813,7 @@ class TestBuilder(object):
         warning_errors = 'werror' in tags['tag']
         expect_warnings = 'warnings' in tags['tag']
 
-        extra_directives_list = [None]
+        extra_directives_list = [{}]
 
         if expect_errors:
             if skip_c(tags) and 'cpp' in self.languages:
@@ -1100,8 +1100,7 @@ class CythonCompileTestCase(unittest.TestCase):
         return source_file
 
     def build_target_filename(self, module_name):
-        ext = self.language
-        target = '%s.%s' % (module_name, ext)
+        target = '%s.%s' % (module_name, self.language)
         return target
 
     def related_files(self, test_directory, module_name):
@@ -1243,7 +1242,7 @@ class CythonCompileTestCase(unittest.TestCase):
             if self.language == 'cpp':
                 # Set the language now as the fixer might need it
                 extension.language = 'c++'
-                if self.extra_directives and self.extra_directives.get('cpp_locals', None):
+                if self.extra_directives.get('cpp_locals'):
                     extension = update_cpp17_extension(extension)
                     if extension is EXCLUDE_EXT:
                         return
