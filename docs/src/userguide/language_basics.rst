@@ -86,7 +86,7 @@ Moreover, C :keyword:`struct`, :keyword:`union` or :keyword:`enum` are supported
 
         .. literalinclude:: ../../examples/userguide/language_basics/struct_union_enum.py
 
-        .. NOTE:: Currently, Pure Python mode does not support enums.
+        .. note:: Currently, Pure Python mode does not support enums.
 
     .. group-tab:: Cython
 
