@@ -187,39 +187,24 @@ You can read more about them in :ref:`extension-types`.
 Types
 -----
 
-.. tabs::
+Cython language uses the normal C syntax for C types, including pointers.  It provides
+all the standard C types, namely ``char``, ``short``, ``int``, ``long``,
+``long long`` as well as their ``unsigned`` versions,
+e.g. ``unsigned int`` in Cython laguage and ``uint`` in Pure Python.
+The special ``bint`` type is used for C boolean values (``int`` with 0/non-0
+values for False/True) and ``Py_ssize_t`` for (signed) sizes of Python
+containers.
 
-    .. group-tab:: Pure Python
+Pointer types are constructed as in C in Cython language, by appending a ``*`` to the base type
+they point to, e.g. ``int**`` for a pointer to a pointer to a C int. In Pure python mode, pointer types
+are constructed by needed number of "p" s and then "_", e.g. ``pp_int`` for a pointer to
+a pointer to a C int. Further pointer types can be constructed with ``pointer()`` function.
 
-        Cython supports annotaions for C types, including pointers.  It provides
-        all the standard C types, namely ``char``, ``short``, ``int``, ``long``,
-        ``long long`` as well as their ``unsigned`` versions, e.g. ``uint``.
-        The special ``bint`` type is used for C boolean values (``int`` with 0/non-0
-        values for False/True) and ``Py_ssize_t`` for (signed) sizes of Python
-        containers.
 
-        Pointer types are constructed by appending a ``p_`` to the base type
-        they point to, e.g. ``pp_int`` for a pointer to a pointer to a C int.
-        Further pointer types can be constructed with ``pointer()`` function.
-        Arrays use the normal C array syntax, e.g. ``int[10]``, and the size must be known
-        at compile time for stack allocated arrays. Cython doesn't support variable length arrays from C99.
-        Note that Cython uses array access for pointer dereferencing.
-
-    .. group-tab:: Cython
-
-        Cython language uses the normal C syntax for C types, including pointers.  It provides
-        all the standard C types, namely ``char``, ``short``, ``int``, ``long``,
-        ``long long`` as well as their ``unsigned`` versions, e.g. ``unsigned int``.
-        The special ``bint`` type is used for C boolean values (``int`` with 0/non-0
-        values for False/True) and ``Py_ssize_t`` for (signed) sizes of Python
-        containers.
-
-        Pointer types are constructed as in C, by appending a ``*`` to the base type
-        they point to, e.g. ``int**`` for a pointer to a pointer to a C int.
-        Arrays use the normal C array syntax, e.g. ``int[10]``, and the size must be known
-        at compile time for stack allocated arrays. Cython doesn't support variable length arrays from C99.
-        Note that Cython uses array access for pointer dereferencing, as ``*x`` is not valid Python syntax,
-        whereas ``x[0]`` is.
+Arrays use the normal C array syntax, e.g. ``int[10]``, and the size must be known
+at compile time for stack allocated arrays. Cython doesn't support variable length arrays from C99.
+Note that Cython uses array access for pointer dereferencing, as ``*x`` is not valid Python syntax,
+whereas ``x[0]`` is.
 
 Also, the Python types ``list``, ``dict``, ``tuple``, etc. may be used for
 static typing, as well as any user defined :ref:`extension-types`.
@@ -702,7 +687,7 @@ An external C++ function that may raise an exception can be declared with::
 
     cdef int spam() except +
 
-.. note:: Pure python mode currently does not have equivalent to `except +`.
+.. note:: Pure python mode does not have equivalent to `except +`.
 
 See :ref:`wrapping-cplusplus` for more details.
 
