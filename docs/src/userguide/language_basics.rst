@@ -397,7 +397,7 @@ with string attributes if they are to be used after the function returns.
 C functions, on the other hand, can have parameters of any type, since they're
 passed in directly using a normal C function call.
 
-C Functions declared using :keyword:`cdef` or ``cfunc`` decorator with Python object return type, like Python functions, will return a :keyword:`None`
+C Functions declared using :keyword:`cdef` or ``@cfunc`` decorator with Python object return type, like Python functions, will return a :keyword:`None`
 value when execution leaves the function body without an explicit return value. This is in
 contrast to C/C++, which leaves the return value undefined. 
 In the case of non-Python object return types, the equivalent of zero is returned, for example, 0 for ``int``, :keyword:`False` for ``bint`` and :keyword:`NULL` for pointer types.
