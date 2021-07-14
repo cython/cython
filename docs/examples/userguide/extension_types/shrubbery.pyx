@@ -2,8 +2,8 @@ from __future__ import print_function
 
 
 cdef class Shrubbery:
-    cdef int width, height
-
+    cdef int width
+    cdef int height
 
     def __init__(self, w, h):
         self.width = w
