@@ -637,10 +637,6 @@ form of exception value declaration
                 ...
 
         The ``check=True`` indicates that the value ``-1`` only signals a possible error.
-        In this
-        case, Cython generates a call to :c:func:`PyErr_Occurred` if the exception value
-        is returned, to make sure it really received an exception and not just a normal
-        result.
 
     .. group-tab:: Cython
 
@@ -650,11 +646,10 @@ form of exception value declaration
                 ...
 
         The ``?`` indicates that the value ``-1`` only signals a possible error.
-        In this
-        case, Cython generates a call to :c:func:`PyErr_Occurred` if the exception value
-        is returned, to make sure it really received an exception and not just a normal
-        result.
 
+In this case, Cython generates a call to :c:func:`PyErr_Occurred` if the exception value
+is returned, to make sure it really received an exception and not just a normal
+result.
 
 There is also a third form of exception value declaration
 
