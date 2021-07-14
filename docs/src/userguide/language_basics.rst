@@ -49,12 +49,16 @@ C variable and type definitions
 
 C variables can be declared by 
 
-* using the Cython language :keyword:`cdef` statement,
-* annotating variable by special cython type or
-* using function ``declare()``.
+* using the Cython specific :keyword:`cdef` statement,
+* using PEP-484/526 type annotations with C data types or
+* using the function ``cython.declare()``.
 
-Statement :keyword:`cdef` and function ``declare()`` can declare either local or
-module-level variables, but annotated version currently supports only local variables:
+The :keyword:`cdef` statement and ``declare()`` can define function-local and
+module-level variables, but type annotations only affect local variables.
+This is because type annotations are not Cython specific, so Cython keeps
+the variables in the module dict (as Python values) instead of making them
+module internal C variables. Use ``declare()`` in Python code to explicitly
+define global C variables.
 
 .. tabs::
 
@@ -202,9 +206,10 @@ values for False/True) and ``Py_ssize_t`` for (signed) sizes of Python
 containers.
 
 Pointer types are constructed as in C when using Cython syntax, by appending a ``*`` to the base type
-they point to, e.g. ``int**`` for a pointer to a pointer to a C int. In Pure python mode, pointer types
+they point to, e.g. ``int**`` for a pointer to a pointer to a C int. In Pure python mode, simple pointer types
 use a naming scheme with "p"s instead, separated from the type name with an underscore, e.g. ``cython.pp_int`` for a pointer to
-a pointer to a C int. Further pointer types can be constructed with the ``cython.pointer()`` function.
+a pointer to a C int.  Further pointer types can be constructed with the ``cython.pointer()`` function,
+e.g. ``cython.pointer(cython.int)``.
 
 
 Arrays use the normal C array syntax, e.g. ``int[10]``, and the size must be known
@@ -241,7 +246,8 @@ For declared builtin types, Cython uses internally a C variable of type ``PyObje
     typing in ``.pyx`` files and instead interpreted as C ``int``, ``long``, and ``float``
     respectively, as statically typing variables with these Python
     types has zero advantages. On the other hand, annotating in Pure Python with
-    ``int``, ``long``, and ``float`` python types will be interpreted as ``object`` type.
+    ``int``, ``long``, and ``float`` Python types will be interpreted as
+    Python object types.
 
 Cython provides an accelerated and typed equivalent of a Python tuple, the ``ctuple``.
 A ``ctuple`` is assembled from any valid C types. For example
@@ -344,9 +350,6 @@ using normal C declaration syntax. For example,
 
             cdef int eggs(unsigned long l, float f):
                 ...
-
-
-
 ``ctuples`` may also be used
 
 .. tabs::
