@@ -357,7 +357,7 @@ def get_cc_version(language):
     """
         finds gcc version using Popen
     """
-    if language in ['cpp', 'cpp_locals']:
+    if language == 'cpp':
         cc = sysconfig.get_config_var('CXX')
     else:
         cc = sysconfig.get_config_var('CC')
@@ -813,6 +813,8 @@ class TestBuilder(object):
         warning_errors = 'werror' in tags['tag']
         expect_warnings = 'warnings' in tags['tag']
 
+        extra_directives_list = [None]
+
         if expect_errors:
             if skip_c(tags) and 'cpp' in self.languages:
                 languages = ['cpp']
@@ -829,8 +831,7 @@ class TestBuilder(object):
             languages.remove('cpp')
         if (self.add_cpp_locals_extra_tests and 'cpp' in languages and
                 'cpp' in tags['tag'] and not 'no-cpp-locals' in tags['tag']):
-            languages = list(languages)
-            languages.append('cpp_locals')
+            extra_directives_list.append({'cpp_locals': True})
         if not languages:
             return []
 
@@ -852,15 +853,18 @@ class TestBuilder(object):
                                   tags, language, language_level,
                                   expect_errors, expect_warnings, warning_errors, preparse,
                                   pythran_dir if language == "cpp" else None,
-                                  add_cython_import=add_cython_import)
+                                  add_cython_import=add_cython_import,
+                                  extra_directives=extra_directives)
                   for language in languages
                   for preparse in preparse_list
                   for language_level in language_levels
+                  for extra_directives in extra_directives_list
         ]
         return tests
 
     def build_test(self, test_class, path, workdir, module, module_path, tags, language, language_level,
-                   expect_errors, expect_warnings, warning_errors, preparse, pythran_dir, add_cython_import):
+                   expect_errors, expect_warnings, warning_errors, preparse, pythran_dir, add_cython_import,
+                   extra_directives):
         language_workdir = os.path.join(workdir, language)
         if not os.path.exists(language_workdir):
             os.makedirs(language_workdir)
@@ -869,6 +873,8 @@ class TestBuilder(object):
             workdir += '_%s' % (preparse,)
         if language_level:
             workdir += '_cy%d' % (language_level,)
+        if extra_directives:
+            workdir += ('_directives_'+ '_'.join('%s_%s' % (k, v) for k,v in extra_directives.items()))
         return test_class(path, workdir, module, module_path, tags,
                           language=language,
                           preparse=preparse,
@@ -936,7 +942,8 @@ class CythonCompileTestCase(unittest.TestCase):
                  cleanup_sharedlibs=True, cleanup_failures=True, cython_only=False, test_selector=None,
                  fork=True, language_level=2, warning_errors=False,
                  test_determinism=False,
-                 common_utility_dir=None, pythran_dir=None, stats=None, add_cython_import=False):
+                 common_utility_dir=None, pythran_dir=None, stats=None, add_cython_import=False,
+                 extra_directives=None):
         self.test_directory = test_directory
         self.tags = tags
         self.workdir = workdir
@@ -961,6 +968,7 @@ class CythonCompileTestCase(unittest.TestCase):
         self.pythran_dir = pythran_dir
         self.stats = stats
         self.add_cython_import = add_cython_import
+        self.extra_directives = extra_directives
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
@@ -990,8 +998,9 @@ class CythonCompileTestCase(unittest.TestCase):
         Options.warning_errors = self.warning_errors
         if sys.version_info >= (3, 4):
             Options._directive_defaults['autotestdict'] = False
-        if self.language == "cpp_locals":
-            Options._directive_defaults['cpp_locals'] = True
+        if self.extra_directives:
+            for k,v in self.extra_directives.items:
+                Options._directive_defaults[k] = v
 
         if not os.path.exists(self.workdir):
             os.makedirs(self.workdir)
@@ -1092,8 +1101,6 @@ class CythonCompileTestCase(unittest.TestCase):
 
     def build_target_filename(self, module_name):
         ext = self.language
-        if self.language == "cpp_locals":
-            ext = "cpp"
         target = '%s.%s' % (module_name, ext)
         return target
 
@@ -1190,7 +1197,7 @@ class CythonCompileTestCase(unittest.TestCase):
             output_file = target,
             annotate = annotate,
             use_listing_file = False,
-            cplus = self.language == 'cpp' or self.language == 'cpp_locals',
+            cplus = self.language == 'cpp',
             np_pythran = self.pythran_dir is not None,
             language_level = self.language_level,
             generate_pxi = False,
@@ -1233,10 +1240,10 @@ class CythonCompileTestCase(unittest.TestCase):
                 **extra_extension_args
                 )
 
-            if self.language in [ 'cpp', 'cpp_locals' ]:
+            if self.language == 'cpp':
                 # Set the language now as the fixer might need it
                 extension.language = 'c++'
-                if self.language == 'cpp_locals':
+                if self.extra_directives and self.extra_directives.get('cpp_locals', None):
                     extension = update_cpp17_extension(extension)
                     if extension is EXCLUDE_EXT:
                         return
@@ -1269,7 +1276,7 @@ class CythonCompileTestCase(unittest.TestCase):
                         return skip_test("Test '%s' excluded due to tags '%s'" % (
                             self.name, ', '.join(self.tags.get('tag', ''))))
                     extension = newext or extension
-            if self.language == 'cpp' or self.language == 'cpp_locals':
+            if self.language == 'cpp':
                 extension.language = 'c++'
             if IS_PY2:
                 workdir = str(workdir)  # work around type check in distutils that disallows unicode strings
