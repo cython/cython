@@ -115,7 +115,7 @@ This allows the C declaration to be reused in other Cython modules,
 while still providing an automatically generated Python wrapper in
 this specific module.
 
-.. note:: External declarations must be placed in .pxd file in Pure
+.. note:: External declarations must be placed in a ``.pxd`` file in Pure
     Python mode.
 
 
