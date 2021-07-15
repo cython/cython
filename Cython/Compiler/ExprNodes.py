@@ -7301,9 +7301,14 @@ class AttributeNode(ExprNode):
             return NameNode.is_ephemeral(self)
 
     def calculate_result_code(self):
-        #print "AttributeNode.calculate_result_code:", self.member ###
-        #print "...obj node =", self.obj, "code", self.obj.result() ###
-        #print "...obj type", self.obj.type, "ctype", self.obj.ctype() ###
+        result = self.calculate_access_code()
+        if self.entry and self.entry.is_cpp_optional and not self.is_target:
+            result = "(*%s)" % result
+        return result
+
+    def calculate_access_code(self):
+        # Does the job of calculate_result_code but doesn't dereference cpp_optionals
+        # Therefore allowing access to the holder variable
         obj = self.obj
         obj_code = obj.result_as(obj.type)
         #print "...obj_code =", obj_code ###
@@ -7335,10 +7340,8 @@ class AttributeNode(ExprNode):
             if obj.type.is_builtin_type and self.entry and self.entry.is_variable:
                 # accessing a field of a builtin type, need to cast better than result_as() does
                 obj_code = obj.type.cast_code(obj.result(), to_object_struct = True)
-            result = "%s%s%s" % (obj_code, self.op, self.member)
-            if self.entry and self.entry.is_cpp_optional and not self.is_target:
-                result = "(*%s)" % result
-            return result
+            return "%s%s%s" % (obj_code, self.op, self.member)
+
 
     def generate_result_code(self, code):
         if self.is_py_attr:
@@ -7381,10 +7384,12 @@ class AttributeNode(ExprNode):
                         '%s'
                     '}' % (self.result(), code.error_goto(self.pos)))
         elif self.entry.is_cpp_optional and self.initialized_check:
-            undereferenced_result = self.result()
+
             if self.entry and self.entry.is_cpp_optional and not self.is_target:
-                assert undereferenced_result.startswith("(*") and undereferenced_result.endswith(")")
-                undereferenced_result = undereferenced_result[2:-1]
+                assert not self.is_temp  # calculate_access_code only makes sense for non-temps
+                undereferenced_result = self.calculate_access_code()
+            else:
+                undereferenced_result = self.result()
             unbound_check_code = self.type.cpp_optional_check_for_null_code(undereferenced_result)
             code.put_error_if_unbound(self.pos, self.entry, unbound_check_code=unbound_check_code)
         else:
