@@ -924,7 +924,7 @@ Cython uses ``"<"`` and ``">"``.  In pure python mode, the ``cython.cast()`` fun
         To get the address of some Python object, use a cast to a pointer type
         like ``cast(p_void, ...)`` or ``cast(pointer(PyObject), ...)``.
         You can also cast a C pointer back to a Python object reference
-        with ``cast(object, ...)``, or a more specific builtin or extension type
+        with ``cast(object, ...)``, or to a more specific builtin or extension type
         (e.g. ``cast(MyExtType, ptr)``). This will increase the reference count of
         the object by one, i.e. the cast returns an owned reference.
         Here is an example:
