@@ -940,7 +940,7 @@ Cython uses ``"<"`` and ``">"``.  In pure python mode, the ``cython.cast()`` fun
 
         When casting a C value to a Python object type or vice versa,
         Cython will attempt a coercion. Simple examples are casts like ``<int>pyobj_value``,
-        which converts a Python number to a plain C ``int`` value, or ``<bytes>charptr_value``,
+        which convert a Python number to a plain C ``int`` value, or the statement ``<bytes>charptr_value``,
         which copies a C ``char*`` string into a new Python bytes object.
 
          .. note:: Cython will not prevent a redundant cast, but emits a warning for it.
