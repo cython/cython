@@ -28,10 +28,15 @@ def parse_stage_factory(context):
         source_desc = compsrc.source_desc
         full_module_name = compsrc.full_module_name
         initial_pos = (source_desc, 1, 0)
-        saved_cimport_from_pyx, Options.cimport_from_pyx = Options.cimport_from_pyx, False
-        scope = context.find_module(full_module_name, pos = initial_pos, need_pxd = 0)
+
+        saved_cimport_from_pyx = Options.cimport_from_pyx
+        Options.cimport_from_pyx = False
+
+        scope = context.find_module(full_module_name,
+                                    pos=initial_pos, need_pxd=0)
         Options.cimport_from_pyx = saved_cimport_from_pyx
-        tree = context.parse(source_desc, scope, pxd = 0, full_module_name = full_module_name)
+        tree = context.parse(source_desc, scope, pxd=0,
+                             full_module_name=full_module_name)
         tree.compilation_source = compsrc
         tree.scope = scope
         tree.is_pxd = False
@@ -86,7 +91,8 @@ def sort_utility_codes(utilcodes):
         if utilcode not in ranks:
             ranks[utilcode] = 0  # prevent infinite recursion on circular dependencies
             original_order = len(ranks)
-            ranks[utilcode] = 1 + min([get_rank(dep) for dep in utilcode.requires or ()] or [-1]) + original_order * 1e-8
+            ranks[utilcode] = 1 + original_order * 1e-8 + min(
+                [get_rank(dep) for dep in utilcode.requires or ()] or [-1])
         return ranks[utilcode]
     for utilcode in utilcodes:
         get_rank(utilcode)
@@ -113,7 +119,8 @@ def inject_utility_code_stage_factory(context):
     def inject_utility_code_stage(module_node):
         module_node.prepare_utility_code()
         use_utility_code_definitions(context.cython_scope, module_node.scope)
-        module_node.scope.utility_code_list = sort_utility_codes(module_node.scope.utility_code_list)
+        module_node.scope.utility_code_list = sort_utility_codes(
+            module_node.scope.utility_code_list)
         normalize_deps(module_node.scope.utility_code_list)
         added = []
         # Note: the list might be extended inside the loop (if some utility code
@@ -223,7 +230,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         FinalOptimizePhase(context),
         CoerceCppTemps(context),
         GilCheck(),
-        ]
+    ]
     filtered_stages = []
     for s in stages:
         if s.__class__ not in exclude_classes:
@@ -253,9 +260,10 @@ def create_pyx_pipeline(context, options, result, py=False, exclude_classes=()):
         [parse_stage_factory(context)],
         create_pipeline(context, mode, exclude_classes=exclude_classes),
         test_support,
-        [inject_pxd_code_stage_factory(context),
-         inject_utility_code_stage_factory(context),
-         abort_on_errors],
+        [
+            inject_pxd_code_stage_factory(context),
+            inject_utility_code_stage_factory(context),
+            abort_on_errors],
         debug_transform,
         [generate_pyx_code_stage_factory(options, result)]))
 
@@ -264,11 +272,11 @@ def create_pxd_pipeline(context, scope, module_name):
 
     # The pxd pipeline ends up with a CCodeWriter containing the
     # code of the pxd, as well as a pxd scope.
-    return [
-        parse_pxd_stage_factory(context, scope, module_name)
-        ] + create_pipeline(context, 'pxd') + [
-        ExtractPxdCode()
-        ]
+    return (
+        [parse_pxd_stage_factory(context, scope, module_name)]
+        + create_pipeline(context, 'pxd') +
+        [ExtractPxdCode()]
+    )
 
 def create_py_pipeline(context, options, result):
     return create_pyx_pipeline(context, options, result, py=True)
@@ -312,7 +320,8 @@ def create_pyx_as_pxd_pipeline(context, result):
                 entry.defined_in_pxd = 1
                 if entry.name == entry.cname and entry.visibility != 'extern':
                     # Always mangle non-extern cimported entries.
-                    entry.cname = entry.scope.mangle(Naming.func_prefix, entry.name)
+                    entry.cname = entry.scope.mangle(
+                        Naming.func_prefix, entry.name)
         return StatListNode(root.pos, stats=[]), root.scope
     pipeline.append(fake_pxd)
     return pipeline
@@ -367,7 +376,8 @@ def run_pipeline(pipeline, source, printtree=True):
                         try:
                             run = _pipeline_entry_points[phase_name]
                         except KeyError:
-                            exec("def %s(phase, data): return phase(data)" % phase_name, exec_ns)
+                            exec("def %s(phase, data): return phase(data)" %
+                                 phase_name, exec_ns)
                             run = _pipeline_entry_points[phase_name] = exec_ns[phase_name]
                     data = run(phase, data)
                     if DebugFlags.debug_verbose_pipeline:
