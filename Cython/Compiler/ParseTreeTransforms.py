@@ -1491,11 +1491,13 @@ class HandleGeneratorArguments(VisitorTransform, SkipDeclarations):
                 name_decl = Nodes.CNameDeclaratorNode(pos=pos, name=name)
                 type = node.type
                 if type.is_reference and not type.is_fake_reference:
-                    # TODO - suppress this warning for inlined generator expressions
-                    warning(pos, "Generator expression has captured type '%s'. "
-                            "Be careful that the original object lifetime is greater than the "
-                            "generator expression" % type.declaration_code("", for_display=True))
-                    type = PyrexTypes.CFakeReferenceType(type.ref_base_type)
+                    # It isn't obvious whether the right thing to do would be to capture by reference or by
+                    # value (C++ itself doesn't know either for lambda functions and forces a choice).
+                    # However, capture by reference involves converting to FakeReference which would require
+                    # re-analysing AttributeNodes. Therefore I've picked capture-by-value out of convenience
+                    # TODO - could probably be optimized by making the arg a reference but the closure not
+                    # (see https://github.com/cython/cython/issues/2468)
+                    type = type.ref_base_type
 
                 name_decl.type = type
                 new_arg = Nodes.CArgDeclNode(pos=pos, declarator=name_decl,
