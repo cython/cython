@@ -675,6 +675,14 @@ class AssignmentCollector(TreeVisitor):
 
 class ControlFlowAnalysis(CythonTransform):
 
+    def find_in_stack(self, env):
+        if env == self.env:
+            return self.flow
+        for e, flow in reversed(self.stack):
+            if e==env:
+                return flow
+        assert False
+
     def visit_ModuleNode(self, node):
         dot_output = self.current_directives['control_flow.dot_output']
         self.gv_ctx = GVContext() if dot_output else None
@@ -684,10 +692,9 @@ class ControlFlowAnalysis(CythonTransform):
         self.reductions = set()
 
         self.in_inplace_assignment = False
-        self.env_stack = []
         self.env = node.scope
         self.flow = ControlFlow()
-        self.flows = { self.env: self.flow }  # indexed by env
+        self.stack = []  # a stack of (env, flow) tuples
         self.object_expr = TypedExprNode(PyrexTypes.py_object_type, may_be_none=True)
         self.visitchildren(node)
 
@@ -704,10 +711,9 @@ class ControlFlowAnalysis(CythonTransform):
             if arg.default:
                 self.visitchildren(arg)
         self.visitchildren(node, ('decorators',))
-        self.env_stack.append(self.env)
+        self.stack.append((self.env, self.flow))
         self.env = node.local_scope
         self.flow = ControlFlow()
-        self.flows[self.env] = self.flow
 
         # Collect all entries
         for entry in node.local_scope.entries.values():
@@ -747,8 +753,7 @@ class ControlFlowAnalysis(CythonTransform):
         if self.gv_ctx is not None:
             self.gv_ctx.add(GV(node.local_scope.name, self.flow))
 
-        self.env = self.env_stack.pop()
-        self.flow = self.flows[self.env]
+        self.env, self.flow = self.stack.pop()
         return node
 
     def visit_DefNode(self, node):
@@ -1314,13 +1319,12 @@ class ControlFlowAnalysis(CythonTransform):
 
     def visit_ComprehensionNode(self, node):
         if node.expr_scope:
-            self.env_stack.append(self.env)
+            self.stack.append((self.env, self.flow))
             self.env = node.expr_scope
-            self.flows[self.env] = self.flow
         # Skip append node here
         self._visit(node.loop)
         if node.expr_scope:
-            self.env = self.env_stack.pop()
+            self.env, _ = self.stack.pop()
         return node
 
     def visit_ScopedExprNode(self, node):
@@ -1328,14 +1332,12 @@ class ControlFlowAnalysis(CythonTransform):
         # (with comprehensions covered in their own function)
         assert isinstance(node, (ExprNodes.IteratorNode, ExprNodes.AsyncIteratorNode)), node
         if node.expr_scope:
-            self.env_stack.append(self.env)
+            self.stack.append((self.env, self.flow))
+            self.flow = self.find_in_stack(node.expr_scope)
             self.env = node.expr_scope
-            flow = self.flow
-            self.flow = self.flows[self.env]
         self.visitchildren(node)
         if node.expr_scope:
-            self.flow = flow
-            self.env = self.env_stack.pop()
+            self.env, self.flow = self.stack.pop()
         return node
 
     def visit_PyClassDefNode(self, node):
@@ -1343,20 +1345,21 @@ class ControlFlowAnalysis(CythonTransform):
                                   'mkw', 'bases', 'class_result'))
         self.flow.mark_assignment(node.target, node.classobj,
                                   self.env.lookup(node.target.name))
-        self.env_stack.append(self.env)
+        self.stack.append((self.env, self.flow))
         self.env = node.scope
-        self.flows[self.env] = self.flow
         self.flow.nextblock()
         if node.doc_node:
             self.flow.mark_assignment(node.doc_node, fake_rhs_expr, node.doc_node.entry)
         self.visitchildren(node, ('body',))
         self.flow.nextblock()
-        self.env = self.env_stack.pop()
+        self.env, _ = self.stack.pop()
         return node
 
     def visit_CClassDefNode(self, node):
-        self.flows[node.scope] = self.flow  # just make sure the nodes scope is findable in-case there is a list comprehension in it
+        # just make sure the nodes scope is findable in-case there is a list comprehension in it
+        self.stack.append((node.scope, self.flow))
         self.visitchildren(node)
+        self.stack.pop()
         return node
 
     def visit_AmpersandNode(self, node):

@@ -102,8 +102,7 @@ cdef class ControlFlowAnalysis(CythonTransform):
     cdef object gv_ctx
     cdef object constant_folder
     cdef set reductions
-    cdef list env_stack
-    cdef dict flows
+    cdef list stack  # a stack of (env, flow) tuples
     cdef object env
     cdef ControlFlow flow
     cdef object object_expr
