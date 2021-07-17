@@ -331,7 +331,7 @@ class ExprNode(Node):
     #  is_numpy_attribute   boolean   Is a Numpy module attribute
     #                            result_code/temp_result can safely be set to None
     #  annotation   ExprNode or None    PEP526 annotation for names or expressions
-    #  generator_arg_tag  None or (Node, int)   A tag to mark ExprNodes that potentially need to
+    #  generator_arg_tag  None or Node   A tag to mark ExprNodes that potentially need to
     #                              be changed to a generator argument
 
     result_ctype = None
