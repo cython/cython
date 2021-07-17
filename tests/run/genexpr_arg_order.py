@@ -29,34 +29,29 @@ def one():
     print("In one")
     return 1
 
-def skip_bug(f):
-    if not cython.compiled:
-        return f
-
-@skip_bug  # FIXME - I don't think this is easy to enforce unfortunately, but it is slightly wrong
-@cython.test_assert_path_exists("//ForFromStatNode")
-def genexp_range_argument_order():
-    """
-    >>> list(genexp_range_argument_order())
-    In zero
-    In five
-    [0, 1, 2, 3, 4]
-    """
-    return (a for a in range(zero(), five()))
-
-@skip_bug  # FIXME - I don't think this is easy to enforce unfortunately, but it is slightly wrong
-@cython.test_assert_path_exists("//ForFromStatNode")
-@cython.test_assert_path_exists(
-    "//InlinedGeneratorExpressionNode",
-    "//ComprehensionAppendNode")
-def list_range_argument_order():
-    """
-    >>> list_range_argument_order()
-    In zero
-    In five
-    [0, 1, 2, 3, 4]
-    """
-    return list(a for a in range(zero(), five()))
+# FIXME - I don't think this is easy to enforce unfortunately, but it is slightly wrong
+#@cython.test_assert_path_exists("//ForFromStatNode")
+#def genexp_range_argument_order():
+#    """
+#    >>> list(genexp_range_argument_order())
+#    In zero
+#    In five
+#    [0, 1, 2, 3, 4]
+#    """
+#    return (a for a in range(zero(), five()))
+#
+#@cython.test_assert_path_exists("//ForFromStatNode")
+#@cython.test_assert_path_exists(
+#    "//InlinedGeneratorExpressionNode",
+#    "//ComprehensionAppendNode")
+#def list_range_argument_order():
+#    """
+#    >>> list_range_argument_order()
+#    In zero
+#    In five
+#    [0, 1, 2, 3, 4]
+#    """
+#    return list(a for a in range(zero(), five()))
 
 @cython.test_assert_path_exists("//ForFromStatNode")
 def genexp_array_slice_order():
