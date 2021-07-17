@@ -1,16 +1,16 @@
-from sin_of_square cimport Function
+from cython.cimports.sin_of_square import Function
 
-
-cdef class WaveFunction(Function):
+@cython.cclass
+class WaveFunction(Function):
 
     # Not available in Python-space:
-    cdef double offset
+    offset: float
 
     # Available in Python-space:
-    cdef public double freq
+    freq = cython.declare(cython.double, visibility='public')
 
     # Available in Python-space, but only for reading:
-    cdef readonly double scale
+    scale = cython.declare(cython.double, visibility='readonly')
 
     # Available in Python-space:
     @property

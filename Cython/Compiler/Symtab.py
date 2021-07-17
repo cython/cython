@@ -274,7 +274,7 @@ class Entry(object):
         assert self.type.is_cpp_class
         self.is_cpp_optional = True
         assert not self.utility_code  # we're not overwriting anything?
-        self.utility_code = Code.UtilityCode.load_cached("OptionalLocals", "CppSupport.cpp")
+        self.utility_code_definition = Code.UtilityCode.load_cached("OptionalLocals", "CppSupport.cpp")
 
 
 class InnerEntry(Entry):

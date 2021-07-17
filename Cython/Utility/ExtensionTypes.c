@@ -510,7 +510,7 @@ static PyObject *{{func_name}}(PyObject *left, PyObject *right {{extra_arg_decl}
     }
     if (maybe_self_is_left) {
         PyObject *res;
-        if (maybe_self_is_right && !({{overloads_left}})) {
+        if (maybe_self_is_right && {{overloads_right}} && !({{overloads_left}})) {
             res = {{call_right}};
             if (res != Py_NotImplemented) return res;
             Py_DECREF(res);

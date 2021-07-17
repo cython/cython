@@ -2553,8 +2553,8 @@ class ExpandInplaceOperators(EnvTransform):
                                      operand2 = rhs,
                                      inplace=True)
         # Manually analyse types for new node.
-        lhs.analyse_target_types(env)
-        dup.analyse_types(env)
+        lhs = lhs.analyse_target_types(env)
+        dup.analyse_types(env)  # FIXME: no need to reanalyse the copy, right?
         binop.analyse_operation(env)
         node = Nodes.SingleAssignmentNode(
             node.pos,
