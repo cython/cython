@@ -34,8 +34,11 @@ from . import PyrexTypes
 from .PyrexTypes import py_object_type, c_long_type, typecast, error_type, \
     unspecified_type
 from . import TypeSlots
-from .Builtin import list_type, tuple_type, set_type, dict_type, type_type, \
-     unicode_type, str_type, bytes_type, bytearray_type, basestring_type, slice_type
+from .Builtin import (
+    list_type, tuple_type, set_type, dict_type, type_type,
+    unicode_type, str_type, bytes_type, bytearray_type, basestring_type,
+    slice_type, long_type,
+)
 from . import Builtin
 from . import Symtab
 from .. import Utils
@@ -242,6 +245,8 @@ def get_exception_handler(exception_value):
 def maybe_check_py_error(code, check_py_exception, pos, nogil):
     if check_py_exception:
         if nogil:
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("ErrOccurredWithGIL", "Exceptions.c"))
             code.putln(code.error_goto_if("__Pyx_ErrOccurredWithGIL()", pos))
         else:
             code.putln(code.error_goto_if("PyErr_Occurred()", pos))
@@ -262,6 +267,20 @@ def translate_cpp_exception(code, pos, inside, py_result, exception_value, nogil
         code.put_release_ensured_gil()
     code.putln(code.error_goto(pos))
     code.putln("}")
+
+def needs_cpp_exception_conversion(node):
+    assert node.exception_check == "+"
+    if node.exception_value is None:
+        return True
+    # exception_value can be a NameNode
+    # (in which case it's used as a handler function and no conversion is needed)
+    if node.exception_value.is_name:
+        return False
+    # or a CharNode with a value of "*"
+    if isinstance(node.exception_value, CharNode) and node.exception_value.value == "*":
+        return True
+    # Most other const-nodes are disallowed after "+" by the parser
+    return False
 
 
 # Used to handle the case where an lvalue expression and an overloaded assignment
@@ -822,6 +841,9 @@ class ExprNode(Node):
         self.not_implemented("generate_result_code")
 
     def generate_disposal_code(self, code):
+        if self.has_temp_moved:
+            code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("MoveIfSupported", "CppSupport.cpp"))
         if self.is_temp:
             if self.type.is_string or self.type.is_pyunicode_ptr:
                 # postponed from self.generate_evaluation_code()
@@ -830,9 +852,6 @@ class ExprNode(Node):
             if self.result():
                 code.put_decref_clear(self.result(), self.ctype(),
                                         have_gil=not self.in_nogil_context)
-            if self.has_temp_moved:
-                code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("MoveIfSupported", "CppSupport.cpp"))
         else:
             # Already done if self.is_temp
             self.generate_subexpr_disposal_code(code)
@@ -1996,6 +2015,9 @@ class NameNode(AtomicExprNode):
                 or not env.directives['annotation_typing']
             ):
                 atype = None
+            elif env.is_py_class_scope:
+                # For Python class scopes every attribute is a Python object
+                atype = py_object_type
             else:
                 _, atype = annotation.analyse_type_annotation(env)
             if atype is None:
@@ -2056,6 +2078,7 @@ class NameNode(AtomicExprNode):
         return None
 
     def analyse_target_declaration(self, env):
+        self.is_target = True
         if not self.entry:
             self.entry = env.lookup_here(self.name)
         if not self.entry and self.annotation is not None:
@@ -2342,12 +2365,21 @@ class NameNode(AtomicExprNode):
             # Raise UnboundLocalError for objects and memoryviewslices
             raise_unbound = (
                 (self.cf_maybe_null or self.cf_is_null) and not self.allow_null)
-            null_code = entry.type.check_for_null_code(entry.cname)
 
             memslice_check = entry.type.is_memoryviewslice and self.initialized_check
+            optional_cpp_check = entry.is_cpp_optional and self.initialized_check
 
-            if null_code and raise_unbound and (entry.type.is_pyobject or memslice_check):
-                code.put_error_if_unbound(self.pos, entry, self.in_nogil_context)
+            if optional_cpp_check:
+                unbound_check_code = entry.type.cpp_optional_check_for_null_code(entry.cname)
+            else:
+                unbound_check_code = entry.type.check_for_null_code(entry.cname)
+
+            if unbound_check_code and raise_unbound and (entry.type.is_pyobject or memslice_check or optional_cpp_check):
+                code.put_error_if_unbound(self.pos, entry, self.in_nogil_context, unbound_check_code=unbound_check_code)
+
+        elif entry.is_cglobal and entry.is_cpp_optional and self.initialized_check:
+            unbound_check_code = entry.type.cpp_optional_check_for_null_code(entry.cname)
+            code.put_error_if_unbound(self.pos, entry, unbound_check_code=unbound_check_code)
 
     def generate_assignment_code(self, rhs, code, overloaded_assignment=False,
                                  exception_check=None, exception_value=None):
@@ -3179,7 +3211,7 @@ class TempNode(ExprNode):
         return self
 
     def analyse_target_declaration(self, env):
-        pass
+        self.is_target = True
 
     def generate_result_code(self, code):
         pass
@@ -3871,7 +3903,7 @@ class IndexNode(_IndexingBaseNode):
         if self.exception_check:
             if not setting:
                 self.is_temp = True
-            if self.exception_value is None:
+            if needs_cpp_exception_conversion(self):
                 env.use_utility_code(UtilityCode.load_cached("CppExceptionConversion", "CppSupport.cpp"))
         self.index = self.index.coerce_to(func_type.args[0].type, env)
         self.type = func_type.return_type
@@ -5949,13 +5981,9 @@ class SimpleCallNode(CallNode):
 
         # Called in 'nogil' context?
         self.nogil = env.nogil
-        if (self.nogil and
-                func_type.exception_check and
-                func_type.exception_check != '+'):
-            env.use_utility_code(pyerr_occurred_withgil_utility_code)
         # C++ exception handler
         if func_type.exception_check == '+':
-            if func_type.exception_value is None:
+            if needs_cpp_exception_conversion(func_type):
                 env.use_utility_code(UtilityCode.load_cached("CppExceptionConversion", "CppSupport.cpp"))
 
         self.overflowcheck = env.directives['overflowcheck']
@@ -6098,6 +6126,8 @@ class SimpleCallNode(CallNode):
                     exc_checks.append("%s == %s" % (self.result(), func_type.return_type.cast_code(exc_val)))
                 if exc_check:
                     if self.nogil:
+                        code.globalstate.use_utility_code(
+                            UtilityCode.load_cached("ErrOccurredWithGIL", "Exceptions.c"))
                         exc_checks.append("__Pyx_ErrOccurredWithGIL()")
                     else:
                         exc_checks.append("PyErr_Occurred()")
@@ -6942,7 +6972,7 @@ class AttributeNode(ExprNode):
         return self.type
 
     def analyse_target_declaration(self, env):
-        pass
+        self.is_target = True
 
     def analyse_target_types(self, env):
         node = self.analyse_types(env, target = 1)
@@ -7131,6 +7161,9 @@ class AttributeNode(ExprNode):
         elif obj_type.is_extension_type or obj_type.is_builtin_type:
             self.op = "->"
         elif obj_type.is_reference and obj_type.is_fake_reference:
+            self.op = "->"
+        elif (obj_type.is_cpp_class and (self.obj.is_name or self.obj.is_attribute) and
+                self.obj.entry and self.obj.entry.is_cpp_optional):
             self.op = "->"
         else:
             self.op = "."
@@ -7340,6 +7373,9 @@ class AttributeNode(ExprNode):
                                         '"Memoryview is not initialized");'
                         '%s'
                     '}' % (self.result(), code.error_goto(self.pos)))
+        elif self.entry.is_cpp_optional and self.initialized_check:
+            unbound_check_code = self.type.cpp_optional_check_for_null_code(self.result())
+            code.put_error_if_unbound(self.pos, self.entry, unbound_check_code=unbound_check_code)
         else:
             # result_code contains what is needed, but we may need to insert
             # a check and raise an exception
@@ -7523,9 +7559,10 @@ class SequenceNode(ExprNode):
                 arg = arg.analyse_types(env)
             self.args[i] = arg.coerce_to_pyobject(env)
         if self.mult_factor:
-            self.mult_factor = self.mult_factor.analyse_types(env)
-            if not self.mult_factor.type.is_int:
-                self.mult_factor = self.mult_factor.coerce_to_pyobject(env)
+            mult_factor = self.mult_factor.analyse_types(env)
+            if not mult_factor.type.is_int:
+                mult_factor = mult_factor.coerce_to_pyobject(env)
+            self.mult_factor = mult_factor.coerce_to_simple(env)
         self.is_temp = 1
         # not setting self.type here, subtypes do this
         return self
@@ -7771,10 +7808,12 @@ class SequenceNode(ExprNode):
         # list/tuple => check size
         code.putln("Py_ssize_t size = __Pyx_PySequence_SIZE(sequence);")
         code.putln("if (unlikely(size != %d)) {" % len(self.args))
-        code.globalstate.use_utility_code(raise_too_many_values_to_unpack)
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("RaiseTooManyValuesToUnpack", "ObjectHandling.c"))
         code.putln("if (size > %d) __Pyx_RaiseTooManyValuesError(%d);" % (
             len(self.args), len(self.args)))
-        code.globalstate.use_utility_code(raise_need_more_values_to_unpack)
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("RaiseNeedMoreValuesToUnpack", "ObjectHandling.c"))
         code.putln("else if (size >= 0) __Pyx_RaiseNeedMoreValuesError(size);")
         # < 0 => exception
         code.putln(code.error_goto(self.pos))
@@ -7837,8 +7876,10 @@ class SequenceNode(ExprNode):
             code.putln("}")
 
     def generate_generic_parallel_unpacking_code(self, code, rhs, unpacked_items, use_loop, terminate=True):
-        code.globalstate.use_utility_code(raise_need_more_values_to_unpack)
-        code.globalstate.use_utility_code(UtilityCode.load_cached("IterFinish", "ObjectHandling.c"))
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("RaiseNeedMoreValuesToUnpack", "ObjectHandling.c"))
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("IterFinish", "ObjectHandling.c"))
         code.putln("Py_ssize_t index = -1;")  # must be at the start of a C block!
 
         if use_loop:
@@ -7946,7 +7987,8 @@ class SequenceNode(ExprNode):
             rhs.generate_disposal_code(code)
 
         if unpacked_fixed_items_right:
-            code.globalstate.use_utility_code(raise_need_more_values_to_unpack)
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("RaiseNeedMoreValuesToUnpack", "ObjectHandling.c"))
             length_temp = code.funcstate.allocate_temp(PyrexTypes.c_py_ssize_t_type, manage_ref=False)
             code.putln('%s = PyList_GET_SIZE(%s);' % (length_temp, target_list))
             code.putln("if (unlikely(%s < %d)) {" % (length_temp, len(unpacked_fixed_items_right)))
@@ -8867,8 +8909,7 @@ class DictNode(ExprNode):
                             value = value.arg
                         item.value = value.coerce_to(member.type, env)
         else:
-            self.type = error_type
-            error(self.pos, "Cannot interpret dict as type '%s'" % dst_type)
+            return super(DictNode, self).coerce_to(dst_type, env)
         return self
 
     def release_errors(self):
@@ -10276,7 +10317,7 @@ class UnopNode(ExprNode):
             self.exception_value = entry.type.exception_value
             if self.exception_check == '+':
                 self.is_temp = True
-                if self.exception_value is None:
+                if needs_cpp_exception_conversion(self):
                     env.use_utility_code(UtilityCode.load_cached("CppExceptionConversion", "CppSupport.cpp"))
         else:
             self.exception_check = ''
@@ -11229,7 +11270,7 @@ class BinopNode(ExprNode):
             # Used by NumBinopNodes to break up expressions involving multiple
             # operators so that exceptions can be handled properly.
             self.is_temp = 1
-            if self.exception_value is None:
+            if needs_cpp_exception_conversion(self):
                 env.use_utility_code(UtilityCode.load_cached("CppExceptionConversion", "CppSupport.cpp"))
         if func_type.is_ptr:
             func_type = func_type.base_type
@@ -11597,6 +11638,24 @@ class SubNode(NumBinopNode):
 
 class MulNode(NumBinopNode):
     #  '*' operator.
+
+    def analyse_types(self, env):
+        # TODO: we could also optimise the case of "[...] * 2 * n", i.e. with an existing 'mult_factor'
+        if self.operand1.is_sequence_constructor and self.operand1.mult_factor is None:
+            operand2 = self.operand2.analyse_types(env)
+            if operand2.type.is_int or operand2.type is long_type:
+                return self.analyse_sequence_mul(env, self.operand1, operand2)
+        elif self.operand2.is_sequence_constructor and self.operand2.mult_factor is None:
+            operand1 = self.operand1.analyse_types(env)
+            if operand1.type.is_int or operand1.type is long_type:
+                return self.analyse_sequence_mul(env, self.operand2, operand1)
+
+        return NumBinopNode.analyse_types(self, env)
+
+    def analyse_sequence_mul(self, env, seq, mult):
+        assert seq.mult_factor is None
+        seq.mult_factor = mult
+        return seq.analyse_types(env)
 
     def is_py_operation_types(self, type1, type2):
         if ((type1.is_string and type2.is_int) or
@@ -12828,7 +12887,7 @@ class PrimaryCmpNode(ExprNode, CmpNode):
         self.exception_value = func_type.exception_value
         if self.exception_check == '+':
             self.is_temp = True
-            if self.exception_value is None:
+            if needs_cpp_exception_conversion(self):
                 env.use_utility_code(UtilityCode.load_cached("CppExceptionConversion", "CppSupport.cpp"))
         if len(func_type.args) == 1:
             self.operand2 = self.operand2.coerce_to(func_type.args[0].type, env)
@@ -13621,6 +13680,7 @@ class CoerceToTempNode(CoercionNode):
                 code.put_incref_memoryviewslice(self.result(), self.type,
                                             have_gil=not self.in_nogil_context)
 
+
 class ProxyNode(CoercionNode):
     """
     A node that should not be replaced by transforms or other means,
@@ -13737,6 +13797,28 @@ class CloneNode(CoercionNode):
 
     def free_temps(self, code):
         pass
+
+
+class CppOptionalTempCoercion(CoercionNode):
+    """
+    Used only in CoerceCppTemps - handles cases the temp is actually a OptionalCppClassType (and thus needs dereferencing when on the rhs)
+    """
+    is_temp = False
+
+    @property
+    def type(self):
+        return self.arg.type
+
+    def calculate_result_code(self):
+        return "(*%s)" % self.arg.result()
+
+    def generate_result_code(self, code):
+        pass
+
+    def _make_move_result_rhs(self, result, optional=False):
+        # this wouldn't normally get moved (because it isn't a temp), but force it to be because it
+        # is a thin wrapper around a temp
+        return super(CppOptionalTempCoercion, self)._make_move_result_rhs(result, optional=False)
 
 
 class CMethodSelfCloneNode(CloneNode):
@@ -13881,74 +13963,3 @@ class AnnotationNode(ExprNode):
         else:
             warning(annotation.pos, "Unknown type declaration in annotation, ignoring")
         return base_type, arg_type
-
-#------------------------------------------------------------------------------------
-#
-#  Runtime support code
-#
-#------------------------------------------------------------------------------------
-
-pyerr_occurred_withgil_utility_code= UtilityCode(
-proto = """
-static CYTHON_INLINE int __Pyx_ErrOccurredWithGIL(void); /* proto */
-""",
-impl = """
-static CYTHON_INLINE int __Pyx_ErrOccurredWithGIL(void) {
-  int err;
-  #ifdef WITH_THREAD
-  PyGILState_STATE _save = PyGILState_Ensure();
-  #endif
-  err = !!PyErr_Occurred();
-  #ifdef WITH_THREAD
-  PyGILState_Release(_save);
-  #endif
-  return err;
-}
-"""
-)
-
-#------------------------------------------------------------------------------------
-
-raise_unbound_local_error_utility_code = UtilityCode(
-proto = """
-static CYTHON_INLINE void __Pyx_RaiseUnboundLocalError(const char *varname);
-""",
-impl = """
-static CYTHON_INLINE void __Pyx_RaiseUnboundLocalError(const char *varname) {
-    PyErr_Format(PyExc_UnboundLocalError, "local variable '%s' referenced before assignment", varname);
-}
-""")
-
-raise_closure_name_error_utility_code = UtilityCode(
-proto = """
-static CYTHON_INLINE void __Pyx_RaiseClosureNameError(const char *varname);
-""",
-impl = """
-static CYTHON_INLINE void __Pyx_RaiseClosureNameError(const char *varname) {
-    PyErr_Format(PyExc_NameError, "free variable '%s' referenced before assignment in enclosing scope", varname);
-}
-""")
-
-# Don't inline the function, it should really never be called in production
-raise_unbound_memoryview_utility_code_nogil = UtilityCode(
-proto = """
-static void __Pyx_RaiseUnboundMemoryviewSliceNogil(const char *varname);
-""",
-impl = """
-static void __Pyx_RaiseUnboundMemoryviewSliceNogil(const char *varname) {
-    #ifdef WITH_THREAD
-    PyGILState_STATE gilstate = PyGILState_Ensure();
-    #endif
-    __Pyx_RaiseUnboundLocalError(varname);
-    #ifdef WITH_THREAD
-    PyGILState_Release(gilstate);
-    #endif
-}
-""",
-requires = [raise_unbound_local_error_utility_code])
-
-#------------------------------------------------------------------------------------
-
-raise_too_many_values_to_unpack = UtilityCode.load_cached("RaiseTooManyValuesToUnpack", "ObjectHandling.c")
-raise_need_more_values_to_unpack = UtilityCode.load_cached("RaiseNeedMoreValuesToUnpack", "ObjectHandling.c")
-tuple_unpacking_error_code = UtilityCode.load_cached("UnpackTupleError", "ObjectHandling.c")

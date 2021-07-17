@@ -141,6 +141,7 @@ jobs:
 
           # MacOS sub-jobs
           # ==============
+          # (C-only builds are used to create wheels)
           - os: macos-10.15
             python-version: 2.7
             backend: c
@@ -148,6 +149,22 @@ jobs:
           - os: macos-10.15
             python-version: 2.7
             backend: cpp
+            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
+          - os: macos-10.15
+            python-version: 3.5
+            backend: c
+            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
+          - os: macos-10.15
+            python-version: 3.6
+            backend: c
+            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
+          - os: macos-10.15
+            python-version: 3.7
+            backend: c
+            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
+          - os: macos-10.15
+            python-version: 3.8
+            backend: c
             env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
           - os: macos-10.15
             python-version: 3.9
@@ -202,6 +219,13 @@ jobs:
         with:
           name: htmldocs
           path: docs/build/html
+          if-no-files-found: ignore
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v2
+        with:
+          name: wheels-${{ runner.os }}
+          path: dist/*.whl
           if-no-files-found: ignore
 
 

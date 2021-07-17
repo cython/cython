@@ -31,7 +31,7 @@ Cython at a glance
 
 Cython is a compiler which compiles Python-like code files to C code. Still,
 ''Cython is not a Python to C translator''. That is, it doesn't take your full
-program and "turns it into C" -- rather, the result makes full use of the
+program and "turn it into C" -- rather, the result makes full use of the
 Python runtime environment. A way of looking at it may be that your code is
 still Python in that it runs within the Python runtime environment, but rather
 than compiling to interpreted Python bytecode one compiles to native machine
