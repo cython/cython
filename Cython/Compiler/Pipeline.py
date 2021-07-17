@@ -151,7 +151,6 @@ def create_pipeline(context, mode, exclude_classes=()):
     from .TypeInference import MarkParallelAssignments, MarkOverflowingArithmetic
     from .ParseTreeTransforms import AdjustDefByDirectives, AlignFunctionDefinitions, AutoCpdefFunctionDefinitions
     from .ParseTreeTransforms import RemoveUnreachableCode, GilCheck, CoerceCppTemps
-    from .ParseTreeTransforms import MarkGeneratorExpressionArguments, HandleGeneratorArguments
     from .FlowControl import ControlFlowAnalysis
     from .AnalysedTreeTransforms import AutoTestDictTransform
     from .AutoDocTransforms import EmbedSignature
@@ -188,7 +187,6 @@ def create_pipeline(context, mode, exclude_classes=()):
         InterpretCompilerDirectives(context, context.compiler_directives),
         ParallelRangeTransform(context),
         WithTransform(context),
-        MarkGeneratorExpressionArguments(),
         AdjustDefByDirectives(context),
         _align_function_definitions,
         MarkClosureVisitor(context),
@@ -218,7 +216,6 @@ def create_pipeline(context, mode, exclude_classes=()):
         IterationTransform(context),
         SwitchTransform(context),
         OptimizeBuiltinCalls(context),  ## Necessary?
-        HandleGeneratorArguments(),
         CreateClosureClasses(context),  ## After all lookups and type inference
         CalculateQualifiedNamesTransform(context),
         ConsolidateOverflowCheck(context),

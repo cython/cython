@@ -1405,6 +1405,7 @@ class WithTransform(CythonTransform, SkipDeclarations):
 
 
 class _GeneratorExpressionArgumentsMarker(TreeVisitor, SkipDeclarations):
+    # called from "MarkClosureVisitor"
     def __init__(self, gen_expr):
         super(_GeneratorExpressionArgumentsMarker, self).__init__()
         self.gen_expr = gen_expr
@@ -1427,44 +1428,18 @@ class _GeneratorExpressionArgumentsMarker(TreeVisitor, SkipDeclarations):
         #  that would require overlapping tags)
 
 
-class MarkGeneratorExpressionArguments(VisitorTransform, SkipDeclarations):
-    def visit_GeneratorExpressionNode(self, node):
-        self.visitchildren(node)
-        if not isinstance(node.loop, Nodes._ForInStatNode):
-            # Possibly should handle ForFromStatNode
-            # but for now do nothing
-            return node
-        itseq = node.loop.iterator.sequence
-        # literals do not need replacing with an argument
-        if itseq.is_literal:
-            return node
-        _GeneratorExpressionArgumentsMarker(node).visit(itseq)
-        return node
+class _HandleGeneratorArguments(VisitorTransform, SkipDeclarations):
+    # used from within CreateClosureClasses
 
-    visit_Node = VisitorTransform.recurse_to_children
-
-
-class HandleGeneratorArguments(VisitorTransform, SkipDeclarations):
-    gen_node = None
-    args = None
-    call_parameters = None
-    tag_count = None
-    substitutions = None
-
-    def visit_GeneratorExpressionNode(self, node):
+    def __call__(self, node):
         from . import Visitor
-          # a generator can also be substituted itself, so handle that case first
-        new_node = self._handle_ExprNode(node, do_visit_children=False)
+        assert isinstance(node, ExprNodes.GeneratorExpressionNode)
+        self.gen_node = node
 
-        old_gen_node, self.gen_node = self.gen_node, node
-        # make a copy and of the arguments and replace it afterwards, since
-        # otherwise it gets messed up by the "visitchildren" process
-        args = self.args
-        call_parameters = self.call_parameters
         self.args = list(node.def_node.args)
         self.call_parameters = list(node.call_parameters)
-        tag_count, self.tag_count = self.tag_count, 0
-        substitutions, self.substitutions = self.substitutions, {}
+        self.tag_count = 0
+        self.substitutions = {}
 
         self.visitchildren(node)
 
@@ -1474,14 +1449,16 @@ class HandleGeneratorArguments(VisitorTransform, SkipDeclarations):
             # (it could arguably be done more efficiently with a single traversal though)
             Visitor.recursively_replace_node(node, k, v)
 
-        self.gen_node = None
-        self.tag_count = tag_count
-
         node.def_node.args = self.args
         node.call_parameters = self.call_parameters
-        self.args = args
-        self.call_parameters = call_parameters
-        return new_node
+        return node
+
+    def visit_GeneratorExpressionNode(self, node):
+        # a generator can also be substituted itself, so handle that case
+        new_node = self._handle_ExprNode(node, do_visit_children=False)
+        # however do not traverse into it. A new _HandleGeneratorArguments will be  created
+        # elsewhere to do that
+        return node
 
     def _handle_ExprNode(self, node, do_visit_children):
         if (node.generator_arg_tag is not None and self.gen_node is not None and
@@ -2893,6 +2870,8 @@ class YieldNodeCollector(TreeVisitor):
 
 
 class MarkClosureVisitor(CythonTransform):
+    # In addition to marking closures this is also responsible to finding parts of the
+    # generator iterable and marking them
 
     def visit_ModuleNode(self, node):
         self.needs_closure = False
@@ -2960,6 +2939,19 @@ class MarkClosureVisitor(CythonTransform):
     def visit_ClassDefNode(self, node):
         self.visitchildren(node)
         self.needs_closure = True
+        return node
+
+    def visit_GeneratorExpressionNode(self, node):
+        node = self.visit_LambdaNode(node)
+        if not isinstance(node.loop, Nodes._ForInStatNode):
+            # Possibly should handle ForFromStatNode
+            # but for now do nothing
+            return node
+        itseq = node.loop.iterator.sequence
+        # literals do not need replacing with an argument
+        if itseq.is_literal:
+            return node
+        _GeneratorExpressionArgumentsMarker(node).visit(itseq)
         return node
 
 
@@ -3105,6 +3097,10 @@ class CreateClosureClasses(CythonTransform):
         else:
             self.visitchildren(node)
             return node
+
+    def visit_GeneratorExpressionNode(self, node):
+        node = _HandleGeneratorArguments()(node)
+        return self.visit_LambdaNode(node)
 
 
 class InjectGilHandling(VisitorTransform, SkipDeclarations):
