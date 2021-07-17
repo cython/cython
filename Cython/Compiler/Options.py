@@ -176,6 +176,17 @@ def copy_inherited_directives(outer_directives, **new_directives):
     new_directives_out.update(new_directives)
     return new_directives_out
 
+def get_conversion_utility_code_directives(directives):
+    directives_out = dict(_directive_defaults)
+    allowed_directives = (
+        'binding', 'always_allow_keywords', 'allow_none_for_extension_args',
+        'auto_pickle', 'ccomplex',
+        'c_string_type', 'c_string_encoding')
+    for k,v in directives.items():
+        if k in allowed_directives or k.startswith('optimize.'):
+            directives_out[k] = v
+    return directives_out
+
 # Declare compiler directives
 _directive_defaults = {
     'binding': True,  # was False before 3.0
