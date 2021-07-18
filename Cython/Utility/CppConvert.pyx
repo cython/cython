@@ -38,12 +38,12 @@ cdef inline object {{cname.replace("PyObject", py_type, 1)}}(const string& s):
 #################### vector.from_py ####################
 
 cdef extern from *:
-    cdef cppclass vector "std::vector" [T]:
+    cdef cppclass vector "std::vector" [T,ALLOCATOR=*]:
         void push_back(T&) except +
 
 @cname("{{cname}}")
-cdef vector[X] {{cname}}(object o) except *:
-    cdef vector[X] v
+cdef vector[X,{{optional_template_args}}] {{cname}}(object o) except *:
+    cdef vector[X,{{optional_template_args}}] v
     for item in o:
         v.push_back(<X>item)
     return v
@@ -52,7 +52,7 @@ cdef vector[X] {{cname}}(object o) except *:
 #################### vector.to_py ####################
 
 cdef extern from *:
-    cdef cppclass vector "std::vector" [T]:
+    cdef cppclass vector "std::vector" [T,ALLOCATOR=*]:
         size_t size()
         T& operator[](size_t)
 
@@ -63,7 +63,7 @@ cdef extern from "Python.h":
     cdef Py_ssize_t PY_SSIZE_T_MAX
 
 @cname("{{cname}}")
-cdef object {{cname}}(const vector[X]& v):
+cdef object {{cname}}(const vector[X,{{optional_template_args}}]& v):
     if v.size() > <size_t> PY_SSIZE_T_MAX:
         raise MemoryError()
 
@@ -82,12 +82,12 @@ cdef object {{cname}}(const vector[X]& v):
 #################### list.from_py ####################
 
 cdef extern from *:
-    cdef cppclass cpp_list "std::list" [T]:
+    cdef cppclass cpp_list "std::list" [T,ALLOCATOR=*]:
         void push_back(T&) except +
 
 @cname("{{cname}}")
-cdef cpp_list[X] {{cname}}(object o) except *:
-    cdef cpp_list[X] l
+cdef cpp_list[X,{{optional_template_args}}] {{cname}}(object o) except *:
+    cdef cpp_list[X,{{optional_template_args}}] l
     for item in o:
         l.push_back(<X>item)
     return l
@@ -98,7 +98,7 @@ cdef cpp_list[X] {{cname}}(object o) except *:
 cimport cython
 
 cdef extern from *:
-    cdef cppclass cpp_list "std::list" [T]:
+    cdef cppclass cpp_list "std::list" [T,ALLOCATOR=*]:
         cppclass const_iterator:
             T& operator*()
             const_iterator operator++()
@@ -114,7 +114,7 @@ cdef extern from "Python.h":
     cdef Py_ssize_t PY_SSIZE_T_MAX
 
 @cname("{{cname}}")
-cdef object {{cname}}(const cpp_list[X]& v):
+cdef object {{cname}}(const cpp_list[X,{{optional_template_args}}]& v):
     if v.size() > <size_t> PY_SSIZE_T_MAX:
         raise MemoryError()
 
@@ -122,7 +122,7 @@ cdef object {{cname}}(const cpp_list[X]& v):
 
     cdef object item
     cdef Py_ssize_t i = 0
-    cdef cpp_list[X].const_iterator iter = v.begin()
+    cdef cpp_list[X,{{optional_template_args}}].const_iterator iter = v.begin()
 
     while iter != v.end():
         item = cython.operator.dereference(iter)
@@ -137,12 +137,12 @@ cdef object {{cname}}(const cpp_list[X]& v):
 #################### set.from_py ####################
 
 cdef extern from *:
-    cdef cppclass set "std::{{maybe_unordered}}set" [T]:
+    cdef cppclass set "std::{{maybe_unordered}}set" [T {{optional_template_names}}]:
         void insert(T&) except +
 
 @cname("{{cname}}")
-cdef set[X] {{cname}}(object o) except *:
-    cdef set[X] s
+cdef set[X,{{optional_template_args}}] {{cname}}(object o) except *:
+    cdef set[X,{{optional_template_args}}] s
     for item in o:
         s.insert(<X>item)
     return s
@@ -153,7 +153,7 @@ cdef set[X] {{cname}}(object o) except *:
 cimport cython
 
 cdef extern from *:
-    cdef cppclass cpp_set "std::{{maybe_unordered}}set" [T]:
+    cdef cppclass cpp_set "std::{{maybe_unordered}}set" [T {{optional_template_names}}]:
         cppclass const_iterator:
             T& operator*()
             const_iterator operator++()
@@ -162,7 +162,7 @@ cdef extern from *:
         const_iterator end()
 
 @cname("{{cname}}")
-cdef object {{cname}}(const cpp_set[X]& s):
+cdef object {{cname}}(const cpp_set[X,{{optional_template_args}}]& s):
     return {v for v in s}
 
 #################### pair.from_py ####################
@@ -195,16 +195,14 @@ cdef object {{cname}}(const pair[X,Y]& p):
 cdef extern from *:
     cdef cppclass pair "std::pair" [T, U]:
         pair(T&, U&) except +
-    cdef cppclass map "std::{{maybe_unordered}}map" [T, U]:
+    cdef cppclass map "std::{{maybe_unordered}}map" [T, U {{optional_template_names}}]:
         void insert(pair[T, U]&) except +
-    cdef cppclass vector "std::vector" [T]:
-        pass
 
 
 @cname("{{cname}}")
-cdef map[X,Y] {{cname}}(object o) except *:
+cdef map[X,Y,{{optional_template_args}}] {{cname}}(object o) except *:
     cdef dict d = o
-    cdef map[X,Y] m
+    cdef map[X,Y,{{optional_template_args}}] m
     for key, value in d.iteritems():
         m.insert(pair[X,Y](<X>key, <Y>value))
     return m
@@ -217,7 +215,7 @@ cdef map[X,Y] {{cname}}(object o) except *:
 cimport cython
 
 cdef extern from *:
-    cdef cppclass map "std::{{maybe_unordered}}map" [T, U]:
+    cdef cppclass map "std::{{maybe_unordered}}map" [T, U {{optional_template_names}}]:
         cppclass value_type:
             T first
             U second
@@ -229,10 +227,10 @@ cdef extern from *:
         const_iterator end()
 
 @cname("{{cname}}")
-cdef object {{cname}}(const map[X,Y]& s):
+cdef object {{cname}}(const map[X,Y,{{optional_template_args}}]& s):
     o = {}
-    cdef const map[X,Y].value_type *key_value
-    cdef map[X,Y].const_iterator iter = s.begin()
+    cdef const map[X,Y,{{optional_template_args}}].value_type *key_value
+    cdef map[X,Y,{{optional_template_args}}].const_iterator iter = s.begin()
     while iter != s.end():
         key_value = &cython.operator.dereference(iter)
         o[key_value.first] = key_value.second
