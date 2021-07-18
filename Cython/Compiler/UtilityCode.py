@@ -227,6 +227,21 @@ class CythonUtilityCode(Code.UtilityCodeBase):
 
         return original_scope
 
+    @staticmethod
+    def filter_directives(directives_in):
+        from .Options import _directive_defaults
+        directives_out = dict(_directive_defaults)
+        allowed_directives = (
+            'binding', 'always_allow_keywords', 'allow_none_for_extension_args',
+            'auto_pickle', 'ccomplex',
+            'c_string_type', 'c_string_encoding',
+            'optimize.inline_defnode_calls', 'optimize.unpack_method_calls',
+            'optimize.unpack_method_calls_in_pyinit', 'optimize.use_switch')
+        for ad in allowed_directives:
+            if ad in directives_in:
+                directives_out[ad] = directives_in[ad]
+        return directives_out
+
 
 def declare_declarations_in_scope(declaration_string, env, private_type=True,
                                   *args, **kwargs):
