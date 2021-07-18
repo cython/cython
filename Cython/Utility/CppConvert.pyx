@@ -4,57 +4,38 @@
 #################### string.from_py ####################
 
 cdef extern from *:
-    cdef cppclass string "{{type}}":
-        string() except +
-        string(char* c_str, size_t size) except +
     cdef const char* __Pyx_PyObject_AsStringAndSize(object, Py_ssize_t*) except NULL
 
 @cname("{{cname}}")
-cdef string {{cname}}(object o) except *:
+cdef Tp {{cname}}(object o) except *:
     cdef Py_ssize_t length = 0
     cdef const char* data = __Pyx_PyObject_AsStringAndSize(o, &length)
-    return string(data, length)
+    return Tp(data, length)
 
 
 #################### string.to_py ####################
-
-#cimport cython
-#from libcpp.string cimport string
-cdef extern from *:
-    cdef cppclass string "{{type}}":
-        char* data()
-        size_t size()
 
 {{for py_type in ['PyObject', 'PyUnicode', 'PyStr', 'PyBytes', 'PyByteArray']}}
 cdef extern from *:
     cdef object __Pyx_{{py_type}}_FromStringAndSize(const char*, size_t)
 
 @cname("{{cname.replace("PyObject", py_type, 1)}}")
-cdef inline object {{cname.replace("PyObject", py_type, 1)}}(const string& s):
+cdef inline object {{cname.replace("PyObject", py_type, 1)}}(const Tp& s):
     return __Pyx_{{py_type}}_FromStringAndSize(s.data(), s.size())
 {{endfor}}
 
 
 #################### vector.from_py ####################
 
-cdef extern from *:
-    cdef cppclass vector "std::vector" [T,ALLOCATOR=*]:
-        void push_back(T&) except +
-
 @cname("{{cname}}")
-cdef vector[X,{{optional_template_args}}] {{cname}}(object o) except *:
-    cdef vector[X,{{optional_template_args}}] v
+cdef Tp {{cname}}(object o) except *:
+    cdef Tp v
     for item in o:
-        v.push_back(<X>item)
+        v.push_back(<Tp.value_type>item)
     return v
 
 
 #################### vector.to_py ####################
-
-cdef extern from *:
-    cdef cppclass vector "std::vector" [T,ALLOCATOR=*]:
-        size_t size()
-        T& operator[](size_t)
 
 cdef extern from "Python.h":
     void Py_INCREF(object)
@@ -63,7 +44,7 @@ cdef extern from "Python.h":
     cdef Py_ssize_t PY_SSIZE_T_MAX
 
 @cname("{{cname}}")
-cdef object {{cname}}(const vector[X,{{optional_template_args}}]& v):
+cdef object {{cname}}(const Tp& v):
     if v.size() > <size_t> PY_SSIZE_T_MAX:
         raise MemoryError()
 
@@ -81,31 +62,17 @@ cdef object {{cname}}(const vector[X,{{optional_template_args}}]& v):
 
 #################### list.from_py ####################
 
-cdef extern from *:
-    cdef cppclass cpp_list "std::list" [T,ALLOCATOR=*]:
-        void push_back(T&) except +
-
 @cname("{{cname}}")
-cdef cpp_list[X,{{optional_template_args}}] {{cname}}(object o) except *:
-    cdef cpp_list[X,{{optional_template_args}}] l
+cdef Tp {{cname}}(object o) except *:
+    cdef Tp l
     for item in o:
-        l.push_back(<X>item)
+        l.push_back(<Tp.value_type>item)
     return l
 
 
 #################### list.to_py ####################
 
 cimport cython
-
-cdef extern from *:
-    cdef cppclass cpp_list "std::list" [T,ALLOCATOR=*]:
-        cppclass const_iterator:
-            T& operator*()
-            const_iterator operator++()
-            bint operator!=(const_iterator)
-        const_iterator begin()
-        const_iterator end()
-        size_t size()
 
 cdef extern from "Python.h":
     void Py_INCREF(object)
@@ -114,7 +81,7 @@ cdef extern from "Python.h":
     cdef Py_ssize_t PY_SSIZE_T_MAX
 
 @cname("{{cname}}")
-cdef object {{cname}}(const cpp_list[X,{{optional_template_args}}]& v):
+cdef object {{cname}}(const Tp& v):
     if v.size() > <size_t> PY_SSIZE_T_MAX:
         raise MemoryError()
 
@@ -122,7 +89,7 @@ cdef object {{cname}}(const cpp_list[X,{{optional_template_args}}]& v):
 
     cdef object item
     cdef Py_ssize_t i = 0
-    cdef cpp_list[X,{{optional_template_args}}].const_iterator iter = v.begin()
+    cdef Tp.const_iterator iter = v.const_begin()
 
     while iter != v.end():
         item = cython.operator.dereference(iter)
@@ -136,15 +103,11 @@ cdef object {{cname}}(const cpp_list[X,{{optional_template_args}}]& v):
 
 #################### set.from_py ####################
 
-cdef extern from *:
-    cdef cppclass set "std::{{maybe_unordered}}set" [T {{optional_template_names}}]:
-        void insert(T&) except +
-
 @cname("{{cname}}")
-cdef set[X,{{optional_template_args}}] {{cname}}(object o) except *:
-    cdef set[X,{{optional_template_args}}] s
+cdef Tp {{cname}}(object o) except *:
+    cdef Tp s
     for item in o:
-        s.insert(<X>item)
+        s.insert(<Tp.value_type>item)
     return s
 
 
@@ -152,18 +115,10 @@ cdef set[X,{{optional_template_args}}] {{cname}}(object o) except *:
 
 cimport cython
 
-cdef extern from *:
-    cdef cppclass cpp_set "std::{{maybe_unordered}}set" [T {{optional_template_names}}]:
-        cppclass const_iterator:
-            T& operator*()
-            const_iterator operator++()
-            bint operator!=(const_iterator)
-        const_iterator begin()
-        const_iterator end()
-
 @cname("{{cname}}")
-cdef object {{cname}}(const cpp_set[X,{{optional_template_args}}]& s):
-    return {v for v in s}
+cdef object {{cname}}(const Tp& s):
+    # casting away the const is a bit dubious, but helps Cython do the iteration
+    return {v for v in <Tp&>s}
 
 #################### pair.from_py ####################
 
@@ -173,20 +128,15 @@ cdef extern from *:
         pair(T&, U&) except +
 
 @cname("{{cname}}")
-cdef pair[X,Y] {{cname}}(object o) except *:
+cdef Tp {{cname}}(object o) except *:
     x, y = o
-    return pair[X,Y](<X>x, <Y>y)
+    return Tp(<Tp.first_type>x, <Tp.second_type>y)
 
 
 #################### pair.to_py ####################
 
-cdef extern from *:
-    cdef cppclass pair "std::pair" [T, U]:
-        T first
-        U second
-
 @cname("{{cname}}")
-cdef object {{cname}}(const pair[X,Y]& p):
+cdef object {{cname}}(const Tp& p):
     return p.first, p.second
 
 
@@ -195,43 +145,27 @@ cdef object {{cname}}(const pair[X,Y]& p):
 cdef extern from *:
     cdef cppclass pair "std::pair" [T, U]:
         pair(T&, U&) except +
-    cdef cppclass map "std::{{maybe_unordered}}map" [T, U {{optional_template_names}}]:
-        void insert(pair[T, U]&) except +
 
 
 @cname("{{cname}}")
-cdef map[X,Y,{{optional_template_args}}] {{cname}}(object o) except *:
+cdef Tp {{cname}}(object o) except *:
     cdef dict d = o
-    cdef map[X,Y,{{optional_template_args}}] m
+    cdef Tp m
     for key, value in d.iteritems():
-        m.insert(pair[X,Y](<X>key, <Y>value))
+        m.insert(pair[Tp.key_type, Tp.mapped_type](<Tp.key_type>key, <Tp.mapped_type>value))
     return m
 
 
 #################### map.to_py ####################
-# TODO: Work out const so that this can take a const
-# reference rather than pass by value.
 
 cimport cython
 
-cdef extern from *:
-    cdef cppclass map "std::{{maybe_unordered}}map" [T, U {{optional_template_names}}]:
-        cppclass value_type:
-            T first
-            U second
-        cppclass const_iterator:
-            value_type& operator*()
-            const_iterator operator++()
-            bint operator!=(const_iterator)
-        const_iterator begin()
-        const_iterator end()
-
 @cname("{{cname}}")
-cdef object {{cname}}(const map[X,Y,{{optional_template_args}}]& s):
+cdef object {{cname}}(const Tp& s):
     o = {}
-    cdef const map[X,Y,{{optional_template_args}}].value_type *key_value
-    cdef map[X,Y,{{optional_template_args}}].const_iterator iter = s.begin()
-    while iter != s.end():
+    cdef const Tp.value_type *key_value
+    cdef Tp.const_iterator iter = s.const_begin()
+    while iter != s.const_end():
         key_value = &cython.operator.dereference(iter)
         o[key_value.first] = key_value.second
         cython.operator.preincrement(iter)
@@ -240,26 +174,16 @@ cdef object {{cname}}(const map[X,Y,{{optional_template_args}}]& s):
 
 #################### complex.from_py ####################
 
-cdef extern from *:
-    cdef cppclass std_complex "std::complex" [T]:
-        std_complex()
-        std_complex(T, T) except +
-
 @cname("{{cname}}")
-cdef std_complex[X] {{cname}}(object o) except *:
+cdef Tp {{cname}}(object o) except *:
     cdef double complex z = o
-    return std_complex[X](<X>z.real, <X>z.imag)
+    return Tp(<Tp.value_type>z.real, <Tp.value_type>z.imag)
 
 
 #################### complex.to_py ####################
 
-cdef extern from *:
-    cdef cppclass std_complex "std::complex" [T]:
-        X real()
-        X imag()
-
 @cname("{{cname}}")
-cdef object {{cname}}(const std_complex[X]& z):
+cdef object {{cname}}(const Tp& z):
     cdef double complex tmp
     tmp.real = <double>z.real()
     tmp.imag = <double>z.imag()
