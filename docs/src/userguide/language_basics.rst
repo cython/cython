@@ -247,7 +247,7 @@ which is the main reason for declaring builtin types in the first place.
 
 For declared builtin types, Cython uses internally a C variable of type ``PyObject*``.
 
-.. Note:: The Python types ``int``, ``long``, and ``float`` are not available for static
+.. note:: The Python types ``int``, ``long``, and ``float`` are not available for static
     typing in ``.pyx`` files and instead interpreted as C ``int``, ``long``, and ``float``
     respectively, as statically typing variables with these Python
     types has zero advantages. On the other hand, annotating in Pure Python with
