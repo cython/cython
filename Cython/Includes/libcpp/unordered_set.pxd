@@ -60,6 +60,7 @@ cdef extern from "<unordered_set>" namespace "std" nogil:
 
     cdef cppclass unordered_multiset[T,HASH=*,PRED=*,ALLOCATOR=*]:
         ctypedef T value_type
+
         cppclass iterator:
             T& operator*()
             iterator operator++()
@@ -76,6 +77,7 @@ cdef extern from "<unordered_set>" namespace "std" nogil:
             pass
         cppclass const_reverse_iterator(reverse_iterator):
             pass
+
         unordered_multiset() except +
         unordered_multiset(unordered_multiset&) except +
         #unordered_multiset& operator=(unordered_multiset&)

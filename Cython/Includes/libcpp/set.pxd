@@ -62,6 +62,7 @@ cdef extern from "<set>" namespace "std" nogil:
 
     cdef cppclass multiset[T]:
         ctypedef T value_type
+
         cppclass iterator:
             T& operator*()
             iterator operator++()
@@ -78,6 +79,7 @@ cdef extern from "<set>" namespace "std" nogil:
             pass
         cppclass const_reverse_iterator(reverse_iterator):
             pass
+
         multiset() except +
         multiset(multiset&) except +
         #multiset(key_compare&)
