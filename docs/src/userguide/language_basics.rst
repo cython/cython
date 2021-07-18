@@ -67,8 +67,9 @@ define global C variables.
 
         .. code-block:: python
 
-            global_x = declare(cython.int)
-            def main():
+            a_global_variable = declare(cython.int)
+
+            def func():
                 i: cython.int
                 j: cython.int
                 k: cython.int
@@ -80,8 +81,11 @@ define global C variables.
 
         .. code-block:: cython
 
-            cdef int i, j, k
-            cdef float f, g[42], *h
+            cdef int a_global_variable
+
+            def func():
+                cdef int i, j, k
+                cdef float f, g[42], *h
 
 Moreover, C :keyword:`struct`, :keyword:`union` and :keyword:`enum` are supported:
 
@@ -91,7 +95,7 @@ Moreover, C :keyword:`struct`, :keyword:`union` and :keyword:`enum` are supporte
 
         .. literalinclude:: ../../examples/userguide/language_basics/struct_union_enum.py
 
-        .. note:: Currently, Pure Python mode does not support enums.
+        .. note:: Currently, Pure Python mode does not support enums. (GitHub issue :issue:`4252`)
 
     .. group-tab:: Cython
 
@@ -160,7 +164,7 @@ You can create a C function by declaring it with :keyword:`cdef` or by decoratin
 
         .. code-block:: python
 
-            @cfunc
+            @cython.cfunc
             def eggs(l: cython.ulong, f: cython.float) -> cython.int:
                 ...
 
@@ -337,7 +341,7 @@ using normal C declaration syntax. For example,
             def spam(i: cython.int, s: cython.p_char):
                 ...
 
-            @cfunc
+            @cython.cfunc
             def eggs(l: cython.ulong, f: cython.float) -> cython.int:
                 ...
 
@@ -359,7 +363,7 @@ using normal C declaration syntax. For example,
 
         .. code-block:: python
 
-            @cfunc
+            @cython.cfunc
             def chips(t: (cython.long, cython.long, cython.double)) -> (cython.int, cython.float):
                 ...
 
@@ -430,7 +434,7 @@ takes two Python objects as parameters and returns a Python object
 
         .. code-block:: python
 
-            @cfunc
+            @cython.cfunc
             def spamobjs(x, y):
                 ...
 
@@ -461,7 +465,7 @@ as the name of a type, for example,
 
         .. code-block:: python
 
-            @cfunc
+            @cython.cfunc
             def ftang(int: object):
                 ...
 
@@ -478,8 +482,8 @@ object as the explicit return type of a function, e.g.::
     cdef object ftang(object int):
         ...
 
-.. note:: Currently, Cython contains a bug not allowing returning ``object`` in
-    pure python from a C function.
+.. note:: Currently, Cython contains a bug not allowing ``object`` as return annotation in
+    pure Python from a C function. (GitHub issue :issue:`2529`)
 
 In the interests of clarity, it is probably a good idea to always be explicit
 about object parameters in C functions.
@@ -606,8 +610,8 @@ Here is an example
 
         .. code-block:: python
 
-            @cfunc
-            @exceptval(-1)
+            @cython.cfunc
+            @cython.exceptval(-1)
             def spam() -> cython.int:
                 ...
 
@@ -642,12 +646,12 @@ form of exception value declaration
 
         .. code-block:: python
 
-            @cfunc
-            @exceptval(-1, check=True)
+            @cython.cfunc
+            @cython.exceptval(-1, check=True)
             def spam() -> cython.int:
                 ...
 
-        The ``check=True`` indicates that the value ``-1`` only signals a possible error.
+        The keyword argument ``check=True`` indicates that the value ``-1`` _may_ signal an error.
 
     .. group-tab:: Cython
 
@@ -656,7 +660,7 @@ form of exception value declaration
             cdef int spam() except? -1:
                 ...
 
-        The ``?`` indicates that the value ``-1`` only signals a possible error.
+        The ``?`` indicates that the value ``-1`` _may_ signal an error.
 
 In this case, Cython generates a call to :c:func:`PyErr_Occurred` if the exception value
 is returned, to make sure it really received an exception and not just a normal
@@ -670,8 +674,8 @@ There is also a third form of exception value declaration
 
         .. code-block:: python
 
-            @cfunc
-            @exceptval(check=True)
+            @cython.cfunc
+            @cython.exceptval(check=True)
             def spam() -> cython.int:
                 ...
 
@@ -711,7 +715,7 @@ Some things to note:
 
       int (*grail)(int, char*) except -1
 
-  .. note:: Pointers to functions are currently not supported by pure Python mode.
+  .. note:: Pointers to functions are currently not supported by pure Python mode. (GitHub issue :issue:`4279`)
 
 * You don't need to (and shouldn't) declare exception values for functions
   which return Python objects. Remember that a function with no declared
@@ -1130,7 +1134,7 @@ Python and C, and that Cython uses the Python precedences, not the C ones.
 Integer for-loops
 ------------------
 
-.. note:: This syntax is supported only in Cython files and not in Python.
+.. note:: This syntax is supported only in Cython files.  Use a normal `for-in-range()` loop instead.
 
 Cython recognises the usual Python for-in-range integer loop pattern::
 
