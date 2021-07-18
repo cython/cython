@@ -3793,7 +3793,7 @@ class CppClassType(CType):
                 # hence have to be generated here rather than hard-coded in the utility_code
             for ix, T in enumerate(self.templates or []):
                 if ix >= builtin_cpp_conversions[self.cname]:
-                    optional_arg_template_names.append("%s=*"%self.template_type.templates[ix].name)
+                    optional_arg_template_names.append("%s=*" % self.template_type.templates[ix].name)
                     if not isinstance(T, TemplatePlaceholderType):
                         optional_tags.append(T.specialization_name())
                         optional_tag_strs.append(X[ix])
@@ -3854,7 +3854,7 @@ class CppClassType(CType):
             context = {}
             for ix, T in enumerate(self.templates or []):
                 if ix >= builtin_cpp_conversions[self.cname]:
-                    optional_arg_template_names.append("%s=*"%self.template_type.templates[ix].name)
+                    optional_arg_template_names.append("%s=*" % self.template_type.templates[ix].name)
                     if not isinstance(T, TemplatePlaceholderType):
                         optional_tags.append(T.specialization_name())
                         optional_tag_strs.append(X[ix])
