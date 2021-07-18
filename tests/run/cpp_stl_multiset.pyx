@@ -93,9 +93,9 @@ def test_unordered_multiset_erase(vals, int to_remove):
 
 def test_unordered_multiset_find_erase(vals, to_remove):
     """
-    >>> test_multiset_find_erase([1,2,2,3, -1], 1)
+    >>> test_unordered_multiset_find_erase([1,2,2,3, -1], 1)
     [-1, 2, 2, 3]
-    >>> test_multiset_find_erase([1,2,2,3, -1], 2)  # removes a single copy of 2
+    >>> test_unordered_multiset_find_erase([1,2,2,3, -1], 2)  # removes a single copy of 2
     [-1, 1, 2, 3]
     """
     cdef unordered_multiset[int] ms = unordered_multiset[int]()
