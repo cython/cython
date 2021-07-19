@@ -1,7 +1,7 @@
-cimport cqueue
+from cython.cimports import cqueue
 
-
-cdef class Queue:
+@cython.cclass
+class Queue:
     """A queue class for C integer values.
 
     >>> q = Queue()
@@ -11,20 +11,20 @@ cdef class Queue:
     >>> q.pop()
     5
     """
-    cdef cqueue.Queue* _c_queue
+    _c_queue = cython.declare(cython.pointer(cqueue.Queue))
     def __cinit__(self):
         self._c_queue = cqueue.queue_new()
-        if self._c_queue is NULL:
+        if self._c_queue is cython.NULL:
             raise MemoryError()
 
     def __dealloc__(self):
-        if self._c_queue is not NULL:
+        if self._c_queue is not cython.NULL:
             cqueue.queue_free(self._c_queue)
 
-
-    cpdef append(self, int value):
+    @cython.ccall
+    def append(self, value: cython.int):
         if not cqueue.queue_push_tail(self._c_queue,
-                                      <void*> <Py_ssize_t> value):
+                                      cython.cast(cython.p_void, cython.cast(cython.Py_ssize_t, value))):
             raise MemoryError()
 
     # The `cpdef` feature is obviously not available for the original "extend()"
@@ -33,21 +33,21 @@ cdef class Queue:
     # the C-ish "extend()" method to e.g. "extend_ints()", and write
     # a new "extend()" method that provides a suitable Python interface by
     # accepting an arbitrary Python iterable.
-
-    cpdef extend(self, values):
+    @cython.ccall
+    def extend(self, values):
         for value in values:
             self.append(value)
 
-
-    cdef extend_ints(self, int* values, size_t count):
-        cdef int value
+    @cython.cfunc
+    def extend_ints(self, values: cython.p_int, count: cython.size_t):
+        value: cython.int
         for value in values[:count]:  # Slicing pointer to limit the iteration boundaries.
             self.append(value)
 
-
-
-    cpdef int peek(self) except? -1:
-        cdef int value = <Py_ssize_t> cqueue.queue_peek_head(self._c_queue)
+    @cython.ccall
+    @exceptval(-1, check=True)
+    def peek(self) -> cython.int:
+        value: cython.int = cython.cast(cython.Py_ssize_t, cqueue.queue_peek_head(self._c_queue))
 
         if value == 0:
             # this may mean that the queue is empty,
@@ -56,12 +56,12 @@ cdef class Queue:
                 raise IndexError("Queue is empty")
         return value
 
-
-
-    cpdef int pop(self) except? -1:
+    @cython.ccall
+    @exceptval(-1, check=True)
+    def pop(self) -> cython.int:
         if cqueue.queue_is_empty(self._c_queue):
             raise IndexError("Queue is empty")
-        return <Py_ssize_t> cqueue.queue_pop_head(self._c_queue)
+        return cython.cast(cython.Py_ssize_t, cqueue.queue_pop_head(self._c_queue))
 
     def __bool__(self):
         return not cqueue.queue_is_empty(self._c_queue)
