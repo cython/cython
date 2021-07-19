@@ -36,9 +36,28 @@ using the ``cimport`` keyword.
 
 In our integration example, we might break it up into ``.pxd`` files like this:
 
-1.  Add a ``cmath.pxd`` function which defines the C functions available from
-    the C ``math.h`` header file, like ``sin``. Then one would simply do
-    ``from cmath cimport sin`` in ``integrate.pyx``.
+1.  Add a ``cmath.pxd``:
+
+    .. literalinclude:: ../../examples/tutorial/pxd_files/cmath.pxd
+        :caption: cmath.pxd
+
+    Then one would simply do
+
+    .. tabs::
+
+        .. group-tab:: Pure Python
+
+            .. literalinclude:: ../../examples/tutorial/pxd_files/integrate.py
+                :caption: integrate.py
+
+            .. include::
+                ../cimport-warning
+
+        .. group-tab:: Cython
+
+            .. literalinclude:: ../../examples/tutorial/pxd_files/integrate.pyx
+                :caption: integrate.pyx
+
 2.  Add a ``integrate.pxd`` so that other modules written in Cython
     can define fast custom functions to integrate:
 
