@@ -4,6 +4,9 @@
 pxd files
 *********
 
+.. include::
+    ../two-syntax-variants-used
+
 In addition to the ``.pyx`` and ``.py`` source files, Cython uses ``.pxd`` files
 which work like C header files -- they contain Cython declarations
 (and sometimes code sections) which are only meant for inclusion by
