@@ -248,6 +248,7 @@ class PyrexType(BaseType):
     is_ptr = 0
     is_null_ptr = 0
     is_reference = 0
+    is_fake_reference = 0
     is_rvalue_reference = 0
     is_const = 0
     is_volatile = 0

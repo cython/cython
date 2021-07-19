@@ -300,6 +300,7 @@ class InnerEntry(Entry):
         self.cf_assignments = outermost_entry.cf_assignments
         self.cf_references = outermost_entry.cf_references
         self.overloaded_alternatives = outermost_entry.overloaded_alternatives
+        self.is_cpp_optional = outermost_entry.is_cpp_optional
         self.inner_entries.append(self)
 
     def __getattr__(self, name):
@@ -1925,6 +1926,8 @@ class LocalScope(Scope):
                 elif entry.in_closure:
                     entry.original_cname = entry.cname
                     entry.cname = "%s->%s" % (Naming.cur_scope_cname, entry.cname)
+                    if entry.type.is_cpp_class and entry.scope.directives['cpp_locals']:
+                        entry.make_cpp_optional()
 
 
 class ComprehensionScope(Scope):

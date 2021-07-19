@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, werror, cpp11
+# tag: cpp, werror, cpp11, no-cpp-locals
 
 from libcpp cimport nullptr
 from libcpp.memory cimport shared_ptr, make_shared
