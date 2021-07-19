@@ -61,8 +61,13 @@ In our integration example, we might break it up into ``.pxd`` files like this:
 2.  Add a ``integrate.pxd`` so that other modules written in Cython
     can define fast custom functions to integrate:
 
-    .. literalinclude:: ../../examples/tutorial/pxd_files/integrate.pxd
+    .. code-block:: cython
         :caption: integrate.pxd
+
+        cdef class Function:
+           cpdef evaluate(self, double x)
+
+        cpdef integrate(Function f, double a, double b, int N)
 
     Note that if you have a cdef class with attributes, the attributes must
     be declared in the class declaration ``.pxd`` file (if you use one), not
