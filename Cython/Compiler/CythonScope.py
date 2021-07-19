@@ -26,7 +26,6 @@ class CythonScope(ModuleScope):
                                          cname='<error>')
             entry.in_cinclude = True
 
-
     def is_cpp(self):
         # Allow C++ utility code in C++ contexts.
         return self.context.cpp
@@ -99,7 +98,6 @@ class CythonScope(ModuleScope):
             defining = 1,
             cname = 'PyObject_TypeCheck')
 
-
     def load_cythonscope(self):
         """
         Creates some entries for testing purposes and entries for
@@ -142,11 +140,11 @@ class CythonScope(ModuleScope):
         # dataclasses scope
         from .StringEncoding import EncodedString
         dc_str = EncodedString(u'dataclasses')
-        dataclassesscope = ModuleScope(dc_str, self, None)
-        self.declare_module(dc_str, dataclassesscope, None).as_module = dataclassesscope
+        dataclassesscope = ModuleScope(dc_str, self, context=None)
+        self.declare_module(dc_str, dataclassesscope, pos=None).as_module = dataclassesscope
         dataclassesscope.is_cython_builtin = True
         dataclassesscope.pxd_file_loaded = True
-        # doesn't actually any contents
+        # doesn't actually have any contents
 
 
 def create_cython_scope(context):
@@ -221,9 +219,9 @@ def get_known_standard_library_module(module_name):
 def get_known_standard_library_entry(qualified_name):
     from .StringEncoding import EncodedString
 
-    qualified_name = qualified_name.split(".")
-    module_name = EncodedString(qualified_name[0])
-    rest = qualified_name[1:]
+    name_parts = qualified_name.split(".")
+    module_name = EncodedString(name_parts[0])
+    rest = name_parts[1:]
 
     if len(rest) > 1:  # for now, we don't know how to deal with any nested modules
         return None

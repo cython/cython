@@ -2117,8 +2117,8 @@ class NameNode(AtomicExprNode):
         if not self.entry and self.annotation is not None:
             # name : type = ...
             is_dataclass = 'dataclasses.dataclass' in env.directives
-            # in a dataclass an assignment should not prevent a name becoming an instance attribute
-            # hence "as_target = not is_dataclass"
+            # In a dataclass, an assignment should not prevent a name from becoming an instance attribute.
+            # Hence, "as_target = not is_dataclass".
             self.declare_from_annotation(env, as_target=not is_dataclass)
         if not self.entry:
             if env.directives['warn.undeclared']:
@@ -7152,7 +7152,6 @@ class AttributeNode(ExprNode):
                 return entry.as_module
         return None
 
-
     def as_name_node(self, env, entry, target):
         # Create a corresponding NameNode from this node and complete the
         # analyse_types phase.
@@ -7503,9 +7502,9 @@ class AttributeNode(ExprNode):
         code.annotate(self.pos, AnnotationItem(style, text % self.type, size=len(self.attribute)))
 
     def get_known_standard_library_import(self):
-        if self.obj.get_known_standard_library_import():
-            return StringEncoding.EncodedString(
-                "%s.%s" % (self.obj.get_known_standard_library_import(), self.attribute))
+        module_name = self.obj.get_known_standard_library_import()
+        if module_name:
+            return StringEncoding.EncodedString("%s.%s" % (module_name, self.attribute))
         return None
 
 

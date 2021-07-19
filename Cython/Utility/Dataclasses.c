@@ -45,7 +45,7 @@ static PyObject* __Pyx_LoadInternalModule(const char* name, const char* fallback
         Py_DECREF(modulename);
         if (!module) goto bad;
         Py_INCREF(module);
-        if (PyObject_SetAttrString(shared_abi_module, name, module)<0) goto bad;
+        if (PyObject_SetAttrString(shared_abi_module, name, module) < 0) goto bad;
         localDict = PyModule_GetDict(module); // borrowed
         if (!localDict) goto bad;
         builtins = PyEval_GetBuiltins(); // borrowed

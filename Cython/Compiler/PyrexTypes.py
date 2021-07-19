@@ -258,8 +258,8 @@ class PyrexType(BaseType):
     is_struct_or_union = 0
     is_cpp_class = 0
     is_optional_cpp_class = 0
-    is_python_type_constructor = 0
-    is_special_python_type_constructor = 0
+    is_python_type_constructor = False
+    is_special_python_type_constructor = False
     is_cpp_string = 0
     is_struct = 0
     is_enum = 0

@@ -2,11 +2,15 @@
 
 from collections import OrderedDict
 
+from . import ExprNodes
+from . import Nodes
+from . import PyrexTypes
+from . import UtilNodes
+from . import Builtin
+from . import Naming
 from .Errors import error, warning
-from . import ExprNodes, Nodes, PyrexTypes
 from .Code import UtilityCode, TempitaUtilityCode
 from .Visitor import VisitorTransform
-from . import UtilNodes, Builtin, Naming
 from .StringEncoding import BytesLiteral, EncodedString
 from .TreeFragment import TreeFragment
 from .ParseTreeTransforms import (NormalizeTree, SkipDeclarations, AnalyseDeclarationsTransform,
@@ -17,10 +21,12 @@ def make_dataclasses_module_callnode(pos):
     python_utility_code = EncodedString(python_utility_code.impl)
     loader_utilitycode = TempitaUtilityCode.load_cached("SpecificModuleLoader", "Dataclasses.c",
             context={'cname': "dataclasses", 'py_code': python_utility_code.as_c_string_literal()})
-    return ExprNodes.PythonCapiCallNode(pos, "__Pyx_Load_dataclasses_Module",
-                                            PyrexTypes.CFuncType(PyrexTypes.py_object_type, []),
-                                            utility_code = loader_utilitycode,
-                                            args=[])
+    return ExprNodes.PythonCapiCallNode(
+        pos, "__Pyx_Load_dataclasses_Module",
+        PyrexTypes.CFuncType(PyrexTypes.py_object_type, []),
+        utility_code=loader_utilitycode,
+        args=[],
+    )
 
 _INTERNAL_DEFAULTSHOLDER_NAME = EncodedString('__pyx_dataclass_defaults')
 
@@ -80,9 +86,9 @@ def process_class_get_fields(node):
         default_factory = MISSING
         private = False
         def __init__(self, default=MISSING, default_factory=MISSING,
-                        repr=_TrueNode, hash=_NoneNode, init=_TrueNode,
-                        compare=_TrueNode, metadata=_NoneNode,
-                        is_initvar=False):
+                     repr=_TrueNode, hash=_NoneNode, init=_TrueNode,
+                     compare=_TrueNode, metadata=_NoneNode,
+                     is_initvar=False):
             if default is not MISSING:
                 self.default = default
             if default_factory is not MISSING:
@@ -98,7 +104,7 @@ def process_class_get_fields(node):
                 field_value = getattr(self, field_name)
                 if not field_value.is_literal:
                     error(field_value.pos, "cython.dataclasses.field parameter '%s' must be a literal value"
-                            % field_name)
+                          % field_name)
 
     var_entries = node.scope.var_entries
     # order of definition is used in the dataclass
@@ -113,10 +119,11 @@ def process_class_get_fields(node):
         fields = node.base_type.dataclass_fields.copy()
     else:
         fields = OrderedDict()
+
     for entry in var_entries:
         name = entry.name
         is_initvar = (entry.type.is_special_python_type_constructor and
-                        entry.type.name == "dataclasses.InitVar")
+                      entry.type.name == "dataclasses.InitVar")
         if name in transform.removed_assignments:
             assignment = transform.removed_assignments[name]
             if (isinstance(assignment, ExprNodes.CallNode)
@@ -140,8 +147,7 @@ def process_class_get_fields(node):
                 if isinstance(assignment, ExprNodes.CallNode):
                     func = assignment.function
                     if ((func.is_name and func.name == "field")
-                            or (isinstance(func, ExprNodes.AttributeNode)
-                                and func.attribute == "field")):
+                            or (func.is_attribute and func.attribute == "field")):
                         warning(assignment.pos, "Do you mean cython.dataclasses.field instead?", 1)
                 if assignment.type in [Builtin.list_type, Builtin.dict_type, Builtin.set_type]:
                     # The standard library module generates a TypeError at runtime
@@ -243,11 +249,11 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
 
 def generate_init_code(init, node, fields):
     """
-    All of these "generate_*_code functions return a tuple of:
-     code string
-     placeholder dict (often empty)
-     stat list (often empty)
-    which can then be combined later and processed once
+    All of these "generate_*_code" functions return a tuple of:
+    - code string
+    - placeholder dict (often empty)
+    - stat list (often empty)
+    which can then be combined later and processed once.
     """
     if not init or node.scope.lookup_here("__init__"):
         return "", {}, []
@@ -441,8 +447,8 @@ def generate_hash_code(unsafe_hash, eq, frozen, node, fields):
 
 class GetTypeNode(ExprNodes.ExprNode):
     # Tries to return a pytype_type if possible. However contains
-    # some fallback provision if it turns out not to resolve to a Python object
-    # Initialize with "entry"
+    # some fallback provision if it turns out not to resolve to a Python object.
+    # Initialize with "entry".
 
     subexprs = []
 

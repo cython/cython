@@ -1132,7 +1132,7 @@ class InterpretCompilerDirectives(CythonTransform):
             for rd in realdecs:
                 rd = rd.decorator
                 if ((rd.is_name and rd.name == "dataclass")
-                        or (isinstance(rd, ExprNodes.AttributeNode) and rd.attribute == "dataclass")):
+                        or (rd.is_attribute and rd.attribute == "dataclass")):
                     error(rd.pos,
                           "Use '@cython.dataclasses.dataclass' on cdef classes to create a dataclass")
             raise PostParseError(realdecs[0].pos, "Cdef functions/classes cannot take arbitrary decorators.")

@@ -114,11 +114,12 @@ Features added
   the module file of a wrapper after the library (source file) that it wraps,
   which can lead to surprising errors when the file gets overwritten.
 
-* More comprehensive support understanding ``typing`` module
-  annotations (Github issue #3910)
+* More comprehensive support for non-trivial ``typing`` module annotations.
+  Patch by David Woods.  (Github issue :issue:`3910`)
 
-* ``cdef classes`` can be made ``dataclasses`` using the ``@cython.dataclasses.dataclass``
-  decorator (Github issue #3400)
+* ``cdef classes`` can be made into ``dataclasses`` using the ``@cython.dataclasses.dataclass``
+  decorator.
+  Patch by David Woods.  (Github issue :issue:`3400`)
 
 Bugs fixed
 ----------
