@@ -3167,7 +3167,7 @@ class CoerceCppTemps(EnvTransform, SkipDeclarations):
         self.visitchildren(node)
         if (self.current_env().directives['cpp_locals'] and
                 node.is_temp and node.type.is_cpp_class and
-                # exclude fake references from this because they aren't replaced by optional
+                # Fake references are not replaced with "std::optional()".
                 not node.type.is_fake_reference):
             node = ExprNodes.CppOptionalTempCoercion(node)
 

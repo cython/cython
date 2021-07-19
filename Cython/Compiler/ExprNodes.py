@@ -7342,7 +7342,6 @@ class AttributeNode(ExprNode):
                 obj_code = obj.type.cast_code(obj.result(), to_object_struct = True)
             return "%s%s%s" % (obj_code, self.op, self.member)
 
-
     def generate_result_code(self, code):
         if self.is_py_attr:
             if self.is_special_lookup:
@@ -7384,12 +7383,11 @@ class AttributeNode(ExprNode):
                         '%s'
                     '}' % (self.result(), code.error_goto(self.pos)))
         elif self.entry.is_cpp_optional and self.initialized_check:
-
-            if self.entry and self.entry.is_cpp_optional and not self.is_target:
-                assert not self.is_temp  # calculate_access_code only makes sense for non-temps
-                undereferenced_result = self.calculate_access_code()
-            else:
+            if self.is_target:
                 undereferenced_result = self.result()
+            else:
+                assert not self.is_temp  # calculate_access_code() only makes sense for non-temps
+                undereferenced_result = self.calculate_access_code()
             unbound_check_code = self.type.cpp_optional_check_for_null_code(undereferenced_result)
             code.put_error_if_unbound(self.pos, self.entry, unbound_check_code=unbound_check_code)
         else:

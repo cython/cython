@@ -297,7 +297,7 @@ def update_cpp11_extension(ext):
         update cpp11 extensions that will run on versions of gcc >4.8
     """
     gcc_version = get_gcc_version(ext.language)
-    already_has_std = any(ca for ca in ext.extra_compile_args if ca.find("-std") != -1)
+    already_has_std = any(ca for ca in ext.extra_compile_args if "-std" in ca)
     if gcc_version:
         compiler_version = gcc_version.group(1)
         if float(compiler_version) > 4.8 and not already_has_std:
@@ -998,9 +998,7 @@ class CythonCompileTestCase(unittest.TestCase):
         Options.warning_errors = self.warning_errors
         if sys.version_info >= (3, 4):
             Options._directive_defaults['autotestdict'] = False
-        if self.extra_directives:
-            for k,v in self.extra_directives.items():
-                Options._directive_defaults[k] = v
+        Options._directive_defaults.update(self.extra_directives)
 
         if not os.path.exists(self.workdir):
             os.makedirs(self.workdir)
