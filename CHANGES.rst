@@ -2,6 +2,31 @@
 Cython Changelog
 ================
 
+3.0.0 alpha 9 (2021-??-??)
+==========================
+
+Features added
+--------------
+
+* Declarations for ``libcpp.algorithms``, ``libcpp.set`` and ``libcpp.unordered_set``
+  were extended.
+  Patch by David Woods.  (Github issues :issue:`4271`, :issue:`4273`)
+
+Bugs fixed
+----------
+
+* A reference counting bug in the new ``@cython.total_ordering`` decorator was fixed.
+
+* Includes all bug-fixes from the :ref:`0.29.24` release.
+
+Other changes
+-------------
+
+* Parts of the documentation were (and are being) rewritten to show the
+  Cython language syntax next to the equivalent Python syntax.
+  Patches by 0dminnimda and Matus Valo.  (Github issue :issue:`4187`)
+
+
 3.0.0 alpha 8 (2021-07-02)
 ==========================
 
