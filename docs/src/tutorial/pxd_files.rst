@@ -1,7 +1,8 @@
 .. _pxd_files:
 
+*********
 pxd files
-=========
+*********
 
 In addition to the ``.pyx`` source files, Cython uses ``.pxd`` files
 which work like C header files -- they contain Cython declarations
@@ -42,7 +43,7 @@ In our integration example, we might break it up into ``pxd`` files like this:
 
 
 __init__.pxd
-^^^^^^^^^^^^
+============
 
 Cython also supports ``__init__.pxd`` files for declarations in package's
 namespaces, similar to ``__init__.py`` files in Python.
