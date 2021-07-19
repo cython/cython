@@ -4,6 +4,9 @@
 Memory Allocation
 *****************
 
+.. include::
+    ../two-syntax-variants-used
+
 Dynamic memory allocation is mostly a non-issue in Python.  Everything is an
 object, and the reference counting system and garbage collector automatically
 return memory to the system when it is no longer being used.
