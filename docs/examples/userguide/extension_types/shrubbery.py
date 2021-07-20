@@ -1,9 +1,9 @@
 from __future__ import print_function
 
-
-cdef class Shrubbery:
-    cdef int width
-    cdef int height
+@cython.cclass
+class Shrubbery:
+    width: cython.int
+    height: cython.int
 
     def __init__(self, w, h):
         self.width = w
