@@ -3808,9 +3808,8 @@ class CppClassType(CType):
                 'type': self.cname,
             })
             # Override directives that should not be inherited from user code.
-            # TODO: filter directives with an allow list to keep only those that are safe and relevant.
-            directives = dict(env.directives, cpp_locals=False)
             from .UtilityCode import CythonUtilityCode
+            directives = CythonUtilityCode.filter_inherited_directives(env.directives)
             env.use_utility_code(CythonUtilityCode.load(
                 cls.replace('unordered_', '') + ".from_py", "CppConvert.pyx",
                 context=context, compiler_directives=directives))
@@ -3855,10 +3854,9 @@ class CppClassType(CType):
                 'maybe_unordered': self.maybe_unordered(),
                 'type': self.cname,
             })
-            # Override directives that should not be inherited from user code.
-            # TODO: filter directives with an allow list to keep only those that are safe and relevant.
-            directives = dict(env.directives, cpp_locals=False)
             from .UtilityCode import CythonUtilityCode
+            # Override directives that should not be inherited from user code.
+            directives = CythonUtilityCode.filter_inherited_directives(env.directives)
             env.use_utility_code(CythonUtilityCode.load(
                 cls.replace('unordered_', '') + ".to_py", "CppConvert.pyx",
                 context=context, compiler_directives=directives))
