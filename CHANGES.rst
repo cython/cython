@@ -2,6 +2,19 @@
 Cython Changelog
 ================
 
+3.0.0 alpha 9 (????-??-??)
+==========================
+
+Features added
+--------------
+
+* More comprehensive support for non-trivial ``typing`` module annotations.
+  Patch by David Woods.  (Github issue :issue:`3910`)
+
+* ``cdef classes`` can be made into ``dataclasses`` using the ``@cython.dataclasses.dataclass``
+  decorator.
+  Patch by David Woods.  (Github issue :issue:`3400`)
+
 3.0.0 alpha 8 (2021-07-02)
 ==========================
 
@@ -152,13 +165,6 @@ Features added
   by itself and refuses to overwrite them.  It is a common mistake to name
   the module file of a wrapper after the library (source file) that it wraps,
   which can lead to surprising errors when the file gets overwritten.
-
-* More comprehensive support for non-trivial ``typing`` module annotations.
-  Patch by David Woods.  (Github issue :issue:`3910`)
-
-* ``cdef classes`` can be made into ``dataclasses`` using the ``@cython.dataclasses.dataclass``
-  decorator.
-  Patch by David Woods.  (Github issue :issue:`3400`)
 
 Bugs fixed
 ----------
