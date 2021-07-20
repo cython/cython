@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, warnings
+# tag: cpp, warnings, no-cpp-locals
 
 # This gives a warning about the previous .pxd definition, but should not give an error.
 cdef cppclass Foo:
