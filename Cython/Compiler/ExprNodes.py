@@ -841,6 +841,9 @@ class ExprNode(Node):
         self.not_implemented("generate_result_code")
 
     def generate_disposal_code(self, code):
+        if self.has_temp_moved:
+            code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("MoveIfSupported", "CppSupport.cpp"))
         if self.is_temp:
             if self.type.is_string or self.type.is_pyunicode_ptr:
                 # postponed from self.generate_evaluation_code()
@@ -849,9 +852,6 @@ class ExprNode(Node):
             if self.result():
                 code.put_decref_clear(self.result(), self.ctype(),
                                         have_gil=not self.in_nogil_context)
-            if self.has_temp_moved:
-                code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("MoveIfSupported", "CppSupport.cpp"))
         else:
             # Already done if self.is_temp
             self.generate_subexpr_disposal_code(code)
@@ -2110,6 +2110,7 @@ class NameNode(AtomicExprNode):
         return None
 
     def analyse_target_declaration(self, env):
+        self.is_target = True
         if not self.entry:
             self.entry = env.lookup_here(self.name)
         if self.entry:
@@ -3255,7 +3256,7 @@ class TempNode(ExprNode):
         return self
 
     def analyse_target_declaration(self, env):
-        pass
+        self.is_target = True
 
     def generate_result_code(self, code):
         pass
@@ -7016,7 +7017,7 @@ class AttributeNode(ExprNode):
         return self.type
 
     def analyse_target_declaration(self, env):
-        pass
+        self.is_target = True
 
     def analyse_target_types(self, env):
         node = self.analyse_types(env, target = 1)
@@ -13870,6 +13871,11 @@ class CppOptionalTempCoercion(CoercionNode):
 
     def generate_result_code(self, code):
         pass
+
+    def _make_move_result_rhs(self, result, optional=False):
+        # this wouldn't normally get moved (because it isn't a temp), but force it to be because it
+        # is a thin wrapper around a temp
+        return super(CppOptionalTempCoercion, self)._make_move_result_rhs(result, optional=False)
 
 
 class CMethodSelfCloneNode(CloneNode):
