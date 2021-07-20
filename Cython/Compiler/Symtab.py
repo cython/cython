@@ -992,6 +992,7 @@ class Scope(object):
             if entry.type.is_fused and self.fused_to_specific:
                 return entry.type.specialize(self.fused_to_specific)
             return entry.type
+        return None
 
     def lookup_operator(self, operator, operands):
         if operands[0].type.is_cpp_class:
