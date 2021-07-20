@@ -389,20 +389,15 @@ def public_decl(base_code, dll_linkage):
     else:
         return base_code
 
+
 def create_typedef_type(name, base_type, cname, is_external=0, namespace=None):
-    is_fused = base_type.is_fused
-    if base_type.is_complex or is_fused:
-        if is_external:
-            if is_fused:
-                msg = "Fused"
-            else:
-                msg = "Complex"
-
-            raise ValueError("%s external typedefs not supported" % msg)
-
+    if is_external:
+        if base_type.is_complex or base_type.is_fused:
+            raise ValueError("%s external typedefs not supported" % (
+                "Fused" if base_type.is_fused else "Complex"))
+    if base_type.is_complex or base_type.is_fused:
         return base_type
-    else:
-        return CTypedefType(name, base_type, cname, is_external, namespace)
+    return CTypedefType(name, base_type, cname, is_external, namespace)
 
 
 class CTypedefType(BaseType):
