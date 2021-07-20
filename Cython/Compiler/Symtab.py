@@ -2249,7 +2249,6 @@ class CClassScope(ClassScope):
 
         if (type.is_special_python_type_constructor and type.name == "dataclasses.InitVar" and
                 'dataclasses.dataclass' not in self.directives):
-            import pdb; pdb.set_trace()
             error(pos, "Use of cython.dataclasses.InitVar does not make sense outside a dataclass")
 
         if is_cdef:
