@@ -343,7 +343,7 @@ complete. Cython 3 currently understands the following features from the
 * ``ClassVar[...]``, which is understood in the context of
   ``cdef class`` or ``@cython.cclass``.
 
-Some of the unsupported features (e.g. ``typing.Union``) are likely to remain
+Some of the unsupported features are likely to remain
 unsupported since these type hints are not relevant for the compilation to
 efficient C code. In other cases, however, where the generated C code could
 benefit from these type hints but does not currently, help is welcome to

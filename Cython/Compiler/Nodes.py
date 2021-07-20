@@ -1066,10 +1066,10 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
                 if scope is None and len(self.module_path) == 1:
                     # (may be possible to handle longer module paths?)
                     # TODO: probably not the best place to declare it?
-                    from .CythonScope import get_known_standard_library_module
+                    from .Builtin import get_known_standard_library_module_scope
                     found_entry = env.lookup(self.module_path[0])
                     if found_entry and found_entry.known_standard_library_import:
-                        scope = get_known_standard_library_module(found_entry.known_standard_library_import)
+                        scope = get_known_standard_library_module_scope(found_entry.known_standard_library_import)
                 if scope is None:
                     # Maybe it's a cimport.
                     scope = env.find_imported_module(self.module_path, self.pos)

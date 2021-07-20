@@ -998,7 +998,7 @@ class Scope(object):
                 return entry.type
             # allow us to find types from the "typing" module and similar
             if i<1 and entry and entry.known_standard_library_import:
-                from .CythonScope import get_known_standard_library_entry
+                from .Builtin import get_known_standard_library_entry
                 entry = get_known_standard_library_entry(entry.known_standard_library_import)
 
 
