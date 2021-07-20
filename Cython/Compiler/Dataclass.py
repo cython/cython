@@ -85,7 +85,8 @@ class Field(object):
     def __init__(self, pos, default=MISSING, default_factory=MISSING,
                  repr=None, hash=None, init=None,
                  compare=None, metadata=None,
-                 is_initvar=False):
+                 is_initvar=False,
+                 **additional_kwds):
         if default is not MISSING:
             self.default = default
         if default_factory is not MISSING:
@@ -96,6 +97,10 @@ class Field(object):
         self.compare = compare or ExprNodes.BoolNode(pos, value=True)
         self.metadata = metadata or ExprNodes.NoneNode(pos)
         self.is_initvar = is_initvar
+
+        for k, v in additional_kwds.items():
+            # There should not be any additional keywords!
+            error(v.pos, "'%s' is an invalid keyword argument for cython.dataclasses.field()" % k)
 
         for field_name in ("repr", "hash", "init", "compare", "metadata"):
             field_value = getattr(self, field_name)
