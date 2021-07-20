@@ -12,8 +12,20 @@ Features added
   were extended.
   Patch by David Woods.  (Github issues :issue:`4271`, :issue:`4273`)
 
+* ``cygdb`` has a new option ``--skip-interpreter`` that allows using a different
+  Python runtime than the one used to generate the debugging information.
+  Patch by Alessandro Molina.  (Github issue :issue:`4186`)
+
 Bugs fixed
 ----------
+
+* Several issues with the new ``cpp_locals`` directive were resolved and
+  its test coverage improved.
+  Patch by David Woods.  (Github issues :issue:`4266`, :issue:`4265`)
+
+* Generated utility code for C++ conversions no longer depends on several user
+  definable directives that may make it behave incorrectly.
+  Patch by David Woods.  (Github issue :issue:`4206`)
 
 * A reference counting bug in the new ``@cython.total_ordering`` decorator was fixed.
 
