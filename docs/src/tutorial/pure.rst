@@ -243,7 +243,7 @@ Further Cython functions and declarations
     print(cython.sizeof(cython.longlong))
     print(cython.sizeof(n))
 
-* ``typeof`` returns a string representation of the passed type.  It can take expressions.
+* ``typeof`` returns a string representation of the argument's type for debugging purposes.  It can take expressions.
 
   ::
 
