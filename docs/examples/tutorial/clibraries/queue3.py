@@ -24,7 +24,7 @@ class Queue:
     @cython.ccall
     def append(self, value: cython.int):
         if not cqueue.queue_push_tail(self._c_queue,
-                                      cython.cast(cython.p_void, cython.cast(cython.Py_ssize_t, value))):
+                cython.cast(cython.p_void, cython.cast(cython.Py_ssize_t, value))):
             raise MemoryError()
 
     # The `cpdef` feature is obviously not available for the original "extend()"
