@@ -5838,7 +5838,10 @@ class SingleAssignmentNode(AssignmentNode):
             return
         else:
             self.lhs.analyse_target_declaration(env)
-            if (getattr(self.lhs, "entry", None) and
+            # if an entry doesn't exist that just implies that lhs isn't made up purely
+            # of AttributeNodes and NameNodes - it isn't useful as a known path to
+            # a standard library module
+            if ((self.lhs.is_attribute or self.lhs.is_name) and self.lhs.entry and
                     self.lhs.entry.known_standard_library_import is None and
                     self.rhs.get_known_standard_library_import()):
                 self.lhs.entry.known_standard_library_import = self.rhs.get_known_standard_library_import()

@@ -315,9 +315,8 @@ def generate_init_code(init, node, fields):
         if not field.init.value:
             continue
         entry = node.scope.lookup(name)
-        annotation = entry.annotation.string if entry.annotation else None
-        if annotation:
-            annotation = u": %s" % annotation.value
+        if entry.annotation:
+            annotation = u": %s" % entry.annotation.string.value
         else:
             annotation = u""
         assignment = u''
