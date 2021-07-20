@@ -15,12 +15,14 @@ from .StringEncoding import BytesLiteral, EncodedString
 from .TreeFragment import TreeFragment
 from .ParseTreeTransforms import (NormalizeTree, SkipDeclarations, AnalyseDeclarationsTransform,
                                   MarkClosureVisitor)
+from textwrap import dedent
 
 def make_dataclasses_module_callnode(pos):
     python_utility_code = UtilityCode.load_cached("Dataclasses_fallback", "Dataclasses.py")
     python_utility_code = EncodedString(python_utility_code.impl)
-    loader_utilitycode = TempitaUtilityCode.load_cached("SpecificModuleLoader", "Dataclasses.c",
-            context={'cname': "dataclasses", 'py_code': python_utility_code.as_c_string_literal()})
+    loader_utilitycode = TempitaUtilityCode.load_cached(
+        "SpecificModuleLoader", "Dataclasses.c",
+        context={'cname': "dataclasses", 'py_code': python_utility_code.as_c_string_literal()})
     return ExprNodes.PythonCapiCallNode(
         pos, "__Pyx_Load_dataclasses_Module",
         PyrexTypes.CFuncType(PyrexTypes.py_object_type, []),
@@ -66,49 +68,47 @@ class _MISSING_TYPE(object):
     pass
 MISSING = _MISSING_TYPE()
 
+
+class Field(object):
+    """
+    Field is based on the dataclasses.field class from the standard library module.
+    It is used internally during the generation of Cython dataclasses to keep track
+    of the settings for individual attributes.
+
+    Attributes of this class are stored as nodes so they can be used in code construction
+    more readily (i.e. we store BoolNode rather than bool)
+    """
+    default = MISSING
+    default_factory = MISSING
+    private = False
+    # default values are defined by the CPython dataclasses.field
+    def __init__(self, pos, default=MISSING, default_factory=MISSING,
+                 repr=None, hash=None, init=None,
+                 compare=None, metadata=None,
+                 is_initvar=False):
+        if default is not MISSING:
+            self.default = default
+        if default_factory is not MISSING:
+            self.default_factory = default_factory
+        self.repr = repr or ExprNodes.BoolNode(pos, value=True)
+        self.hash = hash or ExprNodes.NoneNode(pos)
+        self.init = init or ExprNodes.BoolNode(pos, value=True)
+        self.compare = compare or ExprNodes.BoolNode(pos, value=True)
+        self.metadata = metadata or ExprNodes.NoneNode(pos)
+        self.is_initvar = is_initvar
+
+        for field_name in ("repr", "hash", "init", "compare", "metadata"):
+            field_value = getattr(self, field_name)
+            if not field_value.is_literal:
+                error(field_value.pos,
+                      "cython.dataclasses.field parameter '%s' must be a literal value" % field_name)
+
+
 def process_class_get_fields(node):
-    _TrueNode = ExprNodes.BoolNode(node.pos, value=True)
-    _FalseNode = ExprNodes.BoolNode(node.pos, value=False)
-    _NoneNode = ExprNodes.NoneNode(node.pos)
-
-    class Field(object):
-        """
-        Field is based on the dataclasses.field class from the standard library module.
-        It is used internally during the generation of Cython dataclasses to keep track
-        of the settings for individual attributes.
-
-        Attributes of this class are stored as nodes so they can be used in code construction
-        more readily (i.e. we store BoolNode rather than bool)
-        The class (+ _TrueNode, _FalseNode and _NoneNode) are defined inside a function
-        that when _TrueNode (etc) are used as default arguments they can have a useful pos
-        """
-        default = MISSING
-        default_factory = MISSING
-        private = False
-        def __init__(self, default=MISSING, default_factory=MISSING,
-                     repr=_TrueNode, hash=_NoneNode, init=_TrueNode,
-                     compare=_TrueNode, metadata=_NoneNode,
-                     is_initvar=False):
-            if default is not MISSING:
-                self.default = default
-            if default_factory is not MISSING:
-                self.default_factory = default_factory
-            self.repr = repr
-            self.hash = hash
-            self.init = init
-            self.compare = compare
-            self.metadata = metadata
-            self.is_initvar = is_initvar
-
-            for field_name in ("repr", "hash", "init", "compare", "metadata"):
-                field_value = getattr(self, field_name)
-                if not field_value.is_literal:
-                    error(field_value.pos, "cython.dataclasses.field parameter '%s' must be a literal value"
-                          % field_name)
-
+    import operator
     var_entries = node.scope.var_entries
     # order of definition is used in the dataclass
-    var_entries = sorted(var_entries, key=lambda entry: entry.pos)
+    var_entries = sorted(var_entries, key=operator.attrgetter('pos'))
     var_names = [ entry.name for entry in var_entries ]
 
     # remove assignments for stat_list
@@ -142,7 +142,7 @@ def process_class_get_fields(node):
                     error(assignment.pos, "You cannot specify both 'default' and 'default_factory'"
                           " for a dataclass member")
                     continue
-                field = Field(**keyword_args)
+                field = Field(node.pos, **keyword_args)
             else:
                 if isinstance(assignment, ExprNodes.CallNode):
                     func = assignment.function
@@ -155,9 +155,9 @@ def process_class_get_fields(node):
                     error(assignment.pos, "Mutable default passed argument for '{0}' - "
                           "use 'default_factory' instead".format(name))
 
-                field = Field(default=assignment)
+                field = Field(node.pos, default=assignment)
         else:
-            field = Field()
+            field = Field(node.pos)
         field.is_initvar = is_initvar
         if entry.visibility == "private":
             field.private = True
@@ -166,9 +166,6 @@ def process_class_get_fields(node):
     return fields
 
 def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
-    from .ExprNodes import (AttributeNode, TupleNode, NameNode,
-                            GeneralCallNode, DictNode,
-                            IdentifierStringNode, BoolNode, DictItemNode)
     # default argument values from https://docs.python.org/3/library/dataclasses.html
     kwargs = dict(init=True, repr=True, eq=True,
                   order=False, unsafe_hash=False, frozen=False)
@@ -189,27 +186,26 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     dataclass_module = make_dataclasses_module_callnode(node.pos)
 
     # create __dataclass_params__ attribute
-    dataclass_params_func = AttributeNode(node.pos, obj=dataclass_module,
-                                            attribute=EncodedString("_DataclassParams"))
-    dataclass_params_keywords = DictNode.from_pairs(node.pos,
-            [ (IdentifierStringNode(node.pos, value=EncodedString(k)),
-                BoolNode(node.pos, value=v))
-                for k, v in kwargs.items() ])
-    dataclass_params = GeneralCallNode(node.pos,
-                                    function = dataclass_params_func,
-                                    positional_args = TupleNode(node.pos, args=[]),
-                                    keyword_args = dataclass_params_keywords)
-    dataclass_params_assignment = \
-        Nodes.SingleAssignmentNode(node.pos,
-                        lhs = NameNode(node.pos,
-                                        name=EncodedString("__dataclass_params__")),
-                        rhs = dataclass_params)
+    dataclass_params_func = ExprNodes.AttributeNode(node.pos, obj=dataclass_module,
+                                                    attribute=EncodedString("_DataclassParams"))
+    dataclass_params_keywords = ExprNodes.DictNode.from_pairs(
+        node.pos,
+        [ (ExprNodes.IdentifierStringNode(node.pos, value=EncodedString(k)),
+           ExprNodes.BoolNode(node.pos, value=v))
+          for k, v in kwargs.items() ])
+    dataclass_params = ExprNodes.GeneralCallNode(node.pos,
+                                                 function = dataclass_params_func,
+                                                 positional_args = ExprNodes.TupleNode(node.pos, args=[]),
+                                                 keyword_args = dataclass_params_keywords)
+    dataclass_params_assignment = Nodes.SingleAssignmentNode(
+        node.pos,
+        lhs = ExprNodes.NameNode(node.pos, name=EncodedString("__dataclass_params__")),
+        rhs = dataclass_params)
 
     dataclass_fields_stats = _set_up_dataclass_fields(node, fields, dataclass_module)
 
     stats = Nodes.StatListNode(node.pos,
-                               stats=[dataclass_params_assignment]
-                                    + dataclass_fields_stats)
+                               stats=[dataclass_params_assignment] + dataclass_fields_stats)
 
     code_lines = []
     placeholders = {}
@@ -224,10 +220,8 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
         extra_stats.extend(extra_stats)
 
     code_lines = "\n".join(code_lines)
-    code_tree = TreeFragment(code_lines, level='c_class',
-                             pipeline=[NormalizeTree(node.scope),
-                                       ]
-                              ).substitute(placeholders)
+    code_tree = TreeFragment(code_lines, level='c_class', pipeline=[NormalizeTree(node.scope)]
+                            ).substitute(placeholders)
 
     stats.stats = stats.stats + code_tree.stats + extra_stats
 
@@ -266,9 +260,11 @@ def generate_init_code(init, node, fields):
 
     # create a temp to get _HAS_DEFAULT_FACTORY
     dataclass_module = make_dataclasses_module_callnode(node.pos)
-    has_default_factory = ExprNodes.AttributeNode(node.pos,
+    has_default_factory = ExprNodes.AttributeNode(
+        node.pos,
         obj=dataclass_module,
-        attribute=EncodedString("_HAS_DEFAULT_FACTORY"))
+        attribute=EncodedString("_HAS_DEFAULT_FACTORY")
+    )
 
     def get_placeholder_name():
         while True:
@@ -305,16 +301,17 @@ def generate_init_code(init, node, fields):
             assignment = u" = %s" % ph_name
         elif seen_default:
             error(entry.pos, ("non-default argument %s follows default argument "
-                             "in dataclass __init__") % name)
+                              "in dataclass __init__") % name)
             return "", {}, []
 
         args.append(u"%s%s%s" % (name, annotation, assignment))
     args = u", ".join(args)
     func_call = u"def __init__(%s):" % args
 
-    code_lines = [func_call,
-                  "    pass",  # just in-case it's an empty body
-                  ]
+    code_lines = [
+        func_call,
+        "    pass",  # just in-case it's an empty body
+    ]
     for name, field in fields.items():
         if field.is_initvar:
             continue
@@ -325,19 +322,15 @@ def generate_init_code(init, node, fields):
             ph_name = get_placeholder_name()
             placeholders[ph_name] = field.default_factory
             if field.init.value:
-                code_lines.append(u"    if %s is %s:"
-                                % (name, default_factory_placeholder))
-                code_lines.append(u"        %s.%s = %s()"
-                                % (selfname, name, ph_name))
-                code_lines.append(u"    else:")
-                code_lines.append(u"        %s.%s = %s" % (selfname, name, name))
+                code_lines.append(u"    %s.%s = %s() if %s is %s else %s" % (
+                    selfname, name, ph_name, name, default_factory_placeholder, name))
             else:
                 # still need to use the default factory to initialize
                 code_lines.append(u"    %s.%s = %s()"
                                   % (selfname, name, ph_name))
     if node.scope.lookup("__post_init__"):
         post_init_vars = ", ".join(name for name, field in fields.items()
-                                    if field.is_initvar)
+                                   if field.is_initvar)
         code_lines.append("    %s.__post_init__(%s)" % (selfname, post_init_vars))
     code_lines = u"\n".join(code_lines)
 
@@ -360,18 +353,19 @@ def generate_cmp_code(op, funcname, node, fields):
     if node.scope.lookup_here(funcname):
         return "", {}, []
 
-    names = [ name for name, field in fields.items()
-                if (field.compare.value and not field.is_initvar) ]
+    names = [ name for name, field in fields.items() if (field.compare.value and not field.is_initvar) ]
 
     if not names:
         return "", {}, []  # no comparable types
 
-    code_lines = ["def %s(self, other):" % funcname,
-                  "    cdef %s other_cast" % node.class_name,
-                  "    try:",
-                  "        other_cast = other",
-                  "    except TypeError:",
-                  "        return NotImplemented"]
+    code_lines = [
+        "def %s(self, other):" % funcname,
+        "    cdef %s other_cast" % node.class_name,
+        "    try:",
+        "        other_cast = other",
+        "    except TypeError:",
+        "        return NotImplemented"
+    ]
 
     for name in names:
         shared = "if not (self.%s == other_cast.%s):" % (name, name)
@@ -422,15 +416,17 @@ def generate_hash_code(unsafe_hash, eq, frozen, node, fields):
         return "", {}, []
     if not unsafe_hash:
         if eq and not frozen:
-            return "", {}, [Nodes.SingleAssignmentNode(node.pos,
-                                        lhs = ExprNodes.NameNode(node.pos, name=EncodedString("__hash__")),
-                                        rhs = ExprNodes.NoneNode(node.pos))]
+            return "", {}, [ Nodes.SingleAssignmentNode(node.pos,
+                             lhs = ExprNodes.NameNode(node.pos, name=EncodedString("__hash__")),
+                             rhs = ExprNodes.NoneNode(node.pos)) ]
         if not eq:
             return
 
-    names = [ name for name, field in fields.items()
-                if (not field.is_initvar and
-                    (field.compare.value if field.hash.value is None else field.hash.value)) ]
+    names = [
+        name for name, field in fields.items()
+        if (not field.is_initvar and
+            (field.compare.value if field.hash.value is None else field.hash.value))
+    ]
     if not names:
         return "", {}, []  # nothing to hash
 
@@ -438,9 +434,10 @@ def generate_hash_code(unsafe_hash, eq, frozen, node, fields):
     tpl = u", ".join(u"hash(self.%s)" % name for name in names )
 
     # if we're here we want to generate a hash
-    code_lines = u"""def __hash__(self):
-    return hash((%s))
-""" % tpl
+    code_lines = dedent(u"""\
+        def __hash__(self):
+            return hash((%s))
+        """) % tpl
 
     return code_lines, {}, []
 
@@ -515,11 +512,6 @@ class FieldsValueNode(ExprNodes.ExprNode):
 
 
 def _set_up_dataclass_fields(node, fields, dataclass_module):
-    from .ExprNodes import (AttributeNode, TupleNode, NameNode,
-                            GeneralCallNode, DictNode,
-                            IdentifierStringNode, BoolNode, DictItemNode,
-                            CloneNode)
-
     # For defaults and default_factories containing things like lambda,
     # they're already declared in the class scope, and it creates a big
     # problem if multiple copies are floating around in both the __init__
@@ -541,7 +533,7 @@ def _set_up_dataclass_fields(node, fields, dataclass_module):
                 global_scope.mangle(Naming.dataclass_field_default_cname, node.class_name),
                 name)
             # create an entry in the global scope for this variable to live
-            nn = NameNode(f_def.pos, name=EncodedString(module_field_name))
+            nn = ExprNodes.NameNode(f_def.pos, name=EncodedString(module_field_name))
             nn.entry = global_scope.declare_var(nn.name, type=f_def.type or PyrexTypes.unspecified_type,
                                                 pos=f_def.pos, cname=nn.name, is_cdef=1)
             # replace the field so that future users just receive the namenode
@@ -553,9 +545,9 @@ def _set_up_dataclass_fields(node, fields, dataclass_module):
                                            rhs = f_def))
 
     placeholders = {}
-    field_func = AttributeNode(node.pos, obj = dataclass_module,
-                                    attribute=EncodedString("field"))
-    dc_fields = DictNode(node.pos, key_value_pairs=[])
+    field_func = ExprNodes.AttributeNode(node.pos, obj = dataclass_module,
+                                         attribute=EncodedString("field"))
+    dc_fields = ExprNodes.DictNode(node.pos, key_value_pairs=[])
     dc_fields_namevalue_assignments = []
     for name, field in fields.items():
         if field.private:
@@ -566,22 +558,26 @@ def _set_up_dataclass_fields(node, fields, dataclass_module):
         if field.is_initvar:
             continue
 
-        dc_field_keywords = DictNode.from_pairs(node.pos,
-            [ (IdentifierStringNode(node.pos, value=EncodedString(k)),
+        dc_field_keywords = ExprNodes.DictNode.from_pairs(
+            node.pos,
+            [ (ExprNodes.IdentifierStringNode(node.pos, value=EncodedString(k)),
                FieldsValueNode(node.pos, arg=v))
-                for k, v in field.__dict__.items() if k not in ["is_initvar", "private"] ])
-        dc_field_call = GeneralCallNode(node.pos, function = field_func,
-                                    positional_args = TupleNode(node.pos, args=[]),
-                                    keyword_args = dc_field_keywords)
+              for k, v in field.__dict__.items() if k not in ["is_initvar", "private"] ]
+        )
+        dc_field_call = ExprNodes.GeneralCallNode(
+            node.pos, function = field_func,
+            positional_args = ExprNodes.TupleNode(node.pos, args=[]),
+            keyword_args = dc_field_keywords)
         dc_fields.key_value_pairs.append(
-            DictItemNode(node.pos,
-                key=IdentifierStringNode(node.pos, value=EncodedString(name)),
+            ExprNodes.DictItemNode(
+                node.pos,
+                key=ExprNodes.IdentifierStringNode(node.pos, value=EncodedString(name)),
                 value=dc_field_call))
         dc_fields_namevalue_assignments.append(
-            u"""
-__dataclass_fields__[{0!r}].name = {0!r}
-__dataclass_fields__[{0!r}].type = {1}
-""".format(name, placeholder_name))
+            dedent(u"""\
+                __dataclass_fields__[{0!r}].name = {0!r}
+                __dataclass_fields__[{0!r}].type = {1}
+            """).format(name, placeholder_name))
 
     dataclass_fields_assignment = \
         Nodes.SingleAssignmentNode(node.pos,
