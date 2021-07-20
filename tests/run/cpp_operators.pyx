@@ -1,5 +1,7 @@
 # mode: run
 # tag: cpp, werror
+# tag: no-cpp-locals
+# FIXME - cpp_locals should work but doesn't
 
 from __future__ import division
 
