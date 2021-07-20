@@ -1,4 +1,4 @@
-from cython.cimports.cqueue
+cimport cqueue
 
 
 cdef class Queue:
