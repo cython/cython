@@ -1,6 +1,7 @@
 cimport cqueue
 
 
+
 cdef class Queue:
     """A queue class for C integer values.
 

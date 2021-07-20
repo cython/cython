@@ -1,4 +1,5 @@
 from cython.cimports import cqueue
+from cython import cast
 
 @cython.cclass
 class Queue:
@@ -24,7 +25,7 @@ class Queue:
     @cython.ccall
     def append(self, value: cython.int):
         if not cqueue.queue_push_tail(self._c_queue,
-                cython.cast(cython.p_void, cython.cast(cython.Py_ssize_t, value))):
+                cast(cython.p_void, cast(cython.Py_ssize_t, value))):
             raise MemoryError()
 
     # The `cpdef` feature is obviously not available for the original "extend()"
@@ -47,7 +48,7 @@ class Queue:
     @cython.ccall
     @exceptval(-1, check=True)
     def peek(self) -> cython.int:
-        value: cython.int = cython.cast(cython.Py_ssize_t, cqueue.queue_peek_head(self._c_queue))
+        value: cython.int = cast(cython.Py_ssize_t, cqueue.queue_peek_head(self._c_queue))
 
         if value == 0:
             # this may mean that the queue is empty,
@@ -61,7 +62,7 @@ class Queue:
     def pop(self) -> cython.int:
         if cqueue.queue_is_empty(self._c_queue):
             raise IndexError("Queue is empty")
-        return cython.cast(cython.Py_ssize_t, cqueue.queue_pop_head(self._c_queue))
+        return cast(cython.Py_ssize_t, cqueue.queue_pop_head(self._c_queue))
 
     def __bool__(self):
         return not cqueue.queue_is_empty(self._c_queue)
