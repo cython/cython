@@ -783,29 +783,73 @@ C-API into the callback function.  We will use this to pass our Python
 predicate function.
 
 First, we have to define a callback function with the expected
-signature that we can pass into the C-API function::
+signature that we can pass into the C-API function:
 
-    cdef int evaluate_predicate(void* context, cqueue.QueueValue value):
-        "Callback function that can be passed as predicate_func"
-        try:
-            # recover Python function object from void* argument
-            func = <object>context
-            # call function, convert result into 0/1 for True/False
-            return bool(func(<int>value))
-        except:
-            # catch any Python errors and return error indicator
-            return -1
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.cfunc
+            @cython.exceptval(check=False)
+            def evaluate_predicate(context: cython.p_void, value: cqueue.QueueValue) -> cython.int:
+                "Callback function that can be passed as predicate_func"
+                try:
+                    # recover Python function object from void* argument
+                    func = cython.cast(object, context)
+                    # call function, convert result into 0/1 for True/False
+                    return bool(func(cython.cast(int, value)))
+                except:
+                    # catch any Python errors and return error indicator
+                    return -1
+
+        .. note:: ``@cfunc`` functions in pure python are defined as ``@exceptval(-1, check=True)``
+            by default. Since ``evaluate_predicate()`` should be passed to function as parameter,
+            we need to turn off exception checking entirely.
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef int evaluate_predicate(void* context, cqueue.QueueValue value):
+                "Callback function that can be passed as predicate_func"
+                try:
+                    # recover Python function object from void* argument
+                    func = <object>context
+                    # call function, convert result into 0/1 for True/False
+                    return bool(func(<int>value))
+                except:
+                    # catch any Python errors and return error indicator
+                    return -1
 
 The main idea is to pass a pointer (a.k.a. borrowed reference) to the
 function object as the user context argument. We will call the C-API
-function as follows::
+function as follows:
 
-    def pop_until(self, python_predicate_function):
-        result = cqueue.queue_pop_head_until(
-            self._c_queue, evaluate_predicate,
-            <void*>python_predicate_function)
-        if result == -1:
-            raise RuntimeError("an error occurred")
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            def pop_until(self, python_predicate_function):
+                result = cqueue.queue_pop_head_until(
+                    self._c_queue, evaluate_predicate,
+                    cython.cast(cython.p_void, python_predicate_function))
+                if result == -1:
+                    raise RuntimeError("an error occurred")
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            def pop_until(self, python_predicate_function):
+                result = cqueue.queue_pop_head_until(
+                    self._c_queue, evaluate_predicate,
+                    <void*>python_predicate_function)
+                if result == -1:
+                    raise RuntimeError("an error occurred")
 
 The usual pattern is to first cast the Python object reference into
 a :c:type:`void*` to pass it into the C-API function, and then cast
