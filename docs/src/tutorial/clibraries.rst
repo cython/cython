@@ -105,15 +105,15 @@ Writing a wrapper class
 
 After declaring our C library's API, we can start to design the Queue
 class that should wrap the C queue.  It will live in a file called
-``queue.pyx``. [#]_
+``queue.pyx``/``queue.py``. [#]_
 
-.. [#] Note that the name of the ``.pyx`` file must be different from
+.. [#] Note that the name of the ``.pyx``/``.py`` file must be different from
        the ``cqueue.pxd`` file with declarations from the C library,
        as both do not describe the same code.  A ``.pxd`` file next to
-       a ``.pyx`` file with the same name defines exported
-       declarations for code in the ``.pyx`` file.  As the
+       a ``.pyx``/``.py`` file with the same name defines exported
+       declarations for code in the ``.pyx``/``.py`` file.  As the
        ``cqueue.pxd`` file contains declarations of a regular C
-       library, there must not be a ``.pyx`` file with the same name
+       library, there must not be a ``.pyx``/``.py`` file with the same name
        that Cython associates with it.
 
 Here is a first start for the Queue class:
@@ -124,6 +124,9 @@ Here is a first start for the Queue class:
 
         .. literalinclude:: ../../examples/tutorial/clibraries/queue.py
             :caption: queue.py
+
+        .. note:: Currently, Cython contains a bug not allowing using
+            annotations with types containing pointers (GitHub issue :issue:`4293`).
 
     .. group-tab:: Cython
 
@@ -137,10 +140,11 @@ ancestor's constructor).  Because not initializing C pointers often
 leads to hard crashes of the Python interpreter, Cython provides
 ``__cinit__`` which is *always* called immediately on construction,
 before CPython even considers calling ``__init__``, and which
-therefore is the right place to initialise ``cdef`` fields of the new
-instance.  However, as ``__cinit__`` is called during object
-construction, ``self`` is not fully constructed yet, and one must
-avoid doing anything with ``self`` but assigning to ``cdef`` fields.
+therefore is the right place to initialise static attributes
+(``cdef`` fields) of the new instance.  However, as ``__cinit__`` is
+called during object construction, ``self`` is not fully constructed yet,
+and one must avoid doing anything with ``self`` but assigning to static
+attributes (``cdef`` fields).
 
 Note also that the above method takes no parameters, although subtypes
 may want to accept some.  A no-arguments ``__cinit__()`` method is a
@@ -256,7 +260,7 @@ if other applications also use C-Alg.
 Static Linking
 ---------------
 
-To build the c-code automatically we need to include compiler directives in `queue.pyx`
+To build the c-code automatically we need to include compiler directives in ``queue.pyx``/``queue.py``
 
 .. tabs::
 
@@ -436,7 +440,7 @@ practice to look at what interfaces Python offers, e.g. in its
 queue, it's enough to provide the methods ``append()``, ``peek()`` and
 ``pop()``, and additionally an ``extend()`` method to add multiple
 values at once.  Also, since we already know that all values will be
-coming from C, it's best to provide only ``cdef`` methods for now, and
+coming from C, it's best to provide only ``cdef``/``@cfunc`` methods for now, and
 to give them a straight C interface.
 
 In C, it is common for data structures to store data as a ``void*`` to
@@ -605,7 +609,8 @@ Note how we have effectively created a fast path through the method in
 the hopefully common cases that the return value is not ``0``.  Only
 that specific case needs an additional check if the queue is empty.
 
-The ``except? -1`` declaration in the method signature falls into the
+The ``except? -1`` or ``@cython.exceptval(-1, check=True)`` declaration
+in the method signature falls into the
 same category.  If the function was a Python function returning a
 Python object value, CPython would simply return ``NULL`` internally
 instead of a Python object to indicate an exception, which would
@@ -627,7 +632,8 @@ exception when receiving this exact value.
 
 We chose to use ``-1`` as the exception return value as we expect it
 to be an unlikely value to be put into the queue.  The question mark
-in the ``except? -1`` declaration indicates that the return value is
+in the ``except? -1`` declaration and ``check=True`` in ``@cython.exceptval``
+indicates that the return value is
 ambiguous (there *may* be a ``-1`` value in the queue, after all) and
 that an additional exception check using ``PyErr_Occurred()`` is
 needed in calling code.  Without it, Cython code that calls this
@@ -691,14 +697,14 @@ you can call.  C methods are not visible from Python code, and thus
 not callable from doctests.
 
 A quick way to provide a Python API for the class is to change the
-methods from ``cdef`` to ``cpdef``.  This will let Cython generate two
-entry points, one that is callable from normal Python code using the
-Python call semantics and Python objects as arguments, and one that is
-callable from C code with fast C semantics and without requiring
-intermediate argument conversion from or to Python types. Note that ``cpdef``
-methods ensure that they can be appropriately overridden by Python
-methods even when they are called from Cython. This adds a tiny overhead
-compared to ``cdef`` methods.
+methods from ``cdef``/``@cfunc`` to ``cpdef``/``@ccall``.  This will
+let Cython generate two entry points, one that is callable from normal
+Python code using the Python call semantics and Python objects as arguments,
+and one that is callable from C code with fast C semantics and without requiring
+intermediate argument conversion from or to Python types. Note that
+``cpdef``/``@ccall`` methods ensure that they can be appropriately overridden
+by Python methods even when they are called from Cython. This adds a tiny overhead
+compared to ``cdef``/``@cfunc`` methods.
 
 Now that we have both a C-interface and a Python interface for our
 class, we should make sure that both interfaces are consistent.
@@ -714,7 +720,7 @@ us to free the method name ``extend()`` for the duck typed Python method,
 which can accept arbitrary iterables.
 
 The following listing shows the complete implementation that uses
-``cpdef`` methods where possible:
+``cpdef``/``@ccall`` methods where possible:
 
 .. tabs::
 
