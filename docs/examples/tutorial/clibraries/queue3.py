@@ -46,7 +46,7 @@ class Queue:
             self.append(value)
 
     @cython.ccall
-    @exceptval(-1, check=True)
+    @cython.exceptval(-1, check=True)
     def peek(self) -> cython.int:
         value: cython.int = cast(cython.Py_ssize_t, cqueue.queue_peek_head(self._c_queue))
 
@@ -58,7 +58,7 @@ class Queue:
         return value
 
     @cython.ccall
-    @exceptval(-1, check=True)
+    @cython.exceptval(-1, check=True)
     def pop(self) -> cython.int:
         if cqueue.queue_is_empty(self._c_queue):
             raise IndexError("Queue is empty")
