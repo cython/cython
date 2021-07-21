@@ -13600,7 +13600,7 @@ class CoerceFromPyTypeNode(CoercionNode):
         self.is_temp = 1
         if not result_type.create_from_py_utility_code(env):
             error(arg.pos,
-                "Cannot convert Python object to '%s'" % result_type)
+                  "Cannot convert Python object to '%s'" % result_type)
         if self.type.is_string or self.type.is_pyunicode_ptr:
             if self.arg.is_name and self.arg.entry and self.arg.entry.is_pyglobal:
                 warning(arg.pos,

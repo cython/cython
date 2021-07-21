@@ -1118,8 +1118,8 @@ class InterpretCompilerDirectives(CythonTransform):
                         name, value = directive
                         if self.directives.get(name, object()) != value:
                             directives.append(directive)
-                        if (directive[0] == 'staticmethod'
-                                or (directive[0] == 'dataclasses.dataclass' and scope_name == 'class')):
+                        if (directive[0] == 'staticmethod' or
+                                (directive[0] == 'dataclasses.dataclass' and scope_name == 'class')):
                             both.append(dec)
                     # Adapt scope type based on decorators that change it.
                     if directive[0] == 'cclass' and scope_name == 'class':
@@ -1128,11 +1128,11 @@ class InterpretCompilerDirectives(CythonTransform):
                 realdecs.append(dec)
         if realdecs and (scope_name == 'cclass' or
                          isinstance(node, (Nodes.CClassDefNode, Nodes.CVarDefNode))):
-            for rd in realdecs:
-                rd = rd.decorator
-                if ((rd.is_name and rd.name == "dataclass")
-                        or (rd.is_attribute and rd.attribute == "dataclass")):
-                    error(rd.pos,
+            for realdec in realdecs:
+                realdec = realdec.decorator
+                if ((realdec.is_name and realdec.name == "dataclass") or
+                        (realdec.is_attribute and realdec.attribute == "dataclass")):
+                    error(realdec.pos,
                           "Use '@cython.dataclasses.dataclass' on cdef classes to create a dataclass")
             raise PostParseError(realdecs[0].pos, "Cdef functions/classes cannot take arbitrary decorators.")
         node.decorators = realdecs[::-1] + both[::-1]

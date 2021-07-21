@@ -950,6 +950,7 @@ class Scope(object):
     def lookup(self, name):
         # Look up name in this scope or an enclosing one.
         # Return None if not found.
+
         mangled_name = self.mangle_class_private_name(name)
         entry = (self.lookup_here(name)  # lookup here also does mangling
                 or (self.outer_scope and self.outer_scope.lookup(mangled_name))
