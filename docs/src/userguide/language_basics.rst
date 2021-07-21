@@ -916,7 +916,7 @@ Cython uses ``"<"`` and ``">"``.  In pure python mode, the ``cython.cast()`` fun
             def main():
                 p: cython.p_char
                 q: cython.p_float
-                p = cast(cython.p_char, q)
+                p = cython.cast(cython.p_char, q)
 
         When casting a C value to a Python object type or vice versa,
         Cython will attempt a coercion. Simple examples are casts like ``cast(int, pyobj_value)``,
@@ -1043,7 +1043,7 @@ direct equivalent in Python.
                   p: cython.p_char
                   q: cython.p_float
 
-                  p = cast(cython.p_char, q)
+                  p = cython.cast(cython.p_char, q)
 
       .. group-tab:: Cython
 
