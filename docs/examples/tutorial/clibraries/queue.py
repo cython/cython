@@ -4,5 +4,5 @@ from cython.cimports import cqueue
 class Queue:
     _c_queue = cython.declare(cython.pointer(cqueue.Queue))
 
-    def __init__(self):
+    def __cinit__(self):
         self._c_queue = cqueue.queue_new()
