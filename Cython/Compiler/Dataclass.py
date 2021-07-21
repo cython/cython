@@ -153,7 +153,7 @@ def process_class_get_fields(node):
                     error(assignment.pos, "Call to 'cython.dataclasses.field' must only consist "
                           "of compile-time keyword arguments")
                     continue
-                keyword_args = { k.value: v for k, v in assignment.keyword_args.key_value_pairs }
+                keyword_args = assignment.keyword_args.as_python_dict()
                 if 'default' in keyword_args and 'default_factory' in keyword_args:
                     error(assignment.pos, "You cannot specify both 'default' and 'default_factory'"
                           " for a dataclass member")

@@ -3657,7 +3657,7 @@ class IndexNode(_IndexingBaseNode):
 
     def analyse_as_type(self, env):
         base_type = self.base.analyse_as_type(env)
-        if base_type and not base_type.is_pyobject:
+        if base_type and (not base_type.is_pyobject or base_type.is_python_type_constructor):
             if base_type.is_cpp_class or base_type.is_python_type_constructor:
                 if isinstance(self.index, TupleNode):
                     template_values = self.index.args
@@ -9061,6 +9061,10 @@ class DictNode(ExprNode):
     def annotate(self, code):
         for item in self.key_value_pairs:
             item.annotate(code)
+
+    def as_python_dict(self):
+        # returns a dict with string keys and Node values
+        return dict([(key.value, value) for key, value in self.key_value_pairs])
 
 
 class DictItemNode(ExprNode):

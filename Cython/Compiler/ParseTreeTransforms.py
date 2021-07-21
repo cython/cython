@@ -1036,7 +1036,7 @@ class InterpretCompilerDirectives(CythonTransform):
             if len(args) != 0:
                 raise PostParseError(pos,
                     'The %s directive takes no prepositional arguments' % optname)
-            return optname, dict([(key.value, value) for key, value in kwds.key_value_pairs])
+            return optname, kwds.as_python_dict()
         elif directivetype is list:
             if kwds and len(kwds.key_value_pairs) != 0:
                 raise PostParseError(pos,
@@ -1050,8 +1050,7 @@ class InterpretCompilerDirectives(CythonTransform):
             return (optname, directivetype(optname, str(args[0].value)))
         elif directivetype is Ellipsis:
             # signal to pass things on without processing
-            return (optname, (args,
-                              dict([(key.value, value) for key, value in kwds.key_value_pairs])))
+            return (optname, (args, kwds.as_python_dict()))
         else:
             assert False
 
@@ -3385,11 +3384,6 @@ class TransformBuiltinMethods(EnvTransform):
                 node.function = ExprNodes.NameNode(node.pos, name=EncodedString('set'))
             elif function == u'staticmethod':
                 node.function = ExprNodes.NameNode(node.pos, name=EncodedString('staticmethod'))
-            elif function == u'dataclass':
-                from .Dataclass import make_dataclass_module_callnode
-                dataclass_module = make_dataclass_module_callnode(node.pos)
-                node.function = ExprNodes.AttributeNode(
-                    node.pos, obj=dataclass_module, attribute=EncodedString(function))
             elif self.context.cython_scope.lookup_qualified_name(function):
                 pass
             else:

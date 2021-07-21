@@ -4404,7 +4404,7 @@ class ErrorType(PyrexType):
         return "dummy"
 
 
-class PythonTypeConstructor(PyrexType):
+class PythonTypeConstructor(PyObjectType):
     """Used to help Cython interpret indexed types from the typing module (or similar)
     """
     is_python_type_constructor = True
@@ -4416,7 +4416,7 @@ class PythonTypeConstructor(PyrexType):
     def specialize_here(self, pos, env, template_values=None):
         if self.base_type:
             # for a lot of the typing classes it doesn't really matter what the template it
-            # (i.e. typing.Dict[int] is really just a dict
+            # (i.e. typing.Dict[int] is really just a dict)
             return self.base_type
         return self
 
