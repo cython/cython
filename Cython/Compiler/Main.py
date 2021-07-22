@@ -490,10 +490,7 @@ def run_pipeline(source, options, full_module_name=None, context=None):
                     options.annotate = True
 
     # Get pipeline
-    if source_ext.lower() == '.py' or not source_ext:
-        pipeline = Pipeline.create_py_pipeline(context, options, result)
-    else:
-        pipeline = Pipeline.create_pyx_pipeline(context, options, result)
+    pipeline = Pipeline.create_pyx_pipeline(context, options, result, py=source_ext.lower() == '.py' or not source_ext)
 
     context.setup_errors(options, result)
 

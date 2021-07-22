@@ -270,9 +270,6 @@ def create_pxd_pipeline(context, scope, module_name):
         ExtractPxdCode()
         ]
 
-def create_py_pipeline(context, options, result):
-    return create_pyx_pipeline(context, options, result, py=True)
-
 def create_pyx_as_pxd_pipeline(context, result):
     from .ParseTreeTransforms import AlignFunctionDefinitions, \
         MarkClosureVisitor, WithTransform, AnalyseDeclarationsTransform
