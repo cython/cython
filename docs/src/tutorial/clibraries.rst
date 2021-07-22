@@ -271,6 +271,7 @@ To build the c-code automatically we need to include compiler directives in :fil
             # distutils: sources = c-algorithms/src/queue.c
             # distutils: include_dirs = c-algorithms/src/
 
+            import cython
             from cython.cimports import cqueue
 
             @cython.cclass
@@ -292,6 +293,7 @@ To build the c-code automatically we need to include compiler directives in :fil
 
             # distutils: sources = c-algorithms/src/queue.c
             # distutils: include_dirs = c-algorithms/src/
+
 
             cimport cqueue
 
