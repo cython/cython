@@ -36,14 +36,14 @@ Defining external declarations
 You can download CAlg `here <https://codeload.github.com/fragglet/c-algorithms/zip/master>`_.
 
 The C API of the queue implementation, which is defined in the header
-file ``c-algorithms/src/queue.h``, essentially looks like this:
+file :file:`c-algorithms/src/queue.h`, essentially looks like this:
 
 .. literalinclude:: ../../examples/tutorial/clibraries/c-algorithms/src/queue.h
     :language: C
     :caption: queue.h
 
 To get started, the first step is to redefine the C API in a ``.pxd``
-file, say, ``cqueue.pxd``:
+file, say, :file:`cqueue.pxd`:
 
 .. literalinclude:: ../../examples/tutorial/clibraries/cqueue.pxd
     :caption: cqueue.pxd
@@ -105,14 +105,14 @@ Writing a wrapper class
 
 After declaring our C library's API, we can start to design the Queue
 class that should wrap the C queue.  It will live in a file called
-``queue.pyx``/``queue.py``. [#]_
+:file:`queue.pyx`/:file:`queue.py`. [#]_
 
 .. [#] Note that the name of the ``.pyx``/``.py`` file must be different from
-       the ``cqueue.pxd`` file with declarations from the C library,
+       the :file:`cqueue.pxd` file with declarations from the C library,
        as both do not describe the same code.  A ``.pxd`` file next to
        a ``.pyx``/``.py`` file with the same name defines exported
        declarations for code in the ``.pyx``/``.py`` file.  As the
-       ``cqueue.pxd`` file contains declarations of a regular C
+       :file:`cqueue.pxd` file contains declarations of a regular C
        library, there must not be a ``.pyx``/``.py`` file with the same name
        that Cython associates with it.
 
@@ -260,7 +260,7 @@ if other applications also use C-Alg.
 Static Linking
 ---------------
 
-To build the c-code automatically we need to include compiler directives in ``queue.pyx``/``queue.py``
+To build the c-code automatically we need to include compiler directives in :file:`queue.pyx`/:file:`queue.py`
 
 .. tabs::
 
@@ -683,7 +683,7 @@ code can use either name)::
 
 Note that this method returns either ``True`` or ``False`` as we
 declared the return type of the ``queue_is_empty()`` function as
-``bint`` in ``cqueue.pxd``.
+``bint`` in :file:`cqueue.pxd`.
 
 
 Testing the result
