@@ -311,12 +311,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             h_code_main.putln('__declspec(deprecated(%s)) __inline' % (
                 warning_string.as_c_string_literal()))
             h_code_main.putln('#endif')
-            h_code_main.putln("static PyObject* __PYX_WARN_IF_INIT_CALLED(PyObject* res) {")
+            h_code_main.putln("static PyObject* __PYX_WARN_IF_%s_INIT_CALLED(PyObject* res) {" % py3_mod_func_name)
             h_code_main.putln("return res;")
             h_code_main.putln("}")
             # Function call is converted to warning macro; uncalled (pointer) is not
-            h_code_main.putln('#define %s() __PYX_WARN_IF_INIT_CALLED(%s())' % (
-                py3_mod_func_name, py3_mod_func_name))
+            h_code_main.putln('#define %s() __PYX_WARN_IF_%s_INIT_CALLED(%s())' % (
+                py3_mod_func_name, py3_mod_func_name, py3_mod_func_name))
             h_code_main.putln('#endif')
             h_code_main.putln('#endif')
 
