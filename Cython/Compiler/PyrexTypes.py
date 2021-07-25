@@ -3780,39 +3780,46 @@ class CppClassType(CType):
             return True
         return False
 
-    def _get_conversion_tags_context_cls(self, env, tags, context):
-        # modifies tags and context, returns the cls name or False (if it's not convertible)
-        for ix, T in enumerate(self.templates or []):
-            if ix >= builtin_cpp_conversions[self.cname]:
-                if not isinstance(T, TemplatePlaceholderType):
-                    tags.append(T.specialization_name())
-                continue
-            if not T.create_to_py_utility_code(env):
-                return False
-            tags.append(T.specialization_name())
-
-        context['Tp'] = self
-
-        if self.cname in cpp_string_conversions:
-            cls = 'string'
-            tags[:] = [type_identifier(self)]
-        else:
-            cls = self.cname[5:]
-        return cls
-
     def create_from_py_utility_code(self, env):
         if self.from_py_function is not None:
             return True
         if self.cname in builtin_cpp_conversions or self.cname in cpp_string_conversions:
+            X = "XYZABC"
             tags = []
             context = {}
-            cls = self._get_conversion_tags_context_cls(env, tags, context)
-            if not cls:
-                return False
+            optional_tags = []
+            optional_tag_strs = []
+            optional_arg_template_names = []  # these may be different (e.g. for unordered_map, map)
+                # hence have to be generated here rather than hard-coded in the utility_code
+            for ix, T in enumerate(self.templates or []):
+                if ix >= builtin_cpp_conversions[self.cname]:
+                    optional_arg_template_names.append("%s=*" % self.template_type.templates[ix].name)
+                    if not isinstance(T, TemplatePlaceholderType):
+                        optional_tags.append(T.specialization_name())
+                        optional_tag_strs.append(X[ix])
+                        context[X[ix]] = T
+                    continue
+                if T.is_pyobject or not T.create_from_py_utility_code(env):
+                    return False
+                tags.append(T.specialization_name())
+                context[X[ix]] = T
 
-            cname = '__pyx_convert_%s_from_py_%s' % (cls, '__and_'.join(tags))
+            if self.cname in cpp_string_conversions:
+                cls = 'string'
+                tags = [type_identifier(self)]
+            else:
+                cls = self.cname[5:]
+            optional_tag_strs = ",".join(optional_tag_strs)
+            optional_arg_template_names = ",".join(optional_arg_template_names)
+            if optional_arg_template_names:
+                optional_arg_template_names = ","+optional_arg_template_names
+            cname = '__pyx_convert_%s_from_py_%s' % (cls, '__and_'.join(tags+optional_tags))
             context.update({
                 'cname': cname,
+                'maybe_unordered': self.maybe_unordered(),
+                'type': self.cname,
+                'optional_template_args': optional_tag_strs,
+                'optional_template_names': optional_arg_template_names,
             })
             # Override directives that should not be inherited from user code.
             # TODO: filter directives with an allow list to keep only those that are safe and relevant.
@@ -3833,23 +3840,49 @@ class CppClassType(CType):
                     return False
             return True
 
+
     def create_to_py_utility_code(self, env):
         if self.to_py_function is not None:
             return True
         if self.cname in builtin_cpp_conversions or self.cname in cpp_string_conversions:
+            X = "XYZABC"
             tags = []
+            optional_tags = []
+            optional_tag_strs = []
+            optional_arg_template_names = []  # these may be different (e.g. for unordered_map, map)
+                # hence have to be generated here rather than hard-coded in the utility_code
             context = {}
-            cls = self._get_conversion_tags_context_cls(env, tags, context)
-            if not cls:
-                return False
+            for ix, T in enumerate(self.templates or []):
+                if ix >= builtin_cpp_conversions[self.cname]:
+                    optional_arg_template_names.append("%s=*" % self.template_type.templates[ix].name)
+                    if not isinstance(T, TemplatePlaceholderType):
+                        optional_tags.append(T.specialization_name())
+                        optional_tag_strs.append(X[ix])
+                        context[X[ix]] = T
+                    continue
+                if not T.create_to_py_utility_code(env):
+                    return False
+                tags.append(T.specialization_name())
+                context[X[ix]] = T
 
             if self.cname in cpp_string_conversions:
+                cls = 'string'
                 prefix = 'PyObject_'  # gets specialised by explicit type casts in CoerceToPyTypeNode
+                tags = [type_identifier(self)]
             else:
+                cls = self.cname[5:]
                 prefix = ''
-            cname = "__pyx_convert_%s%s_to_py_%s" % (prefix, cls, "____".join(tags))
+            optional_tag_strs = ",".join(optional_tag_strs)
+            optional_arg_template_names = ",".join(optional_arg_template_names)
+            if optional_arg_template_names:
+                optional_arg_template_names = ","+optional_arg_template_names
+            cname = "__pyx_convert_%s%s_to_py_%s" % (prefix, cls, "____".join(tags+optional_tags))
             context.update({
                 'cname': cname,
+                'maybe_unordered': self.maybe_unordered(),
+                'type': self.cname,
+                'optional_template_args': optional_tag_strs,
+                'optional_template_names': optional_arg_template_names,
             })
             # Override directives that should not be inherited from user code.
             # TODO: filter directives with an allow list to keep only those that are safe and relevant.
