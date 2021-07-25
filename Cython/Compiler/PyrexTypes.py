@@ -3776,7 +3776,7 @@ class CppClassType(CType):
             return True
         return False
 
-    def _get_conversion_context_cls_cname(self, cname_format_str):
+    def _get_conversion_context_cpp_cls_name_cname(self, cname_format_str):
         # cname_format_str is passed "prefix", "cpp_class", "tags"
         tags = []
         context = {}
@@ -3789,7 +3789,7 @@ class CppClassType(CType):
             X = list("XYZABC")
             # XYZABC are the identifiers used in the utility code. Extra identifiers are generated
             # if needed for any optional args
-            X += ["T%s" for n in range(len(self.templates)-len(X))]
+            X += ["T%s" % n for n in range(len(self.templates)-len(X))]
 
             templates = list(zip(self.templates, X, self.template_type.templates))
             builtin_template_count = builtin_cpp_conversions[self.cname]
@@ -3807,14 +3807,14 @@ class CppClassType(CType):
         optional_arg_template_names = ",".join(optional_arg_template_names)
 
         if self.cname in cpp_string_conversions:
-            cpp_class = 'string'
+            cpp_cls_name = 'string'
             prefix = 'PyObject_'  # gets specialised by explicit type casts in CoerceToPyTypeNode
             tags = [type_identifier(self)]
         else:
-            cpp_class = self.cname[5:]
+            cpp_cls_name = self.cname[5:]
             prefix = ''
 
-        cname = cname_format_str.format(prefix=prefix, cpp_class=cpp_class, tags='__and_'.join(tags))
+        cname = cname_format_str.format(prefix=prefix, cpp_cls_name=cpp_cls_name, tags='__and_'.join(tags))
 
         context.update({
             'cname': cname,
@@ -3823,7 +3823,7 @@ class CppClassType(CType):
             'optional_template_args': optional_tag_strs,
             'optional_template_names': optional_arg_template_names,
         })
-        return context, cpp_class, cname
+        return context, cpp_cls_name, cname
 
     def create_from_py_utility_code(self, env):
         if self.from_py_function is not None:
@@ -3832,14 +3832,14 @@ class CppClassType(CType):
             return False
 
         if self.cname in builtin_cpp_conversions or self.cname in cpp_string_conversions:
-            context, cpp_class, cname = self._get_conversion_context_cls_cname(
-                '__pyx_convert_{cpp_class}_from_py_{tags}')
+            context, cpp_cls_name, cname = self._get_conversion_context_cpp_cls_name_cname(
+                '__pyx_convert_{cpp_cls_name}_from_py_{tags}')
 
             # Override directives that should not be inherited from user code.
             from .UtilityCode import CythonUtilityCode
             directives = CythonUtilityCode.filter_inherited_directives(env.directives)
             env.use_utility_code(CythonUtilityCode.load(
-                cpp_class.replace('unordered_', '') + ".from_py", "CppConvert.pyx",
+                cpp_cls_name.replace('unordered_', '') + ".from_py", "CppConvert.pyx",
                 context=context, compiler_directives=directives))
             self.from_py_function = cname
             return True
@@ -3860,14 +3860,14 @@ class CppClassType(CType):
             return False
 
         if self.cname in builtin_cpp_conversions or self.cname in cpp_string_conversions:
-            context, cpp_class, cname = self._get_conversion_context_cls_cname(
-                "__pyx_convert_{prefix}{cpp_class}_to_py_{tags}")
+            context, cpp_cls_name, cname = self._get_conversion_context_cpp_cls_name_cname(
+                "__pyx_convert_{prefix}{cpp_cls_name}_to_py_{tags}")
 
             from .UtilityCode import CythonUtilityCode
             # Override directives that should not be inherited from user code.
             directives = CythonUtilityCode.filter_inherited_directives(env.directives)
             env.use_utility_code(CythonUtilityCode.load(
-                cpp_class.replace('unordered_', '') + ".to_py", "CppConvert.pyx",
+                cpp_cls_name.replace('unordered_', '') + ".to_py", "CppConvert.pyx",
                 context=context, compiler_directives=directives))
             self.to_py_function = cname
             return True
