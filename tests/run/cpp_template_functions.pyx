@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, warnings
+# tag: cpp, warnings, no-cpp-locals
 
 cimport cython
 from libcpp.pair cimport pair

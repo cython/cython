@@ -1,4 +1,4 @@
-# tag: cpp
+# tag: cpp, no-cpp-locals
 
 cdef extern from "cpp_nested_classes_support.h":
     cdef cppclass A:
@@ -26,6 +26,10 @@ cdef extern from "cpp_nested_classes_support.h":
         pass
 
 
+ctypedef A AliasA1
+ctypedef AliasA1 AliasA2
+
+
 def test_nested_classes():
     """
     >>> test_nested_classes()
@@ -45,6 +49,20 @@ def test_nested_typedef(py_x):
     >>> test_nested_typedef(5)
     """
     cdef A.my_int x = py_x
+    assert A.negate(x) == -py_x
+
+def test_typedef_for_nested(py_x):
+    """
+    >>> test_typedef_for_nested(5)
+    """
+    cdef AliasA1.my_int x = py_x
+    assert A.negate(x) == -py_x
+
+def test_typedef_for_nested_deep(py_x):
+    """
+    >>> test_typedef_for_nested_deep(5)
+    """
+    cdef AliasA2.my_int x = py_x
     assert A.negate(x) == -py_x
 
 def test_typed_nested_typedef(x):

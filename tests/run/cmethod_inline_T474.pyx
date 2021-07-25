@@ -1,5 +1,5 @@
 # mode: run
-# ticket: 474
+# ticket: t474
 cimport cython
 
 

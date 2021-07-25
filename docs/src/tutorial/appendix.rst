@@ -2,7 +2,7 @@ Appendix: Installing MinGW on Windows
 =====================================
 
  1. Download the MinGW installer from
-    http://www.mingw.org/wiki/HOWTO_Install_the_MinGW_GCC_Compiler_Suite.
+    https://www.mingw.org/wiki/HOWTO_Install_the_MinGW_GCC_Compiler_Suite.
     (As of this
     writing, the download link is a bit difficult to find; it's under
     "About" in the menu on the left-hand side). You want the file

@@ -224,10 +224,10 @@ def call_g_positional():
 
 def call_nonseq_positional1():
     """
-    >>> call_nonseq_positional1()
+    >>> call_nonseq_positional1()  # doctest: +ELLIPSIS
     Traceback (most recent call last):
       ...
-    TypeError: 'Nothing' object is not iterable
+    TypeError: ...Nothing...
 
     # TypeError: g() argument after * must be a sequence, not Nothing
     """
@@ -237,10 +237,10 @@ def call_nonseq_positional1():
 
 def call_nonseq_positional2():
     """
-    >>> call_nonseq_positional2()
+    >>> call_nonseq_positional2()  # doctest: +ELLIPSIS
     Traceback (most recent call last):
       ...
-    TypeError: 'Nothing' object is not iterable
+    TypeError: ...Nothing...
 
     # TypeError: g() argument after * must be a sequence, not Nothing
     """

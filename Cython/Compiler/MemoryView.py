@@ -22,10 +22,6 @@ ERR_UNINITIALIZED = ("Cannot check if memoryview %s is initialized without the "
                      "GIL, consider using initializedcheck(False)")
 
 
-def concat_flags(*flags):
-    return "(%s)" % "|".join(flags)
-
-
 format_flag = "PyBUF_FORMAT"
 
 memview_c_contiguous = "(PyBUF_C_CONTIGUOUS | PyBUF_FORMAT)"
@@ -514,7 +510,8 @@ def get_copy_new_utility(pos, from_memview, to_memview):
     if to_memview.is_c_contig:
         mode = 'c'
         contig_flag = memview_c_contiguous
-    elif to_memview.is_f_contig:
+    else:
+        assert to_memview.is_f_contig
         mode = 'fortran'
         contig_flag = memview_f_contiguous
 

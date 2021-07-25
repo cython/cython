@@ -5,6 +5,7 @@ import unittest
 import shlex
 import sys
 import tempfile
+import textwrap
 from io import open
 
 from .Compiler import Errors
@@ -225,3 +226,31 @@ def unpack_source_tree(tree_file, workdir, cython_root):
             if cur_file is not None:
                 cur_file.close()
     return workdir, header
+
+
+def write_file(file_path, content, dedent=False):
+    """
+    Write some content (text or bytes) to the file at "file_path".
+    """
+    mode = 'wb' if isinstance(content, bytes) else 'w'
+    if dedent:
+        content = textwrap.dedent(content)
+
+    with open(file_path, mode=mode) as f:
+        f.write(content)
+
+
+def write_newer_file(file_path, newer_than, content, dedent=False):
+    """
+    Write 'content' to the file 'file_path' and make sure it is newer than the file 'newer_than'.
+    """
+    write_file(file_path, content, dedent=dedent)
+
+    try:
+        other_time = os.path.getmtime(newer_than)
+    except OSError:
+        # Support writing a fresh file (which is always newer than a non-existant one)
+        other_time = None
+
+    while other_time is None or other_time >= os.path.getmtime(file_path):
+        write_file(file_path, content, dedent=dedent)

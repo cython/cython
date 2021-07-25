@@ -186,6 +186,8 @@ class PyrexType(BaseType):
     #  is_cfunction          boolean     Is a C function type
     #  is_struct_or_union    boolean     Is a C struct or union type
     #  is_struct             boolean     Is a C struct type
+    #  is_cpp_class          boolean     Is a C++ class
+    #  is_optional_cpp_class boolean     Is a C++ class with variable lifetime handled with std::optional
     #  is_enum               boolean     Is a C enum type
     #  is_cpp_enum           boolean     Is a C++ scoped enum type
     #  is_typedef            boolean     Is a typedef type
@@ -246,6 +248,7 @@ class PyrexType(BaseType):
     is_ptr = 0
     is_null_ptr = 0
     is_reference = 0
+    is_fake_reference = 0
     is_rvalue_reference = 0
     is_const = 0
     is_volatile = 0
@@ -253,6 +256,7 @@ class PyrexType(BaseType):
     is_cfunction = 0
     is_struct_or_union = 0
     is_cpp_class = 0
+    is_optional_cpp_class = 0
     is_cpp_string = 0
     is_struct = 0
     is_enum = 0
@@ -373,6 +377,10 @@ class PyrexType(BaseType):
                                       self)
         code.putln("1")
 
+    def cpp_optional_declaration_code(self, entity_code, dll_linkage=None):
+        # declares an std::optional c++ variable
+        raise NotImplementedError(
+            "cpp_optional_declaration_code only implemented for c++ classes and not type %s" % self)
 
 
 def public_decl(base_code, dll_linkage):
@@ -381,20 +389,15 @@ def public_decl(base_code, dll_linkage):
     else:
         return base_code
 
+
 def create_typedef_type(name, base_type, cname, is_external=0, namespace=None):
-    is_fused = base_type.is_fused
-    if base_type.is_complex or is_fused:
-        if is_external:
-            if is_fused:
-                msg = "Fused"
-            else:
-                msg = "Complex"
-
-            raise ValueError("%s external typedefs not supported" % msg)
-
+    if is_external:
+        if base_type.is_complex or base_type.is_fused:
+            raise ValueError("%s external typedefs not supported" % (
+                "Fused" if base_type.is_fused else "Complex"))
+    if base_type.is_complex or base_type.is_fused:
         return base_type
-    else:
-        return CTypedefType(name, base_type, cname, is_external, namespace)
+    return CTypedefType(name, base_type, cname, is_external, namespace)
 
 
 class CTypedefType(BaseType):
@@ -1339,14 +1342,14 @@ class PyObjectType(PyrexType):
         return cname
 
 
-builtin_types_that_cannot_create_refcycles = set([
+builtin_types_that_cannot_create_refcycles = frozenset({
     'object', 'bool', 'int', 'long', 'float', 'complex',
-    'bytearray', 'bytes', 'unicode', 'str', 'basestring'
-])
+    'bytearray', 'bytes', 'unicode', 'str', 'basestring',
+})
 
-builtin_types_with_trashcan = set([
+builtin_types_with_trashcan = frozenset({
     'dict', 'list', 'set', 'frozenset', 'tuple', 'type',
-])
+})
 
 
 class BuiltinObjectType(PyObjectType):
@@ -2766,7 +2769,7 @@ class CReferenceBaseType(BaseType):
         self.ref_base_type = base_type
 
     def __repr__(self):
-        return "<%s %s>" % repr(self.__class__.__name__, self.ref_base_type)
+        return "<%r %s>" % (self.__class__.__name__, self.ref_base_type)
 
     def specialize(self, values):
         base_type = self.ref_base_type.specialize(values)
@@ -2841,12 +2844,14 @@ class CFuncType(CType):
     #                               (used for optimisation overrides)
     #  is_const_method  boolean
     #  is_static_method boolean
+    #  op_arg_struct    CPtrType   Pointer to optional argument struct
 
     is_cfunction = 1
     original_sig = None
     cached_specialized_types = None
     from_fused = False
     is_const_method = False
+    op_arg_struct = None
 
     subtypes = ['return_type', 'args']
 
@@ -3252,7 +3257,16 @@ class CFuncType(CType):
         if not self.can_coerce_to_pyobject(env):
             return False
         from .UtilityCode import CythonUtilityCode
-        to_py_function = "__Pyx_CFunc_%s_to_py" % type_identifier(self, pyrex=True)
+
+        # include argument names into the c function name to ensure cname is unique
+        # between functions with identical types but different argument names
+        from .Symtab import punycodify_name
+        def arg_name_part(arg):
+            return "%s%s" % (len(arg.name), punycodify_name(arg.name)) if arg.name else "0"
+        arg_names = [ arg_name_part(arg) for arg in self.args ]
+        arg_names = "_".join(arg_names)
+        safe_typename = type_identifier(self, pyrex=True)
+        to_py_function = "__Pyx_CFunc_%s_to_py_%s" % (safe_typename, arg_names)
 
         for arg in self.args:
             if not arg.type.is_pyobject and not arg.type.create_from_py_utility_code(env):
@@ -3788,10 +3802,12 @@ class CppClassType(CType):
                 'maybe_unordered': self.maybe_unordered(),
                 'type': self.cname,
             })
+            # Override directives that should not be inherited from user code.
             from .UtilityCode import CythonUtilityCode
+            directives = CythonUtilityCode.filter_inherited_directives(env.directives)
             env.use_utility_code(CythonUtilityCode.load(
                 cls.replace('unordered_', '') + ".from_py", "CppConvert.pyx",
-                context=context, compiler_directives=env.directives))
+                context=context, compiler_directives=directives))
             self.from_py_function = cname
             return True
 
@@ -3834,9 +3850,11 @@ class CppClassType(CType):
                 'type': self.cname,
             })
             from .UtilityCode import CythonUtilityCode
+            # Override directives that should not be inherited from user code.
+            directives = CythonUtilityCode.filter_inherited_directives(env.directives)
             env.use_utility_code(CythonUtilityCode.load(
                 cls.replace('unordered_', '') + ".to_py", "CppConvert.pyx",
-                context=context, compiler_directives=env.directives))
+                context=context, compiler_directives=directives))
             self.to_py_function = cname
             return True
 
@@ -3975,6 +3993,12 @@ class CppClassType(CType):
             base_code = public_decl(base_code, dll_linkage)
         return self.base_declaration_code(base_code, entity_code)
 
+    def cpp_optional_declaration_code(self, entity_code, dll_linkage=None, template_params=None):
+        return "__Pyx_Optional_Type<%s> %s" % (
+                self.declaration_code("", False, dll_linkage, False,
+                                    template_params),
+                entity_code)
+
     def is_subclass(self, other_type):
         if self.same_as_resolved_type(other_type):
             return 1
@@ -4056,6 +4080,11 @@ class CppClassType(CType):
         constructor = self.scope.lookup(u'<init>')
         if constructor is not None and best_match([], constructor.all_alternatives()) is None:
             error(pos, "C++ class must have a nullary constructor to be %s" % msg)
+
+    def cpp_optional_check_for_null_code(self, cname):
+        # only applies to c++ classes that are being declared as std::optional
+        return "(%s.has_value())" % cname
+
 
 class CppScopedEnumType(CType):
     # name    string
@@ -4599,12 +4628,23 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
             errors.append((func, error_mesg))
             continue
         if func_type.templates:
+            # For any argument/parameter pair A/P, if P is a forwarding reference,
+            # use lvalue-reference-to-A for deduction in place of A when the
+            # function call argument is an lvalue. See:
+            # https://en.cppreference.com/w/cpp/language/template_argument_deduction#Deduction_from_a_function_call
+            arg_types_for_deduction = list(arg_types)
+            if func.type.is_cfunction and args:
+                for i, formal_arg in enumerate(func.type.args):
+                    if formal_arg.is_forwarding_reference():
+                        if args[i].is_lvalue():
+                            arg_types_for_deduction[i] = c_ref_type(arg_types[i])
             deductions = reduce(
                 merge_template_deductions,
-                [pattern.type.deduce_template_params(actual) for (pattern, actual) in zip(func_type.args, arg_types)],
+                [pattern.type.deduce_template_params(actual) for (pattern, actual) in zip(func_type.args, arg_types_for_deduction)],
                 {})
             if deductions is None:
-                errors.append((func, "Unable to deduce type parameters for %s given (%s)" % (func_type, ', '.join(map(str, arg_types)))))
+                errors.append((func, "Unable to deduce type parameters for %s given (%s)" % (
+                    func_type, ', '.join(map(str, arg_types_for_deduction)))))
             elif len(deductions) < len(func_type.templates):
                 errors.append((func, "Unable to deduce type parameter %s" % (
                     ", ".join([param.name for param in set(func_type.templates) - set(deductions.keys())]))))

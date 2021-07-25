@@ -179,6 +179,9 @@ from cpython.bytes cimport *
 # Python >= 3.0
 from cpython.pycapsule cimport *
 
+# Python >= 3.7
+from cpython.contextvars cimport *
+
 #################################################################
 # END OF DEPRECATED SECTION
 #################################################################

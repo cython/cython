@@ -87,7 +87,7 @@ class AnnotationCCodeWriter(CCodeWriter):
         body.cython { font-family: courier; font-size: 12; }
 
         .cython.tag  {  }
-        .cython.line { margin: 0em }
+        .cython.line { color: #000000; margin: 0em }
         .cython.code { font-size: 9; color: #444444; display: none; margin: 0px 0px 0px 8px; border-left: 8px none; }
 
         .cython.line .run { background-color: #B0FFB0; }
