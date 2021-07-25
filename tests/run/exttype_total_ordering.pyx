@@ -39,6 +39,9 @@ def test_all_comp(cls):
                 expected = func(left.value, right.value)
                 try:
                     result = func(left, right)
+                    # repeat to rule out deallocation bugs (and assert determinism)
+                    for _ in range(10):
+                        assert result == func(left, right)
                 except TypeError:
                     print("TypeError:", left.value, comp, right.value)
                     succeeded = False

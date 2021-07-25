@@ -2566,8 +2566,8 @@ class ExpandInplaceOperators(EnvTransform):
                                      operand2 = rhs,
                                      inplace=True)
         # Manually analyse types for new node.
-        lhs.analyse_target_types(env)
-        dup.analyse_types(env)
+        lhs = lhs.analyse_target_types(env)
+        dup.analyse_types(env)  # FIXME: no need to reanalyse the copy, right?
         binop.analyse_operation(env)
         node = Nodes.SingleAssignmentNode(
             node.pos,
@@ -3305,7 +3305,9 @@ class CoerceCppTemps(EnvTransform, SkipDeclarations):
     def visit_ExprNode(self, node):
         self.visitchildren(node)
         if (self.current_env().directives['cpp_locals'] and
-                node.is_temp and node.type.is_cpp_class):
+                node.is_temp and node.type.is_cpp_class and
+                # Fake references are not replaced with "std::optional()".
+                not node.type.is_fake_reference):
             node = ExprNodes.CppOptionalTempCoercion(node)
 
         return node

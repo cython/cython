@@ -311,12 +311,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             h_code_main.putln('__declspec(deprecated(%s)) __inline' % (
                 warning_string.as_c_string_literal()))
             h_code_main.putln('#endif')
-            h_code_main.putln("static PyObject* __PYX_WARN_IF_INIT_CALLED(PyObject* res) {")
+            h_code_main.putln("static PyObject* __PYX_WARN_IF_%s_INIT_CALLED(PyObject* res) {" % py3_mod_func_name)
             h_code_main.putln("return res;")
             h_code_main.putln("}")
             # Function call is converted to warning macro; uncalled (pointer) is not
-            h_code_main.putln('#define %s() __PYX_WARN_IF_INIT_CALLED(%s())' % (
-                py3_mod_func_name, py3_mod_func_name))
+            h_code_main.putln('#define %s() __PYX_WARN_IF_%s_INIT_CALLED(%s())' % (
+                py3_mod_func_name, py3_mod_func_name, py3_mod_func_name))
             h_code_main.putln('#endif')
             h_code_main.putln('#endif')
 
@@ -744,7 +744,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.generate_cvariable_declarations(module, modulecode, defined_here)
             self.generate_cfunction_declarations(module, modulecode, defined_here)
 
-    def _put_setup_code(self, code, name):
+    @staticmethod
+    def _put_setup_code(code, name):
         code.put(UtilityCode.load_as_string(name, "ModuleSetupCode.c")[1])
 
     def generate_module_preamble(self, env, options, cimported_modules, metadata, code):
@@ -1281,6 +1282,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 decl = attr_type.cpp_optional_declaration_code(attr.cname)
             else:
                 decl = attr_type.declaration_code(attr.cname)
+            type.scope.use_entry_utility_code(attr)
             code.putln("%s;" % decl)
         code.putln(footer)
         if type.objtypedef_cname is not None:
@@ -1371,6 +1373,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(";")
             if entry.cname != cname:
                 code.putln("#define %s (*%s)" % (entry.cname, cname))
+            env.use_entry_utility_code(entry)
 
     def generate_cfunction_declarations(self, env, code, definition):
         for entry in env.cfunc_entries:
@@ -1477,8 +1480,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if scope.is_internal:
             # internal classes (should) never need None inits, normal zeroing will do
             py_attrs = []
-        cpp_constructable_attrs = [entry for entry in scope.var_entries
-                                   if (entry.type.needs_cpp_construction and not entry.is_cpp_optional)]
+        cpp_constructable_attrs = [entry for entry in scope.var_entries if entry.type.needs_cpp_construction]
 
         cinit_func_entry = scope.lookup_here("__cinit__")
         if cinit_func_entry and not cinit_func_entry.is_special:
@@ -1583,8 +1585,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 struct_type_cast, type.vtabptr_cname))
 
         for entry in cpp_constructable_attrs:
+            if entry.is_cpp_optional:
+                decl_code = entry.type.cpp_optional_declaration_code("")
+            else:
+                decl_code = entry.type.empty_declaration_code()
             code.putln("new((void*)&(p->%s)) %s();" % (
-                entry.cname, entry.type.empty_declaration_code()))
+                entry.cname, decl_code))
 
         for entry in py_attrs:
             if entry.name == "__dict__":
@@ -2142,11 +2148,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     # Implement the and/or check with an if.
                     if comp_op == '&&':
                         code.putln("if (%s order_res) {" % ('!!' if invert_comp else '!'))
-                        code.putln("ret = Py_False;")
+                        code.putln("ret = __Pyx_NewRef(Py_False);")
                         code.putln("} else {")
                     elif comp_op == '||':
                         code.putln("if (%s order_res) {" % ('!' if invert_comp else ''))
-                        code.putln("ret = Py_True;")
+                        code.putln("ret = __Pyx_NewRef(Py_True);")
                         code.putln("} else {")
                     else:
                         raise AssertionError('Unknown op %s' % (comp_op, ))
@@ -2242,9 +2248,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     "right, left" if reverse else "left, right",
                     extra_arg)
             else:
-                return '%s_maybe_call_slot(%s, left, right %s)' % (
+                return '%s_maybe_call_slot(%s->tp_base, left, right %s)' % (
                     func_name,
-                    'Py_TYPE(right)->tp_base' if reverse else 'Py_TYPE(left)->tp_base',
+                    scope.parent_type.typeptr_cname,
                     extra_arg)
 
         if get_slot_method_cname(slot.left_slot.method_name) and not get_slot_method_cname(slot.right_slot.method_name):
@@ -2255,13 +2261,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 slot.right_slot.method_name,
             ))
 
+        overloads_left = int(bool(get_slot_method_cname(slot.left_slot.method_name)))
+        overloads_right = int(bool(get_slot_method_cname(slot.right_slot.method_name)))
         code.putln(
             TempitaUtilityCode.load_as_string(
                 "BinopSlot", "ExtensionTypes.c",
                 context={
                     "func_name": func_name,
                     "slot_name": slot.slot_name,
-                    "overloads_left": int(bool(get_slot_method_cname(slot.left_slot.method_name))),
+                    "overloads_left": overloads_left,
+                    "overloads_right": overloads_right,
                     "call_left": call_slot_method(slot.left_slot.method_name, reverse=False),
                     "call_right": call_slot_method(slot.right_slot.method_name, reverse=True),
                     "type_cname": scope.parent_type.typeptr_cname,

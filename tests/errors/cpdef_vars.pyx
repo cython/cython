@@ -1,4 +1,4 @@
-# tag: warnings
+# mode: error
 
 cpdef str a = "123"
 cpdef b = 2
@@ -16,9 +16,9 @@ def func():
     return d
 
 
-_WARNINGS = """
-3:6: cpdef variables will not be supported in Cython 3; currently they are no different from cdef variables
-4:6: cpdef variables will not be supported in Cython 3; currently they are no different from cdef variables
-7:10: cpdef variables will not be supported in Cython 3; currently they are no different from cdef variables
-15:10: cpdef variables will not be supported in Cython 3; currently they are no different from cdef variables
+_ERRORS = """
+3:6: Variables cannot be declared with 'cpdef'. Use 'cdef' instead.
+4:6: Variables cannot be declared with 'cpdef'. Use 'cdef' instead.
+7:10: Variables cannot be declared with 'cpdef'. Use 'cdef' instead.
+15:10: Variables cannot be declared with 'cpdef'. Use 'cdef' instead.
 """
