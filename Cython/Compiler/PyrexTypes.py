@@ -3776,7 +3776,7 @@ class CppClassType(CType):
             return True
         return False
 
-    def _get_conversion_context_cpp_cls_name_cname(self, cname_format_str):
+    def _prepare_conversion_context(self, cname_format_str):
         # cname_format_str is passed "prefix", "cpp_class", "tags"
         tags = []
         context = {}
@@ -3832,7 +3832,7 @@ class CppClassType(CType):
             return False
 
         if self.cname in builtin_cpp_conversions or self.cname in cpp_string_conversions:
-            context, cpp_cls_name, cname = self._get_conversion_context_cpp_cls_name_cname(
+            context, cpp_cls_name, cname = self._prepare_conversion_context(
                 '__pyx_convert_{cpp_cls_name}_from_py_{tags}')
 
             # Override directives that should not be inherited from user code.
@@ -3860,7 +3860,7 @@ class CppClassType(CType):
             return False
 
         if self.cname in builtin_cpp_conversions or self.cname in cpp_string_conversions:
-            context, cpp_cls_name, cname = self._get_conversion_context_cpp_cls_name_cname(
+            context, cpp_cls_name, cname = self._prepare_conversion_context(
                 "__pyx_convert_{prefix}{cpp_cls_name}_to_py_{tags}")
 
             from .UtilityCode import CythonUtilityCode
