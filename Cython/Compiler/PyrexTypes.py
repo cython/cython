@@ -3777,37 +3777,44 @@ class CppClassType(CType):
         return False
 
     def _get_conversion_context_cls_cname(self, cname_format_str):
-        # cname_format_str is passed "prefix", "format", "tags"
-        X = "XYZABC"
+        # cname_format_str is passed "prefix", "cpp_class", "tags"
         tags = []
         context = {}
         optional_tag_strs = []
         optional_arg_template_names = ['']  # these may be different (e.g. for unordered_map, map)
             # hence have to be generated here rather than hard-coded in the utility_code.
             # Start with an empty string so that the joined output starts with ','
-        for ix, T in enumerate(self.templates or []):
-            if ix < builtin_cpp_conversions[self.cname]:
+
+        if self.templates:
+            X = list("XYZABC")
+            # XYZABC are the identifiers used in the utility code. Extra identifiers are generated
+            # if needed for any optional args
+            X += ["T%s" for n in range(len(self.templates)-len(X))]
+
+            templates = list(zip(self.templates, X, self.template_type.templates))
+            builtin_template_count = builtin_cpp_conversions[self.cname]
+            for T, template_name, _ in templates[:builtin_template_count]:
                 tags.append(T.specialization_name())
-                context[X[ix]] = T
-            else:
-                optional_arg_template_names.append("%s=*" % self.template_type.templates[ix].name)
+                context[template_name] = T
+            for T, template_name, type_template in templates[builtin_template_count:]:
+                optional_arg_template_names.append("%s=*" % type_template.name)
                 if not isinstance(T, TemplatePlaceholderType):
                     tags.append(T.specialization_name())
-                    optional_tag_strs.append(X[ix])
-                    context[X[ix]] = T
+                    optional_tag_strs.append(template_name)
+                    context[template_name] = T
 
         optional_tag_strs = ",".join(optional_tag_strs)
         optional_arg_template_names = ",".join(optional_arg_template_names)
 
         if self.cname in cpp_string_conversions:
-            cls = 'string'
+            cpp_class = 'string'
             prefix = 'PyObject_'  # gets specialised by explicit type casts in CoerceToPyTypeNode
             tags = [type_identifier(self)]
         else:
-            cls = self.cname[5:]
+            cpp_class = self.cname[5:]
             prefix = ''
 
-        cname = cname_format_str.format(prefix=prefix, cls=cls, tags='__and_'.join(tags))
+        cname = cname_format_str.format(prefix=prefix, cpp_class=cpp_class, tags='__and_'.join(tags))
 
         context.update({
             'cname': cname,
@@ -3816,7 +3823,7 @@ class CppClassType(CType):
             'optional_template_args': optional_tag_strs,
             'optional_template_names': optional_arg_template_names,
         })
-        return context, cls, cname
+        return context, cpp_class, cname
 
     def create_from_py_utility_code(self, env):
         if self.from_py_function is not None:
@@ -3825,13 +3832,14 @@ class CppClassType(CType):
             return False
 
         if self.cname in builtin_cpp_conversions or self.cname in cpp_string_conversions:
-            context, cls, cname = self._get_conversion_context_cls_cname('__pyx_convert_{cls}_from_py_{tags}')
+            context, cpp_class, cname = self._get_conversion_context_cls_cname(
+                '__pyx_convert_{cpp_class}_from_py_{tags}')
 
             # Override directives that should not be inherited from user code.
             from .UtilityCode import CythonUtilityCode
             directives = CythonUtilityCode.filter_inherited_directives(env.directives)
             env.use_utility_code(CythonUtilityCode.load(
-                cls.replace('unordered_', '') + ".from_py", "CppConvert.pyx",
+                cpp_class.replace('unordered_', '') + ".from_py", "CppConvert.pyx",
                 context=context, compiler_directives=directives))
             self.from_py_function = cname
             return True
@@ -3852,14 +3860,14 @@ class CppClassType(CType):
             return False
 
         if self.cname in builtin_cpp_conversions or self.cname in cpp_string_conversions:
-            context, cls, cname = self._get_conversion_context_cls_cname(
-                "__pyx_convert_{prefix}{cls}_to_py_{tags}")
+            context, cpp_class, cname = self._get_conversion_context_cls_cname(
+                "__pyx_convert_{prefix}{cpp_class}_to_py_{tags}")
 
             from .UtilityCode import CythonUtilityCode
             # Override directives that should not be inherited from user code.
             directives = CythonUtilityCode.filter_inherited_directives(env.directives)
             env.use_utility_code(CythonUtilityCode.load(
-                cls.replace('unordered_', '') + ".to_py", "CppConvert.pyx",
+                cpp_class.replace('unordered_', '') + ".to_py", "CppConvert.pyx",
                 context=context, compiler_directives=directives))
             self.to_py_function = cname
             return True
