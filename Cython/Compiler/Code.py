@@ -849,7 +849,7 @@ class FunctionState(object):
         elif type.is_cfunction:
             from . import PyrexTypes
             type = PyrexTypes.c_ptr_type(type)  # A function itself isn't an l-value
-        elif type.is_cpp_class and self.scope.directives['cpp_locals']:
+        elif type.is_cpp_class and not type.is_fake_reference and self.scope.directives['cpp_locals']:
             self.scope.use_utility_code(UtilityCode.load_cached("OptionalLocals", "CppSupport.cpp"))
         if not type.is_pyobject and not type.is_memoryviewslice:
             # Make manage_ref canonical, so that manage_ref will always mean
@@ -2087,7 +2087,7 @@ class CCodeWriter(object):
 
     def put_temp_declarations(self, func_context):
         for name, type, manage_ref, static in func_context.temps_allocated:
-            if type.is_cpp_class and func_context.scope.directives['cpp_locals']:
+            if type.is_cpp_class and not type.is_fake_reference and func_context.scope.directives['cpp_locals']:
                 decl = type.cpp_optional_declaration_code(name)
             else:
                 decl = type.declaration_code(name)

@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, werror, cpp11
+# tag: cpp, werror, cpp11, no-cpp-locals
 
 import sys
 from libcpp.unordered_map cimport unordered_map

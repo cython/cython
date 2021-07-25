@@ -903,52 +903,52 @@ class CArgDeclNode(Node):
     def analyse(self, env, nonempty=0, is_self_arg=False):
         if is_self_arg:
             self.base_type.is_self_arg = self.is_self_arg = True
-        if self.type is None:
-            # The parser may misinterpret names as types. We fix that here.
-            if isinstance(self.declarator, CNameDeclaratorNode) and self.declarator.name == '':
-                if nonempty:
-                    if self.base_type.is_basic_c_type:
-                        # char, short, long called "int"
-                        type = self.base_type.analyse(env, could_be_name=True)
-                        arg_name = type.empty_declaration_code()
-                    else:
-                        arg_name = self.base_type.name
-                    self.declarator.name = EncodedString(arg_name)
-                    self.base_type.name = None
-                    self.base_type.is_basic_c_type = False
-                could_be_name = True
-            else:
-                could_be_name = False
-            self.base_type.is_arg = True
-            base_type = self.base_type.analyse(env, could_be_name=could_be_name)
-            base_arg_name = getattr(self.base_type, 'arg_name', None)
-            if base_arg_name:
-                self.declarator.name = base_arg_name
-
-            # The parser is unable to resolve the ambiguity of [] as part of the
-            # type (e.g. in buffers) or empty declarator (as with arrays).
-            # This is only arises for empty multi-dimensional arrays.
-            if (base_type.is_array
-                    and isinstance(self.base_type, TemplatedTypeNode)
-                    and isinstance(self.declarator, CArrayDeclaratorNode)):
-                declarator = self.declarator
-                while isinstance(declarator.base, CArrayDeclaratorNode):
-                    declarator = declarator.base
-                declarator.base = self.base_type.array_declarator
-                base_type = base_type.base_type
-
-            # inject type declaration from annotations
-            # this is called without 'env' by AdjustDefByDirectives transform before declaration analysis
-            if (self.annotation and env and env.directives['annotation_typing']
-                    # CSimpleBaseTypeNode has a name attribute; CAnalysedBaseTypeNode
-                    # (and maybe other options) doesn't
-                    and getattr(self.base_type, "name", None) is None):
-                arg_type = self.inject_type_from_annotations(env)
-                if arg_type is not None:
-                    base_type = arg_type
-            return self.declarator.analyse(base_type, env, nonempty=nonempty)
-        else:
+        if self.type is not None:
             return self.name_declarator, self.type
+
+        # The parser may misinterpret names as types. We fix that here.
+        if isinstance(self.declarator, CNameDeclaratorNode) and self.declarator.name == '':
+            if nonempty:
+                if self.base_type.is_basic_c_type:
+                    # char, short, long called "int"
+                    type = self.base_type.analyse(env, could_be_name=True)
+                    arg_name = type.empty_declaration_code()
+                else:
+                    arg_name = self.base_type.name
+                self.declarator.name = EncodedString(arg_name)
+                self.base_type.name = None
+                self.base_type.is_basic_c_type = False
+            could_be_name = True
+        else:
+            could_be_name = False
+        self.base_type.is_arg = True
+        base_type = self.base_type.analyse(env, could_be_name=could_be_name)
+        base_arg_name = getattr(self.base_type, 'arg_name', None)
+        if base_arg_name:
+            self.declarator.name = base_arg_name
+
+        # The parser is unable to resolve the ambiguity of [] as part of the
+        # type (e.g. in buffers) or empty declarator (as with arrays).
+        # This is only arises for empty multi-dimensional arrays.
+        if (base_type.is_array
+                and isinstance(self.base_type, TemplatedTypeNode)
+                and isinstance(self.declarator, CArrayDeclaratorNode)):
+            declarator = self.declarator
+            while isinstance(declarator.base, CArrayDeclaratorNode):
+                declarator = declarator.base
+            declarator.base = self.base_type.array_declarator
+            base_type = base_type.base_type
+
+        # inject type declaration from annotations
+        # this is called without 'env' by AdjustDefByDirectives transform before declaration analysis
+        if (self.annotation and env and env.directives['annotation_typing']
+                # CSimpleBaseTypeNode has a name attribute; CAnalysedBaseTypeNode
+                # (and maybe other options) doesn't
+                and getattr(self.base_type, "name", None) is None):
+            arg_type = self.inject_type_from_annotations(env)
+            if arg_type is not None:
+                base_type = arg_type
+        return self.declarator.analyse(base_type, env, nonempty=nonempty)
 
     def inject_type_from_annotations(self, env):
         annotation = self.annotation

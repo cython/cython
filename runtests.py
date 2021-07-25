@@ -297,18 +297,20 @@ def update_cpp11_extension(ext):
         update cpp11 extensions that will run on versions of gcc >4.8
     """
     gcc_version = get_gcc_version(ext.language)
+    already_has_std = any(ca for ca in ext.extra_compile_args if "-std" in ca)
     if gcc_version:
         compiler_version = gcc_version.group(1)
-        if float(compiler_version) > 4.8:
+        if float(compiler_version) > 4.8 and not already_has_std:
             ext.extra_compile_args.append("-std=c++11")
         return ext
 
     clang_version = get_clang_version(ext.language)
     if clang_version:
-        ext.extra_compile_args.append("-std=c++11")
+        if not already_has_std:
+            ext.extra_compile_args.append("-std=c++11")
         if sys.platform == "darwin":
-          ext.extra_compile_args.append("-stdlib=libc++")
-          ext.extra_compile_args.append("-mmacosx-version-min=10.7")
+            ext.extra_compile_args.append("-stdlib=libc++")
+            ext.extra_compile_args.append("-mmacosx-version-min=10.7")
         return ext
 
     return EXCLUDE_EXT
@@ -320,6 +322,10 @@ def update_cpp17_extension(ext):
     gcc_version = get_gcc_version(ext.language)
     if gcc_version:
         compiler_version = gcc_version.group(1)
+        if sys.version_info[0] < 3:
+            # The Python 2.7 headers contain the 'register' modifier
+            # which gcc warns about in C++17 mode.
+            ext.extra_compile_args.append('-Wno-register')
         if float(compiler_version) >= 5.0:
             ext.extra_compile_args.append("-std=c++17")
         return ext
@@ -678,7 +684,8 @@ class TestBuilder(object):
                  with_pyregr, languages, test_bugs, language_level,
                  common_utility_dir, pythran_dir=None,
                  default_mode='run', stats=None,
-                 add_embedded_test=False, add_cython_import=False):
+                 add_embedded_test=False, add_cython_import=False,
+                 add_cpp_locals_extra_tests=False):
         self.rootdir = rootdir
         self.workdir = workdir
         self.selectors = selectors
@@ -702,6 +709,7 @@ class TestBuilder(object):
         self.add_embedded_test = add_embedded_test
         self.add_cython_import = add_cython_import
         self.capture = options.capture
+        self.add_cpp_locals_extra_tests = add_cpp_locals_extra_tests
 
     def build_suite(self):
         suite = unittest.TestSuite()
@@ -805,6 +813,8 @@ class TestBuilder(object):
         warning_errors = 'werror' in tags['tag']
         expect_warnings = 'warnings' in tags['tag']
 
+        extra_directives_list = [{}]
+
         if expect_errors:
             if skip_c(tags) and 'cpp' in self.languages:
                 languages = ['cpp']
@@ -819,6 +829,9 @@ class TestBuilder(object):
         if 'cpp' in languages and 'no-cpp' in tags['tag']:
             languages = list(languages)
             languages.remove('cpp')
+        if (self.add_cpp_locals_extra_tests and 'cpp' in languages and
+                'cpp' in tags['tag'] and not 'no-cpp-locals' in tags['tag']):
+            extra_directives_list.append({'cpp_locals': True})
         if not languages:
             return []
 
@@ -840,15 +853,18 @@ class TestBuilder(object):
                                   tags, language, language_level,
                                   expect_errors, expect_warnings, warning_errors, preparse,
                                   pythran_dir if language == "cpp" else None,
-                                  add_cython_import=add_cython_import)
+                                  add_cython_import=add_cython_import,
+                                  extra_directives=extra_directives)
                   for language in languages
                   for preparse in preparse_list
                   for language_level in language_levels
+                  for extra_directives in extra_directives_list
         ]
         return tests
 
     def build_test(self, test_class, path, workdir, module, module_path, tags, language, language_level,
-                   expect_errors, expect_warnings, warning_errors, preparse, pythran_dir, add_cython_import):
+                   expect_errors, expect_warnings, warning_errors, preparse, pythran_dir, add_cython_import,
+                   extra_directives):
         language_workdir = os.path.join(workdir, language)
         if not os.path.exists(language_workdir):
             os.makedirs(language_workdir)
@@ -857,6 +873,8 @@ class TestBuilder(object):
             workdir += '_%s' % (preparse,)
         if language_level:
             workdir += '_cy%d' % (language_level,)
+        if extra_directives:
+            workdir += ('_directives_'+ '_'.join('%s_%s' % (k, v) for k,v in extra_directives.items()))
         return test_class(path, workdir, module, module_path, tags,
                           language=language,
                           preparse=preparse,
@@ -924,7 +942,8 @@ class CythonCompileTestCase(unittest.TestCase):
                  cleanup_sharedlibs=True, cleanup_failures=True, cython_only=False, test_selector=None,
                  fork=True, language_level=2, warning_errors=False,
                  test_determinism=False,
-                 common_utility_dir=None, pythran_dir=None, stats=None, add_cython_import=False):
+                 common_utility_dir=None, pythran_dir=None, stats=None, add_cython_import=False,
+                 extra_directives={}):
         self.test_directory = test_directory
         self.tags = tags
         self.workdir = workdir
@@ -949,6 +968,7 @@ class CythonCompileTestCase(unittest.TestCase):
         self.pythran_dir = pythran_dir
         self.stats = stats
         self.add_cython_import = add_cython_import
+        self.extra_directives = extra_directives
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
@@ -978,6 +998,7 @@ class CythonCompileTestCase(unittest.TestCase):
         Options.warning_errors = self.warning_errors
         if sys.version_info >= (3, 4):
             Options._directive_defaults['autotestdict'] = False
+        Options._directive_defaults.update(self.extra_directives)
 
         if not os.path.exists(self.workdir):
             os.makedirs(self.workdir)
@@ -1219,6 +1240,10 @@ class CythonCompileTestCase(unittest.TestCase):
             if self.language == 'cpp':
                 # Set the language now as the fixer might need it
                 extension.language = 'c++'
+                if self.extra_directives.get('cpp_locals'):
+                    extension = update_cpp17_extension(extension)
+                    if extension is EXCLUDE_EXT:
+                        return
 
             if 'distutils' in self.tags:
                 from Cython.Build.Dependencies import DistutilsInfo
@@ -2193,6 +2218,9 @@ def main():
     parser.add_option("--no-cpp", dest="use_cpp",
                       action="store_false", default=True,
                       help="do not test C++ compilation backend")
+    parser.add_option("--no-cpp-locals", dest="use_cpp_locals",
+                      action="store_false", default=True,
+                      help="do not rerun select C++ tests with cpp_locals directive")
     parser.add_option("--no-unit", dest="unittests",
                       action="store_false", default=True,
                       help="do not run the unit tests")
@@ -2670,7 +2698,8 @@ def runtests(options, cmd_args, coverage=None):
         filetests = TestBuilder(ROOTDIR, WORKDIR, selectors, exclude_selectors,
                                 options, options.pyregr, languages, test_bugs,
                                 options.language_level, common_utility_dir,
-                                options.pythran_dir, add_embedded_test=True, stats=stats)
+                                options.pythran_dir, add_embedded_test=True, stats=stats,
+                                add_cpp_locals_extra_tests=options.use_cpp_locals)
         test_suite.addTest(filetests.build_suite())
 
     if options.examples and languages:

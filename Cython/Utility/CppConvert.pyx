@@ -197,14 +197,18 @@ cdef extern from *:
         pair(T&, U&) except +
     cdef cppclass map "std::{{maybe_unordered}}map" [T, U {{optional_template_names}}]:
         void insert(pair[T, U]&) except +
+    int PY_MAJOR_VERSION
 
 
 @cname("{{cname}}")
 cdef map[X,Y,{{optional_template_args}}] {{cname}}(object o) except *:
-    cdef dict d = o
     cdef map[X,Y,{{optional_template_args}}] m
-    for key, value in d.iteritems():
-        m.insert(pair[X,Y](<X>key, <Y>value))
+    if PY_MAJOR_VERSION < 3:
+        for key, value in o.iteritems():
+            m.insert(pair[X,Y](<X>key, <Y>value))
+    else:
+        for key, value in o.items():
+            m.insert(pair[X,Y](<X>key, <Y>value))
     return m
 
 

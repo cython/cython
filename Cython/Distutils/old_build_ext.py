@@ -169,7 +169,7 @@ class old_build_ext(_build_ext.build_ext):
             # _build_ext.build_ext.__setattr__(self, name, value)
             self.__dict__[name] = value
 
-    def finalize_options (self):
+    def finalize_options(self):
         _build_ext.build_ext.finalize_options(self)
         if self.cython_include_dirs is None:
             self.cython_include_dirs = []
