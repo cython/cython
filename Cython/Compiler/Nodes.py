@@ -902,7 +902,7 @@ class CArgDeclNode(Node):
 
     def analyse(self, env, nonempty=0, is_self_arg=False):
         self.base_type.is_self_arg = self.is_self_arg = is_self_arg
-        if self.type is not None
+        if self.type is not None:
             return self.name_declarator, self.type
 
         # The parser may misinterpret names as types. We fix that here.
