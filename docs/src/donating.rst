@@ -1,3 +1,5 @@
+:orphan:
+
 🌷️ Thank you for your interest in supporting Cython! 🌷️
 =========================================================
 
@@ -21,6 +23,11 @@ Note that PayPal takes 5 - 15% fees for small non-EUR payments,
 which is money that *you pay without helping us*.
 Consider signing up for a GitHub Sponsors subscription instead,
 which is currently free of additional charges.
+
+Also note that we are not accepting donations in crypto currencies.
+Much of the development for Cython is done in a carbon-neutral way
+or with compensated and very low emissions.
+Crypto currencies do not fit into this ambition.
 
 
 Legal Notice for Donations

@@ -3,7 +3,7 @@ Building Cython code
 
 Cython code must, unlike Python, be compiled. This happens in two stages:
 
- - A ``.pyx`` file is compiled by Cython to a ``.c`` file, containing
+ - A ``.pyx`` or ``.py`` file is compiled by Cython to a ``.c`` file, containing
    the code of a Python extension module.
  - The ``.c`` file is compiled by a C compiler to
    a ``.so`` file (or ``.pyd`` on Windows) which can be
@@ -63,7 +63,7 @@ Cython can be used conveniently and interactively from a web browser
 through the Jupyter notebook.  To install Jupyter notebook, e.g. into a virtualenv,
 use pip:
 
-.. sourcecode:: bash
+.. code-block:: bash
 
     (venv)$ pip install jupyter
     (venv)$ jupyter notebook
@@ -73,14 +73,32 @@ and load the ``Cython`` extension from within the Jupyter notebook::
 
     %load_ext Cython
 
-Then, prefix a cell with the ``%%cython`` marker to compile it::
+Then, prefix a cell with the ``%%cython`` marker to compile it
 
-    %%cython
+.. tabs::
 
-    cdef int a = 0
-    for i in range(10):
-        a += i
-    print(a)
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            %%cython
+
+            a: cython.int = 0
+            for i in range(10):
+                a += i
+            print(a)
+
+
+    .. group-tab:: Cython
+
+        .. code-block:: python
+
+            %%cython
+
+            cdef int a = 0
+            for i in range(10):
+                a += i
+            print(a)
 
 You can show Cython's code analysis by passing the ``--annotate`` option::
 

@@ -1,6 +1,6 @@
 # mode: run
 # tag: condexpr
-# ticket: 267
+# ticket: t267
 
 cimport cython
 

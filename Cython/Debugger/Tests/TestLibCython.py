@@ -99,6 +99,7 @@ class DebuggerTestCase(unittest.TestCase):
             opts = dict(
                 test_directory=self.tempdir,
                 module='codefile',
+                module_path=self.destfile,
             )
 
             optimization_disabler = build_ext.Optimization()
@@ -131,10 +132,11 @@ class DebuggerTestCase(unittest.TestCase):
                 )
 
                 cython_compile_testcase.run_distutils(
+                    test_directory=opts['test_directory'],
+                    module=opts['module'],
+                    workdir=opts['test_directory'],
                     incdir=None,
-                    workdir=self.tempdir,
                     extra_extension_args={'extra_objects':['cfuncs.o']},
-                    **opts
                 )
             finally:
                 optimization_disabler.restore_state()

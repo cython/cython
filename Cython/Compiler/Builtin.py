@@ -346,15 +346,15 @@ builtin_types_table = [
 ]
 
 
-types_that_construct_their_instance = set([
+types_that_construct_their_instance = frozenset({
     # some builtin types do not always return an instance of
     # themselves - these do:
     'type', 'bool', 'long', 'float', 'complex',
     'bytes', 'unicode', 'bytearray',
-    'tuple', 'list', 'dict', 'set', 'frozenset'
+    'tuple', 'list', 'dict', 'set', 'frozenset',
     # 'str',             # only in Py3.x
     # 'file',            # only in Py2.x
-])
+})
 
 
 builtin_structs_table = [

@@ -117,9 +117,9 @@ def tuple_of_args_tuple(*args):
 @cython.test_fail_if_path_exists('//SimpleCallNode//SimpleCallNode')
 def tuple_of_object(ob):
     """
-    >>> tuple(type(1))
+    >>> tuple(type(1))  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: 'type' object is not iterable
+    TypeError: ...type...
     >>> sorted(tuple(set([1, 2, 3])))
     [1, 2, 3]
     """

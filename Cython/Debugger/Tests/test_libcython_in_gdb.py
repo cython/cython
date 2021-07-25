@@ -134,7 +134,7 @@ class TestDebugInformationClasses(DebugTestCase):
 
         self.assertEqual(self.spam_func.arguments, ['a'])
         self.assertEqual(self.spam_func.step_into_functions,
-                         set(['puts', 'some_c_function']))
+                         {'puts', 'some_c_function'})
 
         expected_lineno = test_libcython.source_to_lineno['def spam(a=0):']
         self.assertEqual(self.spam_func.lineno, expected_lineno)

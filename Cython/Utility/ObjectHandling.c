@@ -648,7 +648,7 @@ static CYTHON_INLINE int __Pyx_PyObject_SetSlice(PyObject* obj, PyObject* value,
 {{endif}}
         Py_ssize_t cstart, Py_ssize_t cstop,
         PyObject** _py_start, PyObject** _py_stop, PyObject** _py_slice,
-        int has_cstart, int has_cstop, CYTHON_UNUSED int wraparound) {
+        int has_cstart, int has_cstop, int wraparound) {
     __Pyx_TypeName obj_type_name;
 #if CYTHON_USE_TYPE_SLOTS
     PyMappingMethods* mp;
@@ -693,6 +693,8 @@ static CYTHON_INLINE int __Pyx_PyObject_SetSlice(PyObject* obj, PyObject* value,
         return ms->sq_ass_slice(obj, cstart, cstop, value);
 {{endif}}
     }
+#else
+    CYTHON_UNUSED_VAR(wraparound);
 #endif
 
     mp = Py_TYPE(obj)->tp_as_mapping;
@@ -701,6 +703,8 @@ static CYTHON_INLINE int __Pyx_PyObject_SetSlice(PyObject* obj, PyObject* value,
 {{else}}
     if (likely(mp && mp->mp_ass_subscript))
 {{endif}}
+#else
+    CYTHON_UNUSED_VAR(wraparound);
 #endif
     {
         {{if access == 'Get'}}PyObject*{{else}}int{{endif}} result;
@@ -1024,6 +1028,94 @@ static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *na
     return result;
 }
 
+/////////////// Py3UpdateBases.proto ///////////////
+
+static PyObject* __Pyx_PEP560_update_bases(PyObject *bases); /* proto */
+
+/////////////// Py3UpdateBases /////////////////////
+//@requires: PyObjectCallOneArg
+//@requires: PyObjectGetAttrStrNoError
+
+/* Shamelessly adapted from cpython/bltinmodule.c update_bases */
+static PyObject*
+__Pyx_PEP560_update_bases(PyObject *bases)
+{
+    Py_ssize_t i, j, size_bases;
+    PyObject *base, *meth, *new_base, *result, *new_bases = NULL;
+    /*assert(PyTuple_Check(bases));*/
+
+    size_bases = PyTuple_GET_SIZE(bases);
+    for (i = 0; i < size_bases; i++) {
+        // original code in CPython: base  = args[i];
+        base  = PyTuple_GET_ITEM(bases, i);
+        if (PyType_Check(base)) {
+            if (new_bases) {
+                // If we already have made a replacement, then we append every normal base,
+                // otherwise just skip it.
+                if (PyList_Append(new_bases, base) < 0) {
+                    goto error;
+                }
+            }
+            continue;
+        }
+        // original code in CPython:
+        // if (_PyObject_LookupAttrId(base, &PyId___mro_entries__, &meth) < 0) {
+        meth = __Pyx_PyObject_GetAttrStrNoError(base, PYIDENT("__mro_entries__"));
+        if (!meth && PyErr_Occurred()) {
+            goto error;
+        }
+        if (!meth) {
+            if (new_bases) {
+                if (PyList_Append(new_bases, base) < 0) {
+                    goto error;
+                }
+            }
+            continue;
+        }
+        new_base = __Pyx_PyObject_CallOneArg(meth, bases);
+        Py_DECREF(meth);
+        if (!new_base) {
+            goto error;
+        }
+        if (!PyTuple_Check(new_base)) {
+            PyErr_SetString(PyExc_TypeError,
+                            "__mro_entries__ must return a tuple");
+            Py_DECREF(new_base);
+            goto error;
+        }
+        if (!new_bases) {
+            // If this is a first successful replacement, create new_bases list and
+            // copy previously encountered bases.
+            if (!(new_bases = PyList_New(i))) {
+                goto error;
+            }
+            for (j = 0; j < i; j++) {
+                // original code in CPython: base = args[j];
+                base = PyTuple_GET_ITEM(bases, j);
+                PyList_SET_ITEM(new_bases, j, base);
+                Py_INCREF(base);
+            }
+        }
+        j = PyList_GET_SIZE(new_bases);
+        if (PyList_SetSlice(new_bases, j, j, new_base) < 0) {
+            goto error;
+        }
+        Py_DECREF(new_base);
+    }
+    if (!new_bases) {
+        // unlike the CPython implementation, always return a new reference
+        Py_INCREF(bases);
+        return bases;
+    }
+    result = PyList_AsTuple(new_bases);
+    Py_DECREF(new_bases);
+    return result;
+
+error:
+    Py_XDECREF(new_bases);
+    return NULL;
+}
+
 /////////////// Py3ClassCreate.proto ///////////////
 
 static PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObject *name, PyObject *qualname,
@@ -1305,7 +1397,7 @@ static CYTHON_INLINE int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type) {
 /////////////// CallableCheck.proto ///////////////
 
 #if CYTHON_USE_TYPE_SLOTS && PY_MAJOR_VERSION >= 3
-#define __Pyx_PyCallable_Check(obj)   ((obj)->ob_type->tp_call != NULL)
+#define __Pyx_PyCallable_Check(obj)   (Py_TYPE(obj)->tp_call != NULL)
 #else
 #define __Pyx_PyCallable_Check(obj)   PyCallable_Check(obj)
 #endif
@@ -1487,6 +1579,7 @@ static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name)
 #endif
 {
     PyObject *result;
+// FIXME: clean up the macro guard order here: limited API first, then borrowed refs, then cpython
 #if !CYTHON_AVOID_BORROWED_REFS
 #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030500A1
     // Identifier names are always interned and have a pre-calculated hash value.
@@ -2102,7 +2195,7 @@ bad:
 
 /////////////// PyObjectFastCall.proto ///////////////
 
-#define __Pyx_PyObject_FastCall(func, args, nargs)  __Pyx_PyObject_FastCallDict(func, args, nargs, NULL)
+#define __Pyx_PyObject_FastCall(func, args, nargs)  __Pyx_PyObject_FastCallDict(func, args, (size_t)(nargs), NULL)
 static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObject **args, size_t nargs, PyObject *kwargs); /*proto*/
 
 /////////////// PyObjectFastCall ///////////////
@@ -2116,7 +2209,7 @@ static PyObject* __Pyx_PyObject_FastCall_fallback(PyObject *func, PyObject **arg
     PyObject *result;
     size_t i;
 
-    argstuple = PyTuple_New(nargs);
+    argstuple = PyTuple_New((Py_ssize_t)nargs);
     if (unlikely(!argstuple)) return NULL;
     for (i = 0; i < nargs; i++) {
         Py_INCREF(args[i]);
@@ -2777,7 +2870,8 @@ static CYTHON_INLINE int __Pyx_object_dict_version_matches(PyObject* obj, PY_UIN
 #if PY_MAJOR_VERSION >= 3
 // This should be an actual function (not a macro), such that we can put it
 // directly in a tp_descr_get slot.
-static PyObject *__Pyx_PyMethod_New(PyObject *func, PyObject *self, CYTHON_UNUSED PyObject *typ) {
+static PyObject *__Pyx_PyMethod_New(PyObject *func, PyObject *self, PyObject *typ) {
+    CYTHON_UNUSED_VAR(typ);
     if (!self)
         return __Pyx_NewRef(func);
     return PyMethod_New(func, self);
@@ -2840,9 +2934,9 @@ static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_le
     PyObject *left = *p_left;
     Py_ssize_t left_len, right_len, new_len;
 
-    if (unlikely(PyUnicode_READY(left) == -1))
+    if (unlikely(__Pyx_PyUnicode_READY(left) == -1))
         return NULL;
-    if (unlikely(PyUnicode_READY(right) == -1))
+    if (unlikely(__Pyx_PyUnicode_READY(right) == -1))
         return NULL;
 
     // Shortcuts
@@ -2936,6 +3030,7 @@ __Pyx_PyType_GetName(PyTypeObject* tp)
 }
 #endif
 
+
 /////////////// RaiseUnexpectedTypeError.proto ///////////////
 
 static int __Pyx_RaiseUnexpectedTypeError(const char *expected, PyObject *obj); /*proto*/
@@ -2951,3 +3046,57 @@ __Pyx_RaiseUnexpectedTypeError(const char *expected, PyObject *obj)
     __Pyx_DECREF_TypeName(obj_type_name);
     return 0;
 }
+
+
+/////////////// RaiseUnboundLocalError.proto ///////////////
+static CYTHON_INLINE void __Pyx_RaiseUnboundLocalError(const char *varname);/*proto*/
+
+/////////////// RaiseUnboundLocalError ///////////////
+static CYTHON_INLINE void __Pyx_RaiseUnboundLocalError(const char *varname) {
+    PyErr_Format(PyExc_UnboundLocalError, "local variable '%s' referenced before assignment", varname);
+}
+
+
+/////////////// RaiseClosureNameError.proto ///////////////
+static CYTHON_INLINE void __Pyx_RaiseClosureNameError(const char *varname);/*proto*/
+
+/////////////// RaiseClosureNameError ///////////////
+static CYTHON_INLINE void __Pyx_RaiseClosureNameError(const char *varname) {
+    PyErr_Format(PyExc_NameError, "free variable '%s' referenced before assignment in enclosing scope", varname);
+}
+
+
+/////////////// RaiseUnboundMemoryviewSliceNogil.proto ///////////////
+static void __Pyx_RaiseUnboundMemoryviewSliceNogil(const char *varname);/*proto*/
+
+/////////////// RaiseUnboundMemoryviewSliceNogil ///////////////
+//@requires: RaiseUnboundLocalError
+
+// Don't inline the function, it should really never be called in production
+static void __Pyx_RaiseUnboundMemoryviewSliceNogil(const char *varname) {
+    #ifdef WITH_THREAD
+    PyGILState_STATE gilstate = PyGILState_Ensure();
+    #endif
+    __Pyx_RaiseUnboundLocalError(varname);
+    #ifdef WITH_THREAD
+    PyGILState_Release(gilstate);
+    #endif
+}
+
+//////////////// RaiseCppGlobalNameError.proto ///////////////////////
+static CYTHON_INLINE void __Pyx_RaiseCppGlobalNameError(const char *varname); /*proto*/
+
+/////////////// RaiseCppGlobalNameError //////////////////////////////
+static CYTHON_INLINE void __Pyx_RaiseCppGlobalNameError(const char *varname) {
+    PyErr_Format(PyExc_NameError, "C++ global '%s' is not initialized", varname);
+}
+
+//////////////// RaiseCppAttributeError.proto ///////////////////////
+static CYTHON_INLINE void __Pyx_RaiseCppAttributeError(const char *varname); /*proto*/
+
+/////////////// RaiseCppAttributeError //////////////////////////////
+static CYTHON_INLINE void __Pyx_RaiseCppAttributeError(const char *varname) {
+    PyErr_Format(PyExc_AttributeError, "C++ attribute '%s' is not initialized", varname);
+}
+
+

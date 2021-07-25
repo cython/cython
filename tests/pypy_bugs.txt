@@ -2,10 +2,6 @@
 # either in PyPy, PyPy's cpyext, or Cython under PyPy,
 # which will be skipped in the normal testing run.
 
-# See https://foss.heptapod.net/pypy/pypy/-/issues/3375
-float_division
-specialfloat
-
 broken_exception
 bufaccess
 memoryview.memoryview$
@@ -14,6 +10,7 @@ sequential_parallel
 yield_from_pep380
 memoryview_inplace_division
 
+run.pycontextvar
 run.unicodemethods
 run.unicode_imports
 run.test_genericclass
@@ -68,14 +65,3 @@ run.exttype_dealloc
 # bugs in cpyext
 run.special_methods_T561
 run.special_methods_T561_py2
-
-# looks to be fixed in PyPy 7.3.0
-# TODO - remove when Travis updates
-run.py_unicode_strings
-run.unicodeliterals
-run.unicode_identifiers
-run.unicode_identifiers_import
-errors.unicode_identifiers_e4
-run.tracebacks
-run.fstring
-run.unicode_identifiers_normalization

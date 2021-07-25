@@ -1,6 +1,6 @@
 # mode: run
 # tag: cpdef
-# ticket: gh-1771
+# ticket: 1771
 
 def _call_method(cls):
     obj = cls()
