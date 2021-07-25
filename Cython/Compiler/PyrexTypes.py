@@ -3821,13 +3821,8 @@ class CppClassType(CType):
     def create_from_py_utility_code(self, env):
         if self.from_py_function is not None:
             return True
-        if self.cname in builtin_cpp_conversions:
-            # check that it's possible to convert all the relevant templates
-            # only scan the stored types; don't scan to hash types, comparison types, operators, etc.
-            for T in (self.templates or [])[:builtin_cpp_conversions[self.cname]]:
-                if T.is_pyobject or not T.create_from_py_utility_code(env):
-                    # not all template types are convertible
-                    return False
+        if not self.can_coerce_from_pyobject(env):
+            return False
 
         if self.cname in builtin_cpp_conversions or self.cname in cpp_string_conversions:
             context, cls, cname = self._get_conversion_context_cls_cname('__pyx_convert_{cls}_from_py_{tags}')
@@ -3853,12 +3848,8 @@ class CppClassType(CType):
     def create_to_py_utility_code(self, env):
         if self.to_py_function is not None:
             return True
-        if self.cname in builtin_cpp_conversions:
-            # check that it's possible to convert all the relevant templates
-            # only scan the stored types; don't scan to hash types, comparison types, operators, etc.
-            for T in (self.templates or [])[:builtin_cpp_conversions[self.cname]]:
-                if not T.create_to_py_utility_code(env):
-                    return False  # not all template types are convertible
+        if not self.can_coerce_to_pyobject(env):
+            return False
 
         if self.cname in builtin_cpp_conversions or self.cname in cpp_string_conversions:
             context, cls, cname = self._get_conversion_context_cls_cname(
