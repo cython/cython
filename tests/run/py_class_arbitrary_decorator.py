@@ -154,6 +154,7 @@ else:
     __doc__ += """
     >>> C.sm1(1, 2, 3)
     7
-    >>> C().sm1(1, 2, 3)
-    7
+
+    Don't test C().sm1(1, 2, 3) - it equals C.sm1(C(), 1, 2, 3). Which is "correct"
+    but not hugely useful.
     """
