@@ -2790,10 +2790,10 @@ sign_and_longness_words = cython.declare(frozenset, frozenset((
     "short", "long", "signed", "unsigned")))
 
 base_type_start_words = cython.declare(
-    set,
+    frozenset,
     basic_c_type_names
     | sign_and_longness_words
-    | set(special_basic_c_types))
+    | frozenset(special_basic_c_types))
 
 struct_enum_union = cython.declare(frozenset, frozenset((
     "struct", "union", "enum", "packed")))
