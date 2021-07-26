@@ -1,3 +1,5 @@
+# cython: language_level=3str
+
 from __future__ import absolute_import
 
 import cython
