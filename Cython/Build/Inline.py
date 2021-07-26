@@ -14,8 +14,8 @@ from distutils.command.build_ext import build_ext
 import Cython
 from ..Compiler.Main import Context, CompilationOptions, default_options
 
-from ..Compiler.ParseTreeTransforms import (CythonTransform,
-        SkipDeclarations, AnalyseDeclarationsTransform, EnvTransform)
+from ..Compiler.Visitor import CythonTransform, EnvTransform
+from ..Compiler.ParseTreeTransforms import SkipDeclarations
 from ..Compiler.TreeFragment import parse_from_strings
 from ..Compiler.StringEncoding import _unicode
 from .Dependencies import strip_string_literals, cythonize, cached_function
