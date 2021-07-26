@@ -46,6 +46,27 @@ jobs:
             backend: cpp
             env: { GCC_VERSION: 11 }
             extra_hash: "-gcc11"
+          # compile all modules
+          - os: ubuntu-18.04
+            python-version: 2.7
+            backend: c
+            env: { CYTHON_COMPILE_ALL: 1 }
+            extra_hash: "-all"
+          - os: ubuntu-18.04
+            python-version: 2.7
+            backend: cpp
+            env: { CYTHON_COMPILE_ALL: 1 }
+            extra_hash: "-all"
+          - os: ubuntu-18.04
+            python-version: 3.9
+            backend: c
+            env: { CYTHON_COMPILE_ALL: 1 }
+            extra_hash: "-all"
+          - os: ubuntu-18.04
+            python-version: 3.9
+            backend: cpp
+            env: { CYTHON_COMPILE_ALL: 1 }
+            extra_hash: "-all"
           # Linting
           - os: ubuntu-18.04
             python-version: 3.7
