@@ -1,8 +1,9 @@
 # cython: profile=True
 
-# calc_pi.pyx
-
 cimport cython
+
+
+
 
 @cython.profile(False)
 cdef inline double recip_square(int i) except -1.0:

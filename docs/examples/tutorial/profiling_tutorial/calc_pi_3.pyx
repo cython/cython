@@ -1,6 +1,7 @@
 # cython: profile=True
 
-# calc_pi.pyx
+
+
 
 cdef inline double recip_square(int i) except -1.0:
     return 1. / (i * i)
