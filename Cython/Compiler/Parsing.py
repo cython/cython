@@ -2477,11 +2477,11 @@ def p_positional_and_keyword_args(s, end_sy_set, templates = None):
         s.next()
     return positional_args, keyword_args
 
-def p_c_base_type(s, nonempty = 0, templates = None):
+def p_c_base_type(s, nonempty=False, templates=None):
     if s.sy == '(':
         return p_c_complex_base_type(s, templates = templates)
     else:
-        return p_c_simple_base_type(s, nonempty = nonempty, templates = templates)
+        return p_c_simple_base_type(s, nonempty=nonempty, templates=templates)
 
 def p_calling_convention(s):
     if s.sy == 'IDENT' and s.systring in calling_convention_words:
@@ -2525,7 +2525,7 @@ def p_c_complex_base_type(s, templates = None):
     return type_node
 
 
-def p_c_simple_base_type(s, nonempty, templates = None):
+def p_c_simple_base_type(s, nonempty, templates=None):
     is_basic = 0
     signed = 1
     longness = 0
@@ -3049,7 +3049,7 @@ def p_c_arg_decl(s, ctx, in_pyfunc, cmethod_flag = 0, nonempty = 0,
             complex = 0, longness = 0,
             is_self_arg = cmethod_flag, templates = None)
     else:
-        base_type = p_c_base_type(s, nonempty = nonempty)
+        base_type = p_c_base_type(s, nonempty=nonempty)
     declarator = p_c_declarator(s, ctx, nonempty = nonempty)
     if s.sy in ('not', 'or') and not s.in_python_file:
         kind = s.sy
