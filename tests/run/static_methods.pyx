@@ -101,7 +101,7 @@ def call_static_pxd_cdef(int x):
 
 def call_static_pxd_cdef_with_implicit_object(int x):
     """
-    # currently fails: https://github.com/cython/cython/issues/3174
+    # https://github.com/cython/cython/issues/3174
     >>> call_static_pxd_cdef_with_implicit_object(2)
     3
     """
