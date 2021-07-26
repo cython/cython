@@ -43,14 +43,8 @@ class C:
     >>> C().cm2(1, 2, 3)
     7
 
-    For sm1:
-    Should fail with a TypeError
-    >>> C.sm1(1, 2, 3)  # doctest: +IGNORE_EXCEPTION_DETAIL
-    Traceback (most recent call last):
-    TypeError: 'staticmethod' object is not callable
-    >>> C().sm1(1, 2, 3)  # doctest: +IGNORE_EXCEPTION_DETAIL
-    Traceback (most recent call last):
-    TypeError: 'staticmethod' object is not callable
+    sm1 behaves differently Python 3.10+ (on both Python and Cython)
+    and thus is tested in the module __doc__
 
     For sm2:
     Should work correctly
@@ -181,3 +175,24 @@ __doc__ = """
         "" if sys.version_info[0] > 2 else "# doctest: +IGNORE_EXCEPTION_DETAIL",
         " object" if cython.compiled else "",
         )
+
+if sys.version_info < (3, 10):
+    __doc__ += """
+    For sm1:
+    Should fail with a TypeError
+    >>> C.sm1(1, 2, 3)  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    TypeError: 'staticmethod' object is not callable
+    >>> C().sm1(1, 2, 3)  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    TypeError: 'staticmethod' object is not callable
+    """
+else:
+    # Python 3.10 made staticmethod instances callable like any other function
+    # and thus sm1 works
+    __doc__ += """
+    >>> C.sm1(1, 2, 3)
+    7
+    >>> C().sm1(1, 2, 3)
+    7
+    """
