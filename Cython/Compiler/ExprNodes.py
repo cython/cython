@@ -9488,15 +9488,22 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         if default_args or default_kwargs:
             if self.defaults_struct is None:
                 if default_args:
-                    defaults_tuple = TupleNode(self.pos, args=[
-                        arg.default for arg in default_args])
+                    # If the default argument has a children named arg, pass it down to the TupleNode.
+                    # See issue #4313.
+                    defaults_tuple = TupleNode(
+                        self.pos,
+                        args=[
+                            arg.default.arg if hasattr(arg.default, "arg") else arg.default
+                            for arg in default_args
+                        ]
+                    )
                     self.defaults_tuple = defaults_tuple.analyse_types(env).coerce_to_pyobject(env)
                 if default_kwargs:
                     defaults_kwdict = DictNode(self.pos, key_value_pairs=[
                         DictItemNode(
                             arg.pos,
                             key=IdentifierStringNode(arg.pos, value=arg.name),
-                            value=arg.default)
+                            value=arg.default.arg if hasattr(arg.default, "arg") else arg.default)
                         for arg in default_kwargs])
                     self.defaults_kwdict = defaults_kwdict.analyse_types(env)
             elif not self.specialized_cpdefs:
