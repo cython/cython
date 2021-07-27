@@ -3,7 +3,7 @@
 @cython.cfunc
 @cython.inline
 @cython.exceptval(-1.0)
-def recip_square(i: int) -> cython.double:
+def recip_square(i: cython.int) -> cython.double:
     return 1. / (i * i)
 
 def approx_pi(n: cython.int = 10000000):
