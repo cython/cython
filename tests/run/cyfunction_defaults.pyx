@@ -271,6 +271,8 @@ cdef class C:
         pass
     cpdef f9(self, a, int[:] s = None):
         pass
+    def f10(self, a, /, b=1, *, int[:] c=None):
+        pass
 
 
 def check_defaults_on_methods_for_introspection():
@@ -302,5 +304,9 @@ def check_defaults_on_methods_for_introspection():
     >>> C.f9.__defaults__
     (None,)
     >>> C.f9.__kwdefaults__
+    >>> C.f10.__defaults__
+    (1,)
+    >>> C.f10.__kwdefaults__
+    {'c': None}
     """
     pass
