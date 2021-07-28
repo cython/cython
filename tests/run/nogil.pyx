@@ -33,13 +33,20 @@ cdef void release_gil_in_nogil() nogil:
     with nogil:
         pass
 
+cpdef void release_gil_in_nogil2() nogil:
+    # This should generate valid code with/without the GIL
+    with nogil:
+        pass
+
 def test_release_gil_in_nogil():
     """
     >>> test_release_gil_in_nogil()
     """
     with nogil:
         release_gil_in_nogil()
+        release_gil_in_nogil2()
     release_gil_in_nogil()
+    release_gil_in_nogil2()
 
 cdef int with_gil_func() except -1 with gil:
     raise Exception("error!")
