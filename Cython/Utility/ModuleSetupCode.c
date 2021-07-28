@@ -636,6 +636,23 @@ static CYTHON_INLINE void * PyThread_tss_get(Py_tss_t *key) {
 // PyThread_ReInitTLS() is a no-op
 #endif /* TSS (Thread Specific Storage) API */
 
+
+#if PY_MAJOR_VERSION < 3
+#if !CYTHON_COMPILING_IN_PYPY
+    // https://stackoverflow.com/a/25666624
+    static CYTHON_INLINE int PyGILState_Check(void) {
+        PyThreadState * tstate = _PyThreadState_Current;
+        return tstate && (tstate == PyGILState_GetThisThreadState());
+    }
+#else
+    static CYTHON_INLINE int PyGILState_Check(void) {
+        // completely unsatisfactory workaround, but it appears that it doesn't
+        // crash PyPy to try to release the GIL without holding the GIL.
+        return 0;
+    }
+#endif
+#endif
+
 #if CYTHON_COMPILING_IN_CPYTHON || defined(_PyDict_NewPresized)
 #define __Pyx_PyDict_NewPresized(n)  ((n <= 8) ? PyDict_New() : _PyDict_NewPresized(n))
 #else

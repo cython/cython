@@ -2358,10 +2358,11 @@ class CCodeWriter(object):
         "Release the GIL, corresponds to `put_acquire_gil`."
         self.use_fast_gil_utility_code()
         self.putln("#ifdef WITH_THREAD")
-        self.putln("PyThreadState *_save = NULL;")
+        self.putln("PyThreadState *_save;")
+        self.putln("_save = NULL;")
         if unknown_gil_state:
             # we don't *know* that we don't have the GIL (since we may be inside a nogil function,
-            # and Py_UNBLOCK_THREADS
+            # and Py_UNBLOCK_THREADS is unsafe without the GIL)
             self.putln("if (PyGILState_Check()) {")
         self.putln("Py_UNBLOCK_THREADS")
         if unknown_gil_state:
