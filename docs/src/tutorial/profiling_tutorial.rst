@@ -159,8 +159,8 @@ Running this on my box gives the following output:
       Ordered by: internal time
 
       ncalls  tottime  percall  cumtime  percall filename:lineno(function)
-           1    3.243    3.243    6.211    6.211 calc_pi.py:7(approx_pi)
-    10000000    2.526    0.000    2.526    0.000 calc_pi.py:4(recip_square)
+           1    3.243    3.243    6.211    6.211 calc_pi.py:4(approx_pi)
+    10000000    2.526    0.000    2.526    0.000 calc_pi.py:1(recip_square)
            1    0.442    0.442    0.442    0.442 {range}
            1    0.000    0.000    6.211    6.211 <string>:1(<module>)
            1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
@@ -209,20 +209,41 @@ We only added two lines, the rest stays completely the same. Alternatively, we c
 manually compile our code into an extension; we wouldn't need to change the
 profile script then at all. The script now outputs the following:
 
-.. code-block:: none
+.. tabs::
 
-   Sat Nov  7 18:02:33 2009    Profile.prof
+    .. group-tab:: Pure Python
 
-            10000004 function calls in 4.406 CPU seconds
+        .. code-block:: none
 
-      Ordered by: internal time
+           Sat Nov  7 18:02:33 2009    Profile.prof
 
-      ncalls  tottime  percall  cumtime  percall filename:lineno(function)
-           1    3.305    3.305    4.406    4.406 calc_pi.pyx:7(approx_pi)
-    10000000    1.101    0.000    1.101    0.000 calc_pi.pyx:4(recip_square)
-           1    0.000    0.000    4.406    4.406 {calc_pi.approx_pi}
-           1    0.000    0.000    4.406    4.406 <string>:1(<module>)
-           1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
+                    10000004 function calls in 4.406 CPU seconds
+
+              Ordered by: internal time
+
+              ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+                   1    3.305    3.305    4.406    4.406 calc_pi.py:6(approx_pi)
+            10000000    1.101    0.000    1.101    0.000 calc_pi.py:3(recip_square)
+                   1    0.000    0.000    4.406    4.406 {calc_pi.approx_pi}
+                   1    0.000    0.000    4.406    4.406 <string>:1(<module>)
+                   1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
+
+    .. group-tab:: Cython
+
+        .. code-block:: none
+
+           Sat Nov  7 18:02:33 2009    Profile.prof
+
+                    10000004 function calls in 4.406 CPU seconds
+
+              Ordered by: internal time
+
+              ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+                   1    3.305    3.305    4.406    4.406 calc_pi.pyx:6(approx_pi)
+            10000000    1.101    0.000    1.101    0.000 calc_pi.pyx:3(recip_square)
+                   1    0.000    0.000    4.406    4.406 {calc_pi.approx_pi}
+                   1    0.000    0.000    4.406    4.406 <string>:1(<module>)
+                   1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
 
 We gained 1.8 seconds.  Not too shabby.  Comparing the output to the previous, we
 see that the ``recip_square()`` function got faster while the ``approx_pi()``
@@ -251,20 +272,41 @@ in order to propagate division by zero errors.
 
 Now running the profile script yields:
 
-.. code-block:: none
+.. tabs::
 
-   Sat Nov  7 18:10:11 2009    Profile.prof
+    .. group-tab:: Pure Python
 
-            10000004 function calls in 2.622 CPU seconds
+        .. code-block:: none
 
-      Ordered by: internal time
+           Sat Nov  7 18:10:11 2009    Profile.prof
 
-      ncalls  tottime  percall  cumtime  percall filename:lineno(function)
-           1    1.782    1.782    2.622    2.622 calc_pi.pyx:7(approx_pi)
-    10000000    0.840    0.000    0.840    0.000 calc_pi.pyx:4(recip_square)
-           1    0.000    0.000    2.622    2.622 {calc_pi.approx_pi}
-           1    0.000    0.000    2.622    2.622 <string>:1(<module>)
-           1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
+                    10000004 function calls in 2.622 CPU seconds
+
+              Ordered by: internal time
+
+              ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+                   1    1.782    1.782    2.622    2.622 calc_pi.py:9(approx_pi)
+            10000000    0.840    0.000    0.840    0.000 calc_pi.py:6(recip_square)
+                   1    0.000    0.000    2.622    2.622 {calc_pi.approx_pi}
+                   1    0.000    0.000    2.622    2.622 <string>:1(<module>)
+                   1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
+
+    .. group-tab:: Cython
+
+        .. code-block:: none
+
+           Sat Nov  7 18:10:11 2009    Profile.prof
+
+                    10000004 function calls in 2.622 CPU seconds
+
+              Ordered by: internal time
+
+              ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+                   1    1.782    1.782    2.622    2.622 calc_pi.pyx:9(approx_pi)
+            10000000    0.840    0.000    0.840    0.000 calc_pi.pyx:6(recip_square)
+                   1    0.000    0.000    2.622    2.622 {calc_pi.approx_pi}
+                   1    0.000    0.000    2.622    2.622 <string>:1(<module>)
+                   1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
 
 That bought us another 1.8 seconds. Not the dramatic change we could have
 expected. And why is ``recip_square()`` still in this table; it is supposed to be
@@ -287,19 +329,39 @@ profile ``recip_square()`` any more; we couldn't get the function to be much fas
 
 Running this shows an interesting result:
 
-.. code-block:: none
+.. tabs::
 
-   Sat Nov  7 18:15:02 2009    Profile.prof
+    .. group-tab:: Pure Python
 
-            4 function calls in 0.089 CPU seconds
+        .. code-block:: none
 
-      Ordered by: internal time
+           Sat Nov  7 18:15:02 2009    Profile.prof
 
-      ncalls  tottime  percall  cumtime  percall filename:lineno(function)
-           1    0.089    0.089    0.089    0.089 calc_pi.pyx:10(approx_pi)
-           1    0.000    0.000    0.089    0.089 {calc_pi.approx_pi}
-           1    0.000    0.000    0.089    0.089 <string>:1(<module>)
-           1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
+                    4 function calls in 0.089 CPU seconds
+
+              Ordered by: internal time
+
+              ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+                   1    0.089    0.089    0.089    0.089 calc_pi.py:12(approx_pi)
+                   1    0.000    0.000    0.089    0.089 {calc_pi.approx_pi}
+                   1    0.000    0.000    0.089    0.089 <string>:1(<module>)
+                   1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
+
+    .. group-tab:: Cython
+
+        .. code-block:: none
+
+           Sat Nov  7 18:15:02 2009    Profile.prof
+
+                    4 function calls in 0.089 CPU seconds
+
+              Ordered by: internal time
+
+              ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+                   1    0.089    0.089    0.089    0.089 calc_pi.pyx:12(approx_pi)
+                   1    0.000    0.000    0.089    0.089 {calc_pi.approx_pi}
+                   1    0.000    0.000    0.089    0.089 <string>:1(<module>)
+                   1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
 
 First note the tremendous speed gain: this version only takes 1/50 of the time
 of our first Cython version.  Also note that ``recip_square()`` has vanished from the
