@@ -1800,7 +1800,7 @@ static void __Pyx_FastGilFuncInit(void) {
 ///////////////////// UtilityCodePragmas /////////////////////////
 
 #if _MSC_VER
-#warning( push )
+#pragma warning( push )
 #pragma warning( disable : 4127 )
 // conditional expression is constant
 // Cython uses constant conditional expressions a lot in inline functions, so this warning is not useful
