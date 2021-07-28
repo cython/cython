@@ -3052,6 +3052,7 @@ class GilCheck(VisitorTransform):
         self.env_stack.append(node.local_scope)
         inner_nogil = node.local_scope.nogil
 
+        nogil_declarator_only = self.nogil_declarator_only
         if inner_nogil:
             self.nogil_declarator_only = True
 
@@ -3060,8 +3061,9 @@ class GilCheck(VisitorTransform):
 
         self._visit_scoped_children(node, inner_nogil)
 
-        # This cannot be nested, so it doesn't need backup/restore
-        self.nogil_declarator_only = False
+        # FuncDefNodes can be nested, because a cpdef function contains a def function
+        # inside it. Therefore restore to previous state
+        self.nogil_declarator_only = nogil_declarator_only
 
         self.env_stack.pop()
         return node
@@ -3086,6 +3088,8 @@ class GilCheck(VisitorTransform):
             else:
                 error(node.pos, "Trying to release the GIL while it was "
                                 "previously released.")
+        if self.nogil_declarator_only:
+            node.scope_gil_state_known = False
 
         if isinstance(node.finally_clause, Nodes.StatListNode):
             # The finally clause of the GILStatNode is a GILExitNode,
@@ -3133,6 +3137,12 @@ class GilCheck(VisitorTransform):
 
         node.nogil_check = None
         node.is_try_finally_in_nogil = True
+        self.visitchildren(node)
+        return node
+
+    def visit_GILExitNode(self, node):
+        if self.nogil_declarator_only:
+            node.scope_gil_state_known = False
         self.visitchildren(node)
         return node
 

@@ -2337,7 +2337,7 @@ class CCodeWriter(object):
         self.putln("__Pyx_PyGILState_Release(%s);" % variable)
         self.putln("#endif")
 
-    def put_acquire_gil(self, variable=None):
+    def put_acquire_gil(self, variable=None, unknown_gil_state=True):
         """
         Acquire the GIL. The thread's thread state must have been initialized
         by a previous `put_release_gil`
@@ -2347,15 +2347,25 @@ class CCodeWriter(object):
         self.putln("__Pyx_FastGIL_Forget();")
         if variable:
             self.putln('_save = %s;' % variable)
+        if unknown_gil_state:
+            self.putln("if (_save) {")
         self.putln("Py_BLOCK_THREADS")
+        if unknown_gil_state:
+            self.putln("}")
         self.putln("#endif")
 
-    def put_release_gil(self, variable=None):
+    def put_release_gil(self, variable=None, unknown_gil_state=True):
         "Release the GIL, corresponds to `put_acquire_gil`."
         self.use_fast_gil_utility_code()
         self.putln("#ifdef WITH_THREAD")
-        self.putln("PyThreadState *_save;")
+        self.putln("PyThreadState *_save = NULL;")
+        if unknown_gil_state:
+            # we don't *know* that we don't have the GIL (since we may be inside a nogil function,
+            # and Py_UNBLOCK_THREADS
+            self.putln("if (PyGILState_Check()) {")
         self.putln("Py_UNBLOCK_THREADS")
+        if unknown_gil_state:
+            self.putln("}")
         if variable:
             self.putln('%s = _save;' % variable)
         self.putln("__Pyx_FastGIL_Remember();")
