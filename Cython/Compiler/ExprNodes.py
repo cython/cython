@@ -9493,7 +9493,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                     defaults_tuple = TupleNode(
                         self.pos,
                         args=[
-                            arg.default.arg if hasattr(arg.default, "arg") else arg.default
+                            arg.default
                             for arg in default_args
                         ]
                     )
@@ -9503,7 +9503,8 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                         DictItemNode(
                             arg.pos,
                             key=IdentifierStringNode(arg.pos, value=arg.name),
-                            value=arg.default.arg if hasattr(arg.default, "arg") else arg.default)
+                            value=arg.default
+                        )
                         for arg in default_kwargs])
                     self.defaults_kwdict = defaults_kwdict.analyse_types(env)
             elif not self.specialized_cpdefs:
@@ -13195,6 +13196,9 @@ class CoercionNode(ExprNode):
             file, line, col = self.pos
             code.annotate((file, line, col-1), AnnotationItem(
                 style='coerce', tag='coerce', text='[%s] to [%s]' % (self.arg.type, self.type)))
+
+    def analyse_types(self, env):
+        return self
 
 
 class CoerceToMemViewSliceNode(CoercionNode):
