@@ -9488,8 +9488,6 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         if default_args or default_kwargs:
             if self.defaults_struct is None:
                 if default_args:
-                    # If the default argument has a children named arg, pass it down to the TupleNode.
-                    # See issue #4313.
                     defaults_tuple = TupleNode(
                         self.pos,
                         args=[
