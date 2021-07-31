@@ -1277,10 +1277,25 @@ class CythonCompileTestCase(unittest.TestCase):
                 extension.language = 'c++'
             if IS_PY2:
                 workdir = str(workdir)  # work around type check in distutils that disallows unicode strings
+
             build_extension.extensions = [extension]
             build_extension.build_temp = workdir
             build_extension.build_lib  = workdir
-            build_extension.run()
+
+            from Cython.Utils import captured_fd, prepare_captured
+            from distutils.errors import CompileError
+
+            error = None
+            with captured_fd(2) as get_stderr:
+                try:
+                    build_extension.run()
+                except CompileError as exc:
+                    error = exc
+            stderr = prepare_captured(get_stderr())
+            if stderr:
+                print("Compiler output for module %s:\n%s" % (module, stderr))
+            if error is not None:
+                raise CompileError("%s\nCompiler output:\n%s" % (error, stderr))
         finally:
             os.chdir(cwd)
 

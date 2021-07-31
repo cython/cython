@@ -82,7 +82,7 @@ from ..Shadow import __version__ as cython_version
 from ..Compiler.Errors import CompileError
 from .Inline import cython_inline
 from .Dependencies import cythonize
-from ..Utils import captured_fd
+from ..Utils import captured_fd, print_captured
 
 
 PGO_CONFIG = {
@@ -105,37 +105,6 @@ if IS_PY2:
 else:
     def encode_fs(name):
         return name
-
-
-def get_encoding_candidates():
-    candidates = [sys.getdefaultencoding()]
-    for stream in (sys.stdout, sys.stdin, sys.__stdout__, sys.__stdin__):
-        encoding = getattr(stream, 'encoding', None)
-        # encoding might be None (e.g. somebody redirects stdout):
-        if encoding is not None and encoding not in candidates:
-            candidates.append(encoding)
-    return candidates
-
-
-def prepare_captured(captured):
-    captured_bytes = captured.strip()
-    if not captured_bytes:
-        return None
-    for encoding in get_encoding_candidates():
-        try:
-            return captured_bytes.decode(encoding)
-        except UnicodeDecodeError:
-            pass
-    # last resort: print at least the readable ascii parts correctly.
-    return captured_bytes.decode('latin-1')
-
-
-def print_captured(captured, output, header_line=None):
-    captured = prepare_captured(captured)
-    if captured:
-        if header_line:
-            output.write(header_line)
-        output.write(captured)
 
 
 @magics_class
