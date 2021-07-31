@@ -638,17 +638,26 @@ static CYTHON_INLINE void * PyThread_tss_get(Py_tss_t *key) {
 
 
 #if PY_MAJOR_VERSION < 3
-#if !CYTHON_COMPILING_IN_PYPY
+#if (CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM < 0x07030600)
+    #if defined(__cplusplus) && __cplusplus >= 201402L
+        [[deprecated("`with nogil:` inside a nogil function will not release the GIL in PyPy2")]]
+    #elif defined(__GNUC__) || defined(__clang__)
+        __attribute__ ((__deprecated__("`with nogil:` inside a nogil function will not release the GIL in PyPy2")))
+    #elif defined(_MSC_VER)
+        __declspec(deprecated("`with nogil:` inside a nogil function will not release the GIL in PyPy2"))
+    #endif
+    static CYTHON_INLINE int PyGILState_Check(void) {
+        // PyGILState_Check is used to decided whether to release the GIL when we don't
+        // know what we have it. For PyPy2 it isn't possible to check.
+        // Therefore assume that we don't have the GIL (which causes us not to release it,
+        // but is "safe")
+        return 0;
+    }
+#else
     // https://stackoverflow.com/a/25666624
     static CYTHON_INLINE int PyGILState_Check(void) {
         PyThreadState * tstate = _PyThreadState_Current;
         return tstate && (tstate == PyGILState_GetThisThreadState());
-    }
-#else
-    static CYTHON_INLINE int PyGILState_Check(void) {
-        // completely unsatisfactory workaround, but it appears that it doesn't
-        // crash PyPy to try to release the GIL without holding the GIL.
-        return 0;
     }
 #endif
 #endif
