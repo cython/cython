@@ -11,7 +11,7 @@ class SomeMemory:
         if not self.data:
             raise MemoryError()
 
-    def resize(self, new_number: size_t):
+    def resize(self, new_number: cython.size_t):
         # Allocates new_number * sizeof(double) bytes,
         # preserving the current content and making a best-effort to
         # re-use the original data location.
