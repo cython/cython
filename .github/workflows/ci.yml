@@ -1,6 +1,6 @@
 name: CI
 
-on: [push, pull_request]
+on: [push]
 
 jobs:
   ci:
@@ -154,11 +154,11 @@ jobs:
             allowed_failure: true
             extra_hash: "-allowed_failures"
           # Coverage - Disabled due to taking too long to run
-          # - os: ubuntu-18.04
-          #   python-version: 3.7
-          #   backend: "c,cpp"
-          #   env: { COVERAGE: 1 }
-          #   extra_hash: '-coverage'
+          - os: ubuntu-18.04
+            python-version: 3.7
+            backend: "c,cpp"
+            env: { COVERAGE: 1 }
+            extra_hash: '-coverage'
 
           # MacOS sub-jobs
           # ==============
@@ -199,7 +199,7 @@ jobs:
     # This defaults to 360 minutes (6h) which is way too long and if a test gets stuck, it can block other pipelines.
     # From testing, the runs tend to take ~20 minutes, so a limit of 30 minutes should be enough. This can always be
     # changed in the future if needed.
-    timeout-minutes: 30
+    timeout-minutes: 45
     runs-on: ${{ matrix.os }}
 
     env:
@@ -279,31 +279,31 @@ jobs:
           name: pycoverage_html
           path: coverage-report-html
 
-#  cycoverage:
-#    runs-on: ubuntu-18.04
-#
-#    env:
-#      BACKEND: c,cpp
-#      OS_NAME: ubuntu-18.04
-#      PYTHON_VERSION: 3.9
-#
-#    steps:
-#      - name: Checkout repo
-#        uses: actions/checkout@v2
-#        with:
-#          fetch-depth: 1
-#
-#      - name: Setup python
-#        uses: actions/setup-python@v2
-#        with:
-#          python-version: 3.9
-#
-#      - name: Run Coverage
-#        env: { COVERAGE: 1 }
-#        run: bash ./Tools/ci-run.sh
-#
-#      - name: Upload Coverage Report
-#        uses: actions/upload-artifact@v2
-#        with:
-#          name: cycoverage_html
-#          path: coverage-report-html
+  cycoverage:
+    runs-on: ubuntu-18.04
+
+    env:
+      BACKEND: c,cpp
+      OS_NAME: ubuntu-18.04
+      PYTHON_VERSION: 3.9
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+
+      - name: Setup python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+
+      - name: Run Coverage
+        env: { COVERAGE: 1 }
+        run: bash ./Tools/ci-run.sh
+
+      - name: Upload Coverage Report
+        uses: actions/upload-artifact@v2
+        with:
+          name: cycoverage_html
+          path: coverage-report-html
