@@ -4,7 +4,7 @@ from cython.cimports.cpython.mem import PyMem_Malloc, PyMem_Realloc, PyMem_Free
 class SomeMemory:
     data: cython.p_double
 
-    def __cinit__(self, number: size_t):
+    def __cinit__(self, number: cython.size_t):
         # allocate some memory (uninitialised, may contain arbitrary data)
         self.data = cython.cast(cython.p_double, PyMem_Malloc(
             number * cython.sizeof(cython.double)))
