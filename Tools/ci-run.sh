@@ -99,7 +99,7 @@ if [[ "$OSTYPE" == "msys" ]]; then  # for MSVC cl
   # 4127 warns that conditional expression is constant, should be fixed here https://github.com/cython/cython/pull/4317
   # (off by default) 5045 warns that Compiler will insert Spectre mitigation for memory load if /Qspectre switch specified
   # (off by default) 4820 warns about the code in Python\3.9.6\x64\include ...
-  WARNARGS="/Wall /wd4711 /wd4127 /wd5045 /wd4820"
+  WARNARGS="/W4 /wd4711 /wd4127 /wd5045 /wd4820"
   DEBUG_INFO="/Z7"
   NO_OPTIMIZATION="-Od"
 else
