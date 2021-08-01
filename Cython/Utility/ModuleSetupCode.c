@@ -638,7 +638,8 @@ static CYTHON_INLINE void * PyThread_tss_get(Py_tss_t *key) {
 
 
 #if PY_MAJOR_VERSION < 3
-#if (CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM < 0x07030600)
+#if (CYTHON_COMPILING_IN_PYPY
+  #if PYPY_VERSION_NUM < 0x07030600)
     #if defined(__cplusplus) && __cplusplus >= 201402L
         [[deprecated("`with nogil:` inside a nogil function will not release the GIL in PyPy2 < 7.3.6")]]
     #elif defined(__GNUC__) || defined(__clang__)
@@ -653,6 +654,9 @@ static CYTHON_INLINE void * PyThread_tss_get(Py_tss_t *key) {
         // but is "safe")
         return 0;
     }
+    #else
+    // PyPy2 >= 7.3.6 has PyGILState_Check
+    #endif
 #else
     // https://stackoverflow.com/a/25666624
     static CYTHON_INLINE int PyGILState_Check(void) {
