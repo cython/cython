@@ -44,9 +44,29 @@ def test_release_gil_in_nogil():
     """
     with nogil:
         release_gil_in_nogil()
+    with nogil:
         release_gil_in_nogil2()
     release_gil_in_nogil()
     release_gil_in_nogil2()
+
+cdef void get_gil_in_nogil() nogil:
+    with gil:
+        pass
+
+cpdef void get_gil_in_nogil2() nogil:
+    with gil:
+        pass
+
+def test_get_gil_in_nogil():
+    """
+    >>> test_get_gil_in_nogil()
+    """
+    with nogil:
+        get_gil_in_nogil()
+    with nogil:
+        get_gil_in_nogil2()
+    get_gil_in_nogil()
+    get_gil_in_nogil2()
 
 cdef int with_gil_func() except -1 with gil:
     raise Exception("error!")
@@ -63,7 +83,6 @@ def test_nogil_exception_propagation():
     """
     with nogil:
         nogil_func()
-
 
 cdef int write_unraisable() nogil:
     with gil:
