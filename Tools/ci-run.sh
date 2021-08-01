@@ -94,6 +94,18 @@ fi
 ccache -s 2>/dev/null || true
 export PATH="/usr/lib/ccache:$PATH"
 
+if [[ "$OSTYPE" == "msys" ]]; then  # for MSVC cl
+  # /wd will disable warning
+  # 4711 warns that function `x` selected for automatic inline expansion
+  WARNARGS="/Wall /wd4711"
+  DEBUG_INFO="/Z7"
+  NO_OPTIMIZATION="/Od"
+else
+  WARNARGS="-Wall -Wextra"
+  DEBUG_INFO="-ggdb"
+  NO_OPTIMIZATION="-O0"
+fi
+
 if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION == "pypy"* ]]; then
   if [[ $COVERAGE == "1" ]]; then
     COVERAGE_ARGS="--cython-coverage"
@@ -108,8 +120,8 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION == "pypy"* ]]; then
     ALIASING="$-fno-strict-aliasing"
   fi
 
-  CFLAGS="-O2 -ggdb -Wall -Wextra $ALIASING" \
     python setup.py build_ext -i \
+  CFLAGS="-O2 $DEBUG_INFO $WARNARGS $ALIASING" \
     $COVERAGE_ARGS $CYTHON_COMPILE_ALL_FLAGS $SETUP_ARGS || exit 1
 
   if [[ $COVERAGE != "1" && $STACKLESS != "true" && -z $LIMITED_API && -z $EXTRA_CFLAGS && $BACKEND != *"cpp"* ]]; then
@@ -123,7 +135,7 @@ elif [[ $PYTHON_VERSION == "pypy"* ]]; then
   # Run the debugger tests in python-dbg if available (but don't fail, because they currently do fail)
   PYTHON_DBG="python$( python -c 'import sys; print("%d.%d" % sys.version_info[:2])' )-dbg"
   if $PYTHON_DBG -V >&2; then
-    CFLAGS="-O0 -ggdb" $PYTHON_DBG runtests.py -vv --no-code-style Debugger --backends=$BACKEND
+    CFLAGS="$NO_OPTIMIZATION $DEBUG_INFO" $PYTHON_DBG runtests.py -vv --no-code-style Debugger --backends=$BACKEND
   fi
 fi
 
@@ -135,8 +147,8 @@ if [[ $TEST_CODE_STYLE != "1" ]]; then
   RUNTESTS_ARGS="$RUNTESTS_ARGS -j7"
 fi
 
-export CFLAGS="-O0 -ggdb -Wall -Wextra $EXTRA_CFLAGS"
 python runtests.py \
+export CFLAGS="$NO_OPTIMIZATION $DEBUG_INFO $WARNARGS $EXTRA_CFLAGS"
   -vv $STYLE_ARGS \
   -x Debugger \
   --backends=$BACKEND \
