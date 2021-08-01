@@ -22,8 +22,7 @@ if [[ $OSTYPE == "linux-gnu"* && $TEST_CODE_STYLE != "1" ]]; then
     sudo update-alternatives --set g++ /usr/bin/g++-$GCC_VERSION
     export CXX="g++"
   fi
-fi
-if [[ $OSTYPE == "darwin"* ]]; then
+elif [[ $OSTYPE == "darwin"* ]]; then
   export CC="clang -Wno-deprecated-declarations"
   export CXX="clang++ -stdlib=libc++ -Wno-deprecated-declarations"
 fi
