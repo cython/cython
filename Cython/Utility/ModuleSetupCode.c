@@ -638,32 +638,32 @@ static CYTHON_INLINE void * PyThread_tss_get(Py_tss_t *key) {
 
 
 #if PY_MAJOR_VERSION < 3
-#if (CYTHON_COMPILING_IN_PYPY
-  #if PYPY_VERSION_NUM < 0x07030600)
-    #if defined(__cplusplus) && __cplusplus >= 201402L
-        [[deprecated("`with nogil:` inside a nogil function will not release the GIL in PyPy2 < 7.3.6")]]
-    #elif defined(__GNUC__) || defined(__clang__)
-        __attribute__ ((__deprecated__("`with nogil:` inside a nogil function will not release the GIL in PyPy2 < 7.3.6")))
-    #elif defined(_MSC_VER)
-        __declspec(deprecated("`with nogil:` inside a nogil function will not release the GIL in PyPy2 < 7.3.6"))
-    #endif
-    static CYTHON_INLINE int PyGILState_Check(void) {
-        // PyGILState_Check is used to decided whether to release the GIL when we don't
-        // know what we have it. For PyPy2 it isn't possible to check.
-        // Therefore assume that we don't have the GIL (which causes us not to release it,
-        // but is "safe")
-        return 0;
-    }
+    #if CYTHON_COMPILING_IN_PYPY
+        #if PYPY_VERSION_NUM < 0x07030600
+            #if defined(__cplusplus) && __cplusplus >= 201402L
+                [[deprecated("`with nogil:` inside a nogil function will not release the GIL in PyPy2 < 7.3.6")]]
+            #elif defined(__GNUC__) || defined(__clang__)
+                __attribute__ ((__deprecated__("`with nogil:` inside a nogil function will not release the GIL in PyPy2 < 7.3.6")))
+            #elif defined(_MSC_VER)
+                __declspec(deprecated("`with nogil:` inside a nogil function will not release the GIL in PyPy2 < 7.3.6"))
+            #endif
+            static CYTHON_INLINE int PyGILState_Check(void) {
+                // PyGILState_Check is used to decided whether to release the GIL when we don't
+                // know what we have it. For PyPy2 it isn't possible to check.
+                // Therefore assume that we don't have the GIL (which causes us not to release it,
+                // but is "safe")
+                return 0;
+            }
+        #else  // PYPY_VERSION_NUM < 0x07030600
+            // PyPy2 >= 7.3.6 has PyGILState_Check
+        #endif  // PYPY_VERSION_NUM < 0x07030600
     #else
-    // PyPy2 >= 7.3.6 has PyGILState_Check
+        // https://stackoverflow.com/a/25666624
+        static CYTHON_INLINE int PyGILState_Check(void) {
+            PyThreadState * tstate = _PyThreadState_Current;
+            return tstate && (tstate == PyGILState_GetThisThreadState());
+        }
     #endif
-#else
-    // https://stackoverflow.com/a/25666624
-    static CYTHON_INLINE int PyGILState_Check(void) {
-        PyThreadState * tstate = _PyThreadState_Current;
-        return tstate && (tstate == PyGILState_GetThisThreadState());
-    }
-#endif
 #endif
 
 #if CYTHON_COMPILING_IN_CPYTHON || defined(_PyDict_NewPresized)
