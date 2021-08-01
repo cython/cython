@@ -102,7 +102,7 @@ if [[ "$OSTYPE" == "msys" ]]; then  # for MSVC cl
   # (off by default) 4820 warns about the code in Python\3.9.6\x64\include ...
   WARNARGS="/Wall /wd4711 /wd4127 /wd5045 /wd4820"
   DEBUG_INFO="/Z7"
-  NO_OPTIMIZATION="/Od"
+  NO_OPTIMIZATION="-Od"
 else
   WARNARGS="-Wall -Wextra"
   DEBUG_INFO="-ggdb"
