@@ -120,8 +120,8 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION == "pypy"* ]]; then
     ALIASING="$-fno-strict-aliasing"
   fi
 
-    python setup.py build_ext -i \
   CFLAGS="-O2 $DEBUG_INFO $WARNARGS $ALIASING" \
+    python setup.py build_ext -i \
     $COVERAGE_ARGS $CYTHON_COMPILE_ALL_FLAGS $SETUP_ARGS || exit 1
 
   if [[ $COVERAGE != "1" && $STACKLESS != "true" && -z $LIMITED_API && -z $EXTRA_CFLAGS && $BACKEND != *"cpp"* ]]; then
@@ -147,8 +147,8 @@ if [[ $TEST_CODE_STYLE != "1" ]]; then
   RUNTESTS_ARGS="$RUNTESTS_ARGS -j7"
 fi
 
-python runtests.py \
 export CFLAGS="$NO_OPTIMIZATION $DEBUG_INFO $WARNARGS $EXTRA_CFLAGS"
+python runtests.py \
   -vv $STYLE_ARGS \
   -x Debugger \
   --backends=$BACKEND \
