@@ -228,23 +228,36 @@ def unpack_source_tree(tree_file, workdir, cython_root):
     return workdir, header
 
 
-def write_file(file_path, content, dedent=False):
+def write_file(file_path, content, dedent=False, encoding="utf-8"):
+    r"""Write some content (text or bytes) to the file
+    at `file_path` without translating `'\n'` into `os.linesep`.
     """
-    Write some content (text or bytes) to the file at "file_path".
-    """
-    mode = 'wb' if isinstance(content, bytes) else 'w'
+
+    # any "\n" characters written are not translated
+    # to the system default line separator, os.linesep
+    newline = "\n"
+    mode = "w"
+    if isinstance(content, bytes):
+        mode += "b"
+        
+        # binary mode doesn't take an encoding and newline arguments
+        encoding = None
+        newline = None
+
     if dedent:
         content = textwrap.dedent(content)
 
-    with open(file_path, mode=mode) as f:
+    with open(file_path, mode=mode, encoding=encoding, newline=newline) as f:
         f.write(content)
 
 
-def write_newer_file(file_path, newer_than, content, dedent=False):
+def write_newer_file(file_path, newer_than, content, dedent=False,
+                     encoding="utf-8"):
+    r"""
+    Write `content` to the file `file_path` without translating `'\n'`
+    into `os.linesep` and make sure it is newer than the file `newer_than`.
     """
-    Write 'content' to the file 'file_path' and make sure it is newer than the file 'newer_than'.
-    """
-    write_file(file_path, content, dedent=dedent)
+    write_file(file_path, content, dedent=dedent, encoding=encoding)
 
     try:
         other_time = os.path.getmtime(newer_than)
