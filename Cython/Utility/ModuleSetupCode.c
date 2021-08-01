@@ -640,11 +640,11 @@ static CYTHON_INLINE void * PyThread_tss_get(Py_tss_t *key) {
 #if PY_MAJOR_VERSION < 3
 #if (CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM < 0x07030600)
     #if defined(__cplusplus) && __cplusplus >= 201402L
-        [[deprecated("`with nogil:` inside a nogil function will not release the GIL in PyPy2")]]
+        [[deprecated("`with nogil:` inside a nogil function will not release the GIL in PyPy2 < 7.3.6")]]
     #elif defined(__GNUC__) || defined(__clang__)
-        __attribute__ ((__deprecated__("`with nogil:` inside a nogil function will not release the GIL in PyPy2")))
+        __attribute__ ((__deprecated__("`with nogil:` inside a nogil function will not release the GIL in PyPy2 < 7.3.6")))
     #elif defined(_MSC_VER)
-        __declspec(deprecated("`with nogil:` inside a nogil function will not release the GIL in PyPy2"))
+        __declspec(deprecated("`with nogil:` inside a nogil function will not release the GIL in PyPy2 < 7.3.6"))
     #endif
     static CYTHON_INLINE int PyGILState_Check(void) {
         // PyGILState_Check is used to decided whether to release the GIL when we don't
