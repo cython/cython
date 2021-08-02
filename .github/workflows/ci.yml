@@ -153,7 +153,7 @@ jobs:
             env: { NO_CYTHON_COMPILE: 1, EXCLUDE: "--listfile=tests/pypy_bugs.txt bugs" }
             allowed_failure: true
             extra_hash: "-allowed_failures"
-          # Coverage - Disabled due to taking too long to run
+          # Coverage
           - os: ubuntu-18.04
             python-version: 3.7
             backend: "c,cpp"
