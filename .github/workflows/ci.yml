@@ -203,9 +203,11 @@ jobs:
 
           # fails due to lack of a compatible compile
           - os: windows-2019
-            python-version: [2.7, 3.4]
+            python-version: 2.7
+          - os: windows-2019
+            python-version: 3.4
 
-          # fails
+          # cpp specific test fails
           - os: windows-2019
             python-version: 3.5
             backend: cpp
