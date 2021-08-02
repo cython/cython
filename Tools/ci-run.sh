@@ -3,7 +3,10 @@
 GCC_VERSION=${GCC_VERSION:=8}
 
 # Set up compilers
-if [[ $OSTYPE == "linux-gnu"* && $TEST_CODE_STYLE != "1" ]]; then
+if [[ $TEST_CODE_STYLE == "1" ]]; then
+  echo "Skipping compiler setup"
+elif [[ $OSTYPE == "linux-gnu"* ]]; then
+  echo "Setting up linux compiler"
   echo "Installing requirements [apt]"
   sudo apt-add-repository -y "ppa:ubuntu-toolchain-r/test"
   sudo apt update -y -q
@@ -23,6 +26,7 @@ if [[ $OSTYPE == "linux-gnu"* && $TEST_CODE_STYLE != "1" ]]; then
     export CXX="g++"
   fi
 elif [[ $OSTYPE == "darwin"* ]]; then
+  echo "Setting up macos compiler"
   export CC="clang -Wno-deprecated-declarations"
   export CXX="clang++ -stdlib=libc++ -Wno-deprecated-declarations"
 fi
@@ -90,6 +94,7 @@ else
 fi
 
 # Run tests
+echo "==== Running tests ===="
 ccache -s 2>/dev/null || true
 export PATH="/usr/lib/ccache:$PATH"
 
