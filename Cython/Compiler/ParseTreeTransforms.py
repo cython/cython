@@ -1123,6 +1123,7 @@ class InterpretCompilerDirectives(CythonTransform):
                 realdecs.append(dec)
         if realdecs and (scope_name == 'cclass' or
                          isinstance(node, (Nodes.CClassDefNode, Nodes.CVarDefNode))):
+            # Note - arbitrary C function decorators are caught later in DecoratorTransform
             raise PostParseError(realdecs[0].pos, "Cdef functions/classes cannot take arbitrary decorators.")
         node.decorators = realdecs[::-1] + both[::-1]
         # merge or override repeated directives
@@ -1438,7 +1439,10 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
 
     def visit_CFuncDefNode(self, node):
         node = self.visit_FuncDefNode(node)
-        if self.scope_type != 'cclass' or self.scope_node.visibility != "extern" or not node.decorators:
+        if not node.decorators:
+            return node
+        elif self.scope_type != 'cclass' or self.scope_node.visibility != "extern":
+            error(node.decorators[0].pos, "Cdef functions cannot take arbitrary decorators.")
             return node
 
         ret_node = node
