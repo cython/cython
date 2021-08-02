@@ -1,6 +1,6 @@
 name: CI
 
-on: [push]
+on: [push, pull_request]
 
 jobs:
   ci:
@@ -201,7 +201,7 @@ jobs:
           - os: windows-2019
             python-version: 3.9
 
-          # fails due to lack of a compatible compile
+          # fails due to lack of a compatible compiler
           - os: windows-2019
             python-version: 2.7
           - os: windows-2019
@@ -220,7 +220,6 @@ jobs:
 
     env:
       BACKEND: ${{ matrix.backend }}
-      # OS_NAME: ${{ matrix.os }}  # unused
       PYTHON_VERSION: ${{ matrix.python-version }}
       GCC_VERSION: 8
       USE_CCACHE: 1
