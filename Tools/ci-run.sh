@@ -131,7 +131,7 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION == "pypy"* ]]; then
     python setup.py build_ext -i \
     $COVERAGE_ARGS $CYTHON_COMPILE_ALL_FLAGS $SETUP_ARGS || exit 1
 
-  if [[ $COVERAGE != "1" && $STACKLESS != "true" && -z $LIMITED_API && -z $EXTRA_CFLAGS && $BACKEND != *"cpp"* ]]; then
+  if [[ $COVERAGE != "1" && $STACKLESS != "true" && -z $LIMITED_API && $CYTHON_COMPILE_ALL != "1" && -z $EXTRA_CFLAGS && $BACKEND != *"cpp"* ]]; then
     python setup.py bdist_wheel || exit 1
   fi
 fi
