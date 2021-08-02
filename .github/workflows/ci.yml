@@ -196,6 +196,20 @@ jobs:
             backend: cpp
             env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
 
+        exclude:
+          # fails github.com/cython/cython/issues/3450
+          - os: windows-2019
+            python-version: 3.9
+
+          # fails due to lack of a compatible compile
+          - os: windows-2019
+            python-version: [2.7, 3.4]
+
+          # fails
+          - os: windows-2019
+            python-version: 3.5
+            backend: cpp
+
     # This defaults to 360 minutes (6h) which is way too long and if a test gets stuck, it can block other pipelines.
     # From testing, the runs tend to take ~20 minutes, so a limit of 30 minutes should be enough. This can always be
     # changed in the future if needed.
