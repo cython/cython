@@ -141,7 +141,6 @@ elif [[ $PYTHON_VERSION == "pypy"* ]]; then
   fi
 fi
 
-
 if [[ $COVERAGE == "1" ]]; then
   RUNTESTS_ARGS="$RUNTESTS_ARGS --coverage --coverage-html --cython-only"
 fi
