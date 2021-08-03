@@ -1442,7 +1442,11 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
         if not node.decorators:
             return node
         elif self.scope_type != 'cclass' or self.scope_node.visibility != "extern":
-            error(node.decorators[0].pos, "Cdef functions cannot take arbitrary decorators.")
+            # at the moment cdef functions are very restricted in what decorators they can take
+            # so it's simple to test for the small number of allowed decorators....
+            if not (len(node.decorators) == 1 and node.decorators[0].decorator.is_name and
+                    node.decorators[0].decorator.name == "staticmethod"):
+                error(node.decorators[0].pos, "Cdef functions cannot take arbitrary decorators.")
             return node
 
         ret_node = node
