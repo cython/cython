@@ -993,6 +993,10 @@ class Scope(object):
 
     def lookup_type(self, name):
         entry = self.lookup(name)
+        # The logic here is:
+        #  1. if entry is a type then return it (and maybe specialize it)
+        #  2. if the entry comes from a known standard library import then follow that
+        #  3. repeat step 1 with the (possibly) updated entry
         for i in range(2):
             if entry and entry.is_type:
                 if entry.type.is_fused and self.fused_to_specific:

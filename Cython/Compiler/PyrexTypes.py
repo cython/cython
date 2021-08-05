@@ -4460,7 +4460,7 @@ class SpecialPythonTypeConstructor(PythonTypeConstructor):
                 and not template_type.is_pyobject):
             # because classvars end up essentially used as globals they have
             # to be PyObjects. Try to find the nearest suitable type (although
-            # practically I doubt this matters
+            # practically I doubt this matters).
             py_type_name = template_type.py_type_name()
             if py_type_name:
                 from .Builtin import builtin_scope

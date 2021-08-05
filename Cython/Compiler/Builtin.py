@@ -476,6 +476,7 @@ def get_known_standard_library_module_scope(module_name):
                 else:
                     indexed_type = PyrexTypes.PythonTypeConstructor(EncodedString("typing."+name), tp)
                 entry = mod.declare_type(name, indexed_type, pos = None)
+
             for name in ['ClassVar', 'Optional']:
                 indexed_type = PyrexTypes.SpecialPythonTypeConstructor(EncodedString("typing."+name))
                 entry = mod.declare_type(name, indexed_type, pos = None)
