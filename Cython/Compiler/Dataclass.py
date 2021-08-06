@@ -111,7 +111,7 @@ class Field(object):
 
         for k, v in additional_kwds.items():
             # There should not be any additional keywords!
-            error(v.pos, "'%s' is an invalid keyword argument for cython.dataclasses.field()" % k)
+            error(v.pos, "cython.dataclasses.field() got an unexpected keyword argument '%s'" % k)
 
         for field_name in ("repr", "hash", "init", "compare", "metadata"):
             field_value = getattr(self, field_name)
@@ -166,9 +166,10 @@ def process_class_get_fields(node):
                         warning(assignment.pos, "Do you mean cython.dataclasses.field instead?", 1)
                 if assignment.type in [Builtin.list_type, Builtin.dict_type, Builtin.set_type]:
                     # The standard library module generates a TypeError at runtime
-                    # in this situation
-                    error(assignment.pos, "Mutable default passed argument for '{0}' - "
-                          "use 'default_factory' instead".format(name))
+                    # in this situation.
+                    # Error message is copied from CPython
+                    error(assignment.pos, "mutable default <class '{0}'> for field {1} is not allowed: "
+                          "use default_factory".format(assignment.type.name, name))
 
                 field = Field(node.pos, default=assignment)
         else:
@@ -190,7 +191,7 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
         for k, v in dataclass_args[1].items():
             if k not in kwargs:
                 error(node.pos,
-                      "Unrecognised keyword argument '{0}' to cython.dataclasses.dataclass".format(k))
+                      "cython.dataclasses.dataclass() got an unexpected keyword argument '%s'" % k)
             if not isinstance(v, ExprNodes.BoolNode):
                 error(node.pos,
                       "Arguments passed to cython.dataclasses.dataclass must be True or False")
@@ -328,7 +329,7 @@ def generate_init_code(init, node, fields):
                 placeholders[ph_name] = field.default  # should be a node
             assignment = u" = %s" % ph_name
         elif seen_default:
-            error(entry.pos, ("non-default argument %s follows default argument "
+            error(entry.pos, ("non-default argument '%s' follows default argument "
                               "in dataclass __init__") % name)
             return "", {}, []
 
@@ -496,8 +497,8 @@ def generate_hash_code(unsafe_hash, eq, frozen, node, fields):
         # TODO ideally assignment of __hash__ to None shouldn't trigger this
         # but difficult to get the right information here
         if unsafe_hash:
-            error(node.pos, "Request for dataclass unsafe_hash when a '__hash__' function"
-                  " already exists")
+            # error message taken from CPython dataclasses module
+            error(node.pos, "Cannot overwrite attribute __hash__ in class %s" % node.class_name)
         return "", {}, []
     if not unsafe_hash:
         if eq and not frozen:
