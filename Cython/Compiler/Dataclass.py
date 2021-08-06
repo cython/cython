@@ -68,8 +68,8 @@ class RemoveAssignmentsToNames(VisitorTransform, SkipDeclarations):
             return []
         return node
 
-    # I believe cascaded assignment is always a syntax error with decorators
-    # so can be ignored
+    # I believe cascaded assignment is always a syntax error with annotations
+    # so there's no need to define visit_CascadedAssignmentNode
 
     def visit_Node(self, node):
         self.visitchildren(node)
@@ -155,8 +155,7 @@ def process_class_get_fields(node):
                     continue
                 keyword_args = assignment.keyword_args.as_python_dict()
                 if 'default' in keyword_args and 'default_factory' in keyword_args:
-                    error(assignment.pos, "You cannot specify both 'default' and 'default_factory'"
-                          " for a dataclass member")
+                    error(assignment.pos, "cannot specify both default and default_factory")
                     continue
                 field = Field(node.pos, **keyword_args)
             else:
@@ -241,7 +240,7 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     code_tree = TreeFragment(code_lines, level='c_class', pipeline=[NormalizeTree(node.scope)]
                             ).substitute(placeholders)
 
-    stats.stats = stats.stats + code_tree.stats + extra_stats
+    stats.stats += (code_tree.stats + extra_stats)
 
     # turn off annotation typing, so all arguments to __init__ are accepted as
     # generic objects and thus can accept _HAS_DEFAULT_FACTORY.
@@ -351,6 +350,9 @@ def generate_init_code(init, node, fields):
             ph_name = get_placeholder_name()
             placeholders[ph_name] = field.default_factory
             if field.init.value:
+                # close to:
+                # def __init__(self, name=_PLACEHOLDER_VALUE):
+                #     self.name = name_default_factory() if name is _PLACEHOLDER_VALUE else name
                 code_lines.append(u"    %s.%s = %s() if %s is %s else %s" % (
                     selfname, name, ph_name, name, default_factory_placeholder, name))
             else:

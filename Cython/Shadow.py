@@ -549,11 +549,6 @@ class CythonDotImportedFromElsewhere(object):
         sys.modules['cython.%s' % self.__name__] = mod
         return getattr(mod, attr)
 
-import sys
-# In pure Python mode @cython.dataclasses.dataclass and dataclass field should just
-# shadow the standard library ones (if they are available)
-dataclasses = sys.modules['cython.dataclasses'] = CythonDotImportedFromElsewhere('dataclasses')
-del sys
 
 class CythonCImports(object):
     """
@@ -576,4 +571,7 @@ sys.modules['cython.parallel'] = CythonDotParallel()
 sys.modules['cython.cimports'] = CythonCImports('cython.cimports')
 sys.modules['cython.cimports.libc'] = CythonCImports('cython.cimports.libc')
 sys.modules['cython.cimports.libc.math'] = math
+# In pure Python mode @cython.dataclasses.dataclass and dataclass field should just
+# shadow the standard library ones (if they are available)
+dataclasses = sys.modules['cython.dataclasses'] = CythonDotImportedFromElsewhere('dataclasses')
 del math, sys

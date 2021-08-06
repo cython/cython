@@ -73,11 +73,9 @@ class _HAS_DEFAULT_FACTORY_CLASS:
         return '<factory>'
 _HAS_DEFAULT_FACTORY = _HAS_DEFAULT_FACTORY_CLASS()
 
-_DATACLASS_MODULE_UNAVAILABLE_ERROR = ("Standard library 'dataclasses' module"
-    "is unavailable, likely due to the version of Python you're using.")
-
 def dataclass(*args, **kwds):
-    raise NotImplementedError(_DATACLASS_MODULE_UNAVAILABLE_ERROR)
+    raise NotImplementedError("Standard library 'dataclasses' module"
+        "is unavailable, likely due to the version of Python you're using.")
 
 def field(*ignore, **kwds):
     default = kwds.pop("default", MISSING)

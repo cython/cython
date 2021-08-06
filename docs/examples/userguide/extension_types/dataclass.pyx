@@ -15,6 +15,6 @@ cdef class MyDataclass:
     cdef str c
     c = "hello"  # assignment of default value on a separate line
 
-    # cython equivalents to InitVar and typing.ClassVar also work
+    # typing.InitVar and typing.ClassVar also work
     d: dataclasses.InitVar[double] = 5
     e: typing.ClassVar[list] = []

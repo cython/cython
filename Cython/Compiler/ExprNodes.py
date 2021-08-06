@@ -2053,8 +2053,7 @@ class NameNode(AtomicExprNode):
                     visibility = 'readonly' if is_frozen else 'public'
                     # If the object can't be coerced that's fine - we just don't create a property
             if as_target and env.is_c_class_scope and not (atype.is_pyobject or atype.is_error):
-                # TODO: this will need revising slightly if either cdef dataclasses or
-                # annotated cdef attributes are implemented
+                # TODO: this will need revising slightly if annotated cdef attributes are implemented
                 atype = py_object_type
                 warning(annotation.pos, "Annotation ignored since class-level attributes must be Python objects. "
                         "Were you trying to set up an instance attribute?", 2)

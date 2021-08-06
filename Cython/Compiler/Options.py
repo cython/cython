@@ -302,6 +302,12 @@ def normalise_encoding_name(option_name, encoding):
             return name
     return encoding
 
+# use as a sential value to defer analysis of the arguments
+# instead of analysing them in InterpretCompilerDirectives. The dataclass directives are quite
+# complicated and it's easier to deal with them at the point the dataclass is created
+class _DEFER_ANALYSIS_OF_ARGUMENTS:
+    pass
+DEFER_ANALYSIS_OF_ARGUMENTS = _DEFER_ANALYSIS_OF_ARGUMENTS()
 
 # Override types possibilities above, if needed
 directive_types = {
@@ -328,11 +334,8 @@ directive_types = {
     'c_string_encoding': normalise_encoding_name,
     'trashcan': bool,
     'total_ordering': bool,
-    'dataclasses.dataclass': Ellipsis,  # use Ellipsis as a flag to defer analysis of the arguments
-            # instead of analysing it in InterpretCompilerDirectives. The dataclass directives are quite
-            # complicated and it's easier to deal with them at the point the dataclass is created
-            # TODO this may not be the best way of flagging it?
-    'dataclasses.field': Ellipsis,
+    'dataclasses.dataclass': DEFER_ANALYSIS_OF_ARGUMENTS,
+    'dataclasses.field': DEFER_ANALYSIS_OF_ARGUMENTS,
 }
 
 for key, val in _directive_defaults.items():

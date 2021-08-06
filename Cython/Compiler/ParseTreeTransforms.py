@@ -981,7 +981,7 @@ class InterpretCompilerDirectives(CythonTransform):
                 if directivetype is bool:
                     arg = ExprNodes.BoolNode(node.pos, value=True)
                     return [self.try_to_parse_directive(optname, [arg], None, node.pos)]
-                elif directivetype is None or directivetype is Ellipsis:
+                elif directivetype is None or directivetype is Options.DEFER_ANALYSIS_OF_ARGUMENTS:
                     return [(optname, None)]
                 else:
                     raise PostParseError(
@@ -1048,7 +1048,7 @@ class InterpretCompilerDirectives(CythonTransform):
                 raise PostParseError(pos,
                     'The %s directive takes one compile-time string argument' % optname)
             return (optname, directivetype(optname, str(args[0].value)))
-        elif directivetype is Ellipsis:
+        elif directivetype is Options.DEFER_ANALYSIS_OF_ARGUMENTS:
             # signal to pass things on without processing
             return (optname, (args, kwds.as_python_dict()))
         else:

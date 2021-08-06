@@ -6,8 +6,7 @@ static PyObject* __Pyx_LoadInternalModule(const char* name, const char* fallback
 //@requires: CommonStructures.c::FetchSharedCythonModule
 
 static PyObject* __Pyx_LoadInternalModule(const char* name, const char* fallback_code) {
-    // In supporting dataclasses we want to be able to use directives the contents
-    // of the standard library dataclasses module where available.
+    // We want to be able to use the contents of the standard library dataclasses module where available.
     // If those objects aren't available (due to Python version) then a simple fallback is substituted
     // instead, which largely just fails with a not-implemented error.
     //

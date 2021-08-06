@@ -1198,7 +1198,7 @@ class TemplatedTypeNode(CBaseTypeNode):
                 base_type.is_python_type_constructor):
             # Templated class
             if self.keyword_args and self.keyword_args.key_value_pairs:
-                tp = "c++ templates" if base_type.is_cpp_class else "indexed type"
+                tp = "c++ templates" if base_type.is_cpp_class else "indexed types"
                 error(self.pos, "%s cannot take keyword arguments" % tp)
                 self.type = PyrexTypes.error_type
             else:

@@ -4426,9 +4426,6 @@ class PythonTypeConstructor(PyObjectType):
         else:
             return self.name
 
-    def __str__(self):
-        return self.__repr__()
-
     def is_template_type(self):
         return True
 
