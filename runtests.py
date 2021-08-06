@@ -1290,12 +1290,12 @@ class CythonCompileTestCase(unittest.TestCase):
                 try:
                     build_extension.run()
                 except CompileError as exc:
-                    error = exc
+                    error = str(exc)
             stderr = prepare_captured(get_stderr())
             if stderr:
-                print("Compiler output for module %s:\n%s" % (module, stderr))
+                print(u"Compiler output for module %s:\n%s" % (module, stderr))
             if error is not None:
-                raise CompileError("%s\nCompiler output:\n%s" % (error, stderr))
+                raise CompileError(u"%s\nCompiler output:\n%s" % (error, stderr))
         finally:
             os.chdir(cwd)
 
