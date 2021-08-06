@@ -39,8 +39,8 @@ class RemoveAssignmentsToNames(VisitorTransform, SkipDeclarations):
     class A:
          x = 1
 
-    as generating a class attribute. However for dataclasses the `=1` should be interpreted as
-    default value to initialize an instance attribute.
+    as generating a class attribute. However for dataclasses the `= 1` should be interpreted as
+    a default value to initialize an instance attribute with.
     This transform therefore removes the `x=1` assignment so that the class attribute isn't
     generated, while recording what it has removed so that it can be used in the initialization.
     """
@@ -125,7 +125,7 @@ def process_class_get_fields(node):
     var_entries = node.scope.var_entries
     # order of definition is used in the dataclass
     var_entries = sorted(var_entries, key=operator.attrgetter('pos'))
-    var_names = [ entry.name for entry in var_entries ]
+    var_names = [entry.name for entry in var_entries]
 
     # don't treat `x = 1` as an assignment of a class attribute within the dataclass
     transform = RemoveAssignmentsToNames(var_names)
@@ -194,7 +194,7 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
                       "Unrecognised keyword argument '{0}' to cython.dataclasses.dataclass".format(k))
             if not isinstance(v, ExprNodes.BoolNode):
                 error(node.pos,
-                      "Arguments to cython.dataclasses.dataclass must be True or False")
+                      "Arguments passed to cython.dataclasses.dataclass must be True or False")
             kwargs[k] = v
 
     fields = process_class_get_fields(node)
@@ -244,8 +244,8 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     stats.stats = stats.stats + code_tree.stats + extra_stats
 
     # turn off annotation typing, so all arguments to __init__ are accepted as
-    # generic objects and thus can accept _HAS_DEFAULT_FACTORY
-    # type conversion comes later
+    # generic objects and thus can accept _HAS_DEFAULT_FACTORY.
+    # Type conversion comes later
     comp_directives = Nodes.CompilerDirectivesNode(node.pos,
         directives=node.scope.directives.copy(),
         body=stats)
@@ -344,7 +344,7 @@ def generate_init_code(init, node, fields):
     for name, field in fields.items():
         if field.is_initvar:
             continue
-        if field.default_factory is MISSING:
+        elif field.default_factory is MISSING:
             if field.init.value:
                 code_lines.append(u"    %s.%s = %s" % (selfname, name, name))
         else:
@@ -361,9 +361,7 @@ def generate_init_code(init, node, fields):
         post_init_vars = ", ".join(name for name, field in fields.items()
                                    if field.is_initvar)
         code_lines.append("    %s.__post_init__(%s)" % (selfname, post_init_vars))
-    code_lines = u"\n".join(code_lines)
-
-    return code_lines, placeholders, []
+    return u"\n".join(code_lines), placeholders, []
 
 
 def generate_repr_code(repr, node, fields):

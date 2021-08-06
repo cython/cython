@@ -4446,7 +4446,7 @@ class PythonTupleTypeConstructor(PythonTypeConstructor):
 class SpecialPythonTypeConstructor(PythonTypeConstructor):
     """
     For things like ClassVar, Optional, etc, which have extra features on top of being
-    a "templated" type
+    a "templated" type.
     """
     is_special_python_type_constructor = True
 
@@ -4479,7 +4479,7 @@ class SpecialPythonTypeConstructor(PythonTypeConstructor):
         if attr in dict_:
             return dict_[attr]
         cls = super(PythonTypeConstructor, self).__getattribute__("__class__")
-        while issubclass(cls, PythonTypeConstructor):
+        while issubclass(cls, PythonTypeConstructor):  # Walk the MRO
             if attr in cls.__dict__:
                 return super(PythonTypeConstructor, self).__getattribute__(attr)
             cls = cls.__base__

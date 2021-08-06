@@ -1072,6 +1072,5 @@ You may use C-level types such as structs, pointers, or C++ classes.
 However, you may find these types are not compatible with the auto-generated
 special methods - for example if they cannot be converted from a Python
 type they cannot be passed to a constructor, and you must use a 
-`default_factory` to initialize them. As in Python, you can also control
+`default_factory` to initialize them. Like with the Python implementation, you can also control
 which special functions an attribute is used in using `field()`.
-
