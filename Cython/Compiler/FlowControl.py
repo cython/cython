@@ -160,7 +160,7 @@ class ControlFlow(object):
                 (entry.type.is_struct_or_union or
                  entry.type.is_complex or
                  entry.type.is_array or
-                 entry.type.is_cpp_class)):
+                 (entry.type.is_cpp_class and not entry.is_cpp_optional))):
             # stack allocated structured variable => never uninitialised
             return True
         return False

@@ -189,19 +189,19 @@ same applies equally to union and enum declarations.
 +-------------------------+---------------------------------------------+-----------------------------------------------------------------------+
 | C code                  | Possibilities for corresponding Cython Code | Comments                                                              |
 +=========================+=============================================+=======================================================================+
-| .. sourcecode:: c       | ::                                          | Cython will refer to the as ``struct Foo`` in the generated C code.   |
+| .. code-block:: c       | ::                                          | Cython will refer to the as ``struct Foo`` in the generated C code.   |
 |                         |                                             |                                                                       |
 |   struct Foo {          |   cdef struct Foo:                          |                                                                       |
 |     ...                 |     ...                                     |                                                                       |
 |   };                    |                                             |                                                                       |
 +-------------------------+---------------------------------------------+-----------------------------------------------------------------------+
-| .. sourcecode:: c       | ::                                          | Cython will refer to the type simply as ``Foo`` in                    |
+| .. code-block:: c       | ::                                          | Cython will refer to the type simply as ``Foo`` in                    |
 |                         |                                             | the generated C code.                                                 |
 |   typedef struct {      |   ctypedef struct Foo:                      |                                                                       |
 |     ...                 |     ...                                     |                                                                       |
 |   } Foo;                |                                             |                                                                       |
 +-------------------------+---------------------------------------------+-----------------------------------------------------------------------+
-| .. sourcecode:: c       | ::                                          | If the C header uses both a tag and a typedef with *different*        |
+| .. code-block:: c       | ::                                          | If the C header uses both a tag and a typedef with *different*        |
 |                         |                                             | names, you can use either form of declaration in Cython               |
 |   typedef struct foo {  |   cdef struct foo:                          | (although if you need to forward reference the type,                  |
 |     ...                 |     ...                                     | you'll have to use the first form).                                   |
@@ -212,7 +212,7 @@ same applies equally to union and enum declarations.
 |                         |   ctypedef struct Foo:                      |                                                                       |
 |                         |     ...                                     |                                                                       |
 +-------------------------+---------------------------------------------+-----------------------------------------------------------------------+
-| .. sourcecode:: c       | ::                                          | If the header uses the *same* name for the tag and typedef, you       |
+| .. code-block:: c       | ::                                          | If the header uses the *same* name for the tag and typedef, you       |
 |                         |                                             | won't be able to include a :keyword:`ctypedef` for it -- but then,    |
 |   typedef struct Foo {  |   cdef struct Foo:                          | it's not necessary.                                                   |
 |     ...                 |     ...                                     |                                                                       |
@@ -266,6 +266,10 @@ routines in the Python/C API. For example,::
         object PyString_FromStringAndSize(char *s, Py_ssize_t len)
 
 will allow you to create Python strings containing null bytes.
+
+Note that Cython comes with ready-to-use declarations of (almost) all C-API functions
+in the cimportable ``cpython.*`` modules.  See the list in
+https://github.com/cython/cython/tree/master/Cython/Includes/cpython
 
 Special Types
 --------------
@@ -361,6 +365,9 @@ are entirely on your own with this feature.  If you want to declare a name
 the C file for it, you can do this using a C name declaration.  Consider this
 an advanced feature, only for the rare cases where everything else fails.
 
+
+.. _verbatim_c:
+
 Including verbatim C code
 -------------------------
 
@@ -418,12 +425,12 @@ You can make C types, variables and functions defined in a Cython module
 accessible to C code that is linked together with the Cython-generated C file,
 by declaring them with the public keyword::
 
-    cdef public struct Bunny: # public type declaration
+    cdef public struct Bunny:  # a public type declaration
         int vorpalness
 
-    cdef public int spam # public variable declaration
+    cdef public int spam  # a public variable declaration
 
-    cdef public void grail(Bunny *) # public function declaration
+    cdef public void grail(Bunny *)  # a public function declaration
 
 If there are any public declarations in a Cython module, a header file called
 :file:`modulename.h` file is generated containing equivalent C declarations for
@@ -525,7 +532,7 @@ the call to :func:`import_modulename`, it is likely that this wasn't done.
 You can use both :keyword:`public` and :keyword:`api` on the same function to
 make it available by both methods, e.g.::
 
-    cdef public api void belt_and_braces():
+    cdef public api void belt_and_braces() except *:
         ...
 
 However, note that you should include either :file:`modulename.h` or
@@ -550,8 +557,8 @@ You can declare a whole group of items as :keyword:`public` and/or
 example,::
 
     cdef public api:
-        void order_spam(int tons)
-        char *get_lunch(float tomato_size)
+        void order_spam(int tons) except *
+        char *get_lunch(float tomato_size) except NULL
 
 This can be a useful thing to do in a ``.pxd`` file (see
 :ref:`sharing-declarations`) to make the module's public interface

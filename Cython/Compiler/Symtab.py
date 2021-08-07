@@ -158,6 +158,7 @@ class Entry(object):
     # is_fused_specialized boolean Whether this entry of a cdef or def function
     #                              is a specialization
     # is_cgetter       boolean    Is a c-level getter function
+    # is_cpp_optional  boolean    Entry should be declared as std::optional (cpp_locals directive)
 
     # TODO: utility_code and utility_code_definition serves the same purpose...
 
@@ -229,6 +230,7 @@ class Entry(object):
     cf_used = True
     outer_entry = None
     is_cgetter = False
+    is_cpp_optional = False
 
     def __init__(self, name, cname, type, pos = None, init = None):
         self.name = name
@@ -268,6 +270,12 @@ class Entry(object):
     def cf_is_reassigned(self):
         return len(self.cf_assignments) > 1
 
+    def make_cpp_optional(self):
+        assert self.type.is_cpp_class
+        self.is_cpp_optional = True
+        assert not self.utility_code  # we're not overwriting anything?
+        self.utility_code_definition = Code.UtilityCode.load_cached("OptionalLocals", "CppSupport.cpp")
+
 
 class InnerEntry(Entry):
     """
@@ -292,6 +300,7 @@ class InnerEntry(Entry):
         self.cf_assignments = outermost_entry.cf_assignments
         self.cf_references = outermost_entry.cf_references
         self.overloaded_alternatives = outermost_entry.overloaded_alternatives
+        self.is_cpp_optional = outermost_entry.is_cpp_optional
         self.inner_entries.append(self)
 
     def __getattr__(self, name):
@@ -338,7 +347,7 @@ class Scope(object):
     is_py_class_scope = 0
     is_c_class_scope = 0
     is_closure_scope = 0
-    is_genexpr_scope = 0
+    is_comprehension_scope = 0
     is_passthrough = 0
     is_cpp_class_scope = 0
     is_property_scope = 0
@@ -724,10 +733,13 @@ class Scope(object):
                 cname = name
             else:
                 cname = self.mangle(Naming.var_prefix, name)
-        if type.is_cpp_class and visibility != 'extern':
-            type.check_nullary_constructor(pos)
         entry = self.declare(name, cname, type, pos, visibility)
         entry.is_variable = 1
+        if type.is_cpp_class and visibility != 'extern':
+            if self.directives['cpp_locals']:
+                entry.make_cpp_optional()
+            else:
+                type.check_nullary_constructor(pos)
         if in_pxd and visibility != 'extern':
             entry.defined_in_pxd = 1
             entry.used = 1
@@ -980,6 +992,7 @@ class Scope(object):
             if entry.type.is_fused and self.fused_to_specific:
                 return entry.type.specialize(self.fused_to_specific)
             return entry.type
+        return None
 
     def lookup_operator(self, operator, operands):
         if operands[0].type.is_cpp_class:
@@ -1886,7 +1899,7 @@ class LocalScope(Scope):
         entry = Scope.lookup(self, name)
         if entry is not None:
             entry_scope = entry.scope
-            while entry_scope.is_genexpr_scope:
+            while entry_scope.is_comprehension_scope:
                 entry_scope = entry_scope.outer_scope
             if entry_scope is not self and entry_scope.is_closure_scope:
                 if hasattr(entry.scope, "scope_class"):
@@ -1914,19 +1927,21 @@ class LocalScope(Scope):
                 elif entry.in_closure:
                     entry.original_cname = entry.cname
                     entry.cname = "%s->%s" % (Naming.cur_scope_cname, entry.cname)
+                    if entry.type.is_cpp_class and entry.scope.directives['cpp_locals']:
+                        entry.make_cpp_optional()
 
 
-class GeneratorExpressionScope(Scope):
-    """Scope for generator expressions and comprehensions.  As opposed
-    to generators, these can be easily inlined in some cases, so all
+class ComprehensionScope(Scope):
+    """Scope for comprehensions (but not generator expressions, which use ClosureScope).
+    As opposed to generators, these can be easily inlined in some cases, so all
     we really need is a scope that holds the loop variable(s).
     """
-    is_genexpr_scope = True
+    is_comprehension_scope = True
 
     def __init__(self, outer_scope):
         parent_scope = outer_scope
         # TODO: also ignore class scopes?
-        while parent_scope.is_genexpr_scope:
+        while parent_scope.is_comprehension_scope:
             parent_scope = parent_scope.parent_scope
         name = parent_scope.global_scope().next_id(Naming.genexpr_id_ref)
         Scope.__init__(self, name, outer_scope, parent_scope)
@@ -1935,7 +1950,7 @@ class GeneratorExpressionScope(Scope):
 
         # Class/ExtType scopes are filled at class creation time, i.e. from the
         # module init function or surrounding function.
-        while outer_scope.is_genexpr_scope or outer_scope.is_c_class_scope or outer_scope.is_py_class_scope:
+        while outer_scope.is_comprehension_scope or outer_scope.is_c_class_scope or outer_scope.is_py_class_scope:
             outer_scope = outer_scope.outer_scope
         self.var_entries = outer_scope.var_entries  # keep declarations outside
         outer_scope.subscopes.add(self)
@@ -2234,11 +2249,14 @@ class CClassScope(ClassScope):
                 if visibility == 'private':
                     cname = c_safe_identifier(cname)
                 cname = punycodify_name(cname, Naming.unicode_structmember_prefix)
-            if type.is_cpp_class and visibility != 'extern':
-                type.check_nullary_constructor(pos)
             entry = self.declare(name, cname, type, pos, visibility)
             entry.is_variable = 1
             self.var_entries.append(entry)
+            if type.is_cpp_class and visibility != 'extern':
+                if self.directives['cpp_locals']:
+                    entry.make_cpp_optional()
+                else:
+                    type.check_nullary_constructor(pos)
             if type.is_memoryviewslice:
                 self.has_memoryview_attrs = True
             elif type.needs_cpp_construction:

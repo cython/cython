@@ -44,6 +44,29 @@ def float_call_conjugate():
     return x
 
 
+def from_int(i):
+    """
+    >>> from_int(0)
+    0.0
+    >>> from_int(1)
+    1.0
+    >>> from_int(-1)
+    -1.0
+    >>> from_int(99)
+    99.0
+    >>> from_int(-99)
+    -99.0
+
+    >>> for exp in (14, 15, 16, 30, 31, 32, 52, 53, 54, 60, 61, 62, 63, 64):
+    ...     for sign in (1, 0, -1):
+    ...         value = (sign or 1) * 2**exp + sign
+    ...         float_value = from_int(value)
+    ...         assert float_value == float(value), "expected %s2**%s+%s == %r, got %r, difference %r" % (
+    ...             '-' if sign < 0 else '', exp, sign, float(value), float_value, float_value - float(value))
+    """
+    return float(i)
+
+
 @cython.test_assert_path_exists(
     "//CoerceToPyTypeNode",
     "//CoerceToPyTypeNode//PythonCapiCallNode",
@@ -234,3 +257,22 @@ def from_unicode_literals():
     (123.0, 123.23, 123.45, 1e+100, 123.23)
     """
     return float(u"123"), float(u"123.23"), float(fix_underscores(u"12_3.4_5")), float(u"1e100"), float(u"123.23\N{PUNCTUATION SPACE}")
+
+
+def catch_valueerror(val):
+    """
+    >>> catch_valueerror("foo")
+    False
+    >>> catch_valueerror(u"foo")
+    False
+    >>> catch_valueerror(b"foo")
+    False
+    >>> catch_valueerror(bytearray(b"foo"))
+    False
+    >>> catch_valueerror("-1")
+    -1.0
+    """
+    try:
+        return float(val)
+    except ValueError:
+        return False

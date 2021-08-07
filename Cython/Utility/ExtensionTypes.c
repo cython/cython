@@ -1,19 +1,107 @@
-/////////////// PyType_Ready.proto ///////////////
+/////////////// FixUpExtensionType.proto ///////////////
 
-// FIXME: is this really suitable for CYTHON_COMPILING_IN_LIMITED_API?
-#if CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_LIMITED_API
-static int __Pyx_PyType_Ready(PyTypeObject *t);/*proto*/
-#else
-#define __Pyx_PyType_Ready(t) PyType_Ready(t)
+#if CYTHON_USE_TYPE_SPECS
+static int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject *type); /*proto*/
 #endif
 
-/////////////// PyType_Ready ///////////////
-//@requires: ObjectHandling.c::PyObjectCallNoArg
+/////////////// FixUpExtensionType ///////////////
+//@requires:ModuleSetupCode.c::IncludeStructmemberH
+//@requires:StringTools.c::IncludeStringH
 
-#if CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_LIMITED_API
-// Wrapper around PyType_Ready() with some runtime checks and fixes
-// to deal with multiple inheritance.
-static int __Pyx_PyType_Ready(PyTypeObject *t) {
+#if CYTHON_USE_TYPE_SPECS
+static int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject *type) {
+#if PY_VERSION_HEX > 0x030900B1 || CYTHON_COMPILING_IN_LIMITED_API
+    (void) spec;
+    (void) type;
+#else
+    // Set tp_weakreflist, tp_dictoffset, tp_vectorcalloffset
+    // Copied and adapted from https://bugs.python.org/issue38140
+    const PyType_Slot *slot = spec->slots;
+    while (slot && slot->slot && slot->slot != Py_tp_members)
+        slot++;
+    if (slot && slot->slot == Py_tp_members) {
+        int changed = 0;
+#if !(PY_VERSION_HEX <= 0x030900b1 && CYTHON_COMPILING_IN_CPYTHON)
+        const
+#endif
+            PyMemberDef *memb = (PyMemberDef*) slot->pfunc;
+        while (memb && memb->name) {
+            if (memb->name[0] == '_' && memb->name[1] == '_') {
+#if PY_VERSION_HEX < 0x030900b1
+                if (strcmp(memb->name, "__weaklistoffset__") == 0) {
+                    // The PyMemberDef must be a Py_ssize_t and readonly.
+                    assert(memb->type == T_PYSSIZET);
+                    assert(memb->flags == READONLY);
+                    type->tp_weaklistoffset = memb->offset;
+                    // FIXME: is it even worth calling PyType_Modified() here?
+                    changed = 1;
+                }
+                else if (strcmp(memb->name, "__dictoffset__") == 0) {
+                    // The PyMemberDef must be a Py_ssize_t and readonly.
+                    assert(memb->type == T_PYSSIZET);
+                    assert(memb->flags == READONLY);
+                    type->tp_dictoffset = memb->offset;
+                    // FIXME: is it even worth calling PyType_Modified() here?
+                    changed = 1;
+                }
+#if CYTHON_METH_FASTCALL
+                else if (strcmp(memb->name, "__vectorcalloffset__") == 0) {
+                    // The PyMemberDef must be a Py_ssize_t and readonly.
+                    assert(memb->type == T_PYSSIZET);
+                    assert(memb->flags == READONLY);
+#if PY_VERSION_HEX >= 0x030800b4
+                    type->tp_vectorcall_offset = memb->offset;
+#else
+                    type->tp_print = (printfunc) memb->offset;
+#endif
+                    // FIXME: is it even worth calling PyType_Modified() here?
+                    changed = 1;
+                }
+#endif
+#else
+                if ((0));
+#endif
+#if PY_VERSION_HEX <= 0x030900b1 && CYTHON_COMPILING_IN_CPYTHON
+                else if (strcmp(memb->name, "__module__") == 0) {
+                    // PyType_FromSpec() in CPython <= 3.9b1 overwrites this field with a constant string.
+                    // See https://bugs.python.org/issue40703
+                    PyObject *descr;
+                    // The PyMemberDef must be an object and normally readable, possibly writable.
+                    assert(memb->type == T_OBJECT);
+                    assert(memb->flags == 0 || memb->flags == READONLY);
+                    descr = PyDescr_NewMember(type, memb);
+                    if (unlikely(!descr))
+                        return -1;
+                    if (unlikely(PyDict_SetItem(type->tp_dict, PyDescr_NAME(descr), descr) < 0)) {
+                        Py_DECREF(descr);
+                        return -1;
+                    }
+                    Py_DECREF(descr);
+                    changed = 1;
+                }
+#endif
+            }
+            memb++;
+        }
+        if (changed)
+            PyType_Modified(type);
+    }
+#endif
+    return 0;
+}
+#endif
+
+
+/////////////// ValidateBasesTuple.proto ///////////////
+
+#if CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_LIMITED_API || CYTHON_USE_TYPE_SPECS
+static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffset, PyObject *bases); /*proto*/
+#endif
+
+/////////////// ValidateBasesTuple ///////////////
+
+#if CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_LIMITED_API || CYTHON_USE_TYPE_SPECS
+static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffset, PyObject *bases) {
     // Loop over all bases (except the first) and check that those
     // really are heap types. Otherwise, it would not be safe to
     // subclass them.
@@ -24,87 +112,113 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
     // tp_dictoffset (i.e. there is no __dict__ attribute in the object
     // structure), we need to check that none of the base classes sets
     // it either.
-    int r;
-    PyObject *bases = t->tp_bases;
-    if (bases)
+    Py_ssize_t i, n = PyTuple_GET_SIZE(bases);
+    for (i = 1; i < n; i++)  /* Skip first base */
     {
-        Py_ssize_t i, n = PyTuple_GET_SIZE(bases);
-        for (i = 1; i < n; i++)  /* Skip first base */
-        {
-            PyObject *b0 = PyTuple_GET_ITEM(bases, i);
-            PyTypeObject *b;
+        PyObject *b0 = PyTuple_GET_ITEM(bases, i);
+        PyTypeObject *b;
 #if PY_MAJOR_VERSION < 3
-            /* Disallow old-style classes */
-            if (PyClass_Check(b0))
-            {
-                PyErr_Format(PyExc_TypeError, "base class '%.200s' is an old-style class",
-                             PyString_AS_STRING(((PyClassObject*)b0)->cl_name));
-                return -1;
-            }
+        /* Disallow old-style classes */
+        if (PyClass_Check(b0))
+        {
+            PyErr_Format(PyExc_TypeError, "base class '%.200s' is an old-style class",
+                         PyString_AS_STRING(((PyClassObject*)b0)->cl_name));
+            return -1;
+        }
 #endif
-            b = (PyTypeObject*)b0;
-            if (!__Pyx_PyType_HasFeature(b, Py_TPFLAGS_HEAPTYPE))
-            {
-                __Pyx_TypeName b_name = __Pyx_PyType_GetName(b);
-                PyErr_Format(PyExc_TypeError,
-                    "base class '" __Pyx_FMT_TYPENAME "' is not a heap type", b_name);
-                __Pyx_DECREF_TypeName(b_name);
-                return -1;
-            }
-            if (t->tp_dictoffset == 0 && b->tp_dictoffset)
-            {
-                __Pyx_TypeName t_name = __Pyx_PyType_GetName(t);
-                __Pyx_TypeName b_name = __Pyx_PyType_GetName(b);
-                PyErr_Format(PyExc_TypeError,
-                    "extension type '" __Pyx_FMT_TYPENAME "' has no __dict__ slot, "
-                    "but base type '" __Pyx_FMT_TYPENAME "' has: "
-                    "either add 'cdef dict __dict__' to the extension type "
-                    "or add '__slots__ = [...]' to the base type",
-                    t_name, b_name);
-                __Pyx_DECREF_TypeName(t_name);
-                __Pyx_DECREF_TypeName(b_name);
-                return -1;
-            }
+        b = (PyTypeObject*) b0;
+        if (!__Pyx_PyType_HasFeature(b, Py_TPFLAGS_HEAPTYPE))
+        {
+            __Pyx_TypeName b_name = __Pyx_PyType_GetName(b);
+            PyErr_Format(PyExc_TypeError,
+                "base class '" __Pyx_FMT_TYPENAME "' is not a heap type", b_name);
+            __Pyx_DECREF_TypeName(b_name);
+            return -1;
+        }
+        if (dictoffset == 0 && b->tp_dictoffset)
+        {
+            __Pyx_TypeName b_name = __Pyx_PyType_GetName(b);
+            PyErr_Format(PyExc_TypeError,
+                "extension type '%.200s' has no __dict__ slot, "
+                "but base type '" __Pyx_FMT_TYPENAME "' has: "
+                "either add 'cdef dict __dict__' to the extension type "
+                "or add '__slots__ = [...]' to the base type",
+                type_name, b_name);
+            __Pyx_DECREF_TypeName(b_name);
+            return -1;
         }
     }
+    return 0;
+}
+#endif
+
+
+/////////////// PyType_Ready.proto ///////////////
+
+static int __Pyx_PyType_Ready(PyTypeObject *t);/*proto*/
+
+/////////////// PyType_Ready ///////////////
+//@requires: ObjectHandling.c::PyObjectCallMethod0
+//@requires: ValidateBasesTuple
+
+// Wrapper around PyType_Ready() with some runtime checks and fixes
+// to deal with multiple inheritance.
+static int __Pyx_PyType_Ready(PyTypeObject *t) {
+
+// FIXME: is this really suitable for CYTHON_COMPILING_IN_LIMITED_API?
+#if CYTHON_USE_TYPE_SPECS || !(CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_LIMITED_API) || defined(PYSTON_MAJOR_VERSION)
+    // avoid C warning about unused helper function
+    (void)__Pyx_PyObject_CallMethod0;
+#if CYTHON_USE_TYPE_SPECS
+    (void)__Pyx_validate_bases_tuple;
+#endif
+
+    return PyType_Ready(t);
+
+#else
+    int r;
+    if (t->tp_bases && unlikely(__Pyx_validate_bases_tuple(t->tp_name, t->tp_dictoffset, t->tp_bases) == -1))
+        return -1;
 
 #if PY_VERSION_HEX >= 0x03050000
     {
         // Make sure GC does not pick up our non-heap type as heap type with this hack!
         // For details, see https://github.com/cython/cython/issues/3603
-        PyObject *ret, *py_status;
         int gc_was_enabled;
-        static PyObject *gc = NULL;
-        static PyObject *gc_isenabled = NULL, *gc_enable = NULL, *gc_disable = NULL;
-        if (unlikely(!gc)) {
-            gc = PyImport_Import(PYUNICODE("gc"));
-            if (unlikely(!gc)) return -1;
-            gc_isenabled = PyObject_GetAttr(gc, PYUNICODE("isenabled"));
-            gc_enable = PyObject_GetAttr(gc, PYUNICODE("enable"));
-            gc_disable = PyObject_GetAttr(gc, PYUNICODE("disable"));
-            if (unlikely(!gc_isenabled || !gc_enable || !gc_disable)) {
-              Py_XDECREF(gc_isenabled);  gc_isenabled = NULL;
-              Py_XDECREF(gc_enable);  gc_enable = NULL;
-              Py_XDECREF(gc_disable);  gc_disable = NULL;
-              Py_XDECREF(gc); gc = NULL;
-              return -1;
-            }
-        }
-        py_status = __Pyx_PyObject_CallNoArg(gc_isenabled);
+    #if PY_VERSION_HEX >= 0x030A00b1
+        // finally added in Py3.10 :)
+        gc_was_enabled = PyGC_Disable();
+        (void)__Pyx_PyObject_CallMethod0;
+
+    #else
+        // Call gc.disable() as a backwards compatible fallback, but only if needed.
+        PyObject *ret, *py_status;
+        PyObject *gc = NULL;
+        #if PY_VERSION_HEX >= 0x030700a1 && (!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM+0 >= 0x07030400)
+        // https://foss.heptapod.net/pypy/pypy/-/issues/3385
+        gc = PyImport_GetModule(PYUNICODE("gc"));
+        #endif
+        if (unlikely(!gc)) gc = PyImport_Import(PYUNICODE("gc"));
+        if (unlikely(!gc)) return -1;
+        py_status = __Pyx_PyObject_CallMethod0(gc, PYUNICODE("isenabled"));
         if (unlikely(!py_status)) {
+            Py_DECREF(gc);
             return -1;
         }
         gc_was_enabled = __Pyx_PyObject_IsTrue(py_status);
         Py_DECREF(py_status);
         if (gc_was_enabled > 0) {
-            ret = __Pyx_PyObject_CallNoArg(gc_disable);
+            ret = __Pyx_PyObject_CallMethod0(gc, PYUNICODE("disable"));
             if (unlikely(!ret)) {
+                Py_DECREF(gc);
                 return -1;
             }
             Py_DECREF(ret);
         } else if (unlikely(gc_was_enabled == -1)) {
+            Py_DECREF(gc);
             return -1;
         }
+    #endif
 
         // As of https://bugs.python.org/issue22079
         // PyType_Ready enforces that all bases of a non-heap type are
@@ -114,6 +228,9 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
         // Other than this check, the Py_TPFLAGS_HEAPTYPE flag is unused
         // in PyType_Ready().
         t->tp_flags |= Py_TPFLAGS_HEAPTYPE;
+#else
+        // avoid C warning about unused helper function
+        (void)__Pyx_PyObject_CallMethod0;
 #endif
 
     r = PyType_Ready(t);
@@ -121,28 +238,35 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
 #if PY_VERSION_HEX >= 0x03050000
         t->tp_flags &= ~Py_TPFLAGS_HEAPTYPE;
 
+    #if PY_VERSION_HEX >= 0x030A00b1
+        if (gc_was_enabled)
+            PyGC_Enable();
+    #else
         if (gc_was_enabled) {
-            PyObject *t, *v, *tb;
-            PyErr_Fetch(&t, &v, &tb);
-            ret = __Pyx_PyObject_CallNoArg(gc_enable);
+            PyObject *tp, *v, *tb;
+            PyErr_Fetch(&tp, &v, &tb);
+            ret = __Pyx_PyObject_CallMethod0(gc, PYUNICODE("enable"));
             if (likely(ret || r == -1)) {
                 Py_XDECREF(ret);
                 // do not overwrite exceptions raised by PyType_Ready() above
-                PyErr_Restore(t, v, tb);
+                PyErr_Restore(tp, v, tb);
             } else {
                 // PyType_Ready() succeeded, but gc.enable() failed.
-                Py_XDECREF(t);
+                Py_XDECREF(tp);
                 Py_XDECREF(v);
                 Py_XDECREF(tb);
                 r = -1;
             }
         }
+        Py_DECREF(gc);
+    #endif
     }
 #endif
 
     return r;
-}
 #endif
+}
+
 
 /////////////// PyTrashcan.proto ///////////////
 
@@ -386,7 +510,7 @@ static PyObject *{{func_name}}(PyObject *left, PyObject *right {{extra_arg_decl}
     }
     if (maybe_self_is_left) {
         PyObject *res;
-        if (maybe_self_is_right && !({{overloads_left}})) {
+        if (maybe_self_is_right && {{overloads_right}} && !({{overloads_left}})) {
             res = {{call_right}};
             if (res != Py_NotImplemented) return res;
             Py_DECREF(res);

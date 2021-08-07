@@ -1081,8 +1081,8 @@ def p_f_string(s, unicode_value, pos, is_raw):
                 if builder.chars:
                     values.append(ExprNodes.UnicodeNode(pos, value=builder.getstring()))
                     builder = StringEncoding.UnicodeLiteralBuilder()
-                next_start, expr_node = p_f_string_expr(s, unicode_value, pos, next_start, is_raw)
-                values.append(expr_node)
+                next_start, expr_nodes = p_f_string_expr(s, unicode_value, pos, next_start, is_raw)
+                values.extend(expr_nodes)
         elif c == '}':
             if part == '}}':
                 builder.append('}')
@@ -1098,12 +1098,16 @@ def p_f_string(s, unicode_value, pos, is_raw):
 
 
 def p_f_string_expr(s, unicode_value, pos, starting_index, is_raw):
-    # Parses a {}-delimited expression inside an f-string. Returns a FormattedValueNode
-    # and the index in the string that follows the expression.
+    # Parses a {}-delimited expression inside an f-string. Returns a list of nodes
+    # [UnicodeNode?, FormattedValueNode] and the index in the string that follows
+    # the expression.
+    #
+    # ? = Optional
     i = starting_index
     size = len(unicode_value)
     conversion_char = terminal_char = format_spec = None
     format_spec_str = None
+    expr_text = None
     NO_CHAR = 2**30
 
     nested_depth = 0
@@ -1143,12 +1147,15 @@ def p_f_string_expr(s, unicode_value, pos, starting_index, is_raw):
         elif c == '#':
             error(_f_string_error_pos(pos, unicode_value, i),
                   "format string cannot include #")
-        elif nested_depth == 0 and c in '!:}':
-            # allow != as a special case
-            if c == '!' and i + 1 < size and unicode_value[i + 1] == '=':
-                i += 1
-                continue
-
+        elif nested_depth == 0 and c in '><=!:}':
+            # allow special cases with '!' and '='
+            if i + 1 < size and c in '!=><':
+                if unicode_value[i + 1] == '=':
+                    i += 2  # we checked 2, so we can skip 2: '!=', '==', '>=', '<='
+                    continue
+                elif c in '><':  # allow single '<' and '>'
+                    i += 1
+                    continue
             terminal_char = c
             break
         i += 1
@@ -1160,6 +1167,16 @@ def p_f_string_expr(s, unicode_value, pos, starting_index, is_raw):
     if not expr_str.strip():
         error(_f_string_error_pos(pos, unicode_value, starting_index),
               "empty expression not allowed in f-string")
+
+    if terminal_char == '=':
+        i += 1
+        while i < size and unicode_value[i].isspace():
+            i += 1
+
+        if i < size:
+            terminal_char = unicode_value[i]
+            expr_text = unicode_value[starting_index:i]
+        # otherwise: error will be reported below
 
     if terminal_char == '!':
         i += 1
@@ -1198,6 +1215,9 @@ def p_f_string_expr(s, unicode_value, pos, starting_index, is_raw):
 
         format_spec_str = unicode_value[start_format_spec:i]
 
+    if expr_text and conversion_char is None and format_spec_str is None:
+        conversion_char = 'r'
+
     if terminal_char != '}':
         error(_f_string_error_pos(pos, unicode_value, i),
               "missing '}' in format string expression" + (
@@ -1216,8 +1236,12 @@ def p_f_string_expr(s, unicode_value, pos, starting_index, is_raw):
     if format_spec_str:
         format_spec = ExprNodes.JoinedStrNode(pos, values=p_f_string(s, format_spec_str, pos, is_raw))
 
-    return i + 1, ExprNodes.FormattedValueNode(
-        pos, value=expr, conversion_char=conversion_char, format_spec=format_spec)
+    nodes = []
+    if expr_text:
+        nodes.append(ExprNodes.UnicodeNode(pos, value=StringEncoding.EncodedString(expr_text)))
+    nodes.append(ExprNodes.FormattedValueNode(pos, value=expr, conversion_char=conversion_char, format_spec=format_spec))
+
+    return i + 1, nodes
 
 
 # since PEP 448:
@@ -1513,15 +1537,19 @@ def p_nonlocal_statement(s):
 
 def p_expression_or_assignment(s):
     expr = p_testlist_star_expr(s)
+    has_annotation = False
     if s.sy == ':' and (expr.is_name or expr.is_subscript or expr.is_attribute):
+        has_annotation = True
         s.next()
         expr.annotation = p_annotation(s)
+
     if s.sy == '=' and expr.is_starred:
         # This is a common enough error to make when learning Cython to let
         # it fail as early as possible and give a very clear error message.
         s.error("a starred assignment target must be in a list or tuple"
                 " - maybe you meant to use an index assignment: var[0] = ...",
                 pos=expr.pos)
+
     expr_list = [expr]
     while s.sy == '=':
         s.next()
@@ -1553,7 +1581,7 @@ def p_expression_or_assignment(s):
 
     rhs = expr_list[-1]
     if len(expr_list) == 2:
-        return Nodes.SingleAssignmentNode(rhs.pos, lhs=expr_list[0], rhs=rhs)
+        return Nodes.SingleAssignmentNode(rhs.pos, lhs=expr_list[0], rhs=rhs, first=has_annotation)
     else:
         return Nodes.CascadedAssignmentNode(rhs.pos, lhs_list=expr_list[:-1], rhs=rhs)
 
@@ -2449,13 +2477,11 @@ def p_positional_and_keyword_args(s, end_sy_set, templates = None):
         s.next()
     return positional_args, keyword_args
 
-def p_c_base_type(s, self_flag = 0, nonempty = 0, templates = None):
-    # If self_flag is true, this is the base type for the
-    # self argument of a C method of an extension type.
+def p_c_base_type(s, nonempty=False, templates=None):
     if s.sy == '(':
         return p_c_complex_base_type(s, templates = templates)
     else:
-        return p_c_simple_base_type(s, self_flag, nonempty = nonempty, templates = templates)
+        return p_c_simple_base_type(s, nonempty=nonempty, templates=templates)
 
 def p_calling_convention(s):
     if s.sy == 'IDENT' and s.systring in calling_convention_words:
@@ -2499,8 +2525,7 @@ def p_c_complex_base_type(s, templates = None):
     return type_node
 
 
-def p_c_simple_base_type(s, self_flag, nonempty, templates = None):
-    #print "p_c_simple_base_type: self_flag =", self_flag, nonempty
+def p_c_simple_base_type(s, nonempty, templates=None):
     is_basic = 0
     signed = 1
     longness = 0
@@ -2521,7 +2546,7 @@ def p_c_simple_base_type(s, self_flag, nonempty, templates = None):
             break
         s.next()
     if is_const or is_volatile:
-        base_type = p_c_base_type(s, self_flag=self_flag, nonempty=nonempty, templates=templates)
+        base_type = p_c_base_type(s, nonempty=nonempty, templates=templates)
         if isinstance(base_type, Nodes.MemoryViewSliceTypeNode):
             # reverse order to avoid having to write "(const int)[:]"
             base_type.base_type_node = Nodes.CConstOrVolatileTypeNode(pos,
@@ -2579,7 +2604,7 @@ def p_c_simple_base_type(s, self_flag, nonempty, templates = None):
         name = name, module_path = module_path,
         is_basic_c_type = is_basic, signed = signed,
         complex = complex, longness = longness,
-        is_self_arg = self_flag, templates = templates)
+        templates = templates)
 
     #    declarations here.
     if s.sy == '[':
@@ -2765,10 +2790,10 @@ sign_and_longness_words = cython.declare(frozenset, frozenset((
     "short", "long", "signed", "unsigned")))
 
 base_type_start_words = cython.declare(
-    set,
+    frozenset,
     basic_c_type_names
     | sign_and_longness_words
-    | set(special_basic_c_types))
+    | frozenset(special_basic_c_types))
 
 struct_enum_union = cython.declare(frozenset, frozenset((
     "struct", "union", "enum", "packed")))
@@ -3024,7 +3049,7 @@ def p_c_arg_decl(s, ctx, in_pyfunc, cmethod_flag = 0, nonempty = 0,
             complex = 0, longness = 0,
             is_self_arg = cmethod_flag, templates = None)
     else:
-        base_type = p_c_base_type(s, cmethod_flag, nonempty = nonempty)
+        base_type = p_c_base_type(s, nonempty=nonempty)
     declarator = p_c_declarator(s, ctx, nonempty = nonempty)
     if s.sy in ('not', 'or') and not s.in_python_file:
         kind = s.sy

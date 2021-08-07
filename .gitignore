@@ -24,6 +24,7 @@ Demos/*/*.html
 /TEST_TMP/
 /build/
 /cython_build/
+cython_debug/
 /wheelhouse*/
 !tests/build/
 /dist/
@@ -42,6 +43,7 @@ callgrind.out.*
 
 .ipynb_checkpoints
 docs/build
+docs/_build
 
 tags
 TAGS

@@ -6,3 +6,6 @@ dict_animal
 not_none
 queue3
 test_queue
+memoryview
+memview
+buffer

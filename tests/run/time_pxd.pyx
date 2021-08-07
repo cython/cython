@@ -49,11 +49,16 @@ def test_localtime():
     ltp = time.localtime()
     ltc = ctime.localtime()
 
-    if ltp.tm_sec != ltc.tm_sec:
+    i = 0
+    while ltp.tm_sec != ltc.tm_sec:
         # If the time.localtime call is just before the end of a second and the
         #  ctime.localtime call is just after the beginning of the next second,
         #  re-call.  This should not occur twice in a row.
+        time.sleep(0.1)
         ltp = time.localtime()
         ltc = ctime.localtime()
+        i += 1
+        if i > 10:
+            break
 
     return ltp, ltc

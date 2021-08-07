@@ -80,3 +80,19 @@ auto __Pyx_pythran_to_python(T &&value) -> decltype(to_python(
 #else
   #define __PYX_ENUM_CLASS_DECL enum
 #endif
+
+////////////// OptionalLocals.proto ////////////////
+//@proto_block: utility_code_proto_before_types
+
+#if defined(CYTHON_USE_BOOST_OPTIONAL)
+    // fallback mode - std::optional is preferred but this gives
+    // people with a less up-to-date compiler a chance
+    #include <boost/optional.hpp>
+    #define __Pyx_Optional_Type boost::optional
+#else
+    #include <optional>
+    // since std::optional is a C++17 features, a templated using declaration should be safe
+    // (although it could be replaced with a define)
+    template <typename T>
+    using __Pyx_Optional_Type = std::optional<T>;
+#endif
