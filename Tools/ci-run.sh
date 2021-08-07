@@ -138,7 +138,7 @@ fi
 
 if [[ $TEST_CODE_STYLE == "1" ]]; then
   make -C docs html || exit 1
-elif [[ $PYTHON_VERSION == "pypy"* ]]; then
+elif [[ $PYTHON_VERSION != "pypy"* && $OSTYPE != "msys" ]]; then
   # Run the debugger tests in python-dbg if available (but don't fail, because they currently do fail)
   PYTHON_DBG="python$( python -c 'import sys; print("%d.%d" % sys.version_info[:2])' )-dbg"
   if $PYTHON_DBG -V >&2; then
