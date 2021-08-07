@@ -45,7 +45,7 @@ Pygments==2.5.2
 pyparsing==2.4.7
 pyrsistent==0.15.7
 python-dateutil==2.8.1
-pywinpty==0.5.7  # some dependency (pywinpty>=0.5)
+pywinpty==0.5.7  # terminado dependency (pywinpty>=0.5)
 pyzmq==16.0.4
 qtconsole==4.7.7
 QtPy==1.9.0
