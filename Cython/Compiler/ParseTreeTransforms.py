@@ -1122,10 +1122,11 @@ class InterpretCompilerDirectives(CythonTransform):
             else:
                 realdecs.append(dec)
                 has_arbitrary_decorators = True
-            if has_arbitrary_decorators and (scope_name == 'cclass' or
-                         isinstance(node, (Nodes.CClassDefNode, Nodes.CVarDefNode))):
-                # Note - arbitrary C function decorators are caught later in DecoratorTransform
-                raise PostParseError(realdecs[0].pos, "Cdef functions/classes cannot take arbitrary decorators.")
+        if has_arbitrary_decorators and (scope_name == 'cclass' or
+                isinstance(node, (Nodes.CClassDefNode, Nodes.CVarDefNode))):
+            # Note - arbitrary C function decorators are caught later in DecoratorTransform
+            raise PostParseError(realdecs[0].pos, "Cdef functions/classes cannot take arbitrary decorators.")
+        node.decorators = realdecs[::-1]
         # merge or override repeated directives
         optdict = {}
         for directive in directives:
