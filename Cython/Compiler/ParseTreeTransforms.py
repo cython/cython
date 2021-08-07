@@ -1409,10 +1409,10 @@ class WithTransform(CythonTransform, SkipDeclarations):
 
 class _IdentifyPropertiesTransform(ScopeTrackingTransform, SkipDeclarations):
     """
-    Identifies DefNodes in a cdef class that should be made properties
+    Identifies DefNodes in a cdef class that should be made properties.
     It doesn't actually do the conversion - the idea is to make sure all
     nodes associated with a property are suitable before converting any
-    of them
+    of them.
     """
     def __init__(self, context, scope_type, scope_node, current_directives):
         self.scope_type = scope_type
