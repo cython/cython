@@ -46,13 +46,13 @@ echo "===================="
 echo "|VERSIONS INSTALLED|"
 echo "===================="
 echo "Python $PYTHON_SYS_VERSION"
-if [[ $CXX ]]; then
-  which ${CXX%% *}
-  ${CXX%% *} --version
-fi
 if [[ $CC ]]; then
   which ${CC%% *}
   ${CC%% *} --version
+fi
+if [[ $CXX ]]; then
+  which ${CXX%% *}
+  ${CXX%% *} --version
 fi
 echo "===================="
 
