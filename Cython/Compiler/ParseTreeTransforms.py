@@ -1418,7 +1418,10 @@ class _IdentifyPropertiesTransform(ScopeTrackingTransform, SkipDeclarations):
         self.scope_type = scope_type
         self.scope_node = scope_node
         self.current_directives = current_directives
-        self.properties = {}  # a dict o
+        self.properties = {}  # keys are the names of properties
+                              # values are dictionaries of the form:
+                              # {'getter: <function node>, 'setter': <function node>,
+                              #  'deleter': <function node>}
         self.cant_be_properties = set()
         super(_IdentifyPropertiesTransform, self).__init__(context)
 
