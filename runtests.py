@@ -1293,9 +1293,9 @@ class CythonCompileTestCase(unittest.TestCase):
                     error = str(exc)
             stderr = prepare_captured(get_stderr())
             if stderr:
-                print(u"Compiler output for module " + module + ":" + stderr)
+                print(u"Compiler output for module %s:\n%s" % (module, stderr))
             if error is not None:
-                raise CompileError(error + u"\nCompiler output:\n" + stderr)
+                raise CompileError(u"%s\nCompiler output:\n%s" % (error, stderr))
         finally:
             os.chdir(cwd)
 
