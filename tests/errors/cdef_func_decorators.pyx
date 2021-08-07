@@ -17,7 +17,7 @@ cdef class C:
         pass
 
     @property
-    cdef property_only_works_for_extern_classes(self):
+    cdef inline property_only_works_for_extern_classes(self):
         pass
 
     @wraps
@@ -33,7 +33,7 @@ _ERRORS = """
 6:0: Cdef functions cannot take arbitrary decorators.
 10:0: Cdef functions cannot take arbitrary decorators.
 15:4: Cdef functions cannot take arbitrary decorators.
-19:4: Cdef functions cannot take arbitrary decorators.
+20:9: C properties can only be used in extern classes
 23:4: Cdef functions cannot take arbitrary decorators.
 27:4: Cdef functions cannot take arbitrary decorators.
 """

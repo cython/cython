@@ -1413,8 +1413,6 @@ class _IdentifyPropertiesTransform(ScopeTrackingTransform, SkipDeclarations):
     It doesn't actually do the conversion - the idea is to make sure all
     nodes associated with a property are suitable before converting any
     of them
-    TODO - this probably doesn't really need to be a ScopeTrackingTransform
-         - we use scope_type but mostly for re-assurance purposes
     """
     def __init__(self, context, scope_type, scope_node, current_directives):
         self.scope_type = scope_type
@@ -1437,13 +1435,6 @@ class _IdentifyPropertiesTransform(ScopeTrackingTransform, SkipDeclarations):
     def visit_CFuncDefNode(self, node):
         if not node.decorators:
             return node
-        elif self.scope_type != 'cclass' or self.scope_node.visibility != "extern":
-            # at the moment cdef functions are very restricted in what decorators they can take
-            # so it's simple to test for the small number of allowed decorators....
-            if not (len(node.decorators) == 1 and node.decorators[0].decorator.is_name and
-                    node.decorators[0].decorator.name == "staticmethod"):
-                error(node.decorators[0].pos, "Cdef functions cannot take arbitrary decorators.")
-            return node
 
         self._find_property_decorator(node, True)
         return node
@@ -1458,6 +1449,9 @@ class _IdentifyPropertiesTransform(ScopeTrackingTransform, SkipDeclarations):
                     return self._reject_decorated_property(node, decorator_node, is_cfunction)
                 if name in self.cant_be_properties:
                     return  # we've already eliminated it from consideration
+                if is_cfunction and self.scope_node.visibility != "extern":
+                    error(node.pos, "C properties can only be used in extern classes")
+                    return
                 prop = self.properties.setdefault(name, {})
                 if 'getter' in prop:
                     if is_cfunction:
@@ -1578,6 +1572,11 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
 
     def visit_CFuncDefNode(self, node):
         node = self.visit_FuncDefNode(node)
+        if node.decorators and not (
+                len(node.decorators) == 1 and node.decorators[0].decorator.is_name and
+                node.decorators[0].decorator.name in ["staticmethod", "property"]):
+            error(node.decorators[0].pos, "Cdef functions cannot take arbitrary decorators.")
+            return node
         if self.scope_type != 'cclass':
             return node
         if self._properties_node_sets and node in self._properties_node_sets[-1]:
