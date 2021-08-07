@@ -1294,7 +1294,7 @@ class CythonCompileTestCase(unittest.TestCase):
             stderr = get_stderr()
             if stderr:
                 # The test module name should always be ASCII, but let's not risk encoding failures.
-                output = b"Compiler output for module %s:\n%s\n" % (module.encode('utf-8'), stderr)
+                output = b"Compiler output for module " + module.encode('utf-8') + b":\n" + stderr + b"\n"
                 out = sys.stdout if sys.version_info[0] == 2 else sys.stdout.buffer
                 out.write(output)
             if error is not None:
