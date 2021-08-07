@@ -100,7 +100,7 @@ echo "==== Running tests ===="
 ccache -s 2>/dev/null || true
 export PATH="/usr/lib/ccache:$PATH"
 
-if [[ "$OSTYPE" == "msys" ]]; then  # for MSVC cl
+if [[ $OSTYPE == "msys" ]]; then  # for MSVC cl
     # /wd disables warnings
   # 4711 warns that function `x` was selected for automatic inline expansion
   # 4127 warns that a conditional expression is constant, should be fixed here https://github.com/cython/cython/pull/4317
@@ -136,7 +136,8 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION == "pypy"* ]]; then
   CFLAGS="-O2 $DEBUG_INFO $WARNARGS $ALIASING" \
     python setup.py build_ext -i $SETUP_ARGS || exit 1
 
-  if [[ $COVERAGE != "1" && $STACKLESS != "true" && -z $LIMITED_API && $CYTHON_COMPILE_ALL != "1" && -z $EXTRA_CFLAGS && $BACKEND != *"cpp"* ]]; then
+  if [[ $COVERAGE != "1" && $STACKLESS != "true" && -z $LIMITED_API &&
+        $CYTHON_COMPILE_ALL != "1" && -z $EXTRA_CFLAGS && $BACKEND != *"cpp"* ]]; then
     python setup.py bdist_wheel || exit 1
   fi
 fi
@@ -144,18 +145,20 @@ fi
 if [[ $TEST_CODE_STYLE == "1" ]]; then
   make -C docs html || exit 1
 elif [[ $PYTHON_VERSION != "pypy"* && $OSTYPE != "msys" ]]; then
-  # Run the debugger tests in python-dbg if available (but don't fail, because they currently do fail)
+  # Run the debugger tests in python-dbg if available
+  # (but don't fail, because they currently do fail)
   PYTHON_DBG="python$( python -c 'import sys; print("%d.%d" % sys.version_info[:2])' )-dbg"
   if $PYTHON_DBG -V >&2; then
-    CFLAGS="$NO_OPTIMIZATION $DEBUG_INFO" $PYTHON_DBG runtests.py -vv --no-code-style Debugger --backends=$BACKEND
+    CFLAGS="$NO_OPTIMIZATION $DEBUG_INFO" $PYTHON_DBG \
+      runtests.py -vv --no-code-style Debugger --backends=$BACKEND
   fi
 fi
 
 if [[ $COVERAGE == "1" ]]; then
-  RUNTESTS_ARGS="$RUNTESTS_ARGS --coverage --coverage-html --cython-only"
+  RUNTESTS_ARGS="--coverage --coverage-html --cython-only"
 fi
 if [[ $TEST_CODE_STYLE != "1" ]]; then
-  RUNTESTS_ARGS="$RUNTESTS_ARGS -j7"
+  RUNTESTS_ARGS="-j7"
 fi
 
 export CFLAGS="$NO_OPTIMIZATION $DEBUG_INFO $WARNARGS $EXTRA_CFLAGS"
