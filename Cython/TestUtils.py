@@ -228,26 +228,29 @@ def unpack_source_tree(tree_file, workdir, cython_root):
     return workdir, header
 
 
-def write_file(file_path, content, dedent=False, encoding="utf-8"):
+def write_file(file_path, content, dedent=False, encoding=None):
     r"""Write some content (text or bytes) to the file
     at `file_path` without translating `'\n'` into `os.linesep`.
+    Default encoding is `'utf-8'`.
     """
-
-    # any "\n" characters written are not translated
-    # to the system default line separator, os.linesep
-    newline = "\n"
-    mode = "w"
     if isinstance(content, bytes):
-        mode += "b"
-        
+        mode = "wb"
+
         # binary mode doesn't take an encoding and newline arguments
-        encoding = None
         newline = None
+        encoding_ = encoding  # let 'open' raise exceptions
+    else:
+        mode = "w"
+
+        # any "\n" characters written are not translated
+        # to the system default line separator, os.linesep
+        newline = "\n"
+        encoding_ = "utf-8"
 
     if dedent:
         content = textwrap.dedent(content)
 
-    with open(file_path, mode=mode, encoding=encoding, newline=newline) as f:
+    with open(file_path, mode=mode, encoding=encoding_, newline=newline) as f:
         f.write(content)
 
 
@@ -266,4 +269,4 @@ def write_newer_file(file_path, newer_than, content, dedent=False,
         other_time = None
 
     while other_time is None or other_time >= os.path.getmtime(file_path):
-        write_file(file_path, content, dedent=dedent)
+        write_file(file_path, content, dedent=dedent, encoding=encoding)
