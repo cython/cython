@@ -5547,7 +5547,6 @@ class PropertyNode(StatNode):
     #  body   StatListNode
 
     child_attrs = ["body"]
-    created_from_decorator = 0  # just used in a deprecation warning
 
     def analyse_declarations(self, env):
         self.entry = env.declare_property(self.name, self.doc, self.pos)

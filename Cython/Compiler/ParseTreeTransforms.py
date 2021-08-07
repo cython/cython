@@ -1535,10 +1535,6 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
         return node
 
     def visit_PropertyNode(self, node):
-        # Low-level warning for other code until we can convert all our uses over.
-        if not node.created_from_decorator:
-            level = 2 if isinstance(node.pos[0], str) else 0
-            warning(node.pos, "'property %s:' syntax is deprecated, use '@property'" % node.name, level)
         return node
 
     def visit_CPropertyNode(self, node):
@@ -1600,7 +1596,6 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
             self._properties_node_sets[-1].add(getter_node)
         else:
             prop = Nodes.PropertyNode(getter_node.pos, name=name)
-            prop.created_from_decorator = True
             prop.body = Nodes.StatListNode(getter_node.pos, stats=[])
 
             for property_type, def_node in property_dict.items():

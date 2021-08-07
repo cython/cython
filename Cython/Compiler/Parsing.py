@@ -3678,6 +3678,9 @@ def p_property_decl(s):
     name = p_ident(s)
     doc, body = p_suite_with_docstring(
         s, Ctx(level='property'), with_doc_only=True)
+    # isinstance(pos[0], ...) identifies user code from utility code
+    level = 2 if isinstance(pos[0], FileSourceDescriptor) else 0
+    warning(pos, "'property %s:' syntax is deprecated, use '@property'" % name, level)
     return Nodes.PropertyNode(pos, name=name, doc=doc, body=body)
 
 
