@@ -365,6 +365,9 @@ are entirely on your own with this feature.  If you want to declare a name
 the C file for it, you can do this using a C name declaration.  Consider this
 an advanced feature, only for the rare cases where everything else fails.
 
+
+.. _verbatim_c:
+
 Including verbatim C code
 -------------------------
 
