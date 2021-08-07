@@ -5192,7 +5192,7 @@ class CClassDefNode(ClassDefNode):
 
         if has_body:
             properties = {}
-            for stat in getattr(self.body, 'stats', []):
+            for stat in self.body.stats:
                 if isinstance(stat, FuncDefNode):
                     stat._properties = properties  # deliberately shared between them
             self.body.analyse_declarations(scope)
@@ -5204,7 +5204,7 @@ class CClassDefNode(ClassDefNode):
                 scope.defined = 1
             else:
                 scope.implemented = 1
-            for stat in getattr(self.body, 'stats', []):
+            for stat in self.body.stats:
                 if isinstance(stat, FuncDefNode):
                     del stat._properties
             for prop in properties.values():
