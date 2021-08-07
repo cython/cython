@@ -101,10 +101,10 @@ ccache -s 2>/dev/null || true
 export PATH="/usr/lib/ccache:$PATH"
 
 if [[ "$OSTYPE" == "msys" ]]; then  # for MSVC cl
-  # /wd will disable warning
-  # 4711 warns that function `x` selected for automatic inline expansion
-  # 4127 warns that conditional expression is constant, should be fixed here https://github.com/cython/cython/pull/4317
-  # (off by default) 5045 warns that Compiler will insert Spectre mitigation for memory load if /Qspectre switch specified
+    # /wd disables warnings
+  # 4711 warns that function `x` was selected for automatic inline expansion
+  # 4127 warns that a conditional expression is constant, should be fixed here https://github.com/cython/cython/pull/4317
+  # (off by default) 5045 warns that the compiler will insert Spectre mitigations for memory load if the /Qspectre switch is specified
   # (off by default) 4820 warns about the code in Python\3.9.6\x64\include ...
   WARNARGS="/W4 /wd4711 /wd4127 /wd5045 /wd4820"
   DEBUG_INFO="/Z7"
