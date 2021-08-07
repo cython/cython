@@ -11,9 +11,11 @@ elif [[ $OSTYPE == "linux-gnu"* ]]; then
   sudo apt-add-repository -y "ppa:ubuntu-toolchain-r/test"
   sudo apt update -y -q
   sudo apt install -y -q ccache gdb python-dbg python3-dbg gcc-$GCC_VERSION || exit 1
+
+  ALTERNATIVE_ARGS=""
   if [[ $BACKEND == *"cpp"* ]]; then
     sudo apt install -y -q g++-$GCC_VERSION || exit 1
-    ALTERNATIVE_ARGS=" --slave /usr/bin/g++ g++ /usr/bin/g++-$GCC_VERSION"
+    ALTERNATIVE_ARGS="--slave /usr/bin/g++ g++ /usr/bin/g++-$GCC_VERSION"
   fi
   sudo /usr/sbin/update-ccache-symlinks
   echo "/usr/lib/ccache" >> $GITHUB_PATH # export ccache to path
@@ -114,22 +116,25 @@ else
 fi
 
 if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION == "pypy"* ]]; then
+
+  SETUP_ARGS=""
   if [[ $COVERAGE == "1" ]]; then
-    COVERAGE_ARGS="--cython-coverage"
+    SETUP_ARGS="$SETUP_ARGS --cython-coverage"
   fi
   if [[ $CYTHON_COMPILE_ALL == "1" ]]; then
-    CYTHON_COMPILE_ALL_FLAGS=" --cython-compile-all"
+    SETUP_ARGS="$SETUP_ARGS --cython-compile-all"
   fi
   if [[ $PYTHON_SYS_VERSION > "3.5" || $PYTHON_SYS_VERSION == "3.5"* ]]; then
-    SETUP_ARGS="-j5"
+    SETUP_ARGS="$SETUP_ARGS -j5"
   fi
+
+  ALIASING=""
   if [[ $PYTHON_SYS_VERSION == "2"* ]]; then
-    ALIASING="$-fno-strict-aliasing"
+    ALIASING="-fno-strict-aliasing"
   fi
 
   CFLAGS="-O2 $DEBUG_INFO $WARNARGS $ALIASING" \
-    python setup.py build_ext -i \
-    $COVERAGE_ARGS $CYTHON_COMPILE_ALL_FLAGS $SETUP_ARGS || exit 1
+    python setup.py build_ext -i $SETUP_ARGS || exit 1
 
   if [[ $COVERAGE != "1" && $STACKLESS != "true" && -z $LIMITED_API && $CYTHON_COMPILE_ALL != "1" && -z $EXTRA_CFLAGS && $BACKEND != *"cpp"* ]]; then
     python setup.py bdist_wheel || exit 1
