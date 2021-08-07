@@ -28,9 +28,11 @@ try:
     import platform
     IS_PYPY = platform.python_implementation() == 'PyPy'
     IS_CPYTHON = platform.python_implementation() == 'CPython'
+    IS_GRAAL = platform.python_implementation() == 'GraalVM'
 except (ImportError, AttributeError):
     IS_CPYTHON = True
     IS_PYPY = False
+    IS_GRAAL = False
 
 IS_PY2 = sys.version_info[0] < 3
 CAN_SYMLINK = sys.platform != 'win32' and hasattr(os, 'symlink')
@@ -2024,7 +2026,8 @@ class MissingDependencyExcluder(object):
         except AttributeError:
             stdlib_dir = os.path.dirname(shutil.__file__) + os.sep
             module_path = getattr(module, '__file__', stdlib_dir)  # no __file__? => builtin stdlib module
-            if module_path.startswith(stdlib_dir):
+            if (module_path  # GraalPython seems to return None for some unknown reason
+                    and module_path.startswith(stdlib_dir)):
                 # stdlib module
                 version = sys.version.partition(' ')[0]
             elif '.' in name:
@@ -2656,6 +2659,7 @@ def runtests(options, cmd_args, coverage=None):
             ('pypy2_bugs.txt', IS_PYPY and IS_PY2),
             ('pypy_crash_bugs.txt', IS_PYPY),
             ('pypy_implementation_detail_bugs.txt', IS_PYPY),
+            ('graal_bugs.txt', IS_GRAAL),
             ('limited_api_bugs.txt', options.limited_api),
             ('windows_bugs.txt', sys.platform == 'win32'),
             ('cygwin_bugs.txt', sys.platform == 'cygwin')
