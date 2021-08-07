@@ -213,9 +213,9 @@ jobs:
             backend: cpp
 
     # This defaults to 360 minutes (6h) which is way too long and if a test gets stuck, it can block other pipelines.
-    # From testing, the runs tend to take ~20 minutes, so a limit of 30 minutes should be enough. This can always be
-    # changed in the future if needed.
-    timeout-minutes: 60
+    # From testing, the runs tend to take ~20 minutes for ubuntu / macos and ~35 for windows,
+    # so a limit of 45 minutes should be enough. This can always be changed in the future if needed.
+    timeout-minutes: 45
     runs-on: ${{ matrix.os }}
 
     env:
