@@ -1143,7 +1143,9 @@ class GlobalState(object):
         'cleanup_globals',
         'cleanup_module',
         'main_method',
+        'utility_code_pragmas',  # silence some irrelevant warnings in utility code
         'utility_code_def',
+        'utility_code_pragmas_end',  # clean-up the utility_code_pragmas
         'end'
     ]
 
@@ -1239,6 +1241,18 @@ class GlobalState(object):
         code = self.parts['utility_code_def']
         util = TempitaUtilityCode.load_cached("TypeConversions", "TypeConversion.c")
         code.put(util.format_code(util.impl))
+        code.putln("")
+
+        #
+        # utility code pragmas
+        #
+        code = self.parts['utility_code_pragmas']
+        util = UtilityCode.load_cached("UtilityCodePragmas", "ModuleSetupCode.c")
+        code.putln(util.format_code(util.impl))
+        code.putln("")
+        code = self.parts['utility_code_pragmas_end']
+        util = UtilityCode.load_cached("UtilityCodePragmasEnd", "ModuleSetupCode.c")
+        code.putln(util.format_code(util.impl))
         code.putln("")
 
     def __getitem__(self, key):
