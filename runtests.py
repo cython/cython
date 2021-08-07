@@ -1291,11 +1291,14 @@ class CythonCompileTestCase(unittest.TestCase):
                     build_extension.run()
                 except CompileError as exc:
                     error = str(exc)
-            stderr = prepare_captured(get_stderr())
+            stderr = get_stderr()
             if stderr:
-                print(u"Compiler output for module %s:\n%s" % (module, stderr))
+                # The test module name should always be ASCII, but let's not risk encoding failures.
+                output = b"Compiler output for module %s:\n%s\n" % (module.encode('utf-8'), stderr)
+                out = sys.stdout if sys.version_info[0] == 2 else sys.stdout.buffer
+                out.write(output)
             if error is not None:
-                raise CompileError(u"%s\nCompiler output:\n%s" % (error, stderr))
+                raise CompileError(u"%s\nCompiler output:\n%s" % (error, prepare_captured(stderr)))
         finally:
             os.chdir(cwd)
 
