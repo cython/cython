@@ -1,11 +1,11 @@
 import random
-from libc.stdlib cimport malloc, free
+from cython.cimports.libc.stdlib import malloc, free
 
-def random_noise(int number=1):
-    cdef int i
+def random_noise(number: cython.int = 1):
+    i: cython.int
     # allocate number * sizeof(double) bytes of memory
-    cdef double *my_array = <double *> malloc(
-        number * sizeof(double))
+    my_array: cython.p_double = cython.cast(cython.p_double, malloc(
+        number * cython.sizeof(cython.double)))
     if not my_array:
         raise MemoryError()
 
