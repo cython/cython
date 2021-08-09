@@ -238,28 +238,30 @@ def write_file(file_path, content, dedent=False, encoding=None):
 
         # binary mode doesn't take an encoding and newline arguments
         newline = None
-        encoding_ = encoding  # let 'open' raise exceptions
+        default_encoding = None
     else:
         mode = "w"
 
         # any "\n" characters written are not translated
         # to the system default line separator, os.linesep
         newline = "\n"
-        encoding_ = "utf-8"
+        default_encoding = "utf-8"
+
+    if encoding is None:
+        encoding = default_encoding
 
     if dedent:
         content = textwrap.dedent(content)
 
-    with open(file_path, mode=mode, encoding=encoding_, newline=newline) as f:
+    with open(file_path, mode=mode, encoding=encoding, newline=newline) as f:
         f.write(content)
 
 
-def write_newer_file(file_path, newer_than, content, dedent=False,
-                     encoding=None):
+def write_newer_file(file_path, newer_than, content, dedent=False, encoding=None):
     r"""
     Write `content` to the file `file_path` without translating `'\n'`
     into `os.linesep` and make sure it is newer than the file `newer_than`.
-    The default encoding is `'utf-8'` (same as for write_file).
+    The default encoding is `'utf-8'` (same as for `write_file`).
     """
     write_file(file_path, content, dedent=dedent, encoding=encoding)
 
