@@ -1,7 +1,10 @@
 from builtins import (int as py_int, float as py_float,
                       bool as py_bool, str as py_str, complex as py_complex)
-from typing import (Union, Dict, Any, Sequence, Optional,
-                    List, TypeVar, Type, Generic)
+from types import TracebackType
+from typing import (Any, Sequence, Optional,
+                    TypeVar, Generic, Callable, overload)
+
+__version__: str
 
 int = py_int
 long = py_int
@@ -20,8 +23,8 @@ ushort = py_int
 uchar = py_int
 size_t = py_int
 Py_ssize_t = py_int
-Py_UCS4 = Union[py_int, str]
-Py_UNICODE = Union[py_int, str]
+Py_UCS4 = py_int | str
+Py_UNICODE = py_int | str
 float = py_float
 double = py_float
 longdouble = py_float
@@ -30,13 +33,15 @@ floatcomplex = py_complex
 doublecomplex = py_complex
 longdoublecomplex = py_complex
 bint = py_bool
-void = Union[None]
+void = type[None]
 basestring = py_str
 unicode = py_str
 
-gs: Dict[str, Any]  # Should match the return type of globals()
+gs: dict[str, Any]  # Should match the return type of globals()
 
 _T = TypeVar('_T')
+
+compiled: bool
 
 class _ArrayType(object, Generic[_T]):
     is_array: bool
@@ -63,7 +68,7 @@ class CythonType(CythonTypeObject):
 class PointerType(CythonType, Generic[_T]):
     def __init__(
         self,
-        value: Optional[Union[ArrayType[_T], PointerType[_T], List[_T], int]] = ...
+        value: Optional[ArrayType[_T] | PointerType[_T] | list[_T] | int] = ...
     ) -> None: ...
     def __getitem__(self, ix: int) -> _T: ...
     def __setitem__(self, ix: int, value: _T) -> None: ...
@@ -73,20 +78,16 @@ class PointerType(CythonType, Generic[_T]):
 class ArrayType(PointerType[_T]):
     def __init__(self) -> None: ...
 
-#class StructType(CythonType, Generic[_T]):
-#    def __init__(
-#        self,
-#        value: List[Type[_T]] = ...
-#    ) -> None: ...
-
 def index_type(
-    base_type: _T, item: Union[tuple, slice, int]) -> _ArrayType[_T]: ...
+    base_type: _T, item: tuple | slice | int) -> _ArrayType[_T]: ...
 
-def pointer(basetype: _T) -> Type[PointerType[_T]]: ...
+def pointer(basetype: _T) -> type[PointerType[_T]]: ...
 
-def array(basetype: _T, n: int) -> Type[ArrayType[_T]]: ...
+def array(basetype: _T, n: int) -> type[ArrayType[_T]]: ...
 
-#def struct(basetype: _T) -> Type[StructType[_T]]: ...
+def struct(**members: type) -> type[Any]: ...
+
+def union(**members: type) -> type[Any]: ...
 
 class typedef(CythonType, Generic[_T]):
     name: str
@@ -100,3 +101,35 @@ class typedef(CythonType, Generic[_T]):
 #    def __init__(self) -> None: ...
 
 #def fused_type(*args: Tuple[_T]) -> Type[FusedType[_T]]: ...
+
+def typeof(arg: Any) -> str: ...
+
+_C = TypeVar('_C', bound='Callable')
+
+class _EmptyDecoratorAndManager(object):
+    def __call__(self, x: _C) -> _C: ...
+
+    def __enter__(self) -> None: ...
+
+    def __exit__(
+        self,
+        exc_type: Optional[type[BaseException]],
+        exc: Optional[BaseException],
+        tb: Optional[TracebackType]
+    ) -> None: ...
+
+cclass = ccall = cfunc = inline = _EmptyDecoratorAndManager()
+
+def locals(**vars) -> Callable[[_C], _C]: ...
+
+@overload
+def declare(
+    t: Optional[Callable[..., _T]] = ...,
+    value: Any = ...,
+    *,
+    visibility: str = ...
+) -> _T:
+    ...
+
+@overload
+def declare(**kwargs: type) -> None: ...

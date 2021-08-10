@@ -7,7 +7,7 @@ is_compiled = cython.compiled
 
 MyUnion = cython.union(n=cython.int, x=cython.double)
 MyStruct = cython.struct(is_integral=cython.bint, data=MyUnion)
-MyStruct2 = cython.typedef(MyStruct[2])  # type: cython.StructType
+MyStruct2 = cython.typedef(MyStruct[2])
 
 
 @cython.ccall  # cpdef => C return type
@@ -20,7 +20,9 @@ def test_return_type(n: cython.int) -> cython.double:
     return n if is_compiled else float(n)
 
 
-def test_struct(n: cython.int, x: cython.double) -> MyStruct2:
+# Using a variable (which MyStruct2 = cython.typedef(MyStruct[2]) becomes) as an annotation
+# is invalid but there is no other way of defining type definitions to Cython right now.
+def test_struct(n: cython.int, x: cython.double) -> MyStruct2:  # type: ignore
     """
     >>> test_struct(389, 1.64493)
     (389, 1.64493)
