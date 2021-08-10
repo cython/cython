@@ -1,3 +1,5 @@
+# cython: language_level=3str
+
 from __future__ import absolute_import
 
 import cython
@@ -1134,6 +1136,7 @@ class InterpretCompilerDirectives(CythonTransform):
                         (realdec.is_attribute and realdec.attribute == "dataclass")):
                     error(realdec.pos,
                           "Use '@cython.dataclasses.dataclass' on cdef classes to create a dataclass")
+            # Note - arbitrary C function decorators are caught later in DecoratorTransform
             raise PostParseError(realdecs[0].pos, "Cdef functions/classes cannot take arbitrary decorators.")
         node.decorators = realdecs[::-1] + both[::-1]
         # merge or override repeated directives
@@ -1449,7 +1452,14 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
 
     def visit_CFuncDefNode(self, node):
         node = self.visit_FuncDefNode(node)
-        if self.scope_type != 'cclass' or self.scope_node.visibility != "extern" or not node.decorators:
+        if not node.decorators:
+            return node
+        elif self.scope_type != 'cclass' or self.scope_node.visibility != "extern":
+            # at the moment cdef functions are very restricted in what decorators they can take
+            # so it's simple to test for the small number of allowed decorators....
+            if not (len(node.decorators) == 1 and node.decorators[0].decorator.is_name and
+                    node.decorators[0].decorator.name == "staticmethod"):
+                error(node.decorators[0].pos, "Cdef functions cannot take arbitrary decorators.")
             return node
 
         ret_node = node

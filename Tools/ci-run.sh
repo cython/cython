@@ -97,9 +97,10 @@ if [ "$NO_CYTHON_COMPILE" != "1" -a -n "${PYTHON_VERSION##pypy*}" ]; then
   CFLAGS="-O2 -ggdb -Wall -Wextra $(python -c 'import sys; print("-fno-strict-aliasing" if sys.version_info[0] == 2 else "")')" \
   python setup.py build_ext -i \
           $(if [ "$COVERAGE" == "1" ]; then echo " --cython-coverage"; fi) \
+          $(if [ "$CYTHON_COMPILE_ALL" == "1" ]; then echo " --cython-compile-all"; fi) \
           $(python -c 'import sys; print("-j5" if sys.version_info >= (3,5) else "")') \
       || exit 1
-  if [ -z "$COVERAGE" -a -z "$STACKLESS" -a -z "$LIMITED_API" -a -z "$EXTRA_CFLAGS" -a -n "${BACKEND//*cpp*}" ]; then
+  if [ -z "$COVERAGE" -a -z "$STACKLESS" -a -z "$LIMITED_API" -a -z "$CYTHON_COMPILE_ALL" -a -z "$EXTRA_CFLAGS" -a -n "${BACKEND//*cpp*}" ]; then
     python setup.py bdist_wheel || exit 1
   fi
 fi

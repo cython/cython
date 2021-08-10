@@ -904,7 +904,7 @@ class CArgDeclNode(Node):
 
     def analyse(self, env, nonempty=0, is_self_arg=False):
         if is_self_arg:
-            self.base_type.is_self_arg = self.is_self_arg = True
+            self.base_type.is_self_arg = self.is_self_arg = is_self_arg
         if self.type is not None:
             return self.name_declarator, self.type
 
@@ -1030,6 +1030,7 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
     module_path = []
     is_basic_c_type = False
     complex = False
+    is_self_arg = False
 
     def analyse(self, env, could_be_name=False):
         # Return type descriptor.

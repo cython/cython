@@ -243,6 +243,13 @@ Further Cython functions and declarations
     print(cython.sizeof(cython.longlong))
     print(cython.sizeof(n))
 
+* ``typeof`` returns a string representation of the argument's type for debugging purposes.  It can take expressions.
+
+  ::
+
+    cython.declare(n=cython.longlong)
+    print(cython.typeof(n))
+
 * ``struct`` can be used to create struct types.::
 
     MyStruct = cython.struct(x=cython.int, y=cython.int, data=cython.double)
