@@ -87,7 +87,7 @@ Bugs fixed
   Patch by David Woods.  (Github issues :issue:`4196`, :issue:`4198`)
 
 * An unnecessary slow-down at import time was removed from ``Cython.Distutils``.
-  Original patch by Anthony Sottile.  (Github issue :issue:`4224`)
+  Original patch by Anthony Sottile.  (Github pr :pr:`4224`)
 
 * Python modules were not automatically recompiled when only their ``.pxd`` file changed.
   Patch by Golden Rockefeller.  (Github issue :issue:`1428`)
@@ -175,7 +175,7 @@ Features added
 
 * A new module ``cpython.time`` was added with some low-level alternatives to
   Python's ``time`` module.
-  Patch by Brock Mendel.  (Github issue :issue:`3767`)
+  Patch by Brock Mendel.  (Github pr :pr:`3767`)
 
 * The value ``PyBUF_MAX_NDIM`` was added to the ``cpython.buffer`` module.
   Patch by John Kirkham.  (Github issue :issue:`3811`)
@@ -204,7 +204,7 @@ Bugs fixed
   Patch by David Woods.  (Github issue :issue:`3716`, :issue:`3741`, :issue:`3734`)
 
 * Modules with unicode names failed to build on Windows.
-  Patch by David Woods.  (Github issue :issue:`4125`)
+  Patch by David Woods.  (Github pr :pr:`4125`)
 
 * ``ndarray.shape`` failed to compile with Pythran and recent NumPy.
   Patch by Serge Guelton.  (Github issue :issue:`3762`)
@@ -245,7 +245,7 @@ Bugs fixed
   (Github issue :issue:`2749`)
 
 * Some C compiler warninge were resolved.
-  Patches by Max Bachmann.  (Github issue :issue:`4053`, :issue:`4059`, :issue:`4054`, :issue:`4148`, :issue:`4162`)
+  Patches by Max Bachmann.  (Github issue :issue:`4053`, :issue:`4059`, :issue:`4054`, :issue:`4148`, :pr:`4162`)
 
 * A compile failure for C++ enums in Py3.4 / MSVC was resolved.
   Patch by Ashwin Srinath.  (Github issue :issue:`3782`)
@@ -321,7 +321,7 @@ Features added
   Patches by Matthias Braun.  (Github issues :issue:`3693`, :issue:`3707`)
 
 * The Cython ``CodeWriter`` can now handle more syntax constructs.
-  Patch by Tao He.  (Github issue :issue:`3514`)
+  Patch by Tao He.  (Github pr :pr:`3514`)
 
 Bugs fixed
 ----------
@@ -546,7 +546,7 @@ Features added
   support is currently in an early stage and many features do not yet work.
   You currently still have to define ``Py_LIMITED_API`` externally in order
   to restrict the API usage.  This will change when the feature stabilises.
-  Patches by Eddie Elizondo and David Woods.  (Github issues :issue:`3223`,
+  Patches by Eddie Elizondo and David Woods.  (Github issues :pr:`3223`,
   :issue:`3311`, :issue:`3501`)
 
 * The dispatch to fused functions is now linear in the number of arguments,
@@ -572,10 +572,10 @@ Features added
 
 * ``@cython.trashcan(True)`` can be used on an extension type to enable the
   CPython :ref:`trashcan`. This allows deallocating deeply recursive objects
-  without overflowing the stack. Patch by Jeroen Demeyer.  (Github issue :issue:`2842`)
+  without overflowing the stack. Patch by Jeroen Demeyer.  (Github pr :pr:`2842`)
 
 * Inlined properties can be defined for external extension types.
-  Patch by Matti Picus. (Github issue :issue:`2640`, redone later in :issue:`3571`)
+  Patch by Matti Picus. (Github issue :pr:`2640`, redone later in :issue:`3571`)
 
 * The ``str()`` builtin now calls ``PyObject_Str()`` instead of going
   through a Python call.
@@ -604,7 +604,7 @@ Features added
 * Several declarations in ``cpython.*``, ``libc.*`` and ``libcpp.*`` were added.
   Patches by Jeroen Demeyer, Matthew Edwards, Chris Gyurgyik, Jerome Kieffer
   and Zackery Spytz.
-  (Github issues :issue:`3468`, :issue:`3332`, :issue:`3202`, :issue:`3188`,
+  (Github issues :pr:`3468`, :issue:`3332`, :issue:`3202`, :pr:`3188`,
   :issue:`3179`, :issue:`2891`, :issue:`2826`, :issue:`2713`)
 
 * Deprecated NumPy API usages were removed from ``numpy.pxd``.
@@ -621,7 +621,7 @@ Features added
   (Github issue :issue:`2580`)
 
 * The ``cython.view.array`` type supports inheritance.
-  Patch by David Woods.  (Github issue :issue:`3413`)
+  Patch by David Woods.  (Github pr :pr:`3413`)
 
 * Code annotation accepts a new debugging argument ``--annotate-fullc`` that
   will include the complete syntax highlighted C file in the HTML output.
@@ -706,10 +706,10 @@ Bugs fixed
   undefined export symbol.  (Github issue :issue:`2968`)
 
 * A C compiler cast warning was resolved.
-  Patch by Michael Buesch.  (Github issue :issue:`2775`)
+  Patch by Michael Buesch.  (Github pr :pr:`2775`)
 
 * Binding staticmethods of Cython functions were not behaving like Python methods.
-  Patch by Jeroen Demeyer.  (Github issue :issue:`3106`, :issue:`3102`)
+  Patch by Jeroen Demeyer.  (Github issue :pr:`3106`, :issue:`3102`)
 
 * Memoryviews failed to compile when the ``cache_builtins`` feature was disabled.
   Patch by David Woods.  (Github issue :issue:`3406`)
@@ -903,7 +903,7 @@ Bugs fixed
   (Github issue :issue:`3695`)
 
 * Binding staticmethods of Cython functions were not behaving like Python methods in Py3.
-  Patch by Jeroen Demeyer and Michał Górny.  (Github issue :issue:`3106`)
+  Patch by Jeroen Demeyer and Michał Górny.  (Github pr :pr:`3106`)
 
 * Pythran calls to NumPy methods no longer generate useless method lookup code.
 
@@ -1110,7 +1110,7 @@ Bugs fixed
   Original patch by David Woods.  (Github issue :issue:`3418`)
 
 * Fix an unhandled C++ exception in comparisons.
-  Patch by David Woods.  (Github issue :issue:`3361`)
+  Patch by David Woods.  (Github pr :pr:`3361`)
 
 * Fix deprecated import of "imp" module.
   Patch by Matti Picus.  (Github issue :issue:`3350`)
@@ -1176,7 +1176,7 @@ Bugs fixed
 ----------
 
 * The generated code failed to initialise the ``tp_print`` slot in CPython 3.8.
-  Patches by Pablo Galindo and Orivej Desh.  (Github issues :issue:`3171`, :issue:`3201`)
+  Patches by Pablo Galindo and Orivej Desh.  (Github issues :issue:`3171`, :pr:`3201`)
 
 * ``?`` for ``bool`` was missing from the supported NumPy dtypes.
   Patch by Max Klein.  (Github issue :issue:`2675`)
@@ -1253,7 +1253,7 @@ Bugs fixed
 ----------
 
 * Fix compile error in CPython 3.8b2 regarding the ``PyCode_New()`` signature.
-  Patch by Nick Coghlan. (Github issue :issue:`3009`)
+  Patch by Nick Coghlan. (Github pr :pr:`3009`)
 
 * Invalid C code generated for lambda functions in cdef methods.
   Patch by Josh Tobin.  (Github issue :issue:`2967`)
@@ -1553,7 +1553,7 @@ Features added
   Patch by Prakhar Goel.  (Github issue :issue:`2294`)
 
 * Some missing numpy and CPython C-API declarations were added.
-  Patch by John Kirkham. (Github issues :issue:`2523`, :issue:`2520`, :issue:`2537`)
+  Patch by John Kirkham. (Github issues :pr:`2523`, :issue:`2520`, :issue:`2537`)
 
 * Declarations for the ``pylifecycle`` C-API functions were added in a new .pxd file
   ``cpython.pylifecycle``.
@@ -1620,7 +1620,7 @@ Bugs fixed
   Patch by Matti Picus. (Github issue :issue:`2528`)
 
 * Some NumPy related code was updated to avoid deprecated API usage.
-  Original patch by jbrockmendel.  (Github issue :issue:`2559`)
+  Original patch by jbrockmendel.  (Github pr :pr:`2559`)
 
 * Several C++ STL declarations were extended and corrected.
   Patch by Valentin Valls. (Github issue :issue:`2207`)
@@ -1812,7 +1812,7 @@ Features added
 
 * C code in the docstring of a ``cdef extern`` block is copied verbatimly
   into the generated file.
-  Patch by Jeroen Demeyer.  (Github issue :issue:`1915`)
+  Patch by Jeroen Demeyer.  (Github pr :pr:`1915`)
 
 * When compiling with gcc, the module init function is now tuned for small
   code size instead of whatever compile flags were provided externally.
@@ -1995,7 +1995,7 @@ Bugs fixed
   type in ``libcpp.unordered_map``.  (Github issue :issue:`1484`)
 
 * Invalid use of C++ ``fallthrough`` attribute before C++11 and similar issue in clang.
-  (Github issue :issue:`1930`)
+  (Github pr :pr:`1930`)
 
 * Compiler crash on misnamed properties. (Github issue :issue:`1905`)
 
@@ -2111,7 +2111,7 @@ Features added
 * C++ classes can now contain (properly refcounted) Python objects.
 
 * NumPy dtype subarrays are now accessible through the C-API.
-  Patch by Gerald Dalley (Github issue :issue:`245`).
+  Patch by Gerald Dalley (Github pr :pr:`245`).
 
 * Resolves several issues with PyPy and uses faster async slots in PyPy3.
   Patch by Ronan Lamy (Github issues :issue:`1871`, :issue:`1878`).
@@ -2262,7 +2262,7 @@ Features added
 * The overhead of calling fused types generic functions was reduced.
 
 * "cdef extern" include files are now also searched relative to the current file.
-  Patch by Jeroen Demeyer (Github issue :issue:`1654`).
+  Patch by Jeroen Demeyer (Github pr :pr:`1654`).
 
 * Optional optimization for re-acquiring the GIL, controlled by the
   `fast_gil` directive.
