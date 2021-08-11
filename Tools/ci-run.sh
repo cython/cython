@@ -106,12 +106,10 @@ if [[ $OSTYPE == "msys" ]]; then  # for MSVC cl
   # 4127 warns that a conditional expression is constant, should be fixed here https://github.com/cython/cython/pull/4317
   # (off by default) 5045 warns that the compiler will insert Spectre mitigations for memory load if the /Qspectre switch is specified
   # (off by default) 4820 warns about the code in Python\3.9.6\x64\include ...
-  WARNARGS="/W4 /wd4711 /wd4127 /wd5045 /wd4820"
-  DEBUG_INFO="/Z7"
+  CFLAGS="/Z7 /W4 /wd4711 /wd4127 /wd5045 /wd4820"
   NO_OPTIMIZATION="-Od"
 else
-  WARNARGS="-Wall -Wextra"
-  DEBUG_INFO="-ggdb"
+  CFLAGS="-ggdb -Wall -Wextra"
   NO_OPTIMIZATION="-O0"
 fi
 
@@ -133,7 +131,7 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION == "pypy"* ]]; then
     ALIASING="-fno-strict-aliasing"
   fi
 
-  CFLAGS="-O2 $DEBUG_INFO $WARNARGS $ALIASING" \
+  CFLAGS="$CFLAGS -O2 $ALIASING" \
     python setup.py build_ext -i $SETUP_ARGS || exit 1
 
   if [[ $COVERAGE != "1" && $STACKLESS != "true" && -z $LIMITED_API &&
@@ -149,7 +147,7 @@ elif [[ $PYTHON_VERSION != "pypy"* && $OSTYPE != "msys" ]]; then
   # (but don't fail, because they currently do fail)
   PYTHON_DBG="python$( python -c 'import sys; print("%d.%d" % sys.version_info[:2])' )-dbg"
   if $PYTHON_DBG -V >&2; then
-    CFLAGS="$NO_OPTIMIZATION $DEBUG_INFO" $PYTHON_DBG \
+    CFLAGS="$CFLAGS $NO_OPTIMIZATION" $PYTHON_DBG \
       runtests.py -vv --no-code-style Debugger --backends=$BACKEND
   fi
 fi
@@ -161,7 +159,7 @@ if [[ $TEST_CODE_STYLE != "1" ]]; then
   RUNTESTS_ARGS="-j7"
 fi
 
-export CFLAGS="$NO_OPTIMIZATION $DEBUG_INFO $WARNARGS $EXTRA_CFLAGS"
+export CFLAGS="$CFLAGS $NO_OPTIMIZATION $EXTRA_CFLAGS"
 python runtests.py \
   -vv $STYLE_ARGS \
   -x Debugger \
