@@ -2021,7 +2021,7 @@ class StructOrUnionScope(Scope):
     def declare_var(self, name, type, pos,
                     cname = None, visibility = 'private',
                     api = 0, in_pxd = 0, is_cdef = 0,
-                    allow_pyobject=False, allow_memoryview=False):
+                    allow_pyobject=False, allow_memoryview=False, allow_refcounted=False):
         # Add an entry for an attribute.
         if not cname:
             cname = name
@@ -2032,11 +2032,16 @@ class StructOrUnionScope(Scope):
         entry = self.declare(name, cname, type, pos, visibility)
         entry.is_variable = 1
         self.var_entries.append(entry)
-        if type.is_pyobject and not allow_pyobject:
-            error(pos, "C struct/union member cannot be a Python object")
-        elif type.is_memoryviewslice and not allow_memoryview:
-            # Memory views wrap their buffer owner as a Python object.
-            error(pos, "C struct/union member cannot be a memory view")
+        if type.is_pyobject:
+            if not allow_pyobject:
+                error(pos, "C struct/union member cannot be a Python object")
+        elif type.is_memoryviewslice:
+            if not allow_memoryview:
+                # Memory views wrap their buffer owner as a Python object.
+                error(pos, "C struct/union member cannot be a memory view")
+        elif type.needs_refcounting:
+            if not allow_refcounted:
+                error(pos, "C struct/union member cannot be reference-counted type '%s'" % type)
         if visibility != 'private':
             error(pos, "C struct/union member cannot be declared %s" % visibility)
         return entry
