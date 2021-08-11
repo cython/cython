@@ -89,7 +89,7 @@ Bugs fixed
 * An unnecessary slow-down at import time was removed from ``Cython.Distutils``.
   Original patch by Anthony Sottile.  (Github pr :pr:`4224`)
 
-* Python modules were not automatically recompiled when only their ``.pxd`` file changed.
+* Pure Python modules were not automatically recompiled when only their ``.pxd`` file changed.
   Patch by Golden Rockefeller.  (Github issue :issue:`1428`)
 
 * The signature of ``PyFloat_FromString()`` in ``cpython.float`` was changed
