@@ -678,15 +678,17 @@ def get_type_information_cname(code, dtype, maxdepth=None):
             types = [get_type_information_cname(code, f.type, maxdepth - 1)
                      for f in fields]
             typecode.putln("static __Pyx_StructField %s[] = {" % structinfo_name, safe=True)
+
+            if dtype.is_cv_qualified:
+                # roughly speaking, remove "const" from struct_type
+                struct_type = dtype.cv_base_type.empty_declaration_code()
+            else:
+                struct_type = dtype.empty_declaration_code()
+
             for f, typeinfo in zip(fields, types):
-                if dtype.needs_cpp_construction:
-                    # for cpp: offsetof(StrucName, memberName)
-                    struct_type = dtype.cname
-                else:
-                    # for c: offsetof(struct StrucName, memberName)
-                    struct_type = dtype.empty_declaration_code()
                 typecode.putln('  {&%s, "%s", offsetof(%s, %s)},' %
                                (typeinfo, f.name, struct_type, f.cname), safe=True)
+
             typecode.putln('  {NULL, NULL, 0}', safe=True)
             typecode.putln("};", safe=True)
         else:
