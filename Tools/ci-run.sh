@@ -101,7 +101,7 @@ ccache -s 2>/dev/null || true
 export PATH="/usr/lib/ccache:$PATH"
 
 if [[ $OSTYPE == "msys" ]]; then  # for MSVC cl
-    # /wd disables warnings
+  # /wd disables warnings
   # 4711 warns that function `x` was selected for automatic inline expansion
   # 4127 warns that a conditional expression is constant, should be fixed here https://github.com/cython/cython/pull/4317
   # (off by default) 5045 warns that the compiler will insert Spectre mitigations for memory load if the /Qspectre switch is specified
@@ -134,8 +134,8 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION == "pypy"* ]]; then
   CFLAGS="$CFLAGS -O2 $ALIASING" \
     python setup.py build_ext -i $SETUP_ARGS || exit 1
 
-  if [[ $COVERAGE != "1" && $STACKLESS != "true" && -z $LIMITED_API &&
-        $CYTHON_COMPILE_ALL != "1" && -z $EXTRA_CFLAGS && $BACKEND != *"cpp"* ]]; then
+  if [[ $COVERAGE != "1" && $STACKLESS != "true" && $BACKEND != *"cpp"* &&
+        $CYTHON_COMPILE_ALL != "1" && -z $EXTRA_CFLAGS && -z $LIMITED_API ]]; then
     python setup.py bdist_wheel || exit 1
   fi
 fi
