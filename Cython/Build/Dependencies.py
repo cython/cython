@@ -1034,7 +1034,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                 # setup for out of place build directory if enabled
                 if build_dir:
                     if os.path.isabs(c_file):
-                        warnings.warn("build_dir has no effect for absolute source paths")
+                        c_file = c_file.split(os.sep, 1)[1]
                     c_file = os.path.join(build_dir, c_file)
                     dir = os.path.dirname(c_file)
                     safe_makedirs_once(dir)

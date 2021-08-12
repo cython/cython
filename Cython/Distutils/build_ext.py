@@ -12,13 +12,25 @@ else:
 
 
 class new_build_ext(_build_ext, object):
+
+    user_options = _build_ext.user_options[:]
+
+    user_options.extend([
+        ('c-build-dir=', None, "directory for generated c files"),
+    ])
+
+    def initialize_options(self):
+        _build_ext.initialize_options(self)
+        self.c_build_dir = None
+
     def finalize_options(self):
         if self.distribution.ext_modules:
             nthreads = getattr(self, 'parallel', None)  # -j option in Py3.5+
             nthreads = int(nthreads) if nthreads else None
             from Cython.Build.Dependencies import cythonize
             self.distribution.ext_modules[:] = cythonize(
-                self.distribution.ext_modules, nthreads=nthreads, force=self.force)
+                self.distribution.ext_modules, nthreads=nthreads,
+                force=self.force, quiet=self.verbose == 0, build_dir=self.c_build_dir)
         super(new_build_ext, self).finalize_options()
 
 # This will become new_build_ext in the future.

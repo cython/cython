@@ -355,7 +355,7 @@ class PyImporter(PyxImporter):
     def find_module(self, fullname, package_path=None):
         if fullname in sys.modules:
             return None
-        if fullname.startswith('Cython.'):
+        if fullname.startswith('Cython.') or fullname.startswith('distutils.'):
             return None
         if fullname in self.blocked_modules:
             # prevent infinite recursion
