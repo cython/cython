@@ -94,4 +94,3 @@ class TestCythonUtils(unittest.TestCase):
 
         clear_method_caches(obj)
         self.set_of_names_equal(obj, {names})
-
