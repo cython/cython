@@ -29,6 +29,9 @@ from . import __version__ as cython_version
 
 PACKAGE_FILES = ("__init__.py", "__init__.pyc", "__init__.pyx", "__init__.pxd")
 
+_CACHE_METHOD_NAME = "__{0}_cache"
+_METHOD_CACHE_PATTERN = re.compile(r"^__(.+)_cache$")
+
 modification_time = os.path.getmtime
 
 _function_caches = []
