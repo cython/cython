@@ -75,8 +75,8 @@ def clear_method_caches(obj):
     for cache_name, method_name in _find_cache_attributes(obj):
         if hasattr(obj, method_name):
             delattr(obj, cache_name)
-        # if there is no corresponding method,
-        # then this attribute was not created by our cached method
+        # if there is no corresponding method, then we assume
+        # that this attribute was not created by our cached method
 
 
 def cached_method(f):
