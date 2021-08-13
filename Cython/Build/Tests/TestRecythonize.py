@@ -1,212 +1,189 @@
-import shutil
 import os
+import shutil
 import tempfile
-import time
 
 import Cython.Build.Dependencies
 import Cython.Utils
-from Cython.TestUtils import CythonTest
+from Cython.TestUtils import (
+    CythonTest, clear_function_and_Dependencies_caches, fresh_cythonize,
+    relative_lines_from_file, write_file, write_newer_file)
 
+SAME = "The result of cythonization is the same"
+INCORRECT = "Incorrect cythonization"
+LINE_BEFORE_IMPLEMENTATION = '  /* "{filename}":{at_line}\n'
+VARS_LINE = '  /*--- Wrapped vars code ---*/\n'
 
-def fresh_cythonize(*args, **kwargs):
-    Cython.Utils.clear_function_caches()
-    Cython.Build.Dependencies._dep_tree = None  # discard method caches
-    Cython.Build.Dependencies.cythonize(*args, **kwargs)
 
 class TestRecythonize(CythonTest):
+    language_level = 3
+    dep_tree = Cython.Build.Dependencies.create_dependency_tree()
+    fallback_lines = (
+        VARS_LINE, -10, -1)  # XXX: VARS_LINE is assumed to always be present
 
     def setUp(self):
         CythonTest.setUp(self)
+        clear_function_and_Dependencies_caches()
         self.temp_dir = (
             tempfile.mkdtemp(
                 prefix='recythonize-test',
                 dir='TEST_TMP' if os.path.isdir('TEST_TMP') else None
             )
         )
+        self.src_dir = os.path.join(self.temp_dir, 'src')
+        os.mkdir(self.src_dir)
 
     def tearDown(self):
         CythonTest.tearDown(self)
+        clear_function_and_Dependencies_caches()
         shutil.rmtree(self.temp_dir)
 
-    def test_recythonize_pyx_on_pxd_change(self):
+    def fresh_cythonize(self, *args, **kwargs):
+        kwargs.update(language_level=self.language_level)
+        fresh_cythonize(*args, **kwargs)
 
-        src_dir = tempfile.mkdtemp(prefix='src', dir=self.temp_dir)
+    def refresh_dep_tree(self):
+        Cython.Utils.clear_function_caches()
+        Cython.Utils.clear_method_caches(self.dep_tree)
+        self.dep_tree._transitive_cache.clear()
 
-        a_pxd = os.path.join(src_dir, 'a.pxd')
-        a_pyx = os.path.join(src_dir, 'a.pyx')
-        a_c = os.path.join(src_dir, 'a.c')
-        dep_tree = Cython.Build.Dependencies.create_dependency_tree()
+    def fresh_all_dependencies(self, *args, **kwargs):
+        self.refresh_dep_tree()
+        return self.dep_tree.all_dependencies(*args, **kwargs)
 
-        with open(a_pxd, 'w') as f:
-            f.write('cdef int value\n')
+    def relative_lines_from_file(self, path, line, start, end):
+        return relative_lines_from_file(
+            path, line, start, end, fallback=self.fallback_lines)
 
-        with open(a_pyx, 'w') as f:
-            f.write('value = 1\n')
+    def recythonize_on_pxd_change(self, ext, pxd_exists_for_first_check):
+        module_filename = 'a' + ext
 
+        pxd_to_be_modified = os.path.join(self.src_dir, 'a.pxd')
+        module = os.path.join(self.src_dir, module_filename)
+        module_c_file = os.path.join(self.src_dir, 'a.c')  # should change
 
-        # The dependencies for "a.pyx" are "a.pxd" and "a.pyx".
-        self.assertEqual({a_pxd, a_pyx}, dep_tree.all_dependencies(a_pyx))
+        module_line_1 = LINE_BEFORE_IMPLEMENTATION.format(
+            filename=module_filename, at_line=1)
 
-        # Cythonize to create a.c
-        fresh_cythonize(a_pyx)
+        if pxd_exists_for_first_check:
+            write_file(pxd_to_be_modified, 'cdef int x\n')
 
-        # Sleep to address coarse time-stamp precision.
-        time.sleep(1)
+        write_file(module, 'x = 1\n')
 
-        with open(a_c) as f:
-            a_c_contents1 = f.read()
+        dependencies = self.fresh_all_dependencies(module)
+        self.assertIn(module, dependencies)
+        if pxd_exists_for_first_check:
+            self.assertIn(pxd_to_be_modified, dependencies)
+            self.assertEqual(2, len(dependencies))
+        else:
+            self.assertEqual(1, len(dependencies))
 
-        with open(a_pxd, 'w') as f:
-            f.write('cdef double value\n')
+        # Create a.c
+        self.fresh_cythonize(module)
 
-        fresh_cythonize(a_pyx)
+        definition_before = self.relative_lines_from_file(
+            module_c_file, module_line_1, 0, 7)
 
-        with open(a_c) as f:
-            a_c_contents2 = f.read()
+        if pxd_exists_for_first_check:
+            self.assertIn("a_x = 1;", definition_before, INCORRECT)
+        else:
+            self.assertNotIn("a_x = 1;", definition_before, INCORRECT)
 
-        self.assertTrue("__pyx_v_1a_value = 1;" in a_c_contents1)
-        self.assertFalse("__pyx_v_1a_value = 1;" in a_c_contents2)
-        self.assertTrue("__pyx_v_1a_value = 1.0;" in a_c_contents2)
-        self.assertFalse("__pyx_v_1a_value = 1.0;" in a_c_contents1)
+        # See https://github.com/cython/cython/issues/4245
+        write_newer_file(pxd_to_be_modified, module_c_file, 'cdef float x\n')
 
+        # otherwise nothing changes since there are no new files
+        if not pxd_exists_for_first_check:
+            dependencies = self.fresh_all_dependencies(module)
+            self.assertIn(module, dependencies)
+            self.assertIn(pxd_to_be_modified, dependencies)
+            self.assertEqual(2, len(dependencies))
+
+        # Change a.c
+        self.fresh_cythonize(module)
+
+        definition_after = self.relative_lines_from_file(
+            module_c_file, module_line_1, 0, 7)
+
+        self.assertNotIn("a_x = 1;", definition_after, SAME)
+        self.assertIn("a_x = 1.0;", definition_after, INCORRECT)
+
+    # pxd_exists_for_first_check is not used because cimport requires pxd
+    # to import another script.
+    def recythonize_on_dep_pxd_change(self, ext_a, ext_b):
+        dep_filename, module_filename = "a" + ext_a, "b" + ext_b
+
+        pxd_to_be_modified = os.path.join(self.src_dir, 'a.pxd')
+        module_dependency = os.path.join(self.src_dir, dep_filename)
+        dep_c_file = os.path.join(self.src_dir, 'a.c')  # should change
+        pxd_for_cimport = os.path.join(self.src_dir, 'b.pxd')
+        module = os.path.join(self.src_dir, module_filename)
+        module_c_file = os.path.join(self.src_dir, 'b.c')  # should change
+
+        dep_line_1 = LINE_BEFORE_IMPLEMENTATION.format(
+            filename=dep_filename, at_line=1)
+        module_line_1 = LINE_BEFORE_IMPLEMENTATION.format(
+            filename=module_filename, at_line=1)
+
+        write_file(pxd_to_be_modified, 'cdef int x\n')
+        write_file(module_dependency, 'x = 1\n')
+        write_file(pxd_for_cimport, 'cimport a\n')
+        write_file(module, 'a.x = 2\n')
+
+        dependencies = self.fresh_all_dependencies(module)
+        self.assertIn(pxd_for_cimport, dependencies)
+        self.assertIn(module, dependencies)
+        self.assertIn(pxd_to_be_modified, dependencies)
+        self.assertEqual(3, len(dependencies))
+
+        # Create a.c and b.c
+        self.fresh_cythonize([module_dependency, module])
+
+        dep_definition_before = self.relative_lines_from_file(
+            dep_c_file, dep_line_1, 0, 7)
+
+        module_definition_before = self.relative_lines_from_file(
+            module_c_file, module_line_1, 0, 7)
+
+        self.assertIn("a_x = 1;", dep_definition_before, INCORRECT)
+        self.assertIn("a_x = 2;", module_definition_before, INCORRECT)
+
+        # See https://github.com/cython/cython/issues/4245
+        write_newer_file(pxd_to_be_modified, module_c_file, 'cdef float x\n')
+
+        # Change a.c and b.c
+        self.fresh_cythonize([module_dependency, module])
+
+        dep_definition_after = self.relative_lines_from_file(
+            dep_c_file, dep_line_1, 0, 7)
+
+        module_definition_after = self.relative_lines_from_file(
+            module_c_file, module_line_1, 0, 7)
+
+        self.assertNotIn("a_x = 1;", dep_definition_after, SAME)
+        self.assertNotIn("a_x = 2;", module_definition_after, SAME)
+        self.assertIn("a_x = 1.0;", dep_definition_after, INCORRECT)
+        self.assertIn("a_x = 2.0;", module_definition_after, INCORRECT)
 
     def test_recythonize_py_on_pxd_change(self):
+        self.recythonize_on_pxd_change(".py", pxd_exists_for_first_check=True)
 
-        src_dir = tempfile.mkdtemp(prefix='src', dir=self.temp_dir)
+    def test_recythonize_pyx_on_pxd_change(self):
+        self.recythonize_on_pxd_change(".pyx", pxd_exists_for_first_check=True)
 
-        a_pxd = os.path.join(src_dir, 'a.pxd')
-        a_py = os.path.join(src_dir, 'a.py')
-        a_c = os.path.join(src_dir, 'a.c')
-        dep_tree = Cython.Build.Dependencies.create_dependency_tree()
+    def test_recythonize_py_on_pxd_creating(self):
+        self.recythonize_on_pxd_change(".py", pxd_exists_for_first_check=False)
 
-        with open(a_pxd, 'w') as f:
-            f.write('cdef int value\n')
+    def test_recythonize_pyx_on_pxd_creating(self):
+        self.recythonize_on_pxd_change(".pyx", pxd_exists_for_first_check=False)
 
-        with open(a_py, 'w') as f:
-            f.write('value = 1\n')
+    def test_recythonize_py_py_on_dep_pxd_change(self):
+        self.recythonize_on_dep_pxd_change(".py", ".py")
 
+    def test_recythonize_py_pyx_on_dep_pxd_change(self):
+        self.recythonize_on_dep_pxd_change(".py", ".pyx")
 
-        # The dependencies for "a.py" are "a.pxd" and "a.py".
-        self.assertEqual({a_pxd, a_py}, dep_tree.all_dependencies(a_py))
+    def test_recythonize_pyx_py_on_dep_pxd_change(self):
+        self.recythonize_on_dep_pxd_change(".pyx", ".py")
 
-        # Cythonize to create a.c
-        fresh_cythonize(a_py)
-
-        # Sleep to address coarse time-stamp precision.
-        time.sleep(1)
-
-        with open(a_c) as f:
-            a_c_contents1 = f.read()
-
-        with open(a_pxd, 'w') as f:
-            f.write('cdef double value\n')
-
-        fresh_cythonize(a_py)
-
-        with open(a_c) as f:
-            a_c_contents2 = f.read()
-
-
-        self.assertTrue("__pyx_v_1a_value = 1;" in a_c_contents1)
-        self.assertFalse("__pyx_v_1a_value = 1;" in a_c_contents2)
-        self.assertTrue("__pyx_v_1a_value = 1.0;" in a_c_contents2)
-        self.assertFalse("__pyx_v_1a_value = 1.0;" in a_c_contents1)
-
-    def test_recythonize_pyx_on_dep_pxd_change(self):
-        src_dir = tempfile.mkdtemp(prefix='src', dir=self.temp_dir)
-
-        a_pxd = os.path.join(src_dir, 'a.pxd')
-        a_pyx = os.path.join(src_dir, 'a.pyx')
-        b_pyx = os.path.join(src_dir, 'b.pyx')
-        b_c = os.path.join(src_dir, 'b.c')
-        dep_tree = Cython.Build.Dependencies.create_dependency_tree()
-
-        with open(a_pxd, 'w') as f:
-            f.write('cdef int value\n')
-
-        with open(a_pyx, 'w') as f:
-            f.write('value = 1\n')
-
-        with open(b_pyx, 'w') as f:
-            f.write('cimport a\n' + 'a.value = 2\n')
-
-
-        # The dependencies for "b.pyx" are "a.pxd" and "b.pyx".
-        self.assertEqual({a_pxd, b_pyx}, dep_tree.all_dependencies(b_pyx))
-
-
-        # Cythonize to create b.c
-        fresh_cythonize([a_pyx, b_pyx])
-
-        # Sleep to address coarse time-stamp precision.
-        time.sleep(1)
-
-        with open(b_c) as f:
-            b_c_contents1 = f.read()
-
-        with open(a_pxd, 'w') as f:
-            f.write('cdef double value\n')
-
-        fresh_cythonize([a_pyx, b_pyx])
-
-        with open(b_c) as f:
-            b_c_contents2 = f.read()
-
-
-
-        self.assertTrue("__pyx_v_1a_value = 2;" in b_c_contents1)
-        self.assertFalse("__pyx_v_1a_value = 2;" in b_c_contents2)
-        self.assertTrue("__pyx_v_1a_value = 2.0;" in b_c_contents2)
-        self.assertFalse("__pyx_v_1a_value = 2.0;" in b_c_contents1)
-
-
-
-    def test_recythonize_py_on_dep_pxd_change(self):
-
-        src_dir = tempfile.mkdtemp(prefix='src', dir=self.temp_dir)
-
-        a_pxd = os.path.join(src_dir, 'a.pxd')
-        a_pyx = os.path.join(src_dir, 'a.pyx')
-        b_pxd = os.path.join(src_dir, 'b.pxd')
-        b_py = os.path.join(src_dir, 'b.py')
-        b_c = os.path.join(src_dir, 'b.c')
-        dep_tree = Cython.Build.Dependencies.create_dependency_tree()
-
-        with open(a_pxd, 'w') as f:
-            f.write('cdef int value\n')
-
-        with open(a_pyx, 'w') as f:
-            f.write('value = 1\n')
-
-        with open(b_pxd, 'w') as f:
-            f.write('cimport a\n')
-
-        with open(b_py, 'w') as f:
-            f.write('a.value = 2\n')
-
-
-        # The dependencies for b.py are "a.pxd", "b.pxd" and "b.py".
-        self.assertEqual({a_pxd, b_pxd, b_py}, dep_tree.all_dependencies(b_py))
-
-
-        # Cythonize to create b.c
-        fresh_cythonize([a_pyx, b_py])
-
-        # Sleep to address coarse time-stamp precision.
-        time.sleep(1)
-
-        with open(b_c) as f:
-            b_c_contents1 = f.read()
-
-        with open(a_pxd, 'w') as f:
-            f.write('cdef double value\n')
-
-        fresh_cythonize([a_pyx, b_py])
-
-        with open(b_c) as f:
-            b_c_contents2 = f.read()
-
-        self.assertTrue("__pyx_v_1a_value = 2;" in b_c_contents1)
-        self.assertFalse("__pyx_v_1a_value = 2;" in b_c_contents2)
-        self.assertTrue("__pyx_v_1a_value = 2.0;" in b_c_contents2)
-        self.assertFalse("__pyx_v_1a_value = 2.0;" in b_c_contents1)
+    def test_recythonize_pyx_pyx_on_dep_pxd_change(self):
+        self.recythonize_on_dep_pxd_change(".pyx", ".pyx")

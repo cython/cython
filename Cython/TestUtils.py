@@ -1,18 +1,19 @@
 from __future__ import absolute_import
 
 import os
-import unittest
 import shlex
 import sys
 import tempfile
 import textwrap
+import unittest
 from io import open
 
-from .Compiler import Errors
+from . import Utils
+from .Build import Dependencies
 from .CodeWriter import CodeWriter
+from .Compiler import Errors, TreePath
 from .Compiler.TreeFragment import TreeFragment, strip_common_indent
 from .Compiler.Visitor import TreeVisitor, VisitorTransform
-from .Compiler import TreePath
 
 
 class NodeTypeWriter(TreeVisitor):
@@ -49,6 +50,7 @@ def treetypes(root):
 
 
 class CythonTest(unittest.TestCase):
+    longMessage = True  # for consistency between python versions
 
     def setUp(self):
         self.listing_file = Errors.listing_file
@@ -228,23 +230,88 @@ def unpack_source_tree(tree_file, workdir, cython_root):
     return workdir, header
 
 
-def write_file(file_path, content, dedent=False):
+def clear_function_and_Dependencies_caches():
+    Utils.clear_function_caches()
+    Dependencies._dep_tree = None  # discard method caches
+
+
+def fresh_cythonize(*args, **kwargs):
+    """Clear function caches and run cythonize"""
+    clear_function_and_Dependencies_caches()
+    Dependencies.cythonize(*args, **kwargs)
+
+
+def touch_file(path):
+    """Set the access and modified times of the file
+    specified by path as the current time"""
+
+    os.utime(path, None)
+
+
+def relative_items(sequence, item, start, end, fallback=None):
+    """Returns the slice of the `sequence` specified by
+    `start` and `end` relative to `item` index.
+
+    If the `item` is not found in `sequence` and Iterable `fallback` is specified,
+    it will be used for new `item`, `start`, `end` that will be applied
+    to `sequence` to generate a message for a ValueError."""
+
+    try:
+        ind = sequence.index(item)
+    except ValueError as e:
+        if fallback is None:
+            raise e
+
+        fallback_items = map(repr, relative_items(sequence, *fallback))
+
+        raise ValueError(
+            "{0!r} was not found, presumably in \n{1}".format(
+                item, "\n".join(fallback_items)))
+
+    return sequence[ind+start: ind+end]
+
+
+def relative_lines_from_file(path, line, start, end, fallback=None):
+    """Same as `relative_items`, but uses lines from the `path`
+    as `sequence`, `line` as `item` and returns joined lines."""
+
+    with open(path) as f:
+        lines = f.readlines()
+
+    return "".join(relative_items(lines, line, start, end, fallback=fallback))
+
+
+def write_file(file_path, content, dedent=False, encoding="utf-8"):
+    r"""Write some content (text or bytes) to the file
+    at `file_path` without translating `'\n'` into `os.linesep`.
     """
-    Write some content (text or bytes) to the file at "file_path".
-    """
-    mode = 'wb' if isinstance(content, bytes) else 'w'
+
+    _encoding = None
+    newline = None
+    mode = "w"
+    if isinstance(content, bytes):
+        mode += "b"
+    else:
+        _encoding = encoding
+
+        # any "\n" characters written are not translated
+        # to the system default line separator, os.linesep
+        newline = "\n"
+
     if dedent:
         content = textwrap.dedent(content)
 
-    with open(file_path, mode=mode) as f:
+    with open(file_path, mode=mode, encoding=_encoding, newline=newline) as f:
         f.write(content)
 
 
-def write_newer_file(file_path, newer_than, content, dedent=False):
+def write_newer_file(file_path, newer_than, content, dedent=False,
+                     encoding="utf-8"):
+    r"""
+    Write `content` to the file `file_path` without translating `'\n'`
+    into `os.linesep` and make sure it is newer than the file `newer_than`.
     """
-    Write 'content' to the file 'file_path' and make sure it is newer than the file 'newer_than'.
-    """
-    write_file(file_path, content, dedent=dedent)
+    write_file(file_path, content, dedent=dedent, encoding=encoding)
 
     try:
         other_time = os.path.getmtime(newer_than)
@@ -253,4 +320,39 @@ def write_newer_file(file_path, newer_than, content, dedent=False):
         other_time = None
 
     while other_time is None or other_time >= os.path.getmtime(file_path):
-        write_file(file_path, content, dedent=dedent)
+        touch_file(file_path)
+
+
+def filled_function_caches():
+    for cache in Utils._function_caches:
+        if len(cache) != 0:
+            yield cache
+
+
+def number_of_filled_caches():
+    return len(list(filled_function_caches()))
+
+
+# or function_caches_sandbox
+def sandbox_for_function_caches(asserted=True):
+    """Isolates the function from `_function_caches`, and replaces
+    `_function_caches` with empty for the duration of the function,
+    and then replaces it back with the original
+    Use set_up_test_in_sandbox function to setup test"""
+
+    def decorator(function):
+        def wrapper(self):
+            _function_caches_before = Utils._function_caches
+            Utils._function_caches = []
+            if asserted:
+                self.assertEqual(number_of_filled_caches(), 0)
+
+            try:
+                self.set_up_test_in_sandbox()
+            except AttributeError: pass
+
+            function(self)
+
+            Utils._function_caches = _function_caches_before
+        return wrapper
+    return decorator
