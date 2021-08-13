@@ -265,9 +265,9 @@ class TestLocalsGlobals(DebugTestCase):
         self.break_and_run('int(10)')
 
         result = gdb.execute('cy locals', to_string=True)
-        assert 'a = 0', repr(result)
-        assert 'b = (int) 1', result
-        assert 'c = (int) 2' in result, repr(result)
+        self.assertIn('a = 0', result)
+        self.assertIn('b = (int) 1', result)
+        self.assertIn('c = (int) 2', result)
 
     def test_globals(self):
         self.break_and_run('int(10)')
