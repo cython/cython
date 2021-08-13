@@ -32,11 +32,11 @@ class TestTestUtils(unittest.TestCase):
     def _test_write_file(self, content, expected, **kwargs):
         file_path = self._test_path("abcfile")
         write_file(file_path, content, **kwargs)
-        self.assertTrue(os.path.isfile(file_path))
+        assert os.path.isfile(file_path)
 
         with open(file_path, 'rb') as f:
             found = f.read()
-        self.assertEqual(found, expected, (repr(expected), repr(found)))
+        assert found == expected, (repr(expected), repr(found))
 
     def test_write_file_text(self):
         text = u"abcüöä"
@@ -58,23 +58,23 @@ class TestTestUtils(unittest.TestCase):
         file_path_1 = self._test_path("abcfile1.txt")
         file_path_2 = self._test_path("abcfile2.txt")
         write_file(file_path_1, "abc")
-        self.assertTrue(os.path.isfile(file_path_1))
+        assert os.path.isfile(file_path_1)
         write_newer_file(file_path_2, file_path_1, "xyz")
-        self.assertTrue(os.path.isfile(file_path_2))
-        self.assertGreater(os.path.getmtime(file_path_2), os.path.getmtime(file_path_1))
+        assert os.path.isfile(file_path_2)
+        assert os.path.getmtime(file_path_2) > os.path.getmtime(file_path_1)
 
     def test_write_newer_file_same(self):
         file_path = self._test_path("abcfile.txt")
         write_file(file_path, "abc")
         mtime = os.path.getmtime(file_path)
         write_newer_file(file_path, file_path, "xyz")
-        self.assertGreater(os.path.getmtime(file_path), mtime)
+        assert os.path.getmtime(file_path) > mtime
 
     def test_write_newer_file_fresh(self):
         file_path = self._test_path("abcfile.txt")
-        self.assertFalse(os.path.exists(file_path))
+        assert not os.path.exists(file_path)
         write_newer_file(file_path, file_path, "xyz")
-        self.assertTrue(os.path.isfile(file_path))
+        assert os.path.isfile(file_path)
 
     ################################# Sandbox ##################################
 

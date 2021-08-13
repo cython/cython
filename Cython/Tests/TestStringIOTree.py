@@ -29,7 +29,7 @@ class TestStringIOTree(unittest.TestCase):
         self.tree = stringtree.StringIOTree()
 
     def test_markers(self):
-        self.assertFalse(self.tree.allmarkers())
+        assert not self.tree.allmarkers()
 
     def test_insertion(self):
         self.write_lines((1, 2, 3))
