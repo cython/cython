@@ -974,7 +974,7 @@ class AsyncGenAsyncioTest(unittest.TestCase):
                 DONE += 1000
                 yield v * 2
             finally:
-                self.assertEqual(sys.exc_info()[0], ZeroDivisionError)
+                assert sys.exc_info()[0] == ZeroDivisionError
                 await asyncio.sleep(0.01)
                 await asyncio.sleep(0.01)
                 DONE += 1
