@@ -257,13 +257,11 @@ class TestDebugTransform(DebuggerTestCase):
 
             # test arguments of functions
             spam_arguments = list(spam.find('Arguments'))
-            assert spam_arguments
-            self.assertEqual(1, len(list(spam_arguments)))
+            self.assertEqual(1, len(spam_arguments))
 
             # test step-into functions
             step_into = spam.find('StepIntoFunctions')
             spam_stepinto = [x.attrib['name'] for x in step_into]
-            assert spam_stepinto
             self.assertEqual(2, len(spam_stepinto))
             self.assertIn('puts', spam_stepinto)
             self.assertIn('some_c_function', spam_stepinto)
