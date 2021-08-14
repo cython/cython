@@ -49,13 +49,13 @@ class TestBufferOptions(CythonTest):
         self.assertTrue(self.expect_error)
 
     def parse_opts(self, opts, expect_error=False):
-        assert opts != ""
+        self.assertNotEqual(opts, "")
         s = u"def f():\n  cdef object[%s] x" % opts
         self.expect_error = expect_error
         root = self.fragment(s, pipeline=[NormalizeTree(self), PostParse(self)]).root
         if not expect_error:
             vardef = root.stats[0].body.stats[0]
-            assert isinstance(vardef, CVarDefNode)  # use normal assert as this is to validate the test code
+            self.assertIsInstance(vardef, CVarDefNode)
             buftype = vardef.base_type
             self.assertTrue(isinstance(buftype, TemplatedTypeNode))
             self.assertTrue(isinstance(buftype.base_type_node, CSimpleBaseTypeNode))
