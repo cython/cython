@@ -202,7 +202,7 @@ class TestInterpretCompilerDirectives(TransformTest):
 
 
 # TODO: Re-enable once they're more robust.
-if False:
+if True:
     from Cython.Debugger import DebugWriter
     from Cython.Debugger.Tests.TestLibCython import DebuggerTestCase
 else:
