@@ -217,18 +217,18 @@ class TestDebugTransform(DebuggerTestCase):
 
     def test_debug_info(self):
         try:
-            assert os.path.exists(self.debug_dest)
+            self.assertTrue(os.path.exists(self.debug_dest))
 
             t = DebugWriter.etree.parse(self.debug_dest)
             # the xpath of the standard ElementTree is primitive, don't use
             # anything fancy
             L = list(t.find('/Module/Globals'))
-            assert L
+            self.assertNotEqual(len(L), 0)
             xml_globals = dict((e.attrib['name'], e.attrib['type']) for e in L)
             self.assertEqual(len(L), len(xml_globals))
 
             L = list(t.find('/Module/Functions'))
-            assert L
+            self.assertNotEqual(len(L), 0)
             xml_funcs = dict((e.attrib['qualified_name'], e) for e in L)
             self.assertEqual(len(L), len(xml_funcs))
 
@@ -240,20 +240,20 @@ class TestDebugTransform(DebuggerTestCase):
             funcnames = ('codefile.spam', 'codefile.ham', 'codefile.eggs',
                          'codefile.closure', 'codefile.inner')
             required_xml_attrs = 'name', 'cname', 'qualified_name'
-            assert all(f in xml_funcs for f in funcnames)
+            self.assertTrue(all(f in xml_funcs for f in funcnames))
             spam, ham, eggs = [xml_funcs[funcname] for funcname in funcnames]
 
             self.assertEqual(spam.attrib['name'], 'spam')
             self.assertNotEqual('spam', spam.attrib['cname'])
-            assert self.elem_hasattrs(spam, required_xml_attrs)
+            self.assertTrue(self.elem_hasattrs(spam, required_xml_attrs))
 
             # test locals of functions
             spam_locals = list(spam.find('Locals'))
-            assert spam_locals
+            self.assertNotEqual(len(spam_locals), 0)
             spam_locals.sort(key=lambda e: e.attrib['name'])
             names = [e.attrib['name'] for e in spam_locals]
             self.assertEqual(list('abcd'), names)
-            assert self.elem_hasattrs(spam_locals[0], required_xml_attrs)
+            self.assertTrue(self.elem_hasattrs(spam_locals[0], required_xml_attrs))
 
             # test arguments of functions
             spam_arguments = list(spam.find('Arguments'))
@@ -265,8 +265,8 @@ class TestDebugTransform(DebuggerTestCase):
             spam_stepinto = [x.attrib['name'] for x in step_into]
             assert spam_stepinto
             self.assertEqual(2, len(spam_stepinto))
-            assert 'puts' in spam_stepinto
-            assert 'some_c_function' in spam_stepinto
+            self.assertIn('puts', spam_stepinto)
+            self.assertIn('some_c_function', spam_stepinto)
         except:
             f = open(self.debug_dest)
             try:
