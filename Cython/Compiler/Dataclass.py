@@ -381,8 +381,9 @@ def generate_repr_code(repr, node, fields):
     if not repr or node.scope.lookup("__repr__"):
         return "", {}, []
     code_lines = ["def __repr__(self):"]
-    strs = [ u"%s={self.%s}" % (name, name)
-            for name, field in fields.items() if field.repr.value and not field.is_initvar ]
+    strs = [u"%s={self.%s}" % (name, name)
+            for name, field in fields.items()
+            if field.repr.value and not field.is_initvar]
     format_string = u", ".join(strs)
     code_lines.append(u"    return f'{type(self).__name__}(%s)'" % format_string)
     code_lines = u"\n".join(code_lines)
@@ -393,7 +394,7 @@ def generate_cmp_code(op, funcname, node, fields):
     if node.scope.lookup_here(funcname):
         return "", {}, []
 
-    names = [ name for name, field in fields.items() if (field.compare.value and not field.is_initvar) ]
+    names = [name for name, field in fields.items() if (field.compare.value and not field.is_initvar)]
 
     if not names:
         return "", {}, []  # no comparable types
@@ -421,6 +422,7 @@ def generate_cmp_code(op, funcname, node, fields):
     for name in names:
         checks.append("(self.%s %s other_cast.%s)" % (
             name, op, name))
+
     if checks:
         code_lines.append("    return " + " and ".join(checks))
     else:
@@ -510,8 +512,7 @@ def generate_hash_code(unsafe_hash, eq, frozen, node, fields):
 
     names = [
         name for name, field in fields.items()
-        if (not field.is_initvar and
-            (field.compare.value if field.hash.value is None else field.hash.value))
+        if not field.is_initvar and (field.hash.value or field.compare.value)
     ]
     if not names:
         return "", {}, []  # nothing to hash
@@ -549,7 +550,7 @@ class GetTypeNode(ExprNodes.ExprNode):
             py_name = type.py_type_name()
             # int types can return "(int, long)"
             if py_name:
-                names = [ name.strip("() ") for name in py_name.split(",") ]
+                names = [name.strip("() ") for name in py_name.split(",")]
             if names:
                 for name in names:
                     name = EncodedString(name)
@@ -650,9 +651,9 @@ def _set_up_dataclass_fields(node, fields, dataclass_module):
 
         dc_field_keywords = ExprNodes.DictNode.from_pairs(
             node.pos,
-            [ (ExprNodes.IdentifierStringNode(node.pos, value=EncodedString(k)),
+            [(ExprNodes.IdentifierStringNode(node.pos, value=EncodedString(k)),
                FieldsValueNode(node.pos, arg=v))
-              for k, v in field.__dict__.items() if k not in ["is_initvar", "private"] ]
+              for k, v in field.__dict__.items() if k not in ["is_initvar", "private"]]
         )
         dc_field_call = ExprNodes.GeneralCallNode(
             node.pos, function = field_func,
