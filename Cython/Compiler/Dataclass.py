@@ -310,6 +310,8 @@ def generate_init_code(init, node, fields):
     default_factory_placeholder = get_placeholder_name()
     placeholders[default_factory_placeholder] = has_default_factory
 
+    function_body_code_lines = []
+
     seen_default = False
     for name, field in fields.items():
         if not field.init.value:
@@ -334,19 +336,12 @@ def generate_init_code(init, node, fields):
             return "", {}, []
 
         args.append(u"%s%s%s" % (name, annotation, assignment))
-    args = u", ".join(args)
-    func_call = u"def __init__(%s):" % args
 
-    code_lines = [
-        func_call,
-        "    pass",  # just in-case it's an empty body
-    ]
-    for name, field in fields.items():
         if field.is_initvar:
             continue
         elif field.default_factory is MISSING:
             if field.init.value:
-                code_lines.append(u"    %s.%s = %s" % (selfname, name, name))
+                function_body_code_lines.append(u"    %s.%s = %s" % (selfname, name, name))
         else:
             ph_name = get_placeholder_name()
             placeholders[ph_name] = field.default_factory
@@ -354,12 +349,18 @@ def generate_init_code(init, node, fields):
                 # close to:
                 # def __init__(self, name=_PLACEHOLDER_VALUE):
                 #     self.name = name_default_factory() if name is _PLACEHOLDER_VALUE else name
-                code_lines.append(u"    %s.%s = %s() if %s is %s else %s" % (
+                function_body_code_lines.append(u"    %s.%s = %s() if %s is %s else %s" % (
                     selfname, name, ph_name, name, default_factory_placeholder, name))
             else:
                 # still need to use the default factory to initialize
-                code_lines.append(u"    %s.%s = %s()"
+                function_body_code_lines.append(u"    %s.%s = %s()"
                                   % (selfname, name, ph_name))
+
+    args = u", ".join(args)
+    func_def = u"def __init__(%s):" % args
+
+    code_lines = [func_def] + (function_body_code_lines or ["pass"])
+
     if node.scope.lookup("__post_init__"):
         post_init_vars = ", ".join(name for name, field in fields.items()
                                    if field.is_initvar)
@@ -512,7 +513,8 @@ def generate_hash_code(unsafe_hash, eq, frozen, node, fields):
 
     names = [
         name for name, field in fields.items()
-        if not field.is_initvar and (field.hash.value or field.compare.value)
+        if (not field.is_initvar and
+            (field.compare.value if field.hash.value is None else field.hash.value))
     ]
     if not names:
         return "", {}, []  # nothing to hash
@@ -530,9 +532,11 @@ def generate_hash_code(unsafe_hash, eq, frozen, node, fields):
 
 
 class GetTypeNode(ExprNodes.ExprNode):
-    # Tries to return a pytype_type if possible. However contains
-    # some fallback provision if it turns out not to resolve to a Python object.
-    # Initialize with "entry".
+    """
+    Tries to return a PyType_Type if possible. However contains
+    some fallback provision if it turns out not to resolve to a Python object.
+    Initialize with "entry".
+    """
 
     subexprs = []
 
@@ -566,13 +570,19 @@ class GetTypeNode(ExprNodes.ExprNode):
         return ExprNodes.StringNode(self.pos, value=s).analyse_types(env)
 
 
-class FieldsValueNode(ExprNodes.ExprNode):
-    # largely just forwards arg. Allows it to be coerced to a Python object
-    # if possible, and if not then generates a sensible backup string
+class FieldRecordNode(ExprNodes.ExprNode):
+    """
+    __dataclass_fields__ contains a bunch of field objects recording how each field
+    of the dataclass was initialized (mainly corresponding to the arguments passed to
+    the "field" function). This node is used for the attributes of these field objects.
+
+    If possible, coerces `arg` to a Python object.
+    Otherwise, generates a sensible backup string.
+    """
     subexprs = ['arg']
 
     def __init__(self, pos, arg):
-        super(FieldsValueNode, self).__init__(pos, arg=arg)
+        super(FieldRecordNode, self).__init__(pos, arg=arg)
 
     def analyse_types(self, env):
         self.arg.analyse_types(env)
@@ -652,7 +662,7 @@ def _set_up_dataclass_fields(node, fields, dataclass_module):
         dc_field_keywords = ExprNodes.DictNode.from_pairs(
             node.pos,
             [(ExprNodes.IdentifierStringNode(node.pos, value=EncodedString(k)),
-               FieldsValueNode(node.pos, arg=v))
+               FieldRecordNode(node.pos, arg=v))
               for k, v in field.__dict__.items() if k not in ["is_initvar", "private"]]
         )
         dc_field_call = ExprNodes.GeneralCallNode(
