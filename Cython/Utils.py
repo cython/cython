@@ -29,8 +29,8 @@ from . import __version__ as cython_version
 
 PACKAGE_FILES = ("__init__.py", "__init__.pyc", "__init__.pyx", "__init__.pxd")
 
-_CACHE_METHOD_NAME = "__{0}_cache"
-_METHOD_CACHE_PATTERN = re.compile(r"^__(.+)_cache$")
+_CACHE_NAME = "__{0}_cache"
+_CACHE_NAME_PATTERN = re.compile(r"^__(.+)_cache$")
 
 modification_time = os.path.getmtime
 
@@ -63,7 +63,7 @@ def _find_cache_attributes(obj):
     The method may not be present in the object.
     """
     for attr_name in dir(obj):
-        match = _METHOD_CACHE_PATTERN.match(attr_name)
+        match = _CACHE_NAME_PATTERN.match(attr_name)
         if match is not None:
             yield attr_name, match.group(1)
 
@@ -80,7 +80,7 @@ def clear_method_caches(obj):
 
 
 def cached_method(f):
-    cache_name = _CACHE_METHOD_NAME.format(f.__name__)
+    cache_name = _CACHE_NAME.format(f.__name__)
 
     def wrapper(self, *args):
         cache = getattr(self, cache_name, None)
