@@ -240,7 +240,7 @@ class TestStep(DebugStepperTestCase):
         # be compatible
         frame_name = pyframe.co_name.proxyval(set())
         self.assertEqual(frame_name, 'join')
-        self.assertRegexpMatches(result, r'^\d+    def join\($'), result
+        self.assertRegexpMatches(result, r'^\d+    def join\('), result
 
 
 class TestNext(DebugStepperTestCase):
@@ -457,10 +457,10 @@ class TestCyEval(DebugTestCase):
         self.break_and_run('os.path.join("foo", "bar")')
 
         result = gdb.execute('print $cy_eval("None")', to_string=True)
-        self.assertRegexpMatches(result, r'^\$\d+ = None\n$')
+        self.assertRegexpMatches(result, r'^\$\d+ = None\n')
 
         result = gdb.execute('print $cy_eval("[a]")', to_string=True)
-        self.assertRegexpMatches(result, r'^\$\d+ = \[0\]$')
+        self.assertRegexpMatches(result, r'^\$\d+ = \[0\]')
 
 
 class TestClosure(DebugTestCase):
