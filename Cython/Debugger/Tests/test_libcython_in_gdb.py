@@ -174,7 +174,8 @@ class TestBreak(DebugTestCase):
         self.lineno_equals(beginline)
         step_result = gdb.execute('cy step', to_string=True)
         self.lineno_equals(nextline)
-        self.assertTrue(step_result.rstrip().endswith(nextline))
+        end = step_result.rstrip()[-len(nextline):]
+        self.assertEqual(end, nextline)
 
 
 # I removed this testcase, because it will never work, because
