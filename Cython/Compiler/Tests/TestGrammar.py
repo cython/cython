@@ -109,14 +109,16 @@ class TestGrammar(CythonTest):
         for literal in INVALID_UNDERSCORE_LITERALS:
             for expression in ['%s', '1 + %s', '%s + 1', '2 * %s', '%s * 2']:
                 code = 'x = ' + expression % literal
-                try:
+                msg = "Invalid Cython code '%s'" % code
+
+                with self.assertRaises(CompileError, msg=msg) as cm:
                     self.fragment(u'''\
                     # cython: language_level=3
                     ''' + code)
-                except CompileError as exc:
-                    self.assertIn(code, [s.strip() for s in str(exc).splitlines()], str(exc))
-                else:
-                    self.assertTrue(False, "Invalid Cython code '%s' failed to raise an exception" % code)
+
+                exc = str(cm.exception)
+                self.assertIn(code, [s.strip() for s in exc.splitlines()], exc)
+
 
     def test_valid_number_literals(self):
         for literal in VALID_UNDERSCORE_LITERALS:
