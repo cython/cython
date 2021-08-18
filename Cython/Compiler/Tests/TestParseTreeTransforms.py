@@ -212,8 +212,8 @@ else:
 
 class TestDebugTransform(DebuggerTestCase):
 
-    def elem_hasattrs(self, elem, attrs):
-        return all(attr in elem.attrib for attr in attrs)
+    def assert_elem_hasattrs(self, elem, attrs):
+        self.assertEqual(set(attrs) - set(elem.attrib), set())
 
     def test_debug_info(self):
         try:
@@ -240,12 +240,12 @@ class TestDebugTransform(DebuggerTestCase):
             funcnames = ('codefile.spam', 'codefile.ham', 'codefile.eggs',
                          'codefile.closure', 'codefile.inner')
             required_xml_attrs = 'name', 'cname', 'qualified_name'
-            self.assertTrue(all(f in xml_funcs for f in funcnames))
+            self.assertEqual(set(funcnames) - set(xml_funcs), set())
             spam, ham, eggs = [xml_funcs[funcname] for funcname in funcnames]
 
             self.assertEqual(spam.attrib['name'], 'spam')
             self.assertNotEqual('spam', spam.attrib['cname'])
-            self.assertTrue(self.elem_hasattrs(spam, required_xml_attrs))
+            self.assert_elem_hasattrs(spam, required_xml_attrs)
 
             # test locals of functions
             spam_locals = list(spam.find('Locals'))
@@ -253,7 +253,7 @@ class TestDebugTransform(DebuggerTestCase):
             spam_locals.sort(key=lambda e: e.attrib['name'])
             names = [e.attrib['name'] for e in spam_locals]
             self.assertEqual(list('abcd'), names)
-            self.assertTrue(self.elem_hasattrs(spam_locals[0], required_xml_attrs))
+            self.assert_elem_hasattrs(spam_locals[0], required_xml_attrs)
 
             # test arguments of functions
             spam_arguments = list(spam.find('Arguments'))

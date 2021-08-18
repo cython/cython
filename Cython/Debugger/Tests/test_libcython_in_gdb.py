@@ -108,7 +108,7 @@ class TestDebugInformationClasses(DebugTestCase):
         self.assertEqual(self.module.name, 'codefile')
         global_vars = ('c_var', 'python_var', '__name__',
                        '__builtins__', '__doc__', '__file__')
-        self.assertTrue(set(global_vars).issubset(self.module.globals))
+        self.assertEqual(set(global_vars) - set(self.module.globals), set())
 
     def test_CythonVariable(self):
         module_globals = self.module.globals
