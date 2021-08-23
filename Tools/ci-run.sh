@@ -101,6 +101,7 @@ else
     else
       ${CC%% *} "${HEADER_PATH}" `python-config --includes` -o precompiled_headers/Python.h.gch
     fi
+  fi
 fi
 
 # Run tests
