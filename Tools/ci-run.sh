@@ -87,6 +87,20 @@ else
       python -m pip install mypy || exit 1
     fi
   fi
+  # pre-compile Python header for speed
+  mkdir precompiled_headers
+  # for now only do it on Linux with GCC just to keep things simple
+  # (on other systems the harmless empty directory is added to the path)
+  if [ "${OS_NAME##ubuntu*}" == "" ]; then
+    # find the header file
+    HEADER_PATH=$(echo '#include <Python.h>' | cpp -H `python-config --includes` -o /dev/null 2>&1 | head -n1)
+    HEADER_PATH=${HEADER_PATH:1} # slice off the dot that it starts with
+  
+    if [ -z "${BACKEND##*cpp*}" ]; then
+      ${CXX%% *} "${HEADER_PATH}" `python-config --includes` -o precompiled_headers/Python.h.gch
+    else
+      ${CC%% *} "${HEADER_PATH}" `python-config --includes` -o precompiled_headers/Python.h.gch
+    fi
 fi
 
 # Run tests
@@ -113,7 +127,7 @@ elif [ -n "${PYTHON_VERSION##pypy*}" ]; then
   if $PYTHON_DBG -V >&2; then CFLAGS="-O0 -ggdb" $PYTHON_DBG runtests.py -vv --no-code-style Debugger --backends=$BACKEND; fi;
 fi
 
-export CFLAGS="-O0 -ggdb -Wall -Wextra $EXTRA_CFLAGS"
+export CFLAGS="-O0 -ggdb -Wall -Wextra -I`pwd`/precompiled_headers $EXTRA_CFLAGS"
 python runtests.py \
   -vv $STYLE_ARGS \
   -x Debugger \
