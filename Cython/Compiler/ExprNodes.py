@@ -1012,11 +1012,11 @@ class ExprNode(Node):
             return self
         elif type.is_pyobject or type.is_int or type.is_ptr or type.is_float:
             return CoerceToBooleanNode(self, env)
-        elif type.is_cpp_class:
+        elif type.is_cpp_class and type.scope and type.scope.lookup("operator bool"):
             return SimpleCallNode(
                 self.pos,
                 function=AttributeNode(
-                    self.pos, obj=self, attribute='operator bool'),
+                    self.pos, obj=self, attribute=StringEncoding.EncodedString('operator bool')),
                 args=[]).analyse_types(env)
         elif type.is_ctuple:
             bool_value = len(type.components) == 0
