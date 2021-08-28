@@ -4,8 +4,9 @@
 # In some circumstances it's possible to multiply inherit Python classes
 # from cdef classes in ways that cause __cinit__ and __dealloc__ not to
 # be called.
-# On Python 3.6+ it's possible to validate this
-import sys
+
+# The tests work on Python<3.6 because Cython itself calls __init_subclass__.
+# If they were written using exec then they would be fail there.
 
 cdef class BaseA:
     cdef int x
@@ -30,28 +31,13 @@ cdef class Y:
 class BaseC(BaseA):
         pass
 
-
-if sys.version_info >= (3, 6):
-    __doc__ = """
-        >>> test_BaseC_A()  # doctest: +ELLIPSIS
-        Traceback (most recent call last):
-            ...
-        TypeError: Invalid inheritance from cdef class A: ...
-
-        >>> test_X_Y() # doctest: +ELLIPSIS
-        Traceback (most recent call last):
-            ...
-        TypeError: Invalid inheritance from cdef class Y: ...
-
-        >>> test_Y_X() # doctest: +ELLIPSIS
-        Traceback (most recent call last):
-            ...
-        TypeError: Invalid inheritance from cdef class X: ...
-    """
-
-
 def test_BaseC_A():
-    # will fail with an exception - test in module __doc__
+    """
+    >>> test_BaseC_A()  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+        ...
+    TypeError: Invalid inheritance from cdef class A: ...
+    """
     class C(BaseC, A):
         pass
 
@@ -70,14 +56,24 @@ def test_A_BaseC():
     C()
 
 def test_X_Y():
-    # will fail with an exception - test in module __doc__
+    """
+    >>> test_X_Y() # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+        ...
+    TypeError: Invalid inheritance from cdef class Y: ...
+    """
     class C(X, Y):
         pass
 
     C()
 
 def test_Y_X():
-    # will fail with an exception - test in module __doc__
+    """
+    >>> test_Y_X()  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+        ...
+    TypeError: Invalid inheritance from cdef class X: ...
+    """
     class C(Y, X):
         pass
 

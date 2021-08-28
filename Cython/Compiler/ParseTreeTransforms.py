@@ -1936,17 +1936,44 @@ if VALUE is not None:
         This can happen with multiple inheritance from (layout compatible)
         cdef classes.
 
-        The validation only happens on Python 3.6+, but that's OK because
-        it's a "nice to have" warning for an odd corner-case only.
+        The validation only happens reliably on Python 3.6+, but that's OK because
+        it's a "nice to have" warning for an odd corner-case only. (In some cases
+        Cython itself calls __init_subclass__ on earlier versions though)
         """
         if node.scope.lookup('__init_subclass__'):
             return  # shouldn't happen currently because it's not supported for extension types
                     # (but may in future)
 
+        # create a cutdown pipeline that stops at AnalyseDeclarationsTransform and excludes
+        # some functions that break and that don't seem to be necessary for successful compilation
+        from .Pipeline import create_pipeline
+        orig_pipeline = create_pipeline(self.context, "pyx")
+        pipeline = []
+        for element in orig_pipeline:
+            if isinstance(element, (PostParse, ParallelRangeTransform, AdjustDefByDirectives,
+                                    AutoCpdefFunctionDefinitions, RemoveUnreachableCode,
+                                    DecoratorTransform)):
+                continue
+            elif isinstance(element, AnalyseDeclarationsTransform):
+                break
+            pipeline.append(element)
+
         func = TreeFragment(u"""
             @classmethod
             def __init_subclass__(cls, **kwds):
-                if not (cls.__base__ is %(class_name)s or %(class_name)s in cls.__base__.__bases__):
+                # it'd be nice to use "issubclass" but it isn't available in TreeFragment
+                try:
+                    all_bases = cls.__base__.__mro__
+                except AttributeError:
+                    # Python 2 workaround - remove me eventually!
+                    def get_bases(C):
+                        bases = []
+                        for b in C.__bases__:
+                            bases.append(b)
+                            bases.extend(get_bases(b))
+                        return tuple(bases)
+                    all_bases = (cls.__base__,) + get_bases(cls.__base__)
+                if not %(class_name)s in all_bases:
                     raise TypeError("Invalid inheritance from cdef class %(class_name)s: "
                         f"{cls.__name__}.__base__ must be a subclass of %(class_name)s. "
                         f"({cls.__name__}.__base__ == {cls.__base__.__name__})")
@@ -1956,7 +1983,7 @@ if VALUE is not None:
                     pass  # Cython still calls __init_subclass__ even on old versions, but the base class won't define it
                 """ % {
                     'class_name': node.class_name
-                }, level='c_class', pipeline=[NormalizeTree(None)]).substitute({})
+                }, level='c_class', pipeline=pipeline).substitute({})
         # use a "generated_by_cython" flag to override the ban on "__init_subclass__"
         # for cdef classes - the ban is because it not called when inherited
         # by other cdef classes, which is not a problem for this validation function
