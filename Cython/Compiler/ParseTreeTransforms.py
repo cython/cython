@@ -1944,20 +1944,6 @@ if VALUE is not None:
             return  # shouldn't happen much currently because __init_subclass__ is not
                     # supported for extension types (but may in future)
 
-        # create a cutdown pipeline that stops at AnalyseDeclarationsTransform and excludes
-        # some functions that break and that don't seem to be necessary for successful compilation
-        from .Pipeline import create_pipeline
-        orig_pipeline = create_pipeline(self.context, "pyx")
-        pipeline = []
-        for element in orig_pipeline:
-            if isinstance(element, (PostParse, ParallelRangeTransform, AdjustDefByDirectives,
-                                    AutoCpdefFunctionDefinitions, RemoveUnreachableCode,
-                                    DecoratorTransform)):
-                continue
-            elif isinstance(element, AnalyseDeclarationsTransform):
-                break
-            pipeline.append(element)
-
         is_subclass_func = ExprNodes.PythonCapiFunctionNode(
             node.pos,
             "PyType_IsSubtype",
@@ -1967,10 +1953,13 @@ if VALUE is not None:
                 [PyrexTypes.CFuncTypeArg("a", Builtin.type_type, None), PyrexTypes.CFuncTypeArg("b", Builtin.type_type, None)])
         )
 
+        binding = node.scope.directives['binding']
+
         # TODO cls.__base__ could be optimized to a direct access to tp_base (at the cost of a bit more utility code)
         func = TreeFragment(u"""
-            @classmethod
+            %(apply_decorator)s
             def __init_subclass__(cls, **kwds):
+                cdef object cls_base, super_init_subclass  # keep w_undeclared test happy
                 cls_base = cls.__base__
                 if not IS_SUBCLASS_PLACEHOLDER(cls_base, %(class_name)s):
                     raise TypeError(("Invalid inheritance from cdef class %(class_name)s: "
@@ -1982,13 +1971,18 @@ if VALUE is not None:
                     pass  # Cython still calls __init_subclass__ even on old versions, but the base class won't define it
                 else:
                     super_init_subclass(**kwds)
+
+            %(assign_classmethod)s
                 """ % {
-                    'class_name': node.class_name
-                }, level='c_class', pipeline=pipeline).substitute(
+                    'class_name': node.class_name,
+                    # because we can't run DecoratorTransform we need to perform some of its actions manually
+                    'apply_decorator': '@classmethod' if binding else '',
+                    'assign_classmethod': '__init_subclass__ = classmethod(__init_subclass__)' if not binding else ''
+                }, level='c_class', pipeline=[NormalizeTree(None)]).substitute(
                     { "IS_SUBCLASS_PLACEHOLDER": is_subclass_func })
         # use a "generated_by_cython" flag to override the ban on "__init_subclass__"
-        # for cdef classes - the ban is because it not called when inherited
-        # by other cdef classes, which is not a problem for this validation function
+        # for cdef classes - the ban is mainly because it not called when inherited by other cdef classes,
+        #    (which is not a problem for this validation function)
         func.stats[0].generated_by_cython = True
         func.analyse_declarations(node.scope)
         self.enter_scope(node, node.scope)  # functions should be visited in the class scope
