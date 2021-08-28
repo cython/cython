@@ -1793,6 +1793,7 @@ if VALUE is not None:
                     and not node.scope.lookup('__reduce__')
                     and not node.scope.lookup('__reduce_ex__')):
                 self._inject_pickle_methods(node)
+            self._inject_init_subclass(node)
         return node
 
     def _inject_pickle_methods(self, node):
@@ -1927,6 +1928,44 @@ if VALUE is not None:
             self.visit(pickle_func)
             self.exit_scope()
             node.body.stats.append(pickle_func)
+
+    def _inject_init_subclass(self, node):
+        """
+        Performs a bit of validation when cdef classes are inherited from
+        to diagnose issues __cinit__ and __dealloc__ won't be called.
+        This can happen with multiple inheritance from (layout compatible)
+        cdef classes.
+
+        The validation only happens on Python 3.6+, but that's OK because
+        it's a "nice to have" warning for an odd corner-case only.
+        """
+        if node.scope.lookup('__init_subclass__'):
+            return  # shouldn't happen currently because it's not supported for extension types
+                    # (but may in future)
+
+        func = TreeFragment(u"""
+            @classmethod
+            def __init_subclass__(cls, **kwds):
+                if not (cls.__base__ is %(class_name)s or %(class_name)s in cls.__base__.__bases__):
+                    raise TypeError("Invalid inheritance from cdef class %(class_name)s: "
+                        f"{cls.__name__}.__base__ must be a subclass of %(class_name)s. "
+                        f"({cls.__name__}.__base__ == {cls.__base__.__name__})")
+                try:
+                    super().__init_subclass__(**kwds)
+                except AttributeError:
+                    pass  # Cython still calls __init_subclass__ even on old versions, but the base class won't define it
+                """ % {
+                    'class_name': node.class_name
+                }, level='c_class', pipeline=[NormalizeTree(None)]).substitute({})
+        # use a "generated_by_cython" flag to override the ban on "__init_subclass__"
+        # for cdef classes - the ban is because it not called when inherited
+        # by other cdef classes, which is not a problem for this validation function
+        func.stats[0].generated_by_cython = True
+        func.analyse_declarations(node.scope)
+        self.enter_scope(node, node.scope)  # functions should be visited in the class scope
+        self.visit(func)
+        self.exit_scope()
+        node.body.stats.append(func)
 
     def _handle_fused_def_decorators(self, old_decorators, env, node):
         """
