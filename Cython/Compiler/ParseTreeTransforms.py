@@ -1953,11 +1953,9 @@ if VALUE is not None:
                 [PyrexTypes.CFuncTypeArg("a", Builtin.type_type, None), PyrexTypes.CFuncTypeArg("b", Builtin.type_type, None)])
         )
 
-        binding = node.scope.directives['binding']
-
         # TODO cls.__base__ could be optimized to a direct access to tp_base (at the cost of a bit more utility code)
         func = TreeFragment(u"""
-            %(apply_decorator)s
+            @classmethod
             def __init_subclass__(cls, **kwds):
                 cdef object cls_base, super_init_subclass  # keep w_undeclared test happy
                 cls_base = cls.__base__
@@ -1972,18 +1970,17 @@ if VALUE is not None:
                 else:
                     super_init_subclass(**kwds)
 
-            %(assign_classmethod)s
                 """ % {
                     'class_name': node.class_name,
-                    # because we can't run DecoratorTransform we need to perform some of its actions manually
-                    'apply_decorator': '@classmethod' if binding else '',
-                    'assign_classmethod': '__init_subclass__ = classmethod(__init_subclass__)' if not binding else ''
                 }, level='c_class', pipeline=[NormalizeTree(None)]).substitute(
                     { "IS_SUBCLASS_PLACEHOLDER": is_subclass_func })
         # use a "generated_by_cython" flag to override the ban on "__init_subclass__"
         # for cdef classes - the ban is mainly because it not called when inherited by other cdef classes,
         #    (which is not a problem for this validation function)
         func.stats[0].generated_by_cython = True
+        directives = dict(node.scope.directives)
+        directives['binding'] = True
+        func = Nodes.CompilerDirectivesNode(func.pos, body=func, directives=directives)
         func.analyse_declarations(node.scope)
         self.enter_scope(node, node.scope)  # functions should be visited in the class scope
         self.visit(func)
