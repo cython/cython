@@ -1978,8 +1978,7 @@ if VALUE is not None:
         # for cdef classes - the ban is mainly because it not called when inherited by other cdef classes,
         #    (which is not a problem for this validation function)
         func.stats[0].generated_by_cython = True
-        directives = dict(node.scope.directives)
-        directives['binding'] = True
+        directives = Options.copy_inherited_directives(node.scope.directives, binding=True)
         func = Nodes.CompilerDirectivesNode(func.pos, body=func, directives=directives)
         func.analyse_declarations(node.scope)
         self.enter_scope(node, node.scope)  # functions should be visited in the class scope
