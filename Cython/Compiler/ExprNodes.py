@@ -209,6 +209,11 @@ def make_dedup_key(outer_type, item_nodes):
         # For constants, look at the Python value type if we don't know the concrete Cython type.
         else (node.type, node.constant_result,
               type(node.constant_result) if node.type is py_object_type else None) if node.has_constant_result()
+        # IdentifierStringNode doesn't usually have a "constant_result" set because:
+        #  1. it doesn't usually have unicode_value
+        #  2. it's often created later in the compilation process after ConstantFolding
+        # but should be cacheable
+        else (node.type, node.value, node.unicode_value, "IdentifierStringNode") if isinstance(node, IdentifierStringNode)
         else None  # something we cannot handle => short-circuit below
         for node in item_nodes
     ]
