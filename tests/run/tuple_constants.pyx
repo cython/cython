@@ -35,7 +35,9 @@ def test_deduplicated_args():
     # This is a concern because in large modules *a lot* of similar code objects
     # are generated often with the same argument names. Therefore it's worth ensuring that
     # they are correctly deduplicated
-    assert func1.__code__.co_varnames is func2.__code__.co_varnames
+    import sys
+    if not hasattr(sys, "pypy_version_info"):  # test doesn't work on PyPy (which is probably fair enough)
+        assert func1.__code__.co_varnames is func2.__code__.co_varnames
 
 @cython.test_assert_path_exists("//TupleNode",
                                 "//TupleNode[@is_literal = true]")
