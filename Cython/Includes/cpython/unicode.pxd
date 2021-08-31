@@ -226,7 +226,7 @@ cdef extern from *:
     # equal, and greater than, respectively. It is best to pass only ASCII-encoded
     # strings, but the function interprets the input string as ISO-8859-1 if it
     # contains non-ASCII characters.
-    int PyUnicode_CompareWithASCIIString(object uni, char *string) except? -1
+    int PyUnicode_CompareWithASCIIString(object uni, const char *string)
 
     # Rich compare two unicode strings and return one of the following:
     #
