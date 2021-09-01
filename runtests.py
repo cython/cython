@@ -415,8 +415,10 @@ def get_openmp_compiler_flags(language):
     COMPILER_HAS_INT128 = getattr(sys, 'maxsize', getattr(sys, 'maxint', 0)) > 2**60
 
     compiler_version = gcc_version.group(1)
-    if compiler_version and compiler_version.split('.') >= ['4', '2']:
-        return '-fopenmp', '-fopenmp'
+    if compiler_version:
+        compiler_version = [ int(num) for num in compiler_version.split('.') ]
+        if compiler_version >= [4, 2]:
+            return '-fopenmp', '-fopenmp'
 
 try:
     locale.setlocale(locale.LC_ALL, '')
