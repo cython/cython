@@ -792,6 +792,7 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t wid
 //@requires: StringTools.c::BuildPyUnicode
 //@requires: CIntToDigits
 //@requires: GCCDiagnostics
+
 // NOTE: inlining because most arguments are constant, which collapses lots of code below
 
 static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t width, char padding_char, char format_char) {
