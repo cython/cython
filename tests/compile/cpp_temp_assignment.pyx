@@ -1,6 +1,6 @@
 # tag: cpp,cpp11
-# mode: compile 
-# tag: no-cpp-locals
+# mode: compile
+# tag: no-cpp-locals, openmp
 # TODO cpp_locals works fine with the standard library that comes with gcc11
 # but not with gcc8. Therefore disable the test for now
 
@@ -49,6 +49,9 @@ cdef extern from *:
     NoAssign get_NoAssign_Cpp() {
         return NoAssign();
     }
+    NoAssign get_NoAssign() {
+        return NoAssign();
+    }
 
     """
     cdef cppclass NoAssignIterator:
@@ -65,6 +68,8 @@ cdef extern from *:
     NoAssign get_NoAssign_Py() except *
     # might raise C++ exception (thus needs a temp)
     NoAssign get_NoAssign_Cpp() except +
+    # just a plan factory function
+    NoAssign get_NoAssign() nogil
 
 cdef internal_cpp_func(NoAssign arg):
     pass
@@ -96,3 +101,10 @@ cdef class AssignToClassAttr:
 def test_generator_cpp_iterator_as_temp():
     for i in get_NoAssign_Py():
         yield i
+
+from cython.parallel cimport prange
+
+def test_in_prange():
+    cdef int i
+    for i in prange(10, nogil=True):
+        var = get_NoAssign()
