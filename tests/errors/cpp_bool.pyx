@@ -5,7 +5,7 @@ from libcpp.string cimport string
 
 cdef foo():
     cdef string field
-    if field:  # field cannot be coerced to book
+    if field:  # field cannot be coerced to bool
         pass
 
 _ERRORS = u"""
