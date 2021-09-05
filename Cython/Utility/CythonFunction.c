@@ -508,13 +508,85 @@ static PyMemberDef __pyx_CyFunction_members[] = {
 static PyObject *
 __Pyx_CyFunction_reduce(__pyx_CyFunctionObject *m, PyObject *args)
 {
+    PyCFunction cfunc;
+    PyObject *module = NULL, *lookup_func = NULL, *cfunc_as_int = NULL;
+    PyObject *lookup_string = NULL, *reduced_closure = NULL;
+    PyObject *args_tuple = NULL, *reverse_lookup_func = NULL, *output = NULL;
+    const char* additional_error_info = "";
     CYTHON_UNUSED_VAR(args);
+
+    if (!m->func_closure) {
+        // without a function closure we just fall back to the old way of returning a string.
+        // The main reason for doing this is that the reverse-lookup function (the first argument
+        // we return) is a closureless Cython function, so this doing it this way allows it
+        // to be pickleable
 #if PY_MAJOR_VERSION >= 3
-    Py_INCREF(m->func_qualname);
-    return m->func_qualname;
+        Py_INCREF(m->func_qualname);
+        return m->func_qualname;
 #else
-    return PyString_FromString(((PyCFunctionObject*)m)->m_ml->ml_name);
+        return PyString_FromString(((PyCFunctionObject*)m)->m_ml->ml_name);
 #endif
+    }
+
+    // it'd be nice to use "PyCFunction_GetFunction" here but cyfunction doesn't actually
+    // inherit from PyCFunction
+    cfunc = ((PyCFunctionObject*)m)->m_ml->ml_meth;
+    if (!cfunc) {
+        goto fail;
+    }
+    module = PyObject_GetAttrString((PyObject*)m, "__module__");
+    if (!module) {
+        additional_error_info = ": failed to get '__module__'";
+        goto fail;
+    }
+    lookup_func = PyObject_GetAttrString(module, "__pyx_lookup_cyfunction_pointer");
+    if (!lookup_func) {
+        additional_error_info = ": failed to find '__pyx_lookup_cyfunction_pointer' attribute";
+        goto fail;
+    }
+    cfunc_as_int = PyLong_FromVoidPtr(cfunc);
+    if (!cfunc_as_int) {
+        goto fail;
+    }
+    lookup_string = PyObject_CallFunctionObjArgs(lookup_func, cfunc_as_int, NULL);
+    if (!lookup_string) {
+        additional_error_info = ": failed function pointer lookup";
+        goto fail;
+    }
+    reduced_closure = PyObject_CallMethod(m->func_closure, "__reduce__", NULL);
+    if (!reduced_closure) {
+        additional_error_info = ": closure is not pickleable";
+        goto fail;
+    }
+    args_tuple = PyTuple_Pack(2, lookup_string, reduced_closure);
+    if (!args_tuple) {
+        goto fail;
+    }
+    reverse_lookup_func = PyObject_GetAttrString(module, "__pyx_reverse_lookup_cyfunction_pointer");
+    if (!reverse_lookup_func) {
+        additional_error_info = ": failed to find '__pyx_reverse_lookup_cyfunction_pointer' attribute";
+        goto fail;
+    }
+    output = PyTuple_Pack(2, reverse_lookup_func, args_tuple);
+    if (!output) {
+        goto fail;
+    }
+
+
+    if (0) {
+        fail:
+        PyErr_Clear();  // we're replacing whatever error message caused us to get here
+        PyErr_Format(PyExc_AttributeError, "Can't pickle cyfunction object '%S'%s",
+                        __Pyx_CyFunction_get_qualname(m, NULL), additional_error_info);
+    }
+    Py_XDECREF(module);
+    Py_XDECREF(lookup_func);
+    Py_XDECREF(cfunc_as_int);
+    Py_XDECREF(lookup_string);
+    Py_XDECREF(reduced_closure);
+    Py_XDECREF(args_tuple);
+    Py_XDECREF(reverse_lookup_func);
+    return output;
 }
 
 static PyMethodDef __pyx_CyFunction_methods[] = {
