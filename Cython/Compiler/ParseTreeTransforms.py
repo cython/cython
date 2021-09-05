@@ -2842,6 +2842,7 @@ class CreateClosureClasses(CythonTransform):
     def visit_ModuleNode(self, node):
         self.module_scope = node.scope
         self.visitchildren(node)
+        self.module_scope.generate_function_pickle_code()
         return node
 
     def find_entries_used_in_closures(self, node):
@@ -2938,6 +2939,9 @@ class CreateClosureClasses(CythonTransform):
         node.needs_closure = True
         # Do it here because other classes are already checked
         target_module_scope.check_c_class(func_scope.scope_class)
+        if node.local_scope.directives['auto_pickle'] is not False:  # None is on
+            # TODO generate the pickle functions for node
+            pass
 
     def visit_LambdaNode(self, node):
         if not isinstance(node.def_node, Nodes.DefNode):
@@ -2960,6 +2964,9 @@ class CreateClosureClasses(CythonTransform):
             self.path.append(node)
             self.visitchildren(node)
             self.path.pop()
+        if node.needs_outer_scope:
+            node.local_scope.global_scope().pickleable_functions.append(
+                node.entry.func_cname)
         return node
 
     def visit_GeneratorBodyDefNode(self, node):

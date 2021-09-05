@@ -1230,6 +1230,7 @@ class ModuleScope(Scope):
     # cpp                  boolean            Compiling a C++ file
     # is_cython_builtin    boolean            Is this the Cython builtin scope (or a child scope)
     # is_package           boolean            Is this a package module? (__init__)
+    # pickleable_functions list of cname strs     list of functions with closures that require pickle support
 
     is_module_scope = 1
     has_import_star = 0
@@ -1273,6 +1274,7 @@ class ModuleScope(Scope):
                          '__spec__', '__loader__', '__package__', '__cached__']:
             self.declare_var(EncodedString(var_name), py_object_type, None)
         self.process_include(Code.IncludeCode("Python.h", initial=True))
+        self.pickleable_functions = []
 
     def qualifying_scope(self):
         return self.parent_module
@@ -1824,6 +1826,15 @@ class ModuleScope(Scope):
     def infer_types(self):
         from .TypeInference import PyObjectTypeInferer
         PyObjectTypeInferer().infer_types(self)
+
+    def generate_function_pickle_code(self):
+        if not self.pickleable_functions:
+            return
+        from .UtilityCode import CythonUtilityCode
+        self.use_utility_code(CythonUtilityCode.load(
+            "function_pickling", "FunctionPickling.pyx",
+            context = { "cnames": self.pickleable_functions}
+        ))
 
 
 class LocalScope(Scope):

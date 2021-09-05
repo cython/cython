@@ -509,7 +509,7 @@ static PyObject *
 __Pyx_CyFunction_reduce(__pyx_CyFunctionObject *m, PyObject *args)
 {
     PyCFunction cfunc;
-    PyObject *module = NULL, *lookup_func = NULL, *cfunc_as_int = NULL;
+    PyObject *module_globals = NULL, *lookup_func = NULL, *cfunc_as_int = NULL;
     PyObject *lookup_string = NULL, *reduced_closure = NULL;
     PyObject *args_tuple = NULL, *reverse_lookup_func = NULL, *output = NULL;
     const char* additional_error_info = "";
@@ -534,12 +534,13 @@ __Pyx_CyFunction_reduce(__pyx_CyFunctionObject *m, PyObject *args)
     if (!cfunc) {
         goto fail;
     }
-    module = PyObject_GetAttrString((PyObject*)m, "__module__");
-    if (!module) {
-        additional_error_info = ": failed to get '__module__'";
+    module_globals = PyObject_GetAttrString((PyObject*)m, "__globals__");
+    if (!module_globals) {
+        additional_error_info = ": failed to get '__globals__'";
         goto fail;
     }
-    lookup_func = PyObject_GetAttrString(module, "__pyx_lookup_cyfunction_pointer");
+    // lookup_func is borrowed so not cleared
+    lookup_func = PyDict_GetItemString(module_globals, "__pyx_lookup_cyfunction_pointer");
     if (!lookup_func) {
         additional_error_info = ": failed to find '__pyx_lookup_cyfunction_pointer' attribute";
         goto fail;
@@ -562,7 +563,7 @@ __Pyx_CyFunction_reduce(__pyx_CyFunctionObject *m, PyObject *args)
     if (!args_tuple) {
         goto fail;
     }
-    reverse_lookup_func = PyObject_GetAttrString(module, "__pyx_reverse_lookup_cyfunction_pointer");
+    reverse_lookup_func = PyDict_GetItemString(module_globals, "__pyx_reverse_lookup_cyfunction_pointer");
     if (!reverse_lookup_func) {
         additional_error_info = ": failed to find '__pyx_reverse_lookup_cyfunction_pointer' attribute";
         goto fail;
@@ -579,8 +580,7 @@ __Pyx_CyFunction_reduce(__pyx_CyFunctionObject *m, PyObject *args)
         PyErr_Format(PyExc_AttributeError, "Can't pickle cyfunction object '%S'%s",
                         __Pyx_CyFunction_get_qualname(m, NULL), additional_error_info);
     }
-    Py_XDECREF(module);
-    Py_XDECREF(lookup_func);
+    Py_XDECREF(module_globals);
     Py_XDECREF(cfunc_as_int);
     Py_XDECREF(lookup_string);
     Py_XDECREF(reduced_closure);
