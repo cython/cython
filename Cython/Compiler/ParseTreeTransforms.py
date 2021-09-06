@@ -2838,11 +2838,13 @@ class CreateClosureClasses(CythonTransform):
         super(CreateClosureClasses, self).__init__(context)
         self.path = []
         self.in_lambda = False
+        self.closure_class_stats = []
 
     def visit_ModuleNode(self, node):
         self.module_scope = node.scope
         self.visitchildren(node)
         self.module_scope.generate_function_pickle_code()
+        node.body.stats.extend(self.closure_class_stats)
         return node
 
     def find_entries_used_in_closures(self, node):
@@ -2940,8 +2942,7 @@ class CreateClosureClasses(CythonTransform):
         # Do it here because other classes are already checked
         target_module_scope.check_c_class(func_scope.scope_class)
         if node.local_scope.directives['auto_pickle'] is not False:  # None is on
-            # TODO generate the pickle functions for node
-            pass
+            self.make_closure_class_semipickleable(node, class_scope, func_scope.scope_class)
 
     def visit_LambdaNode(self, node):
         if not isinstance(node.def_node, Nodes.DefNode):
@@ -2979,6 +2980,56 @@ class CreateClosureClasses(CythonTransform):
         else:
             self.visitchildren(node)
             return node
+
+    def make_closure_class_semipickleable(self, node, cclass_scope, cclass_entry):
+        """
+        Makes the closure class have Cython-generated pickle functions.
+
+        TODO - it'd be nice not to fill the global namespace with unpickle functions.
+        In principle we could possibly implement only a reduced version of the
+        protocol.
+        """
+        global_scope = node.local_scope.global_scope()
+        cclass_scope.implemented = True  # necessary to generate pickle functions
+        class_node = Nodes.CClassDefNode(
+            node.pos,
+            visibility="private",
+            module_name=None,
+            class_name=cclass_scope.name,
+            bases=ExprNodes.TupleNode(node.pos, args=[]),
+            scope=cclass_scope,
+            entry=cclass_entry,
+            body=Nodes.StatListNode(node.pos, stats=[]), type_init_args=None)
+        # the class is already declared - we don't want to do it again
+        class_node.analyse_declarations = lambda env: cclass_entry
+        # crucially this gets the various auto_pickle options
+        class_node.directives = Options.copy_inherited_directives(
+            node.local_scope.directives,
+            binding=False,  # generates less code!
+        )
+        body = Nodes.StatListNode(node.pos, stats=[class_node])
+        from .ModuleNode import ModuleNode
+        mod = ModuleNode(node.pos, full_module_name="<cclass pickle>",
+                         body=body, scope=global_scope,
+                         doc=None, is_pxd=False,
+                         directives=Options.get_directive_defaults())
+        from .UtilityCode import CythonUtilityCodeContext
+        context = CythonUtilityCodeContext(
+            "<cclass pickle>", cpp=global_scope.is_cpp())
+        from . import Pipeline, AnalysedTreeTransforms
+        pipeline = Pipeline.create_pipeline(context, "pyx")
+        for n, p in enumerate(pipeline):
+            if isinstance(p, AnalyseDeclarationsTransform):
+                pipeline_start = n
+            elif isinstance(p, CreateClosureClasses):
+                pipeline_end = n
+                break
+        pipeline = pipeline[pipeline_start:pipeline_end]
+        # skip AutoTestDictTransform because we don't want to generate __test__ here
+        pipeline = [p for p in pipeline
+                    if not isinstance(p, AnalysedTreeTransforms.AutoTestDictTransform)]
+        err, tree = Pipeline.run_pipeline(pipeline, mod, printtree=False)
+        self.closure_class_stats.append(mod.body)
 
 
 class InjectGilHandling(VisitorTransform, SkipDeclarations):

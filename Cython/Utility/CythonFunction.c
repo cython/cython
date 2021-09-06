@@ -554,7 +554,7 @@ __Pyx_CyFunction_reduce(__pyx_CyFunctionObject *m, PyObject *args)
         additional_error_info = ": failed function pointer lookup";
         goto fail;
     }
-    reduced_closure = PyObject_CallMethod(m->func_closure, "__reduce__", NULL);
+    reduced_closure = PyObject_CallMethod(m->func_closure, "__reduce_cython__", NULL);
     if (!reduced_closure) {
         additional_error_info = ": closure is not pickleable";
         goto fail;
@@ -563,9 +563,9 @@ __Pyx_CyFunction_reduce(__pyx_CyFunctionObject *m, PyObject *args)
     if (!args_tuple) {
         goto fail;
     }
-    reverse_lookup_func = PyDict_GetItemString(module_globals, "__pyx_reverse_lookup_cyfunction_pointer");
+    reverse_lookup_func = PyDict_GetItemString(module_globals, "__pyx_unpickle_cyfunction_pointer");
     if (!reverse_lookup_func) {
-        additional_error_info = ": failed to find '__pyx_reverse_lookup_cyfunction_pointer' attribute";
+        additional_error_info = ": failed to find '__pyx_unpickle_cyfunction_pointer' attribute";
         goto fail;
     }
     output = PyTuple_Pack(2, reverse_lookup_func, args_tuple);
@@ -576,6 +576,7 @@ __Pyx_CyFunction_reduce(__pyx_CyFunctionObject *m, PyObject *args)
 
     if (0) {
         fail:
+        //if (PyErr_Occurred()) PyErr_Print();
         PyErr_Clear();  // we're replacing whatever error message caused us to get here
         PyErr_Format(PyExc_AttributeError, "Can't pickle cyfunction object '%S'%s",
                         __Pyx_CyFunction_get_qualname(m, NULL), additional_error_info);
