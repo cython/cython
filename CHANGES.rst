@@ -2,6 +2,23 @@
 Cython Changelog
 ================
 
+0.29.25 (2021-??-??)
+====================
+
+Bugs fixed
+----------
+
+* Avoid copying unaligned 16-bit values since some platforms require them to be aligned.
+  Use memcpy() instead to let the C compiler decide how to do it.
+  (Github issue #4343)
+
+* Cython crashed on invalid truthiness tests on C++ types without ``operator bool``.
+  Patch by David Woods.  (Github issue #4348)
+
+* The declaration of ``PyUnicode_CompareWithASCIIString()`` in ``cpython.unicode`` was incorrect.
+  Patch by Max Bachmann.  (Github issue #4344)
+
+
 0.29.24 (2021-07-14)
 ====================
 
