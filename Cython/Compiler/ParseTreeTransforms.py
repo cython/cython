@@ -1748,6 +1748,9 @@ if VALUE is not None:
     fused_function = None
     in_lambda = 0
 
+    cutdown_pickle = False  # can be set to generate a cut-down version of the pickle
+        # interface without public global functions
+
     def __call__(self, root):
         # needed to determine if a cdef var is declared after it's used.
         self.seen_vars_stack = []
@@ -1866,7 +1869,7 @@ if VALUE is not None:
             # TODO(robertwb): Move the state into the third argument
             # so it can be pickled *after* self is memoized.
             unpickle_func = TreeFragment(u"""
-                def %(unpickle_func_name)s(__pyx_type, long __pyx_checksum, __pyx_state):
+                %(c)sdef %(unpickle_func_name)s %(unpickle_func_cname_str)s (__pyx_type, long __pyx_checksum, __pyx_state):
                     cdef object __pyx_PickleError
                     cdef object __pyx_result
                     if __pyx_checksum != %(checksum)s:
@@ -1890,6 +1893,8 @@ if VALUE is not None:
                         '__pyx_result.%s = __pyx_state[%s]' % (v, ix)
                         for ix, v in enumerate(all_members_names)),
                     'num_members': len(all_members_names),
+                    'c': 'c' if self.cutdown_pickle else '',  # make the global function cdef
+                    'unpickle_func_cname_str': ('"%s"' % unpickle_func_name) if self.cutdown_pickle else '',
                 }, level='module', pipeline=[NormalizeTree(None)]).substitute({})
             unpickle_func.analyse_declarations(node.entry.scope)
             self.visit(unpickle_func)
@@ -1908,9 +1913,9 @@ if VALUE is not None:
                     else:
                         use_setstate = %(any_notnone_members)s
                     if use_setstate:
-                        return %(unpickle_func_name)s, (type(self), %(checksum)s, None), state
+                        return %(reduce_ret0)s, (%(type_self)s, %(checksum)s, None), state
                     else:
-                        return %(unpickle_func_name)s, (type(self), %(checksum)s, state)
+                        return %(reduce_ret0)s, (%(type_self)s, %(checksum)s, state)
 
                 def __setstate_cython__(self, __pyx_state):
                     %(unpickle_func_name)s__set_state(self, __pyx_state)
@@ -1920,6 +1925,8 @@ if VALUE is not None:
                     'members': ', '.join('self.%s' % v for v in all_members_names) + (',' if len(all_members_names) == 1 else ''),
                     # Even better, we could check PyType_IS_GC.
                     'any_notnone_members' : ' or '.join(['self.%s is not None' % e.name for e in all_members if e.type.is_pyobject] or ['False']),
+                    'reduce_ret0': "None" if self.cutdown_pickle else unpickle_func_name,
+                    'type_self': "None" if self.cutdown_pickle else "type(self)",
                 },
                 level='c_class', pipeline=[NormalizeTree(None)]).substitute({})
             pickle_func.analyse_declarations(node.scope)
@@ -1927,6 +1934,10 @@ if VALUE is not None:
             self.visit(pickle_func)
             self.exit_scope()
             node.body.stats.append(pickle_func)
+            if self.cutdown_pickle:
+                # set this only for closure classes with the cutdown pickle interface
+                # to help with generating the CyFunction unpickler
+                node.scope.unpickle_cname = unpickle_func_name
 
     def _handle_fused_def_decorators(self, old_decorators, env, node):
         """
@@ -2967,7 +2978,7 @@ class CreateClosureClasses(CythonTransform):
             self.path.pop()
         if node.needs_outer_scope:
             node.local_scope.global_scope().pickleable_functions.append(
-                node.entry.func_cname)
+                (node.entry.func_cname, node))
         return node
 
     def visit_GeneratorBodyDefNode(self, node):
@@ -2985,10 +2996,11 @@ class CreateClosureClasses(CythonTransform):
         """
         Makes the closure class have Cython-generated pickle functions.
 
-        TODO - it'd be nice not to fill the global namespace with unpickle functions.
-        In principle we could possibly implement only a reduced version of the
-        protocol.
+        In order not to fill the global namespace with unpickle functions,
+        it only implements a reduced version of the protocol using C functions
+        instead of global def functions
         """
+        cclass_scope.is_internal = False  # undo "is_internal" - it needs proper initialization
         global_scope = node.local_scope.global_scope()
         cclass_scope.implemented = True  # necessary to generate pickle functions
         class_node = Nodes.CClassDefNode(
@@ -3021,6 +3033,7 @@ class CreateClosureClasses(CythonTransform):
         for n, p in enumerate(pipeline):
             if isinstance(p, AnalyseDeclarationsTransform):
                 pipeline_start = n
+                p.cutdown_pickle = True
             elif isinstance(p, CreateClosureClasses):
                 pipeline_end = n
                 break

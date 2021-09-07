@@ -520,6 +520,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if Options.embed:
             self.generate_main_method(env, globalstate['main_method'])
         self.generate_filename_table(globalstate['filename_table'])
+        self.generate_unpickle_function(globalstate['utility_code_proto'], globalstate['utility_code_def'])
 
         self.generate_declarations_for_modules(env, modules, globalstate)
         h_code.write('\n')
@@ -3804,6 +3805,73 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                             meth_entry.cname,
                             cast,
                             meth_entry.func_cname))
+
+    def generate_unpickle_function(self, protocode, defcode):
+        if not self.scope.pickleable_functions:
+            return  # nothing to do
+        protocode.putln("/* generated unpickle function */")
+        protocode.putln("static PyObject* __pyx_unpickle_cyfunction_pointer_implementation(PyObject* args); /*proto*/")
+        defcode.putln("/* generated unpickle function */")
+        defcode.putln("static PyObject* __pyx_unpickle_cyfunction_pointer_implementation(PyObject* args) {")
+        defcode.putln("PyObject *id = NULL, *out=NULL;")
+        defcode.putln("if (!PyTuple_Check(args)) {")
+        defcode.putln('PyErr_SetString(PyExc_TypeError, "Expected tuple argument when unpickling '
+                      'CyFunction");')
+        defcode.putln('return NULL;')
+        defcode.putln('}')
+        defcode.putln("if (!(id = PyTuple_GetItem(args, 0))) return NULL;")
+        defcode.putln("Py_INCREF(id);")
+        defcode.putln("if (!PyUnicode_Check(id)) {")
+        defcode.putln('PyErr_SetString(PyExc_TypeError, "First argument to unpickle should be a unicode string");')
+        defcode.putln('goto cleanup;')
+        defcode.putln('}')
+
+        defcode.putln("PyObject_Print(args, stdout, 0);")
+        defcode.putln('printf("\\n");')
+
+        first = True
+        for cname, node in self.scope.pickleable_functions:
+            defcode.putln('%sif (PyUnicode_CompareWithASCIIString(id, "%s") == 0) {' % (
+                "" if first else "else ", cname))
+            first = False
+
+            has_closure = bool(node.local_scope.scope_class)
+            if has_closure:
+                closure_var_names = ["arg1", "closure", "ignored0", "cl_tp_ignored", "cl_state1", "cl_state2"]
+
+                defcode.putln("PyObject %s;" % ", ".join(["*%s = NULL" % name for name in closure_var_names]))
+                defcode.putln("int checksum;")
+
+                defcode.putln("if (!(arg1 = PyTuple_GetItem(args, 1))) goto local_cleanup;")
+                # arg1 is a tuple to unpickle the closure class
+                # with the format (None, (None, checksum, state), [state?])
+                defcode.putln('if (!PyArg_ParseTuple(arg1, '
+                    '"O(OiO)|O;Error handling unpickling of %s", '
+                    '&ignored0, &cl_tp_ignored, &checksum, &cl_state1, &cl_state2)) '
+                    'goto local_cleanup;' % node.entry.qualified_name)
+                defcode.putln("Py_INCREF(ignored0); Py_INCREF(cl_tp_ignored);")
+                defcode.putln("Py_INCREF(cl_state1); Py_XINCREF(cl_state2);")
+
+                defcode.putln('printf("Unpacked tuple\\n");')
+
+                closure_tp = node.local_scope.scope_class.type
+                unpickle_func = closure_tp.scope.unpickle_cname
+                closure_class_cname = "(PyObject*)%s" % closure_tp.typeptr_cname
+                defcode.putln("if (!(closure = %s(%s, checksum, cl_state2 ? cl_state2 : cl_state1))) "
+                              "goto local_cleanup;" % (unpickle_func, closure_class_cname))
+
+            defcode.putln('PyErr_SetString(PyExc_NotImplementedError, "I haven''t finished yet!");')
+            defcode.putln("local_cleanup:")
+            if has_closure:
+                for name in closure_var_names:
+                    defcode.putln("Py_XDECREF(%s);" % name)
+
+            defcode.putln('}')
+
+        defcode.putln('cleanup:')
+        defcode.putln('Py_XDECREF(id);');
+        defcode.putln("return out;")
+        defcode.putln("}")
 
 
 class ModuleImportGenerator(object):

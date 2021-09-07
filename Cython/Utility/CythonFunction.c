@@ -545,6 +545,7 @@ __Pyx_CyFunction_reduce(__pyx_CyFunctionObject *m, PyObject *args)
         additional_error_info = ": failed to find '__pyx_lookup_cyfunction_pointer' attribute";
         goto fail;
     }
+    Py_INCREF(lookup_func);
     cfunc_as_int = PyLong_FromVoidPtr(cfunc);
     if (!cfunc_as_int) {
         goto fail;
@@ -568,6 +569,7 @@ __Pyx_CyFunction_reduce(__pyx_CyFunctionObject *m, PyObject *args)
         additional_error_info = ": failed to find '__pyx_unpickle_cyfunction_pointer' attribute";
         goto fail;
     }
+    Py_INCREF(reverse_lookup_func);
     output = PyTuple_Pack(2, reverse_lookup_func, args_tuple);
     if (!output) {
         goto fail;

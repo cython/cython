@@ -1230,7 +1230,7 @@ class ModuleScope(Scope):
     # cpp                  boolean            Compiling a C++ file
     # is_cython_builtin    boolean            Is this the Cython builtin scope (or a child scope)
     # is_package           boolean            Is this a package module? (__init__)
-    # pickleable_functions list of cname strs     list of functions with closures that require pickle support
+    # pickleable_functions [(cname, Node)]    list of functions with closures that require pickle support
 
     is_module_scope = 1
     has_import_star = 0
@@ -1831,9 +1831,11 @@ class ModuleScope(Scope):
         if not self.pickleable_functions:
             return
         from .UtilityCode import CythonUtilityCode
+        pickleable_function_cnames, _ = zip(*self.pickleable_functions)
         self.use_utility_code(CythonUtilityCode.load(
             "function_pickling", "FunctionPickling.pyx",
-            context = { "cnames": self.pickleable_functions}
+            context = { "cnames": pickleable_function_cnames },
+            name = self.name,  # so that the qualname for the functions will be right
         ))
 
 
@@ -2168,6 +2170,7 @@ class CClassScope(ClassScope):
     #  defined               boolean  Defined in .pxd file
     #  implemented           boolean  Defined in .pyx file
     #  inherited_var_entries [Entry]  Adapted var entries from base class
+    #  unpickle_cname        None or string   Name of a C function to unpickle, set only for closure classes
 
     is_c_class_scope = 1
     is_closure_class_scope = False
@@ -2178,6 +2181,7 @@ class CClassScope(ClassScope):
     has_cyclic_pyobject_attrs = False
     defined = False
     implemented = False
+    unpickle_cname = None
 
     def __init__(self, name, outer_scope, visibility):
         ClassScope.__init__(self, name, outer_scope)
