@@ -3843,26 +3843,26 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         defcode.putln('goto cleanup;')
         defcode.putln('}')
 
-        first = True
-        for cname, node in self.scope.pickleable_functions:
+
+        for n, (cname, node) in enumerate(self.scope.pickleable_functions):
             defcode.putln('%sif (PyUnicode_CompareWithASCIIString(id, "%s") == 0) {' % (
-                "" if first else "else ", cname))
-            first = False
+                "" if n==0 else "} else ", cname))
 
             has_closure = bool(node.local_scope.scope_class)
             if has_closure:
+                local_cleanup_label = "local_cleanup_%s" % n
                 closure_var_names = ["arg1", "closure", "ignored0", "cl_tp_ignored", "cl_state1", "cl_state2"]
 
                 defcode.putln("PyObject %s;" % ", ".join(["*%s = NULL" % name for name in closure_var_names]))
                 defcode.putln("int checksum;")
 
-                defcode.putln("if (!(arg1 = PyTuple_GetItem(args, 1))) goto local_cleanup;")
+                defcode.putln("if (!(arg1 = PyTuple_GetItem(args, 1))) goto %s;" % local_cleanup_label)
                 # arg1 is a tuple to unpickle the closure class
                 # with the format (None, (None, checksum, state), [state?])
                 defcode.putln('if (!PyArg_ParseTuple(arg1, '
                     '"O(OiO)|O;Error handling unpickling of %s", '
                     '&ignored0, &cl_tp_ignored, &checksum, &cl_state1, &cl_state2)) '
-                    'goto local_cleanup;' % node.entry.qualified_name)
+                    'goto %s;' % (node.entry.qualified_name, local_cleanup_label))
                 defcode.putln("Py_INCREF(ignored0); Py_INCREF(cl_tp_ignored);")
                 defcode.putln("Py_INCREF(cl_state1); Py_XINCREF(cl_state2);")
 
@@ -3870,7 +3870,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 unpickle_func = closure_tp.scope.unpickle_cname
                 closure_class_cname = "(PyObject*)%s" % closure_tp.typeptr_cname
                 defcode.putln("if (!(closure = %s(%s, checksum, cl_state2 ? cl_state2 : cl_state1))) "
-                              "goto local_cleanup;" % (unpickle_func, closure_class_cname))
+                              "goto %s;" % (unpickle_func, closure_class_cname, local_cleanup_label))
 
             node.py_cfunc_node.generate_result_code(defcode, result="out", closure_result_code="closure")
 
@@ -3883,15 +3883,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 ))
                 defcode.putln("}")
                 defcode.new_error_label()
-            defcode.putln("local_cleanup:")
+            defcode.putln("%s:" % local_cleanup_label)
             if has_closure:
                 for name in closure_var_names:
                     defcode.putln("Py_XDECREF(%s);" % name)
 
-            defcode.putln('}')
+        defcode.putln('}')  # end of large if-block
 
         defcode.putln('cleanup:')
         defcode.putln('Py_XDECREF(id);');
+        defcode.putln('__Pyx_XGIVEREF(out);')
         defcode.put_finish_refcount_context()
         defcode.putln("return out;")
         defcode.putln("}")

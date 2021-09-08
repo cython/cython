@@ -547,7 +547,9 @@ __Pyx_CyFunction_reduce(__pyx_CyFunctionObject *m, PyObject *args)
         goto fail;
     }
     Py_INCREF(lookup_func);
-    cfunc_as_int = PyLong_FromVoidPtr(cfunc);
+    // this is a bit dubious because the C standard doesn't actually allow
+    // function pointer->void* conversions.
+    cfunc_as_int = PyLong_FromVoidPtr((void*)cfunc);
     if (!cfunc_as_int) {
         goto fail;
     }
