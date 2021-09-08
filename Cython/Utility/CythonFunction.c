@@ -1,5 +1,6 @@
 
 //////////////////// CythonFunctionShared.proto ////////////////////
+//@substitute: naming
 
 #define __Pyx_CyFunction_USED
 
@@ -540,9 +541,9 @@ __Pyx_CyFunction_reduce(__pyx_CyFunctionObject *m, PyObject *args)
         goto fail;
     }
     // lookup_func is borrowed so not cleared
-    lookup_func = PyDict_GetItemString(module_globals, "__pyx_lookup_cyfunction_pointer");
+    lookup_func = PyDict_GetItemString(module_globals, "$cyfunction_pickle_lookup_ptr");
     if (!lookup_func) {
-        additional_error_info = ": failed to find '__pyx_lookup_cyfunction_pointer' attribute";
+        additional_error_info = ": failed to find '$cyfunction_pickle_lookup_ptr' attribute";
         goto fail;
     }
     Py_INCREF(lookup_func);
@@ -564,9 +565,9 @@ __Pyx_CyFunction_reduce(__pyx_CyFunctionObject *m, PyObject *args)
     if (!args_tuple) {
         goto fail;
     }
-    reverse_lookup_func = PyDict_GetItemString(module_globals, "__pyx_unpickle_cyfunction_pointer");
+    reverse_lookup_func = PyDict_GetItemString(module_globals, "$cyfunction_unpickle_name");
     if (!reverse_lookup_func) {
-        additional_error_info = ": failed to find '__pyx_unpickle_cyfunction_pointer' attribute";
+        additional_error_info = ": failed to find '$cyfunction_unpickle_name' attribute";
         goto fail;
     }
     Py_INCREF(reverse_lookup_func);

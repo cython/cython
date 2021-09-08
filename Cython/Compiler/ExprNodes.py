@@ -9545,25 +9545,31 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
     def closure_result_code(self):
         return "NULL"
 
-    def generate_result_code(self, code):
+    def generate_result_code(self, code, result=None, closure_result_code=None):
+        # result and closure_result_code allow the input and output to be overridden
+        # for use unpickling the functions
+        if result is None:
+            result = self.result()
+        if closure_result_code is None:
+            closure_result_code = self.closure_result_code()
         if self.binding:
-            self.generate_cyfunction_code(code)
+            self.generate_cyfunction_code(code, result=result, closure_result_code=closure_result_code)
         else:
-            self.generate_pycfunction_code(code)
+            self.generate_pycfunction_code(code, result=result, closure_result_code=closure_result_code)
 
-    def generate_pycfunction_code(self, code):
+    def generate_pycfunction_code(self, code, result, closure_result_code):
         py_mod_name = self.get_py_mod_name(code)
         code.putln(
             '%s = PyCFunction_NewEx(&%s, %s, %s); %s' % (
-                self.result(),
+                result,
                 self.pymethdef_cname,
-                self.closure_result_code(),
+                closure_result_code,
                 py_mod_name,
-                code.error_goto_if_null(self.result(), self.pos)))
+                code.error_goto_if_null(result, self.pos)))
 
-        self.generate_gotref(code)
+        code.put_gotref(result, self.ctype())
 
-    def generate_cyfunction_code(self, code):
+    def generate_cyfunction_code(self, code, result, closure_result_code):
         if self.specialized_cpdefs:
             def_node = self.specialized_cpdefs[0]
         else:
@@ -9602,18 +9608,18 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
 
         code.putln(
             '%s = %s(&%s, %s, %s, %s, %s, %s, %s); %s' % (
-                self.result(),
+                result,
                 constructor,
                 self.pymethdef_cname,
                 flags,
                 self.get_py_qualified_name(code),
-                self.closure_result_code(),
+                closure_result_code,
                 self.get_py_mod_name(code),
                 Naming.moddict_cname,
                 code_object_result,
-                code.error_goto_if_null(self.result(), self.pos)))
+                code.error_goto_if_null(result, self.pos)))
 
-        self.generate_gotref(code)
+        code.put_gotref(result, self.ctype())
 
         if def_node.requires_classobj:
             assert code.pyclass_stack, "pyclass_stack is empty"

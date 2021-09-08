@@ -3820,10 +3820,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if not self.scope.pickleable_functions:
             return  # nothing to do
         protocode.putln("/* generated unpickle function */")
-        protocode.putln("static PyObject* __pyx_unpickle_cyfunction_pointer_implementation(PyObject* args); /*proto*/")
+        protocode.putln("static PyObject* %s(PyObject* args); /*proto*/" % Naming.cyfunction_unpickle_impl_cname)
         defcode.putln("/* generated unpickle function */")
-        defcode.putln("static PyObject* __pyx_unpickle_cyfunction_pointer_implementation(PyObject* args) {")
+        defcode.putln("static PyObject* %s(PyObject* args) {" % Naming.cyfunction_unpickle_impl_cname)
+        defcode.enter_cfunc_scope()
         defcode.putln("PyObject *id = NULL, *out=NULL;")
+
+        # The function does embed generated code, therefore it's worth using refnanny (a bit)
+        defcode.put_declare_refcount_context()
+        defcode.put_setup_refcount_context(
+            EncodedString(Naming.cyfunction_unpickle_impl_cname))
+
         defcode.putln("if (!PyTuple_Check(args)) {")
         defcode.putln('PyErr_SetString(PyExc_TypeError, "Expected tuple argument when unpickling '
                       'CyFunction");')
@@ -3835,9 +3842,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         defcode.putln('PyErr_SetString(PyExc_TypeError, "First argument to unpickle should be a unicode string");')
         defcode.putln('goto cleanup;')
         defcode.putln('}')
-
-        defcode.putln("PyObject_Print(args, stdout, 0);")
-        defcode.putln('printf("\\n");')
 
         first = True
         for cname, node in self.scope.pickleable_functions:
@@ -3862,15 +3866,23 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 defcode.putln("Py_INCREF(ignored0); Py_INCREF(cl_tp_ignored);")
                 defcode.putln("Py_INCREF(cl_state1); Py_XINCREF(cl_state2);")
 
-                defcode.putln('printf("Unpacked tuple\\n");')
-
                 closure_tp = node.local_scope.scope_class.type
                 unpickle_func = closure_tp.scope.unpickle_cname
                 closure_class_cname = "(PyObject*)%s" % closure_tp.typeptr_cname
                 defcode.putln("if (!(closure = %s(%s, checksum, cl_state2 ? cl_state2 : cl_state1))) "
                               "goto local_cleanup;" % (unpickle_func, closure_class_cname))
 
-            defcode.putln('PyErr_SetString(PyExc_NotImplementedError, "I haven''t finished yet!");')
+            node.py_cfunc_node.generate_result_code(defcode, result="out", closure_result_code="closure")
+
+            if defcode.label_used(defcode.error_label):
+                defcode.putln("if (0) {")
+                defcode.put_label(defcode.error_label)
+                # This helps locate the offending name.
+                defcode.put_add_traceback(EncodedString(
+                    "%s.%s" % (self.full_module_name, Naming.cyfunction_unpickle_impl_cname)
+                ))
+                defcode.putln("}")
+                defcode.new_error_label()
             defcode.putln("local_cleanup:")
             if has_closure:
                 for name in closure_var_names:
@@ -3880,8 +3892,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         defcode.putln('cleanup:')
         defcode.putln('Py_XDECREF(id);');
+        defcode.put_finish_refcount_context()
         defcode.putln("return out;")
         defcode.putln("}")
+        defcode.exit_cfunc_scope()
 
 
 class ModuleImportGenerator(object):
