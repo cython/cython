@@ -1593,6 +1593,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("new((void*)&(p->%s)) %s();" % (
                 entry.cname, decl_code))
 
+        if scope.is_internal is None and py_attrs:
+            # create a hybrid "optional initialization" where the kwds
+            # argument is used to signal that initialization happens.
+            # This is needed for pickleable closures, where the attributes
+            # need to be uninitialized when created in functions (to match
+            # existing behaviour) but initialized when unpickling (to
+            # avoid segfaults decrefing NULL)
+            code.putln("if (k) {")
         for entry in py_attrs:
             if entry.name == "__dict__":
                 needs_error_cleanup = True
@@ -1600,6 +1608,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     entry.cname, entry.cname))
             else:
                 code.put_init_var_to_py_none(entry, "p->%s", nanny=False)
+        if scope.is_internal is None and py_attrs:
+            code.putln("}")
 
         for entry in memoryview_slices:
             code.putln("p->%s.data = NULL;" % entry.cname)

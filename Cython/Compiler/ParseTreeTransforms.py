@@ -1875,7 +1875,7 @@ if VALUE is not None:
                     if __pyx_checksum != %(checksum)s:
                         from pickle import PickleError as __pyx_PickleError
                         raise __pyx_PickleError, "Incompatible checksums (%%s vs %(checksum)s = (%(members)s))" %% __pyx_checksum
-                    __pyx_result = %(class_name)s.__new__(__pyx_type)
+                    __pyx_result = %(class_name)s.__new__(__pyx_type %(dummy_kwd)s)
                     if __pyx_state is not None:
                         %(unpickle_func_name)s__set_state(<%(class_name)s> __pyx_result, __pyx_state)
                     return __pyx_result
@@ -1895,6 +1895,7 @@ if VALUE is not None:
                     'num_members': len(all_members_names),
                     'c': 'c' if self.cutdown_pickle else '',  # make the global function cdef
                     'unpickle_func_cname_str': ('"%s"' % unpickle_func_name) if self.cutdown_pickle else '',
+                    'dummy_kwd': ', dummy=True' if self.cutdown_pickle else '',
                 }, level='module', pipeline=[NormalizeTree(None)]).substitute({})
             unpickle_func.analyse_declarations(node.entry.scope)
             self.visit(unpickle_func)
@@ -3000,9 +3001,11 @@ class CreateClosureClasses(CythonTransform):
         it only implements a reduced version of the protocol using C functions
         instead of global def functions
         """
-        cclass_scope.is_internal = False  # undo "is_internal" - it needs proper initialization
         global_scope = node.local_scope.global_scope()
         cclass_scope.implemented = True  # necessary to generate pickle functions
+        cclass_scope.is_internal = None  # hybrid behaviour where python attributes
+                                    # are only initialized when kwds is passed
+                                    # (abusing kwds a bit as a flag)
         class_node = Nodes.CClassDefNode(
             node.pos,
             visibility="private",

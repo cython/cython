@@ -341,7 +341,10 @@ class Scope(object):
     # nogil             boolean            In a nogil section
     # directives        dict               Helper variable for the recursive
     #                                      analysis, contains directive values.
-    # is_internal       boolean            Is only used internally (simpler setup)
+    # is_internal       boolean or None    Is only used internally (simpler setup)
+    #                                      None represents a hybrid state used in
+    #                                      picklable  closures where an argument
+    #                                      to tp_new controls what is initialized
 
     is_builtin_scope = 0
     is_py_class_scope = 0
