@@ -10,9 +10,9 @@ cdef extern from "cpp_iterators_simple.h":
         DoublePointerIter(double* start, int len)
         double* begin()
         double* end()
-    cdef cppclass DoublePointerIterCanMakeEmpty:
-        DoublePointerIterCanMakeEmpty()
-        DoublePointerIterCanMakeEmpty(double* start, int len)
+    cdef cppclass DoublePointerIterDefaultConstructible:
+        DoublePointerIterDefaultConstructible()
+        DoublePointerIterDefaultConstructible(double* start, int len)
         double* begin()
         double* end()
 
