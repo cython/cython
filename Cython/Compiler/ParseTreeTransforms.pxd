@@ -78,4 +78,5 @@ cdef class GilCheck(VisitorTransform):
     cdef bint nogil_declarator_only
 
 cdef class TransformBuiltinMethods(EnvTransform):
+    cdef dict def_node_body_insertions
     cdef visit_cython_attribute(self, node)
