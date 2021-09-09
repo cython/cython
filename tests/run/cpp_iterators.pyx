@@ -125,9 +125,9 @@ def test_custom_genexp():
     def to_list(g):  # function to hide the intent to avoid inlined-generator expression optimization
         return list(g)
     cdef double* values = [1, 2, 3]
-    cdef DoublePointerIterDefaultConstructable* iter
+    cdef DoublePointerIterDefaultConstructible* iter
     try:
-        iter = new DoublePointerIterDefaultConstructable(values, 3)
+        iter = new DoublePointerIterDefaultConstructible(values, 3)
         # TODO: Only needs to copy once - currently copies twice
         return to_list(x for x in iter[0])
     finally:
