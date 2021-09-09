@@ -106,7 +106,7 @@ def test_custom():
 def test_custom2():
     """
     (deref(iter) instead of iter[0])
-    >>> test_custom()
+    >>> test_custom2()
     [1.0, 2.0, 3.0]
     """
     cdef double* values = [1, 2, 3]
@@ -125,9 +125,9 @@ def test_custom_genexp():
     def to_list(g):  # function to hide the intent to avoid inlined-generator expression optimization
         return list(g)
     cdef double* values = [1, 2, 3]
-    cdef DoublePointerIterCanMakeEmpty* iter
+    cdef DoublePointerIterDefaultConstructable* iter
     try:
-        iter = new DoublePointerIterCanMakeEmpty(values, 3)
+        iter = new DoublePointerIterDefaultConstructable(values, 3)
         # TODO: Only needs to copy once - currently copies twice
         return to_list(x for x in iter[0])
     finally:
