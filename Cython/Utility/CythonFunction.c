@@ -513,19 +513,36 @@ __Pyx_CyFunction_reduce(__pyx_CyFunctionObject *m, PyObject *args)
     PyObject *module_globals = NULL, *lookup_func = NULL, *cfunc_as_int = NULL;
     PyObject *lookup_string = NULL, *reduced_closure = NULL;
     PyObject *args_tuple = NULL, *reverse_lookup_func = NULL, *output = NULL;
+    PyObject *defaults_tuple = NULL, *defaults_kwdict = NULL;
     const char* additional_error_info = "";
     CYTHON_UNUSED_VAR(args);
 
+    // Where possible we just fall back to the old way of returning a string.
+    // The main reason for doing this is that the reverse-lookup function (the first argument
+    // we return) is a closureless Cython function, so this doing it this way allows it
+    // to be pickleable
     if (!m->func_closure) {
-        // without a function closure we just fall back to the old way of returning a string.
-        // The main reason for doing this is that the reverse-lookup function (the first argument
-        // we return) is a closureless Cython function, so this doing it this way allows it
-        // to be pickleable
 #if PY_MAJOR_VERSION >= 3
-        Py_INCREF(m->func_qualname);
-        return m->func_qualname;
+        // a '<' in the qualname indicate that it's in a local scope or a lambda or similar
+        int len = PyUnicode_GetLength(m->func_qualname);
+        if (len==-1) return NULL;
+        int char_pos = PyUnicode_FindChar(m->func_qualname, '<', 0, len, 1);
+        if (char_pos == -2) {
+            return NULL;  // error code
+        } else if (char_pos == -1) {
+            Py_INCREF(m->func_qualname);
+            return m->func_qualname;
+        }
 #else
+        char *ch = PyString_AsString(m->func_qualname);
+        if (!ch) return NULL;
+        for (; *ch != '\0'; ++ch) {
+            if (ch=='<') {
+                goto special_qualname_found;
+            }
+        }
         return PyString_FromString(((PyCFunctionObject*)m)->m_ml->ml_name);
+        special_qualname_found:;
 #endif
     }
 
@@ -558,12 +575,36 @@ __Pyx_CyFunction_reduce(__pyx_CyFunctionObject *m, PyObject *args)
         additional_error_info = ": failed function pointer lookup";
         goto fail;
     }
-    reduced_closure = PyObject_CallMethod(m->func_closure, "__reduce_cython__", NULL);
-    if (!reduced_closure) {
-        additional_error_info = ": closure is not pickleable";
+    if (m->func_closure) {
+        reduced_closure = PyObject_CallMethod(m->func_closure, "__reduce_cython__", NULL);
+        if (!reduced_closure) {
+            additional_error_info = ": closure is not pickleable";
+            goto fail;
+        }
+    } else {
+        Py_INCREF(Py_None);
+        reduced_closure = Py_None;
+    }
+
+    if (m->defaults) {
+        // the problem here is Cython's internal representation rather than defaults_tuple and
+        // defaults_kwdict which are only for introspection and easily pickled
+        additional_error_info = ": Cannot currently pickle CyFunctions with non-constant default arguments";
         goto fail;
     }
-    args_tuple = PyTuple_Pack(2, lookup_string, reduced_closure);
+    defaults_tuple = m->defaults_tuple ? m->defaults_tuple : Py_None;
+    Py_INCREF(defaults_tuple);
+    defaults_kwdict = m->defaults_kwdict ? m->defaults_kwdict : Py_None;
+    Py_INCREF(defaults_kwdict);
+
+    if (__Pyx_CyFunction_GetClassObj(m) && __Pyx_CyFunction_GetClassObj(m) != Py_None) {
+        // It's actually quite hard to come up with a closure function that has one.
+        additional_error_info = ": Cannot currently pickle CyFunctions with class cells"
+            " (this is probably because you used super() or __class__)";
+        goto fail;
+    }
+
+    args_tuple = PyTuple_Pack(4, lookup_string, reduced_closure, defaults_tuple, defaults_kwdict);
     if (!args_tuple) {
         goto fail;
     }
@@ -578,10 +619,8 @@ __Pyx_CyFunction_reduce(__pyx_CyFunctionObject *m, PyObject *args)
         goto fail;
     }
 
-
     if (0) {
         fail:
-        //if (PyErr_Occurred()) PyErr_Print();
         PyErr_Clear();  // we're replacing whatever error message caused us to get here
         PyErr_Format(PyExc_AttributeError, "Can't pickle cyfunction object '%S'%s",
                         __Pyx_CyFunction_get_qualname(m, NULL), additional_error_info);
@@ -592,6 +631,8 @@ __Pyx_CyFunction_reduce(__pyx_CyFunctionObject *m, PyObject *args)
     Py_XDECREF(reduced_closure);
     Py_XDECREF(args_tuple);
     Py_XDECREF(reverse_lookup_func);
+    Py_XDECREF(defaults_tuple);
+    Py_XDECREF(defaults_kwdict);
     return output;
 }
 

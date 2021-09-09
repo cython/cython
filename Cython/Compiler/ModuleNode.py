@@ -3820,46 +3820,44 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if not self.scope.pickleable_functions:
             return  # nothing to do
         protocode.putln("/* generated unpickle function */")
-        protocode.putln("static PyObject* %s(PyObject* args); /*proto*/" % Naming.cyfunction_unpickle_impl_cname)
+        protocode.putln("static PyObject* %s(PyObject *id, PyObject *reduced_closure,"
+                        "PyObject *defaults_tuple, PyObject *defaults_kwdict); /*proto*/" %
+                        Naming.cyfunction_unpickle_impl_cname)
         defcode.putln("/* generated unpickle function */")
-        defcode.putln("static PyObject* %s(PyObject* args) {" % Naming.cyfunction_unpickle_impl_cname)
+        defcode.putln("static PyObject* %s(PyObject *id, PyObject *reduced_closure,"
+                        "PyObject *defaults_tuple, PyObject *defaults_kwdict) {" %
+                        Naming.cyfunction_unpickle_impl_cname)
         defcode.enter_cfunc_scope()
-        defcode.putln("PyObject *id = NULL, *out=NULL;")
+        defcode.putln("PyObject *out=NULL;")
 
         # The function does embed generated code, therefore it's worth using refnanny (a bit)
         defcode.put_declare_refcount_context()
         defcode.put_setup_refcount_context(
             EncodedString(Naming.cyfunction_unpickle_impl_cname))
 
-        defcode.putln("if (!PyTuple_Check(args)) {")
-        defcode.putln('PyErr_SetString(PyExc_TypeError, "Expected tuple argument when unpickling '
-                      'CyFunction");')
-        defcode.putln('return NULL;')
-        defcode.putln('}')
-        defcode.putln("if (!(id = PyTuple_GetItem(args, 0))) return NULL;")
-        defcode.putln("Py_INCREF(id);")
         defcode.putln("if (!PyUnicode_Check(id)) {")
         defcode.putln('PyErr_SetString(PyExc_TypeError, "First argument to unpickle should be a unicode string");')
         defcode.putln('goto cleanup;')
         defcode.putln('}')
 
-
         for n, (cname, node) in enumerate(self.scope.pickleable_functions):
+            if node.py_cfunc_node.defaults or node.requires_classobj:
+                continue  # these are unsupported for now
+
             defcode.putln('%sif (PyUnicode_CompareWithASCIIString(id, "%s") == 0) {' % (
                 "" if n==0 else "} else ", cname))
+            pyobject_names = ["closure"]
+            if node.needs_outer_scope:
+                pyobject_names += ["ignored0", "cl_tp_ignored", "cl_state1", "cl_state2"]
+            defcode.putln("PyObject %s;" % ", ".join(["*%s = NULL" % name for name in pyobject_names]))
 
-            has_closure = bool(node.local_scope.scope_class)
-            if has_closure:
+            local_cleanup_label = None
+            if node.needs_outer_scope:
                 local_cleanup_label = "local_cleanup_%s" % n
-                closure_var_names = ["arg1", "closure", "ignored0", "cl_tp_ignored", "cl_state1", "cl_state2"]
-
-                defcode.putln("PyObject %s;" % ", ".join(["*%s = NULL" % name for name in closure_var_names]))
                 defcode.putln("int checksum;")
-
-                defcode.putln("if (!(arg1 = PyTuple_GetItem(args, 1))) goto %s;" % local_cleanup_label)
-                # arg1 is a tuple to unpickle the closure class
+                # reduced_closure is a tuple to unpickle the closure class
                 # with the format (None, (None, checksum, state), [state?])
-                defcode.putln('if (!PyArg_ParseTuple(arg1, '
+                defcode.putln('if (!PyArg_ParseTuple(reduced_closure, '
                     '"O(OiO)|O;Error handling unpickling of %s", '
                     '&ignored0, &cl_tp_ignored, &checksum, &cl_state1, &cl_state2)) '
                     'goto %s;' % (node.entry.qualified_name, local_cleanup_label))
@@ -3871,6 +3869,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 closure_class_cname = "(PyObject*)%s" % closure_tp.typeptr_cname
                 defcode.putln("if (!(closure = %s(%s, checksum, cl_state2 ? cl_state2 : cl_state1))) "
                               "goto %s;" % (unpickle_func, closure_class_cname, local_cleanup_label))
+            else:
+                defcode.putln("closure = Py_None; Py_INCREF(closure);")
 
             node.py_cfunc_node.generate_result_code(defcode, result="out", closure_result_code="closure")
 
@@ -3883,15 +3883,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 ))
                 defcode.putln("}")
                 defcode.new_error_label()
-            defcode.putln("%s:" % local_cleanup_label)
-            if has_closure:
-                for name in closure_var_names:
+            if local_cleanup_label:
+                defcode.putln("%s:" % local_cleanup_label)
+            if node.needs_outer_scope:
+                for name in pyobject_names:
                     defcode.putln("Py_XDECREF(%s);" % name)
 
         defcode.putln('}')  # end of large if-block
 
         defcode.putln('cleanup:')
-        defcode.putln('Py_XDECREF(id);');
         defcode.putln('__Pyx_XGIVEREF(out);')
         defcode.put_finish_refcount_context()
         defcode.putln("return out;")

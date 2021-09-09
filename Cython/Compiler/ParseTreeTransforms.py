@@ -2977,9 +2977,7 @@ class CreateClosureClasses(CythonTransform):
             self.path.append(node)
             self.visitchildren(node)
             self.path.pop()
-        if node.needs_outer_scope:
-            node.local_scope.global_scope().pickleable_functions.append(
-                (node.entry.func_cname, node))
+        self.make_func_pickleable_if_needed(node)
         return node
 
     def visit_GeneratorBodyDefNode(self, node):
@@ -2992,6 +2990,20 @@ class CreateClosureClasses(CythonTransform):
         else:
             self.visitchildren(node)
             return node
+
+    def make_func_pickleable_if_needed(self, node):
+        is_inner_func = False
+        scope = node.local_scope
+        from .Symtab import LocalScope
+        while scope.parent_scope:
+            if (scope.parent_scope.is_closure_scope or
+                    isinstance(scope.parent_scope, LocalScope)):
+                is_inner_func = True
+                break
+            scope = scope.parent_scope
+        if is_inner_func:
+            node.local_scope.global_scope().pickleable_functions.append(
+                    (node.entry.func_cname, node))
 
     def make_closure_class_semipickleable(self, node, cclass_scope, cclass_entry):
         """
