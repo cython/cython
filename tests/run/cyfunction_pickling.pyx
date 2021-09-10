@@ -172,6 +172,28 @@ def class_in_func(a):
             return super().some_func()
     return C
 
+def test_lambda(float a, use_closure):
+    """
+    >>> f1 = test_lambda(1.5, use_closure=True)
+    >>> f1(1)
+    2.5
+    >>> f1_reloaded = pickle.loads(pickle.dumps(f1))
+    >>> f1_reloaded(1)
+    2.5
+
+    >>> f2 = test_lambda(1.5, use_closure=False)
+    >>> f2(1)
+    1
+    >>> f2_reloaded = pickle.loads(pickle.dumps(f2))
+    >>> f2_reloaded(1)
+    1
+    """
+
+    if use_closure:
+        return lambda x: a+x
+    else:
+        return lambda x: x
+
 __doc__ = """
 Abuse direct access to the unpickling function just to test error handling
 >>> __pyx_unpickle_cyfunction(u"Not a valid name!", None, None, None)  # doctest: +ELLIPSIS

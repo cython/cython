@@ -3844,8 +3844,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         defcode.putln('goto cleanup;')
         defcode.putln('}')
 
-        for n, (cname, node) in enumerate(self.scope.pickleable_functions):
-            if node.py_cfunc_node.defaults or node.requires_classobj:
+        for n, (cname, node, lambda_node) in enumerate(self.scope.pickleable_functions):
+            py_cfunc_node = lambda_node or node.py_cfunc_node
+            if py_cfunc_node.defaults or node.requires_classobj:
                 continue  # these are unsupported for now
 
             defcode.putln('%sif (PyUnicode_CompareWithASCIIString(id, "%s") == 0) {' % (
@@ -3876,7 +3877,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             else:
                 defcode.putln("closure = Py_None; Py_INCREF(closure);")
 
-            py_cfunc_node = node.py_cfunc_node.duplicate_for_unpickling(
+            py_cfunc_node = py_cfunc_node.duplicate_for_unpickling(
                 "out", "closure", "defaults_tuple", "defaults_kwdict")
             py_cfunc_node.generate_evaluation_code(defcode)
             py_cfunc_node.generate_disposal_code(defcode)

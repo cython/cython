@@ -2965,6 +2965,7 @@ class CreateClosureClasses(CythonTransform):
         self.in_lambda = True
         self.create_class_from_scope(node.def_node, self.module_scope, node)
         self.visitchildren(node)
+        self.make_func_pickleable_if_needed(node.def_node, lambda_node=node)
         self.in_lambda = was_in_lambda
         return node
 
@@ -2991,19 +2992,20 @@ class CreateClosureClasses(CythonTransform):
             self.visitchildren(node)
             return node
 
-    def make_func_pickleable_if_needed(self, node):
+    def make_func_pickleable_if_needed(self, node, lambda_node=None):
         is_inner_func = False
-        scope = node.local_scope
-        from .Symtab import LocalScope
-        while scope.parent_scope:
-            if (scope.parent_scope.is_closure_scope or
-                    isinstance(scope.parent_scope, LocalScope)):
-                is_inner_func = True
-                break
-            scope = scope.parent_scope
-        if is_inner_func:
+        if not lambda_node:
+            scope = node.local_scope
+            from .Symtab import LocalScope
+            while scope.parent_scope:
+                if (scope.parent_scope.is_closure_scope or
+                        isinstance(scope.parent_scope, LocalScope)):
+                    is_inner_func = True
+                    break
+                scope = scope.parent_scope
+        if is_inner_func or lambda_node:
             node.local_scope.global_scope().pickleable_functions.append(
-                    (node.entry.func_cname, node))
+                    (node.entry.func_cname, node, lambda_node))
 
     def make_closure_class_semipickleable(self, node, cclass_scope, cclass_entry):
         """

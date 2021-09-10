@@ -560,7 +560,8 @@ __Pyx_CyFunction_reduce(__pyx_CyFunctionObject *m, PyObject *args)
     // lookup_func is borrowed so not cleared
     lookup_func = PyDict_GetItemString(module_globals, "$cyfunction_pickle_lookup_ptr");
     if (!lookup_func) {
-        additional_error_info = ": failed to find '$cyfunction_pickle_lookup_ptr' attribute";
+        additional_error_info = ": failed to find '$cyfunction_pickle_lookup_ptr' attribute; "
+            "use the auto_pickle directive to enable pickling for this module";
         goto fail;
     }
     Py_INCREF(lookup_func);
