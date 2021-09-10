@@ -3889,7 +3889,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 for name in pyobject_names:
                     defcode.putln("Py_XDECREF(%s);" % name)
 
-        defcode.putln('}')  # end of large if-block
+        defcode.putln('} else {')  # end of large stack of if-blocks
+        defcode.putln('PyErr_Format(PyExc_ValueError, '
+                      '"Could not match key \'%U\' when unpickling CyFunction", '
+                      'id);')
+        defcode.putln('}')
 
         defcode.putln('cleanup:')
         defcode.putln('__Pyx_XGIVEREF(out);')
