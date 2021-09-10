@@ -62,6 +62,10 @@ class Cdef:
     >>> c.regular_func_0()  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: regular_func_0() takes ... arguments ...1... given...
+
+    # Looking up a class attribute doesn't go through all of __get__
+    >>> Cdef.fused_in_class is Cdef.fused_in_class
+    True
     """.format(typeofCdef = 'Python object' if cython.compiled else 'Cdef')
 
     if cython.compiled:
@@ -125,6 +129,10 @@ class Regular(object):
     TypeError: (Exception looks quite different in Python2 and 3 so no way to match both)
     >>> Regular.fused_func_0['float']()
     ('float', 'float')
+
+    # Looking up a class attribute doesn't go through all of __get__
+    >>> Regular.fused_func is Regular.fused_func
+    True
     """
 
     fused_func = fused_func
