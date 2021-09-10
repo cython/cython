@@ -194,6 +194,26 @@ def test_lambda(float a, use_closure):
     else:
         return lambda x: x
 
+def example_generator():
+    """
+    >>> reloaded_example_gen = pickle.loads(pickle.dumps(example_generator))
+    >>> list(reloaded_example_gen())
+    [0, 1]
+
+    TODO: running generators cannot yet be pickled (needs changes to __pyx_CoroutineObject)
+    #>>> gen = example_generator()
+    #>>> next(gen)
+    #0
+    #>>> reloaded_gen = pickle.loads(pickle.dumps(gen))
+    #>>> next(reloaded_gen)
+    #1
+    #>>> next(gen)
+    #1
+    """
+    yield 0
+    yield 1
+
+
 __doc__ = """
 Abuse direct access to the unpickling function just to test error handling
 >>> __pyx_unpickle_cyfunction(u"Not a valid name!", None, None, None)  # doctest: +ELLIPSIS
