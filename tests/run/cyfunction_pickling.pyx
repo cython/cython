@@ -213,6 +213,41 @@ def example_generator():
     yield 0
     yield 1
 
+def global_fused(cython.floating x):
+    """
+    # check that we haven't managed to block this by mistake
+    >>> reloaded = pickle.loads(pickle.dumps(global_fused))
+    >>> reloaded(1.)
+    1.0
+    """
+    return x
+
+class ClassFused:
+    """
+    Currently we can't pickle a bound function - just test the error works
+    >>> inst_f = ClassFused().f
+    >>> pickle.dumps(inst_f)
+    Traceback (most recent call last):
+        ...
+    AttributeError: Cannot yet pickle bound FusedFunction
+
+    The unbound function works through the normal boring global name lookup
+    >>> unbound_f_reloaded = pickle.loads(pickle.dumps(ClassFused.f))
+    >>> unbound_f_reloaded(ClassFused(), 2.)
+    2.0
+    """
+    def f(self, cython.floating x):
+        return x
+
+# TODO - fused classes in closures look to be broken for other reasons
+#def returns_fused():
+#    """
+#    >>> pickle.dumps(returns_fused())
+#    >>> pickle.dumps(returns_fused()['double'])
+#    """
+#    def inner(cython.floating x):
+#        return x
+#    return inner
 
 __doc__ = """
 Abuse direct access to the unpickling function just to test error handling

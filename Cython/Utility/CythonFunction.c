@@ -1607,6 +1607,33 @@ static PyGetSetDef __pyx_FusedFunction_getsets[] = {
     {0, 0, 0, 0, 0}
 };
 
+PyObject* __Pyx_FusedFunction_reduce(__pyx_FusedFunctionObject *m, PyObject *args) {
+    PyObject *out;
+    if (m->self) {
+        PyErr_SetString(PyExc_AttributeError, "Cannot yet pickle bound FusedFunction");
+        return NULL;
+    }
+    out = __Pyx_CyFunction_reduce((__pyx_CyFunctionObject*)m, args);
+    if (!out) return out;
+    if (PyUnicode_Check(out) || PyBytes_Check(out)) {
+        // it's a simple string to lookup a global name - OK
+        return out;
+    }
+    // otherwise we're into a more complicated attempt at pickling, which mostly
+    // we can't cope with yet. TODO!
+    if (m->__signatures__) {
+        Py_DECREF(out);
+        PyErr_SetString(PyExc_AttributeError, "Cannot yet pickle most FusedFunctions");
+        return NULL;
+    }
+    return out; // Probably OK, but currently untested!
+}
+
+static PyMethodDef __pyx_FusedFunction_methods[] = {
+    {"__reduce__", (PyCFunction)__Pyx_FusedFunction_reduce, METH_VARARGS, 0},
+    {0, 0, 0, 0}
+};
+
 #if CYTHON_USE_TYPE_SPECS
 static PyType_Slot __pyx_FusedFunctionType_slots[] = {
     {Py_tp_dealloc, (void *)__pyx_FusedFunction_dealloc},
@@ -1617,6 +1644,7 @@ static PyType_Slot __pyx_FusedFunctionType_slots[] = {
     {Py_tp_getset, (void *)__pyx_FusedFunction_getsets},
     {Py_tp_descr_get, (void *)__pyx_FusedFunction_descr_get},
     {Py_mp_subscript, (void *)__pyx_FusedFunction_getitem},
+    {Py_tp_methods}, (void *)__pyx_FusedFunction_methods},
     {0, 0},
 };
 
@@ -1668,7 +1696,7 @@ static PyTypeObject __pyx_FusedFunctionType_type = {
     0,                                  /*tp_weaklistoffset*/
     0,                                  /*tp_iter*/
     0,                                  /*tp_iternext*/
-    0,                                  /*tp_methods*/
+    __pyx_FusedFunction_methods,        /*tp_methods*/
     __pyx_FusedFunction_members,        /*tp_members*/
     __pyx_FusedFunction_getsets,           /*tp_getset*/
     // NOTE: tp_base may be changed later during module initialisation when importing CyFunction across modules.

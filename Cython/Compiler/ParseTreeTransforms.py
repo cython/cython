@@ -2998,6 +2998,8 @@ class CreateClosureClasses(CythonTransform):
             return node
 
     def make_func_pickleable_if_needed(self, node, lambda_node=None):
+        if node.local_scope.directives['auto_pickle'] is False:
+            return
         is_inner_func = False
         if not lambda_node:
             scope = node.local_scope
