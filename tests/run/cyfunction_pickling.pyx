@@ -2,6 +2,7 @@
 
 from __future__ import print_function
 
+cimport cython
 import pickle
 
 def outer1(a, select):
@@ -43,7 +44,29 @@ def no_capture():
         return True
     return inner
 
-# TODO add tests for the supported bits of this
+@cython.binding(False)
+def no_binding(a, select_nocapture):
+    """
+    >>> f1 = no_binding("no binding!", select_nocapture=True)
+    >>> f1_reloaded = pickle.loads(pickle.dumps(f1))
+    >>> f1_reloaded()
+    'no_binding.inner'
+
+    >>> f2 = no_binding("no binding!", select_nocapture=False)
+    >>> f2_reloaded = pickle.loads(pickle.dumps(f2))
+    >>> f2_reloaded()
+    'no binding!'
+    """
+    if select_nocapture:
+        def inner():
+            return "no_binding.inner"
+    else:
+        # This is almost certainly forced into "binding=True"
+        # but it's worth testing anyway
+        def inner():
+            return a
+    return inner
+
 def defaults_currently_unsupported(a):
     """
     # TODO remove this test once this has been made to work properly
@@ -58,6 +81,34 @@ def defaults_currently_unsupported(a):
     def inner(b=a):
         return b
     return inner
+
+def defaults_supported():
+    """
+    Where the defaults are a genuine constant we can pickle them
+    and read the introspected defaults
+    >>> f, g = defaults_supported()
+    >>> f_reloaded = pickle.loads(pickle.dumps(f))
+    >>> g_reloaded = pickle.loads(pickle.dumps(g))
+    >>> f_reloaded.__defaults__ == f.__defaults__
+    True
+    >>> f_reloaded.__defaults__
+    (5, 'str')
+    >>> f_reloaded.__kwdefaults__ is None
+    True
+
+    >>> g_reloaded.__defaults__ is None
+    True
+    >>> g.__kwdefaults__ == g_reloaded.__kwdefaults__
+    True
+    >>> sorted(list(g_reloaded.__kwdefaults__.items()))
+    [('a', 10), ('b', 'other str')]
+    """
+
+    def f(a=5, b="str"):
+        return a, b
+    def g(*, a=10, b="other str"):
+        return a, b
+    return f, g
 
 def class_in_func(a):
     """

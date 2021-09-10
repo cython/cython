@@ -3828,7 +3828,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         "PyObject *defaults_tuple, PyObject *defaults_kwdict) {" %
                         Naming.cyfunction_unpickle_impl_cname)
         defcode.enter_cfunc_scope()
+        from .Symtab import Scope
+        # dummy scope for debugging temp cleanup failure
+        defcode.funcstate.scope = Scope(Naming.cyfunction_unpickle_impl_cname, None, None)
         defcode.putln("PyObject *out=NULL;")
+        tempvardecl_code = defcode.insertion_point()
 
         # The function does embed generated code, therefore it's worth using refnanny (a bit)
         defcode.put_declare_refcount_context()
@@ -3872,7 +3876,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             else:
                 defcode.putln("closure = Py_None; Py_INCREF(closure);")
 
-            node.py_cfunc_node.generate_result_code(defcode, result="out", closure_result_code="closure")
+            py_cfunc_node = node.py_cfunc_node.duplicate_for_unpickling(
+                "out", "closure", "defaults_tuple", "defaults_kwdict")
+            py_cfunc_node.generate_evaluation_code(defcode)
+            py_cfunc_node.generate_disposal_code(defcode)
+            py_cfunc_node.free_temps(defcode)
 
             if defcode.label_used(defcode.error_label):
                 defcode.putln("if (0) {")
@@ -3900,6 +3908,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         defcode.put_finish_refcount_context()
         defcode.putln("return out;")
         defcode.putln("}")
+        tempvardecl_code.put_temp_declarations(defcode.funcstate)
         defcode.exit_cfunc_scope()
 
 

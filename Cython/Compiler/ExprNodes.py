@@ -9545,31 +9545,25 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
     def closure_result_code(self):
         return "NULL"
 
-    def generate_result_code(self, code, result=None, closure_result_code=None):
-        # result and closure_result_code allow the input and output to be overridden
-        # for use unpickling the functions
-        if result is None:
-            result = self.result()
-        if closure_result_code is None:
-            closure_result_code = self.closure_result_code()
+    def generate_result_code(self, code):
         if self.binding:
-            self.generate_cyfunction_code(code, result=result, closure_result_code=closure_result_code)
+            self.generate_cyfunction_code(code)
         else:
-            self.generate_pycfunction_code(code, result=result, closure_result_code=closure_result_code)
+            self.generate_pycfunction_code(code)
 
-    def generate_pycfunction_code(self, code, result, closure_result_code):
+    def generate_pycfunction_code(self, code):
         py_mod_name = self.get_py_mod_name(code)
         code.putln(
             '%s = PyCFunction_NewEx(&%s, %s, %s); %s' % (
-                result,
+                self.result(),
                 self.pymethdef_cname,
-                closure_result_code,
+                self.closure_result_code(),
                 py_mod_name,
-                code.error_goto_if_null(result, self.pos)))
+                code.error_goto_if_null(self.result(), self.pos)))
 
-        code.put_gotref(result, self.ctype())
+        self.generate_gotref(code)
 
-    def generate_cyfunction_code(self, code, result, closure_result_code):
+    def generate_cyfunction_code(self, code):
         if self.specialized_cpdefs:
             def_node = self.specialized_cpdefs[0]
         else:
@@ -9608,18 +9602,18 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
 
         code.putln(
             '%s = %s(&%s, %s, %s, %s, %s, %s, %s); %s' % (
-                result,
+                self.result(),
                 constructor,
                 self.pymethdef_cname,
                 flags,
                 self.get_py_qualified_name(code),
-                closure_result_code,
+                self.closure_result_code(),
                 self.get_py_mod_name(code),
                 Naming.moddict_cname,
                 code_object_result,
-                code.error_goto_if_null(result, self.pos)))
+                code.error_goto_if_null(self.result(), self.pos)))
 
-        code.put_gotref(result, self.ctype())
+        self.generate_gotref(code)
 
         if def_node.requires_classobj:
             assert code.pyclass_stack, "pyclass_stack is empty"
@@ -9658,6 +9652,60 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
             if self.annotations_dict:
                 code.putln('__Pyx_CyFunction_SetAnnotationsDict(%s, %s);' % (
                     self.result(), self.annotations_dict.py_result()))
+
+    def duplicate_for_unpickling(self, result_cname, closure_cname,
+                                        defaults_tuple_cname, defaults_kwdict_cname):
+        """
+        Creates a copy of the node, adapted for use in the cyfunction_unpickling function
+
+        The differences are that the defaults aren't generated, but are instead read from
+        the pickle, the closure is also read from the pickle, and the output name is
+        overridden
+        """
+
+        clone = copy.copy(self)  # shallow copy
+        clone.result = lambda: result_cname
+        clone.closure_result_code = lambda: closure_cname
+        clone.is_temp = False
+
+        # The code object should have already been evaluated to a constant result
+        assert clone.code_object.result()
+        entry = Symtab.Entry(
+            name=clone.code_object.result(),
+            cname=clone.code_object.result(),
+            type=py_object_type
+        )
+        clone.code_object = NameNode(
+            clone.code_object.pos, name=defaults_kwdict_cname,
+            entry=entry, is_temp=False
+        )
+
+        if clone.defaults_tuple:
+            entry = Symtab.Entry(
+                name=defaults_tuple_cname,
+                cname=defaults_tuple_cname,
+                type=py_object_type,
+            )
+            clone.defaults_tuple = NameNode(
+                clone.defaults_tuple.pos, name=defaults_tuple_cname,
+                entry=entry, is_temp=False
+            )
+        if clone.defaults_kwdict:
+            entry = Symtab.Entry(
+                name=defaults_kwdict_cname,
+                cname=defaults_kwdict_cname,
+                type=py_object_type,
+            )
+            clone.defaults_kwdict = NameNode(
+                clone.defaults_kwdict.pos, name=defaults_kwdict_cname,
+                entry=entry, is_temp=False
+            )
+        # annotations are surprisingly difficult to regenerate and therefore for the moment
+        # they are dropped from the recreated function
+        # TODO: fix this - it probably involves deep-copying the annotations_dict, and then
+        # doing through all its subexprs resolving result_code from temporary variables
+        #clone.annotations_dict = None
+        return clone
 
 
 class InnerFunctionNode(PyCFunctionNode):
