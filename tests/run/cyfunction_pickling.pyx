@@ -139,7 +139,7 @@ def class_in_func(a):
             return super().some_func()
     return C
 
-if sys.version_info[0]==2:
+if sys.version_info < (3, 5):
     __doc__ = ""
 else:
     __doc__ = """
@@ -237,7 +237,7 @@ class ClassFused:
     Traceback (most recent call last):
         ...
     AttributeError: Cannot yet pickle bound FusedFunction
-    """ + ("" if sys.version_info[0]==2 else
+    """ + ("" if sys.version_info <= (3, 5) else
     """
     The unbound function works through the normal boring global name lookup
     >>> unbound_f_reloaded = pickle.loads(pickle.dumps(ClassFused.f))
