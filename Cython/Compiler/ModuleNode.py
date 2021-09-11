@@ -3856,6 +3856,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             py_cfunc_node = lambda_node or node.py_cfunc_node
             if py_cfunc_node.defaults or node.requires_classobj:
                 continue  # these are unsupported for now
+            if node.needs_outer_scope:
+                closure_tp = node.local_scope.scope_class.type
+                unpickle_func = closure_tp.scope.unpickle_cname
+                if unpickle_func is None:
+                    continue  # Most likely the contents of the closure were just not pickleable
 
             defcode.putln('}  else if (__Pyx_StrEq(PyBytes_AS_STRING(id), "%s")) {' %
                 cname)
@@ -3877,8 +3882,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 defcode.putln("Py_INCREF(ignored0); Py_INCREF(cl_tp_ignored);")
                 defcode.putln("Py_INCREF(cl_state1); Py_XINCREF(cl_state2);")
 
-                closure_tp = node.local_scope.scope_class.type
-                unpickle_func = closure_tp.scope.unpickle_cname
                 closure_class_cname = "(PyObject*)%s" % closure_tp.typeptr_cname
                 defcode.putln("if (!(closure = %s(%s, checksum, cl_state2 ? cl_state2 : cl_state1))) "
                               "goto %s;" % (unpickle_func, closure_class_cname, local_cleanup_label))
