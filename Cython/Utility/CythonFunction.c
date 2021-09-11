@@ -535,13 +535,15 @@ __Pyx_CyFunction_reduce(__pyx_CyFunctionObject *m, PyObject *args)
         }
 #else
         char *ch = PyString_AsString(m->func_qualname);
+        PyObject *split=NULL;
         if (!ch) return NULL;
         for (; *ch != '\0'; ++ch) {
-            if (ch=='<') {
+            if (*ch=='<') {
                 goto special_qualname_found;
             }
         }
-        return PyString_FromString(((PyCFunctionObject*)m)->m_ml->ml_name);
+
+        return __Pyx_CyFunction_get_qualname(m, NULL);
         special_qualname_found:;
 #endif
     }
@@ -623,8 +625,13 @@ __Pyx_CyFunction_reduce(__pyx_CyFunctionObject *m, PyObject *args)
     if (0) {
         fail:
         PyErr_Clear();  // we're replacing whatever error message caused us to get here
+#if PY_MAJOR_VERSION >= 3
         PyErr_Format(PyExc_AttributeError, "Can't pickle cyfunction object '%S'%s",
-                        __Pyx_CyFunction_get_qualname(m, NULL), additional_error_info);
+                        m->func_qualname, additional_error_info);
+#else
+        PyErr_Format(PyExc_AttributeError, "Can't pickle cyfunction object '%s'%s",
+                     PyString_AsString(m->func_qualname), additional_error_info);
+#endif
     }
     Py_XDECREF(module_globals);
     Py_XDECREF(cfunc_as_int);
@@ -1644,7 +1651,7 @@ static PyType_Slot __pyx_FusedFunctionType_slots[] = {
     {Py_tp_getset, (void *)__pyx_FusedFunction_getsets},
     {Py_tp_descr_get, (void *)__pyx_FusedFunction_descr_get},
     {Py_mp_subscript, (void *)__pyx_FusedFunction_getitem},
-    {Py_tp_methods}, (void *)__pyx_FusedFunction_methods},
+    {Py_tp_methods, (void *)__pyx_FusedFunction_methods},
     {0, 0},
 };
 

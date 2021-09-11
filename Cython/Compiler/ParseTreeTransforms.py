@@ -1879,7 +1879,6 @@ if VALUE is not None:
                     if __pyx_state is not None:
                         %(unpickle_func_name)s__set_state(<%(class_name)s> __pyx_result, __pyx_state)
                     return __pyx_result
-                %(void_cast)s
 
                 cdef %(unpickle_func_name)s__set_state(%(class_name)s __pyx_result, tuple __pyx_state):
                     %(assignments)s
@@ -1897,9 +1896,6 @@ if VALUE is not None:
                     'c': 'c' if self.cutdown_pickle else '',  # make the global function cdef
                     'unpickle_func_cname_str': ('"%s"' % unpickle_func_name) if self.cutdown_pickle else '',
                     'dummy_kwd': ', dummy=True' if self.cutdown_pickle else '',
-                    # we currently generate closures for generators, but can't yet use them
-                    # (and it's hard to avoid detecting and pickling them)
-                    'void_cast': ('<void>%s' % unpickle_func_name) if self.cutdown_pickle else '',
                 }, level='module', pipeline=[NormalizeTree(None)]).substitute({})
             unpickle_func.analyse_declarations(node.entry.scope)
             self.visit(unpickle_func)
@@ -2855,6 +2851,7 @@ class CreateClosureClasses(CythonTransform):
         self.path = []
         self.in_lambda = False
         self.closure_class_stats = []
+        self.classes_made_pickleable = set()
 
     def visit_ModuleNode(self, node):
         self.module_scope = node.scope
@@ -2957,8 +2954,6 @@ class CreateClosureClasses(CythonTransform):
         node.needs_closure = True
         # Do it here because other classes are already checked
         target_module_scope.check_c_class(func_scope.scope_class)
-        if node.local_scope.directives['auto_pickle'] is not False:  # None means on
-            self.make_closure_class_semipickleable(node, class_scope, func_scope.scope_class)
 
     def visit_LambdaNode(self, node):
         if not isinstance(node.def_node, Nodes.DefNode):
@@ -2982,8 +2977,7 @@ class CreateClosureClasses(CythonTransform):
             self.path.append(node)
             self.visitchildren(node)
             self.path.pop()
-        if not isinstance(node, Nodes.GeneratorDefNode):
-            self.make_func_pickleable_if_needed(node)
+        self.make_func_pickleable_if_needed(node)
         return node
 
     def visit_GeneratorBodyDefNode(self, node):
@@ -2997,12 +2991,14 @@ class CreateClosureClasses(CythonTransform):
             self.visitchildren(node)
             return node
 
-    def make_func_pickleable_if_needed(self, node, lambda_node=None):
-        if node.local_scope.directives['auto_pickle'] is False:
+    def make_func_pickleable_if_needed(self, def_node, lambda_node=None):
+        if def_node.local_scope.directives['auto_pickle'] is False:
             return
+        if isinstance(def_node, Nodes.GeneratorDefNode):
+            return  # can't usefully be pickled at this point
         is_inner_func = False
         if not lambda_node:
-            scope = node.local_scope
+            scope = def_node.local_scope
             from .Symtab import LocalScope
             while scope.parent_scope:
                 if (scope.parent_scope.is_closure_scope or
@@ -3011,9 +3007,17 @@ class CreateClosureClasses(CythonTransform):
                     break
                 scope = scope.parent_scope
         if is_inner_func or lambda_node:
-            cname = node.entry.func_cname
-            node.local_scope.global_scope().pickleable_functions.append(
-                    (cname, node, lambda_node))
+            if (getattr(def_node.local_scope, "scope_class", None) and
+                    def_node.local_scope.scope_class not in self.classes_made_pickleable):
+                self.make_closure_class_semipickleable(
+                    def_node,
+                    def_node.local_scope.scope_class.type.scope,
+                    def_node.local_scope.scope_class
+                )
+                self.classes_made_pickleable.add(def_node.local_scope.scope_class)
+            cname = def_node.entry.func_cname
+            def_node.local_scope.global_scope().pickleable_functions.append(
+                    (cname, def_node, lambda_node))
 
     def make_closure_class_semipickleable(self, node, cclass_scope, cclass_entry):
         """

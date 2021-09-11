@@ -3819,6 +3819,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_unpickle_function(self, protocode, defcode):
         if not self.scope.pickleable_functions:
             return  # nothing to do
+
+        defcode.globalstate.use_utility_code(
+            UtilityCode.load_cached('CStringEquals', 'StringTools.c'))
+
         protocode.putln("/* generated unpickle function */")
         protocode.putln("static PyObject* %s(PyObject *id, PyObject *reduced_closure,"
                         "PyObject *defaults_tuple, PyObject *defaults_kwdict); /*proto*/" %
@@ -3839,7 +3843,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         defcode.put_setup_refcount_context(
             EncodedString(Naming.cyfunction_unpickle_impl_cname))
 
-        defcode.putln("if (!PyUnicode_Check(id)) {")
+        defcode.putln("if (!PyBytes_Check(id)) {")
         defcode.putln('PyErr_SetString(PyExc_TypeError, "First argument to unpickle should be a unicode string");')
         defcode.putln('goto cleanup;')
         defcode.putln('}')
@@ -3849,7 +3853,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if py_cfunc_node.defaults or node.requires_classobj:
                 continue  # these are unsupported for now
 
-            defcode.putln('%sif (PyUnicode_CompareWithASCIIString(id, "%s") == 0) {' % (
+            defcode.putln('%sif (__Pyx_StrEq(PyBytes_AS_STRING(id), "%s")) {' % (
                 "" if n==0 else "} else ", cname))
             pyobject_names = ["closure"]
             if node.needs_outer_scope:
@@ -3899,9 +3903,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     defcode.putln("Py_XDECREF(%s);" % name)
 
         defcode.putln('} else {')  # end of large stack of if-blocks
+
         defcode.putln('PyErr_Format(PyExc_ValueError, '
-                      '"Could not match key \'%U\' when unpickling CyFunction", '
-                      'id);')
+                      '"Could not match key \'%s\' when unpickling CyFunction", '
+                      'PyBytes_AS_STRING(id));')
         defcode.putln('}')
 
         defcode.putln('cleanup:')

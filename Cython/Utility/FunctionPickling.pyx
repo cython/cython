@@ -14,7 +14,7 @@ def $cyfunction_pickle_lookup_ptr(ptr_as_pyint):
     cdef void *ptr = PyLong_AsVoidPtr(ptr_as_pyint)
 {{for cname in cnames}}
     if ptr == {{cname}}:
-        return u"{{cname}}"
+        return b"{{cname}}"
 {{endfor}}
     raise ValueError()  # __reduce__ ignores this anyway
 

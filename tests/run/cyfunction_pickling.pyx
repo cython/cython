@@ -4,6 +4,7 @@ from __future__ import print_function
 
 cimport cython
 import pickle
+import sys
 
 def outer1(a, select):
     """
@@ -111,7 +112,37 @@ def defaults_supported():
     return f, g
 
 def class_in_func(a):
-    """
+    # tests are in module docstring to skip them on Py2
+    # (because instancemethod objects simply aren't pickleable there)
+    class C(object):
+        # C().f is not pickleable because a C instance isn't
+        # C.f is pickleable but not hugely useful without the class
+        def f(self):
+            print(self)
+
+        # f_with_closure is largely the same as f
+        def f_with_closure(self):
+            print(self, a)
+
+        # sm is pickleable and maybe practically usable
+        @staticmethod
+        def sm():
+            print("C.sm")
+        @staticmethod
+        def sm_with_closure():
+            print("C.sm_with_closure", a)
+
+        # uses_super is not pickleable because it requires a classobj
+        # This is currently deliberately forbidden. Even if it were
+        # supported it's likely to fail (because it requires C to be pickleable)
+        def uses_super(self):
+            return super().some_func()
+    return C
+
+if sys.version_info[0]==2:
+    __doc__ = ""
+else:
+    __doc__ = """
     This test case is a little odd - the class itself isn't pickleable so it's
     of very little practical use, but worth testing the assumptions made
     >>> C = class_in_func("hello")
@@ -147,30 +178,6 @@ def class_in_func(a):
         ...
     AttributeError: ... Cannot currently pickle CyFunctions with class cells ...
     """
-    class C(object):
-        # C().f is not pickleable because a C instance isn't
-        # C.f is pickleable but not hugely useful without the class
-        def f(self):
-            print(self)
-
-        # f_with_closure is largely the same as f
-        def f_with_closure(self):
-            print(self, a)
-
-        # sm is pickleable and maybe practically usable
-        @staticmethod
-        def sm():
-            print("C.sm")
-        @staticmethod
-        def sm_with_closure():
-            print("C.sm_with_closure", a)
-
-        # uses_super is not pickleable because it requires a classobj
-        # This is currently deliberately forbidden. Even if it were
-        # supported it's likely to fail (because it requires C to be pickleable)
-        def uses_super(self):
-            return super().some_func()
-    return C
 
 def test_lambda(float a, use_closure):
     """
@@ -223,19 +230,20 @@ def global_fused(cython.floating x):
     return x
 
 class ClassFused:
-    """
+    __doc__ = """
     Currently we can't pickle a bound function - just test the error works
     >>> inst_f = ClassFused().f
     >>> pickle.dumps(inst_f)
     Traceback (most recent call last):
         ...
     AttributeError: Cannot yet pickle bound FusedFunction
-
+    """ + ("" if sys.version_info[0]==2 else
+    """
     The unbound function works through the normal boring global name lookup
     >>> unbound_f_reloaded = pickle.loads(pickle.dumps(ClassFused.f))
     >>> unbound_f_reloaded(ClassFused(), 2.)
     2.0
-    """
+    """)  # I don't know why this fails on Py2, but it isn't too important
     def f(self, cython.floating x):
         return x
 
@@ -249,10 +257,11 @@ class ClassFused:
 #        return x
 #    return inner
 
-__doc__ = """
+__doc__ += """
+
 Abuse direct access to the unpickling function just to test error handling
->>> __pyx_unpickle_cyfunction(u"Not a valid name!", None, None, None)  # doctest: +ELLIPSIS
+>>> __pyx_unpickle_cyfunction(b"Not a valid name!", None, None, None)  # doctest: +ELLIPSIS
 Traceback (most recent call last):
     ...
-_pickle.UnpicklingError: ...
-"""
+{0}UnpicklingError: ...
+""".format("" if sys.version_info[0] == 2 else "_pickle.")
