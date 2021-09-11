@@ -3878,7 +3878,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 defcode.putln('if (!PyArg_ParseTuple(reduced_closure, '
                     '"O(OiO)|O;Error handling unpickling of %s", '
                     '&ignored0, &cl_tp_ignored, &checksum, &cl_state1, &cl_state2)) '
-                    'goto %s;' % (node.entry.qualified_name, local_cleanup_label))
+                    'goto %s;' % (
+                        node.entry.qualified_name.as_c_string_literal()[1:-1], local_cleanup_label))
                 defcode.putln("Py_INCREF(ignored0); Py_INCREF(cl_tp_ignored);")
                 defcode.putln("Py_INCREF(cl_state1); Py_XINCREF(cl_state2);")
 
