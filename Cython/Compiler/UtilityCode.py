@@ -28,6 +28,11 @@ class NonManglingModuleScope(Symtab.ModuleScope):
         else:
             return Symtab.ModuleScope.mangle(self, prefix)
 
+    def generate_function_pickle_code(self):
+        # Any pickleable functions in the utility code are merged into the main module and
+        # handled there (so don't generate duplicate functions to support it)
+        return
+
 
 class CythonUtilityCodeContext(StringParseContext):
     scope = None

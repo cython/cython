@@ -3824,11 +3824,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             UtilityCode.load_cached('CStringEquals', 'StringTools.c'))
 
         protocode.putln("/* generated unpickle function */")
-        protocode.putln("static PyObject* %s(PyObject *id, PyObject *reduced_closure,"
+        protocode.putln("static PyObject* %s(PyObject *id, PyObject *reduced_closure, "
                         "PyObject *defaults_tuple, PyObject *defaults_kwdict); /*proto*/" %
                         Naming.cyfunction_unpickle_impl_cname)
         defcode.putln("/* generated unpickle function */")
-        defcode.putln("static PyObject* %s(PyObject *id, PyObject *reduced_closure,"
+        defcode.putln("static PyObject* %s(PyObject *id, PyObject *reduced_closure, "
                         "PyObject *defaults_tuple, PyObject *defaults_kwdict) {" %
                         Naming.cyfunction_unpickle_impl_cname)
         defcode.enter_cfunc_scope()
@@ -3848,13 +3848,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         defcode.putln('goto cleanup;')
         defcode.putln('}')
 
+        defcode.putln("if ((0)) {")  # we occasionally generate this function unnecessarily
+            # with no valid nodes (mainly when they all have defaults or classobj - this
+            # dummy if statement just keeps the code valid
+
         for n, (cname, node, lambda_node) in enumerate(self.scope.pickleable_functions):
             py_cfunc_node = lambda_node or node.py_cfunc_node
             if py_cfunc_node.defaults or node.requires_classobj:
                 continue  # these are unsupported for now
 
-            defcode.putln('%sif (__Pyx_StrEq(PyBytes_AS_STRING(id), "%s")) {' % (
-                "" if n==0 else "} else ", cname))
+            defcode.putln('}  else if (__Pyx_StrEq(PyBytes_AS_STRING(id), "%s")) {' %
+                cname)
             pyobject_names = ["closure"]
             if node.needs_outer_scope:
                 pyobject_names += ["ignored0", "cl_tp_ignored", "cl_state1", "cl_state2"]

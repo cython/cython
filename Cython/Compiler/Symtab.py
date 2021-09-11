@@ -424,6 +424,8 @@ class Scope(object):
                 if (entry.used or merge_unused) and entry.name not in names:
                     self_entries.append(entry)
 
+        self.pickleable_functions.extend(other.pickleable_functions)
+
     def __str__(self):
         return "<%s %s>" % (self.__class__.__name__, self.qualified_name)
 
