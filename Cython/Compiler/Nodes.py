@@ -5486,11 +5486,10 @@ class CClassDefNode(ClassDefNode):
                     UtilityCode.load_cached('MergeVTables', 'ImportExport.c'))
                 code.put_error_if_neg(entry.pos, "__Pyx_MergeVtables(%s)" % typeptr_cname)
                 code.putln("#endif")
-            if type.scope.is_internal == False and not type.scope.directives.get('internal'):
+            if not type.scope.is_internal and not type.scope.directives.get('internal'):
                 # scope.is_internal is set for types defined by
                 # Cython (such as closures), the 'internal'
                 # directive is set by users
-                # scope.is_internal == None is a variant of "True" though
                 code.put_error_if_neg(entry.pos, "PyObject_SetAttr(%s, %s, (PyObject *) %s)" % (
                     Naming.module_cname,
                     code.intern_identifier(scope.class_name),

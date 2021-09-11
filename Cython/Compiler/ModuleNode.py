@@ -1478,7 +1478,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         have_entries, (py_attrs, py_buffers, memoryview_slices) = \
                         scope.get_refcounted_entries()
         is_final_type = scope.parent_type.is_final_type
-        if scope.is_internal:
+        if scope.is_internal==1:
             # internal classes (should) never need None inits, normal zeroing will do
             py_attrs = []
         cpp_constructable_attrs = [entry for entry in scope.var_entries if entry.type.needs_cpp_construction]
@@ -1593,7 +1593,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("new((void*)&(p->%s)) %s();" % (
                 entry.cname, decl_code))
 
-        if scope.is_internal is None and py_attrs:
+        if scope.is_internal == 2 and py_attrs:
             # create a hybrid "optional initialization" where the kwds
             # argument is used to signal that initialization happens.
             # This is needed for pickleable closures, where the attributes
@@ -1608,7 +1608,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     entry.cname, entry.cname))
             else:
                 code.put_init_var_to_py_none(entry, "p->%s", nanny=False)
-        if scope.is_internal is None and py_attrs:
+        if scope.is_internal == 2 and py_attrs:
             code.putln("}")
 
         for entry in memoryview_slices:

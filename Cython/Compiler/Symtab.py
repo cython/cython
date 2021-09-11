@@ -341,8 +341,9 @@ class Scope(object):
     # nogil             boolean            In a nogil section
     # directives        dict               Helper variable for the recursive
     #                                      analysis, contains directive values.
-    # is_internal       boolean or None    Is only used internally (simpler setup)
-    #                                      None represents a hybrid state used in
+    # is_internal       int                Is only used internally (simpler setup)
+    #                                      0 = False, 1=True,
+    #                                      2 represents a hybrid state used in
     #                                      picklable  closures where an argument
     #                                      to tp_new controls what is initialized
 
