@@ -65,6 +65,7 @@ cdef class CreateClosureClasses(CythonTransform):
     cdef bint in_lambda
     cdef module_scope
     cdef generator_class
+    cdef list closure_class_stats
 
     cdef create_class_from_scope(self, node, target_module_scope, inner_node=*)
     cdef find_entries_used_in_closures(self, node)
