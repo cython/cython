@@ -2617,9 +2617,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             wrapper_code_writer.putln("")
 
     def generate_hpy_define_array(self, env, code):
-        if env.is_c_class_scope or not env.hpyfunc_entries:
+        if env.is_c_class_scope:
             return
-        binding = env.directives['binding']
 
         code.putln("")
         wrapper_code_writer = code.insertion_point()
@@ -2629,11 +2628,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 env.hpy_defines_cname))
         if env.hpyfunc_entries:
             for entry in env.hpyfunc_entries:
-                # TBD
-                code.put_hpymethoddef(entry)
-            code.putln("NULL")
+                code.put_hpydef(entry)
+        code.putln("NULL")
         code.putln(
             "};")
+        code.putln("")
 
         if wrapper_code_writer.getvalue():
             wrapper_code_writer.putln("")
@@ -3526,8 +3525,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("  .m_size = -1,")
         code.putln("  .legacy_methods = %s," % env.method_table_cname)
         if env.is_c_class_scope and not env.hpyfunc_entries:
-            # no HPyDef to add
-            pass
+            code.putln("  .defines = NULL,")
         else:
             code.putln("  .defines = %s," % env.hpy_defines_cname)
         code.putln("};")
