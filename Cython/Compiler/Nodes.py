@@ -158,6 +158,7 @@ class Node(object):
     is_terminator = 0
     is_wrapper = False  # is a DefNode wrapper for a C function
     is_cproperty = False
+    is_hpy = 0
     temps = None
 
     # All descendants should set child_attrs to a list of the attributes
