@@ -1501,6 +1501,18 @@ static PyObject *__Pyx_CoroutineAwait_no_new(PyTypeObject *type, PyObject *args,
 }
 #endif
 
+#if PY_VERSION_HEX < 0x03060000
+// In earlier versions of Python an object with no __dict__ and not __slots__ is assumed
+// to be pickleable by default. Coroutine-wrappers have significant state so shouldn't be.
+// Therefore provide a default implementation
+static PyObject *__Pyx_CoroutineAwait_reduce_ex(__pyx_CoroutineAwaitObject *self, PyObject *arg) {
+    CYTHON_UNUSED_VAR(arg);
+    PyErr_Format(PyExc_TypeError, "can't pickle %.200s objects",
+                         Py_TYPE(self)->tp_name);
+    return NULL;
+}
+#endif
+
 static PyMethodDef __pyx_CoroutineAwait_methods[] = {
     {"send", (PyCFunction) __Pyx_CoroutineAwait_Send, METH_O,
      (char*) PyDoc_STR("send(arg) -> send 'arg' into coroutine,\nreturn next yielded value or raise StopIteration.")},
@@ -1508,6 +1520,10 @@ static PyMethodDef __pyx_CoroutineAwait_methods[] = {
      (char*) PyDoc_STR("throw(typ[,val[,tb]]) -> raise exception in coroutine,\nreturn next yielded value or raise StopIteration.")},
     {"close", (PyCFunction) __Pyx_CoroutineAwait_Close, METH_NOARGS,
      (char*) PyDoc_STR("close() -> raise GeneratorExit inside coroutine.")},
+#if PY_VERSION_HEX < 0x03060000
+    {"__reduce_ex__", (PyCFunction) __Pyx_CoroutineAwait_reduce_ex, METH_O, 0},
+    {"__reduce__", (PyCFunction) __Pyx_CoroutineAwait_reduce_ex, METH_NOARGS, 0},
+#endif
     {0, 0, 0, 0}
 };
 
