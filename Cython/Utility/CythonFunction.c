@@ -1747,6 +1747,17 @@ static int __pyx_FusedFunction_init(PyObject *module) {
     }
     __pyx_FusedFunctionType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_FusedFunctionType_spec, bases);
     Py_DECREF(bases);
+# if PY_VERSION_HEX <= 0x030900b1 && CYTHON_COMPILING_IN_CPYTHON && !CYTHON_COMPILING_IN_LIMITED_API
+    // See https://bugs.python.org/issue40703 - PyType_FromSpec() unhelpfully overloads the module.
+    // This would normally be fixed by __Pyx_fix_up_extension_type_from_spec. However, for the
+    // specific case of fused types we want to inherit it from the base class, so just delete the
+    // invalid override
+    if (PyDict_DelItemString(__pyx_FusedFunctionType->tp_dict, "__module__") == -1) {
+        PyErr_Clear();  // it's probably just been deleted by an earlier fetch
+    } else {
+        PyType_Modified(__pyx_FusedFunctionType);
+    }
+# endif
 #else
     (void) module;
     // Set base from __Pyx_FetchCommonTypeFromSpec, in case it's different from the local static value.
