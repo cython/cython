@@ -1478,7 +1478,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         have_entries, (py_attrs, py_buffers, memoryview_slices) = \
                         scope.get_refcounted_entries()
         is_final_type = scope.parent_type.is_final_type
-        if scope.internal_mode==1:
+        if scope.internal_mode == 1:
             # internal classes (should) never need None inits, normal zeroing will do
             py_attrs = []
         cpp_constructable_attrs = [entry for entry in scope.var_entries if entry.type.needs_cpp_construction]

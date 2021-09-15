@@ -5487,9 +5487,8 @@ class CClassDefNode(ClassDefNode):
                 code.put_error_if_neg(entry.pos, "__Pyx_MergeVtables(%s)" % typeptr_cname)
                 code.putln("#endif")
             if not type.scope.internal_mode and not type.scope.directives.get('internal'):
-                # scope.internal_mode is set for types defined by
-                # Cython (such as closures), the 'internal'
-                # directive is set by users
+                # scope.internal_mode is evaluates to True for types defined by
+                # Cython (such as closures), the 'internal' directive is set by users
                 code.put_error_if_neg(entry.pos, "PyObject_SetAttr(%s, %s, (PyObject *) %s)" % (
                     Naming.module_cname,
                     code.intern_identifier(scope.class_name),
