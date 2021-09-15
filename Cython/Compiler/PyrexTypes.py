@@ -168,6 +168,7 @@ class PyrexType(BaseType):
     #  Base class for all Cython types
     #
     #  is_pyobject           boolean     Is a Python object type
+    #  is_hpy                boolean     Is an HPy handle type
     #  is_extension_type     boolean     Is a Python extension type
     #  is_final_type         boolean     Is a final extension type
     #  is_numeric            boolean     Is a C numeric type
@@ -234,6 +235,7 @@ class PyrexType(BaseType):
     #
 
     is_pyobject = 0
+    is_hpy = 0
     is_unspecified = 0
     is_extension_type = 0
     is_final_type = 0
@@ -1205,6 +1207,95 @@ class BufferType(BaseType):
                 self.mode == other_type.mode and
                 self.cast == other_type.cast and
                 (not compare_base or self.base.same_as(other_type.base)))
+
+
+class HPyType(PyrexType):
+    #
+    #  Class for HPy handle type.
+    #
+
+    name = "hpy"
+    is_hpy = 1
+    default_value = "HPy_NULL"
+    declaration_value = "HPy_NULL"
+    buffer_defaults = None
+    is_extern = False
+    is_subclassed = False
+    is_gc_simple = False
+    builtin_trashcan = False  # builtin type using trashcan
+    needs_refcounting = True
+
+    def __str__(self):
+        return "HPy handle"
+
+    def __repr__(self):
+        return "<HPy>"
+
+    def can_coerce_to_pyobject(self, env):
+        return True
+
+    def can_coerce_from_pyobject(self, env):
+        return True
+
+    def default_coerced_ctype(self):
+        """The default C type that this Python type coerces to, or None."""
+        return None
+
+    def assignable_from(self, src_type):
+        # except for pointers, conversion will be attempted
+        return src_type.is_hpy
+
+    def declaration_code(self, entity_code,
+                         for_display = 0, dll_linkage = None, pyrex = 0):
+        if pyrex or for_display:
+            base_code = "object"
+        else:
+            base_code = public_decl("HPy", dll_linkage)
+            entity_code = "%s" % entity_code
+        return self.base_declaration_code(base_code, entity_code)
+
+    def as_pyobject(self, cname):
+        if (not self.is_complete()) or self.is_extension_type:
+            return "(PyObject *)" + cname
+        else:
+            return cname
+
+    def py_type_name(self):
+        return "hpy"
+
+    def __lt__(self, other):
+        """
+        Make sure we sort highest, as instance checking on py_type_name
+        ('object') is always true
+        """
+        return False
+
+    def global_init_code(self, entry, code):
+        code.put_init_var_to_py_none(entry, nanny=False)
+
+    def check_for_null_code(self, cname):
+        return cname
+
+    def generate_dup(self, code, hpy_ctx_cname, cname):
+        code.putln("HPy_Dup(%s, %s);" % (hpy_ctx_cname, cname))
+
+    def generate_close(self, code, hpy_ctx_cname, cname, have_gil):
+        # have_gil is for the benefit of memoryviewslice - it's ignored here
+        assert have_gil
+        self._generate_close(code, hpy_ctx_cname, cname)
+
+    def generate_close_clear(self, code, hpy_ctx_cname, cname, clear_before_decref, have_gil):
+        self._generate_close(code, hpy_ctx_cname, cname, clear_before_decref=clear_before_decref)
+
+    def _generate_close(self, code, hpy_ctx_cname, cname, clear_before_decref=False):
+        if clear_before_decref:
+            # TODO(fa): maybe introduce a macro
+            pass
+        code.putln("HPy_Close(%s, %s); %s = HPy_NULL;" % (
+            hpy_ctx_cname, cname, cname))
+
+    def nullcheck_string(self, cname):
+        return cname
 
 
 class PyObjectType(PyrexType):
@@ -4426,6 +4517,7 @@ error_type =    ErrorType()
 unspecified_type = UnspecifiedType()
 
 py_object_type = PyObjectType()
+hpy_type = HPyType()
 
 c_void_type =        CVoidType()
 
