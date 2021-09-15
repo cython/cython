@@ -10,6 +10,7 @@ memoryview
 memview
 buffer
 
-# attribute lookup ClassFused.f on _cython_3_0_0a9 failed
-# suggests the fused class isn't added to the shared module correctly
+# https://bugs.python.org/issue40703 - fused function is given a wrong
+# __module__ attribute. This is fixable with type-specs along but 
+# probably not with the limited API
 cyfunction_pickle
