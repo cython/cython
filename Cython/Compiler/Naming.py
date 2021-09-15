@@ -73,6 +73,7 @@ interned_prefixes = {
     'umethod': pyrex_prefix + "umethod_",
 }
 
+hpy_context_cname = pyrex_prefix + "hpy_ctx"
 ctuple_type_prefix = pyrex_prefix + "ctuple_"
 args_cname       = pyrex_prefix + "args"
 nargs_cname      = pyrex_prefix + "nargs"
