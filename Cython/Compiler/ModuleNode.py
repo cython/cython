@@ -3096,7 +3096,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.put_xdecref(cname, type)
         code.putln('if (%s) {' % env.module_cname)
         code.putln('if (%s) {' % env.module_dict_cname)
+        # We can run into errors before the stringtab is initialize.
+        # In this case it is not safe to add a traceback (because it uses the stringtab)
+        code.putln('int stringtab_initialized = 1;')
+        code.putln('for (__Pyx_StringTabEntry* e=%s; e->s != 0; ++e) {' % Naming.stringtab_cname)
+        code.putln('if (e->p == 0 || *(e->p) == 0) { stringtab_initialized = 0; break; }')
+        code.putln('}')
+        code.putln('if (stringtab_initialized) {')
         code.put_add_traceback(EncodedString("init %s" % env.qualified_name))
+        code.putln('}')
         code.globalstate.use_utility_code(Nodes.traceback_utility_code)
         # Module reference and module dict are in global variables which might still be needed
         # for cleanup, atexit code, etc., so leaking is better than crashing.
