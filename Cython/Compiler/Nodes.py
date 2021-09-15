@@ -1905,12 +1905,12 @@ class FuncDefNode(StatNode, BlockNode):
         return_type = self.return_type
         if not return_type.is_void:
             if return_type.is_pyobject:
-                init = " = NULL"
+                init = " = " + code.literal_null()
             elif return_type.is_memoryviewslice:
-                init = ' = ' + return_type.literal_code(return_type.default_value)
+                init = ' = ' + return_type.literal_code(code.default_value(return_type))
 
             code.putln("%s%s;" % (
-                return_type.declaration_code(Naming.retval_cname),
+                code.type_declaration(return_type, Naming.retval_cname),
                 init))
 
         tempvardecl_code = code.insertion_point()
@@ -2095,7 +2095,7 @@ class FuncDefNode(StatNode, BlockNode):
                 code.put_init_to_py_none(lhs, return_type)
             elif not return_type.is_memoryviewslice:
                 # memory view structs receive their default value on initialisation
-                val = return_type.default_value
+                val = code.default_value(return_type)
                 if val:
                     code.putln("%s = %s;" % (Naming.retval_cname, val))
                 elif not return_type.is_void:
@@ -2147,7 +2147,7 @@ class FuncDefNode(StatNode, BlockNode):
                         self.entry.qualified_name, 0)
                 assure_gil('error')
                 code.put_unraisable(self.entry.qualified_name)
-            default_retval = return_type.default_value
+            default_retval = code.default_value(return_type)
             if err_val is None and default_retval:
                 err_val = default_retval
             if err_val is not None:
@@ -3363,7 +3363,7 @@ class DefNode(FuncDefNode):
             return
         arg_code_list = []
         if self.entry.signature.has_dummy_arg:
-            self_arg = 'PyObject *%s' % Naming.self_cname
+            self_arg = code.type_declaration(py_object_type, Naming.self_cname)
             if not self.needs_outer_scope:
                 self_arg = 'CYTHON_UNUSED ' + self_arg
             arg_code_list.append(self_arg)
@@ -3374,7 +3374,7 @@ class DefNode(FuncDefNode):
                 cname = entry.original_cname
             else:
                 cname = entry.cname
-            decl = entry.type.declaration_code(cname)
+            decl = code.type_declaration(entry.type, cname)
             if not entry.cf_used:
                 decl = 'CYTHON_UNUSED ' + decl
             return decl
@@ -3389,7 +3389,7 @@ class DefNode(FuncDefNode):
             arg_code = ', '.join(arg_code_list)
         else:
             arg_code = 'void'  # No arguments
-        dc = self.return_type.declaration_code(self.entry.pyfunc_cname)
+        dc = code.type_declaration(self.return_type, self.entry.pyfunc_cname)
 
         decls_code = code.globalstate['decls']
         preprocessor_guard = self.get_preprocessor_guard()
@@ -3536,12 +3536,12 @@ class DefNodeWrapper(FuncDefNode):
         tempvardecl_code = code.insertion_point()
 
         if self.return_type.is_pyobject:
-            retval_init = ' = 0'
+            retval_init = ' = ' + code.default_value(self.return_type)
         else:
             retval_init = ''
         if not self.return_type.is_void:
             code.putln('%s%s;' % (
-                self.return_type.declaration_code(Naming.retval_cname),
+                code.type_declaration(self.return_type, Naming.retval_cname),
                 retval_init))
         code.put_declare_refcount_context()
         code.put_setup_refcount_context(EncodedString('%s (wrapper)' % self.name))
@@ -3585,86 +3585,9 @@ class DefNodeWrapper(FuncDefNode):
             code.putln("#endif /*!(%s)*/" % preprocessor_guard)
 
     def generate_function_header(self, code, with_pymethdef, proto_only=0):
-        arg_code_list = []
-        sig = self.signature
-
-        if sig.has_dummy_arg or self.self_in_stararg:
-            arg_code = "PyObject *%s" % Naming.self_cname
-            if not sig.has_dummy_arg:
-                arg_code = 'CYTHON_UNUSED ' + arg_code
-            arg_code_list.append(arg_code)
-
-        for arg in self.args:
-            if not arg.is_generic:
-                if arg.is_self_arg or arg.is_type_arg:
-                    arg_code_list.append("PyObject *%s" % arg.hdr_cname)
-                else:
-                    arg_code_list.append(
-                        arg.hdr_type.declaration_code(arg.hdr_cname))
-        entry = self.target.entry
-        if not entry.is_special and sig.method_flags() == [TypeSlots.method_noargs]:
-            arg_code_list.append("CYTHON_UNUSED PyObject *unused")
-        if entry.scope.is_c_class_scope and entry.name == "__ipow__":
-            arg_code_list.append("CYTHON_UNUSED PyObject *unused")
-        if sig.has_generic_args:
-            varargs_args = "PyObject *%s, PyObject *%s" % (
-                    Naming.args_cname, Naming.kwds_cname)
-            if sig.use_fastcall:
-                fastcall_args = "PyObject *const *%s, Py_ssize_t %s, PyObject *%s" % (
-                        Naming.args_cname, Naming.nargs_cname, Naming.kwds_cname)
-                arg_code_list.append(
-                    "\n#if CYTHON_METH_FASTCALL\n%s\n#else\n%s\n#endif\n" % (
-                        fastcall_args, varargs_args))
-            else:
-                arg_code_list.append(varargs_args)
-        arg_code = ", ".join(arg_code_list)
-
-        # Prevent warning: unused function '__pyx_pw_5numpy_7ndarray_1__getbuffer__'
-        mf = ""
-        if (entry.name in ("__getbuffer__", "__releasebuffer__")
-                and entry.scope.is_c_class_scope):
-            mf = "CYTHON_UNUSED "
-            with_pymethdef = False
-
-        dc = self.return_type.declaration_code(entry.func_cname)
-        header = "static %s%s(%s)" % (mf, dc, arg_code)
-        code.putln("%s; /*proto*/" % header)
-
-        if proto_only:
-            if self.target.fused_py_func:
-                # If we are the specialized version of the cpdef, we still
-                # want the prototype for the "fused cpdef", in case we're
-                # checking to see if our method was overridden in Python
-                self.target.fused_py_func.generate_function_header(
-                    code, with_pymethdef, proto_only=True)
-            return
-
-        if (Options.docstrings and entry.doc and
-                not self.target.fused_py_func and
-                not entry.scope.is_property_scope and
-                (not entry.is_special or entry.wrapperbase_cname)):
-            # h_code = code.globalstate['h_code']
-            docstr = entry.doc
-
-            if docstr.is_unicode:
-                docstr = docstr.as_utf8_string()
-
-            if not (entry.is_special and entry.name in ('__getbuffer__', '__releasebuffer__')):
-                code.putln('PyDoc_STRVAR(%s, %s);' % (
-                    entry.doc_cname,
-                    docstr.as_c_string_literal()))
-
-            if entry.is_special:
-                code.putln('#if CYTHON_COMPILING_IN_CPYTHON')
-                code.putln(
-                    "struct wrapperbase %s;" % entry.wrapperbase_cname)
-                code.putln('#endif')
-
-        if with_pymethdef or self.target.fused_py_func:
-            code.put(
-                "static PyMethodDef %s = " % entry.pymethdef_cname)
-            code.put_pymethoddef(self.target.entry, ";", allow_skip=False)
-        code.putln("%s {" % header)
+        code.put_function_header(self.signature, self.self_in_stararg, self.args,
+                                 self.target, self.return_type,
+                                 with_pymethdef, proto_only)
 
     def generate_argument_declarations(self, env, code):
         for arg in self.args:
@@ -3918,7 +3841,7 @@ class DefNodeWrapper(FuncDefNode):
             kw_unpacking_condition = "likely(%s)" % kw_unpacking_condition
 
         # --- optimised code when we receive keyword arguments
-        code.putln("if (%s) {" % kw_unpacking_condition)
+        code.putln("if (%s) {" % code.is_null_cond(kw_unpacking_condition))
 
         if accept_kwd_args:
             self.generate_keyword_unpacking_code(
@@ -4567,7 +4490,7 @@ class GeneratorBodyDefNode(DefNode):
         # ----- Closure initialization
         if lenv.scope_class.type.scope.var_entries:
             closure_init_code.putln('%s = %s;' % (
-                lenv.scope_class.type.declaration_code(Naming.cur_scope_cname),
+                code.type_declaration(lenv.scope_class.type, Naming.cur_scope_cname),
                 lenv.scope_class.type.cast_code('%s->closure' %
                                                 Naming.generator_cname)))
             # FIXME: this silences a potential "unused" warning => try to avoid unused closures in more cases
@@ -6553,11 +6476,11 @@ class ReturnStatNode(StatNode):
                         code.globalstate.use_utility_code(
                             UtilityCode.load_cached("StopAsyncIteration", "Coroutine.c"))
                         code.put("PyErr_SetNone(__Pyx_PyExc_StopAsyncIteration); ")
-                    code.putln("%s = NULL;" % Naming.retval_cname)
+                    code.putln("%s = %s;" % (Naming.retval_cname, code.literal_null()))
                 else:
                     code.put_init_to_py_none(Naming.retval_cname, self.return_type)
             elif self.return_type.is_returncode:
-                self.put_return(code, self.return_type.default_value)
+                self.put_return(code, code.default_value(self.return_type))
 
         for cname, type in code.funcstate.temps_holding_reference():
             code.put_decref_clear(cname, type)

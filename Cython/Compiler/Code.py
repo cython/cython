@@ -1480,7 +1480,7 @@ class GlobalState(object):
         decls_writer = self.parts['decls']
         decls_writer.putln("#if !CYTHON_USE_MODULE_STATE")
         for _, cname, c in consts:
-            self.parts['module_state'].putln("%s;" % c.type.declaration_code(cname))
+            self.parts['module_state'].putln("%s;" % decls_writer.type_declaration(c.type, cname))
             self.parts['module_state_defines'].putln(
                 "#define %s %s->%s" % (cname, Naming.modulestateglobal_cname, cname))
             self.parts['module_state_clear'].putln(
@@ -1488,7 +1488,7 @@ class GlobalState(object):
             self.parts['module_state_traverse'].putln(
                 "Py_VISIT(traverse_module_state->%s);" % cname)
             decls_writer.putln(
-                "static %s;" % c.type.declaration_code(cname))
+                "static %s;" % decls_writer.type_declaration(c.type, cname))
         decls_writer.putln("#endif")
 
     def generate_cached_methods_decls(self):
@@ -1755,6 +1755,7 @@ class CCodeConfig(object):
         self.emit_code_comments = emit_code_comments
         self.emit_linenums = emit_linenums
         self.c_line_in_traceback = c_line_in_traceback
+
 
 
 class CCodeWriter(object):
@@ -2076,12 +2077,12 @@ class CCodeWriter(object):
             self.put(entry.type.cpp_optional_declaration_code(
                 entry.cname, dll_linkage=dll_linkage))
         else:
-            self.put(entry.type.declaration_code(
+            self.put(self.type_declaration(entry.type,
                 entry.cname, dll_linkage=dll_linkage))
         if entry.init is not None:
             self.put_safe(" = %s" % entry.type.literal_code(entry.init))
         elif entry.type.is_pyobject:
-            self.put(" = NULL")
+            self.put(" = %s" % self.literal_null())
         self.putln(";")
         self.funcstate.scope.use_entry_utility_code(entry)
 
@@ -2090,9 +2091,9 @@ class CCodeWriter(object):
             if type.is_cpp_class and func_context.scope.directives['cpp_locals']:
                 decl = type.cpp_optional_declaration_code(name)
             else:
-                decl = type.declaration_code(name)
+                decl = self.type_declaration(type, name)
             if type.is_pyobject:
-                self.putln("%s = NULL;" % decl)
+                self.putln("%s = %s;" % (decl, self.default_value(type)))
             elif type.is_memoryviewslice:
                 self.putln("%s = %s;" % (decl, type.literal_code(type.default_value)))
             else:
@@ -2132,7 +2133,7 @@ class CCodeWriter(object):
     def entry_as_pyobject(self, entry):
         type = entry.type
         if (not entry.is_self_arg and not entry.type.is_complete()
-                or entry.type.is_extension_type):
+            or entry.type.is_extension_type):
             return "(PyObject *)" + entry.cname
         else:
             return entry.cname
@@ -2170,11 +2171,11 @@ class CCodeWriter(object):
 
     def put_decref_clear(self, cname, type, clear_before_decref=False, nanny=True, have_gil=True):
         type.generate_decref_clear(self, cname, clear_before_decref=clear_before_decref,
-                              nanny=nanny, have_gil=have_gil)
+                                   nanny=nanny, have_gil=have_gil)
 
     def put_xdecref_clear(self, cname, type, clear_before_decref=False, nanny=True, have_gil=True):
         type.generate_xdecref_clear(self, cname, clear_before_decref=clear_before_decref,
-                              nanny=nanny, have_gil=have_gil)
+                                    nanny=nanny, have_gil=have_gil)
 
     def put_decref_set(self, cname, type, rhs_cname):
         type.generate_decref_set(self, cname, rhs_cname)
@@ -2257,17 +2258,91 @@ class CCodeWriter(object):
         if entry.in_closure:
             self.put_giveref('Py_None')
 
-    def put_pymethoddef(self, entry, term, allow_skip=True, wrapper_code_writer=None):
-        if entry.is_special or entry.name == '__getattribute__':
-            if entry.name not in special_py_methods:
-                if entry.name == '__getattr__' and not self.globalstate.directives['fast_getattr']:
-                    pass
-                # Python's typeobject.c will automatically fill in our slot
-                # in add_operators() (called by PyType_Ready) with a value
-                # that's better than ours.
-                elif allow_skip:
-                    return
+    def put_function_header(self, sig, self_in_stararg, args, target, return_type, with_pymethdef, proto_only=0):
+        from .PyrexTypes import py_object_type
+        from . import TypeSlots
+        arg_code_list = []
 
+        if sig.has_dummy_arg or self_in_stararg:
+            arg_code = self.type_declaration(py_object_type, Naming.self_cname)
+            if not sig.has_dummy_arg:
+                arg_code = 'CYTHON_UNUSED ' + arg_code
+            arg_code_list.append(arg_code)
+
+        for arg in args:
+            if not arg.is_generic:
+                if arg.is_self_arg or arg.is_type_arg:
+                    arg_code_list.append(self.type_declaration(py_object_type, arg.hdr_cname))
+                else:
+                    arg_code_list.append(
+                        self.type_declaration(arg.hdr_type, arg.hdr_cname))
+        entry = target.entry
+        if not entry.is_special and sig.method_flags() == [TypeSlots.method_noargs]:
+            arg_code_list.append("CYTHON_UNUSED " + self.type_declaration(py_object_type, "unused"))
+        if entry.scope.is_c_class_scope and entry.name == "__ipow__":
+            arg_code_list.append("CYTHON_UNUSED " + self.type_declaration(py_object_type, "unused"))
+        if sig.has_generic_args:
+            varargs_args = "PyObject *%s, PyObject *%s" % (
+                Naming.args_cname, Naming.kwds_cname)
+            if sig.use_fastcall:
+                fastcall_args = "PyObject *const *%s, Py_ssize_t %s, PyObject *%s" % (
+                    Naming.args_cname, Naming.nargs_cname, Naming.kwds_cname)
+                arg_code_list.append(
+                    "\n#if CYTHON_METH_FASTCALL\n%s\n#else\n%s\n#endif\n" % (
+                        fastcall_args, varargs_args))
+            else:
+                arg_code_list.append(varargs_args)
+        arg_code = ", ".join(arg_code_list)
+
+        # Prevent warning: unused function '__pyx_pw_5numpy_7ndarray_1__getbuffer__'
+        mf = ""
+        if (entry.name in ("__getbuffer__", "__releasebuffer__")
+            and entry.scope.is_c_class_scope):
+            mf = "CYTHON_UNUSED "
+            with_pymethdef = False
+
+        dc = self.type_declaration(return_type, entry.func_cname)
+        header = "static %s%s(%s)" % (mf, dc, arg_code)
+        self.putln("%s; /*proto*/" % header)
+
+        if proto_only:
+            if target.fused_py_func:
+                # If we are the specialized version of the cpdef, we still
+                # want the prototype for the "fused cpdef", in case we're
+                # checking to see if our method was overridden in Python
+                target.fused_py_func.generate_function_header(
+                    self, with_pymethdef, proto_only=True)
+            return
+
+        if (Options.docstrings and entry.doc and
+            not target.fused_py_func and
+            not entry.scope.is_property_scope and
+            (not entry.is_special or entry.wrapperbase_cname)):
+            # h_code = self.globalstate['h_code']
+            docstr = entry.doc
+
+            if docstr.is_unicode:
+                docstr = docstr.as_utf8_string()
+
+            if not (entry.is_special and entry.name in ('__getbuffer__', '__releasebuffer__')):
+                self.putln('PyDoc_STRVAR(%s, %s);' % (
+                    entry.doc_cname,
+                    docstr.as_c_string_literal()))
+
+            if entry.is_special:
+                self.putln('#if CYTHON_COMPILING_IN_CPYTHON')
+                self.putln(
+                    "struct wrapperbase %s;" % entry.wrapperbase_cname)
+                self.putln('#endif')
+
+        if with_pymethdef or target.fused_py_func:
+            self.put(
+                "static PyMethodDef %s = " % entry.pymethdef_cname)
+            self.put_pymethoddef(target.entry, ";", allow_skip=False)
+        self.putln("%s {" % header)
+
+
+    def put_pymethoddef(self, entry, term, allow_skip=True, wrapper_code_writer=None):
         method_flags = entry.signature.method_flags()
         if not method_flags:
             return
@@ -2287,6 +2362,9 @@ class CCodeWriter(object):
                 "|".join(method_flags),
                 entry.doc_cname if entry.doc else '0',
                 term))
+
+    def put_hpydef(self, entry):
+        self.putln('&' + str(entry))
 
     def put_pymethoddef_wrapper(self, entry):
         func_cname = entry.func_cname
@@ -2400,10 +2478,10 @@ class CCodeWriter(object):
         if not unbound_check_code:
             unbound_check_code = entry.type.check_for_null_code(entry.cname)
         self.putln('if (unlikely(!%s)) { %s("%s"); %s }' % (
-                                unbound_check_code,
-                                func,
-                                entry.name,
-                                self.error_goto(pos)))
+            unbound_check_code,
+            func,
+            entry.name,
+            self.error_goto(pos)))
 
     def set_error_info(self, pos, used=False):
         self.funcstate.should_declare_error_indicator = True
@@ -2438,6 +2516,9 @@ class CCodeWriter(object):
 
     def error_goto_if_PyErr(self, pos):
         return self.error_goto_if("PyErr_Occurred()", pos)
+
+    def is_null_cond(self, cname):
+        return cname
 
     def lookup_filename(self, filename):
         return self.globalstate.lookup_filename(filename)
@@ -2533,6 +2614,754 @@ class CCodeWriter(object):
         self.putln("    #define unlikely(x) __builtin_expect(!!(x), 0)")
         self.putln("#endif")
 
+    # Type initialization and conversion
+
+    def default_value(self, type):
+        from .PyrexTypes import hpy_type
+        if type.is_pyobject:
+            return hpy_type.default_value
+        return type.default_value
+
+    def literal_null(self):
+        return "NULL"
+
+    def type_declaration(self, type, entity_code,
+                             for_display = 0, dll_linkage = None, pyrex = 0):
+        return type.declaration_code(entity_code, for_display, dll_linkage, pyrex)
+
+    # Expressions
+
+    def put_binary_call_with_error(self, cresult, function, left, right, err_target):
+        '''
+        cresult = function(left, right); if (!cresult) goto error;
+        '''
+        self.putln(
+            "%s = %s(%s, %s); %s" % (
+                cresult,
+                function,
+                left,
+                right,
+                self.error_goto_if_null(cresult, err_target)))
+
+    def binary_operation_function(self, operator, inplace):
+        function_name = self.py_functions[operator]
+        if inplace:
+            function_name = function_name.replace('PyNumber_', 'PyNumber_InPlace')
+        return function_name
+
+    py_functions = {
+        "|":        "PyNumber_Or",
+        "^":        "PyNumber_Xor",
+        "&":        "PyNumber_And",
+        "<<":       "PyNumber_Lshift",
+        ">>":       "PyNumber_Rshift",
+        "+":        "PyNumber_Add",
+        "-":        "PyNumber_Subtract",
+        "*":        "PyNumber_Multiply",
+        "@":        "__Pyx_PyNumber_MatrixMultiply",
+        "/":        "__Pyx_PyNumber_Divide",
+        "//":       "PyNumber_FloorDivide",
+        "%":        "PyNumber_Remainder",
+        "**":       "PyNumber_Power",
+    }
+
+
+
+class HPyCCodeWriter(CCodeWriter):
+    """
+    Utility class to output HPy API C code.
+
+    When creating an insertion point one must care about the state that is
+    kept:
+    - formatting state (level, bol) is cloned and used in insertion points
+      as well
+    - labels, temps, exc_vars: One must construct a scope in which these can
+      exist by calling enter_cfunc_scope/exit_cfunc_scope (these are for
+      sanity checking and forward compatibility). Created insertion points
+      looses this scope and cannot access it.
+    - marker: Not copied to insertion point
+    - filename_table, filename_list, input_file_contents: All codewriters
+      coming from the same root share the same instances simultaneously.
+    """
+
+    # f                   file            output file
+    # buffer              StringIOTree
+
+    # level               int             indentation level
+    # bol                 bool            beginning of line?
+    # marker              string          comment to emit before next line
+    # funcstate           FunctionState   contains state local to a C function used for code
+    #                                     generation (labels and temps state etc.)
+    # globalstate         GlobalState     contains state global for a C file (input file info,
+    #                                     utility code, declared constants etc.)
+    # pyclass_stack       list            used during recursive code generation to pass information
+    #                                     about the current class one is in
+    # code_config         CCodeConfig     configuration options for the C code writer
+
+    def create_new(self, create_from, buffer, copy_formatting):
+        # polymorphic constructor -- very slightly more versatile
+        # than using __class__
+        result = HPyCCodeWriter(create_from, buffer, copy_formatting)
+        return result
+
+    def new_writer(self):
+        """
+        Creates a new CCodeWriter connected to the same global state, which
+        can later be inserted using insert.
+        """
+        return HPyCCodeWriter(create_from=self)
+
+    # constant handling
+
+    def get_py_int(self, str_value, longness):
+        return self.globalstate.get_int_const(str_value, longness).cname
+
+    def get_py_float(self, str_value, value_code):
+        return self.globalstate.get_float_const(str_value, value_code).cname
+
+    def get_py_const(self, type, prefix='', cleanup_level=None, dedup_key=None):
+        return self.globalstate.get_py_const(type, prefix, cleanup_level, dedup_key).cname
+
+    def get_string_const(self, text):
+        return self.globalstate.get_string_const(text).cname
+
+    def get_pyunicode_ptr_const(self, text):
+        return self.globalstate.get_pyunicode_ptr_const(text)
+
+    def get_py_string_const(self, text, identifier=None,
+                            is_str=False, unicode_value=None):
+        return self.globalstate.get_py_string_const(
+            text, identifier, is_str, unicode_value).cname
+
+    def get_argument_default_const(self, type):
+        return self.globalstate.get_py_const(type).cname
+
+    def intern(self, text):
+        return self.get_py_string_const(text)
+
+    def intern_identifier(self, text):
+        return self.get_py_string_const(text, identifier=True)
+
+    def get_cached_constants_writer(self, target=None):
+        return self.globalstate.get_cached_constants_writer(target)
+
+    # code generation
+
+    def put(self, code):
+        fix_indent = False
+        if "{" in code:
+            dl = code.count("{")
+        else:
+            dl = 0
+        if "}" in code:
+            dl -= code.count("}")
+            if dl < 0:
+                self.level += dl
+            elif dl == 0 and code[0] == "}":
+                # special cases like "} else {" need a temporary dedent
+                fix_indent = True
+                self.level -= 1
+        if self.bol:
+            self.indent()
+        self.write(code)
+        self.bol = 0
+        if dl > 0:
+            self.level += dl
+        elif fix_indent:
+            self.level += 1
+
+    def putln_tempita(self, code, **context):
+        from ..Tempita import sub
+        self.putln(sub(code, **context))
+
+    def put_tempita(self, code, **context):
+        from ..Tempita import sub
+        self.put(sub(code, **context))
+
+    def increase_indent(self):
+        self.level += 1
+
+    def decrease_indent(self):
+        self.level -= 1
+
+    def begin_block(self):
+        self.putln("{")
+        self.increase_indent()
+
+    def end_block(self):
+        self.decrease_indent()
+        self.putln("}")
+
+    def indent(self):
+        self.write("  " * self.level)
+
+    def get_py_version_hex(self, pyversion):
+        return "0x%02X%02X%02X%02X" % (tuple(pyversion) + (0,0,0,0))[:4]
+
+    def put_label(self, lbl):
+        if lbl in self.funcstate.labels_used:
+            self.putln("%s:;" % lbl)
+
+    def put_goto(self, lbl):
+        self.funcstate.use_label(lbl)
+        self.putln("goto %s;" % lbl)
+
+    def put_var_declaration(self, entry, storage_class="",
+                            dll_linkage=None, definition=True):
+        #print "Code.put_var_declaration:", entry.name, "definition =", definition ###
+        if entry.visibility == 'private' and not (definition or entry.defined_in_pxd):
+            #print "...private and not definition, skipping", entry.cname ###
+            return
+        if entry.visibility == "private" and not entry.used:
+            #print "...private and not used, skipping", entry.cname ###
+            return
+        if storage_class:
+            self.put("%s " % storage_class)
+        if not entry.cf_used:
+            self.put('CYTHON_UNUSED ')
+        if entry.is_cpp_optional:
+            self.put(entry.type.cpp_optional_declaration_code(
+                entry.cname, dll_linkage=dll_linkage))
+        else:
+            self.put(self.type_declaration(entry.type,
+                entry.cname, dll_linkage=dll_linkage))
+        if entry.init is not None:
+            self.put_safe(" = %s" % entry.type.literal_code(entry.init))
+        elif entry.type.is_pyobject:
+            self.put(" = %s" % self.literal_null())
+        self.putln(";")
+        self.funcstate.scope.use_entry_utility_code(entry)
+
+    def put_temp_declarations(self, func_context):
+        for name, type, manage_ref, static in func_context.temps_allocated:
+            if type.is_cpp_class and func_context.scope.directives['cpp_locals']:
+                decl = type.cpp_optional_declaration_code(name)
+            else:
+                decl = self.type_declaration(type, name)
+            if type.is_pyobject:
+                self.putln("%s = %s;" % (decl, self.literal_null()))
+            elif type.is_memoryviewslice:
+                self.putln("%s = %s;" % (decl, type.literal_code(self.default_value(type))))
+            else:
+                self.putln("%s%s;" % (static and "static " or "", decl))
+
+        if func_context.should_declare_error_indicator:
+            if self.funcstate.uses_error_indicator:
+                unused = ''
+            else:
+                unused = 'CYTHON_UNUSED '
+            # Initialize these variables to silence compiler warnings
+            self.putln("%sint %s = 0;" % (unused, Naming.lineno_cname))
+            self.putln("%sconst char *%s = NULL;" % (unused, Naming.filename_cname))
+            self.putln("%sint %s = 0;" % (unused, Naming.clineno_cname))
+
+    def put_generated_by(self):
+        self.putln("/* Generated by Cython %s */" % Version.watermark)
+        self.putln("")
+
+    def put_h_guard(self, guard):
+        self.putln("#ifndef %s" % guard)
+        self.putln("#define %s" % guard)
+
+    def unlikely(self, cond):
+        if Options.gcc_branch_hints:
+            return 'unlikely(%s)' % cond
+        else:
+            return cond
+
+    def build_function_modifiers(self, modifiers, mapper=modifier_output_mapper):
+        if not modifiers:
+            return ''
+        return '%s ' % ' '.join([mapper(m,m) for m in modifiers])
+
+    # Python objects and reference counting
+
+    def entry_as_pyobject(self, entry):
+        type = entry.type
+        if (not entry.is_self_arg and not entry.type.is_complete()
+            or entry.type.is_extension_type):
+            return "(PyObject *)" + entry.cname
+        else:
+            return entry.cname
+
+    def as_pyobject(self, cname, type):
+        from .PyrexTypes import py_object_type, typecast
+        return typecast(py_object_type, type, cname)
+
+    def put_gotref(self, cname, type):
+        #type.generate_gotref(self, cname)
+        pass
+
+    def put_giveref(self, cname, type):
+        #type.generate_giveref(self, cname)
+        pass
+
+    def put_xgiveref(self, cname, type):
+        #type.generate_xgiveref(self, cname)
+        pass
+
+    def put_xgotref(self, cname, type):
+        #type.generate_xgotref(self, cname)
+        pass
+
+    def put_incref(self, cname, type, nanny=True):
+        from .PyrexTypes import hpy_type
+        if type.is_pyobject:
+            hpy_type.generate_dup(self, Naming.hpy_context_cname, cname)
+        else:
+            type.generate_incref(self, cname, nanny=nanny)
+
+    def put_xincref(self, cname, type, nanny=True):
+        from .PyrexTypes import hpy_type
+        if type.is_pyobject:
+            hpy_type.generate_dup(self, Naming.hpy_context_cname, cname)
+        else:
+            type.generate_xincref(self, cname, nanny=nanny)
+
+    def put_decref(self, cname, type, nanny=True, have_gil=True):
+        from .PyrexTypes import hpy_type
+        if type.is_pyobject:
+            hpy_type.generate_close(self, Naming.hpy_context_cname, cname, have_gil)
+        else:
+            type.generate_decref(self, cname, nanny=nanny, have_gil=have_gil)
+
+    def put_xdecref(self, cname, type, nanny=True, have_gil=True):
+        from .PyrexTypes import hpy_type
+        if type.is_pyobject:
+            hpy_type.generate_close(self, Naming.hpy_context_cname, cname, have_gil)
+        else:
+            type.generate_xdecref(self, cname, nanny=nanny, have_gil=have_gil)
+
+    def put_decref_clear(self, cname, type, clear_before_decref=False, nanny=True, have_gil=True):
+        from .PyrexTypes import hpy_type
+        if type.is_pyobject:
+            hpy_type.generate_close_clear(self, Naming.hpy_context_cname, cname,
+                                          clear_before_decref=clear_before_decref, have_gil=have_gil)
+        else:
+            type.generate_decref_clear(self, cname, clear_before_decref=clear_before_decref,
+                                       nanny=nanny, have_gil=have_gil)
+
+    def put_xdecref_clear(self, cname, type, clear_before_decref=False, nanny=True, have_gil=True):
+        from .PyrexTypes import hpy_type
+        if type.is_pyobject:
+            hpy_type.generate_close_clear(self, Naming.hpy_context_cname, cname,
+                                          clear_before_decref=clear_before_decref, have_gil=have_gil)
+        else:
+            type.generate_xdecref_clear(self, cname, clear_before_decref=clear_before_decref,
+                                        nanny=nanny, have_gil=have_gil)
+
+    def put_decref_set(self, cname, type, rhs_cname):
+        if type.is_pyobject:
+            raise NotImplementedError
+        type.generate_decref_set(self, cname, rhs_cname)
+
+    def put_xdecref_set(self, cname, type, rhs_cname):
+        if type.is_pyobject:
+            raise NotImplementedError
+        type.generate_xdecref_set(self, cname, rhs_cname)
+
+    def put_incref_memoryviewslice(self, slice_cname, type, have_gil):
+        # TODO ideally this would just be merged into "put_incref"
+        type.generate_incref_memoryviewslice(self, slice_cname, have_gil=have_gil)
+
+    def put_init_to_py_none(self, cname, type, nanny=True):
+        if not type.is_pyobject:
+            raise NotImplementedError
+        hpy_ctx = Naming.hpy_context_cname
+        self.putln("%s = (%s)->h_None; HPy_Dup(%s, (%s)->h_None);" % (cname, hpy_ctx, hpy_ctx, hpy_ctx))
+
+    def put_init_var_to_py_none(self, entry, template = "%s", nanny=True):
+        code = template % entry.cname
+        #if entry.type.is_extension_type:
+        #    code = "((PyObject*)%s)" % code
+        self.put_init_to_py_none(code, entry.type, nanny)
+        if entry.in_closure:
+            self.put_giveref('Py_None')
+
+    def put_hpy_method_definition(self, entry):
+        method_flags = entry.signature.hpy_method_flags()
+        if not method_flags:
+            return
+        entry_name = entry.name.as_c_string_literal()
+        self.putln("HPyDef_METH(%s, %s, %s, %s, .doc=%s);" % (entry.pymethdef_cname, entry_name, entry.func_cname, "|".join(method_flags), entry.doc_cname))
+
+    def put_hpydef(self, entry):
+        self.putln('&' + str(entry))
+
+    def put_pymethoddef_wrapper(self, entry):
+        func_cname = entry.func_cname
+        if entry.is_special:
+            method_flags = entry.signature.method_flags() or []
+            from .TypeSlots import method_noargs
+            if method_noargs in method_flags:
+                # Special NOARGS methods really take no arguments besides 'self', but PyCFunction expects one.
+                func_cname = Naming.method_wrapper_prefix + func_cname
+                self.putln("static PyObject *%s(PyObject *self, CYTHON_UNUSED PyObject *arg) {return %s(self);}" % (
+                    func_cname, entry.func_cname))
+        return func_cname
+
+    # GIL methods
+
+    def use_fast_gil_utility_code(self):
+        if self.globalstate.directives['fast_gil']:
+            self.globalstate.use_utility_code(UtilityCode.load_cached("FastGil", "ModuleSetupCode.c"))
+        else:
+            self.globalstate.use_utility_code(UtilityCode.load_cached("NoFastGil", "ModuleSetupCode.c"))
+
+    def put_ensure_gil(self, declare_gilstate=True, variable=None):
+        """
+        Acquire the GIL. The generated code is safe even when no PyThreadState
+        has been allocated for this thread (for threads not initialized by
+        using the Python API). Additionally, the code generated by this method
+        may be called recursively.
+        """
+        self.globalstate.use_utility_code(
+            UtilityCode.load_cached("ForceInitThreads", "ModuleSetupCode.c"))
+        self.use_fast_gil_utility_code()
+        self.putln("#ifdef WITH_THREAD")
+        if not variable:
+            variable = '__pyx_gilstate_save'
+            if declare_gilstate:
+                self.put("PyGILState_STATE ")
+        self.putln("%s = __Pyx_PyGILState_Ensure();" % variable)
+        self.putln("#endif")
+
+    def put_release_ensured_gil(self, variable=None):
+        """
+        Releases the GIL, corresponds to `put_ensure_gil`.
+        """
+        self.use_fast_gil_utility_code()
+        if not variable:
+            variable = '__pyx_gilstate_save'
+        self.putln("#ifdef WITH_THREAD")
+        self.putln("__Pyx_PyGILState_Release(%s);" % variable)
+        self.putln("#endif")
+
+    def put_acquire_gil(self, variable=None):
+        """
+        Acquire the GIL. The thread's thread state must have been initialized
+        by a previous `put_release_gil`
+        """
+        self.use_fast_gil_utility_code()
+        self.putln("#ifdef WITH_THREAD")
+        self.putln("__Pyx_FastGIL_Forget();")
+        if variable:
+            self.putln('_save = %s;' % variable)
+        self.putln("Py_BLOCK_THREADS")
+        self.putln("#endif")
+
+    def put_release_gil(self, variable=None):
+        "Release the GIL, corresponds to `put_acquire_gil`."
+        self.use_fast_gil_utility_code()
+        self.putln("#ifdef WITH_THREAD")
+        self.putln("PyThreadState *_save;")
+        self.putln("Py_UNBLOCK_THREADS")
+        if variable:
+            self.putln('%s = _save;' % variable)
+        self.putln("__Pyx_FastGIL_Remember();")
+        self.putln("#endif")
+
+    def declare_gilstate(self):
+        self.putln("#ifdef WITH_THREAD")
+        self.putln("PyGILState_STATE __pyx_gilstate_save;")
+        self.putln("#endif")
+
+    # error handling
+
+    def put_error_if_neg(self, pos, value):
+        # TODO this path is almost _never_ taken, yet this macro makes is slower!
+        # return self.putln("if (unlikely(%s < 0)) %s" % (value, self.error_goto(pos)))
+        return self.putln("if (%s < 0) %s" % (value, self.error_goto(pos)))
+
+    def put_error_if_unbound(self, pos, entry, in_nogil_context=False, unbound_check_code=None):
+        if entry.from_closure:
+            func = '__Pyx_RaiseClosureNameError'
+            self.globalstate.use_utility_code(
+                UtilityCode.load_cached("RaiseClosureNameError", "ObjectHandling.c"))
+        elif entry.type.is_memoryviewslice and in_nogil_context:
+            func = '__Pyx_RaiseUnboundMemoryviewSliceNogil'
+            self.globalstate.use_utility_code(
+                UtilityCode.load_cached("RaiseUnboundMemoryviewSliceNogil", "ObjectHandling.c"))
+        elif entry.type.is_cpp_class and entry.is_cglobal:
+            func = '__Pyx_RaiseCppGlobalNameError'
+            self.globalstate.use_utility_code(
+                UtilityCode.load_cached("RaiseCppGlobalNameError", "ObjectHandling.c"))
+        elif entry.type.is_cpp_class and entry.is_variable and not entry.is_member and entry.scope.is_c_class_scope:
+            # there doesn't seem to be a good way to detecting an instance-attribute of a C class
+            # (is_member is only set for class attributes)
+            func = '__Pyx_RaiseCppAttributeError'
+            self.globalstate.use_utility_code(
+                UtilityCode.load_cached("RaiseCppAttributeError", "ObjectHandling.c"))
+        else:
+            func = '__Pyx_RaiseUnboundLocalError'
+            self.globalstate.use_utility_code(
+                UtilityCode.load_cached("RaiseUnboundLocalError", "ObjectHandling.c"))
+
+        if not unbound_check_code:
+            unbound_check_code = entry.type.check_for_null_code(entry.cname)
+        self.putln('if (unlikely(!%s)) { %s("%s"); %s }' % (
+            unbound_check_code,
+            func,
+            entry.name,
+            self.error_goto(pos)))
+
+    def set_error_info(self, pos, used=False):
+        self.funcstate.should_declare_error_indicator = True
+        if used:
+            self.funcstate.uses_error_indicator = True
+        return "__PYX_MARK_ERR_POS(%s, %s)" % (
+            self.lookup_filename(pos[0]),
+            pos[1])
+
+    def error_goto(self, pos, used=True):
+        lbl = self.funcstate.error_label
+        self.funcstate.use_label(lbl)
+        if pos is None:
+            return 'goto %s;' % lbl
+        self.funcstate.should_declare_error_indicator = True
+        if used:
+            self.funcstate.uses_error_indicator = True
+        return "__PYX_ERR(%s, %s, %s)" % (
+            self.lookup_filename(pos[0]),
+            pos[1],
+            lbl)
+
+    def error_goto_if(self, cond, pos):
+        return "if (%s) %s" % (self.unlikely(cond), self.error_goto(pos))
+
+    def error_goto_if_null(self, cname, pos):
+        return self.error_goto_if(self.is_null_cond(cname), pos)
+
+    def error_goto_if_neg(self, cname, pos):
+        # Add extra parentheses to silence clang warnings about constant conditions.
+        return self.error_goto_if("(%s < 0)" % cname, pos)
+
+    def error_goto_if_PyErr(self, pos):
+        return self.error_goto_if("HPyErr_Occurred(%s)" % Naming.hpy_context_cname, pos)
+
+    def is_null_cond(self, cname):
+        return "HPy_IsNull(%s)" % cname
+
+    def lookup_filename(self, filename):
+        return self.globalstate.lookup_filename(filename)
+
+    def put_declare_refcount_context(self):
+        #self.putln('__Pyx_RefNannyDeclarations')
+        pass
+
+    def put_setup_refcount_context(self, name, acquire_gil=False):
+        name = name.as_c_string_literal()  # handle unicode names
+        if acquire_gil:
+            self.globalstate.use_utility_code(
+                UtilityCode.load_cached("ForceInitThreads", "ModuleSetupCode.c"))
+        #self.putln('__Pyx_RefNannySetupContext(%s, %d);' % (name, acquire_gil and 1 or 0))
+
+    def put_finish_refcount_context(self, nogil=False):
+        #self.putln("__Pyx_RefNannyFinishContextNogil()" if nogil else "__Pyx_RefNannyFinishContext();")
+        pass
+
+    def put_add_traceback(self, qualified_name, include_cline=True):
+        """
+        Build a Python traceback for propagating exceptions.
+
+        qualified_name should be the qualified name of the function.
+        """
+        qualified_name = qualified_name.as_c_string_literal()  # handle unicode names
+        format_tuple = (
+            qualified_name,
+            Naming.clineno_cname if include_cline else 0,
+            Naming.lineno_cname,
+            Naming.filename_cname,
+        )
+
+        self.funcstate.uses_error_indicator = True
+        self.putln('__Pyx_AddTraceback(%s, %s, %s, %s);' % format_tuple)
+
+    def put_unraisable(self, qualified_name, nogil=False):
+        """
+        Generate code to print a Python warning for an unraisable exception.
+
+        qualified_name should be the qualified name of the function.
+        """
+        format_tuple = (
+            qualified_name,
+            Naming.clineno_cname,
+            Naming.lineno_cname,
+            Naming.filename_cname,
+            self.globalstate.directives['unraisable_tracebacks'],
+            nogil,
+        )
+        self.funcstate.uses_error_indicator = True
+        self.putln('__Pyx_WriteUnraisable("%s", %s, %s, %s, %d, %d);' % format_tuple)
+        self.globalstate.use_utility_code(
+            UtilityCode.load_cached("WriteUnraisableException", "Exceptions.c"))
+
+    def put_trace_declarations(self):
+        self.putln('__Pyx_TraceDeclarations')
+
+    def put_trace_frame_init(self, codeobj=None):
+        if codeobj:
+            self.putln('__Pyx_TraceFrameInit(%s)' % codeobj)
+
+    def put_trace_call(self, name, pos, nogil=False):
+        self.putln('__Pyx_TraceCall("%s", %s[%s], %s, %d, %s);' % (
+            name, Naming.filetable_cname, self.lookup_filename(pos[0]), pos[1], nogil, self.error_goto(pos)))
+
+    def put_trace_exception(self):
+        self.putln("__Pyx_TraceException();")
+
+    def put_trace_return(self, retvalue_cname, nogil=False):
+        self.putln("__Pyx_TraceReturn(%s, %d);" % (retvalue_cname, nogil))
+
+    def putln_openmp(self, string):
+        self.putln("#ifdef _OPENMP")
+        self.putln(string)
+        self.putln("#endif /* _OPENMP */")
+
+    def undef_builtin_expect(self, cond):
+        """
+        Redefine the macros likely() and unlikely to no-ops, depending on
+        condition 'cond'
+        """
+        self.putln("#if %s" % cond)
+        self.putln("    #undef likely")
+        self.putln("    #undef unlikely")
+        self.putln("    #define likely(x)   (x)")
+        self.putln("    #define unlikely(x) (x)")
+        self.putln("#endif")
+
+    def redef_builtin_expect(self, cond):
+        self.putln("#if %s" % cond)
+        self.putln("    #undef likely")
+        self.putln("    #undef unlikely")
+        self.putln("    #define likely(x)   __builtin_expect(!!(x), 1)")
+        self.putln("    #define unlikely(x) __builtin_expect(!!(x), 0)")
+        self.putln("#endif")
+
+    # Type initialization and conversion
+
+    def default_value(self, type):
+        if type.is_pyobject:
+            from .PyrexTypes import hpy_type
+            return hpy_type.default_value
+        return type.default_value
+
+    def literal_null(self):
+        return "HPy_NULL"
+
+    def type_declaration(self, type, entity_code,
+                             for_display = 0, dll_linkage = None, pyrex = 0):
+        if type.is_pyobject:
+            from .PyrexTypes import hpy_type
+            return hpy_type.declaration_code(entity_code, for_display, dll_linkage, pyrex)
+        return type.declaration_code(entity_code, for_display, dll_linkage, pyrex)
+
+    def put_function_header(self, sig, self_in_stararg, args, target, return_type, with_pymethdef, proto_only=0):
+        from .PyrexTypes import py_object_type
+        from . import TypeSlots
+        arg_code_list = ["HPyContext *" + Naming.hpy_context_cname]
+
+        if sig.has_dummy_arg or self_in_stararg:
+            arg_code = self.type_declaration(py_object_type, Naming.self_cname)
+            if not sig.has_dummy_arg:
+                arg_code = 'CYTHON_UNUSED ' + arg_code
+            arg_code_list.append(arg_code)
+
+        for arg in args:
+            if not arg.is_generic:
+                if arg.is_self_arg or arg.is_type_arg:
+                    arg_code_list.append(self.type_declaration(py_object_type, arg.hdr_cname))
+                else:
+                    arg_code_list.append(
+                        self.type_declaration(arg.hdr_type, arg.hdr_cname))
+        entry = target.entry
+        if not entry.is_special and sig.method_flags() == [TypeSlots.hpy_method_noargs]:
+            arg_code_list.append("CYTHON_UNUSED " + self.type_declaration(py_object_type, "unused"))
+        if entry.scope.is_c_class_scope and entry.name == "__ipow__":
+            arg_code_list.append("CYTHON_UNUSED " + self.type_declaration(py_object_type, "unused"))
+        if sig.has_generic_args:
+            varargs_args = "%s, %s" % (
+                self.type_declaration(py_object_type, Naming.args_cname),
+                self.type_declaration(py_object_type, Naming.kwds_cname))
+            arg_code_list.append(varargs_args)
+        arg_code = ", ".join(arg_code_list)
+
+        # Prevent warning: unused function '__pyx_pw_5numpy_7ndarray_1__getbuffer__'
+        dc = self.type_declaration(return_type, entry.func_cname)
+        header = "static %s(%s)" % (dc, arg_code)
+        self.putln("%s; /*proto*/" % header)
+
+        if proto_only:
+            if target.fused_py_func:
+                # If we are the specialized version of the cpdef, we still
+                # want the prototype for the "fused cpdef", in case we're
+                # checking to see if our method was overridden in Python
+                target.fused_py_func.generate_function_header(
+                    self, with_pymethdef, proto_only=True)
+            return
+
+        if (Options.docstrings and entry.doc and
+            not target.fused_py_func and
+            not entry.scope.is_property_scope and
+            (not entry.is_special or entry.wrapperbase_cname)):
+            # h_code = self.globalstate['h_code']
+            docstr = entry.doc
+
+            if docstr.is_unicode:
+                docstr = docstr.as_utf8_string()
+
+            if not (entry.is_special and entry.name in ('__getbuffer__', '__releasebuffer__')):
+                self.putln('PyDoc_STRVAR(%s, %s);' % (
+                    entry.doc_cname,
+                    docstr.as_c_string_literal()))
+
+            if entry.is_special:
+                # TODO(fa) do we need this?
+                #self.putln('#if CYTHON_COMPILING_IN_CPYTHON')
+                #self.putln("struct wrapperbase %s;" % entry.wrapperbase_cname)
+                #self.putln('#endif')
+                pass
+
+        if with_pymethdef or target.fused_py_func:
+            self.put_hpy_method_definition(entry)
+        self.putln("%s {" % header)
+
+    # Expressions
+
+    def put_binary_call_with_error(self, cresult, function, left, right, err_target):
+        '''
+        cresult = function(hpy_ctx, left, right); if (HPy_IsNull(cresult)) goto error;
+        '''
+        self.putln(
+            "%s = %s(%s, %s, %s); %s" % (
+                Naming.hpy_context_cname,
+                cresult,
+                function,
+                left,
+                right,
+                self.error_goto_if_null(cresult, err_target)))
+
+    def binary_operation_function(self, operator, inplace):
+        function_name = self.hpy_functions[operator]
+        if inplace:
+            function_name = function_name.replace('HPy_', 'HPy_InPlace')
+        return function_name
+
+    hpy_functions = {
+        "|":        "HPy_Or",
+        "^":        "HPy_Xor",
+        "&":        "HPy_And",
+        "<<":       "HPy_Lshift",
+        ">>":       "HPy_Rshift",
+        "+":        "HPy_Add",
+        "-":        "HPy_Subtract",
+        "*":        "HPy_Multiply",
+        "@":        "HPy_MatrixMultiply",
+        "/":        "HPy_Divide",
+        "//":       "HPy_FloorDivide",
+        "%":        "HPy_Remainder",
+        "**":       "HPy_Power",
+    }
 
 class PyrexCodeWriter(object):
     # f                file      output file

@@ -869,7 +869,7 @@ class ExprNode(Node):
                 self.generate_subexpr_disposal_code(code)
                 self.free_subexpr_temps(code)
             elif self.type.is_pyobject:
-                code.putln("%s = 0;" % self.result())
+                code.putln("%s = %s;" % (self.result(), code.default_value(self.type)))
             elif self.type.is_memoryviewslice:
                 code.putln("%s.memview = NULL;" % self.result())
                 code.putln("%s.data = NULL;" % self.result())
@@ -11522,50 +11522,7 @@ class NumBinopNode(BinopNode):
                 BinopNode.is_py_operation_types(self, type1, type2))
 
     def py_operation_function(self, code):
-        if self.is_hpy:
-            return self.hpy_operation_function(code)
-        function_name = self.py_functions[self.operator]
-        if self.inplace:
-            function_name = function_name.replace('PyNumber_', 'PyNumber_InPlace')
-        return function_name
-
-    py_functions = {
-        "|":        "PyNumber_Or",
-        "^":        "PyNumber_Xor",
-        "&":        "PyNumber_And",
-        "<<":       "PyNumber_Lshift",
-        ">>":       "PyNumber_Rshift",
-        "+":        "PyNumber_Add",
-        "-":        "PyNumber_Subtract",
-        "*":        "PyNumber_Multiply",
-        "@":        "__Pyx_PyNumber_MatrixMultiply",
-        "/":        "__Pyx_PyNumber_Divide",
-        "//":       "PyNumber_FloorDivide",
-        "%":        "PyNumber_Remainder",
-        "**":       "PyNumber_Power",
-    }
-
-    def hpy_operation_function(self, code):
-        function_name = self.hpy_functions[self.operator]
-        if self.inplace:
-            function_name = function_name.replace('HPy_', 'HPy_InPlace')
-        return function_name
-
-    hpy_functions = {
-        "|":        "HPy_Or",
-        "^":        "HPy_Xor",
-        "&":        "HPy_And",
-        "<<":       "HPy_Lshift",
-        ">>":       "HPy_Rshift",
-        "+":        "HPy_Add",
-        "-":        "HPy_Subtract",
-        "*":        "HPy_Multiply",
-        "@":        "HPy_MatrixMultiply",
-        "/":        "HPy_Divide",
-        "//":       "HPy_FloorDivide",
-        "%":        "HPy_Remainder",
-        "**":       "HPy_Power",
-    }
+        return code.binary_operation_function(self.operator, self.inplace)
 
     overflow_op_names = {
         "+":  "add",

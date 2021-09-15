@@ -333,10 +333,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_public_declaration(self, entry, h_code, i_code):
         h_code.putln("%s %s;" % (
             Naming.extern_c_macro,
-            entry.type.declaration_code(entry.cname)))
+            h_code.type_declaration(entry.type, entry.cname)))
         if i_code:
             i_code.putln("cdef extern %s" % (
-                entry.type.declaration_code(entry.cname, pyrex=1)))
+                i_code.type_declaration(entry.type, entry.cname, pyrex=1)))
 
     def api_name(self, prefix, env):
         api_name = self.punycode_module_name(prefix, env.qualified_name)
@@ -472,6 +472,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code_config=c_code_config,
             common_utility_include_dir=options.common_utility_include_dir,
         )
+
+        hpy_writer = Code.HPyCCodeWriter()
+        hpy_writer.set_global_state(globalstate)
+
         globalstate.initialize_main_c_code()
         h_code = globalstate['h_code']
 
@@ -499,9 +503,18 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_cached_builtins_decls(env, code)
 
         # generate normal variable and function definitions
+        code.putln("#ifndef HPY")
         self.generate_lambda_definitions(env, code)
         self.generate_variable_definitions(env, code)
         self.body.generate_function_definitions(env, code)
+        code.putln("#endif /* HPY */")
+
+        code.putln("#ifdef HPY")
+        self.generate_lambda_definitions(env, code)
+        self.generate_variable_definitions(env, code)
+        self.body.generate_function_definitions(env, hpy_writer)
+        code.insert(hpy_writer)
+        code.putln("#endif /* HPY */")
 
         code.mark_pos(None)
         self.generate_typeobj_definitions(env, code)
@@ -1398,7 +1411,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_variable_definitions(self, env, code):
         for entry in env.var_entries:
             if not entry.in_cinclude and entry.visibility == "public":
-                code.put(entry.type.declaration_code(entry.cname))
+                code.put(code.type_declaration(entry.type, entry.cname))
                 if entry.init is not None:
                     init = entry.type.literal_code(entry.init)
                     code.put_safe(" = %s" % init)
