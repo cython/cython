@@ -149,7 +149,7 @@ elif [[ $PYTHON_VERSION != "pypy"* && $OSTYPE != "msys" ]]; then
   # (but don't fail, because they currently do fail)
   PYTHON_DBG="python$( python -c 'import sys; print("%d.%d" % sys.version_info[:2])' )-dbg"
   if $PYTHON_DBG -V >&2; then
-    CFLAGS="$CFLAGS" $PYTHON_DBG \
+    CFLAGS=$CFLAGS $PYTHON_DBG \
       runtests.py -vv --no-code-style Debugger --backends=$BACKEND
   fi
 fi
