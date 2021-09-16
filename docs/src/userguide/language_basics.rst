@@ -1286,7 +1286,7 @@ constants within a Cython source file.
 
 .. note::
 
-    This feature has very little use cases.  Specifically, is is not a good
+    This feature has very little use cases.  Specifically, it is not a good
     way to adapt code to platform and environment.  Use code generation or
     (preferably) C compile time adaptation for this.  See, for example,
     :ref:`verbatim_c`.
