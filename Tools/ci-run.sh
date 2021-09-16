@@ -100,17 +100,19 @@ echo "==== Running tests ===="
 ccache -s 2>/dev/null || true
 export PATH="/usr/lib/ccache:$PATH"
 
+
+# Most modern compilers allow the last conflicting option
+# to override the previous ones, so '-O0 -O3' == '-O3'
+# This is true for the latest msvc, gcc and clang
 if [[ $OSTYPE == "msys" ]]; then  # for MSVC cl
   # /wd disables warnings
   # 4711 warns that function `x` was selected for automatic inline expansion
   # 4127 warns that a conditional expression is constant, should be fixed here https://github.com/cython/cython/pull/4317
   # (off by default) 5045 warns that the compiler will insert Spectre mitigations for memory load if the /Qspectre switch is specified
   # (off by default) 4820 warns about the code in Python\3.9.6\x64\include ...
-  CFLAGS="/Z7 /W4 /wd4711 /wd4127 /wd5045 /wd4820"
-  NO_OPTIMIZATION="-Od"
+  CFLAGS="/Z7 /W4 /wd4711 /wd4127 /wd5045 /wd4820 -Od"
 else
-  CFLAGS="-ggdb -Wall -Wextra"
-  NO_OPTIMIZATION="-O0"
+  CFLAGS="-ggdb -Wall -Wextra -O0"
 fi
 
 if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION == "pypy"* ]]; then
@@ -147,7 +149,7 @@ elif [[ $PYTHON_VERSION != "pypy"* && $OSTYPE != "msys" ]]; then
   # (but don't fail, because they currently do fail)
   PYTHON_DBG="python$( python -c 'import sys; print("%d.%d" % sys.version_info[:2])' )-dbg"
   if $PYTHON_DBG -V >&2; then
-    CFLAGS="$CFLAGS $NO_OPTIMIZATION" $PYTHON_DBG \
+    CFLAGS="$CFLAGS" $PYTHON_DBG \
       runtests.py -vv --no-code-style Debugger --backends=$BACKEND
   fi
 fi
@@ -159,7 +161,7 @@ if [[ $TEST_CODE_STYLE != "1" ]]; then
   RUNTESTS_ARGS="-j7"
 fi
 
-export CFLAGS="$CFLAGS $NO_OPTIMIZATION $EXTRA_CFLAGS"
+export CFLAGS="$CFLAGS $EXTRA_CFLAGS"
 python runtests.py \
   -vv $STYLE_ARGS \
   -x Debugger \
