@@ -197,10 +197,6 @@ jobs:
             env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
 
         exclude:
-          # fails github.com/cython/cython/issues/3450
-          - os: windows-2019
-            python-version: 3.9
-
           # fails due to lack of a compatible compiler
           - os: windows-2019
             python-version: 2.7

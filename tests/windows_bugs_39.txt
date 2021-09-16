@@ -1,0 +1,2 @@
+# https://github.com/cython/cython/issues/3450
+TestInline
