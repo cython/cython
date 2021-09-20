@@ -39,9 +39,7 @@ assert b.funcB.func_globals is b.__dict__
 
 # Test that it's possible to look up the name of the class
 from sys import modules
-for n, mod in modules.items():
-    if n.startswith("_cython_"):  # the internal module..
-        break
+mod = modules[type(a.funcA).__module__]
 assert '.' not in type(a.funcA).__name__
 func_t = getattr(mod, type(a.funcA).__name__)
 assert func_t is type(a.funcA)
