@@ -1138,7 +1138,8 @@ class GlobalState(object):
         'pystring_table',
         'cached_builtins',
         'cached_constants',
-        'init_globals',
+        'init_globals',  # init_globals generates an init_globals_body insertion point
+            # that comes before the utility code
         'init_module',
         'cleanup_globals',
         'cleanup_module',
@@ -1208,6 +1209,7 @@ class GlobalState(object):
         w.enter_cfunc_scope()
         w.putln("")
         w.putln("static CYTHON_SMALL_CODE int __Pyx_InitGlobals(void) {")
+        self.parts['init_globals_body'] = w.insertion_point()
 
         if not Options.generate_cleanup_code:
             del self.parts['cleanup_globals']
@@ -1560,7 +1562,7 @@ class GlobalState(object):
                 decls_writer.putln("static Py_UNICODE %s[] = { %s };" % (cname, utf16_array))
                 decls_writer.putln("#endif")
 
-        init_globals = self.parts['init_globals']
+        init_globals = self.parts['init_globals_body']
         if py_strings:
             self.use_utility_code(UtilityCode.load_cached("InitStrings", "StringTools.c"))
             py_strings.sort()
@@ -1648,7 +1650,7 @@ class GlobalState(object):
         consts.sort()
         decls_writer = self.parts['decls']
         decls_writer.putln("#if !CYTHON_USE_MODULE_STATE")
-        init_globals = self.parts['init_globals']
+        init_globals = self.parts['init_globals_body']
         for py_type, _, _, value, value_code, c in consts:
             cname = c.cname
             self.parts['module_state'].putln("PyObject *%s;" % cname)

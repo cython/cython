@@ -2939,7 +2939,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         # start of module init/exec function (pre/post PEP 489)
         code.putln("{")
-
+        code.putln('int stringtab_initialized = 0;')
         tempdecl_code = code.insertion_point()
 
         profile = code.globalstate.directives['profile']
@@ -3013,6 +3013,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln("/*--- Initialize various global constants etc. ---*/")
         code.put_error_if_neg(self.pos, "__Pyx_InitGlobals()")
+        code.putln("stringtab_initialized = 1;")
 
         code.putln("#if PY_MAJOR_VERSION < 3 && (__PYX_DEFAULT_STRING_ENCODING_IS_ASCII || "
                    "__PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT)")
@@ -3095,16 +3096,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for cname, type in code.funcstate.all_managed_temps():
             code.put_xdecref(cname, type)
         code.putln('if (%s) {' % env.module_cname)
-        code.putln('if (%s) {' % env.module_dict_cname)
-        # We can run into errors before the stringtab is initialize.
+        code.putln('if (%s && stringtab_initialized) {' % env.module_dict_cname)
+        # We can run into errors before the module or stringtab are initialized.
         # In this case it is not safe to add a traceback (because it uses the stringtab)
-        code.putln('int stringtab_initialized = 1;')
-        code.putln('for (__Pyx_StringTabEntry* e=%s; e->s != 0; ++e) {' % Naming.stringtab_cname)
-        code.putln('if (e->p == 0 || *(e->p) == 0) { stringtab_initialized = 0; break; }')
-        code.putln('}')
-        code.putln('if (stringtab_initialized) {')
         code.put_add_traceback(EncodedString("init %s" % env.qualified_name))
-        code.putln('}')
         code.globalstate.use_utility_code(Nodes.traceback_utility_code)
         # Module reference and module dict are in global variables which might still be needed
         # for cleanup, atexit code, etc., so leaking is better than crashing.
