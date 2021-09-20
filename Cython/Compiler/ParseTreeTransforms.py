@@ -2926,7 +2926,7 @@ class CreateClosureClasses(CythonTransform):
 
         func_scope.scope_class = entry
         class_scope = entry.type.scope
-        class_scope.internal_mode = 1
+        class_scope.is_internal = True
         class_scope.is_closure_class_scope = True
         if node.is_async_def or node.is_generator:
             # Generators need their closure intact during cleanup as they resume to handle GeneratorExit
@@ -3029,9 +3029,7 @@ class CreateClosureClasses(CythonTransform):
         """
         global_scope = node.local_scope.global_scope()
         cclass_scope.implemented = True  # necessary to generate pickle functions
-        cclass_scope.internal_mode = 2  # hybrid behaviour where python attributes
-                                    # are only initialized when kwds is passed
-                                    # (abusing kwds a bit as a flag)
+        cclass_scope.needs_pickleable_closure_constructor = True
         class_node = Nodes.CClassDefNode(
             node.pos,
             visibility="private",

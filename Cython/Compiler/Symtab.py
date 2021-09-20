@@ -341,10 +341,10 @@ class Scope(object):
     # nogil             boolean            In a nogil section
     # directives        dict               Helper variable for the recursive
     #                                      analysis, contains directive values.
-    # internal_mode     int                Is only used internally (simpler setup)
-    #                                      0 = False, 1=True,
-    #                                      2 represents a hybrid state used in
-    #                                      picklable  closures where an argument
+    # is_internal       boolean            Is only used internally (simpler setup)
+    # needs_pickleable_closure_constructor   boolean
+    #                                      a modifier to "is_internal" for
+    #                                      pickleable closures where an argument
     #                                      to tp_new controls what is initialized
 
     is_builtin_scope = 0
@@ -356,7 +356,8 @@ class Scope(object):
     is_cpp_class_scope = 0
     is_property_scope = 0
     is_module_scope = 0
-    internal_mode = 0
+    is_internal = 0
+    needs_pickleable_closure_constructor = 0
     scope_prefix = ""
     in_cinclude = 0
     nogil = 0
