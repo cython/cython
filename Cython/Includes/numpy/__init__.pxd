@@ -988,13 +988,13 @@ cdef inline object get_array_base(ndarray arr):
 # Cython code.
 cdef inline int import_array() except -1:
     try:
-        return __pyx_import_array()
+        __pyx_import_array()
     except Exception:
         raise ImportError("numpy.core.multiarray failed to import")
 
 cdef inline int import_umath() except -1:
     try:
-        return _import_umath()
+        _import_umath()
     except Exception:
         raise ImportError("numpy.core.umath failed to import")
 
