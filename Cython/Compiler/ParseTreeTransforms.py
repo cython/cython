@@ -3721,3 +3721,53 @@ class DebugTransform(CythonTransform):
 
             self.tb.start('LocalVar', attrs)
             self.tb.end('LocalVar')
+
+class SplitModuleInitIntoChunksTransform(VisitorTransform):
+    """
+    For large modules, the size of the module init function
+    tends to upset the C compiler. Therefore, split it into a
+    whole load of separate smaller C functions (one per stat)
+    to make it a more tractable problem.
+
+    Of course this may prevent optimization across multiple stats
+    for the module init function, but we already turn off
+    optimizations for it.
+    """
+
+    def visit_ModuleNode(self, node):
+        from . import StringEncoding
+        new_stats = []
+        scope = node.scope
+        for stat in node.body.stats:
+            if isinstance(stat, Nodes.DefNode):
+                new_stats.append(stat)
+                continue  # no code directly associated
+            pos = stat.pos
+            name = StringEncoding.EncodedString(scope.next_id("__Pyx_init_L"))
+            name_decl = Nodes.CNameDeclaratorNode(pos, name=name, cname=name)
+            decl = Nodes.CFuncDeclaratorNode(
+                pos,
+                base=name_decl,
+                args=[], has_varargs=False,
+                exception_value=ExprNodes.IntNode(pos, value="-1", is_c_literal=True),
+                exception_check=False, nogil=False, with_gil=False)
+            fdn = Nodes.CFuncDefNode(pos,
+                visibility="private",
+                base_type=Nodes.CAnalysedBaseTypeNode(pos, type=PyrexTypes.c_int_type),
+                declarator=decl,
+                doc=None,
+                body=Nodes.StatListNode(pos, stats=[]),
+                overridable=False, api=False)
+            fdn.analyse_declarations(scope)
+            fdn = fdn.analyse_expressions(scope)
+            fdn.body.stats.append(stat)
+
+            call_node = ExprNodes.PythonCapiCallNode(
+                pos, function_name=name,
+                func_type=fdn.type, args=[],
+                is_temp=True)
+            call_node_exprstat = Nodes.ExprStatNode(pos, expr=call_node)
+
+            new_stats.extend([fdn, call_node_exprstat])
+        node.body.stats = new_stats
+        return node
