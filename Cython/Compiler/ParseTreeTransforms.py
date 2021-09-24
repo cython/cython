@@ -3757,7 +3757,9 @@ class SplitModuleInitIntoChunksTransform(VisitorTransform):
                 declarator=decl,
                 doc=None,
                 body=Nodes.StatListNode(pos, stats=[]),
-                overridable=False, api=False)
+                overridable=False, api=False,
+                make_small_code=True,
+                modifiers=["CYTHON_SMALL_CODE"])
             fdn.analyse_declarations(scope)
             fdn = fdn.analyse_expressions(scope)
             fdn.body.stats.append(stat)

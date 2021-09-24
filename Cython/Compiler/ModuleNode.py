@@ -507,7 +507,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.generate_import_star(env, code)
 
         # initialise the macro to reduce the code size of one-time functionality
-        code.putln(UtilityCode.load_as_string("SmallCodeConfig", "ModuleSetupCode.c")[0].strip())
+        globalstate['before_global_var'].putln(UtilityCode.load_as_string("SmallCodeConfig", "ModuleSetupCode.c")[0].strip())
 
         self.generate_module_state_start(env, globalstate['module_state'])
         self.generate_module_state_defines(env, globalstate['module_state_defines'])
