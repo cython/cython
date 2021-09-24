@@ -3737,11 +3737,14 @@ class SplitModuleInitIntoChunksTransform(VisitorTransform):
     def visit_ModuleNode(self, node):
         from . import StringEncoding
         new_stats = []
+        new_stats_definitions = []
         scope = node.scope
+        if node.is_pxd:
+            return node
         for stat in node.body.stats:
-            if isinstance(stat, Nodes.DefNode):
+            if isinstance(stat, Nodes.FuncDefNode):
                 new_stats.append(stat)
-                continue  # no code directly associated
+                continue  # no code directly associated and it messes up the generation
             pos = stat.pos
             name = StringEncoding.EncodedString(scope.next_id("__Pyx_init_L"))
             name_decl = Nodes.CNameDeclaratorNode(pos, name=name, cname=name)
@@ -3759,7 +3762,8 @@ class SplitModuleInitIntoChunksTransform(VisitorTransform):
                 body=Nodes.StatListNode(pos, stats=[]),
                 overridable=False, api=False,
                 make_small_code=True,
-                modifiers=["CYTHON_SMALL_CODE"])
+                modifiers=["CYTHON_SMALL_CODE"],
+                is_module_init_line=True)
             fdn.analyse_declarations(scope)
             fdn = fdn.analyse_expressions(scope)
             fdn.body.stats.append(stat)
@@ -3770,6 +3774,7 @@ class SplitModuleInitIntoChunksTransform(VisitorTransform):
                 is_temp=True)
             call_node_exprstat = Nodes.ExprStatNode(pos, expr=call_node)
 
-            new_stats.extend([fdn, call_node_exprstat])
-        node.body.stats = new_stats
+            new_stats.append(call_node_exprstat)
+            new_stats_definitions.append(fdn)
+        node.body.stats = new_stats + new_stats_definitions
         return node
