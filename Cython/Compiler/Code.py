@@ -1851,9 +1851,6 @@ class CCodeWriter(object):
         # Therefore, we write this information into "self.buffer.markers" and then write it from there
         # into cython_debug/cython_debug_info_* (see ModuleNode._serialize_lineno_map).
 
-        if s.find("static int __Pyx_init_L(void) {") != -1:
-            import pdb; pdb.set_trace()
-
         filename_line = self.last_marked_pos[:2] if self.last_marked_pos else (None, 0)
         self.buffer.markers.extend([filename_line] * s.count('\n'))
 
