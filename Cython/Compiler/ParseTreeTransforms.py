@@ -3742,7 +3742,9 @@ class SplitModuleInitIntoChunksTransform(VisitorTransform):
         if node.is_pxd:
             return node
         for stat in node.body.stats:
-            if isinstance(stat, Nodes.FuncDefNode):
+            if isinstance(stat, Nodes.StatListNode) and len(stat.stats) == 1:
+                stat = stat.stats[0]
+            if isinstance(stat, (Nodes.FuncDefNode, Nodes.CImportStatNode, Nodes.FromCImportStatNode)):
                 new_stats.append(stat)
                 continue  # no code directly associated and it messes up the generation
             pos = stat.pos
