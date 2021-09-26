@@ -184,7 +184,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             env.doc = self.doc
         env.directives = self.directives
 
-        self.body.is_module_level = True
         self.body.analyse_declarations(env)
 
     def prepare_utility_code(self):
@@ -3075,6 +3074,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.put_trace_call(header3, self.pos, nogil=not code.funcstate.gil_owned)
             code.funcstate.can_trace = True
 
+        self.body.is_module_level = True
         self.body.generate_execution_code(code)
 
         if profile or linetrace:

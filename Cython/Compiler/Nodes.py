@@ -1887,8 +1887,8 @@ class FuncDefNode(StatNode, BlockNode):
         if not self.is_module_init_line:
             # Generate closure function definitions
             self.body.generate_function_definitions(lenv, code)
-        # generate lambda function definitions
-        self.generate_lambda_definitions(lenv, code)
+            # generate lambda function definitions
+            self.generate_lambda_definitions(lenv, code)
 
         is_getbuffer_slot = (self.entry.name == "__getbuffer__" and
                              self.entry.scope.is_c_class_scope)
