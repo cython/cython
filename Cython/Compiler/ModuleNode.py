@@ -184,6 +184,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             env.doc = self.doc
         env.directives = self.directives
 
+        self.body.is_module_level = True
         self.body.analyse_declarations(env)
 
     def prepare_utility_code(self):

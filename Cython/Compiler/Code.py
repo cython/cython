@@ -1139,6 +1139,7 @@ class GlobalState(object):
         'cached_builtins',
         'cached_constants',
         'init_globals',
+        'init_module_lines',
         'init_module',
         'cleanup_globals',
         'cleanup_module',

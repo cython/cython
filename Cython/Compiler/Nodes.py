@@ -378,8 +378,10 @@ class BlockNode(object):
 
 class StatListNode(Node):
     # stats     a list of StatNode
+    # is_module_level   boolean     is this the module init function contents
 
     child_attrs = ["stats"]
+    is_module_level = False
 
     @staticmethod
     def create_analysed(pos, env, *args, **kw):
@@ -404,9 +406,50 @@ class StatListNode(Node):
 
     def generate_execution_code(self, code):
         #print "StatListNode.generate_execution_code" ###
-        for stat in self.stats:
-            code.mark_pos(stat.pos)
-            stat.generate_execution_code(code)
+        if not self.is_module_level:
+            for stat in self.stats:
+                code.mark_pos(stat.pos)
+                stat.generate_execution_code(code)
+        else:
+            from . import ExprNodes
+            from . import StringEncoding
+            module_lines_code = code.globalstate.parts['init_module_lines']
+            for stat in self.stats:
+                # a small list of stats that don't generate enough (or anything) to be worth their
+                # own function
+                if isinstance(stat, (FuncDefNode, CImportStatNode, FromCImportStatNode)):
+                    code.mark_pos(stat.pos)
+                    stat.generate_execution_code(code)
+                    continue  # no code directly associated and it messes up the generation
+
+                name = StringEncoding.EncodedString(
+                    code.funcstate.scope.next_id("__Pyx_init_stat_"))
+                pos = stat.pos
+                # a very lazy shortcut of generating a temporary funcdef node
+                # for the line
+                name_decl = CNameDeclaratorNode(pos, name=name, cname=name)
+                decl = CFuncDeclaratorNode(
+                    pos,
+                    base=name_decl,
+                    args=[], has_varargs=False,
+                    exception_value=ExprNodes.IntNode(pos, value="-1", is_c_literal=True),
+                    exception_check=False, nogil=False, with_gil=False)
+                fdn = CFuncDefNode(pos,
+                    visibility="private",
+                    base_type=CAnalysedBaseTypeNode(pos, type=PyrexTypes.c_int_type),
+                    declarator=decl,
+                    doc=None,
+                    body=StatListNode(pos, stats=[]),
+                    overridable=False, api=False,
+                    make_small_code=True,
+                    modifiers=["CYTHON_SMALL_CODE"],
+                    is_module_init_line=True)
+                fdn.analyse_declarations(code.funcstate.scope)
+                fdn = fdn.analyse_expressions(code.funcstate.scope)
+                fdn.body.stats.append(stat)
+                fdn.generate_function_definitions(code.funcstate.scope, module_lines_code)
+
+                code.put_error_if_neg(stat.pos, "%s()" % name)
 
     def annotate(self, code):
         for stat in self.stats:
@@ -1732,6 +1775,10 @@ class FuncDefNode(StatNode, BlockNode):
     #       Whether this cdef function has fused parameters. This is needed
     #       by AnalyseDeclarationsTransform, so it can replace CFuncDefNodes
     #       with fused argument types with a FusedCFuncDefNode
+    #
+    #  is_module_init_line  boolean    a special-cased use of FuncDefNode, as a means
+    #                                  of splitting the module init function into many
+    #                                  small functions
 
     py_func = None
     needs_closure = False
@@ -1749,6 +1796,7 @@ class FuncDefNode(StatNode, BlockNode):
     is_cyfunction = False
     code_object = None
     return_type_annotation = None
+    is_module_init_line = False
 
     def analyse_default_values(self, env):
         default_seen = 0
@@ -1836,8 +1884,9 @@ class FuncDefNode(StatNode, BlockNode):
         else:
             outer_scope_cname = Naming.outer_scope_cname
         lenv.mangle_closure_cnames(outer_scope_cname)
-        # Generate closure function definitions
-        self.body.generate_function_definitions(lenv, code)
+        if not self.is_module_init_line:
+            # Generate closure function definitions
+            self.body.generate_function_definitions(lenv, code)
         # generate lambda function definitions
         self.generate_lambda_definitions(lenv, code)
 
