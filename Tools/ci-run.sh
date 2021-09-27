@@ -133,7 +133,7 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
     BUILD_CFLAGS="$BUILD_CFLAGS -fno-strict-aliasing"
   fi
 
-  CFLAGS="$BUILD_CFLAGS" \
+  CFLAGS=$BUILD_CFLAGS \
     python setup.py build_ext -i $SETUP_ARGS || exit 1
 
   # COVERAGE can be either "" (empty or not set) or "1" (when we set it)
