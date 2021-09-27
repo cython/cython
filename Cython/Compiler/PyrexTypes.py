@@ -4581,6 +4581,7 @@ c_const_py_unicode_ptr_type = CPtrType(CConstType(c_py_unicode_type))
 c_py_ssize_t_ptr_type =  CPtrType(c_py_ssize_t_type)
 c_ssize_t_ptr_type =  CPtrType(c_ssize_t_type)
 c_size_t_ptr_type =  CPtrType(c_size_t_type)
+c_hpy_ptr_type =      CPtrType(hpy_type)
 
 # GIL state
 c_gilstate_type = CEnumType("PyGILState_STATE", "PyGILState_STATE", True)
