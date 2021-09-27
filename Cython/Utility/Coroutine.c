@@ -1524,7 +1524,7 @@ static PyMethodDef __pyx_CoroutineAwait_methods[] = {
      (char*) PyDoc_STR("throw(typ[,val[,tb]]) -> raise exception in coroutine,\nreturn next yielded value or raise StopIteration.")},
     {"close", (PyCFunction) __Pyx_CoroutineAwait_Close, METH_NOARGS,
      (char*) PyDoc_STR("close() -> raise GeneratorExit inside coroutine.")},
-// only needed with type-specs of version<3.6, but included in all versions for clarity
+// only needed with type-specs or version<3.6, but included in all versions for clarity
 // #if PY_VERSION_HEX < 0x03060000 || CYTHON_USE_TYPE_SPECS
     {"__reduce_ex__", (PyCFunction) __Pyx_CoroutineAwait_reduce_ex, METH_O, 0},
     {"__reduce__", (PyCFunction) __Pyx_CoroutineAwait_reduce_ex, METH_NOARGS, 0},
