@@ -283,7 +283,7 @@ jobs:
       - name: Run Coverage
         env: { COVERAGE: 1, NO_CYTHON_COMPILE: 1 }
         run: bash ./Tools/ci-run.sh
-        
+
       - name: Upload Coverage Report
         uses: actions/upload-artifact@v2
         with:
