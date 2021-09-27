@@ -1851,7 +1851,7 @@ class LocalScope(Scope):
         entry = self.declare(name, cname, type, pos, 'private')
         entry.is_variable = 1
         if type.is_pyobject:
-            entry.init = "0"
+            entry.init = Naming.PYX_NULL
         entry.is_arg = 1
         #entry.borrowed = 1 # Not using borrowed arg refs for now
         self.arg_entries.append(entry)

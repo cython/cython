@@ -1144,6 +1144,12 @@ static CYTHON_INLINE float __PYX_NAN() {
 }
 #endif
 
+#ifdef HPY
+#define __PYX_NULL HPy_NULL
+#else
+#define __PYX_NULL 0
+#endif
+
 #if defined(__CYGWIN__) && defined(_LDBL_EQ_DBL)
 #define __Pyx_truncl trunc
 #else
