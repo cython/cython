@@ -3256,7 +3256,7 @@ class HPyCCodeWriter(CCodeWriter):
         return translated_type.declaration_code(entity_code, for_display, dll_linkage, pyrex)
 
     def put_function_header(self, sig, self_in_stararg, args, target, return_type, with_pymethdef, proto_only=0):
-        from .PyrexTypes import py_object_type
+        from .PyrexTypes import py_object_type, hpy_type, c_hpy_ptr_type, c_hpy_ssize_t_type
         from . import TypeSlots
         arg_code_list = ["HPyContext *" + Naming.hpy_context_cname]
 
@@ -3279,9 +3279,10 @@ class HPyCCodeWriter(CCodeWriter):
         if entry.scope.is_c_class_scope and entry.name == "__ipow__":
             arg_code_list.append("CYTHON_UNUSED " + self.type_declaration(py_object_type, "unused"))
         if sig.has_generic_args:
-            varargs_args = "%s, %s" % (
-                self.type_declaration(py_object_type, Naming.args_cname),
-                self.type_declaration(py_object_type, Naming.kwds_cname))
+            varargs_args = "%s, %s, %s" % (
+                self.type_declaration(c_hpy_ptr_type, Naming.args_cname),
+                self.type_declaration(c_hpy_ssize_t_type, Naming.nargs_cname),
+                self.type_declaration(hpy_type, Naming.kwds_cname))
             arg_code_list.append(varargs_args)
         arg_code = ", ".join(arg_code_list)
 
