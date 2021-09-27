@@ -2983,7 +2983,7 @@ class HPyCCodeWriter(CCodeWriter):
         if not method_flags:
             return
         entry_name = entry.name.as_c_string_literal()
-        self.putln("HPyDef_METH(%s, %s, %s, %s, .doc=%s);" % (entry.pymethdef_cname, entry_name, entry.func_cname, "|".join(method_flags), entry.doc_cname))
+        self.putln("HPyDef_METH(%s, %s, %s, %s, .doc=%s)" % (entry.pymethdef_cname, entry_name, entry.func_cname, method_flags, entry.doc_cname))
 
     def put_hpydef(self, entry):
         self.putln('&' + str(entry))
