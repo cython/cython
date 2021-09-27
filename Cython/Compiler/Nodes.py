@@ -3391,7 +3391,7 @@ class DefNode(FuncDefNode):
             arg_code = 'void'  # No arguments
         dc = code.type_declaration(self.return_type, self.entry.pyfunc_cname)
 
-        decls_code = code.globalstate['decls']
+        decls_code = code.decls()
         preprocessor_guard = self.get_preprocessor_guard()
         if preprocessor_guard:
             decls_code.putln(preprocessor_guard)

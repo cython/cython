@@ -1928,6 +1928,9 @@ class CCodeWriter(object):
         self.funcstate.validate_exit()
         self.funcstate = None
 
+    def decls(self):
+        return self.globalstate['decls']
+
     # constant handling
 
     def get_py_int(self, str_value, longness):
@@ -2735,6 +2738,9 @@ class HPyCCodeWriter(CCodeWriter):
         can later be inserted using insert.
         """
         return HPyCCodeWriter(create_from=self)
+
+    def decls(self):
+        return self.globalstate['hpy_decls']
 
     # constant handling
 
