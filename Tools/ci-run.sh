@@ -69,10 +69,10 @@ elif [[ $PYTHON_VERSION == "3."[45]* ]]; then
 else
   python -m pip install -U pip setuptools wheel || exit 1
 
-  if [[ $PYTHON_VERSION == *"-dev" || $COVERAGE == "1" ]]; then
+  if [[ $PYTHON_VERSION != *"-dev" || $COVERAGE == "1" ]]; then
     python -m pip install -r test-requirements.txt || exit 1
 
-    if [[ $PYTHON_VERSION == "pypy"* && $PYTHON_VERSION == "3."[4789]* ]]; then
+    if [[ $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "3."[4789]* ]]; then
       python -m pip install -r test-requirements-cpython.txt || exit 1
     fi
   fi
@@ -85,11 +85,11 @@ else
   STYLE_ARGS="--no-code-style"
 
   # Install more requirements
-  if [[ $PYTHON_VERSION == *"-dev" ]]; then
+  if [[ $PYTHON_VERSION != *"-dev" ]]; then
     if [[ $BACKEND == *"cpp"* ]]; then
       echo "WARNING: Currently not installing pythran due to compatibility issues"
       # python -m pip install pythran==0.9.5 || exit 1
-    elif [[ $PYTHON_VERSION == "pypy"* && $PYTHON_VERSION == "2"* && $PYTHON_VERSION == *"3.4" ]]; then
+    elif [[ $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "2"* && $PYTHON_VERSION != *"3.4" ]]; then
       python -m pip install mypy || exit 1
     fi
   fi
@@ -115,7 +115,7 @@ else
   CFLAGS="-O0 -ggdb -Wall -Wextra"
 fi
 
-if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION == "pypy"* ]]; then
+if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
 
   SETUP_ARGS=""
   if [[ $COVERAGE == "1" ]]; then
@@ -136,6 +136,9 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION == "pypy"* ]]; then
   CFLAGS="$CFLAGS -O2 $ALIASING" \
     python setup.py build_ext -i $SETUP_ARGS || exit 1
 
+  # COVERAGE can be either "" (empty or not set) or "1" (when we set it)
+  # STACKLESS can be either  "" (empty or not set) or "true" (when we set it)
+  # CYTHON_COMPILE_ALL can be either  "" (empty or not set) or "1" (when we set it)
   if [[ $COVERAGE != "1" && $STACKLESS != "true" && $BACKEND != *"cpp"* &&
         $CYTHON_COMPILE_ALL != "1" && -z $EXTRA_CFLAGS && -z $LIMITED_API ]]; then
     python setup.py bdist_wheel || exit 1
