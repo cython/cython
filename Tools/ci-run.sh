@@ -128,12 +128,12 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
     SETUP_ARGS="$SETUP_ARGS -j5"
   fi
 
-  ALIASING=""
+  BUILD_CFLAGS="$CFLAGS -O2"
   if [[ $PYTHON_SYS_VERSION == "2"* ]]; then
-    ALIASING="-fno-strict-aliasing"
+    BUILD_CFLAGS="$BUILD_CFLAGS -fno-strict-aliasing"
   fi
 
-  CFLAGS="$CFLAGS -O2 $ALIASING" \
+  CFLAGS="$BUILD_CFLAGS" \
     python setup.py build_ext -i $SETUP_ARGS || exit 1
 
   # COVERAGE can be either "" (empty or not set) or "1" (when we set it)
@@ -157,11 +157,12 @@ elif [[ $PYTHON_VERSION != "pypy"* && $OSTYPE != "msys" ]]; then
   fi
 fi
 
+RUNTESTS_ARGS=""
 if [[ $COVERAGE == "1" ]]; then
-  RUNTESTS_ARGS="--coverage --coverage-html --cython-only"
+  RUNTESTS_ARGS="$RUNTESTS_ARGS --coverage --coverage-html --cython-only"
 fi
 if [[ $TEST_CODE_STYLE != "1" ]]; then
-  RUNTESTS_ARGS="-j7"
+  RUNTESTS_ARGS="$RUNTESTS_ARGS -j7"
 fi
 
 export CFLAGS="$CFLAGS $EXTRA_CFLAGS"
