@@ -2348,6 +2348,14 @@ class CPySSizeTType(CIntType):
     def sign_and_name(self):
         return "Py_ssize_t"
 
+class CHPySSizeTType(CIntType):
+
+    to_py_function = "HPyLong_FromSsize_t"
+    from_py_function = "HPyLong_AsSsize_t"
+
+    def sign_and_name(self):
+        return "HPy_ssize_t"
+
 class CSSizeTType(CIntType):
 
     to_py_function = "PyInt_FromSsize_t"
@@ -4554,6 +4562,7 @@ c_py_unicode_type =  CPyUnicodeIntType(RANK_INT-0.5, UNSIGNED)
 c_py_ucs4_type =     CPyUCS4IntType(RANK_LONG-0.5, UNSIGNED)
 c_py_hash_t_type =   CPyHashTType(RANK_LONG+0.5, SIGNED)
 c_py_ssize_t_type =  CPySSizeTType(RANK_LONG+0.5, SIGNED)
+c_hpy_ssize_t_type =  CHPySSizeTType(RANK_LONG+0.5, SIGNED)
 c_ssize_t_type =     CSSizeTType(RANK_LONG+0.5, SIGNED)
 c_size_t_type =      CSizeTType(RANK_LONG+0.5, UNSIGNED)
 c_ptrdiff_t_type =   CPtrdiffTType(RANK_LONG+0.75, SIGNED)
