@@ -3251,10 +3251,9 @@ class HPyCCodeWriter(CCodeWriter):
 
     def type_declaration(self, type, entity_code,
                              for_display = 0, dll_linkage = None, pyrex = 0):
-        if type.is_pyobject:
-            from .PyrexTypes import hpy_type
-            return hpy_type.declaration_code(entity_code, for_display, dll_linkage, pyrex)
-        return type.declaration_code(entity_code, for_display, dll_linkage, pyrex)
+        from .PyrexTypes import hpy_type_mapping
+        translated_type = hpy_type_mapping.get(type, type)
+        return translated_type.declaration_code(entity_code, for_display, dll_linkage, pyrex)
 
     def put_function_header(self, sig, self_in_stararg, args, target, return_type, with_pymethdef, proto_only=0):
         from .PyrexTypes import py_object_type

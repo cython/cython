@@ -4670,6 +4670,12 @@ modifiers_and_name_to_type = {
     (1,  0, "object"): py_object_type,
 }
 
+# CPy to HPy type translation table
+hpy_type_mapping = {
+    py_object_type: hpy_type,
+    c_py_ssize_t_type: c_hpy_ssize_t_type,
+}
+
 def is_promotion(src_type, dst_type):
     # It's hard to find a hard definition of promotion, but empirical
     # evidence suggests that the below is all that's allowed.
