@@ -2501,6 +2501,20 @@ class CCodeWriter(object):
 
     # error handling
 
+    error_value_map = {
+        'O': "NULL",
+        'T': "NULL",
+        'i': "-1",
+        'b': "-1",
+        'l': "-1",
+        'r': "-1",
+        'h': "-1",
+        'z': "-1",
+    }
+
+    def get_error_value_from_format(self, ret_format):
+        return self.error_value_map.get(ret_format)
+
     def put_error_if_neg(self, pos, value):
         # TODO this path is almost _never_ taken, yet this macro makes is slower!
         # return self.putln("if (unlikely(%s < 0)) %s" % (value, self.error_goto(pos)))
@@ -3136,6 +3150,17 @@ class HPyCCodeWriter(CCodeWriter):
         self.putln("#endif")
 
     # error handling
+
+    error_value_map = {
+        'O': "HPy_NULL",
+        'T': "NULL",
+        'i': "-1",
+        'b': "-1",
+        'l': "-1",
+        'r': "-1",
+        'h': "-1",
+        'z': "-1",
+    }
 
     def put_error_if_neg(self, pos, value):
         # TODO this path is almost _never_ taken, yet this macro makes is slower!
