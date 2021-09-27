@@ -196,17 +196,17 @@ jobs:
             backend: cpp
             env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
 
-        exclude:
-          # fails due to lack of a compatible compiler
-          - os: windows-2019
-            python-version: 2.7
-          - os: windows-2019
-            python-version: 3.4
+        # exclude:
+        #   # fails due to lack of a compatible compiler
+        #   - os: windows-2019
+        #     python-version: 2.7
+        #   - os: windows-2019
+        #     python-version: 3.4
 
-          # cpp specific test fails
-          - os: windows-2019
-            python-version: 3.5
-            backend: cpp
+        #   # cpp specific test fails
+        #   - os: windows-2019
+        #     python-version: 3.5
+        #     backend: cpp
 
     # This defaults to 360 minutes (6h) which is way too long and if a test gets stuck, it can block other pipelines.
     # From testing, the runs tend to take ~20 minutes for ubuntu / macos and ~35 for windows,
