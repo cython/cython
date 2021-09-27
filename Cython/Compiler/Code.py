@@ -1129,12 +1129,14 @@ class GlobalState(object):
         'global_var',
         'string_decls',
         'decls',
+        'hpy_decls',
         'late_includes',
         'module_state',
         'module_state_clear',
         'module_state_traverse',
         'module_state_defines',  # redefines names used in module_state/_clear/_traverse
-        'module_code',  # user code goes here
+        'module_code',  # user code (C API) goes here
+        'hpy_module_code',  # user code (HPy) goes here
         'pystring_table',
         'cached_builtins',
         'cached_constants',
@@ -1156,7 +1158,10 @@ class GlobalState(object):
         'end'
     ]
 
-    def __init__(self, writer, module_node, code_config, common_utility_include_dir=None):
+    # names of code sections that contain HPy code
+    hpy_part_type = {'hpy_decls', 'hpy_module_code'}
+
+    def __init__(self, writer, hpy_writer, module_node, code_config, common_utility_include_dir=None):
         self.filename_table = {}
         self.filename_list = []
         self.input_file_contents = {}
@@ -1179,14 +1184,29 @@ class GlobalState(object):
         self.initialised_constants = set()
 
         writer.set_global_state(self)
+        hpy_writer.set_global_state(self)
         self.rootwriter = writer
+        self.hpy_rootwriter = hpy_writer
+
+    def get_part_type(self, part_name):
+        if part_name.startswith("hpy_"):
+            return "hpy"
+        if "hpy_" + part_name in self.code_layout:
+            return "cpy"
+        return "generic"
 
     def initialize_main_c_code(self):
         rootwriter = self.rootwriter
+        hpy_rootwriter = self.hpy_rootwriter
         for i, part in enumerate(self.code_layout):
-            w = self.parts[part] = rootwriter.insertion_point()
+            part_type = self.get_part_type(part)
+            w = self.parts[part] = (hpy_rootwriter if part_type == "hpy" else rootwriter).insertion_point()
             if i > 0:
-                w.putln("/* #### Code section: %s ### */" % part)
+                if part_type == "hpy":
+                    w.putln("#ifdef HPY")
+                elif part_type == "cpy":
+                    w.putln("#ifndef HPY")
+                w.putln("/* #### %sCode section: %s ### */" % ("HPy " if part_type == "hpy" else "", part))
 
         if not Options.cache_builtins:
             del self.parts['cached_builtins']
@@ -1227,11 +1247,16 @@ class GlobalState(object):
 
     def initialize_main_h_code(self):
         rootwriter = self.rootwriter
+        hpy_rootwriter = self.hpy_rootwriter
         for part in self.h_code_layout:
-            self.parts[part] = rootwriter.insertion_point()
+            self.parts[part] = (hpy_rootwriter if self.get_part_type(part) == "hpy" else rootwriter).insertion_point()
 
     def finalize_main_c_code(self):
         self.close_global_decls()
+
+        for part in self.code_layout:
+            if self.get_part_type(part) != "generic":
+                self.parts[part].putln("#endif /* HPY */")
 
         #
         # utility_code_def

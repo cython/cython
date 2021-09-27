@@ -464,17 +464,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             )
         else:
             rootwriter = Code.CCodeWriter()
+        hpy_writer = Code.HPyCCodeWriter(buffer=rootwriter.buffer)
 
         c_code_config = generate_c_code_config(env, options)
 
         globalstate = Code.GlobalState(
-            rootwriter, self,
+            rootwriter, hpy_writer, self,
             code_config=c_code_config,
             common_utility_include_dir=options.common_utility_include_dir,
         )
-
-        hpy_writer = Code.HPyCCodeWriter()
-        hpy_writer.set_global_state(globalstate)
 
         globalstate.initialize_main_c_code()
         h_code = globalstate['h_code']
@@ -499,22 +497,18 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_includes(env, modules, code, early=False)
 
         code = globalstate['module_code']
+        hpy_code = globalstate['hpy_module_code']
 
         self.generate_cached_builtins_decls(env, code)
 
         # generate normal variable and function definitions
-        code.putln("#ifndef HPY")
         self.generate_lambda_definitions(env, code)
         self.generate_variable_definitions(env, code)
         self.body.generate_function_definitions(env, code)
-        code.putln("#endif /* HPY */")
 
-        code.putln("#ifdef HPY")
-        self.generate_lambda_definitions(env, code)
-        self.generate_variable_definitions(env, code)
-        self.body.generate_function_definitions(env, hpy_writer)
-        code.insert(hpy_writer)
-        code.putln("#endif /* HPY */")
+        self.generate_lambda_definitions(env, hpy_code)
+        self.generate_variable_definitions(env, hpy_code)
+        self.body.generate_function_definitions(env, hpy_code)
 
         code.mark_pos(None)
         self.generate_typeobj_definitions(env, code)
