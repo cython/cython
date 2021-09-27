@@ -2369,6 +2369,33 @@ class CCodeWriter(object):
             self.put_pymethoddef(target.entry, ";", allow_skip=False)
         self.putln("%s {" % header)
 
+    def put_argument_declarations(self, args, signature, signature_has_generic_args, env):
+        for arg in args:
+            if arg.is_generic:
+                if arg.needs_conversion:
+                    self.putln("PyObject *%s = 0;" % arg.hdr_cname)
+                else:
+                    self.put_var_declaration(arg.entry)
+        for entry in env.var_entries:
+            if entry.is_arg:
+                self.put_var_declaration(entry)
+
+        # Assign nargs variable as len(args), but avoid an "unused" warning in the few cases where we don't need it.
+        if signature_has_generic_args:
+            nargs_code = "CYTHON_UNUSED const Py_ssize_t %s = PyTuple_GET_SIZE(%s);" % (
+                Naming.nargs_cname, Naming.args_cname)
+            if signature.use_fastcall:
+                self.putln("#if !CYTHON_METH_FASTCALL")
+                self.putln(nargs_code)
+                self.putln("#endif")
+            else:
+                self.putln(nargs_code)
+
+        # Array containing the values of keyword arguments when using METH_FASTCALL.
+        self.globalstate.use_utility_code(
+            UtilityCode.load_cached("fastcall", "FunctionArguments.c"))
+        self.putln('CYTHON_UNUSED PyObject *const *%s = __Pyx_KwValues_%s(%s, %s);' % (
+            Naming.kwvalues_cname, signature.fastvar, Naming.args_cname, Naming.nargs_cname))
 
     def put_pymethoddef(self, entry, term, allow_skip=True, wrapper_code_writer=None):
         method_flags = entry.signature.method_flags()
@@ -3008,6 +3035,17 @@ class HPyCCodeWriter(CCodeWriter):
         self.put_init_to_py_none(code, entry.type, nanny)
         if entry.in_closure:
             self.put_giveref('Py_None')
+
+    def put_argument_declarations(self, args, signature, signature_has_generic_args, env):
+        for arg in args:
+            if arg.is_generic:
+                if arg.needs_conversion:
+                    self.putln("HPy %s = HPy_NULL;" % arg.hdr_cname)
+                else:
+                    self.put_var_declaration(arg.entry)
+        for entry in env.var_entries:
+            if entry.is_arg:
+                self.put_var_declaration(entry)
 
     def put_hpy_method_definition(self, entry):
         method_flags = entry.signature.hpy_method_flags()
