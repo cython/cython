@@ -1160,8 +1160,13 @@ static CYTHON_INLINE float __PYX_NAN() {
 
 /////////////// UtilityFunctionPredeclarations.proto ///////////////
 
+#ifndef HPY
 typedef struct {PyObject **p; const char *s; const Py_ssize_t n; const char* encoding;
                 const char is_unicode; const char is_str; const char intern; } __Pyx_StringTabEntry; /*proto*/
+#else
+typedef struct {HPy *p; const char *s; const HPy_ssize_t n; const char* encoding;
+                const char is_unicode; const char is_str; const char intern; } __Pyx_StringTabEntry; /*proto*/
+#endif /* HPY */
 
 /////////////// ForceInitThreads.proto ///////////////
 //@proto_block: utility_code_proto_before_types

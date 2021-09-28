@@ -52,6 +52,7 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t); /*proto*/
 //////////////////// InitStrings ////////////////////
 
 #if PY_MAJOR_VERSION >= 3
+#ifndef HPY
 static int __Pyx_InitString(__Pyx_StringTabEntry t, PyObject **str) {
     if (t.is_unicode | t.is_str) {
         if (t.intern) {
@@ -71,7 +72,34 @@ static int __Pyx_InitString(__Pyx_StringTabEntry t, PyObject **str) {
         return -1;
     return 0;
 }
-#endif
+#else /* HPY */
+static int __Pyx_InitString(HPyContext *ctx, __Pyx_StringTabEntry t, HPy *str) {
+    if (t.is_unicode | t.is_str) {
+        if (t.intern) {
+            /* not yet available */
+            /* *str = HPyUnicode_InternFromString(t.s); */
+            *str = HPyUnicode_FromString(ctx, t.s);
+        } else if (t.encoding) {
+            /* not yet available */
+            /* *str = HPyUnicode_Decode(ctx, t.s, t.n - 1, t.encoding, NULL); */
+            *str = HPyUnicode_DecodeFSDefault(ctx, t.s);
+        } else {
+            /* will be available in HPy 0.0.4 */
+            /* *str = HPyUnicode_FromStringAndSize(t.s, t.n - 1); */
+            *str = HPyUnicode_FromString(ctx, t.s);
+        }
+    } else {
+        *str = HPyBytes_FromStringAndSize(ctx, t.s, t.n - 1);
+    }
+    if (!*str)
+        return -1;
+    // initialise cached hash value
+    if (HPy_Hash(*str) == -1)
+        return -1;
+    return 0;
+}
+#endif /* HPY */
+#endif /* PY_MAJOR_VERSION */
 
 #if !CYTHON_COMPILING_IN_LIMITED_API
 static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
