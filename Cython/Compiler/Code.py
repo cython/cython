@@ -1128,6 +1128,8 @@ class GlobalState(object):
         'before_global_var',
         'global_var',
         'string_decls',
+        'string_obj_decls',
+        'hpy_string_obj_decls',
         'decls',
         'hpy_decls',
         'late_includes',
@@ -1573,6 +1575,7 @@ class GlobalState(object):
 
         init_globals = self.parts['init_globals']
         if py_strings:
+            from .PyrexTypes import py_object_type
             self.use_utility_code(UtilityCode.load_cached("InitStrings", "StringTools.c"))
             py_strings.sort()
             w = self.parts['pystring_table']
@@ -1583,9 +1586,14 @@ class GlobalState(object):
             w.putln("#else")
             w_not_in_module_state = w.insertion_point()
             w.putln("#endif")
+            decls_writer = self.parts['string_obj_decls']
             decls_writer.putln("#if !CYTHON_USE_MODULE_STATE")
             not_limited_api_decls_writer = decls_writer.insertion_point()
             decls_writer.putln("#endif")
+            hpy_decls_writer = self.parts['hpy_string_obj_decls']
+            hpy_decls_writer.putln("#if !CYTHON_USE_MODULE_STATE")
+            hpy_not_limited_api_decls_writer = hpy_decls_writer.insertion_point()
+            hpy_decls_writer.putln("#endif")
             init_globals.putln("#if CYTHON_USE_MODULE_STATE")
             init_globals_in_module_state = init_globals.insertion_point()
             init_globals.putln("#endif")
@@ -1609,6 +1617,8 @@ class GlobalState(object):
                     py_string.cname)
                 not_limited_api_decls_writer.putln(
                     "static PyObject *%s;" % py_string.cname)
+                hpy_not_limited_api_decls_writer.putln("static %s;" %
+                    hpy_not_limited_api_decls_writer.type_declaration(py_object_type, py_string.cname))
                 if py_string.py3str_cstring:
                     w_not_in_module_state.putln("#if PY_MAJOR_VERSION >= 3")
                     w_not_in_module_state.putln("{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
