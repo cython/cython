@@ -11342,18 +11342,12 @@ class BinopNode(ExprNode):
                     self.operand2.pythran_result()))
         elif self.operand1.type.is_pyobject:
             function = self.py_operation_function(code)
-            if self.operator == '**':
-                extra_args = ", Py_None"
-            else:
-                extra_args = ""
-            code.putln(
-                "%s = %s(%s, %s%s); %s" % (
-                    self.result(),
-                    function,
-                    self.operand1.py_result(),
-                    self.operand2.py_result(),
-                    extra_args,
-                    code.error_goto_if_null(self.result(), self.pos)))
+            code.put_binary_call_with_error(
+                self.result(),
+                function,
+                self.operand1.py_result(),
+                self.operand2.py_result(),
+                self.pos)
             self.generate_gotref(code)
         elif self.is_temp:
             # C++ overloaded operators with exception values are currently all
