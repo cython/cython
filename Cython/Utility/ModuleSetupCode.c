@@ -1395,7 +1395,7 @@ static int __Pyx_check_binary_version(void) {
     if (ctversion[0] != rtversion[0] || ctversion[2] != rtversion[2]) {
         char message[200];
         PyOS_snprintf(message, sizeof(message),
-                      "compile-time version %s of module '%.100s' "
+                      "compile time version %s of module '%.100s' "
                       "does not match runtime version %s",
                       ctversion, __Pyx_MODULE_NAME, rtversion);
         return PyErr_WarnEx(NULL, message, 1);
