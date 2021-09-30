@@ -94,7 +94,7 @@ static int __Pyx_InitString(HPyContext *ctx, __Pyx_StringTabEntry t, HPy *str) {
     if (!*str)
         return -1;
     // initialise cached hash value
-    if (HPy_Hash(*str) == -1)
+    if (HPy_Hash(ctx, *str) == -1)
         return -1;
     return 0;
 }
