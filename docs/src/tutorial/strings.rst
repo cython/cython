@@ -3,6 +3,9 @@
 Unicode and passing strings
 ===========================
 
+.. include::
+    ../two-syntax-variants-used
+
 Similar to the string semantics in Python 3, Cython strictly separates
 byte strings and unicode strings.  Above all, this means that by default
 there is no automatic conversion between byte strings and unicode strings
@@ -110,7 +113,15 @@ Passing byte strings
 we have dummy C functions declared in
 a file called :file:`c_func.pyx` that we are going to reuse throughout this tutorial:
 
-.. literalinclude:: ../../examples/tutorial/string/c_func.pyx
+
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/string/c_func.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/string/c_func.pyx
 
 We make a corresponding :file:`c_func.pxd` to be able to cimport those functions:
 
