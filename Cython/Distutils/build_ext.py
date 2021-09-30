@@ -13,11 +13,9 @@ else:
 
 class new_build_ext(_build_ext, object):
 
-    user_options = _build_ext.user_options[:]
-
-    user_options.extend([
+    user_options = _build_ext.user_options + [
         ('c-build-dir=', None, "directory for generated c files"),
-    ])
+    ]
 
     def initialize_options(self):
         _build_ext.initialize_options(self)
