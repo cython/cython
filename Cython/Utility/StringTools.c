@@ -91,7 +91,7 @@ static int __Pyx_InitString(HPyContext *ctx, __Pyx_StringTabEntry t, HPy *str) {
     } else {
         *str = HPyBytes_FromStringAndSize(ctx, t.s, t.n - 1);
     }
-    if (!*str)
+    if (HPy_IsNull(*str))
         return -1;
     // initialise cached hash value
     if (HPy_Hash(ctx, *str) == -1)
