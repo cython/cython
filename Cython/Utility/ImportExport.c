@@ -241,12 +241,15 @@ static PyObject* __Pyx_ImportFrom(PyObject* module, PyObject* name) {
         /* name may refer to a (sub-)module which has not finished initialization
          * yet, and may not be assigned as an attribute to its parent, so try
          * finding it by full name */
+        const char* module_name_str = 0;
         PyObject* module_name = 0;
         PyObject* dot = 0;
         PyObject* module_dot = 0;
         PyObject* full_name = 0;
         PyErr_Clear();
-        module_name = PyModule_GetNameObject(module);
+        module_name_str = PyModule_GetName(module);
+        if (unlikely(!module_name_str)) { goto modbad; }
+        module_name = PyUnicode_FromString(module_name_str);
         if (unlikely(!module_name)) { goto modbad; }
         dot = PyUnicode_FromString(".");
         if (unlikely(!dot)) { goto modbad; }
