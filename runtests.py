@@ -416,7 +416,7 @@ def get_openmp_compiler_flags(language):
 
     compiler_version = gcc_version.group(1)
     if compiler_version:
-        compiler_version = [ int(num) for num in compiler_version.split('.') ]
+        compiler_version = [int(num) for num in compiler_version.split('.')]
         if compiler_version >= [4, 2]:
             return '-fopenmp', '-fopenmp'
 
