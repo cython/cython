@@ -1127,6 +1127,7 @@ class GlobalState(object):
         'typeinfo',
         'before_global_var',
         'global_var',
+        'hpy_global_var',
         'string_decls',
         'string_obj_decls',
         'hpy_string_obj_decls',
@@ -1337,6 +1338,8 @@ class GlobalState(object):
 
     def put_pyobject_decl(self, entry):
         self['global_var'].putln("static PyObject *%s;" % entry.cname)
+        # TODO(fa): we should use HPyField here once available
+        self['hpy_global_var'].putln("static HPy %s;" % entry.cname)
 
     # constant handling at code generation time
 
