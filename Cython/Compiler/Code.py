@@ -1267,10 +1267,6 @@ class GlobalState(object):
     def finalize_main_c_code(self):
         self.close_global_decls()
 
-        for part in self.code_layout:
-            if self.get_part_type(part) != "generic":
-                self.parts[part].putln("#endif /* HPY */")
-
         #
         # utility_code_def
         #
@@ -1278,6 +1274,11 @@ class GlobalState(object):
         util = TempitaUtilityCode.load_cached("TypeConversions", "TypeConversion.c")
         code.put(util.format_code(util.impl))
         code.putln("")
+
+    def close_parts(self):
+        for part in self.code_layout:
+            if self.get_part_type(part) != "generic":
+                self.parts[part].putln("#endif /* HPY */")
 
     def __getitem__(self, key):
         return self.parts[key]

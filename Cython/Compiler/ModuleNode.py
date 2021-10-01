@@ -546,6 +546,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         self.generate_module_state_end(env, modules, globalstate)
 
+        globalstate.close_parts()
+
         f = open_new_file(result.c_file)
         try:
             rootwriter.copyto(f)
