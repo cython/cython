@@ -1750,6 +1750,8 @@ class FuncDefNode(StatNode, BlockNode):
     code_object = None
     return_type_annotation = None
 
+    outer_attrs = None  # overridden by some derived classes - to be visited outside the node's scope
+
     def analyse_default_values(self, env):
         default_seen = 0
         for arg in self.args:
