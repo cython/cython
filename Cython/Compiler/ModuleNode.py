@@ -513,20 +513,25 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.mark_pos(None)
         self.generate_typeobj_definitions(env, code)
         self.generate_method_table(env, code)
-        self.generate_hpy_define_array(env, code)
         if env.has_import_star:
             self.generate_import_star(env, code)
 
+        hpy_code.mark_pos(None)
+        self.generate_hpy_define_array(env, hpy_code)
+
         # initialise the macro to reduce the code size of one-time functionality
         code.putln(UtilityCode.load_as_string("SmallCodeConfig", "ModuleSetupCode.c")[0].strip())
+        hpy_code.putln(UtilityCode.load_as_string("SmallCodeConfig", "ModuleSetupCode.c")[0].strip())
 
         self.generate_module_state_start(env, globalstate['module_state'])
+        self.generate_module_state_start(env, globalstate['hpy_module_state'])
         self.generate_module_state_defines(env, globalstate['module_state_defines'])
         self.generate_module_state_clear(env, globalstate['module_state_clear'])
         self.generate_module_state_traverse(env, globalstate['module_state_traverse'])
 
         # init_globals is inserted before this
         self.generate_module_init_func(modules[:-1], env, globalstate['init_module'])
+        self.generate_module_init_func(modules[:-1], env, globalstate['hpy_init_module'])
         self.generate_module_cleanup_func(env, globalstate['cleanup_module'])
         if Options.embed:
             self.generate_main_method(env, globalstate['main_method'])
@@ -2815,6 +2820,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state_traverse.putln("return 0;")
         module_state_traverse.putln("}")
         module_state_traverse.putln("#endif")
+
+        # TODO(fa): do all 'hpy_module_state*' variants
+        globalstate['hpy_module_state'].putln("#endif /* CYTHON_USE_MODULE_STATE */")
 
     def generate_module_state_defines(self, env, code):
         code.putln("#if CYTHON_USE_MODULE_STATE")

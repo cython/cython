@@ -1134,6 +1134,7 @@ class GlobalState(object):
         'hpy_decls',
         'late_includes',
         'module_state',
+        'hpy_module_state',
         'module_state_clear',
         'module_state_traverse',
         'module_state_defines',  # redefines names used in module_state/_clear/_traverse
@@ -1142,11 +1143,15 @@ class GlobalState(object):
         'pystring_table',
         'cached_builtins',
         'cached_constants',
+        'hpy_cached_constants',
         'init_globals',
         'hpy_init_globals',
         'init_module',
+        'hpy_init_module',
         'cleanup_globals',
+        'hpy_cleanup_globals',
         'cleanup_module',
+        'hpy_cleanup_module',
         'main_method',
         'utility_code_def',
         'end'
@@ -1218,12 +1223,12 @@ class GlobalState(object):
             w.enter_cfunc_scope()
             w.putln("static CYTHON_SMALL_CODE int __Pyx_InitCachedBuiltins(void) {")
 
-        w = self.parts['cached_constants']
-        w.enter_cfunc_scope()
-        w.putln("")
-        w.putln("static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {")
-        w.put_declare_refcount_context()
-        w.put_setup_refcount_context(StringEncoding.EncodedString("__Pyx_InitCachedConstants"))
+        for w in (self.parts['cached_constants'], self.parts['hpy_cached_constants']):
+            w.enter_cfunc_scope()
+            w.putln("")
+            w.putln("static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {")
+            w.put_declare_refcount_context()
+            w.put_setup_refcount_context(StringEncoding.EncodedString("__Pyx_InitCachedConstants"))
 
         w = self.parts['init_globals']
         w.enter_cfunc_scope()
@@ -1293,12 +1298,20 @@ class GlobalState(object):
             w.putln("}")
             w.exit_cfunc_scope()
 
-        w = self.parts['cached_constants']
-        w.put_finish_refcount_context()
+        for w in (self.parts['cached_constants'], self.parts['hpy_cached_constants']):
+            w.put_finish_refcount_context()
+            w.putln("return 0;")
+            if w.label_used(w.error_label):
+                w.put_label(w.error_label)
+                w.put_finish_refcount_context()
+                w.putln("return -1;")
+            w.putln("}")
+            w.exit_cfunc_scope()
+
+        w = self.parts['init_globals']
         w.putln("return 0;")
         if w.label_used(w.error_label):
             w.put_label(w.error_label)
-            w.put_finish_refcount_context()
             w.putln("return -1;")
         w.putln("}")
         w.exit_cfunc_scope()
@@ -1514,6 +1527,7 @@ class GlobalState(object):
         decls_writer.putln("#if !CYTHON_USE_MODULE_STATE")
         for _, cname, c in consts:
             self.parts['module_state'].putln("%s;" % decls_writer.type_declaration(c.type, cname))
+            self.parts['hpy_module_state'].putln("%s;" % decls_writer.type_declaration(c.type, cname))
             self.parts['module_state_defines'].putln(
                 "#define %s %s->%s" % (cname, Naming.modulestateglobal_cname, cname))
             self.parts['module_state_clear'].putln(
@@ -1616,7 +1630,8 @@ class GlobalState(object):
                 else:
                     encoding = '"%s"' % py_string.encoding.lower()
 
-                self.parts['module_state'].putln("PyObject *%s;" % py_string.cname)
+                for module_state_writer in (self.parts['module_state'], self.parts['hpy_module_state']):
+                    module_state_writer.putln(module_state_writer.type_declaration(py_object_type, py_string.cname) + ";")
                 self.parts['module_state_defines'].putln("#define %s %s->%s" % (
                     py_string.cname,
                     Naming.modulestateglobal_cname,
@@ -1686,9 +1701,11 @@ class GlobalState(object):
         decls_writer = self.parts['decls']
         decls_writer.putln("#if !CYTHON_USE_MODULE_STATE")
         init_globals = self.parts['init_globals']
+        from .PyrexTypes import py_object_type
         for py_type, _, _, value, value_code, c in consts:
             cname = c.cname
-            self.parts['module_state'].putln("PyObject *%s;" % cname)
+            for module_state_writer in (self.parts['module_state'], self.parts['hpy_module_state']):
+                module_state_writer.putln(module_state_writer.type_declaration(py_object_type, cname) + ";")
             self.parts['module_state_defines'].putln("#define %s %s->%s" % (
                 cname, Naming.modulestateglobal_cname, cname))
             self.parts['module_state_clear'].putln(
