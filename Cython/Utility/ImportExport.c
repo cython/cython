@@ -238,6 +238,31 @@ static PyObject* __Pyx_ImportFrom(PyObject* module, PyObject* name); /*proto*/
 static PyObject* __Pyx_ImportFrom(PyObject* module, PyObject* name) {
     PyObject* value = __Pyx_PyObject_GetAttrStr(module, name);
     if (unlikely(!value) && PyErr_ExceptionMatches(PyExc_AttributeError)) {
+        /* name may refer to a (sub-)module which has not finished initialization
+         * yet, and may not be assigned as an attribute to its parent, so try
+         * finding it by full name */
+        PyObject* module_name = 0;
+        PyObject* dot = 0;
+        PyObject* module_dot = 0;
+        PyObject* full_name = 0;
+        PyErr_Clear();
+        module_name = PyModule_GetNameObject(module);
+        if (unlikely(!module_name)) { goto modbad; }
+        dot = PyUnicode_FromString(".");
+        if (unlikely(!dot)) { goto modbad; }
+        module_dot = PyUnicode_Concat(module_name, dot);
+        if (unlikely(!module_dot)) { goto modbad; }
+        full_name = PyUnicode_Concat(module_dot, name);
+        if (unlikely(!full_name)) { goto modbad; }
+        value = __Pyx_Import(full_name, (PyObject *)NULL, 0);
+
+      modbad:
+        Py_XDECREF(full_name);
+        Py_XDECREF(module_dot);
+        Py_XDECREF(dot);
+        Py_XDECREF(module_name);
+    }
+    if (unlikely(!value)) {
         PyErr_Format(PyExc_ImportError,
         #if PY_MAJOR_VERSION < 3
             "cannot import name %.230s", PyString_AS_STRING(name));

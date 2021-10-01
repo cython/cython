@@ -1,0 +1,23 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import pkg.A"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+from distutils.core import setup
+
+setup(
+    ext_modules = cythonize("**/*.py"),
+    )
+
+######## pkg/__init__.py ########
+
+######## pkg/A.py ########
+from . import B
+
+######## pkg/B.py ########
+from . import C
+
+######## pkg/C.py ########
+from . import B
+
