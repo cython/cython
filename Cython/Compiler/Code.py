@@ -2483,6 +2483,72 @@ class CCodeWriter(object):
                     func_cname, entry.func_cname))
         return func_cname
 
+    def put_moduledef_struct(self, env, exec_func_cname):
+        if env.doc:
+            doc = "%s" % self.get_string_const(env.doc)
+        else:
+            doc = "0"
+        if Options.generate_cleanup_code:
+            cleanup_func = "(freefunc)%s" % Naming.cleanup_cname
+        else:
+            cleanup_func = 'NULL'
+
+        self.putln("")
+        self.putln("#if PY_MAJOR_VERSION >= 3")
+        self.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
+        self.putln("static PyObject* %s(PyObject *spec, PyModuleDef *def); /*proto*/" %
+                   Naming.pymodule_create_func_cname)
+        self.putln("static int %s(PyObject* module); /*proto*/" % exec_func_cname)
+
+        self.putln("static PyModuleDef_Slot %s[] = {" % Naming.pymoduledef_slots_cname)
+        self.putln("{Py_mod_create, (void*)%s}," % Naming.pymodule_create_func_cname)
+        self.putln("{Py_mod_exec, (void*)%s}," % exec_func_cname)
+        self.putln("{0, NULL}")
+        self.putln("};")
+        if not env.module_name.isascii():
+            self.putln("#else /* CYTHON_PEP489_MULTI_PHASE_INIT */")
+            self.putln('#error "Unicode module names are only supported with multi-phase init'
+                       ' as per PEP489"')
+        self.putln("#endif")
+
+        self.putln("")
+        self.putln('#ifdef __cplusplus')
+        self.putln('namespace {')
+        self.putln("struct PyModuleDef %s =" % Naming.pymoduledef_cname)
+        self.putln('#else')
+        self.putln("static struct PyModuleDef %s =" % Naming.pymoduledef_cname)
+        self.putln('#endif')
+        self.putln('{')
+        self.putln("  PyModuleDef_HEAD_INIT,")
+        self.putln('  %s,' % env.module_name.as_c_string_literal())
+        self.putln("  %s, /* m_doc */" % doc)
+        self.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
+        self.putln("  0, /* m_size */")
+        self.putln("#elif CYTHON_USE_MODULE_STATE")  # FIXME: should allow combination with PEP-489
+        self.putln("  sizeof(%s), /* m_size */" % Naming.modulestate_cname)
+        self.putln("#else")
+        self.putln("  -1, /* m_size */")
+        self.putln("#endif")
+        self.putln("  %s /* m_methods */," % env.method_table_cname)
+        self.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
+        self.putln("  %s, /* m_slots */" % Naming.pymoduledef_slots_cname)
+        self.putln("#else")
+        self.putln("  NULL, /* m_reload */")
+        self.putln("#endif")
+        self.putln("#if CYTHON_USE_MODULE_STATE")
+        self.putln("  %s_traverse, /* m_traverse */" % Naming.module_cname)
+        self.putln("  %s_clear, /* m_clear */" % Naming.module_cname)
+        self.putln("  %s /* m_free */" % cleanup_func)
+        self.putln("#else")
+        self.putln("  NULL, /* m_traverse */")
+        self.putln("  NULL, /* m_clear */")
+        self.putln("  %s /* m_free */" % cleanup_func)
+        self.putln("#endif")
+        self.putln("};")
+        self.putln('#ifdef __cplusplus')
+        self.putln('} /* anonymous namespace */')
+        self.putln('#endif')
+        self.putln("#endif")
     # GIL methods
 
     def use_fast_gil_utility_code(self):
@@ -3445,6 +3511,64 @@ class HPyCCodeWriter(CCodeWriter):
                     func_cname, entry.func_cname))
         return func_cname
 
+    def put_moduledef_struct(self, env, exec_func_cname):
+        if env.doc:
+            doc = "%s" % self.get_string_const(env.doc)
+        else:
+            doc = "0"
+
+        self.putln("")
+        if 0:
+            # TBD once HPy moves to multiphase init
+            code.putln("#if PY_MAJOR_VERSION >= 3")
+            code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
+            exec_func_cname = self.module_init_func_cname()
+            code.putln("static PyObject* %s(PyObject *spec, PyModuleDef *def); /*proto*/" %
+                       Naming.pymodule_create_func_cname)
+            code.putln("static int %s(PyObject* module); /*proto*/" % exec_func_cname)
+
+            code.putln("static PyModuleDef_Slot %s[] = {" % Naming.pymoduledef_slots_cname)
+            code.putln("{Py_mod_create, (void*)%s}," % Naming.pymodule_create_func_cname)
+            code.putln("{Py_mod_exec, (void*)%s}," % exec_func_cname)
+            code.putln("{0, NULL}")
+            code.putln("};")
+            if not env.module_name.isascii():
+                code.putln("#else /* CYTHON_PEP489_MULTI_PHASE_INIT */")
+                code.putln('#error "Unicode module names are only supported with multi-phase init'
+                           ' as per PEP489"')
+            code.putln("#endif")
+
+        self.putln("")
+        self.putln('#ifdef __cplusplus')
+        self.putln('namespace {')
+        self.putln("HPyModuleDef %s =" % Naming.hpymoduledef_cname)
+        self.putln('#else')
+        self.putln("static HPyModuleDef %s =" % Naming.hpymoduledef_cname)
+        self.putln('#endif')
+        self.putln('{')
+        self.putln("  HPyModuleDef_HEAD_INIT,")
+        self.putln('  .m_name = %s,' % env.module_name.as_c_string_literal())
+        self.putln("  .m_doc = %s," % doc)
+        self.putln("  .m_size = -1,")
+        #self.putln("  .legacy_methods = %s," % env.method_table_cname)
+        self.putln("  .legacy_methods = 0,")
+        if env.is_c_class_scope and not env.hpyfunc_entries:
+            self.putln("  .defines = 0,")
+        else:
+            self.putln("  .defines = %s," % env.hpy_defines_cname)
+        self.putln("};")
+        self.putln('#ifdef __cplusplus')
+        self.putln('} /* anonymous namespace */')
+        self.putln('#endif')
+        # definition
+        self.putln("HPy_MODINIT(%s)" % env.module_name)
+        self.putln("static HPy init_%s_impl(HPyContext *ctx)" % env.module_name)
+        self.putln("{")
+        self.putln("HPy m;")
+        self.putln("m = HPyModule_Create(ctx, &%s);" % Naming.hpymoduledef_cname)
+        self.putln("if (HPy_IsNull(m)) return HPy_NULL;")
+        self.putln("return m;")
+        self.putln("}")
     # GIL methods
 
     def use_fast_gil_utility_code(self):
