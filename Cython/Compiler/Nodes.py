@@ -3817,7 +3817,7 @@ class DefNodeWrapper(FuncDefNode):
             kw_unpacking_condition = "likely(%s)" % kw_unpacking_condition
 
         # --- optimised code when we receive keyword arguments
-        code.putln("if (%s) {" % code.is_null_cond(kw_unpacking_condition))
+        code.putln("if (%s) {" % code.is_not_null_cond(kw_unpacking_condition))
 
         if accept_kwd_args:
             self.generate_keyword_unpacking_code(

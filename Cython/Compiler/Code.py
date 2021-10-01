@@ -2637,6 +2637,9 @@ class CCodeWriter(object):
         return self.error_goto_if("PyErr_Occurred()", pos)
 
     def is_null_cond(self, cname):
+        return "!" + cname
+
+    def is_not_null_cond(self, cname):
         return cname
 
     def lookup_filename(self, filename):
@@ -3286,6 +3289,9 @@ class HPyCCodeWriter(CCodeWriter):
 
     def is_null_cond(self, cname):
         return "HPy_IsNull(%s)" % cname
+
+    def is_not_null_cond(self, cname):
+        return "!HPy_IsNull(%s)" % cname
 
     def lookup_filename(self, filename):
         return self.globalstate.lookup_filename(filename)
