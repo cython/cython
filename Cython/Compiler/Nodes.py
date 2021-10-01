@@ -3782,12 +3782,13 @@ class DefNodeWrapper(FuncDefNode):
         non_pos_args_id = ','.join(
             ['&%s' % code.intern_identifier(arg.entry.name) for arg in non_posonly_args] + ['0'])
         code.putln("#if CYTHON_USE_MODULE_STATE")
-        code.putln("PyObject **%s[] = {%s};" % (
-            Naming.pykwdlist_cname,
+        #code.putln("PyObject **%s[] = {%s};" % (
+        code.putln("%s = {%s};" % (
+            code.type_declaration(py_object_type, "*" + Naming.pykwdlist_cname + "[]"),
             non_pos_args_id))
         code.putln("#else")
-        code.putln("static PyObject **%s[] = {%s};" % (
-            Naming.pykwdlist_cname,
+        code.putln("static %s = {%s};" % (
+            code.type_declaration(py_object_type, "*" + Naming.pykwdlist_cname + "[]"),
             non_pos_args_id))
         code.putln("#endif")
 
