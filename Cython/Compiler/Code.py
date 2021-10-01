@@ -1143,6 +1143,7 @@ class GlobalState(object):
         'cached_builtins',
         'cached_constants',
         'init_globals',
+        'hpy_init_globals',
         'init_module',
         'cleanup_globals',
         'cleanup_module',
@@ -1229,6 +1230,11 @@ class GlobalState(object):
         w.putln("")
         w.putln("static CYTHON_SMALL_CODE int __Pyx_InitGlobals(void) {")
 
+        w = self.parts['hpy_init_globals']
+        w.enter_cfunc_scope()
+        w.putln("")
+        w.putln("static CYTHON_SMALL_CODE int __Pyx_InitGlobals(HPyContext *ctx) {")
+
         if not Options.generate_cleanup_code:
             del self.parts['cleanup_globals']
         else:
@@ -1297,7 +1303,7 @@ class GlobalState(object):
         w.putln("}")
         w.exit_cfunc_scope()
 
-        w = self.parts['init_globals']
+        w = self.parts['hpy_init_globals']
         w.putln("return 0;")
         if w.label_used(w.error_label):
             w.put_label(w.error_label)
@@ -1574,6 +1580,7 @@ class GlobalState(object):
                 decls_writer.putln("#endif")
 
         init_globals = self.parts['init_globals']
+        hpy_init_globals = self.parts['hpy_init_globals']
         if py_strings:
             from .PyrexTypes import py_object_type
             self.use_utility_code(UtilityCode.load_cached("InitStrings", "StringTools.c"))
@@ -1597,6 +1604,9 @@ class GlobalState(object):
             init_globals.putln("#if CYTHON_USE_MODULE_STATE")
             init_globals_in_module_state = init_globals.insertion_point()
             init_globals.putln("#endif")
+            hpy_init_globals.putln("#if CYTHON_USE_MODULE_STATE")
+            hpy_init_globals_in_module_state = hpy_init_globals.insertion_point()
+            hpy_init_globals.putln("#endif")
             for idx, py_string_args in enumerate(py_strings):
                 c_cname, _, py_string = py_string_args
                 if not py_string.is_str or not py_string.encoding or \
@@ -1653,13 +1663,19 @@ class GlobalState(object):
                     idx,
                     py_string.cname,
                     init_globals.error_goto(self.module_pos)))
+                hpy_init_globals_in_module_state.putln("if (__Pyx_InitString(ctx, %s[%d], &%s) < 0) %s;" % (
+                    Naming.stringtab_cname,
+                    idx,
+                    py_string.cname,
+                    init_globals.error_goto(self.module_pos)))
             w.putln("{0, 0, 0, 0, 0, 0, 0}")
             w.putln("};")
 
             init_globals.putln("#if !CYTHON_USE_MODULE_STATE")
+            args = ", ".join(map(str, init_globals.get_arg_code_list() + [Naming.stringtab_cname]))
             init_globals.putln(
                 "if (__Pyx_InitStrings(%s) < 0) %s;" % (
-                    Naming.stringtab_cname,
+                    args,
                     init_globals.error_goto(self.module_pos)))
             init_globals.putln("#endif")
 

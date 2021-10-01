@@ -44,9 +44,17 @@ static CYTHON_INLINE Py_ssize_t __Pyx_Py_UNICODE_ssize_strlen(const Py_UNICODE *
 //////////////////// InitStrings.proto ////////////////////
 
 #if CYTHON_COMPILING_IN_LIMITED_API
+#ifndef HPY
 static int __Pyx_InitString(__Pyx_StringTabEntry t, PyObject **str); /*proto*/
+#else /* HPY */
+static int __Pyx_InitString(HPyContext *ctx, __Pyx_StringTabEntry t, HPy *str); /*proto*/
+#endif /* HPY */
 #else
+#ifndef HPY
 static int __Pyx_InitStrings(__Pyx_StringTabEntry *t); /*proto*/
+#else /* HPY */
+static int __Pyx_InitStrings(HPyContext *ctx, __Pyx_StringTabEntry *t); /*proto*/
+#endif /* HPY */
 #endif
 
 //////////////////// InitStrings ////////////////////
@@ -102,6 +110,7 @@ static int __Pyx_InitString(HPyContext *ctx, __Pyx_StringTabEntry t, HPy *str) {
 #endif /* PY_MAJOR_VERSION */
 
 #if !CYTHON_COMPILING_IN_LIMITED_API
+#ifndef HPY
 static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
     while (t->p) {
         #if PY_MAJOR_VERSION >= 3  /* Python 3+ has unicode identifiers */
@@ -124,6 +133,15 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
     }
     return 0;
 }
+#else /* HPY */
+static int __Pyx_InitStrings(HPyContext *ctx, __Pyx_StringTabEntry *t) {
+    while (t->p) {
+        __Pyx_InitString(ctx, *t, t->p);
+        ++t;
+    }
+    return 0;
+}
+#endif /* HPY */
 #endif
 
 //////////////////// BytesContains.proto ////////////////////
