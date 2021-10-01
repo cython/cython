@@ -2330,10 +2330,16 @@ class CCodeWriter(object):
         if entry.in_closure:
             self.put_giveref('Py_None')
 
+    def get_arg_code_list(self):
+        return []
+
+    def get_call_args(self):
+        return []
+
     def put_function_header(self, sig, self_in_stararg, args, target, return_type, with_pymethdef, proto_only=0):
         from .PyrexTypes import py_object_type
         from . import TypeSlots
-        arg_code_list = []
+        arg_code_list = self.get_arg_code_list()
 
         if sig.has_dummy_arg or self_in_stararg:
             arg_code = self.type_declaration(py_object_type, Naming.self_cname)
@@ -3394,10 +3400,16 @@ class HPyCCodeWriter(CCodeWriter):
         translated_type = hpy_type_mapping.get(type, type)
         return translated_type.declaration_code(entity_code, for_display, dll_linkage, pyrex)
 
+    def get_call_args(self):
+        return [Naming.hpy_context_cname]
+
+    def get_arg_code_list(self):
+        return ["HPyContext *" + Naming.hpy_context_cname]
+
     def put_function_header(self, sig, self_in_stararg, args, target, return_type, with_pymethdef, proto_only=0):
         from .PyrexTypes import py_object_type, hpy_type, c_hpy_ptr_type, c_hpy_ssize_t_type
         from . import TypeSlots
-        arg_code_list = ["HPyContext *" + Naming.hpy_context_cname]
+        arg_code_list = self.get_arg_code_list()
 
         if sig.has_dummy_arg or self_in_stararg:
             arg_code = self.type_declaration(py_object_type, Naming.self_cname)

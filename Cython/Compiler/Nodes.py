@@ -3361,7 +3361,7 @@ class DefNode(FuncDefNode):
                 self.py_wrapper.generate_function_header(
                     code, with_pymethdef, True)
             return
-        arg_code_list = []
+        arg_code_list = code.get_arg_code_list()
         if self.entry.signature.has_dummy_arg:
             self_arg = code.type_declaration(py_object_type, Naming.self_cname)
             if not self.needs_outer_scope:
@@ -3490,7 +3490,7 @@ class DefNodeWrapper(FuncDefNode):
         return self.signature.has_generic_args
 
     def generate_function_body(self, code):
-        args = []
+        args = code.get_call_args()
         if self.signature.has_dummy_arg:
             args.append(Naming.self_cname)
         for arg in self.args:
