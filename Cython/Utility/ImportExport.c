@@ -243,7 +243,6 @@ static PyObject* __Pyx_ImportFrom(PyObject* module, PyObject* name) {
          * finding it by full name */
         const char* module_name_str = 0;
         PyObject* module_name = 0;
-        PyObject* dot = 0;
         PyObject* module_dot = 0;
         PyObject* full_name = 0;
         PyErr_Clear();
@@ -251,9 +250,7 @@ static PyObject* __Pyx_ImportFrom(PyObject* module, PyObject* name) {
         if (unlikely(!module_name_str)) { goto modbad; }
         module_name = PyUnicode_FromString(module_name_str);
         if (unlikely(!module_name)) { goto modbad; }
-        dot = PyUnicode_FromString(".");
-        if (unlikely(!dot)) { goto modbad; }
-        module_dot = PyUnicode_Concat(module_name, dot);
+        module_dot = PyUnicode_Concat(module_name, PYUNICODE("."));
         if (unlikely(!module_dot)) { goto modbad; }
         full_name = PyUnicode_Concat(module_dot, name);
         if (unlikely(!full_name)) { goto modbad; }
@@ -262,7 +259,6 @@ static PyObject* __Pyx_ImportFrom(PyObject* module, PyObject* name) {
       modbad:
         Py_XDECREF(full_name);
         Py_XDECREF(module_dot);
-        Py_XDECREF(dot);
         Py_XDECREF(module_name);
     }
     if (unlikely(!value)) {
