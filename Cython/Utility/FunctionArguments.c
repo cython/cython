@@ -200,10 +200,17 @@ invalid_keyword:
 
 //////////////////// ParseKeywords.proto ////////////////////
 
+#ifndef HPY
 static int __Pyx_ParseOptionalKeywords(PyObject *kwds, PyObject *const *kwvalues,
     PyObject **argnames[],
     PyObject *kwds2, PyObject *values[], Py_ssize_t num_pos_args,
     const char* function_name); /*proto*/
+#else
+static int __Pyx_ParseOptionalKeywords(HPyContext *ctx, HPy kwds, const HPy *kwvalues,
+    HPy *argnames[],
+    HPy kwds2, HPy values[], HPy_ssize_t num_pos_args,
+    const char* function_name); /*proto*/
+#endif /* HPY */
 
 //////////////////// ParseKeywords ////////////////////
 //@requires: RaiseDoubleKeywords
@@ -225,6 +232,7 @@ static int __Pyx_ParseOptionalKeywords(PyObject *kwds, PyObject *const *kwvalues
 //
 //  This method does not check for required keyword arguments.
 
+#ifndef HPY
 static int __Pyx_ParseOptionalKeywords(
     PyObject *kwds,
     PyObject *const *kwvalues,
@@ -347,6 +355,16 @@ invalid_keyword:
 bad:
     return -1;
 }
+#else
+static int __Pyx_ParseOptionalKeywords(HPyContext *ctx, HPy kwds, const HPy *kwvalues,
+    HPy *argnames[],
+    HPy kwds2, HPy values[], HPy_ssize_t num_pos_args,
+    const char* function_name)
+{
+    HPyErr_SetString(ctx, ctx->h_SystemError, "NOT IMPLEMENTED");
+    return -1;
+}
+#endif /* HPY */
 
 
 //////////////////// MergeKeywords.proto ////////////////////
