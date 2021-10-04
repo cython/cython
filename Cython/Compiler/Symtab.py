@@ -779,6 +779,7 @@ class Scope(object):
         entry.qualified_name = self.qualify_name(name)
         entry.signature = pyfunction_signature
         entry.is_anonymous = True
+        self.hpyfunc_entries.append(entry)
         return entry
 
     def declare_lambda_function(self, lambda_name, pos):
