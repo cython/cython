@@ -111,7 +111,7 @@ convert_range = True
 #: from their Python 2 names to their Python 3 names by Cython
 #: when building in Python 3.x,
 #: so that they do not get in the way even if this option is enabled.
-cache_builtins = True
+cache_builtins = False
 
 #: Generate branch prediction hints to speed up error handling etc.
 gcc_branch_hints = True
