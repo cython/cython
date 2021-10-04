@@ -3495,6 +3495,11 @@ class HPyCCodeWriter(CCodeWriter):
             if entry.is_arg:
                 self.put_var_declaration(entry)
 
+        # Array containing the values of keyword arguments when using METH_FASTCALL.
+        self.globalstate.use_utility_code(
+            UtilityCode.load_cached("fastcall", "FunctionArguments.c"))
+        self.putln('CYTHON_UNUSED const HPy *%s = NULL;' % Naming.kwvalues_cname)
+
     def put_hpy_method_definition(self, entry):
         method_flags = entry.signature.hpy_method_flags()
         if not method_flags:
