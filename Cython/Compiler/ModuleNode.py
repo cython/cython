@@ -2643,6 +2643,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if env.hpyfunc_entries:
             for entry in env.hpyfunc_entries:
                 code.put_hpydef(entry)
+                code.putln(",");
+        for entry in env.pyfunc_entries:
+            if not entry.fused_cfunction and not entry.is_overridable:
+                code.put_hpydef(entry)
+                code.putln(",");
         code.putln("NULL")
         code.putln(
             "};")
