@@ -403,6 +403,7 @@ __Pyx_CyFunction_get_annotations(__pyx_CyFunctionObject *op, void *context) {
 
 static PyObject *
 __Pyx_CyFunction_get_is_coroutine(__pyx_CyFunctionObject *op, void *context) {
+#ifndef HPY
     int is_coroutine;
     CYTHON_UNUSED_VAR(context);
     if (op->func_is_coroutine) {
@@ -432,6 +433,9 @@ ignore:
 
     op->func_is_coroutine = __Pyx_PyBool_FromLong(is_coroutine);
     return __Pyx_NewRef(op->func_is_coroutine);
+#else
+    return NULL;
+#endif /* HPY */
 }
 
 //#if PY_VERSION_HEX >= 0x030400C1
