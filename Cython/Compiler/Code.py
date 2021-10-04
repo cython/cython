@@ -7,6 +7,7 @@
 from __future__ import absolute_import
 
 import cython
+
 cython.declare(os=object, re=object, operator=object, textwrap=object,
                Template=object, Naming=object, Options=object, StringEncoding=object,
                Utils=object, SourceDescriptor=object, StringIOTree=object,
@@ -32,6 +33,7 @@ from . import Version
 from .. import Utils
 from .Scanning import SourceDescriptor
 from ..StringIOTree import StringIOTree
+from .Errors import error
 
 try:
     from __builtin__ import basestring
