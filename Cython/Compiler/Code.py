@@ -2472,7 +2472,7 @@ class CCodeWriter(object):
                 term))
 
     def put_hpydef(self, entry):
-        self.putln('&' + str(entry))
+        self.putln('&' + entry.pymethdef_cname)
 
     def put_pymethoddef_wrapper(self, entry):
         func_cname = entry.func_cname
@@ -3500,7 +3500,7 @@ class HPyCCodeWriter(CCodeWriter):
         self.putln("HPyDef_METH(%s, %s, %s, %s, .doc=%s)" % (entry.pymethdef_cname, entry_name, entry.func_cname, method_flags, entry.doc_cname))
 
     def put_hpydef(self, entry):
-        self.putln('&' + str(entry))
+        self.putln('&' + entry.pymethdef_cname)
 
     def put_pymethoddef_wrapper(self, entry):
         func_cname = entry.func_cname
