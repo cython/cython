@@ -3239,7 +3239,8 @@ class HPyCCodeWriter(CCodeWriter):
             text, identifier, is_str, unicode_value).cname
 
     def get_argument_default_const(self, type):
-        return self.globalstate.get_py_const(type).cname
+        # return self.globalstate.get_py_const(type).cname
+        raise NotImplementedError("get_argument_default_const is not yet implemented for HPy")
 
     def intern(self, text):
         return self.get_py_string_const(text)
