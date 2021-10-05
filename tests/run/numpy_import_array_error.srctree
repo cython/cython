@@ -18,7 +18,7 @@ setup(ext_modules = cythonize('cimport_numpy.pyx'))
 
 cdef extern from *:
     """
-    #define NPY_NDARRAYOBJECT_H
+    #define NPY_FEATURE_VERSION
     static int _import_array(void) {
         PyErr_SetString(PyExc_ValueError, "Oh no!");
         return -1;
