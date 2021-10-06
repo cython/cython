@@ -64,7 +64,7 @@ elif [ -z "${PYTHON_VERSION##3.[45]*}" ]; then
 else
   python -m pip install -U pip setuptools wheel || exit 1
 
-  if [ -n "${PYTHON_VERSION##*-dev}" ]; then
+  if [ -n "${PYTHON_VERSION##*-dev}" -o "$COVERAGE" == "1" ]; then
     python -m pip install -r test-requirements.txt || exit 1
 
     if [ "${PYTHON_VERSION##pypy*}" -a "${PYTHON_VERSION##3.[4789]*}" ]; then
