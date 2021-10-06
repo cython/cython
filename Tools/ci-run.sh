@@ -134,8 +134,10 @@ fi
 if [ "$TEST_CODE_STYLE" == "1" ]; then
     make -C docs html || exit 1
 elif [ -n "${PYTHON_VERSION##pypy*}" ]; then
-  # Run the debugger tests in python-dbg if available (but don't fail, because they currently do fail)
-  PYTHON_DBG="python$( python -c 'import sys; print("%d.%d" % sys.version_info[:2])' )-dbg"
+  # Run the debugger tests in python-dbg if available
+  # (but don't fail, because they currently do fail)
+  PYTHON_DBG=$(python -c 'import sys; print("%d.%d" % sys.version_info[:2])')
+  PYTHON_DBG="python$PYTHON_DBG-dbg"
   if $PYTHON_DBG -V >&2; then
     CFLAGS=$CFLAGS $PYTHON_DBG \
       runtests.py -vv --no-code-style Debugger --backends=$BACKEND
