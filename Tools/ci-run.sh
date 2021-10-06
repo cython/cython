@@ -3,7 +3,10 @@
 GCC_VERSION=${GCC_VERSION:=8}
 
 # Set up compilers
-if [ "${OSTYPE##linux-gnu*}" == "" -a "$TEST_CODE_STYLE" != "1" ]; then
+if [ "$TEST_CODE_STYLE" == "1" ]; then
+  echo "Skipping compiler setup"
+elif [ "${OSTYPE##linux-gnu*}" == "" ]; then
+  echo "Setting up linux compiler"
   echo "Installing requirements [apt]"
   sudo apt-add-repository -y "ppa:ubuntu-toolchain-r/test"
   sudo apt update -y -q
@@ -24,8 +27,8 @@ if [ "${OSTYPE##linux-gnu*}" == "" -a "$TEST_CODE_STYLE" != "1" ]; then
     sudo update-alternatives --set g++ /usr/bin/g++-$GCC_VERSION
     export CXX="g++"
   fi
-fi
-if [ "${OSTYPE##darwin*}" == "" ]; then
+elif [ "${OSTYPE##darwin*}" == "" ]; then
+  echo "Setting up macos compiler"
   export CC="clang -Wno-deprecated-declarations"
   export CXX="clang++ -stdlib=libc++ -Wno-deprecated-declarations"
 fi
