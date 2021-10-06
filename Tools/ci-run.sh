@@ -98,7 +98,13 @@ ccache -s 2>/dev/null || true
 export PATH="/usr/lib/ccache:$PATH"
 
 if [ "$NO_CYTHON_COMPILE" != "1" -a -n "${PYTHON_VERSION##pypy*}" ]; then
-  CFLAGS="-O2 -ggdb -Wall -Wextra $(python -c 'import sys; print("-fno-strict-aliasing" if sys.version_info[0] == 2 else "")')" \
+
+  BUILD_CFLAGS="-O2 -ggdb -Wall -Wextra"
+  if [[ $PYTHON_SYS_VERSION == "2"* ]]; then
+    BUILD_CFLAGS="$BUILD_CFLAGS -fno-strict-aliasing"
+  fi
+
+  CFLAGS=$BUILD_CFLAGS \
   python setup.py build_ext -i \
           $(if [ "$COVERAGE" == "1" ]; then echo " --cython-coverage"; fi) \
           $(if [ "$CYTHON_COMPILE_ALL" == "1" ]; then echo " --cython-compile-all"; fi) \
