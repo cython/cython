@@ -38,11 +38,13 @@ if [ "$STACKLESS" == "true" ]; then
   conda install --quiet --yes stackless || exit 1
 fi
 
+PYTHON_SYS_VERSION=$(python -c 'import sys; print(sys.version)')
+
 # Log versions in use
 echo "===================="
 echo "|VERSIONS INSTALLED|"
 echo "===================="
-python -c 'import sys; print("Python %s" % (sys.version,))'
+echo "Python $PYTHON_SYS_VERSION"
 if [ "$CC" ]; then
   which ${CC%% *}
   ${CC%% *} --version
