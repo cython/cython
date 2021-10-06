@@ -106,12 +106,18 @@ if [ "$NO_CYTHON_COMPILE" != "1" -a -n "${PYTHON_VERSION##pypy*}" ]; then
     BUILD_CFLAGS="$BUILD_CFLAGS -fno-strict-aliasing"
   fi
 
+  SETUP_ARGS=""
+  if [ "$COVERAGE" == "1" ]; then
+    SETUP_ARGS="$SETUP_ARGS --cython-coverage"
+  fi
+  if [ "$CYTHON_COMPILE_ALL" == "1" ]; then
+    SETUP_ARGS="$SETUP_ARGS --cython-compile-all"
+  fi
+  SETUP_ARGS="$SETUP_ARGS
+    $(python -c 'import sys; print("-j5" if sys.version_info >= (3,5) else "")')"
+
   CFLAGS=$BUILD_CFLAGS \
-  python setup.py build_ext -i \
-          $(if [ "$COVERAGE" == "1" ]; then echo " --cython-coverage"; fi) \
-          $(if [ "$CYTHON_COMPILE_ALL" == "1" ]; then echo " --cython-compile-all"; fi) \
-          $(python -c 'import sys; print("-j5" if sys.version_info >= (3,5) else "")') \
-      || exit 1
+    python setup.py build_ext -i $SETUP_ARGS || exit 1
 
   if [ -z "$COVERAGE" -a -z "$STACKLESS" -a -n "${BACKEND//*cpp*}" -a
        -z "$LIMITED_API" -a -z "$CYTHON_COMPILE_ALL" -a -z "$EXTRA_CFLAGS" ]; then
