@@ -100,9 +100,14 @@ echo "==== Running tests ===="
 ccache -s 2>/dev/null || true
 export PATH="/usr/lib/ccache:$PATH"
 
+# Most modern compilers allow the last conflicting option
+# to override the previous ones, so '-O0 -O3' == '-O3'
+# This is true for the latest msvc, gcc and clang
+CFLAGS="-O0 -ggdb -Wall -Wextra"
+
 if [ "$NO_CYTHON_COMPILE" != "1" -a -n "${PYTHON_VERSION##pypy*}" ]; then
 
-  BUILD_CFLAGS="-O2 -ggdb -Wall -Wextra"
+  BUILD_CFLAGS="$CFLAGS -O2"
   if [[ $PYTHON_SYS_VERSION == "2"* ]]; then
     BUILD_CFLAGS="$BUILD_CFLAGS -fno-strict-aliasing"
   fi
@@ -132,12 +137,12 @@ elif [ -n "${PYTHON_VERSION##pypy*}" ]; then
   # Run the debugger tests in python-dbg if available (but don't fail, because they currently do fail)
   PYTHON_DBG="python$( python -c 'import sys; print("%d.%d" % sys.version_info[:2])' )-dbg"
   if $PYTHON_DBG -V >&2; then
-    CFLAGS="-O0 -ggdb" $PYTHON_DBG \
+    CFLAGS=$CFLAGS $PYTHON_DBG \
       runtests.py -vv --no-code-style Debugger --backends=$BACKEND
   fi
 fi
 
-export CFLAGS="-O0 -ggdb -Wall -Wextra $EXTRA_CFLAGS"
+export CFLAGS="$CFLAGS $EXTRA_CFLAGS"
 python runtests.py \
   -vv $STYLE_ARGS \
   -x Debugger \
