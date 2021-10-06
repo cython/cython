@@ -31,6 +31,8 @@ elif [ "${OSTYPE##darwin*}" == "" ]; then
   echo "Setting up macos compiler"
   export CC="clang -Wno-deprecated-declarations"
   export CXX="clang++ -stdlib=libc++ -Wno-deprecated-declarations"
+else
+  echo "No setup specified for $OSTYPE"
 fi
 
 # Set up miniconda
