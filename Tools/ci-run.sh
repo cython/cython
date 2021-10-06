@@ -131,7 +131,10 @@ if [ "$TEST_CODE_STYLE" == "1" ]; then
 elif [ -n "${PYTHON_VERSION##pypy*}" ]; then
   # Run the debugger tests in python-dbg if available (but don't fail, because they currently do fail)
   PYTHON_DBG="python$( python -c 'import sys; print("%d.%d" % sys.version_info[:2])' )-dbg"
-  if $PYTHON_DBG -V >&2; then CFLAGS="-O0 -ggdb" $PYTHON_DBG runtests.py -vv --no-code-style Debugger --backends=$BACKEND; fi;
+  if $PYTHON_DBG -V >&2; then
+    CFLAGS="-O0 -ggdb" $PYTHON_DBG \
+      runtests.py -vv --no-code-style Debugger --backends=$BACKEND
+  fi
 fi
 
 export CFLAGS="-O0 -ggdb -Wall -Wextra $EXTRA_CFLAGS"
