@@ -142,15 +142,22 @@ elif [ -n "${PYTHON_VERSION##pypy*}" ]; then
   fi
 fi
 
+RUNTESTS_ARGS=""
+if [ "$COVERAGE" == "1" ]; then
+  RUNTESTS_ARGS="$RUNTESTS_ARGS --coverage --coverage-html --cython-only"
+fi
+if [ -z "$TEST_CODE_STYLE" ]; then
+  RUNTESTS_ARGS="$RUNTESTS_ARGS -j7"
+fi
+
 export CFLAGS="$CFLAGS $EXTRA_CFLAGS"
 python runtests.py \
   -vv $STYLE_ARGS \
   -x Debugger \
   --backends=$BACKEND \
-   $LIMITED_API \
-   $EXCLUDE \
-   $(if [ "$COVERAGE" == "1" ]; then echo " --coverage --coverage-html --cython-only"; fi) \
-   $(if [ -z "$TEST_CODE_STYLE" ]; then echo " -j7 "; fi)
+  $LIMITED_API \
+  $EXCLUDE \
+  $RUNTESTS_ARGS
 
 EXIT_CODE=$?
 
