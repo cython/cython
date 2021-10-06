@@ -8,13 +8,16 @@ if [ "${OSTYPE##linux-gnu*}" == "" -a "$TEST_CODE_STYLE" != "1" ]; then
   sudo apt-add-repository -y "ppa:ubuntu-toolchain-r/test"
   sudo apt update -y -q
   sudo apt install -y -q ccache gdb python-dbg python3-dbg gcc-$GCC_VERSION || exit 1
+
+  ALTERNATIVE_ARGS=""
   if [ -z "${BACKEND##*cpp*}" ]; then
     sudo apt install -y -q g++-$GCC_VERSION || exit 1
+    ALTERNATIVE_ARGS="--slave /usr/bin/g++ g++ /usr/bin/g++-$GCC_VERSION"
   fi
   sudo /usr/sbin/update-ccache-symlinks
   echo "/usr/lib/ccache" >> $GITHUB_PATH # export ccache to path
 
-  sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-$GCC_VERSION 60 $(if [ -z "${BACKEND##*cpp*}" ]; then echo " --slave /usr/bin/g++ g++ /usr/bin/g++-$GCC_VERSION"; fi)
+  sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-$GCC_VERSION 60 $ALTERNATIVE_ARGS
 
   export CC="gcc"
   if [ -z "${BACKEND##*cpp*}" ]; then
