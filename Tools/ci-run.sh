@@ -86,7 +86,7 @@ else
       # python -m pip install pythran==0.9.5 || exit 1
     fi
 
-    if [ "$BACKEND" != "cpp" -a -n "${PYTHON_VERSION##pypy*}" -a -n "${PYTHON_VERSION##2*}" -a -n "${PYTHON_VERSION##*3.4}" ]; then
+    if [ "$BACKEND" != "cpp" -a -n "${PYTHON_VERSION##pypy*}" -a -n "${PYTHON_VERSION##2*}" -a -n "${PYTHON_VERSION##3.4*}" ]; then
       python -m pip install mypy || exit 1
     fi
   fi
