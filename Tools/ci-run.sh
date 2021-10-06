@@ -96,6 +96,7 @@ else
 fi
 
 # Run tests
+echo "==== Running tests ===="
 ccache -s 2>/dev/null || true
 export PATH="/usr/lib/ccache:$PATH"
 
