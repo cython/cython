@@ -130,19 +130,33 @@ We make a corresponding :file:`c_func.pxd` to be able to cimport those functions
 It is very easy to pass byte strings between C code and Python.
 When receiving a byte string from a C library, you can let Cython
 convert it into a Python byte string by simply assigning it to a
-Python variable::
+Python variable:
 
-    from c_func cimport c_call_returning_a_c_string
 
-    cdef char* c_string = c_call_returning_a_c_string()
-    if c_string is NULL:
-        ...  # handle error
+.. tabs::
+    .. group-tab:: Pure Python
 
-    cdef bytes py_string = c_string
+        .. literalinclude:: ../../examples/tutorial/string/c_string_to_str.py
 
-A type cast to :obj:`object` or :obj:`bytes` will do the same thing::
+    .. group-tab:: Cython
 
-    py_string = <bytes> c_string
+        .. literalinclude:: ../../examples/tutorial/string/c_string_to_str.pyx
+
+A type cast to :obj:`object` or :obj:`bytes` will do the same thing:
+
+
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            py_string = cython.cast(bytes, c_string)
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            py_string = <bytes> c_string
 
 This creates a Python byte string object that holds a copy of the
 original C string.  It can be safely passed around in Python code, and
