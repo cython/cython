@@ -196,12 +196,30 @@ exception, e.g. due to insufficient memory.  If you need to
 :c:func:`free()` the string after the conversion, you should wrap
 the assignment in a try-finally construct:
 
-.. literalinclude:: ../../examples/tutorial/string/try_finally.pyx
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/string/try_finally.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/string/try_finally.pyx
 
 To convert the byte string back into a C :c:type:`char*`, use the
-opposite assignment::
+opposite assignment:
 
-    cdef char* other_c_string = py_string  # other_c_string is a 0-terminated string.
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            other_c_string = cython.declare(cython.p_char, py_string)  # other_c_string is a 0-terminated string.
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef char* other_c_string = py_string  # other_c_string is a 0-terminated string.
 
 This is a very fast operation after which ``other_c_string`` points to
 the byte string buffer of the Python string itself.  It is tied to the
