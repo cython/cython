@@ -174,7 +174,16 @@ length already, e.g. because a C function returned it.  In this case,
 it is much more efficient to tell Cython the exact number of bytes by
 slicing the C string. Here is an example:
 
-.. literalinclude:: ../../examples/tutorial/string/slicing_c_string.pyx
+
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/string/slicing_c_string.pyx
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/string/slicing_c_string.py
+
 
 Here, no additional byte counting is required and ``length`` bytes from
 the ``c_string`` will be copied into the Python bytes object, including
