@@ -110,7 +110,7 @@ within a well defined context.
 Passing byte strings
 --------------------
 
-we have dummy C functions declared in
+We have dummy C functions declared in
 a file called :file:`c_func.pyx` that we are going to reuse throughout this tutorial:
 
 
