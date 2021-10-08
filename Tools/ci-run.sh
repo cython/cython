@@ -156,7 +156,7 @@ RUNTESTS_ARGS=""
 if [[ $COVERAGE == "1" ]]; then
   RUNTESTS_ARGS="$RUNTESTS_ARGS --coverage --coverage-html --cython-only"
 fi
-if [[ "" == $TEST_CODE_STYLE ]]; then
+if [[ $TEST_CODE_STYLE != "1" ]]; then
   RUNTESTS_ARGS="$RUNTESTS_ARGS -j7"
 fi
 
