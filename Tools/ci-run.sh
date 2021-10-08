@@ -5,7 +5,7 @@ GCC_VERSION=${GCC_VERSION:=8}
 # Set up compilers
 if [[ $TEST_CODE_STYLE == "1" ]]; then
   echo "Skipping compiler setup"
-elif [[ "${OSTYPE##linux-gnu*}" == "" ]]; then
+elif [[ $OSTYPE == "linux-gnu"* ]]; then
   echo "Setting up linux compiler"
   echo "Installing requirements [apt]"
   sudo apt-add-repository -y "ppa:ubuntu-toolchain-r/test"
@@ -13,7 +13,7 @@ elif [[ "${OSTYPE##linux-gnu*}" == "" ]]; then
   sudo apt install -y -q ccache gdb python-dbg python3-dbg gcc-$GCC_VERSION || exit 1
 
   ALTERNATIVE_ARGS=""
-  if [[ "" == "${BACKEND##*cpp*}" ]]; then
+  if [[ $BACKEND == *"cpp"* ]]; then
     sudo apt install -y -q g++-$GCC_VERSION || exit 1
     ALTERNATIVE_ARGS="--slave /usr/bin/g++ g++ /usr/bin/g++-$GCC_VERSION"
   fi
@@ -23,11 +23,11 @@ elif [[ "${OSTYPE##linux-gnu*}" == "" ]]; then
   sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-$GCC_VERSION 60 $ALTERNATIVE_ARGS
 
   export CC="gcc"
-  if [[ "" == "${BACKEND##*cpp*}" ]]; then
+  if [[ $BACKEND == *"cpp"* ]]; then
     sudo update-alternatives --set g++ /usr/bin/g++-$GCC_VERSION
     export CXX="g++"
   fi
-elif [[ "${OSTYPE##darwin*}" == "" ]]; then
+elif [[ $OSTYPE == "darwin"* ]]; then
   echo "Setting up macos compiler"
   export CC="clang -Wno-deprecated-declarations"
   export CXX="clang++ -stdlib=libc++ -Wno-deprecated-declarations"
@@ -62,10 +62,10 @@ echo "===================="
 
 # Install python requirements
 echo "Installing requirements [python]"
-if [[ "" == "${PYTHON_VERSION##2.7}" ]]; then
+if [[ $PYTHON_VERSION == "2.7"* ]]; then
   pip install wheel || exit 1
   pip install -r test-requirements-27.txt || exit 1
-elif [[ "" == "${PYTHON_VERSION##3.[45]*}" ]]; then
+elif [[ $PYTHON_VERSION == "3.[45]"* ]]; then
   python -m pip install wheel || exit 1
   python -m pip install -r test-requirements-34.txt || exit 1
 else
@@ -88,7 +88,7 @@ else
 
   # Install more requirements
   if [[ "" != "${PYTHON_VERSION##*-dev}" ]]; then
-    if [[ "" == "${BACKEND##*cpp*}" ]]; then
+    if [[ $BACKEND == *"cpp"* ]]; then
       echo "WARNING: Currently not installing pythran due to compatibility issues"
       # python -m pip install pythran==0.9.5 || exit 1
     fi
