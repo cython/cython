@@ -13,7 +13,7 @@ elif [[ "${OSTYPE##linux-gnu*}" == "" ]]; then
   sudo apt install -y -q ccache gdb python-dbg python3-dbg gcc-$GCC_VERSION || exit 1
 
   ALTERNATIVE_ARGS=""
-  if [[ -z "${BACKEND##*cpp*}" ]]; then
+  if [[ "" == "${BACKEND##*cpp*}" ]]; then
     sudo apt install -y -q g++-$GCC_VERSION || exit 1
     ALTERNATIVE_ARGS="--slave /usr/bin/g++ g++ /usr/bin/g++-$GCC_VERSION"
   fi
@@ -23,7 +23,7 @@ elif [[ "${OSTYPE##linux-gnu*}" == "" ]]; then
   sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-$GCC_VERSION 60 $ALTERNATIVE_ARGS
 
   export CC="gcc"
-  if [[ -z "${BACKEND##*cpp*}" ]]; then
+  if [[ "" == "${BACKEND##*cpp*}" ]]; then
     sudo update-alternatives --set g++ /usr/bin/g++-$GCC_VERSION
     export CXX="g++"
   fi
@@ -62,16 +62,16 @@ echo "===================="
 
 # Install python requirements
 echo "Installing requirements [python]"
-if [[ -z "${PYTHON_VERSION##2.7}" ]]; then
+if [[ "" == "${PYTHON_VERSION##2.7}" ]]; then
   pip install wheel || exit 1
   pip install -r test-requirements-27.txt || exit 1
-elif [[ -z "${PYTHON_VERSION##3.[45]*}" ]]; then
+elif [[ "" == "${PYTHON_VERSION##3.[45]*}" ]]; then
   python -m pip install wheel || exit 1
   python -m pip install -r test-requirements-34.txt || exit 1
 else
   python -m pip install -U pip setuptools wheel || exit 1
 
-  if [[ -n "${PYTHON_VERSION##*-dev}" || $COVERAGE == "1" ]]; then
+  if [[ "" != "${PYTHON_VERSION##*-dev}" || $COVERAGE == "1" ]]; then
     python -m pip install -r test-requirements.txt || exit 1
 
     if [[ "${PYTHON_VERSION##pypy*}" && "${PYTHON_VERSION##3.[4789]*}" ]]; then
@@ -87,14 +87,14 @@ else
   STYLE_ARGS="--no-code-style"
 
   # Install more requirements
-  if [[ -n "${PYTHON_VERSION##*-dev}" ]]; then
-    if [[ -z "${BACKEND##*cpp*}" ]]; then
+  if [[ "" != "${PYTHON_VERSION##*-dev}" ]]; then
+    if [[ "" == "${BACKEND##*cpp*}" ]]; then
       echo "WARNING: Currently not installing pythran due to compatibility issues"
       # python -m pip install pythran==0.9.5 || exit 1
     fi
 
-    if [[ $BACKEND != "cpp" && -n "${PYTHON_VERSION##pypy*}" &&
-         -n "${PYTHON_VERSION##2*}" && -n "${PYTHON_VERSION##3.4*}" ]]; then
+    if [[ $BACKEND != "cpp" && "" != "${PYTHON_VERSION##pypy*}" &&
+         "" != "${PYTHON_VERSION##2*}" && "" != "${PYTHON_VERSION##3.4*}" ]]; then
       python -m pip install mypy || exit 1
     fi
   fi
@@ -110,7 +110,7 @@ export PATH="/usr/lib/ccache:$PATH"
 # This is true for the latest msvc, gcc and clang
 CFLAGS="-O0 -ggdb -Wall -Wextra"
 
-if [[ $NO_CYTHON_COMPILE != "1" && -n "${PYTHON_VERSION##pypy*}" ]]; then
+if [[ $NO_CYTHON_COMPILE != "1" && "" != "${PYTHON_VERSION##pypy*}" ]]; then
 
   BUILD_CFLAGS="$CFLAGS -O2"
   if [[ $PYTHON_SYS_VERSION == "2"* ]]; then
@@ -130,15 +130,15 @@ if [[ $NO_CYTHON_COMPILE != "1" && -n "${PYTHON_VERSION##pypy*}" ]]; then
   CFLAGS=$BUILD_CFLAGS \
     python setup.py build_ext -i $SETUP_ARGS || exit 1
 
-  if [[ -z $COVERAGE && -z $STACKLESS && -n "${BACKEND//*cpp*}" &&
-       -z $LIMITED_API && -z $CYTHON_COMPILE_ALL && -z $EXTRA_CFLAGS ]]; then
+  if [[ "" == $COVERAGE && "" == $STACKLESS && "" != "${BACKEND//*cpp*}" &&
+       "" == $LIMITED_API && "" == $CYTHON_COMPILE_ALL && "" == $EXTRA_CFLAGS ]]; then
     python setup.py bdist_wheel || exit 1
   fi
 fi
 
 if [[ $TEST_CODE_STYLE == "1" ]]; then
     make -C docs html || exit 1
-elif [[ -n "${PYTHON_VERSION##pypy*}" ]]; then
+elif [[ "" != "${PYTHON_VERSION##pypy*}" ]]; then
   # Run the debugger tests in python-dbg if available
   # (but don't fail, because they currently do fail)
   PYTHON_DBG=$(python -c 'import sys; print("%d.%d" % sys.version_info[:2])')
@@ -153,7 +153,7 @@ RUNTESTS_ARGS=""
 if [[ $COVERAGE == "1" ]]; then
   RUNTESTS_ARGS="$RUNTESTS_ARGS --coverage --coverage-html --cython-only"
 fi
-if [[ -z $TEST_CODE_STYLE ]]; then
+if [[ "" == $TEST_CODE_STYLE ]]; then
   RUNTESTS_ARGS="$RUNTESTS_ARGS -j7"
 fi
 
