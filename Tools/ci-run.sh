@@ -81,7 +81,7 @@ else
 fi
 
 if [[ $TEST_CODE_STYLE == "1" ]]; then
-  STYLE_ARGS="--no-unit --no-doctest --no-file --no-pyregr --no-examples";
+  STYLE_ARGS="--no-unit --no-doctest --no-file --no-pyregr --no-examples"
   python -m pip install -r doc-requirements.txt || exit 1
 else
   STYLE_ARGS="--no-code-style"
