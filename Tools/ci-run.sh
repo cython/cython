@@ -74,7 +74,7 @@ else
   if [ -n "${PYTHON_VERSION##*-dev}" -o "$COVERAGE" == "1" ]; then
     python -m pip install -r test-requirements.txt || exit 1
 
-    if [ "${PYTHON_VERSION##pypy*}" -a "${PYTHON_VERSION##3.[4789]*}" ]; then
+    if [ "${PYTHON_VERSION##pypy*}" && "${PYTHON_VERSION##3.[4789]*}" ]; then
       python -m pip install -r test-requirements-cpython.txt || exit 1
     fi
   fi
@@ -93,8 +93,8 @@ else
       # python -m pip install pythran==0.9.5 || exit 1
     fi
 
-    if [ "$BACKEND" != "cpp" -a -n "${PYTHON_VERSION##pypy*}" -a
-         -n "${PYTHON_VERSION##2*}" -a -n "${PYTHON_VERSION##3.4*}" ]; then
+    if [ "$BACKEND" != "cpp" && -n "${PYTHON_VERSION##pypy*}" &&
+         -n "${PYTHON_VERSION##2*}" && -n "${PYTHON_VERSION##3.4*}" ]; then
       python -m pip install mypy || exit 1
     fi
   fi
@@ -110,7 +110,7 @@ export PATH="/usr/lib/ccache:$PATH"
 # This is true for the latest msvc, gcc and clang
 CFLAGS="-O0 -ggdb -Wall -Wextra"
 
-if [ "$NO_CYTHON_COMPILE" != "1" -a -n "${PYTHON_VERSION##pypy*}" ]; then
+if [ "$NO_CYTHON_COMPILE" != "1" && -n "${PYTHON_VERSION##pypy*}" ]; then
 
   BUILD_CFLAGS="$CFLAGS -O2"
   if [[ $PYTHON_SYS_VERSION == "2"* ]]; then
@@ -130,8 +130,8 @@ if [ "$NO_CYTHON_COMPILE" != "1" -a -n "${PYTHON_VERSION##pypy*}" ]; then
   CFLAGS=$BUILD_CFLAGS \
     python setup.py build_ext -i $SETUP_ARGS || exit 1
 
-  if [ -z "$COVERAGE" -a -z "$STACKLESS" -a -n "${BACKEND//*cpp*}" -a
-       -z "$LIMITED_API" -a -z "$CYTHON_COMPILE_ALL" -a -z "$EXTRA_CFLAGS" ]; then
+  if [ -z "$COVERAGE" && -z "$STACKLESS" && -n "${BACKEND//*cpp*}" &&
+       -z "$LIMITED_API" && -z "$CYTHON_COMPILE_ALL" && -z "$EXTRA_CFLAGS" ]; then
     python setup.py bdist_wheel || exit 1
   fi
 fi
