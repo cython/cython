@@ -71,10 +71,10 @@ elif [[ $PYTHON_VERSION == "3.[45]"* ]]; then
 else
   python -m pip install -U pip setuptools wheel || exit 1
 
-  if [[ "" != "${PYTHON_VERSION##*-dev}" || $COVERAGE == "1" ]]; then
+  if [[ $PYTHON_VERSION != *"-dev" || $COVERAGE == "1" ]]; then
     python -m pip install -r test-requirements.txt || exit 1
 
-    if [[ "${PYTHON_VERSION##pypy*}" != "" && "${PYTHON_VERSION##3.[4789]*}" != "" ]]; then
+    if [[ $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "3.[4789]"* ]]; then
       python -m pip install -r test-requirements-cpython.txt || exit 1
     fi
   fi
@@ -87,14 +87,14 @@ else
   STYLE_ARGS="--no-code-style"
 
   # Install more requirements
-  if [[ "" != "${PYTHON_VERSION##*-dev}" ]]; then
+  if [[ $PYTHON_VERSION != *"-dev" ]]; then
     if [[ $BACKEND == *"cpp"* ]]; then
       echo "WARNING: Currently not installing pythran due to compatibility issues"
       # python -m pip install pythran==0.9.5 || exit 1
     fi
 
-    if [[ $BACKEND != "cpp" && "" != "${PYTHON_VERSION##pypy*}" &&
-         "" != "${PYTHON_VERSION##2*}" && "" != "${PYTHON_VERSION##3.4*}" ]]; then
+    if [[ $BACKEND != "cpp" && $PYTHON_VERSION != "pypy"* &&
+          $PYTHON_VERSION != "2"* && $PYTHON_VERSION != "3.4"* ]]; then
       python -m pip install mypy || exit 1
     fi
   fi
@@ -110,7 +110,7 @@ export PATH="/usr/lib/ccache:$PATH"
 # This is true for the latest msvc, gcc and clang
 CFLAGS="-O0 -ggdb -Wall -Wextra"
 
-if [[ $NO_CYTHON_COMPILE != "1" && "" != "${PYTHON_VERSION##pypy*}" ]]; then
+if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
 
   BUILD_CFLAGS="$CFLAGS -O2"
   if [[ $PYTHON_SYS_VERSION == "2"* ]]; then
@@ -138,7 +138,7 @@ fi
 
 if [[ $TEST_CODE_STYLE == "1" ]]; then
     make -C docs html || exit 1
-elif [[ "" != "${PYTHON_VERSION##pypy*}" ]]; then
+elif [[ $PYTHON_VERSION != "pypy"* ]]; then
   # Run the debugger tests in python-dbg if available
   # (but don't fail, because they currently do fail)
   PYTHON_DBG=$(python -c 'import sys; print("%d.%d" % sys.version_info[:2])')
