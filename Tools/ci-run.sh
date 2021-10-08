@@ -65,7 +65,7 @@ echo "Installing requirements [python]"
 if [[ $PYTHON_VERSION == "2.7"* ]]; then
   pip install wheel || exit 1
   pip install -r test-requirements-27.txt || exit 1
-elif [[ $PYTHON_VERSION == "3.[45]"* ]]; then
+elif [[ $PYTHON_VERSION == "3."[45]* ]]; then
   python -m pip install wheel || exit 1
   python -m pip install -r test-requirements-34.txt || exit 1
 else
@@ -74,7 +74,7 @@ else
   if [[ $PYTHON_VERSION != *"-dev" || $COVERAGE == "1" ]]; then
     python -m pip install -r test-requirements.txt || exit 1
 
-    if [[ $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "3.[4789]"* ]]; then
+    if [[ $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "3."[4789]* ]]; then
       python -m pip install -r test-requirements-cpython.txt || exit 1
     fi
   fi
