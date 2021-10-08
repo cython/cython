@@ -3,7 +3,7 @@
 GCC_VERSION=${GCC_VERSION:=8}
 
 # Set up compilers
-if [[ "$TEST_CODE_STYLE" == "1" ]]; then
+if [[ $TEST_CODE_STYLE == "1" ]]; then
   echo "Skipping compiler setup"
 elif [[ "${OSTYPE##linux-gnu*}" == "" ]]; then
   echo "Setting up linux compiler"
@@ -36,7 +36,7 @@ else
 fi
 
 # Set up miniconda
-if [[ "$STACKLESS" == "true" ]]; then
+if [[ $STACKLESS == "true" ]]; then
   echo "Installing stackless python"
   #conda install --quiet --yes nomkl --file=test-requirements.txt --file=test-requirements-cpython.txt
   conda config --add channels stackless
@@ -50,11 +50,11 @@ echo "===================="
 echo "|VERSIONS INSTALLED|"
 echo "===================="
 echo "Python $PYTHON_SYS_VERSION"
-if [[ "$CC" ]]; then
+if [[ $CC ]]; then
   which ${CC%% *}
   ${CC%% *} --version
 fi
-if [[ "$CXX" ]]; then
+if [[ $CXX ]]; then
   which ${CXX%% *}
   ${CXX%% *} --version
 fi
@@ -71,7 +71,7 @@ elif [[ -z "${PYTHON_VERSION##3.[45]*}" ]]; then
 else
   python -m pip install -U pip setuptools wheel || exit 1
 
-  if [[ -n "${PYTHON_VERSION##*-dev}" || "$COVERAGE" == "1" ]]; then
+  if [[ -n "${PYTHON_VERSION##*-dev}" || $COVERAGE == "1" ]]; then
     python -m pip install -r test-requirements.txt || exit 1
 
     if [[ "${PYTHON_VERSION##pypy*}" && "${PYTHON_VERSION##3.[4789]*}" ]]; then
@@ -80,7 +80,7 @@ else
   fi
 fi
 
-if [[ "$TEST_CODE_STYLE" == "1" ]]; then
+if [[ $TEST_CODE_STYLE == "1" ]]; then
   STYLE_ARGS="--no-unit --no-doctest --no-file --no-pyregr --no-examples";
   python -m pip install -r doc-requirements.txt || exit 1
 else
@@ -93,7 +93,7 @@ else
       # python -m pip install pythran==0.9.5 || exit 1
     fi
 
-    if [[ "$BACKEND" != "cpp" && -n "${PYTHON_VERSION##pypy*}" &&
+    if [[ $BACKEND != "cpp" && -n "${PYTHON_VERSION##pypy*}" &&
          -n "${PYTHON_VERSION##2*}" && -n "${PYTHON_VERSION##3.4*}" ]]; then
       python -m pip install mypy || exit 1
     fi
@@ -110,7 +110,7 @@ export PATH="/usr/lib/ccache:$PATH"
 # This is true for the latest msvc, gcc and clang
 CFLAGS="-O0 -ggdb -Wall -Wextra"
 
-if [[ "$NO_CYTHON_COMPILE" != "1" && -n "${PYTHON_VERSION##pypy*}" ]]; then
+if [[ $NO_CYTHON_COMPILE != "1" && -n "${PYTHON_VERSION##pypy*}" ]]; then
 
   BUILD_CFLAGS="$CFLAGS -O2"
   if [[ $PYTHON_SYS_VERSION == "2"* ]]; then
@@ -118,10 +118,10 @@ if [[ "$NO_CYTHON_COMPILE" != "1" && -n "${PYTHON_VERSION##pypy*}" ]]; then
   fi
 
   SETUP_ARGS=""
-  if [[ "$COVERAGE" == "1" ]]; then
+  if [[ $COVERAGE == "1" ]]; then
     SETUP_ARGS="$SETUP_ARGS --cython-coverage"
   fi
-  if [[ "$CYTHON_COMPILE_ALL" == "1" ]]; then
+  if [[ $CYTHON_COMPILE_ALL == "1" ]]; then
     SETUP_ARGS="$SETUP_ARGS --cython-compile-all"
   fi
   SETUP_ARGS="$SETUP_ARGS
@@ -130,13 +130,13 @@ if [[ "$NO_CYTHON_COMPILE" != "1" && -n "${PYTHON_VERSION##pypy*}" ]]; then
   CFLAGS=$BUILD_CFLAGS \
     python setup.py build_ext -i $SETUP_ARGS || exit 1
 
-  if [[ -z "$COVERAGE" && -z "$STACKLESS" && -n "${BACKEND//*cpp*}" &&
-       -z "$LIMITED_API" && -z "$CYTHON_COMPILE_ALL" && -z "$EXTRA_CFLAGS" ]]; then
+  if [[ -z $COVERAGE && -z $STACKLESS && -n "${BACKEND//*cpp*}" &&
+       -z $LIMITED_API && -z $CYTHON_COMPILE_ALL && -z $EXTRA_CFLAGS ]]; then
     python setup.py bdist_wheel || exit 1
   fi
 fi
 
-if [[ "$TEST_CODE_STYLE" == "1" ]]; then
+if [[ $TEST_CODE_STYLE == "1" ]]; then
     make -C docs html || exit 1
 elif [[ -n "${PYTHON_VERSION##pypy*}" ]]; then
   # Run the debugger tests in python-dbg if available
@@ -150,10 +150,10 @@ elif [[ -n "${PYTHON_VERSION##pypy*}" ]]; then
 fi
 
 RUNTESTS_ARGS=""
-if [[ "$COVERAGE" == "1" ]]; then
+if [[ $COVERAGE == "1" ]]; then
   RUNTESTS_ARGS="$RUNTESTS_ARGS --coverage --coverage-html --cython-only"
 fi
-if [[ -z "$TEST_CODE_STYLE" ]]; then
+if [[ -z $TEST_CODE_STYLE ]]; then
   RUNTESTS_ARGS="$RUNTESTS_ARGS -j7"
 fi
 
