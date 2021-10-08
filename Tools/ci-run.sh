@@ -133,7 +133,7 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
   # COVERAGE can be either "" (empty or not set) or "1" (when we set it)
   # STACKLESS can be either  "" (empty or not set) or "true" (when we set it)
   # CYTHON_COMPILE_ALL can be either  "" (empty or not set) or "1" (when we set it)
-  if [[ $COVERAGE != "1" && $STACKLESS != "true" && "${BACKEND//*cpp*}" != "" &&
+  if [[ $COVERAGE != "1" && $STACKLESS != "true" && $BACKEND != *"cpp"* &&
         $CYTHON_COMPILE_ALL != "1" && $LIMITED_API == "" && $EXTRA_CFLAGS == "" ]]; then
     python setup.py bdist_wheel || exit 1
   fi
