@@ -126,6 +126,7 @@ a file called :file:`c_func.pyx` that we are going to reuse throughout this tuto
 
         .. literalinclude:: ../../examples/tutorial/string/c_func.pyx
 
+
 We make a corresponding :file:`c_func.pxd` to be able to cimport those functions:
 
 .. literalinclude:: ../../examples/tutorial/string/c_func.pxd
@@ -260,7 +261,14 @@ of byte containers, e.g. :obj:`bytearray` objects or memory views.
 Depending on how (and where) the data is being processed, it may be a
 good idea to instead receive a 1-dimensional memory view, e.g.
 
-.. literalinclude:: ../../examples/tutorial/string/arg_memview.pyx
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/string/arg_memview.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/string/arg_memview.pyx
 
 Cython's memory views are described in more detail in
 :doc:`../userguide/memoryviews`, but the above example already shows
