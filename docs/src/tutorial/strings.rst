@@ -299,7 +299,7 @@ For read-only buffers, like :obj:`bytes`, the memoryview item type should
 be declared as ``const`` (see :ref:`readonly_views`). If the byte input is
 actually encoded text, and the further processing should happen at the
 Unicode level, then the right thing to do is to decode the input straight
-away.  This is almost only a problem in Python 2.x, where Python code
+away.  This is almost only a problem in Python 2.x (only?), where Python code
 expects that it can pass a byte string (:obj:`str`) with encoded text into
 a text API.  Since this usually happens in more than one place in the
 module's API, a helper function is almost always the way to go, since it
