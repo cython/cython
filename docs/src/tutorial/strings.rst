@@ -308,7 +308,18 @@ allows for easy adaptation of the input normalisation process later.
 This kind of input normalisation function will commonly look similar to
 the following:
 
-.. literalinclude:: ../../examples/tutorial/string/to_unicode.pyx
+
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/string/to_unicode.py
+            :caption: to_unicode.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/string/to_unicode.pyx
+            :caption: to_unicode.pyx
+
 
 And should then be used like this:
 
