@@ -119,6 +119,9 @@ a file called :file:`c_func.pyx` that we are going to reuse throughout this tuto
 
         .. literalinclude:: ../../examples/tutorial/string/c_func.py
 
+        .. include::
+            ../cimport-warning
+
     .. group-tab:: Cython
 
         .. literalinclude:: ../../examples/tutorial/string/c_func.pyx
