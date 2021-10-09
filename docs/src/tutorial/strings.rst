@@ -284,7 +284,16 @@ general idea here is to be liberal with input by accepting any kind of
 byte buffer, but strict with output by returning a simple, well adapted
 object.  This can simply be done as follows:
 
-.. literalinclude:: ../../examples/tutorial/string/return_memview.pyx
+
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/string/return_memview.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/string/return_memview.pyx
+
 
 For read-only buffers, like :obj:`bytes`, the memoryview item type should
 be declared as ``const`` (see :ref:`readonly_views`). If the byte input is
