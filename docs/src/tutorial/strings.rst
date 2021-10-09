@@ -181,11 +181,11 @@ slicing the C string. Here is an example:
 .. tabs::
     .. group-tab:: Pure Python
 
-        .. literalinclude:: ../../examples/tutorial/string/slicing_c_string.pyx
+        .. literalinclude:: ../../examples/tutorial/string/slicing_c_string.py
 
     .. group-tab:: Cython
 
-        .. literalinclude:: ../../examples/tutorial/string/slicing_c_string.py
+        .. literalinclude:: ../../examples/tutorial/string/slicing_c_string.pyx
 
 
 Here, no additional byte counting is required and ``length`` bytes from
