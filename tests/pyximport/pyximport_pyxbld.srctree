@@ -32,4 +32,4 @@ test_string = "TEST"
 
 ######## headers/myheader.h ########
 
-int test_value = 5;
+static int test_value = 5;
