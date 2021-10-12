@@ -53,7 +53,10 @@ def pyx_to_dll(filename, ext=None, force_rebuild=0, build_in_temp=False, pyxbuil
         quiet = "--verbose"
     else:
         quiet = "--quiet"
-    args = [quiet, "build_ext", '--c-build-dir', pyxbuild_dir]
+    if build_in_temp:
+        args = [quiet, "build_ext", '--c-build-dir', pyxbuild_dir]
+    else:
+        args = [quiet, "build_ext", '--c-build-dir', None]
     if force_rebuild:
         args.append("--force")
     if inplace and package_base_dir:
