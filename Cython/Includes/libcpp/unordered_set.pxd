@@ -106,7 +106,7 @@ cdef extern from "<unordered_set>" namespace "std" nogil:
         reverse_iterator rend()
         const_reverse_iterator const_rend "rend"()
         size_t size()
-        void swap(unordered_set&)
+        void swap(unordered_multiset&)
         #value_compare value_comp()
         void max_load_factor(float)
         float max_load_factor()
