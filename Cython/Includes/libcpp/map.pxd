@@ -26,7 +26,7 @@ cdef extern from "<map>" namespace "std" nogil:
         map() except +
         map(map&) except +
         #map(key_compare&)
-        U& operator[](T&)
+        U& operator[](const T&)
         #map& operator=(map&)
         bint operator==(map&, map&)
         bint operator!=(map&, map&)
@@ -44,15 +44,16 @@ cdef extern from "<map>" namespace "std" nogil:
         iterator end()
         const_iterator const_end "end" ()
         pair[iterator, iterator] equal_range(const T&)
-        #pair[const_iterator, const_iterator] equal_range(key_type&)
-        void erase(iterator)
-        void erase(iterator, iterator)
+        pair[const_iterator, const_iterator] const_equal_range "equal_range"(const T&)
+        iterator erase(iterator)
+        iterator const_erase "erase"(const_iterator)
+        iterator erase(const_iterator, const_iterator)
         size_t erase(const T&)
         iterator find(const T&)
         const_iterator const_find "find" (const T&)
-        pair[iterator, bint] insert(pair[T, U]) except + # XXX pair[T,U]&
-        iterator insert(iterator, pair[T, U]) except + # XXX pair[T,U]&
-        #void insert(input_iterator, input_iterator)
+        pair[iterator, bint] insert(const pair[T, U]&) except +
+        iterator insert(const_iterator, const pair[T, U]&) except +
+        void insert[InputIt](InputIt, InputIt) except +
         #key_compare key_comp()
         iterator lower_bound(const T&)
         const_iterator const_lower_bound "lower_bound"(const T&)

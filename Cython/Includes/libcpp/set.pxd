@@ -37,18 +37,20 @@ cdef extern from "<set>" namespace "std" nogil:
         iterator end()
         const_iterator const_end "end"()
         pair[iterator, iterator] equal_range(const T&)
-        #pair[const_iterator, const_iterator] equal_range(T&)
+        pair[const_iterator, const_iterator] const_equal_range "equal_range"(const T&)
         iterator erase(iterator)
-        iterator erase(iterator, iterator)
-        size_t erase(T&)
-        iterator find(T&)
-        const_iterator const_find "find"(T&)
+        iterator const_erase "erase"(const_iterator)
+        iterator erase(const_iterator, const_iterator)
+        size_t erase(const T&)
+        iterator find(const T&)
+        const_iterator const_find "find"(const T&)
         pair[iterator, bint] insert(const T&) except +
         iterator insert(iterator, const T&) except +
-        void insert(iterator, iterator) except +
+        iterator const_insert "insert"(const_iterator, const T&) except +
+        void insert[InputIt](InputIt, InputIt) except +
         #key_compare key_comp()
-        iterator lower_bound(T&)
-        const_iterator const_lower_bound "lower_bound"(T&)
+        iterator lower_bound(const T&)
+        const_iterator const_lower_bound "lower_bound"(const T&)
         size_t max_size()
         reverse_iterator rbegin()
         const_reverse_iterator const_rbegin "rbegin"()
@@ -98,18 +100,20 @@ cdef extern from "<set>" namespace "std" nogil:
         iterator end()
         const_iterator const_end "end"()
         pair[iterator, iterator] equal_range(const T&)
-        #pair[const_iterator, const_iterator] equal_range(T&)
+        pair[const_iterator, const_iterator] const_equal_range "equal_range"(const T&)
         iterator erase(iterator)
-        iterator erase(iterator, iterator)
-        size_t erase(T&)
-        iterator find(T&)
-        const_iterator const_find "find"(T&)
-        pair[iterator, bint] insert(const T&) except +
+        iterator const_erase "erase"(const_iterator)
+        iterator erase(const_iterator, const_iterator)
+        size_t erase(const T&)
+        iterator find(const T&)
+        const_iterator const_find "find"(const T&)
+        iterator insert(const T&) except +
         iterator insert(iterator, const T&) except +
-        void insert(iterator, iterator) except +
+        iterator const_insert "insert"(const_iterator, const T&) except +
+        void insert[InputIt](InputIt, InputIt) except +
         #key_compare key_comp()
-        iterator lower_bound(T&)
-        const_iterator const_lower_bound "lower_bound"(T&)
+        iterator lower_bound(const T&)
+        const_iterator const_lower_bound "lower_bound"(const T&)
         size_t max_size()
         reverse_iterator rbegin()
         const_reverse_iterator const_rbegin "rbegin"()
