@@ -472,35 +472,50 @@ class __Pyx_FakeReference {
                                                     PyObject *name, int fline, PyObject *lnos) {
         // TODO - currently written to be simple and work in limited API etc.
         // A more optimized version would be good
-        PyObject *kwds=NULL, *co=NULL, *argcount=NULL, *posonlyargcount=NULL, *kwonlyargcount=NULL;
-        PyObject *nlocals=NULL, *stacksize=NULL, *flags=NULL, *firstlineno=NULL, *empty=NULL;
+        PyObject *kwds=NULL, *argcount=NULL, *posonlyargcount=NULL, *kwonlyargcount=NULL;
+        PyObject *nlocals=NULL, *stacksize=NULL, *flags=NULL, *replace=NULL, *call_result=NULL, *empty=NULL;
+        const char *fn_cstr=NULL;
+        const char *name_cstr=NULL;
+        PyCodeObject* co=NULL;
+
         if (!(kwds=PyDict_New())) goto end;
         if (!(argcount=PyLong_FromLong(a))) goto end;
-        if (PyDict_SetItemString(kwds, "argcount", argcount) != 0) goto end;
+        if (PyDict_SetItemString(kwds, "co_argcount", argcount) != 0) goto end;
         if (!(posonlyargcount=PyLong_FromLong(p))) goto end;
-        if (PyDict_SetItemString(kwds, "posonlyargcount", posonlyargcount) != 0) goto end;
+        if (PyDict_SetItemString(kwds, "co_posonlyargcount", posonlyargcount) != 0) goto end;
         if (!(kwonlyargcount=PyLong_FromLong(k))) goto end;
-        if (PyDict_SetItemString(kwds, "kwonlyargcount", kwonlyargcount) != 0) goto end;
+        if (PyDict_SetItemString(kwds, "co_kwonlyargcount", kwonlyargcount) != 0) goto end;
         if (!(nlocals=PyLong_FromLong(l))) goto end;
-        if (PyDict_SetItemString(kwds, "nlocals", nlocals) != 0) goto end;
+        if (PyDict_SetItemString(kwds, "co_nlocals", nlocals) != 0) goto end;
         if (!(stacksize=PyLong_FromLong(s))) goto end;
-        if (PyDict_SetItemString(kwds, "stacksize", stacksize) != 0) goto end;
+        if (PyDict_SetItemString(kwds, "co_stacksize", stacksize) != 0) goto end;
         if (!(flags=PyLong_FromLong(f))) goto end;
-        if (PyDict_SetItemString(kwds, "flags", flags) != 0) goto end;
-        if (PyDict_SetItemString(kwds, "codestring", code) != 0) goto end;
-        if (PyDict_SetItemString(kwds, "constants", c) != 0) goto end;
-        if (PyDict_SetItemString(kwds, "names", n) != 0) goto end;
-        if (PyDict_SetItemString(kwds, "varnames", v) != 0) goto end;
-        if (PyDict_SetItemString(kwds, "freevars", fv) != 0) goto end;
-        if (PyDict_SetItemString(kwds, "cellvars", cell) != 0) goto end;
-        if (PyDict_SetItemString(kwds, "filename", fn) != 0) goto end;
-        if (PyDict_SetItemString(kwds, "name", name) != 0) goto end;
-        if (!(firstlineno=PyLong_FromLong(fline))) goto end;
-        if (PyDict_SetItemString(kwds, "firstlineno", firstlineno) != 0) goto end;
-        if (PyDict_SetItemString(kwds, "lnotab", lnos) != 0) goto end;
-        if (!(empty=PyTuple_New(0))) goto end; // unfortunately "__pyx_empty_tuple" is initialized later
+        if (PyDict_SetItemString(kwds, "co_flags", flags) != 0) goto end;
+        if (PyDict_SetItemString(kwds, "co_code", code) != 0) goto end;
+        if (PyDict_SetItemString(kwds, "co_consts", c) != 0) goto end;
+        if (PyDict_SetItemString(kwds, "co_names", n) != 0) goto end;
+        if (PyDict_SetItemString(kwds, "co_varnames", v) != 0) goto end;
+        if (PyDict_SetItemString(kwds, "co_freevars", fv) != 0) goto end;
+        if (PyDict_SetItemString(kwds, "co_cellvars", cell) != 0) goto end;
+        if (PyDict_SetItemString(kwds, "co_linetable", lnos) != 0) goto end;
 
-        co = PyObject_Call((PyObject*)&PyCode_Type, empty, kwds);
+        if (!(fn_cstr=PyUnicode_AsUTF8AndSize(fn, NULL))) goto end;
+        if (!(name_cstr=PyUnicode_AsUTF8AndSize(name, NULL))) goto end;
+        if (!(co = PyCode_NewEmpty(fn_cstr, name_cstr, fline))) goto end;
+
+        if (!(replace = PyObject_GetAttrString((PyObject*)co, "replace"))) goto cleanup_code_too;
+        if (!(empty = PyTuple_New(0))) goto cleanup_code_too; // unfortunately __pyx_empty_tuple isn't available here
+        if (!(call_result = PyObject_Call(replace, empty, kwds))) goto cleanup_code_too;
+
+        Py_XDECREF((PyObject*)co);
+        co = (PyCodeObject*)call_result;
+        call_result = NULL;
+
+        if (0) {
+            cleanup_code_too:
+            Py_XDECREF((PyObject*)co);
+            co = NULL;
+        }
         end:
         Py_XDECREF(kwds);
         Py_XDECREF(argcount);
@@ -508,9 +523,10 @@ class __Pyx_FakeReference {
         Py_XDECREF(kwonlyargcount);
         Py_XDECREF(nlocals);
         Py_XDECREF(stacksize);
-        Py_XDECREF(firstlineno);
+        Py_XDECREF(replace);
+        Py_XDECREF(call_result);
         Py_XDECREF(empty);
-        return (PyCodeObject*)co;
+        return co;
     }
 #elif PY_VERSION_HEX >= 0x030800B2
 
