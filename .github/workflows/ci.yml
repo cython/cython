@@ -25,7 +25,8 @@ jobs:
         # in all python versions and test failures (builtin_float) in 3.5<
         os: [ubuntu-18.04]
         backend: [c, cpp]
-        python-version: [2.7, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, '3.10', 3.11-dev]
+        # FIXME - Python 3.10 should no longer be "dev", but changing it asks for 3.1 instead...
+        python-version: [2.7, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 3.10-dev, 3.11-dev]
         env: [{}]
 
         include:
