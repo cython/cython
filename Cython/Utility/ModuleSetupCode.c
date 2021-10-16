@@ -477,6 +477,10 @@ class __Pyx_FakeReference {
         const char *fn_cstr=NULL;
         const char *name_cstr=NULL;
         PyCodeObject* co=NULL;
+        PyObject *type, *value, *traceback;
+
+        // we must be able to call this while an exception is happening - thus clear then restore the state
+        PyErr_Fetch(&type, &value, &traceback);
 
         if (!(kwds=PyDict_New())) goto end;
         if (!(argcount=PyLong_FromLong(a))) goto end;
@@ -526,6 +530,9 @@ class __Pyx_FakeReference {
         Py_XDECREF(replace);
         Py_XDECREF(call_result);
         Py_XDECREF(empty);
+        if (type) {
+            PyErr_Restore(type, value, traceback);
+        }
         return co;
     }
 #elif PY_VERSION_HEX >= 0x030800B2
