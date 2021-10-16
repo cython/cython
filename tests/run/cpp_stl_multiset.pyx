@@ -104,3 +104,12 @@ def test_unordered_multiset_find_erase(vals, to_remove):
     it = ms.find(to_remove)
     ms.erase(it)
     return sorted([ item for item in ms ])
+
+
+def test_unordered_multiset_misc():
+    """
+    >>> test_unordered_multiset_misc()
+    """
+    cdef unordered_multiset[int] ms = unordered_multiset[int]()
+    ms.insert(1)
+    assert ms.load_factor() > 0
