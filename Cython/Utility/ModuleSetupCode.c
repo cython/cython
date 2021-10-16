@@ -465,13 +465,57 @@ class __Pyx_FakeReference {
 #else
   #define __Pyx_BUILTIN_MODULE_NAME "builtins"
   #define __Pyx_DefaultClassType PyType_Type
-#if PY_VERSION_HEX >= 0x030800B2
+#if PY_VERSION_HEX >= 0x030B00A1
+    static CYTHON_INLINE PyCodeObject* __Pyx_PyCode_New(int a, int p, int k, int l, int s, int f,
+                                                    PyObject *code, PyObject *c, PyObject* n, PyObject *v,
+                                                    PyObject *fv, PyObject *cell, PyObject* fn,
+                                                    PyObject *name, int fline, PyObject *lnos) {
+        // TODO - currently written to be simple and work in limited API etc.
+        // A more optimized version would be good
+        PyObject *kwds=NULL, *co=NULL, *argcount=NULL, *posonlyargcount=NULL, *kwonlyargcount=NULL;
+        PyObject *nlocals=NULL, *stacksize=NULL, *flags=NULL, *firstlineno=NULL, *empty=NULL;
+        if (!(kwds=PyDict_New())) goto end;
+        if (!(argcount=PyLong_FromLong(a))) goto end;
+        if (PyDict_SetItemString(kwds, "argcount", argcount) != 0) goto end;
+        if (!(posonlyargcount=PyLong_FromLong(p))) goto end;
+        if (PyDict_SetItemString(kwds, "posonlyargcount", posonlyargcount) != 0) goto end;
+        if (!(kwonlyargcount=PyLong_FromLong(k))) goto end;
+        if (PyDict_SetItemString(kwds, "kwonlyargcount", kwonlyargcount) != 0) goto end;
+        if (!(nlocals=PyLong_FromLong(l))) goto end;
+        if (PyDict_SetItemString(kwds, "nlocals", nlocals) != 0) goto end;
+        if (!(stacksize=PyLong_FromLong(s))) goto end;
+        if (PyDict_SetItemString(kwds, "stacksize", stacksize) != 0) goto end;
+        if (!(flags=PyLong_FromLong(f))) goto end;
+        if (PyDict_SetItemString(kwds, "flags", flags) != 0) goto end;
+        if (PyDict_SetItemString(kwds, "codestring", code) != 0) goto end;
+        if (PyDict_SetItemString(kwds, "constants", c) != 0) goto end;
+        if (PyDict_SetItemString(kwds, "names", n) != 0) goto end;
+        if (PyDict_SetItemString(kwds, "varnames", v) != 0) goto end;
+        if (PyDict_SetItemString(kwds, "freevars", fv) != 0) goto end;
+        if (PyDict_SetItemString(kwds, "cellvars", cell) != 0) goto end;
+        if (PyDict_SetItemString(kwds, "filename", fn) != 0) goto end;
+        if (PyDict_SetItemString(kwds, "name", name) != 0) goto end;
+        if (!(firstlineno=PyLong_FromLong(fline))) goto end;
+        if (PyDict_SetItemString(kwds, "firstlineno", firstlineno) != 0) goto end;
+        if (PyDict_SetItemString(kwds, "lnotab", lnos) != 0) goto end;
+        if (!(empty=PyTuple_New(0))) goto end; // unfortunately "__pyx_empty_tuple" is initialized later
+
+        co = PyObject_Call((PyObject*)&PyCode_Type, empty, kwds);
+        end:
+        Py_XDECREF(kwds);
+        Py_XDECREF(argcount);
+        Py_XDECREF(posonlyargcount);
+        Py_XDECREF(kwonlyargcount);
+        Py_XDECREF(nlocals);
+        Py_XDECREF(stacksize);
+        Py_XDECREF(firstlineno);
+        Py_XDECREF(empty);
+        return (PyCodeObject*)co;
+    }
+#elif PY_VERSION_HEX >= 0x030800B2
+
   #define __Pyx_PyCode_New(a, p, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos) \
           PyCode_NewWithPosOnlyArgs(a, p, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos)
-#elif PY_VERSION_HEX >= 0x030800A4
-  // TODO: remove this special case once Py3.8 is released.
-  #define __Pyx_PyCode_New(a, p, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos) \
-          PyCode_New(a, p, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos)
 #else
   #define __Pyx_PyCode_New(a, p, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos) \
           PyCode_New(a, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos)
