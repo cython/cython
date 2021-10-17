@@ -2350,9 +2350,11 @@ class FuncDefNode(StatNode, BlockNode):
     def generate_execution_code(self, code):
         code.mark_pos(self.pos)
         # Evaluate and store argument default values
-        for arg in self.args:
-            if not arg.is_dynamic:
-                arg.generate_assignment_code(code)
+        # skip this for wrappers since it's done by wrapped function
+        if not self.is_wrapper:
+            for arg in self.args:
+                if not arg.is_dynamic:
+                    arg.generate_assignment_code(code)
 
     #
     # Special code for the __getbuffer__ function
