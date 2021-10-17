@@ -27,10 +27,11 @@ def fused(x):
 
     #>>> hasattr(fused, "__self__")  # FIXME this fails for fused functions
     #False
-    >>> fused.__self__  # but this is OK
+    # but this is OK:
+    >>> fused.__self__  #doctest: +ELLIPSIS
     Traceback (most recent call last):
         ...
-    AttributeError: 'function' object has no attribute '__self__'
+    AttributeError: 'function' object has no attribute '__self__'...
     """
     def nested_in_fused(y):
         return x+y
@@ -63,26 +64,28 @@ if sys.version_info[0] > 2 or cython.compiled:
     __doc__ += """
     >>> hasattr(C.regular, "__self__")  # __self__==None on pure-python 2
     False
-    >>> C.fused.__self__  # returns None on pure-python 2
+    
+     # returns None on pure-python 2
+    >>> C.fused.__self__  #doctest: +ELLIPSIS
     Traceback (most recent call last):
         ...
-    AttributeError: 'function' object has no attribute '__self__'
+    AttributeError: 'function' object has no attribute '__self__'...
     """
 
 if cython.compiled:
     __doc__ = """
-    >>> fused['double'].__self__
+    >>> fused['double'].__self__   #doctest: +ELLIPSIS
     Traceback (most recent call last):
         ...
-    AttributeError: 'function' object has no attribute '__self__'
+    AttributeError: 'function' object has no attribute '__self__'...
 
-    >>> C.fused['double'].__self__
+    >>> C.fused['double'].__self__   #doctest: +ELLIPSIS
     Traceback (most recent call last):
         ...
-    AttributeError: 'function' object has no attribute '__self__'
+    AttributeError: 'function' object has no attribute '__self__'...
 
     >>> c = C()
-    >>> c.fused['double'].__self__ is c
+    >>> c.fused['double'].__self__ is c   #doctest: +ELLIPSIS
     True
 
     # The PR that changed __self__ also changed how __doc__ is set up slightly
