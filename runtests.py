@@ -1626,14 +1626,11 @@ class _FakeClass(object):
     def shortDescription(self):
         return self._shortDescription
 
-try: # Py2.7+ and Py3.2+
-    from unittest.runner import _TextTestResult
-except ImportError:
-    from unittest import _TextTestResult
+from unittest import TextTestResult
 
-class PartialTestResult(_TextTestResult):
+class PartialTestResult(TextTestResult):
     def __init__(self, base_result):
-        _TextTestResult.__init__(
+        TextTestResult.__init__(
             self, self._StringIO(), True,
             base_result.dots + base_result.showAll*2)
 
