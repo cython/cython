@@ -64,7 +64,8 @@ if sys.version_info[0] > 2 or cython.compiled:
     __doc__ += """
     >>> hasattr(C.regular, "__self__")  # __self__==None on pure-python 2
     False
-     # returns None on pure-python 2
+    # returns None on pure-python 2
+
     >>> C.fused.__self__  #doctest: +ELLIPSIS
     Traceback (most recent call last):
         ...
