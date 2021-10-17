@@ -175,6 +175,46 @@ def test_inclusive_scan_with_execpolicy_bin_op_and_init(vector[int] v, int init)
     inclusive_scan(seq, v.begin(), v.end(), out.begin(), add_integers, 0)
     return out
 
+def test_transform_inclusive_scan(vector[int] v):
+    """
+    Test transform inclusive_scan
+    >>> test_transform_inclusive_scan([1, 2, 3, 4])
+    [2, 6, 12, 20 ]
+    """
+    cdef vector[int] out
+    transform_inclusive_scan(v.begin(), v.end(), out.begin(), add_integers, multiply_with_2)
+    return out
+
+def test_transform_inclusive_scan_with_execpolicy(vector[int] v):
+    """
+    Test transform inclusive_scan with a execution policy
+    >>> test_transform_inclusive_scan_with_execpolicy([1, 2, 3, 4])
+    [2, 6, 12, 20 ]
+    """
+    cdef vector[int] out
+    transform_inclusive_scan(seq, v.begin(), v.end(), out.begin(), add_integers, multiply_with_2)
+    return out
+
+def test_transform_inclusive_scan_with_init(vector[int] v, int init):
+    """
+    Test transform inclusive_scan with an initial value
+    >>> test_transform_inclusive_scan_with_init([1, 2, 3, 4], 0)
+    [2, 6, 12, 20 ]
+    """
+    cdef vector[int] out
+    transform_inclusive_scan(v.begin(), v.end(), out.begin(), add_integers, multiply_with_2, 0)
+    return out
+
+def test_transform_inclusive_scan_with_execpolicy_and_init(vector[int] v, int init):
+    """
+    Test transform inclusive_scan with an initial value
+    >>> test_transform_inclusive_scan_with_execpolicy_and_init([1, 2, 3, 4], 0)
+    [2, 6, 12, 20 ]
+    """
+    cdef vector[int] out
+    transform_inclusive_scan(seq, v.begin(), v.end(), out.begin(), add_integers, multiply_with_2, 0)
+    return out
+
 def test_exclusive_scan(vector[int] v, int init):
     """
     Test exclusive_scan
@@ -214,7 +254,7 @@ def test_exclusive_scan_with_execpolicy_and_bin_op(vector[int] v, int init):
     cdef vector[int] out
     exclusive_scan(seq, v.begin(), v.end(), out.begin(), 0, add_integers)
     return out
-    
+
 
 def test_transform_exclusive_scan_with_execpolicy(vector[int] v, int init):
     """
