@@ -73,7 +73,7 @@ def test_transform_reduce(vector[int] v1, vector[int] v2, int init):
     >>> test_transform_reduce([1, 2, 3], [1, 2, 3], 0)
     14
     """
-    return transform_reduce(v1.begin(), v2.begin(), v1.end(), 0)
+    return transform_reduce(v1.begin(), v2.begin(), v1.end(), init)
 
 def test_transform_reduce_with_bin_red_op_and_bin_tran_op(vector[int] v1, vector[int] v2, int init):
     """
@@ -81,7 +81,7 @@ def test_transform_reduce_with_bin_red_op_and_bin_tran_op(vector[int] v1, vector
     >>> test_transform_reduce_with_bin_red_op_and_bin_tran_op([1, 2, 3], [1, 2, 3], 0)
     14
     """
-    return transform_reduce(v1.begin(), v2.begin(), v1.end(), 0, add_integers, multiply_integers)
+    return transform_reduce(v1.begin(), v2.begin(), v1.end(), init, add_integers, multiply_integers)
 
 def test_transform_reduce_with_bin_op_and_unary_op(vector[int] v1, int init):
     """
@@ -89,7 +89,7 @@ def test_transform_reduce_with_bin_op_and_unary_op(vector[int] v1, int init):
     >>> test_transform_reduce_with_bin_op_and_unary_op([1, 2, 3], 0)
     12
     """
-    return transform_reduce(v1.begin(), v2.begin(), 0, add_integers, multiply_with_2)
+    return transform_reduce(v1.begin(), v2.begin(), init, add_integers, multiply_with_2)
 
 def test_transform_reduce_with_execpolicy(vector[int] v1, vector[int] v2, int init):
     """
@@ -97,7 +97,7 @@ def test_transform_reduce_with_execpolicy(vector[int] v1, vector[int] v2, int in
     >>> test_transform_reduce_with_execpolicy([1, 2, 3], [1, 2, 3], 0)
     14
     """
-    return transform_reduce(seq, v1.begin(), v2.begin(), v1.end(), 0)
+    return transform_reduce(seq, v1.begin(), v2.begin(), v1.end(), init)
 
 def test_transform_reduce_with_execpolicy_bin_red_op_and_bin_tran_op(vector[int] v1, vector[int] v2, int init):
     """
@@ -105,7 +105,7 @@ def test_transform_reduce_with_execpolicy_bin_red_op_and_bin_tran_op(vector[int]
     >>> test_transform_reduce_with_execpolicy_bin_red_op_and_bin_tran_op([1, 2, 3], [1, 2, 3], 0)
     14
     """
-    return transform_reduce(seq, v1.begin(), v2.begin(), v1.end(), 0, add_integers, multiply_integers)
+    return transform_reduce(seq, v1.begin(), v2.begin(), v1.end(), init, add_integers, multiply_integers)
 
 def test_transform_reduce_with_execpolicy_bin_op_and_unary_op(vector[int] v1, int init):
     """
@@ -113,7 +113,7 @@ def test_transform_reduce_with_execpolicy_bin_op_and_unary_op(vector[int] v1, in
     >>> test_transform_reduce_with_execpolicy_bin_op_and_unary_op([1, 2, 3], 0)
     12
     """
-    return transform_reduce(seq, v1.begin(), v2.begin(), 0, add_integers, multiply_with_2)
+    return transform_reduce(seq, v1.begin(), v2.begin(), init, add_integers, multiply_with_2)
 
 def test_inclusive_scan(vector[int] v):
     """
@@ -162,7 +162,7 @@ def test_inclusive_scan_with_bin_op_and_init(vector[int] v, int init):
     [1, 3, 6, 10]
     """
     cdef vector[int] out
-    inclusive_scan(v.begin(), v.end(), out.begin(), add_integers, 0)
+    inclusive_scan(v.begin(), v.end(), out.begin(), add_integers, init)
     return out
 
 def test_inclusive_scan_with_execpolicy_bin_op_and_init(vector[int] v, int init):
@@ -172,7 +172,7 @@ def test_inclusive_scan_with_execpolicy_bin_op_and_init(vector[int] v, int init)
     [1, 3, 6, 10]
     """
     cdef vector[int] out
-    inclusive_scan(seq, v.begin(), v.end(), out.begin(), add_integers, 0)
+    inclusive_scan(seq, v.begin(), v.end(), out.begin(), add_integers, init)
     return out
 
 def test_transform_inclusive_scan(vector[int] v):
@@ -202,7 +202,7 @@ def test_transform_inclusive_scan_with_init(vector[int] v, int init):
     [2, 6, 12, 20 ]
     """
     cdef vector[int] out
-    transform_inclusive_scan(v.begin(), v.end(), out.begin(), add_integers, multiply_with_2, 0)
+    transform_inclusive_scan(v.begin(), v.end(), out.begin(), add_integers, multiply_with_2, init)
     return out
 
 def test_transform_inclusive_scan_with_execpolicy_and_init(vector[int] v, int init):
@@ -212,7 +212,7 @@ def test_transform_inclusive_scan_with_execpolicy_and_init(vector[int] v, int in
     [2, 6, 12, 20 ]
     """
     cdef vector[int] out
-    transform_inclusive_scan(seq, v.begin(), v.end(), out.begin(), add_integers, multiply_with_2, 0)
+    transform_inclusive_scan(seq, v.begin(), v.end(), out.begin(), add_integers, multiply_with_2, init)
     return out
 
 def test_exclusive_scan(vector[int] v, int init):
@@ -222,7 +222,7 @@ def test_exclusive_scan(vector[int] v, int init):
     [0, 1, 3, 6]
     """
     cdef vector[int] out
-    exclusive_scan(v.begin(), v.end(), out.begin(), 0)
+    exclusive_scan(v.begin(), v.end(), out.begin(), init)
     return out
 
 def test_exclusive_scan_with_execpolicy(vector[int] v, int init):
@@ -232,7 +232,7 @@ def test_exclusive_scan_with_execpolicy(vector[int] v, int init):
     [0, 1, 3, 6]
     """
     cdef vector[int] out
-    exclusive_scan(seq, v.begin(), v.end(), out.begin(), 0)
+    exclusive_scan(seq, v.begin(), v.end(), out.begin(), init)
     return out
 
 def test_exclusive_scan_with_bin_op(vector[int] v, int init):
@@ -242,7 +242,7 @@ def test_exclusive_scan_with_bin_op(vector[int] v, int init):
     [0, 1, 3, 6]
     """
     cdef vector[int] out
-    exclusive_scan(v.begin(), v.end(), out.begin(), 0, add_integers)
+    exclusive_scan(v.begin(), v.end(), out.begin(), init, add_integers)
     return out
 
 def test_exclusive_scan_with_execpolicy_and_bin_op(vector[int] v, int init):
@@ -252,7 +252,7 @@ def test_exclusive_scan_with_execpolicy_and_bin_op(vector[int] v, int init):
     [0, 1, 3, 6]
     """
     cdef vector[int] out
-    exclusive_scan(seq, v.begin(), v.end(), out.begin(), 0, add_integers)
+    exclusive_scan(seq, v.begin(), v.end(), out.begin(), init, add_integers)
     return out
 
 
@@ -263,7 +263,7 @@ def test_transform_exclusive_scan_with_execpolicy(vector[int] v, int init):
     [0, 2, 6, 12]
     """
     cdef vector[int] out
-    transform_exclusive_scan(seq, v.begin(), v.end(), out.begin(), 0, add_integers, multiply_with_2)
+    transform_exclusive_scan(seq, v.begin(), v.end(), out.begin(), init, add_integers, multiply_with_2)
     return out
 
 def test_transform_exclusive_scan_with_execpolicy(vector[int] v, int init):
@@ -273,7 +273,7 @@ def test_transform_exclusive_scan_with_execpolicy(vector[int] v, int init):
     [0, 2, 6, 12]
     """
     cdef vector[int] out
-    transform_exclusive_scan(seq, v.begin(), v.end(), out.begin(), 0, add_integers, multiply_with_2)
+    transform_exclusive_scan(seq, v.begin(), v.end(), out.begin(), init, add_integers, multiply_with_2)
     return out
 
 
