@@ -158,7 +158,7 @@ def test_inclusive_scan_with_execpolicy_and_bin_op(vector[int] v):
 def test_inclusive_scan_with_bin_op_and_init(vector[int] v, int init):
     """
     Test inclusive_scan with a binary operation and a initial value
-    >>> test_inclusive_scan_with_bin_op_and_init([1, 2, 3, 4])
+    >>> test_inclusive_scan_with_bin_op_and_init([1, 2, 3, 4], 0)
     [1, 3, 6, 10]
     """
     cdef vector[int] out
@@ -168,11 +168,51 @@ def test_inclusive_scan_with_bin_op_and_init(vector[int] v, int init):
 def test_inclusive_scan_with_execpolicy_bin_op_and_init(vector[int] v, int init):
     """
     Test inclusive_scan with a execution policy, a binary operation and a initial value
-    >>> test_inclusive_scan_with_execpolicy_bin_op_and_init([1, 2, 3, 4])
+    >>> test_inclusive_scan_with_execpolicy_bin_op_and_init([1, 2, 3, 4], 0)
     [1, 3, 6, 10]
     """
     cdef vector[int] out
     inclusive_scan(seq, v.begin(), v.end(), out.begin(), add_integers, 0)
+    return out
+
+def test_exclusive_scan(vector[int] v, int init):
+    """
+    Test exclusive_scan
+    >>> test_exclusive_scan([1, 2, 3, 4], 0)
+    [0 1 3 6]
+    """
+    cdef vector[int] out
+    exclusive_scan(v.begin(), v.end(), out.begin(), 0)
+    return out
+
+def test_exclusive_scan_with_execpolicy(vector[int] v, int init):
+    """
+    Test exclusive_scan with a execution policy
+    >>> test_exclusive_scan_with_execpolicy([1, 2, 3, 4], 0)
+    [0 1 3 6]
+    """
+    cdef vector[int] out
+    exclusive_scan(seq, v.begin(), v.end(), out.begin(), 0)
+    return out
+
+def test_exclusive_scan_with_bin_op(vector[int] v, int init):
+    """
+    Test exclusive_scan with a binary operation
+    >>> test_exclusive_scan_with_execpolicy([1, 2, 3, 4], 0)
+    [0 1 3 6]
+    """
+    cdef vector[int] out
+    exclusive_scan(v.begin(), v.end(), out.begin(), 0, add_integers)
+    return out
+
+def test_exclusive_scan_with_execpolicy_and_bin_op(vector[int] v, int init):
+    """
+    Test exclusive_scan with a execution policy and a binary operation
+    >>> test_exclusive_scan_with_execpolicy([1, 2, 3, 4], 0)
+    [0 1 3 6]
+    """
+    cdef vector[int] out
+    exclusive_scan(seq, v.begin(), v.end(), out.begin(), 0, add_integers)
     return out
 
 
