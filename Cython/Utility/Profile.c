@@ -77,7 +77,7 @@
   #define __Pyx_LeaveTracing(tstate) \
       do { \
           tstate->tracing--; \
-          tstate->use_tracing = ((CYTHON_TRACE && tstate->c_tracefunc != NULL) \
+          tstate->cframe->use_tracing = ((CYTHON_TRACE && tstate->c_tracefunc != NULL) \
                                  || tstate->c_profilefunc != NULL); \
       } while (0)
 
@@ -93,7 +93,7 @@
   #define __Pyx_LeaveTracing(tstate) \
       do { \
           tstate->tracing--; \
-          tstate->cframe->use_tracing = ((CYTHON_TRACE && tstate->c_tracefunc != NULL) \
+          tstate->use_tracing = ((CYTHON_TRACE && tstate->c_tracefunc != NULL) \
                                          || tstate->c_profilefunc != NULL); \
       } while (0)
 
