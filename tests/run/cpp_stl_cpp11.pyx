@@ -137,6 +137,7 @@ def test_unordered_set_functionality():
     int_set.bucket_count()
     int_set.max_bucket_count()
     int_set.bucket(3)
+    assert int_set.load_factor() > 0
     return "pass"
 
 
@@ -187,6 +188,7 @@ def test_unordered_map_functionality():
     int_map.bucket_count()
     int_map.max_bucket_count()
     int_map.bucket(3)
+    assert int_map.load_factor() > 0
 
     intptr_map[0] = NULL
     intptr = intptr_map.const_at(0)

@@ -438,6 +438,16 @@ def test_stof(char *a):
     return stof(s)
 
 
+def test_swap():
+    """
+    >>> test_swap()
+    """
+    cdef string s1 = b_asdf, s_asdf = b_asdf
+    cdef string s2 = b_asdg, s_asdg = b_asdg
+    s1.swap(s2)
+    assert s1 == s_asdg and s2 == s_asdf
+
+
 _WARNINGS = """
 21:31: Cannot pass Python object as C++ data structure reference (string &), will pass by copy.
 """
