@@ -14025,23 +14025,12 @@ class AssignmentExpressionNode(ExprNode):
 
     is_temp = False
     assignment = None
-    _rhs = None
     clone_node = None
 
-    @property
-    def rhs(self):
-        return self._rhs
-    @rhs.setter
-    def rhs(self, value):
-        old_rhs = self._rhs
-        self._rhs = value
-        if old_rhs is not value and self.assignment and self.clone_node:
-            # make sure that the contents of the CloneNode are kept up-to-date
-            self.clone_node.arg = value
     def __init__(self, pos, lhs, rhs, **kwds):
         super(AssignmentExpressionNode, self).__init__(pos, lhs=lhs, **kwds)
-        self.rhs = rhs  # separately, because it's a property
-        self.clone_node = assign_expr_rhs = CloneNode(rhs)
+        self.rhs = ProxyNode(rhs)
+        assign_expr_rhs = CloneNode(self.rhs)
         self.assignment = SingleAssignmentNode(
             pos, lhs=lhs, rhs=assign_expr_rhs, is_assignment_expression=True)
 
@@ -14063,16 +14052,15 @@ class AssignmentExpressionNode(ExprNode):
         # (plus any reference counting that's needed)
 
         self.rhs = self.rhs.analyse_types(env)
-        if not self.rhs.is_temp:
-            if not self.rhs.is_literal:
+        if not self.rhs.arg.is_temp:
+            if not self.rhs.arg.is_literal:
                 # for anything but the simplest cases (where it can be used directly)
                 # we convert rhs to a temp
                 # (it would be tempting to including self.rhs.is_name in here but that can end up
                 # wrong for assignment expressions run in parallel e.g. `(a := b) + (b := a + c)`)
-                self.rhs = self.rhs.coerce_to_temp(env)
+                self.rhs.arg = self.rhs.arg.coerce_to_temp(env)
             else:
                 self.assignment.rhs = copy.copy(self.rhs)
-                self.clone_node = None
 
         self.assignment = self.assignment.analyse_types(env)
         return self
@@ -14082,16 +14070,18 @@ class AssignmentExpressionNode(ExprNode):
             # in this quite common case (for example, when both lhs, and self are being coerced to Python)
             # we can optimize the coercion out by sharing it between
             # this and the assignment
-            old_rhs = self.rhs
-            if isinstance(old_rhs, CoerceToTempNode):
-                old_rhs = old_rhs.arg
-            rhs = old_rhs.coerce_to(dst_type, env)
-            if rhs is not old_rhs:
-                self.rhs = rhs
+            old_rhs_arg = self.rhs.arg
+            if isinstance(old_rhs_arg, CoerceToTempNode):
+                old_rhs_arg = old_rhs_arg.arg
+            rhs_arg = old_rhs_arg.coerce_to(dst_type, env)
+            if rhs_arg is not old_rhs_arg:
+                self.rhs.arg = rhs_arg
+                self.rhs._proxy_type()  # refresh the updated type
                 # clean up the old coercion node that the assignment has likely generated
                 if (isinstance(self.assignment.rhs, CoercionNode)
                         and not isinstance(self.assignment.rhs, CloneNode)):
                     self.assignment.rhs = self.assignment.rhs.arg
+                    self.assignment.rhs.type = self.assignment.rhs.arg.type
                 return self
         return super(AssignmentExpressionNode, self).coerce_to(dst_type, env)
 
@@ -14099,8 +14089,6 @@ class AssignmentExpressionNode(ExprNode):
         return self.rhs.result()
 
     def generate_result_code(self, code):
-        # incref to account for the assignment
-        code.put_incref(self.rhs.result(), self.rhs.ctype())
         # we have to do this manually because it isn't a subexpression
         self.assignment.generate_execution_code(code)
 
