@@ -9,20 +9,30 @@ cdef extern from "<map>" namespace "std" nogil:
         ctypedef ALLOCATOR allocator_type
         cppclass iterator:
             pair[T, U]& operator*()
-            iterator operator++()
-            iterator operator--()
-            bint operator==(iterator)
-            bint operator!=(iterator)
+            iterator& operator++()
+            iterator& operator--()
+            bint operator==(const iterator&)
+            bint operator!=(const iterator&)
         cppclass reverse_iterator:
             pair[T, U]& operator*()
-            iterator operator++()
-            iterator operator--()
-            bint operator==(reverse_iterator)
-            bint operator!=(reverse_iterator)
-        cppclass const_iterator(iterator):
-            pass
-        cppclass const_reverse_iterator(reverse_iterator):
-            pass
+            reverse_iterator& operator++()
+            reverse_iterator& operator--()
+            bint operator==(const reverse_iterator&)
+            bint operator!=(const reverse_iterator&)
+        cppclass const_iterator:
+            const_iterator(iterator)
+            const pair[T, U]& operator*()
+            const_iterator& operator++()
+            const_iterator& operator--()
+            bint operator==(const const_iterator&)
+            bint operator!=(const const_iterator&)
+        cppclass const_reverse_iterator:
+            const_reverse_iterator(reverse_iterator)
+            const pair[T, U]& operator*()
+            const_reverse_iterator& operator++()
+            const_reverse_iterator& operator--()
+            bint operator==(const const_reverse_iterator&)
+            bint operator!=(const const_reverse_iterator&)
         map() except +
         map(map&) except +
         #map(key_compare&)
