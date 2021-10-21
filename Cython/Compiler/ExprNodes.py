@@ -14030,15 +14030,12 @@ class AssignmentExpressionNode(ExprNode):
         if old_rhs is not value and self.assignment and self.clone_node:
             # make sure that the contents of the CloneNode are kept up-to-date
             self.clone_node.arg = value
-
-
     def __init__(self, pos, lhs, rhs, **kwds):
         super(AssignmentExpressionNode, self).__init__(pos, lhs=lhs, **kwds)
         self.rhs = rhs  # separately, because it's a property
         self.clone_node = assign_expr_rhs = CloneNode(rhs)
-        self.assignment = SingleAssignmentNode(pos=pos, lhs=lhs,
-                                            rhs=assign_expr_rhs,
-                                            is_assignment_expression=True)
+        self.assignment = SingleAssignmentNode(
+            pos, lhs=lhs, rhs=assign_expr_rhs, is_assignment_expression=True)
 
     @property
     def type(self):
