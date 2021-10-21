@@ -443,6 +443,37 @@ def captured_fd(stream=2, encoding=None):
         os.close(orig_stream)
 
 
+def get_encoding_candidates():
+    candidates = [sys.getdefaultencoding()]
+    for stream in (sys.stdout, sys.stdin, sys.__stdout__, sys.__stdin__):
+        encoding = getattr(stream, 'encoding', None)
+        # encoding might be None (e.g. somebody redirects stdout):
+        if encoding is not None and encoding not in candidates:
+            candidates.append(encoding)
+    return candidates
+
+
+def prepare_captured(captured):
+    captured_bytes = captured.strip()
+    if not captured_bytes:
+        return None
+    for encoding in get_encoding_candidates():
+        try:
+            return captured_bytes.decode(encoding)
+        except UnicodeDecodeError:
+            pass
+    # last resort: print at least the readable ascii parts correctly.
+    return captured_bytes.decode('latin-1')
+
+
+def print_captured(captured, output, header_line=None):
+    captured = prepare_captured(captured)
+    if captured:
+        if header_line:
+            output.write(header_line)
+        output.write(captured)
+
+
 def print_bytes(s, header_text=None, end=b'\n', file=sys.stdout, flush=True):
     if header_text:
         file.write(header_text)  # note: text! => file.write() instead of out.write()

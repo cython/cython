@@ -5,8 +5,10 @@ REPO = git://github.com/cython/cython.git
 VERSION?=$(shell sed -ne 's|^__version__\s*=\s*"\([^"]*\)".*|\1|p' Cython/Shadow.py)
 PARALLEL?=$(shell ${PYTHON} -c 'import sys; print("-j5" if sys.version_info >= (3,5) else "")' || true)
 
-MANYLINUX_IMAGE_X86_64=quay.io/pypa/manylinux2010_x86_64
-MANYLINUX_IMAGE_686=quay.io/pypa/manylinux2010_i686
+MANYLINUX1_IMAGE_X86_64=quay.io/pypa/manylinux1_x86_64
+MANYLINUX1_IMAGE_686=quay.io/pypa/manylinux1_i686
+MANYLINUX_IMAGE_X86_64=quay.io/pypa/manylinux_2_24_x86_64
+MANYLINUX_IMAGE_686=quay.io/pypa/manylinux_2_24_i686
 
 all:    local
 
@@ -72,14 +74,25 @@ wheel_manylinux: wheel_manylinux64 wheel_manylinux32
 wheel_manylinux32 wheel_manylinux64: dist/$(PACKAGENAME)-$(VERSION).tar.gz
 	echo "Building wheels for $(PACKAGENAME) $(VERSION)"
 	mkdir -p wheelhouse_$(subst wheel_,,$@)
-	time docker run --rm -t \
-		-v $(shell pwd):/io \
-		-e CFLAGS="-O3 -g0 -mtune=generic -pipe -fPIC" \
-		-e LDFLAGS="$(LDFLAGS) -fPIC" \
-		-e WHEELHOUSE=wheelhouse_$(subst wheel_,,$@) \
-		$(if $(patsubst %32,,$@),$(MANYLINUX_IMAGE_X86_64),$(MANYLINUX_IMAGE_686)) \
-		bash -c 'for PYBIN in /opt/python/*/bin; do \
-		    $$PYBIN/python -V; \
-		    { $$PYBIN/pip wheel -w /io/$$WHEELHOUSE /io/$< & } ; \
-		    done; wait; \
-		    for whl in /io/$$WHEELHOUSE/$(PACKAGENAME)-$(VERSION)-*-linux_*.whl; do auditwheel repair $$whl -w /io/$$WHEELHOUSE; done'
+	for dockerimage in $(if $(patsubst %32,,$@),$(MANYLINUX1_IMAGE_X86_64) $(MANYLINUX_IMAGE_X86_64),$(MANYLINUX1_IMAGE_686) $(MANYLINUX_IMAGE_686)); do \
+		time docker run --rm -t \
+			-v $(shell pwd):/io \
+			-e CFLAGS="-O3 -g0 -mtune=generic -pipe -fPIC" \
+			-e LDFLAGS="$(LDFLAGS) -fPIC" \
+			-e WHEELHOUSE=wheelhouse_$(subst wheel_,,$@) \
+			"$$dockerimage" \
+			bash -c '\
+				rm -fr /opt/python/*pypy* ; \
+				for cpdir in /opt/python/*27* ; do \
+				 	if [ -d "$$cpdir" ]; \
+				 	then rm -fr /opt/python/*3[78912]; \
+ 					else rm -fr /opt/python/*{27*,3[456]*}; \
+ 					fi; break; \
+				done ; \
+				ls /opt/python/ ; \
+				for PYBIN in /opt/python/*/bin; do \
+				$$PYBIN/python -V; \
+				{ $$PYBIN/pip wheel -w /io/$$WHEELHOUSE /io/$< & } ; \
+				done; wait; \
+				for whl in /io/$$WHEELHOUSE/$(PACKAGENAME)-$(VERSION)-*-linux_*.whl; do auditwheel repair $$whl -w /io/$$WHEELHOUSE; done' ; \
+	done

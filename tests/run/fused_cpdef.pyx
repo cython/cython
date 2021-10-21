@@ -1,4 +1,4 @@
-# cython: language_level=3
+# cython: language_level=3str
 # mode: run
 
 cimport cython
@@ -185,4 +185,27 @@ def test_ambiguousmatch():
     >>> multiarg((), 2.0)
     Traceback (most recent call last):
     TypeError: Function call with ambiguous argument types
+    """
+
+# https://github.com/cython/cython/issues/4409
+# default arguments + fused cpdef were crashing
+cpdef literal_default(cython.integral x, some_string="value"):
+    return x, some_string
+
+cpdef mutable_default(cython.integral x, some_value=[]):
+    some_value.append(x)
+    return some_value
+
+def test_defaults():
+    """
+    >>> literal_default(1)
+    (1, 'value')
+    >>> literal_default(1, "hello")
+    (1, 'hello')
+    >>> mutable_default(1)
+    [1]
+    >>> mutable_default(2)
+    [1, 2]
+    >>> mutable_default(3,[])
+    [3]
     """

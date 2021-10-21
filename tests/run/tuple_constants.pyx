@@ -2,6 +2,9 @@
 cimport cython
 
 module_level_tuple = (1,2,3)
+second_module_level_tuple = (1,2,3)  # should be deduplicated to be the same as the first
+string_module_level_tuple = ("1", "2")
+string_module_level_tuple2 = ("1", "2")
 
 def return_module_level_tuple():
     """
@@ -9,6 +12,32 @@ def return_module_level_tuple():
     (1, 2, 3)
     """
     return module_level_tuple
+
+def test_deduplicated_tuples():
+    """
+    >>> test_deduplicated_tuples()
+    """
+    assert (module_level_tuple is second_module_level_tuple)
+    assert (module_level_tuple is (1,2,3))  # also deduplicated with a function tuple
+    assert (string_module_level_tuple is string_module_level_tuple2)
+    assert (string_module_level_tuple is ("1", "2"))
+
+def func1(arg1, arg2):
+    pass
+
+def func2(arg1, arg2):
+    pass
+
+def test_deduplicated_args():
+    """
+    >>> test_deduplicated_args()
+    """
+    # This is a concern because in large modules *a lot* of similar code objects
+    # are generated often with the same argument names. Therefore it's worth ensuring that
+    # they are correctly deduplicated
+    import sys
+    if not hasattr(sys, "pypy_version_info"):  # test doesn't work on PyPy (which is probably fair enough)
+        assert func1.__code__.co_varnames is func2.__code__.co_varnames
 
 @cython.test_assert_path_exists("//TupleNode",
                                 "//TupleNode[@is_literal = true]")

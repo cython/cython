@@ -1138,12 +1138,15 @@ class GlobalState(object):
         'pystring_table',
         'cached_builtins',
         'cached_constants',
-        'init_globals',
+        'init_constants',
+        'init_globals',  # (utility code called at init-time)
         'init_module',
         'cleanup_globals',
         'cleanup_module',
         'main_method',
+        'utility_code_pragmas',  # silence some irrelevant warnings in utility code
         'utility_code_def',
+        'utility_code_pragmas_end',  # clean-up the utility_code_pragmas
         'end'
     ]
 
@@ -1207,6 +1210,11 @@ class GlobalState(object):
         w.putln("")
         w.putln("static CYTHON_SMALL_CODE int __Pyx_InitGlobals(void) {")
 
+        w = self.parts['init_constants']
+        w.enter_cfunc_scope()
+        w.putln("")
+        w.putln("static CYTHON_SMALL_CODE int __Pyx_InitConstants(void) {")
+
         if not Options.generate_cleanup_code:
             del self.parts['cleanup_globals']
         else:
@@ -1241,6 +1249,18 @@ class GlobalState(object):
         code.put(util.format_code(util.impl))
         code.putln("")
 
+        #
+        # utility code pragmas
+        #
+        code = self.parts['utility_code_pragmas']
+        util = UtilityCode.load_cached("UtilityCodePragmas", "ModuleSetupCode.c")
+        code.putln(util.format_code(util.impl))
+        code.putln("")
+        code = self.parts['utility_code_pragmas_end']
+        util = UtilityCode.load_cached("UtilityCodePragmasEnd", "ModuleSetupCode.c")
+        code.putln(util.format_code(util.impl))
+        code.putln("")
+
     def __getitem__(self, key):
         return self.parts[key]
 
@@ -1270,13 +1290,14 @@ class GlobalState(object):
         w.putln("}")
         w.exit_cfunc_scope()
 
-        w = self.parts['init_globals']
-        w.putln("return 0;")
-        if w.label_used(w.error_label):
-            w.put_label(w.error_label)
-            w.putln("return -1;")
-        w.putln("}")
-        w.exit_cfunc_scope()
+        for part in ['init_globals', 'init_constants']:
+            w = self.parts[part]
+            w.putln("return 0;")
+            if w.label_used(w.error_label):
+                w.put_label(w.error_label)
+                w.putln("return -1;")
+            w.putln("}")
+            w.exit_cfunc_scope()
 
         if Options.generate_cleanup_code:
             w = self.parts['cleanup_globals']
@@ -1496,7 +1517,7 @@ class GlobalState(object):
             return
 
         decl = self.parts['decls']
-        init = self.parts['init_globals']
+        init = self.parts['init_constants']
         cnames = []
         for (type_cname, method_name), cname in sorted(self.cached_cmethods.items()):
             cnames.append(cname)
@@ -1546,7 +1567,7 @@ class GlobalState(object):
                 decls_writer.putln("static Py_UNICODE %s[] = { %s };" % (cname, utf16_array))
                 decls_writer.putln("#endif")
 
-        init_globals = self.parts['init_globals']
+        init_constants = self.parts['init_constants']
         if py_strings:
             self.use_utility_code(UtilityCode.load_cached("InitStrings", "StringTools.c"))
             py_strings.sort()
@@ -1561,9 +1582,9 @@ class GlobalState(object):
             decls_writer.putln("#if !CYTHON_USE_MODULE_STATE")
             not_limited_api_decls_writer = decls_writer.insertion_point()
             decls_writer.putln("#endif")
-            init_globals.putln("#if CYTHON_USE_MODULE_STATE")
-            init_globals_in_module_state = init_globals.insertion_point()
-            init_globals.putln("#endif")
+            init_constants.putln("#if CYTHON_USE_MODULE_STATE")
+            init_constants_in_module_state = init_constants.insertion_point()
+            init_constants.putln("#endif")
             for idx, py_string_args in enumerate(py_strings):
                 c_cname, _, py_string = py_string_args
                 if not py_string.is_str or not py_string.encoding or \
@@ -1613,20 +1634,20 @@ class GlobalState(object):
                     py_string.is_str,
                     py_string.intern
                     ))
-                init_globals_in_module_state.putln("if (__Pyx_InitString(%s[%d], &%s) < 0) %s;" % (
+                init_constants_in_module_state.putln("if (__Pyx_InitString(%s[%d], &%s) < 0) %s;" % (
                     Naming.stringtab_cname,
                     idx,
                     py_string.cname,
-                    init_globals.error_goto(self.module_pos)))
+                    init_constants.error_goto(self.module_pos)))
             w.putln("{0, 0, 0, 0, 0, 0, 0}")
             w.putln("};")
 
-            init_globals.putln("#if !CYTHON_USE_MODULE_STATE")
-            init_globals.putln(
+            init_constants.putln("#if !CYTHON_USE_MODULE_STATE")
+            init_constants.putln(
                 "if (__Pyx_InitStrings(%s) < 0) %s;" % (
                     Naming.stringtab_cname,
-                    init_globals.error_goto(self.module_pos)))
-            init_globals.putln("#endif")
+                    init_constants.error_goto(self.module_pos)))
+            init_constants.putln("#endif")
 
     def generate_num_constants(self):
         consts = [(c.py_type, c.value[0] == '-', len(c.value), c.value, c.value_code, c)
@@ -1634,7 +1655,7 @@ class GlobalState(object):
         consts.sort()
         decls_writer = self.parts['decls']
         decls_writer.putln("#if !CYTHON_USE_MODULE_STATE")
-        init_globals = self.parts['init_globals']
+        init_constants = self.parts['init_constants']
         for py_type, _, _, value, value_code, c in consts:
             cname = c.cname
             self.parts['module_state'].putln("PyObject *%s;" % cname)
@@ -1655,9 +1676,9 @@ class GlobalState(object):
                 function = "PyInt_FromLong(%sL)"
             else:
                 function = "PyInt_FromLong(%s)"
-            init_globals.putln('%s = %s; %s' % (
+            init_constants.putln('%s = %s; %s' % (
                 cname, function % value_code,
-                init_globals.error_goto_if_null(cname, self.module_pos)))
+                init_constants.error_goto_if_null(cname, self.module_pos)))
         decls_writer.putln("#endif")
 
     # The functions below are there in a transition phase only

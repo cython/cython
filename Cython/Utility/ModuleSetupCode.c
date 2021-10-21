@@ -1395,7 +1395,7 @@ static int __Pyx_check_binary_version(void) {
     if (ctversion[0] != rtversion[0] || ctversion[2] != rtversion[2]) {
         char message[200];
         PyOS_snprintf(message, sizeof(message),
-                      "compiletime version %s of module '%.100s' "
+                      "compile time version %s of module '%.100s' "
                       "does not match runtime version %s",
                       ctversion, __Pyx_MODULE_NAME, rtversion);
         return PyErr_WarnEx(NULL, message, 1);
@@ -1678,7 +1678,6 @@ static void __Pyx_FastGilFuncInit(void);
 #endif
 
 /////////////// FastGil ///////////////
-//@requires: CommonStructures.c::FetchCommonPointer
 // The implementations of PyGILState_Ensure/Release calls PyThread_get_key_value
 // several times which is turns out to be quite slow (slower in fact than
 // acquiring the GIL itself).  Simply storing it in a thread local for the
@@ -1780,7 +1779,6 @@ static void __Pyx_FastGilFuncInit0(void) {
 #else
 
 static void __Pyx_FastGilFuncInit0(void) {
-  CYTHON_UNUSED_VAR(&__Pyx_FetchCommonPointer);
 }
 
 #endif
@@ -1795,4 +1793,21 @@ static void __Pyx_FastGilFuncInit(void) {
   }
 }
 
+#endif
+
+///////////////////// UtilityCodePragmas /////////////////////////
+
+#if _MSC_VER
+#pragma warning( push )
+/* Warning 4127: conditional expression is constant
+ * Cython uses constant conditional expressions to allow in inline functions to be optimized at
+ * compile-time, so this warning is not useful
+ */
+#pragma warning( disable : 4127 )
+#endif
+
+///////////////////// UtilityCodePragmasEnd //////////////////////
+
+#if _MSV_VER
+#pragma warning( pop )  /* undo whatever Cython has done to warnings */
 #endif
