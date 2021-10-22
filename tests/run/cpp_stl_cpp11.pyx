@@ -113,7 +113,7 @@ def test_unordered_set_functionality():
         unordered_set[int].iterator iterator = int_set.begin()
     int_set.insert(1)
     assert int_set.size() == 1
-    int_set.erase(int_set.begin(), int_set.end())
+    int_set.erase(unordered_set[int].const_iterator(int_set.begin()), unordered_set[int].const_iterator(int_set.end()))
     assert int_set.size() == 0
     int_set.insert(1)
     assert int_set.erase(1) == 1 # returns number of elements erased
@@ -176,7 +176,7 @@ def test_unordered_map_functionality():
     int_map.clear()
     int_map.insert(int_map2.begin(), int_map2.end())
     assert int_map.size() == 2
-    assert int_map.erase(int_map.begin(), int_map.end()) == int_map.end()
+    assert int_map.erase(unordered_map[int,int].const_iterator(int_map.begin()), unordered_map[int,int].const_iterator(int_map.end())) == int_map.end()
 
     int_map.max_load_factor(0.5)
     assert int_map.max_load_factor() == 0.5
