@@ -2162,13 +2162,17 @@ class CCodeWriter(object):
         from .PyrexTypes import py_object_type, typecast
         return typecast(py_object_type, type, cname)
 
+    def put_nullify(self, cname, type):
+        # for a PyObject this means "set to NULL without reference counting"
+        type.generate_nullify(self, cname)
+
     def put_gotref(self, cname, type):
         type.generate_gotref(self, cname)
 
-    def put_giveref(self, cname, type):
+    def put_giveref(self, cname, type, clear=False):
         type.generate_giveref(self, cname)
 
-    def put_xgiveref(self, cname, type):
+    def put_xgiveref(self, cname, type, clear=False):
         type.generate_xgiveref(self, cname)
 
     def put_xgotref(self, cname, type):
