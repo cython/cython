@@ -275,12 +275,3 @@ def test_transform_exclusive_scan_with_execpolicy(vector[int] v, int init):
     cdef vector[int] out = vector[int](v.size())
     transform_exclusive_scan(seq, v.begin(), v.end(), out.begin(), init, add_integers, multiply_with_2)
     return out
-
-
-
-
-
-
-
-
-
