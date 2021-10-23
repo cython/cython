@@ -54,9 +54,9 @@ def pyx_to_dll(filename, ext=None, force_rebuild=0, build_in_temp=False, pyxbuil
     else:
         quiet = "--quiet"
     if build_in_temp:
-        args = [quiet, "build_ext", '--c-build-dir', pyxbuild_dir]
+        args = [quiet, "build_ext", '--cython-c-in-temp']
     else:
-        args = [quiet, "build_ext", '--c-build-dir', None]
+        args = [quiet, "build_ext"]
     if force_rebuild:
         args.append("--force")
     if inplace and package_base_dir:
