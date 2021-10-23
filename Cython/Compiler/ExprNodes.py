@@ -14101,4 +14101,3 @@ class AssignmentExpressionNode(ExprNode):
             self.generate_gotref(code)
         else:
             super(AssignmentExpressionNode, self).make_owned_reference(code)
-
