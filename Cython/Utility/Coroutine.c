@@ -705,7 +705,8 @@ PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value, i
 
     exc_state = &self->gi_exc_state;
     if (exc_state->exc_type) {
-        #if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_PYSTON
+        #if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_PYSTON || PY_VERSION_HEX >= 0x030B00A1
+        // FIXME: https://bugs.python.org/issue44590 - Python 3.11 changed the type of frame
         // FIXME: what to do in PyPy?
         #else
         // Generators always return to their most recent caller, not
