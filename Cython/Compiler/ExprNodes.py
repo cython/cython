@@ -13814,6 +13814,12 @@ class CloneNode(CoercionNode):
     def generate_disposal_code(self, code):
         pass
 
+    def generate_post_assignment_code(self, code):
+        # if we're assigning from a CloneNode then it's "giveref"ed away, so it does
+        # need a matching incref (ideally this should happen before the assignment though)
+        if self.is_temp:  # should usually be true
+            code.put_incref(self.result(), self.ctype())
+
     def free_temps(self, code):
         pass
 

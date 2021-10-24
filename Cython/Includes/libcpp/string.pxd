@@ -62,6 +62,7 @@ cdef extern from "<string>" namespace "std" nogil:
         void resize(size_t) except +
         void resize(size_t, char) except +
         void shrink_to_fit() except +
+        void swap(string& other)
         size_t capacity()
         void reserve(size_t) except +
         void clear()
