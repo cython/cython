@@ -35,7 +35,8 @@ class new_build_ext(_build_ext, object):
             build_dir = self.build_temp
         else:
             build_dir = None
-        ext = cythonize(ext,force=self.force, quiet=self.verbose == 0, build_dir=build_dir)[0]
+        new_ext = cythonize(ext,force=self.force, quiet=self.verbose == 0, build_dir=build_dir)[0]
+        ext.sources = new_ext.sources
         super(new_build_ext, self).build_extension(ext)
 
 # This will become new_build_ext in the future.
