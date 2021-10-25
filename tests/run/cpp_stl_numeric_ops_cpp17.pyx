@@ -89,7 +89,7 @@ def test_transform_reduce_with_bin_op_and_unary_op(vector[int] v1, vector[int] v
     >>> test_transform_reduce_with_bin_op_and_unary_op([1, 2, 3], [1, 2, 3], 0)
     12
     """
-    return transform_reduce(v1.begin(), v1.end(), v2.begin(), init, add_integers, multiply_with_2)
+    return transform_reduce(v1.begin(), v1.end(), init, add_integers, multiply_with_2)
 
 # def test_transform_reduce_with_execpolicy(vector[int] v1, vector[int] v2, int init):
 #     """
@@ -179,9 +179,9 @@ def test_transform_inclusive_scan(vector[int] v):
     """
     Test transform inclusive_scan
     >>> test_transform_inclusive_scan([1, 2, 3, 4])
-    [2, 6, 12, 20 ]
+    [2, 6, 12, 20]
     """
-    cdef vector[int] out
+    cdef vector[int] out = vector[int](v.size())
     transform_inclusive_scan(v.begin(), v.end(), out.begin(), add_integers, multiply_with_2)
     return out
 
@@ -199,9 +199,9 @@ def test_transform_inclusive_scan_with_init(vector[int] v, int init):
     """
     Test transform inclusive_scan with an initial value
     >>> test_transform_inclusive_scan_with_init([1, 2, 3, 4], 0)
-    [2, 6, 12, 20 ]
+    [2, 6, 12, 20]
     """
-    cdef vector[int] out
+    cdef vector[int] out = vector[int](v.size())
     transform_inclusive_scan(v.begin(), v.end(), out.begin(), add_integers, multiply_with_2, init)
     return out
 
@@ -209,9 +209,9 @@ def test_transform_inclusive_scan_with_execpolicy_and_init(vector[int] v, int in
     """
     Test transform inclusive_scan with an initial value
     >>> test_transform_inclusive_scan_with_execpolicy_and_init([1, 2, 3, 4], 0)
-    [2, 6, 12, 20 ]
+    [2, 6, 12, 20]
     """
-    cdef vector[int] out
+    cdef vector[int] out = vector[int](v.size())
     transform_inclusive_scan(seq, v.begin(), v.end(), out.begin(), add_integers, multiply_with_2, init)
     return out
 
@@ -269,7 +269,7 @@ def test_transform_exclusive_scan_with_execpolicy(vector[int] v, int init):
 def test_transform_exclusive_scan_with_execpolicy(vector[int] v, int init):
     """
     Test transform_exclusive_scan with a execution policy
-    >>> test_transform_exclusive_scan([1, 2, 3, 4], 0)
+    >>> test_transform_exclusive_scan_with_execpolicy([1, 2, 3, 4], 0)
     [0, 2, 6, 12]
     """
     cdef vector[int] out = vector[int](v.size())
