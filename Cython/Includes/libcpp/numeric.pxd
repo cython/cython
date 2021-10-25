@@ -78,9 +78,10 @@ cdef extern from "<numeric>" namespace "std" nogil:
         InputIt first, InputIt last, OutputIt d_first, BinaryOperation binary_op, 
         T init)
 
-    ForwardIt2 inclusive_scan[ExecutionPolicy, ForwardIt1, ForwardIt2, BinaryOperation, T](
-        ExecutionPolicy&& policy, ForwardIt1 first, ForwardIt1 last, ForwardIt2 d_first, 
-        BinaryOperation binary_op, T init)
+    # 
+    # ForwardIt2 inclusive_scan[ExecutionPolicy, ForwardIt1, ForwardIt2, BinaryOperation, T](
+    #     ExecutionPolicy&& policy, ForwardIt1 first, ForwardIt1 last, ForwardIt2 d_first, 
+    #     BinaryOperation binary_op, T init)
 
     OutputIt exclusive_scan[InputIt, OutputIt, T](InputIt first, InputIt last, 
         OutputIt d_first, T init)

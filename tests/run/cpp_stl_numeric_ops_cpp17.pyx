@@ -165,15 +165,15 @@ def test_inclusive_scan_with_bin_op_and_init(vector[int] v, int init):
     inclusive_scan(v.begin(), v.end(), out.begin(), add_integers, init)
     return out
 
-def test_inclusive_scan_with_execpolicy_bin_op_and_init(vector[int] v, int init):
-    """
-    Test inclusive_scan with a execution policy, a binary operation and a initial value
-    >>> test_inclusive_scan_with_execpolicy_bin_op_and_init([1, 2, 3, 4], 0)
-    [1, 3, 6, 10]
-    """
-    cdef vector[int] out = vector[int](v.size())
-    inclusive_scan(seq, v.begin(), v.end(), out.begin(), add_integers, init)
-    return out
+# def test_inclusive_scan_with_execpolicy_bin_op_and_init(vector[int] v, int init):
+#     """
+#     Test inclusive_scan with a execution policy, a binary operation and a initial value
+#     >>> test_inclusive_scan_with_execpolicy_bin_op_and_init([1, 2, 3, 4], 0)
+#     [1, 3, 6, 10]
+#     """
+#     cdef vector[int] out = vector[int](v.size())
+#     inclusive_scan(seq, v.begin(), v.end(), out.begin(), add_integers, init)
+#     return out
 
 def test_transform_inclusive_scan(vector[int] v):
     """
