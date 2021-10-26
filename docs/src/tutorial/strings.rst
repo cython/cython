@@ -338,7 +338,16 @@ Similarly, if the further processing happens at the byte level, but Unicode
 string input should be accepted, then the following might work, if you are
 using memory views:
 
-.. literalinclude:: ../../examples/tutorial/string/to_char.pyx
+
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/string/to_char.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/string/to_char.pyx
+
 
 In this case, you might want to additionally ensure that byte string
 input really uses the correct encoding, e.g. if you require pure ASCII
