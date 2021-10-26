@@ -1,11 +1,11 @@
 import unittest
 
 from Cython.Utils import (
-    _CACHE_NAME, _CACHE_NAME_PATTERN, _find_cache_attributes,
+    _CACHE_NAME_PATTERN, _build_cache_name, _find_cache_attributes,
     build_hex_version, cached_method, clear_method_caches)
 
 METHOD_NAME = "cached_next"
-CACHE_NAME = _CACHE_NAME.format(METHOD_NAME)
+CACHE_NAME = _build_cache_name(METHOD_NAME)
 NAMES = CACHE_NAME, METHOD_NAME
 
 class Cached(object):
@@ -25,7 +25,7 @@ class TestCythonUtils(unittest.TestCase):
 
     def test_cache_method_name(self):
         method_name = "foo"
-        cache_name = _CACHE_NAME.format(method_name)
+        cache_name = _build_cache_name(method_name)
         match = _CACHE_NAME_PATTERN.match(cache_name)
 
         self.assertIsNot(match, None)
@@ -44,7 +44,7 @@ class TestCythonUtils(unittest.TestCase):
     def test_find_cache_attributes(self):
         obj = Cached()
         method_name = "bar"
-        cache_name = _CACHE_NAME.format(method_name)
+        cache_name = _build_cache_name(method_name)
 
         setattr(obj, CACHE_NAME, {})
         setattr(obj, cache_name, {})
@@ -84,7 +84,7 @@ class TestCythonUtils(unittest.TestCase):
     def test_clear_method_caches_with_missing_method(self):
         obj = Cached()
         method_name = "bar"
-        cache_name = _CACHE_NAME.format(method_name)
+        cache_name = _build_cache_name(method_name)
         names = cache_name, method_name
 
         setattr(obj, cache_name, object())

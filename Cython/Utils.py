@@ -29,7 +29,7 @@ from . import __version__ as cython_version
 
 PACKAGE_FILES = ("__init__.py", "__init__.pyc", "__init__.pyx", "__init__.pxd")
 
-_CACHE_NAME = "__{0}_cache"
+_build_cache_name = "__{0}_cache".format
 _CACHE_NAME_PATTERN = re.compile(r"^__(.+)_cache$")
 
 modification_time = os.path.getmtime
@@ -80,7 +80,7 @@ def clear_method_caches(obj):
 
 
 def cached_method(f):
-    cache_name = _CACHE_NAME.format(f.__name__)
+    cache_name = _build_cache_name(f.__name__)
 
     def wrapper(self, *args):
         cache = getattr(self, cache_name, None)
