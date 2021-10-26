@@ -719,7 +719,8 @@ PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value, i
 
     exc_state = &self->gi_exc_state;
     if (exc_state->exc_type) {
-        #if CYTHON_COMPILING_IN_PYPY
+        #if CYTHON_COMPILING_IN_PYPY || PY_VERSION_HEX >= 0x030B00A1
+        // FIXME: https://bugs.python.org/issue44590 - Python 3.11 changed the type of frame
         // FIXME: what to do in PyPy?
         #else
         // Generators always return to their most recent caller, not
@@ -1501,6 +1502,22 @@ static PyObject *__Pyx_CoroutineAwait_no_new(PyTypeObject *type, PyObject *args,
 }
 #endif
 
+// In earlier versions of Python an object with no __dict__ and not __slots__ is assumed
+// to be pickleable by default. Coroutine-wrappers have significant state so shouldn't be.
+// Therefore provide a default implementation.
+// Something similar applies to heaptypes (i.e. with type_specs) with protocols 0 and 1
+// even in more recent versions.
+// We are applying this to all Python versions (hence the commented out version guard)
+// to make the behaviour explicit.
+// #if PY_VERSION_HEX < 0x03060000 || CYTHON_USE_TYPE_SPECS
+static PyObject *__Pyx_CoroutineAwait_reduce_ex(__pyx_CoroutineAwaitObject *self, PyObject *arg) {
+    CYTHON_UNUSED_VAR(arg);
+    PyErr_Format(PyExc_TypeError, "cannot pickle '%.200s' object",
+                         Py_TYPE(self)->tp_name);
+    return NULL;
+}
+// #endif
+
 static PyMethodDef __pyx_CoroutineAwait_methods[] = {
     {"send", (PyCFunction) __Pyx_CoroutineAwait_Send, METH_O,
      (char*) PyDoc_STR("send(arg) -> send 'arg' into coroutine,\nreturn next yielded value or raise StopIteration.")},
@@ -1508,6 +1525,11 @@ static PyMethodDef __pyx_CoroutineAwait_methods[] = {
      (char*) PyDoc_STR("throw(typ[,val[,tb]]) -> raise exception in coroutine,\nreturn next yielded value or raise StopIteration.")},
     {"close", (PyCFunction) __Pyx_CoroutineAwait_Close, METH_NOARGS,
      (char*) PyDoc_STR("close() -> raise GeneratorExit inside coroutine.")},
+// only needed with type-specs or version<3.6, but included in all versions for clarity
+// #if PY_VERSION_HEX < 0x03060000 || CYTHON_USE_TYPE_SPECS
+    {"__reduce_ex__", (PyCFunction) __Pyx_CoroutineAwait_reduce_ex, METH_O, 0},
+    {"__reduce__", (PyCFunction) __Pyx_CoroutineAwait_reduce_ex, METH_NOARGS, 0},
+// #endif
     {0, 0, 0, 0}
 };
 

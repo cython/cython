@@ -515,8 +515,8 @@ class BinopSlot(SyntheticSlot):
         SyntheticSlot.__init__(
                 self, slot_name, [left_method, right_method], "0", is_binop=True, **kargs)
         # MethodSlot causes special method registration.
-        self.left_slot = MethodSlot(signature, "", left_method)
-        self.right_slot = MethodSlot(signature, "", right_method)
+        self.left_slot = MethodSlot(signature, "", left_method, **kargs)
+        self.right_slot = MethodSlot(signature, "", right_method, **kargs)
 
 
 class RichcmpSlot(MethodSlot):

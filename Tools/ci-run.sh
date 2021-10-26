@@ -31,6 +31,8 @@ elif [[ $OSTYPE == "darwin"* ]]; then
   echo "Setting up macos compiler"
   export CC="clang -Wno-deprecated-declarations"
   export CXX="clang++ -stdlib=libc++ -Wno-deprecated-declarations"
+else
+  echo "No setup specified for $OSTYPE"
 fi
 
 # Set up miniconda
@@ -72,7 +74,7 @@ else
   if [[ $PYTHON_VERSION != *"-dev" || $COVERAGE == "1" ]]; then
     python -m pip install -r test-requirements.txt || exit 1
 
-    if [[ $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "3."[4789]* ]]; then
+    if [[ $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "3."[1]* ]]; then
       python -m pip install -r test-requirements-cpython.txt || exit 1
     fi
   fi
@@ -89,7 +91,10 @@ else
     if [[ $BACKEND == *"cpp"* ]]; then
       echo "WARNING: Currently not installing pythran due to compatibility issues"
       # python -m pip install pythran==0.9.5 || exit 1
-    elif [[ $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "2"* && $PYTHON_VERSION != *"3.4" ]]; then
+    fi
+
+    if [[ $BACKEND != "cpp" && $PYTHON_VERSION != "pypy"* &&
+          $PYTHON_VERSION != "2"* && $PYTHON_VERSION != "3.4"* ]]; then
       python -m pip install mypy || exit 1
     fi
   fi
@@ -99,7 +104,6 @@ fi
 echo "==== Running tests ===="
 ccache -s 2>/dev/null || true
 export PATH="/usr/lib/ccache:$PATH"
-
 
 # Most modern compilers allow the last conflicting option
 # to override the previous ones, so '-O0 -O3' == '-O3'
@@ -117,6 +121,11 @@ fi
 
 if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
 
+  BUILD_CFLAGS="$CFLAGS -O2"
+  if [[ $PYTHON_SYS_VERSION == "2"* ]]; then
+    BUILD_CFLAGS="$BUILD_CFLAGS -fno-strict-aliasing"
+  fi
+
   SETUP_ARGS=""
   if [[ $COVERAGE == "1" ]]; then
     SETUP_ARGS="$SETUP_ARGS --cython-coverage"
@@ -124,14 +133,8 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
   if [[ $CYTHON_COMPILE_ALL == "1" ]]; then
     SETUP_ARGS="$SETUP_ARGS --cython-compile-all"
   fi
-  if [[ $PYTHON_SYS_VERSION > "3.5" || $PYTHON_SYS_VERSION == "3.5"* ]]; then
-    SETUP_ARGS="$SETUP_ARGS -j5"
-  fi
-
-  BUILD_CFLAGS="$CFLAGS -O2"
-  if [[ $PYTHON_SYS_VERSION == "2"* ]]; then
-    BUILD_CFLAGS="$BUILD_CFLAGS -fno-strict-aliasing"
-  fi
+  SETUP_ARGS="$SETUP_ARGS
+    $(python -c 'import sys; print("-j5" if sys.version_info >= (3,5) else "")')"
 
   CFLAGS=$BUILD_CFLAGS \
     python setup.py build_ext -i $SETUP_ARGS || exit 1
@@ -140,7 +143,7 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
   # STACKLESS can be either  "" (empty or not set) or "true" (when we set it)
   # CYTHON_COMPILE_ALL can be either  "" (empty or not set) or "1" (when we set it)
   if [[ $COVERAGE != "1" && $STACKLESS != "true" && $BACKEND != *"cpp"* &&
-        $CYTHON_COMPILE_ALL != "1" && -z $EXTRA_CFLAGS && -z $LIMITED_API ]]; then
+        $CYTHON_COMPILE_ALL != "1" && $LIMITED_API == "" && $EXTRA_CFLAGS == "" ]]; then
     python setup.py bdist_wheel || exit 1
   fi
 fi
@@ -150,7 +153,8 @@ if [[ $TEST_CODE_STYLE == "1" ]]; then
 elif [[ $PYTHON_VERSION != "pypy"* && $OSTYPE != "msys" ]]; then
   # Run the debugger tests in python-dbg if available
   # (but don't fail, because they currently do fail)
-  PYTHON_DBG="python$( python -c 'import sys; print("%d.%d" % sys.version_info[:2])' )-dbg"
+  PYTHON_DBG=$(python -c 'import sys; print("%d.%d" % sys.version_info[:2])')
+  PYTHON_DBG="python$PYTHON_DBG-dbg"
   if $PYTHON_DBG -V >&2; then
     CFLAGS=$CFLAGS $PYTHON_DBG \
       runtests.py -vv --no-code-style Debugger --backends=$BACKEND

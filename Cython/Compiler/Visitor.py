@@ -370,8 +370,10 @@ class EnvTransform(CythonTransform):
         self.env_stack.pop()
 
     def visit_FuncDefNode(self, node):
+        outer_attrs = node.outer_attrs
+        self.visitchildren(node, attrs=outer_attrs)
         self.enter_scope(node, node.local_scope)
-        self._process_children(node)
+        self.visitchildren(node, attrs=None, exclude=outer_attrs)
         self.exit_scope()
         return node
 

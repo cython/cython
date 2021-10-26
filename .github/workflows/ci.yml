@@ -25,13 +25,13 @@ jobs:
         # in all python versions and test failures (builtin_float) in 3.5<
         os: [windows-2019, ubuntu-18.04]
         backend: [c, cpp]
-        python-version: [2.7, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 3.10-dev]
+        python-version: ["2.7", "3.4", "3.5", "3.6", "3.7", "3.8", "3.9", "3.10", "3.11-dev"]
         env: [{}]
 
         include:
-          # Temporary - Allow failure on all Python -dev jobs until they are considered stable
-          #- python-version: 3.10-dev
-          #  allowed_failure: true
+          # Temporary - Allow failure on Python 3.11-dev jobs until they are considered stable
+          - python-version: 3.11-dev
+            allowed_failure: true
 
           # Ubuntu sub-jobs:
           # ================
@@ -193,6 +193,14 @@ jobs:
             env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
           - os: macos-10.15
             python-version: 3.9
+            backend: cpp
+            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
+          - os: macos-10.15
+            python-version: "3.10"
+            backend: c
+            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
+          - os: macos-10.15
+            python-version: "3.10"
             backend: cpp
             env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
 

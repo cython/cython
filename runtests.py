@@ -415,8 +415,10 @@ def get_openmp_compiler_flags(language):
     COMPILER_HAS_INT128 = getattr(sys, 'maxsize', getattr(sys, 'maxint', 0)) > 2**60
 
     compiler_version = gcc_version.group(1)
-    if compiler_version and compiler_version.split('.') >= ['4', '2']:
-        return '-fopenmp', '-fopenmp'
+    if compiler_version:
+        compiler_version = [int(num) for num in compiler_version.split('.')]
+        if compiler_version >= [4, 2]:
+            return '-fopenmp', '-fopenmp'
 
 try:
     locale.setlocale(locale.LC_ALL, '')
@@ -1624,14 +1626,11 @@ class _FakeClass(object):
     def shortDescription(self):
         return self._shortDescription
 
-try: # Py2.7+ and Py3.2+
-    from unittest.runner import _TextTestResult
-except ImportError:
-    from unittest import _TextTestResult
+from unittest import TextTestResult
 
-class PartialTestResult(_TextTestResult):
+class PartialTestResult(TextTestResult):
     def __init__(self, base_result):
-        _TextTestResult.__init__(
+        TextTestResult.__init__(
             self, self._StringIO(), True,
             base_result.dots + base_result.showAll*2)
 
