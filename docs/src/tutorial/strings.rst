@@ -389,7 +389,16 @@ With a Python byte string object, you would normally just call the
 Cython allows you to do the same for a C string, as long as it
 contains no null bytes:
 
-.. literalinclude:: ../../examples/tutorial/string/naive_decode.pyx
+
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/string/naive_decode.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/string/naive_decode.pyx
+
 
 And, more efficiently, for strings where the length is known:
 
