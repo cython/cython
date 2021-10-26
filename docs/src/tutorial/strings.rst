@@ -402,7 +402,16 @@ contains no null bytes:
 
 And, more efficiently, for strings where the length is known:
 
-.. literalinclude:: ../../examples/tutorial/string/decode.pyx
+
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/string/decode.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/string/decode.pyx
+
 
 The same should be used when the string contains null bytes, e.g. when
 it uses an encoding like UCS-4, where each character is encoded in four
