@@ -124,10 +124,11 @@ class TestDebugInformationClasses(DebugTestCase):
                          'codefile.SomeClass.spam')
         self.assertEqual(self.spam_func.module, self.module)
 
-        self.assertNotEqual(len(self.eggs_func.pf_cname), 0, (self.eggs_func, self.eggs_func.pf_cname))
-        self.assertEqual(len(self.ham_func.pf_cname), 0)
-        self.assertEqual(len(self.spam_func.pf_cname), 0)
-        self.assertEqual(len(self.spam_meth.pf_cname), 0)
+        # those 4 are AFAIK sized objects therefore it's about len:
+        self.assertTrue(self.eggs_func.pf_cname, (self.eggs_func, self.eggs_func.pf_cname))
+        self.assertFalse(self.ham_func.pf_cname)
+        self.assertFalse(self.spam_func.pf_cname)
+        self.assertFalse(self.spam_meth.pf_cname)
 
         self.assertEqual(self.spam_func.type, libcython.CObject)
         self.assertEqual(self.ham_func.type, libcython.CObject)
