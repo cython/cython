@@ -323,7 +323,16 @@ the following:
 
 And should then be used like this:
 
-.. literalinclude:: ../../examples/tutorial/string/api_func.pyx
+
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/string/api_func.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/string/api_func.pyx
+
 
 Similarly, if the further processing happens at the byte level, but Unicode
 string input should be accepted, then the following might work, if you are
