@@ -523,9 +523,21 @@ creation of a C++ string makes an independent copy of the string
 buffer which the string object then owns.  It is therefore possible
 to convert temporarily created Python objects directly into C++
 strings.  A common way to make use of this is when encoding a Python
-unicode string into a C++ string::
+unicode string into a C++ string:
 
-    cdef string cpp_string = py_unicode_string.encode('UTF-8')
+
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            cpp_string = cython.declare(string, py_unicode_string.encode('UTF-8'))
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef string cpp_string = py_unicode_string.encode('UTF-8')
 
 Note that this involves a bit of overhead because it first encodes
 the Unicode string into a temporarily created Python bytes object
