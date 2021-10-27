@@ -507,7 +507,16 @@ When wrapping a C++ library, strings will usually come in the form of
 the :c:type:`std::string` class.  As with C strings, Python byte strings
 automatically coerce from and to C++ strings:
 
-.. literalinclude:: ../../examples/tutorial/string/cpp_string.pyx
+
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/string/cpp_string.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/string/cpp_string.pyx
+
 
 The memory management situation is different than in C because the
 creation of a C++ string makes an independent copy of the string
