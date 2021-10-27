@@ -453,17 +453,45 @@ Encoding text to bytes
 
 The reverse way, converting a Python unicode string to a C
 :c:type:`char*`, is pretty efficient by itself, assuming that what
-you actually want is a memory managed byte string::
+you actually want is a memory managed byte string:
 
-    py_byte_string = py_unicode_string.encode('UTF-8')
-    cdef char* c_string = py_byte_string
+
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            py_byte_string = py_unicode_string.encode('UTF-8')
+            c_string = cython.declare(cython.p_char, py_byte_string)
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            py_byte_string = py_unicode_string.encode('UTF-8')
+            cdef char* c_string = py_byte_string
+
 
 As noted before, this takes the pointer to the byte buffer of the
 Python byte string.  Trying to do the same without keeping a reference
-to the Python byte string will fail with a compile error::
+to the Python byte string will fail with a compile error:
 
-    # this will not compile !
-    cdef char* c_string = py_unicode_string.encode('UTF-8')
+
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            # this will not compile !
+            c_string = cython.declare(cython.p_char, py_unicode_string.encode('UTF-8'))
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            # this will not compile !
+            cdef char* c_string = py_unicode_string.encode('UTF-8')
+
 
 Here, the Cython compiler notices that the code takes a pointer to a
 temporary string result that will be garbage collected after the
