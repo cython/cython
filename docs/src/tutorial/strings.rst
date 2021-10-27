@@ -431,7 +431,16 @@ conversions in general) in dedicated functions, as this needs to be
 done in exactly the same way whenever receiving text from C.  This
 could look as follows:
 
-.. literalinclude:: ../../examples/tutorial/string/utf_eight.pyx
+
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/string/utf_eight.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/string/utf_eight.pyx
+
 
 Most likely, you will prefer shorter function names in your code based
 on the kind of string being handled.  Different types of content often
