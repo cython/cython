@@ -5,9 +5,11 @@ cdef array.array a = array.array('i', [1, 2, 3])
 cdef int[:] ca = a
 
 
+
 cdef int overhead(object a):
     cdef int[:] ca = a
     return ca[0]
+
 
 
 cdef int no_overhead(int[:] ca):
