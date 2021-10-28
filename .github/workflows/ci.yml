@@ -205,9 +205,9 @@ jobs:
             env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
 
     # This defaults to 360 minutes (6h) which is way too long and if a test gets stuck, it can block other pipelines.
-    # From testing, the runs tend to take ~20 minutes, so a limit of 30 minutes should be enough. This can always be
+    # From testing, the runs tend to take ~20/~30 minutes, so a limit of 40 minutes should be enough. This can always be
     # changed in the future if needed.
-    timeout-minutes: 30
+    timeout-minutes: 40
     runs-on: ${{ matrix.os }}
 
     env:
