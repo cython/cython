@@ -5,11 +5,13 @@ a = cython.declare(array.array, array.array('i', [1, 2, 3]))
 ca = cython.declare(cython.int[:], a)
 
 @cython.cfunc
+@cython.exceptval(check=False)
 def overhead(a: cython.object) -> cython.int:
     ca: cython.int[:] = a
     return ca[0]
 
 @cython.cfunc
+@cython.exceptval(check=False)
 def no_overhead(ca: cython.int[:]) -> cython.int:
     return ca[0]
 
