@@ -1,11 +1,9 @@
 # Internals of the "long" type (Python 2) or "int" type (Python 3).
 # This is not part of Python's published API.
 
-cdef extern from *:
-    """"
-    #if PY_VERSION_HEX >= 0x03000000
-     #include "Python.h"
-    #else
+cdef extern from "Python.h":
+    """
+    #if PY_MAJOR_VERSION < 3
      #include "longintrepr.h"
     #endif
     """

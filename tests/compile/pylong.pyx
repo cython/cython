@@ -1,13 +1,6 @@
 # mode: compile
 
-cdef extern from *:
-    """"
-    #if PY_VERSION_HEX >= 0x03000000
-     #include "Python.h"
-    #else
-     #include "longintrepr.h"
-    #endif
-    """
+cdef extern from "Python.h":
     ctypedef struct PyTypeObject:
         pass
 
@@ -15,11 +8,9 @@ cdef extern from *:
         Py_ssize_t ob_refcnt
         PyTypeObject *ob_type
 
-cdef extern from *:
-    """"
-    #if PY_VERSION_HEX >= 0x03000000
-     #include "Python.h"
-    #else
+cdef extern from "Python.h":
+    """
+    #if PY_MAJOR_VERSION < 3
      #include "longintrepr.h"
     #endif
     """

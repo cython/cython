@@ -263,9 +263,7 @@
 #define CYTHON_BACKPORT_VECTORCALL (CYTHON_METH_FASTCALL && PY_VERSION_HEX < 0x030800B1)
 
 #if CYTHON_USE_PYLONG_INTERNALS
-  #if PY_VERSION_HEX >= 0x03000000
-    #include "Python.h"
-  #else
+  #if PY_MAJOR_VERSION < 3
     #include "longintrepr.h"
   #endif
   /* These short defines can easily conflict with other code */
