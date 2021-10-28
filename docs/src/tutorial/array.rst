@@ -44,7 +44,15 @@ memory view, there will be a slight overhead to construct the memory
 view. However, from that point on the variable can be passed to other
 functions without overhead, so long as it is typed:
 
-.. literalinclude:: ../../examples/tutorial/array/overhead.pyx
+
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/array/overhead.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/array/overhead.pyx
 
 
 Zero-overhead, unsafe access to raw C pointer
