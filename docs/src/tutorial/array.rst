@@ -99,7 +99,15 @@ An array can also be extended and resized; this avoids repeated memory
 reallocation which would occur if elements would be appended or removed
 one by one.
 
-.. literalinclude:: ../../examples/tutorial/array/resize.pyx
+
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/array/resize.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/array/resize.pyx
 
 
 API reference
