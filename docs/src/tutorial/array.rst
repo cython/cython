@@ -21,7 +21,16 @@ module is built into both Python and Cython.
 Safe usage with memory views
 ----------------------------
 
-.. literalinclude:: ../../examples/tutorial/array/safe_usage.pyx
+
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/array/safe_usage.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/array/safe_usage.pyx
+
 
 NB: the import brings the regular Python array object into the namespace
 while the cimport adds functions accessible from Cython.
