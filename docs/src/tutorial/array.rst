@@ -62,7 +62,16 @@ functions, it is possible to access the underlying contiguous array as a
 pointer. There is no type or bounds checking, so be careful to use the
 right type and signedness.
 
-.. literalinclude:: ../../examples/tutorial/array/unsafe_usage.pyx
+
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/array/unsafe_usage.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/array/unsafe_usage.pyx
+
 
 Note that any length-changing operation on the array object may invalidate the
 pointer.
