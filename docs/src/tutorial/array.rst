@@ -4,6 +4,9 @@
 Working with Python arrays
 ==========================
 
+.. include::
+    ../two-syntax-variants-used
+
 Python has a builtin array module supporting dynamic 1-dimensional arrays of
 primitive types. It is possible to access the underlying C array of a Python
 array from within Cython. At the same time they are ordinary Python objects
