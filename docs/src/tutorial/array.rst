@@ -84,7 +84,16 @@ it is possible to create a new array with the same type as a template,
 and preallocate a given number of elements. The array is initialized to
 zero when requested.
 
-.. literalinclude:: ../../examples/tutorial/array/clone.pyx
+
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/array/clone.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/array/clone.pyx
+
 
 An array can also be extended and resized; this avoids repeated memory
 reallocation which would occur if elements would be appended or removed
