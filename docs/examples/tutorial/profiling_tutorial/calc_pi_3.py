@@ -1,10 +1,11 @@
 # cython: profile=True
+import cython
 
 @cython.cfunc
 @cython.inline
 @cython.exceptval(-1.0)
-def recip_square(i: cython.int) -> cython.double:
-    return 1. / (cython.cast(cython.long, i) * i)
+def recip_square(i: cython.longlong) -> cython.double:
+    return 1. / (i * i)
 
 def approx_pi(n: cython.int = 10000000):
     val: cython.double = 0.

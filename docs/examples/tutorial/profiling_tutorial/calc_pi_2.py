@@ -1,4 +1,5 @@
 # cython: profile=True
+import cython
 
 def recip_square(i: cython.int):
     return 1. / i ** 2
