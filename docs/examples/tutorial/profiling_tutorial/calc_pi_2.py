@@ -1,7 +1,7 @@
 # cython: profile=True
 import cython
 
-def recip_square(i: cython.int):
+def recip_square(i: cython.longlong):
     return 1. / i ** 2
 
 def approx_pi(n: cython.int = 10000000):
