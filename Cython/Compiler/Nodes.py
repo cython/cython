@@ -715,8 +715,13 @@ class CFuncDeclaratorNode(CDeclaratorNode):
         if (return_type.is_pyobject
                 and (self.exception_value or self.exception_check)
                 and self.exception_check != '+'):
-            # Exception clause is silently ignored for functions returning Python object.
-            self.exception_check = False
+            if self.exception_value is None and self.exception_check is True:
+                # Functions in pure python mode defaults to always check return value for exception
+                # (equivalent to except * declaration in Cython language). In this case exception clause
+                # is silently ignored for functions returning Python object.
+                self.exception_check = False
+            else:
+                error(self.pos, "Exception clause not allowed for function returning Python object")
         else:
             if self.exception_value is None and self.exception_check and self.exception_check != '+':
                 # Use an explicit exception return value to speed up exception checks.
