@@ -92,5 +92,12 @@ def test_cdef_return_object(x: object) -> object:
     Test support of python object in annotations
     >>> test_cdef_return_object(3)
     3
+    >>> test_cdef_return_object(None)
+    Traceback (most recent call last):
+        ...
+    RuntimeError
     """
-    return x
+    if x:
+        return x
+    else:
+        raise RuntimeError()
