@@ -222,17 +222,21 @@ def run_html_report():
     from collections import defaultdict
 
     stdout = run_coverage_command('html', '-d', 'html')
-    _parse_lines = re.compile(
-        r'<p[^>]* id=["\'][^0-9"\']*(?P<id>[0-9]+)[^0-9"\']*["\'][^>]*'
-        r' class=["\'][^"\']*(?P<run>mis|run|exc)[^"\']*["\']').findall
+    # coverage 6.1+ changed the order of the attributes => need to parse them separately
+    _parse_id = re.compile(r'id=["\'][^0-9"\']*(?P<id>[0-9]+)[^0-9"\']*["\']').search
+    _parse_state = re.compile(r'class=["\'][^"\']*(?P<state>mis|run|exc)[^"\']*["\']').search
 
     files = {}
     for file_path in iglob('html/*.html'):
         with open(file_path) as f:
             page = f.read()
         report = defaultdict(set)
-        for line, state in _parse_lines(page):
-            report[state].add(int(line))
+        for line in re.split(r'id=["\']source["\']', page)[-1].splitlines():
+            lineno = _parse_id(line)
+            state = _parse_state(line)
+            if not lineno or not state:
+                continue
+            report[state.group('state')].add(int(lineno.group('id')))
         files[file_path] = report
 
     for filename, report in files.items():
@@ -241,7 +245,7 @@ def run_html_report():
         executed = report["run"]
         missing = report["mis"]
         excluded = report["exc"]
-        assert executed
+        assert executed, (filename, report)
         assert 5 in executed, executed
         assert 6 in executed, executed
         assert 7 in executed, executed
