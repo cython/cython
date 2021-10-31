@@ -5369,7 +5369,8 @@ class CClassDefNode(ClassDefNode):
                 ))
                 # Still need to inherit buffer methods since PyType_Ready() didn't do it for us.
                 for buffer_method_name in ("__getbuffer__", "__releasebuffer__"):
-                    buffer_slot = TypeSlots.get_slot_by_method_name(buffer_method_name)
+                    buffer_slot = TypeSlots.get_slot_table(
+                        code.globalstate.directives). get_slot_by_method_name(buffer_method_name)
                     if buffer_slot.slot_code(scope) == "0" and not TypeSlots.get_base_slot_function(scope, buffer_slot):
                         code.putln("if (!%s->tp_as_buffer->%s &&"
                                    " %s->tp_base->tp_as_buffer &&"

@@ -769,11 +769,6 @@ def get_slot_by_name(slot_name, compiler_directives):
     assert False, "Slot not found: %s" % slot_name
 
 
-def get_slot_by_method_name(method_name):
-    # For now, only search the type struct, no referenced sub-structs.
-    return method_name_to_slot[method_name]
-
-
 def get_slot_code_by_name(scope, slot_name):
     slot = get_slot_by_name(slot_name, scope.directives)
     return slot.slot_code(scope)
@@ -1104,6 +1099,10 @@ class SlotTable(object):
             return ibinaryfunc
         else:
             return None
+
+    def get_slot_by_method_name(self, method_name):
+        # For now, only search the type struct, no referenced sub-structs.
+        return self.method_name_to_slot[method_name]
 
 
 _slot_table_dict = {}
