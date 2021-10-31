@@ -16,6 +16,7 @@ x = u'abc'
 
 >>> except_as_deletes
 True
+
 >>> no_match_does_not_touch_target
 True
 """
@@ -25,9 +26,22 @@ IS_PY2 = sys.version_info[0] < 3
 if not IS_PY2:
     __doc__ = __doc__.replace(" u'", " '")
 
+
 def locals_function(a, b=2):
     x = 'abc'
     return locals()
+
+
+### "new style" classes
+
+class T:
+    """
+    >>> t = T()
+    >>> isinstance(t, T)
+    True
+    >>> isinstance(T, type)  # not a Py2 old style class!
+    True
+    """
 
 
 ### true division
@@ -258,6 +272,32 @@ def except_as_deletes_target_in_gen(x, a):
         yield 6
 
 
+def nested_except_gh3666(a=False, b=False):
+    """
+    >>> print(nested_except_gh3666())
+    A
+    >>> print(nested_except_gh3666(a=True))
+    B-V
+    >>> print(nested_except_gh3666(a=True, b=True))
+    B-V-T
+    """
+    try:
+        if a:
+            raise ValueError
+        return "A"
+    except TypeError as exc:
+        return "A-T"
+    except ValueError as exc:
+        try:
+            if b:
+                raise TypeError
+            return "B-V"
+        except ValueError as exc:
+            return "B-V-V"
+        except TypeError as exc:
+            return "B-V-T"
+
+
 ### Py3 feature tests
 
 def print_function(*args):
@@ -314,7 +354,7 @@ def unicode_literals():
 
 
 def non_ascii_unprefixed_str():
-    u"""
+    """
     >>> s = non_ascii_unprefixed_str()
     >>> isinstance(s, bytes)
     False
@@ -327,7 +367,7 @@ def non_ascii_unprefixed_str():
 
 
 def non_ascii_raw_str():
-    u"""
+    """
     >>> s = non_ascii_raw_str()
     >>> isinstance(s, bytes)
     False
@@ -340,7 +380,7 @@ def non_ascii_raw_str():
 
 
 def non_ascii_raw_prefixed_unicode():
-    u"""
+    """
     >>> s = non_ascii_raw_prefixed_unicode()
     >>> isinstance(s, bytes)
     False
@@ -578,15 +618,15 @@ def annotation_syntax(a: "test new test", b : "other" = 2, *args: "ARGS", **kwar
     >>> len(annotation_syntax.__annotations__)
     5
     >>> print(annotation_syntax.__annotations__['a'])
-    test new test
+    'test new test'
     >>> print(annotation_syntax.__annotations__['b'])
-    other
+    'other'
     >>> print(annotation_syntax.__annotations__['args'])
-    ARGS
+    'ARGS'
     >>> print(annotation_syntax.__annotations__['kwargs'])
-    KWARGS
+    'KWARGS'
     >>> print(annotation_syntax.__annotations__['return'])
-    ret
+    'ret'
     """
     result : int = a + b
 
@@ -610,9 +650,17 @@ async def async_def_annotations(x: 'int') -> 'float':
     >>> ret, arg = sorted(async_def_annotations.__annotations__.items())
     >>> print(ret[0]); print(ret[1])
     return
-    float
+    'float'
     >>> print(arg[0]); print(arg[1])
     x
-    int
+    'int'
     """
     return float(x)
+
+
+def repr_returns_str(x) -> str:
+    """
+    >>> repr_returns_str(123)
+    '123'
+    """
+    return repr(x)

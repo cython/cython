@@ -13,7 +13,7 @@ To go beyond that, Cython provides language constructs to add static typing
 and cythonic functionalities to a Python module to make it run much faster
 when compiled, while still allowing it to be interpreted.
 This is accomplished via an augmenting ``.pxd`` file, via Python
-type annotations (following
+type :ref:`pep484_type_annotations` (following
 `PEP 484 <https://www.python.org/dev/peps/pep-0484/>`_ and
 `PEP 526 <https://www.python.org/dev/peps/pep-0526/>`_), and/or
 via special functions and decorators available after importing the magic
@@ -82,7 +82,7 @@ in the :file:`.pxd`, that is, to be accessible from Python,
 
 
 In the example above, the type of the local variable `a` in `myfunction()`
-is not fixed and will thus be a Python object.  To statically type it, one
+is not fixed and will thus be a :term:`Python object`.  To statically type it, one
 can use Cython's ``@cython.locals`` decorator (see :ref:`magic_attributes`,
 and :ref:`magic_attributes_pxd`).
 
@@ -153,26 +153,10 @@ Static typing
     @exceptval(-1, check=False)  # cdef int func() except -1:
     @exceptval(check=True)       # cdef int func() except *:
     @exceptval(-1, check=True)   # cdef int func() except? -1:
+    @exceptval(check=False)      # no exception checking/propagation
 
-* Python annotations can be used to declare argument types, as shown in the
-  following example.  To avoid conflicts with other kinds of annotation
-  usages, this can be disabled with the directive ``annotation_typing=False``.
-
-  .. literalinclude:: ../../examples/tutorial/pure/annotations.py
-
-  This can be combined with the ``@cython.exceptval()`` decorator for non-Python
-  return types:
-
-  .. literalinclude:: ../../examples/tutorial/pure/exceptval.py
-
-  Since version 0.27, Cython also supports the variable annotations defined
-  in `PEP 526 <https://www.python.org/dev/peps/pep-0526/>`_. This allows to
-  declare types of variables in a Python 3.6 compatible way as follows:
-
-  .. literalinclude:: ../../examples/tutorial/pure/pep_526.py
-
-  There is currently no way to express the visibility of object attributes.
-
+  If exception propagation is disabled, any Python exceptions that are raised
+  inside of the function will be printed and ignored.
 
 C types
 ^^^^^^^
@@ -225,6 +209,23 @@ Here is an example of a :keyword:`cdef` function::
         return a == b
 
 
+cimports
+^^^^^^^^
+
+The special ``cython.cimports`` package name gives access to cimports
+in code that uses Python syntax.  Note that this does not mean that C
+libraries become available to Python code.  It only means that you can
+tell Cython what cimports you want to use, without requiring special
+syntax.  Running such code in plain Python will fail.
+
+.. literalinclude:: ../../examples/tutorial/pure/py_cimport.py
+
+Since such code must necessarily refer to the non-existing
+``cython.cimports`` 'package', the plain cimport form
+``cimport cython.cimports...`` is not available.
+You must use the form ``from cython.cimports...``.
+
+
 Further Cython functions and declarations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -241,6 +242,13 @@ Further Cython functions and declarations
     cython.declare(n=cython.longlong)
     print(cython.sizeof(cython.longlong))
     print(cython.sizeof(n))
+
+* ``typeof`` returns a string representation of the argument's type for debugging purposes.  It can take expressions.
+
+  ::
+
+    cython.declare(n=cython.longlong)
+    print(cython.typeof(n))
 
 * ``struct`` can be used to create struct types.::
 
@@ -289,9 +297,57 @@ can be augmented with the following :file:`.pxd` file :file:`dostuff.pxd`:
 The :func:`cython.declare()` function can be used to specify types for global
 variables in the augmenting :file:`.pxd` file.
 
+.. _pep484_type_annotations:
+
+PEP-484 type annotations
+------------------------
+
+Python `type hints <https://www.python.org/dev/peps/pep-0484>`_
+can be used to declare argument types, as shown in the
+following example.  To avoid conflicts with other kinds of annotation
+usages, this can be disabled with the directive ``annotation_typing=False``.
+
+  .. literalinclude:: ../../examples/tutorial/pure/annotations.py
+
+Note the use of ``cython.int`` rather than ``int`` - Cython does not translate
+an ``int`` annotation to a C integer by default since the behaviour can be
+quite different with respect to overflow and division.
+
+Annotations can be combined with the ``@cython.exceptval()`` decorator for non-Python
+return types:
+
+  .. literalinclude:: ../../examples/tutorial/pure/exceptval.py
+
+Note that the default exception handling behaviour when returning C numeric types
+is to check for ``-1``, and if that was returned, check Python's error indicator
+for an exception.  This means, if no ``@exceptval`` decorator is provided, and the
+return type is a numeric type, then the default with type annotations is
+``@exceptval(-1, check=True)``, in order to make sure that exceptions are correctly
+and efficiently reported to the caller.  Exception propagation can be disabled
+explicitly with ``@exceptval(check=False)``, in which case any Python exceptions
+raised inside of the function will be printed and ignored.
+
+Since version 0.27, Cython also supports the variable annotations defined
+in `PEP 526 <https://www.python.org/dev/peps/pep-0526/>`_. This allows to
+declare types of variables in a Python 3.6 compatible way as follows:
+
+.. literalinclude:: ../../examples/tutorial/pure/pep_526.py
+
+There is currently no way to express the visibility of object attributes.
+
+Cython does not support the full range of annotations described by PEP-484.
+For example it does not currently understand features from the ``typing`` module
+such  as ``Optional[]`` or typed containers such as ``List[str]``. This is partly
+because some of these type hints are not relevant for the compilation to
+efficient C code. In other cases, however, where the generated C code could
+benefit from these type hints but does not currently, help is welcome to
+improve the type analysis in Cython.
+
 
 Tips and Tricks
 ---------------
+
+.. _calling-c-functions:
 
 Calling C functions
 ^^^^^^^^^^^^^^^^^^^

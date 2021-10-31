@@ -1,7 +1,18 @@
 {% extends "!layout.html" %}
 
+{% block relbar1 %}
+{{ super() }}
+{% if pagename != "src/donating" %}
+<div style="width: 100%; height: 3em; vertical-align: middle; text-align: center; font-weight: bold; background-color: lightgray; border: solid red 1px">
+    <p style="font-size: 110%">🤝 Like the tool? Help making it better! <a href="{{ pathto("src/donating") }}">Your donation helps!</a> 🤝</p>
+</div>
+{% endif %}
+{% endblock %}
+
+
 {% block footer %}
 {{ super() }}
+{#  ## Removed to avoid tracking our users.
 <script type="text/javascript">
 var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
 document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
@@ -11,4 +22,5 @@ try {
 var pageTracker = _gat._getTracker("UA-6139100-3");
 pageTracker._trackPageview();
 } catch(err) {}</script>
+#}
 {% endblock %}

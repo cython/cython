@@ -1,5 +1,4 @@
-# tag: numpy_old
-# cannot be named "numpy" in order to not clash with the numpy module!
+# tag: numpy
 
 cimport numpy as np
 cimport cython
@@ -11,16 +10,10 @@ def little_endian():
     cdef int endian_detector = 1
     return (<char*>&endian_detector)[0] != 0
 
-__test__ = {}
 
 def testcase(f):
-    __test__[f.__name__] = f.__doc__
-    return f
-
-def testcase_have_buffer_interface(f):
-    major, minor, *rest = np.__version__.split('.')
-    if (int(major), int(minor)) >= (1, 5):
-        __test__[f.__name__] = f.__doc__
+    # testcase decorator now does nothing (following changes to doctest)
+    # but is a useful indicator of what functions are designed as tests
     return f
 
 if little_endian():
@@ -181,7 +174,7 @@ try:
             ('a', np.dtype('i,i')),\
             ('b', np.dtype('i,i'))\
         ]))))                              # doctest: +NORMALIZE_WHITESPACE
-    array([((0, 0), (0, 0)), ((1, 2), (1, 4)), ((1, 2), (1, 4))], 
+    array([((0, 0), (0, 0)), ((1, 2), (1, 4)), ((1, 2), (1, 4))],
           dtype=[('a', [('f0', '!i4'), ('f1', '!i4')]), ('b', [('f0', '!i4'), ('f1', '!i4')])])
 
     >>> print(test_nested_dtypes(np.zeros((3,), dtype=np.dtype([\
@@ -234,7 +227,7 @@ try:
     8,16
 
     >>> test_point_record()         # doctest: +NORMALIZE_WHITESPACE
-    array([(0., 0.), (1., -1.), (2., -2.)], 
+    array([(0., 0.), (1., -1.), (2., -2.)],
           dtype=[('x', '!f8'), ('y', '!f8')])
 
 """
@@ -267,8 +260,6 @@ try:
 
 except:
     __doc__ = u""
-
-__test__[__name__] = __doc__
 
 
 def assert_dtype_sizes():
@@ -680,7 +671,6 @@ def get_Foo_array():
     data[5].b = 9.0
     return np.asarray(<Foo[:]>data).copy()
 
-@testcase_have_buffer_interface
 def test_fused_ndarray(fused_ndarray a):
     """
     >>> import cython
@@ -729,9 +719,6 @@ cpdef test_fused_cpdef_ndarray(fused_ndarray a):
     else:
         print b[5]
 
-testcase_have_buffer_interface(test_fused_cpdef_ndarray)
-
-@testcase_have_buffer_interface
 def test_fused_cpdef_ndarray_cdef_call():
     """
     >>> test_fused_cpdef_ndarray_cdef_call()
@@ -946,4 +933,16 @@ def test_broadcast_comparison(np.ndarray[double, ndim=1] a):
     return a == 0, obj == 0, a == 1, obj == 1
 
 
-include "numpy_common.pxi"
+@testcase
+def test_c_api_searchsorted(np.ndarray arr, other):
+    """
+    >>> arr = np.random.randn(10)
+    >>> other = np.random.randn(5)
+    >>> result, expected = test_c_api_searchsorted(arr, other)
+    >>> (result == expected).all()
+    True
+    """
+    result = np.PyArray_SearchSorted(arr, other, np.NPY_SEARCHRIGHT, NULL)
+
+    expected = arr.searchsorted(other, side="right")
+    return result, expected

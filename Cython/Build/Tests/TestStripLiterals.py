@@ -54,4 +54,3 @@ class TestStripLiterals(CythonTest):
     def test_extern(self):
         self.t("cdef extern from 'a.h': # comment",
                "cdef extern from '_L1_': #_L2_")
-

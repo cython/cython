@@ -5,8 +5,8 @@ import sys
 import errno
 
 try:
-  from lxml import etree
-  have_lxml = True
+    from lxml import etree
+    have_lxml = True
 except ImportError:
     have_lxml = False
     try:

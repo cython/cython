@@ -264,7 +264,7 @@ class TestPosonlyMethods(object):
     Got type error
     >>> TestPosonlyMethods().f(1, b=2)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: f() got ... keyword argument... 'b'
+    TypeError: ...f() got ... keyword argument... 'b'
     """
     def f(self, a, b, /):
         return a, b
@@ -316,16 +316,16 @@ def test_closures1(x,y):
     10
     >>> test_closures1(1,2)(3)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: g() ... positional argument...
+    TypeError: ...g() ... positional argument...
     >>> test_closures1(1,2)(3,4,5)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: g() ... positional argument...
+    TypeError: ...g() ... positional argument...
     """
-    def g(x2,/,y2):
+    def g(x2, /, y2):
         return x + y + x2 + y2
     return g
 
-def test_closures2(x,/,y):
+def test_closures2(x, /, y):
     """
     >>> test_closures2(1,2)(3,4)
     10
@@ -335,18 +335,18 @@ def test_closures2(x,/,y):
     return g
 
 
-def test_closures3(x,/,y):
+def test_closures3(x, /, y):
     """
     >>> test_closures3(1,2)(3,4)
     10
     >>> test_closures3(1,2)(3)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: g() ... positional argument...
+    TypeError: ...g() ... positional argument...
     >>> test_closures3(1,2)(3,4,5)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: g() ... positional argument...
+    TypeError: ...g() ... positional argument...
     """
-    def g(x2,/,y2):
+    def g(x2, /, y2):
         return x + y + x2 + y2
     return g
 
@@ -453,21 +453,21 @@ def f_call_1_0_0(a,/):
     """
     return (a,)
 
-def f_call_1_1_0(a,/,b):
+def f_call_1_1_0(a, /, b):
     """
     >>> f_call_1_1_0(1,2)
     (1, 2)
     """
     return (a,b)
 
-def f_call_1_1_1(a,/,b,*,c):
+def f_call_1_1_1(a, /, b, *, c):
     """
     >>> f_call_1_1_1(1,2,c=3)
     (1, 2, 3)
     """
     return (a,b,c)
 
-def f_call_1_1_1_star(a,/,b,*args,c):
+def f_call_1_1_1_star(a, /, b, *args, c):
     """
     >>> f_call_1_1_1_star(1,2,c=3)
     (1, 2, (), 3)
@@ -476,7 +476,7 @@ def f_call_1_1_1_star(a,/,b,*args,c):
     """
     return (a,b,args,c)
 
-def f_call_1_1_1_kwds(a,/,b,*,c,**kwds):
+def f_call_1_1_1_kwds(a, /, b, *, c, **kwds):
     """
     >>> f_call_1_1_1_kwds(1,2,c=3)
     (1, 2, 3, {})
@@ -485,7 +485,7 @@ def f_call_1_1_1_kwds(a,/,b,*,c,**kwds):
     """
     return (a,b,c,kwds)
 
-def f_call_1_1_1_star_kwds(a,/,b,*args,c,**kwds):
+def f_call_1_1_1_star_kwds(a, /, b, *args, c, **kwds):
     """
     >>> f_call_1_1_1_star_kwds(1,2,c=3,d=4,e=5) == (1, 2, (), 3, {'d': 4, 'e': 5})
     True
@@ -494,7 +494,7 @@ def f_call_1_1_1_star_kwds(a,/,b,*args,c,**kwds):
     """
     return (a,b,args,c,kwds)
 
-def f_call_one_optional_kwd(a,/,*,b=2):
+def f_call_one_optional_kwd(a, /, *, b=2):
     """
     >>> f_call_one_optional_kwd(1)
     (1, 2)
@@ -503,7 +503,7 @@ def f_call_one_optional_kwd(a,/,*,b=2):
     """
     return (a,b)
 
-def f_call_posonly_stararg(a,/,*args):
+def f_call_posonly_stararg(a, /, *args):
     """
     >>> f_call_posonly_stararg(1)
     (1, ())
@@ -512,7 +512,7 @@ def f_call_posonly_stararg(a,/,*args):
     """
     return (a,args)
 
-def f_call_posonly_kwarg(a,/,**kw):
+def f_call_posonly_kwarg(a, /, **kw):
     """
     >>> f_call_posonly_kwarg(1)
     (1, {})
@@ -522,7 +522,7 @@ def f_call_posonly_kwarg(a,/,**kw):
     """
     return (a,kw)
 
-def f_call_posonly_stararg_kwarg(a,/,*args,**kw):
+def f_call_posonly_stararg_kwarg(a, /, *args, **kw):
     """
     >>> f_call_posonly_stararg_kwarg(1)
     (1, (), {})
@@ -562,7 +562,7 @@ class TestExtensionClass:
     (1, 2, 4)
     >>> t.f(1, 2, 5, c=6)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: f() got multiple values for ...argument 'c'
+    TypeError: ...f() got multiple values for ...argument 'c'
     """
     def f(self, a, b, /, c=3):
         return (a,b,c)

@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, werror, cpp11
+# tag: cpp, werror, cpp11, no-cpp-locals
 # cython: experimental_cpp_class_def=True
 
 cdef double pi
@@ -9,6 +9,7 @@ from libcpp cimport bool
 from libcpp.memory cimport unique_ptr
 from libcpp.vector cimport vector
 from cython.operator cimport dereference as deref
+import cython
 
 cdef extern from "shapes.h" namespace "shapes":
     cdef cppclass Shape:
@@ -23,6 +24,11 @@ cdef cppclass RegularPolygon(Shape):
     float area() const:
         cdef double theta = pi / this.n
         return this.radius * this.radius * sin(theta) * cos(theta) * this.n
+    void do_with() except *:
+        # only a compile test - the file doesn't actually have to exist
+        # "with" was broken by https://github.com/cython/cython/issues/4212
+        with open("doesnt matter") as f:
+            return
 
 def test_Poly(int n, float radius=1):
     """

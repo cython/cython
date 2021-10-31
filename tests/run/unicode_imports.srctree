@@ -7,8 +7,7 @@ PYTHON -m mydoctest
 ########### mydoctest.py #######
 
 import sys
-if (sys.version_info[0] < 3 or
-    (sys.version_info[0] == 3 and sys.version_info[1] < 5)):
+if sys.version_info < (3, 5):
     # The module is only Cythonized and not build for these versions
     # so don't run the tests
     exit()
@@ -30,7 +29,7 @@ from __future__ import unicode_literals
 import sys
 from Cython.Build import cythonize
 
-files = ["mymoδ.pyx", "from_cy.pyx"]
+files = ["mymoð.pyx", "from_cy.pyx"]
 
 
 # For Python 2 and Python <= 3.4 just run pyx->c; 
@@ -44,7 +43,7 @@ if sys.version_info >= (3, 5):
         ext_modules = modules
     )
 
-############ mymoδ.pyx #########
+############ mymoð.pyx #########
 
 def f():
     return True
@@ -52,7 +51,7 @@ def f():
 cdef public api void cdef_func():
     pass
 
-############ pxd_moδ.pxd ##########
+############ pxd_moð.pxd ##########
 
 cdef struct S:
     int x
@@ -63,11 +62,11 @@ cdef public api void cdef_func() # just to test generation of headers
 
 # -*- coding: utf-8 -*-
 
-import mymoδ
-from mymoδ import f
+import mymoð
+from mymoð import f
 
 __doc__ = """
->>> mymoδ.f()
+>>> mymoð.f()
 True
 >>> f()
 True
@@ -77,12 +76,12 @@ True
 
 # -*- coding: utf-8 -*-
 
-import mymoδ
+import mymoð
 
-from mymoδ import f
+from mymoð import f
 
-cimport pxd_moδ
-from pxd_moδ cimport S
+cimport pxd_moð
+from pxd_moð cimport S
 
 
 def test_imported():
@@ -90,14 +89,15 @@ def test_imported():
     >>> test_imported()
     True
     """
-    return mymoδ.f() and f() # True and True
+    return mymoð.f() and f() # True and True
+
 
 def test_cimported():
     """
     >>> test_cimported()
     3
     """
-    cdef pxd_moδ.S v1
+    cdef pxd_moð.S v1
     v1.x = 1
     cdef S v2
     v2.x = 2

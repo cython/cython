@@ -1,29 +1,32 @@
 from __future__ import absolute_import
 
-import sys, os, re, inspect
-import imp
-
 import hashlib
+import inspect
+import os
+import re
+import sys
+
 from distutils.core import Distribution, Extension
 from distutils.command.build_ext import build_ext
 
 import Cython
 from ..Compiler.Main import Context
-from ..Compiler.Options import CompilationOptions, default_options
+from ..Compiler.Options import default_options
 
-from ..Compiler.ParseTreeTransforms import (CythonTransform,
-        SkipDeclarations, AnalyseDeclarationsTransform, EnvTransform)
+from ..Compiler.Visitor import CythonTransform, EnvTransform
+from ..Compiler.ParseTreeTransforms import SkipDeclarations
 from ..Compiler.TreeFragment import parse_from_strings
 from ..Compiler.StringEncoding import _unicode
 from .Dependencies import strip_string_literals, cythonize, cached_function
-from ..Compiler import Pipeline, Nodes
+from ..Compiler import Pipeline
 from ..Utils import get_cython_cache_dir
 import cython as cython_module
 
-IS_PY3 = sys.version_info >= (3, 0)
+
+IS_PY3 = sys.version_info >= (3,)
 
 # A utility function to convert user-supplied ASCII strings to unicode.
-if sys.version_info[0] < 3:
+if not IS_PY3:
     def to_unicode(s):
         if isinstance(s, bytes):
             return s.decode('ascii')
@@ -31,6 +34,20 @@ if sys.version_info[0] < 3:
             return s
 else:
     to_unicode = lambda x: x
+
+
+if sys.version_info < (3, 5):
+    import imp
+    def load_dynamic(name, module_path):
+        return imp.load_dynamic(name, module_path)
+else:
+    import importlib.util as _importlib_util
+    def load_dynamic(name, module_path):
+        spec = _importlib_util.spec_from_file_location(name, module_path)
+        module = _importlib_util.module_from_spec(spec)
+        # sys.modules[name] = module
+        spec.loader.exec_module(module)
+        return module
 
 
 class UnboundSymbols(EnvTransform, SkipDeclarations):
@@ -117,6 +134,7 @@ def _create_context(cython_include_dirs):
 _cython_inline_cache = {}
 _cython_inline_default_context = _create_context(('.',))
 
+
 def _populate_unbound(kwds, unbound_symbols, locals=None, globals=None):
     for symbol in unbound_symbols:
         if symbol not in kwds:
@@ -133,6 +151,12 @@ def _populate_unbound(kwds, unbound_symbols, locals=None, globals=None):
             else:
                 print("Couldn't find %r" % symbol)
 
+
+def _inline_key(orig_code, arg_sigs, language_level):
+    key = orig_code, arg_sigs, sys.version_info, sys.executable, language_level, Cython.__version__
+    return hashlib.sha1(_unicode(key).encode('utf-8')).hexdigest()
+
+
 def cython_inline(code, get_type=unsafe_type,
                   lib_dir=os.path.join(get_cython_cache_dir(), 'inline'),
                   cython_include_dirs=None, cython_compiler_directives=None,
@@ -142,13 +166,22 @@ def cython_inline(code, get_type=unsafe_type,
         get_type = lambda x: 'object'
     ctx = _create_context(tuple(cython_include_dirs)) if cython_include_dirs else _cython_inline_default_context
 
+    cython_compiler_directives = dict(cython_compiler_directives) if cython_compiler_directives else {}
+    if language_level is None and 'language_level' not in cython_compiler_directives:
+        language_level = '3str'
+    if language_level is not None:
+        cython_compiler_directives['language_level'] = language_level
+
+    key_hash = None
+
     # Fast path if this has been called in this session.
     _unbound_symbols = _cython_inline_cache.get(code)
     if _unbound_symbols is not None:
         _populate_unbound(kwds, _unbound_symbols, locals, globals)
         args = sorted(kwds.items())
         arg_sigs = tuple([(get_type(value, ctx), arg) for arg, value in args])
-        invoke = _cython_inline_cache.get((code, arg_sigs))
+        key_hash = _inline_key(code, arg_sigs, language_level)
+        invoke = _cython_inline_cache.get((code, arg_sigs, key_hash))
         if invoke is not None:
             arg_list = [arg[1] for arg in args]
             return invoke(*arg_list)
@@ -169,10 +202,6 @@ def cython_inline(code, get_type=unsafe_type,
             # Parsing from strings not fully supported (e.g. cimports).
             print("Could not parse code as a string (to extract unbound symbols).")
 
-    cython_compiler_directives = dict(cython_compiler_directives or {})
-    if language_level is not None:
-        cython_compiler_directives['language_level'] = language_level
-
     cimports = []
     for name, arg in list(kwds.items()):
         if arg is cython_module:
@@ -180,8 +209,9 @@ def cython_inline(code, get_type=unsafe_type,
             del kwds[name]
     arg_names = sorted(kwds)
     arg_sigs = tuple([(get_type(kwds[arg], ctx), arg) for arg in arg_names])
-    key = orig_code, arg_sigs, sys.version_info, sys.executable, language_level, Cython.__version__
-    module_name = "_cython_inline_" + hashlib.sha1(_unicode(key).encode('utf-8')).hexdigest()
+    if key_hash is None:
+        key_hash = _inline_key(orig_code, arg_sigs, language_level)
+    module_name = "_cython_inline_" + key_hash
 
     if module_name in sys.modules:
         module = sys.modules[module_name]
@@ -199,6 +229,7 @@ def cython_inline(code, get_type=unsafe_type,
             os.makedirs(lib_dir)
         if force or not os.path.isfile(module_path):
             cflags = []
+            define_macros = []
             c_include_dirs = []
             qualified = re.compile(r'([.\w]+)[.]')
             for type, _ in arg_sigs:
@@ -209,6 +240,7 @@ def cython_inline(code, get_type=unsafe_type,
                     if m.groups()[0] == 'numpy':
                         import numpy
                         c_include_dirs.append(numpy.get_include())
+                        define_macros.append(("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION"))
                         # cflags.append('-Wno-unused')
             module_body, func_body = extract_func_code(code)
             params = ', '.join(['%s %s' % a for a in arg_sigs])
@@ -231,10 +263,12 @@ def __invoke(%(params)s):
             finally:
                 fh.close()
             extension = Extension(
-                name = module_name,
-                sources = [pyx_file],
-                include_dirs = c_include_dirs,
-                extra_compile_args = cflags)
+                name=module_name,
+                sources=[pyx_file],
+                include_dirs=c_include_dirs or None,
+                extra_compile_args=cflags or None,
+                define_macros=define_macros or None,
+            )
             if build_extension is None:
                 build_extension = _get_build_extension()
             build_extension.extensions = cythonize(
@@ -246,11 +280,12 @@ def __invoke(%(params)s):
             build_extension.build_lib  = lib_dir
             build_extension.run()
 
-        module = imp.load_dynamic(module_name, module_path)
+        module = load_dynamic(module_name, module_path)
 
-    _cython_inline_cache[orig_code, arg_sigs] = module.__invoke
+    _cython_inline_cache[orig_code, arg_sigs, key_hash] = module.__invoke
     arg_list = [kwds[arg] for arg in arg_names]
     return module.__invoke(*arg_list)
+
 
 # Cached suffix used by cython_inline above.  None should get
 # overridden with actual value upon the first cython_inline invocation
@@ -296,37 +331,6 @@ def extract_func_code(code):
     return '\n'.join(module), '    ' + '\n    '.join(function)
 
 
-try:
-    from inspect import getcallargs
-except ImportError:
-    def getcallargs(func, *arg_values, **kwd_values):
-        all = {}
-        args, varargs, kwds, defaults = inspect.getargspec(func)
-        if varargs is not None:
-            all[varargs] = arg_values[len(args):]
-        for name, value in zip(args, arg_values):
-            all[name] = value
-        for name, value in list(kwd_values.items()):
-            if name in args:
-                if name in all:
-                    raise TypeError("Duplicate argument %s" % name)
-                all[name] = kwd_values.pop(name)
-        if kwds is not None:
-            all[kwds] = kwd_values
-        elif kwd_values:
-            raise TypeError("Unexpected keyword arguments: %s" % list(kwd_values))
-        if defaults is None:
-            defaults = ()
-        first_default = len(args) - len(defaults)
-        for ix, name in enumerate(args):
-            if name not in all:
-                if ix >= first_default:
-                    all[name] = defaults[ix - first_default]
-                else:
-                    raise TypeError("Missing argument: %s" % name)
-        return all
-
-
 def get_body(source):
     ix = source.index(':')
     if source[:5] == 'lambda':
@@ -344,7 +348,7 @@ class RuntimeCompiledFunction(object):
         self._body = get_body(inspect.getsource(f))
 
     def __call__(self, *args, **kwds):
-        all = getcallargs(self._f, *args, **kwds)
+        all = inspect.getcallargs(self._f, *args, **kwds)
         if IS_PY3:
             return cython_inline(self._body, locals=self._f.__globals__, globals=self._f.__globals__, **all)
         else:

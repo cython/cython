@@ -3,7 +3,7 @@
 
 def f():
     a = 1
-    ́b = 2 # looks like an identation error but is actually a combining accent as the first letter of column 4
+    ́b = 2 # looks like an indentation error but is actually a combining accent as the first letter of column 4
     c = 3
 
 _ERRORS = u"""

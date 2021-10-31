@@ -12,7 +12,7 @@ mention.
 .. Note::
 
     Everything said on this page applies only to extension types, defined
-    with the :keyword:`cdef class` statement. It doesn't apply to classes defined with the
+    with the :keyword:`cdef` class statement. It doesn't apply to classes defined with the
     Python :keyword:`class` statement, where the normal Python rules apply.
 
 .. _declaration:
@@ -129,34 +129,51 @@ executed unless they are explicitly called by the subclass.
 Arithmetic methods
 -------------------
 
-Arithmetic operator methods, such as :meth:`__add__`, behave differently from their
-Python counterparts. There are no separate "reversed" versions of these
-methods (:meth:`__radd__`, etc.) Instead, if the first operand cannot perform the
-operation, the same method of the second operand is called, with the operands
-in the same order.
+Arithmetic operator methods, such as :meth:`__add__`, used to behave differently
+from their Python counterparts in Cython 0.x, following the low-level semantics
+of the C-API slot functions.  Since Cython 3.0, they are called in the same way
+as in Python, including the separate "reversed" versions of these methods
+(:meth:`__radd__`, etc.).
 
-This means that you can't rely on the first parameter of these methods being
-"self" or being the right type, and you should test the types of both operands
-before deciding what to do. If you can't handle the combination of types you've
-been given, you should return `NotImplemented`.
+Previously, if the first operand could not perform the operation, the same method
+of the second operand was called, with the operands in the same order.
+This means that you could not rely on the first parameter of these methods being
+"self" or being the right type, and you needed to test the types of both operands
+before deciding what to do.
 
-This also applies to the in-place arithmetic method :meth:`__ipow__`. It doesn't apply
-to any of the other in-place methods (:meth:`__iadd__`, etc.) which always
-take `self` as the first argument.
+If backwards compatibility is needed, the normal operator method (``__add__``, etc.)
+can still be implemented to support both variants, applying a type check to the
+arguments.  The reversed method (``__radd__``, etc.) can always be implemented
+with ``self`` as first argument and will be ignored by older Cython versions, whereas
+Cython 3.x and later will only call the normal method with the expected argument order,
+and otherwise call the reversed method instead.
 
-.. _righ_comparisons:
+Alternatively, the old Cython 0.x (or native C-API) behaviour is still available with
+the directive ``c_api_binop_methods=True``.
+
+If you can't handle the combination of types you've been given, you should return
+``NotImplemented``.  This will let Python's operator implementation first try to apply
+the reversed operator to the second operand, and failing that as well, report an
+appropriate error to the user.
+
+This change in behaviour also applies to the in-place arithmetic method :meth:`__ipow__`.
+It does not apply to any of the other in-place methods (:meth:`__iadd__`, etc.)
+which always take ``self`` as the first argument.
+
+.. _rich_comparisons:
 
 Rich comparisons
 -----------------
 
-There are two ways to implement comparison methods.
+There are a few ways to implement comparison methods.
 Depending on the application, one way or the other may be better:
 
-* The first way uses the 6 Python
+* Use the 6 Python
   `special methods <https://docs.python.org/3/reference/datamodel.html#basic-customization>`_
   :meth:`__eq__`, :meth:`__lt__`, etc.
-  This is new since Cython 0.27 and works exactly as in plain Python classes.
-* The second way uses a single special method :meth:`__richcmp__`.
+  This is supported since Cython 0.27 and works exactly as in plain Python classes.
+
+* Use a single special method :meth:`__richcmp__`.
   This implements all rich comparison operations in one method.
   The signature is ``def __richcmp__(self, other, int op)``.
   The integer argument ``op`` indicates which operation is to be performed
@@ -177,6 +194,27 @@ Depending on the application, one way or the other may be better:
   +-----+-------+
 
   These constants can be cimported from the ``cpython.object`` module.
+
+* Use the ``@cython.total_ordering`` decorator, which is a low-level
+  re-implementation of the `functools.total_ordering
+  <https://docs.python.org/3/library/functools.html#functools.total_ordering>`_
+  decorator specifically for ``cdef`` classes.  (Normal Python classes can use
+  the original ``functools`` decorator.)
+
+  .. code-block:: cython
+
+    @cython.total_ordering
+    cdef class ExtGe:
+        cdef int x
+
+        def __ge__(self, other):
+            if not isinstance(other, ExtGe):
+                return NotImplemented
+            return self.x >= (<ExtGe>other).x
+
+        def __eq__(self, other):
+            return isinstance(other, ExtGe) and self.x == (<ExtGe>other).x
+
 
 .. _the__next__method:
 
@@ -269,47 +307,53 @@ Arithmetic operators
 
 https://docs.python.org/3/reference/datamodel.html#emulating-numeric-types
 
-+-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| Name 	                | Parameters                            | Return type | 	Description                                 |
-+=======================+=======================================+=============+=====================================================+
-| __add__               | x, y 	                                | object      | binary `+` operator                                 |
-+-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| __sub__ 	        | x, y 	                                | object      | binary `-` operator                                 |
-+-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| __mul__ 	        | x, y 	                                | object      | `*` operator                                        |
-+-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| __div__ 	        | x, y 	                                | object      | `/`  operator for old-style division                |
-+-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| __floordiv__ 	        | x, y 	                                | object      | `//`  operator                                      |
-+-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| __truediv__ 	        | x, y 	                                | object      | `/`  operator for new-style division                |
-+-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| __mod__ 	        | x, y 	                                | object      | `%` operator                                        |
-+-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| __divmod__ 	        | x, y 	                                | object      | combined div and mod                                |
-+-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| __pow__ 	        | x, y, z 	                        | object      | `**` operator or pow(x, y, z)                       |
-+-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| __neg__ 	        | self 	                                | object      | unary `-` operator                                  |
-+-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| __pos__ 	        | self 	                                | object      | unary `+` operator                                  |
-+-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| __abs__ 	        | self 	                                | object      | absolute value                                      |
-+-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| __nonzero__ 	        | self 	                                | int 	      | convert to boolean                                  |
-+-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| __invert__ 	        | self 	                                | object      | `~` operator                                        |
-+-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| __lshift__ 	        | x, y 	                                | object      | `<<` operator                                       |
-+-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| __rshift__ 	        | x, y 	                                | object      | `>>` operator                                       |
-+-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| __and__ 	        | x, y 	                                | object      | `&` operator                                        |
-+-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| __or__ 	        | x, y 	                                | object      | `|` operator                                        |
-+-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| __xor__ 	        | x, y 	                                | object      | `^` operator                                        |
-+-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
++-----------------------------+--------------------+-------------+-----------------------------------------------------+
+| Name 	                      | Parameters         | Return type | Description                                         |
++=============================+====================+=============+=====================================================+
+| __add__, __radd__           | self, other        | object      | binary `+` operator                                 |
++-----------------------------+--------------------+-------------+-----------------------------------------------------+
+| __sub__, __rsub__           | self, other        | object      | binary `-` operator                                 |
++-----------------------------+--------------------+-------------+-----------------------------------------------------+
+| __mul__, __rmul__           | self, other        | object      | `*` operator                                        |
++-----------------------------+--------------------+-------------+-----------------------------------------------------+
+| __div__, __rdiv__           | self, other        | object      | `/`  operator for old-style division                |
++-----------------------------+--------------------+-------------+-----------------------------------------------------+
+| __floordiv__, __rfloordiv__ | self, other        | object      | `//`  operator                                      |
++-----------------------------+--------------------+-------------+-----------------------------------------------------+
+| __truediv__, __rtruediv__   | self, other        | object      | `/`  operator for new-style division                |
++-----------------------------+--------------------+-------------+-----------------------------------------------------+
+| __mod__, __rmod__           | self, other        | object      | `%` operator                                        |
++-----------------------------+--------------------+-------------+-----------------------------------------------------+
+| __divmod__, __rdivmod__     | self, other        | object      | combined div and mod                                |
++-----------------------------+--------------------+-------------+-----------------------------------------------------+
+| __pow__, __rpow__           | self, other, [mod] | object      | `**` operator or pow(x, y, [mod])                   |
++-----------------------------+--------------------+-------------+-----------------------------------------------------+
+| __neg__                     | self               | object      | unary `-` operator                                  |
++-----------------------------+--------------------+-------------+-----------------------------------------------------+
+| __pos__                     | self               | object      | unary `+` operator                                  |
++-----------------------------+--------------------+-------------+-----------------------------------------------------+
+| __abs__                     | self               | object      | absolute value                                      |
++-----------------------------+--------------------+-------------+-----------------------------------------------------+
+| __nonzero__ 	              | self               | int         | convert to boolean                                  |
++-----------------------------+--------------------+-------------+-----------------------------------------------------+
+| __invert__ 	              | self               | object      | `~` operator                                        |
++-----------------------------+--------------------+-------------+-----------------------------------------------------+
+| __lshift__, __rlshift__     | self, other        | object      | `<<` operator                                       |
++-----------------------------+--------------------+-------------+-----------------------------------------------------+
+| __rshift__, __rrshift__     | self, other        | object      | `>>` operator                                       |
++-----------------------------+--------------------+-------------+-----------------------------------------------------+
+| __and__, __rand__           | self, other        | object      | `&` operator                                        |
++-----------------------------+--------------------+-------------+-----------------------------------------------------+
+| __or__, __ror__             | self, other        | object      | `|` operator                                        |
++-----------------------------+--------------------+-------------+-----------------------------------------------------+
+| __xor__, __rxor__           | self, other        | object      | `^` operator                                        |
++-----------------------------+--------------------+-------------+-----------------------------------------------------+
+
+Note that Cython 0.x did not make use of the ``__r...__`` variants and instead
+used the bidirectional C slot signature for the regular methods, thus making the
+first argument ambiguous (not 'self' typed).
+Since Cython 3.0, the operator calls are passed to the respective special methods.
+See the section on :ref:`Arithmetic methods <arithmetic_methods>` above.
 
 Numeric conversions
 ^^^^^^^^^^^^^^^^^^^
@@ -354,7 +398,7 @@ https://docs.python.org/3/reference/datamodel.html#emulating-numeric-types
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | __imod__ 	        | self, x 	                        | object      | `%=` operator                                       |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| __ipow__ 	        | x, y, z 	                        | object      | `**=` operator                                      |
+| __ipow__ 	        | self, y, z                            | object      | `**=` operator                                      |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | __ilshift__ 	        | self, x 	                        | object      | `<<=` operator                                      |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+

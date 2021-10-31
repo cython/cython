@@ -24,6 +24,8 @@ class PyrexError(Exception):
 class PyrexWarning(Exception):
     pass
 
+class CannotSpecialize(PyrexError):
+    pass
 
 def context(position):
     source = position[0]
@@ -172,12 +174,12 @@ def error(position, message):
     if position is None:
         raise InternalError(message)
     err = CompileError(position, message)
-    if DebugFlags.debug_exception_on_error: raise Exception(err) # debug
+    if DebugFlags.debug_exception_on_error: raise Exception(err)  # debug
     report_error(err)
     return err
 
 
-LEVEL = 1 # warn about all errors level 1 or higher
+LEVEL = 1  # warn about all errors level 1 or higher
 
 def _write_file_encode(file, line):
     try:

@@ -1,7 +1,7 @@
 from .utility cimport pair
 
 cdef extern from "<unordered_map>" namespace "std" nogil:
-    cdef cppclass unordered_map[T, U]:
+    cdef cppclass unordered_map[T, U, HASH=*, PRED=*, ALLOCATOR=*]:
         ctypedef T key_type
         ctypedef U mapped_type
         ctypedef pair[const T, U] value_type
@@ -66,6 +66,7 @@ cdef extern from "<unordered_map>" namespace "std" nogil:
         #value_compare value_comp()
         void max_load_factor(float)
         float max_load_factor()
+        float load_factor()
         void rehash(size_t)
         void reserve(size_t)
         size_t bucket_count()

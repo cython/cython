@@ -128,7 +128,8 @@ def inject_utility_code_stage_factory(context):
                         module_node.scope.utility_code_list.append(dep)
             tree = utilcode.get_tree(cython_scope=context.cython_scope)
             if tree:
-                module_node.merge_in(tree.body, tree.scope, merge_scope=True)
+                module_node.merge_in(tree.with_compiler_directives(),
+                                     tree.scope, merge_scope=True)
         return module_node
     return inject_utility_code_stage
 
@@ -146,10 +147,10 @@ def create_pipeline(context, mode, exclude_classes=()):
     from .ParseTreeTransforms import CreateClosureClasses, MarkClosureVisitor, DecoratorTransform
     from .ParseTreeTransforms import TrackNumpyAttributes, InterpretCompilerDirectives, TransformBuiltinMethods
     from .ParseTreeTransforms import ExpandInplaceOperators, ParallelRangeTransform
-    from .ParseTreeTransforms import CalculateQualifiedNamesTransform, ReplacePropertyNode
+    from .ParseTreeTransforms import CalculateQualifiedNamesTransform
     from .TypeInference import MarkParallelAssignments, MarkOverflowingArithmetic
-    from .ParseTreeTransforms import AdjustDefByDirectives, AlignFunctionDefinitions
-    from .ParseTreeTransforms import RemoveUnreachableCode, GilCheck
+    from .ParseTreeTransforms import AdjustDefByDirectives, AlignFunctionDefinitions, AutoCpdefFunctionDefinitions
+    from .ParseTreeTransforms import RemoveUnreachableCode, GilCheck, CoerceCppTemps
     from .FlowControl import ControlFlowAnalysis
     from .AnalysedTreeTransforms import AutoTestDictTransform
     from .AutoDocTransforms import EmbedSignature
@@ -185,10 +186,11 @@ def create_pipeline(context, mode, exclude_classes=()):
         TrackNumpyAttributes(),
         InterpretCompilerDirectives(context, context.compiler_directives),
         ParallelRangeTransform(context),
-        AdjustDefByDirectives(context),
         WithTransform(context),
-        MarkClosureVisitor(context),
+        AdjustDefByDirectives(context),
         _align_function_definitions,
+        MarkClosureVisitor(context),
+        AutoCpdefFunctionDefinitions(context),
         RemoveUnreachableCode(context),
         ConstantFolding(),
         FlattenInListTransform(),
@@ -198,7 +200,6 @@ def create_pipeline(context, mode, exclude_classes=()):
         AnalyseDeclarationsTransform(context),
         AutoTestDictTransform(context),
         EmbedSignature(context),
-        ReplacePropertyNode(context),
         EarlyReplaceBuiltinCalls(context),  ## Necessary?
         TransformBuiltinMethods(context),
         MarkParallelAssignments(context),
@@ -220,6 +221,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         ConsolidateOverflowCheck(context),
         DropRefcountingTransform(),
         FinalOptimizePhase(context),
+        CoerceCppTemps(context),
         GilCheck(),
         ]
     filtered_stages = []
@@ -239,7 +241,7 @@ def create_pyx_pipeline(context, options, result, py=False, exclude_classes=()):
         test_support.append(TreeAssertVisitor())
 
     if options.gdb_debug:
-        from ..Debugger import DebugWriter # requires Py2.5+
+        from ..Debugger import DebugWriter  # requires Py2.5+
         from .ParseTreeTransforms import DebugTransform
         context.gdb_debug_outputwriter = DebugWriter.CythonDebugWriter(
             options.output_dir)
@@ -285,11 +287,25 @@ def create_pyx_as_pxd_pipeline(context, result):
                                            FlattenInListTransform,
                                            WithTransform
                                            ])
+    from .Visitor import VisitorTransform
+    class SetInPxdTransform(VisitorTransform):
+        # A number of nodes have an "in_pxd" attribute which affects AnalyseDeclarationsTransform
+        # (for example controlling pickling generation). Set it, to make sure we don't mix them up with
+        # the importing main module.
+        # FIXME: This should be done closer to the parsing step.
+        def visit_StatNode(self, node):
+            if hasattr(node, "in_pxd"):
+                node.in_pxd = True
+            self.visitchildren(node)
+            return node
+
+        visit_Node = VisitorTransform.recurse_to_children
+
     for stage in pyx_pipeline:
         pipeline.append(stage)
         if isinstance(stage, AnalyseDeclarationsTransform):
-            # This is the last stage we need.
-            break
+            pipeline.insert(-1, SetInPxdTransform())
+            break  # This is the last stage we need.
     def fake_pxd(root):
         for entry in root.scope.entries.values():
             if not entry.in_cinclude:

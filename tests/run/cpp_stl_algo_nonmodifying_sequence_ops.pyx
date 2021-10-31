@@ -4,8 +4,8 @@
 from cython.operator cimport dereference as deref
 
 from libcpp cimport bool
-from libcpp.algorithm cimport all_of, any_of, none_of, count, count_if, mismatch, find, find_if, find_if_not, find_end
-from libcpp.algorithm cimport find_first_of, adjacent_find, search, search_n
+from libcpp.algorithm cimport all_of, any_of, none_of, for_each, count, count_if, mismatch, find, find_if, find_if_not
+from libcpp.algorithm cimport find_end, find_first_of, adjacent_find, search, search_n
 from libcpp.iterator cimport distance
 from libcpp.string cimport string
 from libcpp.vector cimport vector
@@ -61,7 +61,23 @@ def count_ones(vector[int] values):
     return count(values.begin(), values.end(), 1)
 
 
-def count_odd(vector[int]  values):
+cdef void add_one(int &i):
+    # https://github.com/cython/cython/issues/1863
+    (&i)[0] += 1
+
+
+def increment_ints(vector[int] values):
+    """
+    Test for_each.
+
+    >>> increment_ints([3, 4, 2, 8, 15, 267])
+    [4, 5, 3, 9, 16, 268]
+    """
+    for_each(values.begin(), values.end(), &add_one)
+    return values
+
+
+def count_odd(vector[int] values):
     """
     Test count_if with is_odd predicate.
 
@@ -174,7 +190,7 @@ def find_last_int_sequence2(vector[int] values, vector[int] target):
     4
     >>> find_last_int_sequence2([1, 2, 3], [4, 5])
     """
-    result = find_end(values.begin(), values.end(), target.begin(), target.end(), <bool (*)(int, int)>is_equal)
+    result = find_end(values.begin(), values.end(), target.begin(), target.end(), &is_equal)
     if result != values.end():
         return distance(values.begin(), result)
     else:
@@ -264,7 +280,7 @@ def in_quote2(string quote, string word):
     >>> in_quote2(b"why waste time learning, when ignorance is instantaneous?", b"lemming")
     False
     """
-    return search(quote.begin(), quote.end(), word.begin(), word.end(), <bool (*)(int, int)>is_equal) != quote.end()
+    return search(quote.begin(), quote.end(), word.begin(), word.end(), &is_equal) != quote.end()
 
 
 def consecutive_values(string c, int count, char v):
@@ -288,4 +304,4 @@ def consecutive_values2(string c, int count, char v):
     >>> consecutive_values2(b"1001010100010101001010101", 3, ord("0"))
     True
     """
-    return search_n(c.begin(), c.end(), count, v, <bool (*)(int, int)>is_equal) != c.end()
+    return search_n(c.begin(), c.end(), count, v, &is_equal) != c.end()

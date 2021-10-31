@@ -119,9 +119,9 @@ def pyx_to_dll(filename, ext=None, force_rebuild=0, build_in_temp=False, pyxbuil
                 while count < 100:
                     count += 1
                     r_path = os.path.join(obj_build_ext.build_lib,
-                                          basename + '.reload%s'%count)
+                                          basename + '.reload%s' % count)
                     try:
-                        import shutil # late import / reload_support is: debugging
+                        import shutil  # late import / reload_support is: debugging
                         try:
                             # Try to unlink first --- if the .so file
                             # is mmapped by another process,
@@ -140,7 +140,7 @@ def pyx_to_dll(filename, ext=None, force_rebuild=0, build_in_temp=False, pyxbuil
                     break
                 else:
                     # used up all 100 slots
-                    raise ImportError("reload count for %s reached maximum"%org_path)
+                    raise ImportError("reload count for %s reached maximum" % org_path)
                 _reloads[org_path]=(timestamp, so_path, count)
         return so_path
     except KeyboardInterrupt:
@@ -157,4 +157,3 @@ def pyx_to_dll(filename, ext=None, force_rebuild=0, build_in_temp=False, pyxbuil
 if __name__=="__main__":
     pyx_to_dll("dummy.pyx")
     from . import test
-

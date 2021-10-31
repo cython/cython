@@ -24,6 +24,7 @@ cdef extern from "<fcntl.h>" nogil:
     enum: SEEK_END
 
     enum: O_CREAT
+    enum: O_DIRECT
     enum: O_EXCL
     enum: O_NOCTTY
     enum: O_TRUNC

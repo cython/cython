@@ -42,8 +42,8 @@ py_reserved_words = [
     "global", "nonlocal", "def", "class", "print", "del", "pass", "break",
     "continue", "return", "raise", "import", "exec", "try",
     "except", "finally", "while", "if", "elif", "else", "for",
-    "in", "assert", "and", "or", "not", "is", "in", "lambda",
-    "from", "yield", "with", "nonlocal",
+    "in", "assert", "and", "or", "not", "is", "lambda",
+    "from", "yield", "with",
 ]
 
 pyx_reserved_words = py_reserved_words + [
@@ -136,7 +136,7 @@ class SourceDescriptor(object):
     _escaped_description = None
     _cmp_name = ''
     def __str__(self):
-        assert False # To catch all places where a descriptor is used directly as a filename
+        assert False  # To catch all places where a descriptor is used directly as a filename
 
     def set_file_type_from_name(self, filename):
         name, ext = os.path.splitext(filename)
@@ -344,7 +344,7 @@ class PyrexScanner(Scanner):
 
     def normalize_ident(self, text):
         try:
-            text.encode('ascii') # really just name.isascii but supports Python 2 and 3
+            text.encode('ascii')  # really just name.isascii but supports Python 2 and 3
         except UnicodeEncodeError:
             text = normalize('NFKC', text)
         self.produce(IDENT, text)
@@ -452,7 +452,7 @@ class PyrexScanner(Scanner):
             systring = self.context.intern_ustring(systring)
         self.sy = sy
         self.systring = systring
-        if False: # debug_scanner:
+        if False:  # debug_scanner:
             _, line, col = self.position()
             if not self.systring or self.sy == self.systring:
                 t = self.sy

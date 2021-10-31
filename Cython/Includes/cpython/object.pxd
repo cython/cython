@@ -132,6 +132,17 @@ cdef extern from "Python.h":
     # failure. This is the equivalent of the Python statement "del
     # o.attr_name".
 
+    object PyObject_GenericGetDict(object o, void *context)
+    # Return value: New reference.
+    # A generic implementation for the getter of a __dict__ descriptor. It
+    # creates the dictionary if necessary.
+    # New in version 3.3.
+
+    int PyObject_GenericSetDict(object o, object value, void *context) except -1
+    # A generic implementation for the setter of a __dict__ descriptor. This
+    # implementation does not allow the dictionary to be deleted.
+    # New in version 3.3.
+
     int Py_LT, Py_LE, Py_EQ, Py_NE, Py_GT, Py_GE
 
     object PyObject_RichCompare(object o1, object o2, int opid)
@@ -331,6 +342,13 @@ cdef extern from "Python.h":
     # the sequence and mapping protocols, the sequence length is
     # returned. On error, -1 is returned. This is the equivalent to
     # the Python expression "len(o)".
+
+    Py_ssize_t PyObject_LengthHint(object o, Py_ssize_t default) except -1
+    # Return an estimated length for the object o. First try to return its
+    # actual length, then an estimate using __length_hint__(), and finally
+    # return the default value. On error, return -1. This is the equivalent to
+    # the Python expression "operator.length_hint(o, default)".
+    # New in version 3.4.
 
     object PyObject_GetItem(object o, object key)
     # Return value: New reference.

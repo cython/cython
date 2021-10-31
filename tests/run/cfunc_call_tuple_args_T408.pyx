@@ -1,4 +1,4 @@
-# ticket: 408
+# ticket: t408
 
 __doc__ = """
 >>> call_with_tuple(1, 1.2, 'test', [1,2,3])

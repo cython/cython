@@ -3,6 +3,7 @@
 
 cimport cython
 from cython cimport typeof
+from cpython.ref cimport PyObject
 
 
 def old_dict_syntax(a: list, b: "int" = 2, c: {'ctype': 'long int'} = 3, d: {'type': 'float'} = 4) -> list:
@@ -196,6 +197,37 @@ def call_exception_default(raise_exc=False):
     return exception_default(raise_exc)
 
 
+@cython.test_assert_path_exists(
+    "//CFuncDefNode",
+    "//CFuncDefNode//DefNode",
+    "//CFuncDefNode[@return_type]",
+    "//CFuncDefNode[@return_type.is_int = True]",
+)
+@cython.ccall
+def exception_default_uint(raise_exc : cython.bint = False) -> cython.uint:
+    """
+    >>> print(exception_default_uint(raise_exc=False))
+    10
+    >>> exception_default_uint(raise_exc=True)
+    Traceback (most recent call last):
+    ValueError: huhu!
+    """
+    if raise_exc:
+        raise ValueError("huhu!")
+    return 10
+
+
+def call_exception_default_uint(raise_exc=False):
+    """
+    >>> print(call_exception_default_uint(raise_exc=False))
+    10
+    >>> call_exception_default_uint(raise_exc=True)
+    Traceback (most recent call last):
+    ValueError: huhu!
+    """
+    return exception_default_uint(raise_exc)
+
+
 class EarlyClass(object):
     """
     >>> a = EarlyClass(1)
@@ -231,18 +263,36 @@ def py_float_default(price : float=None, ndigits=4):
     return price, ndigits
 
 
+cdef class ClassAttribute:
+    cls_attr : float = 1.
+
+
+@cython.cfunc
+def take_ptr(obj: cython.pointer(PyObject)):
+    pass
+
+def call_take_ptr():
+    """
+    >>> call_take_ptr()  # really just a compile-test
+    """
+    python_dict = {"abc": 123}
+    take_ptr(cython.cast(cython.pointer(PyObject), python_dict))
+
+
 _WARNINGS = """
-8:32: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
-8:47: Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.
-8:56: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
-8:77: Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.
-8:85: Python type declaration in signature annotation does not refer to a Python type
-8:85: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
-211:44: Unknown type declaration in annotation, ignoring
-218:29: Ambiguous types in annotation, ignoring
+9:32: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
+9:47: Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.
+9:56: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
+9:77: Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.
+9:85: Python type declaration in signature annotation does not refer to a Python type
+9:85: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
+243:44: Unknown type declaration in annotation, ignoring
+250:29: Ambiguous types in annotation, ignoring
+267:15: Annotation ignored since class-level attributes must be Python objects. Were you trying to set up an instance attribute?
 # BUG:
-46:6: 'pytypes_cpdef' redeclared
-120:0: 'struct_io' redeclared
-149:0: 'struct_convert' redeclared
-168:0: 'exception_default' redeclared
+47:6: 'pytypes_cpdef' redeclared
+121:0: 'struct_io' redeclared
+150:0: 'struct_convert' redeclared
+169:0: 'exception_default' redeclared
+200:0: 'exception_default_uint' redeclared
 """

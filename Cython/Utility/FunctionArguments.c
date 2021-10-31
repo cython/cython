@@ -2,7 +2,7 @@
 
 
 #define __Pyx_ArgTypeTest(obj, type, none_allowed, name, exact) \
-    ((likely((Py_TYPE(obj) == type) | (none_allowed && (obj == Py_None)))) ? 1 : \
+    ((likely(__Pyx_IS_TYPE(obj, type) | (none_allowed && (obj == Py_None)))) ? 1 : \
         __Pyx__ArgTypeTest(obj, type, name, exact))
 
 static int __Pyx__ArgTypeTest(PyObject *obj, PyTypeObject *type, const char *name, int exact); /*proto*/
@@ -11,6 +11,8 @@ static int __Pyx__ArgTypeTest(PyObject *obj, PyTypeObject *type, const char *nam
 
 static int __Pyx__ArgTypeTest(PyObject *obj, PyTypeObject *type, const char *name, int exact)
 {
+    __Pyx_TypeName type_name;
+    __Pyx_TypeName obj_type_name;
     if (unlikely(!type)) {
         PyErr_SetString(PyExc_SystemError, "Missing type object");
         return 0;
@@ -23,9 +25,13 @@ static int __Pyx__ArgTypeTest(PyObject *obj, PyTypeObject *type, const char *nam
     else {
         if (likely(__Pyx_TypeCheck(obj, type))) return 1;
     }
+    type_name = __Pyx_PyType_GetName(type);
+    obj_type_name = __Pyx_PyType_GetName(Py_TYPE(obj));
     PyErr_Format(PyExc_TypeError,
-        "Argument '%.200s' has incorrect type (expected %.200s, got %.200s)",
-        name, type->tp_name, Py_TYPE(obj)->tp_name);
+        "Argument '%.200s' has incorrect type (expected " __Pyx_FMT_TYPENAME
+        ", got " __Pyx_FMT_TYPENAME ")", name, type_name, obj_type_name);
+    __Pyx_DECREF_TypeName(type_name);
+    __Pyx_DECREF_TypeName(obj_type_name);
     return 0;
 }
 
@@ -111,7 +117,10 @@ static void __Pyx_RaiseMappingExpectedError(PyObject* arg); /*proto*/
 //////////////////// RaiseMappingExpected ////////////////////
 
 static void __Pyx_RaiseMappingExpectedError(PyObject* arg) {
-    PyErr_Format(PyExc_TypeError, "'%.200s' object is not a mapping", Py_TYPE(arg)->tp_name);
+    __Pyx_TypeName arg_type_name = __Pyx_PyType_GetName(Py_TYPE(arg));
+    PyErr_Format(PyExc_TypeError,
+        "'" __Pyx_FMT_TYPENAME "' object is not a mapping", arg_type_name);
+    __Pyx_DECREF_TypeName(arg_type_name);
 }
 
 
@@ -144,8 +153,10 @@ static int __Pyx_CheckKeywordStrings(
     if (CYTHON_METH_FASTCALL && likely(PyTuple_Check(kw))) {
         if (unlikely(PyTuple_GET_SIZE(kw) == 0))
             return 1;
-        if (!kw_allowed)
+        if (!kw_allowed) {
+            key = PyTuple_GET_ITEM(kw, 0);
             goto invalid_keyword;
+        }
 #if PY_VERSION_HEX < 0x03090000
         // On CPython >= 3.9, the FASTCALL protocol guarantees that keyword
         // names are strings (see https://bugs.python.org/issue37540)
@@ -250,7 +261,7 @@ static int __Pyx_ParseOptionalKeywords(
 
         name = first_kw_arg;
         #if PY_MAJOR_VERSION < 3
-        if (likely(PyString_CheckExact(key)) || likely(PyString_Check(key))) {
+        if (likely(PyString_Check(key))) {
             while (*name) {
                 if ((CYTHON_COMPILING_IN_PYPY || PyString_GET_SIZE(**name) == PyString_GET_SIZE(key))
                         && _PyString_Eq(**name, key)) {
@@ -276,12 +287,13 @@ static int __Pyx_ParseOptionalKeywords(
         #endif
         if (likely(PyUnicode_Check(key))) {
             while (*name) {
-                int cmp = (**name == key) ? 0 :
+                int cmp = (
                 #if !CYTHON_COMPILING_IN_PYPY && PY_MAJOR_VERSION >= 3
-                    (PyUnicode_GET_SIZE(**name) != PyUnicode_GET_SIZE(key)) ? 1 :
+                    (__Pyx_PyUnicode_GET_LENGTH(**name) != __Pyx_PyUnicode_GET_LENGTH(key)) ? 1 :
                 #endif
-                    // need to convert argument name from bytes to unicode for comparison
-                    PyUnicode_Compare(**name, key);
+                    // In Py2, we may need to convert the argument name from str to unicode for comparison.
+                    PyUnicode_Compare(**name, key)
+                );
                 if (cmp < 0 && unlikely(PyErr_Occurred())) goto bad;
                 if (cmp == 0) {
                     values[name-argnames] = value;
@@ -296,7 +308,7 @@ static int __Pyx_ParseOptionalKeywords(
                 while (argname != first_kw_arg) {
                     int cmp = (**argname == key) ? 0 :
                     #if !CYTHON_COMPILING_IN_PYPY && PY_MAJOR_VERSION >= 3
-                        (PyUnicode_GET_SIZE(**argname) != PyUnicode_GET_SIZE(key)) ? 1 :
+                        (__Pyx_PyUnicode_GET_LENGTH(**argname) != __Pyx_PyUnicode_GET_LENGTH(key)) ? 1 :
                     #endif
                         // need to convert argument name from bytes to unicode for comparison
                         PyUnicode_Compare(**argname, key);
@@ -354,7 +366,7 @@ static int __Pyx_MergeKeywords(PyObject *kwdict, PyObject *source_mapping) {
     if (unlikely(!iter)) {
         // slow fallback: try converting to dict, then iterate
         PyObject *args;
-        if (!PyErr_ExceptionMatches(PyExc_AttributeError)) goto bad;
+        if (unlikely(!PyErr_ExceptionMatches(PyExc_AttributeError))) goto bad;
         PyErr_Clear();
         args = PyTuple_Pack(1, source_mapping);
         if (likely(args)) {

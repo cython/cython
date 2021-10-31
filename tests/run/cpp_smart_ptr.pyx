@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, werror, cpp11
+# tag: cpp, werror, cpp11, no-cpp-locals
 
 from libcpp.memory cimport unique_ptr, shared_ptr, default_delete, dynamic_pointer_cast
 from libcpp cimport nullptr
@@ -80,6 +80,15 @@ cdef cppclass C(B):
     pass
 
 cdef shared_ptr[A] holding_subclass = shared_ptr[A](new C())
+
+
+def test_assignment_to_base_class():
+    """
+    >>> test_assignment_to_base_class()
+    """
+    cdef shared_ptr[C] derived = shared_ptr[C](new C())
+    cdef shared_ptr[A] base = derived
+
 
 def test_dynamic_pointer_cast():
     """

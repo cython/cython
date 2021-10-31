@@ -1,0 +1,13 @@
+# Bugs that causes hard crashes that we certainly don't 
+# want to run because it will break the testsuite
+
+# segfault
+run.fastcall
+memslice
+
+# """Fatal RPython error: NotImplementedError
+# Aborted (core dumped)"""
+run.py35_pep492_interop
+
+# gc issue?
+memoryview_in_subclasses

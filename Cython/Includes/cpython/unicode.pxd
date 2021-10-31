@@ -10,7 +10,18 @@ cdef extern from *:
 
     # Return the size of the object. o has to be a PyUnicodeObject
     # (not checked).
+    #
+    # Deprecated since version 3.3, will be removed in version 3.10:
+    # Part of the old-style Unicode API, please migrate to using
+    # PyUnicode_GET_LENGTH().
     Py_ssize_t PyUnicode_GET_SIZE(object o)
+
+    # Return the length of the Unicode string, in code points. o has
+    # to be a Unicode object in the “canonical” representation (not
+    # checked).
+    #
+    # New in version 3.3.
+    Py_ssize_t PyUnicode_GET_LENGTH(object o)
 
     # Return the size of the object's internal buffer in bytes. o has
     # to be a PyUnicodeObject (not checked).
@@ -223,7 +234,7 @@ cdef extern from *:
     # equal, and greater than, respectively. It is best to pass only ASCII-encoded
     # strings, but the function interprets the input string as ISO-8859-1 if it
     # contains non-ASCII characters.
-    int PyUnicode_CompareWithASCIIString(object uni, char *string) except? -1
+    int PyUnicode_CompareWithASCIIString(object uni, const char *string)
 
     # Rich compare two unicode strings and return one of the following:
     #

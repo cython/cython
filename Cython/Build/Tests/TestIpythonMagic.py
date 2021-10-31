@@ -6,6 +6,7 @@
 from __future__ import absolute_import
 
 import os
+import io
 import sys
 from contextlib import contextmanager
 from Cython.Build import IpythonMagic
@@ -14,15 +15,8 @@ from Cython.Compiler.Annotate import AnnotationCCodeWriter
 
 try:
     import IPython.testing.globalipapp
-    from IPython.utils import py3compat
 except ImportError:
     # Disable tests and fake helpers for initialisation below.
-    class _py3compat(object):
-        def str_to_unicode(self, s):
-            return s
-
-    py3compat = _py3compat()
-
     def skip_if_not_installed(_):
         return None
 else:
@@ -36,24 +30,65 @@ try:
 except ImportError:
     pass
 
-code = py3compat.str_to_unicode("""\
+
+@contextmanager
+def capture_output():
+    backup = sys.stdout, sys.stderr
+    try:
+        replacement = [
+             io.TextIOWrapper(io.BytesIO(), encoding=sys.stdout.encoding),
+             io.TextIOWrapper(io.BytesIO(), encoding=sys.stderr.encoding),
+        ]
+        sys.stdout, sys.stderr = replacement
+        output = []
+        yield output
+    finally:
+        sys.stdout, sys.stderr = backup
+        for wrapper in replacement:
+            wrapper.seek(0)  # rewind
+            output.append(wrapper.read())
+            wrapper.close()
+
+
+code = u"""\
 def f(x):
     return 2*x
-""")
+"""
 
-cython3_code = py3compat.str_to_unicode("""\
+cython3_code = u"""\
 def f(int x):
     return 2 / x
 
 def call(x):
     return f(*(x,))
-""")
+"""
 
-pgo_cython3_code = cython3_code + py3compat.str_to_unicode("""\
+pgo_cython3_code = cython3_code + u"""\
 def main():
     for _ in range(100): call(5)
 main()
-""")
+"""
+
+compile_error_code = u'''\
+cdef extern from *:
+    """
+    xxx a=1;
+    """
+    int a;
+def doit():
+    return a
+'''
+
+compile_warning_code = u'''\
+cdef extern from *:
+    """
+    #pragma message ( "CWarning" )
+    int a = 42;
+    """
+    int a;
+def doit():
+    return a
+'''
 
 
 if sys.platform == 'win32':
@@ -150,6 +185,39 @@ class TestIPythonMagic(CythonTest):
         self.assertEqual(ip.user_ns['g'], 2 // 10)
         self.assertEqual(ip.user_ns['h'], 2 // 10)
 
+    def test_cython_compile_error_shown(self):
+        ip = self._ip
+        with capture_output() as out:
+            ip.run_cell_magic('cython', '-3', compile_error_code)
+        captured_out, captured_err = out
+
+        # it could be that c-level output is captured by distutil-extension
+        # (and not by us) and is printed to stdout:
+        captured_all = captured_out + "\n" + captured_err
+        self.assertTrue("error" in captured_all, msg="error in " + captured_all)
+
+    def test_cython_link_error_shown(self):
+        ip = self._ip
+        with capture_output() as out:
+            ip.run_cell_magic('cython', '-3 -l=xxxxxxxx', code)
+        captured_out, captured_err = out
+
+        # it could be that c-level output is captured by distutil-extension
+        # (and not by us) and is printed to stdout:
+        captured_all = captured_out + "\n!" + captured_err
+        self.assertTrue("error" in captured_all, msg="error in " + captured_all)
+
+    def test_cython_warning_shown(self):
+        ip = self._ip
+        with capture_output() as out:
+            # force rebuild, otherwise no warning as after the first success
+            # no build step is performed
+            ip.run_cell_magic('cython', '-3 -f', compile_warning_code)
+        captured_out, captured_err = out
+
+        # check that warning was printed to stdout even if build hasn't failed
+        self.assertTrue("CWarning" in captured_out)
+
     @skip_win32('Skip on Windows')
     def test_cython3_pgo(self):
         # The Cython cell defines the functions f() and call().
@@ -162,10 +230,10 @@ class TestIPythonMagic(CythonTest):
     @skip_win32('Skip on Windows')
     def test_extlibs(self):
         ip = self._ip
-        code = py3compat.str_to_unicode("""
+        code = u"""
 from libc.math cimport sin
 x = sin(0.0)
-        """)
+        """
         ip.user_ns['x'] = 1
         ip.run_cell_magic('cython', '-l m', code)
         self.assertEqual(ip.user_ns['x'], 0)

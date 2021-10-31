@@ -191,7 +191,7 @@ def build_module(name, pyxfilename, pyxbuild_dir=None, inplace=False, language_l
                                   reload_support=pyxargs.reload_support)
     assert os.path.exists(so_path), "Cannot find: %s" % so_path
 
-    junkpath = os.path.join(os.path.dirname(so_path), name+"_*") #very dangerous with --inplace ? yes, indeed, trying to eat my files ;)
+    junkpath = os.path.join(os.path.dirname(so_path), name+"_*")  #very dangerous with --inplace ? yes, indeed, trying to eat my files ;)
     junkstuff = glob.glob(junkpath)
     for path in junkstuff:
         if path != so_path:
@@ -269,7 +269,7 @@ class PyxImporter(object):
                                  pyxbuild_dir=self.pyxbuild_dir,
                                  inplace=self.inplace,
                                  language_level=self.language_level)
-            if ty != imp.C_EXTENSION: # only when an extension, check if we have a .pyx next!
+            if ty != imp.C_EXTENSION:  # only when an extension, check if we have a .pyx next!
                 return None
 
             # find .pyx fast, when .so/.pyd exist --inplace

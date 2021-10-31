@@ -3,12 +3,17 @@
 
 cimport cython
 
+# Use a single global object for identity checks.
+# PyPy can optimise away integer objects, for example, and may fail the 'is' test.
+obj = object()
+
+
 @cython.test_fail_if_path_exists('//NotNode')
 def is_not(a, b):
     """
     >>> is_not(1, 2)
     True
-    >>> x = 1
+    >>> x = obj
     >>> is_not(x, x)
     False
     """
@@ -20,7 +25,7 @@ def not_is_not(a, b):
     """
     >>> not_is_not(1, 2)
     False
-    >>> x = 1
+    >>> x = obj
     >>> not_is_not(x, x)
     True
     """
@@ -32,7 +37,7 @@ def not_is(a, b):
     """
     >>> not_is(1, 2)
     True
-    >>> x = 1
+    >>> x = obj
     >>> not_is(x, x)
     False
     """

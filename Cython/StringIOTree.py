@@ -107,3 +107,44 @@ class StringIOTree(object):
     def allmarkers(self):
         children = self.prepended_children
         return [m for c in children for m in c.allmarkers()] + self.markers
+
+    # Print the result of allmarkers in a nice human-readable form. Use it only for debugging.
+    # Prints e.g.
+    # /path/to/source.pyx:
+    #     cython line 2 maps to 3299-3343
+    #     cython line 4 maps to 2236-2245  2306  3188-3201
+    # /path/to/othersource.pyx:
+    #     cython line 3 maps to 1234-1270
+    # ...
+    # Note: In the example above, 3343 maps to line 2, 3344 does not.
+    def print_hr_allmarkers(self):
+        from collections import defaultdict
+        markers = self.allmarkers()
+        totmap = defaultdict(lambda: defaultdict(list))
+        for c_lineno, (cython_desc, cython_lineno) in enumerate(markers):
+            if cython_lineno > 0 and cython_desc.filename is not None:
+                totmap[cython_desc.filename][cython_lineno].append(c_lineno + 1)
+        reprstr = ""
+        if totmap == 0:
+            reprstr += "allmarkers is empty\n"
+        try:
+            sorted(totmap.items())
+        except:
+            print(totmap)
+            print(totmap.items())
+        for cython_path, filemap in sorted(totmap.items()):
+            reprstr += cython_path + ":\n"
+            for cython_lineno, c_linenos in sorted(filemap.items()):
+                reprstr += "\tcython line " + str(cython_lineno) + " maps to "
+                i = 0
+                while i < len(c_linenos):
+                    reprstr += str(c_linenos[i])
+                    flag = False
+                    while i+1 < len(c_linenos) and c_linenos[i+1] == c_linenos[i]+1:
+                        i += 1
+                        flag = True
+                    if flag:
+                        reprstr += "-" + str(c_linenos[i]) + " "
+                    i += 1
+                reprstr += "\n"
+        sys.stdout.write(reprstr)

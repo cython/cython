@@ -2,7 +2,11 @@ from __future__ import absolute_import
 
 import os
 import unittest
+import shlex
+import sys
 import tempfile
+import textwrap
+from io import open
 
 from .Compiler import Errors
 from .CodeWriter import CodeWriter
@@ -177,41 +181,97 @@ class TreeAssertVisitor(VisitorTransform):
                 if TreePath.find_first(node, path) is not None:
                     Errors.error(
                         node.pos,
-                        "Unexpected path '%s' found in result tree" %  path)
+                        "Unexpected path '%s' found in result tree" % path)
         self.visitchildren(node)
         return node
 
     visit_Node = VisitorTransform.recurse_to_children
 
 
-def unpack_source_tree(tree_file, dir=None):
-    if dir is None:
-        dir = tempfile.mkdtemp()
-    header = []
-    cur_file = None
-    f = open(tree_file)
+def unpack_source_tree(tree_file, workdir, cython_root):
+    programs = {
+        'PYTHON': [sys.executable],
+        'CYTHON': [sys.executable, os.path.join(cython_root, 'cython.py')],
+        'CYTHONIZE': [sys.executable, os.path.join(cython_root, 'cythonize.py')]
+    }
+
+    if workdir is None:
+        workdir = tempfile.mkdtemp()
+    header, cur_file = [], None
+    with open(tree_file, 'rb') as f:
+        try:
+            for line in f:
+                if line[:5] == b'#####':
+                    filename = line.strip().strip(b'#').strip().decode('utf8').replace('/', os.path.sep)
+                    path = os.path.join(workdir, filename)
+                    if not os.path.exists(os.path.dirname(path)):
+                        os.makedirs(os.path.dirname(path))
+                    if cur_file is not None:
+                        to_close, cur_file = cur_file, None
+                        to_close.close()
+                    cur_file = open(path, 'wb')
+                elif cur_file is not None:
+                    cur_file.write(line)
+                elif line.strip() and not line.lstrip().startswith(b'#'):
+                    if line.strip() not in (b'"""', b"'''"):
+                        command = shlex.split(line.decode('utf8'))
+                        if not command: continue
+                        # In Python 3: prog, *args = command
+                        prog, args = command[0], command[1:]
+                        try:
+                            header.append(programs[prog]+args)
+                        except KeyError:
+                            header.append(command)
+        finally:
+            if cur_file is not None:
+                cur_file.close()
+    return workdir, header
+
+
+def write_file(file_path, content, dedent=False, encoding=None):
+    r"""Write some content (text or bytes) to the file
+    at `file_path` without translating `'\n'` into `os.linesep`.
+
+    The default encoding is `'utf-8'`.
+    """
+    if isinstance(content, bytes):
+        mode = "wb"
+
+        # binary mode doesn't take an encoding and newline arguments
+        newline = None
+        default_encoding = None
+    else:
+        mode = "w"
+
+        # any "\n" characters written are not translated
+        # to the system default line separator, os.linesep
+        newline = "\n"
+        default_encoding = "utf-8"
+
+    if encoding is None:
+        encoding = default_encoding
+
+    if dedent:
+        content = textwrap.dedent(content)
+
+    with open(file_path, mode=mode, encoding=encoding, newline=newline) as f:
+        f.write(content)
+
+
+def write_newer_file(file_path, newer_than, content, dedent=False, encoding=None):
+    r"""
+    Write `content` to the file `file_path` without translating `'\n'`
+    into `os.linesep` and make sure it is newer than the file `newer_than`.
+
+    The default encoding is `'utf-8'` (same as for `write_file`).
+    """
+    write_file(file_path, content, dedent=dedent, encoding=encoding)
+
     try:
-        lines = f.readlines()
-    finally:
-        f.close()
-    del f
-    try:
-        for line in lines:
-            if line[:5] == '#####':
-                filename = line.strip().strip('#').strip().replace('/', os.path.sep)
-                path = os.path.join(dir, filename)
-                if not os.path.exists(os.path.dirname(path)):
-                    os.makedirs(os.path.dirname(path))
-                if cur_file is not None:
-                    f, cur_file = cur_file, None
-                    f.close()
-                cur_file = open(path, 'w')
-            elif cur_file is not None:
-                cur_file.write(line)
-            elif line.strip() and not line.lstrip().startswith('#'):
-                if line.strip() not in ('"""', "'''"):
-                    header.append(line)
-    finally:
-        if cur_file is not None:
-            cur_file.close()
-    return dir, ''.join(header)
+        other_time = os.path.getmtime(newer_than)
+    except OSError:
+        # Support writing a fresh file (which is always newer than a non-existant one)
+        other_time = None
+
+    while other_time is None or other_time >= os.path.getmtime(file_path):
+        write_file(file_path, content, dedent=dedent, encoding=encoding)

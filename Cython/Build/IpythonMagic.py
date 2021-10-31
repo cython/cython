@@ -56,11 +56,13 @@ import copy
 import distutils.log
 import textwrap
 
+IO_ENCODING = sys.getfilesystemencoding()
+IS_PY2 = sys.version_info[0] < 3
 
 try:
-    reload
-except NameError:   # Python 3
-    from imp import reload
+    from importlib import reload
+except ImportError:   # Python 2 had a builtin function
+    pass
 
 import hashlib
 from distutils.core import Distribution, Extension
@@ -69,7 +71,6 @@ from distutils.command.build_ext import build_ext
 from IPython.core import display
 from IPython.core import magic_arguments
 from IPython.core.magic import Magics, magics_class, cell_magic
-from IPython.utils import py3compat
 try:
     from IPython.paths import get_ipython_cache_dir
 except ImportError:
@@ -81,6 +82,7 @@ from ..Shadow import __version__ as cython_version
 from ..Compiler.Errors import CompileError
 from .Inline import cython_inline
 from .Dependencies import cythonize
+from ..Utils import captured_fd, print_captured
 
 
 PGO_CONFIG = {
@@ -95,6 +97,14 @@ PGO_CONFIG = {
     }
 }
 PGO_CONFIG['mingw32'] = PGO_CONFIG['gcc']
+
+
+if IS_PY2:
+    def encode_fs(name):
+        return name if isinstance(name, bytes) else name.encode(IO_ENCODING)
+else:
+    def encode_fs(name):
+        return name
 
 
 @magics_class
@@ -307,7 +317,7 @@ class CythonMagics(Magics):
             key += (time.time(),)
 
         if args.name:
-            module_name = py3compat.unicode_to_str(args.name)
+            module_name = str(args.name)  # no-op in Py3
         else:
             module_name = "_cython_magic_" + hashlib.sha1(str(key).encode('utf-8')).hexdigest()
         html_file = os.path.join(lib_dir, module_name + '.html')
@@ -323,6 +333,9 @@ class CythonMagics(Magics):
         extension = None
         if need_cythonize:
             extensions = self._cythonize(module_name, code, lib_dir, args, quiet=args.quiet)
+            if extensions is None:
+                # Compilation failed and printed error message
+                return None
             assert len(extensions) == 1
             extension = extensions[0]
             self._code_cache[key] = module_name
@@ -330,8 +343,24 @@ class CythonMagics(Magics):
             if args.pgo:
                 self._profile_pgo_wrapper(extension, lib_dir)
 
-        self._build_extension(extension, lib_dir, pgo_step_name='use' if args.pgo else None,
-                              quiet=args.quiet)
+        def print_compiler_output(stdout, stderr, where):
+            # On windows, errors are printed to stdout, we redirect both to sys.stderr.
+            print_captured(stdout, where, u"Content of stdout:\n")
+            print_captured(stderr, where, u"Content of stderr:\n")
+
+        get_stderr = get_stdout = None
+        try:
+            with captured_fd(1) as get_stdout:
+                with captured_fd(2) as get_stderr:
+                    self._build_extension(
+                        extension, lib_dir, pgo_step_name='use' if args.pgo else None, quiet=args.quiet)
+        except (distutils.errors.CompileError, distutils.errors.LinkError):
+            # Build failed, print error message from compiler/linker
+            print_compiler_output(get_stdout(), get_stderr(), sys.stderr)
+            return None
+
+        # Build seems ok, but we might still want to show any warnings that occurred
+        print_compiler_output(get_stdout(), get_stderr(), sys.stdout)
 
         module = imp.load_dynamic(module_name, module_path)
         self._import_all(module)
@@ -400,7 +429,7 @@ class CythonMagics(Magics):
 
     def _cythonize(self, module_name, code, lib_dir, args, quiet=True):
         pyx_file = os.path.join(lib_dir, module_name + '.pyx')
-        pyx_file = py3compat.cast_bytes_py2(pyx_file, encoding=sys.getfilesystemencoding())
+        pyx_file = encode_fs(pyx_file)
 
         c_include_dirs = args.include
         c_src_files = list(map(str, args.src))
@@ -519,10 +548,10 @@ class CythonMagics(Magics):
         build_extension = _build_ext(dist)
         build_extension.finalize_options()
         if temp_dir:
-            temp_dir = py3compat.cast_bytes_py2(temp_dir, encoding=sys.getfilesystemencoding())
+            temp_dir = encode_fs(temp_dir)
             build_extension.build_temp = temp_dir
         if lib_dir:
-            lib_dir = py3compat.cast_bytes_py2(lib_dir, encoding=sys.getfilesystemencoding())
+            lib_dir = encode_fs(lib_dir)
             build_extension.build_lib = lib_dir
         if extension is not None:
             build_extension.extensions = [extension]

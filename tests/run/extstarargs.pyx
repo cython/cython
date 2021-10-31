@@ -1,3 +1,5 @@
+cimport cython
+
 cdef sorteditems(d):
     return tuple(sorted(d.items()))
 
@@ -90,7 +92,24 @@ cdef class Silly:
         >>> s.onlyt(1, a=2)
         Traceback (most recent call last):
         TypeError: onlyt() got an unexpected keyword argument 'a'
-        >>> test_no_copy_args(s.onlyt)
+        """
+        return a
+
+    @cython.binding(False)  # passthrough of exact same tuple can't work with binding
+    def onlyt_nobinding(self, *a):
+        """
+        >>> s = Silly()
+        >>> s.onlyt_nobinding(1)
+        (1,)
+        >>> s.onlyt_nobinding(1,2)
+        (1, 2)
+        >>> s.onlyt_nobinding(a=1)
+        Traceback (most recent call last):
+        TypeError: onlyt_nobinding() got an unexpected keyword argument 'a'
+        >>> s.onlyt_nobinding(1, a=2)
+        Traceback (most recent call last):
+        TypeError: onlyt_nobinding() got an unexpected keyword argument 'a'
+        >>> test_no_copy_args(s.onlyt_nobinding)
         True
         """
         return a
@@ -130,6 +149,7 @@ cdef class Silly:
         """
         return a + sorteditems(k)
 
+    @cython.binding(False)  # passthrough of exact same tuple can't work with binding
     def t_kwonly(self, *a, k):
         """
         >>> s = Silly()
