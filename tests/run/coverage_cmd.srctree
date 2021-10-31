@@ -176,26 +176,36 @@ def run_xml_report():
 
 
 def run_html_report():
+    from collections import defaultdict
+
     stdout = run_coverage_command('html', '-d', 'html')
-    _parse_lines = re.compile(
-        r'<p[^>]* id=["\'][^0-9"\']*(?P<id>[0-9]+)[^0-9"\']*["\'][^>]*'
-        r' class=["\'][^"\']*(?P<run>mis|run)[^"\']*["\']').findall
+    # coverage 6.1+ changed the order of the attributes => need to parse them separately
+    _parse_id = re.compile(r'id=["\'][^0-9"\']*(?P<id>[0-9]+)[^0-9"\']*["\']').search
+    _parse_state = re.compile(r'class=["\'][^"\']*(?P<state>mis|run|exc)[^"\']*["\']').search
 
     files = {}
     for file_path in iglob('html/*.html'):
         with open(file_path) as f:
             page = f.read()
-        executed = set()
-        missing = set()
-        for line, has_run in _parse_lines(page):
-            (executed if has_run == 'run' else missing).add(int(line))
-        files[file_path] = (executed, missing)
+        report = defaultdict(set)
+        for line in re.split(r'id=["\']source["\']', page)[-1].splitlines():
+            lineno = _parse_id(line)
+            state = _parse_state(line)
+            if not lineno or not state:
+                continue
+            report[state.group('state')].add(int(lineno.group('id')))
+        files[file_path] = report
 
-    executed, missing = [data for path, data in files.items() if 'coverage_test_pyx' in path][0]
-    assert executed
-    assert 5 in executed, executed
-    assert 6 in executed, executed
-    assert 7 in executed, executed
+    for filename, report in files.items():
+        if "coverage_test_pyx" not in filename:
+            continue
+        executed = report["run"]
+        missing = report["mis"]
+        excluded = report["exc"]
+        assert executed, (filename, report)
+        assert 5 in executed, executed
+        assert 6 in executed, executed
+        assert 7 in executed, executed
 
 
 if __name__ == '__main__':
