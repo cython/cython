@@ -13924,8 +13924,9 @@ class AnnotationNode(ExprNode):
         if string is None:
             # import doesn't work at top of file?
             from .AutoDocTransforms import AnnotationWriter
-            string = StringEncoding.EncodedString(AnnotationWriter().write(expr))
-            string = UnicodeNode(pos, value=string)
+            string = StringEncoding.EncodedString(
+                AnnotationWriter(description="annotation").write(expr))
+            string = StringNode(pos, unicode_value=string, value=string.as_utf8_string())
         self.string = string
         self.body_as_type = expr
         self.body_as_obj = copy.deepcopy(expr)
@@ -13969,13 +13970,16 @@ class AnnotationNode(ExprNode):
         return self.analyse_type_annotation(env)[1]
 
     def analyse_type_annotation(self, env, assigned_value=None):
+        if self.untyped:
+            # Already applied as a fused type, not re-evaluating it here.
+            return None, None
         annotation = self.body_as_type
         base_type = None
         is_ambiguous = False
         explicit_pytype = explicit_ctype = False
         if annotation.is_dict_literal:
             warning(annotation.pos,
-                    "Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.")
+                    "Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.", level=1)
             for name, value in annotation.key_value_pairs:
                 if not name.is_string_literal:
                     continue
@@ -13987,7 +13991,7 @@ class AnnotationNode(ExprNode):
                     explicit_ctype = True
                     annotation = value
             if explicit_pytype and explicit_ctype:
-                warning(annotation.pos, "Duplicate type declarations found in signature annotation")
+                warning(annotation.pos, "Duplicate type declarations found in signature annotation", level=1)
         arg_type = annotation.analyse_as_type(env)
         if annotation.is_name and not annotation.cython_attribute and annotation.name in ('int', 'long', 'float'):
             # Map builtin numeric Python types to C types in safe cases.
@@ -14002,7 +14006,11 @@ class AnnotationNode(ExprNode):
                 arg_type = PyrexTypes.c_double_type if annotation.name == 'float' else py_object_type
         elif arg_type is not None and annotation.is_string_literal:
             warning(annotation.pos,
-                    "Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.")
+                    "Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.",
+                    level=1)
+        elif arg_type is not None and arg_type.is_complex:
+            # creating utility code needs to be special-cased for complex types
+            arg_type.create_declaration_utility_code(env)
         if arg_type is not None:
             if explicit_pytype and not explicit_ctype and not arg_type.is_pyobject:
                 warning(annotation.pos,
@@ -14014,4 +14022,3 @@ class AnnotationNode(ExprNode):
         else:
             warning(annotation.pos, "Unknown type declaration in annotation, ignoring")
         return base_type, arg_type
-

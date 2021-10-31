@@ -244,20 +244,6 @@ class Entry(object):
         self.inner_entries = []
         self.defining_entry = self
 
-    @property
-    def annotation(self):
-        #import traceback
-        #traceback.print_stack()
-        #print()
-        try:
-            return self._annotation
-        except AttributeError:
-            return None
-
-    @annotation.setter
-    def annotation(self, val):
-        self._annotation = val
-
     def __repr__(self):
         return "%s(<%x>, name=%s, type=%s)" % (type(self).__name__, id(self), self.name, self.type)
 
