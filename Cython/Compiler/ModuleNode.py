@@ -2529,7 +2529,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("#endif")
 
         code.putln("static PyType_Slot %s_slots[] = {" % ext_type.typeobj_cname)
-        for slot in TypeSlots.get_slot_table(code.globalstate.directives).slot_table:
+        for slot in TypeSlots.get_slot_table(code.globalstate.directives):
             slot.generate_spec(scope, code)
         code.putln("{0, 0},")
         code.putln("};")
@@ -2574,7 +2574,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "sizeof(%s), /*tp_basicsize*/" % objstruct)
         code.putln(
             "0, /*tp_itemsize*/")
-        for slot in TypeSlots.get_slot_table(code.globalstate.directives).slot_table:
+        for slot in TypeSlots.get_slot_table(code.globalstate.directives):
             slot.generate(scope, code)
         code.putln(
             "};")

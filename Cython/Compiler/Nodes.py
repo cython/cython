@@ -2417,7 +2417,7 @@ class FuncDefNode(StatNode, BlockNode):
         if not self.entry.is_special:
             return None
         name = self.entry.name
-        slot = TypeSlots.get_slot_table(self.local_scope.directives).method_name_to_slot.get(name)
+        slot = TypeSlots.get_slot_table(self.local_scope.directives).get_slot_by_method_name(name)
         if not slot:
             return None
         if name == '__long__' and not self.entry.scope.lookup_here('__int__'):
@@ -5406,7 +5406,7 @@ class CClassDefNode(ClassDefNode):
 
             code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
             # FIXME: these still need to get initialised even with the limited-API
-            for slot in TypeSlots.get_slot_table(code.globalstate.directives).slot_table:
+            for slot in TypeSlots.get_slot_table(code.globalstate.directives):
                 slot.generate_dynamic_init_code(scope, code)
             code.putln("#endif")
 
@@ -5451,7 +5451,8 @@ class CClassDefNode(ClassDefNode):
                 is_buffer = func.name in ('__getbuffer__', '__releasebuffer__')
                 if (func.is_special and Options.docstrings and
                         func.wrapperbase_cname and not is_buffer):
-                    slot = TypeSlots.get_slot_table(entry.type.scope.directives).method_name_to_slot.get(func.name)
+                    slot = TypeSlots.get_slot_table(
+                        entry.type.scope.directives).get_slot_by_method_name(func.name)
                     preprocessor_guard = slot.preprocessor_guard_code() if slot else None
                     if preprocessor_guard:
                         code.putln(preprocessor_guard)
