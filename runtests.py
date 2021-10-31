@@ -945,7 +945,9 @@ class CythonCompileTestCase(unittest.TestCase):
                  fork=True, language_level=2, warning_errors=False,
                  test_determinism=False,
                  common_utility_dir=None, pythran_dir=None, stats=None, add_cython_import=False,
-                 extra_directives={}):
+                 extra_directives=None):
+        if not extra_directives:
+            extra_directives = {}
         self.test_directory = test_directory
         self.tags = tags
         self.workdir = workdir
