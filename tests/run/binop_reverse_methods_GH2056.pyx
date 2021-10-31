@@ -31,25 +31,29 @@ class Base(object):
         self.implemented = implemented
 
     def __add__(self, other):
-        if (<Base>self).implemented:
+        assert(cython.typeof(self)=="Base")
+        if self.implemented:
             return "Base.__add__(%s, %s)" % (self, other)
         else:
             return NotImplemented
 
     def __radd__(self, other):
-        if (<Base>self).implemented:
+        assert(cython.typeof(self)=="Base")
+        if self.implemented:
             return "Base.__radd__(%s, %s)" % (self, other)
         else:
             return NotImplemented
 
     def __pow__(self, other, mod):
-        if (<Base>self).implemented:
+        assert(cython.typeof(self)=="Base")
+        if self.implemented:
             return "Base.__pow__(%s, %s, %s)" % (self, other, mod)
         else:
             return NotImplemented
 
     def __rpow__(self, other, mod):
-        if (<Base>self).implemented:
+        assert(cython.typeof(self)=="Base")
+        if self.implemented:
             return "Base.__rpow__(%s, %s, %s)" % (self, other, mod)
         else:
             return NotImplemented
@@ -87,7 +91,8 @@ class OverloadLeft(Base):
         self.derived_implemented = implemented
 
     def __add__(self, other):
-        if (<OverloadLeft>self).derived_implemented:
+        assert(cython.typeof(self)=="OverloadLeft")
+        if self.derived_implemented:
             return "OverloadLeft.__add__(%s, %s)" % (self, other)
         else:
             return NotImplemented
@@ -123,7 +128,8 @@ class OverloadRight(Base):
         self.derived_implemented = implemented
 
     def __radd__(self, other):
-        if (<OverloadRight>self).derived_implemented:
+        assert(cython.typeof(self)=="OverloadRight")
+        if self.derived_implemented:
             return "OverloadRight.__radd__(%s, %s)" % (self, other)
         else:
             return NotImplemented
@@ -158,6 +164,7 @@ class OverloadCApi(Base):
         self.derived_implemented = derived_implemented
 
     def __add__(self, other):
+        assert(cython.typeof(self) != "OverloadCApi")  # should be untyped
         if isinstance(self, OverloadCApi):
             derived_implemented = (<OverloadCApi>self).derived_implemented
         else:

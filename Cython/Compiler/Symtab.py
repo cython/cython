@@ -20,7 +20,7 @@ from . import PyrexTypes
 from .PyrexTypes import py_object_type, unspecified_type
 from .TypeSlots import (
     pyfunction_signature, pymethod_signature, richcmp_special_methods,
-    get_special_method_signature, get_property_accessor_signature)
+    get_slot_table, get_property_accessor_signature)
 from . import Future
 
 from . import Code
@@ -2240,7 +2240,8 @@ class CClassScope(ClassScope):
                 error(pos,
                     "C attributes cannot be added in implementation part of"
                     " extension type defined in a pxd")
-            if not self.is_closure_class_scope and get_special_method_signature(name):
+            if (not self.is_closure_class_scope and
+                    get_slot_table(self.directives).get_special_method_signature(name)):
                 error(pos,
                     "The name '%s' is reserved for a special method."
                         % name)
@@ -2312,7 +2313,7 @@ class CClassScope(ClassScope):
                 "in a future version of Pyrex and Cython. Use __cinit__ instead.")
         entry = self.declare_var(name, py_object_type, pos,
                                  visibility='extern')
-        special_sig = get_special_method_signature(name)
+        special_sig = get_slot_table(self.directives).get_special_method_signature(name)
         if special_sig:
             # Special methods get put in the method table with a particular
             # signature declared in advance.
@@ -2344,7 +2345,8 @@ class CClassScope(ClassScope):
                           cname=None, visibility='private', api=0, in_pxd=0,
                           defining=0, modifiers=(), utility_code=None, overridable=False):
         name = self.mangle_class_private_name(name)
-        if get_special_method_signature(name) and not self.parent_type.is_builtin_type:
+        if (get_slot_table(self.directives).get_special_method_signature(name)
+                and not self.parent_type.is_builtin_type):
             error(pos, "Special methods must be declared with 'def', not 'cdef'")
         args = type.args
         if not type.is_static_method:

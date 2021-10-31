@@ -2417,7 +2417,7 @@ class FuncDefNode(StatNode, BlockNode):
         if not self.entry.is_special:
             return None
         name = self.entry.name
-        slot = TypeSlots.method_name_to_slot.get(name)
+        slot = TypeSlots.get_slot_table(self.local_scope.directives).method_name_to_slot.get(name)
         if not slot:
             return None
         if name == '__long__' and not self.entry.scope.lookup_here('__int__'):
@@ -5335,7 +5335,7 @@ class CClassDefNode(ClassDefNode):
                         UtilityCode.load_cached('ValidateBasesTuple', 'ExtensionTypes.c'))
                     code.put_error_if_neg(entry.pos, "__Pyx_validate_bases_tuple(%s.name, %s, %s)" % (
                         typespec_cname,
-                        TypeSlots.get_slot_by_name("tp_dictoffset").slot_code(scope),
+                        TypeSlots.get_slot_by_name("tp_dictoffset", scope.directives).slot_code(scope),
                         bases_tuple_cname or tuple_temp,
                     ))
 
@@ -5359,7 +5359,7 @@ class CClassDefNode(ClassDefNode):
                     ))
 
             # The buffer interface is not currently supported by PyType_FromSpec().
-            buffer_slot = TypeSlots.get_slot_by_name("tp_as_buffer")
+            buffer_slot = TypeSlots.get_slot_by_name("tp_as_buffer", code.globalstate.directives)
             if not buffer_slot.is_empty(scope):
                 code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
                 code.putln("%s->%s = %s;" % (
@@ -5405,7 +5405,7 @@ class CClassDefNode(ClassDefNode):
 
             code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
             # FIXME: these still need to get initialised even with the limited-API
-            for slot in TypeSlots.slot_table:
+            for slot in TypeSlots.get_slot_table(code.globalstate.directives).slot_table:
                 slot.generate_dynamic_init_code(scope, code)
             code.putln("#endif")
 
