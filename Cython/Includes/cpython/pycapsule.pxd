@@ -1,5 +1,5 @@
 
-# available since Python 3.1!
+# available since Python 2.7!
 
 
 cdef extern from "Python.h":

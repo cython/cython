@@ -29,6 +29,9 @@ from . import __version__ as cython_version
 
 PACKAGE_FILES = ("__init__.py", "__init__.pyc", "__init__.pyx", "__init__.pxd")
 
+_build_cache_name = "__{0}_cache".format
+_CACHE_NAME_PATTERN = re.compile(r"^__(.+)_cache$")
+
 modification_time = os.path.getmtime
 
 _function_caches = []
@@ -54,8 +57,30 @@ def cached_function(f):
     return wrapper
 
 
+def _find_cache_attributes(obj):
+    """The function iterates over the attributes of the object and,
+    if it finds the name of the cache, it returns it and the corresponding method name.
+    The method may not be present in the object.
+    """
+    for attr_name in dir(obj):
+        match = _CACHE_NAME_PATTERN.match(attr_name)
+        if match is not None:
+            yield attr_name, match.group(1)
+
+
+def clear_method_caches(obj):
+    """Removes every cache found in the object,
+    if a corresponding method exists for that cache.
+    """
+    for cache_name, method_name in _find_cache_attributes(obj):
+        if hasattr(obj, method_name):
+            delattr(obj, cache_name)
+        # if there is no corresponding method, then we assume
+        # that this attribute was not created by our cached method
+
+
 def cached_method(f):
-    cache_name = '__%s_cache' % f.__name__
+    cache_name = _build_cache_name(f.__name__)
 
     def wrapper(self, *args):
         cache = getattr(self, cache_name, None)

@@ -1,5 +1,11 @@
 cimport cython
 
+import sys
+IS_PYTHON2 = sys.version_info[0] == 2
+
+__doc__ = ""
+
+
 @cython.c_api_binop_methods(False)
 @cython.cclass
 class Base(object):
@@ -60,6 +66,7 @@ class Base(object):
 
     def __repr__(self):
         return "%s()" % (self.__class__.__name__)
+
 
 @cython.c_api_binop_methods(False)
 @cython.cclass
@@ -134,6 +141,7 @@ class OverloadRight(Base):
         else:
             return NotImplemented
 
+
 @cython.c_api_binop_methods(True)
 @cython.cclass
 class OverloadCApi(Base):
@@ -173,5 +181,85 @@ class OverloadCApi(Base):
             return "OverloadCApi.__add__(%s, %s)" % (self, other)
         else:
             return NotImplemented
+
+
+if sys.version_info >= (3, 5):
+    __doc__ += """
+    >>> d = PyVersionDependent()
+    >>> d @ 2
+    9
+    >>> 2 @ d
+    99
+    >>> i = d
+    >>> i @= 2
+    >>> i
+    999
+"""
+
+
+@cython.c_api_binop_methods(False)
+@cython.cclass
+class PyVersionDependent:
+    """
+    >>> d = PyVersionDependent()
+    >>> d / 2
+    5
+    >>> 2 / d
+    2
+    >>> d // 2
+    55
+    >>> 2 // d
+    22
+    >>> i = d
+    >>> i /= 2
+    >>> i
+    4
+    >>> i = d
+    >>> i //= 2
+    >>> i
+    44
+    """
+    def __div__(self, other):
+        assert IS_PYTHON2
+        return 5
+
+    def __rdiv__(self, other):
+        assert IS_PYTHON2
+        return 2
+
+    def __idiv__(self, other):
+        assert IS_PYTHON2
+        return 4
+
+    def __truediv__(self, other):
+        assert not IS_PYTHON2
+        return 5
+
+    def __rtruediv__(self, other):
+        assert not IS_PYTHON2
+        return 2
+
+    def __itruediv__(self, other):
+        assert not IS_PYTHON2
+        return 4
+
+    def __floordiv__(self, other):
+        return 55
+
+    def __rfloordiv__(self, other):
+        return 22
+
+    def __ifloordiv__(self, other):
+        return 44
+
+    def __matmul__(self, other):
+        return 9
+
+    def __rmatmul__(self, other):
+        return 99
+
+    def __imatmul__(self, other):
+        return 999
+
 
 # TODO: Test a class that only defines the `__r...__()` methods.
