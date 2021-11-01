@@ -2310,7 +2310,7 @@ class FuncDefNode(StatNode, BlockNode):
             error(arg.pos, "Argument type '%s' is incomplete" % arg.type)
         entry = env.declare_arg(arg.name, arg.type, arg.pos)
         if arg.annotation:
-            entry.annotation = arg.annotation.body_as_obj
+            entry.annotation = arg.annotation.expr
         return entry
 
     def generate_arg_type_test(self, arg, code):

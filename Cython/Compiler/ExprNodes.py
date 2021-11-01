@@ -9203,7 +9203,7 @@ class Py3ClassNode(ExprNode):
             DictItemNode(
                 entry.pos,
                 key=IdentifierStringNode(entry.pos, value=entry.name),
-                value=entry.annotation.string
+                value=entry.annotation
             )
             for entry in env.entries.values() if entry.annotation
         ]
@@ -9450,18 +9450,18 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                         default_args.append(arg)
             if arg.annotation:
                 arg.annotation = arg.annotation.analyse_types(env)
-                annotations.append((arg.pos, arg.name, arg.annotation.string))
+                annotations.append((arg.pos, arg.name, arg.annotation))
 
         for arg in (self.def_node.star_arg, self.def_node.starstar_arg):
             if arg and arg.annotation:
                 arg.annotation = arg.annotation.analyse_types(env)
-                annotations.append((arg.pos, arg.name, arg.annotation.string))
+                annotations.append((arg.pos, arg.name, arg.annotation))
 
         annotation = self.def_node.return_type_annotation
         if annotation:
             self.def_node.return_type_annotation = annotation.analyse_types(env)
             annotations.append((annotation.pos, StringEncoding.EncodedString("return"),
-                                annotation.string))
+                                annotation))
 
         if nonliteral_objects or nonliteral_other:
             module_scope = env.global_scope()
@@ -13912,7 +13912,7 @@ class AnnotationNode(ExprNode):
     #  processing for evaluation as a type doesn't break
     #  the stored object
 
-    subexprs = ['body_as_obj']
+    subexprs = ['expr']
     # 'untyped' is set for fused specializations:
     # Once a fused function has been created we don't want
     # annotations to override an already set type.
@@ -13928,8 +13928,7 @@ class AnnotationNode(ExprNode):
                 AnnotationWriter(description="annotation").write(expr))
             string = StringNode(pos, unicode_value=string, value=string.as_utf8_string())
         self.string = string
-        self.body_as_type = expr
-        self.body_as_obj = copy.deepcopy(expr)
+        self.expr = expr
 
     def analyse_types(self, env):
         # I'd like to be able to delete body_as_obj if unneeded, but it is used
@@ -13937,33 +13936,33 @@ class AnnotationNode(ExprNode):
         #  - do skip processing it though because things like undeclared variables
         #  in annotations shouldn't matter with pep563
         if Future.annotations not in env.global_scope().context.future_directives:
-            # Be a bit lenient here and accept C-tyoes
+            # Be a bit lenient here and accept C-types
             # here without causing an error.
-            # Since this is non-standard Python and evaluation of
-            # annotations is to be deprecated, don't spend a lot
-            # of time worrying about all the corner-cases
+            # (and use the "coerce to string" behaviour
             tp = None
-            if not isinstance(self.body_as_obj, TupleNode):
-                tp = self.body_as_obj.analyse_as_type(env)
+            if not isinstance(self.expr, TupleNode):
+                tp = self.expr.analyse_as_type(env)
             if (tp and not tp.is_pyobject and
-                self.string not in ["float", "int"] # special cases these as also being Python objects
+                self.string.value not in [b"float", b"int"] # special cases these as also being Python objects
                 ):
                 # specified a C type, no equivalent Python type
                 tp_decl = tp.declaration_code('', for_display=1)
-                self.body_as_obj = UnicodeNode(self.pos,
+                self.expr = UnicodeNode(self.pos,
                                     value=tp_decl)
             else:
-                self.body_as_obj = self.body_as_obj.analyse_types(env)
+                self.expr = self.expr.analyse_types(env)
         else:
-            # don't evaluate unimportant node in future steps
-            self.subexprs = [ se for se in self.subexprs if se != "body_as_obj" ]
+            # don't proceed with evaluating expr in future
+            self.subexprs = [ se for se in self.subexprs if se != "expr" ]
         return self
 
     def coerce_to_pyobject(self, env):
+        # The AnnotationNode is invariably coerced to pyobject, so this is how
+        # the correct bit to execute is picked
         if Future.annotations in env.global_scope().context.future_directives:
             return self.string
         else:
-            return self.body_as_obj.coerce_to_pyobject(env)
+            return self.expr.coerce_to_pyobject(env)
 
     def analyse_as_type(self, env):
         # for compatibility when used as a return_type_node, have this interface too
@@ -13973,7 +13972,7 @@ class AnnotationNode(ExprNode):
         if self.untyped:
             # Already applied as a fused type, not re-evaluating it here.
             return None, None
-        annotation = self.body_as_type
+        annotation = self.expr
         base_type = None
         is_ambiguous = False
         explicit_pytype = explicit_ctype = False
