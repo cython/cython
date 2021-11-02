@@ -1090,9 +1090,6 @@ class SlotTable(object):
         MethodSlot(descrsetfunc, "", "__set__", method_name_to_slot)
         MethodSlot(descrdelfunc, "", "__delete__", method_name_to_slot)
 
-        # ensure that the global list of special_method_names is updated
-        special_method_names.update(method_name_to_slot.keys())
-
     def get_special_method_signature(self, name):
         #  Given a method name, if it is a special method,
         #  return its signature, else return None.
