@@ -658,7 +658,7 @@ static int __Pyx_MergeVtables(PyTypeObject *type) {
             base = base->tp_base;
         }
     }
-    base_vtables = (void**) malloc(sizeof(void*) * (base_depth + 1));
+    base_vtables = (void**) malloc(sizeof(void*) * (size_t)(base_depth + 1));
     base_vtables[0] = unknown;
     // Could do MRO resolution of individual methods in the future, assuming
     // compatible vtables, but for now simply require a common vtable base.
