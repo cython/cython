@@ -675,7 +675,6 @@ class MethodDispatcherTransform(EnvTransform):
         method_handler = self._find_handler(
             "method_%s_%s" % (type_name, attr_name), kwargs)
         if method_handler is None:
-            # in this case we don't need the real directives on the call to get_slot_table
             if (attr_name in TypeSlots.special_method_names
                     or attr_name in ['__new__', '__class__']):
                 method_handler = self._find_handler(

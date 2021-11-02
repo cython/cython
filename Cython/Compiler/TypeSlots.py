@@ -1109,12 +1109,11 @@ class SlotTable(object):
         return self._get_slot_by_method_name(method_name)
 
     def __iter__(self):
-        # make it easier to iterate over all the plots
+        # make it easier to iterate over all the slots
         return iter(self.slot_table)
 
 
 _slot_table_dict = {}
-special_method_names = set()
 
 def get_slot_table(compiler_directives):
     if not compiler_directives:
@@ -1129,8 +1128,10 @@ def get_slot_table(compiler_directives):
         _slot_table_dict[key] = SlotTable(old_binops=old_binops)
     return _slot_table_dict[key]
 
-get_slot_table(None)  # call this to ensure that special_method_names is populated by
-                    # the default directives (so it can always be accessed quickly)
+
+# Populate "special_method_names" based on the default directives (so it can always be accessed quickly).
+special_method_names = set(get_slot_table(compiler_directives=None))
+
 
 # Method flags for python-exposed methods.
 
