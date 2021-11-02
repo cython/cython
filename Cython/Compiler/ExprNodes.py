@@ -13912,11 +13912,14 @@ class AnnotationNode(ExprNode):
     #  processing for evaluation as a type doesn't break
     #  the stored object
 
-    subexprs = ['expr']
+    subexprs = ['expr', 'string']
+    _no_string_subexprs = ['expr']
+    _no_expr_subexprs = ['string']
     # 'untyped' is set for fused specializations:
     # Once a fused function has been created we don't want
     # annotations to override an already set type.
     untyped = False
+    string_annotation = False  # bool - set to true if from __future__ import annotations
 
     def __init__(self, pos, expr, string=None):
         """string is expected to already be a StringNode or None"""
@@ -13951,18 +13954,14 @@ class AnnotationNode(ExprNode):
                                     value=tp_decl)
             else:
                 self.expr = self.expr.analyse_types(env)
+            self.subexprs = self._no_string_subexprs
+            self.type = self.expr.type
         else:
             # don't proceed with evaluating expr in future
-            self.subexprs = [ se for se in self.subexprs if se != "expr" ]
+            self.subexprs = self._no_expr_subexprs
+            self.type = self.string.type
+            self.string_annotation = True
         return self
-
-    def coerce_to_pyobject(self, env):
-        # The AnnotationNode is invariably coerced to pyobject, so this is how
-        # the correct bit to execute is picked
-        if Future.annotations in env.global_scope().context.future_directives:
-            return self.string
-        else:
-            return self.expr.coerce_to_pyobject(env)
 
     def analyse_as_type(self, env):
         # for compatibility when used as a return_type_node, have this interface too
@@ -14021,3 +14020,15 @@ class AnnotationNode(ExprNode):
         else:
             warning(annotation.pos, "Unknown type declaration in annotation, ignoring")
         return base_type, arg_type
+
+    def generate_result_code(self, code):
+        if self.string_annotation:
+            self.string.generate_result_code(code)
+        else:
+            self.expr.generate_result_code(code)
+
+    def calculate_result_code(self):
+        if self.string_annotation:
+            return self.string.calculate_result_code()
+        else:
+            return self.expr.calculate_result_code()
