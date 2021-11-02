@@ -13920,6 +13920,7 @@ class AnnotationNode(ExprNode):
     # annotations to override an already set type.
     untyped = False
     string_annotation = False  # bool - set to true if from __future__ import annotations
+    original_expr = None  # set if expr is reassigned to a string (to avoid being an invalid evaluation)
 
     def __init__(self, pos, expr, string=None):
         """string is expected to already be a StringNode or None"""
@@ -13938,29 +13939,17 @@ class AnnotationNode(ExprNode):
         # in the optimization code at the minute
         #  - do skip processing it though because things like undeclared variables
         #  in annotations shouldn't matter with pep563
-        if Future.annotations not in env.global_scope().context.future_directives:
-            # Be a bit lenient here and accept C-types
-            # here without causing an error.
-            # (and use the "coerce to string" behaviour
-            tp = None
-            if not isinstance(self.expr, TupleNode):
-                tp = self.expr.analyse_as_type(env)
-            if (tp and not tp.is_pyobject and
-                self.string.value not in [b"float", b"int"] # special cases these as also being Python objects
-                ):
-                # specified a C type, no equivalent Python type
-                tp_decl = tp.declaration_code('', for_display=1)
-                self.expr = UnicodeNode(self.pos,
-                                    value=tp_decl)
-            else:
-                self.expr = self.expr.analyse_types(env)
-            self.subexprs = self._no_string_subexprs
-            self.type = self.expr.type
-        else:
+        if Future.annotations in env.global_scope().context.future_directives:
             # don't proceed with evaluating expr in future
             self.subexprs = self._no_expr_subexprs
             self.type = self.string.type
             self.string_annotation = True
+        else:
+            tp = self.expr.analyse_as_type(env)
+            self._handle_c_type(tp)
+            self.expr = self.expr.analyse_types(env)
+            self.subexprs = self._no_string_subexprs
+            self.type = self.expr.type
         return self
 
     def analyse_as_type(self, env):
@@ -13971,7 +13960,7 @@ class AnnotationNode(ExprNode):
         if self.untyped:
             # Already applied as a fused type, not re-evaluating it here.
             return None, None
-        annotation = self.expr
+        annotation = self.original_expr or self.expr
         base_type = None
         is_ambiguous = False
         explicit_pytype = explicit_ctype = False
@@ -14015,20 +14004,29 @@ class AnnotationNode(ExprNode):
                         "Python type declaration in signature annotation does not refer to a Python type")
             base_type = Nodes.CAnalysedBaseTypeNode(
                 annotation.pos, type=arg_type, is_arg=True)
+            self._handle_c_type(arg_type)
         elif is_ambiguous:
             warning(annotation.pos, "Ambiguous types in annotation, ignoring")
         else:
             warning(annotation.pos, "Unknown type declaration in annotation, ignoring")
         return base_type, arg_type
 
+    def _handle_c_type(self, arg_type):
+        # generally something that's been successfully analysed as a type will not lead to
+        # a valid expression (and will lead to the annotation failing to evaluate correctly).
+        # In this case be lenient and just replace it with a string
+        if (arg_type and not arg_type.is_pyobject and
+            self.string.value not in [b"float", b"int"] # special cases these as also being Python objects
+            ):
+            # specified a C type, no equivalent Python type
+            self.original_expr = self.expr
+            self.expr = copy.copy(self.string)
+
     def generate_result_code(self, code):
-        if self.string_annotation:
-            self.string.generate_result_code(code)
-        else:
-            self.expr.generate_result_code(code)
+        pass
 
     def calculate_result_code(self):
         if self.string_annotation:
-            return self.string.calculate_result_code()
+            return self.string.result()
         else:
-            return self.expr.calculate_result_code()
+            return self.expr.result()
