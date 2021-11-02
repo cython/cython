@@ -277,7 +277,7 @@ class StringSourceDescriptor(SourceDescriptor):
     get_error_description = get_description
 
     def get_filenametable_entry(self):
-        return "stringsource"
+        return "<stringsource>"
 
     def __hash__(self):
         return id(self)
