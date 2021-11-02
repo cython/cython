@@ -2176,6 +2176,7 @@ class CBIntType(CIntType):
             base_code = 'bint'
         else:
             base_code = public_decl('int', dll_linkage)
+        base_code = StringEncoding.EncodedString(base_code)
         return self.base_declaration_code(base_code, entity_code)
 
     def __repr__(self):
