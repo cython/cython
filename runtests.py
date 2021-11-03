@@ -946,7 +946,7 @@ class CythonCompileTestCase(unittest.TestCase):
                  test_determinism=False,
                  common_utility_dir=None, pythran_dir=None, stats=None, add_cython_import=False,
                  extra_directives=None):
-        if not extra_directives:
+        if extra_directives is None:
             extra_directives = {}
         self.test_directory = test_directory
         self.tags = tags
