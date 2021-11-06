@@ -3476,10 +3476,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 module_temp,
                 Naming.pymoduledef_cname,
                 code.error_goto_if_null(module_temp, self.pos)))
-        code.put_gotref(module_temp, py_object_type)
+        # no gotref - refnanny isn't yet set up
         code.putln(code.error_goto_if_neg("PyState_AddModule(%s, &%s)" % (
             module_temp, Naming.pymoduledef_cname), self.pos))
-        code.put_decref_clear(module_temp, type=py_object_type)
+        code.put_decref_clear(module_temp, type=py_object_type, nanny=False)
         code.funcstate.release_temp(module_temp)
         code.putln('#else')
         code.putln(
