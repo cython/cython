@@ -585,7 +585,7 @@ and check if the queue really is empty or not:
 
             @cython.cfunc
             @cython.exceptval(-1, check=True)
-            def int peek(self):
+            def peek(self) -> cython.int:
                 value: cython.int = cython.cast(cython.Py_ssize_t, cqueue.queue_peek_head(self._c_queue))
                 if value == 0:
                     # this may mean that the queue is empty, or
