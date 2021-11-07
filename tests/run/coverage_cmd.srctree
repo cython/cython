@@ -29,43 +29,59 @@ plugins = Cython.Coverage
 ######## pkg/coverage_test_py.py ########
 # cython: linetrace=True
 # distutils: define_macros=CYTHON_TRACE=1
+import cython
+
 
 def func1(a, b):
-    x = 1               #  5
-    c = func2(a) + b    #  6
-    return x + c        #  7
+    x = 1               #  7
+    c = func2(a) + b    #  8
+    return x + c        #  9
 
 
 def func2(a):
-    return a * 2        # 11
+    return a * 2        # 13
 
 
 def func3(a):
-    x = 1               # 15
+    x = 1               # 17
     a *= 2              #     # pragma: no cover
     a += x              #
-    return a * 42       # 18  # pragma: no cover
+    return a * 42       # 20  # pragma: no cover
+
+
+@cython.cclass
+class A:
+    def meth(self):
+        return 1        # 26
 
 
 ######## pkg/coverage_test_pyx.pyx ########
 # cython: linetrace=True
 # distutils: define_macros=CYTHON_TRACE=1
 
+
+
 def func1(int a, int b):
-    cdef int x = 1      #  5
-    c = func2(a) + b    #  6
-    return x + c        #  7
+    cdef int x = 1      #  7
+    c = func2(a) + b    #  8
+    return x + c        #  9
 
 
 def func2(int a):
-    return a * 2        # 11
+    return a * 2        # 13
 
 
 def func3(int a):
-    cdef int x = 1      # 15
+    cdef int x = 1      # 17
     a *= 2              #     # pragma: no cover
     a += x              #
-    return a * 42       # 18  # pragma: no cover
+    return a * 42       # 20  # pragma: no cover
+
+
+
+cdef class A:
+    def meth(self):
+        return 1        # 26
 
 
 ######## coverage_test_include_pyx.pyx ########
@@ -110,6 +126,9 @@ def run_coverage(module):
     assert module.func2(2) == 2 * 2
     if '_include_' in module_name:
         assert module.main_func(2) == (2 * 3) + ((2 * 2) + 4 + 1) + (2 * 2)
+    assert module.A().meth() == 1
+
+
 
 
 if __name__ == '__main__':
@@ -186,9 +205,10 @@ def run_xml_report():
         )
 
     report = files['pkg/coverage_test_pyx.pyx']
-    assert report[5] > 0, report
-    assert report[6] > 0, report
     assert report[7] > 0, report
+    assert report[8] > 0, report
+    assert report[9] > 0, report
+    assert report[26] > 0, report
 
 
 def run_json_report():
@@ -210,8 +230,8 @@ def run_json_report():
         summary = report['summary']
         assert summary['missing_lines'] == 2, summary
         assert summary['excluded_lines'] == 2, summary
-        assert report['missing_lines'] == [15, 17], report
-        assert report['excluded_lines'] == [16, 18], report
+        assert report['missing_lines'] == [17, 19], report
+        assert report['excluded_lines'] == [18, 20], report
 
         assert not frozenset(
             report['missing_lines'] + report['excluded_lines']
@@ -246,13 +266,14 @@ def run_html_report():
         missing = report["mis"]
         excluded = report["exc"]
         assert executed, (filename, report)
-        assert 5 in executed, executed
-        assert 6 in executed, executed
         assert 7 in executed, executed
-        assert 15 in missing, missing
-        assert 16 in excluded, excluded
+        assert 8 in executed, executed
+        assert 9 in executed, executed
+        assert 26 in executed, executed
         assert 17 in missing, missing
         assert 18 in excluded, excluded
+        assert 19 in missing, missing
+        assert 20 in excluded, excluded
 
 
 if __name__ == '__main__':
