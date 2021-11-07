@@ -235,7 +235,7 @@
               PyThreadState *tstate;                                                       \
               PyGILState_STATE state = __Pyx_PyGILState_Ensure();                          \
               tstate = __Pyx_PyThreadState_Current;                                        \
-              if (__Pyx_IsTracing(tstate, 0, 0) && tstate->c_tracefunc && $frame_cname->f_trace) { \
+              if (__Pyx_IsTracing(tstate, 0, 0) && tstate->c_tracefunc) {                  \
                   ret = __Pyx_call_line_trace_func(tstate, $frame_cname, lineno);          \
               }                                                                            \
               __Pyx_PyGILState_Release(state);                                             \
@@ -243,7 +243,7 @@
           }                                                                                \
       } else {                                                                             \
           PyThreadState* tstate = __Pyx_PyThreadState_Current;                             \
-          if (__Pyx_IsTracing(tstate, 0, 0) && tstate->c_tracefunc && $frame_cname->f_trace) { \
+          if (__Pyx_IsTracing(tstate, 0, 0) && tstate->c_tracefunc) {                      \
               int ret = __Pyx_call_line_trace_func(tstate, $frame_cname, lineno);          \
               if (unlikely(ret)) goto_error;                                               \
           }                                                                                \
@@ -253,7 +253,7 @@
   #define __Pyx_TraceLine(lineno, nogil, goto_error)                                       \
   if (likely(!__Pyx_use_tracing)); else {                                                  \
       PyThreadState* tstate = __Pyx_PyThreadState_Current;                                 \
-      if (__Pyx_IsTracing(tstate, 0, 0) && tstate->c_tracefunc && $frame_cname->f_trace) { \
+      if (__Pyx_IsTracing(tstate, 0, 0) && tstate->c_tracefunc) {                          \
           int ret = __Pyx_call_line_trace_func(tstate, $frame_cname, lineno);              \
           if (unlikely(ret)) goto_error;                                                   \
       }                                                                                    \
@@ -289,11 +289,6 @@ static int __Pyx_TraceSetupAndCall(PyCodeObject** code,
             0                                /*PyObject *locals*/
         );
         if (*frame == NULL) return 0;
-        if (CYTHON_TRACE && (*frame)->f_trace == NULL) {
-            // this enables "f_lineno" lookup, at least in CPython ...
-            Py_INCREF(Py_None);
-            (*frame)->f_trace = Py_None;
-        }
 #if PY_VERSION_HEX < 0x030400B1
     } else {
         (*frame)->f_tstate = tstate;
