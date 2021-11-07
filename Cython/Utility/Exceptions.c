@@ -680,8 +680,9 @@ static int __Pyx_CLineForTraceback(CYTHON_NCP_UNUSED PyThreadState *tstate, int 
       }
     }
     if (!use_cline) {
+        int retv = PyObject_SetAttr(${cython_runtime_cname}, PYIDENT("cline_in_traceback"), Py_False);
+        if (unlikely(retv < 0)) PyErr_Clear();
         c_line = 0;
-        PyObject_SetAttr(${cython_runtime_cname}, PYIDENT("cline_in_traceback"), Py_False);
     }
     else if (use_cline == Py_False || (use_cline != Py_True && PyObject_Not(use_cline) != 0)) {
         c_line = 0;
