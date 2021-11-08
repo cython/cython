@@ -9,3 +9,9 @@ test_queue
 memoryview
 memview
 buffer
+
+# segfaults
+#buildenv
+#getattribute
+#annotation_typing
+#annotate_html
