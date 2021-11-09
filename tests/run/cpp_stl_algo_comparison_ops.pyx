@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, werror, cpp14, no-cpp-locals
+# tag: cpp, werror, cpp11, no-cpp-locals
 
 from libcpp cimport bool
 from libcpp.algorithm cimport equal, lexicographical_compare

@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, werror, cpp14, no-cpp-locals, c_string_type=str
+# tag: cpp, werror, cpp17, no-cpp-locals, c_string_type=str
 # cython: c_string_encoding=ascii, c_string_type=str
 
 from libcpp cimport bool
