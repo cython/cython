@@ -258,6 +258,15 @@ cdef extern from "<algorithm>" namespace "std" nogil:
     const T& clamp[T, Compare](const T& v, const T& lo, const T& hi, Compare comp) except +
 
     # Comparison operations
+    bool equal[InputIt1, InputIt2](InputIt1 first1, InputIt1 last1, InputIt2 first2) except +
+    bool equal[InputIt1, InputIt2, BinPred](InputIt1 first1, InputIt1 last1, InputIt2 first2, BinPred pred) except +
+    # ambiguous with previous overload
+    #bool equal[InputIt1, InputIt2](InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2) except +
+    bool equal[InputIt1, InputIt2, BinPred](InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2, BinPred pred) except +
+    
+    bool lexicographical_compare[InputIt1, InputIt2](InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2) except +
+    # ambiguous with next overload
+    #bool lexicographical_compare[InputIt1, InputIt2, ExecutionPolicy](ExecutionPolicy&& policy, InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2) except +
+    bool lexicographical_compare[InputIt1, InputIt2, Compare](InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2, Compare comp) except +
 
     # Permutation operations
-
