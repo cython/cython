@@ -270,3 +270,14 @@ cdef extern from "<algorithm>" namespace "std" nogil:
     bool lexicographical_compare[InputIt1, InputIt2, Compare](InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2, Compare comp) except +
 
     # Permutation operations
+    bool is_permutation[ForwardIt1, ForwardIt2](ForwardIt1 first1, ForwardIt1 last1, ForwardIt2 first2) except +
+    bool is_permutation[ForwardIt1, ForwardIt2, BinaryPred](ForwardIt1 first1, ForwardIt1 last1, ForwardIt2 first2, BinaryPred p) except +
+    # ambiguous with previous overload
+    #bool is_permutation[ForwardIt1, ForwardIt2](ForwardIt1 first1, ForwardIt1 last1, ForwardIt2 first2, ForwardIt2 last2) except +
+    bool is_permutation[ForwardIt1, ForwardIt2, BinaryPred](ForwardIt1 first1, ForwardIt1 last1, ForwardIt2 first2, ForwardIt2 last2, BinaryPred p) except +
+    bool next_permutation[BidirIt](BidirIt first, BidirIt last) except +
+    bool next_permutation[BidirIt, Compare](BidirIt first, BidirIt last, Compare comp) except +
+    bool prev_permutation[BidirIt](BidirIt first, BidirIt last) except +
+    bool prev_permutation[BidirIt, Compare](BidirIt first, BidirIt last, Compare comp) except +
+
+
