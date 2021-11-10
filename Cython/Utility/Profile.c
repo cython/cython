@@ -193,6 +193,17 @@
   static PyCodeObject *__Pyx_createFrameCodeObject(const char *funcname, const char *srcfile, int firstlineno); /*proto*/
   static int __Pyx_TraceSetupAndCall(PyCodeObject** code, PyFrameObject** frame, PyThreadState* tstate, const char *funcname, const char *srcfile, int firstlineno); /*proto*/
 
+#if !CYTHON_USE_MODULE_STATE
+static PyObject *__pyx_dummy_tracer = NULL;
+#endif
+
+static PyObject *__Pyx_dummy_tracer(PyObject *self, PyObject *args);
+
+static PyMethodDef __pyx_dummy_tracer_methods[] = {
+    {"dummy_tracer", __Pyx_dummy_tracer, METH_VARARGS, NULL},
+    {NULL, NULL, 0, NULL}
+};
+
 #else
 
   #define __Pyx_TraceDeclarations
@@ -266,6 +277,7 @@
 
 /////////////// Profile ///////////////
 //@substitute: naming
+//@requires: CommonStructures.c::FetchCommonFunction
 
 #if CYTHON_PROFILE
 
@@ -289,6 +301,19 @@ static int __Pyx_TraceSetupAndCall(PyCodeObject** code,
             0                                /*PyObject *locals*/
         );
         if (*frame == NULL) return 0;
+#if PY_VERSION_HEX < 0x031000B1
+        // For Python versions older than 3.10 (Before PEP626), set a dummy tracer so that Python
+        // updates f_lineno
+        if (CYTHON_TRACE && (*frame)->f_trace == NULL) {
+            if (__pyx_dummy_tracer == NULL) {
+                __pyx_dummy_tracer = __Pyx_FetchCommonFunction(&__pyx_dummy_tracer_methods[0]);
+                if (__pyx_dummy_tracer == NULL) return 0;
+            }
+
+            Py_INCREF(__pyx_dummy_tracer);
+            (*frame)->f_trace = __pyx_dummy_tracer;
+        }
+#endif
 #if PY_VERSION_HEX < 0x030400B1
     } else {
         (*frame)->f_tstate = tstate;
@@ -361,6 +386,11 @@ bad:
 #endif
 
     return py_code;
+}
+
+static PyObject *__Pyx_dummy_tracer(PyObject *self, PyObject *args) {
+    Py_INCREF(__pyx_dummy_tracer);
+    return __pyx_dummy_tracer;
 }
 
 #endif /* CYTHON_PROFILE */

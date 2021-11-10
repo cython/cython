@@ -2736,6 +2736,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('#ifdef __Pyx_FusedFunction_USED')
         code.putln('PyTypeObject *%s;' % Naming.fusedfunction_type_cname)
         code.putln('#endif')
+        code.putln('#if CYTHON_PROFILE || CYTHON_TRACE')
+        code.putln('PyObject *%s;' % Naming.dummy_tracer_cname)
+        code.putln('#endif')
 
     def generate_module_state_end(self, env, modules, globalstate):
         module_state = globalstate['module_state']
@@ -2816,6 +2819,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             Naming.modulestateglobal_cname,
             Naming.fusedfunction_type_cname))
         code.putln('#endif')
+        code.putln('#if CYTHON_PROFILE || CYTHON_TRACE')
+        code.putln('#define %s %s->%s' %
+            (Naming.dummy_tracer_cname,
+            Naming.modulestateglobal_cname,
+            Naming.dummy_tracer_cname))
+        code.putln('#endif')
 
     def generate_module_state_clear(self, env, code):
         code.putln("#if CYTHON_USE_MODULE_STATE")
@@ -2844,6 +2853,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('Py_CLEAR(clear_module_state->%s);' %
             Naming.fusedfunction_type_cname)
         code.putln('#endif')
+        code.putln('#if CYTHON_PROFILE || CYTHON_TRACE')
+        code.putln('Py_CLEAR(clear_module_state->%s);' %
+            Naming.dummy_tracer_cname)
+        code.putln('#endif')
 
     def generate_module_state_traverse(self, env, code):
         code.putln("#if CYTHON_USE_MODULE_STATE")
@@ -2871,6 +2884,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('#ifdef __Pyx_FusedFunction_USED')
         code.putln('Py_VISIT(traverse_module_state->%s);' %
             Naming.fusedfunction_type_cname)
+        code.putln('#endif')
+        code.putln('#if CYTHON_PROFILE || CYTHON_TRACE')
+        code.putln('Py_VISIT(traverse_module_state->%s);' %
+            Naming.dummy_tracer_cname)
         code.putln('#endif')
 
     def generate_module_init_func(self, imported_modules, env, code):
