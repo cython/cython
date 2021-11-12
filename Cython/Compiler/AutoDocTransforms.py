@@ -46,9 +46,6 @@ class AnnotationWriter(ExpressionWriter):
     def visit_AnnotationNode(self, node):
         self.put(node.string.unicode_value)
 
-    def visit_AnnotationNode(self, node):
-        self.put(node.string.value)
-
 
 class EmbedSignature(CythonTransform):
 
