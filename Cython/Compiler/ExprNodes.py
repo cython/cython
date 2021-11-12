@@ -14016,8 +14016,8 @@ class AnnotationNode(ExprNode):
         # a valid expression (and will lead to the annotation failing to evaluate correctly).
         # In this case be lenient and just replace it with a string
         if (arg_type and not arg_type.is_pyobject and
-            self.string.value not in [b"float", b"int"] # special cases these as also being Python objects
-            ):
+                self.string.value not in [b"float", b"int"]  # special cases these as also being Python objects
+                ):
             # specified a C type, no equivalent Python type
             self.original_expr = self.expr
             self.expr = copy.copy(self.string)
