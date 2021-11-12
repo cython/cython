@@ -226,6 +226,13 @@ cdef extern from "<algorithm>" namespace "std" nogil:
     bool binary_search[ExecutionPolicy, Iter, T, Compare](ExecutionPolicy&& policy, Iter first, Iter last, const T& value, Compare comp) except +
 
     # Other operations on sorted ranges
+    OutputIt merge[InputIt1, InputIt2, OutputIt](
+        InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2, OutputIt out) except +
+    OutputIt merge[InputIt1, InputIt2, OutputIt, Compare](
+        InputIt1 first1, InputIt1 last1, InputIt2 first2, InputIt2 last2, OutputIt out, Compare comp) except +
+    
+    void inplace_merge[BidirIt](BidirIt first, BidirIt middle, BidirIt last) except +
+    void inplace_merge[BidirIt, Compare](BidirIt first, BidirIt middle, BidirIt last, Compare comp) except +
 
     # Set operations (on sorted ranges)
 
