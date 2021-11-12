@@ -140,13 +140,6 @@ def str_type_is_str():
     cdef str s = 'abc'
     return str, s
 
-def strip_wrapped_string(s):
-    # PEP 563 translates an annotation of "test new test" to '"test new test"'
-    # but choice of string delimiters is a bit arbitrary
-    #  this function handles that
-    assert s[0] == s[-1] # delimiters on either end are the same
-    return s[1:-1] # strip them
-
 def annotation_syntax(a: "test new test", b : "other" = 2, *args: "ARGS", **kwargs: "KWARGS") -> "ret":
     """
     >>> annotation_syntax(1)
@@ -156,16 +149,16 @@ def annotation_syntax(a: "test new test", b : "other" = 2, *args: "ARGS", **kwar
 
     >>> len(annotation_syntax.__annotations__)
     5
-    >>> strip_wrapped_string(annotation_syntax.__annotations__['a'])
-    'test new test'
-    >>> strip_wrapped_string(annotation_syntax.__annotations__['b'])
-    'other'
-    >>> strip_wrapped_string(annotation_syntax.__annotations__['args'])
-    'ARGS'
-    >>> strip_wrapped_string(annotation_syntax.__annotations__['kwargs'])
-    'KWARGS'
-    >>> strip_wrapped_string(annotation_syntax.__annotations__['return'])
-    'ret'
+    >>> print(annotation_syntax.__annotations__['a'])
+    test new test
+    >>> print(annotation_syntax.__annotations__['b'])
+    other
+    >>> print(annotation_syntax.__annotations__['args'])
+    ARGS
+    >>> print(annotation_syntax.__annotations__['kwargs'])
+    KWARGS
+    >>> print(annotation_syntax.__annotations__['return'])
+    ret
     """
     result : int = a + b
 

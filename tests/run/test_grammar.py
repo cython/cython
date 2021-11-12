@@ -477,7 +477,7 @@ class GrammarTests(unittest.TestCase):
             def __init__(self, x):
                 self.x: int = x
 
-        self.assertEqual(C.__annotations__, {'_C__foo': 'int', 's': 'str'})
+        self.assertEqual(C.__annotations__, {'_C__foo': int, 's': str})
         with self.assertRaises(NameError):
             class CBad:
                 no_such_name_defined.attr: int = 0
@@ -746,33 +746,33 @@ class GrammarTests(unittest.TestCase):
 
         # argument annotation tests
         def f(x) -> list: pass
-        self.assertEqual(f.__annotations__, {'return': 'list'})
+        self.assertEqual(f.__annotations__, {'return': list})
         def f(x: int): pass
-        self.assertEqual(f.__annotations__, {'x': 'int'})
+        self.assertEqual(f.__annotations__, {'x': int})
         def f(x: int, /): pass
-        self.assertEqual(f.__annotations__, {'x': 'int'})
+        self.assertEqual(f.__annotations__, {'x': int})
         def f(x: int = 34, /): pass
-        self.assertEqual(f.__annotations__, {'x': 'int'})
+        self.assertEqual(f.__annotations__, {'x': int})
         def f(*x: str): pass
-        self.assertEqual(f.__annotations__, {'x': 'str'})
+        self.assertEqual(f.__annotations__, {'x': str})
         def f(**x: float): pass
-        self.assertEqual(f.__annotations__, {'x': 'float'})
+        self.assertEqual(f.__annotations__, {'x': float})
         def f(x, y: 1+2): pass
-        self.assertEqual(f.__annotations__, {'y': '1 + 2'})
+        self.assertEqual(f.__annotations__, {'y': 3})
         def f(x, y: 1+2, /): pass
-        self.assertEqual(f.__annotations__, {'y': '1 + 2'})
+        self.assertEqual(f.__annotations__, {'y': 3})
         def f(a, b: 1, c: 2, d): pass
-        self.assertEqual(f.__annotations__, {'b': '1', 'c': '2'})
+        self.assertEqual(f.__annotations__, {'b': 1, 'c': 2})
         def f(a, b: 1, /, c: 2, d): pass
-        self.assertEqual(f.__annotations__, {'b': '1', 'c': '2'})
+        self.assertEqual(f.__annotations__, {'b': 1, 'c': 2})
         def f(a, b: 1, c: 2, d, e: 3 = 4, f=5, *g: 6): pass
         self.assertEqual(f.__annotations__,
-                         {'b': '1', 'c': '2', 'e': '3', 'g': '6'})
+                         {'b': 1, 'c': 2, 'e': 3, 'g': 6})
         def f(a, b: 1, c: 2, d, e: 3 = 4, f=5, *g: 6, h: 7, i=8, j: 9 = 10,
               **k: 11) -> 12: pass
         self.assertEqual(f.__annotations__,
-                         {'b': '1', 'c': '2', 'e': '3', 'g': '6', 'h': '7', 'j': '9',
-                          'k': '11', 'return': '12'})
+                         {'b': 1, 'c': 2, 'e': 3, 'g': 6, 'h': 7, 'j': 9,
+                          'k': 11, 'return': 12})
         # FIXME: compile failure on positional-only argument declaration
         """
         def f(a, b: 1, c: 2, d, e: 3 = 4, f: int = 5, /, *g: 6, h: 7, i=8, j: 9 = 10,
@@ -795,7 +795,7 @@ class GrammarTests(unittest.TestCase):
         def null(x): return x
         @null
         def f(x) -> list: pass
-        self.assertEqual(f.__annotations__, {'return': 'list'})
+        self.assertEqual(f.__annotations__, {'return': list})
 
         # Test expressions as decorators (PEP 614):
         # FIXME: implement PEP 614

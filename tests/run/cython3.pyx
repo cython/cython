@@ -618,15 +618,15 @@ def annotation_syntax(a: "test new test", b : "other" = 2, *args: "ARGS", **kwar
     >>> len(annotation_syntax.__annotations__)
     5
     >>> print(annotation_syntax.__annotations__['a'])
-    'test new test'
+    test new test
     >>> print(annotation_syntax.__annotations__['b'])
-    'other'
+    other
     >>> print(annotation_syntax.__annotations__['args'])
-    'ARGS'
+    ARGS
     >>> print(annotation_syntax.__annotations__['kwargs'])
-    'KWARGS'
+    KWARGS
     >>> print(annotation_syntax.__annotations__['return'])
-    'ret'
+    ret
     """
     result : int = a + b
 

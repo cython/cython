@@ -6,6 +6,11 @@
 # may need changing occasionally to reflect behaviour
 # and this isn't necessarily a bug
 
+# because for this particular test we aren't worried if the
+# annotations are evaluable, just that they appear in the
+# signature
+from __future__ import annotations
+
 import sys
 
 if sys.version_info >= (3, 4):
