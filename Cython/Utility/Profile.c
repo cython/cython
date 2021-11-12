@@ -194,7 +194,7 @@
   static int __Pyx_TraceSetupAndCall(PyCodeObject** code, PyFrameObject** frame, PyThreadState* tstate, const char *funcname, const char *srcfile, int firstlineno); /*proto*/
 
 #if !CYTHON_USE_MODULE_STATE
-static PyObject *__pyx_dummy_tracer = NULL;
+static PyObject *$dummy_tracer_cname = NULL;
 #endif
 
 static PyObject *__Pyx_dummy_tracer(PyObject *self, PyObject *args);
@@ -305,13 +305,13 @@ static int __Pyx_TraceSetupAndCall(PyCodeObject** code,
         // For Python versions older than 3.10 (Before PEP626), set a dummy tracer so that Python
         // updates f_lineno
         if (CYTHON_TRACE && (*frame)->f_trace == NULL) {
-            if (__pyx_dummy_tracer == NULL) {
-                __pyx_dummy_tracer = __Pyx_FetchCommonFunction(&__pyx_dummy_tracer_methods[0]);
-                if (__pyx_dummy_tracer == NULL) return 0;
+            if ($dummy_tracer_cname == NULL) {
+                $dummy_tracer_cname = __Pyx_FetchCommonFunction(&__pyx_dummy_tracer_methods[0]);
+                if ($dummy_tracer_cname == NULL) return 0;
             }
 
-            Py_INCREF(__pyx_dummy_tracer);
-            (*frame)->f_trace = __pyx_dummy_tracer;
+            Py_INCREF($dummy_tracer_cname);
+            (*frame)->f_trace = $dummy_tracer_cname;
         }
 #endif
 #if PY_VERSION_HEX < 0x030400B1
@@ -389,8 +389,8 @@ bad:
 }
 
 static PyObject *__Pyx_dummy_tracer(PyObject *self, PyObject *args) {
-    Py_INCREF(__pyx_dummy_tracer);
-    return __pyx_dummy_tracer;
+    Py_INCREF($dummy_tracer_cname);
+    return $dummy_tracer_cname;
 }
 
 #endif /* CYTHON_PROFILE */
