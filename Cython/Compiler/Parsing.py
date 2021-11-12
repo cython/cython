@@ -3956,4 +3956,7 @@ def p_annotation(s):
     """
     pos = s.position()
     expr = p_test(s)
-    return ExprNodes.AnnotationNode(pos, expr=expr)
+    return ExprNodes.AnnotationNode(
+        pos, expr=expr,
+        string_annotation=Future.annotations in s.context.future_directives
+    )

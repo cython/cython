@@ -13912,7 +13912,6 @@ class AnnotationNode(ExprNode):
     #  processing for evaluation as a type doesn't break
     #  the stored object
 
-    subexprs = ['expr', 'string']
     _no_string_subexprs = ['expr']
     _no_expr_subexprs = ['string']
     # 'untyped' is set for fused specializations:
@@ -13922,7 +13921,14 @@ class AnnotationNode(ExprNode):
     string_annotation = False  # bool - set to true if from __future__ import annotations
     original_expr = None  # set if expr is reassigned to a string (to avoid being an invalid evaluation)
 
-    def __init__(self, pos, expr, string=None):
+    @property
+    def subexprs(self):
+        if self.string_annotation:
+            return self._no_expr_subexprs
+        else:
+            return self._no_string_subexprs
+
+    def __init__(self, pos, expr, string=None, string_annotation=False):
         """string is expected to already be a StringNode or None"""
         ExprNode.__init__(self, pos)
         if string is None:
@@ -13933,22 +13939,21 @@ class AnnotationNode(ExprNode):
             string = StringNode(pos, unicode_value=string, value=string.as_utf8_string())
         self.string = string
         self.expr = expr
+        self.string_annotation = string_annotation
 
     def analyse_types(self, env):
         # I'd like to be able to delete body_as_obj if unneeded, but it is used
         # in the optimization code at the minute
         #  - do skip processing it though because things like undeclared variables
         #  in annotations shouldn't matter with pep563
-        if Future.annotations in env.global_scope().context.future_directives:
-            # don't proceed with evaluating expr in future
-            self.subexprs = self._no_expr_subexprs
+        if self.string_annotation:
             self.type = self.string.type
-            self.string_annotation = True
         else:
-            tp = self.expr.analyse_as_type(env)
-            self._handle_c_type(tp)
+            if not isinstance(self.expr, TupleNode):
+                # C-tuples mostly
+                tp = self.expr.analyse_as_type(env)
+                self._handle_c_type(tp)
             self.expr = self.expr.analyse_types(env)
-            self.subexprs = self._no_string_subexprs
             self.type = self.expr.type
         return self
 
