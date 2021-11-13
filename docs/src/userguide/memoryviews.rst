@@ -663,9 +663,7 @@ call functions in C files, see :ref:`using_c_libraries`.
 Performance: Disabling initialization checks
 ============================================
 
-When memoryviews are used as class attributes, initialization checks are performed
-by default. Those checks are executed everytime a memoryview is accessed, introducing
-potential slowdowns.
+Every time the memoryview is accessed, Cython adds a check to make sure that it has been initialized.
 
 If you are looking for performance, you can disable them by setting the
 ``initializedcheck`` directive to ``False``.
