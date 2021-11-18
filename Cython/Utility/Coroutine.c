@@ -730,7 +730,8 @@ PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value, i
 
             assert(f->f_back == NULL);
             #if PY_VERSION_HEX >= 0x030B00A1
-            // FIXME: unclear what to do if PyThreadState_GetFrame fails
+            // PyThreadState_GetFrame returns NULL if there isn't a current frame
+            // which is a valid state so no need to check
             f->f_back = PyThreadState_GetFrame(tstate);
             #else
             Py_XINCREF(tstate->frame);
