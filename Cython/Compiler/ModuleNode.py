@@ -3109,7 +3109,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # user code in atexit or other global registries.
         ##code.put_decref_clear(env.module_dict_cname, py_object_type, nanny=False)
         code.putln('}')
-        code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
+        code.putln("#if !CYTHON_USE_MODULE_STATE")
         code.put_decref_clear(env.module_cname, py_object_type, nanny=False, clear_before_decref=True)
         code.putln("#endif")
         code.putln('} else if (!PyErr_Occurred()) {')
@@ -3470,16 +3470,19 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 env.module_cname))
         code.putln(code.error_goto_if_null(env.module_cname, self.pos))
         code.putln("#elif CYTHON_COMPILING_IN_LIMITED_API")
-        module_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+        # manage_ref is False (and refnanny calls are omitted) because refnanny isn't yet initialized
+        module_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=False)
         code.putln(
             "%s = PyModule_Create(&%s); %s" % (
                 module_temp,
                 Naming.pymoduledef_cname,
                 code.error_goto_if_null(module_temp, self.pos)))
-        code.put_gotref(module_temp, py_object_type)
-        code.putln(code.error_goto_if_neg("PyState_AddModule(%s, &%s)" % (
-            module_temp, Naming.pymoduledef_cname), self.pos))
-        code.put_decref_clear(module_temp, type=py_object_type)
+        code.putln("{")
+        code.putln("int add_module_result = PyState_AddModule(%s, &%s);" % (
+            module_temp, Naming.pymoduledef_cname))
+        code.put_decref_clear(module_temp, type=py_object_type, nanny=False)
+        code.putln(code.error_goto_if_neg("add_module_result", self.pos))
+        code.putln("}")
         code.funcstate.release_temp(module_temp)
         code.putln('#else')
         code.putln(
