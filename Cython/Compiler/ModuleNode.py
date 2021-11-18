@@ -1437,7 +1437,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         warning(scope.parent_type.pos,
                                 "total_ordering directive used, but no comparison and equality methods defined")
 
-                    for slot in TypeSlots.PyNumberMethods:
+                    for slot in TypeSlots.get_slot_table(code.globalstate.directives).PyNumberMethods:
                         if slot.is_binop and scope.defines_any_special(slot.user_methods):
                             self.generate_binop_function(scope, slot, code, entry.pos)
 
@@ -1845,7 +1845,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("}")
 
     def generate_clear_function(self, scope, code, cclass_entry):
-        tp_slot = TypeSlots.get_slot_by_name("tp_clear")
+        tp_slot = TypeSlots.get_slot_by_name("tp_clear", scope.directives)
         slot_func = scope.mangle_internal("tp_clear")
         base_type = scope.parent_type.base_type
         if tp_slot.slot_code(scope) != slot_func:
@@ -2225,10 +2225,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if preprocessor_guard:
             code.putln(preprocessor_guard)
 
-        if slot.left_slot.signature == TypeSlots.binaryfunc:
+        if slot.left_slot.signature in (TypeSlots.binaryfunc, TypeSlots.ibinaryfunc):
             slot_type = 'binaryfunc'
             extra_arg = extra_arg_decl = ''
-        elif slot.left_slot.signature == TypeSlots.ternaryfunc:
+        elif slot.left_slot.signature in (TypeSlots.ternaryfunc, TypeSlots.iternaryfunc):
             slot_type = 'ternaryfunc'
             extra_arg = ', extra_arg'
             extra_arg_decl = ', PyObject* extra_arg'
@@ -2519,17 +2519,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         ext_type = entry.type
         scope = ext_type.scope
 
-        members_slot = TypeSlots.get_slot_by_name("tp_members")
+        members_slot = TypeSlots.get_slot_by_name("tp_members", code.globalstate.directives)
         members_slot.generate_substructure_spec(scope, code)
 
-        buffer_slot = TypeSlots.get_slot_by_name("tp_as_buffer")
+        buffer_slot = TypeSlots.get_slot_by_name("tp_as_buffer", code.globalstate.directives)
         if not buffer_slot.is_empty(scope):
             code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
             buffer_slot.generate_substructure(scope, code)
             code.putln("#endif")
 
         code.putln("static PyType_Slot %s_slots[] = {" % ext_type.typeobj_cname)
-        for slot in TypeSlots.slot_table:
+        for slot in TypeSlots.get_slot_table(code.globalstate.directives):
             slot.generate_spec(scope, code)
         code.putln("{0, 0},")
         code.putln("};")
@@ -2543,14 +2543,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('"%s.%s",' % (self.full_module_name, classname.replace('"', '')))
         code.putln("sizeof(%s)," % objstruct)
         code.putln("0,")
-        code.putln("%s," % TypeSlots.get_slot_by_name("tp_flags").slot_code(scope))
+        code.putln("%s," % TypeSlots.get_slot_by_name("tp_flags", scope.directives).slot_code(scope))
         code.putln("%s_slots," % ext_type.typeobj_cname)
         code.putln("};")
 
     def generate_typeobj_definition(self, modname, entry, code):
         type = entry.type
         scope = type.scope
-        for suite in TypeSlots.substructures:
+        for suite in TypeSlots.get_slot_table(code.globalstate.directives).substructures:
             suite.generate_substructure(scope, code)
         code.putln("")
         if entry.visibility == 'public':
@@ -2574,7 +2574,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "sizeof(%s), /*tp_basicsize*/" % objstruct)
         code.putln(
             "0, /*tp_itemsize*/")
-        for slot in TypeSlots.slot_table:
+        for slot in TypeSlots.get_slot_table(code.globalstate.directives):
             slot.generate(scope, code)
         code.putln(
             "};")
