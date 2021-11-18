@@ -53,10 +53,12 @@ def f():
 
 def fn():
     cdef array arr = array(shape=(10,), itemsize=sizeof(ssize_t), format='n')
+    cdef Py_ssize_t[:] arrview = arr
     cdef memoryview mv = memoryview(arr, PyBUF_C_CONTIGUOUS)
 
 def fN():
     cdef array arr = array(shape=(10,), itemsize=sizeof(size_t), format='N')
+    cdef size_t[:] arrview = arr
     cdef memoryview mv = memoryview(arr, PyBUF_C_CONTIGUOUS)
 
 def g():

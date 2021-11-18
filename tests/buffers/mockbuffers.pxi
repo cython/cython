@@ -210,6 +210,20 @@ cdef class UnsignedShortMockBuffer(MockBuffer):
     cdef get_itemsize(self): return sizeof(unsigned short)
     cdef get_default_format(self): return b"@1H" # Try with repeat count
 
+cdef class SSizetMockBuffer(MockBuffer):
+    cdef int write(self, char* buf, object value) except -1:
+        (<Py_ssize_t*>buf)[0] = <Py_ssize_t>value
+        return 0
+    cdef get_itemsize(self): return sizeof(Py_ssize_t)
+    cdef get_default_format(self): return b"@1n" # Try with repeat count
+
+cdef class SizetMockBuffer(MockBuffer):
+    cdef int write(self, char* buf, object value) except -1:
+        (<size_t*>buf)[0] = <size_t>value
+        return 0
+    cdef get_itemsize(self): return sizeof(size_t)
+    cdef get_default_format(self): return b"@1N" # Try with repeat count
+
 cdef class FloatMockBuffer(MockBuffer):
     cdef int write(self, char* buf, object value) except -1:
         (<float*>buf)[0] = <float>(<double>value)
