@@ -427,6 +427,9 @@ static PyTypeObject __pyx_AsyncGenType_type = {
 #if PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000
     0,                                          /*tp_print*/
 #endif
+#if PY_VERSION_HEX >= 0x030B00A2
+    0,                                 /*tp_inline_values_offset*/
+#endif
 };
 
 
@@ -662,6 +665,9 @@ static PyTypeObject __pyx__PyAsyncGenASendType_type = {
 #if PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000
     0,                                          /*tp_print*/
 #endif
+#if PY_VERSION_HEX >= 0x030B00A2
+    0,                                 /*tp_inline_values_offset*/
+#endif
 };
 
 
@@ -776,6 +782,9 @@ static PyTypeObject __pyx__PyAsyncGenWrappedValueType_type = {
 #endif
 #if PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000
     0,                                          /*tp_print*/
+#endif
+#if PY_VERSION_HEX >= 0x030B00A2
+    0,                                 /*tp_inline_values_offset*/
 #endif
 };
 
@@ -1061,6 +1070,9 @@ static PyTypeObject __pyx__PyAsyncGenAThrowType_type = {
 #endif
 #if PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000
     0,                                          /*tp_print*/
+#endif
+#if PY_VERSION_HEX >= 0x030B00A2
+    0,                                 /*tp_inline_values_offset*/
 #endif
 };
 
