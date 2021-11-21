@@ -12,5 +12,3 @@ run.py35_pep492_interop
 # gc issue?
 memoryview_in_subclasses
 
-# segfault in test_get_value_no_default
-run.pycontextvar
