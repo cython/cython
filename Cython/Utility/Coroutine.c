@@ -1952,7 +1952,7 @@ static PyTypeObject __pyx_IterableCoroutineType_type = {
     __Pyx_Coroutine_del,                /*tp_del*/
 #endif
     0,                                  /*tp_version_tag*/
-#if PY_VERSION_HEX >= 0x030400a1 && !defined PYPY_VERSION
+#if PY_VERSION_HEX >= 0x030400a1 && !CYTHON_COMPILING_IN_PYPY
     __Pyx_Coroutine_del,                /*tp_finalize*/
 #endif
 #if PY_VERSION_HEX >= 0x030800b1
