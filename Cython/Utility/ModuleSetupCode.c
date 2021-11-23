@@ -537,7 +537,7 @@ class __Pyx_FakeReference {
         }
         return co;
     }
-#elif PY_VERSION_HEX >= 0x030800B2 && !defined(PYPY_VERSION)
+#elif PY_VERSION_HEX >= 0x030800B2 && !CYTHON_COMPILING_IN_PYPY
 
   #define __Pyx_PyCode_New(a, p, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos) \
           PyCode_NewWithPosOnlyArgs(a, p, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos)
