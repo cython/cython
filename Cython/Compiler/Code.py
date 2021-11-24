@@ -3477,14 +3477,10 @@ class HPyCCodeWriter(CCodeWriter):
                                         nanny=nanny, have_gil=have_gil)
 
     def put_decref_set(self, cname, type, rhs_cname):
-        if type.is_pyobject:
-            raise NotImplementedError
-        type.generate_decref_set(self, cname, rhs_cname)
+        self.putln("__Pyx_DECREF_SET(%s, %s, %s);" % (Naming.hpy_context_cname, cname, rhs_cname))
 
     def put_xdecref_set(self, cname, type, rhs_cname):
-        if type.is_pyobject:
-            raise NotImplementedError
-        type.generate_xdecref_set(self, cname, rhs_cname)
+        self.putln("__Pyx_XDECREF_SET(%s, %s, %s);" % (Naming.hpy_context_cname, cname, rhs_cname))
 
     def put_incref_memoryviewslice(self, slice_cname, type, have_gil):
         # TODO ideally this would just be merged into "put_incref"

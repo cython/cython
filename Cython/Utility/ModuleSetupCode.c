@@ -1567,6 +1567,7 @@ static CYTHON_INLINE int __Pyx_Is_Little_Endian(void)
   #define __Pyx_XGIVEREF(r)
 #endif /* CYTHON_REFNANNY */
 
+#ifndef HPY
 #define __Pyx_Py_XDECREF_SET(r, v) do {                         \
         PyObject *tmp = (PyObject *) r;                         \
         r = v; Py_XDECREF(tmp);                                 \
@@ -1582,6 +1583,23 @@ static CYTHON_INLINE int __Pyx_Is_Little_Endian(void)
 
 #define __Pyx_CLEAR(r)    do { PyObject* tmp = ((PyObject*)(r)); r = NULL; __Pyx_DECREF(tmp);} while(0)
 #define __Pyx_XCLEAR(r)   do { if((r) != NULL) {PyObject* tmp = ((PyObject*)(r)); r = NULL; __Pyx_DECREF(tmp);}} while(0)
+#else /* HPY */
+#define __Pyx_Py_XDECREF_SET(ctx, r, v) do {                    \
+        HPy tmp = r;                                            \
+        r = v; HPy_Close(ctx, tmp);                             \
+    } while (0)
+#define __Pyx_XDECREF_SET(ctx, r, v) do {                       \
+        HPy tmp = r;                                            \
+        r = v; HPy_Close(ctx, tmp);                             \
+    } while (0)
+#define __Pyx_DECREF_SET(ctx, r, v) do {                        \
+        HPy tmp = r;                                            \
+        r = v; HPy_Close(ctx, tmp);                             \
+    } while (0)
+
+#define __Pyx_CLEAR(ctx, r)    do { HPy tmp = (r); r = NULL; HPy_Close(ctx, tmp);} while(0)
+#define __Pyx_XCLEAR(ctx, r)   do { if(!HPy_IsNull((r))) {HPy tmp = (r); r = HPy_NULL; HPy_Close(ctx, tmp);}} while(0)
+#endif /* HPY */
 
 /////////////// Refnanny ///////////////
 
