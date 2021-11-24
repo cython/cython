@@ -3139,7 +3139,7 @@ class CCodeWriter(object):
             Naming.kwds_cname,
             Naming.kwvalues_cname,
             Naming.pykwdlist_cname,
-            def_node.starstar_arg and def_node.starstar_arg.entry.cname or 'HPy_NULL',
+            def_node.starstar_arg and def_node.starstar_arg.entry.cname or self.literal_null(),
             values_array,
             pos_arg_count,
             self_name_csafe]
