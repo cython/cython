@@ -742,10 +742,10 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
 static PyCodeObject* __Pyx_CreateCodeObjectForTraceback(
             const char *funcname, int c_line,
             int py_line, const char *filename) {
-    PyCodeObject *py_code = 0;
-    PyObject *py_funcname = 0;
+    PyCodeObject *py_code = NULL;
+    PyObject *py_funcname = NULL;
     #if PY_MAJOR_VERSION < 3
-    PyObject *py_srcfile = 0;
+    PyObject *py_srcfile = NULL;
 
     py_srcfile = PyString_FromString(filename);
     if (!py_srcfile) goto bad;
@@ -754,6 +754,7 @@ static PyCodeObject* __Pyx_CreateCodeObjectForTraceback(
     if (c_line) {
         #if PY_MAJOR_VERSION < 3
         py_funcname = PyString_FromFormat( "%s (%s:%d)", funcname, $cfilenm_cname, c_line);
+        if (!py_funcname) goto bad;
         #else
         py_funcname = PyUnicode_FromFormat( "%s (%s:%d)", funcname, $cfilenm_cname, c_line);
         if (!py_funcname) goto bad;
@@ -764,10 +765,10 @@ static PyCodeObject* __Pyx_CreateCodeObjectForTraceback(
     else {
         #if PY_MAJOR_VERSION < 3
         py_funcname = PyString_FromString(funcname);
+        if (!py_funcname) goto bad;
         #endif
     }
     #if PY_MAJOR_VERSION < 3
-    if (!py_funcname) goto bad;
     py_code = __Pyx_PyCode_New(
         0,            /*int argcount,*/
         0,            /*int posonlyargcount,*/
@@ -790,7 +791,7 @@ static PyCodeObject* __Pyx_CreateCodeObjectForTraceback(
     #else
     py_code = PyCode_NewEmpty(filename, funcname, py_line);
     #endif
-    Py_XDECREF(py_funcname);  // XDECREF is it's only set on Py3 if cline
+    Py_XDECREF(py_funcname);  // XDECREF since it's only set on Py3 if cline
     return py_code;
 bad:
     Py_XDECREF(py_funcname);
