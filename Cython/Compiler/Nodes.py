@@ -2812,9 +2812,9 @@ class CFuncDefNode(FuncDefNode):
         if self.py_func_stat:
             self.py_func_stat.generate_execution_code(code)
 
-    def error_value(self):
+    def error_value(self, code):
         if self.return_type.is_pyobject:
-            return "0"
+            return code.get_error_value_from_format("O")
         else:
             return self.entry.type.exception_value
 
