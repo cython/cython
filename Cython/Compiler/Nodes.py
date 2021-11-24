@@ -3740,6 +3740,11 @@ class DefNodeWrapper(FuncDefNode):
                         code.put_var_xdecref_clear(self.starstar_arg.entry)
                     else:
                         code.put_var_decref_clear(self.starstar_arg.entry)
+            for arg in self.args:
+                if not arg.type.is_pyobject and arg.type.needs_refcounting:
+                    # at the moment this just catches memoryviewslices, but in future
+                    # other non-PyObject reference counted types might need cleanup
+                    code.put_var_xdecref(arg.entry)
             code.put_add_traceback(self.target.entry.qualified_name)
             code.put_finish_refcount_context()
             code.putln("return %s;" % self.error_value())
