@@ -3568,10 +3568,9 @@ class HPyCCodeWriter(CCodeWriter):
         self.putln("static HPyModuleDef %s =" % Naming.hpymoduledef_cname)
         self.putln('#endif')
         self.putln('{')
-        self.putln("  HPyModuleDef_HEAD_INIT,")
-        self.putln('  .m_name = %s,' % env.module_name.as_c_string_literal())
-        self.putln("  .m_doc = %s," % doc)
-        self.putln("  .m_size = -1,")
+        self.putln('  .name = %s,' % env.module_name.as_c_string_literal())
+        self.putln("  .doc = %s," % doc)
+        self.putln("  .size = -1,")
         #self.putln("  .legacy_methods = %s," % env.method_table_cname)
         self.putln("  .legacy_methods = 0,")
         if env.is_c_class_scope and not env.hpyfunc_entries:
