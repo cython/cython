@@ -660,6 +660,16 @@ object handling. For the details of how to compile and
 call functions in C files, see :ref:`using_c_libraries`.
 
 
+Performance: Disabling initialization checks
+============================================
+
+Every time the memoryview is accessed, Cython adds a check to make sure that it has been initialized.
+
+If you are looking for performance, you can disable them by setting the
+``initializedcheck`` directive to ``False``.
+See: :ref:`compiler-directives` for more information about this directive.
+
+
 .. _GIL: https://docs.python.org/dev/glossary.html#term-global-interpreter-lock
 .. _NumPy: https://docs.scipy.org/doc/numpy/reference/arrays.ndarray.html#memory-layout
 .. _example: https://docs.scipy.org/doc/numpy/reference/arrays.indexing.html

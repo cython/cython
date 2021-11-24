@@ -851,7 +851,7 @@ class FunctionState(object):
         elif type.is_cfunction:
             from . import PyrexTypes
             type = PyrexTypes.c_ptr_type(type)  # A function itself isn't an l-value
-        elif type.is_cpp_class and self.scope.directives['cpp_locals']:
+        elif type.is_cpp_class and not type.is_fake_reference and self.scope.directives['cpp_locals']:
             self.scope.use_utility_code(UtilityCode.load_cached("OptionalLocals", "CppSupport.cpp"))
         if not type.is_pyobject and not type.is_memoryviewslice:
             # Make manage_ref canonical, so that manage_ref will always mean
@@ -1147,7 +1147,8 @@ class GlobalState(object):
         'cached_builtins',
         'cached_constants',
         'hpy_cached_constants',
-        'init_globals',
+        'init_constants',
+        'init_globals',  # (utility code called at init-time)
         'hpy_init_globals',
         'init_module',
         'hpy_init_module',
@@ -1156,7 +1157,9 @@ class GlobalState(object):
         'cleanup_module',
         'hpy_cleanup_module',
         'main_method',
+        'utility_code_pragmas',  # silence some irrelevant warnings in utility code
         'utility_code_def',
+        'utility_code_pragmas_end',  # clean-up the utility_code_pragmas
         'end'
     ]
 
@@ -1243,6 +1246,11 @@ class GlobalState(object):
         w.putln("")
         w.putln("static CYTHON_SMALL_CODE int __Pyx_InitGlobals(HPyContext *ctx) {")
 
+        w = self.parts['init_constants']
+        w.enter_cfunc_scope()
+        w.putln("")
+        w.putln("static CYTHON_SMALL_CODE int __Pyx_InitConstants(void) {")
+
         if not Options.generate_cleanup_code:
             del self.parts['cleanup_globals']
         else:
@@ -1276,6 +1284,18 @@ class GlobalState(object):
         code = self.parts['utility_code_def']
         util = TempitaUtilityCode.load_cached("TypeConversions", "TypeConversion.c")
         code.put(util.format_code(util.impl))
+        code.putln("")
+
+        #
+        # utility code pragmas
+        #
+        code = self.parts['utility_code_pragmas']
+        util = UtilityCode.load_cached("UtilityCodePragmas", "ModuleSetupCode.c")
+        code.putln(util.format_code(util.impl))
+        code.putln("")
+        code = self.parts['utility_code_pragmas_end']
+        util = UtilityCode.load_cached("UtilityCodePragmasEnd", "ModuleSetupCode.c")
+        code.putln(util.format_code(util.impl))
         code.putln("")
 
     def close_parts(self):
@@ -1312,13 +1332,14 @@ class GlobalState(object):
             w.putln("}")
             w.exit_cfunc_scope()
 
-        w = self.parts['init_globals']
-        w.putln("return 0;")
-        if w.label_used(w.error_label):
-            w.put_label(w.error_label)
-            w.putln("return -1;")
-        w.putln("}")
-        w.exit_cfunc_scope()
+        for part in ['init_globals', 'init_constants']:
+            w = self.parts[part]
+            w.putln("return 0;")
+            if w.label_used(w.error_label):
+                w.put_label(w.error_label)
+                w.putln("return -1;")
+            w.putln("}")
+            w.exit_cfunc_scope()
 
         w = self.parts['hpy_init_globals']
         w.putln("return 0;")
@@ -1549,7 +1570,7 @@ class GlobalState(object):
             return
 
         decl = self.parts['decls']
-        init = self.parts['init_globals']
+        init = self.parts['init_constants']
         cnames = []
         for (type_cname, method_name), cname in sorted(self.cached_cmethods.items()):
             cnames.append(cname)
@@ -1599,7 +1620,7 @@ class GlobalState(object):
                 decls_writer.putln("static Py_UNICODE %s[] = { %s };" % (cname, utf16_array))
                 decls_writer.putln("#endif")
 
-        init_globals = self.parts['init_globals']
+        init_constants = self.parts['init_constants']
         hpy_init_globals = self.parts['hpy_init_globals']
         if py_strings:
             from .PyrexTypes import py_object_type
@@ -1621,9 +1642,9 @@ class GlobalState(object):
             hpy_decls_writer.putln("#if !CYTHON_USE_MODULE_STATE")
             hpy_not_limited_api_decls_writer = hpy_decls_writer.insertion_point()
             hpy_decls_writer.putln("#endif")
-            init_globals.putln("#if CYTHON_USE_MODULE_STATE")
-            init_globals_in_module_state = init_globals.insertion_point()
-            init_globals.putln("#endif")
+            init_constants.putln("#if CYTHON_USE_MODULE_STATE")
+            init_constants_in_module_state = init_constants.insertion_point()
+            init_constants.putln("#endif")
             hpy_init_globals.putln("#if CYTHON_USE_MODULE_STATE")
             hpy_init_globals_in_module_state = hpy_init_globals.insertion_point()
             hpy_init_globals.putln("#endif")
@@ -1679,26 +1700,25 @@ class GlobalState(object):
                     py_string.is_str,
                     py_string.intern
                     ))
-                init_globals_in_module_state.putln("if (__Pyx_InitString(%s[%d], &%s) < 0) %s;" % (
+                init_constants_in_module_state.putln("if (__Pyx_InitString(%s[%d], &%s) < 0) %s;" % (
                     Naming.stringtab_cname,
                     idx,
                     py_string.cname,
-                    init_globals.error_goto(self.module_pos)))
+                    init_constants.error_goto(self.module_pos)))
                 hpy_init_globals_in_module_state.putln("if (__Pyx_InitString(ctx, %s[%d], &%s) < 0) %s;" % (
                     Naming.stringtab_cname,
                     idx,
                     py_string.cname,
-                    init_globals.error_goto(self.module_pos)))
+                    init_constants.error_goto(self.module_pos)))
             w.putln("{0, 0, 0, 0, 0, 0, 0}")
             w.putln("};")
 
-            init_globals.putln("#if !CYTHON_USE_MODULE_STATE")
-            args = ", ".join(map(str, init_globals.get_arg_code_list() + [Naming.stringtab_cname]))
-            init_globals.putln(
+            init_constants.putln("#if !CYTHON_USE_MODULE_STATE")
+            init_constants.putln(
                 "if (__Pyx_InitStrings(%s) < 0) %s;" % (
-                    args,
-                    init_globals.error_goto(self.module_pos)))
-            init_globals.putln("#endif")
+                    Naming.stringtab_cname,
+                    init_constants.error_goto(self.module_pos)))
+            init_constants.putln("#endif")
 
     def generate_num_constants(self):
         consts = [(c.py_type, c.value[0] == '-', len(c.value), c.value, c.value_code, c)
@@ -1706,7 +1726,7 @@ class GlobalState(object):
         consts.sort()
         decls_writer = self.parts['decls']
         decls_writer.putln("#if !CYTHON_USE_MODULE_STATE")
-        init_globals = self.parts['init_globals']
+        init_constants = self.parts['init_constants']
         from .PyrexTypes import py_object_type
         for py_type, _, _, value, value_code, c in consts:
             cname = c.cname
@@ -1729,9 +1749,9 @@ class GlobalState(object):
                 function = "PyInt_FromLong(%sL)"
             else:
                 function = "PyInt_FromLong(%s)"
-            init_globals.putln('%s = %s; %s' % (
+            init_constants.putln('%s = %s; %s' % (
                 cname, function % value_code,
-                init_globals.error_goto_if_null(cname, self.module_pos)))
+                init_constants.error_goto_if_null(cname, self.module_pos)))
         decls_writer.putln("#endif")
 
     # The functions below are there in a transition phase only
@@ -2165,7 +2185,7 @@ class CCodeWriter(object):
 
     def put_temp_declarations(self, func_context):
         for name, type, manage_ref, static in func_context.temps_allocated:
-            if type.is_cpp_class and func_context.scope.directives['cpp_locals']:
+            if type.is_cpp_class and not type.is_fake_reference and func_context.scope.directives['cpp_locals']:
                 decl = type.cpp_optional_declaration_code(name)
             else:
                 decl = self.type_declaration(type, name)

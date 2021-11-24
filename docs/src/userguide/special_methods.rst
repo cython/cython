@@ -365,7 +365,7 @@ Note that Cython 0.x did not make use of the ``__r...__`` variants and instead
 used the bidirectional C slot signature for the regular methods, thus making the
 first argument ambiguous (not 'self' typed).
 Since Cython 3.0, the operator calls are passed to the respective special methods.
-See the section on `Arithmetic methods <arithmetic_methods>`_ above.
+See the section on :ref:`Arithmetic methods <arithmetic_methods>` above.
 
 Numeric conversions
 ^^^^^^^^^^^^^^^^^^^

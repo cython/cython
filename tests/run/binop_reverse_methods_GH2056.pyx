@@ -1,5 +1,11 @@
 cimport cython
 
+import sys
+IS_PYTHON2 = sys.version_info[0] == 2
+
+__doc__ = ""
+
+
 @cython.c_api_binop_methods(False)
 @cython.cclass
 class Base(object):
@@ -31,31 +37,36 @@ class Base(object):
         self.implemented = implemented
 
     def __add__(self, other):
-        if (<Base>self).implemented:
+        assert cython.typeof(self) == "Base"
+        if self.implemented:
             return "Base.__add__(%s, %s)" % (self, other)
         else:
             return NotImplemented
 
     def __radd__(self, other):
-        if (<Base>self).implemented:
+        assert cython.typeof(self) == "Base"
+        if self.implemented:
             return "Base.__radd__(%s, %s)" % (self, other)
         else:
             return NotImplemented
 
     def __pow__(self, other, mod):
-        if (<Base>self).implemented:
+        assert cython.typeof(self) == "Base"
+        if self.implemented:
             return "Base.__pow__(%s, %s, %s)" % (self, other, mod)
         else:
             return NotImplemented
 
     def __rpow__(self, other, mod):
-        if (<Base>self).implemented:
+        assert cython.typeof(self) == "Base"
+        if self.implemented:
             return "Base.__rpow__(%s, %s, %s)" % (self, other, mod)
         else:
             return NotImplemented
 
     def __repr__(self):
         return "%s()" % (self.__class__.__name__)
+
 
 @cython.c_api_binop_methods(False)
 @cython.cclass
@@ -87,7 +98,8 @@ class OverloadLeft(Base):
         self.derived_implemented = implemented
 
     def __add__(self, other):
-        if (<OverloadLeft>self).derived_implemented:
+        assert cython.typeof(self) == "OverloadLeft"
+        if self.derived_implemented:
             return "OverloadLeft.__add__(%s, %s)" % (self, other)
         else:
             return NotImplemented
@@ -123,10 +135,12 @@ class OverloadRight(Base):
         self.derived_implemented = implemented
 
     def __radd__(self, other):
-        if (<OverloadRight>self).derived_implemented:
+        assert cython.typeof(self) == "OverloadRight"
+        if self.derived_implemented:
             return "OverloadRight.__radd__(%s, %s)" % (self, other)
         else:
             return NotImplemented
+
 
 @cython.c_api_binop_methods(True)
 @cython.cclass
@@ -158,6 +172,7 @@ class OverloadCApi(Base):
         self.derived_implemented = derived_implemented
 
     def __add__(self, other):
+        assert cython.typeof(self) != "OverloadCApi"  # should be untyped
         if isinstance(self, OverloadCApi):
             derived_implemented = (<OverloadCApi>self).derived_implemented
         else:
@@ -166,5 +181,85 @@ class OverloadCApi(Base):
             return "OverloadCApi.__add__(%s, %s)" % (self, other)
         else:
             return NotImplemented
+
+
+if sys.version_info >= (3, 5):
+    __doc__ += """
+    >>> d = PyVersionDependent()
+    >>> d @ 2
+    9
+    >>> 2 @ d
+    99
+    >>> i = d
+    >>> i @= 2
+    >>> i
+    999
+"""
+
+
+@cython.c_api_binop_methods(False)
+@cython.cclass
+class PyVersionDependent:
+    """
+    >>> d = PyVersionDependent()
+    >>> d / 2
+    5
+    >>> 2 / d
+    2
+    >>> d // 2
+    55
+    >>> 2 // d
+    22
+    >>> i = d
+    >>> i /= 2
+    >>> i
+    4
+    >>> i = d
+    >>> i //= 2
+    >>> i
+    44
+    """
+    def __div__(self, other):
+        assert IS_PYTHON2
+        return 5
+
+    def __rdiv__(self, other):
+        assert IS_PYTHON2
+        return 2
+
+    def __idiv__(self, other):
+        assert IS_PYTHON2
+        return 4
+
+    def __truediv__(self, other):
+        assert not IS_PYTHON2
+        return 5
+
+    def __rtruediv__(self, other):
+        assert not IS_PYTHON2
+        return 2
+
+    def __itruediv__(self, other):
+        assert not IS_PYTHON2
+        return 4
+
+    def __floordiv__(self, other):
+        return 55
+
+    def __rfloordiv__(self, other):
+        return 22
+
+    def __ifloordiv__(self, other):
+        return 44
+
+    def __matmul__(self, other):
+        return 9
+
+    def __rmatmul__(self, other):
+        return 99
+
+    def __imatmul__(self, other):
+        return 999
+
 
 # TODO: Test a class that only defines the `__r...__()` methods.

@@ -2,6 +2,8 @@
 # tag: cpp, werror, cpp11
 
 import sys
+from collections import defaultdict
+
 from libcpp.map cimport map
 from libcpp.unordered_map cimport unordered_map
 from libcpp.set cimport set as cpp_set
@@ -212,22 +214,36 @@ def test_unordered_set(o):
 
 def test_map(o):
     """
-    >>> test_map({1: 1.0, 2: 0.5, 3: 0.25})
+    >>> d = {1: 1.0, 2: 0.5, 3: 0.25}
+    >>> test_map(d)
+    {1: 1.0, 2: 0.5, 3: 0.25}
+    >>> dd = defaultdict(float)
+    >>> dd.update(d)
+    >>> test_map(dd)  # try with a non-dict
     {1: 1.0, 2: 0.5, 3: 0.25}
     """
     cdef map[int, double] m = o
     return m
 
 def test_unordered_map(o):
-   """
-   >>> d = test_map({1: 1.0, 2: 0.5, 3: 0.25})
-   >>> sorted(d)
-   [1, 2, 3]
-   >>> (d[1], d[2], d[3])
-   (1.0, 0.5, 0.25)
-   """
-   cdef unordered_map[int, double] m = o
-   return m
+    """
+    >>> d = {1: 1.0, 2: 0.5, 3: 0.25}
+    >>> m = test_map(d)
+    >>> sorted(m)
+    [1, 2, 3]
+    >>> (m[1], m[2], m[3])
+    (1.0, 0.5, 0.25)
+
+    >>> dd = defaultdict(float)
+    >>> dd.update(d)
+    >>> m = test_map(dd)
+    >>> sorted(m)
+    [1, 2, 3]
+    >>> (m[1], m[2], m[3])
+    (1.0, 0.5, 0.25)
+    """
+    cdef unordered_map[int, double] m = o
+    return m
 
 def test_nested(o):
     """

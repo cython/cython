@@ -209,6 +209,11 @@ def make_dedup_key(outer_type, item_nodes):
         # For constants, look at the Python value type if we don't know the concrete Cython type.
         else (node.type, node.constant_result,
               type(node.constant_result) if node.type is py_object_type else None) if node.has_constant_result()
+        # IdentifierStringNode doesn't usually have a "constant_result" set because:
+        #  1. it doesn't usually have unicode_value
+        #  2. it's often created later in the compilation process after ConstantFolding
+        # but should be cacheable
+        else (node.type, node.value, node.unicode_value, "IdentifierStringNode") if isinstance(node, IdentifierStringNode)
         else None  # something we cannot handle => short-circuit below
         for node in item_nodes
     ]
@@ -1097,11 +1102,11 @@ class ExprNode(Node):
             return self
         elif type.is_pyobject or type.is_int or type.is_ptr or type.is_float:
             return CoerceToBooleanNode(self, env)
-        elif type.is_cpp_class:
+        elif type.is_cpp_class and type.scope and type.scope.lookup("operator bool"):
             return SimpleCallNode(
                 self.pos,
                 function=AttributeNode(
-                    self.pos, obj=self, attribute='operator bool'),
+                    self.pos, obj=self, attribute=StringEncoding.EncodedString('operator bool')),
                 args=[]).analyse_types(env)
         elif type.is_ctuple:
             bool_value = len(type.components) == 0
@@ -2078,6 +2083,7 @@ class NameNode(AtomicExprNode):
         return None
 
     def analyse_target_declaration(self, env):
+        self.is_target = True
         if not self.entry:
             self.entry = env.lookup_here(self.name)
         if not self.entry and self.annotation is not None:
@@ -2287,6 +2293,8 @@ class NameNode(AtomicExprNode):
         entry = self.entry
         if not entry:
             return "<error>"  # There was an error earlier
+        if self.entry.is_cpp_optional and not self.is_target:
+            return "(*%s)" % entry.cname
         return entry.cname
 
     def generate_result_code(self, code):
@@ -2896,6 +2904,7 @@ class CppIteratorNode(ExprNode):
     # Created at the analyse_types stage by IteratorNode
     cpp_sequence_cname = None
     cpp_attribute_op = "."
+    extra_dereference = ""
     is_temp = True
 
     subexprs = ['sequence']
@@ -2920,6 +2929,8 @@ class CppIteratorNode(ExprNode):
             return self
         iter_type = begin.type.return_type
         if iter_type.is_cpp_class:
+            if env.directives['cpp_locals']:
+                self.extra_dereference = "*"
             if env.lookup_operator_for_types(
                     self.pos,
                     "!=",
@@ -2964,7 +2975,7 @@ class CppIteratorNode(ExprNode):
                     #    make the temp a pointer so we are not sensitive to users reassigning
                     #    the pointer than it came from
                     temp_type = PyrexTypes.CPtrType(sequence_type.ref_base_type)
-                if temp_type.is_ptr:
+                if temp_type.is_ptr or code.globalstate.directives['cpp_locals']:
                     self.cpp_attribute_op = "->"
                 # 3) (otherwise) sequence comes from a function call or similar, so we must
                 #    create a temp to store it in
@@ -2978,14 +2989,16 @@ class CppIteratorNode(ExprNode):
     def generate_iter_next_result_code(self, result_name, code):
         # end call isn't cached to support containers that allow adding while iterating
         # (much as this is usually a bad idea)
-        code.putln("if (!(%s != %s%send())) break;" % (
+        code.putln("if (!(%s%s != %s%send())) break;" % (
+                        self.extra_dereference,
                         self.result(),
                         self.cpp_sequence_cname or self.sequence.result(),
                         self.cpp_attribute_op))
-        code.putln("%s = *%s;" % (
+        code.putln("%s = *%s%s;" % (
                         result_name,
+                        self.extra_dereference,
                         self.result()))
-        code.putln("++%s;" % self.result())
+        code.putln("++%s%s;" % (self.extra_dereference, self.result()))
 
     def free_temps(self, code):
         if self.cpp_sequence_cname:
@@ -3210,7 +3223,7 @@ class TempNode(ExprNode):
         return self
 
     def analyse_target_declaration(self, env):
-        pass
+        self.is_target = True
 
     def generate_result_code(self, code):
         pass
@@ -6971,7 +6984,7 @@ class AttributeNode(ExprNode):
         return self.type
 
     def analyse_target_declaration(self, env):
-        pass
+        self.is_target = True
 
     def analyse_target_types(self, env):
         node = self.analyse_types(env, target = 1)
@@ -7161,9 +7174,6 @@ class AttributeNode(ExprNode):
             self.op = "->"
         elif obj_type.is_reference and obj_type.is_fake_reference:
             self.op = "->"
-        elif (obj_type.is_cpp_class and (self.obj.is_name or self.obj.is_attribute) and
-                self.obj.entry and self.obj.entry.is_cpp_optional):
-            self.op = "->"
         else:
             self.op = "."
         if obj_type.has_attributes:
@@ -7296,9 +7306,14 @@ class AttributeNode(ExprNode):
             return NameNode.is_ephemeral(self)
 
     def calculate_result_code(self):
-        #print "AttributeNode.calculate_result_code:", self.member ###
-        #print "...obj node =", self.obj, "code", self.obj.result() ###
-        #print "...obj type", self.obj.type, "ctype", self.obj.ctype() ###
+        result = self.calculate_access_code()
+        if self.entry and self.entry.is_cpp_optional and not self.is_target:
+            result = "(*%s)" % result
+        return result
+
+    def calculate_access_code(self):
+        # Does the job of calculate_result_code but doesn't dereference cpp_optionals
+        # Therefore allowing access to the holder variable
         obj = self.obj
         obj_code = obj.result_as(obj.type)
         #print "...obj_code =", obj_code ###
@@ -7373,7 +7388,12 @@ class AttributeNode(ExprNode):
                         '%s'
                     '}' % (self.result(), code.error_goto(self.pos)))
         elif self.entry.is_cpp_optional and self.initialized_check:
-            unbound_check_code = self.type.cpp_optional_check_for_null_code(self.result())
+            if self.is_target:
+                undereferenced_result = self.result()
+            else:
+                assert not self.is_temp  # calculate_access_code() only makes sense for non-temps
+                undereferenced_result = self.calculate_access_code()
+            unbound_check_code = self.type.cpp_optional_check_for_null_code(undereferenced_result)
             code.put_error_if_unbound(self.pos, self.entry, unbound_check_code=unbound_check_code)
         else:
             # result_code contains what is needed, but we may need to insert
@@ -8354,7 +8374,7 @@ class ScopedExprNode(ExprNode):
         if expr_scope is not None:
             self.expr_scope = expr_scope
         elif self.has_local_scope:
-            self.expr_scope = Symtab.GeneratorExpressionScope(outer_scope)
+            self.expr_scope = Symtab.ComprehensionScope(outer_scope)
         else:
             self.expr_scope = None
 
@@ -13768,6 +13788,12 @@ class CloneNode(CoercionNode):
 
     def generate_disposal_code(self, code):
         pass
+
+    def generate_post_assignment_code(self, code):
+        # if we're assigning from a CloneNode then it's "giveref"ed away, so it does
+        # need a matching incref (ideally this should happen before the assignment though)
+        if self.is_temp:  # should usually be true
+            code.put_incref(self.result(), self.ctype())
 
     def free_temps(self, code):
         pass

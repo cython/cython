@@ -7,3 +7,7 @@ cpp_classes_def
 cpp_smart_ptr
 cpp_stl_conversion
 cpp_stl_function
+cpp_stl_algo_comparison_ops
+cpp_stl_algo_permutation_ops
+cpp_stl_algo_sorted_ranges_set_ops
+cpp_stl_algo_sorted_ranges_other_ops

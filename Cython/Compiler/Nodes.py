@@ -903,53 +903,53 @@ class CArgDeclNode(Node):
 
     def analyse(self, env, nonempty=0, is_self_arg=False):
         if is_self_arg:
-            self.base_type.is_self_arg = self.is_self_arg = True
-        if self.type is None:
-            # The parser may misinterpret names as types. We fix that here.
-            if isinstance(self.declarator, CNameDeclaratorNode) and self.declarator.name == '':
-                if nonempty:
-                    if self.base_type.is_basic_c_type:
-                        # char, short, long called "int"
-                        type = self.base_type.analyse(env, could_be_name=True)
-                        arg_name = type.empty_declaration_code()
-                    else:
-                        arg_name = self.base_type.name
-                    self.declarator.name = EncodedString(arg_name)
-                    self.base_type.name = None
-                    self.base_type.is_basic_c_type = False
-                could_be_name = True
-            else:
-                could_be_name = False
-            self.base_type.is_arg = True
-            base_type = self.base_type.analyse(env, could_be_name=could_be_name)
-            base_arg_name = getattr(self.base_type, 'arg_name', None)
-            if base_arg_name:
-                self.declarator.name = base_arg_name
-
-            # The parser is unable to resolve the ambiguity of [] as part of the
-            # type (e.g. in buffers) or empty declarator (as with arrays).
-            # This is only arises for empty multi-dimensional arrays.
-            if (base_type.is_array
-                    and isinstance(self.base_type, TemplatedTypeNode)
-                    and isinstance(self.declarator, CArrayDeclaratorNode)):
-                declarator = self.declarator
-                while isinstance(declarator.base, CArrayDeclaratorNode):
-                    declarator = declarator.base
-                declarator.base = self.base_type.array_declarator
-                base_type = base_type.base_type
-
-            # inject type declaration from annotations
-            # this is called without 'env' by AdjustDefByDirectives transform before declaration analysis
-            if (self.annotation and env and env.directives['annotation_typing']
-                    # CSimpleBaseTypeNode has a name attribute; CAnalysedBaseTypeNode
-                    # (and maybe other options) doesn't
-                    and getattr(self.base_type, "name", None) is None):
-                arg_type = self.inject_type_from_annotations(env)
-                if arg_type is not None:
-                    base_type = arg_type
-            return self.declarator.analyse(base_type, env, nonempty=nonempty)
-        else:
+            self.base_type.is_self_arg = self.is_self_arg = is_self_arg
+        if self.type is not None:
             return self.name_declarator, self.type
+
+        # The parser may misinterpret names as types. We fix that here.
+        if isinstance(self.declarator, CNameDeclaratorNode) and self.declarator.name == '':
+            if nonempty:
+                if self.base_type.is_basic_c_type:
+                    # char, short, long called "int"
+                    type = self.base_type.analyse(env, could_be_name=True)
+                    arg_name = type.empty_declaration_code()
+                else:
+                    arg_name = self.base_type.name
+                self.declarator.name = EncodedString(arg_name)
+                self.base_type.name = None
+                self.base_type.is_basic_c_type = False
+            could_be_name = True
+        else:
+            could_be_name = False
+        self.base_type.is_arg = True
+        base_type = self.base_type.analyse(env, could_be_name=could_be_name)
+        base_arg_name = getattr(self.base_type, 'arg_name', None)
+        if base_arg_name:
+            self.declarator.name = base_arg_name
+
+        # The parser is unable to resolve the ambiguity of [] as part of the
+        # type (e.g. in buffers) or empty declarator (as with arrays).
+        # This is only arises for empty multi-dimensional arrays.
+        if (base_type.is_array
+                and isinstance(self.base_type, TemplatedTypeNode)
+                and isinstance(self.declarator, CArrayDeclaratorNode)):
+            declarator = self.declarator
+            while isinstance(declarator.base, CArrayDeclaratorNode):
+                declarator = declarator.base
+            declarator.base = self.base_type.array_declarator
+            base_type = base_type.base_type
+
+        # inject type declaration from annotations
+        # this is called without 'env' by AdjustDefByDirectives transform before declaration analysis
+        if (self.annotation and env and env.directives['annotation_typing']
+                # CSimpleBaseTypeNode has a name attribute; CAnalysedBaseTypeNode
+                # (and maybe other options) doesn't
+                and getattr(self.base_type, "name", None) is None):
+            arg_type = self.inject_type_from_annotations(env)
+            if arg_type is not None:
+                base_type = arg_type
+        return self.declarator.analyse(base_type, env, nonempty=nonempty)
 
     def inject_type_from_annotations(self, env):
         annotation = self.annotation
@@ -1025,6 +1025,7 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
     module_path = []
     is_basic_c_type = False
     complex = False
+    is_self_arg = False
 
     def analyse(self, env, could_be_name=False):
         # Return type descriptor.
@@ -1750,6 +1751,8 @@ class FuncDefNode(StatNode, BlockNode):
     code_object = None
     return_type_annotation = None
 
+    outer_attrs = None  # overridden by some derived classes - to be visited outside the node's scope
+
     def analyse_default_values(self, env):
         default_seen = 0
         for arg in self.args:
@@ -2348,9 +2351,11 @@ class FuncDefNode(StatNode, BlockNode):
     def generate_execution_code(self, code):
         code.mark_pos(self.pos)
         # Evaluate and store argument default values
-        for arg in self.args:
-            if not arg.is_dynamic:
-                arg.generate_assignment_code(code)
+        # skip this for wrappers since it's done by wrapped function
+        if not self.is_wrapper:
+            for arg in self.args:
+                if not arg.is_dynamic:
+                    arg.generate_assignment_code(code)
 
     #
     # Special code for the __getbuffer__ function
@@ -2413,7 +2418,7 @@ class FuncDefNode(StatNode, BlockNode):
         if not self.entry.is_special:
             return None
         name = self.entry.name
-        slot = TypeSlots.method_name_to_slot.get(name)
+        slot = TypeSlots.get_slot_table(self.local_scope.directives).get_slot_by_method_name(name)
         if not slot:
             return None
         if name == '__long__' and not self.entry.scope.lookup_here('__int__'):
@@ -4567,7 +4572,7 @@ class PyClassDefNode(ClassDefNode):
         self.class_result = self.class_result.analyse_expressions(env)
         cenv = self.scope
         self.body = self.body.analyse_expressions(cenv)
-        self.target.analyse_target_expression(env, self.classobj)
+        self.target = self.target.analyse_target_expression(env, self.classobj)
         self.class_cell = self.class_cell.analyse_expressions(cenv)
         return self
 
@@ -4946,7 +4951,7 @@ class CClassDefNode(ClassDefNode):
                         UtilityCode.load_cached('ValidateBasesTuple', 'ExtensionTypes.c'))
                     code.put_error_if_neg(entry.pos, "__Pyx_validate_bases_tuple(%s.name, %s, %s)" % (
                         typespec_cname,
-                        TypeSlots.get_slot_by_name("tp_dictoffset").slot_code(scope),
+                        TypeSlots.get_slot_by_name("tp_dictoffset", scope.directives).slot_code(scope),
                         bases_tuple_cname or tuple_temp,
                     ))
 
@@ -4970,7 +4975,7 @@ class CClassDefNode(ClassDefNode):
                     ))
 
             # The buffer interface is not currently supported by PyType_FromSpec().
-            buffer_slot = TypeSlots.get_slot_by_name("tp_as_buffer")
+            buffer_slot = TypeSlots.get_slot_by_name("tp_as_buffer", code.globalstate.directives)
             if not buffer_slot.is_empty(scope):
                 code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
                 code.putln("%s->%s = %s;" % (
@@ -4980,7 +4985,8 @@ class CClassDefNode(ClassDefNode):
                 ))
                 # Still need to inherit buffer methods since PyType_Ready() didn't do it for us.
                 for buffer_method_name in ("__getbuffer__", "__releasebuffer__"):
-                    buffer_slot = TypeSlots.get_slot_by_method_name(buffer_method_name)
+                    buffer_slot = TypeSlots.get_slot_table(
+                        code.globalstate.directives).get_slot_by_method_name(buffer_method_name)
                     if buffer_slot.slot_code(scope) == "0" and not TypeSlots.get_base_slot_function(scope, buffer_slot):
                         code.putln("if (!%s->tp_as_buffer->%s &&"
                                    " %s->tp_base->tp_as_buffer &&"
@@ -5016,7 +5022,7 @@ class CClassDefNode(ClassDefNode):
 
             code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
             # FIXME: these still need to get initialised even with the limited-API
-            for slot in TypeSlots.slot_table:
+            for slot in TypeSlots.get_slot_table(code.globalstate.directives):
                 slot.generate_dynamic_init_code(scope, code)
             code.putln("#endif")
 
@@ -5061,7 +5067,8 @@ class CClassDefNode(ClassDefNode):
                 is_buffer = func.name in ('__getbuffer__', '__releasebuffer__')
                 if (func.is_special and Options.docstrings and
                         func.wrapperbase_cname and not is_buffer):
-                    slot = TypeSlots.method_name_to_slot.get(func.name)
+                    slot = TypeSlots.get_slot_table(
+                        entry.type.scope.directives).get_slot_by_method_name(func.name)
                     preprocessor_guard = slot.preprocessor_guard_code() if slot else None
                     if preprocessor_guard:
                         code.putln(preprocessor_guard)
@@ -5458,8 +5465,8 @@ class SingleAssignmentNode(AssignmentNode):
         elif self.lhs.type.is_array:
             if not isinstance(self.lhs, ExprNodes.SliceIndexNode):
                 # cannot assign to C array, only to its full slice
-                self.lhs = ExprNodes.SliceIndexNode(self.lhs.pos, base=self.lhs, start=None, stop=None)
-                self.lhs = self.lhs.analyse_target_types(env)
+                lhs = ExprNodes.SliceIndexNode(self.lhs.pos, base=self.lhs, start=None, stop=None)
+                self.lhs = lhs.analyse_target_types(env)
 
         if self.lhs.type.is_cpp_class:
             op = env.lookup_operator_for_types(self.pos, '=', [self.lhs.type, self.rhs.type])

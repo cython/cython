@@ -276,7 +276,12 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
 
 // This requires CPython version >= 2.7.4
 // (or >= 3.2.4 but we don't support such old Python 3 versions anyway)
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x02070400
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x03080000
+// https://github.com/python/cpython/pull/11841 merged so Cython reimplementation
+// is no longer necessary
+#define __Pyx_TRASHCAN_BEGIN Py_TRASHCAN_BEGIN
+#define __Pyx_TRASHCAN_END Py_TRASHCAN_END
+#elif CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x02070400
 #define __Pyx_TRASHCAN_BEGIN_CONDITION(op, cond) \
     do { \
         PyThreadState *_tstate = NULL; \

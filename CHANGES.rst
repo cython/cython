@@ -2,6 +2,43 @@
 Cython Changelog
 ================
 
+3.0.0 alpha 9 (2021-07-21)
+==========================
+
+Features added
+--------------
+
+* Declarations for ``libcpp.algorithms``, ``libcpp.set`` and ``libcpp.unordered_set``
+  were extended.
+  Patch by David Woods.  (Github issues :issue:`4271`, :issue:`4273`)
+
+* ``cygdb`` has a new option ``--skip-interpreter`` that allows using a different
+  Python runtime than the one used to generate the debugging information.
+  Patch by Alessandro Molina.  (Github issue :issue:`4186`)
+
+Bugs fixed
+----------
+
+* Several issues with the new ``cpp_locals`` directive were resolved and
+  its test coverage improved.
+  Patch by David Woods.  (Github issues :issue:`4266`, :issue:`4265`)
+
+* Generated utility code for C++ conversions no longer depends on several user
+  definable directives that may make it behave incorrectly.
+  Patch by David Woods.  (Github issue :issue:`4206`)
+
+* A reference counting bug in the new ``@cython.total_ordering`` decorator was fixed.
+
+* Includes all bug-fixes from the :ref:`0.29.24` release.
+
+Other changes
+-------------
+
+* Parts of the documentation were (and are being) rewritten to show the
+  Cython language syntax next to the equivalent Python syntax.
+  Patches by 0dminnimda and Matus Valo.  (Github issue :issue:`4187`)
+
+
 3.0.0 alpha 8 (2021-07-02)
 ==========================
 
@@ -726,9 +763,28 @@ Other changes
 .. _`PEP-479`: https://www.python.org/dev/peps/pep-0479
 
 
+.. _0.29.25:
+
+0.29.25 (2021-??-??)
+====================
+
+Bugs fixed
+----------
+
+* Avoid copying unaligned 16-bit values since some platforms require them to be aligned.
+  Use memcpy() instead to let the C compiler decide how to do it.
+  (Github issue :issue:`4343`)
+
+* Cython crashed on invalid truthiness tests on C++ types without ``operator bool``.
+  Patch by David Woods.  (Github issue :issue:`4348`)
+
+* The declaration of ``PyUnicode_CompareWithASCIIString()`` in ``cpython.unicode`` was incorrect.
+  Patch by Max Bachmann.  (Github issue :issue:`4344`)
+
+
 .. _0.29.24:
 
-0.29.24 (2021-??-??)
+0.29.24 (2021-07-14)
 ====================
 
 Bugs fixed
@@ -738,10 +794,24 @@ Bugs fixed
   C code if the module that imported from them does not use memory views.
   Patch by David Woods.  (Github issue :issue:`1415`)
 
+* Several declarations in ``libcpp.string`` were added and corrected.
+  Patch by Janek Bevendorff.  (Github issue :issue:`4268`)
+
+* Pickling unbound Cython compiled methods failed.
+  Patch by Pierre Glaser.  (Github issue :issue:`2972`)
+
+* The tracing code was adapted to work with CPython 3.10.
+
 * The optimised ``in`` operator failed on unicode strings in Py3.9 and later
   that were constructed from an external ``wchar_t`` source.
   Also, related C compiler warnings about deprecated C-API usage were resolved.
   (Github issue :issue:`3925`)
+
+* Some compiler crashes were resolved.
+  Patch by David Woods.  (Github issues :issue:`4214`, :issue:`2811`)
+
+* An incorrect warning about 'unused' generator expressions was removed.
+  (GIthub issue :issue:`1699`)
 
 * The attributes ``gen.gi_frame`` and ``coro.cr_frame`` of Cython compiled
   generators and coroutines now return an actual frame object for introspection,

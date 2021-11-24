@@ -20,7 +20,7 @@ from . import PyrexTypes
 from .PyrexTypes import py_object_type, unspecified_type
 from .TypeSlots import (
     pyfunction_signature, pymethod_signature, richcmp_special_methods,
-    get_special_method_signature, get_property_accessor_signature)
+    get_slot_table, get_property_accessor_signature)
 from . import Future
 
 from . import Code
@@ -300,6 +300,7 @@ class InnerEntry(Entry):
         self.cf_assignments = outermost_entry.cf_assignments
         self.cf_references = outermost_entry.cf_references
         self.overloaded_alternatives = outermost_entry.overloaded_alternatives
+        self.is_cpp_optional = outermost_entry.is_cpp_optional
         self.inner_entries.append(self)
 
     def __getattr__(self, name):
@@ -346,7 +347,7 @@ class Scope(object):
     is_py_class_scope = 0
     is_c_class_scope = 0
     is_closure_scope = 0
-    is_genexpr_scope = 0
+    is_comprehension_scope = 0
     is_passthrough = 0
     is_cpp_class_scope = 0
     is_property_scope = 0
@@ -993,6 +994,7 @@ class Scope(object):
             if entry.type.is_fused and self.fused_to_specific:
                 return entry.type.specialize(self.fused_to_specific)
             return entry.type
+        return None
 
     def lookup_operator(self, operator, operands):
         if operands[0].type.is_cpp_class:
@@ -1902,7 +1904,7 @@ class LocalScope(Scope):
         entry = Scope.lookup(self, name)
         if entry is not None:
             entry_scope = entry.scope
-            while entry_scope.is_genexpr_scope:
+            while entry_scope.is_comprehension_scope:
                 entry_scope = entry_scope.outer_scope
             if entry_scope is not self and entry_scope.is_closure_scope:
                 if hasattr(entry.scope, "scope_class"):
@@ -1930,19 +1932,21 @@ class LocalScope(Scope):
                 elif entry.in_closure:
                     entry.original_cname = entry.cname
                     entry.cname = "%s->%s" % (Naming.cur_scope_cname, entry.cname)
+                    if entry.type.is_cpp_class and entry.scope.directives['cpp_locals']:
+                        entry.make_cpp_optional()
 
 
-class GeneratorExpressionScope(Scope):
-    """Scope for generator expressions and comprehensions.  As opposed
-    to generators, these can be easily inlined in some cases, so all
+class ComprehensionScope(Scope):
+    """Scope for comprehensions (but not generator expressions, which use ClosureScope).
+    As opposed to generators, these can be easily inlined in some cases, so all
     we really need is a scope that holds the loop variable(s).
     """
-    is_genexpr_scope = True
+    is_comprehension_scope = True
 
     def __init__(self, outer_scope):
         parent_scope = outer_scope
         # TODO: also ignore class scopes?
-        while parent_scope.is_genexpr_scope:
+        while parent_scope.is_comprehension_scope:
             parent_scope = parent_scope.parent_scope
         name = parent_scope.global_scope().next_id(Naming.genexpr_id_ref)
         Scope.__init__(self, name, outer_scope, parent_scope)
@@ -1951,7 +1955,7 @@ class GeneratorExpressionScope(Scope):
 
         # Class/ExtType scopes are filled at class creation time, i.e. from the
         # module init function or surrounding function.
-        while outer_scope.is_genexpr_scope or outer_scope.is_c_class_scope or outer_scope.is_py_class_scope:
+        while outer_scope.is_comprehension_scope or outer_scope.is_c_class_scope or outer_scope.is_py_class_scope:
             outer_scope = outer_scope.outer_scope
         self.var_entries = outer_scope.var_entries  # keep declarations outside
         outer_scope.subscopes.add(self)
@@ -2241,7 +2245,8 @@ class CClassScope(ClassScope):
                 error(pos,
                     "C attributes cannot be added in implementation part of"
                     " extension type defined in a pxd")
-            if not self.is_closure_class_scope and get_special_method_signature(name):
+            if (not self.is_closure_class_scope and
+                    get_slot_table(self.directives).get_special_method_signature(name)):
                 error(pos,
                     "The name '%s' is reserved for a special method."
                         % name)
@@ -2313,7 +2318,7 @@ class CClassScope(ClassScope):
                 "in a future version of Pyrex and Cython. Use __cinit__ instead.")
         entry = self.declare_var(name, py_object_type, pos,
                                  visibility='extern')
-        special_sig = get_special_method_signature(name)
+        special_sig = get_slot_table(self.directives).get_special_method_signature(name)
         if special_sig:
             # Special methods get put in the method table with a particular
             # signature declared in advance.
@@ -2345,7 +2350,8 @@ class CClassScope(ClassScope):
                           cname=None, visibility='private', api=0, in_pxd=0,
                           defining=0, modifiers=(), utility_code=None, overridable=False):
         name = self.mangle_class_private_name(name)
-        if get_special_method_signature(name) and not self.parent_type.is_builtin_type:
+        if (get_slot_table(self.directives).get_special_method_signature(name)
+                and not self.parent_type.is_builtin_type):
             error(pos, "Special methods must be declared with 'def', not 'cdef'")
         args = type.args
         if not type.is_static_method:

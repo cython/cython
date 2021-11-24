@@ -72,10 +72,10 @@ auto __Pyx_pythran_to_python(T &&value) -> decltype(to_python(
 ////////////// EnumClassDecl.proto //////////////////
 
 #if defined (_MSC_VER)
-  #if PY_VERSION_HEX >= 0x03040000 && PY_VERSION_HEX < 0x03050000
-    #define __PYX_ENUM_CLASS_DECL
-  #else
+  #if _MSC_VER >= 1910
     #define __PYX_ENUM_CLASS_DECL enum
+  #else
+    #define __PYX_ENUM_CLASS_DECL
   #endif
 #else
   #define __PYX_ENUM_CLASS_DECL enum
