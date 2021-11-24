@@ -2830,9 +2830,6 @@ class CCodeWriter(object):
     # Type initialization and conversion
 
     def default_value(self, type):
-        from .PyrexTypes import hpy_type
-        if type.is_pyobject:
-            return hpy_type.default_value
         return type.default_value
 
     def literal_null(self):
