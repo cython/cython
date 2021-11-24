@@ -1148,6 +1148,7 @@ class GlobalState(object):
         'cached_constants',
         'hpy_cached_constants',
         'init_constants',
+        'hpy_init_constants',
         'init_globals',  # (utility code called at init-time)
         'hpy_init_globals',
         'init_module',
@@ -1251,6 +1252,11 @@ class GlobalState(object):
         w.putln("")
         w.putln("static CYTHON_SMALL_CODE int __Pyx_InitConstants(void) {")
 
+        w = self.parts['hpy_init_constants']
+        w.enter_cfunc_scope()
+        w.putln("")
+        w.putln("static CYTHON_SMALL_CODE int __Pyx_InitConstants(HPyContext *ctx) {")
+
         if not Options.generate_cleanup_code:
             del self.parts['cleanup_globals']
         else:
@@ -1332,7 +1338,7 @@ class GlobalState(object):
             w.putln("}")
             w.exit_cfunc_scope()
 
-        for part in ['init_globals', 'init_constants']:
+        for part in ['init_globals', 'init_constants', 'hpy_init_globals', 'hpy_init_constants']:
             w = self.parts[part]
             w.putln("return 0;")
             if w.label_used(w.error_label):
@@ -1340,14 +1346,6 @@ class GlobalState(object):
                 w.putln("return -1;")
             w.putln("}")
             w.exit_cfunc_scope()
-
-        w = self.parts['hpy_init_globals']
-        w.putln("return 0;")
-        if w.label_used(w.error_label):
-            w.put_label(w.error_label)
-            w.putln("return -1;")
-        w.putln("}")
-        w.exit_cfunc_scope()
 
         if Options.generate_cleanup_code:
             w = self.parts['cleanup_globals']
@@ -1621,7 +1619,7 @@ class GlobalState(object):
                 decls_writer.putln("#endif")
 
         init_constants = self.parts['init_constants']
-        hpy_init_globals = self.parts['hpy_init_globals']
+        hpy_init_constants = self.parts['hpy_init_constants']
         if py_strings:
             from .PyrexTypes import py_object_type
             self.use_utility_code(UtilityCode.load_cached("InitStrings", "StringTools.c"))
@@ -1645,9 +1643,9 @@ class GlobalState(object):
             init_constants.putln("#if CYTHON_USE_MODULE_STATE")
             init_constants_in_module_state = init_constants.insertion_point()
             init_constants.putln("#endif")
-            hpy_init_globals.putln("#if CYTHON_USE_MODULE_STATE")
-            hpy_init_globals_in_module_state = hpy_init_globals.insertion_point()
-            hpy_init_globals.putln("#endif")
+            hpy_init_constants.putln("#if CYTHON_USE_MODULE_STATE")
+            hpy_init_globals_in_module_state = hpy_init_constants.insertion_point()
+            hpy_init_constants.putln("#endif")
             for idx, py_string_args in enumerate(py_strings):
                 c_cname, _, py_string = py_string_args
                 if not py_string.is_str or not py_string.encoding or \
