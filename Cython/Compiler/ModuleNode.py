@@ -3492,6 +3492,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(code.error_goto_if_null(env.module_cname, self.pos))
         code.putln("#endif")
         code.putln("#endif")  # CYTHON_PEP489_MULTI_PHASE_INIT
+        code.putln("CYTHON_UNUSED_VAR(%s);" % module_temp)  # only used in limited API
 
         code.putln(
             "%s = PyModule_GetDict(%s); %s" % (
