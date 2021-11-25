@@ -57,6 +57,7 @@ run.async_iter_pep492
 run.embedsignatures
 run.py35_asyncio_async_def
 run.asyncio_generators
+run.py35_pep492_interop
 
 # gc issue?
 external_ref_reassignment
