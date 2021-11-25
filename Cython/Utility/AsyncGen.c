@@ -784,7 +784,7 @@ static PyTypeObject __pyx__PyAsyncGenWrappedValueType_type = {
     0,                                          /*tp_print*/
 #endif
 #if PY_VERSION_HEX >= 0x030B00A2
-    0,                                         /*tp_inline_values_offset*/
+    0,                                          /*tp_inline_values_offset*/
 #endif
 };
 
@@ -1072,7 +1072,7 @@ static PyTypeObject __pyx__PyAsyncGenAThrowType_type = {
     0,                                          /*tp_print*/
 #endif
 #if PY_VERSION_HEX >= 0x030B00A2
-    0,                                         /*tp_inline_values_offset*/
+    0,                                          /*tp_inline_values_offset*/
 #endif
 };
 
