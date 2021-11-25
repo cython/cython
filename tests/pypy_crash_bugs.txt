@@ -7,3 +7,4 @@ memslice
 
 # gc issue?
 memoryview_in_subclasses
+
