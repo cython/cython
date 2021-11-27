@@ -7,7 +7,7 @@ memoryview.memoryview$
 
 # looks like a doctest issue? It's failing to match output that looks
 # identical to by eye
-run.unicodemethods
+#run.unicodemethods
 # multiphase import not supported
 run.unicode_imports
 
