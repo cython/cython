@@ -20,10 +20,14 @@ run.pure_pxd
 # an actual bug but one I can't easily resolve
 run.with_gil
 
+# moved from "pypy_bugs" - work on Pypy3, segfault on pypy2
+broken_exception
+yield_from_pep380
 
 # looks like a "when does the GC run?" issue - slightly surprised it's OK on pypy3
 memoryview.numpy_memoryview
 
 # type features that are disabled in PyPy2:
-#run.test_genericclass
+# (the overridden __Pyx_PyObject_GetItem requires CYTHON_USE_TYPE_SLOTS)
+run.test_genericclass
 run.test_subclassinit
