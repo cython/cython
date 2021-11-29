@@ -6,7 +6,7 @@ bufaccess
 memoryview.memoryview$
 
 # looks like a doctest issue? It's failing to match output that looks
-# identical to by eye
+# identical to my eye
 #run.unicodemethods
 # multiphase import not supported
 run.unicode_imports
