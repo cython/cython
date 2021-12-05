@@ -10,7 +10,7 @@ Bugs fixed
 
 * Several incompatibilities with CPython 3.11 were resolved.
   Patches by David Woods, Victor Stinner, Thomas Caswell.
-  (Github issues #4411, #4414, #4415, #4416, #4420, #4428, #4479)
+  (Github issues #4411, #4414, #4415, #4416, #4420, #4428, #4473, #4479, #4480)
 
 * Some C compiler warnings were resolved.
   Patches by Lisandro Dalcin and others.  (Github issue #4439)
