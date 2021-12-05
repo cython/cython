@@ -46,7 +46,7 @@ jobs:
         python-version: 3.8
 
     - name: Build Linux wheels
-      uses: RalfG/python-wheels-manylinux-build@v0.3.4-manylinux1_i686
+      uses: RalfG/python-wheels-manylinux-build@v0.4.0-manylinux1_i686
       with:
         python-versions: 'cp27-cp27m cp27-cp27mu cp35-cp35m cp36-cp36m cp37-cp37m cp38-cp38 cp39-cp39 cp310-cp310'
 
@@ -68,7 +68,7 @@ jobs:
         python-version: 3.8
 
     - name: Build Linux wheels
-      uses: RalfG/python-wheels-manylinux-build@v0.3.4-manylinux1_x86_64
+      uses: RalfG/python-wheels-manylinux-build@v0.4.0-manylinux1_x86_64
       with:
         python-versions: 'cp27-cp27m cp27-cp27mu cp35-cp35m cp36-cp36m cp37-cp37m cp38-cp38 cp39-cp39 cp310-cp310'
 
@@ -90,7 +90,7 @@ jobs:
         python-version: 3.8
 
     - name: Build Linux wheels
-      uses: RalfG/python-wheels-manylinux-build@v0.3.4-manylinux2014_i686
+      uses: RalfG/python-wheels-manylinux-build@v0.4.0-manylinux2014_i686
       with:
         python-versions: 'cp36-cp36m cp37-cp37m cp38-cp38 cp39-cp39 cp310-cp310'
 
@@ -112,7 +112,7 @@ jobs:
         python-version: 3.8
 
     - name: Build Linux wheels
-      uses: RalfG/python-wheels-manylinux-build@v0.3.4-manylinux2014_x86_64
+      uses: RalfG/python-wheels-manylinux-build@v0.4.0-manylinux2014_x86_64
       with:
         python-versions: 'cp36-cp36m cp37-cp37m cp38-cp38 cp39-cp39 cp310-cp310'
     - name: Upload wheels
