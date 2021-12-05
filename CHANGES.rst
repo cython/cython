@@ -2,11 +2,24 @@
 Cython Changelog
 ================
 
-0.29.25 (2021-??-??)
+0.29.25 (2021-12-05)
 ====================
 
 Bugs fixed
 ----------
+
+* Several incompatibilities with CPython 3.11 were resolved.
+  Patches by David Woods, Victor Stinner, Thomas Caswell.
+  (Github issues #4411, #4414, #4415, #4416, #4420, #4428, #4479)
+
+* Some C compiler warnings were resolved.
+  Patches by Lisandro Dalcin and others.  (Github issue #4439)
+
+* C++ ``std::move()`` should only be used automatically in MSVC versions that support it.
+  Patch by Max Bachmann.  (Github issue #4191)
+
+ * The ``Py_hash_t`` type failed to accept arbitrary "index" values.
+   (Github issue #2752)
 
 * Avoid copying unaligned 16-bit values since some platforms require them to be aligned.
   Use memcpy() instead to let the C compiler decide how to do it.
