@@ -657,27 +657,30 @@ def _set_up_dataclass_fields(node, fields, dataclass_module):
     dc_fields = ExprNodes.DictNode(node.pos, key_value_pairs=[])
     dc_fields_namevalue_assignments = []
 
-    # underscores to match the dataclasses module names
-    # defining these make the fields introspect more like a Python dataclass
-    _FIELD = ExprNodes.AttributeNode(node.pos, obj=dataclass_module,
-                                     attribute=EncodedString("_FIELD"))
-    _FIELD_CLASSVAR = ExprNodes.AttributeNode(node.pos, obj=dataclass_module,
-                                     attribute=EncodedString("_FIELD_CLASSVAR"))
-    _FIELD_INITVAR = ExprNodes.AttributeNode(node.pos, obj=dataclass_module,
-                                     attribute=EncodedString("_FIELD_INITVAR"))
     for name, field in fields.items():
         if field.private:
             continue  # doesn't appear in the public interface
         placeholder_name = "PLACEHOLDER_%s" % name
         placeholders[placeholder_name] = GetTypeNode(node.scope.entries[name])
+
+        # defining these make the fields introspect more like a Python dataclass
         field_type_placeholder_name = "PLACEHOLDER_FIELD_TYPE_%s" % name
         if field.is_initvar:
-            placeholders[field_type_placeholder_name] = _FIELD_INITVAR
+            placeholders[field_type_placeholder_name] = ExprNodes.AttributeNode(
+                node.pos, obj=dataclass_module,
+                attribute=EncodedString("_FIELD_INITVAR")
+            )
         elif field.is_classvar:
             # TODO - currently this isn't triggered
-            placeholders[field_type_placeholder_name] = _FIELD_CLASSVAR
+            placeholders[field_type_placeholder_name] = ExprNodes.AttributeNode(
+                node.pos, obj=dataclass_module,
+                attribute=EncodedString("_FIELD_CLASSVAR")
+            )
         else:
-            placeholders[field_type_placeholder_name] = _FIELD
+            placeholders[field_type_placeholder_name] = ExprNodes.AttributeNode(
+                node.pos, obj=dataclass_module,
+                attribute=EncodedString("_FIELD")
+            )
 
         dc_field_keywords = ExprNodes.DictNode.from_pairs(
             node.pos,
