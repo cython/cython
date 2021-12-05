@@ -1064,6 +1064,7 @@ class SlotTable(object):
             EmptySlot("tp_finalize", ifdef="PY_VERSION_HEX >= 0x030400a1"),
             EmptySlot("tp_vectorcall", ifdef="PY_VERSION_HEX >= 0x030800b1"),
             EmptySlot("tp_print", ifdef="PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000"),
+            EmptySlot("tp_inline_values_offset", ifdef="PY_VERSION_HEX >= 0x030B00A2"),
             # PyPy specific extension - only here to avoid C compiler warnings.
             EmptySlot("tp_pypy_flags", ifdef="CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM+0 >= 0x06000000"),
         )
