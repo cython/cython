@@ -16,13 +16,6 @@ Features added
   Python runtime than the one used to generate the debugging information.
   Patch by Alessandro Molina.  (Github issue :issue:`4186`)
 
-  * More comprehensive support for non-trivial ``typing`` module annotations.
-  Patch by David Woods.  (Github issue :issue:`3910`)
-
-* ``cdef classes`` can be made into ``dataclasses`` using the ``@cython.dataclasses.dataclass``
-  decorator.
-  Patch by David Woods.  (Github issue :issue:`3400`)
-  
 Bugs fixed
 ----------
 
@@ -44,6 +37,7 @@ Other changes
 * Parts of the documentation were (and are being) rewritten to show the
   Cython language syntax next to the equivalent Python syntax.
   Patches by 0dminnimda and Matus Valo.  (Github issue :issue:`4187`)
+
 
 3.0.0 alpha 8 (2021-07-02)
 ==========================
