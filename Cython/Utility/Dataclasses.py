@@ -46,7 +46,7 @@ class Field(object):
         # don't enforce non-mutability that the real module does
         self.metadata = (MappingProxyType({})
                          if metadata is None else
-                         MappingTypesProxy(metadata))
+                         MappingProxyType(metadata))
         self._field_type = None
 
     def __repr__(self):
