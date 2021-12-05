@@ -180,7 +180,7 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
     if (t->tp_bases && unlikely(__Pyx_validate_bases_tuple(t->tp_name, t->tp_dictoffset, t->tp_bases) == -1))
         return -1;
 
-#if PY_VERSION_HEX >= 0x03050000
+#if PY_VERSION_HEX >= 0x03050000 && !defined(PYSTON_MAJOR_VERSION)
     {
         // Make sure GC does not pick up our non-heap type as heap type with this hack!
         // For details, see https://github.com/cython/cython/issues/3603
@@ -235,7 +235,7 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
 
     r = PyType_Ready(t);
 
-#if PY_VERSION_HEX >= 0x03050000
+#if PY_VERSION_HEX >= 0x03050000 && !defined(PYSTON_MAJOR_VERSION)
         t->tp_flags &= ~Py_TPFLAGS_HEAPTYPE;
 
     #if PY_VERSION_HEX >= 0x030A00b1
