@@ -98,7 +98,7 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: wheels-Linux
-        path: wheels/*-manylinux2014*.whl
+        path: wheels/*manylinux2014*.whl
         if-no-files-found: ignore
 
   manylinux2014-x86_64:
@@ -119,5 +119,5 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: wheels-Linux
-        path: wheels/*-manylinux2014*.whl
+        path: wheels/*manylinux2014*.whl
         if-no-files-found: ignore
