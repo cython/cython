@@ -96,7 +96,7 @@ class Field(object):
     def __init__(self, pos, default=MISSING, default_factory=MISSING,
                  repr=None, hash=None, init=None,
                  compare=None, metadata=None,
-                 is_initvar=False,
+                 is_initvar=False, is_classvar=False,
                  **additional_kwds):
         if default is not MISSING:
             self.default = default
@@ -108,6 +108,7 @@ class Field(object):
         self.compare = compare or ExprNodes.BoolNode(pos, value=True)
         self.metadata = metadata or ExprNodes.NoneNode(pos)
         self.is_initvar = is_initvar
+        self.is_classvar = is_classvar
 
         for k, v in additional_kwds.items():
             # There should not be any additional keywords!
@@ -140,6 +141,10 @@ def process_class_get_fields(node):
         name = entry.name
         is_initvar = (entry.type.is_special_python_type_constructor and
                       entry.type.name == "dataclasses.InitVar")
+        # TODO - classvars aren't included in "var_entries" so are missed here
+        # and thus this code is never triggered
+        is_classvar = (entry.type.is_special_python_type_constructor and
+                       entry.type.name == "typing.ClassVar")
         if name in transform.removed_assignments:
             assignment = transform.removed_assignments[name]
             if (isinstance(assignment, ExprNodes.CallNode)
@@ -175,6 +180,7 @@ def process_class_get_fields(node):
         else:
             field = Field(node.pos)
         field.is_initvar = is_initvar
+        field.is_classvar = is_classvar
         if entry.visibility == "private":
             field.private = True
         fields[name] = field
@@ -646,24 +652,38 @@ def _set_up_dataclass_fields(node, fields, dataclass_module):
                                            rhs = f_def))
 
     placeholders = {}
-    field_func = ExprNodes.AttributeNode(node.pos, obj = dataclass_module,
+    field_func = ExprNodes.AttributeNode(node.pos, obj=dataclass_module,
                                          attribute=EncodedString("field"))
     dc_fields = ExprNodes.DictNode(node.pos, key_value_pairs=[])
     dc_fields_namevalue_assignments = []
+
+    # underscores to match the dataclasses module names
+    # defining these make the fields introspect more like a Python dataclass
+    _FIELD = ExprNodes.AttributeNode(node.pos, obj=dataclass_module,
+                                     attribute=EncodedString("_FIELD"))
+    _FIELD_CLASSVAR = ExprNodes.AttributeNode(node.pos, obj=dataclass_module,
+                                     attribute=EncodedString("_FIELD_CLASSVAR"))
+    _FIELD_INITVAR = ExprNodes.AttributeNode(node.pos, obj=dataclass_module,
+                                     attribute=EncodedString("_FIELD_INITVAR"))
     for name, field in fields.items():
         if field.private:
             continue  # doesn't appear in the public interface
         placeholder_name = "PLACEHOLDER_%s" % name
         placeholders[placeholder_name] = GetTypeNode(node.scope.entries[name])
-
+        field_type_placeholder_name = "PLACEHOLDER_FIELD_TYPE_%s" % name
         if field.is_initvar:
-            continue
+            placeholders[field_type_placeholder_name] = _FIELD_INITVAR
+        elif field.is_classvar:
+            # TODO - currently this isn't triggered
+            placeholders[field_type_placeholder_name] = _FIELD_CLASSVAR
+        else:
+            placeholders[field_type_placeholder_name] = _FIELD
 
         dc_field_keywords = ExprNodes.DictNode.from_pairs(
             node.pos,
             [(ExprNodes.IdentifierStringNode(node.pos, value=EncodedString(k)),
                FieldRecordNode(node.pos, arg=v))
-              for k, v in field.__dict__.items() if k not in ["is_initvar", "private"]]
+              for k, v in field.__dict__.items() if k not in ["is_initvar", "is_classvar", "private"]]
         )
         dc_field_call = ExprNodes.GeneralCallNode(
             node.pos, function = field_func,
@@ -678,7 +698,8 @@ def _set_up_dataclass_fields(node, fields, dataclass_module):
             dedent(u"""\
                 __dataclass_fields__[{0!r}].name = {0!r}
                 __dataclass_fields__[{0!r}].type = {1}
-            """).format(name, placeholder_name))
+                __dataclass_fields__[{0!r}]._field_type = {2}
+            """).format(name, placeholder_name, field_type_placeholder_name))
 
     dataclass_fields_assignment = \
         Nodes.SingleAssignmentNode(node.pos,

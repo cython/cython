@@ -77,6 +77,16 @@ def dataclass(*args, **kwds):
     raise NotImplementedError("Standard library 'dataclasses' module"
         "is unavailable, likely due to the version of Python you're using.")
 
+# Markers for the various kinds of fields and pseudo-fields.
+class _FIELD_BASE:
+    def __init__(self, name):
+        self.name = name
+    def __repr__(self):
+        return self.name
+_FIELD = _FIELD_BASE('_FIELD')
+_FIELD_CLASSVAR = _FIELD_BASE('_FIELD_CLASSVAR')
+_FIELD_INITVAR = _FIELD_BASE('_FIELD_INITVAR')
+
 def field(*ignore, **kwds):
     default = kwds.pop("default", MISSING)
     default_factory = kwds.pop("default_factory", MISSING)

@@ -125,8 +125,10 @@ cdef class ContainsNonPyFields:
 @dataclass
 cdef class InitClassVars:
     """
+    Private (i.e. defined with "cdef") members deliberately don't appear
+    TODO - ideally c1 and c2 should also be listed here
     >>> sorted(list(InitClassVars.__dataclass_fields__.keys()))
-    ['a']
+    ['a', 'b1', 'b2']
     >>> InitClassVars.c1
     2.0
     >>> InitClassVars.e1
@@ -204,7 +206,7 @@ cdef class TestFrozen:
 import sys
 if sys.version_info >= (3, 7):
     __doc__ = """
-    >>> from dataclasses import Field, is_dataclass
+    >>> from dataclasses import Field, is_dataclass, fields
 
     # It uses the types from the standard library where available
     >>> all(isinstance(v, Field) for v in BasicDataclass.__dataclass_fields__.values())
@@ -221,4 +223,8 @@ if sys.version_info >= (3, 7):
     False
     >>> is_dataclass(InheritsFromNotADataclass)
     True
+    >>> [ f.name for f in fields(BasicDataclass)]
+    ['a', 'b', 'c', 'd']
+    >>> [ f.name for f in fields(InitClassVars)]
+    ['a']
     """
