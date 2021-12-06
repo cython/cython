@@ -388,7 +388,7 @@ def generate_repr_code(repr, node, fields):
     if not repr or node.scope.lookup("__repr__"):
         return "", {}, []
     code_lines = ["def __repr__(self):"]
-    strs = [u"%s={self.%s}" % (name, name)
+    strs = [u"%s={self.%s!r}" % (name, name)
             for name, field in fields.items()
             if field.repr.value and not field.is_initvar]
     format_string = u", ".join(strs)

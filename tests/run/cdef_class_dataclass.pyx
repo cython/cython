@@ -22,6 +22,9 @@ cdef class NotADataclass:
     def __repr__(self):
         return "NADC"
 
+    def __str__(self):
+        return "string of NotADataclass"  # should be called - repr is called!
+
     def __eq__(self, other):
         return type(self) == type(other)
 
@@ -59,6 +62,9 @@ cdef class BasicDataclass:
     >>> inst2 = BasicDataclass(2.0, NotADataclass(), [], [1,2,3])
     >>> inst2
     BasicDataclass(a=2.0, b=NADC, c=[], d=[1, 2, 3])
+    >>> inst2.c = "Some string"
+    >>> inst2
+    BasicDataclass(a=2.0, b=NADC, c='Some string', d=[1, 2, 3])
     """
     a: float
     b: NotADataclass = field(default_factory=NotADataclass)
@@ -103,13 +109,13 @@ cdef S_ptr malloc_a_struct():
 @dataclass
 cdef class ContainsNonPyFields:
     """
-    >>> ContainsNonPyFields() # doctest: +ELLIPSIS
+    >>> ContainsNonPyFields()  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: __init__() takes ... 1 positional ...
-    >>> ContainsNonPyFields(mystruct={'a': 1 })
-    ContainsNonPyFields(mystruct={'a': 1}, memview=<MemoryView of 'array' object>)
-    >>> ContainsNonPyFields(mystruct={'a': 1 }, memview=create_array((2,2), "c"))
-    ContainsNonPyFields(mystruct={'a': 1}, memview=<MemoryView of 'array' object>)
+    >>> ContainsNonPyFields(mystruct={'a': 1 })  # doctest: +ELLIPSIS
+    ContainsNonPyFields(mystruct={'a': 1}, memview=<MemoryView of 'array' at ...>)
+    >>> ContainsNonPyFields(mystruct={'a': 1 }, memview=create_array((2,2), "c"))  # doctest: +ELLIPSIS
+    ContainsNonPyFields(mystruct={'a': 1}, memview=<MemoryView of 'array' at ...>)
     >>> ContainsNonPyFields(mystruct={'a': 1 }, mystruct_ptr=0)
     Traceback (most recent call last):
     TypeError: __init__() got an unexpected keyword argument 'mystruct_ptr'
