@@ -5,7 +5,7 @@ REPO = git://github.com/cython/cython.git
 VERSION?=$(shell sed -ne 's|^__version__\s*=\s*"\([^"]*\)".*|\1|p' Cython/Shadow.py)
 
 MANYLINUX_CFLAGS=-O3 -g0 -mtune=generic -pipe -fPIC
-MANYLINUX_LDFLAGS=-flto
+MANYLINUX_LDFLAGS=
 MANYLINUX_IMAGES= \
 	manylinux1_x86_64 \
 	manylinux1_i686 \
@@ -79,8 +79,8 @@ wheel_%: dist/$(PACKAGENAME)-$(VERSION).tar.gz
 	mkdir -p wheelhouse_$(subst wheel_,,$@)
 	time docker run --rm -t \
 		-v $(shell pwd):/io \
-		-e CFLAGS="$(MANYLINUX_CFLAGS) $(if $(patsubst %aarch64,,$@),-march=core2,-march=armv8-a -mtune=cortex-a72)" \
-		-e LDFLAGS="$(LDFLAGS) -fPIC" \
+		-e CFLAGS="$(MANYLINUX_CFLAGS)" \
+		-e LDFLAGS="$(MANYLINUX_LDFLAGS) -fPIC" \
 		-e WHEELHOUSE=wheelhouse$(subst wheel_musllinux,,$(subst wheel_manylinux,,$@)) \
 		quay.io/pypa/$(subst wheel_,,$@) \
 		bash -c 'for PYBIN in /opt/python/cp*/bin; do \
