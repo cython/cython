@@ -1306,7 +1306,7 @@ class GlobalState(object):
 
     def close_parts(self):
         for part in self.code_layout:
-            if self.get_part_type(part) != "generic":
+            if self.get_part_type(part) != "generic" and part in self.parts:
                 self.parts[part].putln("#endif /* HPY */")
 
     def __getitem__(self, key):
