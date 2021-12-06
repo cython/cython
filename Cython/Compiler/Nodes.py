@@ -9248,7 +9248,10 @@ class ParallelStatNode(StatNode, ParallelNode):
             if not lastprivate or entry.type.is_pyobject:
                 continue
 
-            type_decl = entry.type.empty_declaration_code()
+            if entry.type.is_cpp_class and not entry.type.is_fake_reference and code.globalstate.directives['cpp_locals']:
+                type_decl = entry.type.cpp_optional_declaration_code("")
+            else:
+                type_decl = entry.type.empty_declaration_code()
             temp_cname = "__pyx_parallel_temp%d" % temp_count
             private_cname = entry.cname
 
@@ -9262,10 +9265,17 @@ class ParallelStatNode(StatNode, ParallelNode):
             # Declare the parallel private in the outer block
             c.putln("%s %s%s;" % (type_decl, temp_cname, init))
 
+            self.parallel_private_temps.append((temp_cname, private_cname, entry.type))
+
+            if entry.type.is_cpp_class:
+                # moving is fine because we're quitting the loop and so won't be directly accessing the variable again
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("MoveIfSupported", "CppSupport.cpp"))
+                private_cname = "__PYX_STD_MOVE_IF_SUPPORTED(%s)" % private_cname
             # Initialize before escaping
             code.putln("%s = %s;" % (temp_cname, private_cname))
 
-            self.parallel_private_temps.append((temp_cname, private_cname))
+
 
         code.end_block()  # end critical section
 
@@ -9386,7 +9396,10 @@ class ParallelStatNode(StatNode, ParallelNode):
             code.putln(
                 "if (%s) {" % Naming.parallel_why)
 
-            for temp_cname, private_cname in self.parallel_private_temps:
+            for temp_cname, private_cname, temp_type in self.parallel_private_temps:
+                if temp_type.is_cpp_class:
+                    # utility code was loaded earlier
+                    temp_cname = "__PYX_STD_MOVE_IF_SUPPORTED(%s)" % temp_cname
                 code.putln("%s = %s;" % (private_cname, temp_cname))
 
             code.putln("switch (%s) {" % Naming.parallel_why)
