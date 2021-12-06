@@ -78,6 +78,12 @@ three dimensional buffer into a function that requires a two
 dimensional buffer will raise a ``ValueError``.
 
 
+To use a memory view on a numpy array with a custom dtype, you'll need to
+declare an equivalent packed struct that mimics the dtype:
+
+.. literalinclude:: ../../examples/userguide/memoryviews/custom_dtype.pyx
+
+
 Indexing
 --------
 
