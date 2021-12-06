@@ -393,6 +393,7 @@ class Scope(object):
         self.buffer_entries = []
         self.lambda_defs = []
         self.id_counters = {}
+        self.temp_allocator = None
 
     def __deepcopy__(self, memo):
         return self
@@ -1074,6 +1075,11 @@ class Scope(object):
 
     def add_include_file(self, filename, verbatim_include=None, late=False):
         self.outer_scope.add_include_file(filename, verbatim_include, late)
+
+    def get_temp_allocator(self, klass):
+        if not self.temp_allocator:
+            self.temp_allocator = klass(self)
+        return self.temp_allocator
 
 
 class PreImportScope(Scope):

@@ -947,7 +947,7 @@ class FunctionState(object):
         return self.collect_temps_stack.pop()
 
     def init_closure_temps(self, scope):
-        self.closure_temps = ClosureTempAllocator(scope)
+        self.closure_temps = scope.get_temp_allocator(ClosureTempAllocator)
 
 
 class NumConst(object):
