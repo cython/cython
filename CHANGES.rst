@@ -841,11 +841,25 @@ Other changes
 
 .. _0.29.25:
 
-0.29.25 (2021-??-??)
+0.29.25 (2021-12-06)
 ====================
 
 Bugs fixed
 ----------
+
+* Several incompatibilities with CPython 3.11 were resolved.
+  Patches by David Woods, Victor Stinner, Thomas Caswell.
+  (Github issues :issue:`4411`, :issue:`4414`, :issue:`4415`, :issue:`4416`, :issue:`4420`,
+  :issue:`4428`, :issue:`4473`, :issue:`4479`, :issue:`4480`)
+
+* Some C compiler warnings were resolved.
+  Patches by Lisandro Dalcin and others.  (Github issue :issue:`4439`)
+
+* C++ ``std::move()`` should only be used automatically in MSVC versions that support it.
+  Patch by Max Bachmann.  (Github issue :issue:`4191`)
+
+ * The ``Py_hash_t`` type failed to accept arbitrary "index" values.
+   (Github issue :issue:`2752`)
 
 * Avoid copying unaligned 16-bit values since some platforms require them to be aligned.
   Use memcpy() instead to let the C compiler decide how to do it.
