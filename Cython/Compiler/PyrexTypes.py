@@ -248,6 +248,7 @@ class PyrexType(BaseType):
     is_ptr = 0
     is_null_ptr = 0
     is_reference = 0
+    is_fake_reference = 0
     is_rvalue_reference = 0
     is_const = 0
     is_volatile = 0
@@ -388,20 +389,15 @@ def public_decl(base_code, dll_linkage):
     else:
         return base_code
 
+
 def create_typedef_type(name, base_type, cname, is_external=0, namespace=None):
-    is_fused = base_type.is_fused
-    if base_type.is_complex or is_fused:
-        if is_external:
-            if is_fused:
-                msg = "Fused"
-            else:
-                msg = "Complex"
-
-            raise ValueError("%s external typedefs not supported" % msg)
-
+    if is_external:
+        if base_type.is_complex or base_type.is_fused:
+            raise ValueError("%s external typedefs not supported" % (
+                "Fused" if base_type.is_fused else "Complex"))
+    if base_type.is_complex or base_type.is_fused:
         return base_type
-    else:
-        return CTypedefType(name, base_type, cname, is_external, namespace)
+    return CTypedefType(name, base_type, cname, is_external, namespace)
 
 
 class CTypedefType(BaseType):
@@ -3807,9 +3803,8 @@ class CppClassType(CType):
                 'type': self.cname,
             })
             # Override directives that should not be inherited from user code.
-            # TODO: filter directives with an allow list to keep only those that are safe and relevant.
-            directives = dict(env.directives, cpp_locals=False)
             from .UtilityCode import CythonUtilityCode
+            directives = CythonUtilityCode.filter_inherited_directives(env.directives)
             env.use_utility_code(CythonUtilityCode.load(
                 cls.replace('unordered_', '') + ".from_py", "CppConvert.pyx",
                 context=context, compiler_directives=directives))
@@ -3854,10 +3849,9 @@ class CppClassType(CType):
                 'maybe_unordered': self.maybe_unordered(),
                 'type': self.cname,
             })
-            # Override directives that should not be inherited from user code.
-            # TODO: filter directives with an allow list to keep only those that are safe and relevant.
-            directives = dict(env.directives, cpp_locals=False)
             from .UtilityCode import CythonUtilityCode
+            # Override directives that should not be inherited from user code.
+            directives = CythonUtilityCode.filter_inherited_directives(env.directives)
             env.use_utility_code(CythonUtilityCode.load(
                 cls.replace('unordered_', '') + ".to_py", "CppConvert.pyx",
                 context=context, compiler_directives=directives))
@@ -3903,10 +3897,12 @@ class CppClassType(CType):
             return error_type
         has_object_template_param = False
         for value in template_values:
-            if value.is_pyobject:
+            if value.is_pyobject or value.needs_refcounting:
                 has_object_template_param = True
+                type_description = "Python object" if value.is_pyobject else "Reference-counted"
                 error(pos,
-                      "Python object type '%s' cannot be used as a template argument" % value)
+                      "%s type '%s' cannot be used as a template argument" % (
+                          type_description, value))
         if has_object_template_param:
             return error_type
         return self.specialize(dict(zip(self.templates, template_values)))

@@ -5,6 +5,9 @@
 Using C libraries
 ******************
 
+.. include::
+    ../two-syntax-variants-used
+
 Apart from writing fast code, one of the main use cases of Cython is
 to call external C libraries from Python code.  As Cython code
 compiles down to C code itself, it is actually trivial to call C
@@ -33,15 +36,17 @@ Defining external declarations
 You can download CAlg `here <https://codeload.github.com/fragglet/c-algorithms/zip/master>`_.
 
 The C API of the queue implementation, which is defined in the header
-file ``c-algorithms/src/queue.h``, essentially looks like this:
+file :file:`c-algorithms/src/queue.h`, essentially looks like this:
 
 .. literalinclude:: ../../examples/tutorial/clibraries/c-algorithms/src/queue.h
     :language: C
+    :caption: queue.h
 
 To get started, the first step is to redefine the C API in a ``.pxd``
-file, say, ``cqueue.pxd``:
+file, say, :file:`cqueue.pxd`:
 
 .. literalinclude:: ../../examples/tutorial/clibraries/cqueue.pxd
+    :caption: cqueue.pxd
 
 Note how these declarations are almost identical to the header file
 declarations, so you can often just copy them over.  However, you do
@@ -100,20 +105,33 @@ Writing a wrapper class
 
 After declaring our C library's API, we can start to design the Queue
 class that should wrap the C queue.  It will live in a file called
-``queue.pyx``. [#]_
+:file:`queue.pyx`/:file:`queue.py`. [#]_
 
-.. [#] Note that the name of the ``.pyx`` file must be different from
-       the ``cqueue.pxd`` file with declarations from the C library,
+.. [#] Note that the name of the ``.pyx``/``.py`` file must be different from
+       the :file:`cqueue.pxd` file with declarations from the C library,
        as both do not describe the same code.  A ``.pxd`` file next to
-       a ``.pyx`` file with the same name defines exported
-       declarations for code in the ``.pyx`` file.  As the
-       ``cqueue.pxd`` file contains declarations of a regular C
-       library, there must not be a ``.pyx`` file with the same name
+       a ``.pyx``/``.py`` file with the same name defines exported
+       declarations for code in the ``.pyx``/``.py`` file.  As the
+       :file:`cqueue.pxd` file contains declarations of a regular C
+       library, there must not be a ``.pyx``/``.py`` file with the same name
        that Cython associates with it.
 
 Here is a first start for the Queue class:
 
-.. literalinclude:: ../../examples/tutorial/clibraries/queue.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/clibraries/queue.py
+            :caption: queue.py
+
+        .. note:: Currently, Cython contains a bug not allowing using
+            annotations with types containing pointers (GitHub issue :issue:`4293`).
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/clibraries/queue.pyx
+            :caption: queue.pyx
 
 Note that it says ``__cinit__`` rather than ``__init__``.  While
 ``__init__`` is available as well, it is not guaranteed to be run (for
@@ -122,10 +140,11 @@ ancestor's constructor).  Because not initializing C pointers often
 leads to hard crashes of the Python interpreter, Cython provides
 ``__cinit__`` which is *always* called immediately on construction,
 before CPython even considers calling ``__init__``, and which
-therefore is the right place to initialise ``cdef`` fields of the new
-instance.  However, as ``__cinit__`` is called during object
-construction, ``self`` is not fully constructed yet, and one must
-avoid doing anything with ``self`` but assigning to ``cdef`` fields.
+therefore is the right place to initialise static attributes
+(``cdef`` fields) of the new instance.  However, as ``__cinit__`` is
+called during object construction, ``self`` is not fully constructed yet,
+and one must avoid doing anything with ``self`` but assigning to static
+attributes (``cdef`` fields).
 
 Note also that the above method takes no parameters, although subtypes
 may want to accept some.  A no-arguments ``__cinit__()`` method is a
@@ -152,7 +171,17 @@ pointer to the new queue.
 The Python way to get out of this is to raise a ``MemoryError`` [#]_.
 We can thus change the init function as follows:
 
-.. literalinclude:: ../../examples/tutorial/clibraries/queue2.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/clibraries/queue2.py
+            :caption: queue.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/clibraries/queue2.pyx
+            :caption: queue.pyx
 
 .. [#] In the specific case of a ``MemoryError``, creating a new
    exception instance in order to raise it may actually fail because
@@ -169,26 +198,56 @@ longer used (i.e. all references to it have been deleted).  To this
 end, CPython provides a callback that Cython makes available as a
 special method ``__dealloc__()``.  In our case, all we have to do is
 to free the C Queue, but only if we succeeded in initialising it in
-the init method::
+the init method:
 
-        def __dealloc__(self):
-            if self._c_queue is not NULL:
-                cqueue.queue_free(self._c_queue)
+.. tabs::
 
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            def __dealloc__(self):
+                if self._c_queue is not cython.NULL:
+                    cqueue.queue_free(self._c_queue)
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            def __dealloc__(self):
+                if self._c_queue is not NULL:
+                    cqueue.queue_free(self._c_queue)
 
 Compiling and linking
 =====================
 
 At this point, we have a working Cython module that we can test.  To
 compile it, we need to configure a ``setup.py`` script for setuptools.
-Here is the most basic script for compiling a Cython module::
+Here is the most basic script for compiling a Cython module
 
-    from setuptools import Extension, setup
-    from Cython.Build import cythonize
+.. tabs::
 
-    setup(
-        ext_modules = cythonize([Extension("queue", ["queue.pyx"])])
-    )
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            from setuptools import Extension, setup
+            from Cython.Build import cythonize
+
+            setup(
+                ext_modules = cythonize([Extension("queue", ["queue.py"])])
+            )
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            from setuptools import Extension, setup
+            from Cython.Build import cythonize
+
+            setup(
+                ext_modules = cythonize([Extension("queue", ["queue.pyx"])])
+            )
 
 
 To build against the external C library, we need to make sure Cython finds the necessary libraries.
@@ -201,23 +260,55 @@ if other applications also use C-Alg.
 Static Linking
 ---------------
 
-To build the c-code automatically we need to include compiler directives in `queue.pyx`::
+To build the c-code automatically we need to include compiler directives in :file:`queue.pyx`/:file:`queue.py`
 
-    # distutils: sources = c-algorithms/src/queue.c
-    # distutils: include_dirs = c-algorithms/src/
+.. tabs::
 
-    cimport cqueue
+    .. group-tab:: Pure Python
 
-    cdef class Queue:
-        cdef cqueue.Queue* _c_queue
-        def __cinit__(self):
-            self._c_queue = cqueue.queue_new()
-            if self._c_queue is NULL:
-                raise MemoryError()
+        .. code-block:: python
 
-        def __dealloc__(self):
-            if self._c_queue is not NULL:
-                cqueue.queue_free(self._c_queue)
+            # distutils: sources = c-algorithms/src/queue.c
+            # distutils: include_dirs = c-algorithms/src/
+
+            import cython
+            from cython.cimports import cqueue
+
+            @cython.cclass
+            class Queue:
+                _c_queue = cython.declare(cython.pointer(cqueue.Queue))
+
+                def __cinit__(self):
+                    self._c_queue = cqueue.queue_new()
+                    if self._c_queue is cython.NULL:
+                        raise MemoryError()
+
+                def __dealloc__(self):
+                    if self._c_queue is not cython.NULL:
+                        cqueue.queue_free(self._c_queue)
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            # distutils: sources = c-algorithms/src/queue.c
+            # distutils: include_dirs = c-algorithms/src/
+
+
+            cimport cqueue
+
+
+            cdef class Queue:
+                cdef cqueue.Queue* _c_queue
+
+                def __cinit__(self):
+                    self._c_queue = cqueue.queue_new()
+                    if self._c_queue is NULL:
+                        raise MemoryError()
+
+                def __dealloc__(self):
+                    if self._c_queue is not NULL:
+                        cqueue.queue_free(self._c_queue)
 
 The ``sources`` compiler directive gives the path of the C
 files that setuptools is going to compile and
@@ -269,18 +360,41 @@ Afterwards the file :file:`/usr/local/lib/libcalg.so` should exist.
 In this approach we need to tell the setup script to link with an external library.
 To do so we need to extend the setup script to install change the extension setup from
 
-::
+.. tabs::
 
-    ext_modules = cythonize([Extension("queue", ["queue.pyx"])])
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            ext_modules = cythonize([Extension("queue", ["queue.py"])])
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            ext_modules = cythonize([Extension("queue", ["queue.pyx"])])
 
 to
 
-::
+.. tabs::
 
-    ext_modules = cythonize([
-        Extension("queue", ["queue.pyx"],
-                  libraries=["calg"])
-        ])
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            ext_modules = cythonize([
+                Extension("queue", ["queue.py"],
+                          libraries=["calg"])
+                ])
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            ext_modules = cythonize([
+                Extension("queue", ["queue.pyx"],
+                          libraries=["calg"])
+                ])
 
 Now we should be able to build the project using:
 
@@ -328,7 +442,7 @@ practice to look at what interfaces Python offers, e.g. in its
 queue, it's enough to provide the methods ``append()``, ``peek()`` and
 ``pop()``, and additionally an ``extend()`` method to add multiple
 values at once.  Also, since we already know that all values will be
-coming from C, it's best to provide only ``cdef`` methods for now, and
+coming from C, it's best to provide only ``cdef``/``@cfunc`` methods for now, and
 to give them a straight C interface.
 
 In C, it is common for data structures to store data as a ``void*`` to
@@ -338,28 +452,76 @@ additional memory allocations through a trick: we cast our ``int`` values
 to ``void*`` and vice versa, and store the value directly as the
 pointer value.
 
-Here is a simple implementation for the ``append()`` method::
+Here is a simple implementation for the ``append()`` method:
 
-        cdef append(self, int value):
-            cqueue.queue_push_tail(self._c_queue, <void*>value)
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.cfunc
+            def append(self, value: cython.int):
+                cqueue.queue_push_tail(self._c_queue, cython.cast(cython.p_void, value))
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef append(self, int value):
+                cqueue.queue_push_tail(self._c_queue, <void*>value)
 
 Again, the same error handling considerations as for the
 ``__cinit__()`` method apply, so that we end up with this
-implementation instead::
+implementation instead:
 
-        cdef append(self, int value):
-            if not cqueue.queue_push_tail(self._c_queue,
-                                          <void*>value):
-                raise MemoryError()
+.. tabs::
 
-Adding an ``extend()`` method should now be straight forward::
+    .. group-tab:: Pure Python
 
-    cdef extend(self, int* values, size_t count):
-        """Append all ints to the queue.
-        """
-        cdef int value
-        for value in values[:count]:  # Slicing pointer to limit the iteration boundaries.
-            self.append(value)
+        .. code-block:: python
+
+            @cython.cfunc
+            def append(self, value: cython.int):
+                if not cqueue.queue_push_tail(self._c_queue,
+                                              cython.cast(cython.p_void, value)):
+                    raise MemoryError()
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef append(self, int value):
+                if not cqueue.queue_push_tail(self._c_queue,
+                                              <void*>value):
+                    raise MemoryError()
+
+Adding an ``extend()`` method should now be straight forward:
+
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.cfunc
+            def extend(self, values: cython.p_int, count: cython.size_t):
+                """Append all ints to the queue.
+                """
+                value: cython.int
+                for value in values[:count]:  # Slicing pointer to limit the iteration boundaries.
+                    self.append(value)
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef extend(self, int* values, size_t count):
+                """Append all ints to the queue.
+                """
+                cdef int value
+                for value in values[:count]:  # Slicing pointer to limit the iteration boundaries.
+                    self.append(value)
 
 This becomes handy when reading values from a C array, for example.
 
@@ -368,13 +530,31 @@ the two methods to get the first element: ``peek()`` and ``pop()``,
 which provide read-only and destructive read access respectively.
 To avoid compiler warnings when casting ``void*`` to ``int`` directly,
 we use an intermediate data type that is big enough to hold a ``void*``.
-Here, ``Py_ssize_t``::
+Here, ``Py_ssize_t``:
 
-    cdef int peek(self):
-        return <Py_ssize_t>cqueue.queue_peek_head(self._c_queue)
+.. tabs::
 
-    cdef int pop(self):
-        return <Py_ssize_t>cqueue.queue_pop_head(self._c_queue)
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.cfunc
+            def peek(self) -> cython.int:
+                return cython.cast(cython.Py_ssize_t, cqueue.queue_peek_head(self._c_queue))
+
+            @cython.cfunc
+            def pop(self) -> cython.int:
+                return cython.cast(cython.Py_ssize_t, cqueue.queue_pop_head(self._c_queue))
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef int peek(self):
+                return <Py_ssize_t>cqueue.queue_peek_head(self._c_queue)
+
+            cdef int pop(self):
+                return <Py_ssize_t>cqueue.queue_pop_head(self._c_queue)
 
 Normally, in C, we risk losing data when we convert a larger integer type
 to a smaller integer type without checking the boundaries, and ``Py_ssize_t``
@@ -395,22 +575,44 @@ from ints, we cannot distinguish anymore if the return value was
 the queue was ``0``.  In Cython code, we want the first case to
 raise an exception, whereas the second case should simply return
 ``0``.  To deal with this, we need to special case this value,
-and check if the queue really is empty or not::
+and check if the queue really is empty or not:
 
-    cdef int peek(self) except? -1:
-        cdef int value = <Py_ssize_t>cqueue.queue_peek_head(self._c_queue)
-        if value == 0:
-            # this may mean that the queue is empty, or
-            # that it happens to contain a 0 value
-            if cqueue.queue_is_empty(self._c_queue):
-                raise IndexError("Queue is empty")
-        return value
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.cfunc
+            @cython.exceptval(-1, check=True)
+            def peek(self) -> cython.int:
+                value: cython.int = cython.cast(cython.Py_ssize_t, cqueue.queue_peek_head(self._c_queue))
+                if value == 0:
+                    # this may mean that the queue is empty, or
+                    # that it happens to contain a 0 value
+                    if cqueue.queue_is_empty(self._c_queue):
+                        raise IndexError("Queue is empty")
+                return value
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef int peek(self) except? -1:
+                cdef int value = <Py_ssize_t>cqueue.queue_peek_head(self._c_queue)
+                if value == 0:
+                    # this may mean that the queue is empty, or
+                    # that it happens to contain a 0 value
+                    if cqueue.queue_is_empty(self._c_queue):
+                        raise IndexError("Queue is empty")
+                return value
 
 Note how we have effectively created a fast path through the method in
 the hopefully common cases that the return value is not ``0``.  Only
 that specific case needs an additional check if the queue is empty.
 
-The ``except? -1`` declaration in the method signature falls into the
+The ``except? -1`` or ``@cython.exceptval(-1, check=True)`` declaration
+in the method signature falls into the
 same category.  If the function was a Python function returning a
 Python object value, CPython would simply return ``NULL`` internally
 instead of a Python object to indicate an exception, which would
@@ -432,7 +634,8 @@ exception when receiving this exact value.
 
 We chose to use ``-1`` as the exception return value as we expect it
 to be an unlikely value to be put into the queue.  The question mark
-in the ``except? -1`` declaration indicates that the return value is
+in the ``except? -1`` declaration and ``check=True`` in ``@cython.exceptval``
+indicates that the return value is
 ambiguous (there *may* be a ``-1`` value in the queue, after all) and
 that an additional exception check using ``PyErr_Occurred()`` is
 needed in calling code.  Without it, Cython code that calls this
@@ -445,12 +648,29 @@ values.
 Now that the ``peek()`` method is implemented, the ``pop()`` method
 also needs adaptation.  Since it removes a value from the queue,
 however, it is not enough to test if the queue is empty *after* the
-removal.  Instead, we must test it on entry::
+removal.  Instead, we must test it on entry:
 
-    cdef int pop(self) except? -1:
-        if cqueue.queue_is_empty(self._c_queue):
-            raise IndexError("Queue is empty")
-        return <Py_ssize_t>cqueue.queue_pop_head(self._c_queue)
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.cfunc
+            @cython.exceptval(-1, check=True)
+            def pop(self) -> cython.int:
+                if cqueue.queue_is_empty(self._c_queue):
+                    raise IndexError("Queue is empty")
+                return cython.cast(cython.Py_ssize_t, cqueue.queue_pop_head(self._c_queue))
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef int pop(self) except? -1:
+                if cqueue.queue_is_empty(self._c_queue):
+                    raise IndexError("Queue is empty")
+                return <Py_ssize_t>cqueue.queue_pop_head(self._c_queue)
 
 The return value for exception propagation is declared exactly as for
 ``peek()``.
@@ -465,7 +685,7 @@ code can use either name)::
 
 Note that this method returns either ``True`` or ``False`` as we
 declared the return type of the ``queue_is_empty()`` function as
-``bint`` in ``cqueue.pxd``.
+``bint`` in :file:`cqueue.pxd`.
 
 
 Testing the result
@@ -479,14 +699,14 @@ you can call.  C methods are not visible from Python code, and thus
 not callable from doctests.
 
 A quick way to provide a Python API for the class is to change the
-methods from ``cdef`` to ``cpdef``.  This will let Cython generate two
-entry points, one that is callable from normal Python code using the
-Python call semantics and Python objects as arguments, and one that is
-callable from C code with fast C semantics and without requiring
-intermediate argument conversion from or to Python types. Note that ``cpdef``
-methods ensure that they can be appropriately overridden by Python
-methods even when they are called from Cython. This adds a tiny overhead
-compared to ``cdef`` methods.
+methods from ``cdef``/``@cfunc`` to ``cpdef``/``@ccall``.  This will
+let Cython generate two entry points, one that is callable from normal
+Python code using the Python call semantics and Python objects as arguments,
+and one that is callable from C code with fast C semantics and without requiring
+intermediate argument conversion from or to Python types. Note that
+``cpdef``/``@ccall`` methods ensure that they can be appropriately overridden
+by Python methods even when they are called from Cython. This adds a tiny overhead
+compared to ``cdef``/``@cfunc`` methods.
 
 Now that we have both a C-interface and a Python interface for our
 class, we should make sure that both interfaces are consistent.
@@ -497,14 +717,24 @@ C arrays and C memory.  Both signatures are incompatible.
 We will solve this issue by considering that in C, the API could also
 want to support other input types, e.g. arrays of ``long`` or ``char``,
 which is usually supported with differently named C API functions such as
-``extend_ints()``, ``extend_longs()``, extend_chars()``, etc.  This allows
+``extend_ints()``, ``extend_longs()``, ``extend_chars()``, etc.  This allows
 us to free the method name ``extend()`` for the duck typed Python method,
 which can accept arbitrary iterables.
 
 The following listing shows the complete implementation that uses
-``cpdef`` methods where possible:
+``cpdef``/``@ccall`` methods where possible:
 
-.. literalinclude:: ../../examples/tutorial/clibraries/queue3.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/clibraries/queue3.py
+            :caption: queue.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/clibraries/queue3.pyx
+            :caption: queue.pyx
 
 Now we can test our Queue implementation using a python script,
 for example here :file:`test_queue.py`:
@@ -555,29 +785,73 @@ C-API into the callback function.  We will use this to pass our Python
 predicate function.
 
 First, we have to define a callback function with the expected
-signature that we can pass into the C-API function::
+signature that we can pass into the C-API function:
 
-    cdef int evaluate_predicate(void* context, cqueue.QueueValue value):
-        "Callback function that can be passed as predicate_func"
-        try:
-            # recover Python function object from void* argument
-            func = <object>context
-            # call function, convert result into 0/1 for True/False
-            return bool(func(<int>value))
-        except:
-            # catch any Python errors and return error indicator
-            return -1
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.cfunc
+            @cython.exceptval(check=False)
+            def evaluate_predicate(context: cython.p_void, value: cqueue.QueueValue) -> cython.int:
+                "Callback function that can be passed as predicate_func"
+                try:
+                    # recover Python function object from void* argument
+                    func = cython.cast(object, context)
+                    # call function, convert result into 0/1 for True/False
+                    return bool(func(cython.cast(int, value)))
+                except:
+                    # catch any Python errors and return error indicator
+                    return -1
+
+        .. note:: ``@cfunc`` functions in pure python are defined as ``@exceptval(-1, check=True)``
+            by default. Since ``evaluate_predicate()`` should be passed to function as parameter,
+            we need to turn off exception checking entirely.
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef int evaluate_predicate(void* context, cqueue.QueueValue value):
+                "Callback function that can be passed as predicate_func"
+                try:
+                    # recover Python function object from void* argument
+                    func = <object>context
+                    # call function, convert result into 0/1 for True/False
+                    return bool(func(<int>value))
+                except:
+                    # catch any Python errors and return error indicator
+                    return -1
 
 The main idea is to pass a pointer (a.k.a. borrowed reference) to the
 function object as the user context argument. We will call the C-API
-function as follows::
+function as follows:
 
-    def pop_until(self, python_predicate_function):
-        result = cqueue.queue_pop_head_until(
-            self._c_queue, evaluate_predicate,
-            <void*>python_predicate_function)
-        if result == -1:
-            raise RuntimeError("an error occurred")
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            def pop_until(self, python_predicate_function):
+                result = cqueue.queue_pop_head_until(
+                    self._c_queue, evaluate_predicate,
+                    cython.cast(cython.p_void, python_predicate_function))
+                if result == -1:
+                    raise RuntimeError("an error occurred")
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            def pop_until(self, python_predicate_function):
+                result = cqueue.queue_pop_head_until(
+                    self._c_queue, evaluate_predicate,
+                    <void*>python_predicate_function)
+                if result == -1:
+                    raise RuntimeError("an error occurred")
 
 The usual pattern is to first cast the Python object reference into
 a :c:type:`void*` to pass it into the C-API function, and then cast

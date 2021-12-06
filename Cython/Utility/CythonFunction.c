@@ -952,7 +952,7 @@ static PyType_Spec __pyx_CyFunctionType_spec = {
 #ifdef Py_TPFLAGS_METHOD_DESCRIPTOR
     Py_TPFLAGS_METHOD_DESCRIPTOR |
 #endif
-#ifdef _Py_TPFLAGS_HAVE_VECTORCALL
+#if (defined(_Py_TPFLAGS_HAVE_VECTORCALL) && CYTHON_METH_FASTCALL)
     _Py_TPFLAGS_HAVE_VECTORCALL |
 #endif
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE, /*tp_flags*/
@@ -1037,8 +1037,11 @@ static PyTypeObject __pyx_CyFunctionType_type = {
 #if PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000
     0,                                  /*tp_print*/
 #endif
+#if PY_VERSION_HEX >= 0x030B00A2
+    0,                                  /*tp_inline_values_offset*/
+#endif
 #if CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM+0 >= 0x06000000
-    0,                                          /*tp_pypy_flags*/
+    0,                                  /*tp_pypy_flags*/
 #endif
 };
 #endif  /* CYTHON_USE_TYPE_SPECS */
@@ -1227,6 +1230,15 @@ __pyx_FusedFunction_descr_get(PyObject *self, PyObject *obj, PyObject *type)
     if (obj == Py_None)
         obj = NULL;
 
+    if (func->func.flags & __Pyx_CYFUNCTION_CLASSMETHOD)
+        obj = type;
+
+    if (obj == NULL) {
+        // We aren't actually binding to anything, save the effort of rebinding
+        Py_INCREF(self);
+        return self;
+    }
+
     meth = (__pyx_FusedFunctionObject *) __pyx_FusedFunction_New(
                     ((PyCFunctionObject *) func)->m_ml,
                     ((__pyx_CyFunctionObject *) func)->flags,
@@ -1266,9 +1278,6 @@ __pyx_FusedFunction_descr_get(PyObject *self, PyObject *obj, PyObject *type)
 
     Py_XINCREF(func->func.defaults_tuple);
     meth->func.defaults_tuple = func->func.defaults_tuple;
-
-    if (func->func.flags & __Pyx_CYFUNCTION_CLASSMETHOD)
-        obj = type;
 
     Py_XINCREF(obj);
     meth->self = obj;
@@ -1572,8 +1581,11 @@ static PyTypeObject __pyx_FusedFunctionType_type = {
 #if PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000
     0,                                  /*tp_print*/
 #endif
+#if PY_VERSION_HEX >= 0x030B00A2
+    0,                                  /*tp_inline_values_offset*/
+#endif
 #if CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM+0 >= 0x06000000
-    0,                                          /*tp_pypy_flags*/
+    0,                                  /*tp_pypy_flags*/
 #endif
 };
 #endif

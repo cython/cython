@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, cpp11, werror
+# tag: cpp, cpp11, werror, no-cpp-locals
 
 from cython.operator cimport preincrement as incr, dereference as deref
 from libc.stdint cimport *

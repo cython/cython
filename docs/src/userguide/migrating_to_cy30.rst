@@ -157,3 +157,18 @@ Here ``Base.__bar`` is mangled to ``_Base__bar`` and ``Derived.__bar``
 to ``_Derived__bar``. Therefore ``call_bar`` will always call 
 ``_Base__bar``. This matches established Python behaviour and applies
 for ``def``, ``cdef`` and ``cpdef`` methods and attributes.
+
+Arithmetic special methods
+==========================
+
+The behaviour of arithmetic special methods (for example ``__add__``
+and ``__pow__``) of cdef classes has changed in Cython 3.0. They now 
+support separate "reversed" versions of these methods (e.g. 
+``__radd__``, ``__rpow__``) that behave like in pure Python.
+The main incompatible change is that the type of the first operand
+(usually ``__self__``) is now assumed to be that of the defining class,
+rather than relying on the user to test and cast the type of each operand.
+
+The old behaviour can be restored with the 
+:ref:`directive <compiler-directives>` ``c_api_binop_methods=True``.
+More details are given in :ref:`arithmetic_methods`.

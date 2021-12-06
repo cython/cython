@@ -370,8 +370,10 @@ class EnvTransform(CythonTransform):
         self.env_stack.pop()
 
     def visit_FuncDefNode(self, node):
+        outer_attrs = node.outer_attrs
+        self.visitchildren(node, attrs=outer_attrs)
         self.enter_scope(node, node.local_scope)
-        self._process_children(node)
+        self.visitchildren(node, attrs=None, exclude=outer_attrs)
         self.exit_scope()
         return node
 
@@ -673,7 +675,7 @@ class MethodDispatcherTransform(EnvTransform):
         method_handler = self._find_handler(
             "method_%s_%s" % (type_name, attr_name), kwargs)
         if method_handler is None:
-            if (attr_name in TypeSlots.method_name_to_slot
+            if (attr_name in TypeSlots.special_method_names
                     or attr_name in ['__new__', '__class__']):
                 method_handler = self._find_handler(
                     "slot%s" % attr_name, kwargs)

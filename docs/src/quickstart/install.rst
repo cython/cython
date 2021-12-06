@@ -22,13 +22,16 @@ according to the system used:
    XCode, which can be retrieved from the Mac OS X's install DVDs or
    from https://developer.apple.com/.
 
- - **Windows** A popular option is to use the open source MinGW (a
+ - **Windows** The CPython project recommends building extension modules 
+   (including Cython modules) with the same compiler that Python was
+   built with. This is usually a specific version of Microsoft Visual
+   C/C++ (MSVC) - see https://wiki.python.org/moin/WindowsCompilers. 
+   MSVC is the only compiler that Cython is currently tested with on 
+   Windows.  A possible alternative is the open source MinGW (a
    Windows distribution of gcc). See the appendix for instructions for
    setting up MinGW manually. Enthought Canopy and Python(x,y) bundle
    MinGW, but some of the configuration steps in the appendix might
-   still be necessary.  Another option is to use Microsoft's Visual C.
-   One must then use the same version which the installed Python was
-   compiled with.
+   still be necessary.
 
 .. dagss tried other forms of ReST lists and they didn't look nice
 .. with rst2latex.

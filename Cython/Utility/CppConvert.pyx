@@ -199,14 +199,18 @@ cdef extern from *:
         void insert(pair[T, U]&) except +
     cdef cppclass vector "std::vector" [T]:
         pass
+    int PY_MAJOR_VERSION
 
 
 @cname("{{cname}}")
 cdef map[X,Y] {{cname}}(object o) except *:
-    cdef dict d = o
     cdef map[X,Y] m
-    for key, value in d.iteritems():
-        m.insert(pair[X,Y](<X>key, <Y>value))
+    if PY_MAJOR_VERSION < 3:
+        for key, value in o.iteritems():
+            m.insert(pair[X,Y](<X>key, <Y>value))
+    else:
+        for key, value in o.items():
+            m.insert(pair[X,Y](<X>key, <Y>value))
     return m
 
 
