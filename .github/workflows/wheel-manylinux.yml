@@ -21,6 +21,14 @@ jobs:
     - name: Make sdist and Python wheel
       run: make sdist pywheel
 
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: |
+          dist/*.tar.gz
+          dist/*-none-any.whl
+
     - name: Upload sdist
       uses: actions/upload-artifact@v2
       with:
