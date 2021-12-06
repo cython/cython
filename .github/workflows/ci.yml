@@ -136,23 +136,6 @@ jobs:
             python-version: pypy-3.7
             backend: c
             env: { NO_CYTHON_COMPILE: 1 }
-          # Pypy [allowed-failures] - These specifically test known bugs
-          - os: ubuntu-18.04
-            python-version: pypy-2.7
-            backend: c
-            env:
-              {
-                NO_CYTHON_COMPILE: 1,
-                EXCLUDE: "--listfile=tests/pypy_bugs.txt --listfile=tests/pypy2_bugs.txt bugs",
-              }
-            allowed_failure: true
-            extra_hash: "-allowed_failures"
-          - os: ubuntu-18.04
-            python-version: pypy-3.7
-            backend: c
-            env: { NO_CYTHON_COMPILE: 1, EXCLUDE: "--listfile=tests/pypy_bugs.txt bugs" }
-            allowed_failure: true
-            extra_hash: "-allowed_failures"
           # Coverage - Disabled due to taking too long to run
           # - os: ubuntu-18.04
           #   python-version: 3.7
