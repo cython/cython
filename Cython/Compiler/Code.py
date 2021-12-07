@@ -1224,7 +1224,9 @@ class GlobalState(object):
                 w.putln("/* #### %sCode section: %s ### */" % ("HPy " if part_type == "hpy" else "", part))
 
         if not Options.cache_builtins:
-            del self.parts['cached_builtins']
+            part = 'cached_builtins'
+            self.close_part(part)
+            del self.parts[part]
         else:
             w = self.parts['cached_builtins']
             w.enter_cfunc_scope()
@@ -1258,7 +1260,9 @@ class GlobalState(object):
         w.putln("static CYTHON_SMALL_CODE int __Pyx_InitConstants(HPyContext *ctx) {")
 
         if not Options.generate_cleanup_code:
-            del self.parts['cleanup_globals']
+            part = 'cleanup_globals'
+            self.close_part(part)
+            del self.parts[part]
         else:
             w = self.parts['cleanup_globals']
             w.enter_cfunc_scope()
@@ -1304,10 +1308,13 @@ class GlobalState(object):
         code.putln(util.format_code(util.impl))
         code.putln("")
 
+    def close_part(self, part):
+        if self.get_part_type(part) != "generic" and part in self.parts:
+            self.parts[part].putln("#endif /* HPY */")
+
     def close_parts(self):
         for part in self.code_layout:
-            if self.get_part_type(part) != "generic" and part in self.parts:
-                self.parts[part].putln("#endif /* HPY */")
+            self.close_part(part)
 
     def __getitem__(self, key):
         return self.parts[key]
