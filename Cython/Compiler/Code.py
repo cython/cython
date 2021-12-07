@@ -3987,7 +3987,9 @@ class HPyCCodeWriter(CCodeWriter):
             max_args, ','.join(('HPy_NULL',)*max_args)))
 
         if target.defaults_struct:
-            raise NotImplementedError("defaults_struct for HPy is not yet supported")
+            self.putln('%s *%s = __Pyx_CyFunction_Defaults(%s, %s);' % (
+                target.defaults_struct, Naming.dynamic_args_cname,
+                target.defaults_struct, Naming.self_cname))
 
         # assign borrowed Python default values to the values array,
         # so that they can be overwritten by received arguments below
