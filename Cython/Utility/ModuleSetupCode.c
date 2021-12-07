@@ -259,7 +259,7 @@
   #undef CYTHON_REFNANNY
   #endif
   #define CYTHON_REFNANNY 0
-#endif
+#endif /* HPY */
 
 #if !defined(CYTHON_FAST_PYCCALL)
 #define CYTHON_FAST_PYCCALL  (CYTHON_FAST_PYCALL && PY_VERSION_HEX >= 0x030600B1)
@@ -1222,7 +1222,7 @@ static CYTHON_INLINE float __PYX_NAN() {
 #define __PYX_NULL HPy_NULL
 #else
 #define __PYX_NULL 0
-#endif
+#endif /* HPY */
 
 #if defined(__CYGWIN__) && defined(_LDBL_EQ_DBL)
 #define __Pyx_truncl trunc
