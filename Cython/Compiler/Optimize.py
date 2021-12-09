@@ -1440,6 +1440,11 @@ class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
             # note: lhs may have side effects
             return node
 
+        if any([arg.is_starred for arg in args]):
+            # note: Ignore optimisations if there is at least 
+            # one starred expression in the args
+            return node
+
         lhs = UtilNodes.ResultRefNode(node.operand1)
 
         conds = []
