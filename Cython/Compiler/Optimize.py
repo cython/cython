@@ -1441,8 +1441,7 @@ class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
             return node
 
         if any([arg.is_starred for arg in args]):
-            # note: Ignore optimisations if there is at least 
-            # one starred expression in the args
+            # Starred arguments do not directly translate to comparisons or "in" tests.
             return node
 
         lhs = UtilNodes.ResultRefNode(node.operand1)
