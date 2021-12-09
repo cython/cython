@@ -272,19 +272,19 @@ def unpack_list_keep_originals(a, b, c):
     return [*a, *b, 2, *c]
 
 
-def unpack_starred_arg_in_operator(x, l, m):
+def unpack_starred_arg_for_in_operator(x, l, m):
     """
     >>> l = [1,2,3]
     >>> m = [4,5,6]
     >>> x = 1
-    >>> unpack_starred_arg_in_operator(x, l, m)
+    >>> unpack_starred_arg_for_in_operator(x, l, m)
     True
     >>> x = 10
-    >>> unpack_starred_arg_in_operator(x, l, m)
+    >>> unpack_starred_arg_for_in_operator(x, l, m)
     False
-    >>> unpack_starred_arg_in_operator(x, l, [])
+    >>> unpack_starred_arg_for_in_operator(x, l, [])
     False
-    >>> unpack_starred_arg_in_operator(x, [], [])
+    >>> unpack_starred_arg_for_in_operator(x, [], [])
     False
     """
     return x in [*l, *m]
