@@ -272,19 +272,19 @@ def unpack_list_keep_originals(a, b, c):
     return [*a, *b, 2, *c]
 
 
-def t3938(x, l, m):
+def unpack_starred_arg_in_operator(x, l, m):
     """
     >>> l = [1,2,3]
     >>> m = [4,5,6]
     >>> x = 1
-    >>> t3938(x, l, m)
+    >>> unpack_starred_arg_in_operator(x, l, m)
     True
     >>> x = 10
-    >>> t3938(x, l, m)
+    >>> unpack_starred_arg_in_operator(x, l, m)
     False
-    >>> t3938(x, l, [])
+    >>> unpack_starred_arg_in_operator(x, l, [])
     False
-    >>> t3938(x, [], [])
+    >>> unpack_starred_arg_in_operator(x, [], [])
     False
     """
     return x in [*l, *m]
