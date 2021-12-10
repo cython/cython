@@ -188,14 +188,14 @@ class Signature(object):
                 full_args = "O" + full_args
             if full_args in ["O", "T"]:
                 if not self.has_generic_args:
-                    return [hpy_method_noargs]
+                    return hpy_method_noargs
                 else:
                     return hpy_method_keywords
             elif full_args in ["OO", "TO"] and not self.has_generic_args:
-                return [hpy_method_onearg]
+                return hpy_method_onearg
 
             if self.is_staticmethod:
-                return method_keywords
+                return hpy_method_keywords
         return None
 
     def method_function_type(self):
