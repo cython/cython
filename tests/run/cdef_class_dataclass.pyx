@@ -36,14 +36,19 @@ cdef class BasicDataclass:
     """
     >>> sorted(list(BasicDataclass.__dataclass_fields__.keys()))
     ['a', 'b', 'c', 'd']
-    >>> BasicDataclass.__dataclass_fields__['a'].type == float
-    True
-    >>> BasicDataclass.__dataclass_fields__['b'].type == NotADataclass
-    True
-    >>> BasicDataclass.__dataclass_fields__['c'].type == object
-    True
-    >>> BasicDataclass.__dataclass_fields__['d'].type == list
-    True
+
+    # Check the field type attribute - this is currently a string since
+    # it's taken from the annotation, but if we drop PEP563 in future
+    # then it may change
+    >>> BasicDataclass.__dataclass_fields__["a"].type
+    'float'
+    >>> BasicDataclass.__dataclass_fields__["b"].type
+    'NotADataclass'
+    >>> BasicDataclass.__dataclass_fields__["c"].type
+    'object'
+    >>> BasicDataclass.__dataclass_fields__["d"].type
+    'list'
+
     >>> inst1 = BasicDataclass() # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: __init__() takes at least 1 ...
@@ -188,6 +193,8 @@ cdef class TestVisibility:
     True
     >>> "c" in TestVisibility.__dataclass_fields__
     True
+    >>> TestVisibility.__dataclass_fields__["c"].type
+    'double'
     >>> hasattr(inst, "c")
     True
     """

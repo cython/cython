@@ -537,43 +537,38 @@ def generate_hash_code(unsafe_hash, eq, frozen, node, fields):
     return code_lines, {}, []
 
 
-class GetTypeNode(ExprNodes.ExprNode):
+def get_field_type(pos, entry):
     """
-    Tries to return a PyType_Type if possible. However contains
-    some fallback provision if it turns out not to resolve to a Python object.
-    Initialize with "entry".
+    sets the .type attribute for a field
+
+    Returns the annotation if possible (since this is what the dataclasses
+    module does). If not (for example, attributes defined with cdef) then
+    it creates a string fallback.
     """
-
-    subexprs = []
-
-    def __init__(self, entry):
-        super(GetTypeNode, self).__init__(entry.pos, entry=entry)
-
-    def analyse_types(self, env):
-        type = self.entry.type
-
-        if type.is_extension_type or type.is_builtin_type:
-            return ExprNodes.RawCNameExprNode(
-                self.pos, Builtin.type_type, type.typeptr_cname).analyse_types(env)
-        else:
-            names = None
-            py_name = type.py_type_name()
-            # int types can return "(int, long)"
-            if py_name:
-                names = [name.strip("() ") for name in py_name.split(",")]
-            if names:
-                for name in names:
-                    name = EncodedString(name)
-                    nn = ExprNodes.NameNode(self.pos, name=name)
-                    nn = nn.analyse_types(env)
-                    if nn.entry:
-                        return nn
-
-        # otherwise we're left to return a string
-        s = self.entry.annotation.string.value if self.entry.annotation else None
-        if not s:
-            s = self.entry.type.declaration_code("", for_display=1)
-        return ExprNodes.StringNode(self.pos, value=s).analyse_types(env)
+    if entry.annotation:
+        # Right now it doesn't look like cdef classes generate an
+        # __annotations__ dict, therefore it's safe to just return
+        # entry.annotation
+        # (TODO: remove .string if we ditch PEP563)
+        return entry.annotation.string
+        # If they do in future then we may need to look up into that
+        # to duplicating the node. The code below should do this:
+        #class_name_node = ExprNodes.NameNode(pos, name=entry.scope.name)
+        #annotations = ExprNodes.AttributeNode(
+        #    pos, obj=class_name_node,
+        #    attribute=EncodedString("__annotations__")
+        #)
+        #return ExprNodes.IndexNode(
+        #    pos, base=annotations,
+        #    index=ExprNodes.StringNode(pos, value=entry.name)
+        #)
+    else:
+        # it's slightly unclear what the best option is here - we could
+        # try to return PyType_Type. This case should only happen with
+        # attributes defined with cdef so Cython is free to make it's own
+        # decision
+        s = entry.type.declaration_code("", for_display=1)
+        return ExprNodes.StringNode(pos, value=s)
 
 
 class FieldRecordNode(ExprNodes.ExprNode):
@@ -660,8 +655,10 @@ def _set_up_dataclass_fields(node, fields, dataclass_module):
     for name, field in fields.items():
         if field.private:
             continue  # doesn't appear in the public interface
-        placeholder_name = "PLACEHOLDER_%s" % name
-        placeholders[placeholder_name] = GetTypeNode(node.scope.entries[name])
+        type_placeholder_name = "PLACEHOLDER_%s" % name
+        placeholders[type_placeholder_name] = get_field_type(
+            node.pos, node.scope.entries[name]
+        )
 
         # defining these make the fields introspect more like a Python dataclass
         field_type_placeholder_name = "PLACEHOLDER_FIELD_TYPE_%s" % name
@@ -702,7 +699,7 @@ def _set_up_dataclass_fields(node, fields, dataclass_module):
                 __dataclass_fields__[{0!r}].name = {0!r}
                 __dataclass_fields__[{0!r}].type = {1}
                 __dataclass_fields__[{0!r}]._field_type = {2}
-            """).format(name, placeholder_name, field_type_placeholder_name))
+            """).format(name, type_placeholder_name, field_type_placeholder_name))
 
     dataclass_fields_assignment = \
         Nodes.SingleAssignmentNode(node.pos,
