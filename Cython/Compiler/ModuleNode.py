@@ -769,16 +769,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put(UtilityCode.load_as_string(name, "ModuleSetupCode.c")[1])
 
     def generate_module_preamble(self, env, options, cimported_modules, metadata, code):
-        if options.hpy:
-            inc = Code.IncludeCode(initial=True, verbatim=textwrap.dedent("""
+        inc = Code.IncludeCode(initial=True, verbatim=textwrap.dedent("""
                 #ifdef HPY
                   #include "hpy.h"
                 #else
                   #include "Python.h"
                 #endif
                 """))
-        else:
-            inc = Code.IncludeCode("Python.h", initial=True)
         env.process_include(inc)
         code.put_generated_by()
         if metadata:
