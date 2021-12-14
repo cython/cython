@@ -21,6 +21,14 @@ jobs:
     - name: Make sdist and Python wheel
       run: make sdist pywheel
 
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: |
+          dist/*.tar.gz
+          dist/*-none-any.whl
+
     - name: Upload sdist
       uses: actions/upload-artifact@v2
       with:
@@ -35,89 +43,48 @@ jobs:
         path: dist/*-none-any.whl
         if-no-files-found: ignore
 
-  manylinux1-i686:
+  binary:
+    strategy:
+      # Allows for matrix sub-jobs to fail without canceling the rest
+      fail-fast: false
+
+      matrix:
+        image:
+          - manylinux1_x86_64
+          - manylinux1_i686
+          - musllinux_1_1_x86_64
+          - manylinux_2_24_x86_64
+          - manylinux_2_24_i686
+          - manylinux_2_24_aarch64
+
     runs-on: ubuntu-latest
+
     steps:
     - uses: actions/checkout@v2
 
-    - name: Set up Python
-      uses: actions/setup-python@v1
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v2
       with:
-        python-version: 3.8
+        python-version: 3.9
 
-    - name: Build Linux wheels
-      uses: RalfG/python-wheels-manylinux-build@v0.3.4-manylinux1_i686
+    - name: Building wheel
+      run: |
+        make sdist wheel_${{ matrix.image }}
+
+    - name: Copy wheels in dist
+      run: cp wheelhouse*/*.whl dist/
+
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
       with:
-        python-versions: 'cp27-cp27m cp27-cp27mu cp35-cp35m cp36-cp36m cp37-cp37m cp38-cp38 cp39-cp39 cp310-cp310'
+        files: |
+          dist/*manylinux*.whl
+          dist/*musllinux*.whl
 
-    - name: Upload wheels
+    - name: Archive Wheels
       uses: actions/upload-artifact@v2
       with:
-        name: wheels-Linux
-        path: dist/*-manylinux*.whl
-        if-no-files-found: ignore
-
-  manylinux1-x86_64:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-
-    - name: Set up Python
-      uses: actions/setup-python@v1
-      with:
-        python-version: 3.8
-
-    - name: Build Linux wheels
-      uses: RalfG/python-wheels-manylinux-build@v0.3.4-manylinux1_x86_64
-      with:
-        python-versions: 'cp27-cp27m cp27-cp27mu cp35-cp35m cp36-cp36m cp37-cp37m cp38-cp38 cp39-cp39 cp310-cp310'
-
-    - name: Upload wheels
-      uses: actions/upload-artifact@v2
-      with:
-        name: wheels-Linux
-        path: wheels/*-manylinux*.whl
-        if-no-files-found: ignore
-
-  manylinux2014-i686:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-
-    - name: Set up Python
-      uses: actions/setup-python@v1
-      with:
-        python-version: 3.8
-
-    - name: Build Linux wheels
-      uses: RalfG/python-wheels-manylinux-build@v0.3.4-manylinux2014_i686
-      with:
-        python-versions: 'cp36-cp36m cp37-cp37m cp38-cp38 cp39-cp39 cp310-cp310'
-
-    - name: Upload wheels
-      uses: actions/upload-artifact@v2
-      with:
-        name: wheels-Linux
-        path: wheels/*-manylinux2014*.whl
-        if-no-files-found: ignore
-
-  manylinux2014-x86_64:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-
-    - name: Set up Python
-      uses: actions/setup-python@v1
-      with:
-        python-version: 3.8
-
-    - name: Build Linux wheels
-      uses: RalfG/python-wheels-manylinux-build@v0.3.4-manylinux2014_x86_64
-      with:
-        python-versions: 'cp36-cp36m cp37-cp37m cp38-cp38 cp39-cp39 cp310-cp310'
-    - name: Upload wheels
-      uses: actions/upload-artifact@v2
-      with:
-        name: wheels-Linux
-        path: wheels/*-manylinux2014*.whl
+        name: ${{ matrix.image }}
+        path: dist/*m[au][ns][yl]linux*.whl
         if-no-files-found: ignore

@@ -1437,7 +1437,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         warning(scope.parent_type.pos,
                                 "total_ordering directive used, but no comparison and equality methods defined")
 
-                    for slot in TypeSlots.PyNumberMethods:
+                    for slot in TypeSlots.get_slot_table(code.globalstate.directives).PyNumberMethods:
                         if slot.is_binop and scope.defines_any_special(slot.user_methods):
                             self.generate_binop_function(scope, slot, code, entry.pos)
 
@@ -1845,7 +1845,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("}")
 
     def generate_clear_function(self, scope, code, cclass_entry):
-        tp_slot = TypeSlots.get_slot_by_name("tp_clear")
+        tp_slot = TypeSlots.get_slot_by_name("tp_clear", scope.directives)
         slot_func = scope.mangle_internal("tp_clear")
         base_type = scope.parent_type.base_type
         if tp_slot.slot_code(scope) != slot_func:
@@ -2225,10 +2225,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if preprocessor_guard:
             code.putln(preprocessor_guard)
 
-        if slot.left_slot.signature == TypeSlots.binaryfunc:
+        if slot.left_slot.signature in (TypeSlots.binaryfunc, TypeSlots.ibinaryfunc):
             slot_type = 'binaryfunc'
             extra_arg = extra_arg_decl = ''
-        elif slot.left_slot.signature == TypeSlots.ternaryfunc:
+        elif slot.left_slot.signature in (TypeSlots.ternaryfunc, TypeSlots.iternaryfunc):
             slot_type = 'ternaryfunc'
             extra_arg = ', extra_arg'
             extra_arg_decl = ', PyObject* extra_arg'
@@ -2519,17 +2519,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         ext_type = entry.type
         scope = ext_type.scope
 
-        members_slot = TypeSlots.get_slot_by_name("tp_members")
+        members_slot = TypeSlots.get_slot_by_name("tp_members", code.globalstate.directives)
         members_slot.generate_substructure_spec(scope, code)
 
-        buffer_slot = TypeSlots.get_slot_by_name("tp_as_buffer")
+        buffer_slot = TypeSlots.get_slot_by_name("tp_as_buffer", code.globalstate.directives)
         if not buffer_slot.is_empty(scope):
             code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
             buffer_slot.generate_substructure(scope, code)
             code.putln("#endif")
 
         code.putln("static PyType_Slot %s_slots[] = {" % ext_type.typeobj_cname)
-        for slot in TypeSlots.slot_table:
+        for slot in TypeSlots.get_slot_table(code.globalstate.directives):
             slot.generate_spec(scope, code)
         code.putln("{0, 0},")
         code.putln("};")
@@ -2543,14 +2543,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('"%s.%s",' % (self.full_module_name, classname.replace('"', '')))
         code.putln("sizeof(%s)," % objstruct)
         code.putln("0,")
-        code.putln("%s," % TypeSlots.get_slot_by_name("tp_flags").slot_code(scope))
+        code.putln("%s," % TypeSlots.get_slot_by_name("tp_flags", scope.directives).slot_code(scope))
         code.putln("%s_slots," % ext_type.typeobj_cname)
         code.putln("};")
 
     def generate_typeobj_definition(self, modname, entry, code):
         type = entry.type
         scope = type.scope
-        for suite in TypeSlots.substructures:
+        for suite in TypeSlots.get_slot_table(code.globalstate.directives).substructures:
             suite.generate_substructure(scope, code)
         code.putln("")
         if entry.visibility == 'public':
@@ -2574,7 +2574,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "sizeof(%s), /*tp_basicsize*/" % objstruct)
         code.putln(
             "0, /*tp_itemsize*/")
-        for slot in TypeSlots.slot_table:
+        for slot in TypeSlots.get_slot_table(code.globalstate.directives):
             slot.generate(scope, code)
         code.putln(
             "};")
@@ -3109,7 +3109,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # user code in atexit or other global registries.
         ##code.put_decref_clear(env.module_dict_cname, py_object_type, nanny=False)
         code.putln('}')
-        code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
+        code.putln("#if !CYTHON_USE_MODULE_STATE")
         code.put_decref_clear(env.module_cname, py_object_type, nanny=False, clear_before_decref=True)
         code.putln("#endif")
         code.putln('} else if (!PyErr_Occurred()) {')
@@ -3470,16 +3470,19 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 env.module_cname))
         code.putln(code.error_goto_if_null(env.module_cname, self.pos))
         code.putln("#elif CYTHON_COMPILING_IN_LIMITED_API")
-        module_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+        # manage_ref is False (and refnanny calls are omitted) because refnanny isn't yet initialized
+        module_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=False)
         code.putln(
             "%s = PyModule_Create(&%s); %s" % (
                 module_temp,
                 Naming.pymoduledef_cname,
                 code.error_goto_if_null(module_temp, self.pos)))
-        code.put_gotref(module_temp, py_object_type)
-        code.putln(code.error_goto_if_neg("PyState_AddModule(%s, &%s)" % (
-            module_temp, Naming.pymoduledef_cname), self.pos))
-        code.put_decref_clear(module_temp, type=py_object_type)
+        code.putln("{")
+        code.putln("int add_module_result = PyState_AddModule(%s, &%s);" % (
+            module_temp, Naming.pymoduledef_cname))
+        code.put_decref_clear(module_temp, type=py_object_type, nanny=False)
+        code.putln(code.error_goto_if_neg("add_module_result", self.pos))
+        code.putln("}")
         code.funcstate.release_temp(module_temp)
         code.putln('#else')
         code.putln(
@@ -3489,6 +3492,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(code.error_goto_if_null(env.module_cname, self.pos))
         code.putln("#endif")
         code.putln("#endif")  # CYTHON_PEP489_MULTI_PHASE_INIT
+        code.putln("CYTHON_UNUSED_VAR(%s);" % module_temp)  # only used in limited API
 
         code.putln(
             "%s = PyModule_GetDict(%s); %s" % (

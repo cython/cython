@@ -719,8 +719,7 @@ PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value, i
 
     exc_state = &self->gi_exc_state;
     if (exc_state->exc_type) {
-        #if CYTHON_COMPILING_IN_PYPY || PY_VERSION_HEX >= 0x030B00A1
-        // FIXME: https://bugs.python.org/issue44590 - Python 3.11 changed the type of frame
+        #if CYTHON_COMPILING_IN_PYPY
         // FIXME: what to do in PyPy?
         #else
         // Generators always return to their most recent caller, not
@@ -729,9 +728,15 @@ PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value, i
             PyTracebackObject *tb = (PyTracebackObject *) exc_state->exc_traceback;
             PyFrameObject *f = tb->tb_frame;
 
-            Py_XINCREF(tstate->frame);
             assert(f->f_back == NULL);
+            #if PY_VERSION_HEX >= 0x030B00A1
+            // PyThreadState_GetFrame returns NULL if there isn't a current frame
+            // which is a valid state so no need to check
+            f->f_back = PyThreadState_GetFrame(tstate);
+            #else
+            Py_XINCREF(tstate->frame);
             f->f_back = tstate->frame;
+            #endif
         }
         #endif
     }
@@ -1617,8 +1622,11 @@ static PyTypeObject __pyx_CoroutineAwaitType_type = {
 #if PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000
     0,                                  /*tp_print*/
 #endif
+#if PY_VERSION_HEX >= 0x030B00A2
+    0,                                  /*tp_inline_values_offset*/
+#endif
 #if CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM+0 >= 0x06000000
-    0,                                          /*tp_pypy_flags*/
+    0,                                  /*tp_pypy_flags*/
 #endif
 };
 #endif  /* CYTHON_USE_TYPE_SPECS */
@@ -1806,8 +1814,11 @@ static PyTypeObject __pyx_CoroutineType_type = {
 #if PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000
     0,                                  /*tp_print*/
 #endif
+#if PY_VERSION_HEX >= 0x030B00A2
+    0,                                  /*tp_inline_values_offset*/
+#endif
 #if CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM+0 >= 0x06000000
-    0,                                          /*tp_pypy_flags*/
+    0,                                  /*tp_pypy_flags*/
 #endif
 };
 #endif /* CYTHON_USE_TYPE_SPECS */
@@ -1947,7 +1958,7 @@ static PyTypeObject __pyx_IterableCoroutineType_type = {
     __Pyx_Coroutine_del,                /*tp_del*/
 #endif
     0,                                  /*tp_version_tag*/
-#if PY_VERSION_HEX >= 0x030400a1
+#if PY_VERSION_HEX >= 0x030400a1 && !CYTHON_COMPILING_IN_PYPY
     __Pyx_Coroutine_del,                /*tp_finalize*/
 #endif
 #if PY_VERSION_HEX >= 0x030800b1
@@ -1956,8 +1967,11 @@ static PyTypeObject __pyx_IterableCoroutineType_type = {
 #if PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000
     0,                                  /*tp_print*/
 #endif
+#if PY_VERSION_HEX >= 0x030B00A2
+    0,                                  /*tp_inline_values_offset*/
+#endif
 #if CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM+0 >= 0x06000000
-    0,                                          /*tp_pypy_flags*/
+    0,                                  /*tp_pypy_flags*/
 #endif
 };
 #endif /* CYTHON_USE_TYPE_SPECS */
@@ -2102,8 +2116,11 @@ static PyTypeObject __pyx_GeneratorType_type = {
 #if PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000
     0,                                  /*tp_print*/
 #endif
+#if PY_VERSION_HEX >= 0x030B00A2
+    0,                                  /*tp_inline_values_offset*/
+#endif
 #if CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM+0 >= 0x06000000
-    0,                                          /*tp_pypy_flags*/
+    0,                                  /*tp_pypy_flags*/
 #endif
 };
 #endif /* CYTHON_USE_TYPE_SPECS */
@@ -2510,8 +2527,11 @@ static PyTypeObject __Pyx__PyExc_StopAsyncIteration_type = {
 #if PY_VERSION_HEX >= 0x030400a1
     0,                                  /*tp_finalize*/
 #endif
+#if PY_VERSION_HEX >= 0x030B00A2
+    0,                                  /*tp_inline_values_offset*/
+#endif
 #if CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM+0 >= 0x06000000
-    0,                                          /*tp_pypy_flags*/
+    0,                                  /*tp_pypy_flags*/
 #endif
 };
 #endif

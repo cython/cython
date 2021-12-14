@@ -484,6 +484,8 @@ VER_DEP_MODULES = {
                                          'run.pep526_variable_annotations',  # typing module
                                          'run.test_exceptions',  # copied from Py3.7+
                                          'run.time_pxd',  # _PyTime_GetSystemClock doesn't exist in 3.4
+                                         'run.cpython_capi_py35',
+                                         'embedding.embedded',  # From the docs, needs Py_DecodeLocale
                                          ]),
     (3,7): (operator.lt, lambda x: x in ['run.pycontextvar',
                                          'run.pep557_dataclasses',  # dataclasses module
