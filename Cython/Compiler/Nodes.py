@@ -712,6 +712,12 @@ class CFuncDeclaratorNode(CDeclaratorNode):
             env.add_include_file('new')         # for std::bad_alloc
             env.add_include_file('stdexcept')
             env.add_include_file('typeinfo')    # for std::bad_cast
+        elif return_type.is_pyobject and self.exception_check:
+            # Functions in pure Python mode default to always check return values for exceptions
+            # (equivalent to the "except*" declaration). In this case, the exception clause
+            # is silently ignored for functions returning a Python object.
+            self.exception_check = False
+
         if (return_type.is_pyobject
                 and (self.exception_value or self.exception_check)
                 and self.exception_check != '+'):
