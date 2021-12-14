@@ -238,9 +238,9 @@ static PyObject* __Pyx_ImportFrom(PyObject* module, PyObject* name); /*proto*/
 static PyObject* __Pyx_ImportFrom(PyObject* module, PyObject* name) {
     PyObject* value = __Pyx_PyObject_GetAttrStr(module, name);
     if (unlikely(!value) && PyErr_ExceptionMatches(PyExc_AttributeError)) {
-        /* name may refer to a (sub-)module which has not finished initialization
-         * yet, and may not be assigned as an attribute to its parent, so try
-         * finding it by full name */
+        // 'name' may refer to a (sub-)module which has not finished initialization
+        // yet, and may not be assigned as an attribute to its parent, so try
+        // finding it by full name.
         const char* module_name_str = 0;
         PyObject* module_name = 0;
         PyObject* module_dot = 0;

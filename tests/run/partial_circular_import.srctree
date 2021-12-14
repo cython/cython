@@ -16,9 +16,25 @@ setup(
 ######## pkg/A.py ########
 from . import B
 
+def verify(rel_B):
+    import pkg.B
+    assert pkg.B == rel_B
+verify(B)
+
 ######## pkg/B.py ########
 from . import C
 
+def verify(rel_C):
+    import pkg.C
+    assert pkg.C == rel_C
+verify(C)
+
 ######## pkg/C.py ########
 from . import B
+
+def verify(rel_B):
+    import pkg.B
+    assert pkg.B == rel_B
+
+verify(B)
 
