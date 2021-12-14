@@ -1347,6 +1347,10 @@ class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
             # note: lhs may have side effects
             return node
 
+        if any([arg.is_starred for arg in args]):
+            # Starred arguments do not directly translate to comparisons or "in" tests.
+            return node
+
         lhs = UtilNodes.ResultRefNode(node.operand1)
 
         conds = []
