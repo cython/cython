@@ -1,7 +1,6 @@
 # ticket: 3293
 # mode: run
-# tag: cpp, cpp17
-### tag: werror  -- would be nice to have, but fails in Py2.7 due to header file incompatibilities.
+# tag: cpp, cpp17, werror
 
 from cython.operator cimport dereference as deref
 from libcpp.optional cimport optional, nullopt, make_optional
