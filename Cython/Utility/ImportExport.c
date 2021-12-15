@@ -254,7 +254,17 @@ static PyObject* __Pyx_ImportFrom(PyObject* module, PyObject* name) {
         if (unlikely(!module_dot)) { goto modbad; }
         full_name = PyUnicode_Concat(module_dot, name);
         if (unlikely(!full_name)) { goto modbad; }
-        value = __Pyx_Import(full_name, (PyObject *)NULL, 0);
+        #if PY_VERSION_HEX < 0x030700A1 || (CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM  < 0x07030400)
+        {
+            PyObject *modules = PyImport_GetModuleDict();
+            if (unlikely(!modules))
+                goto modbad;
+            value = __Pyx_PyDict_GetItemStr(modules, full_name);
+            Py_XINCREF(value);
+        }
+        #else
+        value = PyImport_GetModule(full_name);
+        #endif
 
       modbad:
         Py_XDECREF(full_name);
