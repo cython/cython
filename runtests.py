@@ -376,10 +376,9 @@ def get_cc_version(language):
     env['LC_MESSAGES'] = 'C'
     try:
         p = subprocess.Popen([cc, "-v"], stderr=subprocess.PIPE, env=env)
-    except EnvironmentError:
-        # Be compatible with Python 3
+    except EnvironmentError as exc:
         warnings.warn("Unable to find the %s compiler: %s: %s" %
-                      (language, os.strerror(sys.exc_info()[1].errno), cc))
+                      (language, os.strerror(exc.errno), cc))
         return ''
     _, output = p.communicate()
     return output.decode(locale.getpreferredencoding() or 'ASCII', 'replace')
