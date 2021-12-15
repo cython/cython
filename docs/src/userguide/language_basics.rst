@@ -477,13 +477,24 @@ as the name of a type, for example,
                 ...
 
 declares a parameter called ``int`` which is a Python object. You can also use
-object as the explicit return type of a function, e.g.::
+object as the explicit return type of a function, e.g.
 
-    cdef object ftang(object int):
-        ...
+.. tabs::
 
-.. note:: Currently, Cython contains a bug not allowing ``object`` as return annotation in
-    pure Python from a C function. (GitHub issue :issue:`2529`)
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.cfunc
+            def ftang(int: object) -> object:
+                ...
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef object ftang(object int):
+                ...
 
 In the interests of clarity, it is probably a good idea to always be explicit
 about object parameters in C functions.
