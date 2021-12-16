@@ -34,6 +34,7 @@ from .. import Utils
 from .Scanning import SourceDescriptor
 from ..StringIOTree import StringIOTree
 from .Errors import error
+from .Backend import CombinedBackend, HPyBackend, CApiBackend
 
 try:
     from __builtin__ import basestring
@@ -1137,7 +1138,6 @@ class GlobalState(object):
         'hpy_decls',
         'late_includes',
         'module_state',
-        'hpy_module_state',
         'module_state_clear',
         'module_state_traverse',
         'module_state_defines',  # redefines names used in module_state/_clear/_traverse
@@ -1202,6 +1202,9 @@ class GlobalState(object):
         hpy_writer.set_global_state(self)
         self.rootwriter = writer
         self.hpy_rootwriter = hpy_writer
+        #self.backend = CombinedBackend()
+        self.backend = HPyBackend()
+        #self.backend = CApiBackend()
 
     def get_part_type(self, part_name):
         if part_name.startswith("hpy_"):
@@ -1552,20 +1555,20 @@ class GlobalState(object):
         self.generate_object_constant_decls()
 
     def generate_object_constant_decls(self):
+        backend = self.backend
         consts = [(len(c.cname), c.cname, c)
                   for c in self.py_constants]
         consts.sort()
         decls_writer = self.parts['decls']
         decls_writer.putln("#if !CYTHON_USE_MODULE_STATE")
         for _, cname, c in consts:
-            self.parts['module_state'].putln("%s;" % decls_writer.type_declaration(c.type, cname))
-            self.parts['hpy_module_state'].putln("%s;" % decls_writer.type_declaration(c.type, cname))
+            self.parts['module_state'].putln("%s %s;" % (backend.pyobject_global_ctype, cname))
             self.parts['module_state_defines'].putln(
                 "#define %s %s->%s" % (cname, Naming.modulestateglobal_cname, cname))
             self.parts['module_state_clear'].putln(
-                "Py_CLEAR(clear_module_state->%s);" % cname)
+                backend.get_clear_global("m", "clear_module_state->%s" % cname))
             self.parts['module_state_traverse'].putln(
-                "Py_VISIT(traverse_module_state->%s);" % cname)
+                backend.get_visit_global("traverse_module_state->%s" % cname))
             decls_writer.putln(
                 "static %s;" % decls_writer.type_declaration(c.type, cname))
         decls_writer.putln("#endif")
@@ -1653,6 +1656,7 @@ class GlobalState(object):
             hpy_init_constants.putln("#if CYTHON_USE_MODULE_STATE")
             hpy_init_globals_in_module_state = hpy_init_constants.insertion_point()
             hpy_init_constants.putln("#endif")
+            backend = self.backend
             for idx, py_string_args in enumerate(py_strings):
                 c_cname, _, py_string = py_string_args
                 if not py_string.is_str or not py_string.encoding or \
@@ -1662,16 +1666,15 @@ class GlobalState(object):
                 else:
                     encoding = '"%s"' % py_string.encoding.lower()
 
-                for module_state_writer in (self.parts['module_state'], self.parts['hpy_module_state']):
-                    module_state_writer.putln(module_state_writer.type_declaration(py_object_type, py_string.cname) + ";")
+                self.parts['module_state'].putln("%s %s;" % (backend.pyobject_global_ctype, py_string.cname))
                 self.parts['module_state_defines'].putln("#define %s %s->%s" % (
                     py_string.cname,
                     Naming.modulestateglobal_cname,
                     py_string.cname))
-                self.parts['module_state_clear'].putln("Py_CLEAR(clear_module_state->%s);" %
-                    py_string.cname)
-                self.parts['module_state_traverse'].putln("Py_VISIT(traverse_module_state->%s);" %
-                    py_string.cname)
+                self.parts['module_state_clear'].putln(backend.get_clear_global("m", "clear_module_state->%s" %
+                    py_string.cname))
+                self.parts['module_state_traverse'].putln(backend.get_visit_global("traverse_module_state->%s" %
+                    py_string.cname))
                 not_limited_api_decls_writer.putln(
                     "static PyObject *%s;" % py_string.cname)
                 hpy_not_limited_api_decls_writer.putln("static %s;" %
@@ -1732,17 +1735,16 @@ class GlobalState(object):
         decls_writer = self.parts['decls']
         decls_writer.putln("#if !CYTHON_USE_MODULE_STATE")
         init_constants = self.parts['init_constants']
-        from .PyrexTypes import py_object_type
+        backend = self.backend
         for py_type, _, _, value, value_code, c in consts:
             cname = c.cname
-            for module_state_writer in (self.parts['module_state'], self.parts['hpy_module_state']):
-                module_state_writer.putln(module_state_writer.type_declaration(py_object_type, cname) + ";")
+            self.parts['module_state'].putln("%s %s;" % (backend.pyobject_global_ctype, cname))
             self.parts['module_state_defines'].putln("#define %s %s->%s" % (
                 cname, Naming.modulestateglobal_cname, cname))
             self.parts['module_state_clear'].putln(
-                "Py_CLEAR(clear_module_state->%s);" % cname)
+                backend.get_clear_global("m", "clear_module_state->%s" % cname))
             self.parts['module_state_traverse'].putln(
-                "Py_VISIT(traverse_module_state->%s);" % cname)
+                backend.get_visit_global("traverse_module_state->%s" % cname))
             decls_writer.putln("static PyObject *%s;" % cname)
             if py_type == 'float':
                 function = 'PyFloat_FromDouble(%s)'

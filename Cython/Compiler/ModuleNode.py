@@ -34,6 +34,7 @@ from ..Utils import open_new_file, replace_suffix, decode_filename, build_hex_ve
 from .Code import UtilityCode, IncludeCode, TempitaUtilityCode
 from .StringEncoding import EncodedString, encoded_string_or_bytes_literal
 from .Pythran import has_np_pythran
+from .Backend import CApiBackend, HPyBackend
 
 
 def replace_suffix_encoded(path, newsuf):
@@ -526,10 +527,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         hpy_code.putln(UtilityCode.load_as_string("SmallCodeConfig", "ModuleSetupCode.c")[0].strip())
 
         self.generate_module_state_start(env, globalstate['module_state'])
-        self.generate_module_state_start(env, globalstate['hpy_module_state'])
         self.generate_module_state_defines(env, globalstate['module_state_defines'])
         self.generate_module_state_clear(env, globalstate['module_state_clear'])
-        self.generate_module_state_traverse(env, globalstate['module_state_traverse'])
+        self.generate_module_state_traverse(env, globalstate)
 
         # init_globals is inserted before this
         self.generate_module_init_func(modules[:-1], env, globalstate['init_module'])
@@ -1325,32 +1325,38 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state_clear = globalstate['module_state_clear']
         module_state_traverse = globalstate['module_state_traverse']
         code.putln("#if !CYTHON_USE_MODULE_STATE")
+        backend = globalstate.backend
         for entry in env.c_class_entries:
             if definition or entry.defined_in_pxd:
-                code.putln("static PyTypeObject *%s = 0;" % (
+                code.putln("static %s %s = %s;" % (
+                    backend.pytype_global_ctype,
+                    entry.type.typeptr_cname,
+                    backend.pyobject_global_init_value))
+                module_state.putln("%s %s;" % (
+                    backend.pytype_global_ctype,
                     entry.type.typeptr_cname))
-                module_state.putln("PyTypeObject *%s;" % entry.type.typeptr_cname)
                 module_state_defines.putln("#define %s %s->%s" % (
                     entry.type.typeptr_cname,
                     Naming.modulestateglobal_cname,
                     entry.type.typeptr_cname))
                 module_state_clear.putln(
-                    "Py_CLEAR(clear_module_state->%s);" %
-                    entry.type.typeptr_cname)
+                    backend.get_clear_global("m", "clear_module_state->%s" %
+                    entry.type.typeptr_cname))
                 module_state_traverse.putln(
-                    "Py_VISIT(traverse_module_state->%s);" %
-                    entry.type.typeptr_cname)
+                    backend.get_visit_global("traverse_module_state->%s" %
+                    entry.type.typeptr_cname))
                 if entry.type.typeobj_cname is not None:
-                    module_state.putln("PyObject *%s;" % entry.type.typeobj_cname)
-                    module_state_defines.putln("#define %s %s->%s" % (
+                    module_state.putln(backend.get_pyobject_var_decl(entry.type.typeobj_cname))
+                    module_state_defines.putln("#define %s %s" % (
                         entry.type.typeobj_cname,
-                        Naming.modulestateglobal_cname,
-                        entry.type.typeobj_cname))
+                        backend.get_read_global("m", "%s->%s" %
+                                                (Naming.modulestateglobal_cname,
+                                                 entry.type.typeobj_cname))))
                     module_state_clear.putln(
-                        "Py_CLEAR(clear_module_state->%s);" % (
-                        entry.type.typeobj_cname))
+                        backend.get_clear_global("m", "clear_module_state->%s" %
+                         entry.type.typeobj_cname))
                     module_state_traverse.putln(
-                        "Py_VISIT(traverse_module_state->%s);" % (
+                        backend.get_visit_global("traverse_module_state->%s" %
                         entry.type.typeobj_cname))
         code.putln("#endif")
 
@@ -2776,21 +2782,22 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_module_state_start(self, env, code):
         # TODO: Refactor to move module state struct decl closer to the static decl
+        backend = code.globalstate.backend
         code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln('typedef struct {')
-        code.putln('PyObject *%s;' % env.module_dict_cname)
-        code.putln('PyObject *%s;' % Naming.builtins_cname)
-        code.putln('PyObject *%s;' % Naming.cython_runtime_cname)
-        code.putln('PyObject *%s;' % Naming.empty_tuple)
-        code.putln('PyObject *%s;' % Naming.empty_bytes)
-        code.putln('PyObject *%s;' % Naming.empty_unicode)
+        code.putln('%s %s;' % (backend.pyobject_global_ctype, env.module_dict_cname))
+        code.putln('%s %s;' % (backend.pyobject_global_ctype, Naming.builtins_cname))
+        code.putln('%s %s;' % (backend.pyobject_global_ctype, Naming.cython_runtime_cname))
+        code.putln('%s %s;' % (backend.pyobject_global_ctype, Naming.empty_tuple))
+        code.putln('%s %s;' % (backend.pyobject_global_ctype, Naming.empty_bytes))
+        code.putln('%s %s;' % (backend.pyobject_global_ctype, Naming.empty_unicode))
         if Options.pre_import is not None:
-            code.putln('PyObject *%s;' % Naming.preimport_cname)
+            code.putln('%s %s;' % (backend.pyobject_global_ctype, Naming.preimport_cname))
         code.putln('#ifdef __Pyx_CyFunction_USED')
-        code.putln('PyTypeObject *%s;' % Naming.cyfunction_type_cname)
+        code.putln('%s %s;' % (backend.pytype_global_ctype, Naming.cyfunction_type_cname))
         code.putln('#endif')
         code.putln('#ifdef __Pyx_FusedFunction_USED')
-        code.putln('PyTypeObject *%s;' % Naming.fusedfunction_type_cname)
+        code.putln('%s %s;' % (backend.pytype_global_ctype, Naming.fusedfunction_type_cname))
         code.putln('#endif')
 
     def generate_module_state_end(self, env, modules, globalstate):
@@ -2829,11 +2836,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state_traverse.putln("}")
         module_state_traverse.putln("#endif")
 
-        # TODO(fa): do all 'hpy_module_state*' variants
-        globalstate['hpy_module_state'].putln("#endif /* CYTHON_USE_MODULE_STATE */")
-
     def generate_module_state_defines(self, env, code):
+        backend = code.globalstate.backend
         code.putln("#if CYTHON_USE_MODULE_STATE")
+        backend.get_read_global("m", "%s->%s" %
+                                (Naming.modulestateglobal_cname,
+                                 entry.type.typeobj_cname))
         code.putln('#define %s %s->%s' % (
             env.module_dict_cname,
             Naming.modulestateglobal_cname,
@@ -2877,59 +2885,58 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('#endif')
 
     def generate_module_state_clear(self, env, code):
+        backend = code.globalstate.backend
+        module_cname = "m"
         code.putln("#if CYTHON_USE_MODULE_STATE")
-        code.putln("static int %s_clear(PyObject *m) {" % Naming.module_cname)
-        code.putln("%s *clear_module_state = %s(m);" % (
-            Naming.modulestate_cname,
-            Naming.modulestate_cname))
+        code.putln("static int %s_clear(" % Naming.module_cname)
+        code.putln(backend.get_arg_list(backend.get_pyobject_var_decl(module_cname)))
+        code.putln(") {")
+        code.putln("%s *clear_module_state = %s(m);" % ( Naming.modulestate_cname, Naming.modulestate_cname))
         code.putln("if (!clear_module_state) return 0;")
-        code.putln('Py_CLEAR(clear_module_state->%s);' %
-            env.module_dict_cname)
-        code.putln('Py_CLEAR(clear_module_state->%s);' %
-            Naming.builtins_cname)
-        code.putln('Py_CLEAR(clear_module_state->%s);' %
-            Naming.cython_runtime_cname)
-        code.putln('Py_CLEAR(clear_module_state->%s);' %
-            Naming.empty_tuple)
-        code.putln('Py_CLEAR(clear_module_state->%s);' %
-            Naming.empty_bytes)
-        code.putln('Py_CLEAR(clear_module_state->%s);' %
-            Naming.empty_unicode)
+        code.putln(backend.get_clear_global(module_cname, 'clear_module_state->%s' % env.module_dict_cname))
+        code.putln(backend.get_clear_global(module_cname, 'clear_module_state->%s' % env.module_dict_cname))
+        code.putln(backend.get_clear_global(module_cname, 'clear_module_state->%s' % Naming.builtins_cname))
+        code.putln(backend.get_clear_global(module_cname, 'clear_module_state->%s' % Naming.cython_runtime_cname))
+        code.putln(backend.get_clear_global(module_cname, 'clear_module_state->%s' % Naming.empty_tuple))
+        code.putln(backend.get_clear_global(module_cname, 'clear_module_state->%s' % Naming.empty_bytes))
+        code.putln(backend.get_clear_global(module_cname, 'clear_module_state->%s' % Naming.empty_unicode))
         code.putln('#ifdef __Pyx_CyFunction_USED')
-        code.putln('Py_CLEAR(clear_module_state->%s);' %
-            Naming.cyfunction_type_cname)
+        code.putln(backend.get_clear_global(module_cname, 'clear_module_state->%s' % Naming.cyfunction_type_cname))
         code.putln('#endif')
         code.putln('#ifdef __Pyx_FusedFunction_USED')
-        code.putln('Py_CLEAR(clear_module_state->%s);' %
-            Naming.fusedfunction_type_cname)
+        code.putln(backend.get_clear_global(module_cname, 'clear_module_state->%s' % Naming.fusedfunction_type_cname))
         code.putln('#endif')
 
-    def generate_module_state_traverse(self, env, code):
+    def generate_module_state_traverse(self, env, globalstate):
+        code = globalstate['module_state_traverse']
+        backend = globalstate.backend
         code.putln("#if CYTHON_USE_MODULE_STATE")
-        code.putln("static int %s_traverse(PyObject *m, visitproc visit, void *arg) {" % Naming.module_cname)
-        code.putln("%s *traverse_module_state = %s(m);" % (
-            Naming.modulestate_cname,
-            Naming.modulestate_cname))
+        code.putln("static int %s_traverse(" % Naming.module_cname)
+        backend.put_both(code,
+                         CApiBackend.get_arg_list("PyObject *m", "visitproc visit", "void *arg"),
+                         HPyBackend.get_arg_list("HPy m", "HPyFunc_visitproc visit", "void *arg"))
+        code.putln(") {")
+        code.putln("%s *traverse_module_state = %s(m);" % ( Naming.modulestate_cname, Naming.modulestate_cname))
         code.putln("if (!traverse_module_state) return 0;")
-        code.putln('Py_VISIT(traverse_module_state->%s);' %
-            env.module_dict_cname)
-        code.putln('Py_VISIT(traverse_module_state->%s);' %
-            Naming.builtins_cname)
-        code.putln('Py_VISIT(traverse_module_state->%s);' %
-            Naming.cython_runtime_cname)
-        code.putln('Py_VISIT(traverse_module_state->%s);' %
-            Naming.empty_tuple)
-        code.putln('Py_VISIT(traverse_module_state->%s);' %
-            Naming.empty_bytes)
-        code.putln('Py_VISIT(traverse_module_state->%s);' %
-            Naming.empty_unicode)
+        code.putln(backend.get_visit_global('traverse_module_state->%s' %
+            env.module_dict_cname))
+        code.putln(backend.get_visit_global('traverse_module_state->%s' %
+            Naming.builtins_cname))
+        code.putln(backend.get_visit_global('traverse_module_state->%s' %
+            Naming.cython_runtime_cname))
+        code.putln(backend.get_visit_global('traverse_module_state->%s' %
+            Naming.empty_tuple))
+        code.putln(backend.get_visit_global('traverse_module_state->%s' %
+            Naming.empty_bytes))
+        code.putln(backend.get_visit_global('traverse_module_state->%s' %
+            Naming.empty_unicode))
         code.putln('#ifdef __Pyx_CyFunction_USED')
-        code.putln('Py_VISIT(traverse_module_state->%s);' %
-            Naming.cyfunction_type_cname)
+        code.putln(backend.get_visit_global('traverse_module_state->%s' %
+            Naming.cyfunction_type_cname))
         code.putln('#endif')
         code.putln('#ifdef __Pyx_FusedFunction_USED')
-        code.putln('Py_VISIT(traverse_module_state->%s);' %
-            Naming.fusedfunction_type_cname)
+        code.putln(backend.get_visit_global('traverse_module_state->%s' %
+            Naming.fusedfunction_type_cname))
         code.putln('#endif')
 
     def generate_module_init_func(self, imported_modules, env, code):
