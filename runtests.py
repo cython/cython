@@ -2026,8 +2026,8 @@ class MissingDependencyExcluder(object):
         except AttributeError:
             stdlib_dir = os.path.dirname(shutil.__file__) + os.sep
             module_path = getattr(module, '__file__', stdlib_dir)  # no __file__? => builtin stdlib module
-            if (module_path  # GraalPython seems to return None for some unknown reason
-                    and module_path.startswith(stdlib_dir)):
+            # GraalPython seems to return None for some unknown reason
+            if module_path and module_path.startswith(stdlib_dir):
                 # stdlib module
                 version = sys.version.partition(' ')[0]
             elif '.' in name:
