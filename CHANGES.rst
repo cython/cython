@@ -2,6 +2,19 @@
 Cython Changelog
 ================
 
+0.29.26 (2021-12-16)
+====================
+
+Bugs fixed
+----------
+
+* An incompatibility with CPython 3.11.0a3 was resolved.
+  (Github issue #4499)
+
+* The ``in`` operator failed on literal lists with starred expressions.
+  Patch by Arvind Natarajan.  (Github issue #3938)
+
+
 0.29.25 (2021-12-06)
 ====================
 
