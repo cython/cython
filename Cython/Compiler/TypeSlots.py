@@ -181,6 +181,23 @@ class Signature(object):
                     return [method_varargs, method_keywords]
         return None
 
+    def hpy_method_flags(self):
+        if self.ret_format == "O":
+            full_args = self.fixed_arg_format
+            if self.has_dummy_arg:
+                full_args = "O" + full_args
+            if full_args in ["O", "T"]:
+                if not self.has_generic_args:
+                    return [hpy_method_noargs]
+                else:
+                    return hpy_method_keywords
+            elif full_args in ["OO", "TO"] and not self.has_generic_args:
+                return [hpy_method_onearg]
+
+            if self.is_staticmethod:
+                return method_keywords
+        return None
+
     def method_function_type(self):
         # Return the C function type
         mflags = self.method_flags()
@@ -1138,3 +1155,10 @@ method_varargs  = "METH_VARARGS"
 method_fastcall = "__Pyx_METH_FASTCALL"  # Actually VARARGS on versions < 3.7
 method_keywords = "METH_KEYWORDS"
 method_coexist  = "METH_COEXIST"
+
+# HPy Method flags for python-exposed methods.
+
+hpy_method_noargs   = "HPyFunc_NOARGS"
+hpy_method_onearg   = "HPyFunc_O"
+hpy_method_varargs  = "HPyFunc_VARARGS"
+hpy_method_keywords = "HPyFunc_KEYWORDS"

@@ -7,7 +7,7 @@ from __future__ import absolute_import
 import cython
 cython.declare(Naming=object, Options=object, PyrexTypes=object, TypeSlots=object,
                error=object, warning=object, py_object_type=object, UtilityCode=object,
-               EncodedString=object, re=object)
+               EncodedString=object, re=object, textwrap=object)
 
 from collections import defaultdict
 import json
@@ -15,6 +15,7 @@ import operator
 import os
 import re
 import sys
+import textwrap
 
 from .PyrexTypes import CPtrType
 from . import Future
@@ -198,6 +199,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 entry.type.create_type_wrapper(env)
 
     def process_implementation(self, options, result):
+        """ called in the pipeline as the implementation of the top-level
+            ``generate_pyx_code stage``.
+        """
         env = self.scope
         env.return_type = PyrexTypes.c_void_type
         self.referenced_modules = []
@@ -329,10 +333,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_public_declaration(self, entry, h_code, i_code):
         h_code.putln("%s %s;" % (
             Naming.extern_c_macro,
-            entry.type.declaration_code(entry.cname)))
+            h_code.type_declaration(entry.type, entry.cname)))
         if i_code:
             i_code.putln("cdef extern %s" % (
-                entry.type.declaration_code(entry.cname, pyrex=1)))
+                i_code.type_declaration(entry.type, entry.cname, pyrex=1)))
 
     def api_name(self, prefix, env):
         api_name = self.punycode_module_name(prefix, env.qualified_name)
@@ -360,7 +364,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             h_code.putln('#ifdef __MINGW64__')
             h_code.putln('#define MS_WIN64')
             h_code.putln('#endif')
-
             h_code.putln('#include "Python.h"')
             if result.h_file:
                 h_filename = os.path.basename(result.h_file)
@@ -461,14 +464,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             )
         else:
             rootwriter = Code.CCodeWriter()
+        hpy_writer = Code.HPyCCodeWriter(buffer=rootwriter.buffer)
 
         c_code_config = generate_c_code_config(env, options)
 
         globalstate = Code.GlobalState(
-            rootwriter, self,
+            rootwriter, hpy_writer, self,
             code_config=c_code_config,
             common_utility_include_dir=options.common_utility_include_dir,
         )
+
         globalstate.initialize_main_c_code()
         h_code = globalstate['h_code']
 
@@ -492,6 +497,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_includes(env, modules, code, early=False)
 
         code = globalstate['module_code']
+        hpy_code = globalstate['hpy_module_code']
 
         self.generate_cached_builtins_decls(env, code)
 
@@ -500,22 +506,32 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_variable_definitions(env, code)
         self.body.generate_function_definitions(env, code)
 
+        self.generate_lambda_definitions(env, hpy_code)
+        self.generate_variable_definitions(env, hpy_code)
+        self.body.generate_function_definitions(env, hpy_code)
+
         code.mark_pos(None)
         self.generate_typeobj_definitions(env, code)
         self.generate_method_table(env, code)
         if env.has_import_star:
             self.generate_import_star(env, code)
 
+        hpy_code.mark_pos(None)
+        self.generate_hpy_define_array(env, hpy_code)
+
         # initialise the macro to reduce the code size of one-time functionality
         code.putln(UtilityCode.load_as_string("SmallCodeConfig", "ModuleSetupCode.c")[0].strip())
+        hpy_code.putln(UtilityCode.load_as_string("SmallCodeConfig", "ModuleSetupCode.c")[0].strip())
 
         self.generate_module_state_start(env, globalstate['module_state'])
+        self.generate_module_state_start(env, globalstate['hpy_module_state'])
         self.generate_module_state_defines(env, globalstate['module_state_defines'])
         self.generate_module_state_clear(env, globalstate['module_state_clear'])
         self.generate_module_state_traverse(env, globalstate['module_state_traverse'])
 
         # init_globals is inserted before this
         self.generate_module_init_func(modules[:-1], env, globalstate['init_module'])
+        self.generate_module_init_func(modules[:-1], env, globalstate['hpy_init_module'])
         self.generate_module_cleanup_func(env, globalstate['cleanup_module'])
         if Options.embed:
             self.generate_main_method(env, globalstate['main_method'])
@@ -529,6 +545,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         globalstate.finalize_main_c_code()
 
         self.generate_module_state_end(env, modules, globalstate)
+
+        globalstate.close_parts()
 
         f = open_new_file(result.c_file)
         try:
@@ -749,6 +767,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put(UtilityCode.load_as_string(name, "ModuleSetupCode.c")[1])
 
     def generate_module_preamble(self, env, options, cimported_modules, metadata, code):
+        if options.hpy:
+            inc = Code.IncludeCode(initial=True, verbatim=textwrap.dedent("""
+                #ifdef HPY
+                  #include "hpy.h"
+                #else
+                  #include "Python.h"
+                #endif
+                """))
+        else:
+            inc = Code.IncludeCode("Python.h", initial=True)
+        env.process_include(inc)
         code.put_generated_by()
         if metadata:
             code.putln("/* BEGIN: Cython Metadata")
@@ -1383,7 +1412,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_variable_definitions(self, env, code):
         for entry in env.var_entries:
             if not entry.in_cinclude and entry.visibility == "public":
-                code.put(entry.type.declaration_code(entry.cname))
+                code.put(code.type_declaration(entry.type, entry.cname))
                 if entry.init is not None:
                     init = entry.type.literal_code(entry.init)
                     code.put_safe(" = %s" % init)
@@ -2601,6 +2630,32 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if wrapper_code_writer.getvalue():
             wrapper_code_writer.putln("")
 
+    def generate_hpy_define_array(self, env, code):
+        if env.is_c_class_scope:
+            return
+
+        code.putln("")
+        wrapper_code_writer = code.insertion_point()
+
+        code.putln(
+            "static HPyDef *%s[] = {" % (
+                env.hpy_defines_cname))
+        if env.hpyfunc_entries:
+            for entry in env.hpyfunc_entries:
+                code.put_hpydef(entry)
+                code.putln(",");
+        for entry in env.pyfunc_entries:
+            if not entry.fused_cfunction and not entry.is_overridable:
+                code.put_hpydef(entry)
+                code.putln(",");
+        code.putln("NULL")
+        code.putln(
+            "};")
+        code.putln("")
+
+        if wrapper_code_writer.getvalue():
+            wrapper_code_writer.putln("")
+
     def generate_dict_getter_function(self, scope, code):
         dict_attr = scope.lookup_here("__dict__")
         if not dict_attr or not dict_attr.is_variable:
@@ -2773,6 +2828,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state_traverse.putln("}")
         module_state_traverse.putln("#endif")
 
+        # TODO(fa): do all 'hpy_module_state*' variants
+        globalstate['hpy_module_state'].putln("#endif /* CYTHON_USE_MODULE_STATE */")
+
     def generate_module_state_defines(self, env, code):
         code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln('#define %s %s->%s' % (
@@ -2876,8 +2934,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_module_init_func(self, imported_modules, env, code):
         subfunction = self.mod_init_subfunction(self.pos, self.scope, code)
 
-        self.generate_pymoduledef_struct(env, code)
+        code.put_moduledef_struct(env, self.module_init_func_cname())
 
+        # TODO(fa): port the following code to HPy
+        code.putln("#ifndef HPY")
         code.enter_cfunc_scope(self.scope)
         code.putln("")
         code.putln(UtilityCode.load_as_string("PyModInitFuncType", "ModuleSetupCode.c")[0])
@@ -3132,6 +3192,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         tempdecl_code.put_temp_declarations(code.funcstate)
 
         code.exit_cfunc_scope()
+        code.putln("#endif /* HPY */")
 
     def mod_init_subfunction(self, pos, scope, orig_code):
         """
@@ -3378,74 +3439,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         env = self.scope
         return self.mod_init_func_cname(Naming.pymodule_exec_func_cname, env)
 
-    def generate_pymoduledef_struct(self, env, code):
-        if env.doc:
-            doc = "%s" % code.get_string_const(env.doc)
-        else:
-            doc = "0"
-        if Options.generate_cleanup_code:
-            cleanup_func = "(freefunc)%s" % Naming.cleanup_cname
-        else:
-            cleanup_func = 'NULL'
-
-        code.putln("")
-        code.putln("#if PY_MAJOR_VERSION >= 3")
-        code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
-        exec_func_cname = self.module_init_func_cname()
-        code.putln("static PyObject* %s(PyObject *spec, PyModuleDef *def); /*proto*/" %
-                   Naming.pymodule_create_func_cname)
-        code.putln("static int %s(PyObject* module); /*proto*/" % exec_func_cname)
-
-        code.putln("static PyModuleDef_Slot %s[] = {" % Naming.pymoduledef_slots_cname)
-        code.putln("{Py_mod_create, (void*)%s}," % Naming.pymodule_create_func_cname)
-        code.putln("{Py_mod_exec, (void*)%s}," % exec_func_cname)
-        code.putln("{0, NULL}")
-        code.putln("};")
-        if not env.module_name.isascii():
-            code.putln("#else /* CYTHON_PEP489_MULTI_PHASE_INIT */")
-            code.putln('#error "Unicode module names are only supported with multi-phase init'
-                       ' as per PEP489"')
-        code.putln("#endif")
-
-        code.putln("")
-        code.putln('#ifdef __cplusplus')
-        code.putln('namespace {')
-        code.putln("struct PyModuleDef %s =" % Naming.pymoduledef_cname)
-        code.putln('#else')
-        code.putln("static struct PyModuleDef %s =" % Naming.pymoduledef_cname)
-        code.putln('#endif')
-        code.putln('{')
-        code.putln("  PyModuleDef_HEAD_INIT,")
-        code.putln('  %s,' % env.module_name.as_c_string_literal())
-        code.putln("  %s, /* m_doc */" % doc)
-        code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
-        code.putln("  0, /* m_size */")
-        code.putln("#elif CYTHON_USE_MODULE_STATE")  # FIXME: should allow combination with PEP-489
-        code.putln("  sizeof(%s), /* m_size */" % Naming.modulestate_cname)
-        code.putln("#else")
-        code.putln("  -1, /* m_size */")
-        code.putln("#endif")
-        code.putln("  %s /* m_methods */," % env.method_table_cname)
-        code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
-        code.putln("  %s, /* m_slots */" % Naming.pymoduledef_slots_cname)
-        code.putln("#else")
-        code.putln("  NULL, /* m_reload */")
-        code.putln("#endif")
-        code.putln("#if CYTHON_USE_MODULE_STATE")
-        code.putln("  %s_traverse, /* m_traverse */" % Naming.module_cname)
-        code.putln("  %s_clear, /* m_clear */" % Naming.module_cname)
-        code.putln("  %s /* m_free */" % cleanup_func)
-        code.putln("#else")
-        code.putln("  NULL, /* m_traverse */")
-        code.putln("  NULL, /* m_clear */")
-        code.putln("  %s /* m_free */" % cleanup_func)
-        code.putln("#endif")
-        code.putln("};")
-        code.putln('#ifdef __cplusplus')
-        code.putln('} /* anonymous namespace */')
-        code.putln('#endif')
-        code.putln("#endif")
-
     def generate_module_creation_code(self, env, code):
         # Generate code to create the module object and
         # install the builtins.
@@ -3469,6 +3462,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 doc,
                 env.module_cname))
         code.putln(code.error_goto_if_null(env.module_cname, self.pos))
+
+        if env.context.options.hpy:
+            code.putln("#elif defined(HPY)")
+            code.putln('%s = _h2py(init_%s_impl(_HPyGetContext()));' % (
+                env.module_cname,
+                env.module_name))
+
         code.putln("#elif CYTHON_COMPILING_IN_LIMITED_API")
         # manage_ref is False (and refnanny calls are omitted) because refnanny isn't yet initialized
         module_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=False)

@@ -129,6 +129,7 @@ EXT_DEP_MODULES = {
     'tag:ipython':  'IPython.testing.globalipapp',
     'tag:jedi':     'jedi_BROKEN_AND_DISABLED',
     'tag:test.support': 'test.support',  # support module for CPython unit tests
+    'tag:hpy':      'hpy.devel',  
 }
 
 def patch_inspect_isfunction():
@@ -236,6 +237,24 @@ def update_linetrace_extension(ext):
     ext.define_macros.append(('CYTHON_TRACE', 1))
     return ext
 
+def update_hpy_extension(ext):
+    ext.define_macros.append(('HPY', 1))
+    import hpy.devel
+    # This should be set up by using the setuptools entrypoint
+    # hpy.devel.handle_hpy_ext_module via a
+    # setup(setup_requires=['hpy.devel'], ...)
+    # but this testrunner does not support that yet?
+    # so instead monkeypatch around to get hpy_ext._finalize_hpy_ext to work
+    hpy_ext = hpy.devel.build_hpy_ext_mixin()
+    hpy_ext.hpydevel = hpy.devel.HPyDevel()
+    dist = get_distutils_distro()
+    if not hasattr(dist, 'hpy_abi'):
+        # can be 'cpython' or 'universal'
+        # for now, always use 'cpython'
+        dist.hpy_abi = 'cpython'
+    hpy_ext.distribution = dist
+    hpy_ext._finalize_hpy_ext(ext)
+    return ext
 
 def update_numpy_extension(ext, set_api17_macro=True):
     import numpy
@@ -442,7 +461,8 @@ EXT_EXTRAS = {
     'tag:bytesformat':  exclude_extension_in_pyver((3, 3), (3, 4)),  # no %-bytes formatting
     'tag:no-macos':  exclude_extension_on_platform('darwin'),
     'tag:py3only':  exclude_extension_in_pyver((2, 7)),
-    'tag:cppexecpolicies': require_gcc("9.1")
+    'tag:cppexecpolicies': require_gcc("9.1"),
+    'tag:hpy': update_hpy_extension,
 }
 
 
@@ -852,12 +872,14 @@ class TestBuilder(object):
         add_cython_import = self.add_cython_import and module_path.endswith('.py')
 
         preparse_list = tags.get('preparse', ['id'])
+        hpy = 'hpy' in tags.get('tag', '')
         tests = [ self.build_test(test_class, path, workdir, module, module_path,
                                   tags, language, language_level,
                                   expect_errors, expect_warnings, warning_errors, preparse,
                                   pythran_dir if language == "cpp" else None,
                                   add_cython_import=add_cython_import,
-                                  extra_directives=extra_directives)
+                                  extra_directives=extra_directives,
+                                  hpy=hpy)
                   for language in languages
                   for preparse in preparse_list
                   for language_level in language_levels
@@ -867,7 +889,7 @@ class TestBuilder(object):
 
     def build_test(self, test_class, path, workdir, module, module_path, tags, language, language_level,
                    expect_errors, expect_warnings, warning_errors, preparse, pythran_dir, add_cython_import,
-                   extra_directives):
+                   extra_directives, hpy=False):
         language_workdir = os.path.join(workdir, language)
         if not os.path.exists(language_workdir):
             os.makedirs(language_workdir)
@@ -897,6 +919,7 @@ class TestBuilder(object):
                           pythran_dir=pythran_dir,
                           stats=self.stats,
                           add_cython_import=add_cython_import,
+                          hpy=hpy,
                           )
 
 
@@ -943,7 +966,7 @@ class CythonCompileTestCase(unittest.TestCase):
     def __init__(self, test_directory, workdir, module, module_path, tags, language='c', preparse='id',
                  expect_errors=False, expect_warnings=False, annotate=False, cleanup_workdir=True,
                  cleanup_sharedlibs=True, cleanup_failures=True, cython_only=False, test_selector=None,
-                 fork=True, language_level=2, warning_errors=False,
+                 fork=True, language_level=2, warning_errors=False, hpy=False,
                  test_determinism=False,
                  common_utility_dir=None, pythran_dir=None, stats=None, add_cython_import=False,
                  extra_directives=None):
@@ -971,6 +994,7 @@ class CythonCompileTestCase(unittest.TestCase):
         self.test_determinism = test_determinism
         self.common_utility_dir = common_utility_dir
         self.pythran_dir = pythran_dir
+        self.hpy = hpy
         self.stats = stats
         self.add_cython_import = add_cython_import
         self.extra_directives = extra_directives
@@ -2026,7 +2050,7 @@ class MissingDependencyExcluder(object):
         except AttributeError:
             stdlib_dir = os.path.dirname(shutil.__file__) + os.sep
             module_path = getattr(module, '__file__', stdlib_dir)  # no __file__? => builtin stdlib module
-            if module_path.startswith(stdlib_dir):
+            if module_path and module_path.startswith(stdlib_dir):
                 # stdlib module
                 version = sys.version.partition(' ')[0]
             elif '.' in name:

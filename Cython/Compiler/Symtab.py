@@ -381,6 +381,7 @@ class Scope(object):
         self.arg_entries = []
         self.var_entries = []
         self.pyfunc_entries = []
+        self.hpyfunc_entries = []
         self.cfunc_entries = []
         self.c_class_entries = []
         self.defined_c_classes = []
@@ -779,6 +780,7 @@ class Scope(object):
         entry.qualified_name = self.qualify_name(name)
         entry.signature = pyfunction_signature
         entry.is_anonymous = True
+        self.hpyfunc_entries.append(entry)
         return entry
 
     def declare_lambda_function(self, lambda_name, pos):
@@ -1212,6 +1214,7 @@ class ModuleScope(Scope):
     # module_cname         string             C name of Python module object
     # #module_dict_cname   string             C name of module dict object
     # method_table_cname   string             C name of method table
+    # hpy_defines_cname    string             C name of HPyDef array
     # doc                  string             Module doc string
     # doc_cname            string             C name of module doc string
     # utility_code_list    [UtilityCode]      Queuing utility codes for forwarding to Code.py
@@ -1254,6 +1257,7 @@ class ModuleScope(Scope):
         self.module_cname = Naming.module_cname
         self.module_dict_cname = Naming.moddict_cname
         self.method_table_cname = Naming.methtable_cname
+        self.hpy_defines_cname = Naming.hpy_defines_cname
         self.doc = ""
         self.doc_cname = Naming.moddoc_cname
         self.utility_code_list = []
@@ -1272,7 +1276,8 @@ class ModuleScope(Scope):
         for var_name in ['__builtins__', '__name__', '__file__', '__doc__', '__path__',
                          '__spec__', '__loader__', '__package__', '__cached__']:
             self.declare_var(EncodedString(var_name), py_object_type, None)
-        self.process_include(Code.IncludeCode("Python.h", initial=True))
+        # now done in ModuleNode as env.process_include() for HPy
+        # self.process_include(Code.IncludeCode("Python.h", initial=True))
 
     def qualifying_scope(self):
         return self.parent_module
@@ -1849,7 +1854,7 @@ class LocalScope(Scope):
         entry = self.declare(name, cname, type, pos, 'private')
         entry.is_variable = 1
         if type.is_pyobject:
-            entry.init = "0"
+            entry.init = Naming.PYX_NULL
         entry.is_arg = 1
         #entry.borrowed = 1 # Not using borrowed arg refs for now
         self.arg_entries.append(entry)

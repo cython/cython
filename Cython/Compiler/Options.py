@@ -111,7 +111,7 @@ convert_range = True
 #: from their Python 2 names to their Python 3 names by Cython
 #: when building in Python 3.x,
 #: so that they do not get in the way even if this option is enabled.
-cache_builtins = True
+cache_builtins = False
 
 #: Generate branch prediction hints to speed up error handling etc.
 gcc_branch_hints = True
@@ -328,6 +328,7 @@ directive_types = {
     'c_string_encoding': normalise_encoding_name,
     'trashcan': bool,
     'total_ordering': bool,
+    'hpy': bool,
 }
 
 for key, val in _directive_defaults.items():
@@ -373,6 +374,7 @@ directive_scopes = {  # defaults to available everywhere
     'trashcan' : ('cclass',),
     'total_ordering': ('cclass', ),
     'cpp_locals': ('module', 'function', 'cclass'),  # I don't think they make sense in a with_statement
+    'hpy': ('module', 'function'),
 }
 
 
@@ -740,5 +742,6 @@ default_options = dict(
     build_dir=None,
     cache=None,
     create_extension=None,
-    np_pythran=False
+    np_pythran=False,
+    hpy=False,
 )

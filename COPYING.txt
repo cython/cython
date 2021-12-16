@@ -17,3 +17,8 @@ work of Cython.  Specifically, though the compilation process may
 embed snippets of varying lengths into the final output, these
 snippets, as embedded in the output, do not encumber the resulting
 output with any license restrictions.
+
+------------------
+
+The HPy support was contributed by Oracle:
+Copyright © 2021, Oracle and/or its affiliates.

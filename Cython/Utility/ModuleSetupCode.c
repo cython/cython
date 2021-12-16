@@ -253,6 +253,16 @@
   #endif
 #endif
 
+#ifdef HPY
+  #undef CYTHON_PEP489_MULTI_PHASE_INIT
+  #define CYTHON_PEP489_MULTI_PHASE_INIT 0
+  #define CYTHON_USE_MODULE_STATE 0
+  #ifdef CYTHON_REFNANNY
+  #undef CYTHON_REFNANNY
+  #endif
+  #define CYTHON_REFNANNY 0
+#endif
+
 #if !defined(CYTHON_FAST_PYCCALL)
 #define CYTHON_FAST_PYCCALL  (CYTHON_FAST_PYCALL && PY_VERSION_HEX >= 0x030600B1)
 #endif
@@ -1204,6 +1214,12 @@ static CYTHON_INLINE float __PYX_NAN() {
 }
 #endif
 
+#ifdef HPY
+#define __PYX_NULL HPy_NULL
+#else
+#define __PYX_NULL 0
+#endif
+
 #if defined(__CYGWIN__) && defined(_LDBL_EQ_DBL)
 #define __Pyx_truncl trunc
 #else
@@ -1213,8 +1229,13 @@ static CYTHON_INLINE float __PYX_NAN() {
 
 /////////////// UtilityFunctionPredeclarations.proto ///////////////
 
+#ifndef HPY
 typedef struct {PyObject **p; const char *s; const Py_ssize_t n; const char* encoding;
                 const char is_unicode; const char is_str; const char intern; } __Pyx_StringTabEntry; /*proto*/
+#else
+typedef struct {HPy *p; const char *s; const HPy_ssize_t n; const char* encoding;
+                const char is_unicode; const char is_str; const char intern; } __Pyx_StringTabEntry; /*proto*/
+#endif /* HPY */
 
 /////////////// ForceInitThreads.proto ///////////////
 //@proto_block: utility_code_proto_before_types
@@ -1546,6 +1567,7 @@ static CYTHON_INLINE int __Pyx_Is_Little_Endian(void)
   #define __Pyx_XGIVEREF(r)
 #endif /* CYTHON_REFNANNY */
 
+#ifndef HPY
 #define __Pyx_Py_XDECREF_SET(r, v) do {                         \
         PyObject *tmp = (PyObject *) r;                         \
         r = v; Py_XDECREF(tmp);                                 \
@@ -1561,6 +1583,23 @@ static CYTHON_INLINE int __Pyx_Is_Little_Endian(void)
 
 #define __Pyx_CLEAR(r)    do { PyObject* tmp = ((PyObject*)(r)); r = NULL; __Pyx_DECREF(tmp);} while(0)
 #define __Pyx_XCLEAR(r)   do { if((r) != NULL) {PyObject* tmp = ((PyObject*)(r)); r = NULL; __Pyx_DECREF(tmp);}} while(0)
+#else /* HPY */
+#define __Pyx_Py_XDECREF_SET(ctx, r, v) do {                    \
+        HPy tmp = r;                                            \
+        r = v; HPy_Close(ctx, tmp);                             \
+    } while (0)
+#define __Pyx_XDECREF_SET(ctx, r, v) do {                       \
+        HPy tmp = r;                                            \
+        r = v; HPy_Close(ctx, tmp);                             \
+    } while (0)
+#define __Pyx_DECREF_SET(ctx, r, v) do {                        \
+        HPy tmp = r;                                            \
+        r = v; HPy_Close(ctx, tmp);                             \
+    } while (0)
+
+#define __Pyx_CLEAR(ctx, r)    do { HPy tmp = (r); r = NULL; HPy_Close(ctx, tmp);} while(0)
+#define __Pyx_XCLEAR(ctx, r)   do { if(!HPy_IsNull((r))) {HPy tmp = (r); r = HPy_NULL; HPy_Close(ctx, tmp);}} while(0)
+#endif /* HPY */
 
 /////////////// Refnanny ///////////////
 

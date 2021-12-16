@@ -73,6 +73,7 @@ interned_prefixes = {
     'umethod': pyrex_prefix + "umethod_",
 }
 
+hpy_context_cname = pyrex_prefix + "hpy_ctx"
 ctuple_type_prefix = pyrex_prefix + "ctuple_"
 args_cname       = pyrex_prefix + "args"
 nargs_cname      = pyrex_prefix + "nargs"
@@ -87,6 +88,7 @@ moddict_cname    = pyrex_prefix + "d"
 dummy_cname      = pyrex_prefix + "dummy"
 filename_cname   = pyrex_prefix + "filename"
 modulename_cname = pyrex_prefix + "modulename"
+hpymoduledef_cname = pyrex_prefix + "hpy_modulename"
 filetable_cname  = pyrex_prefix + "f"
 intern_tab_cname = pyrex_prefix + "intern_tab"
 kwds_cname       = pyrex_prefix + "kwds"
@@ -99,6 +101,7 @@ modulestate_cname = pyrex_prefix + "mstate"
 modulestateglobal_cname = pyrex_prefix + "mstate_global"
 moddoc_cname     = pyrex_prefix + "mdoc"
 methtable_cname  = pyrex_prefix + "methods"
+hpy_defines_cname= pyrex_prefix + "hpy_defines"
 retval_cname     = pyrex_prefix + "r"
 reqd_kwds_cname  = pyrex_prefix + "reqd_kwds"
 self_cname       = pyrex_prefix + "self"
@@ -174,6 +177,8 @@ api_guard_prefix = "__PYX_HAVE_API_"
 api_func_guard   = "__PYX_HAVE_API_FUNC_"
 
 PYX_NAN          = "__PYX_NAN()"
+
+PYX_NULL         = "__PYX_NULL"
 
 def py_version_hex(major, minor=0, micro=0, release_level=0, release_serial=0):
     return (major << 24) | (minor << 16) | (micro << 8) | (release_level << 4) | (release_serial)

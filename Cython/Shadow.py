@@ -121,7 +121,8 @@ optimize = _Optimization()
 overflowcheck.fold = optimize.use_switch = \
     optimize.unpack_method_calls = lambda arg: _EmptyDecoratorAndManager()
 
-final = internal = type_version_tag = no_gc_clear = no_gc = total_ordering = _empty_decorator
+final = internal = type_version_tag = no_gc_clear = no_gc = \
+total_ordering = hpy = _empty_decorator
 
 binding = lambda _: _empty_decorator
 

@@ -44,14 +44,23 @@ static CYTHON_INLINE Py_ssize_t __Pyx_Py_UNICODE_ssize_strlen(const Py_UNICODE *
 //////////////////// InitStrings.proto ////////////////////
 
 #if CYTHON_COMPILING_IN_LIMITED_API
+#ifndef HPY
 static int __Pyx_InitString(__Pyx_StringTabEntry t, PyObject **str); /*proto*/
+#else /* HPY */
+static int __Pyx_InitString(HPyContext *ctx, __Pyx_StringTabEntry t, HPy *str); /*proto*/
+#endif /* HPY */
 #else
+#ifndef HPY
 static int __Pyx_InitStrings(__Pyx_StringTabEntry *t); /*proto*/
+#else /* HPY */
+static int __Pyx_InitStrings(HPyContext *ctx, __Pyx_StringTabEntry *t); /*proto*/
+#endif /* HPY */
 #endif
 
 //////////////////// InitStrings ////////////////////
 
 #if PY_MAJOR_VERSION >= 3
+#ifndef HPY
 static int __Pyx_InitString(__Pyx_StringTabEntry t, PyObject **str) {
     if (t.is_unicode | t.is_str) {
         if (t.intern) {
@@ -71,9 +80,37 @@ static int __Pyx_InitString(__Pyx_StringTabEntry t, PyObject **str) {
         return -1;
     return 0;
 }
-#endif
+#else /* HPY */
+static int __Pyx_InitString(HPyContext *ctx, __Pyx_StringTabEntry t, HPy *str) {
+    if (t.is_unicode | t.is_str) {
+        if (t.intern) {
+            /* not yet available */
+            /* *str = HPyUnicode_InternFromString(t.s); */
+            *str = HPyUnicode_FromString(ctx, t.s);
+        } else if (t.encoding) {
+            /* not yet available */
+            /* *str = HPyUnicode_Decode(ctx, t.s, t.n - 1, t.encoding, NULL); */
+            *str = HPyUnicode_DecodeFSDefault(ctx, t.s);
+        } else {
+            /* will be available in HPy 0.0.4 */
+            /* *str = HPyUnicode_FromStringAndSize(t.s, t.n - 1); */
+            *str = HPyUnicode_FromString(ctx, t.s);
+        }
+    } else {
+        *str = HPyBytes_FromStringAndSize(ctx, t.s, t.n - 1);
+    }
+    if (HPy_IsNull(*str))
+        return -1;
+    // initialise cached hash value
+    if (HPy_Hash(ctx, *str) == -1)
+        return -1;
+    return 0;
+}
+#endif /* HPY */
+#endif /* PY_MAJOR_VERSION */
 
 #if !CYTHON_COMPILING_IN_LIMITED_API
+#ifndef HPY
 static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
     while (t->p) {
         #if PY_MAJOR_VERSION >= 3  /* Python 3+ has unicode identifiers */
@@ -96,6 +133,15 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
     }
     return 0;
 }
+#else /* HPY */
+static int __Pyx_InitStrings(HPyContext *ctx, __Pyx_StringTabEntry *t) {
+    while (t->p) {
+        __Pyx_InitString(ctx, *t, t->p);
+        ++t;
+    }
+    return 0;
+}
+#endif /* HPY */
 #endif
 
 //////////////////// BytesContains.proto ////////////////////
