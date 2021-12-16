@@ -14,6 +14,8 @@ Bugs fixed
 * The ``in`` operator failed on literal lists with starred expressions.
   Patch by Arvind Natarajan.  (Github issue #3938)
 
+* A C compiler warning in PyPy about a missing struct field initialisation was resolved.
+
 
 0.29.25 (2021-12-06)
 ====================
