@@ -839,6 +839,23 @@ Other changes
 .. _`PEP-479`: https://www.python.org/dev/peps/pep-0479
 
 
+.. _0.29.26:
+
+0.29.26 (2021-12-16)
+====================
+
+Bugs fixed
+----------
+
+* An incompatibility with CPython 3.11.0a3 was resolved.
+  (Github issue :issue:`4499`)
+
+* The ``in`` operator failed on literal lists with starred expressions.
+  Patch by Arvind Natarajan.  (Github issue :issue:`3938`)
+
+* A C compiler warning in PyPy about a missing struct field initialisation was resolved.
+
+
 .. _0.29.25:
 
 0.29.25 (2021-12-06)
