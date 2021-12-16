@@ -251,16 +251,6 @@
   #endif
 #endif
 
-#ifdef HPY
-  #undef CYTHON_PEP489_MULTI_PHASE_INIT
-  #define CYTHON_PEP489_MULTI_PHASE_INIT 0
-  #define CYTHON_USE_MODULE_STATE 0
-  #ifdef CYTHON_REFNANNY
-  #undef CYTHON_REFNANNY
-  #endif
-  #define CYTHON_REFNANNY 0
-#endif /* HPY */
-
 #if !defined(CYTHON_FAST_PYCCALL)
 #define CYTHON_FAST_PYCCALL  (CYTHON_FAST_PYCALL && PY_VERSION_HEX >= 0x030600B1)
 #endif
@@ -458,6 +448,22 @@ class __Pyx_FakeReference {
   private:
     T *ptr;
 };
+
+
+/////////////// HPyInitCode ///////////////
+
+#ifdef HPY
+  #if PY_MAJOR_VERSION < 3
+  #error "Cython/HPy requires Python 3 or newer"
+  #endif
+  #undef CYTHON_PEP489_MULTI_PHASE_INIT
+  #define CYTHON_PEP489_MULTI_PHASE_INIT 0
+  #define CYTHON_USE_MODULE_STATE 0
+  #ifdef CYTHON_REFNANNY
+  #undef CYTHON_REFNANNY
+  #endif
+  #define CYTHON_REFNANNY 0
+#endif /* HPY */
 
 
 /////////////// PythonCompatibility ///////////////

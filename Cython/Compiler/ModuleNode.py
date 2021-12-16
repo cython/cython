@@ -814,6 +814,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self._put_setup_code(code, "CppInitCode")
         else:
             self._put_setup_code(code, "CInitCode")
+        if env.context.options.hpy:
+            self._put_setup_code(code, "HPyInitCode")
         self._put_setup_code(code, "PythonCompatibility")
         self._put_setup_code(code, "MathInitCode")
 
