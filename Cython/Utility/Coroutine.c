@@ -1563,9 +1563,6 @@ static PyTypeObject __pyx_CoroutineAwaitType_type = {
 #if PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000
     0,                                  /*tp_print*/
 #endif
-#if PY_VERSION_HEX >= 0x030B00A2
-    0,                                  /*tp_inline_values_offset*/
-#endif
 };
 
 #if PY_VERSION_HEX < 0x030500B1 || defined(__Pyx_IterableCoroutine_USED) || CYTHON_USE_ASYNC_SLOTS
@@ -1723,9 +1720,6 @@ static PyTypeObject __pyx_CoroutineType_type = {
 #if PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000
     0,                                  /*tp_print*/
 #endif
-#if PY_VERSION_HEX >= 0x030B00A2
-    0,                                  /*tp_inline_values_offset*/
-#endif
 };
 
 static int __pyx_Coroutine_init(void) {
@@ -1837,9 +1831,6 @@ static PyTypeObject __pyx_IterableCoroutineType_type = {
 #if PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000
     0,                                  /*tp_print*/
 #endif
-#if PY_VERSION_HEX >= 0x030B00A2
-    0,                                  /*tp_inline_values_offset*/
-#endif
 };
 
 
@@ -1947,9 +1938,6 @@ static PyTypeObject __pyx_GeneratorType_type = {
 #endif
 #if PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000
     0,                                  /*tp_print*/
-#endif
-#if PY_VERSION_HEX >= 0x030B00A2
-    0,                                  /*tp_inline_values_offset*/
 #endif
 };
 
@@ -2346,9 +2334,6 @@ static PyTypeObject __Pyx__PyExc_StopAsyncIteration_type = {
     0,                                  /*tp_version_tag*/
 #if PY_VERSION_HEX >= 0x030400a1
     0,                                  /*tp_finalize*/
-#endif
-#if PY_VERSION_HEX >= 0x030B00A2
-    0,                                  /*tp_inline_values_offset*/
 #endif
 };
 #endif
