@@ -61,7 +61,7 @@ Bugs fixed
   Patch by David Woods.  (Github issue :issue:`4322`)
 
 * Python object types were not allowed as ``->`` return type annotations.
-  Patch by Matus Matus Valo.  (Github issue :issue:`4433`)
+  Patch by Matus Valo.  (Github issue :issue:`4433`)
 
 * Templating C++ classes with memory view types lead to buggy code and is now rejected.
   Patch by David Woods.  (Github issue :issue:`3085`)
@@ -98,6 +98,10 @@ Other changes
 * A warning was added when ``__defaults__`` or ``__kwdefaults__`` of Cython compiled
   functions were re-assigned, since this does not current have an effect.
   Patch by David Woods.  (Github issue :issue:`2650`)
+
+* Profiling tutorial was rewritten to show the
+  Cython language syntax next to the equivalent Python syntax.
+  Patch by Matus Valo.  (Github issue :issue:`4187`)
 
 
 3.0.0 alpha 9 (2021-07-21)
