@@ -61,7 +61,7 @@ Bugs fixed
   Patch by David Woods.  (Github issue :issue:`4322`)
 
 * Python object types were not allowed as ``->`` return type annotations.
-  Patch by Matus Matus Valo.  (Github issue :issue:`4433`)
+  Patch by Matus Valo.  (Github issue :issue:`4433`)
 
 * Templating C++ classes with memory view types lead to buggy code and is now rejected.
   Patch by David Woods.  (Github issue :issue:`3085`)
