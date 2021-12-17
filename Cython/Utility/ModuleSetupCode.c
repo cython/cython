@@ -1243,7 +1243,7 @@ static CYTHON_INLINE float __PYX_NAN() {
 typedef struct {PyObject **p; const char *s; const Py_ssize_t n; const char* encoding;
                 const char is_unicode; const char is_str; const char intern; } __Pyx_StringTabEntry; /*proto*/
 #else
-typedef struct {HPy *p; const char *s; const HPy_ssize_t n; const char* encoding;
+typedef struct {HPyField *p; const char *s; const HPy_ssize_t n; const char* encoding;
                 const char is_unicode; const char is_str; const char intern; } __Pyx_StringTabEntry; /*proto*/
 #endif /* HPY */
 
@@ -1607,7 +1607,7 @@ static CYTHON_INLINE int __Pyx_Is_Little_Endian(void)
         r = v; HPy_Close(ctx, tmp);                             \
     } while (0)
 
-#define __Pyx_CLEAR(ctx, r)    do { HPy tmp = (r); r = NULL; HPy_Close(ctx, tmp);} while(0)
+#define __Pyx_CLEAR(ctx, r)    do { HPy tmp = (r); r = HPy_NULL; HPy_Close(ctx, tmp);} while(0)
 #define __Pyx_XCLEAR(ctx, r)   do { if(!HPy_IsNull((r))) {HPy tmp = (r); r = HPy_NULL; HPy_Close(ctx, tmp);}} while(0)
 #endif /* HPY */
 

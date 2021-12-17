@@ -47,13 +47,13 @@ static CYTHON_INLINE Py_ssize_t __Pyx_Py_UNICODE_ssize_strlen(const Py_UNICODE *
 #ifndef HPY
 static int __Pyx_InitString(__Pyx_StringTabEntry t, PyObject **str); /*proto*/
 #else /* HPY */
-static int __Pyx_InitString(HPyContext *ctx, __Pyx_StringTabEntry t, HPy *str); /*proto*/
+static int __Pyx_InitString(HPyContext *ctx, __Pyx_StringTabEntry t, HPy m, HPyField *str); /*proto*/
 #endif /* HPY */
 #else
 #ifndef HPY
 static int __Pyx_InitStrings(__Pyx_StringTabEntry *t); /*proto*/
 #else /* HPY */
-static int __Pyx_InitStrings(HPyContext *ctx, __Pyx_StringTabEntry *t); /*proto*/
+static int __Pyx_InitStrings(HPyContext *ctx, __Pyx_StringTabEntry *t, HPy m); /*proto*/
 #endif /* HPY */
 #endif
 
@@ -81,29 +81,33 @@ static int __Pyx_InitString(__Pyx_StringTabEntry t, PyObject **str) {
     return 0;
 }
 #else /* HPY */
-static int __Pyx_InitString(HPyContext *ctx, __Pyx_StringTabEntry t, HPy *str) {
+static int __Pyx_InitString(HPyContext *ctx, __Pyx_StringTabEntry t, HPy m, HPyField *str) {
+    HPy h_str;
     if (t.is_unicode | t.is_str) {
         if (t.intern) {
             /* not yet available */
             /* *str = HPyUnicode_InternFromString(t.s); */
-            *str = HPyUnicode_FromString(ctx, t.s);
+            h_str = HPyUnicode_FromString(ctx, t.s);
         } else if (t.encoding) {
             /* not yet available */
-            /* *str = HPyUnicode_Decode(ctx, t.s, t.n - 1, t.encoding, NULL); */
-            *str = HPyUnicode_DecodeFSDefault(ctx, t.s);
+            /* h_str = HPyUnicode_Decode(ctx, t.s, t.n - 1, t.encoding, NULL); */
+            h_str = HPyUnicode_DecodeFSDefault(ctx, t.s);
         } else {
             /* will be available in HPy 0.0.4 */
-            /* *str = HPyUnicode_FromStringAndSize(t.s, t.n - 1); */
-            *str = HPyUnicode_FromString(ctx, t.s);
+            /* h_str = HPyUnicode_FromStringAndSize(t.s, t.n - 1); */
+            h_str = HPyUnicode_FromString(ctx, t.s);
         }
     } else {
-        *str = HPyBytes_FromStringAndSize(ctx, t.s, t.n - 1);
+        h_str = HPyBytes_FromStringAndSize(ctx, t.s, t.n - 1);
     }
-    if (HPy_IsNull(*str))
+    if (HPy_IsNull(h_str))
         return -1;
     // initialise cached hash value
-    if (HPy_Hash(ctx, *str) == -1)
+    if (HPy_Hash(ctx, h_str) == -1)
         return -1;
+    // write to HPy field
+    HPyField_Store(ctx, m, str, h_str);
+    HPy_Close(ctx, h_str);
     return 0;
 }
 #endif /* HPY */
@@ -134,9 +138,9 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
     return 0;
 }
 #else /* HPY */
-static int __Pyx_InitStrings(HPyContext *ctx, __Pyx_StringTabEntry *t) {
+static int __Pyx_InitStrings(HPyContext *ctx, __Pyx_StringTabEntry *t, HPy m) {
     while (t->p) {
-        __Pyx_InitString(ctx, *t, t->p);
+        __Pyx_InitString(ctx, *t, m, t->p);
         ++t;
     }
     return 0;

@@ -23,11 +23,17 @@ class APIBackend:
 class CApiBackend(APIBackend):
     name = "cpython"
     pyobject_ctype = "PyObject *"
+    pyobject_init_value = "NULL"
     pyobject_global_ctype = "PyObject *"
     pytype_global_ctype = "PyTypeObject *"
+    pyobject_global_init_value = "NULL"
 
     @staticmethod
     def get_arg_list(*args):
+        return ", ".join(args)
+
+    @staticmethod
+    def get_args(*args):
         return ", ".join(args)
 
     @staticmethod
@@ -43,6 +49,10 @@ class CApiBackend(APIBackend):
         return "Py_VISIT(%s);" % var_cname
 
     @staticmethod
+    def get_hpy(hpy_code):
+        return ""
+
+    @staticmethod
     def put_both(code, cpy_code, hpy_code):
         code.putln(cpy_code)
 
@@ -50,12 +60,18 @@ class CApiBackend(APIBackend):
 class HPyBackend(APIBackend):
     name = "hpy"
     pyobject_ctype = "HPy"
+    pyobject_init_value = "HPy_NULL"
     pyobject_global_ctype = "HPyField"
     pytype_global_ctype = "HPyField"
+    pyobject_global_init_value = "HPyField_NULL"
 
     @staticmethod
     def get_arg_list(*args):
         return ", ".join(("HPyContext *" + Naming.hpy_context_cname,) + args)
+
+    @staticmethod
+    def get_args(*args):
+        return ", ".join((Naming.hpy_context_cname,) + args)
 
     @staticmethod
     def get_clear_global(module_cname, var_cname):
@@ -74,6 +90,10 @@ class HPyBackend(APIBackend):
         return "HPy " + var_name
 
     @staticmethod
+    def get_hpy(hpy_code):
+        return hpy_code
+
+    @staticmethod
     def put_both(code, cpy_code, hpy_code):
         code.putln(hpy_code)
 
@@ -81,8 +101,10 @@ class HPyBackend(APIBackend):
 class CombinedBackend(APIBackend):
     name = "combined"
     pyobject_ctype = "__PYX_OBJECT_CTYPE"
+    pyobject_init_value = "__PYX_NULL"
     pyobject_global_ctype = "__PYX_GLOBAL_OBJECT_CTYPE"
     pytype_global_ctype = "__PYX_GLOBAL_TYPE_CTYPE"
+    pyobject_global_init_value = "__PYX_GLOBAL_NULL"
 
     @staticmethod
     def put_init_code(code):
@@ -94,7 +116,12 @@ class CombinedBackend(APIBackend):
         code.putln("#define __Pyx_CLEAR_GLOBAL(m, v) Py_CLEAR((v))")
         code.putln("#define __PYX_READ_GLOBAL(m, v) (v)")
         code.putln("#define __PYX_VISIT(x) Py_VISIT((x))")
+        code.putln("#define __PYX_CONTEXT(ctx)")
+        code.putln("#define __PYX_NULL NULL")
+        code.putln("#define __PYX_GLOBAL_NULL NULL")
+
         code.putln("#else /* %s */" % hpy_guard)
+
         code.putln("#define __PYX_OBJECT_CTYPE HPy")
         code.putln("#define __PYX_GLOBAL_OBJECT_CTYPE HPyField")
         code.putln("#define __PYX_GLOBAL_TYPE_CTYPE HPyField")
@@ -102,6 +129,9 @@ class CombinedBackend(APIBackend):
                    Naming.hpy_context_cname)
         code.putln("#define __PYX_READ_GLOBAL(m, v) HPyField_Load(%s, (m), (v))" % Naming.hpy_context_cname)
         code.putln("#define __PYX_VISIT(x) HPy_VISIT(&(x))")
+        code.putln("#define __PYX_CONTEXT(ctx) (ctx)")
+        code.putln("#define __PYX_NULL HPy_NULL")
+        code.putln("#define __PYX_GLOBAL_NULL HPyField_NULL")
         code.putln("#endif /* %s */" % hpy_guard)
 
     @staticmethod
@@ -110,6 +140,10 @@ class CombinedBackend(APIBackend):
             HPyBackend.get_arg_list(*args),
             CApiBackend.get_arg_list(*args)
         )
+
+    @staticmethod
+    def get_args(*args):
+        return ", ".join(("__PYX_CONTEXT(%s)" % Naming.hpy_context_cname,) + args)
 
     @staticmethod
     def get_clear_global(module_cname, var_cname):
@@ -136,6 +170,18 @@ class CombinedBackend(APIBackend):
         hpy_guard = CApiBackend.hpy_guard
         return "#ifdef %s\n%s\n#else /* %s */\n%s\n#endif /* %s */" % (
             hpy_guard, cpy_code, hpy_guard, hpy_code, hpy_guard)
+
+    @staticmethod
+    def get_hpy(hpy_code):
+        """
+        Print code with structure:
+        #ifdef HPY_GUARD
+        hpy_code
+        #endif /* HPY_GUARD */
+        """
+        hpy_guard = CApiBackend.hpy_guard
+        return "#ifdef %s\n%s\n#endif /* %s */" % (
+            hpy_guard, hpy_code, hpy_guard)
 
     @staticmethod
     def put_both(code, cpy_code, hpy_code):

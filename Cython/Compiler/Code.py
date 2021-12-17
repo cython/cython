@@ -1133,7 +1133,6 @@ class GlobalState(object):
         'hpy_global_var',
         'string_decls',
         'string_obj_decls',
-        'hpy_string_obj_decls',
         'decls',
         'hpy_decls',
         'late_includes',
@@ -1148,7 +1147,6 @@ class GlobalState(object):
         'cached_constants',
         'hpy_cached_constants',
         'init_constants',
-        'hpy_init_constants',
         'init_globals',  # (utility code called at init-time)
         'hpy_init_globals',
         'init_module',
@@ -1255,12 +1253,9 @@ class GlobalState(object):
         w = self.parts['init_constants']
         w.enter_cfunc_scope()
         w.putln("")
-        w.putln("static CYTHON_SMALL_CODE int __Pyx_InitConstants(void) {")
-
-        w = self.parts['hpy_init_constants']
-        w.enter_cfunc_scope()
-        w.putln("")
-        w.putln("static CYTHON_SMALL_CODE int __Pyx_InitConstants(HPyContext *ctx) {")
+        w.putln("static CYTHON_SMALL_CODE int __Pyx_InitConstants(")
+        self.backend.put_both(w, "void", "HPyContext *%s, HPy %s" % (Naming.hpy_context_cname, Naming.module_cname))
+        w.putln(") {")
 
         if not Options.generate_cleanup_code:
             part = 'cleanup_globals'
@@ -1348,7 +1343,7 @@ class GlobalState(object):
             w.putln("}")
             w.exit_cfunc_scope()
 
-        for part in ['init_globals', 'init_constants', 'hpy_init_globals', 'hpy_init_constants']:
+        for part in ['init_globals', 'init_constants', 'hpy_init_globals']:
             w = self.parts[part]
             w.putln("return 0;")
             if w.label_used(w.error_label):
@@ -1629,7 +1624,6 @@ class GlobalState(object):
                 decls_writer.putln("#endif")
 
         init_constants = self.parts['init_constants']
-        hpy_init_constants = self.parts['hpy_init_constants']
         if py_strings:
             from .PyrexTypes import py_object_type
             self.use_utility_code(UtilityCode.load_cached("InitStrings", "StringTools.c"))
@@ -1646,16 +1640,9 @@ class GlobalState(object):
             decls_writer.putln("#if !CYTHON_USE_MODULE_STATE")
             not_limited_api_decls_writer = decls_writer.insertion_point()
             decls_writer.putln("#endif")
-            hpy_decls_writer = self.parts['hpy_string_obj_decls']
-            hpy_decls_writer.putln("#if !CYTHON_USE_MODULE_STATE")
-            hpy_not_limited_api_decls_writer = hpy_decls_writer.insertion_point()
-            hpy_decls_writer.putln("#endif")
             init_constants.putln("#if CYTHON_USE_MODULE_STATE")
             init_constants_in_module_state = init_constants.insertion_point()
             init_constants.putln("#endif")
-            hpy_init_constants.putln("#if CYTHON_USE_MODULE_STATE")
-            hpy_init_globals_in_module_state = hpy_init_constants.insertion_point()
-            hpy_init_constants.putln("#endif")
             backend = self.backend
             for idx, py_string_args in enumerate(py_strings):
                 c_cname, _, py_string = py_string_args
@@ -1676,9 +1663,7 @@ class GlobalState(object):
                 self.parts['module_state_traverse'].putln(backend.get_visit_global("traverse_module_state->%s" %
                     py_string.cname))
                 not_limited_api_decls_writer.putln(
-                    "static PyObject *%s;" % py_string.cname)
-                hpy_not_limited_api_decls_writer.putln("static %s;" %
-                    hpy_not_limited_api_decls_writer.type_declaration(py_object_type, py_string.cname))
+                    "static %s %s;" % (backend.pyobject_global_ctype, py_string.cname))
                 if py_string.py3str_cstring:
                     w_not_in_module_state.putln("#if PY_MAJOR_VERSION >= 3")
                     w_not_in_module_state.putln("{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
@@ -1708,15 +1693,13 @@ class GlobalState(object):
                     py_string.is_str,
                     py_string.intern
                     ))
-                init_constants_in_module_state.putln("if (__Pyx_InitString(%s[%d], &%s) < 0) %s;" % (
+                init_string_args = backend.get_args("%s[%d]%s, &%s" % (
                     Naming.stringtab_cname,
                     idx,
-                    py_string.cname,
-                    init_constants.error_goto(self.module_pos)))
-                hpy_init_globals_in_module_state.putln("if (__Pyx_InitString(ctx, %s[%d], &%s) < 0) %s;" % (
-                    Naming.stringtab_cname,
-                    idx,
-                    py_string.cname,
+                    backend.get_hpy(" , " + Naming.module_cname),
+                    py_string.cname))
+                init_constants_in_module_state.putln("if (__Pyx_InitString(%s) < 0) %s;" % (
+                    init_string_args,
                     init_constants.error_goto(self.module_pos)))
             w.putln("{0, 0, 0, 0, 0, 0, 0}")
             w.putln("};")
