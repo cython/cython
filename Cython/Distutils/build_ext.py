@@ -59,7 +59,6 @@ class build_ext(_build_ext, object):
         self.cython_c_in_temp = 0
         self.cython_gen_pxi = 0
         self.cython_gdb = False
-        self.no_c_in_traceback = 0
         self.cython_compile_time_env = None
 
     def finalize_options(self):
@@ -103,23 +102,26 @@ class build_ext(_build_ext, object):
         if hasattr(ext, "cython_directives"):
             directives.update(ext.cython_directives)
 
-        no_c_in_traceback = not self.no_c_in_traceback or \
-                getattr(ext, 'no_c_in_traceback', 0)
+        if self.cython_c_in_temp or getattr(ext, 'cython_c_in_temp', 0):
+            build_dir = self.build_temp
+        else:
+            build_dir = None
+
+        if self.cython_cplus or getattr(ext, 'cython_cplus', 0):
+            ext.language = 'c++'
 
         options = {
-            'cplus': self.cython_cplus or getattr(ext, 'cython_cplus', 0) or \
-                (ext.language and ext.language.lower() == 'c++'),
-            'use_listing_file': self.cython_create_listing or \
+            'use_listing_file': self.cython_create_listing or
                 getattr(ext, 'cython_create_listing', 0),
-            'emit_linenums': self.cython_line_directives or \
+            'emit_linenums': self.cython_line_directives or
                 getattr(ext, 'cython_line_directives', 0),
             'include_path': includes,
             'compiler_directives': directives,
-            'build_dir': self.build_temp if self.cython_c_in_temp else None,
+            'build_dir': build_dir,
             'generate_pxi': self.cython_gen_pxi or getattr(ext, 'cython_gen_pxi', 0),
             'gdb_debug': self.cython_gdb or getattr(ext, 'cython_gdb', False),
-            'c_line_in_traceback': no_c_in_traceback,
-            'compile_time_env': self.cython_compile_time_env or \
+            'c_line_in_traceback': not getattr(ext, 'no_c_in_traceback', 0),
+            'compile_time_env': self.cython_compile_time_env or
                 getattr(ext, 'cython_compile_time_env', None),
         }
 
