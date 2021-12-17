@@ -75,11 +75,13 @@ class HPyBackend(APIBackend):
 
     @staticmethod
     def get_clear_global(module_cname, var_cname):
-        return "HPyField_Store(%s, %s, &(%s), HPy_NULL);" % (Naming.hpy_context_cname, module_cname, var_cname)
+        return "HPyField_Store(%s, %s->h_None, &(%s), HPy_NULL);" % (
+            Naming.hpy_context_cname, Naming.hpy_context_cname, var_cname)
 
     @staticmethod
     def get_read_global(module_cname, cexpr):
-        return "HPyField_Load(%s, %s, %s)" % (Naming.hpy_context_cname, module_cname, cexpr)
+        return "HPyField_Load(%s, %s->h_None, %s)" % (
+            Naming.hpy_context_cname, Naming.hpy_context_cname, cexpr)
 
     @staticmethod
     def get_visit_global(var_cname):
@@ -125,9 +127,10 @@ class CombinedBackend(APIBackend):
         code.putln("#define __PYX_OBJECT_CTYPE HPy")
         code.putln("#define __PYX_GLOBAL_OBJECT_CTYPE HPyField")
         code.putln("#define __PYX_GLOBAL_TYPE_CTYPE HPyField")
-        code.putln("#define __Pyx_CLEAR_GLOBAL(m, v) HPyField_Store(%s, (m), &(v), HPy_NULL)" %
+        code.putln("#define __Pyx_CLEAR_GLOBAL(m, v) HPyField_Store(%s, %s->h_None, &(v), HPy_NULL)" %
                    Naming.hpy_context_cname)
-        code.putln("#define __PYX_READ_GLOBAL(m, v) HPyField_Load(%s, (m), (v))" % Naming.hpy_context_cname)
+        code.putln("#define __PYX_READ_GLOBAL(m, v) HPyField_Load(%s, %s->h_None, (v))" %
+                   Naming.hpy_context_cname)
         code.putln("#define __PYX_VISIT(x) HPy_VISIT(&(x))")
         code.putln("#define __PYX_CONTEXT(ctx) (ctx)")
         code.putln("#define __PYX_NULL HPy_NULL")
