@@ -50,7 +50,7 @@ class build_ext(_build_ext, object):
     ])
 
     def initialize_options(self):
-        _build_ext.initialize_options(self)
+        super(build_ext, self).initialize_options()
         self.cython_cplus = 0
         self.cython_create_listing = 0
         self.cython_line_directives = 0
@@ -62,7 +62,7 @@ class build_ext(_build_ext, object):
         self.cython_compile_time_env = None
 
     def finalize_options(self):
-        _build_ext.finalize_options(self)
+        super(build_ext, self).finalize_options()
         if self.cython_include_dirs is None:
             self.cython_include_dirs = []
         elif isinstance(self.cython_include_dirs, basestring):
