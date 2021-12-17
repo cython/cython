@@ -1253,9 +1253,7 @@ class GlobalState(object):
         w = self.parts['init_constants']
         w.enter_cfunc_scope()
         w.putln("")
-        w.putln("static CYTHON_SMALL_CODE int __Pyx_InitConstants(")
-        self.backend.put_both(w, "void", "HPyContext *%s, HPy %s" % (Naming.hpy_context_cname, Naming.module_cname))
-        w.putln(") {")
+        w.putln("static CYTHON_SMALL_CODE int __Pyx_InitConstants(%s) {" % self.backend.get_arg_list())
 
         if not Options.generate_cleanup_code:
             part = 'cleanup_globals'
@@ -1693,10 +1691,9 @@ class GlobalState(object):
                     py_string.is_str,
                     py_string.intern
                     ))
-                init_string_args = backend.get_args("%s[%d]%s, &%s" % (
+                init_string_args = backend.get_args("%s[%d], &%s" % (
                     Naming.stringtab_cname,
                     idx,
-                    backend.get_hpy(" , " + Naming.module_cname),
                     py_string.cname))
                 init_constants_in_module_state.putln("if (__Pyx_InitString(%s) < 0) %s;" % (
                     init_string_args,

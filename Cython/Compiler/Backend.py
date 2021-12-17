@@ -163,14 +163,17 @@ class CombinedBackend(APIBackend):
         code.putln("#define __Pyx_CLEAR_GLOBAL(m, v) Py_CLEAR((v))")
         code.putln("#define __PYX_READ_GLOBAL(m, v) (v)")
         code.putln("#define __PYX_VISIT(x) Py_VISIT((x))")
-        code.putln("#define __PYX_CONTEXT(ctx)")
+        code.putln("#define __PYX_CONTEXT_DECL")
+        code.putln("#define __PYX_CONTEXT")
         code.putln("#define __PYX_NULL NULL")
         code.putln("#define __PYX_GLOBAL_NULL NULL")
         code.putln("#define __PYX_MODULEDEF_CTYPE %s" % CApiBackend.pymoduledef_ctype)
+        code.putln("#define __PYX_SSIZE_T %s" % CApiBackend.pyssizet_ctype)
         code.putln("#define __PYX_TUPLE_BUILDER_CTYPE %s" % CApiBackend.tuple_builder_ctype)
         code.putln("#define __PYX_TUPLE_BUILDER_NEW %s" % CApiBackend.tuple_builder_new)
         code.putln("#define __PYX_TUPLE_BUILDER_SET_ITEM %s" % CApiBackend.tuple_builder_set_item)
         code.putln("#define __PYX_TUPLE_BUILDER_BUILD %s" % CApiBackend.tuple_builder_build)
+        code.putln("#define __PYX_TUPLE_PACK %s" % CApiBackend.tuple_pack)
         code.putln("#define __PYX_LIST_BUILDER_CTYPE %s" % CApiBackend.list_builder_ctype)
         code.putln("#define __PYX_LIST_BUILDER_NEW %s" % CApiBackend.list_builder_new)
         code.putln("#define __PYX_LIST_BUILDER_SET_ITEM %s" % CApiBackend.list_builder_set_item)
@@ -186,7 +189,8 @@ class CombinedBackend(APIBackend):
         code.putln("#define __PYX_READ_GLOBAL(m, v) HPyField_Load(%s, %s->h_None, (v))" %
                    (Naming.hpy_context_cname, Naming.hpy_context_cname))
         code.putln("#define __PYX_VISIT(x) HPy_VISIT(&(x))")
-        code.putln("#define __PYX_CONTEXT(ctx) (ctx)")
+        code.putln("#define __PYX_CONTEXT_DECL HPyContext *%s, " % Naming.hpy_context_cname)
+        code.putln("#define __PYX_CONTEXT %s, " % Naming.hpy_context_cname)
         code.putln("#define __PYX_NULL HPy_NULL")
         code.putln("#define __PYX_GLOBAL_NULL HPyField_NULL")
         code.putln("#define __PYX_MODULEDEF_CTYPE %s" % HPyBackend.pymoduledef_ctype)
@@ -204,14 +208,11 @@ class CombinedBackend(APIBackend):
 
     @staticmethod
     def get_arg_list(*args):
-        return CombinedBackend.get_both(
-            HPyBackend.get_arg_list(*args),
-            CApiBackend.get_arg_list(*args)
-        )
+        return "__PYX_CONTEXT_DECL " + ", ".join(args)
 
     @staticmethod
     def get_args(*args):
-        return ", ".join(("__PYX_CONTEXT(%s)" % Naming.hpy_context_cname,) + args)
+        return "__PYX_CONTEXT " + ", ".join(args)
 
     @staticmethod
     def get_clear_global(module_cname, var_cname):

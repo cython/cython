@@ -81,7 +81,7 @@ static int __Pyx_InitString(__Pyx_StringTabEntry t, PyObject **str) {
     return 0;
 }
 #else /* HPY */
-static int __Pyx_InitString(HPyContext *ctx, __Pyx_StringTabEntry t, HPy m, HPyField *str) {
+static int __Pyx_InitString(HPyContext *ctx, __Pyx_StringTabEntry t, HPyField *str) {
     HPy h_str;
     if (t.is_unicode | t.is_str) {
         if (t.intern) {
@@ -106,7 +106,7 @@ static int __Pyx_InitString(HPyContext *ctx, __Pyx_StringTabEntry t, HPy m, HPyF
     if (HPy_Hash(ctx, h_str) == -1)
         return -1;
     // write to HPy field
-    HPyField_Store(ctx, m, str, h_str);
+    HPyField_Store(ctx, ctx->h_None, str, h_str);
     HPy_Close(ctx, h_str);
     return 0;
 }

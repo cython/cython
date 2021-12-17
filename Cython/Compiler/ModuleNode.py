@@ -3082,8 +3082,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#endif")
 
         code.putln("/*--- Initialize various global constants etc. ---*/")
-        code.put_error_if_neg(self.pos, "__Pyx_InitConstants(%s)" %
-                              backend.get_hpy("%s, %s" % (Naming.hpy_context_cname, Naming.module_cname)))
+        code.put_error_if_neg(self.pos, "__Pyx_InitConstants(%s)" % backend.get_args())
         code.putln("stringtab_initialized = 1;")
         code.put_error_if_neg(self.pos, "__Pyx_InitGlobals()")  # calls any utility code
 
