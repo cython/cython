@@ -71,6 +71,9 @@ class build_ext(_build_ext, object):
         if self.cython_directives is None:
             self.cython_directives = {}
 
+    def get_extension_attr(self, extension, option_name, default=False):
+        return getattr(self, option_name) or getattr(extension, option_name, default)
+
     def build_extension(self, ext):
         from Cython.Build.Dependencies import cythonize
 
@@ -99,27 +102,19 @@ class build_ext(_build_ext, object):
         if hasattr(ext, "cython_directives"):
             directives.update(ext.cython_directives)
 
-        if self.cython_c_in_temp or getattr(ext, 'cython_c_in_temp', 0):
-            build_dir = self.build_temp
-        else:
-            build_dir = None
-
-        if self.cython_cplus or getattr(ext, 'cython_cplus', 0):
+        if self.get_extension_attr(ext, 'cython_cplus'):
             ext.language = 'c++'
 
         options = {
-            'use_listing_file': self.cython_create_listing or
-                getattr(ext, 'cython_create_listing', 0),
-            'emit_linenums': self.cython_line_directives or
-                getattr(ext, 'cython_line_directives', 0),
+            'use_listing_file': self.get_extension_attr(ext, 'cython_create_listing'),
+            'emit_linenums': self.get_extension_attr(ext, 'cython_line_directives'),
             'include_path': includes,
             'compiler_directives': directives,
-            'build_dir': build_dir,
-            'generate_pxi': self.cython_gen_pxi or getattr(ext, 'cython_gen_pxi', 0),
-            'gdb_debug': self.cython_gdb or getattr(ext, 'cython_gdb', False),
+            'build_dir': self.build_temp if self.get_extension_attr(ext, 'cython_c_in_temp') else None,
+            'generate_pxi': self.get_extension_attr(ext, 'cython_gen_pxi'),
+            'gdb_debug': self.get_extension_attr(ext, 'cython_gdb'),
             'c_line_in_traceback': not getattr(ext, 'no_c_in_traceback', 0),
-            'compile_time_env': self.cython_compile_time_env or
-                getattr(ext, 'cython_compile_time_env', None),
+            'compile_time_env': self.get_extension_attr(ext, 'cython_compile_time_env', default=None),
         }
 
         new_ext = cythonize(
