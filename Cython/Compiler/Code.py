@@ -1911,6 +1911,10 @@ class CCodeWriter(object):
         self.globalstate = global_state
         self.code_config = global_state.code_config
 
+    @property
+    def backend(self):
+        return self.globalstate.backend
+
     def copyto(self, f):
         self.buffer.copyto(f)
 

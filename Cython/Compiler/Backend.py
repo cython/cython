@@ -28,6 +28,20 @@ class CApiBackend(APIBackend):
     pytype_global_ctype = "PyTypeObject *"
     pyobject_global_init_value = "NULL"
     pymoduledef_ctype = "PyModuleDef"
+    pyssizet_ctype = "Py_ssize_t"
+
+    # tuple building
+    tuple_builder_ctype = pyobject_ctype
+    tuple_builder_new = "PyTuple_New"
+    tuple_builder_set_item = "PyTuple_SET_ITEM"
+    tuple_builder_build = ""
+    tuple_pack = "PyTuple_Pack"
+
+    # list building
+    list_builder_ctype = pyobject_ctype
+    list_builder_new = "PyList_New"
+    list_builder_set_item = "PyList_SET_ITEM"
+    list_builder_build = ""
 
     @staticmethod
     def get_arg_list(*args):
@@ -66,6 +80,20 @@ class HPyBackend(APIBackend):
     pytype_global_ctype = "HPyField"
     pyobject_global_init_value = "HPyField_NULL"
     pymoduledef_ctype = "HPyModuleDef"
+    pyssizet_ctype = "HPy_ssize_t"
+
+    # tuple building
+    tuple_builder_ctype = "HPyTupleBuilder"
+    tuple_builder_new = "HPyTupleBuilder_New"
+    tuple_builder_set_item = "HPyTupleBuilder_Set"
+    tuple_builder_build = "HPyTupleBuilder_Build"
+    tuple_pack = "HPyTuple_Pack"
+
+    # list building
+    list_builder_ctype = "HPyListBuilder"
+    list_builder_new = "HPyListBuilder_New"
+    list_builder_set_item = "HPyListBuilder_Set"
+    list_builder_build = "HPyListBuilder_Build"
 
     @staticmethod
     def get_arg_list(*args):
@@ -110,6 +138,20 @@ class CombinedBackend(APIBackend):
     pytype_global_ctype = "__PYX_GLOBAL_TYPE_CTYPE"
     pyobject_global_init_value = "__PYX_GLOBAL_NULL"
     pymoduledef_ctype = "__PYX_MODULEDEF_CTYPE"
+    pyssizet_ctype = "__PYX_SSIZE_T"
+
+    # tuple building
+    tuple_builder_ctype = "__PYX_TUPLE_BUILDER_CTYPE"
+    tuple_builder_new = "__PYX_TUPLE_BUILDER_NEW"
+    tuple_builder_set_item = "__PYX_TUPLE_BUILDER_SET_ITEM"
+    tuple_builder_build = "__PYX_TUPLE_BUILDER_BUILD"
+    tuple_pack = "__PYX_TUPLE_PACK"
+
+    # list building
+    list_builder_ctype = "__PYX_LIST_BUILDER_CTYPE"
+    list_builder_new = "__PYX_LIST_BUILDER_NEW"
+    list_builder_set_item = "__PYX_LIST_BUILDER_SET_ITEM"
+    list_builder_build = "__PYX_LIST_BUILDER_BUILD"
 
     @staticmethod
     def put_init_code(code):
@@ -125,6 +167,14 @@ class CombinedBackend(APIBackend):
         code.putln("#define __PYX_NULL NULL")
         code.putln("#define __PYX_GLOBAL_NULL NULL")
         code.putln("#define __PYX_MODULEDEF_CTYPE %s" % CApiBackend.pymoduledef_ctype)
+        code.putln("#define __PYX_TUPLE_BUILDER_CTYPE %s" % CApiBackend.tuple_builder_ctype)
+        code.putln("#define __PYX_TUPLE_BUILDER_NEW %s" % CApiBackend.tuple_builder_new)
+        code.putln("#define __PYX_TUPLE_BUILDER_SET_ITEM %s" % CApiBackend.tuple_builder_set_item)
+        code.putln("#define __PYX_TUPLE_BUILDER_BUILD %s" % CApiBackend.tuple_builder_build)
+        code.putln("#define __PYX_LIST_BUILDER_CTYPE %s" % CApiBackend.list_builder_ctype)
+        code.putln("#define __PYX_LIST_BUILDER_NEW %s" % CApiBackend.list_builder_new)
+        code.putln("#define __PYX_LIST_BUILDER_SET_ITEM %s" % CApiBackend.list_builder_set_item)
+        code.putln("#define __PYX_LIST_BUILDER_BUILD %s" % CApiBackend.list_builder_build)
 
         code.putln("#else /* %s */" % hpy_guard)
 
@@ -132,14 +182,24 @@ class CombinedBackend(APIBackend):
         code.putln("#define __PYX_GLOBAL_OBJECT_CTYPE HPyField")
         code.putln("#define __PYX_GLOBAL_TYPE_CTYPE HPyField")
         code.putln("#define __Pyx_CLEAR_GLOBAL(m, v) HPyField_Store(%s, %s->h_None, &(v), HPy_NULL)" %
-                   Naming.hpy_context_cname)
+                   (Naming.hpy_context_cname, Naming.hpy_context_cname))
         code.putln("#define __PYX_READ_GLOBAL(m, v) HPyField_Load(%s, %s->h_None, (v))" %
-                   Naming.hpy_context_cname)
+                   (Naming.hpy_context_cname, Naming.hpy_context_cname))
         code.putln("#define __PYX_VISIT(x) HPy_VISIT(&(x))")
         code.putln("#define __PYX_CONTEXT(ctx) (ctx)")
         code.putln("#define __PYX_NULL HPy_NULL")
         code.putln("#define __PYX_GLOBAL_NULL HPyField_NULL")
         code.putln("#define __PYX_MODULEDEF_CTYPE %s" % HPyBackend.pymoduledef_ctype)
+        code.putln("#define __PYX_SSIZE_T %s" % HPyBackend.pyssizet_ctype)
+        code.putln("#define __PYX_TUPLE_BUILDER_CTYPE %s" % HPyBackend.tuple_builder_ctype)
+        code.putln("#define __PYX_TUPLE_BUILDER_NEW %s" % HPyBackend.tuple_builder_new)
+        code.putln("#define __PYX_TUPLE_BUILDER_SET_ITEM %s" % HPyBackend.tuple_builder_set_item)
+        code.putln("#define __PYX_TUPLE_BUILDER_BUILD %s" % HPyBackend.tuple_builder_build)
+        code.putln("#define __PYX_TUPLE_PACK %s" % HPyBackend.tuple_pack)
+        code.putln("#define __PYX_LIST_BUILDER_CTYPE %s" % HPyBackend.list_builder_ctype)
+        code.putln("#define __PYX_LIST_BUILDER_NEW %s" % HPyBackend.list_builder_new)
+        code.putln("#define __PYX_LIST_BUILDER_SET_ITEM %s" % HPyBackend.list_builder_set_item)
+        code.putln("#define __PYX_LIST_BUILDER_BUILD %s" % HPyBackend.list_builder_build)
         code.putln("#endif /* %s */" % hpy_guard)
 
     @staticmethod

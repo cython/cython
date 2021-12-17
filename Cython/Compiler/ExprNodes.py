@@ -7659,6 +7659,7 @@ class SequenceNode(ExprNode):
         self.generate_operation_code(code)
 
     def generate_sequence_packing_code(self, code, target=None, plain=False):
+        backend = code.backend
         if target is None:
             target = self.result()
         size_factor = c_mult = ''
@@ -7678,10 +7679,9 @@ class SequenceNode(ExprNode):
 
         if self.type is tuple_type and (self.is_literal or self.slow) and not c_mult:
             # use PyTuple_Pack() to avoid generating huge amounts of one-time code
-            code.putln('%s = PyTuple_Pack(%d, %s); %s' % (
+            code.putln('%s = %s(%s); %s' % (
                 target,
-                len(self.args),
-                ', '.join(arg.py_result() for arg in self.args),
+                backend.tuple_pack, backend.get_args(str(len(self.args)), *(arg.py_result() for arg in self.args)),
                 code.error_goto_if_null(target, self.pos)))
             code.put_gotref(target, py_object_type)
         elif self.type.is_ctuple:
@@ -7691,25 +7691,32 @@ class SequenceNode(ExprNode):
         else:
             # build the tuple/list step by step, potentially multiplying it as we go
             if self.type is list_type:
-                create_func, set_item_func = 'PyList_New', 'PyList_SET_ITEM'
+                builder_ctype = backend.list_builder_ctype
+                create_func, set_item_func = backend.list_builder_new, backend.list_builder_set_item
             elif self.type is tuple_type:
-                create_func, set_item_func = 'PyTuple_New', 'PyTuple_SET_ITEM'
+                builder_ctype = backend.tuple_builder_ctype
+                create_func, set_item_func = backend.tuple_builder_new, backend.tuple_builder_set_item
             else:
                 raise InternalError("sequence packing for unexpected type %s" % self.type)
+            # FIXME: can't use a temp variable here as the code may
+            # end up in the constant building function.  Temps
+            # currently don't work there.
+            tmp_count = 0
+            #tmp_builder = code.funcstate.allocate_temp(..., manage_ref=False)
+            tmp_builder = Naming.quick_temp_cname + str(tmp_count)
+            tmp_count += 1
             arg_count = len(self.args)
-            code.putln("%s = %s(%s%s); %s" % (
-                target, create_func, arg_count, size_factor,
-                code.error_goto_if_null(target, self.pos)))
-            code.put_gotref(target, py_object_type)
+            code.putln("%s %s = %s(%s); %s" % (
+                builder_ctype, tmp_builder,
+                create_func, backend.get_args("%s%s" % (arg_count, size_factor)),
+                code.error_goto_if_null(tmp_builder, self.pos)))
+            code.put_gotref(tmp_builder, py_object_type)
 
             if c_mult:
-                # FIXME: can't use a temp variable here as the code may
-                # end up in the constant building function.  Temps
-                # currently don't work there.
-
                 #counter = code.funcstate.allocate_temp(mult_factor.type, manage_ref=False)
-                counter = Naming.quick_temp_cname
-                code.putln('{ Py_ssize_t %s;' % counter)
+                counter = Naming.quick_temp_cname + str(tmp_count)
+                tmp_count += 1
+                code.putln('{ %s %s;' % (backend.pyssizet_ctype, counter))
                 if arg_count == 1:
                     offset = counter
                 else:
@@ -7725,11 +7732,15 @@ class SequenceNode(ExprNode):
                 if c_mult or not arg.result_in_temp():
                     code.put_incref(arg.result(), arg.ctype())
                 arg.generate_giveref(code)
-                code.putln("%s(%s, %s, %s);" % (
+                code.putln("%s(%s);" % (
                     set_item_func,
-                    target,
-                    (offset and i) and ('%s + %s' % (offset, i)) or (offset or i),
-                    arg.py_result()))
+                    backend.get_args(
+                        tmp_builder,
+                        str((offset and i) and ('%s + %s' % (offset, i)) or (offset or i)),
+                        arg.py_result())))
+
+            code.putln("%s = %s(%s);" % (target, backend.tuple_builder_build, backend.get_args(tmp_builder)))
+            #code.funcstate.release_temp(tmp_builder)
 
             if c_mult:
                 code.putln('}')
@@ -7737,8 +7748,9 @@ class SequenceNode(ExprNode):
                 code.putln('}')
 
         if mult_factor is not None and mult_factor.type.is_pyobject:
-            code.putln('{ PyObject* %s = PyNumber_InPlaceMultiply(%s, %s); %s' % (
-                Naming.quick_temp_cname, target, mult_factor.py_result(),
+            code.putln('{ %s %s = PyNumber_InPlaceMultiply(%s, %s); %s' % (
+                backend.pyobject_ctype, Naming.quick_temp_cname,
+                target, mult_factor.py_result(),
                 code.error_goto_if_null(Naming.quick_temp_cname, self.pos)
                 ))
             code.put_gotref(Naming.quick_temp_cname, py_object_type)
