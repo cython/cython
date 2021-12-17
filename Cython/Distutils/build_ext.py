@@ -81,9 +81,9 @@ class build_ext(_build_ext, object):
         #    3.    Add in any (unique) paths from the extension include_dirs
         includes = list(self.cython_include_dirs)
         try:
-            for i in ext.cython_include_dirs:
-                if i not in includes:
-                    includes.append(i)
+            for include_dir in ext.cython_include_dirs:
+                if include_dir not in includes:
+                    includes.append(include_dir)
         except AttributeError:
             pass
 
