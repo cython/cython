@@ -13,11 +13,7 @@ except ImportError:
 
 class build_ext(_build_ext, object):
 
-    sep_by = _build_ext.sep_by
-    user_options = _build_ext.user_options[:]
-    boolean_options = _build_ext.boolean_options[:]
-
-    user_options.extend([
+    user_options = _build_ext.user_options + [
         ('cython-cplus', None,
              "generate C++ source files"),
         ('cython-create-listing', None,
@@ -25,7 +21,7 @@ class build_ext(_build_ext, object):
         ('cython-line-directives', None,
              "emit source line directives"),
         ('cython-include-dirs=', None,
-             "path to the Cython include files" + sep_by),
+             "path to the Cython include files" + _build_ext.sep_by),
         ('cython-c-in-temp', None,
              "put generated C files in temp directory"),
         ('cython-gen-pxi', None,
@@ -36,12 +32,12 @@ class build_ext(_build_ext, object):
              "generate debug information for cygdb"),
         ('cython-compile-time-env', None,
             "cython compile time environment"),
-        ])
+        ]
 
-    boolean_options.extend([
+    boolean_options = _build_ext.boolean_options + [
         'cython-cplus', 'cython-create-listing', 'cython-line-directives',
         'cython-c-in-temp', 'cython-gdb',
-    ])
+    ]
 
     def initialize_options(self):
         super(build_ext, self).initialize_options()
