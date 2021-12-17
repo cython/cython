@@ -1454,12 +1454,17 @@ static CYTHON_INLINE PyObject* __Pyx_PyBoolOrNull_FromLong(long b) {
 
 /////////////// GetBuiltinName.proto ///////////////
 
+#ifndef HPY
 static PyObject *__Pyx_GetBuiltinName(PyObject *name); /*proto*/
+#else
+static HPy __Pyx_GetBuiltinName(HPyContext *ctx, HPyField f); /*proto*/
+#endif
 
 /////////////// GetBuiltinName ///////////////
 //@requires: PyObjectGetAttrStrNoError
 //@substitute: naming
 
+#ifndef HPY
 static PyObject *__Pyx_GetBuiltinName(PyObject *name) {
     PyObject* result = __Pyx_PyObject_GetAttrStrNoError($builtins_cname, name);
     if (unlikely(!result) && !PyErr_Occurred()) {
@@ -1472,6 +1477,24 @@ static PyObject *__Pyx_GetBuiltinName(PyObject *name) {
     }
     return result;
 }
+#else /* HPY */
+static HPy __Pyx_GetBuiltinName(HPyContext *ctx, HPyField f_name) {
+    HPy h_name = HPyField_Load(ctx, ctx->h_None, f_name);
+    HPy h_builtins = HPyField_Load(ctx, ctx->h_None, $builtins_cname);
+    HPy result = HPy_GetAttr(ctx, h_builtins, h_name);
+    HPy_Close(ctx, h_builtins);
+    if (unlikely(HPy_IsNull(result)) && !HPyErr_Occurred(ctx)) {
+        // TODO(fa): HPy should provide some replacement for PyErr_Format
+        HPy h_format = HPyUnicode_FromString(ctx, "name '%U' is not defined");
+        HPy h_formatted = HPy_Remainder(ctx, h_fmt, h_name);
+        HPyErr_SetObject(ctx, ctx->h_NameError, h_formatted);
+        HPy_Close(ctx, h_format);
+        HPy_Close(ctx, h_formatted);
+    }
+    HPy_Close(ctx, h_name);
+    return result;
+}
+#endif /* HPY */
 
 /////////////// GetNameInClass.proto ///////////////
 

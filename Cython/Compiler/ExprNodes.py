@@ -2340,7 +2340,7 @@ class NameNode(AtomicExprNode):
             code.putln(
                 '%s = __Pyx_GetBuiltinName(%s); %s' % (
                 self.result(),
-                interned_cname,
+                code.globalstate.backend.get_args(interned_cname),
                 code.error_goto_if_null(self.result(), self.pos)))
             self.generate_gotref(code)
 
