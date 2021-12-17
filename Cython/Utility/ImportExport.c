@@ -259,8 +259,7 @@ static PyObject* __Pyx_ImportFrom(PyObject* module, PyObject* name) {
             PyObject *modules = PyImport_GetModuleDict();
             if (unlikely(!modules))
                 goto modbad;
-            value = __Pyx_PyDict_GetItemStr(modules, full_name);
-            Py_XINCREF(value);
+            value = PyObject_GetItem(modules, full_name);
         }
         #else
         value = PyImport_GetModule(full_name);
