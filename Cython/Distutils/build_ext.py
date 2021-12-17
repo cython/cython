@@ -80,12 +80,9 @@ class build_ext(_build_ext, object):
         #        cython_include_dirs (if Cython.Distutils.extension is used).
         #    3.    Add in any (unique) paths from the extension include_dirs
         includes = list(self.cython_include_dirs)
-        try:
-            for include_dir in ext.cython_include_dirs:
-                if include_dir not in includes:
-                    includes.append(include_dir)
-        except AttributeError:
-            pass
+        for include_dir in getattr(ext, 'cython_include_dirs', []):
+            if include_dir not in includes:
+                includes.append(include_dir)
 
         # In case extension.include_dirs is a generator, evaluate it and keep
         # result
