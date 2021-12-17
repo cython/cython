@@ -27,6 +27,7 @@ from . import Options
 from . import TypeSlots
 from . import PyrexTypes
 from . import Pythran
+from . import Backend
 
 from .Errors import error, warning, CompileError
 from .PyrexTypes import py_object_type
@@ -816,6 +817,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self._put_setup_code(code, "CInitCode")
         if env.context.options.hpy:
             self._put_setup_code(code, "HPyInitCode")
+        Backend.backend.put_init_code(code)
         self._put_setup_code(code, "PythonCompatibility")
         self._put_setup_code(code, "MathInitCode")
 
@@ -1325,7 +1327,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state_clear = globalstate['module_state_clear']
         module_state_traverse = globalstate['module_state_traverse']
         code.putln("#if !CYTHON_USE_MODULE_STATE")
-        backend = globalstate.backend
+        backend = Backend.backend
         for entry in env.c_class_entries:
             if definition or entry.defined_in_pxd:
                 code.putln("static %s %s = %s;" % (
@@ -2782,7 +2784,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_module_state_start(self, env, code):
         # TODO: Refactor to move module state struct decl closer to the static decl
-        backend = code.globalstate.backend
+        backend = Backend.backend
         code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln('typedef struct {')
         code.putln('%s %s;' % (backend.pyobject_global_ctype, env.module_dict_cname))
@@ -2805,7 +2807,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state_defines = globalstate['module_state_defines']
         module_state_clear = globalstate['module_state_clear']
         module_state_traverse = globalstate['module_state_traverse']
-        moduledef_type = globalstate.backend.pymoduledef_ctype
+        moduledef_type = Backend.backend.pymoduledef_ctype
         module_state.putln('} %s;' % Naming.modulestate_cname)
         module_state.putln('')
         module_state.putln('#ifdef __cplusplus')
@@ -2838,11 +2840,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state_traverse.putln("#endif")
 
     def generate_module_state_defines(self, env, code):
-        backend = code.globalstate.backend
         code.putln("#if CYTHON_USE_MODULE_STATE")
-        backend.get_read_global("m", "%s->%s" %
-                                (Naming.modulestateglobal_cname,
-                                 entry.type.typeobj_cname))
         code.putln('#define %s %s->%s' % (
             env.module_dict_cname,
             Naming.modulestateglobal_cname,
@@ -2886,7 +2884,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('#endif')
 
     def generate_module_state_clear(self, env, code):
-        backend = code.globalstate.backend
+        backend = Backend.backend
         module_cname = "m"
         code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln("static int %s_clear(" % Naming.module_cname)
@@ -2910,7 +2908,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_module_state_traverse(self, env, globalstate):
         code = globalstate['module_state_traverse']
-        backend = globalstate.backend
+        backend = Backend.backend
         code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln("static int %s_traverse(" % Naming.module_cname)
         backend.put_both(code,
@@ -2941,7 +2939,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('#endif')
 
     def generate_module_init_func(self, imported_modules, env, code):
-        backend = code.globalstate.backend
+        backend = Backend.backend
         subfunction = self.mod_init_subfunction(self.pos, self.scope, code)
 
         code.put_moduledef_struct(env, self.module_init_func_cname())

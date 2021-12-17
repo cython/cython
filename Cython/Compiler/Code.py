@@ -30,11 +30,11 @@ from . import Options
 from . import DebugFlags
 from . import StringEncoding
 from . import Version
+from . import Backend
 from .. import Utils
 from .Scanning import SourceDescriptor
 from ..StringIOTree import StringIOTree
 from .Errors import error
-from .Backend import CombinedBackend, HPyBackend, CApiBackend
 
 try:
     from __builtin__ import basestring
@@ -1200,9 +1200,6 @@ class GlobalState(object):
         hpy_writer.set_global_state(self)
         self.rootwriter = writer
         self.hpy_rootwriter = hpy_writer
-        #self.backend = CombinedBackend()
-        self.backend = HPyBackend()
-        #self.backend = CApiBackend()
 
     def get_part_type(self, part_name):
         if part_name.startswith("hpy_"):
@@ -1253,7 +1250,7 @@ class GlobalState(object):
         w = self.parts['init_constants']
         w.enter_cfunc_scope()
         w.putln("")
-        w.putln("static CYTHON_SMALL_CODE int __Pyx_InitConstants(%s) {" % self.backend.get_arg_list())
+        w.putln("static CYTHON_SMALL_CODE int __Pyx_InitConstants(%s) {" % Backend.backend.get_arg_list())
 
         if not Options.generate_cleanup_code:
             part = 'cleanup_globals'
@@ -1537,7 +1534,7 @@ class GlobalState(object):
             UtilityCode.load_cached("GetBuiltinName", "ObjectHandling.c"))
         w.putln('%s = __Pyx_GetBuiltinName(%s); if (!%s) %s' % (
             cname,
-            self.globalstate.backend.get_args(interned_cname),
+            Backend.backend.get_args(interned_cname),
             cname,
             w.error_goto(pos)))
 
@@ -1548,7 +1545,7 @@ class GlobalState(object):
         self.generate_object_constant_decls()
 
     def generate_object_constant_decls(self):
-        backend = self.backend
+        backend = Backend.backend
         consts = [(len(c.cname), c.cname, c)
                   for c in self.py_constants]
         consts.sort()
@@ -1641,7 +1638,7 @@ class GlobalState(object):
             init_constants.putln("#if CYTHON_USE_MODULE_STATE")
             init_constants_in_module_state = init_constants.insertion_point()
             init_constants.putln("#endif")
-            backend = self.backend
+            backend = Backend.backend
             for idx, py_string_args in enumerate(py_strings):
                 c_cname, _, py_string = py_string_args
                 if not py_string.is_str or not py_string.encoding or \
@@ -1715,7 +1712,7 @@ class GlobalState(object):
         decls_writer = self.parts['decls']
         decls_writer.putln("#if !CYTHON_USE_MODULE_STATE")
         init_constants = self.parts['init_constants']
-        backend = self.backend
+        backend = Backend.backend
         for py_type, _, _, value, value_code, c in consts:
             cname = c.cname
             self.parts['module_state'].putln("%s %s;" % (backend.pyobject_global_ctype, cname))
@@ -1907,10 +1904,6 @@ class CCodeWriter(object):
         assert self.globalstate is None  # prevent overwriting once it's set
         self.globalstate = global_state
         self.code_config = global_state.code_config
-
-    @property
-    def backend(self):
-        return self.globalstate.backend
 
     def copyto(self, f):
         self.buffer.copyto(f)
@@ -3556,9 +3549,9 @@ class HPyCCodeWriter(CCodeWriter):
         self.putln("")
         self.putln('#ifdef __cplusplus')
         self.putln('namespace {')
-        self.putln("%s %s =" % (self.globalstate.backend.pymoduledef_ctype, Naming.hpymoduledef_cname))
+        self.putln("%s %s =" % (Backend.backend.pymoduledef_ctype, Naming.hpymoduledef_cname))
         self.putln('#else')
-        self.putln("static %s %s =" % (self.globalstate.backend.pymoduledef_ctype, Naming.hpymoduledef_cname))
+        self.putln("static %s %s =" % (Backend.backend.pymoduledef_ctype, Naming.hpymoduledef_cname))
         self.putln('#endif')
         self.putln('{')
         self.putln('  .name = %s,' % env.module_name.as_c_string_literal())

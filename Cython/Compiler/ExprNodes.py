@@ -52,6 +52,7 @@ from .Pythran import (to_pythran, is_pythran_supported_type, is_pythran_supporte
      pythran_indexing_code, pythran_indexing_type, is_pythran_supported_node_or_none, pythran_type,
      pythran_is_numpy_func_supported, pythran_get_func_include_file, pythran_functor)
 from .PyrexTypes import PythranExpr
+from . import Backend
 
 try:
     from __builtin__ import basestring
@@ -2340,7 +2341,7 @@ class NameNode(AtomicExprNode):
             code.putln(
                 '%s = __Pyx_GetBuiltinName(%s); %s' % (
                 self.result(),
-                code.globalstate.backend.get_args(interned_cname),
+                Backend.backend.get_args(interned_cname),
                 code.error_goto_if_null(self.result(), self.pos)))
             self.generate_gotref(code)
 
@@ -6030,7 +6031,7 @@ class SimpleCallNode(CallNode):
         for actual_arg in self.args[len(formal_args):]:
             arg_list_code.append(actual_arg.move_result_rhs())
 
-        result = "%s(%s)" % (self.function.result(), ', '.join(arg_list_code))
+        result = "%s(%s)" % (self.function.result(), Backend.backend.get_args(*arg_list_code))
         return result
 
     def is_c_result_required(self):
@@ -7659,7 +7660,7 @@ class SequenceNode(ExprNode):
         self.generate_operation_code(code)
 
     def generate_sequence_packing_code(self, code, target=None, plain=False):
-        backend = code.backend
+        backend = Backend.backend
         if target is None:
             target = self.result()
         size_factor = c_mult = ''
