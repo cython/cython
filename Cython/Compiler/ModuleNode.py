@@ -2805,14 +2805,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state_defines = globalstate['module_state_defines']
         module_state_clear = globalstate['module_state_clear']
         module_state_traverse = globalstate['module_state_traverse']
+        moduledef_type = globalstate.backend.pymoduledef_ctype
         module_state.putln('} %s;' % Naming.modulestate_cname)
         module_state.putln('')
         module_state.putln('#ifdef __cplusplus')
         module_state.putln('namespace {')
-        module_state.putln('extern struct PyModuleDef %s;' % Naming.pymoduledef_cname)
+        module_state.putln('extern struct %s %s;' % (moduledef_type, Naming.pymoduledef_cname))
         module_state.putln('} /* anonymous namespace */')
         module_state.putln('#else')
-        module_state.putln('static struct PyModuleDef %s;' % Naming.pymoduledef_cname)
+        module_state.putln('static struct %s %s;' % (moduledef_type, Naming.pymoduledef_cname))
         module_state.putln('#endif')
         module_state.putln('')
         module_state.putln('#define %s(o) ((%s *)__Pyx_PyModule_GetState(o))' % (

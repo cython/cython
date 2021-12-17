@@ -27,6 +27,7 @@ class CApiBackend(APIBackend):
     pyobject_global_ctype = "PyObject *"
     pytype_global_ctype = "PyTypeObject *"
     pyobject_global_init_value = "NULL"
+    pymoduledef_ctype = "PyModuleDef"
 
     @staticmethod
     def get_arg_list(*args):
@@ -64,6 +65,7 @@ class HPyBackend(APIBackend):
     pyobject_global_ctype = "HPyField"
     pytype_global_ctype = "HPyField"
     pyobject_global_init_value = "HPyField_NULL"
+    pymoduledef_ctype = "HPyModuleDef"
 
     @staticmethod
     def get_arg_list(*args):
@@ -107,6 +109,7 @@ class CombinedBackend(APIBackend):
     pyobject_global_ctype = "__PYX_GLOBAL_OBJECT_CTYPE"
     pytype_global_ctype = "__PYX_GLOBAL_TYPE_CTYPE"
     pyobject_global_init_value = "__PYX_GLOBAL_NULL"
+    pymoduledef_ctype = "__PYX_MODULEDEF_CTYPE"
 
     @staticmethod
     def put_init_code(code):
@@ -121,6 +124,7 @@ class CombinedBackend(APIBackend):
         code.putln("#define __PYX_CONTEXT(ctx)")
         code.putln("#define __PYX_NULL NULL")
         code.putln("#define __PYX_GLOBAL_NULL NULL")
+        code.putln("#define __PYX_MODULEDEF_CTYPE %s" % CApiBackend.pymoduledef_ctype)
 
         code.putln("#else /* %s */" % hpy_guard)
 
@@ -135,6 +139,7 @@ class CombinedBackend(APIBackend):
         code.putln("#define __PYX_CONTEXT(ctx) (ctx)")
         code.putln("#define __PYX_NULL HPy_NULL")
         code.putln("#define __PYX_GLOBAL_NULL HPyField_NULL")
+        code.putln("#define __PYX_MODULEDEF_CTYPE %s" % HPyBackend.pymoduledef_ctype)
         code.putln("#endif /* %s */" % hpy_guard)
 
     @staticmethod
