@@ -2,13 +2,27 @@
 Cython Changelog
 ================
 
-3.0.0 alpha 10 (2021-??-??)
+3.0.0 alpha 10 (2021-12-??)
 ===========================
 
 Features added
 --------------
 
-* C++ dict-to-map conversion now supports arbitrary Python mappings, not just dicts.
+* Conversion from Python dict to C++ map now supports arbitrary Python mappings,
+  not just dicts.
+
+* ``pyximport`` now uses ``cythonize()`` internally.
+  Patch by Matus Valo.  (Github issue :issue:`2304`)
+
+* An initial set of adaptations for GraalVM Python was implemented.  Note that
+  this does not imply any general support for this target or that your code
+  will work at all in this environment.  But testing should be possible now.
+  Patch by David Woods.  (Github issue :issue:`4328`)
+
+* ``PyMem_[Raw]Calloc()`` was added to the ``cpython.mem`` declarations.
+  Note that the ``Raw`` versions are no longer #defined by Cython.  The previous
+  macros were not considered safe.
+  Patch by William Schwartz and David Woods.  (Github issue :issue:`3047`)
 
 Bugs fixed
 ----------
@@ -24,6 +38,9 @@ Bugs fixed
 
 * Fused typed default arguments generated incorrect code.
   Patch by David Woods.  (Github issue :issue:`4413`)
+
+* ``prange`` loops generated incorrect code when ``cpp_locals`` is enabled.
+  Patch by David Woods.  (Github issue :issue:`4354`)
 
 * A C-level compatibility issue with recent NumPy versions was resolved.
   Patch by David Woods.  (Github issue :issue:`4396`)
@@ -42,6 +59,12 @@ Bugs fixed
 
 * Unsupported decorators on cdef functions were not rejected in recent releases.
   Patch by David Woods.  (Github issue :issue:`4322`)
+
+* Python object types were not allowed as ``->`` return type annotations.
+  Patch by Matus Matus Valo.  (Github issue :issue:`4433`)
+
+* Templating C++ classes with memory view types lead to buggy code and is now rejected.
+  Patch by David Woods.  (Github issue :issue:`3085`)
 
 * Several C++ library declarations were added and fixed.
   Patches by Dobatymo, account-login, Jonathan Helgert.
@@ -67,15 +90,14 @@ Bugs fixed
 * Some compatibility issues with PyPy were resolved.
   Patches by Max Bachmann, Matti Picus.  (Github issues :issue:`4454`, :issue:`4477`, :issue:`4478`)
 
-* Some compatibility issues with CPython 3.11 were resolved.
-  Patches by David Woods.
-  (Github issues :issue:`4414`, :issue:`4415`, :issue:`4416`, :issue:`4420`,
-  :issue:`4475`, :issue:`4479`, :issue:`4480`)
-
-* Includes all bug-fixes from the :ref:`0.29.25` release.
+* Includes all bug-fixes from the :ref:`0.29.26` release.
 
 Other changes
 -------------
+
+* A warning was added when ``__defaults__`` or ``__kwdefaults__`` of Cython compiled
+  functions were re-assigned, since this does not current have an effect.
+  Patch by David Woods.  (Github issue :issue:`2650`)
 
 
 3.0.0 alpha 9 (2021-07-21)
