@@ -42,33 +42,11 @@ class build_ext(_build_ext, object):
              "generate debug information for cygdb"),
         ('cython-compile-time-env', None,
             "cython compile time environment"),
-
-        # For backwards compatibility.
-        ('pyrex-cplus', None,
-             "generate C++ source files"),
-        ('pyrex-create-listing', None,
-             "write errors to a listing file"),
-        ('pyrex-line-directives', None,
-             "emit source line directives"),
-        ('pyrex-include-dirs=', None,
-             "path to the Cython include files" + sep_by),
-        ('pyrex-c-in-temp', None,
-             "put generated C files in temp directory"),
-        ('pyrex-gen-pxi', None,
-            "generate .pxi file for public declarations"),
-        ('pyrex-directives=', None,
-            "compiler directive overrides"),
-        ('pyrex-gdb', None,
-             "generate debug information for cygdb"),
         ])
 
     boolean_options.extend([
         'cython-cplus', 'cython-create-listing', 'cython-line-directives',
         'cython-c-in-temp', 'cython-gdb',
-
-        # For backwards compatibility.
-        'pyrex-cplus', 'pyrex-create-listing', 'pyrex-line-directives',
-        'pyrex-c-in-temp', 'pyrex-gdb',
     ])
 
     def initialize_options(self):
@@ -83,18 +61,6 @@ class build_ext(_build_ext, object):
         self.cython_gdb = False
         self.no_c_in_traceback = 0
         self.cython_compile_time_env = None
-
-    def __getattr__(self, name):
-        if name[:6] == 'pyrex_':
-            return getattr(self, 'cython_' + name[6:])
-        else:
-            return _build_ext.__getattr__(self, name)
-
-    def __setattr__(self, name, value):
-        if name[:6] == 'pyrex_':
-            return setattr(self, 'cython_' + name[6:], value)
-        else:
-            self.__dict__[name] = value
 
     def finalize_options(self):
         _build_ext.finalize_options(self)
