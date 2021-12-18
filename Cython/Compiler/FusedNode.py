@@ -7,6 +7,7 @@ from . import (ExprNodes, PyrexTypes, MemoryView,
 from .ExprNodes import CloneNode, ProxyNode, TupleNode
 from .Nodes import FuncDefNode, CFuncDefNode, StatListNode, DefNode
 from ..Utils import OrderedSet
+from .Errors import error, CannotSpecialize
 
 
 class FusedCFuncDefNode(StatListNode):
@@ -141,7 +142,14 @@ class FusedCFuncDefNode(StatListNode):
             copied_node = copy.deepcopy(self.node)
 
             # Make the types in our CFuncType specific.
-            type = copied_node.type.specialize(fused_to_specific)
+            try:
+                type = copied_node.type.specialize(fused_to_specific)
+            except CannotSpecialize:
+                # unlike for the argument types, specializing the return type can fail
+                error(copied_node.pos, "Return type is a fused type that cannot "
+                      "be determined from the function arguments")
+                self.py_func = None  # this is just to let the compiler exit gracefully
+                return
             entry = copied_node.entry
             type.specialize_entry(entry, cname)
 
@@ -406,7 +414,7 @@ class FusedCFuncDefNode(StatListNode):
                 if itemsize == -1 or itemsize == {{sizeof_dtype}}:
                     memslice = {{coerce_from_py_func}}(arg, 0)
                     if memslice.memview:
-                        __PYX_XDEC_MEMVIEW(&memslice, 1)
+                        __PYX_XCLEAR_MEMVIEW(&memslice, 1)
                         # print 'found a match for the buffer through format parsing'
                         %s
                         break
@@ -485,7 +493,7 @@ class FusedCFuncDefNode(StatListNode):
                 ctypedef struct {{memviewslice_cname}}:
                     void *memview
 
-                void __PYX_XDEC_MEMVIEW({{memviewslice_cname}} *, int have_gil)
+                void __PYX_XCLEAR_MEMVIEW({{memviewslice_cname}} *, int have_gil)
                 bint __pyx_memoryview_check(object)
             """)
 
@@ -833,7 +841,8 @@ class FusedCFuncDefNode(StatListNode):
         for arg in self.node.args:
             if arg.default:
                 arg.default = arg.default.analyse_expressions(env)
-                defaults.append(ProxyNode(arg.default))
+                # coerce the argument to temp since CloneNode really requires a temp
+                defaults.append(ProxyNode(arg.default.coerce_to_temp(env)))
             else:
                 defaults.append(None)
 
@@ -843,7 +852,7 @@ class FusedCFuncDefNode(StatListNode):
                 # the dispatcher specifically doesn't want its defaults overriding
                 for arg, default in zip(stat.args, defaults):
                     if default is not None:
-                        arg.default = CloneNode(default).coerce_to(arg.type, env)
+                        arg.default = CloneNode(default).analyse_expressions(env).coerce_to(arg.type, env)
 
         if self.py_func:
             args = [CloneNode(default) for default in defaults if default]

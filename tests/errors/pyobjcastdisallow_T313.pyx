@@ -1,4 +1,4 @@
-# ticket: 313
+# ticket: t313
 # mode: error
 
 a = 3

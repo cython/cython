@@ -217,6 +217,7 @@ _directive_defaults = {
     'old_style_globals': False,
     'np_pythran': False,
     'fast_gil': False,
+    'cpp_locals': False,  # uses std::optional for C++ locals, so that they work more like Python locals
 
     # set __file__ and/or __path__ to known source/target path at import time (instead of not having them available)
     'set_initial_path' : None,  # SOURCEFILE or "/full/path/to/module"
@@ -326,6 +327,7 @@ directive_types = {
     'c_string_type': one_of('bytes', 'bytearray', 'str', 'unicode'),
     'c_string_encoding': normalise_encoding_name,
     'trashcan': bool,
+    'total_ordering': bool,
 }
 
 for key, val in _directive_defaults.items():
@@ -369,6 +371,8 @@ directive_scopes = {  # defaults to available everywhere
     'fast_gil': ('module',),
     'iterable_coroutine': ('module', 'function'),
     'trashcan' : ('cclass',),
+    'total_ordering': ('cclass', ),
+    'cpp_locals': ('module', 'function', 'cclass'),  # I don't think they make sense in a with_statement
 }
 
 

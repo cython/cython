@@ -11,7 +11,7 @@ Introduction
 
 As well as creating normal user-defined classes with the Python class
 statement, Cython also lets you create new built-in Python types, known as
-extension types. You define an extension type using the :keyword:`cdef` class
+:term:`extension types<Extension type>`. You define an extension type using the :keyword:`cdef` class
 statement.  Here's an example:
 
 .. literalinclude:: ../../examples/userguide/extension_types/shrubbery.pyx
@@ -314,7 +314,7 @@ when it is deleted.::
     del shop.cheese
     print(shop.cheese)
 
-.. sourcecode:: text
+.. code-block:: text
 
     # Test output
     We don't have: []
@@ -402,7 +402,7 @@ compared to a :keyword:`cdef` method::
     print("p2:")
     p2.describe()
 
-.. sourcecode:: text
+.. code-block:: text
 
     # Output
     p1:
@@ -669,6 +669,8 @@ objects from memory. Clearing is implemented in the ``tp_clear`` slot.
 As we just explained, it is sufficient that one object in the cycle
 implements ``tp_clear``.
 
+.. _trashcan:
+
 Enabling the deallocation trashcan
 ----------------------------------
 
@@ -822,7 +824,7 @@ built-in complex object.::
        because, in the Python header files, the ``PyComplexObject`` struct is
        declared with:
 
-       .. sourcecode:: c
+       .. code-block:: c
 
         typedef struct {
             ...
@@ -907,7 +909,9 @@ For example, we may have an extension module ``foo_extension``::
             self.field1 = f1
             self.field2 = f2
 
-but a C struct in a file ``foo_nominal.h``::
+but a C struct in a file ``foo_nominal.h``:
+
+.. code-block:: c
 
    typedef struct {
         PyObject_HEAD
@@ -965,7 +969,8 @@ C inline properties
 Similar to Python property attributes, Cython provides a way to declare C-level
 properties on external extension types.  This is often used to shadow Python
 attributes through faster C level data access, but can also be used to add certain
-functionality to existing types when using them from Cython.
+functionality to existing types when using them from Cython. The declarations
+must use `cdef inline`.
 
 For example, the above ``complex`` type could also be declared like this:
 

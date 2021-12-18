@@ -47,7 +47,7 @@ language.
    The Cython compiler, https://cython.org/.
 .. [IronPython] Jim Hugunin et al., https://archive.codeplex.com/?p=IronPython.
 .. [Jython] J. Huginin, B. Warsaw, F. Bock, et al.,
-   Jython: Python for the Java platform, http://www.jython.org.
+   Jython: Python for the Java platform, https://www.jython.org.
 .. [PyPy] The PyPy Group, PyPy: a Python implementation written in Python,
    https://pypy.org/.
 .. [Pyrex] G. Ewing, Pyrex: C-Extensions for Python,

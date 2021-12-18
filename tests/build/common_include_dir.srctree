@@ -16,13 +16,19 @@ PYTHON fake_grep.py -c '#include "common/AddTraceback_impl_.*h"' c.c
 
 import sys
 from Cython.Build.Dependencies import cythonize
+import os
 
 from distutils.core import setup
 
+# os x on CI specifically seems to crash with nthreads>0
+osx_on_ci = (sys.platform == "darwin" and os.getenv("CI"))
+
 # Test concurrent safety if multiprocessing is available.
-# (In particular, TravisCI does not support spawning processes from tests.)
+# (In particular, CI providers like Travis and Github Actions do not support spawning processes from tests.)
 nthreads = 0
-if not hasattr(sys, 'pypy_version_info'):
+if not (hasattr(sys, 'pypy_version_info') or 
+        (hasattr(sys, 'implementation') and sys.implementation.name == 'graalpython') or
+        osx_on_ci):
     try:
         import multiprocessing
         multiprocessing.Pool(2).close()

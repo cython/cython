@@ -1,3 +1,5 @@
+# cython: language_level=3
+
 # We declare all of these here to type the first argument.
 
 from __future__ import absolute_import
@@ -24,7 +26,7 @@ cdef p_lambdef_nocond(PyrexScanner s)
 cdef p_test(PyrexScanner s)
 cdef p_test_nocond(PyrexScanner s)
 cdef p_or_test(PyrexScanner s)
-cdef p_rassoc_binop_expr(PyrexScanner s, ops, p_sub_expr_func p_subexpr)
+cdef p_rassoc_binop_expr(PyrexScanner s, unicode op, p_sub_expr_func p_subexpr)
 cdef p_and_test(PyrexScanner s)
 cdef p_not_test(PyrexScanner s)
 cdef p_comparison(PyrexScanner s)
@@ -139,10 +141,10 @@ cdef tuple p_suite_with_docstring(PyrexScanner s, ctx, bint with_doc_only=*)
 cdef tuple _extract_docstring(node)
 cdef p_positional_and_keyword_args(PyrexScanner s, end_sy_set, templates = *)
 
-cpdef p_c_base_type(PyrexScanner s, bint self_flag = *, bint nonempty = *, templates = *)
+cpdef p_c_base_type(PyrexScanner s, bint nonempty = *, templates = *)
 cdef p_calling_convention(PyrexScanner s)
 cdef p_c_complex_base_type(PyrexScanner s, templates = *)
-cdef p_c_simple_base_type(PyrexScanner s, bint self_flag, bint nonempty, templates = *)
+cdef p_c_simple_base_type(PyrexScanner s, bint nonempty, templates = *)
 cdef p_buffer_or_template(PyrexScanner s, base_type_node, templates)
 cdef p_bracketed_base_type(PyrexScanner s, base_type_node, nonempty, empty)
 cdef is_memoryviewslice_access(PyrexScanner s)

@@ -16,6 +16,7 @@ x = u'abc'
 
 >>> except_as_deletes
 True
+
 >>> no_match_does_not_touch_target
 True
 """
@@ -24,6 +25,7 @@ import sys
 IS_PY2 = sys.version_info[0] < 3
 if not IS_PY2:
     __doc__ = __doc__.replace(" u'", " '")
+
 
 def locals_function(a, b=2):
     x = 'abc'
@@ -352,7 +354,7 @@ def unicode_literals():
 
 
 def non_ascii_unprefixed_str():
-    u"""
+    """
     >>> s = non_ascii_unprefixed_str()
     >>> isinstance(s, bytes)
     False
@@ -365,7 +367,7 @@ def non_ascii_unprefixed_str():
 
 
 def non_ascii_raw_str():
-    u"""
+    """
     >>> s = non_ascii_raw_str()
     >>> isinstance(s, bytes)
     False
@@ -378,7 +380,7 @@ def non_ascii_raw_str():
 
 
 def non_ascii_raw_prefixed_unicode():
-    u"""
+    """
     >>> s = non_ascii_raw_prefixed_unicode()
     >>> isinstance(s, bytes)
     False
@@ -616,15 +618,15 @@ def annotation_syntax(a: "test new test", b : "other" = 2, *args: "ARGS", **kwar
     >>> len(annotation_syntax.__annotations__)
     5
     >>> print(annotation_syntax.__annotations__['a'])
-    u'test new test'
+    'test new test'
     >>> print(annotation_syntax.__annotations__['b'])
-    u'other'
+    'other'
     >>> print(annotation_syntax.__annotations__['args'])
-    u'ARGS'
+    'ARGS'
     >>> print(annotation_syntax.__annotations__['kwargs'])
-    u'KWARGS'
+    'KWARGS'
     >>> print(annotation_syntax.__annotations__['return'])
-    u'ret'
+    'ret'
     """
     result : int = a + b
 
@@ -648,10 +650,10 @@ async def async_def_annotations(x: 'int') -> 'float':
     >>> ret, arg = sorted(async_def_annotations.__annotations__.items())
     >>> print(ret[0]); print(ret[1])
     return
-    u'float'
+    'float'
     >>> print(arg[0]); print(arg[1])
     x
-    u'int'
+    'int'
     """
     return float(x)
 

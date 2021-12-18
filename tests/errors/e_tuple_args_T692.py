@@ -1,4 +1,4 @@
-# ticket: 692
+# ticket: t692
 # mode: error
 
 def func((a, b)):

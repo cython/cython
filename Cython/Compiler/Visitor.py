@@ -370,8 +370,10 @@ class EnvTransform(CythonTransform):
         self.env_stack.pop()
 
     def visit_FuncDefNode(self, node):
+        outer_attrs = node.outer_attrs
+        self.visitchildren(node, attrs=outer_attrs)
         self.enter_scope(node, node.local_scope)
-        self._process_children(node)
+        self.visitchildren(node, attrs=None, exclude=outer_attrs)
         self.exit_scope()
         return node
 
@@ -673,8 +675,8 @@ class MethodDispatcherTransform(EnvTransform):
         method_handler = self._find_handler(
             "method_%s_%s" % (type_name, attr_name), kwargs)
         if method_handler is None:
-            if (attr_name in TypeSlots.method_name_to_slot
-                    or attr_name == '__new__'):
+            if (attr_name in TypeSlots.special_method_names
+                    or attr_name in ['__new__', '__class__']):
                 method_handler = self._find_handler(
                     "slot%s" % attr_name, kwargs)
             if method_handler is None:
@@ -834,8 +836,8 @@ class PrintTree(TreeVisitor):
                 result += "(name=\"%s\")" % node.name
             elif isinstance(node, ExprNodes.AttributeNode):
                 result += "(type=%s, attribute=\"%s\")" % (repr(node.type), node.attribute)
-            elif isinstance(node, ExprNodes.ConstNode):
-                result += "(type=%s, value=\"%s\")" % (repr(node.type), node.value)
+            elif isinstance(node, (ExprNodes.ConstNode, ExprNodes.PyConstNode)):
+                result += "(type=%s, value=%r)" % (repr(node.type), node.value)
             elif isinstance(node, ExprNodes.ExprNode):
                 t = node.type
                 result += "(type=%s)" % repr(t)

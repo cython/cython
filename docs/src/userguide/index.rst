@@ -35,3 +35,4 @@ Indices and tables
 
 .. toctree::
 
+   glossary

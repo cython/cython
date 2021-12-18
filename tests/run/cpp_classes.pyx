@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, werror
+# tag: cpp, werror, no-cpp-locals
 
 from libcpp.vector cimport vector
 
@@ -130,6 +130,10 @@ def test_value_call(int w):
         del sqr
 
 
+cdef struct StructWithEmpty:
+    Empty empty
+
+
 def get_destructor_count():
     return destructor_count
 
@@ -146,12 +150,24 @@ def test_stack_allocation(int w, int h):
     print rect.method(<int>5)
     return destructor_count
 
+def test_stack_allocation_in_struct():
+    """
+    >>> d = test_stack_allocation_in_struct()
+    >>> get_destructor_count() - d
+    1
+    """
+    cdef StructWithEmpty swe
+    sizeof(swe.empty) # use it for something
+    return destructor_count
 
 cdef class EmptyHolder:
     cdef Empty empty
 
 cdef class AnotherEmptyHolder(EmptyHolder):
     cdef Empty another_empty
+
+cdef class EmptyViaStructHolder:
+    cdef StructWithEmpty swe
 
 def test_class_member():
     """
@@ -183,6 +199,18 @@ def test_derived_class_member():
     assert destructor_count - start_destructor_count == 2, \
            destructor_count - start_destructor_count
 
+def test_class_in_struct_member():
+    """
+    >>> test_class_in_struct_member()
+    """
+    start_constructor_count = constructor_count
+    start_destructor_count = destructor_count
+    e = EmptyViaStructHolder()
+    #assert constructor_count - start_constructor_count == 1, \
+    #       constructor_count - start_constructor_count
+    del e
+    assert destructor_count - start_destructor_count == 1, \
+           destructor_count - start_destructor_count
 
 cdef class TemplateClassMember:
     cdef vector[int] x

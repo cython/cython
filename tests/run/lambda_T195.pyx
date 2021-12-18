@@ -1,6 +1,6 @@
 # mode: run
 # tag: lambda
-# ticket: 195
+# ticket: t195
 
 __doc__ = u"""
 #>>> py_identity = lambda x:x

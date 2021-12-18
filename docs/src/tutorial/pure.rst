@@ -82,7 +82,7 @@ in the :file:`.pxd`, that is, to be accessible from Python,
 
 
 In the example above, the type of the local variable `a` in `myfunction()`
-is not fixed and will thus be a Python object.  To statically type it, one
+is not fixed and will thus be a :term:`Python object`.  To statically type it, one
 can use Cython's ``@cython.locals`` decorator (see :ref:`magic_attributes`,
 and :ref:`magic_attributes_pxd`).
 
@@ -209,6 +209,23 @@ Here is an example of a :keyword:`cdef` function::
         return a == b
 
 
+cimports
+^^^^^^^^
+
+The special ``cython.cimports`` package name gives access to cimports
+in code that uses Python syntax.  Note that this does not mean that C
+libraries become available to Python code.  It only means that you can
+tell Cython what cimports you want to use, without requiring special
+syntax.  Running such code in plain Python will fail.
+
+.. literalinclude:: ../../examples/tutorial/pure/py_cimport.py
+
+Since such code must necessarily refer to the non-existing
+``cython.cimports`` 'package', the plain cimport form
+``cimport cython.cimports...`` is not available.
+You must use the form ``from cython.cimports...``.
+
+
 Further Cython functions and declarations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -225,6 +242,13 @@ Further Cython functions and declarations
     cython.declare(n=cython.longlong)
     print(cython.sizeof(cython.longlong))
     print(cython.sizeof(n))
+
+* ``typeof`` returns a string representation of the argument's type for debugging purposes.  It can take expressions.
+
+  ::
+
+    cython.declare(n=cython.longlong)
+    print(cython.typeof(n))
 
 * ``struct`` can be used to create struct types.::
 
@@ -322,6 +346,8 @@ improve the type analysis in Cython.
 
 Tips and Tricks
 ---------------
+
+.. _calling-c-functions:
 
 Calling C functions
 ^^^^^^^^^^^^^^^^^^^

@@ -1,4 +1,4 @@
-# ticket: 117
+# ticket: t117
 # mode: error
 
 ctypedef object[float] mybuffer
