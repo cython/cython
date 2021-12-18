@@ -110,12 +110,6 @@ jobs:
             backend: c
             env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
             extra_hash: "-typespecs"
-          - os: ubuntu-18.04
-            python-version: 3.5
-            backend: c
-            env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
-            extra_hash: "-typespecs"
-            allowed_failure: true
           # Stackless
           - os: ubuntu-18.04
             python-version: 2.7
