@@ -648,8 +648,8 @@ static CYTHON_INLINE void * PyThread_tss_get(Py_tss_t *key) {
                 __declspec(deprecated("`with nogil:` inside a nogil function will not release the GIL in PyPy2 < 7.3.6"))
             #endif
             static CYTHON_INLINE int PyGILState_Check(void) {
-                // PyGILState_Check is used to decided whether to release the GIL when we don't
-                // know what we have it. For PyPy2 it isn't possible to check.
+                // PyGILState_Check is used to decide whether to release the GIL when we don't
+                // know that we have it. For PyPy2 it isn't possible to check.
                 // Therefore assume that we don't have the GIL (which causes us not to release it,
                 // but is "safe")
                 return 0;
