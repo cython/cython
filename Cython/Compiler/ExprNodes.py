@@ -2136,8 +2136,6 @@ class NameNode(AtomicExprNode):
 
         if self.type.is_const:
             error(self.pos, "Assignment to const '%s'" % self.name)
-        if self.type.is_reference:
-            error(self.pos, "Assignment to reference '%s'" % self.name)
         if not self.is_lvalue():
             error(self.pos, "Assignment to non-lvalue '%s'" % self.name)
             self.type = PyrexTypes.error_type
