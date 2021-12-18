@@ -1630,7 +1630,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "}")
 
     def generate_del_function(self, scope, code):
-        tp_slot = TypeSlots.get_slot_by_name("tp_finalize")
+        tp_slot = TypeSlots.get_slot_by_name("tp_finalize", scope.directives)
         slot_func_cname = scope.mangle_internal("tp_finalize")
         if tp_slot.slot_code(scope) != slot_func_cname:
             return  # never used
