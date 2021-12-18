@@ -1092,6 +1092,7 @@ class SlotTable(object):
 
         MethodSlot(initproc, "", "__cinit__", method_name_to_slot)
         MethodSlot(destructor, "", "__dealloc__", method_name_to_slot)
+        MethodSlot(destructor, "", "__del__", method_name_to_slot)
         MethodSlot(objobjargproc, "", "__setitem__", method_name_to_slot)
         MethodSlot(objargproc, "", "__delitem__", method_name_to_slot)
         MethodSlot(ssizessizeobjargproc, "", "__setslice__", method_name_to_slot)
