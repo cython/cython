@@ -10,6 +10,7 @@ run.cdef_multiple_inheritance_nodict
 run.extstarargs
 run.cpython_capi
 run.isnot
+run.partial_circular_import
 
 # pypy 2 seems to be preferring .py files to .so files
 # https://foss.heptapod.net/pypy/pypy/issues/3185
