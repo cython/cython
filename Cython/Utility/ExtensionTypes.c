@@ -155,7 +155,8 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
 
 /////////////// PyType_Ready.proto ///////////////
 
-static int __Pyx_PyType_Ready(PyTypeObject *t);/*proto*/
+// unused when using type specs
+static CYTHON_UNUSED int __Pyx_PyType_Ready(PyTypeObject *t);/*proto*/
 
 /////////////// PyType_Ready ///////////////
 //@requires: ObjectHandling.c::PyObjectCallMethod0
