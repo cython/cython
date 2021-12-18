@@ -27,6 +27,14 @@ Features added
 Bugs fixed
 ----------
 
+* Circular imports of compiled modules could fail needlessly even when the import
+  could already be resolved from ``sys.modules``.
+  Patch by Syam Gadde.  (Github issue :issue:`4390`)
+
+* The GIL can now safely be released inside of ``nogil`` functions (which may actually
+  be called with the GIL held at runtime).
+  Patch by David Woods.  (Github issue :issue:`4137`)
+
 * Type errors when passing memory view arguments could leak buffer references.
   Patch by David Woods.  (Github issue :issue:`4296`)
 
@@ -67,9 +75,9 @@ Bugs fixed
   Patch by David Woods.  (Github issue :issue:`3085`)
 
 * Several C++ library declarations were added and fixed.
-  Patches by Dobatymo, account-login, Jonathan Helgert.
+  Patches by Dobatymo, account-login, Jonathan Helgert, Evgeny Yakimov.
   (Github issues :issue:`4408`, :issue:`4419`, :issue:`4410`, :issue:`4395`,
-  :issue:`4423`, :issue:`4448`, :issue:`4462`)
+  :issue:`4423`, :issue:`4448`, :issue:`4462`, :issue:`3293`)
 
 * Some compiler problems and warnings were resolved.
   Patches by David Woods, 0dminnimda, Nicolas Pauss and others.
