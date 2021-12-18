@@ -8343,9 +8343,12 @@ class GILStatNode(NogilTryFinallyStatNode):
     #  'with gil' or 'with nogil' statement
     #
     #   state   string   'gil' or 'nogil'
+    #   scope_gil_state_known  bool  For nogil functions this can be False, since they can also be run with gil
+    #                           set to False by GilCheck transform
 
     child_attrs = ["condition"] + NogilTryFinallyStatNode.child_attrs
     state_temp = None
+    scope_gil_state_known = True
 
     def __init__(self, pos, state, body, condition=None):
         self.state = state
@@ -8408,7 +8411,7 @@ class GILStatNode(NogilTryFinallyStatNode):
             code.put_ensure_gil(variable=variable)
             code.funcstate.gil_owned = True
         else:
-            code.put_release_gil(variable=variable)
+            code.put_release_gil(variable=variable, unknown_gil_state=not self.scope_gil_state_known)
             code.funcstate.gil_owned = False
 
         TryFinallyStatNode.generate_execution_code(self, code)
@@ -8425,10 +8428,13 @@ class GILExitNode(StatNode):
     Used as the 'finally' block in a GILStatNode
 
     state   string   'gil' or 'nogil'
+    #   scope_gil_state_known  bool  For nogil functions this can be False, since they can also be run with gil
+    #                           set to False by GilCheck transform
     """
 
     child_attrs = []
     state_temp = None
+    scope_gil_state_known = True
 
     def analyse_expressions(self, env):
         return self
@@ -8442,7 +8448,7 @@ class GILExitNode(StatNode):
         if self.state == 'gil':
             code.put_release_ensured_gil(variable)
         else:
-            code.put_acquire_gil(variable)
+            code.put_acquire_gil(variable, unknown_gil_state=not self.scope_gil_state_known)
 
 
 class EnsureGILNode(GILExitNode):
