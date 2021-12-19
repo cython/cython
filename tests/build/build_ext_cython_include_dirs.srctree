@@ -1,0 +1,30 @@
+
+PYTHON setup.py build_ext --inplace --cython-include-dirs=./headers
+PYTHON -c 'import mymodule; assert mymodule.test_string == "TEST"; assert mymodule.header_value == 5'
+
+############# setup.py #############
+
+from Cython.Distutils.extension import Extension
+from Cython.Build import build_ext
+from distutils.core import setup
+
+setup(
+    name='Hello world app',
+    ext_modules = [
+        Extension(
+            name = 'mymodule',
+            sources=['mymodule.pyx'],
+        )
+    ],
+    cmdclass={'build_ext': build_ext},
+)
+
+######## mymodule.pyx ########
+
+include "myheader.pxi"
+header_value = test_value
+test_string = "TEST"
+
+######## headers/myheader.pxi ########
+
+cdef int test_value = 5
