@@ -1,15 +1,10 @@
 import sys
 import os
 
-if 'setuptools' in sys.modules:
-    try:
-        from setuptools.command.build_ext import build_ext as _build_ext
-    except ImportError:
-        # Since Cython.Distutils.build_ext is being imported in setuptools,
-        # we may be in the process of importing setuptools.
-        from distutils.command.build_ext import build_ext as _build_ext
-else:
-    from distutils.command.build_ext import build_ext as _build_ext
+# Always inherit from the "build_ext" in distutils since setuptools already imports it
+# from Cython if available, and does the proper distutils fallback otherwise.
+# https://github.com/pypa/setuptools/blob/9f1822ee910df3df930a98ab99f66d18bb70659b/setuptools/command/build_ext.py#L16
+from distutils.command.build_ext import build_ext as _build_ext
 
 try:
     from __builtin__ import basestring
