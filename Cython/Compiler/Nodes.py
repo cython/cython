@@ -5273,13 +5273,14 @@ class CClassDefNode(ClassDefNode):
                 first_base = "((PyTypeObject*)PyTuple_GET_ITEM(%s, 0))" % bases
                 # Let Python do the base types compatibility checking.
                 trial_type = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=True)
-                code.putln("%s = PyType_Type.tp_new(&PyType_Type, %s, NULL);" % (
+                code.putln("%s = __Pyx_PyType_GetSlot(&PyType_Type, tp_new, newfunc)(&PyType_Type, %s, NULL);" % (
                     trial_type, self.type_init_args.result()))
                 code.putln(code.error_goto_if_null(trial_type, self.pos))
                 code.put_gotref(trial_type, py_object_type)
-                code.putln("if (((PyTypeObject*) %s)->tp_base != %s) {" % (
+                code.putln("if (__Pyx_PyType_GetSlot((PyTypeObject*) %s, tp_base, PyTypeObject*) != %s) {" % (
                     trial_type, first_base))
-                code.putln("__Pyx_TypeName base_name = __Pyx_PyType_GetName(((PyTypeObject*) %s)->tp_base);" % trial_type)
+                trial_type_base = "__Pyx_PyType_GetSlot((PyTypeObject*) %s, tp_base, PyTypeObject*)" % trial_type
+                code.putln("__Pyx_TypeName base_name = __Pyx_PyType_GetName(%s);" % trial_type_base)
                 code.putln("__Pyx_TypeName type_name = __Pyx_PyType_GetName(%s);" % first_base)
                 code.putln("PyErr_Format(PyExc_TypeError, "
                     "\"best base '\" __Pyx_FMT_TYPENAME \"' must be equal to first base '\" __Pyx_FMT_TYPENAME \"'\",")

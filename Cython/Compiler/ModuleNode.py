@@ -1519,16 +1519,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if need_self_cast:
             code.putln("%s;" % scope.parent_type.declaration_code("p"))
         if base_type:
-            code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-            code.putln("newfunc new_func = (newfunc)PyType_GetSlot(%s, Py_tp_new);" %
-                base_type.typeptr_cname)
-            code.putln("PyObject *o = new_func(t, a, k);")
-            code.putln("#else")
             tp_new = TypeSlots.get_base_slot_function(scope, tp_slot)
             if tp_new is None:
-                tp_new = "%s->tp_new" % base_type.typeptr_cname
+                tp_new = "__Pyx_PyType_GetSlot(%s, tp_new, newfunc)" % base_type.typeptr_cname
             code.putln("PyObject *o = %s(t, a, k);" % tp_new)
-            code.putln("#endif")
         else:
             code.putln("PyObject *o;")
             code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
@@ -1694,9 +1688,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(
                 "if (unlikely("
                 "(PY_VERSION_HEX >= 0x03080000 || __Pyx_PyType_HasFeature(Py_TYPE(o), Py_TPFLAGS_HAVE_FINALIZE))"
-                " && Py_TYPE(o)->tp_finalize) && %s) {" % finalised_check)
+                " && __Pyx_PyObject_GetSlot(o, tp_finalize, destructor)) && %s) {" % finalised_check)
 
-            code.putln("if (Py_TYPE(o)->tp_dealloc == %s) {" % slot_func_cname)
+            code.putln("if (__Pyx_PyObject_GetSlot(o, tp_dealloc, destructor) == %s) {" % slot_func_cname)
             # if instance was resurrected by finaliser, return
             code.putln("if (PyObject_CallFinalizerFromDealloc(o)) return;")
             code.putln("}")
@@ -1750,14 +1744,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if tp_dealloc is not None:
                 code.putln("%s(o);" % tp_dealloc)
             elif base_type.is_builtin_type:
-                code.putln("%s->tp_dealloc(o);" % base_type.typeptr_cname)
+                code.putln("__Pyx_PyType_GetSlot(%s, tp_dealloc, destructor)(o);" % base_type.typeptr_cname)
             else:
                 # This is an externally defined type.  Calling through the
                 # cimported base type pointer directly interacts badly with
                 # the module cleanup, which may already have cleared it.
                 # In that case, fall back to traversing the type hierarchy.
                 base_cname = base_type.typeptr_cname
-                code.putln("if (likely(%s)) %s->tp_dealloc(o); "
+                code.putln("if (likely(%s)) __Pyx_PyType_GetSlot(%s, tp_dealloc, destructor)(o); "
                            "else __Pyx_call_next_tp_dealloc(o, %s);" % (
                                base_cname, base_cname, slot_func_cname))
                 code.globalstate.use_utility_code(
@@ -2275,7 +2269,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     "right, left" if reverse else "left, right",
                     extra_arg)
             else:
-                return '%s_maybe_call_slot(%s->tp_base, left, right %s)' % (
+                return '%s_maybe_call_slot(__Pyx_PyType_GetSlot(%s, tp_base, PyTypeObject*), left, right %s)' % (
                     func_name,
                     scope.parent_type.typeptr_cname,
                     extra_arg)

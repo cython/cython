@@ -178,7 +178,8 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
 
 #else
     int r;
-    if (t->tp_bases && unlikely(__Pyx_validate_bases_tuple(t->tp_name, t->tp_dictoffset, t->tp_bases) == -1))
+    PyObject *bases = __Pyx_PyType_GetSlot(t, tp_bases, PyObject*);
+    if (bases && unlikely(__Pyx_validate_bases_tuple(t->tp_name, t->tp_dictoffset, bases) == -1))
         return -1;
 
 #if PY_VERSION_HEX >= 0x03050000 && !defined(PYSTON_MAJOR_VERSION)
@@ -308,7 +309,7 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
     } while (0);
 
 #define __Pyx_TRASHCAN_BEGIN(op, dealloc) __Pyx_TRASHCAN_BEGIN_CONDITION(op, \
-        Py_TYPE(op)->tp_dealloc == (destructor)(dealloc))
+        __Pyx_PyObject_GetSlot(op, tp_dealloc, destructor) == (destructor)(dealloc))
 
 #else
 // The trashcan is a no-op on other Python implementations
@@ -325,13 +326,14 @@ static void __Pyx_call_next_tp_dealloc(PyObject* obj, destructor current_tp_deal
 
 static void __Pyx_call_next_tp_dealloc(PyObject* obj, destructor current_tp_dealloc) {
     PyTypeObject* type = Py_TYPE(obj);
+    destructor tp_dealloc = NULL;
     /* try to find the first parent type that has a different tp_dealloc() function */
-    while (type && type->tp_dealloc != current_tp_dealloc)
-        type = type->tp_base;
-    while (type && type->tp_dealloc == current_tp_dealloc)
-        type = type->tp_base;
+    while (type && __Pyx_PyType_GetSlot(type, tp_dealloc, destructor) != current_tp_dealloc)
+        type = __Pyx_PyType_GetSlot(type, tp_base, PyTypeObject*);
+    while (type && (tp_dealloc = __Pyx_PyType_GetSlot(type, tp_dealloc, destructor)) == current_tp_dealloc)
+        type = __Pyx_PyType_GetSlot(type, tp_base, PyTypeObject*);
     if (type)
-        type->tp_dealloc(obj);
+        tp_dealloc(obj);
 }
 
 /////////////// CallNextTpTraverse.proto ///////////////
@@ -342,32 +344,34 @@ static int __Pyx_call_next_tp_traverse(PyObject* obj, visitproc v, void *a, trav
 
 static int __Pyx_call_next_tp_traverse(PyObject* obj, visitproc v, void *a, traverseproc current_tp_traverse) {
     PyTypeObject* type = Py_TYPE(obj);
+    traverseproc tp_traverse = NULL;
     /* try to find the first parent type that has a different tp_traverse() function */
-    while (type && type->tp_traverse != current_tp_traverse)
-        type = type->tp_base;
-    while (type && type->tp_traverse == current_tp_traverse)
-        type = type->tp_base;
-    if (type && type->tp_traverse)
-        return type->tp_traverse(obj, v, a);
+    while (type && __Pyx_PyType_GetSlot(type, tp_traverse, traverseproc) != current_tp_traverse)
+        type = __Pyx_PyType_GetSlot(type, tp_base, PyTypeObject*);
+    while (type && (tp_traverse = __Pyx_PyType_GetSlot(type, tp_traverse, traverseproc)) == current_tp_traverse)
+        type = __Pyx_PyType_GetSlot(type, tp_base, PyTypeObject*);
+    if (type && tp_traverse)
+        return tp_traverse(obj, v, a);
     // FIXME: really ignore?
     return 0;
 }
 
 /////////////// CallNextTpClear.proto ///////////////
 
-static void __Pyx_call_next_tp_clear(PyObject* obj, inquiry current_tp_dealloc);
+static void __Pyx_call_next_tp_clear(PyObject* obj, inquiry current_tp_clear);
 
 /////////////// CallNextTpClear ///////////////
 
 static void __Pyx_call_next_tp_clear(PyObject* obj, inquiry current_tp_clear) {
     PyTypeObject* type = Py_TYPE(obj);
+    inquiry tp_clear = NULL;
     /* try to find the first parent type that has a different tp_clear() function */
-    while (type && type->tp_clear != current_tp_clear)
-        type = type->tp_base;
-    while (type && type->tp_clear == current_tp_clear)
-        type = type->tp_base;
-    if (type && type->tp_clear)
-        type->tp_clear(obj);
+    while (type && __Pyx_PyType_GetSlot(type, tp_clear, inquiry) != current_tp_clear)
+        type = __Pyx_PyType_GetSlot(type, tp_base, PyTypeObject*);
+    while (type && (tp_clear = __Pyx_PyType_GetSlot(type, tp_clear, inquiry)) == current_tp_clear)
+        type = __Pyx_PyType_GetSlot(type, tp_base, PyTypeObject*);
+    if (type && tp_clear)
+        tp_clear(obj);
 }
 
 /////////////// SetupReduce.proto ///////////////
