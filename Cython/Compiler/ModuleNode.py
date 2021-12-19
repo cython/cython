@@ -1641,14 +1641,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         slot_func_cname = scope.mangle_internal("tp_finalize")
         code.putln("")
 
-        code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
+        if tp_slot.used_ifdef:
+            code.putln("#if %s" % tp_slot.used_ifdef)
         code.putln("static void %s(PyObject *o) {" % slot_func_cname)
         code.putln("PyObject *etype, *eval, *etb;")
         code.putln("PyErr_Fetch(&etype, &eval, &etb);")
         code.putln("%s(o);" % entry.func_cname)
         code.putln("PyErr_Restore(etype, eval, etb);")
         code.putln("}")
-        code.putln("#endif")
+        if tp_slot.used_ifdef:
+            code.putln("#endif")
 
     def generate_dealloc_function(self, scope, code):
         tp_slot = TypeSlots.ConstructorSlot("tp_dealloc", '__dealloc__')
