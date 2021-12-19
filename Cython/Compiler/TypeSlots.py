@@ -219,13 +219,17 @@ class SlotDescriptor(object):
     #  py3                           Indicates presence of slot in Python 3
     #  py2                           Indicates presence of slot in Python 2
     #  ifdef                         Full #ifdef string that slot is wrapped in. Using this causes py3, py2 and flags to be ignored.)
+    #  used_ifdef                    Full #ifdef string that the slot value is wrapped in (otherwise it is assigned NULL)
+    #                                Unlike "ifdef" the slot is defined and this just controls if it receives a value
 
     def __init__(self, slot_name, dynamic=False, inherited=False,
-                 py3=True, py2=True, ifdef=None, is_binop=False):
+                 py3=True, py2=True, ifdef=None, is_binop=False,
+                 used_ifdef=None):
         self.slot_name = slot_name
         self.is_initialised_dynamically = dynamic
         self.is_inherited = inherited
         self.ifdef = ifdef
+        self.used_ifdef = used_ifdef
         self.py3 = py3
         self.py2 = py2
         self.is_binop = is_binop
@@ -293,7 +297,13 @@ class SlotDescriptor(object):
                     code.putln("#else")
                     end_pypy_guard = True
 
+        if self.used_ifdef:
+            code.putln("#if %s" % self.used_ifdef)
         code.putln("%s, /*%s*/" % (value, self.slot_name))
+        if self.used_ifdef:
+            code.putln("#else")
+            code.putln("NULL, /*%s*/" % self.slot_name)
+            code.putln("#endif")
 
         if end_pypy_guard:
             code.putln("#endif")
@@ -546,6 +556,9 @@ class TypeFlagsSlot(SlotDescriptor):
             value += "|Py_TPFLAGS_BASETYPE"
         if scope.needs_gc():
             value += "|Py_TPFLAGS_HAVE_GC"
+        entry = scope.lookup("__del__")
+        if entry and entry.is_special:
+            value += "|Py_TPFLAGS_HAVE_FINALIZE"
         return value
 
     def generate_spec(self, scope, code):
@@ -1061,7 +1074,8 @@ class SlotTable(object):
             EmptySlot("tp_weaklist"),
             EmptySlot("tp_del"),
             EmptySlot("tp_version_tag"),
-            EmptySlot("tp_finalize", ifdef="PY_VERSION_HEX >= 0x030400a1"),
+            SyntheticSlot("tp_finalize", ["__del__"], "0", ifdef="PY_VERSION_HEX >= 0x030400a1",
+                          used_ifdef="CYTHON_USE_TP_FINALIZE"),
             EmptySlot("tp_vectorcall", ifdef="PY_VERSION_HEX >= 0x030800b1"),
             EmptySlot("tp_print", ifdef="PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000"),
             # PyPy specific extension - only here to avoid C compiler warnings.
@@ -1078,6 +1092,7 @@ class SlotTable(object):
 
         MethodSlot(initproc, "", "__cinit__", method_name_to_slot)
         MethodSlot(destructor, "", "__dealloc__", method_name_to_slot)
+        MethodSlot(destructor, "", "__del__", method_name_to_slot)
         MethodSlot(objobjargproc, "", "__setitem__", method_name_to_slot)
         MethodSlot(objargproc, "", "__delitem__", method_name_to_slot)
         MethodSlot(ssizessizeobjargproc, "", "__setslice__", method_name_to_slot)

@@ -1400,6 +1400,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 if scope:  # could be None if there was an error
                     self.generate_exttype_vtable(scope, code)
                     self.generate_new_function(scope, code, entry)
+                    self.generate_del_function(scope, code)
                     self.generate_dealloc_function(scope, code)
 
                     if scope.needs_gc():
@@ -1628,6 +1629,29 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(
             "}")
 
+    def generate_del_function(self, scope, code):
+        tp_slot = TypeSlots.get_slot_by_name("tp_finalize", scope.directives)
+        slot_func_cname = scope.mangle_internal("tp_finalize")
+        if tp_slot.slot_code(scope) != slot_func_cname:
+            return  # never used
+
+        entry = scope.lookup_here("__del__")
+        if entry is None or not entry.is_special:
+            return  # nothing to wrap
+        slot_func_cname = scope.mangle_internal("tp_finalize")
+        code.putln("")
+
+        if tp_slot.used_ifdef:
+            code.putln("#if %s" % tp_slot.used_ifdef)
+        code.putln("static void %s(PyObject *o) {" % slot_func_cname)
+        code.putln("PyObject *etype, *eval, *etb;")
+        code.putln("PyErr_Fetch(&etype, &eval, &etb);")
+        code.putln("%s(o);" % entry.func_cname)
+        code.putln("PyErr_Restore(etype, eval, etb);")
+        code.putln("}")
+        if tp_slot.used_ifdef:
+            code.putln("#endif")
+
     def generate_dealloc_function(self, scope, code):
         tp_slot = TypeSlots.ConstructorSlot("tp_dealloc", '__dealloc__')
         slot_func = scope.mangle_internal("tp_dealloc")
@@ -1671,8 +1695,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 "if (unlikely("
                 "(PY_VERSION_HEX >= 0x03080000 || __Pyx_PyType_HasFeature(Py_TYPE(o), Py_TPFLAGS_HAVE_FINALIZE))"
                 " && Py_TYPE(o)->tp_finalize) && %s) {" % finalised_check)
+
+            code.putln("if (Py_TYPE(o)->tp_dealloc == %s) {" % slot_func_cname)
             # if instance was resurrected by finaliser, return
             code.putln("if (PyObject_CallFinalizerFromDealloc(o)) return;")
+            code.putln("}")
             code.putln("}")
             code.putln("#endif")
 
