@@ -8,11 +8,17 @@ Cython Changelog
 Features added
 --------------
 
+* ``__del__(self)`` on extension types now maps to ``tp_finalize`` in Python 3.
+  Original patch by ax487.  (Github issue :issue:`3612`)
+
 * Conversion from Python dict to C++ map now supports arbitrary Python mappings,
   not just dicts.
 
 * ``pyximport`` now uses ``cythonize()`` internally.
   Patch by Matus Valo.  (Github issue :issue:`2304`)
+
+* Direct assignments to C++ references are now allowed.
+  Patch by David Woods.  (Github issue :issue:`1863`)
 
 * An initial set of adaptations for GraalVM Python was implemented.  Note that
   this does not imply any general support for this target or that your code
