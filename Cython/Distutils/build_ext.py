@@ -86,7 +86,7 @@ class build_ext(_build_ext, object):
         # In case extension.include_dirs is a generator, evaluate it and keep
         # result
         ext.include_dirs = list(ext.include_dirs)
-        for include_dir in ext.include_dirs:
+        for include_dir in ext.include_dirs + list(self.include_dirs):
             if include_dir not in includes:
                 includes.append(include_dir)
 
