@@ -1,21 +1,26 @@
 import sys
 import os
 
-# Make sure we import setuptools before distutils, if available (which it should be).
-try:
-    import setuptools
-except ImportError:
-    pass
-
-# Always inherit from the "build_ext" in distutils since setuptools already imports it
-# from Cython if available, and does the proper distutils fallback otherwise.
-# https://github.com/pypa/setuptools/blob/9f1822ee910df3df930a98ab99f66d18bb70659b/setuptools/command/build_ext.py#L16
-from distutils.command.build_ext import build_ext as _build_ext
-
 try:
     from __builtin__ import basestring
 except ImportError:
     basestring = str
+
+# Always inherit from the "build_ext" in distutils since setuptools already imports
+# it from Cython if available, and does the proper distutils fallback otherwise.
+# https://github.com/pypa/setuptools/blob/9f1822ee910df3df930a98ab99f66d18bb70659b/setuptools/command/build_ext.py#L16
+
+# setuptools imports Cython's "build_ext", so make sure we go first.
+_build_ext_module = sys.modules.get('setuptools.command.build_ext')
+if _build_ext_module is None:
+    import distutils.command.build_ext as _build_ext_module
+
+# setuptools remembers the original distutils "build_ext" as "_du_build_ext"
+_build_ext = getattr(_build_ext_module, '_du_build_ext', None)
+if _build_ext is None:
+    _build_ext = getattr(_build_ext_module, 'build_ext', None)
+if _build_ext is None:
+    from distutils.command.build_ext import build_ext as _build_ext
 
 
 class build_ext(_build_ext, object):
