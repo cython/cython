@@ -18,6 +18,7 @@ from Cython.Utils import cached_function
 from .Code import UtilityCode, LazyUtilityCode, TempitaUtilityCode
 from . import StringEncoding
 from . import Naming
+from . import Backend
 
 from .Errors import error, warning, CannotSpecialize
 
@@ -341,13 +342,10 @@ class PyrexType(BaseType):
         return 0
 
     def _assign_from_py_code(self, source_code, result_code, error_pos, code,
-                             from_py_function=None, error_condition=None, extra_args=None):
-        args = ', ' + ', '.join('%s' % arg for arg in extra_args) if extra_args else ''
-        convert_call = "%s(%s%s)" % (
+                             from_py_function=None, error_condition=None, extra_args=[]):
+        convert_call = Backend.backend.get_call(
             from_py_function or self.from_py_function,
-            source_code,
-            args,
-        )
+            source_code, *extra_args)
         if self.is_enum:
             convert_call = typecast(self, c_long_type, convert_call)
         return '%s = %s; %s' % (
@@ -2772,7 +2770,7 @@ class CArrayType(CPointerBaseType):
     def from_py_call_code(self, source_code, result_code, error_pos, code,
                           from_py_function=None, error_condition=None):
         assert not error_condition, '%s: %s' % (error_pos, error_condition)
-        call_code = "%s(%s, %s, %s)" % (
+        call_code = Backend.backend.get_call(
             from_py_function or self.from_py_function,
             source_code, result_code, self.size)
         return code.error_goto_if_neg(call_code, error_pos)
@@ -2973,6 +2971,7 @@ class CFuncType(CType):
         self.is_static_method = is_static_method
         self.templates = templates
         self.is_strict_signature = is_strict_signature
+        self.foreign = False
 
     def __repr__(self):
         arg_reprs = list(map(repr, self.args))

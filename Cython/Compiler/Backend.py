@@ -49,7 +49,11 @@ class CApiBackend(APIBackend):
 
     @staticmethod
     def get_args(*args):
-        return ", ".join(args)
+        return ", ".join("%s" % arg for arg in args)
+
+    @staticmethod
+    def get_call(func, *args):
+        return "%s(%s)" % (func, CApiBackend.get_args(*args))
 
     @staticmethod
     def get_clear_global(module_cname, var_cname):
@@ -73,11 +77,11 @@ class CApiBackend(APIBackend):
         return "!(%s)" % expr
 
     @staticmethod
-    def get_is_null_cond(expr):
+    def get_is_not_null_cond(expr):
         """
-        Generates a null-check condition (e.g. "!something").
+        Generates a not-null condition (like "something != NULL").
         """
-        return "!(%s)" % expr
+        return "%s" % expr
 
     # Backend selection methods
 
@@ -119,7 +123,11 @@ class HPyBackend(APIBackend):
 
     @staticmethod
     def get_args(*args):
-        return ", ".join((Naming.hpy_context_cname,) + args)
+        return ", ".join([Naming.hpy_context_cname, ] + ["%s" % arg for arg in args])
+
+    @staticmethod
+    def get_call(func, *args):
+        return "%s(%s)" % (func, HPyBackend.get_args(*args))
 
     @staticmethod
     def get_clear_global(module_cname, var_cname):
@@ -243,7 +251,11 @@ class CombinedBackend(APIBackend):
 
     @staticmethod
     def get_args(*args):
-        return "__PYX_CONTEXT " + ", ".join(args)
+        return "__PYX_CONTEXT " + ", ".join(["%s" % arg for arg in args])
+
+    @staticmethod
+    def get_call(func, *args):
+        return "%s(__PYX_CONTEXT %s)" % (func, CombinedBackend.get_args(*args))
 
     @staticmethod
     def get_clear_global(module_cname, var_cname):
