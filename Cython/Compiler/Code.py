@@ -2712,10 +2712,10 @@ class CCodeWriter(object):
         return self.error_goto_if("PyErr_Occurred()", pos)
 
     def is_null_cond(self, cname):
-        return "!" + cname
+        return Backend.CApiBackend.get_is_null_cond(cname)
 
     def is_not_null_cond(self, cname):
-        return cname
+        return Backend.CApiBackend.get_is_not_null_cond(cname)
 
     def lookup_filename(self, filename):
         return self.globalstate.lookup_filename(filename)
@@ -3717,7 +3717,7 @@ class HPyCCodeWriter(CCodeWriter):
         return "if (%s) %s" % (self.unlikely(cond), self.error_goto(pos))
 
     def error_goto_if_null(self, cname, pos):
-        return self.error_goto_if(self.is_null_cond(cname), pos)
+        return self.error_goto_if(Backend.HPyBackend.get_is_null_cond(cname), pos)
 
     def error_goto_if_neg(self, cname, pos):
         # Add extra parentheses to silence clang warnings about constant conditions.
@@ -3726,11 +3726,8 @@ class HPyCCodeWriter(CCodeWriter):
     def error_goto_if_PyErr(self, pos):
         return self.error_goto_if("HPyErr_Occurred(%s)" % Naming.hpy_context_cname, pos)
 
-    def is_null_cond(self, cname):
-        return "HPy_IsNull(%s)" % cname
-
     def is_not_null_cond(self, cname):
-        return "!HPy_IsNull(%s)" % cname
+        return Backend.HPyBackend.get_is_not_null_cond(cname)
 
     def lookup_filename(self, filename):
         return self.globalstate.lookup_filename(filename)

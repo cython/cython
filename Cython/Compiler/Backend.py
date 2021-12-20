@@ -63,6 +63,24 @@ class CApiBackend(APIBackend):
     def get_visit_global(var_cname):
         return "Py_VISIT(%s);" % var_cname
 
+    # Expression generation methods
+
+    @staticmethod
+    def get_is_null_cond(expr):
+        """
+        Generates a is-null condition (e.g. "!something").
+        """
+        return "!(%s)" % expr
+
+    @staticmethod
+    def get_is_null_cond(expr):
+        """
+        Generates a null-check condition (e.g. "!something").
+        """
+        return "!(%s)" % expr
+
+    # Backend selection methods
+
     @staticmethod
     def get_hpy(hpy_code):
         return ""
@@ -121,6 +139,25 @@ class HPyBackend(APIBackend):
     def get_pyobject_var_decl(var_name):
         return "HPy " + var_name
 
+    # Expression generation methods
+
+    @staticmethod
+    def get_is_null_cond(expr):
+        """
+        Generates a null-check condition (e.g. "HPy_IsNull(something)").
+        """
+        return "HPy_IsNull(%s)" % expr
+
+    @staticmethod
+    def get_is_not_null_cond(expr):
+        """
+        Generates a not-null condition (like "!HPy_IsNull(something)").
+        """
+        return "!HPy_IsNull(%s)" % expr
+
+
+    # Backend selection methods
+
     @staticmethod
     def get_hpy(hpy_code):
         return hpy_code
@@ -178,6 +215,8 @@ class CombinedBackend(APIBackend):
         code.putln("#define __PYX_LIST_BUILDER_NEW %s" % CApiBackend.list_builder_new)
         code.putln("#define __PYX_LIST_BUILDER_SET_ITEM %s" % CApiBackend.list_builder_set_item)
         code.putln("#define __PYX_LIST_BUILDER_BUILD %s" % CApiBackend.list_builder_build)
+        code.putln("#define __PYX_IS_NULL(x) !(x)")
+        code.putln("#define __PYX_IS_NOT_NULL(x) (x)")
 
         code.putln("#else /* %s */" % hpy_guard)
 
@@ -204,6 +243,8 @@ class CombinedBackend(APIBackend):
         code.putln("#define __PYX_LIST_BUILDER_NEW %s" % HPyBackend.list_builder_new)
         code.putln("#define __PYX_LIST_BUILDER_SET_ITEM %s" % HPyBackend.list_builder_set_item)
         code.putln("#define __PYX_LIST_BUILDER_BUILD %s" % HPyBackend.list_builder_build)
+        code.putln("#define __PYX_IS_NULL(x) HPy_IsNull(x)")
+        code.putln("#define __PYX_IS_NOT_NULL(x) !HPy_IsNull(x)")
         code.putln("#endif /* %s */" % hpy_guard)
 
     @staticmethod
@@ -225,6 +266,24 @@ class CombinedBackend(APIBackend):
     @staticmethod
     def get_visit_global(var_cname):
         return "__PYX_VISIT(%s);" % var_cname
+
+    # Expression generation methods
+
+    @staticmethod
+    def get_is_null_cond(expr):
+        """
+        Generates a null-check condition.
+        """
+        return "__PYX_IS_NULL(%s)" % expr
+
+    @staticmethod
+    def get_is_not_null_cond(expr):
+        """
+        Generates a not-null condition.
+        """
+        return "__PYX_IS_NOT_NULL(%s)" % expr
+
+    # Backend selection methods
 
     @staticmethod
     def get_both(cpy_code, hpy_code):

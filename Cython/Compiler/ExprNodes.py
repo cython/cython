@@ -6128,7 +6128,7 @@ class SimpleCallNode(CallNode):
                             actual_arg.result_as(formal_arg.type)))
             exc_checks = []
             if self.type.is_pyobject and self.is_temp:
-                exc_checks.append("!%s" % self.result())
+                exc_checks.append(Backend.backend.get_is_null_cond(self.result()))
             elif self.type.is_memoryviewslice:
                 assert self.is_temp
                 exc_checks.append(self.type.error_condition(self.result()))
