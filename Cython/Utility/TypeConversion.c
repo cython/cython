@@ -932,7 +932,11 @@ static CYTHON_INLINE PyObject* __Pyx_PyInt_FromDouble(double value) {
 
 /////////////// CIntFromPy.proto ///////////////
 
+#ifndef HPY
 static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *);
+#else /* HPY */
+static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(HPyContext *, HPy);
+#endif /* HPY */
 
 /////////////// CIntFromPy ///////////////
 //@requires: CIntFromPyVerify
@@ -940,7 +944,11 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *);
 
 {{py: from Cython.Utility import pylong_join }}
 
+#ifndef HPY
 static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
+#else /* HPY */
+static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(HPyContext *ctx, HPy x) {
+#endif /* HPY */
 #ifdef __Pyx_HAS_GCC_DIAGNOSTIC
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wconversion"
@@ -963,7 +971,11 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
         }
     } else
 #endif
+#ifndef HPY
     if (likely(PyLong_Check(x))) {
+#else /* HPY */
+    if (likely(HPy_TypeCheck(ctx, x, ctx->h_LongType))) {
+#endif /* HPY */
         if (is_unsigned) {
 #if CYTHON_USE_PYLONG_INTERNALS
             const digit* digits = ((PyLongObject*)x)->ob_digit;
@@ -983,22 +995,30 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
                 {{endfor}}
             }
 #endif
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_COMPILING_IN_CPYTHON && !HPY
             if (unlikely(Py_SIZE(x) < 0)) {
                 goto raise_neg_overflow;
             }
-#else
+#else /* CYTHON_COMPILING_IN_CPYTHON && !HPY */
             {
+#ifndef HPY
                 // misuse Py_False as a quick way to compare to a '0' int object in PyPy
                 int result = PyObject_RichCompareBool(x, Py_False, Py_LT);
+#else /* HPY */
+                int result = HPy_RichCompareBool(ctx, x, ctx->h_False, HPy_LT);
+#endif /* HPY */
                 if (unlikely(result < 0))
                     return ({{TYPE}}) -1;
                 if (unlikely(result == 1))
                     goto raise_neg_overflow;
             }
-#endif
+#endif /* CYTHON_COMPILING_IN_CPYTHON && !HPY */
             if ((sizeof({{TYPE}}) <= sizeof(unsigned long))) {
+#ifndef HPY
                 __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, unsigned long, PyLong_AsUnsignedLong(x))
+#else /* HPY */
+                __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, unsigned long, HPyLong_AsUnsignedLong(ctx, x))
+#endif /* HPY */
 #ifdef HAVE_LONG_LONG
             } else if ((sizeof({{TYPE}}) <= sizeof(unsigned PY_LONG_LONG))) {
                 __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, unsigned PY_LONG_LONG, PyLong_AsUnsignedLongLong(x))
@@ -1036,8 +1056,8 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
             }
         }
         {
-#if (CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_LIMITED_API) && !defined(_PyLong_AsByteArray)
-            PyErr_SetString(PyExc_RuntimeError,
+#if (CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_LIMITED_API || HPY) && !defined(_PyLong_AsByteArray)
+            __Pyx_PyErr_SetString(__Pyx_PyExc_RuntimeError,
                             "_PyLong_AsByteArray() not available, cannot convert large numbers");
 #else
             {{TYPE}} val;
@@ -1064,10 +1084,10 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
         }
     } else {
         {{TYPE}} val;
-        PyObject *tmp = __Pyx_PyNumber_IntOrLong(x);
-        if (!tmp) return ({{TYPE}}) -1;
+        __PYX_OBJECT_CTYPE tmp = __Pyx_PyNumber_IntOrLong(x);
+        if (__PYX_IS_NULL(tmp)) return ({{TYPE}}) -1;
         val = {{FROM_PY_FUNCTION}}(tmp);
-        Py_DECREF(tmp);
+        __Pyx_DECREF_NO_REFNANNY(tmp);
         return val;
     }
 
