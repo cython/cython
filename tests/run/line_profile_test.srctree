@@ -126,6 +126,7 @@ async def cy_coro(int n):
             n //= 2
         else:
             n = 3*n+1
+    x = <object> n  # make sure the computation does not get discarded
 
 
 @cython.binding(True)
