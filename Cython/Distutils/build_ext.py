@@ -1,6 +1,12 @@
 import sys
 import os
 
+# Make sure we import setuptools before distutils, if available (which it should be).
+try:
+    import setuptools
+except ImportError:
+    pass
+
 # Always inherit from the "build_ext" in distutils since setuptools already imports it
 # from Cython if available, and does the proper distutils fallback otherwise.
 # https://github.com/pypa/setuptools/blob/9f1822ee910df3df930a98ab99f66d18bb70659b/setuptools/command/build_ext.py#L16
