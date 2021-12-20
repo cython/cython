@@ -815,6 +815,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self._put_setup_code(code, "CppInitCode")
         else:
             self._put_setup_code(code, "CInitCode")
+        self._put_setup_code(code, "ApiBackendInitCode")
         if env.context.options.hpy:
             self._put_setup_code(code, "HPyInitCode")
         Backend.backend.put_init_code(code)

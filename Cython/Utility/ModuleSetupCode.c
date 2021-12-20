@@ -467,6 +467,38 @@ class __Pyx_FakeReference {
   #define CYTHON_REFNANNY 0
 #endif /* HPY */
 
+/////////////// ApiBackendInitCode ///////////////
+//@substitute: naming
+
+#ifndef HPY
+
+#define __PYX_OBJECT_CTYPE PyObject *
+#define __PYX_IS_NULL(x) !(x)
+#define __PYX_IS_NOT_NULL(x) (x)
+#define __PYX_CONTEXT_DECL
+#define __PYX_CONTEXT
+#define __PYX_NULL (0)
+#define __Pyx_NEWREF(x) Py_INCREF(x)
+#define __Pyx_DECREF_NO_REFNANNY(x) Py_DECREF(x)
+
+#define __Pyx_PyErr_SetString(err, msg) PyErr_SetString(err, msg)
+#define __Pyx_PyExc_RuntimeError (($hpy_context_cname)->h_RuntimeError)
+
+#else
+
+#define __PYX_OBJECT_CTYPE PyObject *
+#define __PYX_IS_NULL(x) HPy_IsNull(x)
+#define __PYX_IS_NOT_NULL(x) !HPy_IsNull(x)
+#define __PYX_NULL HPy_NULL
+#define __PYX_CONTEXT_DECL HPyContext *$hpy_context_cname,
+#define __PYX_CONTEXT $hpy_context_cname,
+#define __Pyx_NEWREF(x) HPy_Dup($hpy_context_cname, x)
+#define __Pyx_DECREF_NO_REFNANNY(x) HPy_Close($hpy_context_cname, x)
+
+#define __Pyx_PyErr_SetString(err, msg) HPyErr_SetString(__PYX_CONTEXT err, msg)
+#define __Pyx_PyExc_RuntimeError (($hpy_context_cname)->h_RuntimeError)
+
+#endif /* HPY */
 
 /////////////// PythonCompatibility ///////////////
 
@@ -1226,12 +1258,6 @@ static CYTHON_INLINE float __PYX_NAN() {
 }
 #endif
 
-#ifdef HPY
-#define __PYX_NULL HPy_NULL
-#else
-#define __PYX_NULL 0
-#endif /* HPY */
-
 #if defined(__CYGWIN__) && defined(_LDBL_EQ_DBL)
 #define __Pyx_truncl trunc
 #else
@@ -1569,14 +1595,20 @@ static CYTHON_INLINE int __Pyx_Is_Little_Endian(void)
   #define __Pyx_RefNannySetupContext(name, acquire_gil)
   #define __Pyx_RefNannyFinishContextNogil()
   #define __Pyx_RefNannyFinishContext()
-  #define __Pyx_INCREF(r) Py_INCREF(r)
-  #define __Pyx_DECREF(r) Py_DECREF(r)
   #define __Pyx_GOTREF(r)
   #define __Pyx_GIVEREF(r)
-  #define __Pyx_XINCREF(r) Py_XINCREF(r)
-  #define __Pyx_XDECREF(r) Py_XDECREF(r)
   #define __Pyx_XGOTREF(r)
   #define __Pyx_XGIVEREF(r)
+#ifndef HPY
+  #define __Pyx_INCREF(r) Py_INCREF(r)
+  #define __Pyx_DECREF(r) Py_DECREF(r)
+  #define __Pyx_XINCREF(r) Py_XINCREF(r)
+  #define __Pyx_XDECREF(r) Py_XDECREF(r)
+#else /* HPY */
+  /* We intentionally do not define __Pyx_(X)INCREF since it's easily used in a wrong way. */
+  #define __Pyx_DECREF(r) HPy_Close(__PYX_CONTEXT r)
+  #define __Pyx_XDECREF(r) HPy_Close(__PYX_CONTEXT r)
+#endif /* HPY */
 #endif /* CYTHON_REFNANNY */
 
 #ifndef HPY
@@ -1596,21 +1628,21 @@ static CYTHON_INLINE int __Pyx_Is_Little_Endian(void)
 #define __Pyx_CLEAR(r)    do { PyObject* tmp = ((PyObject*)(r)); r = NULL; __Pyx_DECREF(tmp);} while(0)
 #define __Pyx_XCLEAR(r)   do { if((r) != NULL) {PyObject* tmp = ((PyObject*)(r)); r = NULL; __Pyx_DECREF(tmp);}} while(0)
 #else /* HPY */
-#define __Pyx_Py_XDECREF_SET(ctx, r, v) do {                    \
+#define __Pyx_Py_XDECREF_SET(r, v) do {                         \
         HPy tmp = r;                                            \
-        r = v; HPy_Close(ctx, tmp);                             \
+        r = v; HPy_Close(__PYX_CONTEXT tmp);                    \
     } while (0)
-#define __Pyx_XDECREF_SET(ctx, r, v) do {                       \
+#define __Pyx_XDECREF_SET(r, v) do {                            \
         HPy tmp = r;                                            \
-        r = v; HPy_Close(ctx, tmp);                             \
+        r = v; HPy_Close(__PYX_CONTEXT tmp);                    \
     } while (0)
-#define __Pyx_DECREF_SET(ctx, r, v) do {                        \
+#define __Pyx_DECREF_SET(r, v) do {                             \
         HPy tmp = r;                                            \
-        r = v; HPy_Close(ctx, tmp);                             \
+        r = v; HPy_Close(__PYX_CONTEXT tmp);                    \
     } while (0)
 
-#define __Pyx_CLEAR(ctx, r)    do { HPy tmp = (r); r = HPy_NULL; HPy_Close(ctx, tmp);} while(0)
-#define __Pyx_XCLEAR(ctx, r)   do { if(!HPy_IsNull((r))) {HPy tmp = (r); r = HPy_NULL; HPy_Close(ctx, tmp);}} while(0)
+#define __Pyx_CLEAR(r)    do { HPy tmp = (r); r = HPy_NULL; HPy_Close(__PYX_CONTEXT tmp);} while(0)
+#define __Pyx_XCLEAR(r)   do { if(!HPy_IsNull((r))) {HPy tmp = (r); r = HPy_NULL; HPy_Close(__PYX_CONTEXT tmp);}} while(0)
 #endif /* HPY */
 
 /////////////// Refnanny ///////////////

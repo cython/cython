@@ -194,14 +194,11 @@ class CombinedBackend(APIBackend):
     def put_init_code(code):
         hpy_guard = CApiBackend.hpy_guard
         code.putln("#ifndef " + hpy_guard)
-        code.putln("#define __PYX_OBJECT_CTYPE PyObject *")
         code.putln("#define __PYX_GLOBAL_OBJECT_CTYPE PyObject *")
         code.putln("#define __PYX_GLOBAL_TYPE_CTYPE PyTypeObject *")
         code.putln("#define __Pyx_CLEAR_GLOBAL(m, v) Py_CLEAR((v))")
         code.putln("#define __PYX_READ_GLOBAL(m, v) (v)")
         code.putln("#define __PYX_VISIT(x) Py_VISIT((x))")
-        code.putln("#define __PYX_CONTEXT_DECL")
-        code.putln("#define __PYX_CONTEXT")
         code.putln("#define __PYX_NULL NULL")
         code.putln("#define __PYX_GLOBAL_NULL NULL")
         code.putln("#define __PYX_MODULEDEF_CTYPE %s" % CApiBackend.pymoduledef_ctype)
@@ -215,12 +212,9 @@ class CombinedBackend(APIBackend):
         code.putln("#define __PYX_LIST_BUILDER_NEW %s" % CApiBackend.list_builder_new)
         code.putln("#define __PYX_LIST_BUILDER_SET_ITEM %s" % CApiBackend.list_builder_set_item)
         code.putln("#define __PYX_LIST_BUILDER_BUILD %s" % CApiBackend.list_builder_build)
-        code.putln("#define __PYX_IS_NULL(x) !(x)")
-        code.putln("#define __PYX_IS_NOT_NULL(x) (x)")
 
         code.putln("#else /* %s */" % hpy_guard)
 
-        code.putln("#define __PYX_OBJECT_CTYPE HPy")
         code.putln("#define __PYX_GLOBAL_OBJECT_CTYPE HPyField")
         code.putln("#define __PYX_GLOBAL_TYPE_CTYPE HPyField")
         code.putln("#define __Pyx_CLEAR_GLOBAL(m, v) HPyField_Store(%s, %s->h_None, &(v), HPy_NULL)" %
@@ -228,8 +222,6 @@ class CombinedBackend(APIBackend):
         code.putln("#define __PYX_READ_GLOBAL(m, v) HPyField_Load(%s, %s->h_None, (v))" %
                    (Naming.hpy_context_cname, Naming.hpy_context_cname))
         code.putln("#define __PYX_VISIT(x) HPy_VISIT(&(x))")
-        code.putln("#define __PYX_CONTEXT_DECL HPyContext *%s, " % Naming.hpy_context_cname)
-        code.putln("#define __PYX_CONTEXT %s, " % Naming.hpy_context_cname)
         code.putln("#define __PYX_NULL HPy_NULL")
         code.putln("#define __PYX_GLOBAL_NULL HPyField_NULL")
         code.putln("#define __PYX_MODULEDEF_CTYPE %s" % HPyBackend.pymoduledef_ctype)
@@ -243,8 +235,6 @@ class CombinedBackend(APIBackend):
         code.putln("#define __PYX_LIST_BUILDER_NEW %s" % HPyBackend.list_builder_new)
         code.putln("#define __PYX_LIST_BUILDER_SET_ITEM %s" % HPyBackend.list_builder_set_item)
         code.putln("#define __PYX_LIST_BUILDER_BUILD %s" % HPyBackend.list_builder_build)
-        code.putln("#define __PYX_IS_NULL(x) HPy_IsNull(x)")
-        code.putln("#define __PYX_IS_NOT_NULL(x) !HPy_IsNull(x)")
         code.putln("#endif /* %s */" % hpy_guard)
 
     @staticmethod
