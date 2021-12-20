@@ -4,6 +4,9 @@
 Working with Python arrays
 ==========================
 
+.. include::
+    ../two-syntax-variants-used
+
 Python has a builtin array module supporting dynamic 1-dimensional arrays of
 primitive types. It is possible to access the underlying C array of a Python
 array from within Cython. At the same time they are ordinary Python objects
@@ -18,7 +21,15 @@ module is built into both Python and Cython.
 Safe usage with memory views
 ----------------------------
 
-.. literalinclude:: ../../examples/tutorial/array/safe_usage.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/array/safe_usage.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/array/safe_usage.pyx
 
 NB: the import brings the regular Python array object into the namespace
 while the cimport adds functions accessible from Cython.
@@ -32,7 +43,15 @@ memory view, there will be a slight overhead to construct the memory
 view. However, from that point on the variable can be passed to other
 functions without overhead, so long as it is typed:
 
-.. literalinclude:: ../../examples/tutorial/array/overhead.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/array/overhead.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/array/overhead.pyx
 
 
 Zero-overhead, unsafe access to raw C pointer
@@ -42,7 +61,15 @@ functions, it is possible to access the underlying contiguous array as a
 pointer. There is no type or bounds checking, so be careful to use the
 right type and signedness.
 
-.. literalinclude:: ../../examples/tutorial/array/unsafe_usage.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/array/unsafe_usage.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/array/unsafe_usage.pyx
 
 Note that any length-changing operation on the array object may invalidate the
 pointer.
@@ -55,13 +82,29 @@ it is possible to create a new array with the same type as a template,
 and preallocate a given number of elements. The array is initialized to
 zero when requested.
 
-.. literalinclude:: ../../examples/tutorial/array/clone.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/array/clone.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/array/clone.pyx
 
 An array can also be extended and resized; this avoids repeated memory
 reallocation which would occur if elements would be appended or removed
 one by one.
 
-.. literalinclude:: ../../examples/tutorial/array/resize.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/array/resize.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/array/resize.pyx
 
 
 API reference
