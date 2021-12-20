@@ -6031,7 +6031,10 @@ class SimpleCallNode(CallNode):
         for actual_arg in self.args[len(formal_args):]:
             arg_list_code.append(actual_arg.move_result_rhs())
 
-        result = "%s(%s)" % (self.function.result(), Backend.backend.get_args(*arg_list_code))
+        if func_type.is_cfunction and func_type.foreign:
+            result = "%s(%s)" % (self.function.result(), ", ".join(arg_list_code))
+        else:
+            result = "%s(%s)" % (self.function.result(), Backend.backend.get_args(*arg_list_code))
         return result
 
     def is_c_result_required(self):

@@ -31,7 +31,7 @@ class _BuiltinOverride(object):
     def __init__(self, py_name, args, ret_type, cname, py_equiv="*",
                  utility_code=None, sig=None, func_type=None,
                  is_strict_signature=False, builtin_return_type=None,
-                 nogil=None):
+                 nogil=None, foreign=False):
         self.py_name, self.cname, self.py_equiv = py_name, cname, py_equiv
         self.args, self.ret_type = args, ret_type
         self.func_type, self.sig = func_type, sig
@@ -39,12 +39,17 @@ class _BuiltinOverride(object):
         self.is_strict_signature = is_strict_signature
         self.utility_code = utility_code
         self.nogil = nogil
+        self.foreign = foreign
+        if func_type:
+            func_type.foreign = foreign
 
     def build_func_type(self, sig=None, self_arg=None):
         if sig is None:
             sig = Signature(self.args, self.ret_type, nogil=self.nogil)
             sig.exception_check = False  # not needed for the current builtins
         func_type = sig.function_type(self_arg)
+        if self.foreign:
+            func_type.foreign = True
         if self.is_strict_signature:
             func_type.is_strict_signature = True
         if self.builtin_return_type:
@@ -94,14 +99,15 @@ class BuiltinMethod(_BuiltinOverride):
 builtin_function_table = [
     # name,        args,   return,  C API func,           py equiv = "*"
     BuiltinFunction('abs',        "d",    "d",     "fabs",
-                    is_strict_signature=True, nogil=True),
+                    is_strict_signature=True, nogil=True, foreign=True),
     BuiltinFunction('abs',        "f",    "f",     "fabsf",
-                    is_strict_signature=True, nogil=True),
+                    is_strict_signature=True, nogil=True, foreign=True),
     BuiltinFunction('abs',        "i",    "i",     "abs",
-                    is_strict_signature=True, nogil=True),
+                    is_strict_signature=True, nogil=True, foreign=True),
     BuiltinFunction('abs',        "l",    "l",     "labs",
-                    is_strict_signature=True, nogil=True),
+                    is_strict_signature=True, nogil=True, foreign=True),
     BuiltinFunction('abs',        None,    None,   "__Pyx_abs_longlong",
+                foreign=True,
                 utility_code = UtilityCode.load("abs_longlong", "Builtins.c"),
                 func_type = PyrexTypes.CFuncType(
                     PyrexTypes.c_longlong_type, [
@@ -110,6 +116,7 @@ builtin_function_table = [
                     is_strict_signature = True, nogil=True)),
     ] + list(
         BuiltinFunction('abs',        None,    None,   "/*abs_{0}*/".format(t.specialization_name()),
+                    foreign=True,
                     func_type = PyrexTypes.CFuncType(
                         t,
                         [PyrexTypes.CFuncTypeArg("arg", t, None)],
@@ -117,6 +124,7 @@ builtin_function_table = [
                             for t in (PyrexTypes.c_uint_type, PyrexTypes.c_ulong_type, PyrexTypes.c_ulonglong_type)
              ) + list(
         BuiltinFunction('abs',        None,    None,   "__Pyx_c_abs{0}".format(t.funcsuffix),
+                    foreign=True,
                     func_type = PyrexTypes.CFuncType(
                         t.real_type, [
                             PyrexTypes.CFuncTypeArg("arg", t, None)
