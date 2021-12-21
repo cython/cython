@@ -3,6 +3,8 @@
 GCC_VERSION=${GCC_VERSION:=8}
 
 # Set up compilers
+PLATFORM_CFLAGS=""
+PLATFORM_CXXFLAGS=""
 if [[ $TEST_CODE_STYLE == "1" ]]; then
   echo "Skipping compiler setup"
 elif [[ $OSTYPE == "linux-gnu"* ]]; then
@@ -27,8 +29,8 @@ elif [[ $OSTYPE == "linux-gnu"* ]]; then
   fi
 elif [[ $OSTYPE == "darwin"* ]]; then
   echo "Setting up macos compiler"
-  export CC="clang -Wno-deprecated-declarations"
-  export CXX="clang++ -stdlib=libc++ -Wno-deprecated-declarations"
+  PLATFORM_CFLAGS="-Wno-deprecated-declarations"
+  PLATFORM_CXXFLAGS="-stdlib=libc++"
 else
   echo "No setup specified for $OSTYPE"
 fi
@@ -106,7 +108,7 @@ export PATH="/usr/lib/ccache:$PATH"
 # Most modern compilers allow the last conflicting option
 # to override the previous ones, so '-O0 -O3' == '-O3'
 # This is true for the latest msvc, gcc and clang
-CFLAGS="-O0 -ggdb -Wall -Wextra"
+CFLAGS="-O0 -ggdb -Wall -Wextra $PLATFORM_CFLAGS"
 
 if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
 
@@ -159,6 +161,7 @@ if [[ $TEST_CODE_STYLE != "1" ]]; then
 fi
 
 export CFLAGS="$CFLAGS $EXTRA_CFLAGS"
+export CXXFLAGS="$CFLAGS $EXTRA_CFLAGS $PLATFORM_CXXFLAGS"
 python runtests.py \
   -vv $STYLE_ARGS \
   -x Debugger \
