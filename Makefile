@@ -90,7 +90,6 @@ wheel_%: dist/$(PACKAGENAME)-$(VERSION).tar.gz
 		-e CFLAGS="$(MANYLINUX_CFLAGS)" \
 		-e LDFLAGS="$(MANYLINUX_LDFLAGS) -fPIC" \
 		-e WHEELHOUSE=wheelhouse$(subst wheel_musllinux,,$(subst wheel_manylinux,,$@)) \
-	    -e SETUPTOOLS_USE_DISTUTILS=local \
 		quay.io/pypa/$(subst wheel_,,$@) \
 		bash -c '\
 			rm -fr /opt/python/*pypy* ; \
