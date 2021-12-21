@@ -69,7 +69,7 @@ elif [[ $PYTHON_VERSION == "3."[45]* ]]; then
   python -m pip install wheel || exit 1
   python -m pip install -r test-requirements-34.txt || exit 1
 else
-  python -m pip install -U pip setuptools wheel || exit 1
+  python -m pip install -U pip "setuptools<60" wheel || exit 1
 
   if [[ $PYTHON_VERSION != *"-dev" || $COVERAGE == "1" ]]; then
     python -m pip install -r test-requirements.txt || exit 1
