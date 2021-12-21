@@ -8,14 +8,19 @@ Cython Changelog
 Features added
 --------------
 
+* ``Cython.Distutils.build_ext`` now uses ``cythonize()`` internally (previously
+  known as ``new_build_ext``), while still supporting the options that were
+  available in the old implementation (``old_build_ext``).
+  Patch by Matus Valo.  (Github issue :issue:`3541`)
+
+* ``pyximport`` now uses ``cythonize()`` internally.
+  Patch by Matus Valo.  (Github issue :issue:`2304`)
+
 * ``__del__(self)`` on extension types now maps to ``tp_finalize`` in Python 3.
   Original patch by ax487.  (Github issue :issue:`3612`)
 
 * Conversion from Python dict to C++ map now supports arbitrary Python mappings,
   not just dicts.
-
-* ``pyximport`` now uses ``cythonize()`` internally.
-  Patch by Matus Valo.  (Github issue :issue:`2304`)
 
 * Direct assignments to C++ references are now allowed.
   Patch by David Woods.  (Github issue :issue:`1863`)
@@ -102,7 +107,11 @@ Bugs fixed
   Patch by David Woods.  (Github issue :issue:`4453`)
 
 * Some compatibility issues with PyPy were resolved.
-  Patches by Max Bachmann, Matti Picus.  (Github issues :issue:`4454`, :issue:`4477`, :issue:`4478`)
+  Patches by Max Bachmann, Matti Picus.
+  (Github issues :issue:`4454`, :issue:`4477`, :issue:`4478`, :issus:`4509`)
+
+* A compiler crash when running Cython thread-parallel from distutils was resolved.
+  (Github issue :issue:`4503`)
 
 * Includes all bug-fixes from the :ref:`0.29.26` release.
 
