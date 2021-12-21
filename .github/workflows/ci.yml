@@ -191,6 +191,9 @@ jobs:
       BACKEND: ${{ matrix.backend }}
       OS_NAME: ${{ matrix.os }}
       PYTHON_VERSION: ${{ matrix.python-version }}
+      # Use CPython's distutils instead of setuptools's copy.
+      # See https://github.com/pypa/setuptools/pull/2896
+      SETUPTOOLS_USE_DISTUTILS: local
       GCC_VERSION: 8
       USE_CCACHE: 1
       CCACHE_SLOPPINESS: "pch_defines,time_macros"
