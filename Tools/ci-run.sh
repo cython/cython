@@ -22,10 +22,8 @@ elif [[ $OSTYPE == "linux-gnu"* ]]; then
 
   sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-$GCC_VERSION 60 $ALTERNATIVE_ARGS
 
-  export CC="gcc"
   if [[ $BACKEND == *"cpp"* ]]; then
     sudo update-alternatives --set g++ /usr/bin/g++-$GCC_VERSION
-    export CXX="g++"
   fi
 elif [[ $OSTYPE == "darwin"* ]]; then
   echo "Setting up macos compiler"
@@ -69,7 +67,7 @@ elif [[ $PYTHON_VERSION == "3."[45]* ]]; then
   python -m pip install wheel || exit 1
   python -m pip install -r test-requirements-34.txt || exit 1
 else
-  python -m pip install -U pip "setuptools<60" wheel || exit 1
+  python -m pip install -U pip "setuptools" wheel || exit 1
 
   if [[ $PYTHON_VERSION != *"-dev" || $COVERAGE == "1" ]]; then
     python -m pip install -r test-requirements.txt || exit 1

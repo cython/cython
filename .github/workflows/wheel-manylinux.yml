@@ -16,7 +16,7 @@ jobs:
         python-version: 3.8
 
     - name: Install build dependencies
-      run: pip install -U "setuptools<60" pip wheel
+      run: pip install -U "setuptools" pip wheel
 
     - name: Make sdist and Python wheel
       run: make sdist pywheel
