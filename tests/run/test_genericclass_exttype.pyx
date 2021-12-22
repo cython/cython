@@ -51,8 +51,12 @@ cdef class Invalid4:
 class TestClassGetitem(unittest.TestCase):
     # BEGIN - Additional tests from cython
     def test_no_class_getitem(self):
-        # note that PyPy raises AttributeError on __class_getitem__
-        with self.assertRaises(TypeError if not hasattr(sys, "pypy_version_info") else AttributeError):
+        # PyPy<7.3.8 raises AttributeError on __class_getitem__
+        if sys.implementation.name == 'pypy' and sys.implementation.version < (7, 3, 8):
+            err = AttributeError
+        else:
+            err = TypeError
+        with self.assertRaises(err):
             UnSupport[int]
 
     # END - Additional tests from cython
