@@ -1,4 +1,5 @@
-from __future__ import print_function
+import cython
+
 
 @cython.cclass
 class Shrubbery:

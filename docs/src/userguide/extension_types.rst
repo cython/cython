@@ -9,12 +9,23 @@ Extension Types
 Introduction
 ==============
 
+.. include::
+    ../two-syntax-variants-used
+
 As well as creating normal user-defined classes with the Python class
 statement, Cython also lets you create new built-in Python types, known as
 :term:`extension types<Extension type>`. You define an extension type using the :keyword:`cdef` class
 statement.  Here's an example:
 
-.. literalinclude:: ../../examples/userguide/extension_types/shrubbery.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/extension_types/shrubbery.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/extension_types/shrubbery.pyx
 
 As you can see, a Cython extension type definition looks a lot like a Python
 class definition. Within it, you use the def statement to define methods that
@@ -50,7 +61,15 @@ not Python access, which means that they are not accessible from Python code.
 To make them accessible from Python code, you need to declare them as
 :keyword:`public` or :keyword:`readonly`. For example:
 
-.. literalinclude:: ../../examples/userguide/extension_types/python_access.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/extension_types/python_access.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/extension_types/python_access.pyx
 
 makes the width and height attributes readable and writable from Python code,
 and the depth attribute readable but not writable.
@@ -78,11 +97,27 @@ a method is called from Python code. Especially when calling ``cpdef`` methods.
 
 The first approach is to create a Python subclass.:
 
-.. literalinclude:: ../../examples/userguide/extension_types/extendable_animal.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/extension_types/extendable_animal.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/extension_types/extendable_animal.pyx
 
 Declaring a ``__dict__`` attribute is the second way of enabling dynamic attributes.:
 
-.. literalinclude:: ../../examples/userguide/extension_types/dict_animal.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/extension_types/dict_animal.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/extension_types/dict_animal.pyx
 
 Type declarations
 ===================
@@ -93,10 +128,24 @@ generic Python object. It knows this already in the case of the ``self``
 parameter of the methods of that type, but in other cases you will have to use
 a type declaration.
 
-For example, in the following function::
+For example, in the following function
 
-    cdef widen_shrubbery(sh, extra_width): # BAD
-        sh.width = sh.width + extra_width
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.cfunc
+            def widen_shrubbery(sh, extra_width): # BAD
+                sh.width = sh.width + extra_width
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef widen_shrubbery(sh, extra_width): # BAD
+                sh.width = sh.width + extra_width
 
 because the ``sh`` parameter hasn't been given a type, the width attribute
 will be accessed by a Python attribute lookup. If the attribute has been
@@ -107,13 +156,29 @@ will be very inefficient. If the attribute is private, it will not work at all
 The solution is to declare ``sh`` as being of type :class:`Shrubbery`, as
 follows:
 
-.. literalinclude:: ../../examples/userguide/extension_types/widen_shrubbery.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/extension_types/widen_shrubbery.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/extension_types/widen_shrubbery.pyx
 
 Now the Cython compiler knows that ``sh`` has a C attribute called
 :attr:`width` and will generate code to access it directly and efficiently.
 The same consideration applies to local variables, for example:
 
-.. literalinclude:: ../../examples/userguide/extension_types/shrubbery_2.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/extension_types/shrubbery_2.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/extension_types/shrubbery_2.pyx
 
 .. note::
 
@@ -128,24 +193,61 @@ Type Testing and Casting
 ------------------------
 
 Suppose I have a method :meth:`quest` which returns an object of type :class:`Shrubbery`.
-To access it's width I could write::
+To access it's width I could write
 
-    cdef Shrubbery sh = quest()
-    print(sh.width)
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            sh: Shrubbery = quest()
+            print(sh.width)
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef Shrubbery sh = quest()
+            print(sh.width)
 
 which requires the use of a local variable and performs a type test on assignment.
 If you *know* the return value of :meth:`quest` will be of type :class:`Shrubbery`
-you can use a cast to write::
+you can use a cast to write
 
-    print( (<Shrubbery>quest()).width )
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            print( cython.cast(Shrubbery, quest()).width )
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            print( (<Shrubbery>quest()).width )
 
 This may be dangerous if :meth:`quest()` is not actually a :class:`Shrubbery`, as it
 will try to access width as a C struct member which may not exist. At the C level,
 rather than raising an :class:`AttributeError`, either an nonsensical result will be
 returned (interpreting whatever data is at that address as an int) or a segfault
-may result from trying to access invalid memory. Instead, one can write::
+may result from trying to access invalid memory. Instead, one can write
 
-    print( (<Shrubbery?>quest()).width )
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            print( cython.cast(Shrubbery, quest(), typecheck=True).width )
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            print( (<Shrubbery?>quest()).width )
 
 which performs a type check (possibly raising a :class:`TypeError`) before making the
 cast and allowing the code to proceed.
@@ -174,20 +276,48 @@ interests of efficiency, Cython does not check this.
 
 You need to be particularly careful when exposing Python functions which take
 extension types as arguments. If we wanted to make :func:`widen_shrubbery` a
-Python function, for example, if we simply wrote::
+Python function, for example, if we simply wrote
 
-    def widen_shrubbery(Shrubbery sh, extra_width): # This is
-        sh.width = sh.width + extra_width           # dangerous!
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            def widen_shrubbery(sh: Shrubbery, extra_width): # This is
+                sh.width = sh.width + extra_width            # dangerous!
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            def widen_shrubbery(Shrubbery sh, extra_width): # This is
+                sh.width = sh.width + extra_width           # dangerous!
 
 then users of our module could crash it by passing ``None`` for the ``sh``
 parameter.
 
-One way to fix this would be::
+One way to fix this would be
 
-    def widen_shrubbery(Shrubbery sh, extra_width):
-        if sh is None:
-            raise TypeError
-        sh.width = sh.width + extra_width
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            def widen_shrubbery(sh: Shrubbery, extra_width):
+                if sh is None:
+                    raise TypeError
+                sh.width = sh.width + extra_width
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            def widen_shrubbery(Shrubbery sh, extra_width):
+                if sh is None:
+                    raise TypeError
+                sh.width = sh.width + extra_width
 
 but since this is anticipated to be such a frequent requirement, Cython
 provides a more convenient way. Parameters of a Python function declared as an
@@ -232,23 +362,50 @@ extension types.
 Properties
 ============
 
-You can declare properties in an extension class using the same syntax as in ordinary Python code::
+You can declare properties in an extension class using the same syntax as in ordinary Python code
 
-    cdef class Spam:
+.. tabs::
 
-        @property
-        def cheese(self):
-            # This is called when the property is read.
-            ...
+    .. group-tab:: Pure Python
 
-        @cheese.setter
-        def cheese(self, value):
-                # This is called when the property is written.
-                ...
+        .. code-block:: python
 
-        @cheese.deleter
-        def cheese(self):
-            # This is called when the property is deleted.
+            @cython.cclass
+            class Spam:
+
+                @property
+                def cheese(self):
+                    # This is called when the property is read.
+                    ...
+
+                @cheese.setter
+                def cheese(self, value):
+                        # This is called when the property is written.
+                        ...
+
+                @cheese.deleter
+                def cheese(self):
+                    # This is called when the property is deleted.
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef class Spam:
+
+                @property
+                def cheese(self):
+                    # This is called when the property is read.
+                    ...
+
+                @cheese.setter
+                def cheese(self, value):
+                        # This is called when the property is written.
+                        ...
+
+                @cheese.deleter
+                def cheese(self):
+                    # This is called when the property is deleted.
 
 
 There is also a special (deprecated) legacy syntax for defining properties in an extension class::
@@ -277,42 +434,17 @@ corresponding operation is attempted.
 
 Here's a complete example. It defines a property which adds to a list each
 time it is written to, returns the list when it is read, and empties the list
-when it is deleted.::
+when it is deleted.
 
-    # cheesy.pyx
-    cdef class CheeseShop:
+.. tabs::
 
-        cdef object cheeses
+    .. group-tab:: Pure Python
 
-        def __cinit__(self):
-            self.cheeses = []
+        .. literalinclude:: ../../examples/userguide/extension_types/cheesy.py
 
-        @property
-        def cheese(self):
-            return "We don't have: %s" % self.cheeses
+    .. group-tab:: Cython
 
-        @cheese.setter
-        def cheese(self, value):
-            self.cheeses.append(value)
-
-        @cheese.deleter
-        def cheese(self):
-            del self.cheeses[:]
-
-    # Test input
-    from cheesy import CheeseShop
-
-    shop = CheeseShop()
-    print(shop.cheese)
-
-    shop.cheese = "camembert"
-    print(shop.cheese)
-
-    shop.cheese = "cheddar"
-    print(shop.cheese)
-
-    del shop.cheese
-    print(shop.cheese)
+        .. literalinclude:: ../../examples/userguide/extension_types/cheesy.pyx
 
 .. code-block:: text
 
@@ -328,13 +460,31 @@ Subclassing
 =============
 
 If an extension type inherits from other types, the first base class must be
-a built-in type or another extension type::
+a built-in type or another extension type
 
-    cdef class Parrot:
-        ...
+.. tabs::
 
-    cdef class Norwegian(Parrot):
-        ...
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.cclass
+            class Parrot:
+                ...
+
+            @cython.cclass
+            class Norwegian(Parrot):
+                ...
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef class Parrot:
+                ...
+
+            cdef class Norwegian(Parrot):
+                ...
 
 
 A complete definition of the base type must be available to Cython, so if the
@@ -354,13 +504,30 @@ must be compatible).
 
 There is a way to prevent extension types from
 being subtyped in Python.  This is done via the ``final`` directive,
-usually set on an extension type using a decorator::
+usually set on an extension type using a decorator
 
-    cimport cython
+.. tabs::
 
-    @cython.final
-    cdef class Parrot:
-       def done(self): pass
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            import cython
+
+            @cython.final
+            @cython.cclass
+            class Parrot:
+               def done(self): pass
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cimport cython
+
+            @cython.final
+            cdef class Parrot:
+               def done(self): pass
 
 Trying to create a Python subclass from this type will raise a
 :class:`TypeError` at runtime.  Cython will also prevent subtyping a
@@ -379,28 +546,17 @@ functions, C methods are declared using :keyword:`cdef` or :keyword:`cpdef` inst
 :keyword:`def`. C methods are "virtual", and may be overridden in derived
 extension types. In addition, :keyword:`cpdef` methods can even be overridden by python
 methods when called as C method. This adds a little to their calling overhead
-compared to a :keyword:`cdef` method::
+compared to a :keyword:`cdef` method
 
-    # pets.pyx
-    cdef class Parrot:
+.. tabs::
 
-        cdef void describe(self):
-            print("This parrot is resting.")
+    .. group-tab:: Pure Python
 
-    cdef class Norwegian(Parrot):
+        .. literalinclude:: ../../examples/userguide/extension_types/pets.py
 
-        cdef void describe(self):
-            Parrot.describe(self)
-            print("Lovely plumage!")
+    .. group-tab:: Cython
 
-
-    cdef Parrot p1, p2
-    p1 = Parrot()
-    p2 = Norwegian()
-    print("p1:")
-    p1.describe()
-    print("p2:")
-    p2.describe()
+        .. literalinclude:: ../../examples/userguide/extension_types/pets.pyx
 
 .. code-block:: text
 
@@ -418,20 +574,17 @@ method using the usual Python technique, i.e.::
 
 `cdef` methods can be declared static by using the @staticmethod decorator.
 This can be especially useful for constructing classes that take non-Python
-compatible types.::
+compatible types.:
 
-    cdef class OwnedPointer:
-        cdef void* ptr
+.. tabs::
 
-        def __dealloc__(self):
-            if self.ptr is not NULL:
-                free(self.ptr)
+    .. group-tab:: Pure Python
 
-        @staticmethod
-        cdef create(void* ptr):
-            p = OwnedPointer()
-            p.ptr = ptr
-            return p
+        .. literalinclude:: ../../examples/userguide/extension_types/owned_pointer.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/extension_types/owned_pointer.pyx
 
 .. _forward_declaring_extension_types:
 
@@ -453,6 +606,11 @@ definition, for example,::
     cdef class A(B):
         # attributes and methods
 
+.. note::
+
+    Cython currently does not support Forward-declaring extension types
+    in Pure Python mode.
+
 
 Fast instantiation
 ===================
@@ -460,19 +618,17 @@ Fast instantiation
 Cython provides two ways to speed up the instantiation of extension types.
 The first one is a direct call to the ``__new__()`` special static method,
 as known from Python.  For an extension type ``Penguin``, you could use
-the following code::
+the following code
 
-    cdef class Penguin:
-        cdef object food
+.. tabs::
 
-        def __cinit__(self, food):
-            self.food = food
+    .. group-tab:: Pure Python
 
-        def __init__(self, food):
-            print("eating!")
+        .. literalinclude:: ../../examples/userguide/extension_types/penguin.py
 
-    normal_penguin = Penguin('fish')
-    fast_penguin = Penguin.__new__(Penguin, 'wheat')  # note: not calling __init__() !
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/extension_types/penguin.pyx
 
 Note that the path through ``__new__()`` will *not* call the type's
 ``__init__()`` method (again, as known from Python).  Thus, in the example
@@ -484,19 +640,17 @@ types.
 The second performance improvement applies to types that are often created
 and deleted in a row, so that they can benefit from a freelist.  Cython
 provides the decorator ``@cython.freelist(N)`` for this, which creates a
-statically sized freelist of ``N`` instances for a given type.  Example::
+statically sized freelist of ``N`` instances for a given type.  Example
 
-    cimport cython
+.. tabs::
 
-    @cython.freelist(8)
-    cdef class Penguin:
-        cdef object food
-        def __cinit__(self, food):
-            self.food = food
+    .. group-tab:: Pure Python
 
-    penguin = Penguin('fish 1')
-    penguin = None
-    penguin = Penguin('fish 2')  # does not need to allocate memory!
+        .. literalinclude:: ../../examples/userguide/extension_types/penguin2.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/extension_types/penguin2.pyx
 
 .. _existing-pointers-instantiation:
 
@@ -507,63 +661,17 @@ It is quite common to want to instantiate an extension class from an existing
 (pointer to a) data structure, often as returned by external C/C++ functions.
 
 As extension classes can only accept Python objects as arguments in their
-constructors, this necessitates the use of factory functions. For example, ::
+constructors, this necessitates the use of factory functions. For example, 
 
-    from libc.stdlib cimport malloc, free
+.. tabs::
 
-    # Example C struct
-    ctypedef struct my_c_struct:
-        int a
-        int b
+    .. group-tab:: Pure Python
 
+        .. literalinclude:: ../../examples/userguide/extension_types/wrapper_class.py
 
-    cdef class WrapperClass:
-        """A wrapper class for a C/C++ data structure"""
-        cdef my_c_struct *_ptr
-        cdef bint ptr_owner
+    .. group-tab:: Cython
 
-        def __cinit__(self):
-            self.ptr_owner = False
-
-        def __dealloc__(self):
-            # De-allocate if not null and flag is set
-            if self._ptr is not NULL and self.ptr_owner is True:
-                free(self._ptr)
-                self._ptr = NULL
-
-        # Extension class properties
-        @property
-        def a(self):
-            return self._ptr.a if self._ptr is not NULL else None
-
-        @property
-        def b(self):
-            return self._ptr.b if self._ptr is not NULL else None
-
-        @staticmethod
-        cdef WrapperClass from_ptr(my_c_struct *_ptr, bint owner=False):
-            """Factory function to create WrapperClass objects from
-            given my_c_struct pointer.
-
-            Setting ``owner`` flag to ``True`` causes
-            the extension type to ``free`` the structure pointed to by ``_ptr``
-            when the wrapper object is deallocated."""
-            # Call to __new__ bypasses __init__ constructor
-            cdef WrapperClass wrapper = WrapperClass.__new__(WrapperClass)
-            wrapper._ptr = _ptr
-            wrapper.ptr_owner = owner
-            return wrapper
-
-        @staticmethod
-        cdef WrapperClass new_struct():
-            """Factory function to create WrapperClass objects with
-            newly allocated my_c_struct"""
-            cdef my_c_struct *_ptr = <my_c_struct *>malloc(sizeof(my_c_struct))
-            if _ptr is NULL:
-                raise MemoryError
-            _ptr.a = 0
-            _ptr.b = 0
-            return WrapperClass.from_ptr(_ptr, owner=True)
+        .. literalinclude:: ../../examples/userguide/extension_types/wrapper_class.pyx
 
 
 To then create a ``WrapperClass`` object from an existing ``my_c_struct``
@@ -605,13 +713,30 @@ Making extension types weak-referenceable
 
 By default, extension types do not support having weak references made to
 them. You can enable weak referencing by declaring a C attribute of type
-object called :attr:`__weakref__`. For example,::
+object called :attr:`__weakref__`. For example,
 
-    cdef class ExplodingAnimal:
-        """This animal will self-destruct when it is
-        no longer strongly referenced."""
+.. tabs::
 
-        cdef object __weakref__
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.cclass
+            class ExplodingAnimal:
+                """This animal will self-destruct when it is
+                no longer strongly referenced."""
+
+                __weakref__: object 
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef class ExplodingAnimal:
+                """This animal will self-destruct when it is
+                no longer strongly referenced."""
+
+                cdef object __weakref__
 
 
 Controlling deallocation and garbage collection in CPython
@@ -689,12 +814,28 @@ CPython invented a mechanism for this called the *trashcan*. It limits the
 recursion depth of deallocations by delaying some deallocations.
 
 By default, Cython extension types do not use the trashcan but it can be
-enabled by setting the ``trashcan`` directive to ``True``. For example::
+enabled by setting the ``trashcan`` directive to ``True``. For example
 
-    cimport cython
-    @cython.trashcan(True)
-    cdef class Object:
-        cdef dict __dict__
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            import cython
+            @cython.trashcan(True)
+            @cython.cclass
+            class Object:
+                __dict__: dict 
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cimport cython
+            @cython.trashcan(True)
+            cdef class Object:
+                cdef dict __dict__
 
 Trashcan usage is inherited by subclasses
 (unless explicitly disabled by ``@cython.trashcan(False)``).
@@ -718,15 +859,34 @@ have triggered a call to ``tp_clear`` to clear the object
 In that case, any object references have vanished when ``__dealloc__``
 is called. Now your cleanup code lost access to the objects it has to clean up.
 To fix this, you can disable clearing instances of a specific class by using
-the ``no_gc_clear`` directive::
+the ``no_gc_clear`` directive
 
-    @cython.no_gc_clear
-    cdef class DBCursor:
-        cdef DBConnection conn
-        cdef DBAPI_Cursor *raw_cursor
-        # ...
-        def __dealloc__(self):
-            DBAPI_close_cursor(self.conn.raw_conn, self.raw_cursor)
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.no_gc_clear
+            @cython.cclass
+            class DBCursor:
+                conn: DBConnection
+                raw_cursor: cython.pointer(DBAPI_Cursor)
+                # ...
+                def __dealloc__(self):
+                    DBAPI_close_cursor(self.conn.raw_conn, self.raw_cursor)
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            @cython.no_gc_clear
+            cdef class DBCursor:
+                cdef DBConnection conn
+                cdef DBAPI_Cursor *raw_cursor
+                # ...
+                def __dealloc__(self):
+                    DBAPI_close_cursor(self.conn.raw_conn, self.raw_cursor)
 
 This example tries to close a cursor via a database connection when the Python
 object is destroyed. The ``DBConnection`` object is kept alive by the reference
@@ -746,12 +906,28 @@ but the compiler won't be able to prove this. This would be the case if
 the class can never reference itself, even indirectly.
 In that case, you can manually disable cycle collection by using the
 ``no_gc`` directive, but beware that doing so when in fact the extension type
-can participate in cycles could cause memory leaks ::
+can participate in cycles could cause memory leaks
 
-    @cython.no_gc
-    cdef class UserInfo:
-        cdef str name
-        cdef tuple addresses
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.no_gc
+            @cython.cclass
+            class UserInfo:
+                name: str
+                addresses: tuple
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            @cython.no_gc
+            cdef class UserInfo:
+                cdef str name
+                cdef tuple addresses
 
 If you can be sure addresses will contain only references to strings,
 the above would be safe, and it may yield a significant speedup, depending on
@@ -786,6 +962,11 @@ defined in a Cython module available to external C code.
 
 External extension types
 ------------------------
+
+.. note::
+
+    Cython currently does not support External extension types
+    in Pure Python mode.
 
 An extern extension type allows you to gain access to the internals of Python
 objects defined in the Python core or in a non-Cython extension module.
