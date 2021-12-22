@@ -72,6 +72,10 @@ class CApiBackend(APIBackend):
     def get_visit_global(var_cname):
         return "Py_VISIT(%s);" % var_cname
 
+    @staticmethod
+    def get_err_occurred():
+        return "PyErr_Occurred()"
+
     # Expression generation methods
 
     @staticmethod
@@ -149,6 +153,10 @@ class HPyBackend(APIBackend):
         return "HPy_VISIT(&(%s));" % var_cname
 
     @staticmethod
+    def get_err_occurred():
+        return "HPyErr_Occurred(%s)" % Naming.hpy_context_cname
+
+    @staticmethod
     def get_pyobject_var_decl(var_name):
         return "HPy " + var_name
 
@@ -223,6 +231,7 @@ class CombinedBackend(APIBackend):
         code.putln("#define __PYX_LIST_BUILDER_CTYPE %s" % CApiBackend.list_builder_ctype)
         code.putln("#define __PYX_LIST_BUILDER_NEW %s" % CApiBackend.list_builder_new)
         code.putln("#define __PYX_LIST_BUILDER_BUILD %s" % CApiBackend.list_builder_build)
+        code.putln("#define __PYX_ERR_OCCURRED() PyErr_Occurred()")
         CApiBackend.put_init_code(code)
 
         code.putln("#else /* %s */" % hpy_guard)
@@ -247,6 +256,7 @@ class CombinedBackend(APIBackend):
         code.putln("#define __PYX_LIST_BUILDER_NEW %s" % HPyBackend.list_builder_new)
         code.putln("#define __PYX_LIST_BUILDER_SET_ITEM %s" % HPyBackend.list_builder_set_item)
         code.putln("#define __PYX_LIST_BUILDER_BUILD %s" % HPyBackend.list_builder_build)
+        code.putln("#define __PYX_ERR_OCCURRED() HPyErr_Occurred(%s)" % Naming.hpy_context_cname)
         code.putln("#endif /* %s */" % hpy_guard)
 
     @staticmethod
@@ -272,6 +282,10 @@ class CombinedBackend(APIBackend):
     @staticmethod
     def get_visit_global(var_cname):
         return "__PYX_VISIT(%s);" % var_cname
+
+    @staticmethod
+    def get_err_occurred():
+        return "__PYX_ERR_OCCURRED()"
 
     # Expression generation methods
 

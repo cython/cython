@@ -3690,17 +3690,6 @@ class HPyCCodeWriter(CCodeWriter):
             else:
                 error(arg.pos, "Cannot convert Python object argument to type '%s'" % arg.type)
 
-    def put_tuple_unpack_single_argument(self, signature, arg_idx):
-        self.putln("values[%d] = %s[%d];" % (arg_idx, Naming.args_cname, arg_idx))
-
-    def put_kwargs_get_length(self, signature, result_cvar):
-        self.putln('%s = HPy_Length(%s, %s);' % (
-            result_cvar, Naming.hpy_context_cname, Naming.kwds_cname))
-
-    def put_kwargs_get_value(self, signature, pystring_cname, result_cname):
-        self.putln('%s = HPy_GetItem(%s, %s, %s);' % (
-            result_cname, Naming.hpy_context_cname, Naming.kwds_cname, pystring_cname))
-
     # Expressions
 
     def put_binary_call_with_error(self, cresult, function, left, right, err_target):

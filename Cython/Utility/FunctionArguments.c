@@ -207,7 +207,7 @@ static int __Pyx_ParseOptionalKeywords(PyObject *kwds, PyObject *const *kwvalues
     const char* function_name); /*proto*/
 #else
 static int __Pyx_ParseOptionalKeywords(HPyContext *ctx, HPy kwds, const HPy *kwvalues,
-    HPy *argnames[],
+    HPyField *argnames[],
     HPy kwds2, HPy values[], HPy_ssize_t num_pos_args,
     const char* function_name); /*proto*/
 #endif /* HPY */
@@ -357,7 +357,7 @@ bad:
 }
 #else
 static int __Pyx_ParseOptionalKeywords(HPyContext *ctx, HPy kwds, const HPy *kwvalues,
-    HPy *argnames[],
+    HPyField *argnames[],
     HPy kwds2, HPy values[], HPy_ssize_t num_pos_args,
     const char* function_name)
 {
@@ -432,17 +432,33 @@ bad:
 // (because it's an old version of CPython or it's not CPython at all),
 // then the ..._FASTCALL macros simply alias ..._VARARGS
 
+#ifndef HPY
 #define __Pyx_Arg_VARARGS(args, i) PyTuple_GET_ITEM(args, i)
 #define __Pyx_NumKwargs_VARARGS(kwds) PyDict_Size(kwds)
 #define __Pyx_KwValues_VARARGS(args, nargs) NULL
 #define __Pyx_GetKwValue_VARARGS(kw, kwvalues, s) __Pyx_PyDict_GetItemStrWithError(kw, s)
 #define __Pyx_KwargsAsDict_VARARGS(kw, kwvalues) PyDict_Copy(kw)
+#else /* HPY */
+#define __Pyx_Arg_VARARGS(ctx, args, i) HPy_GetItem_i(ctx, args, i)
+#define __Pyx_NumKwargs_VARARGS(ctx, kwds) HPy_Length(ctx, kwds)
+#define __Pyx_KwValues_VARARGS(ctx, args, nargs) HPy_NULL
+#define __Pyx_GetKwValue_VARARGS(ctx, kw, kwvalues, s) __Pyx_PyDict_GetItemStrWithError(kw, s)
+#define __Pyx_KwargsAsDict_VARARGS(ctx, kw, kwvalues) PyDict_Copy(kw) // TODO
+#endif /* HPY */
 #if CYTHON_METH_FASTCALL
+#ifndef HPY
     #define __Pyx_Arg_FASTCALL(args, i) args[i]
     #define __Pyx_NumKwargs_FASTCALL(kwds) PyTuple_GET_SIZE(kwds)
     #define __Pyx_KwValues_FASTCALL(args, nargs) (&args[nargs])
     static CYTHON_INLINE PyObject * __Pyx_GetKwValue_FASTCALL(PyObject *kwnames, PyObject *const *kwvalues, PyObject *s);
     #define __Pyx_KwargsAsDict_FASTCALL(kw, kwvalues) _PyStack_AsDict(kwvalues, kw)
+#else /* HPY */
+    #define __Pyx_Arg_FASTCALL(ctx, args, i) args[i]
+    #define __Pyx_NumKwargs_FASTCALL(ctx, kwds) HPy_Length(ctx, kwds)
+    #define __Pyx_KwValues_FASTCALL(ctx, args, nargs) (&args[nargs])
+    static CYTHON_INLINE HPy __Pyx_GetKwValue_FASTCALL(HPyContext *ctx, HPy kwnames, HPy const *kwvalues, HPyField s);
+    #define __Pyx_KwargsAsDict_FASTCALL(kw, kwvalues) _PyStack_AsDict(kwvalues, kw) // TODO
+#endif /* HPY */
 #else
     #define __Pyx_Arg_FASTCALL __Pyx_Arg_VARARGS
     #define __Pyx_NumKwargs_FASTCALL __Pyx_NumKwargs_VARARGS

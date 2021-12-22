@@ -32,6 +32,7 @@ from . import Options
 from . import DebugFlags
 from .Pythran import has_np_pythran, pythran_type, is_pythran_buffer
 from ..Utils import add_metaclass
+from . import Backend
 
 
 if sys.version_info[0] >= 3:
@@ -3787,13 +3788,12 @@ class DefNodeWrapper(FuncDefNode):
         non_pos_args_id = ','.join(
             ['&%s' % code.intern_identifier(arg.entry.name) for arg in non_posonly_args] + ['0'])
         code.putln("#if CYTHON_USE_MODULE_STATE")
-        #code.putln("PyObject **%s[] = {%s};" % (
-        code.putln("%s = {%s};" % (
-            code.type_declaration(py_object_type, "*" + Naming.pykwdlist_cname + "[]"),
+        code.putln("%s *%s[]= {%s};" % (
+            Backend.backend.pyobject_global_ctype,Naming.pykwdlist_cname,
             non_pos_args_id))
         code.putln("#else")
-        code.putln("static %s = {%s};" % (
-            code.type_declaration(py_object_type, "*" + Naming.pykwdlist_cname + "[]"),
+        code.putln("static %s *%s[]= {%s};" % (
+            Backend.backend.pyobject_global_ctype,Naming.pykwdlist_cname,
             non_pos_args_id))
         code.putln("#endif")
 
@@ -3883,8 +3883,8 @@ class DefNodeWrapper(FuncDefNode):
                 # parse the exact number of positional arguments from
                 # the args tuple
                 for i, arg in enumerate(positional_args):
-                    code.putln("values[%d] = __Pyx_Arg_%s(%s, %d);" % (
-                            i, self.signature.fastvar, Naming.args_cname, i))
+                    code.putln("values[%d] = __Pyx_Arg_%s(%s);" % (
+                            i, self.signature.fastvar, Backend.backend.get_args(Naming.args_cname, i)))
             else:
                 # parse the positional arguments from the variable length
                 # args tuple and reject illegal argument tuple sizes
@@ -3897,8 +3897,8 @@ class DefNodeWrapper(FuncDefNode):
                         if i != reversed_args[0][0]:
                             code.putln('CYTHON_FALLTHROUGH;')
                         code.put('case %2d: ' % (i+1))
-                    code.putln("values[%d] = __Pyx_Arg_%s(%s, %d);" % (
-                            i, self.signature.fastvar, Naming.args_cname, i))
+                    code.putln("values[%d] = __Pyx_Arg_%s(%s);" % (
+                            i, self.signature.fastvar, Backend.backend.get_args(Naming.args_cname, i)))
                 if min_positional_args == 0:
                     code.putln('CYTHON_FALLTHROUGH;')
                     code.put('case  0: ')
@@ -3995,8 +3995,8 @@ class DefNodeWrapper(FuncDefNode):
         max_args = len(args)
         # the 'values' array collects borrowed references to arguments
         # before doing any type coercion etc.
-        code.putln("PyObject* values[%d] = {%s};" % (
-            max_args, ','.join('0'*max_args)))
+        code.putln("%s values[%d] = {%s};" % (
+            Backend.backend.pyobject_ctype, max_args, ','.join(('__PYX_NULL', ) * max_args)))
 
         if self.target.defaults_struct:
             code.putln('%s *%s = __Pyx_CyFunction_Defaults(%s, %s);' % (
@@ -4021,7 +4021,7 @@ class DefNodeWrapper(FuncDefNode):
                 if not arg.default:
                     num_required_posonly_args += 1
 
-        code.putln('Py_ssize_t kw_args;')
+        code.putln('%s kw_args;' % Backend.backend.pyssizet_ctype)
         # copy the values from the args tuple and check that it's not too long
         code.putln('switch (%s) {' % Naming.nargs_cname)
         if self.star_arg:
@@ -4029,14 +4029,14 @@ class DefNodeWrapper(FuncDefNode):
 
         for i in range(max_positional_args-1, num_required_posonly_args-1, -1):
             code.put('case %2d: ' % (i+1))
-            code.putln("values[%d] = __Pyx_Arg_%s(%s, %d);" % (
-                i, self.signature.fastvar, Naming.args_cname, i))
+            code.putln("values[%d] = __Pyx_Arg_%s(%s);" % (
+                i, self.signature.fastvar, Backend.backend.get_args(Naming.args_cname, i)))
             code.putln('CYTHON_FALLTHROUGH;')
         if num_required_posonly_args > 0:
             code.put('case %2d: ' % num_required_posonly_args)
             for i in range(num_required_posonly_args-1, -1, -1):
-                code.putln("values[%d] = __Pyx_Arg_%s(%s, %d);" % (
-                    i, self.signature.fastvar, Naming.args_cname, i))
+                code.putln("values[%d] = __Pyx_Arg_%s(%s);" % (
+                    i, self.signature.fastvar, Backend.backend.get_args(Naming.args_cname, i)))
             code.putln('break;')
         for i in range(num_required_posonly_args-2, -1, -1):
             code.put('case %2d: ' % (i+1))
@@ -4065,7 +4065,7 @@ class DefNodeWrapper(FuncDefNode):
         self_name_csafe = self.name.as_c_string_literal()
 
         code.putln('kw_args = __Pyx_NumKwargs_%s(%s);' % (
-                self.signature.fastvar, Naming.kwds_cname))
+                self.signature.fastvar, Backend.backend.get_args(Naming.kwds_cname)))
         if self.num_required_args or max_positional_args > 0:
             last_required_arg = -1
             for i, arg in enumerate(all_args):
@@ -4090,15 +4090,22 @@ class DefNodeWrapper(FuncDefNode):
                         continue
                     code.putln('if (kw_args > 0) {')
                     # don't overwrite default argument
-                    code.putln('PyObject* value = __Pyx_GetKwValue_%s(%s, %s, %s);' % (
-                        self.signature.fastvar, Naming.kwds_cname, Naming.kwvalues_cname, pystring_cname))
-                    code.putln('if (value) { values[%d] = value; kw_args--; }' % i)
-                    code.putln('else if (unlikely(PyErr_Occurred())) %s' % code.error_goto(self.pos))
+                    code.putln('%s value = __Pyx_GetKwValue_%s(%s);' % (
+                        Backend.backend.pyobject_ctype,
+                        self.signature.fastvar,
+                        Backend.backend.get_args(Naming.kwds_cname, Naming.kwvalues_cname, pystring_cname)))
+                    code.putln('if (%s) { values[%d] = value; kw_args--; }' % (
+                        Backend.backend.get_is_not_null_cond("value"), i))
+                    code.putln('else if (unlikely(%s)) %s' % (
+                        Backend.backend.get_err_occurred(), code.error_goto(self.pos)))
                     code.putln('}')
                 else:
-                    code.putln('if (likely((values[%d] = __Pyx_GetKwValue_%s(%s, %s, %s)) != 0)) kw_args--;' % (
-                        i, self.signature.fastvar, Naming.kwds_cname, Naming.kwvalues_cname, pystring_cname))
-                    code.putln('else if (unlikely(PyErr_Occurred())) %s' % code.error_goto(self.pos))
+                    kw_value_cond = Backend.backend.get_is_not_null_cond("values[%d] = __Pyx_GetKwValue_%s(%s))"% (
+                        i, self.signature.fastvar,
+                        Backend.backend.get_args(Naming.kwds_cname, Naming.kwvalues_cname, pystring_cname)))
+                    code.putln('if (likely((%s)) kw_args--;' % kw_value_cond)
+                    code.putln('else if (unlikely(%s)) %s' % (
+                        Backend.backend.get_err_occurred(), code.error_goto(self.pos)))
                     if i < min_positional_args:
                         if i == 0:
                             # special case: we know arg 0 is missing
@@ -4150,12 +4157,14 @@ class DefNodeWrapper(FuncDefNode):
             # pos-only arguments from the number of positional arguments we got.
             # If we get a negative number then none of the keyword arguments were
             # passed as positional args.
-            code.putln('const Py_ssize_t kwd_pos_args = (unlikely(%s < %d)) ? 0 : %s - %d;' % (
+            code.putln('const %s kwd_pos_args = (unlikely(%s < %d)) ? 0 : %s - %d;' % (
+                Backend.backend.pyssizet_ctype,
                 Naming.nargs_cname, num_pos_only_args,
                 Naming.nargs_cname, num_pos_only_args,
             ))
         elif max_positional_args > 0:
-            code.putln('const Py_ssize_t kwd_pos_args = %s;' % Naming.nargs_cname)
+            code.putln('const %s kwd_pos_args = %s;' % (
+                Backend.backend.pyssizet_ctype, Naming.nargs_cname))
 
         if max_positional_args == 0:
             pos_arg_count = "0"
@@ -4165,7 +4174,8 @@ class DefNodeWrapper(FuncDefNode):
             # number of positional args as an index into the keyword argument name array,
             # if this is larger than the number of kwd args we get a segfault.  So round
             # this down to max_positional_args - num_pos_only_args (= num possible kwd args).
-            code.putln("const Py_ssize_t used_pos_args = (kwd_pos_args < %d) ? kwd_pos_args : %d;" % (
+            code.putln("const %s used_pos_args = (kwd_pos_args < %d) ? kwd_pos_args : %d;" % (
+                Backend.backend.pyssizet_ctype,
                 max_positional_args - num_pos_only_args, max_positional_args - num_pos_only_args))
             pos_arg_count = "used_pos_args"
         else:
@@ -4176,14 +4186,14 @@ class DefNodeWrapper(FuncDefNode):
             values_array = 'values'
         code.globalstate.use_utility_code(
             UtilityCode.load_cached("ParseKeywords", "FunctionArguments.c"))
-        code.putln('if (unlikely(__Pyx_ParseOptionalKeywords(%s, %s, %s, %s, %s, %s, %s) < 0)) %s' % (
-            Naming.kwds_cname,
-            Naming.kwvalues_cname,
-            Naming.pykwdlist_cname,
-            self.starstar_arg and self.starstar_arg.entry.cname or '0',
-            values_array,
-            pos_arg_count,
-            self_name_csafe,
+        code.putln('if (unlikely(__Pyx_ParseOptionalKeywords(%s) < 0)) %s' % (
+            Backend.backend.get_args(Naming.kwds_cname,
+                                     Naming.kwvalues_cname,
+                                     Naming.pykwdlist_cname,
+                                     self.starstar_arg and self.starstar_arg.entry.cname or '__PYX_NULL',
+                                     values_array,
+                                     pos_arg_count,
+                                     self_name_csafe),
             code.error_goto(self.pos)))
         code.putln('}')
 
