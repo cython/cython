@@ -1756,7 +1756,7 @@ class CType(PyrexType):
         return '%s = %s(%s)' % (
             result_code,
             func,
-            source_code or 'NULL')
+            Backend.backend.get_args(source_code or 'NULL'))
 
     def from_py_call_code(self, source_code, result_code, error_pos, code,
                           from_py_function=None, error_condition=None):
