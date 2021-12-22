@@ -498,6 +498,11 @@ class __Pyx_FakeReference {
 #define __Pyx_PyErr_SetString(err, msg) HPyErr_SetString(__PYX_CONTEXT err, msg)
 #define __Pyx_PyExc_RuntimeError (($hpy_context_cname)->h_RuntimeError)
 
+#define PyLong_FromLong HPyLong_FromLong
+#define PyLong_FromUnsignedLong HPyLong_FromUnsignedLong
+#define PyLong_FromLongLong HPyLong_FromLongLong
+#define PyLong_FromUnsignedLongLong HPyLong_FromUnsignedLongLong
+
 #endif /* HPY */
 
 /////////////// PythonCompatibility ///////////////

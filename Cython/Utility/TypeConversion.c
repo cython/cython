@@ -708,12 +708,12 @@ static CYTHON_INLINE Py_UNICODE __Pyx_PyObject_AsPy_UNICODE(PyObject* x) {
 
 /////////////// CIntToPy.proto ///////////////
 
-static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value);
+static CYTHON_INLINE __PYX_OBJECT_CTYPE {{TO_PY_FUNCTION}}(__PYX_CONTEXT_DECL {{TYPE}} value);
 
 /////////////// CIntToPy ///////////////
 //@requires: GCCDiagnostics
 
-static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
+static CYTHON_INLINE __PYX_OBJECT_CTYPE {{TO_PY_FUNCTION}}(__PYX_CONTEXT_DECL {{TYPE}} value) {
 #ifdef __Pyx_HAS_GCC_DIAGNOSTIC
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wconversion"
@@ -725,20 +725,20 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
     const int is_unsigned = neg_one > const_zero;
     if (is_unsigned) {
         if (sizeof({{TYPE}}) < sizeof(long)) {
-            return PyInt_FromLong((long) value);
+            return PyInt_FromLong(__PYX_CONTEXT (long) value);
         } else if (sizeof({{TYPE}}) <= sizeof(unsigned long)) {
-            return PyLong_FromUnsignedLong((unsigned long) value);
+            return PyLong_FromUnsignedLong(__PYX_CONTEXT (unsigned long) value);
 #ifdef HAVE_LONG_LONG
         } else if (sizeof({{TYPE}}) <= sizeof(unsigned PY_LONG_LONG)) {
-            return PyLong_FromUnsignedLongLong((unsigned PY_LONG_LONG) value);
+            return PyLong_FromUnsignedLongLong(__PYX_CONTEXT (unsigned PY_LONG_LONG) value);
 #endif
         }
     } else {
         if (sizeof({{TYPE}}) <= sizeof(long)) {
-            return PyInt_FromLong((long) value);
+            return PyInt_FromLong(__PYX_CONTEXT (long) value);
 #ifdef HAVE_LONG_LONG
         } else if (sizeof({{TYPE}}) <= sizeof(PY_LONG_LONG)) {
-            return PyLong_FromLongLong((PY_LONG_LONG) value);
+            return PyLong_FromLongLong(__PYX_CONTEXT (PY_LONG_LONG) value);
 #endif
         }
     }
