@@ -140,48 +140,142 @@ e.g., ``myarray.data.as_ints``.
 
 Functions
 ~~~~~~~~~
-The following functions are available to Cython from the array module::
+The following functions are available to Cython from the array module
 
-    int resize(array self, Py_ssize_t n) except -1
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.cfunc
+            @cython.exceptval(-1)
+            def resize(self: array.array, n: cython.Py_ssize_t) -> cython.int
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef int resize(array.array self, Py_ssize_t n) except -1
 
 Fast resize / realloc. Not suitable for repeated, small increments; resizes
 underlying array to exactly the requested amount.
 
-::
+----
 
-    int resize_smart(array self, Py_ssize_t n) except -1
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.cfunc
+            @cython.exceptval(-1)
+            def resize_smart(self: array.array, n: cython.Py_ssize_t) -> cython.int
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef int resize_smart(array.array self, Py_ssize_t n) except -1
 
 Efficient for small increments; uses growth pattern that delivers
 amortized linear-time appends.
 
-::
+----
 
-    cdef inline array clone(array template, Py_ssize_t length, bint zero)
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.cfunc
+            @cython.inline
+            def clone(template: array.array, length: cython.Py_ssize_t, zero: cython.bint) -> array.array
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef inline array.array clone(array.array template, Py_ssize_t length, bint zero)
+
 
 Fast creation of a new array, given a template array. Type will be same as
 ``template``. If zero is ``True``, new array will be initialized with zeroes.
 
-::
+----
 
-    cdef inline array copy(array self)
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.cfunc
+            @cython.inline
+            def copy(self: array.array) -> array.array
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef inline array.array copy(array.array self)
 
 Make a copy of an array.
 
-::
+----
 
-    cdef inline int extend_buffer(array self, char* stuff, Py_ssize_t n) except -1
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.cfunc
+            @cython.inline
+            @cython.exceptval(-1)
+            def extend_buffer(self: array.array, stuff: cython.p_char, n: cython.Py_ssize_t) -> cython.int
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef inline int extend_buffer(array.array self, char* stuff, Py_ssize_t n) except -1
 
 Efficient appending of new data of same type (e.g. of same array type)
 ``n``: number of elements (not number of bytes!)
 
-::
+----
 
-    cdef inline int extend(array self, array other) except -1
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.cfunc
+            @cython.inline
+            @cython.exceptval(-1)
+            def extend(self: array.array, other: array.array) -> cython.int
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef inline int extend(array.array self, array.array other) except -1
 
 Extend array with data from another array; types must match.
 
-::
+----
 
-    cdef inline void zero(array self)
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.cfunc
+            @cython.inline
+            def zero(self: array.array) -> cython.void
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef inline void zero(array.array self)
 
 Set all elements of array to zero.
