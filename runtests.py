@@ -129,7 +129,7 @@ EXT_DEP_MODULES = {
     'tag:ipython':  'IPython.testing.globalipapp',
     'tag:jedi':     'jedi_BROKEN_AND_DISABLED',
     'tag:test.support': 'test.support',  # support module for CPython unit tests
-    'tag:hpy':      'hpy.devel',  
+    'tag:hpy':      'hpy.devel',
 }
 
 def patch_inspect_isfunction():
@@ -1228,6 +1228,7 @@ class CythonCompileTestCase(unittest.TestCase):
             generate_pxi = False,
             evaluate_tree_assertions = True,
             common_utility_include_dir = common_utility_include_dir,
+            hpy = self.hpy,
             **extra_compile_options
             )
         cython_compile(module_path, options=options, full_module_name=module)

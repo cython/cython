@@ -7697,9 +7697,11 @@ class SequenceNode(ExprNode):
             if self.type is list_type:
                 builder_ctype = backend.list_builder_ctype
                 create_func, set_item_func = backend.list_builder_new, backend.list_builder_set_item
+                build_func = backend.list_builder_build
             elif self.type is tuple_type:
                 builder_ctype = backend.tuple_builder_ctype
                 create_func, set_item_func = backend.tuple_builder_new, backend.tuple_builder_set_item
+                build_func = backend.tuple_builder_build
             else:
                 raise InternalError("sequence packing for unexpected type %s" % self.type)
             # FIXME: can't use a temp variable here as the code may
@@ -7710,10 +7712,9 @@ class SequenceNode(ExprNode):
             tmp_builder = Naming.quick_temp_cname + str(tmp_count)
             tmp_count += 1
             arg_count = len(self.args)
-            code.putln("%s %s = %s(%s); %s" % (
+            code.putln("%s %s = %s(%s);" % (
                 builder_ctype, tmp_builder,
-                create_func, backend.get_args("%s%s" % (arg_count, size_factor)),
-                code.error_goto_if_null(tmp_builder, self.pos)))
+                create_func, backend.get_args("%s%s" % (arg_count, size_factor))))
             code.put_gotref(tmp_builder, py_object_type)
 
             if c_mult:
@@ -7743,7 +7744,9 @@ class SequenceNode(ExprNode):
                         str((offset and i) and ('%s + %s' % (offset, i)) or (offset or i)),
                         arg.py_result())))
 
-            code.putln("%s = %s(%s);" % (target, backend.tuple_builder_build, backend.get_args(tmp_builder)))
+            code.putln("%s = %s(%s); %s" % (
+                target, build_func, backend.get_args(tmp_builder),
+                code.error_goto_if_null(target, self.pos)))
             #code.funcstate.release_temp(tmp_builder)
 
             if c_mult:

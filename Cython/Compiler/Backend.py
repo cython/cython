@@ -33,15 +33,20 @@ class CApiBackend(APIBackend):
     # tuple building
     tuple_builder_ctype = pyobject_ctype
     tuple_builder_new = "PyTuple_New"
-    tuple_builder_set_item = "PyTuple_SET_ITEM"
+    tuple_builder_set_item = "__PYX_TUPLE_BUILDER_SET_ITEM"
     tuple_builder_build = ""
     tuple_pack = "PyTuple_Pack"
 
     # list building
     list_builder_ctype = pyobject_ctype
     list_builder_new = "PyList_New"
-    list_builder_set_item = "PyList_SET_ITEM"
+    list_builder_set_item = "__PYX_LIST_BUILDER_SET_ITEM"
     list_builder_build = ""
+
+    @staticmethod
+    def put_init_code(code):
+        code.putln("#define __PYX_TUPLE_BUILDER_SET_ITEM(b, k, v) if (b) { PyTuple_SET_ITEM(b, k, v); }")
+        code.putln("#define __PYX_LIST_BUILDER_SET_ITEM(b, k, v) if (b) { PyList_SET_ITEM(b, k, v); }")
 
     @staticmethod
     def get_arg_list(*args):
@@ -213,13 +218,12 @@ class CombinedBackend(APIBackend):
         code.putln("#define __PYX_SSIZE_T %s" % CApiBackend.pyssizet_ctype)
         code.putln("#define __PYX_TUPLE_BUILDER_CTYPE %s" % CApiBackend.tuple_builder_ctype)
         code.putln("#define __PYX_TUPLE_BUILDER_NEW %s" % CApiBackend.tuple_builder_new)
-        code.putln("#define __PYX_TUPLE_BUILDER_SET_ITEM %s" % CApiBackend.tuple_builder_set_item)
         code.putln("#define __PYX_TUPLE_BUILDER_BUILD %s" % CApiBackend.tuple_builder_build)
         code.putln("#define __PYX_TUPLE_PACK %s" % CApiBackend.tuple_pack)
         code.putln("#define __PYX_LIST_BUILDER_CTYPE %s" % CApiBackend.list_builder_ctype)
         code.putln("#define __PYX_LIST_BUILDER_NEW %s" % CApiBackend.list_builder_new)
-        code.putln("#define __PYX_LIST_BUILDER_SET_ITEM %s" % CApiBackend.list_builder_set_item)
         code.putln("#define __PYX_LIST_BUILDER_BUILD %s" % CApiBackend.list_builder_build)
+        CApiBackend.put_init_code(code)
 
         code.putln("#else /* %s */" % hpy_guard)
 

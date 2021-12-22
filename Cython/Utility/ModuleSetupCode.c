@@ -486,7 +486,7 @@ class __Pyx_FakeReference {
 
 #else
 
-#define __PYX_OBJECT_CTYPE PyObject *
+#define __PYX_OBJECT_CTYPE HPy
 #define __PYX_IS_NULL(x) HPy_IsNull(x)
 #define __PYX_IS_NOT_NULL(x) !HPy_IsNull(x)
 #define __PYX_NULL HPy_NULL
