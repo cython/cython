@@ -1915,7 +1915,6 @@ class NameNode(AtomicExprNode):
     #  cf_maybe_null   boolean   Maybe uninitialized before this node
     #  allow_null      boolean   Don't raise UnboundLocalError
     #  nogil           boolean   Whether it is used in a nogil context
-    #  annotation      AnnotationNode or None   Deliberately not a subexpr
 
     is_name = True
     is_cython_module = False
@@ -1929,7 +1928,6 @@ class NameNode(AtomicExprNode):
     allow_null = False
     nogil = False
     inferred_type = None
-    annotation = None
 
     def as_cython_attribute(self):
         return self.cython_attribute
