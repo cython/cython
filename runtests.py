@@ -28,9 +28,11 @@ try:
     import platform
     IS_PYPY = platform.python_implementation() == 'PyPy'
     IS_CPYTHON = platform.python_implementation() == 'CPython'
+    IS_GRAAL = platform.python_implementation() == 'GraalVM'
 except (ImportError, AttributeError):
     IS_CPYTHON = True
     IS_PYPY = False
+    IS_GRAAL = False
 
 IS_PY2 = sys.version_info[0] < 3
 CAN_SYMLINK = sys.platform != 'win32' and hasattr(os, 'symlink')
@@ -376,10 +378,9 @@ def get_cc_version(language):
     env['LC_MESSAGES'] = 'C'
     try:
         p = subprocess.Popen([cc, "-v"], stderr=subprocess.PIPE, env=env)
-    except EnvironmentError:
-        # Be compatible with Python 3
+    except EnvironmentError as exc:
         warnings.warn("Unable to find the %s compiler: %s: %s" %
-                      (language, os.strerror(sys.exc_info()[1].errno), cc))
+                      (language, os.strerror(exc.errno), cc))
         return ''
     _, output = p.communicate()
     return output.decode(locale.getpreferredencoding() or 'ASCII', 'replace')
@@ -475,6 +476,7 @@ VER_DEP_MODULES = {
                                           ]),
     (3,4): (operator.lt, lambda x: x in ['run.py34_signature',
                                          'run.test_unicode',  # taken from Py3.7, difficult to backport
+                                         'run.pep442_tp_finalize',
                                          ]),
     (3,4,999): (operator.gt, lambda x: x in ['run.initial_file_path',
                                              ]),
@@ -484,6 +486,8 @@ VER_DEP_MODULES = {
                                          'run.pep526_variable_annotations',  # typing module
                                          'run.test_exceptions',  # copied from Py3.7+
                                          'run.time_pxd',  # _PyTime_GetSystemClock doesn't exist in 3.4
+                                         'run.cpython_capi_py35',
+                                         'embedding.embedded',  # From the docs, needs Py_DecodeLocale
                                          ]),
     (3,7): (operator.lt, lambda x: x in ['run.pycontextvar',
                                          'run.pep557_dataclasses',  # dataclasses module
@@ -945,7 +949,9 @@ class CythonCompileTestCase(unittest.TestCase):
                  fork=True, language_level=2, warning_errors=False,
                  test_determinism=False,
                  common_utility_dir=None, pythran_dir=None, stats=None, add_cython_import=False,
-                 extra_directives={}):
+                 extra_directives=None):
+        if extra_directives is None:
+            extra_directives = {}
         self.test_directory = test_directory
         self.tags = tags
         self.workdir = workdir
@@ -2023,7 +2029,8 @@ class MissingDependencyExcluder(object):
         except AttributeError:
             stdlib_dir = os.path.dirname(shutil.__file__) + os.sep
             module_path = getattr(module, '__file__', stdlib_dir)  # no __file__? => builtin stdlib module
-            if module_path.startswith(stdlib_dir):
+            # GraalPython seems to return None for some unknown reason
+            if module_path and module_path.startswith(stdlib_dir):
                 # stdlib module
                 version = sys.version.partition(' ')[0]
             elif '.' in name:
@@ -2655,6 +2662,7 @@ def runtests(options, cmd_args, coverage=None):
             ('pypy2_bugs.txt', IS_PYPY and IS_PY2),
             ('pypy_crash_bugs.txt', IS_PYPY),
             ('pypy_implementation_detail_bugs.txt', IS_PYPY),
+            ('graal_bugs.txt', IS_GRAAL),
             ('limited_api_bugs.txt', options.limited_api),
             ('windows_bugs.txt', sys.platform == 'win32'),
             ('cygwin_bugs.txt', sys.platform == 'cygwin')

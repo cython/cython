@@ -320,6 +320,8 @@ __Pyx_CyFunction_set_defaults(__pyx_CyFunctionObject *op, PyObject* value, void 
                         "__defaults__ must be set to a tuple object");
         return -1;
     }
+    PyErr_WarnEx(PyExc_RuntimeWarning, "changes to cyfunction.__defaults__ will not "
+                 "currently affect the values used in function calls", 1);
     Py_INCREF(value);
     __Pyx_Py_XDECREF_SET(op->defaults_tuple, value);
     return 0;
@@ -352,6 +354,8 @@ __Pyx_CyFunction_set_kwdefaults(__pyx_CyFunctionObject *op, PyObject* value, voi
                         "__kwdefaults__ must be set to a dict object");
         return -1;
     }
+    PyErr_WarnEx(PyExc_RuntimeWarning, "changes to cyfunction.__kwdefaults__ will not "
+                 "currently affect the values used in function calls", 1);
     Py_INCREF(value);
     __Pyx_Py_XDECREF_SET(op->defaults_kwdict, value);
     return 0;
@@ -952,7 +956,7 @@ static PyType_Spec __pyx_CyFunctionType_spec = {
 #ifdef Py_TPFLAGS_METHOD_DESCRIPTOR
     Py_TPFLAGS_METHOD_DESCRIPTOR |
 #endif
-#ifdef _Py_TPFLAGS_HAVE_VECTORCALL
+#if (defined(_Py_TPFLAGS_HAVE_VECTORCALL) && CYTHON_METH_FASTCALL)
     _Py_TPFLAGS_HAVE_VECTORCALL |
 #endif
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE, /*tp_flags*/
@@ -1031,13 +1035,13 @@ static PyTypeObject __pyx_CyFunctionType_type = {
 #if PY_VERSION_HEX >= 0x030400a1
     0,                                  /*tp_finalize*/
 #endif
-#if PY_VERSION_HEX >= 0x030800b1
+#if PY_VERSION_HEX >= 0x030800b1 && (!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07030800)
     0,                                  /*tp_vectorcall*/
 #endif
 #if PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000
     0,                                  /*tp_print*/
 #endif
-#if CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM+0 >= 0x06000000
+#if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX > 0x03080000
     0,                                          /*tp_pypy_flags*/
 #endif
 };
@@ -1572,13 +1576,13 @@ static PyTypeObject __pyx_FusedFunctionType_type = {
 #if PY_VERSION_HEX >= 0x030400a1
     0,                                  /*tp_finalize*/
 #endif
-#if PY_VERSION_HEX >= 0x030800b1
+#if PY_VERSION_HEX >= 0x030800b1 && (!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07030800)
     0,                                  /*tp_vectorcall*/
 #endif
 #if PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000
     0,                                  /*tp_print*/
 #endif
-#if CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM+0 >= 0x06000000
+#if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX > 0x03080000
     0,                                          /*tp_pypy_flags*/
 #endif
 };

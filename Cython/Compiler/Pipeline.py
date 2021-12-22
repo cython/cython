@@ -19,7 +19,7 @@ def dumptree(t):
 
 def abort_on_errors(node):
     # Stop the pipeline if there are any errors.
-    if Errors.num_errors != 0:
+    if Errors.get_errors_count() != 0:
         raise AbortError("pipeline break")
     return node
 
@@ -378,7 +378,7 @@ def run_pipeline(pipeline, source, printtree=True):
             error = err
     except InternalError as err:
         # Only raise if there was not an earlier error
-        if Errors.num_errors == 0:
+        if Errors.get_errors_count() == 0:
             raise
         error = err
     except AbortError as err:

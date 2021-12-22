@@ -159,7 +159,7 @@ def compile_cython_modules(profile=False, coverage=False, compile_more=False, cy
         # XXX hack around setuptools quirk for '*.pyx' sources
         extensions[-1].sources[0] = pyx_source_file
 
-    from Cython.Distutils.build_ext import new_build_ext
+    from Cython.Distutils.build_ext import build_ext
     from Cython.Compiler.Options import get_directive_defaults
     get_directive_defaults().update(
         language_level=2,
@@ -175,7 +175,7 @@ def compile_cython_modules(profile=False, coverage=False, compile_more=False, cy
         sys.stderr.write("Enabled line tracing and profiling for the Cython binary modules\n")
 
     # not using cythonize() directly to let distutils decide whether building extensions was requested
-    add_command_class("build_ext", new_build_ext)
+    add_command_class("build_ext", build_ext)
     setup_args['ext_modules'] = extensions
 
 
@@ -289,6 +289,7 @@ def run_build():
             "Programming Language :: Python :: 3.7",
             "Programming Language :: Python :: 3.8",
             "Programming Language :: Python :: 3.9",
+            "Programming Language :: Python :: 3.10",
             "Programming Language :: Python :: Implementation :: CPython",
             "Programming Language :: Python :: Implementation :: PyPy",
             "Programming Language :: C",

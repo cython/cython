@@ -162,7 +162,8 @@ class TestClassGetitem(unittest.TestCase):
     # BEGIN - Additional tests from cython
     def test_no_class_getitem(self):
         class C: ...
-        with self.assertRaises(TypeError):
+        # note that PyPy raises AttributeError on __class_getitem__
+        with self.assertRaises(TypeError if not hasattr(sys, "pypy_version_info") else AttributeError):
             C[int]
 
     # END - Additional tests from cython

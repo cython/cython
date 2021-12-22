@@ -8,7 +8,12 @@ cdef extern from "Python.h":
         Py_ssize_t ob_refcnt
         PyTypeObject *ob_type
 
-cdef extern from "longintrepr.h":
+cdef extern from "Python.h":
+    """
+    #if PY_MAJOR_VERSION < 3
+     #include "longintrepr.h"
+    #endif
+    """
     cdef struct _longobject:
         int ob_refcnt
         PyTypeObject *ob_type

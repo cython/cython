@@ -1,8 +1,9 @@
 # cython: profile=True
 
-# calc_pi.pyx
 
-cdef inline double recip_square(int i) except -1.0:
+
+
+cdef inline double recip_square(long long i) except -1.0:
     return 1. / (i * i)
 
 def approx_pi(int n=10000000):

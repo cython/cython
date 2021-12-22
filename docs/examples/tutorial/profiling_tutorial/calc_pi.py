@@ -1,5 +1,3 @@
-# calc_pi.py
-
 def recip_square(i):
     return 1. / i ** 2
 

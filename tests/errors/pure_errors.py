@@ -50,8 +50,15 @@ def pyfunc(x):  # invalid
     return x + 1
 
 
+@cython.exceptval(-1)
+@cython.cfunc
+def test_cdef_return_object_broken(x: object) -> object:
+    return x
+
+
 _ERRORS = """
 44:22: Calling gil-requiring function not allowed without gil
 45:24: Calling gil-requiring function not allowed without gil
 48:0: Python functions cannot be declared 'nogil'
+53:0: Exception clause not allowed for function returning Python object
 """
