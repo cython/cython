@@ -913,6 +913,8 @@ class InterpretCompilerDirectives(CythonTransform):
         return node
 
     def visit_NameNode(self, node):
+        if node.annotation:
+            node.annotation = self.visit(node.annotation)
         if node.name in self.cython_module_names:
             node.is_cython_module = True
         else:
