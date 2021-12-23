@@ -2135,7 +2135,7 @@ class FuncDefNode(StatNode, BlockNode):
                 MemoryView.put_init_entry(Naming.retval_cname, code)
                 err_val = Naming.retval_cname
             else:
-                err_val = self.error_value(code)
+                err_val = self.error_value()
 
             exc_check = self.caller_will_check_exceptions()
             if err_val is not None or exc_check:
@@ -2257,7 +2257,7 @@ class FuncDefNode(StatNode, BlockNode):
         # This code is duplicated in ModuleNode.generate_module_init_func
         if not lenv.nogil:
             default_retval = return_type.default_value
-            err_val = self.error_value(code)
+            err_val = self.error_value()
             if err_val is None and default_retval:
                 err_val = default_retval  # FIXME: why is err_val not used?
             code.put_xgiveref(Naming.retval_cname, return_type)
@@ -3343,8 +3343,8 @@ class DefNode(FuncDefNode):
                 return code.globalstate.directives['binding']
         return env.is_py_class_scope or env.is_closure_scope
 
-    def error_value(self, code):
-        return code.get_error_value_from_format(self.entry.signature.ret_format)
+    def error_value(self):
+        return self.entry.signature.error_value
 
     def caller_will_check_exceptions(self):
         return self.entry.signature.exception_check
@@ -3569,7 +3569,7 @@ class DefNodeWrapper(FuncDefNode):
             code.put_label(code.error_label)
             for cname, type in code.funcstate.all_managed_temps():
                 code.put_xdecref(cname, type)
-            err_val = self.error_value(code)
+            err_val = self.error_value()
             if err_val is not None:
                 code.putln("%s = %s;" % (Naming.retval_cname, err_val))
 
@@ -3643,7 +3643,7 @@ class DefNodeWrapper(FuncDefNode):
                         code.put_var_decref_clear(self.starstar_arg.entry)
             code.put_add_traceback(self.target.entry.qualified_name)
             code.put_finish_refcount_context()
-            code.putln("return %s;" % self.error_value(code))
+            code.putln("return %s;" % self.error_value())
         if code.label_used(end_label):
             code.put_label(end_label)
 
@@ -3661,7 +3661,7 @@ class DefNodeWrapper(FuncDefNode):
                 UtilityCode.load_cached("RaiseArgTupleInvalid", "FunctionArguments.c"))
             code.putln("if (unlikely(%s > 0)) {" % Naming.nargs_cname)
             code.put('__Pyx_RaiseArgtupleInvalid(%s, 1, 0, 0, %s); return %s;' % (
-                self.name.as_c_string_literal(), Naming.nargs_cname, self.error_value(code)))
+                self.name.as_c_string_literal(), Naming.nargs_cname, self.error_value()))
             code.putln("}")
 
         if self.starstar_arg:
@@ -3677,7 +3677,7 @@ class DefNodeWrapper(FuncDefNode):
         code.putln(
             "if (%s && unlikely(!__Pyx_CheckKeywordStrings(%s, %s, %d))) return %s;" % (
                 kwarg_check, Naming.kwds_cname, self.name.as_c_string_literal(),
-                bool(self.starstar_arg), self.error_value(code)))
+                bool(self.starstar_arg), self.error_value()))
 
         if self.starstar_arg and self.starstar_arg.entry.cf_used:
             code.putln("if (%s) {" % kwarg_check)
@@ -3687,7 +3687,7 @@ class DefNodeWrapper(FuncDefNode):
                 Naming.kwds_cname,
                 Naming.kwvalues_cname))
             code.putln("if (unlikely(!%s)) return %s;" % (
-                self.starstar_arg.entry.cname, self.error_value(code)))
+                self.starstar_arg.entry.cname, self.error_value()))
             code.put_gotref(self.starstar_arg.entry.cname, py_object_type)
             code.putln("} else {")
             allow_null = all(ref.node.allow_null for ref in self.starstar_arg.entry.cf_references)
@@ -3696,7 +3696,7 @@ class DefNodeWrapper(FuncDefNode):
             else:
                 code.putln("%s = PyDict_New();" % (self.starstar_arg.entry.cname,))
                 code.putln("if (unlikely(!%s)) return %s;" % (
-                    self.starstar_arg.entry.cname, self.error_value(code)))
+                    self.starstar_arg.entry.cname, self.error_value()))
                 code.put_var_gotref(self.starstar_arg.entry)
             self.starstar_arg.entry.xdecref_cleanup = allow_null
             code.putln("}")
@@ -3711,10 +3711,10 @@ class DefNodeWrapper(FuncDefNode):
             if self.starstar_arg and self.starstar_arg.entry.cf_used:
                 code.putln("{")
                 code.put_var_xdecref_clear(self.starstar_arg.entry)
-                code.putln("return %s;" % self.error_value(code))
+                code.putln("return %s;" % self.error_value())
                 code.putln("}")
             else:
-                code.putln("return %s;" % self.error_value(code))
+                code.putln("return %s;" % self.error_value())
             code.put_var_gotref(self.star_arg.entry)
             code.put_incref(Naming.self_cname, py_object_type)
             code.put_giveref(Naming.self_cname, py_object_type)
@@ -3965,7 +3965,7 @@ class DefNodeWrapper(FuncDefNode):
             code.putln('%s = PyDict_New(); if (unlikely(!%s)) return %s;' % (
                 self.starstar_arg.entry.cname,
                 self.starstar_arg.entry.cname,
-                self.error_value(code)))
+                self.error_value()))
             code.put_var_gotref(self.starstar_arg.entry)
         if self.star_arg:
             self.star_arg.entry.xdecref_cleanup = 0
@@ -3987,7 +3987,7 @@ class DefNodeWrapper(FuncDefNode):
                 if self.starstar_arg:
                     code.put_var_decref_clear(self.starstar_arg.entry)
                 code.put_finish_refcount_context()
-                code.putln('return %s;' % self.error_value(code))
+                code.putln('return %s;' % self.error_value())
                 code.putln('}')
                 code.put_var_gotref(self.star_arg.entry)
 
@@ -4305,8 +4305,8 @@ class DefNodeWrapper(FuncDefNode):
                                           arg.type.is_memoryviewslice):
                 self.generate_arg_none_check(arg, code)
 
-    def error_value(self, code):
-        return code.get_error_value_from_format(self.signature.ret_format)
+    def error_value(self):
+        return self.signature.error_value
 
 
 class GeneratorDefNode(DefNode):
