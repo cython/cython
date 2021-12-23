@@ -108,7 +108,7 @@ void inita(void)
    if (!sys_modules) return;
    mod = PyInit_a();
    if (!mod) return;
-#if PY_VERSION_HEX >= 0x03050000
+#if PY_VERSION_HEX >= 0x03050000 && !CYTHON_COMPILING_IN_PYPY
    /* FIXME: this is incomplete and users shouldn't have to do this in the first place... */
    if (!PyModule_Check(mod)) {
       PyModuleDef *mdef = (PyModuleDef*)mod;
