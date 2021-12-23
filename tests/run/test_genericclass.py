@@ -163,7 +163,7 @@ class TestClassGetitem(unittest.TestCase):
     def test_no_class_getitem(self):
         class C: ...
         # PyPy<7.3.8 raises AttributeError on __class_getitem__
-        if sys.implementation.name == 'pypy' and sys.implementation.version < (7, 3, 8):
+        if hasattr(sys, "pypy_version_info")  and sys.pypy_version_info < (7, 3, 8):
             err = AttributeError
         else:
             err = TypeError
