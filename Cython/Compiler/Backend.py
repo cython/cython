@@ -43,6 +43,13 @@ class CApiBackend(APIBackend):
     list_builder_set_item = "__PYX_LIST_BUILDER_SET_ITEM"
     list_builder_build = ""
 
+    # type conversion functions
+    pyfloat_fromdouble = 'PyFloat_FromDouble'
+    pylong_fromstring = 'PyLong_FromString'
+    pyint_fromstring = 'PyInt_FromString'
+    pylong_fromlong = "PyLong_FromLong"
+    pyint_fromlong = "PyInt_FromLong"
+
     @staticmethod
     def put_init_code(code):
         code.putln("#define __PYX_TUPLE_BUILDER_SET_ITEM(b, k, v) if (b) { PyTuple_SET_ITEM(b, k, v); }")
@@ -125,6 +132,13 @@ class HPyBackend(APIBackend):
     list_builder_new = "HPyListBuilder_New"
     list_builder_set_item = "HPyListBuilder_Set"
     list_builder_build = "HPyListBuilder_Build"
+
+    # type conversion functions
+    pyfloat_fromdouble = 'HPyFloat_FromDouble'
+    pylong_fromstring = 'HPyLong_FromString'
+    pyint_fromstring = pylong_fromstring
+    pylong_fromlong = "HPyLong_FromLong"
+    pyint_fromlong = pylong_fromlong
 
     @staticmethod
     def get_arg_list(*args):
@@ -211,6 +225,13 @@ class CombinedBackend(APIBackend):
     list_builder_set_item = "__PYX_LIST_BUILDER_SET_ITEM"
     list_builder_build = "__PYX_LIST_BUILDER_BUILD"
 
+    # type conversion functions
+    pyfloat_fromdouble = "__PYX_FLOAT_FROM_DOUBLE"
+    pylong_fromstring = "__PYX_LONG_FROM_STRING"
+    pyint_fromstring = "__PYX_INT_FROM_STRING"
+    pylong_fromlong = "__PYX_LONG_FROM_LONG"
+    pyint_fromlong = "__PYX_INT_FROM_LONG"
+
     @staticmethod
     def put_init_code(code):
         hpy_guard = CApiBackend.hpy_guard
@@ -232,6 +253,11 @@ class CombinedBackend(APIBackend):
         code.putln("#define __PYX_LIST_BUILDER_NEW %s" % CApiBackend.list_builder_new)
         code.putln("#define __PYX_LIST_BUILDER_BUILD %s" % CApiBackend.list_builder_build)
         code.putln("#define __PYX_ERR_OCCURRED() PyErr_Occurred()")
+        code.putln("#define __PYX_FLOAT_FROM_DOUBLE %s" % CApiBackend.pyfloat_fromdouble)
+        code.putln("#define __PYX_LONG_FROM_STRING %s" % CApiBackend.pylong_fromstring)
+        code.putln("#define __PYX_INT_FROM_STRING %s" % CApiBackend.pyint_fromstring)
+        code.putln("#define __PYX_LONG_FROM_LONG %s" % CApiBackend.pylong_fromlong)
+        code.putln("#define __PYX_INT_FROM_LONG %s" % CApiBackend.pyint_fromlong)
         CApiBackend.put_init_code(code)
 
         code.putln("#else /* %s */" % hpy_guard)
@@ -257,6 +283,11 @@ class CombinedBackend(APIBackend):
         code.putln("#define __PYX_LIST_BUILDER_SET_ITEM %s" % HPyBackend.list_builder_set_item)
         code.putln("#define __PYX_LIST_BUILDER_BUILD %s" % HPyBackend.list_builder_build)
         code.putln("#define __PYX_ERR_OCCURRED() HPyErr_Occurred(%s)" % Naming.hpy_context_cname)
+        code.putln("#define __PYX_FLOAT_FROM_DOUBLE %s" % HPyBackend.pyfloat_fromdouble)
+        code.putln("#define __PYX_LONG_FROM_STRING %s" % HPyBackend.pylong_fromstring)
+        code.putln("#define __PYX_INT_FROM_STRING %s" % HPyBackend.pyint_fromstring)
+        code.putln("#define __PYX_LONG_FROM_LONG %s" % HPyBackend.pylong_fromlong)
+        code.putln("#define __PYX_INT_FROM_LONG %s" % HPyBackend.pyint_fromlong)
         code.putln("#endif /* %s */" % hpy_guard)
 
     @staticmethod

@@ -1722,19 +1722,20 @@ class GlobalState(object):
                 backend.get_clear_global("m", "clear_module_state->%s" % cname))
             self.parts['module_state_traverse'].putln(
                 backend.get_visit_global("traverse_module_state->%s" % cname))
-            decls_writer.putln("static PyObject *%s;" % cname)
+            decls_writer.putln("static %s %s;" % (Backend.backend.pyobject_ctype, cname))
+            fun_args = Backend.backend.get_args(value_code)
             if py_type == 'float':
-                function = 'PyFloat_FromDouble(%s)'
+                function = '%s(%s)' % (Backend.backend.pyfloat_fromdouble, fun_args)
             elif py_type == 'long':
-                function = 'PyLong_FromString((char *)"%s", 0, 0)'
+                function = '%s((char *)"%s", 0, 0)' % (Backend.backend.pylong_fromstring, fun_args)
             elif Utils.long_literal(value):
-                function = 'PyInt_FromString((char *)"%s", 0, 0)'
+                function = '%s((char *)"%s", 0, 0)' % (Backend.backend.pyint_fromstring, fun_args)
             elif len(value.lstrip('-')) > 4:
-                function = "PyInt_FromLong(%sL)"
+                function = '%s(%sL)' % (Backend.backend.pyint_fromlong, fun_args)
             else:
-                function = "PyInt_FromLong(%s)"
+                function = '%s(%s)' % (Backend.backend.pyint_fromlong, fun_args)
             init_constants.putln('%s = %s; %s' % (
-                cname, function % value_code,
+                cname, function,
                 init_constants.error_goto_if_null(cname, self.module_pos)))
         decls_writer.putln("#endif")
 
