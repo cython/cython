@@ -15,7 +15,7 @@ Introduction
 As well as creating normal user-defined classes with the Python class
 statement, Cython also lets you create new built-in Python types, known as
 :term:`extension types<Extension type>`. You define an extension type using the :keyword:`cdef` class
-statement.  Here's an example:
+statement or decorating the class with ``@cclass`` decorator.  Here's an example:
 
 .. tabs::
 
@@ -28,12 +28,36 @@ statement.  Here's an example:
         .. literalinclude:: ../../examples/userguide/extension_types/shrubbery.pyx
 
 As you can see, a Cython extension type definition looks a lot like a Python
-class definition. Within it, you use the def statement to define methods that
+class definition. Within it, you use the :keyword:`def` statement to define methods that
 can be called from Python code. You can even define many of the special
 methods such as :meth:`__init__` as you would in Python.
 
-The main difference is that you can use the :keyword:`cdef` statement to define
-attributes. The attributes may be Python objects (either generic or of a
+The main difference is that you can define attributes using
+
+* the :keyword:`cdef` statement,
+* the :func:`cython.declare()` function or
+* the annotation of attribute.
+
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.cclass
+            class Shrubbery:
+                width = declare(cython.int)
+                height: cython.int
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef class Shrubbery:
+                cdef int width
+                cdef int height
+
+The attributes may be Python objects (either generic or of a
 particular extension type), or they may be of any C data type. So you can use
 extension types to wrap arbitrary C data structures and provide a Python-like
 interface to them.
@@ -93,7 +117,8 @@ Dynamic Attributes
 
 It is not possible to add attributes to an extension type at runtime by default.
 You have two ways of avoiding this limitation, both add an overhead when
-a method is called from Python code. Especially when calling ``cpdef`` methods.
+a method is called from Python code. Especially when calling hybrid methods declared
+with :keyword:`cpdef` in .pyx files or with the ``@ccall`` decorator.
 
 The first approach is to create a Python subclass.:
 
@@ -182,8 +207,9 @@ The same consideration applies to local variables, for example:
 
 .. note::
 
-    We here ``cimport`` the class :class:`Shrubbery`, and this is necessary
-    to declare the type at compile time. To be able to ``cimport`` an extension type,
+    We here *cimport* (using :keyword:`cimport` statement or importing from special
+    ``cython.cimports`` package) the class :class:`Shrubbery`, and this is necessary
+    to declare the type at compile time. To be able to cimport an extension type,
     we split the class definition into two parts, one in a definition file and
     the other in the corresponding implementation file. You should read
     :ref:`sharing_extension_types` to learn to do that.
@@ -257,7 +283,8 @@ For known builtin or extension types, Cython translates these into a
 fast and safe type check that ignores changes to
 the object's ``__class__`` attribute etc., so that after a successful
 :meth:`isinstance` test, code can rely on the expected C structure of the
-extension type and its :keyword:`cdef` attributes and methods.
+extension type and its C-level attributes (stored in object’s C struct.) and
+:keyword:`cdef`/``@cfunc`` methods.
 
 .. _extension_types_and_none:
 
@@ -332,7 +359,8 @@ with checking that it has the right type.
 .. note::
 
     ``not None`` clause can only be used in Python functions (defined with
-    :keyword:`def`) and not C functions (defined with :keyword:`cdef`).  If
+    :keyword:`def` and without ``@cython.cfunc`` decorator) and not C functions
+    (defined with :keyword:`cdef` or decorated using ``@cython.cfunc``).  If
     you need to check whether a parameter to a C function is None, you will
     need to do it yourself.
 
@@ -491,7 +519,7 @@ A complete definition of the base type must be available to Cython, so if the
 base type is a built-in type, it must have been previously declared as an
 extern extension type. If the base type is defined in another Cython module, it
 must either be declared as an extern extension type or imported using the
-:keyword:`cimport` statement.
+:keyword:`cimport` statement or importing from special ``cython.cimports`` package.
 
 Multiple inheritance is supported, however the second and subsequent base 
 classes must be an ordinary Python class (not an extension type or a built-in
@@ -542,11 +570,15 @@ C methods
 =========
 
 Extension types can have C methods as well as Python methods. Like C
-functions, C methods are declared using :keyword:`cdef` or :keyword:`cpdef` instead of
-:keyword:`def`. C methods are "virtual", and may be overridden in derived
-extension types. In addition, :keyword:`cpdef` methods can even be overridden by python
+functions, C methods are declared using
+
+* :keyword:`cdef` instead of :keyword:`def` or ``@cfunc`` decorator for *C methods*, or
+* :keyword:`cpdef` instead of :keyword:`def` or ``@ccall`` decorator for *hybrid methods*.
+
+C methods are "virtual", and may be overridden in derived
+extension types. In addition, :keyword:`cpdef`/``@ccall`` methods can even be overridden by python
 methods when called as C method. This adds a little to their calling overhead
-compared to a :keyword:`cdef` method
+compared to a :keyword:`cdef`/``@cfunc`` method
 
 .. tabs::
 
@@ -572,7 +604,7 @@ method using the usual Python technique, i.e.::
 
     Parrot.describe(self)
 
-`cdef` methods can be declared static by using the @staticmethod decorator.
+:keyword:`cdef`/``@ccall`` methods can be declared static by using the ``@staticmethod`` decorator.
 This can be especially useful for constructing classes that take non-Python
 compatible types.:
 
@@ -958,15 +990,16 @@ declaration makes an extension type defined in external C code available to a
 Cython module. A public extension type declaration makes an extension type
 defined in a Cython module available to external C code.
 
+.. note::
+
+    Cython currently does not support Extension types declared as extern or public
+    in Pure Python mode.
+
+
 .. _external_extension_types:
 
 External extension types
 ------------------------
-
-.. note::
-
-    Cython currently does not support External extension types
-    in Pure Python mode.
 
 An extern extension type allows you to gain access to the internals of Python
 objects defined in the Python core or in a non-Cython extension module.
