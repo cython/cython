@@ -114,12 +114,17 @@ static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject*);
 static CYTHON_INLINE PyObject * __Pyx_PyInt_FromSize_t(size_t);
 static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject*);
 
+#ifndef HPY
 #if CYTHON_ASSUME_SAFE_MACROS
 #define __pyx_PyFloat_AsDouble(x) (PyFloat_CheckExact(x) ? PyFloat_AS_DOUBLE(x) : PyFloat_AsDouble(x))
-#else
+#else /* CYTHON_ASSUME_SAFE_MACROS */
 #define __pyx_PyFloat_AsDouble(x) PyFloat_AsDouble(x)
-#endif
+#endif /* CYTHON_ASSUME_SAFE_MACROS */
 #define __pyx_PyFloat_AsFloat(x) ((float) __pyx_PyFloat_AsDouble(x))
+#else /* HPY */
+#define __pyx_PyFloat_AsDouble(ctx, x) HPyFloat_AsDouble(ctx, x)
+#define __pyx_PyFloat_AsFloat(ctx, x) ((float) HPyFloat_AsDouble(ctx, x))
+#endif /* HPY */
 
 #if PY_MAJOR_VERSION >= 3
 #define __Pyx_PyNumber_Int(x) (PyLong_CheckExact(x) ? __Pyx_NewRef(x) : PyNumber_Long(x))
