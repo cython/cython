@@ -1,7 +1,7 @@
 from builtins import (int as py_int, float as py_float,
                       bool as py_bool, str as py_str, complex as py_complex)
 from types import TracebackType
-from typing import (Any, Sequence, Optional,
+from typing import (Any, Sequence, Optional, Type,
                     TypeVar, Generic, Callable, overload)
 
 __version__: str
@@ -33,7 +33,7 @@ floatcomplex = py_complex
 doublecomplex = py_complex
 longdoublecomplex = py_complex
 bint = py_bool
-void = type[None]
+void = Type[None]
 basestring = py_str
 unicode = py_str
 
@@ -81,13 +81,13 @@ class ArrayType(PointerType[_T]):
 def index_type(
     base_type: _T, item: tuple | slice | int) -> _ArrayType[_T]: ...
 
-def pointer(basetype: _T) -> type[PointerType[_T]]: ...
+def pointer(basetype: _T) -> Type[PointerType[_T]]: ...
 
-def array(basetype: _T, n: int) -> type[ArrayType[_T]]: ...
+def array(basetype: _T, n: int) -> Type[ArrayType[_T]]: ...
 
-def struct(**members: type) -> type[Any]: ...
+def struct(**members: type) -> Type[Any]: ...
 
-def union(**members: type) -> type[Any]: ...
+def union(**members: type) -> Type[Any]: ...
 
 class typedef(CythonType, Generic[_T]):
     name: str
@@ -113,7 +113,7 @@ class _EmptyDecoratorAndManager(object):
 
     def __exit__(
         self,
-        exc_type: Optional[type[BaseException]],
+        exc_type: Optional[Type[BaseException]],
         exc: Optional[BaseException],
         tb: Optional[TracebackType]
     ) -> None: ...
