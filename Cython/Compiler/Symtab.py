@@ -2622,6 +2622,7 @@ class CppClassScope(Scope):
                 base_entry.type, None, 'extern')
             entry.is_variable = 1
             entry.is_inherited = 1
+            entry.overloaded_alternatives = base_entry.overloaded_alternatives
             self.inherited_var_entries.append(entry)
         for base_entry in base_scope.cfunc_entries:
             entry = self.declare_cfunction(base_entry.name, base_entry.type,
