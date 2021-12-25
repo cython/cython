@@ -3,32 +3,54 @@ from .utility cimport pair
 cdef extern from "<set>" namespace "std" nogil:
     cdef cppclass set[T]:
         ctypedef T value_type
+
+        cppclass const_iterator
         cppclass iterator:
-            T& operator*()
-            iterator& operator++()
-            iterator& operator--()
-            bint operator==(const iterator &)
-            bint operator!=(const iterator &)
-        cppclass reverse_iterator:
-            T& operator*()
-            reverse_iterator& operator++()
-            reverse_iterator& operator--()
-            bint operator==(const reverse_iterator&)
-            bint operator!=(const reverse_iterator&)
+            iterator() except +
+            iterator(iterator&) except +
+            value_type& operator*()
+            iterator operator++()
+            iterator operator--()
+            bint operator==(iterator)
+            bint operator==(const_iterator)
+            bint operator!=(iterator)
+            bint operator!=(const_iterator)
         cppclass const_iterator:
-            const_iterator(iterator)
-            const T& operator*()
-            const_iterator& operator++()
-            const_iterator& operator--()
-            bint operator==(const const_iterator&)
-            bint operator!=(const const_iterator&)
+            const_iterator() except +
+            const_iterator(iterator&) except +
+            const_iterator(const_iterator&) except +
+            operator=(iterator&) except +
+            const value_type& operator*()
+            const_iterator operator++()
+            const_iterator operator--()
+            bint operator==(iterator)
+            bint operator==(const_iterator)
+            bint operator!=(iterator)
+            bint operator!=(const_iterator)
+
+        cppclass const_reverse_iterator
+        cppclass reverse_iterator:
+            reverse_iterator() except +
+            reverse_iterator(reverse_iterator&) except +
+            value_type& operator*()
+            reverse_iterator operator++()
+            reverse_iterator operator--()
+            bint operator==(reverse_iterator)
+            bint operator==(const_reverse_iterator)
+            bint operator!=(reverse_iterator)
+            bint operator!=(const_reverse_iterator)
         cppclass const_reverse_iterator:
-            const_reverse_iterator(reverse_iterator)
-            const T& operator*()
-            const_reverse_iterator& operator++()
-            const_reverse_iterator& operator--()
-            bint operator==(const const_reverse_iterator&)
-            bint operator!=(const const_reverse_iterator&)
+            const_reverse_iterator() except +
+            const_reverse_iterator(reverse_iterator&) except +
+            operator=(reverse_iterator&) except +
+            const value_type& operator*()
+            const_reverse_iterator operator++()
+            const_reverse_iterator operator--()
+            bint operator==(reverse_iterator)
+            bint operator==(const_reverse_iterator)
+            bint operator!=(reverse_iterator)
+            bint operator!=(const_reverse_iterator)
+    
         set() except +
         set(set&) except +
         #set(key_compare&)
@@ -75,32 +97,52 @@ cdef extern from "<set>" namespace "std" nogil:
     cdef cppclass multiset[T]:
         ctypedef T value_type
 
+        cppclass const_iterator
         cppclass iterator:
-            T& operator*()
-            iterator& operator++()
-            iterator& operator--()
-            bint operator==(const iterator&)
-            bint operator!=(const iterator&)
-        cppclass reverse_iterator:
-            T& operator*()
-            reverse_iterator& operator++()
-            reverse_iterator& operator--()
-            bint operator==(const reverse_iterator&)
-            bint operator!=(const reverse_iterator&)
+            iterator() except +
+            iterator(iterator&) except +
+            value_type& operator*()
+            iterator operator++()
+            iterator operator--()
+            bint operator==(iterator)
+            bint operator==(const_iterator)
+            bint operator!=(iterator)
+            bint operator!=(const_iterator)
         cppclass const_iterator:
-            const_iterator(iterator)
-            const T& operator*()
-            const_iterator& operator++()
-            const_iterator& operator--()
-            bint operator==(const const_iterator&)
-            bint operator!=(const const_iterator&)
+            const_iterator() except +
+            const_iterator(iterator&) except +
+            const_iterator(const_iterator&) except +
+            operator=(iterator&) except +
+            const value_type& operator*()
+            const_iterator operator++()
+            const_iterator operator--()
+            bint operator==(iterator)
+            bint operator==(const_iterator)
+            bint operator!=(iterator)
+            bint operator!=(const_iterator)
+
+        cppclass const_reverse_iterator
+        cppclass reverse_iterator:
+            reverse_iterator() except +
+            reverse_iterator(reverse_iterator&) except +
+            value_type& operator*()
+            reverse_iterator operator++()
+            reverse_iterator operator--()
+            bint operator==(reverse_iterator)
+            bint operator==(const_reverse_iterator)
+            bint operator!=(reverse_iterator)
+            bint operator!=(const_reverse_iterator)
         cppclass const_reverse_iterator:
-            const_reverse_iterator(reverse_iterator)
-            const T& operator*()
-            const_reverse_iterator& operator++()
-            const_reverse_iterator& operator--()
-            bint operator==(const const_reverse_iterator&)
-            bint operator!=(const const_reverse_iterator&)
+            const_reverse_iterator() except +
+            const_reverse_iterator(reverse_iterator&) except +
+            operator=(reverse_iterator&) except +
+            const value_type& operator*()
+            const_reverse_iterator operator++()
+            const_reverse_iterator operator--()
+            bint operator==(reverse_iterator)
+            bint operator==(const_reverse_iterator)
+            bint operator!=(reverse_iterator)
+            bint operator!=(const_reverse_iterator)
 
         multiset() except +
         multiset(multiset&) except +
