@@ -1,5 +1,6 @@
 cimport cython
 
+
 @cython.freelist(8)
 cdef class Penguin:
     cdef object food
