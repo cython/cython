@@ -13192,6 +13192,9 @@ class CoercionNode(ExprNode):
             code.annotate((file, line, col-1), AnnotationItem(
                 style='coerce', tag='coerce', text='[%s] to [%s]' % (self.arg.type, self.type)))
 
+    def analyse_types(self, env):
+        return self
+
 
 class CoerceToMemViewSliceNode(CoercionNode):
     """
