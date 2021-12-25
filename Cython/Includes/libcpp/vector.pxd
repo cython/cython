@@ -86,3 +86,5 @@ cdef extern from "<vector>" namespace "std" nogil:
         T* data()
         const T* const_data "data"()
         void shrink_to_fit() except +
+        iterator emplace(const_iterator, ...) except +
+        T& emplace_back(...) except +
