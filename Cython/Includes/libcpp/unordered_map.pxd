@@ -32,11 +32,13 @@ cdef extern from "<unordered_map>" namespace "std" nogil:
         const U& const_at "at"(const T&) except +
         iterator begin()
         const_iterator const_begin "begin"()
+        const_iterator cbegin()
         void clear()
         size_t count(const T&)
         bint empty()
         iterator end()
         const_iterator const_end "end"()
+        const_iterator cend()
         pair[iterator, iterator] equal_range(const T&)
         pair[const_iterator, const_iterator] const_equal_range "equal_range"(const T&)
         iterator erase(iterator)

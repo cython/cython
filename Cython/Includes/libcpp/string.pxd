@@ -47,12 +47,16 @@ cdef extern from "<string>" namespace "std" nogil:
 
         iterator begin()
         const_iterator const_begin "begin"()
+        const_iterator cbegin()
         iterator end()
         const_iterator const_end "end"()
+        const_iterator cend()
         reverse_iterator rbegin()
         const_reverse_iterator const_rbegin "rbegin"()
+        const_reverse_iterator cbegin()
         reverse_iterator rend()
         const_reverse_iterator const_rend "rend"()
+        const_reverse_iterator crend()
 
         const char* c_str()
         const char* data()
