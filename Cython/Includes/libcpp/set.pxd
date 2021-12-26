@@ -4,6 +4,12 @@ cdef extern from "<set>" namespace "std" nogil:
     cdef cppclass set[T]:
         ctypedef T value_type
 
+        # these should really be allocator_type.size_type and
+        # allocator_type.difference_type to be true to the C++ definition
+        # but cython doesn't support deferred access on template arguments
+        ctypedef size_t size_type
+        ctypedef ptrdiff_t difference_type
+
         cppclass const_iterator
         cppclass iterator:
             iterator() except +
@@ -11,6 +17,8 @@ cdef extern from "<set>" namespace "std" nogil:
             value_type& operator*()
             iterator operator++()
             iterator operator--()
+            iterator operator++(int)
+            iterator operator--(int)
             bint operator==(iterator)
             bint operator==(const_iterator)
             bint operator!=(iterator)
@@ -23,6 +31,8 @@ cdef extern from "<set>" namespace "std" nogil:
             const value_type& operator*()
             const_iterator operator++()
             const_iterator operator--()
+            const_iterator operator++(int)
+            const_iterator operator--(int)
             bint operator==(iterator)
             bint operator==(const_iterator)
             bint operator!=(iterator)
@@ -35,6 +45,8 @@ cdef extern from "<set>" namespace "std" nogil:
             value_type& operator*()
             reverse_iterator operator++()
             reverse_iterator operator--()
+            reverse_iterator operator++(int)
+            reverse_iterator operator--(int)
             bint operator==(reverse_iterator)
             bint operator==(const_reverse_iterator)
             bint operator!=(reverse_iterator)
@@ -46,6 +58,8 @@ cdef extern from "<set>" namespace "std" nogil:
             const value_type& operator*()
             const_reverse_iterator operator++()
             const_reverse_iterator operator--()
+            const_reverse_iterator operator++(int)
+            const_reverse_iterator operator--(int)
             bint operator==(reverse_iterator)
             bint operator==(const_reverse_iterator)
             bint operator!=(reverse_iterator)
@@ -97,6 +111,12 @@ cdef extern from "<set>" namespace "std" nogil:
     cdef cppclass multiset[T]:
         ctypedef T value_type
 
+        # these should really be allocator_type.size_type and
+        # allocator_type.difference_type to be true to the C++ definition
+        # but cython doesn't support deferred access on template arguments
+        ctypedef size_t size_type
+        ctypedef ptrdiff_t difference_type
+
         cppclass const_iterator
         cppclass iterator:
             iterator() except +
@@ -104,6 +124,8 @@ cdef extern from "<set>" namespace "std" nogil:
             value_type& operator*()
             iterator operator++()
             iterator operator--()
+            iterator operator++(int)
+            iterator operator--(int)
             bint operator==(iterator)
             bint operator==(const_iterator)
             bint operator!=(iterator)
@@ -116,6 +138,8 @@ cdef extern from "<set>" namespace "std" nogil:
             const value_type& operator*()
             const_iterator operator++()
             const_iterator operator--()
+            const_iterator operator++(int)
+            const_iterator operator--(int)
             bint operator==(iterator)
             bint operator==(const_iterator)
             bint operator!=(iterator)
@@ -128,6 +152,8 @@ cdef extern from "<set>" namespace "std" nogil:
             value_type& operator*()
             reverse_iterator operator++()
             reverse_iterator operator--()
+            reverse_iterator operator++(int)
+            reverse_iterator operator--(int)
             bint operator==(reverse_iterator)
             bint operator==(const_reverse_iterator)
             bint operator!=(reverse_iterator)
@@ -139,6 +165,8 @@ cdef extern from "<set>" namespace "std" nogil:
             const value_type& operator*()
             const_reverse_iterator operator++()
             const_reverse_iterator operator--()
+            const_reverse_iterator operator++(int)
+            const_reverse_iterator operator--(int)
             bint operator==(reverse_iterator)
             bint operator==(const_reverse_iterator)
             bint operator!=(reverse_iterator)

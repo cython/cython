@@ -7,6 +7,12 @@ cdef extern from "<unordered_map>" namespace "std" nogil:
         ctypedef pair[const T, U] value_type
         ctypedef ALLOCATOR allocator_type
 
+        # these should really be allocator_type.size_type and
+        # allocator_type.difference_type to be true to the C++ definition
+        # but cython doesn't support deferred access on template arguments
+        ctypedef size_t size_type
+        ctypedef ptrdiff_t difference_type
+
         cppclass iterator
         cppclass iterator:
             iterator() except +
@@ -16,6 +22,8 @@ cdef extern from "<unordered_map>" namespace "std" nogil:
             pair[T, U]& operator*()
             iterator operator++()
             iterator operator--()
+            iterator operator++(int)
+            iterator operator--(int)
             bint operator==(iterator)
             bint operator==(const_iterator)
             bint operator!=(iterator)
@@ -29,6 +37,8 @@ cdef extern from "<unordered_map>" namespace "std" nogil:
             const pair[T, U]& operator*()
             const_iterator operator++()
             const_iterator operator--()
+            const_iterator operator++(int)
+            const_iterator operator--(int)
             bint operator==(iterator)
             bint operator==(const_iterator)
             bint operator!=(iterator)
@@ -90,6 +100,12 @@ cdef extern from "<unordered_map>" namespace "std" nogil:
         ctypedef pair[const T, U] value_type
         ctypedef ALLOCATOR allocator_type
 
+        # these should really be allocator_type.size_type and
+        # allocator_type.difference_type to be true to the C++ definition
+        # but cython doesn't support deferred access on template arguments
+        ctypedef size_t size_type
+        ctypedef ptrdiff_t difference_type
+
         cppclass const_iterator
         cppclass iterator:
             iterator() except +
@@ -98,6 +114,7 @@ cdef extern from "<unordered_map>" namespace "std" nogil:
             # well with cython's code gen
             pair[T, U]& operator*()
             iterator operator++()
+            iterator operator++(int)
             bint operator==(iterator)
             bint operator==(const_iterator)
             bint operator!=(iterator)
@@ -110,6 +127,7 @@ cdef extern from "<unordered_map>" namespace "std" nogil:
             # well with cython's code gen
             const pair[T, U]& operator*()
             const_iterator operator++()
+            const_iterator operator++(int)
             bint operator==(iterator)
             bint operator==(const_iterator)
             bint operator!=(iterator)
