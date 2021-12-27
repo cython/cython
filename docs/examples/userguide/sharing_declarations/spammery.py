@@ -1,5 +1,5 @@
- 
-from volume cimport cube
+import cython
+from cython.cimports.volume import cube
 
 def menu(description, size):
     print(description, ":", cube(size),

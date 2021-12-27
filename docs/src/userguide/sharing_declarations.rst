@@ -6,6 +6,9 @@
 Sharing Declarations Between Cython Modules
 ********************************************
 
+.. include::
+    ../two-syntax-variants-used
+
 This section describes how to make C declarations, functions and extension
 types in one Cython module available for use in another Cython module.
 These facilities are closely modeled on the Python import mechanism,
@@ -70,23 +73,42 @@ The cimport statement
 The :keyword:`cimport` statement is used in a definition or
 implementation file to gain access to names declared in another definition
 file. Its syntax exactly parallels that of the normal Python import
-statement::
+statement
 
-    cimport module [, module...]
+.. tabs::
 
-    from module cimport name [as name] [, name [as name] ...]
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            from cython.cimports.module import name [as name][, name [as name] ...]
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cimport module [, module...]
+
+            from module cimport name [as name] [, name [as name] ...]
 
 Here is an example. :file:`dishes.pxd` is a definition file which exports a
 C data type. :file:`restaurant.pyx` is an implementation file which imports and
 uses it.
 
-:file:`dishes.pxd`:
-
 .. literalinclude:: ../../examples/userguide/sharing_declarations/dishes.pxd
+    :caption: dishes.pxd
 
-:file:`restaurant.pyx`:
+.. tabs::
 
-.. literalinclude:: ../../examples/userguide/sharing_declarations/restaurant.pyx
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/sharing_declarations/restaurant.py
+            :caption: dishes.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/sharing_declarations/restaurant.pyx
+            :caption: dishes.pyx
 
 It is important to understand that the :keyword:`cimport` statement can only
 be used to import C data types, C functions and variables, and extension
@@ -132,13 +154,20 @@ for an imaginary module, and :keyword:`cimport` that module. You can then
 refer to the C functions by qualifying them with the name of the module.
 Here's an example:
 
-:file:`c_lunch.pxd`:
-
 .. literalinclude:: ../../examples/userguide/sharing_declarations/c_lunch.pxd
+    :caption: c_lunch.pxd
 
-:file:`lunch.pyx`:
+.. tabs::
 
-.. literalinclude:: ../../examples/userguide/sharing_declarations/lunch.pyx
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/sharing_declarations/lunch.py
+            :caption: lunch.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/sharing_declarations/lunch.pyx
+            :caption: lunch.pyx
 
 You don't need any :file:`c_lunch.pyx` file, because the only things defined
 in :file:`c_lunch.pxd` are extern C entities. There won't be any actual
@@ -154,17 +183,26 @@ C functions defined at the top level of a module can be made available via
 :keyword:`cimport` by putting headers for them in the ``.pxd`` file, for
 example:
 
-:file:`volume.pxd`:
-
 .. literalinclude:: ../../examples/userguide/sharing_declarations/volume.pxd
+    :caption: volume.pxd
 
-:file:`volume.pyx`:
+.. tabs::
 
-.. literalinclude:: ../../examples/userguide/sharing_declarations/volume.pyx
+    .. group-tab:: Pure Python
 
-:file:`spammery.pyx`:
+        .. literalinclude:: ../../examples/userguide/sharing_declarations/volume.py
+            :caption: volume.py
 
-.. literalinclude:: ../../examples/userguide/sharing_declarations/spammery.pyx
+        .. literalinclude:: ../../examples/userguide/sharing_declarations/spammery.py
+            :caption: spammery.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/sharing_declarations/volume.pyx
+            :caption: volume.pyx
+
+        .. literalinclude:: ../../examples/userguide/sharing_declarations/spammery.pyx
+            :caption: spammery.pyx
 
 .. note::
 
@@ -193,23 +231,36 @@ Python methods.
 Here is an example of a module which defines and exports an extension type,
 and another module which uses it:
 
-:file:`shrubbing.pxd`:
-
 .. literalinclude:: ../../examples/userguide/sharing_declarations/shrubbing.pxd
+    :caption: shrubbing.pxd
 
-:file:`shrubbing.pyx`:
+.. tabs::
 
-.. literalinclude:: ../../examples/userguide/sharing_declarations/shrubbing.pyx
+    .. group-tab:: Pure Python
 
-:file:`landscaping.pyx`:
+        .. literalinclude:: ../../examples/userguide/sharing_declarations/shrubbing.pyx
+            :caption: shrubbing.pyx
 
-.. literalinclude:: ../../examples/userguide/sharing_declarations/landscaping.pyx
+        .. literalinclude:: ../../examples/userguide/sharing_declarations/landscaping.pyx
+            :caption: landscaping.pyx
 
-One would then need to compile both of these modules, e.g. using
+        One would then need to compile both of these modules, e.g. using
 
-:file:`setup.py`:
+        .. literalinclude:: ../../examples/userguide/sharing_declarations/setup_py.py
+            :caption: setup.py
 
-.. literalinclude:: ../../examples/userguide/sharing_declarations/setup.py
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/sharing_declarations/shrubbing.py
+            :caption: shrubbing.py
+
+        .. literalinclude:: ../../examples/userguide/sharing_declarations/landscaping.py
+            :caption: landscaping.py
+
+        One would then need to compile both of these modules, e.g. using
+
+        .. literalinclude:: ../../examples/userguide/sharing_declarations/setup_pyx.py
+            :caption: setup.py
 
 Some things to note about this example:
 
