@@ -20,13 +20,13 @@ Definition and Implementation files
 
 A Cython module can be split into two parts: a definition file with a ``.pxd``
 suffix, containing C declarations that are to be available to other Cython
-modules, and an implementation file with a ``.pyx`` suffix, containing
+modules, and an implementation file with a ``.pyx``/``.py`` suffix, containing
 everything else. When a module wants to use something declared in another
 module's definition file, it imports it using the :keyword:`cimport`
-statement.
+statement or using special :py:mod:`cython.cimports` package.
 
 A ``.pxd`` file that consists solely of extern declarations does not need
-to correspond to an actual ``.pyx`` file or Python module. This can make it a
+to correspond to an actual ``.pyx``/``.py`` file or Python module. This can make it a
 convenient place to put common declarations, for example declarations of
 functions from  an :ref:`external library <external-C-code>` that one
 wants to use in several modules.
@@ -44,8 +44,8 @@ A definition file can contain:
 
 It cannot contain the implementations of any C or Python functions, or any
 Python class definitions, or any executable statements. It is needed when one
-wants to  access :keyword:`cdef` attributes and methods, or to inherit from
-:keyword:`cdef` classes defined in this module.
+wants to  access :keyword:`cdef`/``@cfunc`` attributes and methods, or to inherit from
+:keyword:`cdef`/``@cclass`` classes defined in this module.
 
 .. note::
 
@@ -73,7 +73,10 @@ The cimport statement
 The :keyword:`cimport` statement is used in a definition or
 implementation file to gain access to names declared in another definition
 file. Its syntax exactly parallels that of the normal Python import
-statement
+statement. When pure python syntax is used, the same effect can be done by
+importing from special :py:mod:`cython.cimports` package. In later text the term
+to ``cimport`` refers to using both :keyword:`cimport` statement or
+:py:mod:`cython.cimports` package.
 
 .. tabs::
 
@@ -92,8 +95,8 @@ statement
             from module cimport name [as name] [, name [as name] ...]
 
 Here is an example. :file:`dishes.pxd` is a definition file which exports a
-C data type. :file:`restaurant.pyx` is an implementation file which imports and
-uses it.
+C data type. :file:`restaurant.pyx`/:file:`restaurant.py` is an implementation file
+which imports and uses it.
 
 .. literalinclude:: ../../examples/userguide/sharing_declarations/dishes.pxd
     :caption: dishes.pxd
@@ -138,8 +141,8 @@ option to ``cythonize()``), as well as ``sys.path``.
 Using ``package_data`` to install ``.pxd`` files in your ``setup.py`` script
 allows other packages to cimport items from your module as a dependency.
 
-Also, whenever you compile a file :file:`modulename.pyx`, the corresponding
-definition file :file:`modulename.pxd` is first searched for along the
+Also, whenever you compile a file :file:`modulename.pyx`/:file:`modulename.py`,
+the corresponding definition file :file:`modulename.pxd` is first searched for along the
 include path (but not ``sys.path``), and if found, it is processed before
 processing the ``.pyx`` file.
 
@@ -169,8 +172,8 @@ Here's an example:
         .. literalinclude:: ../../examples/userguide/sharing_declarations/lunch.pyx
             :caption: lunch.pyx
 
-You don't need any :file:`c_lunch.pyx` file, because the only things defined
-in :file:`c_lunch.pxd` are extern C entities. There won't be any actual
+You don't need any :file:`c_lunch.pyx`/:file:`c_lunch.py` file, because the only
+things defined in :file:`c_lunch.pxd` are extern C entities. There won't be any actual
 ``c_lunch`` module at run time, but that doesn't matter; the
 :file:`c_lunch.pxd` file has done its job of providing an additional namespace
 at compile time.
@@ -264,12 +267,12 @@ and another module which uses it:
 
 Some things to note about this example:
 
-* There is a :keyword:`cdef` class Shrubbery declaration in both
-  :file:`Shrubbing.pxd` and :file:`Shrubbing.pyx`. When the Shrubbing module
+* There is a :keyword:`cdef`/``@cclass`` class Shrubbery declaration in both
+  :file:`Shrubbing.pxd` and :file:`Shrubbing.pyx`. When the shrubbing module
   is compiled, these two declarations are combined into one.
-* In Landscaping.pyx, the :keyword:`cimport` Shrubbing declaration allows us
-  to refer to the Shrubbery type as :class:`Shrubbing.Shrubbery`. But it
-  doesn't bind the name Shrubbing in Landscaping's module namespace at run
+* In :file:`landscaping.pyx`/:file:`landscaping.py`, the :keyword:`cimport` shrubbing
+  declaration allows us to refer to the Shrubbery type as :class:`Shrubbing.Shrubbery`.
+  But it doesn't bind the name Shrubbing in Landscaping's module namespace at run
   time, so to access :func:`Shrubbing.standard_shrubbery` we also need to
   ``import Shrubbing``.
 * One caveat if you use setuptools instead of distutils, the default
@@ -286,7 +289,7 @@ Versioning
 ``.pxd`` files can be labelled with a minimum Cython version as part of
 their file name, similar to the version tagging of ``.so`` files in PEP 3149.
 For example a file called :file:`Shrubbing.cython-30.pxd` will only be
-found by ``cimport Shrubbing`` on Cython 3.0 and higher. Cython will use the
+found by ``cimport shrubbing`` on Cython 3.0 and higher. Cython will use the
 file tagged with the highest compatible version number.
  
 Note that versioned files that are distributed across different directories

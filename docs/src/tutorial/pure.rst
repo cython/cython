@@ -209,6 +209,8 @@ Here is an example of a :keyword:`cdef` function::
         return a == b
 
 
+.. py:module:: cython.cimports
+
 cimports
 ^^^^^^^^
 
