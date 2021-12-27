@@ -4664,6 +4664,20 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
 
     # Optimize the most common case of no overloading...
     if len(candidates) == 1:
+        # validate non pyobject/pythran conversions
+        for i in range(min(actual_nargs, len(func_type.args))):
+            src_type = arg_types[i]
+            dst_type = func_type.args[i].type
+
+            if src_type.is_pyobject or src_type.is_pythran_expr:
+                continue
+
+            assignable = dst_type.assignable_from(src_type)
+            if not assignable:
+                if pos is not None:
+                    error_msg = "Invalid conversion from '%s' to '%s'" % (src_type, dst_type)
+                    error(pos, error_msg)
+                return None
         return candidates[0][0]
     elif len(candidates) == 0:
         if pos is not None:
