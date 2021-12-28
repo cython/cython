@@ -4050,9 +4050,10 @@ class CppClassType(CType):
 
     def find_cpp_operation_type(self, operator, operand_types=None):
         if operand_types is not None:
-            operands = operand_types  # note that the first argument is not
-                # necessarily "self" (non-member operators) so complete types
-                # must be specified
+            # Note that the first argument is not necessarily "self"
+            # (with non-member operators), so complete types
+            # must be specified.
+            operands = operand_types
         else:
             operands = [self]
         # pos == None => no errors
