@@ -1008,6 +1008,17 @@ class Scope(object):
         function_alternatives = []
         if function is not None:
             function_alternatives = function.all_alternatives()
+        nonmember_alternatives = []
+        if self.is_cpp_class_scope and function and function.scope is self:
+            # for C++ classes we can have both member and non-member operators
+            # and we really want to consider both
+            outer_scope = self.outer_scope
+            while outer_scope and not outer_scope.is_module_scope:
+                outer_scope = outer_scope.module_scope
+            if outer_scope:
+                global_func = outer_scope.lookup_here("operator%s" % operator)
+                if global_func:
+                    nonmember_alternatives = global_func.all_alternatives()
 
         # look-up nonmember methods listed within a class
         method_alternatives = []
@@ -1019,11 +1030,12 @@ class Scope(object):
                     if method is not None:
                         method_alternatives += method.all_alternatives()
 
-        if (not method_alternatives) and (not function_alternatives):
+        if (not method_alternatives) and (not function_alternatives) and (not nonmember_alternatives):
             return None
 
         # select the unique alternatives
-        all_alternatives = list(set(method_alternatives + function_alternatives))
+        all_alternatives = list(set(method_alternatives + function_alternatives +
+                                    nonmember_alternatives))
 
         return PyrexTypes.best_match([arg.type for arg in operands],
                                      all_alternatives, validate_types_fully=True)

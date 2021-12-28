@@ -102,29 +102,29 @@ cdef extern from "cpp_operators_helper.h" nogil:
         int& operator--(int) except +
 
         int& operator+(int) except +
-        int& operator+(int,const TestOps&) except +
+        int& operator+(int,const RefTestOps&) except +
         int& operator-(int) except +
-        int& operator-(int,const TestOps&) except +
+        int& operator-(int,const RefTestOps&) except +
         int& operator*(int) except +
         # deliberately omitted operator* to test case where only defined outside class
         int& operator/(int) except +
-        int& operator/(int,const TestOps&) except +
+        int& operator/(int,const RefTestOps&) except +
         int& operator%(int) except +
-        int& operator%(int,const TestOps&) except +
+        int& operator%(int,const RefTestOps&) except +
 
         int& operator|(int) except +
-        int& operator|(int,const TestOps&) except +
+        int& operator|(int,const RefTestOps&) except +
         int& operator&(int) except +
-        int& operator&(int,const TestOps&) except +
+        int& operator&(int,const RefTestOps&) except +
         int& operator^(int) except +
-        int& operator^(int,const TestOps&) except +
+        int& operator^(int,const RefTestOps&) except +
         int& operator,(int) except +
-        int& operator,(int,const TestOps&) except +
+        int& operator,(int,const RefTestOps&) except +
 
         int& operator<<(int) except +
-        int& operator<<(int,const TestOps&) except +
+        int& operator<<(int,const RefTestOps&) except +
         int& operator>>(int) except +
-        int& operator>>(int,const TestOps&) except +
+        int& operator>>(int,const RefTestOps&) except +
 
         int& operator==(int) except +
         int& operator!=(int) except +

@@ -4048,10 +4048,13 @@ class CppClassType(CType):
     def attributes_known(self):
         return self.scope is not None
 
-    def find_cpp_operation_type(self, operator, operand_type=None):
-        operands = [self]
-        if operand_type is not None:
-            operands.append(operand_type)
+    def find_cpp_operation_type(self, operator, operand_types=None):
+        if operand_types is not None:
+            operands = operand_types  # note that the first argument is not
+                # necessarily "self" (non-member operators) so complete types
+                # must be specified
+        else:
+            operands = [self]
         # pos == None => no errors
         operator_entry = self.scope.lookup_operator_for_types(None, operator, operands)
         if not operator_entry:
