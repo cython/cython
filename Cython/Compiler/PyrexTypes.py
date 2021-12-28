@@ -4581,8 +4581,7 @@ def is_promotion(src_type, dst_type):
             return src_type.is_float and src_type.rank <= dst_type.rank
     return False
 
-def best_match(arg_types, functions, pos=None, env=None, args=None,
-               validate_types_fully=False):
+def best_match(arg_types, functions, pos=None, env=None, args=None):
     """
     Given a list args of arguments and a list of functions, choose one
     to call which seems to be the "best" fit for this list of arguments.
@@ -4667,10 +4666,7 @@ def best_match(arg_types, functions, pos=None, env=None, args=None,
         else:
             candidates.append((func, func_type))
 
-    # Optimize the most common case of no overloading...
-    if len(candidates) == 1 and not validate_types_fully:
-        return candidates[0][0]
-    elif len(candidates) == 0:
+    if len(candidates) == 0:
         if pos is not None:
             func, errmsg = errors[0]
             if len(errors) == 1 or [1 for func, e in errors if e == errmsg]:

@@ -1000,8 +1000,7 @@ class Scope(object):
             method = obj_type.scope.lookup("operator%s" % operator)
             if method is not None:
                 arg_types = [arg.type for arg in operands[1:]]
-                res = PyrexTypes.best_match(arg_types, method.all_alternatives(),
-                                            validate_types_fully=True)
+                res = PyrexTypes.best_match(arg_types, method.all_alternatives())
                 if res is not None:
                     return res
         function = self.lookup("operator%s" % operator)
@@ -1035,8 +1034,7 @@ class Scope(object):
         all_alternatives = list(set(method_alternatives + function_alternatives +
                                     nonmember_alternatives))
 
-        return PyrexTypes.best_match([arg.type for arg in operands],
-                                     all_alternatives, validate_types_fully=True)
+        return PyrexTypes.best_match([arg.type for arg in operands], all_alternatives)
 
     def lookup_operator_for_types(self, pos, operator, types):
         from .Nodes import Node
