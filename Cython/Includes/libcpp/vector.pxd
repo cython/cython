@@ -43,7 +43,7 @@ cdef extern from "<vector>" namespace "std" nogil:
         vector(vector&) except +
         vector(size_type) except +
         vector(size_type, T&) except +
-        #vector[input_iterator](input_iterator, input_iterator)
+        #vector[InputIt](InputIt, InputIt)
         T& operator[](size_type)
         #vector& operator=(vector&)
         bint operator==(vector&, vector&)
@@ -53,7 +53,7 @@ cdef extern from "<vector>" namespace "std" nogil:
         bint operator<=(vector&, vector&)
         bint operator>=(vector&, vector&)
         void assign(size_type, const T&)
-        void assign[input_iterator](input_iterator, input_iterator) except +
+        void assign[InputIt](InputIt, InputIt) except +
         T& at(size_type) except +
         T& back()
         iterator begin()
@@ -68,7 +68,7 @@ cdef extern from "<vector>" namespace "std" nogil:
         T& front()
         iterator insert(iterator, const T&) except +
         iterator insert(iterator, size_type, const T&) except +
-        iterator insert[Iter](iterator, Iter, Iter) except +
+        iterator insert[InputIt](iterator, InputIt, InputIt) except +
         size_type max_size()
         void pop_back()
         void push_back(T&) except +
