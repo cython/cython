@@ -199,7 +199,7 @@ _directive_defaults = {
     'profile': False,
     'linetrace': False,
     'emit_code_comments': True,  # copy original source code into C code comments
-    'annotation_typing': True,  # read type declarations from Python function annotations
+    'annotation_typing': "safe",  # read type declarations from Python function annotations
     'infer_types': None,
     'infer_types.verbose': False,
     'autotestdict': True,
@@ -336,6 +336,8 @@ directive_types = {
     'total_ordering': bool,
     'dataclasses.dataclass': DEFER_ANALYSIS_OF_ARGUMENTS,
     'dataclasses.field': DEFER_ANALYSIS_OF_ARGUMENTS,
+    # 'True' == 'safe' for backward compatibility reasons
+    'annotation_typing': one_of('safe', 'full', 'True', 'False'),
 }
 
 for key, val in _directive_defaults.items():

@@ -954,7 +954,7 @@ class CArgDeclNode(Node):
 
         # inject type declaration from annotations
         # this is called without 'env' by AdjustDefByDirectives transform before declaration analysis
-        if (self.annotation and env and env.directives['annotation_typing']
+        if (self.annotation and env and env.directives['annotation_typing']!='False'
                 # CSimpleBaseTypeNode has a name attribute; CAnalysedBaseTypeNode
                 # (and maybe other options) doesn't
                 and getattr(self.base_type, "name", None) is None):
@@ -1870,7 +1870,7 @@ class FuncDefNode(StatNode, BlockNode):
         if arg.name in directive_locals:
             type_node = directive_locals[arg.name]
             other_type = type_node.analyse_as_type(env)
-        elif isinstance(arg, CArgDeclNode) and arg.annotation and env.directives['annotation_typing']:
+        elif isinstance(arg, CArgDeclNode) and arg.annotation and env.directives['annotation_typing']!=False:
             type_node = arg.annotation
             other_type = arg.inject_type_from_annotations(env)
             if other_type is None:

@@ -2027,8 +2027,8 @@ class NameNode(AtomicExprNode):
         annotation = self.annotation
         entry = self.entry or env.lookup_here(name)
         if not entry:
-            # annotations never create global cdef names
-            if env.is_module_scope:
+            # annotations only create global cdef names in "full" mode
+            if env.is_module_scope and env.directives['annotation_typing']!='full':
                 return
 
             modifiers = ()
@@ -2036,7 +2036,7 @@ class NameNode(AtomicExprNode):
                 # name: "description" => not a type, but still a declared variable or attribute
                 annotation.expr.is_string_literal
                 # don't do type analysis from annotations if not asked to, but still collect the annotation
-                or not env.directives['annotation_typing']
+                or env.directives['annotation_typing']!='False'
             ):
                 atype = None
             elif env.is_py_class_scope:
