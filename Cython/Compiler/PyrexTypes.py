@@ -4582,7 +4582,7 @@ def is_promotion(src_type, dst_type):
     return False
 
 def best_match(arg_types, functions, pos=None, env=None, args=None,
-               validate_types_fully=False):
+               validate_types_for_operator=False):
     """
     Given a list args of arguments and a list of functions, choose one
     to call which seems to be the "best" fit for this list of arguments.
@@ -4603,6 +4603,13 @@ def best_match(arg_types, functions, pos=None, env=None, args=None,
     If no function is deemed a good fit, or if two or more functions have
     the same weight, we return None (as there is no best match). If pos
     is not None, we also generate an error.
+
+    For C++ operators, we can end up trying to match global non-member
+    functions (which may have nothing to do with the class in question).
+    Therefore the shortcut of "if there's one alternative, just return it
+    may be invalid. "validate_types_for_operator" skips this, and is only
+    used for operators because it breaks other code by not accounting
+    for type conversions.
     """
     # TODO: args should be a list of types, not a list of Nodes.
     actual_nargs = len(arg_types)
@@ -4668,7 +4675,9 @@ def best_match(arg_types, functions, pos=None, env=None, args=None,
             candidates.append((func, func_type))
 
     # Optimize the most common case of no overloading...
-    if len(candidates) == 1 and not validate_types_fully:
+    # (don't do this for operators because we may have an unrelated
+    # non-member operator that we should not return)
+    if len(candidates) == 1 and not validate_types_for_operator:
         return candidates[0][0]
     elif len(candidates) == 0:
         if pos is not None:
