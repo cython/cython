@@ -201,7 +201,7 @@ example:
 
         .. note::
 
-            Type definitions of function ``cube`` in :file:`volume.py` are not provided
+            Type definitions of function ``cube()`` in :file:`volume.py` are not provided
             since they are used from .pxd definition file. See :ref:`augmenting_pxd` and
             GitHub issue :issue:`4388`.
 
@@ -274,13 +274,13 @@ and another module which uses it:
 Some things to note about this example:
 
 * There is a :keyword:`cdef`/``@cclass`` class Shrubbery declaration in both
-  :file:`Shrubbing.pxd` and :file:`Shrubbing.pyx`. When the shrubbing module
+  :file:`shrubbing.pxd` and :file:`shrubbing.pyx`. When the shrubbing module
   is compiled, these two declarations are combined into one.
 * In :file:`landscaping.pyx`/:file:`landscaping.py`, the :keyword:`cimport` shrubbing
-  declaration allows us to refer to the Shrubbery type as :class:`Shrubbing.Shrubbery`.
-  But it doesn't bind the name Shrubbing in Landscaping's module namespace at run
-  time, so to access :func:`Shrubbing.standard_shrubbery` we also need to
-  ``import Shrubbing``.
+  declaration allows us to refer to the Shrubbery type as :class:`shrubbing.Shrubbery`.
+  But it doesn't bind the name shrubbing in landscaping's module namespace at run
+  time, so to access :func:`shrubbing.standard_shrubbery` we also need to
+  ``import shrubbing``.
 * One caveat if you use setuptools instead of distutils, the default
   action when running ``python setup.py install`` is to create a zipped
   ``egg`` file which will not work with ``cimport`` for ``pxd`` files
@@ -294,7 +294,7 @@ Versioning
   
 ``.pxd`` files can be labelled with a minimum Cython version as part of
 their file name, similar to the version tagging of ``.so`` files in PEP 3149.
-For example a file called :file:`Shrubbing.cython-30.pxd` will only be
+For example a file called :file:`shrubbing.cython-30.pxd` will only be
 found by ``cimport shrubbing`` on Cython 3.0 and higher. Cython will use the
 file tagged with the highest compatible version number.
  
