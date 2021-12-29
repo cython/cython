@@ -29,6 +29,7 @@ In pure mode, you are more or less restricted to code that can be expressed
 beyond that can only be done in .pyx files with extended language syntax,
 because it depends on features of the Cython compiler.
 
+.. _augmenting_pxd:
 
 Augmenting .pxd
 ---------------

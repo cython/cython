@@ -199,6 +199,12 @@ example:
         .. literalinclude:: ../../examples/userguide/sharing_declarations/spammery.py
             :caption: spammery.py
 
+        .. note::
+
+            Type definitions of function ``cube`` in :file:`volume.py` are not provided
+            since they are used from .pxd definition file. See :ref:`augmenting_pxd` and
+            GitHub issue :issue:`4388`.
+
     .. group-tab:: Cython
 
         .. literalinclude:: ../../examples/userguide/sharing_declarations/volume.pyx

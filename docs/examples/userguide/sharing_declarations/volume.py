@@ -1,5 +1,2 @@
-import cython
-
-@cython.cfunc
-def cube(x: cython.float) -> cython.float:
+def cube(x):
     return x * x * x
