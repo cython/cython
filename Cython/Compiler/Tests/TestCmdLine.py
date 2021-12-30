@@ -495,6 +495,21 @@ class CmdLineParserTest(TestCase):
         self.check_default_global_options()
         self.check_default_options(options, ['compiler_directives'])
 
+    def test_module_name(self):
+        options, sources = parse_command_line([
+            'source.pyx'
+        ])
+        self.assertEqual(options.module_name, None)
+        self.check_default_global_options()
+        self.check_default_options(options)
+        options, sources = parse_command_line([
+            '--module-name', 'foo.bar',
+            'source.pyx'
+        ])
+        self.assertEqual(options.module_name, 'foo.bar')
+        self.check_default_global_options()
+        self.check_default_options(options, ['module_name'])
+
     def test_errors(self):
         def error(*args):
             old_stderr = sys.stderr
@@ -505,7 +520,6 @@ class CmdLineParserTest(TestCase):
                 sys.stderr = old_stderr
             self.assertTrue(stderr.getvalue())
 
-        error('-1')
         error('-I')
         error('--version=-a')
         error('--version=--annotate=true')
@@ -514,3 +528,9 @@ class CmdLineParserTest(TestCase):
         error('--verbose=1')
         error('--cleanup')
         error('--debug-disposal-code-wrong-name', 'file3.pyx')
+        # No source file (source file appears to be module name).
+        error('--module-name', 'foo.pyx')
+        # Cannot use --module-name with more than one source file.
+        error('--module-name', 'foo.bar', 'foo.pyx', 'bar.pyx')
+        # Cannot use --module-name with --timestamps
+        error('--module-name', 'foo.bar', '--timestamps', 'foo.pyx')
