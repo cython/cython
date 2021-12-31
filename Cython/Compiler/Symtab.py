@@ -739,7 +739,7 @@ class Scope(object):
             if self.directives['cpp_locals']:
                 entry.make_cpp_optional()
             else:
-                type.check_nullary_constructor(pos)
+                type.check_nullary_constructor(pos, self)
         if in_pxd and visibility != 'extern':
             entry.defined_in_pxd = 1
             entry.used = 1
@@ -994,14 +994,13 @@ class Scope(object):
             return entry.type
         return None
 
-    def lookup_operator(self, operator, operands):
+    def lookup_operator(self, operator, operands, env):
         if operands[0].type.is_cpp_class:
             obj_type = operands[0].type
             method = obj_type.scope.lookup("operator%s" % operator)
             if method is not None:
                 arg_types = [arg.type for arg in operands[1:]]
-                res = PyrexTypes.best_match(arg_types, method.all_alternatives(),
-                                            validate_types_for_operator=True)
+                res = PyrexTypes.best_match(arg_types, method.all_alternatives(), env=env)
                 if res is not None:
                     return res
         function = self.lookup("operator%s" % operator)
@@ -1036,14 +1035,14 @@ class Scope(object):
                                     nonmember_alternatives))
 
         return PyrexTypes.best_match([arg.type for arg in operands],
-                                     all_alternatives, validate_types_for_operator=True)
+                                     all_alternatives, env=env)
 
-    def lookup_operator_for_types(self, pos, operator, types):
+    def lookup_operator_for_types(self, pos, operator, types, env):
         from .Nodes import Node
         class FakeOperand(Node):
             pass
         operands = [FakeOperand(pos, type=type) for type in types]
-        return self.lookup_operator(operator, operands)
+        return self.lookup_operator(operator, operands, env)
 
     def _emit_class_private_warning(self, pos, name):
         warning(pos, "Global name %s matched from within class scope "
@@ -2273,7 +2272,7 @@ class CClassScope(ClassScope):
                 if self.directives['cpp_locals']:
                     entry.make_cpp_optional()
                 else:
-                    type.check_nullary_constructor(pos)
+                    type.check_nullary_constructor(pos, self)
             if type.is_memoryviewslice:
                 self.has_memoryview_attrs = True
             elif type.needs_cpp_construction:

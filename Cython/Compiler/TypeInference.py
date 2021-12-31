@@ -368,7 +368,7 @@ class SimpleAssignmentTypeInferer(object):
                 if scope.directives['cpp_locals']:
                     e.make_cpp_optional()
                 else:
-                    e.type.check_nullary_constructor(entry.pos)
+                    e.type.check_nullary_constructor(entry.pos, scope)
 
     def infer_types(self, scope):
         enabled = scope.directives['infer_types']

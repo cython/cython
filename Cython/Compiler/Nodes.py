@@ -5864,7 +5864,7 @@ class SingleAssignmentNode(AssignmentNode):
                 self.lhs = lhs.analyse_target_types(env)
 
         if self.lhs.type.is_cpp_class:
-            op = env.lookup_operator_for_types(self.pos, '=', [self.lhs.type, self.rhs.type])
+            op = env.lookup_operator_for_types(self.pos, '=', [self.lhs.type, self.rhs.type], env)
             if op:
                 rhs = self.rhs
                 self.is_overloaded_assignment = True

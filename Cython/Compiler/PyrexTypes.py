@@ -2748,9 +2748,9 @@ class CPtrType(CPointerBaseType):
     def invalid_value(self):
         return "1"
 
-    def find_cpp_operation_type(self, operator, operand_type=None):
+    def find_cpp_operation_type(self, operator, env, operand_type=None):
         if self.base_type.is_cpp_class:
-            return self.base_type.find_cpp_operation_type(operator, operand_type)
+            return self.base_type.find_cpp_operation_type(operator, env, operand_type)
         return None
 
 
@@ -4048,7 +4048,7 @@ class CppClassType(CType):
     def attributes_known(self):
         return self.scope is not None
 
-    def find_cpp_operation_type(self, operator, operand_types=None):
+    def find_cpp_operation_type(self, operator, env, operand_types=None):
         if operand_types is not None:
             # Note that the first argument is not necessarily "self"
             # (with non-member operators), so complete types
@@ -4057,7 +4057,7 @@ class CppClassType(CType):
         else:
             operands = [self]
         # pos == None => no errors
-        operator_entry = self.scope.lookup_operator_for_types(None, operator, operands)
+        operator_entry = self.scope.lookup_operator_for_types(None, operator, operands, env)
         if not operator_entry:
             return None
         func_type = operator_entry.type
@@ -4082,9 +4082,9 @@ class CppClassType(CType):
         func_type = CFuncType(self, [], exception_check='+', nogil=nogil)
         return self.scope.declare_cfunction(u'<init>', func_type, pos)
 
-    def check_nullary_constructor(self, pos, msg="stack allocated"):
+    def check_nullary_constructor(self, pos, env, msg="stack allocated"):
         constructor = self.scope.lookup(u'<init>')
-        if constructor is not None and best_match([], constructor.all_alternatives()) is None:
+        if constructor is not None and best_match([], constructor.all_alternatives(), env=env) is None:
             error(pos, "C++ class must have a nullary constructor to be %s" % msg)
 
     def cpp_optional_check_for_null_code(self, cname):
@@ -4581,8 +4581,7 @@ def is_promotion(src_type, dst_type):
             return src_type.is_float and src_type.rank <= dst_type.rank
     return False
 
-def best_match(arg_types, functions, pos=None, env=None, args=None,
-               validate_types_for_operator=False):
+def best_match(arg_types, functions, pos=None, env=None, args=None):
     """
     Given a list args of arguments and a list of functions, choose one
     to call which seems to be the "best" fit for this list of arguments.
@@ -4603,15 +4602,10 @@ def best_match(arg_types, functions, pos=None, env=None, args=None,
     If no function is deemed a good fit, or if two or more functions have
     the same weight, we return None (as there is no best match). If pos
     is not None, we also generate an error.
-
-    For C++ operators, we can end up trying to match global non-member
-    functions (which may have nothing to do with the class in question).
-    Therefore the shortcut of "if there's one alternative, just return it
-    may be invalid. "validate_types_for_operator" skips this, and is only
-    used for operators because it breaks other code by not accounting
-    for type conversions.
     """
     # TODO: args should be a list of types, not a list of Nodes.
+    assert env
+
     actual_nargs = len(arg_types)
 
     candidates = []
@@ -4674,12 +4668,7 @@ def best_match(arg_types, functions, pos=None, env=None, args=None,
         else:
             candidates.append((func, func_type))
 
-    # Optimize the most common case of no overloading...
-    # (don't do this for operators because we may have an unrelated
-    # non-member operator that we should not return)
-    if len(candidates) == 1 and not validate_types_for_operator:
-        return candidates[0][0]
-    elif len(candidates) == 0:
+    if len(candidates) == 0:
         if pos is not None:
             func, errmsg = errors[0]
             if len(errors) == 1 or [1 for func, e in errors if e == errmsg]:
@@ -4698,7 +4687,12 @@ def best_match(arg_types, functions, pos=None, env=None, args=None,
             src_type = arg_types[i]
             dst_type = func_type.args[i].type
 
-            assignable = dst_type.assignable_from(src_type)
+            assignable = (dst_type.assignable_from(src_type) or
+                          # ideally PyObject coercions would be included in
+                          # "assignable_from" but this doesn't seem to be the case
+                          # and they require env
+                          (src_type.is_pyobject and dst_type.can_coerce_from_pyobject(env)) or
+                          (dst_type.is_pyobject and dst_type.can_coerce_to_pyobject(env)))
 
             # Now take care of unprefixed string literals. So when you call a cdef
             # function that takes a char *, the coercion will mean that the
