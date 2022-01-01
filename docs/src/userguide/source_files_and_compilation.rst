@@ -608,15 +608,16 @@ efficient re-use.
 Compiling with ``cython.compile``
 =================================
 
-Cython supports transpartent compiling of the cython code within function using
+Cython supports transparent compiling of the cython code in a function using the
 ``@cython.compile`` dedorator::
 
     @cython.compile
     def plus(a, b):
         return a + b
 
-Parameters of the decorated function cannot have types. Their types are
-automaticaly determined based on values passed to a function.
+Parameters of the decorated function cannot have type declarations. Their types are
+automatically determined from values passed to the function, thus leading to one or more
+specialised compiled functions for the respective argument types.
 Executing example::
 
     import cython
