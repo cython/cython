@@ -343,10 +343,29 @@ def insert_into_pipeline(pipeline, transform, before=None, after=None):
 
 _pipeline_entry_points = {}
 
+try:
+    from threading import local as _threadlocal
+except ImportError:
+    class _threadlocal(object): pass
+
+threadlocal = _threadlocal()
+
+
+def get_timings():
+    try:
+        return threadlocal.cython_pipeline_timings
+    except AttributeError:
+        return {}
+
 
 def run_pipeline(pipeline, source, printtree=True):
     from .Visitor import PrintTree
     exec_ns = globals().copy() if DebugFlags.debug_verbose_pipeline else None
+
+    try:
+        timings = threadlocal.cython_pipeline_timings
+    except AttributeError:
+        timings = threadlocal.cython_pipeline_timings = {}
 
     def run(phase, data):
         return phase(data)
@@ -356,22 +375,32 @@ def run_pipeline(pipeline, source, printtree=True):
     try:
         try:
             for phase in pipeline:
-                if phase is not None:
-                    if not printtree and isinstance(phase, PrintTree):
-                        continue
-                    if DebugFlags.debug_verbose_pipeline:
-                        t = time()
-                        print("Entering pipeline phase %r" % phase)
-                        # create a new wrapper for each step to show the name in profiles
-                        phase_name = getattr(phase, '__name__', type(phase).__name__)
-                        try:
-                            run = _pipeline_entry_points[phase_name]
-                        except KeyError:
-                            exec("def %s(phase, data): return phase(data)" % phase_name, exec_ns)
-                            run = _pipeline_entry_points[phase_name] = exec_ns[phase_name]
-                    data = run(phase, data)
-                    if DebugFlags.debug_verbose_pipeline:
-                        print("    %.3f seconds" % (time() - t))
+                if phase is None:
+                    continue
+                if not printtree and isinstance(phase, PrintTree):
+                    continue
+
+                phase_name = getattr(phase, '__name__', type(phase).__name__)
+                if DebugFlags.debug_verbose_pipeline:
+                    print("Entering pipeline phase %r" % phase)
+                    # create a new wrapper for each step to show the name in profiles
+                    try:
+                        run = _pipeline_entry_points[phase_name]
+                    except KeyError:
+                        exec("def %s(phase, data): return phase(data)" % phase_name, exec_ns)
+                        run = _pipeline_entry_points[phase_name] = exec_ns[phase_name]
+
+                t = time()
+                data = run(phase, data)
+                t = time() - t
+
+                try:
+                    old_t, count = timings[phase_name]
+                except KeyError:
+                    old_t, count = 0, 0
+                timings[phase_name] = (old_t + int(t * 1000000), count + 1)
+                if DebugFlags.debug_verbose_pipeline:
+                    print("    %.3f seconds" % t)
         except CompileError as err:
             # err is set
             Errors.report_error(err, use_stack=False)
