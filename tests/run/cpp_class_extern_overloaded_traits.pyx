@@ -1,8 +1,6 @@
 # mode: run
 # tag: cpp
 
-from libcpp cimport bool as bool_t
-
 cdef:
     struct S1:
         int i
@@ -12,29 +10,21 @@ cdef:
 
     extern from *:
         """
-        #include <stdio.h>
-        #include <map>
-
-        unsigned int i;
-
-        void test(std::map<unsigned int, unsigned int> m) {
-            printf("Map size: %d\n", m.size());
-        }
-
         class testclass {
         public:
-            void a() {
-                printf("testclass->a();\n");
+            int a() {
+                return 9000;
             }
-            void a(unsigned int i) {
-                printf("testclass->a(%d);\n", i);
+            int a(unsigned int i) {
+                return i;
             }
         };
         """
+
         cppclass testclass:
             testclass()
-            void a()
-            void a(unsigned int i)
+            int a()
+            int a(unsigned int i)
 
     cppclass testclass2(testclass):
         testclass2()
@@ -47,24 +37,52 @@ cdef:
         testclass4()
         void a(S2 v)
 
-    testclass t1 = testclass()
-    testclass2 t2 = testclass2()
-    testclass3 t3 = testclass3()
-    testclass4 t4 = testclass4()
+def test_base_class_functions(arg=None):
+    """
+    >>> test_base_class_functions()
+    9000
+    >>> test_base_class_functions(1)
+    1
+    """
+    return testclass().a(arg) if arg else testclass().a()
 
-cdef S1 s1
-cdef S2 s2
+def test_testclass2_functions(arg=None):
+    """
+    >>> test_testclass2_functions()
+    9000
+    >>> test_testclass2_functions(2)
+    2
+    """
+    return testclass2().a(arg) if arg else testclass2().a()
 
-t1.a()
-t1.a(1)
+def test_testclass3_functions(s):
+    """
+    >>> test_testclass3_functions()
+    9000
+    >>> test_testclass3_functions(3)
+    3
+    >>> test_testclass3_functions('s1')
 
-t2.a()
-t2.a(2)
+    """
+    cdef S1 s1
+    if type(s) == 'int':
+        return testclass3().a(3)
+    elif s == 's1':
+        return testclass3().a(s1)
+    return testclass3().a()
 
-t3.a()
-t3.a(3)
-t3.a(s1)
+def test_testclass4_functions(s):
+    """
+    >>> test_testclass4_functions()
+    9000
+    >>> test_testclass4_functions(4)
+    4
+    >>> test_testclass4_functions('s2')
 
-t4.a()
-t4.a(4)
-t4.a(s2)
+    """
+    cdef S2 s2
+    if type(s) == 'int':
+        return testclass4().a(4)
+    elif s == 's2':
+        return testclass4().a(s2)
+    return testclass4().a()
