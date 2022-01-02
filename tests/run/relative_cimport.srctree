@@ -5,6 +5,7 @@ PYTHON setup.py build_ext --inplace
 PYTHON -c "from pkg.b import test; assert test() == (1, 2)"
 PYTHON -c "from pkg.b_py2 import test; assert test() == (1, 2)"
 PYTHON -c "from pkg.sub.c import test; assert test() == (1, 2)"
+PYTHON -c "from pkg import c"
 
 ######## setup.py ########
 
@@ -19,7 +20,11 @@ setup(
 
 ######## pkg/__init__.py ########
 
-######## pkg/sub/__init__.py ########
+######## pkg/sub/__init__.pyx ########
+
+######## pkg/sub/__init__.pxd ########
+
+from . cimport tdef
 
 ######## pkg/a.pyx ########
 
@@ -51,6 +56,14 @@ def test():
     obj.x = 1
     obj.y = 2
     return (obj.x, obj.y)
+
+
+######## pkg/c.pyx ########
+
+from . cimport sub
+
+cdef sub.tdef.myint i = 5
+assert i == 5
 
 
 ######## pkg/b_py2.pyx ########
