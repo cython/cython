@@ -605,6 +605,35 @@ Unbound variables are automatically pulled from the surrounding local
 and global scopes, and the result of the compilation is cached for
 efficient re-use.
 
+Compiling with ``cython.compile``
+=================================
+
+Cython supports transparent compiling of the cython code in a function using the
+``@cython.compile`` dedorator::
+
+    @cython.compile
+    def plus(a, b):
+        return a + b
+
+Parameters of the decorated function cannot have type declarations. Their types are
+automatically determined from values passed to the function, thus leading to one or more
+specialised compiled functions for the respective argument types.
+Executing example::
+
+    import cython
+
+    @cython.compile
+    def plus(a, b):
+        return a + b
+
+    print(plus('3', '5'))
+    print(plus(3, 5))
+
+will produce following output::
+
+    35
+    8
+
 .. _compiling_with_sage:
 
 Compiling with Sage
