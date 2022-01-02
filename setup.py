@@ -159,6 +159,9 @@ def compile_cython_modules(profile=False, coverage=False, compile_more=False, cy
         # XXX hack around setuptools quirk for '*.pyx' sources
         extensions[-1].sources[0] = pyx_source_file
 
+    # optimise build parallelism by starting with the largest modules
+    extensions.sort(key=lambda ext: os.path.getsize(ext.sources[0]), reverse=True)
+
     from Cython.Distutils.build_ext import build_ext
     from Cython.Compiler.Options import get_directive_defaults
     get_directive_defaults().update(
