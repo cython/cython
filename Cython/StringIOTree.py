@@ -23,6 +23,9 @@ EXAMPLE:
 >>> b.getvalue().split()
 ['second', 'alpha', 'beta', 'gamma']
 
+>>> try: from cStringIO import StringIO
+... except ImportError: from io import StringIO
+
 >>> i = StringIOTree()
 >>> d.insert(i)
 >>> _= i.write('inserted\n')
