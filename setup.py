@@ -141,20 +141,17 @@ def compile_cython_modules(profile=False, coverage=False, compile_more=False, cy
     extensions = []
     for module in compiled_modules:
         source_file = os.path.join(source_root, *module.split('.'))
-        if os.path.exists(source_file + ".py"):
-            pyx_source_file = source_file + ".py"
-        else:
-            pyx_source_file = source_file + ".pyx"
+        pyx_source_file = source_file + ".py"
+        if not os.path.exists(pyx_source_file):
+            pyx_source_file += "x"  # .py -> .pyx
+
         dep_files = []
         if os.path.exists(source_file + '.pxd'):
             dep_files.append(source_file + '.pxd')
-        if '.refnanny' in module:
-            defines_for_module = []
-        else:
-            defines_for_module = defines
+
         extensions.append(Extension(
             module, sources=[pyx_source_file],
-            define_macros=defines_for_module,
+            define_macros=defines if '.refnanny' not in module else [],
             depends=dep_files))
         # XXX hack around setuptools quirk for '*.pyx' sources
         extensions[-1].sources[0] = pyx_source_file
