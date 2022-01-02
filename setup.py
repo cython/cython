@@ -93,10 +93,10 @@ def compile_cython_modules(profile=False, coverage=False, compile_more=False, cy
         "Cython.Runtime.refnanny",
         "Cython.Compiler.FusedNode",
         "Cython.Tempita._tempita",
+        "Cython.StringIOTree",
     ]
     if compile_more:
         compiled_modules.extend([
-            "Cython.StringIOTree",
             "Cython.Compiler.Code",
             "Cython.Compiler.Lexicon",
             "Cython.Compiler.Parsing",
