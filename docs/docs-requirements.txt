@@ -1,0 +1,5 @@
+sphinx
+sphinx-issues
+sphinx-tabs
+ipython # for ipythonconsole lexer
+sphinx-rtd-theme # readthedocs sphinx theme
