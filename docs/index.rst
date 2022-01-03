@@ -29,7 +29,7 @@ Cython gives you the combined power of Python and C to let you
    src/reference/index
 
 .. toctree::
-   :caption: Contributing
+   :caption: Development
    :maxdepth: 2
    :hidden:
 
