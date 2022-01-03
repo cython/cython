@@ -5,6 +5,7 @@
 from __future__ import absolute_import
 
 import re
+import os.path
 import copy
 import operator
 
@@ -1351,6 +1352,17 @@ class ModuleScope(Scope):
         entry.qualified_name = self.builtin_scope().qualify_name(name)
         return entry
 
+    def _is_package_scope_or_module(self):
+        # Returns True for all ModuleScopes representing package or scopes representing
+        # modules. Otherwise returns False.
+        # Note: For package pkg_a Cython creates two modules scopes: pkg_a and pkg_a.__init__.
+        # The main purpose of this helper method is to detect pkg_a ModuleScope.
+        path = self.context.search_include_directories(self.qualified_name, suffix='.pyx')
+        if not path:
+            path = self.context.search_include_directories(self.qualified_name, suffix='.py')
+        contains_init = os.path.basename(path) in ('__init__.pyx', '__init__.py') if path else False
+        return self.is_package or not contains_init
+
     def find_module(self, module_name, pos, relative_level=-1):
         # Find a module in the import namespace, interpreting
         # relative imports relative to this module's parent.
@@ -1362,7 +1374,7 @@ class ModuleScope(Scope):
             # explicit relative cimport
             # error of going beyond top-level is handled in cimport node
             relative_to = self
-            while relative_level > 0 and relative_to:
+            while relative_level > 0 and relative_to and self._is_package_scope_or_module():
                 relative_to = relative_to.parent_module
                 relative_level -= 1
         elif relative_level != 0:
