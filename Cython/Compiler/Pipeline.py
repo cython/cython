@@ -186,7 +186,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         TrackNumpyAttributes(),
         InterpretCompilerDirectives(context, context.compiler_directives),
         ParallelRangeTransform(context),
-        WithTransform(context),
+        WithTransform(),
         AdjustDefByDirectives(context),
         _align_function_definitions,
         MarkClosureVisitor(context),
