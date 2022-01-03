@@ -4,13 +4,36 @@ Welcome to Cython's Documentation
 
 Also see the `Cython project homepage <https://cython.org/>`_.
 
-About Cython
+Cython is an optimising static compiler for both the Python programming language and
+the extended Cython programming language (based on Pyrex). It makes writing C extensions
+for Python as easy as Python itself.
 
-Cython is an optimising static compiler for both the Python programming language and the extended
-Cython programming language (based on Pyrex). It makes writing C extensions for Python as easy asPython itself.
+Quickstart
+-----------
 
-Cython gives you the combined power of Python and C to let you
+:doc:`src/quickstart/index`
+   How to install Cython compiler package.
 
+:doc:`src/tutorial/index`
+   How to use Cython to speedup your project.
+
+Guide
+------
+
+:doc:`src/userguide/index`
+   Learn to use Cython package.
+
+:doc:`src/reference/index`
+   How to use Cython to speedup your project.
+
+Development
+------------
+
+:doc:`CONTRIBUTING`
+   How to contribute changes to Cython.
+
+:doc:`Changelog <src/changes>`
+   Release note of Cython development.
 
 .. toctree::
    :caption: Quickstart

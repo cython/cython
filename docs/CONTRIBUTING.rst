@@ -1,5 +1,5 @@
-Welcome, and thank you for your interest in contributing!
-=========================================================
+Contributing
+=============
 
 If you are looking for a good way to contribute to the Cython project, please
 
