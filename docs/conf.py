@@ -114,13 +114,13 @@ exclude_patterns = ["py*", "build", "BUILD", "TEST_TMP"]
 # show_authors = False
 
 # The name of the Pygments (syntax highlighting) style to use.
-pygments_style = "sphinx"
+# pygments_style = "sphinx"
 
 # A list of ignored prefixes for module index sorting.
 # modindex_common_prefix = []
 
 # todo
-todo_include_todos = True
+# todo_include_todos = True
 
 # intersphinx for standard :keyword:s (def, for, etc.)
 intersphinx_mapping = {"python": ("https://docs.python.org/3/", None)}
@@ -179,9 +179,9 @@ html_favicon = "_static/favicon.ico"
 html_static_path = ["_static"]
 
 # Overwriting css from extensions
-html_context = {
-    "css_files": ["_static/css/tabs.css"],
-}
+# html_context = {
+#     "css_files": ["_static/css/tabs.css"],
+# }
 
 # If not '', a 'Last updated on:' timestamp is inserted at every page bottom,
 # using the given strftime format.
@@ -198,11 +198,11 @@ html_context = {
 # template names.
 # html_additional_pages = {}
 
-# If false, no module index is generated.
-html_domain_indices = False
+# # If false, no module index is generated.
+# html_domain_indices = False
 
-# If false, no index is generated.
-html_use_index = False
+# # If false, no index is generated.
+# html_use_index = False
 
 # If true, the index is split into individual pages for each letter.
 # html_split_index = False
@@ -317,10 +317,10 @@ texinfo_documents = [
 # -- Options for Epub output ---------------------------------------------------
 
 # Bibliographic Dublin Core info.
-epub_title = "Cython"
-epub_author = authors
-epub_publisher = authors
-epub_copyright = copyright
+# epub_title = "Cython"
+# epub_author = authors
+# epub_publisher = authors
+# epub_copyright = copyright
 
 # The language of the text. It defaults to the language option
 # or en if the language is not set.
@@ -388,20 +388,20 @@ epub_copyright = copyright
 # would mean that specific document would be compressed
 # regardless of the global pdf_compressed setting.
 
-pdf_documents = [
-    ("index", project, project, authors.replace(", ", "\\\\")),
-]
+# pdf_documents = [
+#     ("index", project, project, authors.replace(", ", "\\\\")),
+# ]
 
-# A comma-separated list of custom stylesheets. Example:
-pdf_stylesheets = ["sphinx", "kerning", "a4"]
+# # A comma-separated list of custom stylesheets. Example:
+# pdf_stylesheets = ["sphinx", "kerning", "a4"]
 
-# A list of folders to search for stylesheets. Example:
-pdf_style_path = [".", "_styles"]
+# # A list of folders to search for stylesheets. Example:
+# pdf_style_path = [".", "_styles"]
 
 # Create a compressed PDF
 # Use True/False or 1/0
 # Example: compressed=True
-pdf_compressed = True
+# pdf_compressed = True
 
 # A colon-separated list of folders to search for fonts. Example:
 # pdf_font_path = ['/usr/share/fonts', '/usr/share/texmf-dist/fonts/']
@@ -411,7 +411,7 @@ pdf_compressed = True
 
 # Mode for literal blocks wider than the frame. Can be
 # overflow, shrink or truncate
-pdf_fit_mode = "shrink"
+# pdf_fit_mode = "shrink"
 
 # Section level that forces a break page.
 # For example: 1 means top-level sections start in a new page
@@ -429,11 +429,11 @@ pdf_fit_mode = "shrink"
 # verbosity level. 0 1 or 2
 # pdf_verbosity = 0
 
-# If false, no index is generated.
-pdf_use_index = False
+# # If false, no index is generated.
+# pdf_use_index = False
 
-# If false, no modindex is generated.
-pdf_use_modindex = False
+# # If false, no modindex is generated.
+# pdf_use_modindex = False
 
 # If false, no coverpage is generated.
 # pdf_use_coverpage = True
@@ -459,13 +459,13 @@ pdf_use_modindex = False
 # pdf_page_template = 'cutePage'
 
 # Show Table Of Contents at the beginning?
-pdf_use_toc = False
+# pdf_use_toc = False
 
-# How many levels deep should the table of contents be?
-pdf_toc_depth = 9999
+# # How many levels deep should the table of contents be?
+# pdf_toc_depth = 9999
 
-# Add section number to section references
-pdf_use_numbered_links = False
+# # Add section number to section references
+# pdf_use_numbered_links = False
 
-# Background images fitting mode
-pdf_fit_background_mode = "scale"
+# # Background images fitting mode
+# pdf_fit_background_mode = "scale"
