@@ -224,11 +224,9 @@ def create_pipeline(context, mode, exclude_classes=()):
         CoerceCppTemps(context),
         GilCheck(),
         ]
-    filtered_stages = []
-    for s in stages:
-        if s.__class__ not in exclude_classes:
-            filtered_stages.append(s)
-    return filtered_stages
+    if exclude_classes:
+        stages = [s for s in stages if s.__class__ not in exclude_classes]
+    return stages
 
 def create_pyx_pipeline(context, options, result, py=False, exclude_classes=()):
     if py:
