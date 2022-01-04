@@ -41,14 +41,24 @@ extensions = [
     "sphinx_issues",  # if this is missing, pip install sphinx-issues
     "sphinx_tabs.tabs",  # if this is missing, pip install sphinx-tabs
     "sphinx_rtd_theme",
+    "versionwarning.extension",
 ]
+
+# -- Version Warning Banner configuration ------------------------------------
+
+versionwarning_messages = {
+    'latest': 'This is a custom message only for version "latest" of this documentation.',
+}
+versionwarning_admonition_type = 'tip'
+versionwarning_banner_title = 'Tip'
+versionwarning_body_selector = 'div[itemprop="articleBody"]'
 
 # try: import rst2pdf
 # except ImportError: pass
 # else: extensions.append('rst2pdf.pdfbuilder')
 
 # Add any paths that contain templates here, relative to this directory.
-# templates_path = ['_templates']
+templates_path = ['_templates']
 
 # The suffix of source filenames.
 source_suffix = ".rst"
