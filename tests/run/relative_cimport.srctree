@@ -6,6 +6,7 @@ PYTHON -c "from pkg.b import test; assert test() == (1, 2)"
 PYTHON -c "from pkg.b_py2 import test; assert test() == (1, 2)"
 PYTHON -c "from pkg.sub.c import test; assert test() == (1, 2)"
 PYTHON -c "from pkg import c"
+PYTHON -c "import t"
 
 ######## setup.py ########
 
@@ -18,7 +19,18 @@ setup(
 )
 
 
-######## pkg/__init__.py ########
+######## t.pyx ########
+
+cimport pkg
+
+cdef pkg.sub.tdef.myint i = 5
+assert i == 5
+
+######## pkg/__init__.pyx ########
+
+######## pkg/__init__.pxd ########
+
+from . cimport sub
 
 ######## pkg/sub/__init__.pyx ########
 
