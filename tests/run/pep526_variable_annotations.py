@@ -174,8 +174,8 @@ def test_subscripted_types():
     print(cython.typeof(c) + (" object" if not cython.compiled else ""))
 
 # because tuple is specifically special cased to go to ctuple where possible
-def test_tuple(a : typing.Tuple[int, float], b : typing.Tuple[int, ...],
-               c : Tuple[int, object]  # cannot be a ctuple
+def test_tuple(a: typing.Tuple[int, float], b: typing.Tuple[int, ...],
+               c: Tuple[int, object]  # cannot be a ctuple
                ):
     """
     >>> test_tuple((1, 1.0), (1, 1.0), (1, 1.0))
