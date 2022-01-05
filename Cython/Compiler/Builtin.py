@@ -452,7 +452,7 @@ def init_builtins():
 init_builtins()
 
 ##############################
-# Support for a few standard library modules that Cython understands (currently typing and dataclasses
+# Support for a few standard library modules that Cython understands (currently typing and dataclasses)
 ##############################
 _known_module_scopes = {}
 
