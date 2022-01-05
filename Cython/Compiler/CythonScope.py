@@ -50,7 +50,7 @@ class CythonScope(ModuleScope):
     def find_module(self, module_name, pos):
         error("cython.%s is not available" % module_name, pos)
 
-    def find_submodule(self, module_name):
+    def find_submodule(self, module_name, is_package=False):
         entry = self.entries.get(module_name, None)
         if not entry:
             self.load_cythonscope()

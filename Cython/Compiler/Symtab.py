@@ -5,7 +5,6 @@
 from __future__ import absolute_import
 
 import re
-import os.path
 import copy
 import operator
 
@@ -1238,19 +1237,13 @@ class ModuleScope(Scope):
     is_cython_builtin = 0
     old_style_globals = 0
 
-    def __init__(self, name, parent_module, context):
+    def __init__(self, name, parent_module, context, is_package=False):
         from . import Builtin
         self.parent_module = parent_module
         outer_scope = Builtin.builtin_scope
         Scope.__init__(self, name, outer_scope, parent_module)
-        if name == "__init__":
-            # Treat Spam/__init__.pyx specially, so that when Python loads
-            # Spam/__init__.so, initSpam() is defined.
-            self.module_name = parent_module.module_name
-            self.is_package = True
-        else:
-            self.module_name = name
-            self.is_package = False
+        self.is_package = is_package
+        self.module_name = name
         self.module_name = EncodedString(self.module_name)
         self.context = context
         self.module_cname = Naming.module_cname
@@ -1352,17 +1345,6 @@ class ModuleScope(Scope):
         entry.qualified_name = self.builtin_scope().qualify_name(name)
         return entry
 
-    def _is_package_scope_or_module(self):
-        # Returns True for all ModuleScopes representing package or scopes representing
-        # modules. Otherwise returns False.
-        # Note: For package pkg_a Cython creates two modules scopes: pkg_a and pkg_a.__init__.
-        # The main purpose of this helper method is to detect pkg_a ModuleScope.
-        path = self.context.search_include_directories(self.qualified_name, suffix='.pyx')
-        if not path:
-            path = self.context.search_include_directories(self.qualified_name, suffix='.py')
-        contains_init = os.path.basename(path) in ('__init__.pyx', '__init__.py') if path else False
-        return self.is_package or not contains_init
-
     def find_module(self, module_name, pos, relative_level=-1):
         # Find a module in the import namespace, interpreting
         # relative imports relative to this module's parent.
@@ -1374,7 +1356,7 @@ class ModuleScope(Scope):
             # explicit relative cimport
             # error of going beyond top-level is handled in cimport node
             relative_to = self
-            while relative_level > 0 and relative_to and self._is_package_scope_or_module():
+            while relative_level > 0 and relative_to and not self.is_package:
                 relative_to = relative_to.parent_module
                 relative_level -= 1
         elif relative_level != 0:
@@ -1386,7 +1368,7 @@ class ModuleScope(Scope):
         return module_scope.context.find_module(
             module_name, relative_to=relative_to, pos=pos, absolute_fallback=absolute_fallback)
 
-    def find_submodule(self, name):
+    def find_submodule(self, name, is_package=False):
         # Find and return scope for a submodule of this module,
         # creating a new empty one if necessary. Doesn't parse .pxd.
         if '.' in name:
@@ -1395,10 +1377,10 @@ class ModuleScope(Scope):
             submodule = None
         scope = self.lookup_submodule(name)
         if not scope:
-            scope = ModuleScope(name, parent_module=self, context=self.context)
+            scope = ModuleScope(name, parent_module=self, context=self.context, is_package=True if submodule else is_package)
             self.module_entries[name] = scope
         if submodule:
-            scope = scope.find_submodule(submodule)
+            scope = scope.find_submodule(submodule, is_package=is_package)
         return scope
 
     def lookup_submodule(self, name):

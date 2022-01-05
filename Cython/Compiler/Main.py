@@ -182,16 +182,25 @@ class Context(object):
             if not scope:
                 pxd_pathname = self.find_pxd_file(qualified_name, pos)
                 if pxd_pathname:
-                    scope = relative_to.find_submodule(module_name)
+                    is_package = True if '__init__' in pxd_pathname else False
+                    scope = relative_to.find_submodule(module_name, is_package=is_package)
         if not scope:
             if debug_find_module:
                 print("...trying absolute import")
             if absolute_fallback:
                 qualified_name = module_name
             scope = self
-            for name in qualified_name.split("."):
-                scope = scope.find_submodule(name)
-
+            qualified_name_parts = qualified_name.split('.')
+            last_part = qualified_name_parts[-1]
+            qualified_name_parts = [(p, True) for p in qualified_name_parts[:-1]]
+            if last_part != '__init__':
+                path = self.search_include_directories(qualified_name, suffix='.pyx')
+                if not path:
+                    path = self.search_include_directories(qualified_name, suffix='.py')
+                is_package = os.path.basename(path) in ('__init__.pyx', '__init__.py') if path else False
+                qualified_name_parts = qualified_name_parts + [(last_part, is_package)]
+            for name, is_package in qualified_name_parts:
+                scope = scope.find_submodule(name, is_package=is_package)
         if debug_find_module:
             print("...scope = %s" % scope)
         if not scope.pxd_file_loaded:
@@ -322,12 +331,12 @@ class Context(object):
         # Look up a top-level module. Returns None if not found.
         return self.modules.get(name, None)
 
-    def find_submodule(self, name):
+    def find_submodule(self, name, is_package=False):
         # Find a top-level module, creating a new one if needed.
         scope = self.lookup_submodule(name)
         if not scope:
             scope = ModuleScope(name,
-                parent_module = None, context = self)
+                parent_module = None, context = self, is_package=is_package)
             self.modules[name] = scope
         return scope
 
