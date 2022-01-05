@@ -143,6 +143,21 @@ class Context(object):
     def nonfatal_error(self, exc):
         return Errors.report_error(exc)
 
+    def _split_qualified_name(self, qualified_name):
+        # Splits qualified_name into parts in form of 2-tuples: (PART_NAME, IS_PACKAGE).
+        qualified_name_parts = qualified_name.split('.')
+        last_part = qualified_name_parts[-1]
+        qualified_name_parts = [(p, True) for p in qualified_name_parts[:-1]]
+        if last_part != '__init__':
+            # If Last part is __init__, then it is omitted. Otherwise, we need to check whether we can find
+            # __init__.pyx/__init__.py file to determine if last part is package or not.
+            path = self.search_include_directories(qualified_name, suffix='.pyx')
+            if not path:
+                path = self.search_include_directories(qualified_name, suffix='.py')
+            is_package = os.path.basename(path) in ('__init__.pyx', '__init__.py') if path else False
+            qualified_name_parts = qualified_name_parts + [(last_part, is_package)]
+        return qualified_name_parts
+
     def find_module(self, module_name, relative_to=None, pos=None, need_pxd=1,
                     absolute_fallback=True):
         # Finds and returns the module scope corresponding to
@@ -190,16 +205,7 @@ class Context(object):
             if absolute_fallback:
                 qualified_name = module_name
             scope = self
-            qualified_name_parts = qualified_name.split('.')
-            last_part = qualified_name_parts[-1]
-            qualified_name_parts = [(p, True) for p in qualified_name_parts[:-1]]
-            if last_part != '__init__':
-                path = self.search_include_directories(qualified_name, suffix='.pyx')
-                if not path:
-                    path = self.search_include_directories(qualified_name, suffix='.py')
-                is_package = os.path.basename(path) in ('__init__.pyx', '__init__.py') if path else False
-                qualified_name_parts = qualified_name_parts + [(last_part, is_package)]
-            for name, is_package in qualified_name_parts:
+            for name, is_package in self._split_qualified_name(qualified_name):
                 scope = scope.find_submodule(name, is_package=is_package)
         if debug_find_module:
             print("...scope = %s" % scope)
