@@ -6,6 +6,8 @@ PYTHON -c "import pyimport_test; pyimport_test.test()"
 import os.path
 import pyximport
 
+pyximport.DEBUG_IMPORT = True
+
 pyximport.install(pyximport=False, pyimport=True,
                   build_dir=os.path.join(os.path.dirname(__file__), "TEST_TMP"))
 

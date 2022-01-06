@@ -9,6 +9,8 @@ import pyximport
 # blacklist for speed
 import pyximport.pyxbuild, Cython.Compiler.Pipeline
 
+pyximport.DEBUG_IMPORT = True
+
 pyximport.install(pyximport=False, pyimport=True,
                   build_dir=os.path.join(os.path.dirname(__file__), "TEST_TMP"))
 
