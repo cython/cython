@@ -1342,7 +1342,7 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
             return super(ParallelRangeTransform, self).visit(node)
 
 
-class WithTransform(CythonTransform, SkipDeclarations):
+class WithTransform(VisitorTransform, SkipDeclarations):
     def visit_WithStatNode(self, node):
         self.visitchildren(node, 'body')
         pos = node.pos
@@ -1407,6 +1407,8 @@ class WithTransform(CythonTransform, SkipDeclarations):
     def visit_ExprNode(self, node):
         # With statements are never inside expressions.
         return node
+
+    visit_Node = VisitorTransform.recurse_to_children
 
 
 class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):

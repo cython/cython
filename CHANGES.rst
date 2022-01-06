@@ -2,7 +2,7 @@
 Cython Changelog
 ================
 
-3.0.0 alpha 10 (2021-12-??)
+3.0.0 alpha 10 (2022-01-06)
 ===========================
 
 Features added
@@ -79,16 +79,24 @@ Bugs fixed
 * Unsupported decorators on cdef functions were not rejected in recent releases.
   Patch by David Woods.  (Github issue :issue:`4322`)
 
+* The excess arguments in a for-in-range loop with more than 3 arguments to `range()`
+  were silently ignored.
+  Original patch by Max Bachmann. (Github issue :issue:`4550`)
+
 * Python object types were not allowed as ``->`` return type annotations.
   Patch by Matus Valo.  (Github issue :issue:`4433`)
+
+* Default values for memory views arguments were not properly supported.
+  Patch by Corentin Cadiou.  (Github issue :issue:`4313`)
 
 * Templating C++ classes with memory view types lead to buggy code and is now rejected.
   Patch by David Woods.  (Github issue :issue:`3085`)
 
 * Several C++ library declarations were added and fixed.
-  Patches by Dobatymo, account-login, Jonathan Helgert, Evgeny Yakimov.
+  Patches by Dobatymo, account-login, Jonathan Helgert, Evgeny Yakimov, GalaxySnail, Max Bachmann.
   (Github issues :issue:`4408`, :issue:`4419`, :issue:`4410`, :issue:`4395`,
-  :issue:`4423`, :issue:`4448`, :issue:`4462`, :issue:`3293`)
+  :issue:`4423`, :issue:`4448`, :issue:`4462`, :issue:`3293`, :issue:`4522`,
+  :issue:`2171`, :issue:`4531`)
 
 * Some compiler problems and warnings were resolved.
   Patches by David Woods, 0dminnimda, Nicolas Pauss and others.
@@ -108,7 +116,7 @@ Bugs fixed
 
 * Some compatibility issues with PyPy were resolved.
   Patches by Max Bachmann, Matti Picus.
-  (Github issues :issue:`4454`, :issue:`4477`, :issue:`4478`, :issus:`4509`)
+  (Github issues :issue:`4454`, :issue:`4477`, :issue:`4478`, :issus:`4509`, :issue:`4517`)
 
 * A compiler crash when running Cython thread-parallel from distutils was resolved.
   (Github issue :issue:`4503`)
