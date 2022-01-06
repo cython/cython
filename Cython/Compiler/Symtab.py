@@ -1368,7 +1368,7 @@ class ModuleScope(Scope):
         return module_scope.context.find_module(
             module_name, relative_to=relative_to, pos=pos, absolute_fallback=absolute_fallback)
 
-    def find_submodule(self, name, is_package=False):
+    def find_submodule(self, name, as_package=False):
         # Find and return scope for a submodule of this module,
         # creating a new empty one if necessary. Doesn't parse .pxd.
         if '.' in name:
@@ -1377,10 +1377,10 @@ class ModuleScope(Scope):
             submodule = None
         scope = self.lookup_submodule(name)
         if not scope:
-            scope = ModuleScope(name, parent_module=self, context=self.context, is_package=True if submodule else is_package)
+            scope = ModuleScope(name, parent_module=self, context=self.context, is_package=True if submodule else as_package)
             self.module_entries[name] = scope
         if submodule:
-            scope = scope.find_submodule(submodule, is_package=is_package)
+            scope = scope.find_submodule(submodule, as_package=as_package)
         return scope
 
     def lookup_submodule(self, name):

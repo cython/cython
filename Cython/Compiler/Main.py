@@ -198,7 +198,7 @@ class Context(object):
                 pxd_pathname = self.find_pxd_file(qualified_name, pos)
                 if pxd_pathname:
                     is_package = True if '__init__' in pxd_pathname else False
-                    scope = relative_to.find_submodule(module_name, is_package=is_package)
+                    scope = relative_to.find_submodule(module_name, as_package=is_package)
         if not scope:
             if debug_find_module:
                 print("...trying absolute import")
@@ -206,7 +206,7 @@ class Context(object):
                 qualified_name = module_name
             scope = self
             for name, is_package in self._split_qualified_name(qualified_name):
-                scope = scope.find_submodule(name, is_package=is_package)
+                scope = scope.find_submodule(name, as_package=is_package)
         if debug_find_module:
             print("...scope = %s" % scope)
         if not scope.pxd_file_loaded:
@@ -337,12 +337,12 @@ class Context(object):
         # Look up a top-level module. Returns None if not found.
         return self.modules.get(name, None)
 
-    def find_submodule(self, name, is_package=False):
+    def find_submodule(self, name, as_package=False):
         # Find a top-level module, creating a new one if needed.
         scope = self.lookup_submodule(name)
         if not scope:
             scope = ModuleScope(name,
-                parent_module = None, context = self, is_package=is_package)
+                parent_module = None, context = self, is_package=as_package)
             self.modules[name] = scope
         return scope
 
