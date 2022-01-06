@@ -4,8 +4,9 @@
 from __future__ import absolute_import
 
 import cython
-cython.declare(PyrexTypes=object, ExprNodes=object, Nodes=object,
-               Builtin=object, InternalError=object, error=object, warning=object,
+cython.declare(PyrexTypes=object, ExprNodes=object, Nodes=object, Builtin=object,
+               Options=object, TreeVisitor=object, CythonTransform=object,
+               InternalError=object, error=object, warning=object,
                fake_rhs_expr=object, TypedExprNode=object)
 
 from . import Builtin
@@ -16,7 +17,6 @@ from . import PyrexTypes
 
 from .Visitor import TreeVisitor, CythonTransform
 from .Errors import error, warning, InternalError
-from .Optimize import ConstantFolding
 
 
 class TypedExprNode(ExprNodes.ExprNode):
@@ -676,6 +676,8 @@ class ControlFlowAnalysis(CythonTransform):
     def visit_ModuleNode(self, node):
         dot_output = self.current_directives['control_flow.dot_output']
         self.gv_ctx = GVContext() if dot_output else None
+
+        from .Optimize import ConstantFolding
         self.constant_folder = ConstantFolding()
 
         # Set of NameNode reductions
