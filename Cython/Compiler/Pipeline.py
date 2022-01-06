@@ -102,10 +102,7 @@ def sorted_utility_codes_and_deps(utilcodes):
 
 
 def normalize_deps(utilcodes):
-    deps = {}
-    for utilcode in utilcodes:
-        deps[utilcode] = utilcode
-
+    deps = {utilcode:utilcode for utilcode in utilcodes}
     for utilcode in utilcodes:
         utilcode.requires = [deps.setdefault(dep, dep) for dep in utilcode.requires or ()]
 
