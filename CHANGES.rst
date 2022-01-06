@@ -2,7 +2,7 @@
 Cython Changelog
 ================
 
-3.0.0 alpha 10 (2022-01-??)
+3.0.0 alpha 10 (2022-01-07)
 ===========================
 
 Features added
@@ -78,6 +78,10 @@ Bugs fixed
 
 * Unsupported decorators on cdef functions were not rejected in recent releases.
   Patch by David Woods.  (Github issue :issue:`4322`)
+
+* The excess arguments in a for-in-range loop with more than 3 arguments to `range()`
+  were silently ignored.
+  Original patch by Max Bachmann. (Github issue :issue:`4550`)
 
 * Python object types were not allowed as ``->`` return type annotations.
   Patch by Matus Valo.  (Github issue :issue:`4433`)
