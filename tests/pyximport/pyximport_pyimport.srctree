@@ -17,8 +17,12 @@ pyximport.install(pyximport=False, pyimport=True,
 def test():
     import mymodule
     assert mymodule.test_string == "TEST"
-    assert not mymodule.__file__.rstrip('oc').endswith('.py'), mymodule.__file__
+    assert mymodule.compiled
 
 ######## mymodule.py ########
+
+import cython
+
+compiled = cython.compiled
 
 test_string = "TEST"
