@@ -146,8 +146,8 @@ class Context(object):
     def _split_qualified_name(self, qualified_name):
         # Splits qualified_name into parts in form of 2-tuples: (PART_NAME, IS_PACKAGE).
         qualified_name_parts = qualified_name.split('.')
-        last_part = qualified_name_parts[-1]
-        qualified_name_parts = [(p, True) for p in qualified_name_parts[:-1]]
+        last_part = qualified_name_parts.pop()
+        qualified_name_parts = [(p, True) for p in qualified_name_parts]
         if last_part != '__init__':
             # If Last part is __init__, then it is omitted. Otherwise, we need to check whether we can find
             # __init__.pyx/__init__.py file to determine if last part is package or not.
