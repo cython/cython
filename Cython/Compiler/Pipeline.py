@@ -80,17 +80,25 @@ def use_utility_code_definitions(scope, target, seen=None):
             use_utility_code_definitions(entry.as_module, target, seen)
 
 
-def sort_utility_codes(utilcodes):
+def sorted_utility_codes_and_deps(utilcodes):
     ranks = {}
-    def get_rank(utilcode):
-        if utilcode not in ranks:
+    get_rank = ranks.get
+
+    def calculate_rank(utilcode):
+        rank = get_rank(utilcode)
+        if rank is None:
             ranks[utilcode] = 0  # prevent infinite recursion on circular dependencies
             original_order = len(ranks)
-            ranks[utilcode] = 1 + min([get_rank(dep) for dep in utilcode.requires or ()] or [-1]) + original_order * 1e-8
-        return ranks[utilcode]
+            rank = ranks[utilcode] = 1 + (
+                min([calculate_rank(dep) for dep in utilcode.requires]) if utilcode.requires else -1
+                ) + original_order * 1e-8
+        return rank
+
     for utilcode in utilcodes:
-        get_rank(utilcode)
-    return [utilcode for utilcode, _ in sorted(ranks.items(), key=lambda kv: kv[1])]
+        calculate_rank(utilcode)
+
+    # include all recursively collected dependencies
+    return sorted(ranks, key=get_rank)
 
 
 def normalize_deps(utilcodes):
@@ -98,39 +106,36 @@ def normalize_deps(utilcodes):
     for utilcode in utilcodes:
         deps[utilcode] = utilcode
 
-    def unify_dep(dep):
-        if dep in deps:
-            return deps[dep]
-        else:
-            deps[dep] = dep
-            return dep
-
     for utilcode in utilcodes:
-        utilcode.requires = [unify_dep(dep) for dep in utilcode.requires or ()]
+        utilcode.requires = [deps.setdefault(dep, dep) for dep in utilcode.requires or ()]
 
 
 def inject_utility_code_stage_factory(context):
     def inject_utility_code_stage(module_node):
         module_node.prepare_utility_code()
         use_utility_code_definitions(context.cython_scope, module_node.scope)
-        module_node.scope.utility_code_list = sort_utility_codes(module_node.scope.utility_code_list)
-        normalize_deps(module_node.scope.utility_code_list)
-        added = []
+
+        utility_code_list = module_node.scope.utility_code_list
+        utility_code_list[:] = sorted_utility_codes_and_deps(utility_code_list)
+        normalize_deps(utility_code_list)
+
+        added = set()
         # Note: the list might be extended inside the loop (if some utility code
         # pulls in other utility code, explicitly or implicitly)
-        for utilcode in module_node.scope.utility_code_list:
+        for utilcode in utility_code_list:
             if utilcode in added:
                 continue
-            added.append(utilcode)
+            added.add(utilcode)
             if utilcode.requires:
                 for dep in utilcode.requires:
-                    if dep not in added and dep not in module_node.scope.utility_code_list:
-                        module_node.scope.utility_code_list.append(dep)
+                    if dep not in added:
+                        utility_code_list.append(dep)
             tree = utilcode.get_tree(cython_scope=context.cython_scope)
             if tree:
                 module_node.merge_in(tree.with_compiler_directives(),
                                      tree.scope, merge_scope=True)
         return module_node
+
     return inject_utility_code_stage
 
 
