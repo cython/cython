@@ -151,12 +151,14 @@ class Context(object):
         if last_part != '__init__':
             # If Last part is __init__, then it is omitted. Otherwise, we need to check whether we can find
             # __init__.pyx/__init__.py file to determine if last part is package or not.
-            path = self.search_include_directories(qualified_name, suffix='.pyx')
-            if not path:
-                path = self.search_include_directories(qualified_name, suffix='.py')
-            is_package = os.path.basename(path) in ('__init__.pyx', '__init__.py') if path else False
+            paths = self.find_file_with_suffix(qualified_name, suffix=('.pyx', '.py'))
+            is_package = self._is_init_file(paths[0]) if len(paths) > 0 else False
             qualified_name_parts = qualified_name_parts + [(last_part, is_package)]
         return qualified_name_parts
+
+    @staticmethod
+    def _is_init_file(path):
+        return os.path.basename(path) in ('__init__.pyx', '__init__.py', '__init__.pxd') if path else False
 
     def find_module(self, module_name, relative_to=None, pos=None, need_pxd=1,
                     absolute_fallback=True):
@@ -197,7 +199,7 @@ class Context(object):
             if not scope:
                 pxd_pathname = self.find_pxd_file(qualified_name, pos)
                 if pxd_pathname:
-                    is_package = True if '__init__' in pxd_pathname else False
+                    is_package = self._is_init_file(pxd_pathname)
                     scope = relative_to.find_submodule(module_name, as_package=is_package)
         if not scope:
             if debug_find_module:
@@ -268,6 +270,15 @@ class Context(object):
         # given fully-qualified module name, as for find_pxd_file().
         return self.search_include_directories(
             qualified_name, suffix=".pyx", source_pos=pos, source_file_path=source_file_path)
+
+    def find_file_with_suffix(self, qualified_name, pos=None, source_file_path=None, suffix=('.py', '.pyx', '.pxd')):
+        found = []
+        for s in suffix:
+            path = self.search_include_directories(
+                qualified_name, suffix=s, source_pos=pos, source_file_path=source_file_path)
+            if path:
+                found.append(path)
+        return found
 
     def find_include_file(self, filename, pos=None, source_file_path=None):
         # Search list of include directories for filename.
