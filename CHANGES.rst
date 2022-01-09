@@ -2,17 +2,28 @@
 Cython Changelog
 ================
 
-3.0.0 alpha 10 (2021-12-??)
+3.0.0 alpha 10 (2022-01-06)
 ===========================
 
 Features added
 --------------
 
-* Conversion from Python dict to C++ map now supports arbitrary Python mappings,
-  not just dicts.
+* ``Cython.Distutils.build_ext`` now uses ``cythonize()`` internally (previously
+  known as ``new_build_ext``), while still supporting the options that were
+  available in the old implementation (``old_build_ext``).
+  Patch by Matus Valo.  (Github issue :issue:`3541`)
 
 * ``pyximport`` now uses ``cythonize()`` internally.
   Patch by Matus Valo.  (Github issue :issue:`2304`)
+
+* ``__del__(self)`` on extension types now maps to ``tp_finalize`` in Python 3.
+  Original patch by ax487.  (Github issue :issue:`3612`)
+
+* Conversion from Python dict to C++ map now supports arbitrary Python mappings,
+  not just dicts.
+
+* Direct assignments to C++ references are now allowed.
+  Patch by David Woods.  (Github issue :issue:`1863`)
 
 * An initial set of adaptations for GraalVM Python was implemented.  Note that
   this does not imply any general support for this target or that your code
@@ -68,16 +79,24 @@ Bugs fixed
 * Unsupported decorators on cdef functions were not rejected in recent releases.
   Patch by David Woods.  (Github issue :issue:`4322`)
 
+* The excess arguments in a for-in-range loop with more than 3 arguments to `range()`
+  were silently ignored.
+  Original patch by Max Bachmann. (Github issue :issue:`4550`)
+
 * Python object types were not allowed as ``->`` return type annotations.
   Patch by Matus Valo.  (Github issue :issue:`4433`)
+
+* Default values for memory views arguments were not properly supported.
+  Patch by Corentin Cadiou.  (Github issue :issue:`4313`)
 
 * Templating C++ classes with memory view types lead to buggy code and is now rejected.
   Patch by David Woods.  (Github issue :issue:`3085`)
 
 * Several C++ library declarations were added and fixed.
-  Patches by Dobatymo, account-login, Jonathan Helgert, Evgeny Yakimov.
+  Patches by Dobatymo, account-login, Jonathan Helgert, Evgeny Yakimov, GalaxySnail, Max Bachmann.
   (Github issues :issue:`4408`, :issue:`4419`, :issue:`4410`, :issue:`4395`,
-  :issue:`4423`, :issue:`4448`, :issue:`4462`, :issue:`3293`)
+  :issue:`4423`, :issue:`4448`, :issue:`4462`, :issue:`3293`, :issue:`4522`,
+  :issue:`2171`, :issue:`4531`)
 
 * Some compiler problems and warnings were resolved.
   Patches by David Woods, 0dminnimda, Nicolas Pauss and others.
@@ -96,7 +115,11 @@ Bugs fixed
   Patch by David Woods.  (Github issue :issue:`4453`)
 
 * Some compatibility issues with PyPy were resolved.
-  Patches by Max Bachmann, Matti Picus.  (Github issues :issue:`4454`, :issue:`4477`, :issue:`4478`)
+  Patches by Max Bachmann, Matti Picus.
+  (Github issues :issue:`4454`, :issue:`4477`, :issue:`4478`, :issus:`4509`, :issue:`4517`)
+
+* A compiler crash when running Cython thread-parallel from distutils was resolved.
+  (Github issue :issue:`4503`)
 
 * Includes all bug-fixes from the :ref:`0.29.26` release.
 

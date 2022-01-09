@@ -276,6 +276,16 @@ class VisitorTransform(TreeVisitor):
                     newlist.append(x)
         return newlist
 
+    def visitchild(self, parent, attr, idx=0):
+        # Helper to visit specific children from Python subclasses
+        child = getattr(parent, attr)
+        if child is not None:
+            node = self._visitchild(child, parent, attr, idx)
+            if node is not child:
+                setattr(parent, attr, node)
+            child = node
+        return child
+
     def recurse_to_children(self, node):
         self._process_children(node)
         return node

@@ -117,7 +117,8 @@ install:
 
 build: off
 build_script:
-  - "%WITH_ENV% %PYTHON%\\python.exe setup.py build_ext --inplace %PARALLEL%"
+  - "%WITH_ENV% %PYTHON%\\python.exe setup.py build_ext %PARALLEL%"
+  - "%WITH_ENV% %PYTHON%\\python.exe setup.py build_ext --inplace"
   - "%WITH_ENV% %PYTHON%\\python.exe setup.py bdist_wheel"
 
 test: off

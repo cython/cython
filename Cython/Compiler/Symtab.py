@@ -485,7 +485,7 @@ class Scope(object):
             warning(pos, "'%s' is a reserved name in C." % cname, -1)
 
         entries = self.entries
-        if name and name in entries and not shadow:
+        if name and name in entries and not shadow and not self.is_builtin_scope:
             old_entry = entries[name]
 
             # Reject redeclared C++ functions only if they have the same type signature.
@@ -831,10 +831,10 @@ class Scope(object):
                 entry.type = entry.type.with_with_gil(type.with_gil)
             else:
                 if visibility == 'extern' and entry.visibility == 'extern':
-                    can_override = False
+                    can_override = self.is_builtin_scope
                     if self.is_cpp():
                         can_override = True
-                    elif cname:
+                    elif cname and not can_override:
                         # if all alternatives have different cnames,
                         # it's safe to allow signature overrides
                         for alt_entry in entry.all_alternatives():
@@ -1186,6 +1186,7 @@ class BuiltinScope(Scope):
     def builtin_scope(self):
         return self
 
+    # FIXME: remove redundancy with Builtin.builtin_types_table
     builtin_entries = {
 
         "type":   ["((PyObject*)&PyType_Type)", py_object_type],
