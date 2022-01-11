@@ -50,10 +50,33 @@ class CApiBackend(APIBackend):
     pylong_fromlong = "PyLong_FromLong"
     pyint_fromlong = "PyInt_FromLong"
 
+    py_functions = {
+        "|":        "PyNumber_Or",
+        "^":        "PyNumber_Xor",
+        "&":        "PyNumber_And",
+        "<<":       "PyNumber_Lshift",
+        ">>":       "PyNumber_Rshift",
+        "+":        "PyNumber_Add",
+        "-":        "PyNumber_Subtract",
+        "*":        "PyNumber_Multiply",
+        "@":        "__Pyx_PyNumber_MatrixMultiply",
+        "/":        "__Pyx_PyNumber_Divide",
+        "//":       "PyNumber_FloorDivide",
+        "%":        "PyNumber_Remainder",
+        "**":       "PyNumber_Power",
+    }
+
     @staticmethod
     def put_init_code(code):
         code.putln("#define __PYX_TUPLE_BUILDER_SET_ITEM(b, k, v) if (b) { PyTuple_SET_ITEM(b, k, v); }")
         code.putln("#define __PYX_LIST_BUILDER_SET_ITEM(b, k, v) if (b) { PyList_SET_ITEM(b, k, v); }")
+
+    @staticmethod
+    def get_binary_operation_function(operator, inplace):
+        function_name = CApiBackend.py_functions[operator]
+        if inplace:
+            function_name = function_name.replace('PyNumber_', 'PyNumber_InPlace')
+        return function_name
 
     @staticmethod
     def get_arg_list(*args):
@@ -172,6 +195,29 @@ class HPyBackend(APIBackend):
     pylong_fromlong = "HPyLong_FromLong"
     pyint_fromlong = pylong_fromlong
 
+    hpy_functions = {
+        "|":        "HPy_Or",
+        "^":        "HPy_Xor",
+        "&":        "HPy_And",
+        "<<":       "HPy_Lshift",
+        ">>":       "HPy_Rshift",
+        "+":        "HPy_Add",
+        "-":        "HPy_Subtract",
+        "*":        "HPy_Multiply",
+        "@":        "HPy_MatrixMultiply",
+        "/":        "HPy_Divide",
+        "//":       "HPy_FloorDivide",
+        "%":        "HPy_Remainder",
+        "**":       "HPy_Power",
+    }
+
+    @staticmethod
+    def get_binary_operation_function(operator, inplace):
+        function_name = HPyBackend.hpy_functions[operator]
+        if inplace:
+            function_name = function_name.replace('HPy_', 'HPy_InPlace')
+        return function_name
+
     @staticmethod
     def get_arg_list(*args):
         return ", ".join(("HPyContext *" + Naming.hpy_context_cname,) + args)
@@ -277,6 +323,22 @@ class CombinedBackend(APIBackend):
     pylong_fromlong = "__PYX_LONG_FROM_LONG"
     pyint_fromlong = "__PYX_INT_FROM_LONG"
 
+    hpy_functions = {
+        "|":        "__PYX_Or",
+        "^":        "__PYX_Xor",
+        "&":        "__PYX_And",
+        "<<":       "__PYX_Lshift",
+        ">>":       "__PYX_Rshift",
+        "+":        "__PYX_Add",
+        "-":        "__PYX_Subtract",
+        "*":        "__PYX_Multiply",
+        "@":        "__PYX_MatrixMultiply",
+        "/":        "__PYX_Divide",
+        "//":       "__PYX_FloorDivide",
+        "%":        "__PYX_Remainder",
+        "**":       "__PYX_Power",
+    }
+
     @staticmethod
     def put_init_code(code):
         hpy_guard = CApiBackend.hpy_guard
@@ -303,6 +365,8 @@ class CombinedBackend(APIBackend):
         code.putln("#define __PYX_INT_FROM_STRING %s" % CApiBackend.pyint_fromstring)
         code.putln("#define __PYX_LONG_FROM_LONG %s" % CApiBackend.pylong_fromlong)
         code.putln("#define __PYX_INT_FROM_LONG %s" % CApiBackend.pyint_fromlong)
+        for k in CombinedBackend.hpy_functions:
+            code.putln("#define %s %s" % (CombinedBackend.hpy_functions[k], CApiBackend.py_functions[k]))
         CApiBackend.put_init_code(code)
 
         code.putln("#else /* %s */" % hpy_guard)
@@ -333,7 +397,16 @@ class CombinedBackend(APIBackend):
         code.putln("#define __PYX_INT_FROM_STRING %s" % HPyBackend.pyint_fromstring)
         code.putln("#define __PYX_LONG_FROM_LONG %s" % HPyBackend.pylong_fromlong)
         code.putln("#define __PYX_INT_FROM_LONG %s" % HPyBackend.pyint_fromlong)
+        for k in CombinedBackend.hpy_functions:
+            code.putln("#define %s %s" % (CombinedBackend.hpy_functions[k], HPyBackend.hpy_functions[k]))
         code.putln("#endif /* %s */" % hpy_guard)
+
+    @staticmethod
+    def get_binary_operation_function(operator, inplace):
+        function_name = CombinedBackend.hpy_functions[operator]
+        if inplace:
+            function_name = function_name.replace('__PYX_', '__PYX_InPlace')
+        return function_name
 
     @staticmethod
     def get_arg_list(*args):

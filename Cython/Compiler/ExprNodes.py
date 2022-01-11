@@ -11555,7 +11555,7 @@ class NumBinopNode(BinopNode):
                 BinopNode.is_py_operation_types(self, type1, type2))
 
     def py_operation_function(self, code):
-        return code.binary_operation_function(self.operator, self.inplace)
+        return Backend.backend.get_binary_operation_function(self.operator, self.inplace)
 
     overflow_op_names = {
         "+":  "add",

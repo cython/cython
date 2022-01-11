@@ -2740,27 +2740,6 @@ class CCodeWriter(object):
                 ", Py_None" if function == 'PyNumber_Power' else "",
                 self.error_goto_if_null(cresult, err_target)))
 
-    def binary_operation_function(self, operator, inplace):
-        function_name = self.py_functions[operator]
-        if inplace:
-            function_name = function_name.replace('PyNumber_', 'PyNumber_InPlace')
-        return function_name
-
-    py_functions = {
-        "|":        "PyNumber_Or",
-        "^":        "PyNumber_Xor",
-        "&":        "PyNumber_And",
-        "<<":       "PyNumber_Lshift",
-        ">>":       "PyNumber_Rshift",
-        "+":        "PyNumber_Add",
-        "-":        "PyNumber_Subtract",
-        "*":        "PyNumber_Multiply",
-        "@":        "__Pyx_PyNumber_MatrixMultiply",
-        "/":        "__Pyx_PyNumber_Divide",
-        "//":       "PyNumber_FloorDivide",
-        "%":        "PyNumber_Remainder",
-        "**":       "PyNumber_Power",
-    }
 
 
 
@@ -3518,27 +3497,6 @@ class HPyCCodeWriter(CCodeWriter):
                    ", %s->h_None" % Naming.hpy_context_cname if function == 'HPy_Power' else "",
                    self.error_goto_if_null(cresult, err_target)))
 
-    def binary_operation_function(self, operator, inplace):
-        function_name = self.hpy_functions[operator]
-        if inplace:
-            function_name = function_name.replace('HPy_', 'HPy_InPlace')
-        return function_name
-
-    hpy_functions = {
-        "|":        "HPy_Or",
-        "^":        "HPy_Xor",
-        "&":        "HPy_And",
-        "<<":       "HPy_Lshift",
-        ">>":       "HPy_Rshift",
-        "+":        "HPy_Add",
-        "-":        "HPy_Subtract",
-        "*":        "HPy_Multiply",
-        "@":        "HPy_MatrixMultiply",
-        "/":        "HPy_Divide",
-        "//":       "HPy_FloorDivide",
-        "%":        "HPy_Remainder",
-        "**":       "HPy_Power",
-    }
 
 class PyrexCodeWriter(object):
     # f                file      output file
