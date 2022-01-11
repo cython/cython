@@ -2732,12 +2732,11 @@ class CCodeWriter(object):
         cresult = function(left, right); if (!cresult) goto error;
         '''
         self.putln(
-            "%s = %s(%s, %s%s); %s" % (
+            "%s = %s(%s, %s); %s" % (
                 cresult,
                 function,
                 left,
                 right,
-                ", Py_None" if function == 'PyNumber_Power' else "",
                 self.error_goto_if_null(cresult, err_target)))
 
 
@@ -3403,99 +3402,20 @@ class HPyCCodeWriter(CCodeWriter):
     def get_arg_code_list(self):
         return ["HPyContext *" + Naming.hpy_context_cname]
 
-    # Argument parsing
-
-
-    def put_stararg_init_code(self, signature, star_arg, starstar_arg, max_positional_args, error_value):
-        if starstar_arg:
-            starstar_arg.entry.xdecref_cleanup = 0
-            self.putln('%s = HPyDict_New(); if (unlikely(!%s)) return %s;' % (
-                starstar_arg.entry.cname,
-                starstar_arg.entry.cname,
-                error_value))
-            self.put_var_gotref(starstar_arg.entry)
-        if star_arg:
-            star_arg.entry.xdecref_cleanup = 0
-            if max_positional_args == 0:
-                # If there are no positional arguments, use the args tuple
-                # directly
-                assert not signature.use_fastcall
-                from .PyrexTypes import py_object_type
-                self.put_incref(Naming.args_cname, py_object_type)
-                self.putln("%s = %s;" % (star_arg.entry.cname, Naming.args_cname))
-            else:
-                # It is possible that this is a slice of "negative" length,
-                # as in args[5:3]. That's not a problem, the function below
-                # handles that efficiently and returns the empty tuple.
-                self.putln('%s = __Pyx_ArgsSlice_%s(%s, %d, %s);' % (
-                    star_arg.entry.cname, signature.fastvar,
-                    Naming.args_cname, max_positional_args, Naming.nargs_cname))
-                self.putln("if (unlikely(!%s)) {" %
-                           star_arg.entry.type.nullcheck_string(star_arg.entry.cname))
-                if starstar_arg:
-                    self.put_var_decref_clear(starstar_arg.entry)
-                self.put_finish_refcount_context()
-                self.putln('return %s;' % error_value)
-                self.putln('}')
-                self.put_var_gotref(star_arg.entry)
-
-    def put_argument_values_setup_code(self, target, args):
-        max_args = len(args)
-        # the 'values' array collects borrowed references to arguments
-        # before doing any type coercion etc.
-        self.putln("HPy values[%d] = {%s};" % (
-            max_args, ','.join(('HPy_NULL',)*max_args)))
-
-        if target.defaults_struct:
-            self.putln('%s *%s = __Pyx_CyFunction_Defaults(%s, %s);' % (
-                target.defaults_struct, Naming.dynamic_args_cname,
-                target.defaults_struct, Naming.self_cname))
-
-        # assign borrowed Python default values to the values array,
-        # so that they can be overwritten by received arguments below
-        for i, arg in enumerate(args):
-            if arg.default and arg.type.is_pyobject:
-                default_value = arg.calculate_default_value_code(self)
-                self.putln('values[%d] = %s;' % (i, default_value))
-
-    def put_arg_assignment(self, arg, item):
-        if arg.type.is_pyobject:
-            # Python default arguments were already stored in 'item' at the very beginning
-            entry = arg.entry
-            self.putln("%s = %s;" % (entry.cname, item))
-        else:
-            if arg.type.from_py_function:
-                if arg.default:
-                    # C-typed default arguments must be handled here
-                    self.putln('if (%s) {' % item)
-                self.putln(arg.type.from_py_call_code(
-                    item, arg.entry.cname, arg.pos, self))
-                if arg.default:
-                    self.putln('} else {')
-                    self.putln("%s = %s;" % (
-                        arg.entry.cname,
-                        arg.calculate_default_value_code(self)))
-                    if arg.type.is_memoryviewslice:
-                        # self.put_var_incref_memoryviewslice(arg.entry, have_gil=True)
-                        raise NotImplementedError("memoryviewslice is unsupported for HPy")
-                    self.putln('}')
-            else:
-                error(arg.pos, "Cannot convert Python object argument to type '%s'" % arg.type)
-
     # Expressions
 
     def put_binary_call_with_error(self, cresult, function, left, right, err_target):
         '''
         cresult = function(hpy_ctx, left, right); if (HPy_IsNull(cresult)) goto error;
         '''
-        self.putln("%s = %s(%s, %s, %s%s); %s" % (
-                   cresult,
-                   function,
-                   Naming.hpy_context_cname,
-                   left,
-                   right,
-                   ", %s->h_None" % Naming.hpy_context_cname if function == 'HPy_Power' else "",
-                   self.error_goto_if_null(cresult, err_target)))
+        self.putln(
+            "%s = %s(%s, %s, %s); %s" % (
+                Naming.hpy_context_cname,
+                cresult,
+                function,
+                left,
+                right,
+                self.error_goto_if_null(cresult, err_target)))
 
 
 class PyrexCodeWriter(object):
