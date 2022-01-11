@@ -8,6 +8,7 @@ from __future__ import absolute_import
 from . import Naming
 from . import PyrexTypes
 from .Errors import error
+from . import Backend
 
 import copy
 
@@ -79,7 +80,7 @@ class Signature(object):
         (type_, format_) for format_, type_ in format_map.items())
 
     error_value_map = {
-        'O': "NULL",
+        'O': Backend.backend.pyobject_init_value,
         'T': "NULL",
         'i': "-1",
         'b': "-1",

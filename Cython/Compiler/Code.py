@@ -2689,14 +2689,14 @@ class CCodeWriter(object):
         return "if (%s) %s" % (self.unlikely(cond), self.error_goto(pos))
 
     def error_goto_if_null(self, cname, pos):
-        return self.error_goto_if("!%s" % cname, pos)
+        return self.error_goto_if(Backend.backend.get_is_null_cond(cname), pos)
 
     def error_goto_if_neg(self, cname, pos):
         # Add extra parentheses to silence clang warnings about constant conditions.
         return self.error_goto_if("(%s < 0)" % cname, pos)
 
     def error_goto_if_PyErr(self, pos):
-        return self.error_goto_if("PyErr_Occurred()", pos)
+        return self.error_goto_if(Backend.backend.get_err_occurred(), pos)
 
     def is_null_cond(self, cname):
         return Backend.CApiBackend.get_is_null_cond(cname)
@@ -2804,7 +2804,7 @@ class CCodeWriter(object):
         return type.default_value
 
     def literal_null(self):
-        return "NULL"
+        return "__PYX_NULL"
 
     def type_declaration(self, type, entity_code,
                              for_display = 0, dll_linkage = None, pyrex = 0):
