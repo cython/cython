@@ -337,7 +337,7 @@ class Context(object):
         source_filename = source_desc.filename
         scope.cpp = self.cpp
         # Parse the given source file and return a parse tree.
-        num_errors = Errors.num_errors
+        num_errors = Errors.get_errors_count()
         try:
             with Utils.open_source_file(source_filename) as f:
                 from . import Parsing
@@ -356,7 +356,7 @@ class Context(object):
             #traceback.print_exc()
             raise self._report_decode_error(source_desc, e)
 
-        if Errors.num_errors > num_errors:
+        if Errors.get_errors_count() > num_errors:
             raise CompileError()
         return tree
 
@@ -396,20 +396,19 @@ class Context(object):
         return ".".join(names)
 
     def setup_errors(self, options, result):
-        Errors.reset()  # clear any remaining error state
+        Errors.init_thread()
         if options.use_listing_file:
             path = result.listing_file = Utils.replace_suffix(result.main_source_file, ".lis")
         else:
             path = None
-        Errors.open_listing_file(path=path,
-                                 echo_to_stderr=options.errors_to_stderr)
+        Errors.open_listing_file(path=path, echo_to_stderr=options.errors_to_stderr)
 
     def teardown_errors(self, err, options, result):
         source_desc = result.compilation_source.source_desc
         if not isinstance(source_desc, FileSourceDescriptor):
             raise RuntimeError("Only file sources for code supported")
         Errors.close_listing_file()
-        result.num_errors = Errors.num_errors
+        result.num_errors = Errors.get_errors_count()
         if result.num_errors > 0:
             err = True
         if err and result.c_file:

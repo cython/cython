@@ -209,6 +209,11 @@ def make_dedup_key(outer_type, item_nodes):
         # For constants, look at the Python value type if we don't know the concrete Cython type.
         else (node.type, node.constant_result,
               type(node.constant_result) if node.type is py_object_type else None) if node.has_constant_result()
+        # IdentifierStringNode doesn't usually have a "constant_result" set because:
+        #  1. it doesn't usually have unicode_value
+        #  2. it's often created later in the compilation process after ConstantFolding
+        # but should be cacheable
+        else (node.type, node.value, node.unicode_value, "IdentifierStringNode") if isinstance(node, IdentifierStringNode)
         else None  # something we cannot handle => short-circuit below
         for node in item_nodes
     ]
@@ -1097,11 +1102,11 @@ class ExprNode(Node):
             return self
         elif type.is_pyobject or type.is_int or type.is_ptr or type.is_float:
             return CoerceToBooleanNode(self, env)
-        elif type.is_cpp_class:
+        elif type.is_cpp_class and type.scope and type.scope.lookup("operator bool"):
             return SimpleCallNode(
                 self.pos,
                 function=AttributeNode(
-                    self.pos, obj=self, attribute='operator bool'),
+                    self.pos, obj=self, attribute=StringEncoding.EncodedString('operator bool')),
                 args=[]).analyse_types(env)
         elif type.is_ctuple:
             bool_value = len(type.components) == 0
@@ -2131,8 +2136,6 @@ class NameNode(AtomicExprNode):
 
         if self.type.is_const:
             error(self.pos, "Assignment to const '%s'" % self.name)
-        if self.type.is_reference:
-            error(self.pos, "Assignment to reference '%s'" % self.name)
         if not self.is_lvalue():
             error(self.pos, "Assignment to non-lvalue '%s'" % self.name)
             self.type = PyrexTypes.error_type
@@ -13189,6 +13192,9 @@ class CoercionNode(ExprNode):
             code.annotate((file, line, col-1), AnnotationItem(
                 style='coerce', tag='coerce', text='[%s] to [%s]' % (self.arg.type, self.type)))
 
+    def analyse_types(self, env):
+        return self
+
 
 class CoerceToMemViewSliceNode(CoercionNode):
     """
@@ -13808,6 +13814,12 @@ class CloneNode(CoercionNode):
 
     def generate_disposal_code(self, code):
         pass
+
+    def generate_post_assignment_code(self, code):
+        # if we're assigning from a CloneNode then it's "giveref"ed away, so it does
+        # need a matching incref (ideally this should happen before the assignment though)
+        if self.is_temp:  # should usually be true
+            code.put_incref(self.result(), self.ctype())
 
     def free_temps(self, code):
         pass

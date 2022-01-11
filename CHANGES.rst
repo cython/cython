@@ -2,6 +2,135 @@
 Cython Changelog
 ================
 
+3.0.0 alpha 10 (2022-01-06)
+===========================
+
+Features added
+--------------
+
+* ``Cython.Distutils.build_ext`` now uses ``cythonize()`` internally (previously
+  known as ``new_build_ext``), while still supporting the options that were
+  available in the old implementation (``old_build_ext``).
+  Patch by Matus Valo.  (Github issue :issue:`3541`)
+
+* ``pyximport`` now uses ``cythonize()`` internally.
+  Patch by Matus Valo.  (Github issue :issue:`2304`)
+
+* ``__del__(self)`` on extension types now maps to ``tp_finalize`` in Python 3.
+  Original patch by ax487.  (Github issue :issue:`3612`)
+
+* Conversion from Python dict to C++ map now supports arbitrary Python mappings,
+  not just dicts.
+
+* Direct assignments to C++ references are now allowed.
+  Patch by David Woods.  (Github issue :issue:`1863`)
+
+* An initial set of adaptations for GraalVM Python was implemented.  Note that
+  this does not imply any general support for this target or that your code
+  will work at all in this environment.  But testing should be possible now.
+  Patch by David Woods.  (Github issue :issue:`4328`)
+
+* ``PyMem_[Raw]Calloc()`` was added to the ``cpython.mem`` declarations.
+  Note that the ``Raw`` versions are no longer #defined by Cython.  The previous
+  macros were not considered safe.
+  Patch by William Schwartz and David Woods.  (Github issue :issue:`3047`)
+
+Bugs fixed
+----------
+
+* Circular imports of compiled modules could fail needlessly even when the import
+  could already be resolved from ``sys.modules``.
+  Patch by Syam Gadde.  (Github issue :issue:`4390`)
+
+* The GIL can now safely be released inside of ``nogil`` functions (which may actually
+  be called with the GIL held at runtime).
+  Patch by David Woods.  (Github issue :issue:`4137`)
+
+* Type errors when passing memory view arguments could leak buffer references.
+  Patch by David Woods.  (Github issue :issue:`4296`)
+
+* Cython did not type the ``self`` argument in special binary methods.
+  Patch by David Woods.  (Github issue :issue:`4434`)
+
+* An incompatibility with recent coverage.py versions was resolved.
+  Patch by David Woods.  (Github issue :issue:`4440`)
+
+* Fused typed default arguments generated incorrect code.
+  Patch by David Woods.  (Github issue :issue:`4413`)
+
+* ``prange`` loops generated incorrect code when ``cpp_locals`` is enabled.
+  Patch by David Woods.  (Github issue :issue:`4354`)
+
+* A C-level compatibility issue with recent NumPy versions was resolved.
+  Patch by David Woods.  (Github issue :issue:`4396`)
+
+* Decorators on inner functions were not evaluated in the right scope.
+  Patch by David Woods.  (Github issue :issue:`4367`)
+
+* Very early errors during module initialisation could lead to crashes.
+  Patch by David Woods.  (Github issue :issue:`4377`)
+
+* Fused functions were binding unnecessarily, which prevented them from being pickled.
+  Patch by David Woods.  (Github issue :issue:`4370`)
+
+* Some constant tuples containing strings were not deduplicated.
+  Patch by David Woods.  (Github issue :issue:`4353`)
+
+* Unsupported decorators on cdef functions were not rejected in recent releases.
+  Patch by David Woods.  (Github issue :issue:`4322`)
+
+* The excess arguments in a for-in-range loop with more than 3 arguments to `range()`
+  were silently ignored.
+  Original patch by Max Bachmann. (Github issue :issue:`4550`)
+
+* Python object types were not allowed as ``->`` return type annotations.
+  Patch by Matus Valo.  (Github issue :issue:`4433`)
+
+* Default values for memory views arguments were not properly supported.
+  Patch by Corentin Cadiou.  (Github issue :issue:`4313`)
+
+* Templating C++ classes with memory view types lead to buggy code and is now rejected.
+  Patch by David Woods.  (Github issue :issue:`3085`)
+
+* Several C++ library declarations were added and fixed.
+  Patches by Dobatymo, account-login, Jonathan Helgert, Evgeny Yakimov, GalaxySnail, Max Bachmann.
+  (Github issues :issue:`4408`, :issue:`4419`, :issue:`4410`, :issue:`4395`,
+  :issue:`4423`, :issue:`4448`, :issue:`4462`, :issue:`3293`, :issue:`4522`,
+  :issue:`2171`, :issue:`4531`)
+
+* Some compiler problems and warnings were resolved.
+  Patches by David Woods, 0dminnimda, Nicolas Pauss and others.
+  (Github issues :issue:`4317`, :issue:`4324`, :issue:`4361`, :issue:`4357`)
+
+* The ``self`` argument of static methods in .pxd files was incorrectly typed.
+  Patch by David Woods.  (Github issue :issue:`3174`)
+
+* A name collision when including multiple generated API header files was resolved.
+  Patch by David Woods.  (Github issue :issue:`4308`)
+
+* An endless loop in ``cython-mode.el`` was resolved.
+  Patch by Johannes Mueller.  (Github issue :issue:`3218`)
+
+* ``_Py_TPFLAGS_HAVE_VECTORCALL`` was always set on extension types when using the limited API.
+  Patch by David Woods.  (Github issue :issue:`4453`)
+
+* Some compatibility issues with PyPy were resolved.
+  Patches by Max Bachmann, Matti Picus.
+  (Github issues :issue:`4454`, :issue:`4477`, :issue:`4478`, :issus:`4509`, :issue:`4517`)
+
+* A compiler crash when running Cython thread-parallel from distutils was resolved.
+  (Github issue :issue:`4503`)
+
+* Includes all bug-fixes from the :ref:`0.29.26` release.
+
+Other changes
+-------------
+
+* A warning was added when ``__defaults__`` or ``__kwdefaults__`` of Cython compiled
+  functions were re-assigned, since this does not current have an effect.
+  Patch by David Woods.  (Github issue :issue:`2650`)
+
+
 3.0.0 alpha 9 (2021-07-21)
 ==========================
 
@@ -761,6 +890,56 @@ Other changes
 .. _`PEP-3131`: https://www.python.org/dev/peps/pep-3131
 .. _`PEP-563`: https://www.python.org/dev/peps/pep-0563
 .. _`PEP-479`: https://www.python.org/dev/peps/pep-0479
+
+
+.. _0.29.26:
+
+0.29.26 (2021-12-16)
+====================
+
+Bugs fixed
+----------
+
+* An incompatibility with CPython 3.11.0a3 was resolved.
+  (Github issue :issue:`4499`)
+
+* The ``in`` operator failed on literal lists with starred expressions.
+  Patch by Arvind Natarajan.  (Github issue :issue:`3938`)
+
+* A C compiler warning in PyPy about a missing struct field initialisation was resolved.
+
+
+.. _0.29.25:
+
+0.29.25 (2021-12-06)
+====================
+
+Bugs fixed
+----------
+
+* Several incompatibilities with CPython 3.11 were resolved.
+  Patches by David Woods, Victor Stinner, Thomas Caswell.
+  (Github issues :issue:`4411`, :issue:`4414`, :issue:`4415`, :issue:`4416`, :issue:`4420`,
+  :issue:`4428`, :issue:`4473`, :issue:`4479`, :issue:`4480`)
+
+* Some C compiler warnings were resolved.
+  Patches by Lisandro Dalcin and others.  (Github issue :issue:`4439`)
+
+* C++ ``std::move()`` should only be used automatically in MSVC versions that support it.
+  Patch by Max Bachmann.  (Github issue :issue:`4191`)
+
+ * The ``Py_hash_t`` type failed to accept arbitrary "index" values.
+   (Github issue :issue:`2752`)
+
+* Avoid copying unaligned 16-bit values since some platforms require them to be aligned.
+  Use memcpy() instead to let the C compiler decide how to do it.
+  (Github issue :issue:`4343`)
+
+* Cython crashed on invalid truthiness tests on C++ types without ``operator bool``.
+  Patch by David Woods.  (Github issue :issue:`4348`)
+
+* The declaration of ``PyUnicode_CompareWithASCIIString()`` in ``cpython.unicode`` was incorrect.
+  Patch by Max Bachmann.  (Github issue :issue:`4344`)
 
 
 .. _0.29.24:

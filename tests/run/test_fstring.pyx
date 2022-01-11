@@ -17,7 +17,7 @@ if IS_PY2:
 
 from Cython.Build.Inline import cython_inline
 from Cython.TestUtils import CythonTest
-from Cython.Compiler.Errors import CompileError, hold_errors, release_errors, error_stack, held_errors
+from Cython.Compiler.Errors import CompileError, hold_errors, init_thread, held_errors
 
 def cy_eval(s, **kwargs):
     return cython_inline('return ' + s, force=True, **kwargs)
@@ -43,7 +43,7 @@ class TestCase(CythonTest):
                 else:
                     assert held_errors(), "Invalid Cython code failed to raise SyntaxError: %r" % str
                 finally:
-                    release_errors(ignore=True)
+                    init_thread()  # reset error status
             else:
                 try:
                     cython_inline(str, quiet=True)
@@ -52,8 +52,7 @@ class TestCase(CythonTest):
                 else:
                     assert False, "Invalid Cython code failed to raise %s: %r" % (exception_type, str)
                 finally:
-                    if error_stack:
-                        release_errors(ignore=True)
+                    init_thread()  # reset error status
 
     if IS_PY2:
         def assertEqual(self, first, second, msg=None):

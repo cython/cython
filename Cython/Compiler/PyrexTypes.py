@@ -3897,10 +3897,12 @@ class CppClassType(CType):
             return error_type
         has_object_template_param = False
         for value in template_values:
-            if value.is_pyobject:
+            if value.is_pyobject or value.needs_refcounting:
                 has_object_template_param = True
+                type_description = "Python object" if value.is_pyobject else "Reference-counted"
                 error(pos,
-                      "Python object type '%s' cannot be used as a template argument" % value)
+                      "%s type '%s' cannot be used as a template argument" % (
+                          type_description, value))
         if has_object_template_param:
             return error_type
         return self.specialize(dict(zip(self.templates, template_values)))

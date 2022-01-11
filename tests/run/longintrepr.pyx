@@ -5,10 +5,6 @@
 from cpython.longintrepr cimport *
 cimport cython
 
-cdef extern from *:
-    Py_ssize_t* Py_SIZE_PTR "&Py_SIZE"(object)
-
-
 @cython.cdivision(True)
 def lshift(long a, unsigned long n):
     """
@@ -16,12 +12,10 @@ def lshift(long a, unsigned long n):
 
     >>> print(lshift(3, 1))
     6
-    >>> print(lshift(-3, 1))
-    -6
     >>> print(lshift(1, 30))
     1073741824
     >>> print(lshift(-12345, 115))
-    -512791237748899576593671817473776680960
+    512791237748899576593671817473776680960
     >>> print(-12345 << 115)
     -512791237748899576593671817473776680960
     >>> [i for i in range(100) if (65535 << i) != lshift(65535, i)]
@@ -57,8 +51,5 @@ def lshift(long a, unsigned long n):
     while index >= 1:
         index -= 1
         ret.ob_digit[index] = 0
-
-    if a < 0:
-        Py_SIZE_PTR(ret)[0] *= -1
 
     return ret
