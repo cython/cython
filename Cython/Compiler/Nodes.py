@@ -3591,9 +3591,84 @@ class DefNodeWrapper(FuncDefNode):
             code.putln("#endif /*!(%s)*/" % preprocessor_guard)
 
     def generate_function_header(self, code, with_pymethdef, proto_only=0):
-        code.put_function_header(self.signature, self.self_in_stararg, self.args,
-                                 self.target, self.return_type,
-                                 with_pymethdef, proto_only)
+        bcknd = Backend.backend
+        arg_code_list = []
+        sig = self.signature
+
+        if sig.has_dummy_arg or self.self_in_stararg:
+            arg_code = bcknd.get_pyobject_var_decl(Naming.self_cname)
+            if not sig.has_dummy_arg:
+                arg_code = 'CYTHON_UNUSED ' + arg_code
+            arg_code_list.append(arg_code)
+
+        for arg in self.args:
+            if not arg.is_generic:
+                if arg.is_self_arg or arg.is_type_arg:
+                    arg_code_list.append(bcknd.get_pyobject_var_decl(arg.hdr_cname))
+                else:
+                    arg_code_list.append(
+                        arg.hdr_type.declaration_code(arg.hdr_cname))
+        entry = self.target.entry
+        if not entry.is_special and sig.method_flags() == [TypeSlots.method_noargs]:
+            arg_code_list.append("CYTHON_UNUSED " + bcknd.get_pyobject_var_decl("unused"))
+        if entry.scope.is_c_class_scope and entry.name == "__ipow__":
+            arg_code_list.append("CYTHON_UNUSED " + bcknd.get_pyobject_var_decl("unused"))
+        if sig.has_generic_args:
+            varargs_args = "%s, %s" % (
+                bcknd.get_pyobject_var_decl(Naming.args_cname), bcknd.get_pyobject_var_decl(Naming.kwds_cname))
+            if sig.use_fastcall:
+                fastcall_args = "%s const *%s, %s %s, %s" % (
+                    bcknd.pyobject_ctype, Naming.args_cname, bcknd.pyssizet_ctype, Naming.nargs_cname, bcknd.get_pyobject_var_decl(Naming.kwds_cname))
+                arg_code_list.append(
+                    "\n#if CYTHON_METH_FASTCALL\n%s\n#else\n%s\n#endif\n" % (
+                        fastcall_args, varargs_args))
+            else:
+                arg_code_list.append(varargs_args)
+
+        # Prevent warning: unused function '__pyx_pw_5numpy_7ndarray_1__getbuffer__'
+        mf = ""
+        if (entry.name in ("__getbuffer__", "__releasebuffer__")
+            and entry.scope.is_c_class_scope):
+            mf = "CYTHON_UNUSED "
+            with_pymethdef = False
+
+        dc = self.return_type.declaration_code(entry.func_cname)
+        header = "static %s%s(%s)" % (mf, dc, bcknd.get_arg_list(*arg_code_list))
+        code.putln("%s; /*proto*/" % header)
+
+        if proto_only:
+            if self.target.fused_py_func:
+                # If we are the specialized version of the cpdef, we still
+                # want the prototype for the "fused cpdef", in case we're
+                # checking to see if our method was overridden in Python
+                self.target.fused_py_func.generate_function_header(
+                    self, with_pymethdef, proto_only=True)
+            return
+
+        if (Options.docstrings and entry.doc and
+            not self.target.fused_py_func and
+            not entry.scope.is_property_scope and
+            (not entry.is_special or entry.wrapperbase_cname)):
+            # h_code = self.globalstate['h_code']
+            docstr = entry.doc
+
+            if docstr.is_unicode:
+                docstr = docstr.as_utf8_string()
+
+            if not (entry.is_special and entry.name in ('__getbuffer__', '__releasebuffer__')):
+                code.putln('PyDoc_STRVAR(%s, %s);' % (
+                    entry.doc_cname,
+                    docstr.as_c_string_literal()))
+
+            if entry.is_special:
+                code.putln('#if CYTHON_COMPILING_IN_CPYTHON')
+                code.putln(
+                    "struct wrapperbase %s;" % entry.wrapperbase_cname)
+                code.putln('#endif')
+
+        if with_pymethdef or self.target.fused_py_func:
+            code.put_pymethoddef(entry, allow_skip=False)
+        code.putln("%s {" % header)
 
     def generate_argument_declarations(self, env, code):
         code.put_argument_declarations(self.args, self.signature, self.signature_has_generic_args(), env)

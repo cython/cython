@@ -2346,89 +2346,6 @@ class CCodeWriter(object):
     def get_call_args(self):
         return []
 
-    def put_function_header(self, sig, self_in_stararg, args, target, return_type, with_pymethdef, proto_only=0):
-        from .PyrexTypes import py_object_type
-        from . import TypeSlots
-        arg_code_list = self.get_arg_code_list()
-
-        if sig.has_dummy_arg or self_in_stararg:
-            arg_code = self.type_declaration(py_object_type, Naming.self_cname)
-            if not sig.has_dummy_arg:
-                arg_code = 'CYTHON_UNUSED ' + arg_code
-            arg_code_list.append(arg_code)
-
-        for arg in args:
-            if not arg.is_generic:
-                if arg.is_self_arg or arg.is_type_arg:
-                    arg_code_list.append(self.type_declaration(py_object_type, arg.hdr_cname))
-                else:
-                    arg_code_list.append(
-                        self.type_declaration(arg.hdr_type, arg.hdr_cname))
-        entry = target.entry
-        if not entry.is_special and sig.method_flags() == [TypeSlots.method_noargs]:
-            arg_code_list.append("CYTHON_UNUSED " + self.type_declaration(py_object_type, "unused"))
-        if entry.scope.is_c_class_scope and entry.name == "__ipow__":
-            arg_code_list.append("CYTHON_UNUSED " + self.type_declaration(py_object_type, "unused"))
-        if sig.has_generic_args:
-            varargs_args = "PyObject *%s, PyObject *%s" % (
-                Naming.args_cname, Naming.kwds_cname)
-            if sig.use_fastcall:
-                fastcall_args = "PyObject *const *%s, Py_ssize_t %s, PyObject *%s" % (
-                    Naming.args_cname, Naming.nargs_cname, Naming.kwds_cname)
-                arg_code_list.append(
-                    "\n#if CYTHON_METH_FASTCALL\n%s\n#else\n%s\n#endif\n" % (
-                        fastcall_args, varargs_args))
-            else:
-                arg_code_list.append(varargs_args)
-        arg_code = ", ".join(arg_code_list)
-
-        # Prevent warning: unused function '__pyx_pw_5numpy_7ndarray_1__getbuffer__'
-        mf = ""
-        if (entry.name in ("__getbuffer__", "__releasebuffer__")
-            and entry.scope.is_c_class_scope):
-            mf = "CYTHON_UNUSED "
-            with_pymethdef = False
-
-        dc = self.type_declaration(return_type, entry.func_cname)
-        header = "static %s%s(%s)" % (mf, dc, arg_code)
-        self.putln("%s; /*proto*/" % header)
-
-        if proto_only:
-            if target.fused_py_func:
-                # If we are the specialized version of the cpdef, we still
-                # want the prototype for the "fused cpdef", in case we're
-                # checking to see if our method was overridden in Python
-                target.fused_py_func.generate_function_header(
-                    self, with_pymethdef, proto_only=True)
-            return
-
-        if (Options.docstrings and entry.doc and
-            not target.fused_py_func and
-            not entry.scope.is_property_scope and
-            (not entry.is_special or entry.wrapperbase_cname)):
-            # h_code = self.globalstate['h_code']
-            docstr = entry.doc
-
-            if docstr.is_unicode:
-                docstr = docstr.as_utf8_string()
-
-            if not (entry.is_special and entry.name in ('__getbuffer__', '__releasebuffer__')):
-                self.putln('PyDoc_STRVAR(%s, %s);' % (
-                    entry.doc_cname,
-                    docstr.as_c_string_literal()))
-
-            if entry.is_special:
-                self.putln('#if CYTHON_COMPILING_IN_CPYTHON')
-                self.putln(
-                    "struct wrapperbase %s;" % entry.wrapperbase_cname)
-                self.putln('#endif')
-
-        if with_pymethdef or target.fused_py_func:
-            self.put(
-                "static PyMethodDef %s = " % entry.pymethdef_cname)
-            self.put_pymethoddef(target.entry, ";", allow_skip=False)
-        self.putln("%s {" % header)
-
     def put_argument_declarations(self, args, signature, signature_has_generic_args, env):
         for arg in args:
             if arg.is_generic:
@@ -2457,26 +2374,24 @@ class CCodeWriter(object):
         self.putln('CYTHON_UNUSED PyObject *const *%s = __Pyx_KwValues_%s(%s, %s);' % (
             Naming.kwvalues_cname, signature.fastvar, Naming.args_cname, Naming.nargs_cname))
 
-    def put_pymethoddef(self, entry, term, allow_skip=True, wrapper_code_writer=None):
+    def put_pymethoddef(self, entry, allow_skip=True, wrapper_code_writer=None):
+        """
+        Put a method definition and store it to a variable.
+        Example (C API):
+            static PyMethodDef pymethdef_cname = {"meth", cfunc_ptr, METH_FLAGS, doc};
+        Example (HPy):
+            HPyDef_METH(pymethdef_cname, "meth", cfunc_ptr, HPyMETH_FLAGS, .doc=doc);
+        """
+        self.putln(Backend.backend.get_method_definition(entry, wrapper_code_writer))
+
+    def put_pymethoddef_entry(self, entry, term, allow_skip=True, wrapper_code_writer=None):
         method_flags = entry.signature.method_flags()
         if not method_flags:
             return
-        if entry.is_special:
-            from . import TypeSlots
-            method_flags += [TypeSlots.method_coexist]
         func_ptr = wrapper_code_writer.put_pymethoddef_wrapper(entry) if wrapper_code_writer else entry.func_cname
-        # Add required casts, but try not to shadow real warnings.
-        cast = entry.signature.method_function_type()
-        if cast != 'PyCFunction':
-            func_ptr = '(void*)(%s)%s' % (cast, func_ptr)
-        entry_name = entry.name.as_c_string_literal()
-        self.putln(
-            '{%s, (PyCFunction)%s, %s, %s}%s' % (
-                entry_name,
-                func_ptr,
-                "|".join(method_flags),
-                entry.doc_cname if entry.doc else '0',
-                term))
+        meth_def = Backend.backend.get_method_definition(entry, func_ptr)
+        if meth_def:
+            self.putln(meth_def + term)
 
     def put_hpydef(self, entry):
         self.putln('&' + entry.pymethdef_cname)
@@ -3176,13 +3091,6 @@ class HPyCCodeWriter(CCodeWriter):
             UtilityCode.load_cached("fastcall", "FunctionArguments.c"))
         self.putln('CYTHON_UNUSED const HPy *%s = NULL;' % Naming.kwvalues_cname)
 
-    def put_hpy_method_definition(self, entry):
-        method_flags = entry.signature.hpy_method_flags()
-        if not method_flags:
-            return
-        entry_name = entry.name.as_c_string_literal()
-        self.putln("HPyDef_METH(%s, %s, %s, %s, .doc=%s)" % (entry.pymethdef_cname, entry_name, entry.func_cname, method_flags, entry.doc_cname))
-
     def put_hpydef(self, entry):
         self.putln('&' + entry.pymethdef_cname)
 
@@ -3515,77 +3423,6 @@ class HPyCCodeWriter(CCodeWriter):
 
     def get_arg_code_list(self):
         return ["HPyContext *" + Naming.hpy_context_cname]
-
-    def put_function_header(self, sig, self_in_stararg, args, target, return_type, with_pymethdef, proto_only=0):
-        from .PyrexTypes import py_object_type, hpy_type, c_hpy_ptr_type, c_hpy_ssize_t_type
-        from . import TypeSlots
-        arg_code_list = self.get_arg_code_list()
-
-        if sig.has_dummy_arg or self_in_stararg:
-            arg_code = self.type_declaration(py_object_type, Naming.self_cname)
-            if not sig.has_dummy_arg:
-                arg_code = 'CYTHON_UNUSED ' + arg_code
-            arg_code_list.append(arg_code)
-
-        for arg in args:
-            if not arg.is_generic:
-                if arg.is_self_arg or arg.is_type_arg:
-                    arg_code_list.append(self.type_declaration(py_object_type, arg.hdr_cname))
-                else:
-                    arg_code_list.append(
-                        self.type_declaration(arg.hdr_type, arg.hdr_cname))
-        entry = target.entry
-        if not entry.is_special and sig.method_flags() == [TypeSlots.hpy_method_noargs]:
-            arg_code_list.append("CYTHON_UNUSED " + self.type_declaration(py_object_type, "unused"))
-        if entry.scope.is_c_class_scope and entry.name == "__ipow__":
-            arg_code_list.append("CYTHON_UNUSED " + self.type_declaration(py_object_type, "unused"))
-        if sig.has_generic_args:
-            varargs_args = "%s, %s, %s" % (
-                self.type_declaration(c_hpy_ptr_type, Naming.args_cname),
-                self.type_declaration(c_hpy_ssize_t_type, Naming.nargs_cname),
-                self.type_declaration(hpy_type, Naming.kwds_cname))
-            arg_code_list.append(varargs_args)
-        arg_code = ", ".join(arg_code_list)
-
-        # Prevent warning: unused function '__pyx_pw_5numpy_7ndarray_1__getbuffer__'
-        dc = self.type_declaration(return_type, entry.func_cname)
-        header = "static %s(%s)" % (dc, arg_code)
-        self.putln("%s; /*proto*/" % header)
-
-        if proto_only:
-            if target.fused_py_func:
-                # If we are the specialized version of the cpdef, we still
-                # want the prototype for the "fused cpdef", in case we're
-                # checking to see if our method was overridden in Python
-                target.fused_py_func.generate_function_header(
-                    self, with_pymethdef, proto_only=True)
-            return
-
-        if (Options.docstrings and entry.doc and
-            not target.fused_py_func and
-            not entry.scope.is_property_scope and
-            (not entry.is_special or entry.wrapperbase_cname)):
-            # h_code = self.globalstate['h_code']
-            docstr = entry.doc
-
-            if docstr.is_unicode:
-                docstr = docstr.as_utf8_string()
-
-            if not (entry.is_special and entry.name in ('__getbuffer__', '__releasebuffer__')):
-                self.putln('PyDoc_STRVAR(%s, %s);' % (
-                    entry.doc_cname,
-                    docstr.as_c_string_literal()))
-
-            if entry.is_special:
-                # TODO(fa) do we need this?
-                #self.putln('#if CYTHON_COMPILING_IN_CPYTHON')
-                #self.putln("struct wrapperbase %s;" % entry.wrapperbase_cname)
-                #self.putln('#endif')
-                pass
-
-        if with_pymethdef or target.fused_py_func:
-            self.put_hpy_method_definition(entry)
-        self.putln("%s {" % header)
 
     # Argument parsing
 

@@ -83,6 +83,38 @@ class CApiBackend(APIBackend):
     def get_err_occurred():
         return "PyErr_Occurred()"
 
+    @staticmethod
+    def get_method_definition(entry, wrapper_code_writer=None):
+        method_flags = entry.signature.method_flags()
+        if not method_flags:
+            return None
+        return 'static PyMethodDef %s = %s;' % (
+            entry.pymethdef_cname,
+            CApiBackend.get_method_definition_entry(entry, wrapper_code_writer))
+
+    @staticmethod
+    def get_method_definition_entry(entry, wrapper_code_writer=None):
+        entry_name = entry.name.as_c_string_literal()
+        method_flags = entry.signature.method_flags()
+        if not method_flags:
+            return None
+        if entry.is_special:
+            from . import TypeSlots
+            method_flags += [TypeSlots.method_coexist]
+        method_flags = entry.signature.method_flags()
+        if not method_flags:
+            return
+        func_ptr = wrapper_code_writer.put_pymethoddef_wrapper(entry) if wrapper_code_writer else entry.func_cname
+        # Add required casts, but try not to shadow real warnings.
+        cast = entry.signature.method_function_type()
+        if cast != 'PyCFunction':
+            func_ptr = '(void*)(%s)%s' % (cast, func_ptr)
+        return '{%s, (PyCFunction)%s, %s, %s}' % (
+                entry_name,
+                func_ptr,
+                "|".join(method_flags),
+                entry.doc_cname if entry.doc else '0')
+
     # Expression generation methods
 
     @staticmethod
@@ -173,6 +205,19 @@ class HPyBackend(APIBackend):
     @staticmethod
     def get_pyobject_var_decl(var_name):
         return "HPy " + var_name
+
+    @staticmethod
+    def get_method_definition(entry, wrapper_code_writer):
+        method_flags = entry.signature.hpy_method_flags()
+        if not method_flags:
+            return None
+        entry_name = entry.name.as_c_string_literal()
+        return "HPyDef_METH(%s, %s, %s, %s, .doc=%s);" % (
+            entry.pymethdef_cname, entry_name, entry.func_cname, method_flags, entry.doc_cname)
+
+    @staticmethod
+    def get_method_definition_entry(entry, wrapper_code_writer):
+        return '&' + entry.pymethdef_cname
 
     # Expression generation methods
 

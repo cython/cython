@@ -2631,7 +2631,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 env.method_table_cname))
         for entry in env.pyfunc_entries:
             if not entry.fused_cfunction and not (binding and entry.is_overridable):
-                code.put_pymethoddef(entry, ",", wrapper_code_writer=wrapper_code_writer)
+                code.put_pymethoddef_entry(entry, ",", wrapper_code_writer=wrapper_code_writer)
         code.putln(
             "{0, 0, 0, 0}")
         code.putln(
