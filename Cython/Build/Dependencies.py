@@ -44,9 +44,9 @@ except:
 
 from .. import Utils
 from ..Utils import (cached_function, cached_method, path_exists,
-    safe_makedirs, copy_file_to_dir_if_newer, is_package_dir, replace_suffix)
+    safe_makedirs, copy_file_to_dir_if_newer, is_package_dir)
 from ..Compiler import Errors
-from ..Compiler.Main import Context
+from ..Compiler.ParseContext import Context
 from ..Compiler.Options import CompilationOptions, default_options
 
 join_path = cached_function(os.path.join)

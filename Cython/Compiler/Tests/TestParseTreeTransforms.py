@@ -3,7 +3,7 @@ import os
 from Cython.TestUtils import TransformTest
 from Cython.Compiler.ParseTreeTransforms import *
 from Cython.Compiler.Nodes import *
-from Cython.Compiler import Main, Symtab, Options
+from Cython.Compiler import ParseContext, Symtab, Options
 
 
 class TestNormalizeTree(TransformTest):
@@ -178,7 +178,7 @@ class TestInterpretCompilerDirectives(TransformTest):
         super(TestInterpretCompilerDirectives, self).setUp()
 
         compilation_options = Options.CompilationOptions(Options.default_options)
-        ctx = Main.Context.from_options(compilation_options)
+        ctx = ParseContext.Context.from_options(compilation_options)
 
         transform = InterpretCompilerDirectives(ctx, ctx.compiler_directives)
         transform.module_scope = Symtab.ModuleScope('__main__', None, ctx)

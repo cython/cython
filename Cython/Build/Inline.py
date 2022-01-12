@@ -10,7 +10,7 @@ from distutils.core import Distribution, Extension
 from distutils.command.build_ext import build_ext
 
 import Cython
-from ..Compiler.Main import Context
+from ..Compiler.ParseContext import Context
 from ..Compiler.Options import default_options
 
 from ..Compiler.Visitor import CythonTransform, EnvTransform

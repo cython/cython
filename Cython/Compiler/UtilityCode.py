@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 
-from .TreeFragment import parse_from_strings, StringParseContext
+from .ParseContext import StringParseContext
+from .TreeFragment import parse_from_strings
 from . import Symtab
 from . import Naming
 from . import Code

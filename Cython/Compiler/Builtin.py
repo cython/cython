@@ -8,7 +8,6 @@ from .Symtab import BuiltinScope, StructOrUnionScope
 from .Code import UtilityCode
 from .TypeSlots import Signature
 from . import PyrexTypes
-from . import Options
 
 
 # C-level implementations of builtin types, functions and methods

@@ -4,7 +4,8 @@
 import cython
 import contextlib
 from tempfile import NamedTemporaryFile
-from Cython.Compiler.Main import compile as cython_compile, CompileError
+from Cython.Compiler.Errors import CompileError
+from Cython.Compiler.Main import compile as cython_compile
 from Cython.Build.Inline import cython_inline
 
 
