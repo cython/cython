@@ -21,7 +21,7 @@ contents = [os.path.relpath(entry, '.')
             if os.path.isabs(entry) else entry for entry in contents.split()]
 assert (sorted(contents) == 
         sorted(['test.c:', 'incl.pxi', 'test.pyx',
-                'pkg/test.pxd', 'pkg/test.pyx']))  # these two are in fact one level up
+                'pkg/test.pxd']))  # this one is in fact one level up
 
 
 ######## pkg/__init__.py ########

@@ -1,7 +1,7 @@
 # tag: numpy
 
-CYTHONIZE -M .pyx
-PYTHON -c'import check_np.py'
+CYTHONIZE -M dep_np.pyx
+PYTHON check_np.py
 
 ######## dep_np.pyx ########
 

@@ -1051,21 +1051,10 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                     # paths below the base_dir are relative, otherwise absolute
                     paths = []
                     for fname in dependencies:
-                        if src_base_dir in fname:
+                        if fname.startswith(src_base_dir):
                             paths.append(os.path.relpath(fname, src_base_dir))
                         else:
                             paths.append(os.path.abspath(fname))
-
-                    # manually add missing *.pyx files for each *.pxd :
-                    # `cimport foo` means a possible dependence on a `foo.pyx`
-                    # but `all_dependencies(...)` above only list a `foo.pxd`
-                    missing = []
-                    for fname in paths:
-                        base, ext = os.path.splitext(fname)
-                        pyxf = base + '.pyx'
-                        if ext == ".pxd" and pyxf not in paths:
-                            missing.append(pyxf)
-                    paths += missing
 
                     depline = os.path.split(c_file)[1] + ": \\\n  "
                     depline += " \\\n  ".join(paths) + "\n"
