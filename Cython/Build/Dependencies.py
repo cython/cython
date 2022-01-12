@@ -1046,11 +1046,18 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
 
                 # write out the depfile, if requested
                 if depfile:
+                    dependencies = deps.all_dependencies(source)
                     src_base_dir, _ = os.path.split(source)
-                    relpaths = [os.path.relpath(fname, src_base_dir)
-                                for fname in deps.all_dependencies(source) ]
+                    # paths below the base_dir are relative, otherwise absolute
+                    paths = []
+                    for fname in dependencies:
+                        if src_base_dir in fname:
+                            paths.append(os.path.relpath(fname, src_base_dir))
+                        else:
+                            paths.append(os.path.abspath(fname))
+
                     depline = os.path.split(c_file)[1] + ": \\\n  "
-                    depline += " \\\n  ".join(relpaths) + "\n"
+                    depline += " \\\n  ".join(paths) + "\n"
                     with open(c_file+'.dep', 'w') as outfile:
                         outfile.write(depline)
 

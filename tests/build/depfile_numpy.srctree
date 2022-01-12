@@ -1,0 +1,43 @@
+# tag: numpy
+
+CYTHONIZE -M .pyx
+PYTHON -c'import check_np.py'
+
+######## dep_np.pyx ########
+
+cimport numpy as np
+from numpy.random cimport bitgen_t
+np.import_array()
+
+
+
+######## check_np.py ########
+
+import os
+
+import numpy as np
+import Cython
+
+with open("dep_np.c.dep", "r") as f:
+    contents = f.read().replace("\n", " ").replace("\\", "")
+
+contents = contents.split()
+
+cy_prefix, _ = os.path.split(Cython.__file__)
+contents = [fname.replace(cy_prefix, "cy_prefix") for fname in contents]
+
+np_prefix, _ = os.path.split(np.__file__)
+contents = [fname.replace(np_prefix, "np_prefix") for fname in contents]
+
+assert (sorted(contents) == ['cy_prefix/Includes/cpython/object.pxd',
+                             'cy_prefix/Includes/cpython/ref.pxd',
+                             'cy_prefix/Includes/cpython/type.pxd',
+                             'cy_prefix/Includes/libc/stdint.pxd',
+                             'cy_prefix/Includes/libc/stdio.pxd',
+                             'cy_prefix/Includes/libc/string.pxd',
+                             'dep_np.c:',
+                             'dep_np.pyx',
+                             'np_prefix/__init__.cython-30.pxd',
+                             'np_prefix/random/__init__.pxd',
+                             'np_prefix/random/bit_generator.pxd'] )
+
