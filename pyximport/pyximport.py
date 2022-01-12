@@ -89,45 +89,39 @@ def _load_pyrex(name, filename):
 
 
 def get_distutils_extension(modname, pyxfilename, language_level=None):
-#    try:
-#        import hashlib
-#    except ImportError:
-#        import md5 as hashlib
-#    extra = "_" + hashlib.md5(open(pyxfilename).read()).hexdigest()
-#    modname = modname + extra
-    extension_mod,setup_args = handle_special_build(modname, pyxfilename)
+    extension_mod, setup_args = handle_special_build(modname, pyxfilename)
     if not extension_mod:
         if not isinstance(pyxfilename, str):
             # distutils is stupid in Py2 and requires exactly 'str'
             # => encode accidentally coerced unicode strings back to str
             pyxfilename = pyxfilename.encode(sys.getfilesystemencoding())
+        from Cython.Build.Dependencies import DistutilsInfo
         from distutils.extension import Extension
-        extension_mod = Extension(name = modname, sources=[pyxfilename])
+        extension_mod = Extension(name=modname, sources=[pyxfilename])
         if language_level is not None:
             extension_mod.cython_directives = {'language_level': language_level}
-    return extension_mod,setup_args
+        with open(pyxfilename) as source:
+            distutils_info = DistutilsInfo(source)
+        distutils_info.apply(extension_mod)
+    return extension_mod, setup_args
 
 
 def handle_special_build(modname, pyxfilename):
     special_build = os.path.splitext(pyxfilename)[0] + PYXBLD_EXT
     ext = None
-    setup_args={}
+    setup_args = {}
     if os.path.exists(special_build):
-        # globls = {}
-        # locs = {}
-        # execfile(special_build, globls, locs)
-        # ext = locs["make_ext"](modname, pyxfilename)
         mod = imp.load_source("XXXX", special_build, open(special_build))
-        make_ext = getattr(mod,'make_ext',None)
+        make_ext = getattr(mod,'make_ext', None)
         if make_ext:
             ext = make_ext(modname, pyxfilename)
             assert ext and ext.sources, "make_ext in %s did not return Extension" % special_build
-        make_setup_args = getattr(mod, 'make_setup_args',None)
+        make_setup_args = getattr(mod, 'make_setup_args', None)
         if make_setup_args:
             setup_args = make_setup_args()
-            assert isinstance(setup_args,dict), ("make_setup_args in %s did not return a dict"
+            assert isinstance(setup_args, dict), ("make_setup_args in %s did not return a dict"
                                          % special_build)
-        assert set or setup_args, ("neither make_ext nor make_setup_args %s"
+        assert ext or setup_args, ("neither make_ext nor make_setup_args %s"
                                          % special_build)
         ext.sources = [os.path.join(os.path.dirname(special_build), source)
                        for source in ext.sources]
