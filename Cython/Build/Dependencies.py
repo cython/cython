@@ -1049,7 +1049,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                     src_base_dir, _ = os.path.split(source)
                     relpaths = [os.path.relpath(fname, src_base_dir)
                                 for fname in deps.all_dependencies(source) ]
-                    depline = os.path.split(c_file)[1] + ": "
+                    depline = os.path.split(c_file)[1] + ": \\\n  "
                     depline += " \\\n  ".join(relpaths) + "\n"
                     with open(c_file+'.dep', 'w') as outfile:
                         outfile.write(depline)
