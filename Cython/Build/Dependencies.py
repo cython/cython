@@ -1056,6 +1056,17 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                         else:
                             paths.append(os.path.abspath(fname))
 
+                    # manually add missing *.pyx files for each *.pxd :
+                    # `cimport foo` means a possible dependence on a `foo.pyx`
+                    # but `all_dependencies(...)` above only list a `foo.pxd`
+                    missing = []
+                    for fname in paths:
+                        base, ext = os.path.splitext(fname)
+                        pyxf = base + '.pyx'
+                        if ext == ".pxd" and pyxf not in paths:
+                            missing.append(pyxf)
+                    paths += missing
+
                     depline = os.path.split(c_file)[1] + ": \\\n  "
                     depline += " \\\n  ".join(paths) + "\n"
                     with open(c_file+'.dep', 'w') as outfile:
