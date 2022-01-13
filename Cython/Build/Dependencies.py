@@ -1048,6 +1048,8 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                 if depfile:
                     dependencies = deps.all_dependencies(source)
                     src_base_dir, _ = os.path.split(source)
+                    if not src_base_dir.endswith(os.sep):
+                        src_base_dir += os.sep
                     # paths below the base_dir are relative, otherwise absolute
                     paths = []
                     for fname in dependencies:
