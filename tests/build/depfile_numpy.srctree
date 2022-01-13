@@ -6,7 +6,6 @@ PYTHON check_np.py
 ######## dep_np.pyx ########
 
 cimport numpy as np
-from numpy.random cimport bitgen_t
 np.import_array()
 
 
@@ -37,7 +36,5 @@ assert (sorted(contents) == ['cy_prefix/Includes/cpython/object.pxd',
                              'cy_prefix/Includes/libc/string.pxd',
                              'dep_np.c:',
                              'dep_np.pyx',
-                             'np_prefix/__init__.cython-30.pxd',
-                             'np_prefix/random/__init__.pxd',
-                             'np_prefix/random/bit_generator.pxd'] )
+                             'np_prefix/__init__.cython-30.pxd'] )
 
