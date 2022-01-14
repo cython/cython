@@ -441,7 +441,7 @@ bad:
 #else /* HPY */
 #define __Pyx_Arg_VARARGS(ctx, args, i) HPy_GetItem_i(ctx, args, i)
 #define __Pyx_NumKwargs_VARARGS(ctx, kwds) HPy_Length(ctx, kwds)
-#define __Pyx_KwValues_VARARGS(ctx, args, nargs) HPy_NULL
+#define __Pyx_KwValues_VARARGS(ctx, args, nargs) NULL
 #define __Pyx_GetKwValue_VARARGS(ctx, kw, kwvalues, s) __Pyx_PyDict_GetItemStrWithError(kw, s)
 #define __Pyx_KwargsAsDict_VARARGS(ctx, kw, kwvalues) PyDict_Copy(kw) // TODO
 #endif /* HPY */
@@ -485,6 +485,7 @@ bad:
 // kwnames: tuple with names of keyword arguments
 // kwvalues: C array with values of keyword arguments
 // s: str with the keyword name to look for
+#ifdef HPY
 static CYTHON_INLINE PyObject * __Pyx_GetKwValue_FASTCALL(PyObject *kwnames, PyObject *const *kwvalues, PyObject *s)
 {
     // Search the kwnames array for s and return the corresponding value.
