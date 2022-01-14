@@ -28,13 +28,14 @@ contents = [fname.replace(cy_prefix, "cy_prefix") for fname in contents]
 np_prefix, _ = os.path.split(np.__file__)
 contents = [fname.replace(np_prefix, "np_prefix") for fname in contents]
 
-assert (sorted(contents) == ['cy_prefix/Includes/cpython/object.pxd',
-                             'cy_prefix/Includes/cpython/ref.pxd',
-                             'cy_prefix/Includes/cpython/type.pxd',
-                             'cy_prefix/Includes/libc/stdint.pxd',
-                             'cy_prefix/Includes/libc/stdio.pxd',
-                             'cy_prefix/Includes/libc/string.pxd',
-                             'dep_np.c:',
-                             'dep_np.pyx',
-                             'np_prefix/__init__.cython-30.pxd'] )
-
+assert sorted(contents) == [
+    'cy_prefix/Includes/cpython/object.pxd',
+    'cy_prefix/Includes/cpython/ref.pxd',
+    'cy_prefix/Includes/cpython/type.pxd',
+    'cy_prefix/Includes/libc/stdint.pxd',
+    'cy_prefix/Includes/libc/stdio.pxd',
+    'cy_prefix/Includes/libc/string.pxd',
+    'dep_np.c:',
+    'dep_np.pyx',
+    'np_prefix/__init__.cython-30.pxd',
+]
