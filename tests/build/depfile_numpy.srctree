@@ -28,14 +28,25 @@ contents = [fname.replace(cy_prefix, "cy_prefix") for fname in contents]
 np_prefix, _ = os.path.split(np.__file__)
 contents = [fname.replace(np_prefix, "np_prefix") for fname in contents]
 
-assert sorted(contents) == [
+# filter out the version number from `np_prefix/__init__.cython-30.pxd`.
+# Also allow for legacy numpy versions, which depend on 
+# `cy_prefix/Includes/numpy/__init__.pxd` instead
+contents_ = []
+for entry in contents:
+    if entry.startswith('np_prefix/__init__.cython-') and entry.endswith('.pxd'):
+        contents_.append('np_prefix/__init__.version.pxd')
+    elif entry == 'cy_prefix/Includes/numpy/__init__.pxd':
+        contents_.append('np_prefix/__init__.version.pxd')
+    else:
+        contents_.append(entry)
+
+assert sorted(contents_) == [
     'cy_prefix/Includes/cpython/object.pxd',
     'cy_prefix/Includes/cpython/ref.pxd',
     'cy_prefix/Includes/cpython/type.pxd',
-    'cy_prefix/Includes/libc/stdint.pxd',
     'cy_prefix/Includes/libc/stdio.pxd',
     'cy_prefix/Includes/libc/string.pxd',
     'dep_np.c:',
     'dep_np.pyx',
-    'np_prefix/__init__.cython-30.pxd',
-], contents
+    'np_prefix/__init__.version.pxd',
+], sorted(contents)
