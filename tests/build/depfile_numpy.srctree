@@ -38,4 +38,4 @@ assert sorted(contents) == [
     'dep_np.c:',
     'dep_np.pyx',
     'np_prefix/__init__.cython-30.pxd',
-]
+], contents

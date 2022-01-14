@@ -17,13 +17,10 @@ def foo():
     return "foo"
 
 
-
 ######## bar.pxd ########
 
 cdef inline void empty():
     print("empty")
-
-
 
 
 ######## check.py ########
@@ -33,4 +30,4 @@ import os
 with open("foo.c.dep", "r") as f:
     contents = f.read().replace("\n", " ").replace("\\", "")
 
-assert sorted(contents.split()) == ['bar.pxd', 'baz.pxi', 'foo.c:', 'foo.pyx']
+assert sorted(contents.split()) == ['bar.pxd', 'baz.pxi', 'foo.c:', 'foo.pyx'], contents
