@@ -227,14 +227,10 @@ def parse_command_line(args):
     if len(sources) == 0 and not options.show_version:
         parser.error("cython: Need at least one source file\n")
     if Options.embed and len(sources) > 1:
-        parser.error(
-            "cython: Only one source file allowed when using --embed\n")
+        parser.error("cython: Only one source file allowed when using --embed\n")
     if options.module_name:
         if options.timestamps:
-            parser.error(
-                "cython: Cannot use --module-name with --timestamps\n")
+            parser.error("cython: Cannot use --module-name with --timestamps\n")
         if len(sources) > 1:
-            parser.error(
-                "cython: Only one source file allowed when using "
-                "--module-name\n")
+            parser.error("cython: Only one source file allowed when using --module-name\n")
     return options, sources
