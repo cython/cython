@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 from unittest import TestCase
 try:
     from StringIO import StringIO
@@ -511,26 +512,46 @@ class CmdLineParserTest(TestCase):
         self.check_default_options(options, ['module_name'])
 
     def test_errors(self):
-        def error(*args):
+        def error(args, regex=None):
             old_stderr = sys.stderr
             stderr = sys.stderr = StringIO()
             try:
                 self.assertRaises(SystemExit, parse_command_line, list(args))
             finally:
                 sys.stderr = old_stderr
-            self.assertTrue(stderr.getvalue())
+            msg = stderr.getvalue()
+            err_msg = 'Message "{}"'.format(msg.strip())
+            self.assertTrue(msg.startswith('usage: '),
+                            '%s does not start with "usage :"' % err_msg)
+            self.assertTrue(': error: ' in msg,
+                            '%s does not contain ": error :"' % err_msg)
+            if regex:
+                self.assertTrue(re.search(regex, msg),
+                                '%s does not match search "%s"' %
+                                (err_msg, regex))
 
-        error('-I')
-        error('--version=-a')
-        error('--version=--annotate=true')
-        error('--working')
-        error('--verbose=1')
-        error('--verbose=1')
-        error('--cleanup')
-        error('--debug-disposal-code-wrong-name', 'file3.pyx')
-        # No source file (source file appears to be module name).
-        error('--module-name', 'foo.pyx')
-        # Cannot use --module-name with more than one source file.
-        error('--module-name', 'foo.bar', 'foo.pyx', 'bar.pyx')
-        # Cannot use --module-name with --timestamps
-        error('--module-name', 'foo.bar', '--timestamps', 'foo.pyx')
+        error(['-1'],
+              'unknown option -1')
+        error(['-I'],
+              'argument -I/--include-dir: expected one argument')
+        error(['--version=-a'],
+              "argument -V/--version: ignored explicit argument '-a'")
+        error(['--version=--annotate=true'],
+              "argument -V/--version: ignored explicit argument "
+              "'--annotate=true'")
+        error(['--working'],
+              "argument -w/--working: expected one argument")
+        error(['--verbose=1'],
+              "argument -v/--verbose: ignored explicit argument '1'")
+        error(['--cleanup'],
+              "argument --cleanup: expected one argument")
+        error(['--debug-disposal-code-wrong-name', 'file3.pyx'],
+              "unknown option --debug-disposal-code-wrong-name")
+        error(['--module-name', 'foo.pyx'],
+              "Need at least one source file")
+        error(['--module-name', 'foo.bar'],
+              "Need at least one source file")
+        error(['--module-name', 'foo.bar', 'foo.pyx', 'bar.pyx'],
+              "Only one source file allowed when using --module-name")
+        error(['--module-name', 'foo.bar', '--timestamps', 'foo.pyx'],
+              "Cannot use --module-name with --timestamps")
