@@ -2743,10 +2743,6 @@ class CPtrType(CPointerBaseType):
             return 1
         if other_type.is_array or other_type.is_ptr:
             return self.base_type.is_void or self.base_type.same_as(other_type.base_type)
-        #if self.base_type.is_void or self.base_type is c_char_type:
-        #    from .Builtin import str_type, bytes_type
-        #    if other_type in (str_type, bytes_type):
-        #        return True
         return 0
 
     def specialize(self, values):
@@ -4712,6 +4708,10 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
                             (src_type.is_pyobject and not dst_type.is_pyobject and dst_type.can_coerce_from_pyobject(env)) or
                             (dst_type.is_pyobject and not src_type.is_pyobject and dst_type.can_coerce_to_pyobject(env)))
                 assignable = assignable or coerceable
+                # now let generic pyobjects be assigned to other generic pyobject
+                # (again, only if there's a single candidate... too confusing with
+                # multiple candidates)
+                assignable = assignable or (src_type.is_pyobject and dst_type.is_pyobject)
 
             # Now take care of unprefixed string literals. So when you call a cdef
             # function that takes a char *, the coercion will mean that the
