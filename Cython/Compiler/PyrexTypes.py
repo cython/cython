@@ -4705,8 +4705,8 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
                 coerceable = (# ideally PyObject coercions would be included in
                             # "assignable_from" but this doesn't seem to be the case
                             # and they require env
-                            (src_type.is_pyobject and not dst_type.is_pyobject and dst_type.can_coerce_from_pyobject(env)) or
-                            (dst_type.is_pyobject and not src_type.is_pyobject and dst_type.can_coerce_to_pyobject(env)))
+                            (src_type.is_pyobject and not dst_type.is_pyobject and dst_type.resolve().can_coerce_from_pyobject(env)) or
+                            (dst_type.is_pyobject and not src_type.is_pyobject and dst_type.resolve().can_coerce_to_pyobject(env)))
                 assignable = assignable or coerceable
                 # now let generic pyobjects be assigned to other generic pyobject
                 # (again, only if there's a single candidate... too confusing with
