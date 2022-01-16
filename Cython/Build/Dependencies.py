@@ -1036,7 +1036,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                     # paths below the base_dir are relative, otherwise absolute
                     paths = []
                     for fname in dependencies:
-                        if (fname.startswith(src_base_dir) or 
+                        if (fname.startswith(src_base_dir) or
                             fname.startswith('.' + os.path.sep)):
                             paths.append(os.path.relpath(fname, src_base_dir))
                         else:
