@@ -1943,16 +1943,18 @@ class EndToEndTest(unittest.TestCase):
                     p = subprocess.call(command, env=env)
                     _out, _err = b'', b''
                     res = p
-                cmd.append(command)
-                out.append(_out)
-                err.append(_err)
+            cmd.append(command)
+            out.append(_out)
+            err.append(_err)
+
             if res == 0 and b'REFNANNY: ' in _out:
                 res = -1
             if res != 0:
                 for c, o, e in zip(cmd, out, err):
                     sys.stderr.write("%s\n%s\n%s\n\n" % (
                         c, self._try_decode(o), self._try_decode(e)))
-            self.assertEqual(0, res, "non-zero exit status")
+                self.assertEqual(0, res, "non-zero exit status, last output was:\n%r\n-- stdout:%s\n-- stderr:%s\n" % (
+                    ' '.join(command), self._try_decode(out[-1]), self._try_decode(err[-1])))
         self.success = True
 
 
