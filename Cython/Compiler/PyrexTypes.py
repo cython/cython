@@ -2743,6 +2743,10 @@ class CPtrType(CPointerBaseType):
             return 1
         if other_type.is_array or other_type.is_ptr:
             return self.base_type.is_void or self.base_type.same_as(other_type.base_type)
+        if self.base_type.is_void:
+            from .Builtin import str_type, bytes_type
+            if other_type in (str_type, bytes_type):
+                return True
         return 0
 
     def specialize(self, values):
