@@ -2518,6 +2518,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
             node = node.as_cfunction(
                 overridable=True, modifiers=modifiers, nogil=nogil,
                 returns=return_type_node, except_val=except_val)
+            self._body_without_directives(node, ['ccall']+modifiers)
             return self.visit(node)
         if 'cfunc' in self.directives:
             if self.in_py_class:
@@ -2526,6 +2527,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
                 node = node.as_cfunction(
                     overridable=False, modifiers=modifiers, nogil=nogil,
                     returns=return_type_node, except_val=except_val)
+                self._body_without_directives(node, ['cfunc']+modifiers)
                 return self.visit(node)
         if 'inline' in modifiers:
             error(node.pos, "Python functions cannot be declared 'inline'")
@@ -2542,6 +2544,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
     def visit_PyClassDefNode(self, node):
         if 'cclass' in self.directives:
             node = node.as_cclass()
+            self._body_without_directives(node, ['cclass'])
             return self.visit(node)
         else:
             old_in_pyclass = self.in_py_class
@@ -2556,6 +2559,24 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
         self.visitchildren(node)
         self.in_py_class = old_in_pyclass
         return node
+
+    def _body_without_directives(self, node, directives_to_remove):
+        # For things like cclass, cfunc, etc the directives
+        # should not keep propagating to nested funcs/classes
+        # after they have been applied. This function creates
+        # a CompilerDirectivesNode to ensure that
+        new_directives = Options.copy_inherited_directives(self.directives)
+        for d in directives_to_remove:
+            del new_directives[d]
+        old_body = node.body
+        if not isinstance(node.body, Nodes.StatListNode):
+            old_body = Nodes.StatListNode(node.pos, stats=[old_body])
+        new_body = Nodes.StatListNode(
+            node.pos,
+            stats=[Nodes.CompilerDirectivesNode(
+                node.pos, directives=new_directives, body=node.body)]
+        )
+        node.body = new_body
 
 
 class AlignFunctionDefinitions(CythonTransform):
