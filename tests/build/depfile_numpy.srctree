@@ -32,7 +32,9 @@ contents = [fname.replace(np_prefix, "np_prefix") for fname in contents]
 # filter out the version number from `np_prefix/__init__.cython-30.pxd`.
 contents = [re.sub('[.]cython-[0-9]+', '', entry) for entry in contents]
 
-expected = ['cy_prefix/Includes/cpython/object.pxd',
+expected = ['cy_prefix/Includes/cpython/buffer.pxd',
+    'cy_prefix/Includes/cpython/mem.pxd',
+    'cy_prefix/Includes/cpython/object.pxd',
     'cy_prefix/Includes/cpython/ref.pxd',
     'cy_prefix/Includes/cpython/type.pxd',
     'cy_prefix/Includes/libc/stdio.pxd',

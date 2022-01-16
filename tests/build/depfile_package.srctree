@@ -18,7 +18,7 @@ with open("pkg/sub/test.c.dep", "r") as f:
 
 contents = [os.path.relpath(entry, '.')
             if os.path.isabs(entry) else entry for entry in contents.split()]
-assert sorted(contents) == sorted(['test.c:', 'incl.pxi', 'test.pyx', 'pkg/test.pxd']), contents  # last is really one level up
+assert sorted(contents) == sorted(['test.c:', 'incl.pxi', 'test.pyx', '../test.pxd']), contents
 
 
 ######## pkg/__init__.py ########
