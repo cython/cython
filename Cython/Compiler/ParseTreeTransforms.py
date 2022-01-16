@@ -1104,7 +1104,7 @@ class InterpretCompilerDirectives(CythonTransform):
         return self.visit_with_directives(node, directives, contents_directives)
 
     def visit_CVarDefNode(self, node):
-        directives, contents_directives = self._extract_directives(node, 'function')
+        directives, _ = self._extract_directives(node, 'function')
         for name, value in directives.items():
             if name == 'locals':
                 node.directive_locals = value
@@ -1113,7 +1113,7 @@ class InterpretCompilerDirectives(CythonTransform):
                     node.pos,
                     "Cdef functions can only take cython.locals(), "
                     "staticmethod, or final decorators, got %s." % name))
-        return self.visit_with_directives(node, directives, contents_directives)
+        return self.visit_with_directives(node, directives, None)
 
     def visit_CClassDefNode(self, node):
         directives, contents_directives = self._extract_directives(node, 'cclass')
