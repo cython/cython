@@ -2408,6 +2408,8 @@ class FindInvalidUseOfFusedTypes(CythonTransform):
 
     def visit_ExprNode(self, node):
         if node.type and node.type.is_fused:
+            if node.pos[0].file_path.find("errors") == -1:
+                import pdb; pdb.set_trace()
             error(node.pos, "Invalid use of fused types, type cannot be specialized")
         else:
             self.visitchildren(node)

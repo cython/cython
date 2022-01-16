@@ -2743,10 +2743,10 @@ class CPtrType(CPointerBaseType):
             return 1
         if other_type.is_array or other_type.is_ptr:
             return self.base_type.is_void or self.base_type.same_as(other_type.base_type)
-        if self.base_type.is_void:
-            from .Builtin import str_type, bytes_type
-            if other_type in (str_type, bytes_type):
-                return True
+        #if self.base_type.is_void or self.base_type is c_char_type:
+        #    from .Builtin import str_type, bytes_type
+        #    if other_type in (str_type, bytes_type):
+        #        return True
         return 0
 
     def specialize(self, values):
@@ -4605,8 +4605,7 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
     This function is used, e.g., when deciding which overloaded method
     to dispatch for C++ classes.
 
-    We first eliminate functions based on arity, and if only one
-    function has the correct arity, we return it. Otherwise, we weight
+    We first eliminate functions based on arity. Otherwise, we weight
     functions based on how much work must be done to convert the
     arguments, with the following priorities:
       * identical types or pointers to identical types
@@ -4704,21 +4703,26 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
             src_type = arg_types[i]
             dst_type = func_type.args[i].type
 
-            assignable = (dst_type.assignable_from(src_type) or
-                          # ideally PyObject coercions would be included in
-                          # "assignable_from" but this doesn't seem to be the case
-                          # and they require env
-                          (src_type.is_pyobject and dst_type.can_coerce_from_pyobject(env)) or
-                          (dst_type.is_pyobject and dst_type.can_coerce_to_pyobject(env)))
+            assignable = dst_type.assignable_from(src_type)
+            if len(candidates) == 1:
+                # only consider coercions when validating a single candidate
+                coerceable = (# ideally PyObject coercions would be included in
+                            # "assignable_from" but this doesn't seem to be the case
+                            # and they require env
+                            (src_type.is_pyobject and not dst_type.is_pyobject and dst_type.can_coerce_from_pyobject(env)) or
+                            (dst_type.is_pyobject and not src_type.is_pyobject and dst_type.can_coerce_to_pyobject(env)))
+                assignable = assignable or coerceable
 
             # Now take care of unprefixed string literals. So when you call a cdef
             # function that takes a char *, the coercion will mean that the
             # type will simply become bytes. We need to do this coercion
             # manually for overloaded and fused functions
+            # c_void_ptr_type can also be coerced similarly
             if not assignable:
                 c_src_type = None
                 if src_type.is_pyobject:
-                    if src_type.is_builtin_type and src_type.name == 'str' and dst_type.resolve().is_string:
+                    if src_type.is_builtin_type and src_type.name == 'str' and (
+                            dst_type.resolve().is_string or dst_type.resolve() == c_void_ptr_type):
                         c_src_type = dst_type.resolve()
                     else:
                         c_src_type = src_type.default_coerced_ctype()
