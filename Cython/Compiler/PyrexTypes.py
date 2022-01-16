@@ -4616,7 +4616,6 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
     is not None, we also generate an error.
     """
     # TODO: args should be a list of types, not a list of Nodes.
-    assert env
 
     actual_nargs = len(arg_types)
 
@@ -4701,6 +4700,7 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
 
             assignable = dst_type.assignable_from(src_type)
             if len(candidates) == 1:
+                assert env
                 # only consider coercions when validating a single candidate
                 coerceable = (# ideally PyObject coercions would be included in
                             # "assignable_from" but this doesn't seem to be the case
@@ -4712,6 +4712,12 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
                 # (again, only if there's a single candidate... too confusing with
                 # multiple candidates)
                 assignable = assignable or (src_type.is_pyobject and dst_type.is_pyobject)
+                # finally, list literals and similar can be used as constructors
+                # for things like structs, to let those through
+                if args:
+                    from .ExprNodes import SequenceNode
+                    assignable = assignable or isinstance(args[i], SequenceNode)
+
 
             # Now take care of unprefixed string literals. So when you call a cdef
             # function that takes a char *, the coercion will mean that the
