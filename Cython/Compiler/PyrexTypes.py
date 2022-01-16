@@ -1119,6 +1119,19 @@ class MemoryViewSliceType(PyrexType):
     # memoryviews don't participate in giveref/gotref
     generate_gotref = generate_xgotref = generate_xgiveref = generate_giveref = lambda *args: None
 
+    def assignable_from_resolved_type(self, src_type):
+        if self.same_as(src_type):
+            return True
+        if src_type.is_array:
+            src_base_type = src_type
+            ndim = 0
+            while src_base_type.is_array:
+                src_base_type = src_base_type.base_type
+                ndim += 1
+            if self.dtype.same_as(src_base_type) and ndim == ndim:
+                return True
+        return False
+
 
 
 class BufferType(BaseType):
