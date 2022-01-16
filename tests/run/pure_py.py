@@ -321,28 +321,21 @@ def test_cdef_nogil(x):
 
 @cython.cfunc
 @cython.inline
-def has_inner_func1(x):
+def has_inner_func(x):
     # the inner function must remain a Python function
     # (and inline must not be applied to it)
+    @cython.test_fail_if_path_exists("//CFuncDefNode")
     def inner():
         return x
     return inner
 
 
-with cython.cfunc:
-    def has_inner_func2(x):
-        # cfunc is not applied to "inner"
-        def inner():
-            return x
-        return inner
-
-
 def test_has_inner_func():
     """
     >>> test_has_inner_func()
-    (1, 2)
+    1
     """
-    return has_inner_func1(1)(), has_inner_func2(2)()
+    return has_inner_func(1)()
 
 
 @cython.locals(counts=cython.int[10], digit=cython.int)
