@@ -279,14 +279,15 @@ static CYTHON_INLINE int __Pyx_StrEq(const char *s1, const char *s2) {
 
 //////////////////// UnicodeEquals.proto ////////////////////
 
-static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int equals); /*proto*/
+static CYTHON_INLINE int __Pyx_PyUnicode_Equals(__PYX_CONTEXT_DECL __PYX_OBJECT_CTYPE s1, __PYX_OBJECT_CTYPE s2, int equals); /*proto*/
 
 //////////////////// UnicodeEquals ////////////////////
 //@requires: BytesEquals
+//@requires: ModuleSetupCode.c::ApiBackendInitCode
 
-static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int equals) {
-#if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_LIMITED_API
-    return PyObject_RichCompareBool(s1, s2, equals);
+static CYTHON_INLINE int __Pyx_PyUnicode_Equals(__PYX_CONTEXT_DECL __PYX_OBJECT_CTYPE s1, __PYX_OBJECT_CTYPE s2, int equals) {
+#if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_LIMITED_API || HPY
+    return PyObject_RichCompareBool(__PYX_CONTEXT s1, s2, equals);
 #else
 #if PY_MAJOR_VERSION < 3
     PyObject* owned_ref = NULL;
