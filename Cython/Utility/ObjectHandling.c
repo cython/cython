@@ -773,14 +773,20 @@ bad:
 /////////////// TupleAndListFromArray.proto ///////////////
 
 #if CYTHON_COMPILING_IN_CPYTHON
+#ifndef HPY
 static CYTHON_INLINE PyObject* __Pyx_PyList_FromArray(PyObject *const *src, Py_ssize_t n);
 static CYTHON_INLINE PyObject* __Pyx_PyTuple_FromArray(PyObject *const *src, Py_ssize_t n);
+#else /* HPY */
+static CYTHON_INLINE HPy __Pyx_PyList_FromArray(HPyContext *ctx, HPy const *src, HPy_ssize_t n);
+static CYTHON_INLINE HPy __Pyx_PyTuple_FromArray(HPyContext *ctx, HPy const *src, HPy_ssize_t n);
+#endif /* HPY */
 #endif
 
 /////////////// TupleAndListFromArray ///////////////
 //@substitute: naming
 
 #if CYTHON_COMPILING_IN_CPYTHON
+#ifndef HPY
 static CYTHON_INLINE void __Pyx_copy_object_array(PyObject *const *CYTHON_RESTRICT src, PyObject** CYTHON_RESTRICT dest, Py_ssize_t length) {
     PyObject *v;
     Py_ssize_t i;
@@ -816,6 +822,24 @@ __Pyx_PyList_FromArray(PyObject *const *src, Py_ssize_t n)
     __Pyx_copy_object_array(src, ((PyListObject*)res)->ob_item, n);
     return res;
 }
+#else /* HPY */
+static CYTHON_INLINE HPy
+__Pyx_PyTuple_FromArray(HPyContext *ctx, HPy const *src, HPy_ssize_t n)
+{
+    return HPyTuple_FromArray(ctx, (HPy *)src, n);
+}
+
+static CYTHON_INLINE HPy
+__Pyx_PyList_FromArray(HPyContext *ctx, HPy const *src, HPy_ssize_t n)
+{
+    HPy_ssize_t i;
+    HPyListBuilder builder = HPyListBuilder_New(ctx, n);
+    for (i = 0; i < n; i++) {
+        HPyListBuilder_Set(ctx, builder, i, src[i]);
+    }
+    return HPyListBuilder_Build(ctx, builder);
+}
+#endif /* HPY */
 #endif
 
 
