@@ -30,7 +30,7 @@ from . import Pythran
 from . import Backend
 
 from .Errors import error, warning, CompileError
-from .PyrexTypes import py_object_type
+from .PyrexTypes import py_object_type, py_object_global_type
 from ..Utils import open_new_file, replace_suffix, decode_filename, build_hex_version, is_cython_generated_file
 from .Code import UtilityCode, IncludeCode, TempitaUtilityCode
 from .StringEncoding import EncodedString, encoded_string_or_bytes_literal
@@ -3370,7 +3370,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     nanny=False)
         code.putln("/*--- Intern cleanup code ---*/")
         code.put_decref_clear(Naming.empty_tuple,
-                              PyrexTypes.py_object_type,
+                              PyrexTypes.py_object_global_type,
                               clear_before_decref=True,
                               nanny=False)
         for entry in env.c_class_entries:
@@ -3400,11 +3400,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 #                code.putln("Py_DECREF(%s); %s = 0;" % (
 #                    code.entry_as_pyobject(entry), entry.cname))
         if Options.pre_import is not None:
-            code.put_decref_clear(Naming.preimport_cname, py_object_type,
+            code.put_decref_clear(Naming.preimport_cname, py_object_global_type,
                                   nanny=False, clear_before_decref=True)
         for cname in [Naming.cython_runtime_cname, Naming.builtins_cname]:
-            code.put_decref_clear(cname, py_object_type, nanny=False, clear_before_decref=True)
-        code.put_decref_clear(env.module_dict_cname, py_object_type, nanny=False, clear_before_decref=True)
+            code.put_decref_clear(cname, py_object_global_type, nanny=False, clear_before_decref=True)
+        code.put_decref_clear(env.module_dict_cname, py_object_global_type, nanny=False, clear_before_decref=True)
 
     def generate_main_method(self, env, code):
         module_is_main = self.is_main_module_flag_cname()
