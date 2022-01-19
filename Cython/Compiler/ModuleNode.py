@@ -244,9 +244,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.assure_safe_target(result.h_file)
 
             h_code_writer = Code.CCodeWriter()
-            hpy_h_writer = Code.HPyCCodeWriter(buffer=h_code_writer.buffer)
             c_code_config = generate_c_code_config(env, options)
-            globalstate = Code.GlobalState(h_code_writer, hpy_h_writer, self, c_code_config)
+            globalstate = Code.GlobalState(h_code_writer, self, c_code_config)
             globalstate.initialize_main_h_code()  # in-case utility code is used in the header
             h_code_start = globalstate.parts['h_code']
             h_code_main = globalstate.parts['type_declarations']
@@ -358,9 +357,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.assure_safe_target(result.api_file)
 
             h_code = Code.CCodeWriter()
-            hpy_h_code = Code.HPyCCodeWriter(buffer=h_code.buffer)
             c_code_config = generate_c_code_config(env, options)
-            Code.GlobalState(h_code, hpy_h_code, self, c_code_config)
+            Code.GlobalState(h_code, self, c_code_config)
             h_code.put_generated_by()
             api_guard = self.api_name(Naming.api_guard_prefix, env)
             h_code.put_h_guard(api_guard)
@@ -468,12 +466,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             )
         else:
             rootwriter = Code.CCodeWriter()
-        hpy_writer = Code.HPyCCodeWriter(buffer=rootwriter.buffer)
 
         c_code_config = generate_c_code_config(env, options)
 
         globalstate = Code.GlobalState(
-            rootwriter, hpy_writer, self,
+            rootwriter, self,
             code_config=c_code_config,
             common_utility_include_dir=options.common_utility_include_dir,
         )
