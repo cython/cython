@@ -1300,8 +1300,8 @@ class PyObjectType(PyrexType):
 
     name = "object"
     is_pyobject = 1
-    default_value = "0"
-    declaration_value = "0"
+    default_value = Backend.backend.pyobject_init_value
+    declaration_value = default_value
     buffer_defaults = None
     is_extern = False
     is_subclassed = False
@@ -1334,8 +1334,8 @@ class PyObjectType(PyrexType):
         if pyrex or for_display:
             base_code = "object"
         else:
-            base_code = public_decl("PyObject", dll_linkage)
-            entity_code = "*%s" % entity_code
+            base_code = public_decl(Backend.backend.pyobject_ctype_base_part, dll_linkage)
+            entity_code = "%s%s" % (Backend.backend.pyobject_ctype_entity_part, entity_code)
         return self.base_declaration_code(base_code, entity_code)
 
     def as_pyobject(self, cname):
@@ -1411,21 +1411,17 @@ class PyObjectType(PyrexType):
         code.putln("__Pyx_XDECREF_SET(%s, %s);" % (cname, rhs_cname))
 
     def _generate_decref(self, code, cname, nanny, null_check=False,
-                    clear=False, clear_before_decref=False):
-        prefix = '__Pyx' if nanny else 'Py'
-        X = 'X' if null_check else ''
-
+                         clear=False, clear_before_decref=False):
+        bcknd = Backend.backend
         if clear:
             if clear_before_decref:
-                if not nanny:
-                    X = ''  # CPython doesn't have a Py_XCLEAR()
-                code.putln("%s_%sCLEAR(%s);" % (prefix, X, cname))
+                code.putln("%s;" % (bcknd.get_clear(cname, nanny, null_check)))
             else:
-                code.putln("%s_%sDECREF(%s); %s = 0;" % (
-                    prefix, X, self.as_pyobject(cname), cname))
+                code.putln("%s; %s = %s;" % (
+                    bcknd.get_closeref(self.as_pyobject(cname), nanny, null_check), cname, bcknd.pyobject_init_value))
         else:
-            code.putln("%s_%sDECREF(%s);" % (
-                prefix, X, self.as_pyobject(cname)))
+            code.putln("%s;" % (
+                bcknd.get_closeref(self.as_pyobject(cname), nanny, null_check)))
 
     def nullcheck_string(self, cname):
         return cname
