@@ -2,6 +2,8 @@
 
 /* Type Conversion Predeclarations */
 
+#ifndef HPY
+
 #define __Pyx_uchar_cast(c) ((unsigned char)c)
 #define __Pyx_long_cast(x) ((long)x)
 
@@ -114,17 +116,12 @@ static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject*);
 static CYTHON_INLINE PyObject * __Pyx_PyInt_FromSize_t(size_t);
 static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject*);
 
-#ifndef HPY
 #if CYTHON_ASSUME_SAFE_MACROS
 #define __pyx_PyFloat_AsDouble(x) (PyFloat_CheckExact(x) ? PyFloat_AS_DOUBLE(x) : PyFloat_AsDouble(x))
 #else /* CYTHON_ASSUME_SAFE_MACROS */
 #define __pyx_PyFloat_AsDouble(x) PyFloat_AsDouble(x)
 #endif /* CYTHON_ASSUME_SAFE_MACROS */
 #define __pyx_PyFloat_AsFloat(x) ((float) __pyx_PyFloat_AsDouble(x))
-#else /* HPY */
-#define __pyx_PyFloat_AsDouble(ctx, x) HPyFloat_AsDouble(ctx, x)
-#define __pyx_PyFloat_AsFloat(ctx, x) ((float) HPyFloat_AsDouble(ctx, x))
-#endif /* HPY */
 
 #if PY_MAJOR_VERSION >= 3
 #define __Pyx_PyNumber_Int(x) (PyLong_CheckExact(x) ? __Pyx_NewRef(x) : PyNumber_Long(x))
@@ -215,9 +212,22 @@ bad:
 #endif
 #endif
 
+#else /* HPY */
+
+#define __Pyx_NewRef(ctx, obj) HPy_Dup(ctx, obj)
+#define __pyx_PyFloat_AsDouble(ctx, x) HPyFloat_AsDouble(ctx, x)
+#define __pyx_PyFloat_AsFloat(ctx, x) ((float) HPyFloat_AsDouble(ctx, x))
+
+static CYTHON_INLINE HPy __Pyx_PyNumber_IntOrLong(HPyContext *ctx, HPy x);
+
+#endif /* HPY */
+
 /////////////// TypeConversions ///////////////
+//@requires: ModuleSetupCode.c::ApiBackendInitCode
 
 /* Type Conversion Functions */
+
+#ifndef HPY
 
 static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromString(const char* c_str) {
     return __Pyx_PyUnicode_FromStringAndSize(c_str, (Py_ssize_t)strlen(c_str));
@@ -468,6 +478,62 @@ static CYTHON_INLINE PyObject * __Pyx_PyBool_FromLong(long b) {
 static CYTHON_INLINE PyObject * __Pyx_PyInt_FromSize_t(size_t ival) {
     return PyInt_FromSize_t(ival);
 }
+
+#else /* HPY */
+
+static HPy __Pyx_PyNumber_IntOrLongWrongResultType(HPyContext *ctx, HPy result, const char* type_name) {
+/* TODO(fa): implement
+    __Pyx_TypeName result_type_name = __Pyx_PyType_GetName(Py_TYPE(result));
+#if PY_MAJOR_VERSION >= 3
+    if (PyLong_Check(result)) {
+        // CPython issue #17576: warn if 'result' not of exact type int.
+        if (PyErr_WarnFormat(PyExc_DeprecationWarning, 1,
+                "__int__ returned non-int (type " __Pyx_FMT_TYPENAME ").  "
+                "The ability to return an instance of a strict subclass of int is deprecated, "
+                "and may be removed in a future version of Python.",
+                result_type_name)) {
+            __Pyx_DECREF_TypeName(result_type_name);
+            Py_DECREF(result);
+            return NULL;
+        }
+        __Pyx_DECREF_TypeName(result_type_name);
+        return result;
+    }
+#endif
+    HPyErr_SetString(ctx, ctx->h_TypeError,
+                 "__%.4s__ returned non-%.4s (type " __Pyx_FMT_TYPENAME ")",
+                 type_name, type_name, result_type_name);
+    __Pyx_DECREF_TypeName(result_type_name);
+    Py_DECREF(result);
+    return NULL;
+*/
+    if (!HPy_TypeCheck(ctx, result, ctx->h_LongType)) {
+        HPyErr_SetString(ctx, ctx->h_TypeError, "invalid type");
+        return HPy_NULL;
+    }
+    return result;
+}
+
+static CYTHON_INLINE HPy __Pyx_PyNumber_IntOrLong(HPyContext *ctx, HPy x) {
+  HPy res = HPy_NULL;
+  if (likely(HPyLong_Check(ctx, x)))
+    return HPy_Dup(ctx, x);
+  if (!HPyBytes_CheckExact(ctx, x) && !HPyUnicode_CheckExact(ctx, x)) {
+    res = HPy_Long(ctx, x);
+  }
+  if (likely(!HPy_IsNull(res))) {
+    if (unlikely(!HPyLong_CheckExact(ctx, res))) {
+        return __Pyx_PyNumber_IntOrLongWrongResultType(ctx, res, "");
+    }
+  }
+  else if (!HPyErr_Occurred(ctx)) {
+    HPyErr_SetString(ctx, ctx->h_TypeError,
+                    "an integer is required");
+  }
+  return res;
+}
+
+#endif /* HPY */
 
 /////////////// pynumber_float.proto ///////////////
 
