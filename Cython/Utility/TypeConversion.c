@@ -783,6 +783,7 @@ static CYTHON_INLINE __PYX_OBJECT_CTYPE {{TO_PY_FUNCTION}}(__PYX_CONTEXT_DECL {{
 
 /////////////// CIntToPy ///////////////
 //@requires: GCCDiagnostics
+//@requires: ModuleSetupCode.c::ApiBackendInitCode
 
 static CYTHON_INLINE __PYX_OBJECT_CTYPE {{TO_PY_FUNCTION}}(__PYX_CONTEXT_DECL {{TYPE}} value) {
 #ifdef __Pyx_HAS_GCC_DIAGNOSTIC
@@ -814,10 +815,16 @@ static CYTHON_INLINE __PYX_OBJECT_CTYPE {{TO_PY_FUNCTION}}(__PYX_CONTEXT_DECL {{
         }
     }
     {
+#ifdef HPY
+        __Pyx_PyErr_SetString(__Pyx_PyExc_RuntimeError,
+                              "_PyLong_FromByteArray() not available, cannot convert large numbers");
+        return HPy_NULL;
+#else /* HPY */
         int one = 1; int little = (int)*(unsigned char *)&one;
         unsigned char *bytes = (unsigned char *)&value;
         return _PyLong_FromByteArray(bytes, sizeof({{TYPE}}),
                                      little, !is_unsigned);
+#endif /* HPY */
     }
 }
 
