@@ -40,6 +40,7 @@ class CApiBackend(APIBackend):
     tuple_builder_set_item = "__PYX_TUPLE_BUILDER_SET_ITEM"
     tuple_builder_build = ""
     tuple_pack = "PyTuple_Pack"
+    tuple_get_size = "PyTuple_GET_SIZE"
 
     # list building
     list_builder_ctype = pyobject_ctype
@@ -189,6 +190,7 @@ class HPyBackend(APIBackend):
     tuple_builder_set_item = "HPyTupleBuilder_Set"
     tuple_builder_build = "HPyTupleBuilder_Build"
     tuple_pack = "HPyTuple_Pack"
+    tuple_get_size = "HPy_Length"
 
     # list building
     list_builder_ctype = "HPyListBuilder"
@@ -321,6 +323,7 @@ class CombinedBackend(APIBackend):
     tuple_builder_set_item = "__PYX_TUPLE_BUILDER_SET_ITEM"
     tuple_builder_build = "__PYX_TUPLE_BUILDER_BUILD"
     tuple_pack = "__PYX_TUPLE_PACK"
+    tuple_get_size = "__PYX_TUPLE_GET_SIZE"
 
     # list building
     list_builder_ctype = "__PYX_LIST_BUILDER_CTYPE"
@@ -372,6 +375,7 @@ class CombinedBackend(APIBackend):
         code.putln("#define __PYX_TUPLE_BUILDER_NEW %s" % CApiBackend.tuple_builder_new)
         code.putln("#define __PYX_TUPLE_BUILDER_BUILD %s" % CApiBackend.tuple_builder_build)
         code.putln("#define __PYX_TUPLE_PACK %s" % CApiBackend.tuple_pack)
+        code.putln("#define __PYX_TUPLE_GET_SIZE %s" % CApiBackend.tuple_get_size)
         code.putln("#define __PYX_LIST_BUILDER_CTYPE %s" % CApiBackend.list_builder_ctype)
         code.putln("#define __PYX_LIST_BUILDER_NEW %s" % CApiBackend.list_builder_new)
         code.putln("#define __PYX_LIST_BUILDER_BUILD %s" % CApiBackend.list_builder_build)
@@ -407,6 +411,7 @@ class CombinedBackend(APIBackend):
         code.putln("#define __PYX_TUPLE_BUILDER_SET_ITEM %s" % HPyBackend.tuple_builder_set_item)
         code.putln("#define __PYX_TUPLE_BUILDER_BUILD %s" % HPyBackend.tuple_builder_build)
         code.putln("#define __PYX_TUPLE_PACK %s" % HPyBackend.tuple_pack)
+        code.putln("#define __PYX_TUPLE_GET_SIZE %s" % HPyBackend.tuple_get_size)
         code.putln("#define __PYX_LIST_BUILDER_CTYPE %s" % HPyBackend.list_builder_ctype)
         code.putln("#define __PYX_LIST_BUILDER_NEW %s" % HPyBackend.list_builder_new)
         code.putln("#define __PYX_LIST_BUILDER_SET_ITEM %s" % HPyBackend.list_builder_set_item)

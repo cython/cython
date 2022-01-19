@@ -3671,10 +3671,11 @@ class DefNodeWrapper(FuncDefNode):
         code.putln("%s {" % header)
 
     def generate_argument_declarations(self, env, code):
+        bcknd = Backend.backend
         for arg in self.args:
             if arg.is_generic:
                 if arg.needs_conversion:
-                    code.putln("PyObject *%s = 0;" % arg.hdr_cname)
+                    code.putln("%s %s = %s;" % (bcknd.pyobject_ctype, arg.hdr_cname, bcknd.pyobject_init_value))
                 else:
                     code.put_var_declaration(arg.entry)
         for entry in env.var_entries:
@@ -3682,21 +3683,25 @@ class DefNodeWrapper(FuncDefNode):
                 code.put_var_declaration(entry)
 
         # Assign nargs variable as len(args), but avoid an "unused" warning in the few cases where we don't need it.
+        code.putln("#ifndef %s" % bcknd.hpy_guard)
         if self.signature_has_generic_args():
-            nargs_code = "CYTHON_UNUSED const Py_ssize_t %s = PyTuple_GET_SIZE(%s);" % (
-                        Naming.nargs_cname, Naming.args_cname)
+            nargs_code = "CYTHON_UNUSED const %s %s = %s(%s);" % (
+                bcknd.pyssizet_ctype, Naming.nargs_cname,
+                bcknd.tuple_get_size, bcknd.get_args(Naming.args_cname))
             if self.signature.use_fastcall:
                 code.putln("#if !CYTHON_METH_FASTCALL")
                 code.putln(nargs_code)
                 code.putln("#endif")
             else:
                 code.putln(nargs_code)
+        code.putln("#endif /* %s */" % bcknd.hpy_guard)
 
         # Array containing the values of keyword arguments when using METH_FASTCALL.
         code.globalstate.use_utility_code(
             UtilityCode.load_cached("fastcall", "FunctionArguments.c"))
-        code.putln('CYTHON_UNUSED PyObject *const *%s = __Pyx_KwValues_%s(%s, %s);' % (
-            Naming.kwvalues_cname, self.signature.fastvar, Naming.args_cname, Naming.nargs_cname))
+        code.putln('CYTHON_UNUSED %s const *%s = __Pyx_KwValues_%s(%s);' % (
+            bcknd.pyobject_ctype,
+            Naming.kwvalues_cname, self.signature.fastvar, bcknd.get_args(Naming.args_cname, Naming.nargs_cname)))
 
     def generate_argument_parsing_code(self, env, code):
         # Generate fast equivalent of PyArg_ParseTuple call for
