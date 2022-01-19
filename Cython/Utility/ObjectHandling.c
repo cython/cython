@@ -1594,6 +1594,7 @@ static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name); /*pro
 //@requires: GetBuiltinName
 //@substitute: naming
 
+#ifndef HPY
 #if CYTHON_USE_DICT_VERSIONS
 static PyObject *__Pyx__GetModuleGlobalName(PyObject *name, PY_UINT64_T *dict_version, PyObject **dict_cached_value)
 #else
@@ -1635,7 +1636,21 @@ static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name)
     }
     PyErr_Clear();
 #endif
-    return __Pyx_GetBuiltinName(name);
+    return __Pyx_GetBuiltinName(__PYX_CONTEXT name);
+}
+
+#else /* HPY */
+static CYTHON_INLINE HPy __Pyx__GetModuleGlobalName(HPyContext *ctx, HPy name)
+{
+    HPy result;
+    HPy h_moddict = HPyField_Load(ctx, ctx->h_None, $moddict_cname);
+    result = HPy_GetItem(ctx, h_moddict, name);
+    HPy_Close(ctx, h_moddict);
+    if (likely(!HPy_IsNull(result))) {
+        return __Pyx_NewRef(ctx, result);
+    }
+    HPyErr_Clear(ctx);
+    return __Pyx_GetBuiltinName(ctx, name);
 }
 
 //////////////////// GetAttr.proto ////////////////////
