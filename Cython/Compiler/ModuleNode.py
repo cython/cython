@@ -498,7 +498,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_includes(env, modules, code, early=False)
 
         code = globalstate['module_code']
-        hpy_code = globalstate['hpy_module_code']
 
         self.generate_cached_builtins_decls(env, code)
 
@@ -507,22 +506,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_variable_definitions(env, code)
         self.body.generate_function_definitions(env, code)
 
-        self.generate_lambda_definitions(env, hpy_code)
-        self.generate_variable_definitions(env, hpy_code)
-        self.body.generate_function_definitions(env, hpy_code)
-
         code.mark_pos(None)
         self.generate_typeobj_definitions(env, code)
         self.generate_method_table(env, code)
         if env.has_import_star:
             self.generate_import_star(env, code)
 
-        hpy_code.mark_pos(None)
-        self.generate_hpy_define_array(env, hpy_code)
+        self.generate_hpy_define_array(env, code)
 
         # initialise the macro to reduce the code size of one-time functionality
         code.putln(UtilityCode.load_as_string("SmallCodeConfig", "ModuleSetupCode.c")[0].strip())
-        hpy_code.putln(UtilityCode.load_as_string("SmallCodeConfig", "ModuleSetupCode.c")[0].strip())
 
         self.generate_module_state_start(env, globalstate['module_state'])
         self.generate_module_state_defines(env, globalstate['module_state_defines'])
@@ -531,7 +524,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         # init_globals is inserted before this
         self.generate_module_init_func(modules[:-1], env, globalstate['init_module'])
-        self.generate_module_init_func(modules[:-1], env, globalstate['hpy_init_module'])
         self.generate_module_cleanup_func(env, globalstate['cleanup_module'])
         if Options.embed:
             self.generate_main_method(env, globalstate['main_method'])

@@ -1130,31 +1130,23 @@ class GlobalState(object):
         'typeinfo',
         'before_global_var',
         'global_var',
-        'hpy_global_var',
         'string_decls',
         'string_obj_decls',
         'decls',
-        'hpy_decls',
         'late_includes',
         'module_state',
         'module_state_clear',
         'module_state_traverse',
         'module_state_defines',  # redefines names used in module_state/_clear/_traverse
         'module_code',  # user code (C API) goes here
-        'hpy_module_code',  # user code (HPy) goes here
         'pystring_table',
         'cached_builtins',
         'cached_constants',
-        'hpy_cached_constants',
         'init_constants',
         'init_globals',  # (utility code called at init-time)
-        'hpy_init_globals',
         'init_module',
-        'hpy_init_module',
         'cleanup_globals',
-        'hpy_cleanup_globals',
         'cleanup_module',
-        'hpy_cleanup_module',
         'main_method',
         'utility_code_pragmas',  # silence some irrelevant warnings in utility code
         'utility_code_def',
@@ -1215,6 +1207,8 @@ class GlobalState(object):
                     w.putln("#ifndef HPY")
                 w.putln("/* #### %sCode section: %s ### */" % ("HPy " if part_type == "hpy" else "", part))
 
+        arg_list = Backend.backend.get_arg_list()
+
         if not Options.cache_builtins:
             part = 'cached_builtins'
             self.close_part(part)
@@ -1222,29 +1216,24 @@ class GlobalState(object):
         else:
             w = self.parts['cached_builtins']
             w.enter_cfunc_scope()
-            w.putln("static CYTHON_SMALL_CODE int __Pyx_InitCachedBuiltins(void) {")
+            w.putln("static CYTHON_SMALL_CODE int __Pyx_InitCachedBuiltins(%s) {" % arg_list)
 
-        for w in (self.parts['cached_constants'], self.parts['hpy_cached_constants']):
-            w.enter_cfunc_scope()
-            w.putln("")
-            w.putln("static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {")
-            w.put_declare_refcount_context()
-            w.put_setup_refcount_context(StringEncoding.EncodedString("__Pyx_InitCachedConstants"))
+        w = self.parts['cached_constants']
+        w.enter_cfunc_scope()
+        w.putln("")
+        w.putln("static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(%s) {" % arg_list)
+        w.put_declare_refcount_context()
+        w.put_setup_refcount_context(StringEncoding.EncodedString("__Pyx_InitCachedConstants"))
 
         w = self.parts['init_globals']
         w.enter_cfunc_scope()
         w.putln("")
-        w.putln("static CYTHON_SMALL_CODE int __Pyx_InitGlobals(void) {")
-
-        w = self.parts['hpy_init_globals']
-        w.enter_cfunc_scope()
-        w.putln("")
-        w.putln("static CYTHON_SMALL_CODE int __Pyx_InitGlobals(HPyContext *ctx) {")
+        w.putln("static CYTHON_SMALL_CODE int __Pyx_InitGlobals(%s) {" % arg_list)
 
         w = self.parts['init_constants']
         w.enter_cfunc_scope()
         w.putln("")
-        w.putln("static CYTHON_SMALL_CODE int __Pyx_InitConstants(%s) {" % Backend.backend.get_arg_list())
+        w.putln("static CYTHON_SMALL_CODE int __Pyx_InitConstants(%s) {" % arg_list)
 
         if not Options.generate_cleanup_code:
             part = 'cleanup_globals'
@@ -1254,7 +1243,7 @@ class GlobalState(object):
             w = self.parts['cleanup_globals']
             w.enter_cfunc_scope()
             w.putln("")
-            w.putln("static CYTHON_SMALL_CODE void __Pyx_CleanupGlobals(void) {")
+            w.putln("static CYTHON_SMALL_CODE void __Pyx_CleanupGlobals(%s) {" % arg_list)
 
         code = self.parts['utility_code_proto']
         code.putln("")
@@ -1321,17 +1310,17 @@ class GlobalState(object):
             w.putln("}")
             w.exit_cfunc_scope()
 
-        for w in (self.parts['cached_constants'], self.parts['hpy_cached_constants']):
+        w = self.parts['cached_constants']
+        w.put_finish_refcount_context()
+        w.putln("return 0;")
+        if w.label_used(w.error_label):
+            w.put_label(w.error_label)
             w.put_finish_refcount_context()
-            w.putln("return 0;")
-            if w.label_used(w.error_label):
-                w.put_label(w.error_label)
-                w.put_finish_refcount_context()
-                w.putln("return -1;")
-            w.putln("}")
-            w.exit_cfunc_scope()
+            w.putln("return -1;")
+        w.putln("}")
+        w.exit_cfunc_scope()
 
-        for part in ['init_globals', 'init_constants', 'hpy_init_globals']:
+        for part in ['init_globals', 'init_constants']:
             w = self.parts[part]
             w.putln("return 0;")
             if w.label_used(w.error_label):
