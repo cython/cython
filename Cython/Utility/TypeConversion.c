@@ -946,13 +946,15 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(HPyContext *, HPy);
 /////////////// CIntFromPy ///////////////
 //@requires: CIntFromPyVerify
 //@requires: GCCDiagnostics
+//@requires: ModuleSetupCode.c::ApiBackendInitCode
+//@substitute: naming
 
 {{py: from Cython.Utility import pylong_join }}
 
 #ifndef HPY
 static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
 #else /* HPY */
-static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(HPyContext *ctx, HPy x) {
+static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(HPyContext *$hpy_context_cname, HPy x) {
 #endif /* HPY */
 #ifdef __Pyx_HAS_GCC_DIAGNOSTIC
 #pragma GCC diagnostic push
@@ -979,7 +981,7 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(HPyContext *ctx, HPy x) {
 #ifndef HPY
     if (likely(PyLong_Check(x))) {
 #else /* HPY */
-    if (likely(HPy_TypeCheck(ctx, x, ctx->h_LongType))) {
+    if (likely(HPy_TypeCheck($hpy_context_cname, x, $hpy_context_cname->h_LongType))) {
 #endif /* HPY */
         if (is_unsigned) {
 #if CYTHON_USE_PYLONG_INTERNALS
@@ -1010,7 +1012,7 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(HPyContext *ctx, HPy x) {
                 // misuse Py_False as a quick way to compare to a '0' int object in PyPy
                 int result = PyObject_RichCompareBool(x, Py_False, Py_LT);
 #else /* HPY */
-                int result = HPy_RichCompareBool(ctx, x, ctx->h_False, HPy_LT);
+                int result = HPy_RichCompareBool($hpy_context_cname, x, $hpy_context_cname->h_False, HPy_LT);
 #endif /* HPY */
                 if (unlikely(result < 0))
                     return ({{TYPE}}) -1;
@@ -1019,14 +1021,10 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(HPyContext *ctx, HPy x) {
             }
 #endif /* CYTHON_COMPILING_IN_CPYTHON && !HPY */
             if ((sizeof({{TYPE}}) <= sizeof(unsigned long))) {
-#ifndef HPY
-                __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, unsigned long, PyLong_AsUnsignedLong(x))
-#else /* HPY */
-                __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, unsigned long, HPyLong_AsUnsignedLong(ctx, x))
-#endif /* HPY */
+                __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, unsigned long, PyLong_AsUnsignedLong(__PYX_CONTEXT x))
 #ifdef HAVE_LONG_LONG
             } else if ((sizeof({{TYPE}}) <= sizeof(unsigned PY_LONG_LONG))) {
-                __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, unsigned PY_LONG_LONG, PyLong_AsUnsignedLongLong(x))
+                __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, unsigned PY_LONG_LONG, PyLong_AsUnsignedLongLong(__PYX_CONTEXT x))
 #endif
             }
         } else {
@@ -1053,10 +1051,10 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(HPyContext *ctx, HPy x) {
             }
 #endif
             if ((sizeof({{TYPE}}) <= sizeof(long))) {
-                __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, long, PyLong_AsLong(x))
+                __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, long, PyLong_AsLong(__PYX_CONTEXT x))
 #ifdef HAVE_LONG_LONG
             } else if ((sizeof({{TYPE}}) <= sizeof(PY_LONG_LONG))) {
-                __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, PY_LONG_LONG, PyLong_AsLongLong(x))
+                __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, PY_LONG_LONG, PyLong_AsLongLong(__PYX_CONTEXT x))
 #endif
             }
         }
@@ -1089,9 +1087,9 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(HPyContext *ctx, HPy x) {
         }
     } else {
         {{TYPE}} val;
-        __PYX_OBJECT_CTYPE tmp = __Pyx_PyNumber_IntOrLong(x);
+        __PYX_OBJECT_CTYPE tmp = __Pyx_PyNumber_IntOrLong(__PYX_CONTEXT x);
         if (__PYX_IS_NULL(tmp)) return ({{TYPE}}) -1;
-        val = {{FROM_PY_FUNCTION}}(tmp);
+        val = {{FROM_PY_FUNCTION}}(__PYX_CONTEXT tmp);
         __Pyx_DECREF_NO_REFNANNY(tmp);
         return val;
     }
