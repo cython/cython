@@ -104,6 +104,14 @@ class CApiBackend(APIBackend):
         return cexpr
 
     @staticmethod
+    def get_write_global(module_cname, globalvar_cname, cexpr):
+        return "%s = %s" % (globalvar_cname, cexpr)
+
+    @staticmethod
+    def get_close_loaded_global(cexpr):
+        return "Py_DECREF(%s);" % cexpr
+
+    @staticmethod
     def get_visit_global(var_cname):
         return "Py_VISIT(%s);" % var_cname
 
@@ -251,6 +259,16 @@ class HPyBackend(APIBackend):
             Naming.hpy_context_cname, Naming.hpy_context_cname, cexpr)
 
     @staticmethod
+    def get_write_global(module_cname, globalvar_cname, cexpr):
+        return "HPyField_Store(%s, %s->h_None, &(%s), %s)" % (
+            Naming.hpy_context_cname, Naming.hpy_context_cname, globalvar_cname, cexpr)
+
+    @staticmethod
+    def get_close_loaded_global(cexpr):
+        return "HPy_Close(%s, %s);" % (
+            Naming.hpy_context_cname, cexpr)
+
+    @staticmethod
     def get_visit_global(var_cname):
         return "HPy_VISIT(&(%s));" % var_cname
 
@@ -366,6 +384,7 @@ class CombinedBackend(APIBackend):
         code.putln("#define __PYX_GLOBAL_TYPE_CTYPE PyTypeObject *")
         code.putln("#define __Pyx_CLEAR_GLOBAL(m, v) Py_CLEAR((v))")
         code.putln("#define __PYX_READ_GLOBAL(m, v) (v)")
+        code.putln("#define __PYX_WRITE_GLOBAL(m, l, v) (l) = (r)")
         code.putln("#define __PYX_VISIT(x) Py_VISIT((x))")
         code.putln("#define __PYX_NULL NULL")
         code.putln("#define __PYX_GLOBAL_NULL NULL")
@@ -400,6 +419,8 @@ class CombinedBackend(APIBackend):
         code.putln("#define __Pyx_CLEAR_GLOBAL(m, v) HPyField_Store(%s, %s->h_None, &(v), HPy_NULL)" %
                    (Naming.hpy_context_cname, Naming.hpy_context_cname))
         code.putln("#define __PYX_READ_GLOBAL(m, v) HPyField_Load(%s, %s->h_None, (v))" %
+                   (Naming.hpy_context_cname, Naming.hpy_context_cname))
+        code.putln("#define __PYX_WRITE_GLOBAL(m, l, v) HPyField_Store(%s, %s->h_None, &(l), (v))" %
                    (Naming.hpy_context_cname, Naming.hpy_context_cname))
         code.putln("#define __PYX_VISIT(x) HPy_VISIT(&(x))")
         code.putln("#define __PYX_NULL HPy_NULL")
@@ -452,6 +473,10 @@ class CombinedBackend(APIBackend):
     @staticmethod
     def get_read_global(module_cname, cexpr):
         return "__PYX_READ_GLOBAL(%s, %s)" % (module_cname, cexpr)
+
+    @staticmethod
+    def get_write_global(module_cname, globalvar_cname, cexpr):
+        return "__PYX_WRITE_GLOBAL(%s, %s, %s)" % (module_cname, globalvar_cname, cexpr)
 
     @staticmethod
     def get_visit_global(var_cname):
