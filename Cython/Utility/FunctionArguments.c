@@ -207,7 +207,7 @@ static int __Pyx_ParseOptionalKeywords(PyObject *kwds, PyObject *const *kwvalues
     const char* function_name); /*proto*/
 #else
 static int __Pyx_ParseOptionalKeywords(HPyContext *ctx, HPy kwds, const HPy *kwvalues,
-    HPyField *argnames[],
+    HPy argnames[],
     HPy kwds2, HPy values[], HPy_ssize_t num_pos_args,
     const char* function_name); /*proto*/
 #endif /* HPY */
@@ -357,7 +357,7 @@ bad:
 }
 #else
 static int __Pyx_ParseOptionalKeywords(HPyContext *ctx, HPy kwds, const HPy *kwvalues,
-    HPyField *argnames[],
+    HPy argnames[],
     HPy kwds2, HPy values[], HPy_ssize_t num_pos_args,
     const char* function_name)
 {
@@ -439,10 +439,10 @@ bad:
 #define __Pyx_GetKwValue_VARARGS(kw, kwvalues, s) __Pyx_PyDict_GetItemStrWithError(kw, s)
 #define __Pyx_KwargsAsDict_VARARGS(kw, kwvalues) PyDict_Copy(kw)
 #else /* HPY */
-#define __Pyx_Arg_VARARGS(ctx, args, i) HPy_GetItem_i(ctx, args, i)
+#define __Pyx_Arg_VARARGS(ctx, args, i) args[i]
 #define __Pyx_NumKwargs_VARARGS(ctx, kwds) HPy_Length(ctx, kwds)
 #define __Pyx_KwValues_VARARGS(ctx, args, nargs) NULL
-#define __Pyx_GetKwValue_VARARGS(ctx, kw, kwvalues, s) __Pyx_PyDict_GetItemStrWithError(kw, s)
+#define __Pyx_GetKwValue_VARARGS(ctx, kw, kwvalues, s) HPy_GetItem(ctx, kw, s)
 #define __Pyx_KwargsAsDict_VARARGS(ctx, kw, kwvalues) PyDict_Copy(kw) // TODO
 #endif /* HPY */
 #if CYTHON_METH_FASTCALL
@@ -456,7 +456,7 @@ bad:
     #define __Pyx_Arg_FASTCALL(ctx, args, i) args[i]
     #define __Pyx_NumKwargs_FASTCALL(ctx, kwds) HPy_Length(ctx, kwds)
     #define __Pyx_KwValues_FASTCALL(ctx, args, nargs) (&args[nargs])
-    static CYTHON_INLINE HPy __Pyx_GetKwValue_FASTCALL(HPyContext *ctx, HPy kwnames, HPy const *kwvalues, HPyField s);
+    static CYTHON_INLINE HPy __Pyx_GetKwValue_FASTCALL(HPyContext *ctx, HPy kwnames, HPy const *kwvalues, HPy s);
     #define __Pyx_KwargsAsDict_FASTCALL(kw, kwvalues) _PyStack_AsDict(kwvalues, kw) // TODO
 #endif /* HPY */
 #else
@@ -485,7 +485,7 @@ bad:
 // kwnames: tuple with names of keyword arguments
 // kwvalues: C array with values of keyword arguments
 // s: str with the keyword name to look for
-#ifdef HPY
+#ifndef HPY
 static CYTHON_INLINE PyObject * __Pyx_GetKwValue_FASTCALL(PyObject *kwnames, PyObject *const *kwvalues, PyObject *s)
 {
     // Search the kwnames array for s and return the corresponding value.
@@ -507,4 +507,23 @@ static CYTHON_INLINE PyObject * __Pyx_GetKwValue_FASTCALL(PyObject *kwnames, PyO
     }
     return NULL;  // not found (no exception set)
 }
+#else /* HPY */
+static CYTHON_INLINE HPy __Pyx_GetKwValue_FASTCALL(HPyContext *ctx, HPy kwnames, HPy const *kwvalues, HPy needle)
+{
+    HPy_ssize_t i, n = HPy_Length(ctx, kwnames);
+    for (i = 0; i < n; i++)
+    {
+        if (HPy_Is(ctx, needle, HPy_GetItem_i(ctx, kwnames, i))) return kwvalues[i];
+    }
+    for (i = 0; i < n; i++)
+    {
+        int eq = HPy_RichCompareBool(ctx, needle, HPy_GetItem_i(kwnames, i), HPy_EQ);
+        if (unlikely(eq != 0)) {
+            if (unlikely(eq < 0)) return HPy_NULL;  // error
+            return kwvalues[i];
+        }
+    }
+    return HPy_NULL;  // not found (no exception set)
+}
+#endif /* HPY */
 #endif

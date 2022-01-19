@@ -3392,12 +3392,10 @@ class DefNode(FuncDefNode):
         if self.starstar_arg:
             arg_code_list.append(arg_decl_code(self.starstar_arg))
         if arg_code_list:
-            arg_code = ', '.join(arg_code_list)
-        else:
-            arg_code = 'void'  # No arguments
-        dc = code.type_declaration(self.return_type, self.entry.pyfunc_cname)
+            arg_code = Backend.backend.get_arg_list(*arg_code_list)
+        dc = self.return_type.declaration_code(self.entry.pyfunc_cname)
 
-        decls_code = code.decls()
+        decls_code = code.globalstate['decls']
         preprocessor_guard = self.get_preprocessor_guard()
         if preprocessor_guard:
             decls_code.putln(preprocessor_guard)
@@ -3516,7 +3514,7 @@ class DefNodeWrapper(FuncDefNode):
             args.append(self.star_arg.entry.cname)
         if self.starstar_arg:
             args.append(self.starstar_arg.entry.cname)
-        args = ', '.join(args)
+        args = Backend.backend.get_args(*args)
         if not self.return_type.is_void:
             code.put('%s = ' % Naming.retval_cname)
         code.putln('%s(%s);' % (
@@ -3617,13 +3615,11 @@ class DefNodeWrapper(FuncDefNode):
             varargs_args = "%s, %s" % (
                 bcknd.get_pyobject_var_decl(Naming.args_cname), bcknd.get_pyobject_var_decl(Naming.kwds_cname))
             if sig.use_fastcall:
-                fastcall_args = "%s const *%s, %s %s, %s" % (
-                    bcknd.pyobject_ctype, Naming.args_cname, bcknd.pyssizet_ctype, Naming.nargs_cname, bcknd.get_pyobject_var_decl(Naming.kwds_cname))
                 arg_code_list.append(
                     "\n#if CYTHON_METH_FASTCALL\n%s\n#else\n%s\n#endif\n" % (
-                        fastcall_args, varargs_args))
+                        bcknd.get_arg_list_fastcall(), bcknd.get_arg_list_keywords()))
             else:
-                arg_code_list.append(varargs_args)
+                arg_code_list.append(bcknd.get_arg_list_keywords())
 
         # Prevent warning: unused function '__pyx_pw_5numpy_7ndarray_1__getbuffer__'
         mf = ""
@@ -3760,6 +3756,7 @@ class DefNodeWrapper(FuncDefNode):
             code.put_var_decref_clear(arg.entry)
 
     def generate_stararg_copy_code(self, code):
+        bcknd = Backend.backend
         if not self.star_arg:
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("RaiseArgTupleInvalid", "FunctionArguments.c"))
@@ -3770,12 +3767,12 @@ class DefNodeWrapper(FuncDefNode):
 
         if self.starstar_arg:
             if self.star_arg or not self.starstar_arg.entry.cf_used:
-                kwarg_check = "unlikely(%s)" % Naming.kwds_cname
+                kwarg_check = "unlikely(%s)" % bcknd.get_is_not_null_cond(Naming.kwds_cname)
             else:
-                kwarg_check = "%s" % Naming.kwds_cname
+                kwarg_check = bcknd.get_is_not_null_cond(Naming.kwds_cname)
         else:
             kwarg_check = "unlikely(%s) && __Pyx_NumKwargs_%s(%s)" % (
-                Naming.kwds_cname, self.signature.fastvar, Naming.kwds_cname)
+                bcknd.get_is_not_null_cond(Naming.kwds_cname), self.signature.fastvar, Naming.kwds_cname)
         code.globalstate.use_utility_code(
             UtilityCode.load_cached("KeywordStringCheck", "FunctionArguments.c"))
         code.putln(
@@ -3790,8 +3787,8 @@ class DefNodeWrapper(FuncDefNode):
                 self.signature.fastvar,
                 Naming.kwds_cname,
                 Naming.kwvalues_cname))
-            code.putln("if (unlikely(!%s)) return %s;" % (
-                self.starstar_arg.entry.cname, self.error_value()))
+            code.putln("if (unlikely(%s)) return %s;" % (
+                bcknd.get_is_null_cond(self.starstar_arg.entry.cname), self.error_value()))
             code.put_gotref(self.starstar_arg.entry.cname, py_object_type)
             code.putln("} else {")
             allow_null = all(ref.node.allow_null for ref in self.starstar_arg.entry.cf_references)
@@ -3886,20 +3883,34 @@ class DefNodeWrapper(FuncDefNode):
         if self.starstar_arg or self.star_arg:
             self.generate_stararg_init_code(max_positional_args, code)
 
+        bcknd = Backend.backend
         code.putln('{')
         all_args = tuple(positional_args) + tuple(kw_only_args)
         non_posonly_args = [arg for arg in all_args if not arg.pos_only]
-        non_pos_args_id = ','.join(
-            ['&%s' % code.intern_identifier(arg.entry.name) for arg in non_posonly_args] + ['0'])
+        n_non_posonly_args = len(non_posonly_args)
+        bcknd.put_both(code,
+                       "#define __NAME_TYPE %s*" % Backend.CApiBackend.pyobject_ctype,
+                       "#define __NAME_TYPE %s" % Backend.HPyBackend.pyobject_ctype)
+        bcknd.put_both(code,
+                       "#define __TERM 0",
+                       "#define __TERM %s" % Backend.HPyBackend.pyobject_init_value)
+        cpy_def = "__NAME_TYPE %s[%s];" % (
+            Naming.pykwdlist_cname, n_non_posonly_args + 1)
         code.putln("#if CYTHON_USE_MODULE_STATE")
-        code.putln("%s *%s[]= {%s};" % (
-            Backend.backend.pyobject_global_ctype,Naming.pykwdlist_cname,
-            non_pos_args_id))
+        code.putln(cpy_def)
         code.putln("#else")
-        code.putln("static %s *%s[]= {%s};" % (
-            Backend.backend.pyobject_global_ctype,Naming.pykwdlist_cname,
-            non_pos_args_id))
+        code.putln("static " + cpy_def)
         code.putln("#endif")
+        code.putln("#undef __NAME_TYPE")
+        bcknd.put_both(code, "#define __LOAD_NAME(x) &(x)", "#define __LOAD_NAME(x) (x)")
+        for i, arg in enumerate(non_posonly_args):
+            code.putln("%s[%s] = __LOAD_NAME(%s);" % (
+                Naming.pykwdlist_cname, i,
+                bcknd.get_read_global(None, code.intern_identifier(arg.entry.name))))
+        code.putln("%s[%s] = __TERM;" % (
+            Naming.pykwdlist_cname, n_non_posonly_args))
+        code.putln("#undef __TERM")
+        code.putln("#undef __LOAD_NAME")
 
         # Before being converted and assigned to the target variables,
         # borrowed references to all unpacked argument values are
@@ -4025,6 +4036,11 @@ class DefNodeWrapper(FuncDefNode):
         for i, arg in enumerate(all_args):
             self.generate_arg_assignment(arg, "values[%d]" % i, code)
 
+        # close loaded globals
+        code.putln("/* Release loaded globals */")
+        for i in range(n_non_posonly_args):
+            code.putln(bcknd.get_close_loaded_global("%s[%s]"% (Naming.pykwdlist_cname, i)))
+
         code.putln('}')  # end of the whole argument unpacking block
 
         if code.label_used(argtuple_error_label):
@@ -4117,6 +4133,7 @@ class DefNodeWrapper(FuncDefNode):
     def generate_keyword_unpacking_code(self, min_positional_args, max_positional_args,
                                         has_fixed_positional_count,
                                         has_kw_only_args, all_args, argtuple_error_label, code):
+        bcknd = Backend.backend
         # First we count how many arguments must be passed as positional
         num_required_posonly_args = num_pos_only_args = 0
         for i, arg in enumerate(all_args):
@@ -4125,7 +4142,9 @@ class DefNodeWrapper(FuncDefNode):
                 if not arg.default:
                     num_required_posonly_args += 1
 
-        code.putln('%s kw_args;' % Backend.backend.pyssizet_ctype)
+        tmp_loaded_global = "tmp_loaded_global"
+        code.putln('%s %s;' % (bcknd.pyobject_ctype, tmp_loaded_global))
+        code.putln('%s kw_args;' % bcknd.pyssizet_ctype)
         # copy the values from the args tuple and check that it's not too long
         code.putln('switch (%s) {' % Naming.nargs_cname)
         if self.star_arg:
@@ -4134,13 +4153,13 @@ class DefNodeWrapper(FuncDefNode):
         for i in range(max_positional_args-1, num_required_posonly_args-1, -1):
             code.put('case %2d: ' % (i+1))
             code.putln("values[%d] = __Pyx_Arg_%s(%s);" % (
-                i, self.signature.fastvar, Backend.backend.get_args(Naming.args_cname, i)))
+                i, self.signature.fastvar, bcknd.get_args(Naming.args_cname, i)))
             code.putln('CYTHON_FALLTHROUGH;')
         if num_required_posonly_args > 0:
             code.put('case %2d: ' % num_required_posonly_args)
             for i in range(num_required_posonly_args-1, -1, -1):
                 code.putln("values[%d] = __Pyx_Arg_%s(%s);" % (
-                    i, self.signature.fastvar, Backend.backend.get_args(Naming.args_cname, i)))
+                    i, self.signature.fastvar, bcknd.get_args(Naming.args_cname, i)))
             code.putln('break;')
         for i in range(num_required_posonly_args-2, -1, -1):
             code.put('case %2d: ' % (i+1))
@@ -4169,7 +4188,7 @@ class DefNodeWrapper(FuncDefNode):
         self_name_csafe = self.name.as_c_string_literal()
 
         code.putln('kw_args = __Pyx_NumKwargs_%s(%s);' % (
-                self.signature.fastvar, Backend.backend.get_args(Naming.kwds_cname)))
+                self.signature.fastvar, bcknd.get_args(Naming.kwds_cname)))
         if self.num_required_args or max_positional_args > 0:
             last_required_arg = -1
             for i, arg in enumerate(all_args):
@@ -4187,7 +4206,10 @@ class DefNodeWrapper(FuncDefNode):
                         code.putln('default:')
                     else:
                         code.putln('case %2d:' % i)
-                pystring_cname = code.intern_identifier(arg.entry.name)
+                code.putln("%s = %s;" % (
+                    tmp_loaded_global,
+                    bcknd.get_read_global(None, code.intern_identifier(arg.entry.name))))
+                pystring_cname = tmp_loaded_global
                 if arg.default:
                     if arg.kw_only:
                         # optional kw-only args are handled separately below
@@ -4195,21 +4217,21 @@ class DefNodeWrapper(FuncDefNode):
                     code.putln('if (kw_args > 0) {')
                     # don't overwrite default argument
                     code.putln('%s value = __Pyx_GetKwValue_%s(%s);' % (
-                        Backend.backend.pyobject_ctype,
+                        bcknd.pyobject_ctype,
                         self.signature.fastvar,
-                        Backend.backend.get_args(Naming.kwds_cname, Naming.kwvalues_cname, pystring_cname)))
+                        bcknd.get_args(Naming.kwds_cname, Naming.kwvalues_cname, pystring_cname)))
                     code.putln('if (%s) { values[%d] = value; kw_args--; }' % (
-                        Backend.backend.get_is_not_null_cond("value"), i))
+                        bcknd.get_is_not_null_cond("value"), i))
                     code.putln('else if (unlikely(%s)) %s' % (
-                        Backend.backend.get_err_occurred(), code.error_goto(self.pos)))
+                        bcknd.get_err_occurred(), code.error_goto(self.pos)))
                     code.putln('}')
                 else:
-                    kw_value_cond = Backend.backend.get_is_not_null_cond("values[%d] = __Pyx_GetKwValue_%s(%s))"% (
+                    kw_value_cond = bcknd.get_is_not_null_cond("values[%d] = __Pyx_GetKwValue_%s(%s))"% (
                         i, self.signature.fastvar,
-                        Backend.backend.get_args(Naming.kwds_cname, Naming.kwvalues_cname, pystring_cname)))
+                        bcknd.get_args(Naming.kwds_cname, Naming.kwvalues_cname, pystring_cname)))
                     code.putln('if (likely((%s)) kw_args--;' % kw_value_cond)
                     code.putln('else if (unlikely(%s)) %s' % (
-                        Backend.backend.get_err_occurred(), code.error_goto(self.pos)))
+                        bcknd.get_err_occurred(), code.error_goto(self.pos)))
                     if i < min_positional_args:
                         if i == 0:
                             # special case: we know arg 0 is missing
@@ -4235,6 +4257,7 @@ class DefNodeWrapper(FuncDefNode):
                             self_name_csafe, pystring_cname))
                         code.putln(code.error_goto(self.pos))
                         code.putln('}')
+                code.putln(bcknd.get_close_loaded_global(pystring_cname))
             if max_positional_args > num_pos_only_args:
                 code.putln('}')
 
