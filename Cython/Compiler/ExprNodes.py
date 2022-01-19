@@ -8999,6 +8999,7 @@ class DictNode(ExprNode):
                                 # different types => may not be able to compare at compile time
                                 keys_seen = None
                         else:
+
                             keys_seen.add(key.value)
 
                     if keys_seen is None:
@@ -11381,17 +11382,14 @@ class BinopNode(ExprNode):
                     self.operand2.pythran_result()))
         elif self.operand1.type.is_pyobject:
             function = self.py_operation_function(code)
+            args = [self.operand1.py_result(), self.operand2.py_result()]
             if self.operator == '**':
-                extra_args = ", Py_None"
-            else:
-                extra_args = ""
+                args.append(Backend.backend.get_none())
             code.putln(
-                "%s = %s(%s, %s%s); %s" % (
+                "%s = %s(%s); %s" % (
                     self.result(),
                     function,
-                    self.operand1.py_result(),
-                    self.operand2.py_result(),
-                    extra_args,
+                    Backend.backend.get_args(*args),
                     code.error_goto_if_null(self.result(), self.pos)))
             self.generate_gotref(code)
         elif self.is_temp:
