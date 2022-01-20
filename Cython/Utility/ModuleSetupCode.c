@@ -234,7 +234,8 @@
     #undef CYTHON_USE_ASYNC_SLOTS
     #define CYTHON_USE_ASYNC_SLOTS 0
   #elif !defined(CYTHON_USE_ASYNC_SLOTS)
-    #define CYTHON_USE_ASYNC_SLOTS 1
+    // Disable async slots in Py3.4 for now - very, very few people still use that.
+    #define CYTHON_USE_ASYNC_SLOTS (PY_VERSION_HEX >= 0x030500B1)
   #endif
   #ifndef CYTHON_USE_PYLONG_INTERNALS
     #define CYTHON_USE_PYLONG_INTERNALS 1
