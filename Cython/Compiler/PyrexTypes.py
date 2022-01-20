@@ -1571,6 +1571,85 @@ class PyObjectGlobalType(PyObjectType):
     def nullcheck_string(self, cname):
         return cname
 
+class TupleBuilderType(PyrexType):
+    #
+    #  Class for a C tuple builder
+    #
+
+    name = "tuple_builder"
+    buffer_defaults = None
+    is_extern = False
+    is_subclassed = False
+    is_gc_simple = False
+    builtin_trashcan = False  # builtin type using trashcan
+
+    def __str__(self):
+        return "tuple builder"
+
+    def __repr__(self):
+        return "<TupleBuilder>"
+
+    def default_coerced_ctype(self):
+        """The default C type that this Python type coerces to, or None."""
+        return None
+
+    def assignable_from(self, src_type):
+        # except for pointers, conversion will be attempted
+        return False
+
+    def declaration_code(self, entity_code,
+                         for_display = 0, dll_linkage = None, pyrex = 0):
+        return self.base_declaration_code(Backend.backend.tuple_builder_ctype, entity_code)
+
+    def py_type_name(self):
+        return "object"
+
+    def __lt__(self, other):
+        """
+        Make sure we sort highest, as instance checking on py_type_name
+        ('object') is always true
+        """
+        return False
+
+class ListBuilderType(PyrexType):
+    #
+    #  Class for a C tuple builder
+    #
+
+    name = "list_builder"
+    buffer_defaults = None
+    is_extern = False
+    is_subclassed = False
+    is_gc_simple = False
+    builtin_trashcan = False  # builtin type using trashcan
+
+    def __str__(self):
+        return "list builder"
+
+    def __repr__(self):
+        return "<ListBuilder>"
+
+    def default_coerced_ctype(self):
+        """The default C type that this Python type coerces to, or None."""
+        return None
+
+    def assignable_from(self, src_type):
+        # except for pointers, conversion will be attempted
+        return False
+
+    def declaration_code(self, entity_code,
+                         for_display = 0, dll_linkage = None, pyrex = 0):
+        return self.base_declaration_code(Backend.backend.list_builder_ctype, entity_code)
+
+    def py_type_name(self):
+        return "object"
+
+    def __lt__(self, other):
+        """
+        Make sure we sort highest, as instance checking on py_type_name
+        ('object') is always true
+        """
+        return False
 
 builtin_types_that_cannot_create_refcycles = frozenset({
     'object', 'bool', 'int', 'long', 'float', 'complex',
@@ -4663,6 +4742,14 @@ if Backend.backend.pyobject_ctype != Backend.backend.pyobject_global_ctype:
     py_object_global_type = PyObjectGlobalType()
 else:
     py_object_global_type = py_object_type
+if Backend.backend.pyobject_ctype != Backend.backend.tuple_builder_ctype:
+    tuple_builder_type = TupleBuilderType()
+else:
+    tuple_builder_type = py_object_type
+if Backend.backend.pyobject_ctype != Backend.backend.list_builder_ctype:
+    list_builder_type = ListBuilderType()
+else:
+    list_builder_type = py_object_type
 hpy_type = HPyType()
 
 c_void_type =        CVoidType()
