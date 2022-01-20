@@ -2325,6 +2325,19 @@ class CCodeWriter(object):
         if entry.in_closure:
             self.put_giveref('Py_None')
 
+    def load_global(self, globalvar_cname, type, target=None):
+        if not target:
+            target = self.funcstate.allocate_temp(type, True)
+        bcknd = Backend.backend
+        self.putln("%s = %s;" % (target, bcknd.get_read_global(Naming.module_cname, globalvar_cname)))
+        self.put_gotref(target, type)
+        return target
+
+    def store_global(self, globalvar_cname, cexpr, type):
+        bcknd = Backend.backend
+        self.putln("%s;" % (bcknd.get_write_global(Naming.module_cname, globalvar_cname, cexpr)))
+        self.put_giveref(cexpr, type)
+
     def get_arg_code_list(self):
         return []
 
