@@ -405,22 +405,21 @@ static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb)
     #if CYTHON_USE_EXC_INFO_STACK
     {
         _PyErr_StackItem *exc_info = tstate->exc_info;
-        #if PY_VERSION_HEX >= 0x030B00a4
-        tmp_type = NULL;
-        tmp_tb = NULL;
-        #else
-        tmp_type = exc_info->exc_type;
-        tmp_tb = exc_info->exc_traceback;
-        #endif
+      #if PY_VERSION_HEX >= 0x030B00a4
         tmp_value = exc_info->exc_value;
         exc_info->exc_value = local_value;
-        #if PY_VERSION_HEX >= 0x030B00a4
+        tmp_type = NULL;
+        tmp_tb = NULL;
         Py_XDECREF(local_type);
         Py_XDECREF(local_tb);
-        #else
+      #else
+        tmp_type = exc_info->exc_type;
+        tmp_value = exc_info->exc_value;
+        tmp_tb = exc_info->exc_traceback;
         exc_info->exc_type = local_type;
+        exc_info->exc_value = local_value;
         exc_info->exc_traceback = local_tb;
-        #endif
+      #endif
     }
     #else
     tmp_type = tstate->exc_type;
@@ -525,23 +524,25 @@ static CYTHON_INLINE void __Pyx__ExceptionReset(PyThreadState *tstate, PyObject 
 static CYTHON_INLINE void __Pyx__ExceptionSave(PyThreadState *tstate, PyObject **type, PyObject **value, PyObject **tb) {
   #if CYTHON_USE_EXC_INFO_STACK && PY_VERSION_HEX >= 0x030B00a4
     _PyErr_StackItem *exc_info = __Pyx_PyErr_GetTopmostException(tstate);
-    *value = exc_info->exc_value;
-    if (*value && *value != Py_None) {
-        Py_INCREF(*value);
-        *type = (PyObject*) Py_TYPE(*value);
-        Py_INCREF(*type);
-        *tb = PyException_GetTraceback(*value);
-    } else {
+    PyObject *exc_value = exc_info->exc_value;
+    if (exc_value == NULL || exc_value == Py_None) {
+        *value = NULL;
         *type = NULL;
         *tb = NULL;
+    } else {
+        *value = exc_value;
+        Py_INCREF(*value);
+        *type = (PyObject*) Py_TYPE(exc_value);
+        Py_INCREF(*type);
+        *tb = PyException_GetTraceback(exc_value);
     }
   #elif CYTHON_USE_EXC_INFO_STACK
     _PyErr_StackItem *exc_info = __Pyx_PyErr_GetTopmostException(tstate);
-    *value = exc_info->exc_value;
     *type = exc_info->exc_type;
+    *value = exc_info->exc_value;
     *tb = exc_info->exc_traceback;
-    Py_XINCREF(*value);
     Py_XINCREF(*type);
+    Py_XINCREF(*value);
     Py_XINCREF(*tb);
   #else
     *type = tstate->exc_type;
@@ -607,14 +608,16 @@ static CYTHON_INLINE void __Pyx__ExceptionSwap(PyThreadState *tstate, PyObject *
     _PyErr_StackItem *exc_info = tstate->exc_info;
     tmp_value = exc_info->exc_value;
     exc_info->exc_value = *value;
-    if (tmp_value && tmp_value != Py_None) {
+    if (tmp_value == NULL || tmp_value == Py_None) {
+        Py_XDECREF(tmp_value);
+        tmp_value = NULL;
+        tmp_type = NULL;
+        tmp_tb = NULL;
+    } else {
         // TODO: avoid swapping these at all
         tmp_type = (PyObject*) Py_TYPE(tmp_value);
         Py_INCREF(tmp_type);
         tmp_tb = PyException_GetTraceback(tmp_value);
-    } else {
-        tmp_type = NULL;
-        tmp_tb = NULL;
     }
   #elif CYTHON_USE_EXC_INFO_STACK
     _PyErr_StackItem *exc_info = tstate->exc_info;
