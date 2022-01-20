@@ -453,7 +453,7 @@ static CYTHON_INLINE void __Pyx_Coroutine_ExceptionClear(__Pyx_ExcInfoStruct *se
 static int __Pyx_Coroutine_clear(PyObject *self); /*proto*/
 static __Pyx_PySendResult __Pyx_Coroutine_AmSend(PyObject *self, PyObject *value, PyObject **retval); /*proto*/
 static PyObject *__Pyx_Coroutine_Send(PyObject *self, PyObject *value); /*proto*/
-static int __Pyx_Coroutine_Close(PyObject *self, PyObject **retval); /*proto*/
+static __Pyx_PySendResult __Pyx_Coroutine_Close(PyObject *self, PyObject **retval); /*proto*/
 static PyObject *__Pyx_Coroutine_Throw(PyObject *gen, PyObject *args); /*proto*/
 
 // macros for exception state swapping instead of inline functions to make use of the local thread state context
@@ -1127,7 +1127,7 @@ static PyObject *__Pyx_Coroutine_Close_Method(PyObject *self, PyObject *arg) {
     return __Pyx_Coroutine_MethodReturnFromResult(self, result, retval);
 }
 
-static int
+static __Pyx_PySendResult
 __Pyx_Coroutine_Close(PyObject *self, PyObject **retval) {
     __pyx_CoroutineObject *gen = (__pyx_CoroutineObject *) self;
     __Pyx_PySendResult result;
