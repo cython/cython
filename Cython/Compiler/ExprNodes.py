@@ -32,7 +32,7 @@ from . import Nodes
 from .Nodes import Node, utility_code_for_imports, SingleAssignmentNode, PassStatNode
 from . import PyrexTypes
 from .PyrexTypes import py_object_type, c_long_type, typecast, error_type, \
-    unspecified_type
+    unspecified_type, tuple_builder_type, list_builder_type
 from . import TypeSlots
 from .Builtin import (
     list_type, tuple_type, set_type, dict_type, type_type,
@@ -7695,33 +7695,22 @@ class SequenceNode(ExprNode):
         else:
             # build the tuple/list step by step, potentially multiplying it as we go
             if self.type is list_type:
-                builder_ctype = backend.list_builder_ctype
+                builder_type = list_builder_type
                 create_func, set_item_func = backend.list_builder_new, backend.list_builder_set_item
                 build_func = backend.list_builder_build
             elif self.type is tuple_type:
-                builder_ctype = backend.tuple_builder_ctype
+                builder_type = tuple_builder_type
                 create_func, set_item_func = backend.tuple_builder_new, backend.tuple_builder_set_item
                 build_func = backend.tuple_builder_build
             else:
                 raise InternalError("sequence packing for unexpected type %s" % self.type)
-            # FIXME: can't use a temp variable here as the code may
-            # end up in the constant building function.  Temps
-            # currently don't work there.
-            tmp_count = 0
-            #tmp_builder = code.funcstate.allocate_temp(..., manage_ref=False)
-            tmp_builder = Naming.quick_temp_cname + str(tmp_count)
-            tmp_count += 1
+            tmp_builder = code.funcstate.allocate_temp(builder_type, manage_ref=False)
             arg_count = len(self.args)
-            code.putln("%s %s = %s(%s);" % (
-                builder_ctype, tmp_builder,
-                create_func, backend.get_args("%s%s" % (arg_count, size_factor))))
-            code.put_gotref(tmp_builder, py_object_type)
+            code.putln("%s = %s(%s);" % (
+                tmp_builder, create_func, backend.get_args("%s%s" % (arg_count, size_factor))))
 
             if c_mult:
-                #counter = code.funcstate.allocate_temp(mult_factor.type, manage_ref=False)
-                counter = Naming.quick_temp_cname + str(tmp_count)
-                tmp_count += 1
-                code.putln('{ %s %s;' % (backend.pyssizet_ctype, counter))
+                counter = code.funcstate.allocate_temp(mult_factor.type, manage_ref=False)
                 if arg_count == 1:
                     offset = counter
                 else:
@@ -7747,11 +7736,12 @@ class SequenceNode(ExprNode):
             code.putln("%s = %s(%s); %s" % (
                 target, build_func, backend.get_args(tmp_builder),
                 code.error_goto_if_null(target, self.pos)))
-            #code.funcstate.release_temp(tmp_builder)
+            code.put_gotref(target, py_object_type)
+            code.funcstate.release_temp(tmp_builder)
 
             if c_mult:
                 code.putln('}')
-                #code.funcstate.release_temp(counter)
+                code.funcstate.release_temp(counter)
                 code.putln('}')
 
         if mult_factor is not None and mult_factor.type.is_pyobject:

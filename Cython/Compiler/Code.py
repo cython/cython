@@ -1224,6 +1224,7 @@ class GlobalState(object):
         w.putln("static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(%s) {" % arg_list)
         w.put_declare_refcount_context()
         w.put_setup_refcount_context(StringEncoding.EncodedString("__Pyx_InitCachedConstants"))
+        self.parts['cached_constants_decls'] = w.insertion_point()
 
         w = self.parts['init_globals']
         w.enter_cfunc_scope()
@@ -1311,6 +1312,8 @@ class GlobalState(object):
             w.exit_cfunc_scope()
 
         w = self.parts['cached_constants']
+        w_decls = self.parts['cached_constants_decls']
+        w_decls.put_temp_declarations(w.funcstate)
         w.put_finish_refcount_context()
         w.putln("return 0;")
         if w.label_used(w.error_label):
