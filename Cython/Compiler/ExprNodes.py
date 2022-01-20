@@ -8073,6 +8073,10 @@ class TupleNode(SequenceNode):
 
     type = tuple_type
     is_partly_literal = False
+    is_temp = True
+
+    global_var = None
+    temp_result_code_writer = None
 
     gil_message = "Constructing Python tuple"
 
@@ -8087,7 +8091,6 @@ class TupleNode(SequenceNode):
 
     def analyse_types(self, env, skip_children=False):
         if len(self.args) == 0:
-            self.is_temp = False
             self.is_literal = True
             return self
 
@@ -8100,7 +8103,6 @@ class TupleNode(SequenceNode):
                 not any((arg.is_starred or arg.type.is_pyobject or arg.type.is_memoryviewslice or arg.type.is_fused)
                         for arg in self.args)):
             self.type = env.declare_tuple_type(self.pos, (arg.type for arg in self.args)).type
-            self.is_temp = 1
             return self
 
         node = SequenceNode.analyse_types(self, env, skip_children=True)
@@ -8113,7 +8115,6 @@ class TupleNode(SequenceNode):
         if not node.mult_factor or (
                 node.mult_factor.is_literal and
                 isinstance(node.mult_factor.constant_result, _py_int_types)):
-            node.is_temp = False
             node.is_literal = True
         else:
             if not node.mult_factor.type.is_pyobject:
@@ -8160,12 +8161,6 @@ class TupleNode(SequenceNode):
         # either temp or constant => always safe
         return True
 
-    def calculate_result_code(self):
-        if len(self.args) > 0:
-            return self.result_code
-        else:
-            return Naming.empty_tuple
-
     def calculate_constant_result(self):
         self.constant_result = tuple([
                 arg.constant_result for arg in self.args])
@@ -8177,30 +8172,58 @@ class TupleNode(SequenceNode):
         except Exception as e:
             self.compile_time_value_error(e)
 
-    def generate_operation_code(self, code):
-        if len(self.args) == 0:
-            # result_code is Naming.empty_tuple
-            return
-
+    def generate_subexpr_evaluation_code(self, code):
+        # The subexpressions are needed for the initialization of the literal. Since this is done in a global
+        # location (i.e. 'cached_constants_writer') we need to evaluate the subexprs also in this writer.
         if self.is_literal or self.is_partly_literal:
+            dedup_key = make_dedup_key(self.type, [self.mult_factor if self.is_literal else None] + self.args)
+            tuple_target = code.get_py_const(py_object_type, 'tuple', cleanup_level=2, dedup_key=dedup_key)
+            const_code = code.get_cached_constants_writer(tuple_target)
+            if const_code:
+                # remember the writer since we don't get it twice
+                self.temp_result_code_writer = const_code
+                code = const_code
+        super().generate_subexpr_evaluation_code(code)
+
+    def free_subexpr_temps(self, code):
+        if self.temp_result_code_writer:
+            code = self.temp_result_code_writer
+        super().free_subexpr_temps(code)
+
+    def generate_operation_code(self, code):
+        if self.is_literal or self.is_partly_literal:
+
             # The "mult_factor" is part of the deduplication if it is also constant, i.e. when
             # we deduplicate the multiplied result.  Otherwise, only deduplicate the constant part.
             dedup_key = make_dedup_key(self.type, [self.mult_factor if self.is_literal else None] + self.args)
             tuple_target = code.get_py_const(py_object_type, 'tuple', cleanup_level=2, dedup_key=dedup_key)
-            const_code = code.get_cached_constants_writer(tuple_target)
+
+            const_code = self.temp_result_code_writer
             if const_code is not None:
+                bcknd = Backend.backend
                 # constant is not yet initialised
                 const_code.mark_pos(self.pos)
-                self.generate_sequence_packing_code(const_code, tuple_target, plain=not self.is_literal)
+                tmp_target = const_code.funcstate.allocate_temp(py_object_type, manage_ref=False)
+                self.generate_sequence_packing_code(const_code, tmp_target, plain=not self.is_literal)
+                const_code.putln(bcknd.get_write_global(Naming.module_cname, tuple_target, tmp_target) + ';')
                 const_code.put_giveref(tuple_target, py_object_type)
+                const_code.put_decref_clear(tmp_target, py_object_type)
+                const_code.funcstate.release_temp(tmp_target)
             if self.is_literal:
-                self.result_code = tuple_target
+                # we need to load the global variable into the temp result var
+                code.load_global(tuple_target, self.type, self.result())
+                # we need to incref because the temp result var will be disposed with a decref
+                code.put_incref(self.result(), py_object_type)
             else:
-                code.putln('%s = PyNumber_Multiply(%s, %s); %s' % (
-                    self.result(), tuple_target, self.mult_factor.py_result(),
+                bcknd = Backend.backend
+                tmp_tuple = code.load_global(tuple_target, self.type)
+                code.putln('%s = %s(%s); %s' % (
+                    self.result(), bcknd.get_binary_operation_function("*", False),
+                    bcknd.get_args(tmp_tuple, self.mult_factor.py_result()),
                     code.error_goto_if_null(self.result(), self.pos)
                 ))
                 self.generate_gotref(code)
+                code.put_decref_clear(tmp_tuple, self.type)
         else:
             self.type.entry.used = True
             self.generate_sequence_packing_code(code)
@@ -9700,7 +9723,6 @@ class CodeObjectNode(ExprNode):
             def_node.pos,
             args=[IdentifierStringNode(arg.pos, value=arg.name)
                   for arg in args + local_vars],
-            is_temp=0,
             is_literal=1)
 
     def may_be_none(self):
