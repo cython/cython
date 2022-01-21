@@ -10036,17 +10036,19 @@ class _YieldDelegationExprNode(YieldExprNode):
             self.arg.free_temps(code)
         elif decref_source:
             code.put_decref_clear(source_cname, py_object_type)
-        code.put_xgotref(Naming.retval_cname, py_object_type)
 
         code.putln("if (likely(%s == PYGEN_NEXT)) {" % result_temp)
+        code.put_gotref(Naming.retval_cname, py_object_type)
         code.funcstate.release_temp(result_temp)  # before generating the yield code
         self.generate_yield_code(code)
         code.putln("} else if (likely(%s == PYGEN_RETURN)) {" % result_temp)
+        code.put_gotref(Naming.retval_cname, py_object_type)
         if self.result_is_used:
             self.fetch_iteration_result(code)
         else:
-            code.putln("__Pyx_CLEAR(%s);" % Naming.retval_cname)
+            code.put_decref_clear(Naming.retval_cname, py_object_type)
         code.putln("} else {")
+        code.put_xgotref(Naming.retval_cname, py_object_type)
         code.putln(code.error_goto(self.pos))
         code.putln("}")
 
@@ -10120,11 +10122,11 @@ class AwaitIterNextExprNode(AwaitExprNode):
     def fetch_iteration_result(self, code):
         assert code.break_label, "AwaitIterNextExprNode outside of 'async for' loop"
         super(AwaitIterNextExprNode, self).fetch_iteration_result(code)
-        code.putln("if (likely(%s == Py_None)) break;" % self.result())
-        code.putln("else {")
         # FIXME: Don't actually know if this is really unreachable, but it's an error. Needs testing. And I like the macro.
-        code.putln("Py_UNREACHABLE();")
-        code.putln("}")
+        # CPython simply has an assert() for this in gen_send_ex()
+        code.putln("if (unlikely(%s != Py_None)) Py_UNREACHABLE();" % self.result())
+        code.put_decref_clear(self.result(), py_object_type)
+        code.putln("break;")
 
     def generate_sent_value_handling_code(self, code, value_cname):
         assert code.break_label, "AwaitIterNextExprNode outside of 'async for' loop"
