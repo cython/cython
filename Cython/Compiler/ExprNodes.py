@@ -1751,6 +1751,7 @@ class StringNode(PyConstNode):
 
     type = str_type
     is_string_literal = True
+    is_temp = True
     is_identifier = None
     unicode_value = None
 
@@ -1791,16 +1792,15 @@ class StringNode(PyConstNode):
     def can_coerce_to_char_literal(self):
         return not self.is_identifier and len(self.value) == 1
 
-    def generate_evaluation_code(self, code):
-        self.result_code = code.get_py_string_const(
+    def generate_result_code(self, code):
+        globalvar_cname = code.get_py_string_const(
             self.value, identifier=self.is_identifier, is_str=True,
             unicode_value=self.unicode_value)
+        code.load_global(globalvar_cname, self.type, self.result())
+        code.put_incref(self.result(), self.type)
 
     def get_constant_c_result_code(self):
         return None
-
-    def calculate_result_code(self):
-        return self.result_code
 
     def compile_time_value(self, env):
         if self.value.is_unicode:
