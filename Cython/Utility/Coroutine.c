@@ -1735,6 +1735,9 @@ static __Pyx_PyAsyncMethodsStruct __pyx_Coroutine_as_async = {
     __Pyx_Coroutine_await, /*am_await*/
     0, /*am_aiter*/
     0, /*am_anext*/
+#if PY_VERSION_HEX >= 0x030A00A3
+    0, /*am_send*/
+#endif
 };
 #endif
 

@@ -1005,6 +1005,7 @@ class SlotTable(object):
             MethodSlot(unaryfunc, "am_await", "__await__", method_name_to_slot),
             MethodSlot(unaryfunc, "am_aiter", "__aiter__", method_name_to_slot),
             MethodSlot(unaryfunc, "am_anext", "__anext__", method_name_to_slot),
+            EmptySlot("am_send", ifdef="PY_VERSION_HEX >= 0x030A00A3"),
         )
 
         self.slot_table = (
