@@ -1632,9 +1632,11 @@ static PyObject *__Pyx_CoroutineAwait_Send(__pyx_CoroutineAwaitObject *self, PyO
     return __Pyx_Coroutine_Send(self->coroutine, value);
 }
 
+#if CYTHON_USE_ASYNC_SLOTS
 static __Pyx_PySendResult __Pyx_CoroutineAwait_AmSend(PyObject *self, PyObject *value, PyObject **retval) {
     return __Pyx_Coroutine_AmSend(((__pyx_CoroutineAwaitObject*)self)->coroutine, value, retval);
 }
+#endif
 
 static PyObject *__Pyx_CoroutineAwait_Throw(__pyx_CoroutineAwaitObject *self, PyObject *args) {
     return __Pyx_Coroutine_Throw(self->coroutine, args);
