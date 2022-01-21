@@ -9711,8 +9711,10 @@ class CodeObjectNode(ExprNode):
     # varnames   TupleNode  a tuple with all local variable names
 
     subexprs = ['varnames']
-    is_temp = False
-    result_code = None
+    type = py_object_type
+    is_temp = True
+    global_var = None
+    temp_result_code_writer = None
 
     def __init__(self, def_node):
         ExprNode.__init__(self, def_node.pos, def_node=def_node)
@@ -9728,53 +9730,88 @@ class CodeObjectNode(ExprNode):
     def may_be_none(self):
         return False
 
-    def calculate_result_code(self, code=None):
-        if self.result_code is None:
-            self.result_code = code.get_py_const(py_object_type, 'codeobj', cleanup_level=2)
-        return self.result_code
+    def generate_evaluation_code(self, code):
+        if not self.global_var:
+            assert not self.temp_result_code_writer
+            self.global_var = code.get_py_const(py_object_type, 'codeobj', cleanup_level=2)
+
+        constants_writer = code.get_cached_constants_writer(self.global_var)
+        self.temp_result_code_writer = constants_writer
+        # The subexprs are used for initialization of the code object. So we need to eval them
+        # with constants code writer.
+        if constants_writer:
+            self.generate_subexpr_evaluation_code(constants_writer)
+
+        code.mark_pos(self.pos)
+        if self.is_temp:
+            self.allocate_temp_result(code)
+
+        self.generate_result_code(code)
+        if constants_writer:
+            self.generate_subexpr_disposal_code(constants_writer)
+            self.free_subexpr_temps(constants_writer)
+
 
     def generate_result_code(self, code):
-        if self.result_code is None:
-            self.result_code = code.get_py_const(py_object_type, 'codeobj', cleanup_level=2)
+        caller_code = code
+        # The initialization of the code object will happen in the constants init section.
+        if self.temp_result_code_writer:
+            code = self.temp_result_code_writer
+            code.mark_pos(self.pos)
+            func = self.def_node
+            func_name = code.get_py_string_const(
+                func.name, identifier=True, is_str=False, unicode_value=func.name)
+            # FIXME: better way to get the module file path at module init time? Encoding to use?
+            file_path = StringEncoding.bytes_literal(func.pos[0].get_filenametable_entry().encode('utf8'), 'utf8')
+            file_path_const = code.get_py_string_const(file_path, identifier=False, is_str=True)
 
-        code = code.get_cached_constants_writer(self.result_code)
-        if code is None:
-            return  # already initialised
-        code.mark_pos(self.pos)
-        func = self.def_node
-        func_name = code.get_py_string_const(
-            func.name, identifier=True, is_str=False, unicode_value=func.name)
-        # FIXME: better way to get the module file path at module init time? Encoding to use?
-        file_path = StringEncoding.bytes_literal(func.pos[0].get_filenametable_entry().encode('utf8'), 'utf8')
-        file_path_const = code.get_py_string_const(file_path, identifier=False, is_str=True)
+            # This combination makes CPython create a new dict for "frame.f_locals" (see GH #1836).
+            flags = ['CO_OPTIMIZED', 'CO_NEWLOCALS']
 
-        # This combination makes CPython create a new dict for "frame.f_locals" (see GH #1836).
-        flags = ['CO_OPTIMIZED', 'CO_NEWLOCALS']
+            if self.def_node.star_arg:
+                flags.append('CO_VARARGS')
+            if self.def_node.starstar_arg:
+                flags.append('CO_VARKEYWORDS')
 
-        if self.def_node.star_arg:
-            flags.append('CO_VARARGS')
-        if self.def_node.starstar_arg:
-            flags.append('CO_VARKEYWORDS')
+            tmp_code = code.funcstate.allocate_temp(py_object_type, False)
+            tmp_func_name = code.load_global(func_name, py_object_type)
+            tmp_empty_tuple = code.load_global(Naming.empty_tuple, py_object_type)
+            tmp_empty_bytes = code.load_global(Naming.empty_bytes, py_object_type)
+            tmp_file_path = code.load_global(file_path_const, py_object_type)
 
-        code.putln("%s = (PyObject*)__Pyx_PyCode_New(%d, %d, %d, %d, 0, %s, %s, %s, %s, %s, %s, %s, %s, %s, %d, %s); %s" % (
-            self.result_code,
-            len(func.args) - func.num_kwonly_args,  # argcount
-            func.num_posonly_args,     # posonlyargcount (Py3.8+ only)
-            func.num_kwonly_args,      # kwonlyargcount (Py3 only)
-            len(self.varnames.args),   # nlocals
-            '|'.join(flags) or '0',    # flags
-            Naming.empty_bytes,        # code
-            Naming.empty_tuple,        # consts
-            Naming.empty_tuple,        # names (FIXME)
-            self.varnames.result(),    # varnames
-            Naming.empty_tuple,        # freevars (FIXME)
-            Naming.empty_tuple,        # cellvars (FIXME)
-            file_path_const,           # filename
-            func_name,                 # name
-            self.pos[1],               # firstlineno
-            Naming.empty_bytes,        # lnotab
-            code.error_goto_if_null(self.result_code, self.pos),
+            bcknd = Backend.backend
+            code.putln("%s = (%s)__Pyx_PyCode_New(%s); %s" % (
+                tmp_code,
+                bcknd.pyobject_ctype,
+                bcknd.get_args(
+                    len(func.args) - func.num_kwonly_args,  # argcount
+                    func.num_posonly_args,     # posonlyargcount (Py3.8+ only)
+                    func.num_kwonly_args,      # kwonlyargcount (Py3 only)
+                    len(self.varnames.args),   # nlocals
+                    "0",
+                    '|'.join(flags) or '0',    # flags
+                    tmp_empty_bytes,           # code
+                    tmp_empty_tuple,           # consts
+                    tmp_empty_tuple,           # names (FIXME)
+                    self.varnames.result(),    # varnames
+                    tmp_empty_tuple,           # freevars (FIXME)
+                    tmp_empty_tuple,           # cellvars (FIXME)
+                    tmp_file_path,             # filename
+                    tmp_func_name,             # name
+                    self.pos[1],               # firstlineno
+                    tmp_empty_bytes            # lnotab
+                ),
+                code.error_goto_if_null(tmp_code, self.pos),
             ))
+            code.store_global(self.global_var, tmp_code, py_object_type)
+
+            for cname in (tmp_code, tmp_func_name, tmp_empty_tuple, tmp_empty_bytes, tmp_file_path):
+                code.putln(bcknd.get_close_loaded_global(cname))
+                code.funcstate.release_temp(cname)
+
+        caller_code.load_global(self.global_var, py_object_type, target=self.result())
+        # We need to incref here because the temp result will be disposed with a decref
+        caller_code.put_incref(self.result(), py_object_type)
 
 
 class DefaultLiteralArgNode(ExprNode):
