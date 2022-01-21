@@ -813,6 +813,7 @@ PyAsyncMethods = (
     MethodSlot(unaryfunc, "am_await", "__await__"),
     MethodSlot(unaryfunc, "am_aiter", "__aiter__"),
     MethodSlot(unaryfunc, "am_anext", "__anext__"),
+    EmptySlot("am_send", ifdef="PY_VERSION_HEX >= 0x030A00A3"),
 )
 
 #------------------------------------------------------------------------------------------
