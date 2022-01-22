@@ -501,9 +501,11 @@ class UtilityCode(UtilityCodeBase):
 
     def specialize(self, pyrex_type=None, **data):
         # Dicts aren't hashable...
+        name = self.name
         if pyrex_type is not None:
             data['type'] = pyrex_type.empty_declaration_code()
             data['type_name'] = pyrex_type.specialization_name()
+            name = "%s[%s]" % (name, data['type_name'])
         key = tuple(sorted(data.items()))
         try:
             return self._cache[key]
@@ -519,7 +521,9 @@ class UtilityCode(UtilityCodeBase):
                 self.none_or_sub(self.init, data),
                 self.none_or_sub(self.cleanup, data),
                 requires,
-                self.proto_block)
+                self.proto_block,
+                name,
+            )
 
             self.specialize_list.append(s)
             return s
