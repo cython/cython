@@ -601,6 +601,9 @@ static int __Pyx_PyGen__FetchStopIterationValue(PyThreadState *$local_tstate_cna
 
 static CYTHON_INLINE
 void __Pyx_Coroutine_ExceptionClear(__Pyx_ExcInfoStruct *exc_state) {
+#if PY_VERSION_HEX >= 0x030B00a4
+    Py_CLEAR(exc_state->exc_value);
+#else
     PyObject *t, *v, *tb;
     t = exc_state->exc_type;
     v = exc_state->exc_value;
@@ -613,6 +616,7 @@ void __Pyx_Coroutine_ExceptionClear(__Pyx_ExcInfoStruct *exc_state) {
     Py_XDECREF(t);
     Py_XDECREF(v);
     Py_XDECREF(tb);
+#endif
 }
 
 #define __Pyx_Coroutine_AlreadyRunningError(gen)  (__Pyx__Coroutine_AlreadyRunningError(gen), (PyObject*)NULL)
@@ -718,14 +722,21 @@ PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value, i
     // - do not touch external frames and tracebacks
 
     exc_state = &self->gi_exc_state;
-    if (exc_state->exc_type) {
+    if (exc_state->exc_value) {
         #if CYTHON_COMPILING_IN_PYPY
         // FIXME: what to do in PyPy?
         #else
         // Generators always return to their most recent caller, not
         // necessarily their creator.
-        if (exc_state->exc_traceback) {
-            PyTracebackObject *tb = (PyTracebackObject *) exc_state->exc_traceback;
+        PyObject *exc_tb;
+        #if PY_VERSION_HEX >= 0x030B00a4
+        // owned reference!
+        exc_tb = PyException_GetTraceback(exc_state->exc_value);
+        #else
+        exc_tb = exc_state->exc_traceback;
+        #endif
+        if (exc_tb) {
+            PyTracebackObject *tb = (PyTracebackObject *) exc_tb;
             PyFrameObject *f = tb->tb_frame;
 
             assert(f->f_back == NULL);
@@ -736,6 +747,9 @@ PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value, i
             #else
             Py_XINCREF(tstate->frame);
             f->f_back = tstate->frame;
+            #endif
+            #if PY_VERSION_HEX >= 0x030B00a4
+            Py_DECREF(exc_tb);
             #endif
         }
         #endif
@@ -778,17 +792,28 @@ static CYTHON_INLINE void __Pyx_Coroutine_ResetFrameBackpointer(__Pyx_ExcInfoStr
     // Don't keep the reference to f_back any longer than necessary.  It
     // may keep a chain of frames alive or it could create a reference
     // cycle.
-    PyObject *exc_tb = exc_state->exc_traceback;
-
-    if (likely(exc_tb)) {
 #if CYTHON_COMPILING_IN_PYPY
     // FIXME: what to do in PyPy?
 #else
+    PyObject *exc_tb;
+
+    #if PY_VERSION_HEX >= 0x030B00a4
+    if (!exc_state->exc_value) return;
+    // owned reference!
+    exc_tb = PyException_GetTraceback(exc_state->exc_value);
+    #else
+    exc_tb = exc_state->exc_traceback;
+    #endif
+
+    if (likely(exc_tb)) {
         PyTracebackObject *tb = (PyTracebackObject *) exc_tb;
         PyFrameObject *f = tb->tb_frame;
         Py_CLEAR(f->f_back);
-#endif
+        #if PY_VERSION_HEX >= 0x030B00a4
+        Py_DECREF(exc_tb);
+        #endif
     }
+#endif
 }
 
 static CYTHON_INLINE
@@ -1133,9 +1158,13 @@ static PyObject *__Pyx_Coroutine_Throw(PyObject *self, PyObject *args) {
 }
 
 static CYTHON_INLINE int __Pyx_Coroutine_traverse_excstate(__Pyx_ExcInfoStruct *exc_state, visitproc visit, void *arg) {
+#if PY_VERSION_HEX >= 0x030B00a4
+    Py_VISIT(exc_state->exc_value);
+#else
     Py_VISIT(exc_state->exc_type);
     Py_VISIT(exc_state->exc_value);
     Py_VISIT(exc_state->exc_traceback);
+#endif
     return 0;
 }
 
@@ -1432,9 +1461,13 @@ static __pyx_CoroutineObject *__Pyx__Coroutine_NewInit(
     gen->resume_label = 0;
     gen->classobj = NULL;
     gen->yieldfrom = NULL;
+    #if PY_VERSION_HEX >= 0x030B00a4
+    gen->gi_exc_state.exc_value = NULL;
+    #else
     gen->gi_exc_state.exc_type = NULL;
     gen->gi_exc_state.exc_value = NULL;
     gen->gi_exc_state.exc_traceback = NULL;
+    #endif
 #if CYTHON_USE_EXC_INFO_STACK
     gen->gi_exc_state.previous_item = NULL;
 #endif
@@ -2171,7 +2204,7 @@ static void __Pyx__ReturnWithStopIteration(PyObject* value) {
     #if CYTHON_FAST_THREAD_STATE
     __Pyx_PyThreadState_assign
     #if CYTHON_USE_EXC_INFO_STACK
-    if (!$local_tstate_cname->exc_info->exc_type)
+    if (!$local_tstate_cname->exc_info->exc_value)
     #else
     if (!$local_tstate_cname->exc_type)
     #endif
