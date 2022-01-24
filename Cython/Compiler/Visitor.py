@@ -276,6 +276,16 @@ class VisitorTransform(TreeVisitor):
                     newlist.append(x)
         return newlist
 
+    def visitchild(self, parent, attr, idx=0):
+        # Helper to visit specific children from Python subclasses
+        child = getattr(parent, attr)
+        if child is not None:
+            node = self._visitchild(child, parent, attr, idx)
+            if node is not child:
+                setattr(parent, attr, node)
+            child = node
+        return child
+
     def recurse_to_children(self, node):
         self._process_children(node)
         return node
@@ -675,7 +685,7 @@ class MethodDispatcherTransform(EnvTransform):
         method_handler = self._find_handler(
             "method_%s_%s" % (type_name, attr_name), kwargs)
         if method_handler is None:
-            if (attr_name in TypeSlots.method_name_to_slot
+            if (attr_name in TypeSlots.special_method_names
                     or attr_name in ['__new__', '__class__']):
                 method_handler = self._find_handler(
                     "slot%s" % attr_name, kwargs)

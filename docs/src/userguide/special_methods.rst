@@ -97,8 +97,8 @@ complaining about the signature mismatch.
 
 .. _finalization_method:
 
-Finalization method: :meth:`__dealloc__`
-----------------------------------------
+Finalization methods: :meth:`__dealloc__` and :meth:`__del__`
+-------------------------------------------------------------
 
 The counterpart to the :meth:`__cinit__` method is the :meth:`__dealloc__`
 method, which should perform the inverse of the :meth:`__cinit__` method. Any
@@ -122,7 +122,13 @@ of the superclass will always be called, even if it is overridden.  This is in
 contrast to typical Python behavior where superclass methods will not be
 executed unless they are explicitly called by the subclass.
 
-.. Note:: There is no :meth:`__del__` method for extension types.
+Python 3.4 made it possible for extension types to safely define
+finalizers for objects. When running a Cython module on Python 3.4 and
+higher you can add a :meth:`__del__` method to extension types in
+order to perform Python cleanup operations. When the :meth:`__del__`
+is called the object is still in a valid state (unlike in the case of
+:meth:`__dealloc__`), permitting the use of Python operations
+on its class members. On Python <3.4 :meth:`__del__` will not be called.
 
 .. _arithmetic_methods:
 
@@ -373,7 +379,7 @@ https://docs.python.org/3/reference/datamodel.html#emulating-numeric-types
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | __hex__ 	        | self 	                                | object      | Convert to hexadecimal                              |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| __index__ (2.5+ only)	| self	                                | object      | Convert to sequence index                           |
+| __index__            	| self	                                | object      | Convert to sequence index                           |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 
 In-place arithmetic operators

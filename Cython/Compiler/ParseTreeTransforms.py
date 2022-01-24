@@ -1015,6 +1015,8 @@ class InterpretCompilerDirectives(CythonTransform):
         return node
 
     def visit_NameNode(self, node):
+        if node.annotation:
+            self.visitchild(node, 'annotation')
         if node.name in self.cython_module_names:
             node.is_cython_module = True
         else:
@@ -1041,7 +1043,7 @@ class InterpretCompilerDirectives(CythonTransform):
         return node
 
     def visit_NewExprNode(self, node):
-        self.visit(node.cppclass)
+        self.visitchild(node, 'cppclass')
         self.visitchildren(node)
         return node
 
@@ -1050,7 +1052,7 @@ class InterpretCompilerDirectives(CythonTransform):
         # decorator), returns a list of (directivename, value) pairs.
         # Otherwise, returns None
         if isinstance(node, ExprNodes.CallNode):
-            self.visit(node.function)
+            self.visitchild(node, 'function')
             optname = node.function.as_cython_attribute()
             if optname:
                 directivetype = Options.directive_types.get(optname)
@@ -1353,7 +1355,7 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
         return node
 
     def visit_CallNode(self, node):
-        self.visit(node.function)
+        self.visitchild(node, 'function')
         if not self.parallel_directive:
             self.visitchildren(node, exclude=('function',))
             return node
@@ -1386,7 +1388,7 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
                       "Nested parallel with blocks are disallowed")
 
             self.state = 'parallel with'
-            body = self.visit(node.body)
+            body = self.visitchild(node, 'body')
             self.state = None
 
             newnode.body = body
@@ -1402,13 +1404,13 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
                 error(node.pos, "The parallel directive must be called")
                 return None
 
-        node.body = self.visit(node.body)
+        self.visitchild(node, 'body')
         return node
 
     def visit_ForInStatNode(self, node):
         "Rewrite 'for i in cython.parallel.prange(...):'"
-        self.visit(node.iterator)
-        self.visit(node.target)
+        self.visitchild(node, 'iterator')
+        self.visitchild(node, 'target')
 
         in_prange = isinstance(node.iterator.sequence,
                                Nodes.ParallelRangeNode)
@@ -1431,9 +1433,9 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
 
             self.state = 'prange'
 
-        self.visit(node.body)
+        self.visitchild(node, 'body')
         self.state = previous_state
-        self.visit(node.else_clause)
+        self.visitchild(node, 'else_clause')
         return node
 
     def visit(self, node):
@@ -1442,7 +1444,7 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
             return super(ParallelRangeTransform, self).visit(node)
 
 
-class WithTransform(CythonTransform, SkipDeclarations):
+class WithTransform(VisitorTransform, SkipDeclarations):
     def visit_WithStatNode(self, node):
         self.visitchildren(node, 'body')
         pos = node.pos
@@ -1507,6 +1509,8 @@ class WithTransform(CythonTransform, SkipDeclarations):
     def visit_ExprNode(self, node):
         # With statements are never inside expressions.
         return node
+
+    visit_Node = VisitorTransform.recurse_to_children
 
 
 class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
@@ -2060,7 +2064,7 @@ if VALUE is not None:
         "Handle def or cpdef fused functions"
         # Create PyCFunction nodes for each specialization
         node.stats.insert(0, node.py_func)
-        node.py_func = self.visit(node.py_func)
+        self.visitchild(node, 'py_func')
         node.update_fused_defnode_entry(env)
         # For the moment, fused functions do not support METH_FASTCALL
         node.py_func.entry.signature.use_fastcall = False
@@ -2342,13 +2346,12 @@ if VALUE is not None:
         return None
 
     def visit_CnameDecoratorNode(self, node):
-        child_node = self.visit(node.node)
+        child_node = self.visitchild(node, 'node')
         if not child_node:
             return None
         if type(child_node) is list:  # Assignment synthesized
-            node.child_node = child_node[0]
+            node.node = child_node[0]
             return [node] + child_node[1:]
-        node.node = child_node
         return node
 
     def create_Property(self, entry):
@@ -3168,6 +3171,7 @@ class GilCheck(VisitorTransform):
         self.env_stack.append(node.local_scope)
         inner_nogil = node.local_scope.nogil
 
+        nogil_declarator_only = self.nogil_declarator_only
         if inner_nogil:
             self.nogil_declarator_only = True
 
@@ -3176,8 +3180,9 @@ class GilCheck(VisitorTransform):
 
         self._visit_scoped_children(node, inner_nogil)
 
-        # This cannot be nested, so it doesn't need backup/restore
-        self.nogil_declarator_only = False
+        # FuncDefNodes can be nested, because a cpdef function contains a def function
+        # inside it. Therefore restore to previous state
+        self.nogil_declarator_only = nogil_declarator_only
 
         self.env_stack.pop()
         return node
@@ -3202,6 +3207,8 @@ class GilCheck(VisitorTransform):
             else:
                 error(node.pos, "Trying to release the GIL while it was "
                                 "previously released.")
+        if self.nogil_declarator_only:
+            node.scope_gil_state_known = False
 
         if isinstance(node.finally_clause, Nodes.StatListNode):
             # The finally clause of the GILStatNode is a GILExitNode,
@@ -3249,6 +3256,12 @@ class GilCheck(VisitorTransform):
 
         node.nogil_check = None
         node.is_try_finally_in_nogil = True
+        self.visitchildren(node)
+        return node
+
+    def visit_GILExitNode(self, node):
+        if self.nogil_declarator_only:
+            node.scope_gil_state_known = False
         self.visitchildren(node)
         return node
 

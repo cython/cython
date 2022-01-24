@@ -51,13 +51,10 @@ def treetypes(root):
 class CythonTest(unittest.TestCase):
 
     def setUp(self):
-        self.listing_file = Errors.listing_file
-        self.echo_file = Errors.echo_file
-        Errors.listing_file = Errors.echo_file = None
+        Errors.init_thread()
 
     def tearDown(self):
-        Errors.listing_file = self.listing_file
-        Errors.echo_file = self.echo_file
+        Errors.init_thread()
 
     def assertLines(self, expected, result):
         "Checks that the given strings or lists of strings are equal line by line"
