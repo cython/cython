@@ -14091,4 +14091,3 @@ class AssignmentExpressionNode(ExprNode):
     def generate_result_code(self, code):
         # we have to do this manually because it isn't a subexpression
         self.assignment.generate_execution_code(code)
-
