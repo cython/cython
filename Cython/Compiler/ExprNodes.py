@@ -325,7 +325,6 @@ class ExprNode(Node):
     #  result_code  string       Code fragment
     #  result_ctype string       C type of result_code if different from type
     #  is_temp      boolean      Result is in a temporary variable
-    #  temp_stolen_by_parent  boolean   Temp should be freed by giveref - parent node will handle cleanup
     #  is_sequence_constructor
     #               boolean      Is a list or tuple constructor expression
     #  is_starred   boolean      Is a starred expression (e.g. '*a')
@@ -476,7 +475,6 @@ class ExprNode(Node):
 
     saved_subexpr_nodes = None
     is_temp = False
-    temp_stolen_by_parent = False
     has_temp_moved = False  # if True then attempting to do anything but free the temp is invalid
     is_target = False
     is_starred = False
@@ -860,12 +858,8 @@ class ExprNode(Node):
                 self.generate_subexpr_disposal_code(code)
                 self.free_subexpr_temps(code)
             if self.result():
-                if self.temp_stolen_by_parent:
-                    self.generate_giveref(code)
-                    code.put_nullify(self.result(), self.ctype())
-                else:
-                    code.put_decref_clear(self.result(), self.ctype(),
-                                            have_gil=not self.in_nogil_context)
+                code.put_decref_clear(self.result(), self.ctype(),
+                                        have_gil=not self.in_nogil_context)
         else:
             # Already done if self.is_temp
             self.generate_subexpr_disposal_code(code)
@@ -14065,6 +14059,9 @@ class AssignmentExpressionNode(ExprNode):
                 # wrong for assignment expressions run in parallel e.g. `(a := b) + (b := a + c)`)
                 self.assignment.rhs = copy.copy(self.rhs)
 
+        # TODO - there's a missed optimization in the code generation stage
+        # for self.rhs.arg.is_temp: an incref/decref pair can be removed
+        # (but needs a general mechanism to do that)
         self.assignment = self.assignment.analyse_types(env)
         return self
 
@@ -14095,10 +14092,3 @@ class AssignmentExpressionNode(ExprNode):
         # we have to do this manually because it isn't a subexpression
         self.assignment.generate_execution_code(code)
 
-    def make_owned_reference(self, code):
-        if self.rhs.arg.is_temp:
-            self.rhs.arg.temp_stolen_by_parent = True
-            # we've already stolen the temp from the CloneNode, so only need gotref
-            self.generate_gotref(code)
-        else:
-            super(AssignmentExpressionNode, self).make_owned_reference(code)
