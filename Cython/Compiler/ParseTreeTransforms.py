@@ -427,7 +427,9 @@ class _AssignmentExpressionChecker(TreeVisitor):
         self.in_nested_generator = False
         self.scope_is_class = scope_is_class
         self.current_target_names = ()
-        self.all_target_names = sum(self.target_names_dict.values(), ())
+        self.all_target_names = set()
+        for names in self.target_names_dict.values():
+            self.all_target_names = self.all_target_names.union(names)
 
     @classmethod
     def do_checks(cls, loop_node, scope_is_class):
@@ -439,7 +441,9 @@ class _AssignmentExpressionChecker(TreeVisitor):
             self.visitchildren(node)  # once nested, don't do anything special
         else:
             current_target_names = self.current_target_names
-            self.current_target_names += self.target_names_dict.get(node, None)
+            target_name = self.target_names_dict.get(node, None)
+            if target_name:
+                self.current_target_names += target_name
 
             self.in_iterator = True
             self.visit(node.iterator)

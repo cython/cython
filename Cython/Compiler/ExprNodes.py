@@ -13730,17 +13730,17 @@ class ProxyNode(CoercionNode):
     def __init__(self, arg):
         super(ProxyNode, self).__init__(arg)
         self.constant_result = arg.constant_result
-        self._proxy_type()
+        self.update_type_and_entry()
 
     def analyse_types(self, env):
         self.arg = self.arg.analyse_expressions(env)
-        self._proxy_type()
+        self.update_type_and_entry()
         return self
 
     def infer_type(self, env):
         return self.arg.infer_type(env)
 
-    def _proxy_type(self):
+    def update_type_and_entry(self):
         type = getattr(self.arg, 'type', None)
         if type:
             self.type = type
@@ -14088,7 +14088,7 @@ class AssignmentExpressionNode(ExprNode):
             rhs_arg = old_rhs_arg.coerce_to(dst_type, env)
             if rhs_arg is not old_rhs_arg:
                 self.rhs.arg = rhs_arg
-                self.rhs._proxy_type()  # refresh the updated type
+                self.rhs.update_type_and_entry()
                 # clean up the old coercion node that the assignment has likely generated
                 if (isinstance(self.assignment.rhs, CoercionNode)
                         and not isinstance(self.assignment.rhs, CloneNode)):
