@@ -124,8 +124,8 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
   if [[ $CYTHON_COMPILE_ALL == "1" ]]; then
     SETUP_ARGS="$SETUP_ARGS --cython-compile-all"
   fi
-  SETUP_ARGS="$SETUP_ARGS
-    $(python -c 'import sys; print("-j5" if sys.version_info >= (3,5) else "")')"
+  #SETUP_ARGS="$SETUP_ARGS
+  #  $(python -c 'import sys; print("-j5" if sys.version_info >= (3,5) else "")')"
 
   CFLAGS=$BUILD_CFLAGS \
     python setup.py build_ext -i $SETUP_ARGS || exit 1
