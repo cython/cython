@@ -663,7 +663,7 @@ class AssignmentCollector(TreeVisitor):
         self.assignments = []
 
     def visit_Node(self):
-        self._visitchildren(self, None)
+        self._visitchildren(self, None, None)
 
     def visit_SingleAssignmentNode(self, node):
         self.assignments.append((node.lhs, node.rhs))
