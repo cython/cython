@@ -14062,8 +14062,13 @@ class AssignmentExpressionNode(ExprNode):
                 self.rhs.arg = self.rhs.arg.coerce_to_temp(env)
             else:
                 # For literals we can optimize by just using the literal twice
-                # (it would be tempting to including self.rhs.is_name in here but that can end up
-                # wrong for assignment expressions run in parallel e.g. `(a := b) + (b := a + c)`)
+                #
+                # We aren't including `self.rhs.is_name` in this optimization
+                # because that goes wrong for assignment expressions run in
+                # parallel. e.g. `(a := b) + (b := a + c)`)
+                # This is a special case of https://github.com/cython/cython/issues/4146
+                # TODO - once that's fixed general revisit this code and possibly
+                # use coerce_to_simple
                 self.assignment.rhs = copy.copy(self.rhs)
 
         # TODO - there's a missed optimization in the code generation stage

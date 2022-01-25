@@ -5,6 +5,7 @@
 # additional to the standard Python test-suite in tests/run/test_named_expressions.pyx
 
 import cython
+import sys
 
 @cython.test_assert_path_exists("//PythonCapiCallNode")
 def optimized(x):
@@ -29,14 +30,61 @@ def optimized(x):
 #    return x+(x:=x*2)
 
 @cython.test_fail_if_path_exists("//CloneNode")
-def optimize_literals():
+def optimize_literals1():
     """
     There's a small optimization for literals to avoid creating unnecessary temps
-    >>> optimize_literals()
+    >>> optimize_literals1()
     10
     """
     x = 5
     return (x := 10)
+
+@cython.test_fail_if_path_exists("//CloneNode")
+def optimize_literals2():
+    """
+    There's a small optimization for literals to avoid creating unnecessary temps
+    Test is in __doc__ (for Py2 string formatting reasons)
+    """
+    x = 5
+    return (x := u"a string")
+
+@cython.test_fail_if_path_exists("//CloneNode")
+def optimize_literals3():
+    """
+    There's a small optimization for literals to avoid creating unnecessary temps
+    Test is in __doc__ (for Py2 string formatting reasons)
+    """
+    x = 5
+    return (x := b"a bytes")
+
+@cython.test_fail_if_path_exists("//CloneNode")
+def optimize_literals4():
+    """
+    There's a small optimization for literals to avoid creating unnecessary temps
+    Test is in __doc__ (for Py2 string formatting reasons)
+    """
+    x = 5
+    return (x := (u"tuple", 1, 1.0, b"stuff"))
+
+if sys.version_info[0] != 2:
+    __doc__ = """
+        >>> optimize_literals2()
+        'a string'
+        >>> optimize_literals3()
+        b'a bytes'
+        >>> optimize_literals4()
+        ('tuple', 1, 1.0, b'stuff')
+        """
+else:
+    __doc__ = """
+        >>> optimize_literals2()
+        u'a string'
+        >>> optimize_literals3()
+        'a bytes'
+        >>> optimize_literals4()
+        (u'tuple', 1, 1.0, 'stuff')
+        """
+
 
 @cython.test_fail_if_path_exists("//CoerceToPyTypeNode//AssignmentExpressionNode")
 def avoid_extra_coercion(x : cython.double):
@@ -56,3 +104,4 @@ async def async_func():
     """
     if variable := 1:
         pass
+
