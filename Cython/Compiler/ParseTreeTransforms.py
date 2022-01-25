@@ -456,12 +456,12 @@ class _AssignmentExpressionChecker(TreeVisitor):
             error(node.pos, "assignment expression cannot be used in a comprehension iterable expression")
         if self.scope_is_class:
             error(node.pos, "assignment expression within a comprehension cannot be used in a class body")
-        if node.lhs.name in self.current_target_names:
+        if node.target_name in self.current_target_names:
             error(node.pos, "assignment expression cannot rebind comprehension iteration variable '%s'" %
-                  node.lhs.name)
-        elif node.lhs.name in self.all_target_names:
+                  node.target_name)
+        elif node.target_name in self.all_target_names:
             error(node.pos, "comprehension inner loop cannot rebind assignment expression target '%s'" %
-                  node.lhs.name)
+                  node.target_name)
 
     def visit_LambdaNode(self, node):
         # lambda node `def_node` isn't set up here

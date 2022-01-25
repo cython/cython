@@ -14015,7 +14015,6 @@ class AssignmentExpressionNode(ExprNode):
     rhs - ExprNode
 
     Attributes
-    lhs        - ExprNode (really should be a NameNode but this is validated later)
     rhs        - ExprNode
     assignment - SingleAssignmentNode
     """
@@ -14028,7 +14027,7 @@ class AssignmentExpressionNode(ExprNode):
     clone_node = None
 
     def __init__(self, pos, lhs, rhs, **kwds):
-        super(AssignmentExpressionNode, self).__init__(pos, lhs=lhs, **kwds)
+        super(AssignmentExpressionNode, self).__init__(pos, **kwds)
         self.rhs = ProxyNode(rhs)
         assign_expr_rhs = CloneNode(self.rhs)
         self.assignment = SingleAssignmentNode(
@@ -14037,6 +14036,10 @@ class AssignmentExpressionNode(ExprNode):
     @property
     def type(self):
         return self.rhs.type
+
+    @property
+    def target_name(self):
+        return self.assignment.lhs.name
 
     def infer_type(self, env):
         return self.rhs.infer_type(env)
