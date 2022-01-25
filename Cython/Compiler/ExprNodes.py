@@ -876,7 +876,11 @@ class ExprNode(Node):
                 # postponed from self.generate_evaluation_code()
                 self.generate_subexpr_disposal_code(code)
                 self.free_subexpr_temps(code)
-            code.put_nullify(self.result(), self.type)
+            elif self.type.is_pyobject:
+                code.putln("%s = 0;" % self.result())
+            elif self.type.is_memoryviewslice:
+                code.putln("%s.memview = NULL;" % self.result())
+                code.putln("%s.data = NULL;" % self.result())
 
             if self.has_temp_moved:
                 code.globalstate.use_utility_code(

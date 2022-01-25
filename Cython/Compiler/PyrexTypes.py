@@ -366,8 +366,7 @@ class PyrexType(BaseType):
 
     generate_incref = generate_xincref = generate_decref = generate_xdecref \
         = generate_decref_clear = generate_xdecref_clear \
-        = generate_gotref = generate_xgotref = generate_giveref = generate_xgiveref \
-        = generate_nullify \
+        = generate_gotref = generate_xgotref = generate_giveref = generate_xgiveref  \
             = _generate_dummy_refcounting
 
     generate_decref_set = generate_xdecref_set = _generate_dummy_refcounting_assignment
@@ -1111,14 +1110,11 @@ class MemoryViewSliceType(PyrexType):
 
     def generate_xdecref_clear(self, code, cname, clear_before_decref, **kwds):
         self.generate_xdecref(code, cname, **kwds)
-        self.generate_nullify(code, cname)
+        code.putln("%s.memview = NULL; %s.data = NULL;" % (cname, cname))
 
     def generate_decref_clear(self, code, cname, **kwds):
         # memoryviews don't currently distinguish between xdecref and decref
         self.generate_xdecref_clear(code, cname, **kwds)
-
-    def generate_nullify(self, code, cname):
-        code.putln("%s.memview = NULL; %s.data = NULL;" % (cname, cname))
 
     # memoryviews don't participate in giveref/gotref
     generate_gotref = generate_xgotref = generate_xgiveref = generate_giveref = lambda *args: None
@@ -1341,9 +1337,6 @@ class PyObjectType(PyrexType):
         else:
             code.putln("%s_%sDECREF(%s);" % (
                 prefix, X, self.as_pyobject(cname)))
-
-    def generate_nullify(self, code, cname):
-        code.putln("%s = 0;" % cname)
 
     def nullcheck_string(self, cname):
         return cname
