@@ -604,8 +604,7 @@ def check_definitions(flow, compiler_directives):
                         "local variable '%s' referenced before assignment"
                         % entry.name)
             elif warn_maybe_uninitialized:
-                msg = ("local variable '%s' might be referenced before assignment"
-                        % entry.name)
+                msg = "local variable '%s' might be referenced before assignment" % entry.name
                 if entry.in_closure:
                     msg += " (maybe initialized inside a closure)"
                 messages.warning(

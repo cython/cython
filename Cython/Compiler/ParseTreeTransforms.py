@@ -396,7 +396,7 @@ class _AssignmentExpressionTargetNameFinder(TreeVisitor):
             for arg in target.args:
                 names.extend(self.find_target_names(arg))
             return names
-        # other targets are possible, but since it isn't necessary to investigate them here
+        # other targets are possible, but it isn't necessary to investigate them here
         return []
 
     def visit_ForInStatNode(self, node):
@@ -429,9 +429,9 @@ class _AssignmentExpressionChecker(TreeVisitor):
         self.current_target_names = ()
         self.all_target_names = sum(self.target_names_dict.values(), ())
 
-    @staticmethod
-    def do_checks(loop_node, scope_is_class):
-        checker = _AssignmentExpressionChecker(loop_node, scope_is_class)
+    @classmethod
+    def do_checks(cls, loop_node, scope_is_class):
+        checker = cls(loop_node, scope_is_class)
         checker.visit(loop_node)
 
     def visit_ForInStatNode(self, node):
@@ -444,7 +444,7 @@ class _AssignmentExpressionChecker(TreeVisitor):
             self.in_iterator = True
             self.visit(node.iterator)
             self.in_iterator = False
-            self.visitchildren(node, attrs=[attr for attr in node.child_attrs if attr!="iterator"])
+            self.visitchildren(node, exclude=("iterator",))
 
             self.current_target_names = current_target_names
 
@@ -458,14 +458,15 @@ class _AssignmentExpressionChecker(TreeVisitor):
             error(node.pos, "assignment expression within a comprehension cannot be used in a class body")
         if node.lhs.name in self.current_target_names:
             error(node.pos, "assignment expression cannot rebind comprehension iteration variable '%s'" %
-                    node.lhs.name)
+                  node.lhs.name)
         elif node.lhs.name in self.all_target_names:
             error(node.pos, "comprehension inner loop cannot rebind assignment expression target '%s'" %
-                    node.lhs.name)
+                  node.lhs.name)
 
     def visit_LambdaNode(self, node):
-        self.visit(node.result_expr)  # lambda node `def_node` isn't set up here
-            # so we need to recurse into it explicitly
+        # lambda node `def_node` isn't set up here
+        # so we need to recurse into it explicitly
+        self.visit(node.result_expr)
 
     def visit_ComprehensionNode(self, node):
         in_nested_generator = self.in_nested_generator
@@ -476,7 +477,8 @@ class _AssignmentExpressionChecker(TreeVisitor):
     def visit_GeneratorExpressionNode(self, node):
         in_nested_generator = self.in_nested_generator
         self.in_nested_generator = True
-        self.visit(node.loop)  # like lambda node, this has to be done explicitly because def_node isn't set up
+        # def_node isn't set up yet, so we need to visit the loop directly.
+        self.visit(node.loop)
         self.in_nested_generator = in_nested_generator
 
 
