@@ -444,7 +444,7 @@ class _AssignmentExpressionChecker(TreeVisitor):
             self.in_iterator = True
             self.visit(node.iterator)
             self.in_iterator = False
-            self.visitchildren(node, exclude=("iterator",))
+            self.visitchildren(node, attrs=[attr for attr in node.child_attrs if attr!="iterator"])
 
             self.current_target_names = current_target_names
 
