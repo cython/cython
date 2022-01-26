@@ -423,10 +423,11 @@ class _AssignmentExpressionChecker(TreeVisitor):
         target_name_finder = _AssignmentExpressionTargetNameFinder()
         target_name_finder.visit(loop_node)
         self.target_names_dict = target_name_finder.target_names
-        self._reset_state()
         self.in_iterator = False
-        if scope_is_class:
-            self.scope_is_class = True
+        self.in_nested_generator = False
+        self.scope_is_class = scope_is_class
+        self.current_target_names = ()
+        self.all_target_names = set()
         for names in self.target_names_dict.values():
             self.all_target_names.update(names)
 
