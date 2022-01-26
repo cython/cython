@@ -2300,6 +2300,7 @@ class NameNode(AtomicExprNode):
 
     def generate_result_code(self, code):
         entry = self.entry
+        bcknd = Backend.backend
         if entry is None:
             return  # There was an error earlier
         if entry.utility_code:
@@ -2315,18 +2316,17 @@ class NameNode(AtomicExprNode):
                 namespace = entry.scope.namespace_cname
             if not self.cf_is_null:
                 code.putln(
-                    '%s = PyObject_GetItem(%s, %s);' % (
-                        self.result(),
-                        namespace,
+                    '%s = __Pyx_PyObject_GetItem(%s);' % (
+                        bcknd.get_args(self.result(), namespace),
                         interned_cname))
-                code.putln('if (unlikely(!%s)) {' % self.result())
+                code.putln('if (unlikely(%s)) {' % bcknd.get_is_null_cond(self.result()))
                 code.putln('PyErr_Clear();')
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("GetModuleGlobalName", "ObjectHandling.c"))
             code.putln(
                 '__Pyx_GetModuleGlobalName(%s, %s);' % (
                     self.result(),
-                    interned_cname))
+                    bcknd.get_args(interned_cname)))
             if not self.cf_is_null:
                 code.putln("}")
             code.putln(code.error_goto_if_null(self.result(), self.pos))
@@ -2341,7 +2341,7 @@ class NameNode(AtomicExprNode):
             code.putln(
                 '%s = __Pyx_GetBuiltinName(%s); %s' % (
                 self.result(),
-                Backend.backend.get_args(interned_cname),
+                bcknd.get_args(interned_cname),
                 code.error_goto_if_null(self.result(), self.pos)))
             self.generate_gotref(code)
 
@@ -2354,8 +2354,7 @@ class NameNode(AtomicExprNode):
                     UtilityCode.load_cached("GetModuleGlobalName", "ObjectHandling.c"))
                 code.putln(
                     '__Pyx_GetModuleGlobalName(%s, %s); %s' % (
-                        self.result(),
-                        interned_cname,
+                        self.result(), bcknd.get_args(interned_cname),
                         code.error_goto_if_null(self.result(), self.pos)))
             else:
                 # FIXME: is_pyglobal is also used for class namespace
