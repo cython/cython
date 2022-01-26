@@ -2044,9 +2044,13 @@ class ClosureScope(LocalScope):
             return inner_entry
         return self.declare_var(name, type, pos)
 
+
+class GeneratorExpressionScope(ClosureScope):
+    is_generator_expression_scope = True
+
     def lookup_assignment_expression_target(self, name):
         entry = self.lookup_here(name)
-        if not entry and self.is_generator_expression_scope:
+        if not entry:
             entry = self.parent_scope.lookup_assignment_expression_target(name)
             if entry:
                 entry.in_closure = True

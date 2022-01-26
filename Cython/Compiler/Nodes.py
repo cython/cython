@@ -23,7 +23,7 @@ from . import PyrexTypes
 from . import TypeSlots
 from .PyrexTypes import py_object_type, error_type
 from .Symtab import (ModuleScope, LocalScope, ClosureScope, PropertyScope,
-                     StructOrUnionScope, PyClassScope, CppClassScope, TemplateScope,
+                     StructOrUnionScope, PyClassScope, CppClassScope, TemplateScope, GeneratorExpressionScope,
                      CppScopedEnumScope, punycodify_name)
 from .Code import UtilityCode
 from .StringEncoding import EncodedString
@@ -1816,12 +1816,11 @@ class FuncDefNode(StatNode, BlockNode):
         while genv.is_py_class_scope or genv.is_c_class_scope:
             genv = genv.outer_scope
         if self.needs_closure:
-            lenv = ClosureScope(name=self.entry.name,
+            cls = GeneratorExpressionScope if self.is_generator_expression else ClosureScope
+            lenv = cls(name=self.entry.name,
                                 outer_scope=genv,
                                 parent_scope=env,
                                 scope_name=self.entry.cname)
-            if self.is_generator_expression:
-                lenv.is_generator_expression_scope = True
         else:
             lenv = LocalScope(name=self.entry.name,
                               outer_scope=genv,
