@@ -366,7 +366,7 @@ class PyrexType(BaseType):
 
     generate_incref = generate_xincref = generate_decref = generate_xdecref \
         = generate_decref_clear = generate_xdecref_clear \
-        = generate_gotref = generate_xgotref = generate_giveref = generate_xgiveref  \
+        = generate_gotref = generate_xgotref = generate_giveref = generate_xgiveref \
             = _generate_dummy_refcounting
 
     generate_decref_set = generate_xdecref_set = _generate_dummy_refcounting_assignment
