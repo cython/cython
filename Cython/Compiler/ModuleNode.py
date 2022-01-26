@@ -874,19 +874,21 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         PyrexTypes.c_long_type.create_from_py_utility_code(env)
         PyrexTypes.c_int_type.create_from_py_utility_code(env)
 
+        globalvar_ctype = Backend.backend.pyobject_global_ctype
+        globalvar_initval = Backend.backend.pyobject_global_init_value
         code.put(Nodes.branch_prediction_macros)
         code.putln('static CYTHON_INLINE void __Pyx_pretend_to_initialize(void* ptr) { (void)ptr; }')
         code.putln('')
         code.putln('#if !CYTHON_USE_MODULE_STATE')
-        code.putln('static PyObject *%s = NULL;' % env.module_cname)
-        code.putln('static PyObject *%s;' % env.module_dict_cname)
-        code.putln('static PyObject *%s;' % Naming.builtins_cname)
-        code.putln('static PyObject *%s = NULL;' % Naming.cython_runtime_cname)
-        code.putln('static PyObject *%s;' % Naming.empty_tuple)
-        code.putln('static PyObject *%s;' % Naming.empty_bytes)
-        code.putln('static PyObject *%s;' % Naming.empty_unicode)
+        code.putln('static %s %s = %s;' % (globalvar_ctype, env.module_cname, globalvar_initval))
+        code.putln('static %s %s;' % (globalvar_ctype, env.module_dict_cname))
+        code.putln('static %s %s;' % (globalvar_ctype, Naming.builtins_cname))
+        code.putln('static %s %s = %s;' % (globalvar_ctype, Naming.cython_runtime_cname, globalvar_initval))
+        code.putln('static %s %s;' % (globalvar_ctype, Naming.empty_tuple))
+        code.putln('static %s %s;' % (globalvar_ctype, Naming.empty_bytes))
+        code.putln('static %s %s;' % (globalvar_ctype, Naming.empty_unicode))
         if Options.pre_import is not None:
-            code.putln('static PyObject *%s;' % Naming.preimport_cname)
+            code.putln('static %s %s;' % (globalvar_ctype, Naming.preimport_cname))
         code.putln('#endif')
 
         code.putln('static int %s;' % Naming.lineno_cname)
@@ -2634,6 +2636,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             return
 
         code.putln("")
+        code.putln("#ifdef %s" % Backend.HPyBackend.hpy_guard)
         wrapper_code_writer = code.insertion_point()
 
         code.putln(
@@ -2650,6 +2653,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("NULL")
         code.putln(
             "};")
+        code.putln("#endif /* %s */" % Backend.HPyBackend.hpy_guard)
         code.putln("")
 
         if wrapper_code_writer.getvalue():
@@ -2757,7 +2761,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     code.putln(code.error_goto(entry.pos))
                 code.putln("}")
         code.putln("else {")
-        code.putln("if (PyObject_SetAttr(%s, py_name, o) < 0) goto bad;" % Naming.module_cname)
+        code.putln("if (PyObject_SetAttr(%s, py_name, o) < 0) goto bad;" %  Naming.module_cname)
         code.putln("}")
         code.putln("return 0;")
         if code.label_used(code.error_label):
@@ -2934,9 +2938,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.put_moduledef_struct(env, self.module_init_func_cname())
 
-        # TODO(fa): port the following code to HPy
-        code.putln("#ifndef HPY")
         code.enter_cfunc_scope(self.scope)
+
+        # e
+        env.module_cname = code.funcstate.allocate_temp(py_object_type, False)
+
         code.putln("")
         code.putln(UtilityCode.load_as_string("PyModInitFuncType", "ModuleSetupCode.c")[0])
         if env.module_name.isascii():
@@ -2961,6 +2967,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("#endif")
         code.putln(header2)
         code.putln("#else")
+        code.putln("#ifndef %s" % backend.hpy_guard)
         code.putln("%s CYTHON_SMALL_CODE; /*proto*/" % header3)
         if self.scope.is_package:
             code.putln("#if !defined(CYTHON_NO_PYINIT_EXPORT) && (defined(_WIN32) || defined(WIN32) || defined(MS_WINDOWS))")
@@ -2976,6 +2983,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("void %s(void) {} /* workaround for https://bugs.python.org/issue39432 */" % wrong_punycode_module_name)
             code.putln("#endif")
         code.putln(header3)
+
+        code.putln("#else /* %s */" % backend.hpy_guard)
+
+        # We deliberately do not use 'mod_init_func_cname' here to get the module's name because
+        # HPy does not yet support punycode encoding.
+        code.putln("HPy_MODINIT(%s)" % env.module_name)
+        code.putln("static HPy init_%s_impl(HPyContext *%s)" % (env.module_name, Naming.hpy_context_cname))
+
+        code.putln("#endif /* %s */" % backend.hpy_guard)
 
         # CPython 3.5+ supports multi-phase module initialisation (gives access to __spec__, __file__, etc.)
         code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
@@ -3008,13 +3024,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.globalstate.use_utility_code(UtilityCode.load_cached("Profile", "Profile.c"))
 
         code.put_declare_refcount_context()
+        code.load_global(Naming.module_cname, py_object_type, env.module_cname, null_check=True)
         code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
         # Most extension modules simply can't deal with it, and Cython isn't ready either.
         # See issues listed here: https://docs.python.org/3/c-api/init.html#sub-interpreter-support
-        code.putln("if (%s) {" % Naming.module_cname)
+        code.putln("if (%s) {" % backend.get_is_not_null_cond(env.module_cname))
         # Hack: enforce single initialisation.
         code.putln("if (%s == %s) return 0;" % (
-            Naming.module_cname,
+            env.module_cname,
             Naming.pymodinit_module_arg,
         ))
         code.putln('PyErr_SetString(PyExc_RuntimeError,'
@@ -3025,8 +3042,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#elif PY_MAJOR_VERSION >= 3")
         # Hack: enforce single initialisation also on reimports under different names on Python 3 (with PEP 3121/489).
         code.putln("if (%s) return __Pyx_NewRef(%s);" % (
-            Naming.module_cname,
-            Naming.module_cname,
+            backend.get_is_not_null_cond(env.module_cname),
+            backend.get_args(env.module_cname),
         ))
         code.putln("#endif")
 
@@ -3047,13 +3064,38 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#ifdef __Pxy_PyFrame_Initialize_Offsets")
         code.putln("__Pxy_PyFrame_Initialize_Offsets();")
         code.putln("#endif")
-        code.putln("%s = PyTuple_New(0); %s" % (
-            Naming.empty_tuple, code.error_goto_if_null(Naming.empty_tuple, self.pos)))
-        code.putln("%s = PyBytes_FromStringAndSize(\"\", 0); %s" % (
-            Naming.empty_bytes, code.error_goto_if_null(Naming.empty_bytes, self.pos)))
-        code.putln("%s = PyUnicode_FromStringAndSize(\"\", 0); %s" % (
-            Naming.empty_unicode, code.error_goto_if_null(Naming.empty_unicode, self.pos)))
 
+        code.putln("/* initialise %s */" % Naming.empty_tuple)
+        tmp_empty_tuple_cname = Naming.temp_prefix + "empty_tuple"
+        code.putln("%s tuple_builder = %s(%s);" % (
+            backend.tuple_builder_ctype, backend.tuple_builder_new, backend.get_args("0")))
+        code.putln("%s %s = %s(%s); %s" % (
+            backend.pyobject_ctype, tmp_empty_tuple_cname,
+            backend.tuple_builder_build, backend.get_args("tuple_builder"),
+            code.error_goto_if_null(tmp_empty_tuple_cname, self.pos)))
+        code.putln("%s;" % backend.get_write_global(env.module_cname, Naming.empty_tuple, tmp_empty_tuple_cname))
+        code.putln("%s;" % backend.get_closeref(tmp_empty_tuple_cname, False, False))
+
+        tmp_empty_bytes_cname = Naming.temp_prefix + "empty_bytes"
+        code.putln("/* initialise %s */" % Naming.empty_bytes)
+        code.putln("%s %s = %s(%s); %s" % (
+            backend.pyobject_ctype, tmp_empty_bytes_cname,
+            backend.bytes_from_string_and_size, backend.get_args("\"\"", "0"),
+            code.error_goto_if_null(tmp_empty_bytes_cname, self.pos)))
+        code.putln("%s;" % backend.get_write_global(env.module_cname, Naming.empty_bytes, tmp_empty_bytes_cname))
+        code.putln("%s;" % backend.get_closeref(tmp_empty_bytes_cname, False, False))
+
+        tmp_empty_unicode_cname = Naming.temp_prefix + "empty_unicode"
+        code.putln("/* initialise %s */" % Naming.empty_unicode)
+        code.putln("%s %s = %s(%s); %s" % (
+            backend.pyobject_ctype, tmp_empty_unicode_cname,
+            backend.unicode_from_string, backend.get_args("\"\""),
+            code.error_goto_if_null(tmp_empty_unicode_cname, self.pos)))
+        code.putln("%s;" % backend.get_write_global(env.module_cname, Naming.empty_unicode, tmp_empty_unicode_cname))
+        code.putln("%s;" % backend.get_closeref(tmp_empty_unicode_cname, False, False))
+
+        # TODO(fa): currently not supported with the HPy backend
+        code.putln("#ifndef %s" % backend.hpy_guard)
         for ext_type in ('CyFunction', 'FusedFunction', 'Coroutine', 'Generator', 'AsyncGen', 'StopAsyncIteration'):
             code.putln("#ifdef __Pyx_%s_USED" % ext_type)
             code.put_error_if_neg(self.pos, "__pyx_%s_init(%s)" % (ext_type, env.module_cname))
@@ -3069,10 +3111,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("PyEval_InitThreads();")
         code.putln("#endif")
 
+        code.putln("#endif /* %s */" % backend.hpy_guard)
+
         code.putln("/*--- Initialize various global constants etc. ---*/")
         code.put_error_if_neg(self.pos, "__Pyx_InitConstants(%s)" % backend.get_args())
         code.putln("stringtab_initialized = 1;")
-        code.put_error_if_neg(self.pos, "__Pyx_InitGlobals()")  # calls any utility code
+        code.put_error_if_neg(self.pos, "__Pyx_InitGlobals(%s)" % backend.get_args())  # calls any utility code
 
 
         code.putln("#if PY_MAJOR_VERSION < 3 && (__PYX_DEFAULT_STRING_ENCODING_IS_ASCII || "
@@ -3081,10 +3125,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#endif")
 
         code.putln("if (%s) {" % self.is_main_module_flag_cname())
-        code.put_error_if_neg(self.pos, 'PyObject_SetAttr(%s, %s, %s)' % (
-            env.module_cname,
-            code.intern_identifier(EncodedString("__name__")),
-            code.intern_identifier(EncodedString("__main__"))))
+        dunder_name_temp = code.load_global(code.intern_identifier(EncodedString("__name__")),
+                                            py_object_type, nanny=False)
+        dunder_main_temp = code.load_global(code.intern_identifier(EncodedString("__main__")),
+                                            py_object_type, nanny=False)
+        code.put_error_if_neg(self.pos, '__Pyx_PyObject_SetAttr(%s)' % (
+            backend.get_args(env.module_cname, dunder_name_temp, dunder_main_temp)))
+        code.put_decref_clear(dunder_name_temp, py_object_type, nanny=False)
+        code.funcstate.release_temp(dunder_name_temp)
+        code.put_decref_clear(dunder_main_temp, py_object_type, nanny=False)
+        code.funcstate.release_temp(dunder_main_temp)
         code.putln("}")
 
         # set up __file__ and __path__, then add the module to sys.modules
@@ -3092,10 +3142,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         if Options.cache_builtins:
             code.putln("/*--- Builtin init code ---*/")
-            code.put_error_if_neg(self.pos, "__Pyx_InitCachedBuiltins()")
+            code.put_error_if_neg(self.pos, "__Pyx_InitCachedBuiltins(%s)" % backend.get_args())
 
         code.putln("/*--- Constants init code ---*/")
-        code.put_error_if_neg(self.pos, "__Pyx_InitCachedConstants()")
+        code.put_error_if_neg(self.pos, "__Pyx_InitCachedConstants(%s)" % backend.get_args())
 
         code.putln("/*--- Global type/function init code ---*/")
 
@@ -3135,11 +3185,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.put_trace_call(header3, self.pos, nogil=not code.funcstate.gil_owned)
             code.funcstate.can_trace = True
 
+        # TODO(fa): implement support
+        code.putln("#ifndef %s" % backend.hpy_guard)
         self.body.generate_execution_code(code)
+        code.putln("#endif /* %s */" % backend.hpy_guard)
 
         if profile or linetrace:
             code.funcstate.can_trace = False
-            code.put_trace_return("Py_None", nogil=not code.funcstate.gil_owned)
+            code.put_trace_return(backend.get_none(), nogil=not code.funcstate.gil_owned)
 
         code.putln()
         code.putln("/*--- Wrapped vars code ---*/")
@@ -3149,14 +3202,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if Options.generate_cleanup_code:
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("RegisterModuleCleanup", "ModuleSetupCode.c"))
-            code.putln("if (__Pyx_RegisterCleanup()) %s;" % code.error_goto(self.pos))
+            code.putln("if (__Pyx_RegisterCleanup(%s)) %s;" % (backend.get_args(env.module_cname), code.error_goto(self.pos)))
 
         code.put_goto(code.return_label)
         code.put_label(code.error_label)
         for cname, type in code.funcstate.all_managed_temps():
             code.put_xdecref(cname, type)
-        code.putln('if (%s) {' % env.module_cname)
-        code.putln('if (%s && stringtab_initialized) {' % env.module_dict_cname)
+        code.putln('if (%s) {' % backend.get_is_not_null_cond(env.module_cname))
+        code.putln('if (%s && stringtab_initialized) {' % backend.get_is_not_null_cond(env.module_dict_cname))
         # We can run into errors before the module or stringtab are initialized.
         # In this case it is not safe to add a traceback (because it uses the stringtab)
         code.put_add_traceback(EncodedString("init %s" % env.qualified_name))
@@ -3168,9 +3221,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         ##code.put_decref_clear(env.module_dict_cname, py_object_type, nanny=False)
         code.putln('}')
         code.putln("#if !CYTHON_USE_MODULE_STATE")
-        code.put_decref_clear(env.module_cname, py_object_type, nanny=False, clear_before_decref=True)
+        code.putln(backend.get_close_loaded_global(env.module_cname))
         code.putln("#endif")
-        code.putln('} else if (!PyErr_Occurred()) {')
+        code.putln('} else if (!%s) {' % backend.get_err_occurred())
         code.putln('PyErr_SetString(PyExc_ImportError, "init %s");' %
                    env.qualified_name.as_c_string_literal()[1:-1])
         code.putln('}')
@@ -3179,7 +3232,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put_finish_refcount_context()
 
         code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
-        code.putln("return (%s != NULL) ? 0 : -1;" % env.module_cname)
+        code.putln("return (%s) ? 0 : -1;" % backend.get_is_not_null_cond(env.module_cname))
         code.putln("#elif PY_MAJOR_VERSION >= 3")
         code.putln("return %s;" % env.module_cname)
         code.putln("#else")
@@ -3189,8 +3242,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         tempdecl_code.put_temp_declarations(code.funcstate)
 
+        code.funcstate.release_temp(env.module_cname)
+        env.module_cname = Naming.module_cname
         code.exit_cfunc_scope()
-        code.putln("#endif /* HPY */")
 
     def mod_init_subfunction(self, pos, scope, orig_code):
         """
@@ -3261,13 +3315,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if module_path == 'SOURCEFILE':
             module_path = self.pos[0].filename
 
+        bcknd = Backend.backend
         if module_path:
             code.putln('if (!CYTHON_PEP489_MULTI_PHASE_INIT) {')
-            code.putln('if (PyObject_SetAttrString(%s, "__file__", %s) < 0) %s;' % (
-                env.module_cname,
-                code.globalstate.get_py_string_const(
-                    EncodedString(decode_filename(module_path))).cname,
+            module_path_temp = code.load_global(code.globalstate.get_py_string_const(EncodedString(decode_filename(module_path))).cname, py_object_type, nanny=False)
+            code.putln('if (__Pyx_PyObject_SetAttrString(%s) < 0) %s;' % (
+                bcknd.get_args(env.module_cname,'"__file__"', module_path_temp),
                 code.error_goto(self.pos)))
+            code.putln(bcknd.get_close_loaded_global(module_path_temp))
+            code.funcstate.release_temp(module_path_temp)
             code.putln("}")
 
             if env.is_package:
@@ -3314,12 +3370,21 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         fq_module_name_cstring = fq_module_name.as_c_string_literal()
         code.putln("#if PY_MAJOR_VERSION >= 3")
         code.putln("{")
-        code.putln("PyObject *modules = PyImport_GetModuleDict(); %s" %
-                   code.error_goto_if_null("modules", self.pos))
-        code.putln('if (!PyDict_GetItemString(modules, %s)) {' % fq_module_name_cstring)
-        code.putln(code.error_goto_if_neg('PyDict_SetItemString(modules, %s, %s)' % (
-            fq_module_name_cstring, env.module_cname), self.pos))
+        code.putln("%s modules = __Pyx_PyImport_GetModuleDict(%s); %s" % (
+            bcknd.pyobject_ctype, bcknd.get_args(),
+            code.error_goto_if_null("modules", self.pos)))
+        code.put_incref("modules", py_object_type, nanny=False)
+        code.putln("%s fq_module_name = __Pyx_PyDict_GetItemString(%s);" % (
+                   bcknd.pyobject_ctype,
+                   bcknd.get_args("modules", fq_module_name_cstring)))
+        code.put_incref("fq_module_name", py_object_type, nanny=False)
+        code.putln('if (%s) {' % bcknd.get_is_null_cond("fq_module_name"))
+        code.putln(code.error_goto_if_neg('__Pyx_PyDict_SetItemString(%s)' %
+            bcknd.get_args("modules", fq_module_name_cstring, env.module_cname), self.pos))
+        code.putln("} else {")
+        code.put_decref_clear("fq_module_name", py_object_type, nanny=False)
         code.putln("}")
+        code.put_decref_clear("modules", py_object_type, nanny=False)
         code.putln("}")
         code.putln("#endif")
 
@@ -3327,8 +3392,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if not Options.generate_cleanup_code:
             return
 
-        code.putln('static void %s(CYTHON_UNUSED PyObject *self) {' %
-                   Naming.cleanup_cname)
+        bcknd = Backend.backend
+
+        code.putln('static void %s(%s) {' % (
+            Naming.cleanup_cname,
+            bcknd.get_arg_list("CYTHON_UNUSED %s self" % bcknd.pyobject_ctype)))
         code.enter_cfunc_scope(env)
 
         if Options.generate_cleanup_code >= 2:
@@ -3342,7 +3410,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                             entry.cname, entry.type,
                             clear_before_decref=True,
                             nanny=False)
-        code.putln("__Pyx_CleanupGlobals();")
+        code.putln("__Pyx_CleanupGlobals(%s);" % bcknd.get_args())
         if Options.generate_cleanup_code >= 3:
             code.putln("/*--- Type import cleanup code ---*/")
             for ext_type in sorted(env.types_imported, key=operator.attrgetter('typeptr_cname')):
@@ -3438,6 +3506,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         return self.mod_init_func_cname(Naming.pymodule_exec_func_cname, env)
 
     def generate_module_creation_code(self, env, code):
+        bcknd = Backend.backend
+
         # Generate code to create the module object and
         # install the builtins.
         if env.doc:
@@ -3446,10 +3516,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             doc = "0"
 
         code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
-        code.putln("%s = %s;" % (
+        code.putln("%s = __Pyx_NewRef(%s);" % (
             env.module_cname,
             Naming.pymodinit_module_arg))
-        code.put_incref(env.module_cname, py_object_type, nanny=False)
+        code.store_global(Naming.module_cname, env.module_cname, py_object_type, nanny=False)
         code.putln("#else")
         code.putln("#if PY_MAJOR_VERSION < 3")
         code.putln(
@@ -3461,64 +3531,83 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 env.module_cname))
         code.putln(code.error_goto_if_null(env.module_cname, self.pos))
 
-        if env.context.options.hpy:
-            code.putln("#elif defined(HPY)")
-            code.putln('%s = _h2py(init_%s_impl(_HPyGetContext()));' % (
-                env.module_cname,
-                env.module_name))
-
         code.putln("#elif CYTHON_COMPILING_IN_LIMITED_API")
+
+        bcknd.put_hpy(code, '%s = _h2py(init_%s_impl(_HPyGetContext()));' % (
+            env.module_cname,
+            env.module_name))
+
         # manage_ref is False (and refnanny calls are omitted) because refnanny isn't yet initialized
         module_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=False)
         code.putln(
-            "%s = PyModule_Create(&%s); %s" % (
+            "%s = %s(%s); %s" % (
                 module_temp,
-                Naming.pymoduledef_cname,
+                bcknd.module_create,
+                bcknd.get_args("&%s" % Naming.pymoduledef_cname),
                 code.error_goto_if_null(module_temp, self.pos)))
+        code.store_global(Naming.module_cname, module_temp, py_object_type)
         code.putln("{")
         code.putln("int add_module_result = PyState_AddModule(%s, &%s);" % (
             module_temp, Naming.pymoduledef_cname))
-        code.put_decref_clear(module_temp, type=py_object_type, nanny=False)
+        code.putln(bcknd.get_close_loaded_global(module_temp))
         code.putln(code.error_goto_if_neg("add_module_result", self.pos))
         code.putln("}")
         code.funcstate.release_temp(module_temp)
         code.putln('#else')
         code.putln(
-            "%s = PyModule_Create(&%s);" % (
+            "%s = %s(%s);" % (
                 env.module_cname,
-                Naming.pymoduledef_cname))
+                bcknd.module_create,
+                bcknd.get_args("&%s" % Naming.pymoduledef_cname)))
         code.putln(code.error_goto_if_null(env.module_cname, self.pos))
+        code.store_global(Naming.module_cname, env.module_cname, py_object_type)
         code.putln("#endif")
         code.putln("#endif")  # CYTHON_PEP489_MULTI_PHASE_INIT
 
+        module_dict_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=False)
         code.putln(
-            "%s = PyModule_GetDict(%s); %s" % (
-                env.module_dict_cname, env.module_cname,
-                code.error_goto_if_null(env.module_dict_cname, self.pos)))
+            "%s = __Pyx_PyModule_GetDict(%s); %s" % (
+                module_dict_temp, bcknd.get_args(env.module_cname),
+                code.error_goto_if_null(module_dict_temp, self.pos)))
         code.put_incref(env.module_dict_cname, py_object_type, nanny=False)
+        code.store_global(env.module_dict_cname, module_dict_temp, py_object_type, nanny=False)
+        code.put_decref_clear(module_dict_temp, py_object_type, nanny=False)
+        code.funcstate.release_temp(module_dict_temp)
 
+        builtins_cname_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=False)
         code.putln(
-            '%s = PyImport_AddModule(__Pyx_BUILTIN_MODULE_NAME); %s' % (
-                Naming.builtins_cname,
-                code.error_goto_if_null(Naming.builtins_cname, self.pos)))
-        code.put_incref(Naming.builtins_cname, py_object_type, nanny=False)
+            '%s = __Pyx_PyImport_AddModule(%s); %s' % (
+                builtins_cname_temp, bcknd.get_args("__Pyx_BUILTIN_MODULE_NAME"),
+                code.error_goto_if_null(builtins_cname_temp, self.pos)))
+        code.put_incref(builtins_cname_temp, py_object_type, nanny=False)
+        code.store_global(Naming.builtins_cname, builtins_cname_temp, py_object_type, nanny=False)
+
+        cython_rt_cname_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=False)
         code.putln(
-            '%s = PyImport_AddModule((char *) "cython_runtime"); %s' % (
-                Naming.cython_runtime_cname,
-                code.error_goto_if_null(Naming.cython_runtime_cname, self.pos)))
-        code.put_incref(Naming.cython_runtime_cname, py_object_type, nanny=False)
+            '%s = __Pyx_PyImport_AddModule(%s); %s' % (
+                cython_rt_cname_temp, bcknd.get_args('(char *) "cython_runtime"'),
+                code.error_goto_if_null(cython_rt_cname_temp, self.pos)))
+        code.put_incref(cython_rt_cname_temp, py_object_type, nanny=False)
+        code.store_global(Naming.cython_runtime_cname, cython_rt_cname_temp, py_object_type, nanny=False)
+        code.put_decref_clear(cython_rt_cname_temp, py_object_type, nanny=False)
+        code.funcstate.release_temp(cython_rt_cname_temp)
         code.putln(
-            'if (PyObject_SetAttrString(%s, "__builtins__", %s) < 0) %s;' % (
-                env.module_cname,
-                Naming.builtins_cname,
+            'if (__Pyx_PyObject_SetAttrString(%s) < 0) %s;' % (
+                bcknd.get_args(env.module_cname, '"__builtins__"', builtins_cname_temp),
                 code.error_goto(self.pos)))
+        code.put_decref_clear(builtins_cname_temp, py_object_type, nanny=False)
+        code.funcstate.release_temp(builtins_cname_temp)
         if Options.pre_import is not None:
+            preimport_cname_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=False)
             code.putln(
-                '%s = PyImport_AddModule("%s"); %s' % (
-                    Naming.preimport_cname,
-                    Options.pre_import,
+                '%s = __Pyx_PyImport_AddModule(%s); %s' % (
+                    preimport_cname_temp,
+                    bcknd.get_args('"%s"' % Options.pre_import),
                     code.error_goto_if_null(Naming.preimport_cname, self.pos)))
-            code.put_incref(Naming.preimport_cname, py_object_type, nanny=False)
+            code.put_incref(preimport_cname_temp, py_object_type, nanny=False)
+            code.store_global(Naming.preimport_cname, preimport_cname_temp, py_object_type, nanny=False)
+            code.put_decref_clear(preimport_cname_temp, py_object_type, nanny=False)
+            code.funcstate.release_temp(preimport_cname_temp)
 
     def generate_global_init_code(self, env, code):
         # Generate code to initialise global PyObject *

@@ -2561,7 +2561,7 @@ class CPySSizeTType(CIntType):
     from_py_function = "__Pyx_PyIndex_AsSsize_t"
 
     def sign_and_name(self):
-        return "Py_ssize_t"
+        return Backend.backend.pyssizet_ctype
 
 class CHPySSizeTType(CIntType):
 

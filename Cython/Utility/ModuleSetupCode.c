@@ -449,6 +449,13 @@ class __Pyx_FakeReference {
     T *ptr;
 };
 
+/////////////// HPyInitCode.proto ///////////////
+#ifdef HPY
+static CYTHON_INLINE HPy _HPy_GetModuleDict(HPyContext *ctx);
+static CYTHON_INLINE HPy _HPy_Contains(HPyContext *ctx, HPy x, HPy y);
+static CYTHON_INLINE HPy _HPyImport_AddModule(HPyContext *ctx, const char *name);
+static CYTHON_INLINE HPy _HPyDict_GetItem_s(HPyContext *ctx, HPy dict, const char *name);
+#endif /* HPY */
 
 /////////////// HPyInitCode ///////////////
 
@@ -465,6 +472,119 @@ class __Pyx_FakeReference {
   #undef CYTHON_REFNANNY
   #endif
   #define CYTHON_REFNANNY 0
+  // HPy does currently not support the fastcall/vectorcall protocol
+  #undef CYTHON_METH_FASTCALL
+  #define CYTHON_METH_FASTCALL 0
+  #undef CYTHON_USE_DICT_VERSIONS
+  #define CYTHON_USE_DICT_VERSIONS 0
+  #undef CYTHON_FAST_THREAD_STATE
+  #define CYTHON_FAST_THREAD_STATE 0
+
+static CYTHON_INLINE HPy _HPy_GetModuleDict(HPyContext *ctx)
+{
+    HPy h_sys_module;
+    HPy h_result;
+
+    h_sys_module = HPyImport_ImportModule(ctx, "sys");
+    if (HPy_IsNull(h_sys_module))
+        return HPy_NULL;
+
+    h_result = HPy_GetAttr_s(ctx, h_sys_module, "modules");
+    HPy_Close(ctx, h_sys_module);
+    return h_result;
+}
+
+static CYTHON_INLINE int _HPy_Contains(HPyContext *ctx, HPy container, HPy element)
+{
+    HPy h_contains;
+    HPy h_args;
+    HPy h_result;
+    HPy element_arr[] = { element };
+    int result = -1;
+
+    h_contains = HPy_GetAttr_s(ctx, container, "__contains__");
+    if (HPy_IsNull(h_contains))
+        return -1;
+
+    h_args = HPyTuple_FromArray(ctx, element_arr, 1);
+    if (HPy_IsNull(h_args))
+    {
+        HPy_Close(ctx, h_contains);
+        return -1;
+    }
+    h_result = HPy_CallTupleDict(ctx, h_contains, h_args, HPy_NULL);
+    if (!HPy_IsNull(h_result))
+    {
+        result = HPy_IsTrue(ctx, h_result);
+        HPy_Close(ctx, h_result);
+    }
+    HPy_Close(ctx, h_contains);
+    HPy_Close(ctx, h_args);
+    return result;
+}
+
+static CYTHON_INLINE HPy _HPyImport_AddModule(HPyContext *ctx, const char *name)
+{
+    HPy h_name;
+    HPy h_modules;
+    HPy h_result;
+    HPyModuleDef *empty_module_def;
+
+    h_name = HPyUnicode_FromString(ctx, name);
+    if (HPy_IsNull(h_name))
+        return HPy_NULL;
+
+    h_modules = _HPy_GetModuleDict(ctx);
+    if (HPy_IsNull(h_modules)) {
+        HPy_Close(ctx, h_name);
+        return HPy_NULL;
+    }
+
+    h_result = HPy_GetItem(ctx, h_modules, h_name);
+    if (HPy_IsNull(h_result) && HPyErr_ExceptionMatches(ctx, ctx->h_KeyError)) {
+        HPyErr_Clear(ctx);
+    }
+    if (HPyErr_Occurred(ctx)) {
+        HPy_Close(ctx, h_name);
+        return HPy_NULL;
+    }
+
+    if (!HPy_IsNull(h_result)) {
+        HPy_Close(ctx, h_name);
+        HPy_Close(ctx, h_modules);
+        return h_result;
+    }
+
+    empty_module_def = (HPyModuleDef *) calloc(1, sizeof(HPyModuleDef));
+    empty_module_def->name = name;
+    h_result = HPyModule_Create(ctx, empty_module_def);
+    free(empty_module_def);
+
+    if (HPy_IsNull(h_result)) {
+        HPy_Close(ctx, h_name);
+        HPy_Close(ctx, h_modules);
+        return HPy_NULL;
+    }
+
+    if (HPy_SetItem(ctx, h_modules, h_name, h_result)) {
+        HPy_Close(ctx, h_result);
+        h_result = HPy_NULL;
+    }
+
+    HPy_Close(ctx, h_name);
+    HPy_Close(ctx, h_modules);
+    return h_result;
+}
+
+static CYTHON_INLINE HPy _HPyDict_GetItem_s(HPyContext *ctx, HPy dict, const char *name)
+{
+    HPy h_result = HPy_GetItem_s(ctx, dict, name);
+    if (HPyErr_Occurred(ctx)) {
+        HPyErr_Clear(ctx);
+    }
+    return h_result;
+}
+
 #endif /* HPY */
 
 /////////////// ApiBackendInitCode ///////////////
@@ -475,28 +595,49 @@ class __Pyx_FakeReference {
 #define __PYX_OBJECT_CTYPE PyObject *
 #define __PYX_IS_NULL(x) !(x)
 #define __PYX_IS_NOT_NULL(x) (x)
+#define __PYX_GLOBAL_IS_NULL(x) !(x)
+#define __PYX_GLOBAL_IS_NOT_NULL(x) (x)
 #define __PYX_CONTEXT_DECL
 #define __PYX_CONTEXT
 #define __PYX_NULL (0)
-#define __Pyx_NEWREF(x) Py_INCREF(x)
+#define __Pyx_NEWREF(x) __Pyx_INCREF(x)
+#define __Pyx_NEWREF_NO_REFNANNY(x) Py_INCREF(x)
 #define __Pyx_DECREF_NO_REFNANNY(x) Py_DECREF(x)
 
 #define __Pyx_PyErr_SetString(err, msg) PyErr_SetString(err, msg)
-#define __Pyx_PyExc_RuntimeError (($hpy_context_cname)->h_RuntimeError)
+#define __Pyx_PyErr_Format PyErr_Format
+#define __Pyx_PyExc_RuntimeError PyExc_RuntimeError
+
+#define __Pyx_PyModule_GetDict PyModule_GetDict
+#define __Pyx_PyImport_AddModule PyImport_AddModule
+#define __Pyx_PyImport_GetModuleDict PyImport_GetModuleDict
+#define __Pyx_PyObject_SetAttrString PyObject_SetAttrString
+#define __Pyx_PyObject_SetAttr PyObject_SetAttr
+#define __Pyx_PyDict_GetItemString PyDict_GetItemString
+#define __Pyx_PyDict_SetItemString PyDict_SetItemString
+#define __Pyx_PyDict_SetItem PyDict_SetItem
+#define __Pyx_PyDict_Contains PyDict_Contains
 
 #else
 
 #define __PYX_OBJECT_CTYPE HPy
 #define __PYX_IS_NULL(x) HPy_IsNull(x)
 #define __PYX_IS_NOT_NULL(x) !HPy_IsNull(x)
+#define __PYX_GLOBAL_IS_NULL(x) HPyField_IsNull(x)
+#define __PYX_GLOBAL_IS_NOT_NULL(x) !HPyField_IsNull(x)
 #define __PYX_NULL HPy_NULL
 #define __PYX_CONTEXT_DECL HPyContext *$hpy_context_cname,
 #define __PYX_CONTEXT $hpy_context_cname,
 #define __Pyx_NEWREF(x) HPy_Dup($hpy_context_cname, x)
+#define __Pyx_NEWREF_NO_REFNANNY(x) __Pyx_NEWREF(x)
 #define __Pyx_DECREF_NO_REFNANNY(x) HPy_Close($hpy_context_cname, x)
+/* HPy will soon have HPy_CLEAR */
+#define HPy_CLEAR(x) do { HPy tmp = (x); x = HPy_NULL; HPy_Close($hpy_context_cname, tmp);} while(0)
 
 #define __Pyx_PyErr_SetString(err, msg) HPyErr_SetString(__PYX_CONTEXT err, msg)
+#define __Pyx_PyErr_Format(ctx, err, msg, ...) HPyErr_SetString(ctx, err, msg)
 #define __Pyx_PyExc_RuntimeError (($hpy_context_cname)->h_RuntimeError)
+#define __Pyx_PyExc_TypeError (($hpy_context_cname)->h_RuntimeError)
 
 #define PyLong_AsLong HPyLong_AsLong
 #define PyLong_AsLongLong HPyLong_AsLongLong
@@ -506,6 +647,23 @@ class __Pyx_FakeReference {
 #define PyLong_FromUnsignedLong HPyLong_FromUnsignedLong
 #define PyLong_FromLongLong HPyLong_FromLongLong
 #define PyLong_FromUnsignedLongLong HPyLong_FromUnsignedLongLong
+#define PyObject_RichCompareBool HPy_RichCompareBool
+
+#define HPyLong_Check(ctx, x) HPy_TypeCheck(ctx, x, ctx->h_LongType)
+#define HPyLong_CheckExact(ctx, x) HPy_Is(ctx, HPy_Type(ctx, x), ctx->h_LongType)
+#define HPyBytes_CheckExact HPyBytes_Check
+#define HPyUnicode_Check(ctx, x) HPy_TypeCheck(ctx, x, ctx->h_UnicodeType)
+#define HPyUnicode_CheckExact(ctx, x) HPy_Is(ctx, HPy_Type(ctx, x), ctx->h_UnicodeType)
+
+#define __Pyx_PyModule_GetDict(ctx, module) HPy_GetAttr_s(ctx, module, "__dict__")
+#define __Pyx_PyImport_AddModule _HPyImport_AddModule
+#define __Pyx_PyImport_GetModuleDict _HPy_GetModuleDict
+#define __Pyx_PyObject_SetAttrString HPy_SetAttr_s
+#define __Pyx_PyObject_SetAttr HPy_SetAttr
+#define __Pyx_PyDict_GetItemString _HPyDict_GetItem_s
+#define __Pyx_PyDict_SetItemString HPy_SetItem_s
+#define __Pyx_PyDict_SetItem HPy_SetItem
+#define __Pyx_PyDict_Contains _HPy_Contains
 
 #endif /* HPY */
 
@@ -526,7 +684,15 @@ class __Pyx_FakeReference {
 #else
   #define __Pyx_BUILTIN_MODULE_NAME "builtins"
   #define __Pyx_DefaultClassType PyType_Type
-#if PY_VERSION_HEX >= 0x030B00A1
+#ifdef HPY
+    static CYTHON_INLINE HPy __Pyx_PyCode_New(HPyContext *ctx, int a, int p, int k, int l, int s, int f,
+                                                    HPy code, HPy c, HPy n, HPy v,
+                                                    HPy fv, HPy cell, HPy fn,
+                                                    HPy name, int fline, HPy lnos) {
+        /* TODO(fa): implement */
+        return HPy_Dup(ctx, ctx->h_None);
+    }
+#elif PY_VERSION_HEX >= 0x030B00A1
     static CYTHON_INLINE PyCodeObject* __Pyx_PyCode_New(int a, int p, int k, int l, int s, int f,
                                                     PyObject *code, PyObject *c, PyObject* n, PyObject *v,
                                                     PyObject *fv, PyObject *cell, PyObject* fn,
@@ -764,11 +930,15 @@ static CYTHON_INLINE void * PyThread_tss_get(Py_tss_t *key) {
 // PyThread_ReInitTLS() is a no-op
 #endif /* TSS (Thread Specific Storage) API */
 
+#ifndef HPY
 #if CYTHON_COMPILING_IN_CPYTHON || defined(_PyDict_NewPresized)
 #define __Pyx_PyDict_NewPresized(n)  ((n <= 8) ? PyDict_New() : _PyDict_NewPresized(n))
 #else
 #define __Pyx_PyDict_NewPresized(n)  PyDict_New()
 #endif
+#else /* HPY */
+#define __Pyx_PyDict_NewPresized(ctx, n)  HPyDict_New(ctx)
+#endif /* HPY */
 
 #if PY_MAJOR_VERSION >= 3 || CYTHON_FUTURE_DIVISION
   #define __Pyx_PyNumber_Divide(x,y)         PyNumber_TrueDivide(x,y)
@@ -791,6 +961,7 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStr(PyObject *dict, PyObject
 #define __Pyx_PyDict_GetItemStrWithError  PyDict_GetItemWithError
 #define __Pyx_PyDict_GetItemStr           PyDict_GetItem
 #else
+#ifndef HPY
 static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict, PyObject *name) {
     // This is tricky - we should return a borrowed reference but not swallow non-KeyError exceptions. 8-|
     // But: this function is only used in Py2 and older PyPys,
@@ -816,6 +987,16 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 #endif
 }
 #define __Pyx_PyDict_GetItemStr           PyDict_GetItem
+#else /* HPY */
+static CYTHON_INLINE HPy __Pyx_PyDict_GetItemStrWithError(HPyContext *ctx, HPy dict, HPyField *name) {
+    HPy result;
+    HPy h_hame = HPyField_Load(ctx, ctx->h_None, *name);
+    result = HPy_GetItem(ctx, dict, h_name);
+    HPy_Close(ctx, h_name);
+    return result;
+}
+#define __Pyx_PyDict_GetItemStr           __Pyx_PyDict_GetItemStrWithError
+#endif /* HPY */
 #endif
 
 /* Type slots */
@@ -1688,26 +1869,116 @@ if (!__Pyx_RefNanny) {
 
 /////////////// RegisterModuleCleanup.proto ///////////////
 //@substitute: naming
+//@requires: ApiBackendInitCode
 
-static void ${cleanup_cname}(PyObject *self); /*proto*/
+static void ${cleanup_cname}(__PYX_CONTEXT_DECL __PYX_OBJECT_CTYPE self); /*proto*/
 
-#if PY_MAJOR_VERSION < 3 || CYTHON_COMPILING_IN_PYPY
-static int __Pyx_RegisterCleanup(void); /*proto*/
+#if PY_MAJOR_VERSION < 3 || CYTHON_COMPILING_IN_PYPY || HPY
+static int __Pyx_RegisterCleanup(__PYX_CONTEXT_DECL __PYX_OBJECT_CTYPE module); /*proto*/
 #else
-#define __Pyx_RegisterCleanup() (0)
+#define __Pyx_RegisterCleanup(module) (0)
 #endif
 
 /////////////// RegisterModuleCleanup ///////////////
 //@substitute: naming
+//@requires: ApiBackendInitCode
 
-#if PY_MAJOR_VERSION < 3 || CYTHON_COMPILING_IN_PYPY
-static PyObject* ${cleanup_cname}_atexit(PyObject *module, PyObject *unused) {
+#if PY_MAJOR_VERSION < 3 || CYTHON_COMPILING_IN_PYPY || HPY
+#ifdef HPY
+
+typedef struct  {
+    HPyField module;
+} ${cleanup_cname}Object;
+
+HPyType_HELPERS(${cleanup_cname}Object);
+
+HPyDef_SLOT(${cleanup_cname}_init, ${cleanup_cname}_init_impl, HPy_tp_init)
+static int ${cleanup_cname}_init_impl(HPyContext *ctx, HPy self, HPy *args, HPy_ssize_t nargs, HPy kw) {
+    ${cleanup_cname}Object *data = ${cleanup_cname}Object_AsStruct(ctx, self);
+    if (nargs != 1) {
+        HPyErr_SetString(ctx, ctx->h_TypeError, "expected one argument");
+        return -1;
+    }
+    HPyField_Store(ctx, self, &(data->module), args[0]);
+    return 0;
+}
+
+HPyDef_METH(${cleanup_cname}_atexit, "__cleanup", ${cleanup_cname}_atexit_impl, HPyFunc_NOARGS)
+static HPy ${cleanup_cname}_atexit_impl(HPyContext *ctx, HPy self) {
+    ${cleanup_cname}Object *data = ${cleanup_cname}Object_AsStruct(ctx, self);
+    HPy module = HPyField_Load(ctx, self, data->module);
+    if (HPy_IsNull(module)) {
+        HPyErr_SetString(ctx, ctx->h_TypeError, "attribute 'module' not available");
+        return HPy_NULL;
+    }
+    ${cleanup_cname}(ctx, module);
+    HPy_Close(ctx, module);
+    return HPy_Dup(ctx, ctx->h_None);
+}
+
+static HPyDef *CleanupDummy_defines[] = {
+    &${cleanup_cname}_init,
+    &${cleanup_cname}_atexit,
+    NULL
+};
+
+static HPyType_Spec CleanupDummy_spec = {
+    .name = "mytest.Dummy",
+    .basicsize = sizeof(${cleanup_cname}Object),
+    .defines = CleanupDummy_defines,
+};
+
+static int __Pyx_RegisterCleanup(HPyContext *ctx, HPy module) {
+    HPy cleanup_dummy_type = HPy_NULL;
+    HPy new_args = HPy_NULL;
+    HPy cleanup_dummy = HPy_NULL;
+    HPy cleanup_func = HPy_NULL;
+    HPy atexit = HPy_NULL;
+    HPy reg = HPy_NULL;
+    HPy args = HPy_NULL;
+    HPy res = HPy_NULL;
+    int ret = -1;
+
+    /* Use a dummy type to create a closure that can access the module object. */
+    cleanup_dummy_type = HPyType_FromSpec(ctx, &CleanupDummy_spec, NULL);
+    new_args = HPyTuple_Pack(ctx, 1, module);
+    cleanup_dummy = HPy_CallTupleDict(ctx, cleanup_dummy_type, new_args, HPy_NULL);
+
+    cleanup_func = HPy_GetAttr_s(ctx, cleanup_dummy, "__cleanup");
+    if (HPy_IsNull(cleanup_func))
+        goto bad;
+
+    atexit = HPyImport_ImportModule(ctx, "atexit");
+    if (HPy_IsNull(atexit))
+        goto bad;
+    reg = HPy_GetAttr_s(ctx, atexit, "register");
+    if (HPy_IsNull(reg))
+        goto bad;
+    args = HPyTuple_Pack(ctx, 1, cleanup_func);
+    if (HPy_IsNull(args))
+        goto bad;
+    res = HPy_CallTupleDict(ctx, reg, args, HPy_NULL);
+    if (HPy_IsNull(res))
+        goto bad;
+    ret = 0;
+bad:
+    HPy_Close(ctx, cleanup_dummy_type);
+    HPy_Close(ctx, new_args);
+    HPy_Close(ctx, cleanup_func);
+    HPy_Close(ctx, atexit);
+    HPy_Close(ctx, reg);
+    HPy_Close(ctx, args);
+    HPy_Close(ctx, res);
+    return ret;
+}
+#else /* HPY */
+static PyObject *${cleanup_cname}_atexit(PyObject *module, PyObject *unused) {
     CYTHON_UNUSED_VAR(unused);
     ${cleanup_cname}(module);
     Py_INCREF(Py_None); return Py_None;
 }
 
-static int __Pyx_RegisterCleanup(void) {
+static int __Pyx_RegisterCleanup(CYTHON_UNUSED PyObject *module) {
     // Don't use Py_AtExit because that has a 32-call limit and is called
     // after python finalization.
     // Also, we try to prepend the cleanup function to "atexit._exithandlers"
@@ -1771,6 +2042,7 @@ bad:
     Py_XDECREF(res);
     return ret;
 }
+#endif /* HPY */
 #endif
 
 /////////////// FastGil.init ///////////////

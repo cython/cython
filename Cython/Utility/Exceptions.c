@@ -95,6 +95,7 @@ static CYTHON_INLINE void __Pyx_ErrFetchInState(PyThreadState *tstate, PyObject 
 #endif
 
 #else
+#ifndef HPY
 #define __Pyx_PyErr_Clear() PyErr_Clear()
 #define __Pyx_PyErr_SetNone(exc) PyErr_SetNone(exc)
 #define __Pyx_ErrRestoreWithState(type, value, tb)  PyErr_Restore(type, value, tb)
@@ -103,6 +104,17 @@ static CYTHON_INLINE void __Pyx_ErrFetchInState(PyThreadState *tstate, PyObject 
 #define __Pyx_ErrFetchInState(tstate, type, value, tb)  PyErr_Fetch(type, value, tb)
 #define __Pyx_ErrRestore(type, value, tb)  PyErr_Restore(type, value, tb)
 #define __Pyx_ErrFetch(type, value, tb)  PyErr_Fetch(type, value, tb)
+#else /* HPY */
+#define __Pyx_PyErr_Clear(ctx) HPyErr_Clear(ctx)
+/* TODO(fa): implement */
+#define __Pyx_PyErr_SetNone
+#define __Pyx_ErrRestoreWithState
+#define __Pyx_ErrFetchWithState
+#define __Pyx_ErrRestoreInState
+#define __Pyx_ErrFetchInState
+#define __Pyx_ErrRestore
+#define __Pyx_ErrFetch
+#endif /* HPY */
 #endif
 
 /////////////// PyErrFetchRestore ///////////////

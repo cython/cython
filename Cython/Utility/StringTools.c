@@ -47,13 +47,13 @@ static CYTHON_INLINE Py_ssize_t __Pyx_Py_UNICODE_ssize_strlen(const Py_UNICODE *
 #ifndef HPY
 static int __Pyx_InitString(__Pyx_StringTabEntry t, PyObject **str); /*proto*/
 #else /* HPY */
-static int __Pyx_InitString(HPyContext *ctx, __Pyx_StringTabEntry t, HPy m, HPyField *str); /*proto*/
+static int __Pyx_InitString(HPyContext *ctx, __Pyx_StringTabEntry t, HPyField *str); /*proto*/
 #endif /* HPY */
 #else
 #ifndef HPY
 static int __Pyx_InitStrings(__Pyx_StringTabEntry *t); /*proto*/
 #else /* HPY */
-static int __Pyx_InitStrings(HPyContext *ctx, __Pyx_StringTabEntry *t, HPy m); /*proto*/
+static int __Pyx_InitStrings(HPyContext *ctx, __Pyx_StringTabEntry *t); /*proto*/
 #endif /* HPY */
 #endif
 
@@ -138,9 +138,9 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
     return 0;
 }
 #else /* HPY */
-static int __Pyx_InitStrings(HPyContext *ctx, __Pyx_StringTabEntry *t, HPy m) {
+static int __Pyx_InitStrings(HPyContext *ctx, __Pyx_StringTabEntry *t) {
     while (t->p) {
-        __Pyx_InitString(ctx, *t, m, t->p);
+        __Pyx_InitString(ctx, *t, t->p);
         ++t;
     }
     return 0;
