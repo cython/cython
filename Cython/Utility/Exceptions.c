@@ -739,6 +739,7 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
     _PyTraceback_Add(funcname, filename, c_line ? -c_line : py_line);
 }
 #else
+#ifndef HPY
 static PyCodeObject* __Pyx_CreateCodeObjectForTraceback(
             const char *funcname, int c_line,
             int py_line, const char *filename) {
@@ -825,4 +826,10 @@ bad:
     Py_XDECREF(py_code);
     Py_XDECREF(py_frame);
 }
+#else /* HPY */
+static void __Pyx_AddTraceback(const char *funcname, int c_line,
+                               int py_line, const char *filename) {
+    /* TODO(fa): creating TB is not yet supported in HPy */
+}
+#endif /* HPY */
 #endif
