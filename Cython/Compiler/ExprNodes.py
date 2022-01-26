@@ -8206,7 +8206,7 @@ class TupleNode(SequenceNode):
                 self.generate_sequence_packing_code(const_code, tmp_target, plain=not self.is_literal)
                 const_code.putln(bcknd.get_write_global(Naming.module_cname, tuple_target, tmp_target) + ';')
                 const_code.put_giveref(tuple_target, py_object_type)
-                const_code.put_decref_clear(tmp_target, py_object_type)
+                const_code.putln(bcknd.get_close_loaded_global(tmp_target))
                 const_code.funcstate.release_temp(tmp_target)
             if self.is_literal:
                 # we need to load the global variable into the temp result var
@@ -8222,7 +8222,8 @@ class TupleNode(SequenceNode):
                     code.error_goto_if_null(self.result(), self.pos)
                 ))
                 self.generate_gotref(code)
-                code.put_decref_clear(tmp_tuple, self.type)
+                code.putln(bcknd.get_close_loaded_global(tmp_tuple))
+                code.funcstate.release_temp(tmp_tuple)
         else:
             self.type.entry.used = True
             self.generate_sequence_packing_code(code)

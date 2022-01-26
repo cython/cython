@@ -118,7 +118,8 @@ class CApiBackend(APIBackend):
 
     @staticmethod
     def get_close_loaded_global(cexpr):
-        return "Py_DECREF(%s);" % cexpr
+        # since we do not incref when loading the global, nothing to do here
+        return ""
 
     @staticmethod
     def get_visit_global(var_cname):

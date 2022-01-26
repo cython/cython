@@ -3569,9 +3569,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "%s = __Pyx_PyModule_GetDict(%s); %s" % (
                 module_dict_temp, bcknd.get_args(env.module_cname),
                 code.error_goto_if_null(module_dict_temp, self.pos)))
-        code.put_incref(env.module_dict_cname, py_object_type, nanny=False)
+        code.put_incref(module_dict_temp, py_object_type, nanny=False)
         code.store_global(env.module_dict_cname, module_dict_temp, py_object_type, nanny=False)
-        code.put_decref_clear(module_dict_temp, py_object_type, nanny=False)
+        code.putln(bcknd.get_close_loaded_global(module_dict_temp))
         code.funcstate.release_temp(module_dict_temp)
 
         builtins_cname_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=False)
@@ -3589,13 +3589,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.error_goto_if_null(cython_rt_cname_temp, self.pos)))
         code.put_incref(cython_rt_cname_temp, py_object_type, nanny=False)
         code.store_global(Naming.cython_runtime_cname, cython_rt_cname_temp, py_object_type, nanny=False)
-        code.put_decref_clear(cython_rt_cname_temp, py_object_type, nanny=False)
+        code.putln(bcknd.get_close_loaded_global(cython_rt_cname_temp))
         code.funcstate.release_temp(cython_rt_cname_temp)
         code.putln(
             'if (__Pyx_PyObject_SetAttrString(%s) < 0) %s;' % (
                 bcknd.get_args(env.module_cname, '"__builtins__"', builtins_cname_temp),
                 code.error_goto(self.pos)))
-        code.put_decref_clear(builtins_cname_temp, py_object_type, nanny=False)
+        code.putln(bcknd.get_close_loaded_global(builtins_cname_temp))
         code.funcstate.release_temp(builtins_cname_temp)
         if Options.pre_import is not None:
             preimport_cname_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=False)
@@ -3606,7 +3606,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     code.error_goto_if_null(Naming.preimport_cname, self.pos)))
             code.put_incref(preimport_cname_temp, py_object_type, nanny=False)
             code.store_global(Naming.preimport_cname, preimport_cname_temp, py_object_type, nanny=False)
-            code.put_decref_clear(preimport_cname_temp, py_object_type, nanny=False)
+            code.putln(bcknd.get_close_loaded_global(preimport_cname_temp))
             code.funcstate.release_temp(preimport_cname_temp)
 
     def generate_global_init_code(self, env, code):
