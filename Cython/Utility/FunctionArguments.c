@@ -92,14 +92,16 @@ static void __Pyx_RaiseKeywordRequired(const char* func_name, PyObject* kw_name)
 
 //////////////////// RaiseDoubleKeywords.proto ////////////////////
 
-static void __Pyx_RaiseDoubleKeywordsError(const char* func_name, PyObject* kw_name); /*proto*/
+static void __Pyx_RaiseDoubleKeywordsError(__PYX_CONTEXT_DECL const char* func_name, __PYX_OBJECT_CTYPE kw_name); /*proto*/
 
 //////////////////// RaiseDoubleKeywords ////////////////////
+//@requires: ModuleSetupCode.c::ApiBackendInitCode
 
-static void __Pyx_RaiseDoubleKeywordsError(
+static void __Pyx_RaiseDoubleKeywordsError(__PYX_CONTEXT_DECL
     const char* func_name,
-    PyObject* kw_name)
+    __PYX_OBJECT_CTYPE kw_name)
 {
+#ifndef HPY
     PyErr_Format(PyExc_TypeError,
         #if PY_MAJOR_VERSION >= 3
         "%s() got multiple values for keyword argument '%U'", func_name, kw_name);
@@ -107,6 +109,11 @@ static void __Pyx_RaiseDoubleKeywordsError(
         "%s() got multiple values for keyword argument '%s'", func_name,
         PyString_AsString(kw_name));
         #endif
+#else /* HPY */
+    /* TODO(fa): HPy does not have HPyErr_Format yet */
+    HPyErr_SetString(__PYX_CONTEXT __Pyx_PyExc_TypeError,
+        "got multiple values for keyword argument");
+#endif /* HPY */
 }
 
 
