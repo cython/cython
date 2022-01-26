@@ -142,7 +142,8 @@ def p_test(s, allow_assignment_expression=True):
     expr = p_walrus_test(s, allow_assignment_expression)
     if s.sy == 'if':
         s.next()
-        test = p_walrus_test(s)  # don't think this should be affected by the general rule
+        test = p_walrus_test(s)  # assignment expressions always allowed here
+                # even if they wouldn't be allowed in the expression as a whole
         s.expect('else')
         other = p_test(s)
         return ExprNodes.CondExprNode(pos, test=test, true_val=expr, false_val=other)
