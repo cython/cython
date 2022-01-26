@@ -409,7 +409,8 @@ class _AssignmentExpressionTargetNameFinder(TreeVisitor):
     def visit_LambdaNode(self, node):
         pass  # don't recurse into nested lambdas/generator expressions
 
-    visit_Node = TreeVisitor.visitchildren
+    def visit_Node(self, node):
+        self.visitchildren(node)
 
 
 class _AssignmentExpressionChecker(TreeVisitor):
@@ -481,7 +482,8 @@ class _AssignmentExpressionChecker(TreeVisitor):
         self.visit(node.loop)
         self.in_nested_generator = in_nested_generator
 
-    visit_Node = TreeVisitor.visitchildren
+    def visit_Node(self, node):
+        self.visitchildren(node)
 
 
 def eliminate_rhs_duplicates(expr_list_list, ref_node_sequence):
