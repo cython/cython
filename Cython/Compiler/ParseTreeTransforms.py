@@ -423,13 +423,24 @@ class _AssignmentExpressionChecker(TreeVisitor):
         target_name_finder = _AssignmentExpressionTargetNameFinder()
         target_name_finder.visit(loop_node)
         self.target_names_dict = target_name_finder.target_names
-
-        self.in_nested_generator = False
-        self.scope_is_class = scope_is_class
-        self.current_target_names = ()
-        self.all_target_names = set()
+        self._reset_state()
+        self.in_iterator = False
+        if scope_is_class:
+            self.scope_is_class = True
         for names in self.target_names_dict.values():
             self.all_target_names.update(names)
+
+    def _reset_state(self):
+        old_state = (self.in_iterator, self.in_nested_generator, self.scope_is_class, self.all_target_names, self.current_target_names)
+        # note: not resetting self.in_iterator here, see visit_LambdaNode() below
+        self.in_nested_generator = False
+        self.scope_is_class = False
+        self.current_target_names = ()
+        self.all_target_names = set()
+        return old_state
+
+    def _set_state(self, old_state):
+        self.in_iterator, self.in_nested_generator, self.scope_is_class, self.all_target_names, self.current_target_names = old_state
 
     @classmethod
     def do_checks(cls, loop_node, scope_is_class):
@@ -439,18 +450,19 @@ class _AssignmentExpressionChecker(TreeVisitor):
     def visit_ForInStatNode(self, node):
         if self.in_nested_generator:
             self.visitchildren(node)  # once nested, don't do anything special
-        else:
-            current_target_names = self.current_target_names
-            target_name = self.target_names_dict.get(node, None)
-            if target_name:
-                self.current_target_names += target_name
+            return
 
-            self.in_iterator = True
-            self.visit(node.iterator)
-            self.in_iterator = False
-            self.visitchildren(node, exclude=("iterator",))
+        current_target_names = self.current_target_names
+        target_name = self.target_names_dict.get(node, None)
+        if target_name:
+            self.current_target_names += target_name
 
-            self.current_target_names = current_target_names
+        self.in_iterator = True
+        self.visit(node.iterator)
+        self.in_iterator = False
+        self.visitchildren(node, exclude=("iterator",))
+
+        self.current_target_names = current_target_names
 
     def visit_AssignmentExpressionNode(self, node):
         if self.in_iterator:
@@ -465,19 +477,12 @@ class _AssignmentExpressionChecker(TreeVisitor):
                   node.target_name)
 
     def visit_LambdaNode(self, node):
-        # lambda node `def_node` isn't set up here
-        # so we need to recurse into it explicitly
-        in_nested_generator, self.in_nested_generator = self.in_nested_generator, False
-        # don't reset in_iterator - an assignment expression in a lambda in an
-        # iterator is explicitly tested by the Python testcases and banned
-        scope_is_class, self.scope_is_class = self.scope_is_class, False
-        all_target_names, self.all_target_names = self.all_target_names, set()
-        current_target_names, self.current_target_names = self.current_target_names, ()
+        # Don't reset "in_iterator" - an assignment expression in a lambda in an
+        # iterator is explicitly tested by the Python testcases and banned.
+        old_state = self._reset_state()
+        # the lambda node's "def_node" is not set up at this point, so we need to recurse into it explicitly.
         self.visit(node.result_expr)
-        self.in_nested_generator = in_nested_generator
-        self.scope_is_class = scope_is_class
-        self.all_target_names = all_target_names
-        self.current_target_names = current_target_names
+        self._set_state(old_state)
 
     def visit_ComprehensionNode(self, node):
         in_nested_generator = self.in_nested_generator
