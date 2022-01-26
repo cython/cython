@@ -1905,6 +1905,13 @@ class LocalScope(Scope):
             if entry is None or not entry.from_closure:
                 error(pos, "no binding for nonlocal '%s' found" % name)
 
+    def _create_inner_entry_for_closure(self, entry):
+        entry.in_closure = True
+        inner_entry = InnerEntry(entry, self)
+        inner_entry.is_variable = True
+        self.entries[name] = inner_entry
+        return inner_entry
+
     def lookup(self, name):
         # Look up name in this scope or an enclosing one.
         # Return None if not found.
@@ -1919,11 +1926,7 @@ class LocalScope(Scope):
                     raise InternalError("lookup() after scope class created.")
                 # The actual c fragment for the different scopes differs
                 # on the outside and inside, so we make a new entry
-                entry.in_closure = True
-                inner_entry = InnerEntry(entry, self)
-                inner_entry.is_variable = True
-                self.entries[name] = inner_entry
-                return inner_entry
+                return self._create_inner_entry_for_closure(entry)
         return entry
 
     def mangle_closure_cnames(self, outer_scope_cname):
@@ -2035,29 +2038,22 @@ class ClosureScope(LocalScope):
         return LocalScope.declare_pyfunction(self, name, pos, allow_redefine, visibility='private')
 
     def declare_assignment_expression_target(self, name, type, pos):
-        if self.is_generator_expression_scope:
-            entry = self.parent_scope.declare_var(name, type, pos)
-            entry.in_closure = True
-            inner_entry = InnerEntry(entry, self)
-            inner_entry.is_variable = True
-            self.entries[name] = inner_entry
-            return inner_entry
         return self.declare_var(name, type, pos)
 
 
 class GeneratorExpressionScope(ClosureScope):
     is_generator_expression_scope = True
 
+    def declare_assignment_expression_target(self, name, type, pos):
+        entry = self.parent_scope.declare_var(name, type, pos)
+        return self._create_inner_entry_for_closure(entry)
+
     def lookup_assignment_expression_target(self, name):
         entry = self.lookup_here(name)
         if not entry:
             entry = self.parent_scope.lookup_assignment_expression_target(name)
             if entry:
-                entry.in_closure = True
-                inner_entry = InnerEntry(entry, self)
-                inner_entry.is_variable = True
-                self.entries[name] = inner_entry
-                return inner_entry
+                return self._create_inner_entry_for_closure(entry)
         return entry
 
 
