@@ -1367,10 +1367,11 @@ class PyObjectType(PyrexType):
         return cname
 
     def generate_incref(self, code, cname, nanny):
+        # incref is mostly used to "receive" borrowed references. HPy does not have borrowed refs.
         if nanny:
-            code.putln("__Pyx_INCREF(%s);" % self.as_pyobject(cname))
+            Backend.backend.put_cpy(code, "__Pyx_INCREF(%s);" % self.as_pyobject(cname))
         else:
-            code.putln("Py_INCREF(%s);" % self.as_pyobject(cname))
+            Backend.backend.put_cpy(code, "Py_INCREF(%s);" % self.as_pyobject(cname))
 
     def generate_xincref(self, code, cname, nanny):
         if nanny:
