@@ -104,3 +104,43 @@ async def async_func():
     """
     if variable := 1:
         pass
+
+y_global = 6
+
+class InLambdaInClass:
+    """
+    >>> InLambdaInClass.x1
+    12
+    >>> InLambdaInClass.x2
+    [12, 12]
+    """
+    x1 = (lambda y_global: (y_global := y_global + 1) + y_global)(2) + y_global
+    x2 = [(lambda y_global: (y_global := y_global + 1) + y_global)(2) + y_global for _ in range(2) ]
+
+def in_lambda_in_list_comprehension1():
+    """
+    >>> in_lambda_in_list_comprehension1()
+    [[0, 2, 4, 6], [0, 2, 4, 6], [0, 2, 4, 6], [0, 2, 4, 6], [0, 2, 4, 6]]
+    """
+    return [ (lambda x: [(x := y) + x for y in range(4)])(x) for x in range(5) ]
+
+def in_lambda_in_list_comprehension2():
+    """
+    >>> in_lambda_in_list_comprehension2()
+    [[0, 1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5], [3, 4, 5, 6], [4, 5, 6, 7]]
+    """
+    return [ (lambda z: [(x := y) + z for y in range(4)])(x) for x in range(5) ]
+
+def in_lambda_in_generator_expression1():
+    """
+    >>> in_lambda_in_generator_expression1()
+    [(0, 2, 4, 6), (0, 2, 4, 6), (0, 2, 4, 6), (0, 2, 4, 6), (0, 2, 4, 6)]
+    """
+    return [ (lambda x: tuple((x := y) + x for y in range(4)))(x) for x in range(5) ]
+
+def in_lambda_in_generator_expression2():
+    """
+    >>> in_lambda_in_generator_expression2()
+    [(0, 1, 2, 3), (1, 2, 3, 4), (2, 3, 4, 5), (3, 4, 5, 6), (4, 5, 6, 7)]
+    """
+    return [ (lambda z: tuple((x := y) + z for y in range(4)))(x) for x in range(5) ]

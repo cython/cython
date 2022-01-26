@@ -467,7 +467,17 @@ class _AssignmentExpressionChecker(TreeVisitor):
     def visit_LambdaNode(self, node):
         # lambda node `def_node` isn't set up here
         # so we need to recurse into it explicitly
+        in_nested_generator, self.in_nested_generator = self.in_nested_generator, False
+        # don't reset in_iterator - an assignment expression in a lambda in an
+        # iterator is explicitly tested by the Python testcases and banned
+        scope_is_class, self.scope_is_class = self.scope_is_class, False
+        all_target_names, self.all_target_names = self.all_target_names, set()
+        current_target_names, self.current_target_names = self.current_target_names, ()
         self.visit(node.result_expr)
+        self.in_nested_generator = in_nested_generator
+        self.scope_is_class = scope_is_class
+        self.all_target_names = all_target_names
+        self.current_target_names = current_target_names
 
     def visit_ComprehensionNode(self, node):
         in_nested_generator = self.in_nested_generator
