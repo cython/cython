@@ -429,7 +429,7 @@ class _AssignmentExpressionChecker(TreeVisitor):
         self.current_target_names = ()
         self.all_target_names = set()
         for names in self.target_names_dict.values():
-            self.all_target_names = self.all_target_names.union(names)
+            self.all_target_names.update(names)
 
     @classmethod
     def do_checks(cls, loop_node, scope_is_class):

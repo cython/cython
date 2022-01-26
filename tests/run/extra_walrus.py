@@ -104,4 +104,3 @@ async def async_func():
     """
     if variable := 1:
         pass
-
