@@ -142,8 +142,9 @@ def p_test(s, allow_assignment_expression=True):
     expr = p_walrus_test(s, allow_assignment_expression)
     if s.sy == 'if':
         s.next()
-        test = p_walrus_test(s)  # assignment expressions always allowed here
-                # even if they wouldn't be allowed in the expression as a whole
+        # Assignment expressions are always allowed here
+        # even if they wouldn't be allowed in the expression as a whole.
+        test = p_walrus_test(s)
         s.expect('else')
         other = p_test(s)
         return ExprNodes.CondExprNode(pos, test=test, true_val=expr, false_val=other)
