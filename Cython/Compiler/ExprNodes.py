@@ -8976,13 +8976,14 @@ class DictNode(ExprNode):
         code.mark_pos(self.pos)
         self.allocate_temp_result(code)
 
+        bcknd = Backend.backend
         is_dict = self.type.is_pyobject
         if is_dict:
             self.release_errors()
             code.putln(
-                "%s = __Pyx_PyDict_NewPresized(%d); %s" % (
+                "%s = __Pyx_PyDict_NewPresized(%s); %s" % (
                     self.result(),
-                    len(self.key_value_pairs),
+                    bcknd.get_args(len(self.key_value_pairs)),
                     code.error_goto_if_null(self.result(), self.pos)))
             self.generate_gotref(code)
 
@@ -8994,7 +8995,7 @@ class DictNode(ExprNode):
             item.generate_evaluation_code(code)
             if is_dict:
                 if self.exclude_null_values:
-                    code.putln('if (%s) {' % item.value.py_result())
+                    code.putln('if (%s) {' % bcknd.get_is_not_null_cond(item.value.py_result()))
                 key = item.key
                 if self.reject_duplicates:
                     if keys_seen is not None:
@@ -9016,8 +9017,8 @@ class DictNode(ExprNode):
                             keys_seen.add(key.value)
 
                     if keys_seen is None:
-                        code.putln('if (unlikely(PyDict_Contains(%s, %s))) {' % (
-                            self.result(), key.py_result()))
+                        code.putln('if (unlikely(__Pyx_PyDict_Contains(%s))) {' % (
+                            bcknd.get_args(self.result(), key.py_result())))
                         # currently only used in function calls
                         needs_error_helper = True
                         code.putln('__Pyx_RaiseDoubleKeywordsError("function", %s); %s' % (
@@ -9025,7 +9026,7 @@ class DictNode(ExprNode):
                             code.error_goto(item.pos)))
                         code.putln("} else {")
 
-                code.put_error_if_neg(self.pos, "PyDict_SetItem(%s, %s, %s)" % (
+                code.put_error_if_neg(self.pos, "__Pyx_PyDict_SetItem(%s)" % bcknd.get_args(
                     self.result(),
                     item.key.py_result(),
                     item.value.py_result()))
