@@ -409,8 +409,7 @@ class _AssignmentExpressionTargetNameFinder(TreeVisitor):
     def visit_LambdaNode(self, node):
         pass  # don't recurse into nested lambdas/generator expressions
 
-    def visit_Node(self, node):
-        self.visitchildren(node)
+    visit_Node = TreeVisitor.visitchildren
 
 
 class _AssignmentExpressionChecker(TreeVisitor):
@@ -452,9 +451,6 @@ class _AssignmentExpressionChecker(TreeVisitor):
 
             self.current_target_names = current_target_names
 
-    def visit_Node(self, node):
-        self.visitchildren(node)
-
     def visit_AssignmentExpressionNode(self, node):
         if self.in_iterator:
             error(node.pos, "assignment expression cannot be used in a comprehension iterable expression")
@@ -485,6 +481,7 @@ class _AssignmentExpressionChecker(TreeVisitor):
         self.visit(node.loop)
         self.in_nested_generator = in_nested_generator
 
+    visit_Node = TreeVisitor.visitchildren
 
 
 def eliminate_rhs_duplicates(expr_list_list, ref_node_sequence):
