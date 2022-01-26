@@ -1478,13 +1478,10 @@ static CYTHON_INLINE PyObject* __Pyx_PyBoolOrNull_FromLong(long b) {
 
 /////////////// GetBuiltinName.proto ///////////////
 
-#ifndef HPY
-static PyObject *__Pyx_GetBuiltinName(PyObject *name); /*proto*/
-#else
-static HPy __Pyx_GetBuiltinName(HPyContext *ctx, HPyField f); /*proto*/
-#endif
+static __PYX_OBJECT_CTYPE __Pyx_GetBuiltinName(__PYX_CONTEXT_DECL __PYX_OBJECT_CTYPE name); /*proto*/
 
 /////////////// GetBuiltinName ///////////////
+//@requires: ModuleSetupCode.c::ApiBackendInitCode
 //@requires: PyObjectGetAttrStrNoError
 //@substitute: naming
 
@@ -1502,15 +1499,14 @@ static PyObject *__Pyx_GetBuiltinName(PyObject *name) {
     return result;
 }
 #else /* HPY */
-static HPy __Pyx_GetBuiltinName(HPyContext *ctx, HPyField f_name) {
-    HPy h_name = HPyField_Load(ctx, ctx->h_None, f_name);
+static HPy __Pyx_GetBuiltinName(HPyContext *ctx, HPy h_name) {
     HPy h_builtins = HPyField_Load(ctx, ctx->h_None, $builtins_cname);
     HPy result = HPy_GetAttr(ctx, h_builtins, h_name);
     HPy_Close(ctx, h_builtins);
     if (unlikely(HPy_IsNull(result)) && !HPyErr_Occurred(ctx)) {
         // TODO(fa): HPy should provide some replacement for PyErr_Format
         HPy h_format = HPyUnicode_FromString(ctx, "name '%U' is not defined");
-        HPy h_formatted = HPy_Remainder(ctx, h_fmt, h_name);
+        HPy h_formatted = HPy_Remainder(ctx, h_format, h_name);
         HPyErr_SetObject(ctx, ctx->h_NameError, h_formatted);
         HPy_Close(ctx, h_format);
         HPy_Close(ctx, h_formatted);
@@ -1591,6 +1587,7 @@ static int __Pyx_SetNewInClass(PyObject *ns, PyObject *name, PyObject *value) {
 
 /////////////// GetModuleGlobalName.proto ///////////////
 //@requires: PyDictVersioning
+//@requires: ModuleSetupCode.c::ApiBackendInitCode
 //@substitute: naming
 
 #if CYTHON_USE_DICT_VERSIONS
@@ -1608,9 +1605,15 @@ static int __Pyx_SetNewInClass(PyObject *ns, PyObject *name, PyObject *value) {
 }
 static PyObject *__Pyx__GetModuleGlobalName(PyObject *name, PY_UINT64_T *dict_version, PyObject **dict_cached_value); /*proto*/
 #else
+#ifndef HPY
 #define __Pyx_GetModuleGlobalName(var, name)  (var) = __Pyx__GetModuleGlobalName(name)
 #define __Pyx_GetModuleGlobalNameUncached(var, name)  (var) = __Pyx__GetModuleGlobalName(name)
-static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name); /*proto*/
+static CYTHON_INLINE PyObject* __Pyx__GetModuleGlobalName(PyObject* name); /*proto*/
+#else /* HPY */
+#define __Pyx_GetModuleGlobalName(var, ctx, name)  (var) = __Pyx__GetModuleGlobalName(ctx, name)
+#define __Pyx_GetModuleGlobalNameUncached(var, ctx, name)  (var) = __Pyx__GetModuleGlobalName(ctx, name)
+static CYTHON_INLINE HPy __Pyx__GetModuleGlobalName(HPyContext *ctx, HPy name); /*proto*/
+#endif /* HPY */
 #endif
 
 
@@ -1676,6 +1679,7 @@ static CYTHON_INLINE HPy __Pyx__GetModuleGlobalName(HPyContext *ctx, HPy name)
     HPyErr_Clear(ctx);
     return __Pyx_GetBuiltinName(ctx, name);
 }
+#endif /* HPY */
 
 //////////////////// GetAttr.proto ////////////////////
 
@@ -2930,6 +2934,8 @@ static CYTHON_INLINE int __Pyx_object_dict_version_matches(PyObject* obj, PY_UIN
 
 /////////////// PyMethodNew.proto ///////////////
 
+/* TODO(fa): provide __Pyx_PyMethod_New for HPy */
+#ifndef HPY
 #if PY_MAJOR_VERSION >= 3
 // This should be an actual function (not a macro), such that we can put it
 // directly in a tp_descr_get slot.
@@ -2942,6 +2948,7 @@ static PyObject *__Pyx_PyMethod_New(PyObject *func, PyObject *self, PyObject *ty
 #else
     #define __Pyx_PyMethod_New PyMethod_New
 #endif
+#endif /* HPY */
 
 /////////////// UnicodeConcatInPlace.proto ////////////////
 
