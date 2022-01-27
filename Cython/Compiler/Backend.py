@@ -518,6 +518,7 @@ class CombinedBackend(APIBackend):
         code.putln("#define __Pyx_CLEAR_GLOBAL(m, v) Py_CLEAR((v))")
         code.putln("#define __PYX_READ_GLOBAL(m, v) (v)")
         code.putln("#define __PYX_WRITE_GLOBAL(m, l, v) (l) = (r)")
+        code.putln("#define __PYX_CLOSE_LOADED_GLOBAL(v) %s" % CApiBackend.get_close_loaded_global("v"))
         code.putln("#define __PYX_VISIT(x) Py_VISIT((x))")
         code.putln("#define __PYX_CLEAR __Pyx_CLEAR")
         code.putln("#define __PYX_XCLEAR __Pyx_XCLEAR")
@@ -562,6 +563,7 @@ class CombinedBackend(APIBackend):
                    (Naming.hpy_context_cname, Naming.hpy_context_cname))
         code.putln("#define __PYX_WRITE_GLOBAL(m, l, v) HPyField_Store(%s, %s->h_None, &(l), (v))" %
                    (Naming.hpy_context_cname, Naming.hpy_context_cname))
+        code.putln("#define __PYX_CLOSE_LOADED_GLOBAL(v) %s" % HPyBackend.get_close_loaded_global("v"))
         code.putln("#define __PYX_VISIT(x) HPy_VISIT(&(x))")
         code.putln("#define __PYX_CLEAR HPy_CLEAR")
         code.putln("#define __PYX_CLEAR_NO_REFNANNY HPy_CLEAR")
@@ -623,6 +625,10 @@ class CombinedBackend(APIBackend):
     @staticmethod
     def get_write_global(module_cname, globalvar_cname, cexpr):
         return "__PYX_WRITE_GLOBAL(%s, %s, %s)" % (module_cname, globalvar_cname, cexpr)
+
+    @staticmethod
+    def get_close_loaded_global(cexpr):
+        return "__PYX_CLOSE_LOADED_GLOBAL(%s);" % cexpr
 
     @staticmethod
     def get_visit_global(var_cname):
