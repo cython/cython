@@ -665,6 +665,17 @@ class CombinedBackend(APIBackend):
         return "__PYX_NONE"
 
     @staticmethod
+    def get_method_definition(entry, wrapper_code_writer=None):
+        return CombinedBackend.get_both(
+            CApiBackend.get_method_definition(entry, wrapper_code_writer),
+            HPyBackend.get_method_definition(entry, wrapper_code_writer))
+
+    @staticmethod
+    def get_method_definition_entry(entry, wrapper_code_writer=None):
+        raise NotImplementedError
+
+
+    @staticmethod
     def get_arg_list_keywords():
         return "\n%s\n" % CombinedBackend.get_both(CApiBackend.get_arg_list_keywords(), HPyBackend.get_arg_list_keywords())
 
