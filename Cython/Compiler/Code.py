@@ -1567,8 +1567,12 @@ class GlobalState(object):
 
         if Options.generate_cleanup_code:
             cleanup = self.parts['cleanup_globals']
+            # TODO(fa): add HPy support
+            bcknd = Backend.backend
+            cleanup.putln("#ifndef %s" % bcknd.hpy_guard)
             for cname in cnames:
-                cleanup.putln(Backend.backend.get_clear_global(None, cname))
+                cleanup.putln("Py_CLEAR(%s.method);" % cname)
+            cleanup.putln("#endif /* %s */" % bcknd.hpy_guard)
 
     def generate_string_constants(self):
         c_consts = [(len(c.cname), c.cname, c) for c in self.string_const_index.values()]
