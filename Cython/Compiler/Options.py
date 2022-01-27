@@ -305,9 +305,9 @@ def normalise_encoding_name(option_name, encoding):
 # use as a sential value to defer analysis of the arguments
 # instead of analysing them in InterpretCompilerDirectives. The dataclass directives are quite
 # complicated and it's easier to deal with them at the point the dataclass is created
-class _DEFER_ANALYSIS_OF_ARGUMENTS:
+class DEFER_ANALYSIS_OF_ARGUMENTS:
     pass
-DEFER_ANALYSIS_OF_ARGUMENTS = _DEFER_ANALYSIS_OF_ARGUMENTS()
+DEFER_ANALYSIS_OF_ARGUMENTS = DEFER_ANALYSIS_OF_ARGUMENTS()
 
 # Override types possibilities above, if needed
 directive_types = {

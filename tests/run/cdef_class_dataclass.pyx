@@ -13,7 +13,7 @@ except ImportError:
 import cython
 from libc.stdlib cimport malloc, free
 
-include "cythonarrayutil.pxi"
+include "../testsupport/cythonarrayutil.pxi"
 
 cdef class NotADataclass:
     cdef cython.int a

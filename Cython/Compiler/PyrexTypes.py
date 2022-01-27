@@ -4415,7 +4415,7 @@ class PythonTypeConstructor(PyObjectType):
 
     def specialize_here(self, pos, env, template_values=None):
         if self.base_type:
-            # for a lot of the typing classes it doesn't really matter what the template it
+            # for a lot of the typing classes it doesn't really matter what the template is
             # (i.e. typing.Dict[int] is really just a dict)
             return self.base_type
         return self
