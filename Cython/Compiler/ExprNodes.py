@@ -615,6 +615,9 @@ class ExprNode(Node):
     def analyse_target_declaration(self, env):
         error(self.pos, "Cannot assign to or delete this")
 
+    def analyse_assignment_expression_target_declaration(self, env):
+        error(self.pos, "Cannot use anything except a name in an assignment expression")
+
     # ------------- Expression Analysis ----------------
 
     def analyse_const_expression(self, env):
@@ -2083,9 +2086,18 @@ class NameNode(AtomicExprNode):
         return None
 
     def analyse_target_declaration(self, env):
+        return self._analyse_target_declaration(env, is_assignment_expression=False)
+
+    def analyse_assignment_expression_target_declaration(self, env):
+        return self._analyse_target_declaration(env, is_assignment_expression=True)
+
+    def _analyse_target_declaration(self, env, is_assignment_expression):
         self.is_target = True
         if not self.entry:
-            self.entry = env.lookup_here(self.name)
+            if is_assignment_expression:
+                self.entry = env.lookup_assignment_expression_target(self.name)
+            else:
+                self.entry = env.lookup_here(self.name)
         if not self.entry and self.annotation is not None:
             # name : type = ...
             self.declare_from_annotation(env, as_target=True)
@@ -2096,7 +2108,10 @@ class NameNode(AtomicExprNode):
                 type = unspecified_type
             else:
                 type = py_object_type
-            self.entry = env.declare_var(self.name, type, self.pos)
+            if is_assignment_expression:
+                self.entry = env.declare_assignment_expression_target(self.name, type, self.pos)
+            else:
+                self.entry = env.declare_var(self.name, type, self.pos)
         if self.entry.is_declared_generic:
             self.result_ctype = py_object_type
         if self.entry.as_module:
@@ -13715,17 +13730,17 @@ class ProxyNode(CoercionNode):
     def __init__(self, arg):
         super(ProxyNode, self).__init__(arg)
         self.constant_result = arg.constant_result
-        self._proxy_type()
+        self.update_type_and_entry()
 
     def analyse_types(self, env):
         self.arg = self.arg.analyse_expressions(env)
-        self._proxy_type()
+        self.update_type_and_entry()
         return self
 
     def infer_type(self, env):
         return self.arg.infer_type(env)
 
-    def _proxy_type(self):
+    def update_type_and_entry(self):
         type = getattr(self.arg, 'type', None)
         if type:
             self.type = type
@@ -13989,3 +14004,102 @@ class AnnotationNode(ExprNode):
         else:
             warning(annotation.pos, "Unknown type declaration in annotation, ignoring")
         return base_type, arg_type
+
+
+class AssignmentExpressionNode(ExprNode):
+    """
+    Also known as a named expression or the walrus operator
+
+    Arguments
+    lhs - NameNode - not stored directly as an attribute of the node
+    rhs - ExprNode
+
+    Attributes
+    rhs        - ExprNode
+    assignment - SingleAssignmentNode
+    """
+    # subexprs and child_attrs are intentionally different here, because the assignment is not an expression
+    subexprs = ["rhs"]
+    child_attrs = ["rhs", "assignment"]  # This order is important for control-flow (i.e. xdecref) to be right
+
+    is_temp = False
+    assignment = None
+    clone_node = None
+
+    def __init__(self, pos, lhs, rhs, **kwds):
+        super(AssignmentExpressionNode, self).__init__(pos, **kwds)
+        self.rhs = ProxyNode(rhs)
+        assign_expr_rhs = CloneNode(self.rhs)
+        self.assignment = SingleAssignmentNode(
+            pos, lhs=lhs, rhs=assign_expr_rhs, is_assignment_expression=True)
+
+    @property
+    def type(self):
+        return self.rhs.type
+
+    @property
+    def target_name(self):
+        return self.assignment.lhs.name
+
+    def infer_type(self, env):
+        return self.rhs.infer_type(env)
+
+    def analyse_declarations(self, env):
+        self.assignment.analyse_declarations(env)
+
+    def analyse_types(self, env):
+        # we're trying to generate code that looks roughly like:
+        #   __pyx_t_1 = rhs
+        #   lhs = __pyx_t_1
+        #   __pyx_t_1
+        # (plus any reference counting that's needed)
+
+        self.rhs = self.rhs.analyse_types(env)
+        if not self.rhs.arg.is_temp:
+            if not self.rhs.arg.is_literal:
+                # for anything but the simplest cases (where it can be used directly)
+                # we convert rhs to a temp, because CloneNode requires arg to be a temp
+                self.rhs.arg = self.rhs.arg.coerce_to_temp(env)
+            else:
+                # For literals we can optimize by just using the literal twice
+                #
+                # We aren't including `self.rhs.is_name` in this optimization
+                # because that goes wrong for assignment expressions run in
+                # parallel. e.g. `(a := b) + (b := a + c)`)
+                # This is a special case of https://github.com/cython/cython/issues/4146
+                # TODO - once that's fixed general revisit this code and possibly
+                # use coerce_to_simple
+                self.assignment.rhs = copy.copy(self.rhs)
+
+        # TODO - there's a missed optimization in the code generation stage
+        # for self.rhs.arg.is_temp: an incref/decref pair can be removed
+        # (but needs a general mechanism to do that)
+        self.assignment = self.assignment.analyse_types(env)
+        return self
+
+    def coerce_to(self, dst_type, env):
+        if dst_type == self.assignment.rhs.type:
+            # in this quite common case (for example, when both lhs, and self are being coerced to Python)
+            # we can optimize the coercion out by sharing it between
+            # this and the assignment
+            old_rhs_arg = self.rhs.arg
+            if isinstance(old_rhs_arg, CoerceToTempNode):
+                old_rhs_arg = old_rhs_arg.arg
+            rhs_arg = old_rhs_arg.coerce_to(dst_type, env)
+            if rhs_arg is not old_rhs_arg:
+                self.rhs.arg = rhs_arg
+                self.rhs.update_type_and_entry()
+                # clean up the old coercion node that the assignment has likely generated
+                if (isinstance(self.assignment.rhs, CoercionNode)
+                        and not isinstance(self.assignment.rhs, CloneNode)):
+                    self.assignment.rhs = self.assignment.rhs.arg
+                    self.assignment.rhs.type = self.assignment.rhs.arg.type
+                return self
+        return super(AssignmentExpressionNode, self).coerce_to(dst_type, env)
+
+    def calculate_result_code(self):
+        return self.rhs.result()
+
+    def generate_result_code(self, code):
+        # we have to do this manually because it isn't a subexpression
+        self.assignment.generate_execution_code(code)

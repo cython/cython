@@ -23,7 +23,7 @@ from . import PyrexTypes
 from . import TypeSlots
 from .PyrexTypes import py_object_type, error_type
 from .Symtab import (ModuleScope, LocalScope, ClosureScope, PropertyScope,
-                     StructOrUnionScope, PyClassScope, CppClassScope, TemplateScope,
+                     StructOrUnionScope, PyClassScope, CppClassScope, TemplateScope, GeneratorExpressionScope,
                      CppScopedEnumScope, punycodify_name)
 from .Code import UtilityCode
 from .StringEncoding import EncodedString
@@ -1744,6 +1744,7 @@ class FuncDefNode(StatNode, BlockNode):
     needs_outer_scope = False
     pymethdef_required = False
     is_generator = False
+    is_generator_expression = False  # this can be True alongside is_generator
     is_coroutine = False
     is_asyncgen = False
     is_generator_body = False
@@ -1815,7 +1816,8 @@ class FuncDefNode(StatNode, BlockNode):
         while genv.is_py_class_scope or genv.is_c_class_scope:
             genv = genv.outer_scope
         if self.needs_closure:
-            lenv = ClosureScope(name=self.entry.name,
+            cls = GeneratorExpressionScope if self.is_generator_expression else ClosureScope
+            lenv = cls(name=self.entry.name,
                                 outer_scope=genv,
                                 parent_scope=env,
                                 scope_name=self.entry.cname)
@@ -5748,12 +5750,14 @@ class SingleAssignmentNode(AssignmentNode):
     #  rhs                      ExprNode      Right hand side
     #  first                    bool          Is this guaranteed the first assignment to lhs?
     #  is_overloaded_assignment bool          Is this assignment done via an overloaded operator=
+    #  is_assignment_expression bool          Internally SingleAssignmentNode is used to implement assignment expressions
     #  exception_check
     #  exception_value
 
     child_attrs = ["lhs", "rhs"]
     first = False
     is_overloaded_assignment = False
+    is_assignment_expression = False
     declaration_only = False
 
     def analyse_declarations(self, env):
@@ -5838,7 +5842,10 @@ class SingleAssignmentNode(AssignmentNode):
         if self.declaration_only:
             return
         else:
-            self.lhs.analyse_target_declaration(env)
+            if self.is_assignment_expression:
+                self.lhs.analyse_assignment_expression_target_declaration(env)
+            else:
+                self.lhs.analyse_target_declaration(env)
 
     def analyse_types(self, env, use_temp=0):
         from . import ExprNodes

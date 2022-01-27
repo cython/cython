@@ -331,6 +331,7 @@ class Scope(object):
     # is_py_class_scope boolean            Is a Python class scope
     # is_c_class_scope  boolean            Is an extension type scope
     # is_closure_scope  boolean            Is a closure scope
+    # is_generator_expression_scope boolean   A subset of closure scope used for generator expressions
     # is_passthrough    boolean            Outer scope is passed directly
     # is_cpp_class_scope  boolean          Is a C++ class scope
     # is_property_scope boolean            Is a extension type property scope
@@ -347,6 +348,7 @@ class Scope(object):
     is_py_class_scope = 0
     is_c_class_scope = 0
     is_closure_scope = 0
+    is_generator_expression_scope = 0
     is_comprehension_scope = 0
     is_passthrough = 0
     is_cpp_class_scope = 0
@@ -748,6 +750,11 @@ class Scope(object):
             entry.used = 1
         return entry
 
+    def declare_assignment_expression_target(self, name, type, pos):
+        # In most cases declares the variable as normal.
+        # For generator expressions and comprehensions the variable is declared in their parent
+        return self.declare_var(name, type, pos)
+
     def declare_builtin(self, name, pos):
         name = self.mangle_class_private_name(name)
         return self.outer_scope.declare_builtin(name, pos)
@@ -973,6 +980,11 @@ class Scope(object):
 
     def lookup_here_unmangled(self, name):
         return self.entries.get(name, None)
+
+    def lookup_assignment_expression_target(self, name):
+        # For most cases behaves like "lookup_here".
+        # However, it does look outwards for comprehension and generator expression scopes
+        return self.lookup_here(name)
 
     def lookup_target(self, name):
         # Look up name in this scope only. Declare as Python
@@ -1893,6 +1905,13 @@ class LocalScope(Scope):
             if entry is None or not entry.from_closure:
                 error(pos, "no binding for nonlocal '%s' found" % name)
 
+    def _create_inner_entry_for_closure(self, name, entry):
+        entry.in_closure = True
+        inner_entry = InnerEntry(entry, self)
+        inner_entry.is_variable = True
+        self.entries[name] = inner_entry
+        return inner_entry
+
     def lookup(self, name):
         # Look up name in this scope or an enclosing one.
         # Return None if not found.
@@ -1907,11 +1926,7 @@ class LocalScope(Scope):
                     raise InternalError("lookup() after scope class created.")
                 # The actual c fragment for the different scopes differs
                 # on the outside and inside, so we make a new entry
-                entry.in_closure = True
-                inner_entry = InnerEntry(entry, self)
-                inner_entry.is_variable = True
-                self.entries[name] = inner_entry
-                return inner_entry
+                return self._create_inner_entry_for_closure(name, entry)
         return entry
 
     def mangle_closure_cnames(self, outer_scope_cname):
@@ -1981,6 +1996,10 @@ class ComprehensionScope(Scope):
         self.entries[name] = entry
         return entry
 
+    def declare_assignment_expression_target(self, name, type, pos):
+        # should be declared in the parent scope instead
+        return self.parent_scope.declare_var(name, type, pos)
+
     def declare_pyfunction(self, name, pos, allow_redefine=False):
         return self.outer_scope.declare_pyfunction(
             name, pos, allow_redefine)
@@ -1990,6 +2009,12 @@ class ComprehensionScope(Scope):
 
     def add_lambda_def(self, def_node):
         return self.outer_scope.add_lambda_def(def_node)
+
+    def lookup_assignment_expression_target(self, name):
+        entry = self.lookup_here(name)
+        if not entry:
+            entry = self.parent_scope.lookup_assignment_expression_target(name)
+        return entry
 
 
 class ClosureScope(LocalScope):
@@ -2011,6 +2036,25 @@ class ClosureScope(LocalScope):
 
     def declare_pyfunction(self, name, pos, allow_redefine=False):
         return LocalScope.declare_pyfunction(self, name, pos, allow_redefine, visibility='private')
+
+    def declare_assignment_expression_target(self, name, type, pos):
+        return self.declare_var(name, type, pos)
+
+
+class GeneratorExpressionScope(ClosureScope):
+    is_generator_expression_scope = True
+
+    def declare_assignment_expression_target(self, name, type, pos):
+        entry = self.parent_scope.declare_var(name, type, pos)
+        return self._create_inner_entry_for_closure(name, entry)
+
+    def lookup_assignment_expression_target(self, name):
+        entry = self.lookup_here(name)
+        if not entry:
+            entry = self.parent_scope.lookup_assignment_expression_target(name)
+            if entry:
+                return self._create_inner_entry_for_closure(name, entry)
+        return entry
 
 
 class StructOrUnionScope(Scope):
