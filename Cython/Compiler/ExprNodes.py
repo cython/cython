@@ -2079,8 +2079,7 @@ class NameNode(AtomicExprNode):
         if entry and entry.as_module:
             return entry.as_module
         if entry and entry.known_standard_library_import:
-            from .Builtin import get_known_standard_library_module_scope
-            scope = get_known_standard_library_module_scope(entry.known_standard_library_import)
+            scope = Builtin.get_known_standard_library_module_scope(entry.known_standard_library_import)
             if scope and scope.is_module_scope:
                 return scope
         return None
@@ -2098,8 +2097,7 @@ class NameNode(AtomicExprNode):
         if entry and entry.is_type:
             return entry.type
         elif entry and entry.known_standard_library_import:
-            from .Builtin import get_known_standard_library_entry
-            entry = get_known_standard_library_entry(entry.known_standard_library_import)
+            entry = Builtin.get_known_standard_library_entry(entry.known_standard_library_import)
             if entry and entry.is_type:
                 return entry.type
         else:
@@ -9080,7 +9078,8 @@ class DictNode(ExprNode):
             item.annotate(code)
 
     def as_python_dict(self):
-        # returns a dict with string keys and Node values
+        # returns a dict with constant keys and Node values
+        # (only works on DictNodes where the keys are ConstNodes or PyConstNode)
         return dict([(key.value, value) for key, value in self.key_value_pairs])
 
 

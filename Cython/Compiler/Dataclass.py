@@ -17,6 +17,7 @@ from .StringEncoding import BytesLiteral, EncodedString
 from .TreeFragment import TreeFragment
 from .ParseTreeTransforms import (NormalizeTree, SkipDeclarations, AnalyseDeclarationsTransform,
                                   MarkClosureVisitor)
+from .Options import copy_inherited_directives
 
 def make_dataclasses_module_callnode(pos):
     python_utility_code = UtilityCode.load_cached("Dataclasses_fallback", "Dataclasses.py")
@@ -95,6 +96,7 @@ class Field(object):
     default = MISSING
     default_factory = MISSING
     private = False
+
     # default values are defined by the CPython dataclasses.field
     def __init__(self, pos, default=MISSING, default_factory=MISSING,
                  repr=None, hash=None, init=None,
@@ -256,9 +258,8 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     # generic objects and thus can accept _HAS_DEFAULT_FACTORY.
     # Type conversion comes later
     comp_directives = Nodes.CompilerDirectivesNode(node.pos,
-        directives=node.scope.directives.copy(),
+        directives=copy_inherited_directives(node.scope.directives, annotation_typing=False),
         body=stats)
-    comp_directives.directives['annotation_typing'] = False
 
     comp_directives.analyse_declarations(node.scope)
     # probably already in this scope, but it doesn't hurt to make sure
@@ -396,7 +397,8 @@ def generate_repr_code(repr, node, fields):
             for name, field in fields.items()
             if field.repr.value and not field.is_initvar]
     format_string = u", ".join(strs)
-    code_lines.append(u"    return f'{type(self).__name__}(%s)'" % format_string)
+    code_lines.append(u'    name = getattr(type(self), "__qualname__", type(self).__name__)')
+    code_lines.append(u"    return f'{name}(%s)'" % format_string)
     code_lines = u"\n".join(code_lines)
 
     return code_lines, {}, []
@@ -645,14 +647,14 @@ def _set_up_dataclass_fields(node, fields, dataclass_module):
                 global_scope.mangle(Naming.dataclass_field_default_cname, node.class_name),
                 name)
             # create an entry in the global scope for this variable to live
-            name_node = ExprNodes.NameNode(field_default.pos, name=EncodedString(module_field_name))
-            name_node.entry = global_scope.declare_var(name_node.name, type=field_default.type or PyrexTypes.unspecified_type,
-                                                pos=field_default.pos, cname=name_node.name, is_cdef=1)
+            field_node = ExprNodes.NameNode(field_default.pos, name=EncodedString(module_field_name))
+            field_node.entry = global_scope.declare_var(field_node.name, type=field_default.type or PyrexTypes.unspecified_type,
+                                                pos=field_default.pos, cname=field_node.name, is_cdef=1)
             # replace the field so that future users just receive the namenode
-            setattr(field, attrname, name_node)
+            setattr(field, attrname, field_node)
 
             variables_assignment_stats.append(
-                Nodes.SingleAssignmentNode(field_default.pos, lhs=name_node, rhs=field_default))
+                Nodes.SingleAssignmentNode(field_default.pos, lhs=field_node, rhs=field_default))
 
     placeholders = {}
     field_func = ExprNodes.AttributeNode(node.pos, obj=dataclass_module,
@@ -692,6 +694,7 @@ def _set_up_dataclass_fields(node, fields, dataclass_module):
             [(ExprNodes.IdentifierStringNode(node.pos, value=EncodedString(k)),
                FieldRecordNode(node.pos, arg=v))
               for k, v in field.__dict__.items() if k not in ["is_initvar", "is_classvar", "private"]]
+
         )
         dc_field_call = ExprNodes.GeneralCallNode(
             node.pos, function = field_func,

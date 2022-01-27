@@ -1003,22 +1003,27 @@ class Scope(object):
             entry = self.declare_var(name, py_object_type, None)
         return entry
 
+    def _type_or_specialized_type_from_entry(self, entry):
+        if entry and entry.is_type:
+            if entry.type.is_fused and self.fused_to_specific:
+                return entry.type.specialize(self.fused_to_specific)
+            return entry.type
+
     def lookup_type(self, name):
         entry = self.lookup(name)
         # The logic here is:
         #  1. if entry is a type then return it (and maybe specialize it)
         #  2. if the entry comes from a known standard library import then follow that
-        #  3. repeat step 1 with the (possibly) updated entry (hence the loop)
-        for i in range(2):
-            if entry and entry.is_type:
-                if entry.type.is_fused and self.fused_to_specific:
-                    return entry.type.specialize(self.fused_to_specific)
-                return entry.type
-            # allow us to find types from the "typing" module and similar
-            if i<1 and entry and entry.known_standard_library_import:
-                from .Builtin import get_known_standard_library_entry
-                entry = get_known_standard_library_entry(entry.known_standard_library_import)
-        return None
+        #  3. repeat step 1 with the (possibly) updated entry
+
+        tp = self._type_or_specialized_type_from_entry(entry)
+        if tp:
+            return tp
+        # allow us to find types from the "typing" module and similar
+        if entry and entry.known_standard_library_import:
+            from .Builtin import get_known_standard_library_entry
+            entry = get_known_standard_library_entry(entry.known_standard_library_import)
+        return self._type_or_specialized_type_from_entry(entry)
 
     def lookup_operator(self, operator, operands):
         if operands[0].type.is_cpp_class:
