@@ -2815,7 +2815,7 @@ class CFuncDefNode(FuncDefNode):
 
     def error_value(self):
         if self.return_type.is_pyobject:
-            return "0"
+            return Backend.backend.pyobject_init_value
         else:
             return self.entry.type.exception_value
 
