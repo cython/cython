@@ -33,6 +33,7 @@ def make_dataclasses_module_callnode(pos):
 
 _INTERNAL_DEFAULTSHOLDER_NAME = EncodedString('__pyx_dataclass_defaults')
 
+
 class RemoveAssignmentsToNames(VisitorTransform, SkipDeclarations):
     """
     Cython (and Python) normally treats
@@ -75,6 +76,7 @@ class RemoveAssignmentsToNames(VisitorTransform, SkipDeclarations):
     def visit_Node(self, node):
         self.visitchildren(node)
         return node
+
 
 class _MISSING_TYPE(object):
     pass
@@ -306,7 +308,7 @@ def generate_init_code(init, node, fields):
 
     def get_placeholder_name():
         while True:
-            name = "INIT_PLACEHOLDER_%s" % placeholder_count[0]
+            name = "INIT_PLACEHOLDER_%d" % placeholder_count[0]
             if (name not in placeholders
                     and name not in fields):
                 # make sure name isn't already used and doesn't
@@ -516,12 +518,14 @@ def generate_hash_code(unsafe_hash, eq, frozen, node, fields):
             error(node.pos, "Cannot overwrite attribute __hash__ in class %s" % node.class_name)
         return "", {}, []
     if not unsafe_hash:
-        if eq and not frozen:
-            return "", {}, [ Nodes.SingleAssignmentNode(node.pos,
-                             lhs = ExprNodes.NameNode(node.pos, name=EncodedString("__hash__")),
-                             rhs = ExprNodes.NoneNode(node.pos)) ]
         if not eq:
             return
+        if not frozen:
+            return "", {}, [Nodes.SingleAssignmentNode(
+                node.pos,
+                lhs=ExprNodes.NameNode(node.pos, name=EncodedString("__hash__")),
+                rhs=ExprNodes.NoneNode(node.pos),
+            )]
 
     names = [
         name for name, field in fields.items()
@@ -648,9 +652,7 @@ def _set_up_dataclass_fields(node, fields, dataclass_module):
             setattr(field, attrname, name_node)
 
             variables_assignment_stats.append(
-                Nodes.SingleAssignmentNode(field_default.pos,
-                                           lhs = name_node,
-                                           rhs = field_default))
+                Nodes.SingleAssignmentNode(field_default.pos, lhs=name_node, rhs=field_default))
 
     placeholders = {}
     field_func = ExprNodes.AttributeNode(node.pos, obj=dataclass_module,

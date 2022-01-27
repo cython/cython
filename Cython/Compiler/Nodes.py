@@ -5846,10 +5846,10 @@ class SingleAssignmentNode(AssignmentNode):
             # if an entry doesn't exist that just implies that lhs isn't made up purely
             # of AttributeNodes and NameNodes - it isn't useful as a known path to
             # a standard library module
-            if ((self.lhs.is_attribute or self.lhs.is_name) and self.lhs.entry and
-                    self.lhs.entry.known_standard_library_import is None and
-                    self.rhs.get_known_standard_library_import()):
-                self.lhs.entry.known_standard_library_import = self.rhs.get_known_standard_library_import()
+            if (self.lhs.is_attribute or self.lhs.is_name) and self.lhs.entry and not self.lhs.entry.known_standard_library_import:
+                stdlib_import_name = self.rhs.get_known_standard_library_import()
+                if stdlib_import_name:
+                    self.lhs.entry.known_standard_library_import = stdlib_import_name
 
     def analyse_types(self, env, use_temp=0):
         from . import ExprNodes
