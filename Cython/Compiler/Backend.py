@@ -728,7 +728,7 @@ class CombinedBackend(APIBackend):
         #endif /* HPY_GUARD */
         """
         hpy_guard = CApiBackend.hpy_guard
-        return "#ifdef %s\n%s\n#else /* %s */\n%s\n#endif /* %s */" % (
+        return "#ifndef %s\n%s\n#else /* %s */\n%s\n#endif /* %s */" % (
             hpy_guard, cpy_code, hpy_guard, hpy_code, hpy_guard)
 
     @staticmethod
