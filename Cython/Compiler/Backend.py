@@ -760,6 +760,10 @@ class CombinedBackend(APIBackend):
         return code.putln(CombinedBackend.get_cpy(cpy_code))
 
     @staticmethod
+    def put_hpy(code, hpy_code):
+        return code.putln(CombinedBackend.get_hpy(hpy_code))
+
+    @staticmethod
     def put_both(code, cpy_code, hpy_code):
         """
         Print code with structure:
