@@ -448,12 +448,12 @@ class HPyBackend(APIBackend):
 class CombinedBackend(APIBackend):
     name = "combined"
     pyobject_ctype = "__PYX_OBJECT_CTYPE"
-    pyobject_ctype_base_part = "__PYX_OBJECT_CTYPE_BP"
-    pyobject_ctype_entity_part = "__PYX_OBJECT_CTYPE_EP"
+    pyobject_ctype_base_part = "__PYX_OBJECT_CTYPE"
+    pyobject_ctype_entity_part = ""
     pyobject_init_value = "__PYX_NULL"
     pyobject_global_ctype = "__PYX_GLOBAL_OBJECT_CTYPE"
     pyobject_global_ctype_base_part = "__PYX_GLOBAL_OBJECT_CTYPE_BP"
-    pyobject_global_ctype_entity_part = "__PYX_GLOBAL_OBJECT_CTYPE_EP"
+    pyobject_global_ctype_entity_part = ""
     pytype_global_ctype = "__PYX_GLOBAL_TYPE_CTYPE"
     pyobject_global_init_value = "__PYX_GLOBAL_NULL"
     pyssizet_ctype = "__PYX_SSIZE_T"
@@ -480,7 +480,7 @@ class CombinedBackend(APIBackend):
     bytes_from_string_and_size = "__Pyx_PyBytes_FromStringAndSize"
 
     # unicode
-    unicode_from_string = "__Pyx_PyUnicode_FromString"
+    unicode_from_string = "__Pyx_API_PyUnicode_FromString"
 
     # type conversion functions
     pyfloat_fromdouble = "__PYX_FLOAT_FROM_DOUBLE"
@@ -512,12 +512,11 @@ class CombinedBackend(APIBackend):
         code.putln("#define __PYX_OBJECT_CTYPE_BP PyObject")
         code.putln("#define __PYX_OBJECT_CTYPE_EP *")
         code.putln("#define __PYX_GLOBAL_OBJECT_CTYPE PyObject *")
-        code.putln("#define __PYX_GLOBAL_OBJECT_CTYPE_BP PyObject")
-        code.putln("#define __PYX_GLOBAL_OBJECT_CTYPE_EP *")
+        code.putln("#define __PYX_GLOBAL_OBJECT_CTYPE_BP PyObject *")
         code.putln("#define __PYX_GLOBAL_TYPE_CTYPE PyTypeObject *")
         code.putln("#define __Pyx_CLEAR_GLOBAL(m, v) Py_CLEAR((v))")
         code.putln("#define __PYX_READ_GLOBAL(m, v) (v)")
-        code.putln("#define __PYX_WRITE_GLOBAL(m, l, v) (l) = (r)")
+        code.putln("#define __PYX_WRITE_GLOBAL(m, l, v) (l) = (v)")
         code.putln("#define __PYX_CLOSE_LOADED_GLOBAL(v) %s" % CApiBackend.get_close_loaded_global("v"))
         code.putln("#define __PYX_VISIT(x) Py_VISIT((x))")
         code.putln("#define __PYX_CLEAR __Pyx_CLEAR")
@@ -537,7 +536,7 @@ class CombinedBackend(APIBackend):
         code.putln("#define __PYX_LIST_BUILDER_NEW %s" % CApiBackend.list_builder_new)
         code.putln("#define __PYX_LIST_BUILDER_BUILD %s" % CApiBackend.list_builder_build)
         code.putln("#define __Pyx_PyBytes_FromStringAndSize %s" % CApiBackend.bytes_from_string_and_size)
-        code.putln("#define __Pyx_PyUnicode_FromString %s" % CApiBackend.unicode_from_string)
+        code.putln("#define __Pyx_API_PyUnicode_FromString %s" % CApiBackend.unicode_from_string)
         code.putln("#define __PYX_ERR_OCCURRED() PyErr_Occurred()")
         code.putln("#define __PYX_FLOAT_FROM_DOUBLE %s" % CApiBackend.pyfloat_fromdouble)
         code.putln("#define __PYX_LONG_FROM_STRING %s" % CApiBackend.pylong_fromstring)
@@ -555,7 +554,6 @@ class CombinedBackend(APIBackend):
         code.putln("#define __PYX_OBJECT_CTYPE_EP ")
         code.putln("#define __PYX_GLOBAL_OBJECT_CTYPE HPyField")
         code.putln("#define __PYX_GLOBAL_OBJECT_CTYPE_BP HPyField")
-        code.putln("#define __PYX_GLOBAL_OBJECT_CTYPE_EP ")
         code.putln("#define __PYX_GLOBAL_TYPE_CTYPE HPyField")
         code.putln("#define __Pyx_CLEAR_GLOBAL(m, v) HPyField_Store(%s, %s->h_None, &(v), HPy_NULL)" %
                    (Naming.hpy_context_cname, Naming.hpy_context_cname))
@@ -583,7 +581,7 @@ class CombinedBackend(APIBackend):
         code.putln("#define __PYX_LIST_BUILDER_SET_ITEM %s" % HPyBackend.list_builder_set_item)
         code.putln("#define __PYX_LIST_BUILDER_BUILD %s" % HPyBackend.list_builder_build)
         code.putln("#define __Pyx_PyBytes_FromStringAndSize %s" % HPyBackend.bytes_from_string_and_size)
-        code.putln("#define __Pyx_PyUnicode_FromString %s" % HPyBackend.unicode_from_string)
+        code.putln("#define __Pyx_API_PyUnicode_FromString %s" % HPyBackend.unicode_from_string)
         code.putln("#define __PYX_ERR_OCCURRED() HPyErr_Occurred(%s)" % Naming.hpy_context_cname)
         code.putln("#define __PYX_FLOAT_FROM_DOUBLE %s" % HPyBackend.pyfloat_fromdouble)
         code.putln("#define __PYX_LONG_FROM_STRING %s" % HPyBackend.pylong_fromstring)
