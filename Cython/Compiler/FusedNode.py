@@ -276,12 +276,12 @@ class FusedCFuncDefNode(StatListNode):
         Returns whether an error was issued and whether we should stop in
         in order to prevent a flood of errors.
         """
-        num_errors = Errors.num_errors
+        num_errors = Errors.get_errors_count()
         transform = ParseTreeTransforms.ReplaceFusedTypeChecks(
                                        copied_node.local_scope)
         transform(copied_node)
 
-        if Errors.num_errors > num_errors:
+        if Errors.get_errors_count() > num_errors:
             return False
 
         return True

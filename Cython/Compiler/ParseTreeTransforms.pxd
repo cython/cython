@@ -29,7 +29,7 @@ cdef map_starred_assignment(list lhs_targets, list starred_assignments, list lhs
 
 #class PxdPostParse(CythonTransform, SkipDeclarations):
 #class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
-#class WithTransform(CythonTransform, SkipDeclarations):
+#class WithTransform(VisitorTransform, SkipDeclarations):
 #class DecoratorTransform(CythonTransform, SkipDeclarations):
 
 #class AnalyseDeclarationsTransform(EnvTransform):

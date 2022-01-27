@@ -183,6 +183,8 @@ class PostParse(ScopeTrackingTransform):
     Note: Currently Parsing.py does a lot of interpretation and
     reorganization that can be refactored into this transform
     if a more pure Abstract Syntax Tree is wanted.
+
+    - Some invalid uses of := assignment expressions are detected
     """
     def __init__(self, context):
         super(PostParse, self).__init__(context)
@@ -215,7 +217,9 @@ class PostParse(ScopeTrackingTransform):
         node.def_node = Nodes.DefNode(
             node.pos, name=node.name, doc=None,
             args=[], star_arg=None, starstar_arg=None,
-            body=node.loop, is_async_def=collector.has_await)
+            body=node.loop, is_async_def=collector.has_await,
+            is_generator_expression=True)
+        _AssignmentExpressionChecker.do_checks(node.loop, scope_is_class=self.scope_type in ("pyclass", "cclass"))
         self.visitchildren(node)
         return node
 
@@ -226,6 +230,7 @@ class PostParse(ScopeTrackingTransform):
             collector.visitchildren(node.loop)
             if collector.has_await:
                 node.has_local_scope = True
+        _AssignmentExpressionChecker.do_checks(node.loop, scope_is_class=self.scope_type in ("pyclass", "cclass"))
         self.visitchildren(node)
         return node
 
@@ -377,6 +382,124 @@ class PostParse(ScopeTrackingTransform):
             node.value = None
         self.visitchildren(node)
         return node
+
+class _AssignmentExpressionTargetNameFinder(TreeVisitor):
+    def __init__(self):
+        super(_AssignmentExpressionTargetNameFinder, self).__init__()
+        self.target_names = {}
+
+    def find_target_names(self, target):
+        if target.is_name:
+            return [target.name]
+        elif target.is_sequence_constructor:
+            names = []
+            for arg in target.args:
+                names.extend(self.find_target_names(arg))
+            return names
+        # other targets are possible, but it isn't necessary to investigate them here
+        return []
+
+    def visit_ForInStatNode(self, node):
+        self.target_names[node] = tuple(self.find_target_names(node.target))
+        self.visitchildren(node)
+
+    def visit_ComprehensionNode(self, node):
+        pass  # don't recurse into nested comprehensions
+
+    def visit_LambdaNode(self, node):
+        pass  # don't recurse into nested lambdas/generator expressions
+
+    def visit_Node(self, node):
+        self.visitchildren(node)
+
+
+class _AssignmentExpressionChecker(TreeVisitor):
+    """
+    Enforces rules on AssignmentExpressions within generator expressions and comprehensions
+    """
+    def __init__(self, loop_node, scope_is_class):
+        super(_AssignmentExpressionChecker, self).__init__()
+
+        target_name_finder = _AssignmentExpressionTargetNameFinder()
+        target_name_finder.visit(loop_node)
+        self.target_names_dict = target_name_finder.target_names
+        self.in_iterator = False
+        self.in_nested_generator = False
+        self.scope_is_class = scope_is_class
+        self.current_target_names = ()
+        self.all_target_names = set()
+        for names in self.target_names_dict.values():
+            self.all_target_names.update(names)
+
+    def _reset_state(self):
+        old_state = (self.in_iterator, self.in_nested_generator, self.scope_is_class, self.all_target_names, self.current_target_names)
+        # note: not resetting self.in_iterator here, see visit_LambdaNode() below
+        self.in_nested_generator = False
+        self.scope_is_class = False
+        self.current_target_names = ()
+        self.all_target_names = set()
+        return old_state
+
+    def _set_state(self, old_state):
+        self.in_iterator, self.in_nested_generator, self.scope_is_class, self.all_target_names, self.current_target_names = old_state
+
+    @classmethod
+    def do_checks(cls, loop_node, scope_is_class):
+        checker = cls(loop_node, scope_is_class)
+        checker.visit(loop_node)
+
+    def visit_ForInStatNode(self, node):
+        if self.in_nested_generator:
+            self.visitchildren(node)  # once nested, don't do anything special
+            return
+
+        current_target_names = self.current_target_names
+        target_name = self.target_names_dict.get(node, None)
+        if target_name:
+            self.current_target_names += target_name
+
+        self.in_iterator = True
+        self.visit(node.iterator)
+        self.in_iterator = False
+        self.visitchildren(node, exclude=("iterator",))
+
+        self.current_target_names = current_target_names
+
+    def visit_AssignmentExpressionNode(self, node):
+        if self.in_iterator:
+            error(node.pos, "assignment expression cannot be used in a comprehension iterable expression")
+        if self.scope_is_class:
+            error(node.pos, "assignment expression within a comprehension cannot be used in a class body")
+        if node.target_name in self.current_target_names:
+            error(node.pos, "assignment expression cannot rebind comprehension iteration variable '%s'" %
+                  node.target_name)
+        elif node.target_name in self.all_target_names:
+            error(node.pos, "comprehension inner loop cannot rebind assignment expression target '%s'" %
+                  node.target_name)
+
+    def visit_LambdaNode(self, node):
+        # Don't reset "in_iterator" - an assignment expression in a lambda in an
+        # iterator is explicitly tested by the Python testcases and banned.
+        old_state = self._reset_state()
+        # the lambda node's "def_node" is not set up at this point, so we need to recurse into it explicitly.
+        self.visit(node.result_expr)
+        self._set_state(old_state)
+
+    def visit_ComprehensionNode(self, node):
+        in_nested_generator = self.in_nested_generator
+        self.in_nested_generator = True
+        self.visitchildren(node)
+        self.in_nested_generator = in_nested_generator
+
+    def visit_GeneratorExpressionNode(self, node):
+        in_nested_generator = self.in_nested_generator
+        self.in_nested_generator = True
+        # def_node isn't set up yet, so we need to visit the loop directly.
+        self.visit(node.loop)
+        self.in_nested_generator = in_nested_generator
+
+    def visit_Node(self, node):
+        self.visitchildren(node)
 
 
 def eliminate_rhs_duplicates(expr_list_list, ref_node_sequence):
@@ -916,6 +1039,8 @@ class InterpretCompilerDirectives(CythonTransform):
         return node
 
     def visit_NameNode(self, node):
+        if node.annotation:
+            self.visitchild(node, 'annotation')
         if node.name in self.cython_module_names:
             node.is_cython_module = True
         else:
@@ -942,7 +1067,7 @@ class InterpretCompilerDirectives(CythonTransform):
         return node
 
     def visit_NewExprNode(self, node):
-        self.visit(node.cppclass)
+        self.visitchild(node, 'cppclass')
         self.visitchildren(node)
         return node
 
@@ -951,7 +1076,7 @@ class InterpretCompilerDirectives(CythonTransform):
         # decorator), returns a list of (directivename, value) pairs.
         # Otherwise, returns None
         if isinstance(node, ExprNodes.CallNode):
-            self.visit(node.function)
+            self.visitchild(node, 'function')
             optname = node.function.as_cython_attribute()
             if optname:
                 directivetype = Options.directive_types.get(optname)
@@ -1264,7 +1389,7 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
         return node
 
     def visit_CallNode(self, node):
-        self.visit(node.function)
+        self.visitchild(node, 'function')
         if not self.parallel_directive:
             self.visitchildren(node, exclude=('function',))
             return node
@@ -1297,7 +1422,7 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
                       "Nested parallel with blocks are disallowed")
 
             self.state = 'parallel with'
-            body = self.visit(node.body)
+            body = self.visitchild(node, 'body')
             self.state = None
 
             newnode.body = body
@@ -1313,13 +1438,13 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
                 error(node.pos, "The parallel directive must be called")
                 return None
 
-        node.body = self.visit(node.body)
+        self.visitchild(node, 'body')
         return node
 
     def visit_ForInStatNode(self, node):
         "Rewrite 'for i in cython.parallel.prange(...):'"
-        self.visit(node.iterator)
-        self.visit(node.target)
+        self.visitchild(node, 'iterator')
+        self.visitchild(node, 'target')
 
         in_prange = isinstance(node.iterator.sequence,
                                Nodes.ParallelRangeNode)
@@ -1342,9 +1467,9 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
 
             self.state = 'prange'
 
-        self.visit(node.body)
+        self.visitchild(node, 'body')
         self.state = previous_state
-        self.visit(node.else_clause)
+        self.visitchild(node, 'else_clause')
         return node
 
     def visit(self, node):
@@ -1353,7 +1478,7 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
             return super(ParallelRangeTransform, self).visit(node)
 
 
-class WithTransform(CythonTransform, SkipDeclarations):
+class WithTransform(VisitorTransform, SkipDeclarations):
     def visit_WithStatNode(self, node):
         self.visitchildren(node, 'body')
         pos = node.pos
@@ -1418,6 +1543,8 @@ class WithTransform(CythonTransform, SkipDeclarations):
     def visit_ExprNode(self, node):
         # With statements are never inside expressions.
         return node
+
+    visit_Node = VisitorTransform.recurse_to_children
 
 
 class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
@@ -1974,7 +2101,7 @@ if VALUE is not None:
         "Handle def or cpdef fused functions"
         # Create PyCFunction nodes for each specialization
         node.stats.insert(0, node.py_func)
-        node.py_func = self.visit(node.py_func)
+        self.visitchild(node, 'py_func')
         node.update_fused_defnode_entry(env)
         # For the moment, fused functions do not support METH_FASTCALL
         node.py_func.entry.signature.use_fastcall = False
@@ -2256,13 +2383,12 @@ if VALUE is not None:
         return None
 
     def visit_CnameDecoratorNode(self, node):
-        child_node = self.visit(node.node)
+        child_node = self.visitchild(node, 'node')
         if not child_node:
             return None
         if type(child_node) is list:  # Assignment synthesized
-            node.child_node = child_node[0]
+            node.node = child_node[0]
             return [node] + child_node[1:]
-        node.node = child_node
         return node
 
     def create_Property(self, entry):
@@ -2281,6 +2407,11 @@ if VALUE is not None:
         property.name = entry.name
         property.doc = entry.doc
         return property
+
+    def visit_AssignmentExpressionNode(self, node):
+        self.visitchildren(node)
+        node.analyse_declarations(self.current_env())
+        return node
 
 
 class CalculateQualifiedNamesTransform(EnvTransform):
@@ -2819,7 +2950,8 @@ class MarkClosureVisitor(CythonTransform):
             star_arg=node.star_arg, starstar_arg=node.starstar_arg,
             doc=node.doc, decorators=node.decorators,
             gbody=gbody, lambda_name=node.lambda_name,
-            return_type_annotation=node.return_type_annotation)
+            return_type_annotation=node.return_type_annotation,
+            is_generator_expression=node.is_generator_expression)
         return coroutine
 
     def visit_CFuncDefNode(self, node):
@@ -3076,6 +3208,7 @@ class GilCheck(VisitorTransform):
         self.env_stack.append(node.local_scope)
         inner_nogil = node.local_scope.nogil
 
+        nogil_declarator_only = self.nogil_declarator_only
         if inner_nogil:
             self.nogil_declarator_only = True
 
@@ -3084,8 +3217,9 @@ class GilCheck(VisitorTransform):
 
         self._visit_scoped_children(node, inner_nogil)
 
-        # This cannot be nested, so it doesn't need backup/restore
-        self.nogil_declarator_only = False
+        # FuncDefNodes can be nested, because a cpdef function contains a def function
+        # inside it. Therefore restore to previous state
+        self.nogil_declarator_only = nogil_declarator_only
 
         self.env_stack.pop()
         return node
@@ -3110,6 +3244,8 @@ class GilCheck(VisitorTransform):
             else:
                 error(node.pos, "Trying to release the GIL while it was "
                                 "previously released.")
+        if self.nogil_declarator_only:
+            node.scope_gil_state_known = False
 
         if isinstance(node.finally_clause, Nodes.StatListNode):
             # The finally clause of the GILStatNode is a GILExitNode,
@@ -3157,6 +3293,12 @@ class GilCheck(VisitorTransform):
 
         node.nogil_check = None
         node.is_try_finally_in_nogil = True
+        self.visitchildren(node)
+        return node
+
+    def visit_GILExitNode(self, node):
+        if self.nogil_declarator_only:
+            node.scope_gil_state_known = False
         self.visitchildren(node)
         return node
 

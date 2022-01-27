@@ -162,7 +162,12 @@ class TestClassGetitem(unittest.TestCase):
     # BEGIN - Additional tests from cython
     def test_no_class_getitem(self):
         class C: ...
-        with self.assertRaises(TypeError):
+        # PyPy<7.3.8 raises AttributeError on __class_getitem__
+        if hasattr(sys, "pypy_version_info")  and sys.pypy_version_info < (7, 3, 8):
+            err = AttributeError
+        else:
+            err = TypeError
+        with self.assertRaises(err):
             C[int]
 
     # END - Additional tests from cython

@@ -513,7 +513,9 @@ def mod_format(unicode s, values):
     True
     >>> mod_format(format2, ('XYZ', 'ABC')) == 'abcXYZdefABCghi'  or  mod_format(format2, ('XYZ', 'ABC'))
     True
-    >>> mod_format(None, 'sa')   # doctest: +ELLIPSIS
+
+    Exact TypeError message is different in PyPy
+    >>> mod_format(None, 'sa')   # doctest: +IGNORE_EXCEPTION_DETAIL
     Traceback (most recent call last):
     TypeError: unsupported operand type(s) for %: 'NoneType' and 'str'
     >>> class RMod(object):

@@ -23,7 +23,7 @@ from . import PyrexTypes
 from . import TypeSlots
 from .PyrexTypes import py_object_type, error_type
 from .Symtab import (ModuleScope, LocalScope, ClosureScope, PropertyScope,
-                     StructOrUnionScope, PyClassScope, CppClassScope, TemplateScope,
+                     StructOrUnionScope, PyClassScope, CppClassScope, TemplateScope, GeneratorExpressionScope,
                      CppScopedEnumScope, punycodify_name)
 from .Code import UtilityCode
 from .StringEncoding import EncodedString
@@ -714,6 +714,12 @@ class CFuncDeclaratorNode(CDeclaratorNode):
             env.add_include_file('new')         # for std::bad_alloc
             env.add_include_file('stdexcept')
             env.add_include_file('typeinfo')    # for std::bad_cast
+        elif return_type.is_pyobject and self.exception_check:
+            # Functions in pure Python mode default to always check return values for exceptions
+            # (equivalent to the "except*" declaration). In this case, the exception clause
+            # is silently ignored for functions returning a Python object.
+            self.exception_check = False
+
         if (return_type.is_pyobject
                 and (self.exception_value or self.exception_check)
                 and self.exception_check != '+'):
@@ -1753,6 +1759,7 @@ class FuncDefNode(StatNode, BlockNode):
     needs_outer_scope = False
     pymethdef_required = False
     is_generator = False
+    is_generator_expression = False  # this can be True alongside is_generator
     is_coroutine = False
     is_asyncgen = False
     is_generator_body = False
@@ -1824,7 +1831,8 @@ class FuncDefNode(StatNode, BlockNode):
         while genv.is_py_class_scope or genv.is_c_class_scope:
             genv = genv.outer_scope
         if self.needs_closure:
-            lenv = ClosureScope(name=self.entry.name,
+            cls = GeneratorExpressionScope if self.is_generator_expression else ClosureScope
+            lenv = cls(name=self.entry.name,
                                 outer_scope=genv,
                                 parent_scope=env,
                                 scope_name=self.entry.cname)
@@ -2432,7 +2440,7 @@ class FuncDefNode(StatNode, BlockNode):
         if not self.entry.is_special:
             return None
         name = self.entry.name
-        slot = TypeSlots.method_name_to_slot.get(name)
+        slot = TypeSlots.get_slot_table(self.local_scope.directives).get_slot_by_method_name(name)
         if not slot:
             return None
         if name == '__long__' and not self.entry.scope.lookup_here('__int__'):
@@ -3755,6 +3763,11 @@ class DefNodeWrapper(FuncDefNode):
                         code.put_var_xdecref_clear(self.starstar_arg.entry)
                     else:
                         code.put_var_decref_clear(self.starstar_arg.entry)
+            for arg in self.args:
+                if not arg.type.is_pyobject and arg.type.needs_refcounting:
+                    # at the moment this just catches memoryviewslices, but in future
+                    # other non-PyObject reference counted types might need cleanup
+                    code.put_var_xdecref(arg.entry)
             code.put_add_traceback(self.target.entry.qualified_name)
             code.put_finish_refcount_context()
             code.putln("return %s;" % self.error_value())
@@ -5280,13 +5293,14 @@ class CClassDefNode(ClassDefNode):
                 first_base = "((PyTypeObject*)PyTuple_GET_ITEM(%s, 0))" % bases
                 # Let Python do the base types compatibility checking.
                 trial_type = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=True)
-                code.putln("%s = PyType_Type.tp_new(&PyType_Type, %s, NULL);" % (
+                code.putln("%s = __Pyx_PyType_GetSlot(&PyType_Type, tp_new, newfunc)(&PyType_Type, %s, NULL);" % (
                     trial_type, self.type_init_args.result()))
                 code.putln(code.error_goto_if_null(trial_type, self.pos))
                 code.put_gotref(trial_type, py_object_type)
-                code.putln("if (((PyTypeObject*) %s)->tp_base != %s) {" % (
+                code.putln("if (__Pyx_PyType_GetSlot((PyTypeObject*) %s, tp_base, PyTypeObject*) != %s) {" % (
                     trial_type, first_base))
-                code.putln("__Pyx_TypeName base_name = __Pyx_PyType_GetName(((PyTypeObject*) %s)->tp_base);" % trial_type)
+                trial_type_base = "__Pyx_PyType_GetSlot((PyTypeObject*) %s, tp_base, PyTypeObject*)" % trial_type
+                code.putln("__Pyx_TypeName base_name = __Pyx_PyType_GetName(%s);" % trial_type_base)
                 code.putln("__Pyx_TypeName type_name = __Pyx_PyType_GetName(%s);" % first_base)
                 code.putln("PyErr_Format(PyExc_TypeError, "
                     "\"best base '\" __Pyx_FMT_TYPENAME \"' must be equal to first base '\" __Pyx_FMT_TYPENAME \"'\",")
@@ -5353,7 +5367,7 @@ class CClassDefNode(ClassDefNode):
                         UtilityCode.load_cached('ValidateBasesTuple', 'ExtensionTypes.c'))
                     code.put_error_if_neg(entry.pos, "__Pyx_validate_bases_tuple(%s.name, %s, %s)" % (
                         typespec_cname,
-                        TypeSlots.get_slot_by_name("tp_dictoffset").slot_code(scope),
+                        TypeSlots.get_slot_by_name("tp_dictoffset", scope.directives).slot_code(scope),
                         bases_tuple_cname or tuple_temp,
                     ))
 
@@ -5377,7 +5391,7 @@ class CClassDefNode(ClassDefNode):
                     ))
 
             # The buffer interface is not currently supported by PyType_FromSpec().
-            buffer_slot = TypeSlots.get_slot_by_name("tp_as_buffer")
+            buffer_slot = TypeSlots.get_slot_by_name("tp_as_buffer", code.globalstate.directives)
             if not buffer_slot.is_empty(scope):
                 code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
                 code.putln("%s->%s = %s;" % (
@@ -5387,7 +5401,8 @@ class CClassDefNode(ClassDefNode):
                 ))
                 # Still need to inherit buffer methods since PyType_Ready() didn't do it for us.
                 for buffer_method_name in ("__getbuffer__", "__releasebuffer__"):
-                    buffer_slot = TypeSlots.get_slot_by_method_name(buffer_method_name)
+                    buffer_slot = TypeSlots.get_slot_table(
+                        code.globalstate.directives).get_slot_by_method_name(buffer_method_name)
                     if buffer_slot.slot_code(scope) == "0" and not TypeSlots.get_base_slot_function(scope, buffer_slot):
                         code.putln("if (!%s->tp_as_buffer->%s &&"
                                    " %s->tp_base->tp_as_buffer &&"
@@ -5423,7 +5438,7 @@ class CClassDefNode(ClassDefNode):
 
             code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
             # FIXME: these still need to get initialised even with the limited-API
-            for slot in TypeSlots.slot_table:
+            for slot in TypeSlots.get_slot_table(code.globalstate.directives):
                 slot.generate_dynamic_init_code(scope, code)
             code.putln("#endif")
 
@@ -5468,7 +5483,8 @@ class CClassDefNode(ClassDefNode):
                 is_buffer = func.name in ('__getbuffer__', '__releasebuffer__')
                 if (func.is_special and Options.docstrings and
                         func.wrapperbase_cname and not is_buffer):
-                    slot = TypeSlots.method_name_to_slot.get(func.name)
+                    slot = TypeSlots.get_slot_table(
+                        entry.type.scope.directives).get_slot_by_method_name(func.name)
                     preprocessor_guard = slot.preprocessor_guard_code() if slot else None
                     if preprocessor_guard:
                         code.putln(preprocessor_guard)
@@ -5752,12 +5768,14 @@ class SingleAssignmentNode(AssignmentNode):
     #  rhs                      ExprNode      Right hand side
     #  first                    bool          Is this guaranteed the first assignment to lhs?
     #  is_overloaded_assignment bool          Is this assignment done via an overloaded operator=
+    #  is_assignment_expression bool          Internally SingleAssignmentNode is used to implement assignment expressions
     #  exception_check
     #  exception_value
 
     child_attrs = ["lhs", "rhs"]
     first = False
     is_overloaded_assignment = False
+    is_assignment_expression = False
     declaration_only = False
 
     def analyse_declarations(self, env):
@@ -5842,14 +5860,17 @@ class SingleAssignmentNode(AssignmentNode):
         if self.declaration_only:
             return
         else:
-            self.lhs.analyse_target_declaration(env)
-            # if an entry doesn't exist that just implies that lhs isn't made up purely
-            # of AttributeNodes and NameNodes - it isn't useful as a known path to
-            # a standard library module
-            if (self.lhs.is_attribute or self.lhs.is_name) and self.lhs.entry and not self.lhs.entry.known_standard_library_import:
-                stdlib_import_name = self.rhs.get_known_standard_library_import()
-                if stdlib_import_name:
-                    self.lhs.entry.known_standard_library_import = stdlib_import_name
+            if self.is_assignment_expression:
+                self.lhs.analyse_assignment_expression_target_declaration(env)
+            else:
+                self.lhs.analyse_target_declaration(env)
+                # if an entry doesn't exist that just implies that lhs isn't made up purely
+                # of AttributeNodes and NameNodes - it isn't useful as a known path to
+                # a standard library module
+                if (self.lhs.is_attribute or self.lhs.is_name) and self.lhs.entry and not self.lhs.entry.known_standard_library_import:
+                    stdlib_import_name = self.rhs.get_known_standard_library_import()
+                    if stdlib_import_name:
+                        self.lhs.entry.known_standard_library_import = stdlib_import_name
 
     def analyse_types(self, env, use_temp=0):
         from . import ExprNodes
@@ -8355,9 +8376,12 @@ class GILStatNode(NogilTryFinallyStatNode):
     #  'with gil' or 'with nogil' statement
     #
     #   state   string   'gil' or 'nogil'
+    #   scope_gil_state_known  bool  For nogil functions this can be False, since they can also be run with gil
+    #                           set to False by GilCheck transform
 
     child_attrs = ["condition"] + NogilTryFinallyStatNode.child_attrs
     state_temp = None
+    scope_gil_state_known = True
 
     def __init__(self, pos, state, body, condition=None):
         self.state = state
@@ -8420,7 +8444,7 @@ class GILStatNode(NogilTryFinallyStatNode):
             code.put_ensure_gil(variable=variable)
             code.funcstate.gil_owned = True
         else:
-            code.put_release_gil(variable=variable)
+            code.put_release_gil(variable=variable, unknown_gil_state=not self.scope_gil_state_known)
             code.funcstate.gil_owned = False
 
         TryFinallyStatNode.generate_execution_code(self, code)
@@ -8437,10 +8461,13 @@ class GILExitNode(StatNode):
     Used as the 'finally' block in a GILStatNode
 
     state   string   'gil' or 'nogil'
+    #   scope_gil_state_known  bool  For nogil functions this can be False, since they can also be run with gil
+    #                           set to False by GilCheck transform
     """
 
     child_attrs = []
     state_temp = None
+    scope_gil_state_known = True
 
     def analyse_expressions(self, env):
         return self
@@ -8454,7 +8481,7 @@ class GILExitNode(StatNode):
         if self.state == 'gil':
             code.put_release_ensured_gil(variable)
         else:
-            code.put_acquire_gil(variable)
+            code.put_acquire_gil(variable, unknown_gil_state=not self.scope_gil_state_known)
 
 
 class EnsureGILNode(GILExitNode):
@@ -9275,7 +9302,10 @@ class ParallelStatNode(StatNode, ParallelNode):
             if not lastprivate or entry.type.is_pyobject:
                 continue
 
-            type_decl = entry.type.empty_declaration_code()
+            if entry.type.is_cpp_class and not entry.type.is_fake_reference and code.globalstate.directives['cpp_locals']:
+                type_decl = entry.type.cpp_optional_declaration_code("")
+            else:
+                type_decl = entry.type.empty_declaration_code()
             temp_cname = "__pyx_parallel_temp%d" % temp_count
             private_cname = entry.cname
 
@@ -9289,10 +9319,17 @@ class ParallelStatNode(StatNode, ParallelNode):
             # Declare the parallel private in the outer block
             c.putln("%s %s%s;" % (type_decl, temp_cname, init))
 
+            self.parallel_private_temps.append((temp_cname, private_cname, entry.type))
+
+            if entry.type.is_cpp_class:
+                # moving is fine because we're quitting the loop and so won't be directly accessing the variable again
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("MoveIfSupported", "CppSupport.cpp"))
+                private_cname = "__PYX_STD_MOVE_IF_SUPPORTED(%s)" % private_cname
             # Initialize before escaping
             code.putln("%s = %s;" % (temp_cname, private_cname))
 
-            self.parallel_private_temps.append((temp_cname, private_cname))
+
 
         code.end_block()  # end critical section
 
@@ -9413,7 +9450,10 @@ class ParallelStatNode(StatNode, ParallelNode):
             code.putln(
                 "if (%s) {" % Naming.parallel_why)
 
-            for temp_cname, private_cname in self.parallel_private_temps:
+            for temp_cname, private_cname, temp_type in self.parallel_private_temps:
+                if temp_type.is_cpp_class:
+                    # utility code was loaded earlier
+                    temp_cname = "__PYX_STD_MOVE_IF_SUPPORTED(%s)" % temp_cname
                 code.putln("%s = %s;" % (private_cname, temp_cname))
 
             code.putln("switch (%s) {" % Naming.parallel_why)
@@ -9583,10 +9623,6 @@ class ParallelRangeNode(ParallelStatNode):
             self.index_type = PyrexTypes.c_py_ssize_t_type
         else:
             self.index_type = self.target.type
-            if not self.index_type.signed:
-                warning(self.target.pos,
-                        "Unsigned index type not allowed before OpenMP 3.0",
-                        level=2)
 
         # Setup start, stop and step, allocating temps if needed
         self.names = 'start', 'stop', 'step'
