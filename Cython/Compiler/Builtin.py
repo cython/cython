@@ -464,11 +464,13 @@ def get_known_standard_library_module_scope(module_name):
     if not mod:
         if module_name == "typing":
             mod = ModuleScope(module_name, None, None)
-            for name, tp in [('Dict', dict_type),
-                             ('List', list_type),
-                             ('Tuple', tuple_type),
-                             ('Set', set_type),
-                             ('FrozenSet', frozenset_type)]:
+            for name, tp in [
+                    ('Dict', dict_type),
+                    ('List', list_type),
+                    ('Tuple', tuple_type),
+                    ('Set', set_type),
+                    ('FrozenSet', frozenset_type),
+                    ]:
                 name = EncodedString(name)
                 if name == "Tuple":
                     indexed_type = PyrexTypes.PythonTupleTypeConstructor(EncodedString("typing."+name), tp)
