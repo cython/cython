@@ -135,6 +135,7 @@ def process_class_get_fields(node):
     # don't treat `x = 1` as an assignment of a class attribute within the dataclass
     transform = RemoveAssignmentsToNames(var_names)
     transform(node)
+    default_value_assignments = transform.removed_assignments
 
     if node.base_type and node.base_type.dataclass_fields:
         fields = node.base_type.dataclass_fields.copy()
@@ -149,8 +150,8 @@ def process_class_get_fields(node):
         # and thus this code is never triggered
         is_classvar = (entry.type.is_special_python_type_constructor and
                        entry.type.name == "typing.ClassVar")
-        if name in transform.removed_assignments:
-            assignment = transform.removed_assignments[name]
+        if name in default_value_assignments:
+            assignment = default_value_assignments[name]
             if (isinstance(assignment, ExprNodes.CallNode)
                     and assignment.function.as_cython_attribute() == "dataclasses.field"):
                 # I believe most of this is well-enforced when it's treated as a directive
