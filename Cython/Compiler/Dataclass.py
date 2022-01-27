@@ -1,6 +1,8 @@
 # functions to transform a c class into a dataclass
 
 from collections import OrderedDict
+from textwrap import dedent
+import operator
 
 from . import ExprNodes
 from . import Nodes
@@ -15,7 +17,6 @@ from .StringEncoding import BytesLiteral, EncodedString
 from .TreeFragment import TreeFragment
 from .ParseTreeTransforms import (NormalizeTree, SkipDeclarations, AnalyseDeclarationsTransform,
                                   MarkClosureVisitor)
-from textwrap import dedent
 
 def make_dataclasses_module_callnode(pos):
     python_utility_code = UtilityCode.load_cached("Dataclasses_fallback", "Dataclasses.py")
@@ -122,7 +123,6 @@ class Field(object):
 
 
 def process_class_get_fields(node):
-    import operator
     var_entries = node.scope.var_entries
     # order of definition is used in the dataclass
     var_entries = sorted(var_entries, key=operator.attrgetter('pos'))
@@ -186,6 +186,7 @@ def process_class_get_fields(node):
         fields[name] = field
     node.entry.type.dataclass_fields = fields
     return fields
+
 
 def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     # default argument values from https://docs.python.org/3/library/dataclasses.html
@@ -264,6 +265,7 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     analyse_decs_transform.exit_scope()
 
     node.body.stats.append(comp_directives)
+
 
 def generate_init_code(init, node, fields):
     """
@@ -397,6 +399,7 @@ def generate_repr_code(repr, node, fields):
 
     return code_lines, {}, []
 
+
 def generate_cmp_code(op, funcname, node, fields):
     if node.scope.lookup_here(funcname):
         return "", {}, []
@@ -442,10 +445,12 @@ def generate_cmp_code(op, funcname, node, fields):
 
     return code_lines, {}, []
 
+
 def generate_eq_code(eq, node, fields):
     if not eq:
         return code_lines, {}, []
     return generate_cmp_code("==", "__eq__", node, fields)
+
 
 def generate_order_code(order, node, fields):
     if not order:
@@ -462,6 +467,7 @@ def generate_order_code(order, node, fields):
         placeholders.update(res[1])
         stats.extend(res[2])
     return "\n".join(code_lines), placeholders, stats
+
 
 def generate_hash_code(unsafe_hash, eq, frozen, node, fields):
     """
@@ -625,8 +631,8 @@ def _set_up_dataclass_fields(node, fields, dataclass_module):
         if field.private:
             continue  # doesn't appear in the public interface
         for attrname in [ "default", "default_factory" ]:
-            f_def = getattr(field, attrname)
-            if f_def is MISSING or f_def.is_literal or f_def.is_name:
+            field_default = getattr(field, attrname)
+            if field_default is MISSING or field_default.is_literal or field_default.is_name:
                 # some simple cases where we don't need to set up
                 # the variable as a module-level constant
                 continue
@@ -635,16 +641,16 @@ def _set_up_dataclass_fields(node, fields, dataclass_module):
                 global_scope.mangle(Naming.dataclass_field_default_cname, node.class_name),
                 name)
             # create an entry in the global scope for this variable to live
-            nn = ExprNodes.NameNode(f_def.pos, name=EncodedString(module_field_name))
-            nn.entry = global_scope.declare_var(nn.name, type=f_def.type or PyrexTypes.unspecified_type,
-                                                pos=f_def.pos, cname=nn.name, is_cdef=1)
+            name_node = ExprNodes.NameNode(field_default.pos, name=EncodedString(module_field_name))
+            name_node.entry = global_scope.declare_var(name_node.name, type=field_default.type or PyrexTypes.unspecified_type,
+                                                pos=field_default.pos, cname=name_node.name, is_cdef=1)
             # replace the field so that future users just receive the namenode
-            setattr(field, attrname, nn)
+            setattr(field, attrname, name_node)
 
             variables_assignment_stats.append(
-                Nodes.SingleAssignmentNode(f_def.pos,
-                                           lhs = nn,
-                                           rhs = f_def))
+                Nodes.SingleAssignmentNode(field_default.pos,
+                                           lhs = name_node,
+                                           rhs = field_default))
 
     placeholders = {}
     field_func = ExprNodes.AttributeNode(node.pos, obj=dataclass_module,

@@ -6,6 +6,7 @@ from .UtilityCode import CythonUtilityCode
 from .Errors import error
 from .Scanning import StringSourceDescriptor
 from . import MemoryView
+from .StringEncoding import EncodedString
 
 
 class CythonScope(ModuleScope):
@@ -138,7 +139,6 @@ class CythonScope(ModuleScope):
         # self.entries["array"] = view_utility_scope.entries.pop("array")
 
         # dataclasses scope
-        from .StringEncoding import EncodedString
         dc_str = EncodedString(u'dataclasses')
         dataclassesscope = ModuleScope(dc_str, self, context=None)
         self.declare_module(dc_str, dataclassesscope, pos=None).as_module = dataclassesscope

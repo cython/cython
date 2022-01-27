@@ -467,9 +467,7 @@ def get_known_standard_library_module_scope(module_name):
                              ('List', list_type),
                              ('Tuple', tuple_type),
                              ('Set', set_type),
-                             ('FrozenSet', frozenset_type),
-                             ('DefaultDict', dict_type),
-                             ('OrderedDict', dict_type)]:
+                             ('FrozenSet', frozenset_type)]:
                 name = EncodedString(name)
                 if name == "Tuple":
                     indexed_type = PyrexTypes.PythonTupleTypeConstructor(EncodedString("typing."+name), tp)
