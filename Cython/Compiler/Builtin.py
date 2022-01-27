@@ -4,6 +4,7 @@
 
 from __future__ import absolute_import
 
+from .StringEncoding import EncodedString
 from .Symtab import BuiltinScope, StructOrUnionScope, ModuleScope
 from .Code import UtilityCode
 from .TypeSlots import Signature
@@ -458,8 +459,6 @@ init_builtins()
 _known_module_scopes = {}
 
 def get_known_standard_library_module_scope(module_name):
-    from .StringEncoding import EncodedString
-
     mod = _known_module_scopes.get(module_name, None)
     if not mod:
         if module_name == "typing":
@@ -491,8 +490,6 @@ def get_known_standard_library_module_scope(module_name):
 
 
 def get_known_standard_library_entry(qualified_name):
-    from .StringEncoding import EncodedString
-
     name_parts = qualified_name.split(".")
     module_name = EncodedString(name_parts[0])
     rest = name_parts[1:]
@@ -505,3 +502,4 @@ def get_known_standard_library_entry(qualified_name):
     # eventually handle more sophisticated multiple lookups if needed
     if mod and rest:
         return mod.lookup_here(rest[0])
+    return None
