@@ -2449,7 +2449,11 @@ class NameNode(AtomicExprNode):
         # is_pyglobal seems to be True for module level-globals only.
         # We use this to access class->tp_dict if necessary.
         if entry.is_pyglobal:
-            assert entry.type.is_pyobject, "Python global or builtin not a Python object"
+            try:
+                assert entry.type.is_pyobject, "Python global or builtin not a Python object"
+            except:
+                import pdb; pdb.set_trace()
+                raise
             interned_cname = code.intern_identifier(self.entry.name)
             namespace = self.entry.scope.namespace_cname
             if entry.is_member:
@@ -3672,8 +3676,8 @@ class IndexNode(_IndexingBaseNode):
 
     def analyse_as_type(self, env):
         base_type = self.base.analyse_as_type(env)
-        if base_type and (not base_type.is_pyobject or base_type.is_python_type_constructor):
-            if base_type.is_cpp_class or base_type.is_python_type_constructor:
+        if base_type and (not base_type.is_pyobject or base_type.python_type_constructor_name):
+            if base_type.is_cpp_class or base_type.python_type_constructor_name:
                 if isinstance(self.index, TupleNode):
                     template_values = self.index.args
                 else:

@@ -194,8 +194,8 @@ class PyrexType(BaseType):
     #  is_string             boolean     Is a C char * type
     #  is_pyunicode_ptr      boolean     Is a C PyUNICODE * type
     #  is_cpp_string         boolean     Is a C++ std::string type
-    #  is_python_type_constructor     boolean     Is a Python type constructor that can be indexed/"templated"
-    #  is_special_python_type_constructor boolean   e.g. typing.Optional, dataclasses.InitVar
+    #  python_type_constructor_name     string or None     non-None if it is a Python type constructor that can be indexed/"templated"
+    #  special_python_type_constructor_name     string or None   e.g. typing.Optional, dataclasses.InitVar
     #  is_unicode_char       boolean     Is either Py_UCS4 or Py_UNICODE
     #  is_returncode         boolean     Is used only to signal exceptions
     #  is_error              boolean     Is the dummy error type
@@ -259,8 +259,8 @@ class PyrexType(BaseType):
     is_struct_or_union = 0
     is_cpp_class = 0
     is_optional_cpp_class = 0
-    is_python_type_constructor = False
-    is_special_python_type_constructor = False
+    python_type_constructor_name = None
+    special_python_type_constructor_name = None
     is_cpp_string = 0
     is_struct = 0
     is_enum = 0
@@ -4412,7 +4412,7 @@ class PythonTypeConstructor(PyObjectType):
     is_python_type_constructor = True
 
     def __init__(self, name, base_type=None):
-        self.name = name
+        self.python_type_constructor_name = name
         self.base_type = base_type
 
     def specialize_here(self, pos, env, template_values=None):
@@ -4447,11 +4447,9 @@ class SpecialPythonTypeConstructor(PythonTypeConstructor):
     For things like ClassVar, Optional, etc, which have extra features on top of being
     a "templated" type.
     """
-    is_special_python_type_constructor = True
-
     @property
-    def is_python_type_constructor(self):
-        return not bool(self.template_type)
+    def special_python_type_constructor_name(self):
+        return self.python_type_constructor_name
 
     def __init__(self, name, template_type=None):
         super(SpecialPythonTypeConstructor, self).__init__(name, None)
@@ -4469,26 +4467,6 @@ class SpecialPythonTypeConstructor(PythonTypeConstructor):
                 template_type = py_object_types
         self.template_type = template_type
 
-    def __getattribute__(self, attr):
-        # order of lookup is:
-        # 1. specifically overridden in this class or PythonTypeConstructor
-        # 2. template type (if it exists)
-        # 3. PyrexType
-        dict_ = super(PythonTypeConstructor, self).__getattribute__("__dict__")
-        if attr in dict_:
-            return dict_[attr]
-        cls = super(PythonTypeConstructor, self).__getattribute__("__class__")
-        while issubclass(cls, PythonTypeConstructor):  # Walk the MRO
-            if attr in cls.__dict__:
-                return super(PythonTypeConstructor, self).__getattribute__(attr)
-            cls = cls.__base__
-
-        tt = super(PythonTypeConstructor, self).__getattribute__("template_type")
-        if tt:
-            return getattr(tt, attr)
-
-        return super(PythonTypeConstructor, self).__getattribute__(attr)  # fallback to looking like a PyrexType
-
     def __repr__(self):
         if self.template_type:
             return "%s[%r]" % (self.name, self.template_type)
@@ -4499,12 +4477,23 @@ class SpecialPythonTypeConstructor(PythonTypeConstructor):
         return self.template_type is None
 
     def specialize_here(self, pos, env, template_values=None):
-        if not self.is_template_type():
-            error(pos, "'%r' has already been specialized" % self )
-            return error_type
         if len(template_values) != 1:
             error(pos, "'%s' takes exactly one template argument." % self.name)
-        return SpecialPythonTypeConstructor(self.name, template_values[0])
+        # return a copy of the template type with special_python_type_constructor_name as an attribute
+        # so it can be identified, and a resolve function that gets back to
+        # the original type (since types are usually tested with "is")
+        new_type = template_values[0]
+        if self.special_python_type_constructor_name == "typing.ClassVar":
+            # classvar must remain a py_object_type
+            new_type = py_object_type
+        if (self.special_python_type_constructor_name == "typing.Optional" and
+                not new_type.is_pyobject):
+            # optional must be a py_object, but can be a specialized py_object
+            new_type = py_object_type
+        type_copy = copy.copy(new_type)
+        type_copy.special_python_type_constructor_name = self.special_python_type_constructor_name
+        type_copy.resolve = lambda: new_type.resolve()
+        return type_copy
 
 
 rank_to_type_name = (

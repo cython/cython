@@ -587,7 +587,7 @@ class CArrayDeclaratorNode(CDeclaratorNode):
     def analyse(self, base_type, env, nonempty=0, visibility=None, in_pxd=False):
         if ((base_type.is_cpp_class and base_type.is_template_type()) or
                 base_type.is_cfunction or
-                base_type.is_python_type_constructor):
+                base_type.python_type_constructor_name):
             from .ExprNodes import TupleNode
             if isinstance(self.dimension, TupleNode):
                 args = self.dimension.args
@@ -965,8 +965,9 @@ class CArgDeclNode(Node):
         base_type, arg_type = annotation.analyse_type_annotation(env, assigned_value=self.default)
         if base_type is not None:
             self.base_type = base_type
-        if arg_type and arg_type.is_special_python_type_constructor and arg_type.name == "typing.Optional":
+        if arg_type and arg_type.special_python_type_constructor_name == "typing.Optional":
             self.or_none = True
+            arg_type = arg_type.resolve()
         if arg_type and arg_type.is_pyobject and not self.or_none:
             self.not_none = True
         return arg_type
@@ -1202,7 +1203,7 @@ class TemplatedTypeNode(CBaseTypeNode):
         if base_type.is_error: return base_type
 
         if ((base_type.is_cpp_class and base_type.is_template_type()) or
-                base_type.is_python_type_constructor):
+                base_type.python_type_constructor_name):
             # Templated class
             if self.keyword_args and self.keyword_args.key_value_pairs:
                 tp = "c++ templates" if base_type.is_cpp_class else "indexed types"
