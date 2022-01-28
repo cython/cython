@@ -1831,7 +1831,11 @@ static PyObject* __Pyx_PyObject_GenericGetAttr(PyObject* obj, PyObject* attr_nam
 
 /////////////// PyObjectGetAttrStrNoError.proto ///////////////
 
+#ifndef HPY
 static CYTHON_INLINE PyObject* __Pyx_PyObject_GetAttrStrNoError(PyObject* obj, PyObject* attr_name);/*proto*/
+#else /* HPY */
+static CYTHON_INLINE HPy __Pyx_PyObject_GetAttrStrNoError(HPyContext *ctx, HPy obj, HPy attr_name);/*proto*/
+#endif /* HPY */
 
 /////////////// PyObjectGetAttrStrNoError ///////////////
 //@requires: PyObjectGetAttrStr
@@ -1839,6 +1843,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_GetAttrStrNoError(PyObject* obj, P
 //@requires: Exceptions.c::PyErrFetchRestore
 //@requires: Exceptions.c::PyErrExceptionMatches
 
+#ifndef HPY
 static void __Pyx_PyObject_GetAttrStr_ClearAttributeError(void) {
     __Pyx_PyThreadState_declare
     __Pyx_PyThreadState_assign
@@ -1862,12 +1867,29 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_GetAttrStrNoError(PyObject* obj, P
     }
     return result;
 }
+#else /* HPY */
+static void __Pyx_PyObject_GetAttrStr_ClearAttributeError(HPyContext *ctx) {
+    if (likely(__Pyx_PyErr_ExceptionMatches(ctx, ctx->h_AttributeError))) {
+        HPyErr_Clear(ctx);
+    }
+}
+
+static CYTHON_INLINE HPy __Pyx_PyObject_GetAttrStrNoError(HPyContext *ctx, HPy obj, HPy attr_name) {
+    HPy result = __Pyx_PyObject_GetAttrStr(ctx, obj, attr_name);
+    if (unlikely(HPy_IsNull(result))) {
+        __Pyx_PyObject_GetAttrStr_ClearAttributeError(ctx);
+    }
+    return result;
+}
+#endif /* HPY */
 
 
 /////////////// PyObjectGetAttrStr.proto ///////////////
 
 #if CYTHON_USE_TYPE_SLOTS
 static CYTHON_INLINE PyObject* __Pyx_PyObject_GetAttrStr(PyObject* obj, PyObject* attr_name);/*proto*/
+#elif defined(HPY)
+#define __Pyx_PyObject_GetAttrStr(ctx,o,n) HPy_GetAttr(ctx,o,n)
 #else
 #define __Pyx_PyObject_GetAttrStr(o,n) PyObject_GetAttr(o,n)
 #endif
