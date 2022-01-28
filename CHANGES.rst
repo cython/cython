@@ -2,6 +2,24 @@
 Cython Changelog
 ================
 
+0.29.27 (2022-??-??)
+====================
+
+Bugs fixed
+----------
+
+* Compilation failures on PyPy were resolved.
+  Patches by Matti Picus.  (Github issues #4509, #4517)
+
+* Calls to ``range()`` with more than three arguments did not fail.
+  Original patch by Max Bachmann.  (Github issue #4550)
+
+* A C compiler warning about missing type struct initialisers in Py3.10 was resolved.
+
+* Cython no longer warns about using OpenMP 3.0 features since they are now
+  considered generally available.
+
+
 0.29.26 (2021-12-16)
 ====================
 
