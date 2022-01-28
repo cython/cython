@@ -2449,11 +2449,7 @@ class NameNode(AtomicExprNode):
         # is_pyglobal seems to be True for module level-globals only.
         # We use this to access class->tp_dict if necessary.
         if entry.is_pyglobal:
-            try:
-                assert entry.type.is_pyobject, "Python global or builtin not a Python object"
-            except:
-                import pdb; pdb.set_trace()
-                raise
+            assert entry.type.is_pyobject, "Python global or builtin not a Python object"
             interned_cname = code.intern_identifier(self.entry.name)
             namespace = self.entry.scope.namespace_cname
             if entry.is_member:
