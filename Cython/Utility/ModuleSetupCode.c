@@ -479,6 +479,8 @@ static CYTHON_INLINE HPy _HPyDict_GetItem_s(HPyContext *ctx, HPy dict, const cha
   #define CYTHON_USE_DICT_VERSIONS 0
   #undef CYTHON_FAST_THREAD_STATE
   #define CYTHON_FAST_THREAD_STATE 0
+  #undef CYTHON_USE_TYPE_SLOTS
+  #define CYTHON_USE_TYPE_SLOTS 0
 
 static CYTHON_INLINE HPy _HPy_GetModuleDict(HPyContext *ctx)
 {
