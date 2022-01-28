@@ -892,6 +892,34 @@ Other changes
 .. _`PEP-479`: https://www.python.org/dev/peps/pep-0479
 
 
+.. _0.29.27:
+
+0.29.27 (2022-01-28)
+====================
+
+Features added
+--------------
+
+* The ``cythonize`` command has a new option ``-M`` to generate ``.dep`` dependency
+  files for the compilation unit.  This can be used by external build tools to track
+  these dependencies.
+  Patch by Evgeni Burovski.  (Github issue #1214)
+
+Bugs fixed
+----------
+
+* Compilation failures on PyPy were resolved.
+  Patches by Matti Picus.  (Github issues #4509, #4517)
+
+* Calls to ``range()`` with more than three arguments did not fail.
+  Original patch by Max Bachmann.  (Github issue #4550)
+
+* Some C compiler warnings about missing type struct initialisers in Py3.10 were resolved.
+
+* Cython no longer warns about using OpenMP 3.0 features since they are now
+  considered generally available.
+
+
 .. _0.29.26:
 
 0.29.26 (2021-12-16)
