@@ -5,6 +5,14 @@ Cython Changelog
 0.29.27 (2022-??-??)
 ====================
 
+Features added
+--------------
+
+* The ``cythonize`` command has a new option ``-M`` to generate ``.dep`` dependency
+  files for the compilation unit.  This can be used by external build tools to track
+  these dependencies.
+  Patch by Evgeni Burovski.  (Github issue #1214)
+
 Bugs fixed
 ----------
 
