@@ -218,6 +218,7 @@ bad:
 #define __pyx_PyFloat_AsDouble(ctx, x) HPyFloat_AsDouble(ctx, x)
 #define __pyx_PyFloat_AsFloat(ctx, x) ((float) HPyFloat_AsDouble(ctx, x))
 
+static CYTHON_INLINE HPy __Pyx_PyUnicode_FromString(HPyContext *ctx, const char* c_str);
 static CYTHON_INLINE HPy __Pyx_PyNumber_IntOrLong(HPyContext *ctx, HPy x);
 
 #endif /* HPY */
@@ -480,6 +481,10 @@ static CYTHON_INLINE PyObject * __Pyx_PyInt_FromSize_t(size_t ival) {
 }
 
 #else /* HPY */
+
+static CYTHON_INLINE HPy __Pyx_PyUnicode_FromString(HPyContext *ctx, const char* c_str) {
+    return HPyUnicode_FromString(ctx, c_str);
+}
 
 static HPy __Pyx_PyNumber_IntOrLongWrongResultType(HPyContext *ctx, HPy result, const char* type_name) {
 /* TODO(fa): implement
