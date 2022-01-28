@@ -19,16 +19,20 @@ from .ParseTreeTransforms import (NormalizeTree, SkipDeclarations, AnalyseDeclar
                                   MarkClosureVisitor)
 from .Options import copy_inherited_directives
 
+_dataclass_loader_utilitycode = None
+
 def make_dataclasses_module_callnode(pos):
-    python_utility_code = UtilityCode.load_cached("Dataclasses_fallback", "Dataclasses.py")
-    python_utility_code = EncodedString(python_utility_code.impl)
-    loader_utilitycode = TempitaUtilityCode.load_cached(
-        "SpecificModuleLoader", "Dataclasses.c",
-        context={'cname': "dataclasses", 'py_code': python_utility_code.as_c_string_literal()})
+    global _dataclass_loader_utilitycode
+    if not _dataclass_loader_utilitycode:
+        python_utility_code = UtilityCode.load_cached("Dataclasses_fallback", "Dataclasses.py")
+        python_utility_code = EncodedString(python_utility_code.impl)
+        _dataclass_loader_utilitycode = TempitaUtilityCode.load(
+            "SpecificModuleLoader", "Dataclasses.c",
+            context={'cname': "dataclasses", 'py_code': python_utility_code.as_c_string_literal()})
     return ExprNodes.PythonCapiCallNode(
         pos, "__Pyx_Load_dataclasses_Module",
         PyrexTypes.CFuncType(PyrexTypes.py_object_type, []),
-        utility_code=loader_utilitycode,
+        utility_code=_dataclass_loader_utilitycode,
         args=[],
     )
 
