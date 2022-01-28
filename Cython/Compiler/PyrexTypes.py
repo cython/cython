@@ -18,7 +18,7 @@ from Cython.Utils import cached_function
 from .Code import UtilityCode, LazyUtilityCode, TempitaUtilityCode
 from . import StringEncoding
 from . import Naming
-from . import Backend
+from .Backend import backend
 
 from .Errors import error, warning, CannotSpecialize
 
@@ -346,7 +346,7 @@ class PyrexType(BaseType):
 
     def _assign_from_py_code(self, source_code, result_code, error_pos, code,
                              from_py_function=None, error_condition=None, extra_args=[]):
-        convert_call = Backend.backend.get_call(
+        convert_call = backend.get_call(
             from_py_function or self.from_py_function,
             source_code, *extra_args)
         if self.is_enum:
@@ -1303,7 +1303,7 @@ class PyObjectType(PyrexType):
 
     name = "object"
     is_pyobject = 1
-    default_value = Backend.backend.pyobject_init_value
+    default_value = backend.pyobject_init_value
     declaration_value = default_value
     buffer_defaults = None
     is_extern = False
@@ -1337,8 +1337,8 @@ class PyObjectType(PyrexType):
         if pyrex or for_display:
             base_code = "object"
         else:
-            base_code = public_decl(Backend.backend.pyobject_ctype_base_part, dll_linkage)
-            entity_code = "%s%s" % (Backend.backend.pyobject_ctype_entity_part, entity_code)
+            base_code = public_decl(backend.pyobject_ctype_base_part, dll_linkage)
+            entity_code = "%s%s" % (backend.pyobject_ctype_entity_part, entity_code)
         return self.base_declaration_code(base_code, entity_code)
 
     def as_pyobject(self, cname):
@@ -1369,9 +1369,9 @@ class PyObjectType(PyrexType):
     def generate_incref(self, code, cname, nanny):
         # incref is mostly used to "receive" borrowed references. HPy does not have borrowed refs.
         if nanny:
-            Backend.backend.put_cpy(code, "__Pyx_INCREF(%s);" % self.as_pyobject(cname))
+            backend.put_cpy(code, "__Pyx_INCREF(%s);" % self.as_pyobject(cname))
         else:
-            Backend.backend.put_cpy(code, "Py_INCREF(%s);" % self.as_pyobject(cname))
+            backend.put_cpy(code, "Py_INCREF(%s);" % self.as_pyobject(cname))
 
     def generate_xincref(self, code, cname, nanny):
         if nanny:
@@ -1419,16 +1419,15 @@ class PyObjectType(PyrexType):
 
     def _generate_decref(self, code, cname, nanny, null_check=False,
                          clear=False, clear_before_decref=False):
-        bcknd = Backend.backend
         if clear:
             if clear_before_decref:
-                code.putln("%s;" % (bcknd.get_clear(cname, nanny, null_check)))
+                code.putln("%s;" % (backend.get_clear(cname, nanny, null_check)))
             else:
                 code.putln("%s; %s = %s;" % (
-                    bcknd.get_closeref(self.as_pyobject(cname), nanny, null_check), cname, bcknd.pyobject_init_value))
+                    backend.get_closeref(self.as_pyobject(cname), nanny, null_check), cname, backend.pyobject_init_value))
         else:
             code.putln("%s;" % (
-                bcknd.get_closeref(self.as_pyobject(cname), nanny, null_check)))
+                backend.get_closeref(self.as_pyobject(cname), nanny, null_check)))
 
     def nullcheck_string(self, cname):
         return cname
@@ -1442,7 +1441,7 @@ class PyObjectGlobalType(PyObjectType):
     name = "global_object"
     # TODO(fa): should 'is_pyobject' be '0'
     is_pyobject = 1
-    default_value = Backend.backend.pyobject_global_init_value
+    default_value = backend.pyobject_global_init_value
     declaration_value = default_value
     buffer_defaults = None
     is_extern = False
@@ -1476,9 +1475,8 @@ class PyObjectGlobalType(PyObjectType):
         if pyrex or for_display:
             base_code = "object"
         else:
-            bcknd = Backend.backend
-            base_code = public_decl(bcknd.pyobject_global_ctype_base_part, dll_linkage)
-            entity_code = "%s%s" % (bcknd.pyobject_global_ctype_entity_part, entity_code)
+            base_code = public_decl(backend.pyobject_global_ctype_base_part, dll_linkage)
+            entity_code = "%s%s" % (backend.pyobject_global_ctype_entity_part, entity_code)
         return self.base_declaration_code(base_code, entity_code)
 
     def as_pyobject(self, cname):
@@ -1565,9 +1563,8 @@ class PyObjectGlobalType(PyObjectType):
                     clear=False, clear_before_decref=False):
         # TODO(fa): currently not needed but we should probably support it
         assert not nanny
-        bcknd = Backend.backend
         code.putln("%s; %s = %s;" % (
-            bcknd.get_clear_global(None, self.as_pyobject(cname)), cname, bcknd.pyobject_global_init_value))
+            backend.get_clear_global(None, self.as_pyobject(cname)), cname, backend.pyobject_global_init_value))
 
     def nullcheck_string(self, cname):
         return cname
@@ -1600,7 +1597,7 @@ class TupleBuilderType(PyrexType):
 
     def declaration_code(self, entity_code,
                          for_display = 0, dll_linkage = None, pyrex = 0):
-        return self.base_declaration_code(Backend.backend.tuple_builder_ctype, entity_code)
+        return self.base_declaration_code(backend.tuple_builder_ctype, entity_code)
 
     def py_type_name(self):
         return "object"
@@ -1640,7 +1637,7 @@ class ListBuilderType(PyrexType):
 
     def declaration_code(self, entity_code,
                          for_display = 0, dll_linkage = None, pyrex = 0):
-        return self.base_declaration_code(Backend.backend.list_builder_ctype, entity_code)
+        return self.base_declaration_code(backend.list_builder_ctype, entity_code)
 
     def py_type_name(self):
         return "object"
@@ -1976,7 +1973,7 @@ class CType(PyrexType):
                     func = func.replace("Object", "ByteArray", 1)
         return '%s = %s' % (
             result_code,
-            Backend.backend.get_call(func, source_code or 'NULL'))
+            backend.get_call(func, source_code or 'NULL'))
 
     def from_py_call_code(self, source_code, result_code, error_pos, code,
                           from_py_function=None, error_condition=None):
@@ -2560,7 +2557,7 @@ class CPySSizeTType(CIntType):
     from_py_function = "__Pyx_PyIndex_AsSsize_t"
 
     def sign_and_name(self):
-        return Backend.backend.pyssizet_ctype
+        return backend.pyssizet_ctype
 
 class CHPySSizeTType(CIntType):
 
@@ -2594,7 +2591,7 @@ class CPtrdiffTType(CIntType):
 class CFloatType(CNumericType):
 
     is_float = 1
-    to_py_function = Backend.backend.pyfloat_fromdouble
+    to_py_function = backend.pyfloat_fromdouble
     from_py_function = "__pyx_PyFloat_AsDouble"
 
     exception_value = -1
@@ -2990,7 +2987,7 @@ class CArrayType(CPointerBaseType):
     def from_py_call_code(self, source_code, result_code, error_pos, code,
                           from_py_function=None, error_condition=None):
         assert not error_condition, '%s: %s' % (error_pos, error_condition)
-        call_code = Backend.backend.get_call(
+        call_code = backend.get_call(
             from_py_function or self.from_py_function,
             source_code, result_code, self.size)
         return code.error_goto_if_neg(call_code, error_pos)
@@ -4738,15 +4735,15 @@ error_type =    ErrorType()
 unspecified_type = UnspecifiedType()
 
 py_object_type = PyObjectType()
-if Backend.backend.pyobject_ctype != Backend.backend.pyobject_global_ctype:
+if backend.pyobject_ctype != backend.pyobject_global_ctype:
     py_object_global_type = PyObjectGlobalType()
 else:
     py_object_global_type = py_object_type
-if Backend.backend.pyobject_ctype != Backend.backend.tuple_builder_ctype:
+if backend.pyobject_ctype != backend.tuple_builder_ctype:
     tuple_builder_type = TupleBuilderType()
 else:
     tuple_builder_type = py_object_type
-if Backend.backend.pyobject_ctype != Backend.backend.list_builder_ctype:
+if backend.pyobject_ctype != backend.list_builder_ctype:
     list_builder_type = ListBuilderType()
 else:
     list_builder_type = py_object_type

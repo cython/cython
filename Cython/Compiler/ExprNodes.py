@@ -52,7 +52,7 @@ from .Pythran import (to_pythran, is_pythran_supported_type, is_pythran_supporte
      pythran_indexing_code, pythran_indexing_type, is_pythran_supported_node_or_none, pythran_type,
      pythran_is_numpy_func_supported, pythran_get_func_include_file, pythran_functor)
 from .PyrexTypes import PythranExpr
-from . import Backend
+from .Backend import backend
 
 try:
     from __builtin__ import basestring
@@ -2300,7 +2300,6 @@ class NameNode(AtomicExprNode):
 
     def generate_result_code(self, code):
         entry = self.entry
-        bcknd = Backend.backend
         if entry is None:
             return  # There was an error earlier
         if entry.utility_code:
@@ -2317,14 +2316,14 @@ class NameNode(AtomicExprNode):
             if not self.cf_is_null:
                 code.putln(
                     '%s = %s;' % (
-                        bcknd.get_call('__Pyx_PyObject_GetItem', self.result(), namespace),
+                        backend.get_call('__Pyx_PyObject_GetItem', self.result(), namespace),
                         interned_cname))
-                code.putln('if (unlikely(%s)) {' % bcknd.get_is_null_cond(self.result()))
+                code.putln('if (unlikely(%s)) {' % backend.get_is_null_cond(self.result()))
                 code.putln('PyErr_Clear();')
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("GetModuleGlobalName", "ObjectHandling.c"))
             code.putln(
-                bcknd.get_call('__Pyx_GetModuleGlobalName', self.result(), interned_cname))
+                backend.get_call('__Pyx_GetModuleGlobalName', self.result(), interned_cname))
             if not self.cf_is_null:
                 code.putln("}")
             code.putln(code.error_goto_if_null(self.result(), self.pos))
@@ -2339,7 +2338,7 @@ class NameNode(AtomicExprNode):
             code.putln(
                 '%s = %s; %s' % (
                 self.result(),
-                bcknd.get_call('__Pyx_GetBuiltinName', interned_cname),
+                backend.get_call('__Pyx_GetBuiltinName', interned_cname),
                 code.error_goto_if_null(self.result(), self.pos)))
             self.generate_gotref(code)
 
@@ -2351,7 +2350,7 @@ class NameNode(AtomicExprNode):
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("GetModuleGlobalName", "ObjectHandling.c"))
                 code.putln('%s; %s' % (
-                    bcknd.get_call('__Pyx_GetModuleGlobalName', self.result(), interned_cname),
+                    backend.get_call('__Pyx_GetModuleGlobalName', self.result(), interned_cname),
                     code.error_goto_if_null(self.result(), self.pos)))
             else:
                 # FIXME: is_pyglobal is also used for class namespace
@@ -6030,7 +6029,7 @@ class SimpleCallNode(CallNode):
         if func_type.is_cfunction and func_type.foreign:
             result = "%s(%s)" % (self.function.result(), ", ".join(arg_list_code))
         else:
-            result = Backend.backend.get_call(self.function.result(), *arg_list_code)
+            result = backend.get_call(self.function.result(), *arg_list_code)
         return result
 
     def is_c_result_required(self):
@@ -6127,7 +6126,7 @@ class SimpleCallNode(CallNode):
                             actual_arg.result_as(formal_arg.type)))
             exc_checks = []
             if self.type.is_pyobject and self.is_temp:
-                exc_checks.append(Backend.backend.get_is_null_cond(self.result()))
+                exc_checks.append(backend.get_is_null_cond(self.result()))
             elif self.type.is_memoryviewslice:
                 assert self.is_temp
                 exc_checks.append(self.type.error_condition(self.result()))
@@ -7659,7 +7658,6 @@ class SequenceNode(ExprNode):
         self.generate_operation_code(code)
 
     def generate_sequence_packing_code(self, code, target=None, plain=False):
-        backend = Backend.backend
         if target is None:
             target = self.result()
         size_factor = c_mult = ''
@@ -8195,14 +8193,13 @@ class TupleNode(SequenceNode):
 
             const_code = self.temp_result_code_writer
             if const_code is not None:
-                bcknd = Backend.backend
                 # constant is not yet initialised
                 const_code.mark_pos(self.pos)
                 tmp_target = const_code.funcstate.allocate_temp(py_object_type, manage_ref=False)
                 self.generate_sequence_packing_code(const_code, tmp_target, plain=not self.is_literal)
-                const_code.putln(bcknd.get_write_global(Naming.module_cname, tuple_target, tmp_target) + ';')
+                const_code.putln(backend.get_write_global(Naming.module_cname, tuple_target, tmp_target) + ';')
                 const_code.put_giveref(tuple_target, py_object_type)
-                const_code.putln(bcknd.get_close_loaded_global(tmp_target))
+                const_code.putln(backend.get_close_loaded_global(tmp_target))
                 const_code.funcstate.release_temp(tmp_target)
             if self.is_literal:
                 # we need to load the global variable into the temp result var
@@ -8210,15 +8207,14 @@ class TupleNode(SequenceNode):
                 # we need to incref because the temp result var will be disposed with a decref
                 code.put_incref(self.result(), py_object_type)
             else:
-                bcknd = Backend.backend
                 tmp_tuple = code.load_global(tuple_target, self.type)
                 code.putln('%s = %s; %s' % (
-                    self.result(), bcknd.get_call(
-                        bcknd.get_binary_operation_function("*", False), tmp_tuple, self.mult_factor.py_result()),
+                    self.result(), backend.get_call(
+                        backend.get_binary_operation_function("*", False), tmp_tuple, self.mult_factor.py_result()),
                     code.error_goto_if_null(self.result(), self.pos)
                 ))
                 self.generate_gotref(code)
-                code.putln(bcknd.get_close_loaded_global(tmp_tuple))
+                code.putln(backend.get_close_loaded_global(tmp_tuple))
                 code.funcstate.release_temp(tmp_tuple)
         else:
             self.type.entry.used = True
@@ -8972,14 +8968,13 @@ class DictNode(ExprNode):
         code.mark_pos(self.pos)
         self.allocate_temp_result(code)
 
-        bcknd = Backend.backend
         is_dict = self.type.is_pyobject
         if is_dict:
             self.release_errors()
             code.putln(
                 "%s = %s; %s" % (
                     self.result(),
-                    bcknd.get_call("__Pyx_PyDict_NewPresized", len(self.key_value_pairs)),
+                    backend.get_call("__Pyx_PyDict_NewPresized", len(self.key_value_pairs)),
                     code.error_goto_if_null(self.result(), self.pos)))
             self.generate_gotref(code)
 
@@ -8991,7 +8986,7 @@ class DictNode(ExprNode):
             item.generate_evaluation_code(code)
             if is_dict:
                 if self.exclude_null_values:
-                    code.putln('if (%s) {' % bcknd.get_is_not_null_cond(item.value.py_result()))
+                    code.putln('if (%s) {' % backend.get_is_not_null_cond(item.value.py_result()))
                 key = item.key
                 if self.reject_duplicates:
                     if keys_seen is not None:
@@ -9014,7 +9009,7 @@ class DictNode(ExprNode):
 
                     if keys_seen is None:
                         code.putln('if (unlikely(%s)) {' % (
-                            bcknd.get_call('__Pyx_PyDict_Contains', self.result(), key.py_result())))
+                            backend.get_call('__Pyx_PyDict_Contains', self.result(), key.py_result())))
                         # currently only used in function calls
                         needs_error_helper = True
                         code.putln('__Pyx_RaiseDoubleKeywordsError("function", %s); %s' % (
@@ -9022,7 +9017,7 @@ class DictNode(ExprNode):
                             code.error_goto(item.pos)))
                         code.putln("} else {")
 
-                code.put_error_if_neg(self.pos, bcknd.get_call(
+                code.put_error_if_neg(self.pos, backend.get_call(
                     "__Pyx_PyDict_SetItem", self.result(), item.key.py_result(), item.value.py_result()))
                 if self.reject_duplicates and keys_seen is None:
                     code.putln('}')
@@ -9774,11 +9769,10 @@ class CodeObjectNode(ExprNode):
             tmp_empty_bytes = code.load_global(Naming.empty_bytes, py_object_type)
             tmp_file_path = code.load_global(file_path_const, py_object_type)
 
-            bcknd = Backend.backend
             code.putln("%s = (%s)%s; %s" % (
                 tmp_code,
-                bcknd.pyobject_ctype,
-                bcknd.get_call(
+                backend.pyobject_ctype,
+                backend.get_call(
                     "__Pyx_PyCode_New",
                     len(func.args) - func.num_kwonly_args,  # argcount
                     func.num_posonly_args,     # posonlyargcount (Py3.8+ only)
@@ -9802,7 +9796,7 @@ class CodeObjectNode(ExprNode):
             code.store_global(self.global_var, tmp_code, py_object_type)
 
             for cname in (tmp_code, tmp_func_name, tmp_empty_tuple, tmp_empty_bytes, tmp_file_path):
-                code.putln(bcknd.get_close_loaded_global(cname))
+                code.putln(backend.get_close_loaded_global(cname))
                 code.funcstate.release_temp(cname)
 
         caller_code.load_global(self.global_var, py_object_type, target=self.result())
@@ -11429,11 +11423,11 @@ class BinopNode(ExprNode):
             function = self.py_operation_function(code)
             args = [self.operand1.py_result(), self.operand2.py_result()]
             if self.operator == '**':
-                args.append(Backend.backend.get_none())
+                args.append(backend.get_none())
             code.putln(
                 "%s = %s; %s" % (
                     self.result(),
-                    Backend.backend.get_call(function, *args),
+                    backend.get_call(function, *args),
                     code.error_goto_if_null(self.result(), self.pos)))
             self.generate_gotref(code)
         elif self.is_temp:
@@ -11603,7 +11597,7 @@ class NumBinopNode(BinopNode):
                 BinopNode.is_py_operation_types(self, type1, type2))
 
     def py_operation_function(self, code):
-        return Backend.backend.get_binary_operation_function(self.operator, self.inplace)
+        return backend.get_binary_operation_function(self.operator, self.inplace)
 
     overflow_op_names = {
         "+":  "add",

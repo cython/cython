@@ -30,9 +30,9 @@ from . import Options
 from . import DebugFlags
 from . import StringEncoding
 from . import Version
-from . import Backend
 from .. import Utils
 from .Scanning import SourceDescriptor
+from .Backend import backend
 from ..StringIOTree import StringIOTree
 from .Errors import error
 
@@ -1207,7 +1207,7 @@ class GlobalState(object):
                     w.putln("#ifndef HPY")
                 w.putln("/* #### %sCode section: %s ### */" % ("HPy " if part_type == "hpy" else "", part))
 
-        arg_list = Backend.backend.get_arg_list()
+        arg_list = backend.get_arg_list()
 
         if not Options.cache_builtins:
             part = 'cached_builtins'
@@ -1343,7 +1343,7 @@ class GlobalState(object):
             w.exit_cfunc_scope()
 
     def put_pyobject_decl(self, entry):
-        self['global_var'].putln("static %s %s;" % (Backend.backend.pyobject_global_ctype, entry.cname))
+        self['global_var'].putln("static %s %s;" % (backend.pyobject_global_ctype, entry.cname))
 
     # constant handling at code generation time
 
@@ -1380,7 +1380,7 @@ class GlobalState(object):
         if cleanup_level is not None \
                 and cleanup_level <= Options.generate_cleanup_code:
             cleanup_writer = self.parts['cleanup_globals']
-            cleanup_writer.putln(Backend.backend.get_clear_global(None, const.cname) + ";")
+            cleanup_writer.putln(backend.get_clear_global(None, const.cname) + ";")
         if dedup_key is not None:
             self.dedup_const_index[dedup_key] = const
         return const
@@ -1517,7 +1517,7 @@ class GlobalState(object):
             UtilityCode.load_cached("GetBuiltinName", "ObjectHandling.c"))
         w.putln('%s = %s; if (!%s) %s' % (
             cname,
-            Backend.backend.get_call('__Pyx_GetBuiltinName', interned_cname),
+            backend.get_call('__Pyx_GetBuiltinName', interned_cname),
             cname,
             w.error_goto(pos)))
 
@@ -1528,7 +1528,6 @@ class GlobalState(object):
         self.generate_object_constant_decls()
 
     def generate_object_constant_decls(self):
-        backend = Backend.backend
         consts = [(len(c.cname), c.cname, c)
                   for c in self.py_constants]
         consts.sort()
@@ -1568,11 +1567,10 @@ class GlobalState(object):
         if Options.generate_cleanup_code:
             cleanup = self.parts['cleanup_globals']
             # TODO(fa): add HPy support
-            bcknd = Backend.backend
-            cleanup.putln("#ifndef %s" % bcknd.hpy_guard)
+            cleanup.putln("#ifndef %s" % backend.hpy_guard)
             for cname in cnames:
                 cleanup.putln("Py_CLEAR(%s.method);" % cname)
-            cleanup.putln("#endif /* %s */" % bcknd.hpy_guard)
+            cleanup.putln("#endif /* %s */" % backend.hpy_guard)
 
     def generate_string_constants(self):
         c_consts = [(len(c.cname), c.cname, c) for c in self.string_const_index.values()]
@@ -1625,7 +1623,6 @@ class GlobalState(object):
             init_constants.putln("#if CYTHON_USE_MODULE_STATE")
             init_constants_in_module_state = init_constants.insertion_point()
             init_constants.putln("#endif")
-            backend = Backend.backend
             for idx, py_string_args in enumerate(py_strings):
                 c_cname, _, py_string = py_string_args
                 if not py_string.is_str or not py_string.encoding or \
@@ -1696,7 +1693,6 @@ class GlobalState(object):
         decls_writer = self.parts['decls']
         decls_writer.putln("#if !CYTHON_USE_MODULE_STATE")
         init_constants = self.parts['init_constants']
-        backend = Backend.backend
         for py_type, _, _, value, value_code, c in consts:
             cname = c.cname
             self.parts['module_state'].putln("%s %s;" % (backend.pyobject_global_ctype, cname))
@@ -2306,9 +2302,8 @@ class CCodeWriter(object):
 
     def put_init_to_py_none(self, cname, type, nanny=True):
         from .PyrexTypes import py_object_type, typecast
-        bcknd = Backend.backend
-        py_none = typecast(type, py_object_type, bcknd.get_none())
-        self.putln("%s = %s; %s;" % (cname, py_none, bcknd.get_newref(py_none, nanny=nanny)))
+        py_none = typecast(type, py_object_type, backend.get_none())
+        self.putln("%s = %s; %s;" % (cname, py_none, backend.get_newref(py_none, nanny=nanny)))
 
     def put_init_var_to_py_none(self, entry, template = "%s", nanny=True):
         code = template % entry.cname
@@ -2321,10 +2316,9 @@ class CCodeWriter(object):
     def load_global(self, globalvar_cname, type, target=None, nanny=True, null_check=False):
         if not target:
             target = self.funcstate.allocate_temp(type, False)
-        bcknd = Backend.backend
         if null_check:
-            self.putln("if (%s) {" % bcknd.get_global_is_not_null_cond(globalvar_cname))
-        self.putln("%s = %s;" % (target, bcknd.get_read_global(Naming.module_cname, globalvar_cname)))
+            self.putln("if (%s) {" % backend.get_global_is_not_null_cond(globalvar_cname))
+        self.putln("%s = %s;" % (target, backend.get_read_global(Naming.module_cname, globalvar_cname)))
         if nanny:
             self.put_gotref(target, type)
         if null_check:
@@ -2332,8 +2326,7 @@ class CCodeWriter(object):
         return target
 
     def store_global(self, globalvar_cname, cexpr, type, nanny=True):
-        bcknd = Backend.backend
-        self.putln("%s;" % (bcknd.get_write_global(Naming.module_cname, globalvar_cname, cexpr)))
+        self.putln("%s;" % (backend.get_write_global(Naming.module_cname, globalvar_cname, cexpr)))
         if nanny:
             self.put_giveref(cexpr, type)
 
@@ -2352,14 +2345,14 @@ class CCodeWriter(object):
         Example (HPy):
             HPyDef_METH(pymethdef_cname, "meth", cfunc_ptr, HPyMETH_FLAGS, .doc=doc);
         """
-        self.putln(Backend.backend.get_method_definition(entry, wrapper_code_writer))
+        self.putln(backend.get_method_definition(entry, wrapper_code_writer))
 
     def put_pymethoddef_entry(self, entry, term, allow_skip=True, wrapper_code_writer=None):
         method_flags = entry.signature.method_flags()
         if not method_flags:
             return
         func_ptr = wrapper_code_writer.put_pymethoddef_wrapper(entry) if wrapper_code_writer else entry.func_cname
-        meth_def = Backend.backend.get_method_definition(entry, func_ptr)
+        meth_def = backend.get_method_definition(entry, func_ptr)
         if meth_def:
             self.putln(meth_def + term)
 
@@ -2388,14 +2381,12 @@ class CCodeWriter(object):
         else:
             cleanup_func = 'NULL'
 
-        bcknd = Backend.backend
-
         self.putln("")
         self.putln("#if PY_MAJOR_VERSION >= 3")
         self.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
         self.putln("static %s %s(%s spec, %s *def); /*proto*/" % (
-                   bcknd.pyobject_ctype, Naming.pymodule_create_func_cname,
-                   bcknd.pyobject_ctype, bcknd.pymoduledef_ctype))
+                   backend.pyobject_ctype, Naming.pymodule_create_func_cname,
+                   backend.pyobject_ctype, backend.pymoduledef_ctype))
         self.putln("static int %s(PyObject* module); /*proto*/" % exec_func_cname)
 
         self.putln("static PyModuleDef_Slot %s[] = {" % Naming.pymoduledef_slots_cname)
@@ -2412,12 +2403,12 @@ class CCodeWriter(object):
         self.putln("")
         self.putln('#ifdef __cplusplus')
         self.putln('namespace {')
-        self.putln("%s %s =" % (bcknd.pymoduledef_ctype, Naming.pymoduledef_cname))
+        self.putln("%s %s =" % (backend.pymoduledef_ctype, Naming.pymoduledef_cname))
         self.putln('#else')
-        self.putln("static %s %s =" % (bcknd.pymoduledef_ctype, Naming.pymoduledef_cname))
+        self.putln("static %s %s =" % (backend.pymoduledef_ctype, Naming.pymoduledef_cname))
         self.putln('#endif')
         self.putln('{')
-        self.putln("#ifndef %s" % bcknd.hpy_guard)
+        self.putln("#ifndef %s" % backend.hpy_guard)
         self.putln("  PyModuleDef_HEAD_INIT,")
         self.putln('  %s,' % env.module_name.as_c_string_literal())
         self.putln("  %s, /* m_doc */" % doc)
@@ -2443,7 +2434,7 @@ class CCodeWriter(object):
         self.putln("  NULL, /* m_clear */")
         self.putln("  %s /* m_free */" % cleanup_func)
         self.putln("#endif")
-        self.putln("#else /* %s */" % bcknd.hpy_guard)
+        self.putln("#else /* %s */" % backend.hpy_guard)
         self.putln('  .name = %s,' % env.module_name.as_c_string_literal())
         self.putln("  .doc = %s," % doc)
         self.putln("  .size = -1,")
@@ -2454,7 +2445,7 @@ class CCodeWriter(object):
             self.putln("  .defines = 0,")
         else:
             self.putln("  .defines = %s," % env.hpy_defines_cname)
-        self.putln("#endif /* %s */" % bcknd.hpy_guard)
+        self.putln("#endif /* %s */" % backend.hpy_guard)
         self.putln("};")
         self.putln('#ifdef __cplusplus')
         self.putln('} /* anonymous namespace */')
@@ -2591,20 +2582,20 @@ class CCodeWriter(object):
         return "if (%s) %s" % (self.unlikely(cond), self.error_goto(pos))
 
     def error_goto_if_null(self, cname, pos):
-        return self.error_goto_if(Backend.backend.get_is_null_cond(cname), pos)
+        return self.error_goto_if(backend.get_is_null_cond(cname), pos)
 
     def error_goto_if_neg(self, cname, pos):
         # Add extra parentheses to silence clang warnings about constant conditions.
         return self.error_goto_if("(%s < 0)" % cname, pos)
 
     def error_goto_if_PyErr(self, pos):
-        return self.error_goto_if(Backend.backend.get_err_occurred(), pos)
+        return self.error_goto_if(backend.get_err_occurred(), pos)
 
     def is_null_cond(self, cname):
-        return Backend.CApiBackend.get_is_null_cond(cname)
+        return backend.get_is_null_cond(cname)
 
     def is_not_null_cond(self, cname):
-        return Backend.backend.get_is_not_null_cond(cname)
+        return backend.get_is_not_null_cond(cname)
 
     def lookup_filename(self, filename):
         return self.globalstate.lookup_filename(filename)
