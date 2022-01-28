@@ -1974,10 +1974,9 @@ class CType(PyrexType):
                     func = func.replace("Object", result_type_name.title(), 1)
                 elif result_type_name == 'bytearray':
                     func = func.replace("Object", "ByteArray", 1)
-        return '%s = %s(%s)' % (
+        return '%s = %s' % (
             result_code,
-            func,
-            Backend.backend.get_args(source_code or 'NULL'))
+            Backend.backend.get_call(func, source_code or 'NULL'))
 
     def from_py_call_code(self, source_code, result_code, error_pos, code,
                           from_py_function=None, error_condition=None):

@@ -509,6 +509,8 @@ class CombinedBackend(APIBackend):
     def put_init_code(code):
         hpy_guard = CApiBackend.hpy_guard
         code.putln("#ifndef " + hpy_guard)
+        code.putln("#define __PYX_API_CALL0(fun) fun()")
+        code.putln("#define __PYX_API_CALL(fun, ...) fun(__VA_ARGS__)")
         code.putln("#define __PYX_OBJECT_CTYPE_BP PyObject")
         code.putln("#define __PYX_OBJECT_CTYPE_EP *")
         code.putln("#define __PYX_GLOBAL_OBJECT_CTYPE PyObject *")
@@ -550,6 +552,8 @@ class CombinedBackend(APIBackend):
 
         code.putln("#else /* %s */" % hpy_guard)
 
+        code.putln("#define __PYX_API_CALL0(fun) fun(%s)" % Naming.hpy_context_cname)
+        code.putln("#define __PYX_API_CALL(fun, ...) fun(%s, __VA_ARGS__)" % Naming.hpy_context_cname)
         code.putln("#define __PYX_OBJECT_CTYPE_BP HPy")
         code.putln("#define __PYX_OBJECT_CTYPE_EP ")
         code.putln("#define __PYX_GLOBAL_OBJECT_CTYPE HPyField")
@@ -602,15 +606,19 @@ class CombinedBackend(APIBackend):
 
     @staticmethod
     def get_arg_list(*args):
-        return "__PYX_CONTEXT_DECL " + ", ".join(args)
+        if args:
+            return "__PYX_CONTEXT_DECL " + ", ".join(args)
+        return "__PYX_CONTEXT_DECL0"
 
     @staticmethod
     def get_args(*args):
-        return "__PYX_CONTEXT " + ", ".join(["%s" % arg for arg in args])
+        return ", ".join(["%s" % arg for arg in args])
 
     @staticmethod
     def get_call(func, *args):
-        return "%s(__PYX_CONTEXT %s)" % (func, CombinedBackend.get_args(*args))
+        if args:
+            return "__PYX_API_CALL(%s, %s)" % (func, CombinedBackend.get_args(*args))
+        return "__PYX_API_CALL0(%s)" % (func)
 
     @staticmethod
     def get_clear_global(module_cname, var_cname):

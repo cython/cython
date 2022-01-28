@@ -597,8 +597,10 @@ static CYTHON_INLINE HPy _HPyDict_GetItem_s(HPyContext *ctx, HPy dict, const cha
 #define __PYX_IS_NOT_NULL(x) (x)
 #define __PYX_GLOBAL_IS_NULL(x) !(x)
 #define __PYX_GLOBAL_IS_NOT_NULL(x) (x)
+#define __PYX_CONTEXT_DECL0
 #define __PYX_CONTEXT_DECL
 #define __PYX_CONTEXT
+#define __PYX_CONTEXT0
 #define __PYX_NULL (0)
 #define __Pyx_NEWREF(x) __Pyx_INCREF(x)
 #define __Pyx_NEWREF_NO_REFNANNY(x) Py_INCREF(x)
@@ -626,8 +628,10 @@ static CYTHON_INLINE HPy _HPyDict_GetItem_s(HPyContext *ctx, HPy dict, const cha
 #define __PYX_GLOBAL_IS_NULL(x) HPyField_IsNull(x)
 #define __PYX_GLOBAL_IS_NOT_NULL(x) !HPyField_IsNull(x)
 #define __PYX_NULL HPy_NULL
-#define __PYX_CONTEXT_DECL HPyContext *$hpy_context_cname,
-#define __PYX_CONTEXT $hpy_context_cname,
+#define __PYX_CONTEXT_DECL0 HPyContext *$hpy_context_cname
+#define __PYX_CONTEXT_DECL __PYX_CONTEXT_DECL0,
+#define __PYX_CONTEXT0 $hpy_context_cname
+#define __PYX_CONTEXT __PYX_CONTEXT0,
 #define __Pyx_NEWREF(x) HPy_Dup($hpy_context_cname, x)
 #define __Pyx_NEWREF_NO_REFNANNY(x) __Pyx_NEWREF(x)
 #define __Pyx_DECREF_NO_REFNANNY(x) HPy_Close($hpy_context_cname, x)

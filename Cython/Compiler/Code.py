@@ -1515,9 +1515,9 @@ class GlobalState(object):
         interned_cname = self.get_interned_identifier(name).cname
         self.use_utility_code(
             UtilityCode.load_cached("GetBuiltinName", "ObjectHandling.c"))
-        w.putln('%s = __Pyx_GetBuiltinName(%s); if (!%s) %s' % (
+        w.putln('%s = %s; if (!%s) %s' % (
             cname,
-            Backend.backend.get_args(interned_cname),
+            Backend.backend.get_call('__Pyx_GetBuiltinName', interned_cname),
             cname,
             w.error_goto(pos)))
 
@@ -1675,21 +1675,18 @@ class GlobalState(object):
                     py_string.is_str,
                     py_string.intern
                     ))
-                init_string_args = backend.get_args("%s[%d], &%s" % (
-                    Naming.stringtab_cname,
-                    idx,
-                    py_string.cname))
-                init_constants_in_module_state.putln("if (__Pyx_InitString(%s) < 0) %s;" % (
-                    init_string_args,
+                init_string_call = backend.get_call("__Pyx_InitString", "%s[%d], &%s" % (
+                    Naming.stringtab_cname, idx, py_string.cname))
+                init_constants_in_module_state.putln("if (%s < 0) %s;" % (
+                    init_string_call,
                     init_constants.error_goto(self.module_pos)))
             w.putln("{0, 0, 0, 0, 0, 0, 0}")
             w.putln("};")
 
             init_constants.putln("#if !CYTHON_USE_MODULE_STATE")
-            init_constants.putln(
-                "if (__Pyx_InitStrings(%s) < 0) %s;" % (
-                    Backend.backend.get_args(Naming.stringtab_cname),
-                    init_constants.error_goto(self.module_pos)))
+            init_constants.putln("if (%s < 0) %s;" % (
+                backend.get_call("__Pyx_InitStrings", Naming.stringtab_cname),
+                init_constants.error_goto(self.module_pos)))
             init_constants.putln("#endif")
 
     def generate_num_constants(self):
@@ -1709,18 +1706,17 @@ class GlobalState(object):
                 backend.get_clear_global("m", "clear_module_state->%s" % cname))
             self.parts['module_state_traverse'].putln(
                 backend.get_visit_global("traverse_module_state->%s" % cname))
-            decls_writer.putln("static %s %s;" % (Backend.backend.pyobject_ctype, cname))
-            fun_args = Backend.backend.get_args(value_code)
+            decls_writer.putln("static %s %s;" % (backend.pyobject_ctype, cname))
             if py_type == 'float':
-                function = '%s(%s)' % (Backend.backend.pyfloat_fromdouble, fun_args)
+                function = backend.get_call(backend.pyfloat_fromdouble, value_code)
             elif py_type == 'long':
-                function = '%s((char *)"%s", 0, 0)' % (Backend.backend.pylong_fromstring, fun_args)
+                function = backend.get_call(backend.pylong_fromstring, '(char *)"%s"' % value_code, '0', '0')
             elif Utils.long_literal(value):
-                function = '%s((char *)"%s", 0, 0)' % (Backend.backend.pyint_fromstring, fun_args)
+                function = backend.get_call(backend.pyint_fromstring, '(char *)"%s"' % value_code, '0', '0')
             elif len(value.lstrip('-')) > 4:
-                function = '%s(%sL)' % (Backend.backend.pyint_fromlong, fun_args)
+                function = backend.get_call(backend.pyint_fromlong, '%sL' % value_code)
             else:
-                function = '%s(%s)' % (Backend.backend.pyint_fromlong, fun_args)
+                function = backend.get_call(backend.pyint_fromlong, value_code)
             init_constants.putln('%s = %s; %s' % (
                 cname, function,
                 init_constants.error_goto_if_null(cname, self.module_pos)))

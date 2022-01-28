@@ -3514,11 +3514,9 @@ class DefNodeWrapper(FuncDefNode):
             args.append(self.star_arg.entry.cname)
         if self.starstar_arg:
             args.append(self.starstar_arg.entry.cname)
-        args = Backend.backend.get_args(*args)
         if not self.return_type.is_void:
             code.put('%s = ' % Naming.retval_cname)
-        code.putln('%s(%s);' % (
-            self.target.entry.pyfunc_cname, args))
+        code.putln(Backend.backend.get_call(self.target.entry.pyfunc_cname, *args) + ';')
 
     def generate_function_definitions(self, env, code):
         lenv = self.target.local_scope
@@ -3681,9 +3679,9 @@ class DefNodeWrapper(FuncDefNode):
         # Assign nargs variable as len(args), but avoid an "unused" warning in the few cases where we don't need it.
         code.putln("#ifndef %s" % bcknd.hpy_guard)
         if self.signature_has_generic_args():
-            nargs_code = "CYTHON_UNUSED const %s %s = %s(%s);" % (
+            nargs_code = "CYTHON_UNUSED const %s %s = %s;" % (
                 bcknd.pyssizet_ctype, Naming.nargs_cname,
-                bcknd.tuple_get_size, bcknd.get_args(Naming.args_cname))
+                bcknd.get_call(bcknd.tuple_get_size, Naming.args_cname))
             if self.signature.use_fastcall:
                 code.putln("#if !CYTHON_METH_FASTCALL")
                 code.putln(nargs_code)
@@ -3695,9 +3693,9 @@ class DefNodeWrapper(FuncDefNode):
         # Array containing the values of keyword arguments when using METH_FASTCALL.
         code.globalstate.use_utility_code(
             UtilityCode.load_cached("fastcall", "FunctionArguments.c"))
-        code.putln('CYTHON_UNUSED %s const *%s = __Pyx_KwValues_%s(%s);' % (
-            bcknd.pyobject_ctype,
-            Naming.kwvalues_cname, self.signature.fastvar, bcknd.get_args(Naming.args_cname, Naming.nargs_cname)))
+        code.putln('CYTHON_UNUSED %s const *%s = %s;' % (
+            bcknd.pyobject_ctype, Naming.kwvalues_cname,
+            bcknd.get_call("__Pyx_KwValues_%s" % self.signature.fastvar, Naming.args_cname, Naming.nargs_cname)))
 
     def generate_argument_parsing_code(self, env, code):
         # Generate fast equivalent of PyArg_ParseTuple call for
@@ -3998,8 +3996,8 @@ class DefNodeWrapper(FuncDefNode):
                 # parse the exact number of positional arguments from
                 # the args tuple
                 for i, arg in enumerate(positional_args):
-                    code.putln("values[%d] = __Pyx_Arg_%s(%s);" % (
-                            i, self.signature.fastvar, Backend.backend.get_args(Naming.args_cname, i)))
+                    code.putln("values[%d] = %s;" % (
+                            i, Backend.backend.get_call("__Pyx_Arg_%s" % self.signature.fastvar, Naming.args_cname, i)))
             else:
                 # parse the positional arguments from the variable length
                 # args tuple and reject illegal argument tuple sizes
@@ -4012,8 +4010,8 @@ class DefNodeWrapper(FuncDefNode):
                         if i != reversed_args[0][0]:
                             code.putln('CYTHON_FALLTHROUGH;')
                         code.put('case %2d: ' % (i+1))
-                    code.putln("values[%d] = __Pyx_Arg_%s(%s);" % (
-                            i, self.signature.fastvar, Backend.backend.get_args(Naming.args_cname, i)))
+                    code.putln("values[%d] = %s;" % (
+                            i, Backend.backend.get_call("__Pyx_Arg_%s" % self.signature.fastvar, Naming.args_cname, i)))
                 if min_positional_args == 0:
                     code.putln('CYTHON_FALLTHROUGH;')
                     code.put('case  0: ')
@@ -4152,14 +4150,14 @@ class DefNodeWrapper(FuncDefNode):
 
         for i in range(max_positional_args-1, num_required_posonly_args-1, -1):
             code.put('case %2d: ' % (i+1))
-            code.putln("values[%d] = __Pyx_Arg_%s(%s);" % (
-                i, self.signature.fastvar, bcknd.get_args(Naming.args_cname, i)))
+            code.putln("values[%d] = (%s);" % (
+                i, bcknd.get_call("__Pyx_Arg_%s" % self.signature.fastvar, Naming.args_cname, i)))
             code.putln('CYTHON_FALLTHROUGH;')
         if num_required_posonly_args > 0:
             code.put('case %2d: ' % num_required_posonly_args)
             for i in range(num_required_posonly_args-1, -1, -1):
-                code.putln("values[%d] = __Pyx_Arg_%s(%s);" % (
-                    i, self.signature.fastvar, bcknd.get_args(Naming.args_cname, i)))
+                code.putln("values[%d] = %s;" % (
+                    i, bcknd.get_call("__Pyx_Arg_%s" % self.signature.fastvar, Naming.args_cname, i)))
             code.putln('break;')
         for i in range(num_required_posonly_args-2, -1, -1):
             code.put('case %2d: ' % (i+1))
@@ -4187,8 +4185,8 @@ class DefNodeWrapper(FuncDefNode):
         # arguments with values from the kw dict
         self_name_csafe = self.name.as_c_string_literal()
 
-        code.putln('kw_args = __Pyx_NumKwargs_%s(%s);' % (
-                self.signature.fastvar, bcknd.get_args(Naming.kwds_cname)))
+        code.putln('kw_args = %s;' % (
+                bcknd.get_call("__Pyx_NumKwargs_%s" % self.signature.fastvar, Naming.kwds_cname)))
         if self.num_required_args or max_positional_args > 0:
             last_required_arg = -1
             for i, arg in enumerate(all_args):
@@ -4216,19 +4214,18 @@ class DefNodeWrapper(FuncDefNode):
                         continue
                     code.putln('if (kw_args > 0) {')
                     # don't overwrite default argument
-                    code.putln('%s value = __Pyx_GetKwValue_%s(%s);' % (
-                        bcknd.pyobject_ctype,
-                        self.signature.fastvar,
-                        bcknd.get_args(Naming.kwds_cname, Naming.kwvalues_cname, pystring_cname)))
+                    code.putln('%s value = %s;' % (bcknd.pyobject_ctype, bcknd.get_call(
+                        "__Pyx_GetKwValue_%s" % self.signature.fastvar,
+                        Naming.kwds_cname, Naming.kwvalues_cname, pystring_cname)))
                     code.putln('if (%s) { values[%d] = value; kw_args--; }' % (
                         bcknd.get_is_not_null_cond("value"), i))
                     code.putln('else if (unlikely(%s)) %s' % (
                         bcknd.get_err_occurred(), code.error_goto(self.pos)))
                     code.putln('}')
                 else:
-                    kw_value_cond = bcknd.get_is_not_null_cond("values[%d] = __Pyx_GetKwValue_%s(%s))"% (
-                        i, self.signature.fastvar,
-                        bcknd.get_args(Naming.kwds_cname, Naming.kwvalues_cname, pystring_cname)))
+                    kw_value_cond = bcknd.get_is_not_null_cond("values[%d] = %s)" % (i, bcknd.get_call(
+                            "__Pyx_GetKwValue_%s" % self.signature.fastvar,
+                            Naming.kwds_cname, Naming.kwvalues_cname, pystring_cname)))
                     code.putln('if (likely((%s)) kw_args--;' % kw_value_cond)
                     code.putln('else if (unlikely(%s)) %s' % (
                         bcknd.get_err_occurred(), code.error_goto(self.pos)))
@@ -4313,8 +4310,9 @@ class DefNodeWrapper(FuncDefNode):
             values_array = 'values'
         code.globalstate.use_utility_code(
             UtilityCode.load_cached("ParseKeywords", "FunctionArguments.c"))
-        code.putln('if (unlikely(__Pyx_ParseOptionalKeywords(%s) < 0)) %s' % (
-            Backend.backend.get_args(Naming.kwds_cname,
+        code.putln('if (unlikely(%s < 0)) %s' % (
+            Backend.backend.get_call("__Pyx_ParseOptionalKeywords",
+                                     Naming.kwds_cname,
                                      Naming.kwvalues_cname,
                                      Naming.pykwdlist_cname,
                                      self.starstar_arg and self.starstar_arg.entry.cname or '__PYX_NULL',

@@ -1610,8 +1610,8 @@ static PyObject *__Pyx__GetModuleGlobalName(PyObject *name, PY_UINT64_T *dict_ve
 #define __Pyx_GetModuleGlobalNameUncached(var, name)  (var) = __Pyx__GetModuleGlobalName(name)
 static CYTHON_INLINE PyObject* __Pyx__GetModuleGlobalName(PyObject* name); /*proto*/
 #else /* HPY */
-#define __Pyx_GetModuleGlobalName(var, ctx, name)  (var) = __Pyx__GetModuleGlobalName(ctx, name)
-#define __Pyx_GetModuleGlobalNameUncached(var, ctx, name)  (var) = __Pyx__GetModuleGlobalName(ctx, name)
+#define __Pyx_GetModuleGlobalName(ctx, var, name)  (var) = __Pyx__GetModuleGlobalName(ctx, name)
+#define __Pyx_GetModuleGlobalNameUncached(ctx, var, name)  (var) = __Pyx__GetModuleGlobalName(ctx, name)
 static CYTHON_INLINE HPy __Pyx__GetModuleGlobalName(HPyContext *ctx, HPy name); /*proto*/
 #endif /* HPY */
 #endif
