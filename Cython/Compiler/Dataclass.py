@@ -148,10 +148,10 @@ def process_class_get_fields(node):
 
     for entry in var_entries:
         name = entry.name
-        is_initvar = (entry.type.special_python_type_constructor_name == "dataclasses.InitVar")
+        is_initvar = (entry.type.python_type_constructor_name == "dataclasses.InitVar")
         # TODO - classvars aren't included in "var_entries" so are missed here
         # and thus this code is never triggered
-        is_classvar = (entry.type.special_python_type_constructor_name == "typing.ClassVar")
+        is_classvar = (entry.type.python_type_constructor_name == "typing.ClassVar")
         if is_initvar or is_classvar:
             entry.type = entry.type.resolve()  # no longer need the special type
         if name in default_value_assignments:

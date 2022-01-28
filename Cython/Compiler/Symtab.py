@@ -2304,11 +2304,11 @@ class CClassScope(ClassScope):
                     api = 0, in_pxd = 0, is_cdef = 0):
         name = self.mangle_class_private_name(name)
 
-        if type.special_python_type_constructor_name == "typing.ClassVar":
+        if type.python_type_constructor_name == "typing.ClassVar":
             is_cdef = 0
             type = type.resolve()
 
-        if (type.special_python_type_constructor_name == "dataclasses.InitVar" and
+        if (type.python_type_constructor_name == "dataclasses.InitVar" and
                 'dataclasses.dataclass' not in self.directives):
             error(pos, "Use of cython.dataclasses.InitVar does not make sense outside a dataclass")
 
