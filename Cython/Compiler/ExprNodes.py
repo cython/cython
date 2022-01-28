@@ -3674,7 +3674,7 @@ class IndexNode(_IndexingBaseNode):
         base_type = self.base.analyse_as_type(env)
         if base_type and (not base_type.is_pyobject or base_type.python_type_constructor_name):
             if base_type.is_cpp_class or base_type.python_type_constructor_name:
-                if isinstance(self.index, TupleNode):
+                if self.index.is_sequence_constructor:
                     template_values = self.index.args
                 else:
                     template_values = [self.index]

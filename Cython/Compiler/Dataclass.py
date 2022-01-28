@@ -101,6 +101,8 @@ class Field(object):
     default_factory = MISSING
     private = False
 
+    literal_keys = ("repr", "hash", "init", "compare", "metadata")
+
     # default values are defined by the CPython dataclasses.field
     def __init__(self, pos, default=MISSING, default_factory=MISSING,
                  repr=None, hash=None, init=None,
@@ -123,11 +125,17 @@ class Field(object):
             # There should not be any additional keywords!
             error(v.pos, "cython.dataclasses.field() got an unexpected keyword argument '%s'" % k)
 
-        for field_name in ("repr", "hash", "init", "compare", "metadata"):
+        for field_name in self.literal_keys:
             field_value = getattr(self, field_name)
             if not field_value.is_literal:
                 error(field_value.pos,
                       "cython.dataclasses.field parameter '%s' must be a literal value" % field_name)
+
+    def iterate_record_node_arguments(self):
+        for key in (self.literal_keys + ('default', 'default_factory')):
+            value = getattr(self, key)
+            if value is not MISSING:
+                yield key, value
 
 
 def process_class_get_fields(node):
@@ -698,7 +706,7 @@ def _set_up_dataclass_fields(node, fields, dataclass_module):
             node.pos,
             [(ExprNodes.IdentifierStringNode(node.pos, value=EncodedString(k)),
                FieldRecordNode(node.pos, arg=v))
-              for k, v in field.__dict__.items() if k not in ["is_initvar", "is_classvar", "private"]]
+              for k, v in field.iterate_record_node_arguments()]
 
         )
         dc_field_call = ExprNodes.GeneralCallNode(
