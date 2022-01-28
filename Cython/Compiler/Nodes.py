@@ -3675,7 +3675,7 @@ class DefNodeWrapper(FuncDefNode):
                 code.put_var_declaration(entry)
 
         # Assign nargs variable as len(args), but avoid an "unused" warning in the few cases where we don't need it.
-        code.putln("#ifndef %s" % backend.hpy_guard)
+        code.putln("#if !(%s)" % backend.hpy_guard)
         if self.signature_has_generic_args():
             nargs_code = "CYTHON_UNUSED const %s %s = %s;" % (
                 backend.pyssizet_ctype, Naming.nargs_cname,

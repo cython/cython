@@ -773,20 +773,20 @@ bad:
 /////////////// TupleAndListFromArray.proto ///////////////
 
 #if CYTHON_COMPILING_IN_CPYTHON
-#ifndef HPY
+#if !CYTHON_COMPILING_IN_HPY
 static CYTHON_INLINE PyObject* __Pyx_PyList_FromArray(PyObject *const *src, Py_ssize_t n);
 static CYTHON_INLINE PyObject* __Pyx_PyTuple_FromArray(PyObject *const *src, Py_ssize_t n);
-#else /* HPY */
+#else /* CYTHON_COMPILING_IN_HPY */
 static CYTHON_INLINE HPy __Pyx_PyList_FromArray(HPyContext *ctx, HPy const *src, HPy_ssize_t n);
 static CYTHON_INLINE HPy __Pyx_PyTuple_FromArray(HPyContext *ctx, HPy const *src, HPy_ssize_t n);
-#endif /* HPY */
+#endif /* CYTHON_COMPILING_IN_HPY */
 #endif
 
 /////////////// TupleAndListFromArray ///////////////
 //@substitute: naming
 
 #if CYTHON_COMPILING_IN_CPYTHON
-#ifndef HPY
+#if !CYTHON_COMPILING_IN_HPY
 static CYTHON_INLINE void __Pyx_copy_object_array(PyObject *const *CYTHON_RESTRICT src, PyObject** CYTHON_RESTRICT dest, Py_ssize_t length) {
     PyObject *v;
     Py_ssize_t i;
@@ -822,7 +822,7 @@ __Pyx_PyList_FromArray(PyObject *const *src, Py_ssize_t n)
     __Pyx_copy_object_array(src, ((PyListObject*)res)->ob_item, n);
     return res;
 }
-#else /* HPY */
+#else /* CYTHON_COMPILING_IN_HPY */
 static CYTHON_INLINE HPy
 __Pyx_PyTuple_FromArray(HPyContext *ctx, HPy const *src, HPy_ssize_t n)
 {
@@ -839,7 +839,7 @@ __Pyx_PyList_FromArray(HPyContext *ctx, HPy const *src, HPy_ssize_t n)
     }
     return HPyListBuilder_Build(ctx, builder);
 }
-#endif /* HPY */
+#endif /* CYTHON_COMPILING_IN_HPY */
 #endif
 
 
@@ -1485,7 +1485,7 @@ static __PYX_OBJECT_CTYPE __Pyx_GetBuiltinName(__PYX_CONTEXT_DECL __PYX_OBJECT_C
 //@requires: PyObjectGetAttrStrNoError
 //@substitute: naming
 
-#ifndef HPY
+#if !CYTHON_COMPILING_IN_HPY
 static PyObject *__Pyx_GetBuiltinName(PyObject *name) {
     PyObject* result = __Pyx_PyObject_GetAttrStrNoError($builtins_cname, name);
     if (unlikely(!result) && !PyErr_Occurred()) {
@@ -1498,7 +1498,7 @@ static PyObject *__Pyx_GetBuiltinName(PyObject *name) {
     }
     return result;
 }
-#else /* HPY */
+#else /* CYTHON_COMPILING_IN_HPY */
 static HPy __Pyx_GetBuiltinName(HPyContext *ctx, HPy h_name) {
     HPy h_builtins = HPyField_Load(ctx, ctx->h_None, $builtins_cname);
     HPy result = HPy_GetAttr(ctx, h_builtins, h_name);
@@ -1514,7 +1514,7 @@ static HPy __Pyx_GetBuiltinName(HPyContext *ctx, HPy h_name) {
     HPy_Close(ctx, h_name);
     return result;
 }
-#endif /* HPY */
+#endif /* CYTHON_COMPILING_IN_HPY */
 
 /////////////// GetNameInClass.proto ///////////////
 
@@ -1605,15 +1605,15 @@ static int __Pyx_SetNewInClass(PyObject *ns, PyObject *name, PyObject *value) {
 }
 static PyObject *__Pyx__GetModuleGlobalName(PyObject *name, PY_UINT64_T *dict_version, PyObject **dict_cached_value); /*proto*/
 #else
-#ifndef HPY
+#if !CYTHON_COMPILING_IN_HPY
 #define __Pyx_GetModuleGlobalName(var, name)  (var) = __Pyx__GetModuleGlobalName(name)
 #define __Pyx_GetModuleGlobalNameUncached(var, name)  (var) = __Pyx__GetModuleGlobalName(name)
 static CYTHON_INLINE PyObject* __Pyx__GetModuleGlobalName(PyObject* name); /*proto*/
-#else /* HPY */
+#else /* CYTHON_COMPILING_IN_HPY */
 #define __Pyx_GetModuleGlobalName(ctx, var, name)  (var) = __Pyx__GetModuleGlobalName(ctx, name)
 #define __Pyx_GetModuleGlobalNameUncached(ctx, var, name)  (var) = __Pyx__GetModuleGlobalName(ctx, name)
 static CYTHON_INLINE HPy __Pyx__GetModuleGlobalName(HPyContext *ctx, HPy name); /*proto*/
-#endif /* HPY */
+#endif /* CYTHON_COMPILING_IN_HPY */
 #endif
 
 
@@ -1621,7 +1621,7 @@ static CYTHON_INLINE HPy __Pyx__GetModuleGlobalName(HPyContext *ctx, HPy name); 
 //@requires: GetBuiltinName
 //@substitute: naming
 
-#ifndef HPY
+#if !CYTHON_COMPILING_IN_HPY
 #if CYTHON_USE_DICT_VERSIONS
 static PyObject *__Pyx__GetModuleGlobalName(PyObject *name, PY_UINT64_T *dict_version, PyObject **dict_cached_value)
 #else
@@ -1666,7 +1666,7 @@ static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name)
     return __Pyx_GetBuiltinName(__PYX_CONTEXT name);
 }
 
-#else /* HPY */
+#else /* CYTHON_COMPILING_IN_HPY */
 static CYTHON_INLINE HPy __Pyx__GetModuleGlobalName(HPyContext *ctx, HPy name)
 {
     HPy result;
@@ -1679,7 +1679,7 @@ static CYTHON_INLINE HPy __Pyx__GetModuleGlobalName(HPyContext *ctx, HPy name)
     HPyErr_Clear(ctx);
     return __Pyx_GetBuiltinName(ctx, name);
 }
-#endif /* HPY */
+#endif /* CYTHON_COMPILING_IN_HPY */
 
 //////////////////// GetAttr.proto ////////////////////
 
@@ -1831,11 +1831,11 @@ static PyObject* __Pyx_PyObject_GenericGetAttr(PyObject* obj, PyObject* attr_nam
 
 /////////////// PyObjectGetAttrStrNoError.proto ///////////////
 
-#ifndef HPY
+#if !CYTHON_COMPILING_IN_HPY
 static CYTHON_INLINE PyObject* __Pyx_PyObject_GetAttrStrNoError(PyObject* obj, PyObject* attr_name);/*proto*/
-#else /* HPY */
+#else /* CYTHON_COMPILING_IN_HPY */
 static CYTHON_INLINE HPy __Pyx_PyObject_GetAttrStrNoError(HPyContext *ctx, HPy obj, HPy attr_name);/*proto*/
-#endif /* HPY */
+#endif /* CYTHON_COMPILING_IN_HPY */
 
 /////////////// PyObjectGetAttrStrNoError ///////////////
 //@requires: PyObjectGetAttrStr
@@ -1843,7 +1843,7 @@ static CYTHON_INLINE HPy __Pyx_PyObject_GetAttrStrNoError(HPyContext *ctx, HPy o
 //@requires: Exceptions.c::PyErrFetchRestore
 //@requires: Exceptions.c::PyErrExceptionMatches
 
-#ifndef HPY
+#if !CYTHON_COMPILING_IN_HPY
 static void __Pyx_PyObject_GetAttrStr_ClearAttributeError(void) {
     __Pyx_PyThreadState_declare
     __Pyx_PyThreadState_assign
@@ -1867,7 +1867,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_GetAttrStrNoError(PyObject* obj, P
     }
     return result;
 }
-#else /* HPY */
+#else /* CYTHON_COMPILING_IN_HPY */
 static void __Pyx_PyObject_GetAttrStr_ClearAttributeError(HPyContext *ctx) {
     if (likely(__Pyx_PyErr_ExceptionMatches(ctx, ctx->h_AttributeError))) {
         HPyErr_Clear(ctx);
@@ -1881,14 +1881,14 @@ static CYTHON_INLINE HPy __Pyx_PyObject_GetAttrStrNoError(HPyContext *ctx, HPy o
     }
     return result;
 }
-#endif /* HPY */
+#endif /* CYTHON_COMPILING_IN_HPY */
 
 
 /////////////// PyObjectGetAttrStr.proto ///////////////
 
 #if CYTHON_USE_TYPE_SLOTS
 static CYTHON_INLINE PyObject* __Pyx_PyObject_GetAttrStr(PyObject* obj, PyObject* attr_name);/*proto*/
-#elif defined(HPY)
+#elif CYTHON_COMPILING_IN_HPY
 #define __Pyx_PyObject_GetAttrStr(ctx,o,n) HPy_GetAttr(ctx,o,n)
 #else
 #define __Pyx_PyObject_GetAttrStr(o,n) PyObject_GetAttr(o,n)
@@ -2957,7 +2957,7 @@ static CYTHON_INLINE int __Pyx_object_dict_version_matches(PyObject* obj, PY_UIN
 /////////////// PyMethodNew.proto ///////////////
 
 /* TODO(fa): provide __Pyx_PyMethod_New for HPy */
-#ifndef HPY
+#if !CYTHON_COMPILING_IN_HPY
 #if PY_MAJOR_VERSION >= 3
 // This should be an actual function (not a macro), such that we can put it
 // directly in a tp_descr_get slot.
@@ -2970,7 +2970,7 @@ static PyObject *__Pyx_PyMethod_New(PyObject *func, PyObject *self, PyObject *ty
 #else
     #define __Pyx_PyMethod_New PyMethod_New
 #endif
-#endif /* HPY */
+#endif /* CYTHON_COMPILING_IN_HPY */
 
 /////////////// UnicodeConcatInPlace.proto ////////////////
 

@@ -238,11 +238,11 @@ static PyObject *__Pyx_PyLong_AbsNeg(PyObject *num);/*proto*/
          PyNumber_Absolute(x))
 
 #else
-#ifndef HPY
+#if !CYTHON_COMPILING_IN_HPY
 #define __Pyx_PyNumber_Absolute(x)  PyNumber_Absolute(x)
 #else
 #define __Pyx_PyNumber_Absolute(ctx, x)  HPy_Absolute(ctx, x)
-#endif /* HPY */
+#endif /* CYTHON_COMPILING_IN_HPY */
 #endif
 
 //////////////////// py_abs ////////////////////

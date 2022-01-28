@@ -804,8 +804,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             self._put_setup_code(code, "CInitCode")
         self._put_setup_code(code, "ApiBackendInitCode")
-        if env.context.options.hpy:
-            self._put_setup_code(code, "HPyInitCode")
         backend.put_init_code(code)
         self._put_setup_code(code, "PythonCompatibility")
         self._put_setup_code(code, "MathInitCode")
@@ -2634,7 +2632,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             return
 
         code.putln("")
-        code.putln("#ifdef %s" % HPyBackend.hpy_guard)
+        code.putln("#if %s" % HPyBackend.hpy_guard)
         wrapper_code_writer = code.insertion_point()
 
         code.putln(
@@ -2961,7 +2959,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("#endif")
         code.putln(header2)
         code.putln("#else")
-        code.putln("#ifndef %s" % backend.hpy_guard)
+        code.putln("#if !(%s)" % backend.hpy_guard)
         code.putln("%s CYTHON_SMALL_CODE; /*proto*/" % header3)
         if self.scope.is_package:
             code.putln("#if !defined(CYTHON_NO_PYINIT_EXPORT) && (defined(_WIN32) || defined(WIN32) || defined(MS_WINDOWS))")
@@ -3089,7 +3087,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("%s;" % backend.get_closeref(tmp_empty_unicode_cname, False, False))
 
         # TODO(fa): currently not supported with the HPy backend
-        code.putln("#ifndef %s" % backend.hpy_guard)
+        code.putln("#if !(%s)" % backend.hpy_guard)
         for ext_type in ('CyFunction', 'FusedFunction', 'Coroutine', 'Generator', 'AsyncGen', 'StopAsyncIteration'):
             code.putln("#ifdef __Pyx_%s_USED" % ext_type)
             code.put_error_if_neg(self.pos, "__pyx_%s_init(%s)" % (ext_type, env.module_cname))
@@ -3180,7 +3178,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.funcstate.can_trace = True
 
         # TODO(fa): implement support
-        code.putln("#ifndef %s" % backend.hpy_guard)
+        code.putln("#if !(%s)" % backend.hpy_guard)
         self.body.generate_execution_code(code)
         code.putln("#endif /* %s */" % backend.hpy_guard)
 

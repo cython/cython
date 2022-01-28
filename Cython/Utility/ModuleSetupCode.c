@@ -251,6 +251,37 @@
   #endif
 #endif
 
+#if defined(HPY)
+  #define CYTHON_COMPILING_IN_HPY 1
+
+  /* HPy is just available for Python 3 */
+  #if PY_MAJOR_VERSION < 3
+  #error "Cython/HPy requires Python 3 or newer"
+  #endif
+  /* Multi-phase init is not yet supported in HPy */
+  #undef CYTHON_PEP489_MULTI_PHASE_INIT
+  #define CYTHON_PEP489_MULTI_PHASE_INIT 0
+  /* Module state is not yet supported in HPy */
+  #define CYTHON_USE_MODULE_STATE 0
+  /* Any Python objects are generally opaque in HPy */
+  #undef CYTHON_USE_PYLONG_INTERNALS
+  #define CYTHON_USE_PYLONG_INTERNALS 0
+  #undef CYTHON_USE_DICT_VERSIONS
+  #define CYTHON_USE_DICT_VERSIONS 0
+  #undef CYTHON_FAST_THREAD_STATE
+  #define CYTHON_FAST_THREAD_STATE 0
+  #undef CYTHON_USE_TYPE_SLOTS
+  #define CYTHON_USE_TYPE_SLOTS 0
+  /* We don't use refnanny in HPy since it has the debug mode */
+  #undef CYTHON_REFNANNY
+  #define CYTHON_REFNANNY 0
+  /* HPy does currently not support the fastcall/vectorcall protocol */
+  #undef CYTHON_METH_FASTCALL
+  #define CYTHON_METH_FASTCALL 0
+#else /* CYTHON_COMPILING_IN_HPY */
+  #define CYTHON_COMPILING_IN_HPY 0
+#endif /* CYTHON_COMPILING_IN_HPY */
+
 #if !defined(CYTHON_FAST_PYCCALL)
 #define CYTHON_FAST_PYCCALL  (CYTHON_FAST_PYCALL && PY_VERSION_HEX >= 0x030600B1)
 #endif
@@ -450,38 +481,18 @@ class __Pyx_FakeReference {
 };
 
 /////////////// HPyInitCode.proto ///////////////
-#ifdef HPY
+
+#if CYTHON_COMPILING_IN_HPY
 static CYTHON_INLINE HPy _HPy_GetModuleDict(HPyContext *ctx);
-static CYTHON_INLINE HPy _HPy_Contains(HPyContext *ctx, HPy x, HPy y);
+static CYTHON_INLINE int _HPy_Contains(HPyContext *ctx, HPy x, HPy y);
 static CYTHON_INLINE HPy _HPyImport_AddModule(HPyContext *ctx, const char *name);
 static CYTHON_INLINE HPy _HPyDict_GetItem_s(HPyContext *ctx, HPy dict, const char *name);
-#endif /* HPY */
+#endif /* CYTHON_COMPILING_IN_HPY */
 
 /////////////// HPyInitCode ///////////////
 
-#ifdef HPY
-  #if PY_MAJOR_VERSION < 3
-  #error "Cython/HPy requires Python 3 or newer"
-  #endif
-  #undef CYTHON_PEP489_MULTI_PHASE_INIT
-  #define CYTHON_PEP489_MULTI_PHASE_INIT 0
-  #define CYTHON_USE_MODULE_STATE 0
-  #undef CYTHON_USE_PYLONG_INTERNALS
-  #define CYTHON_USE_PYLONG_INTERNALS 0
-  #ifdef CYTHON_REFNANNY
-  #undef CYTHON_REFNANNY
-  #endif
-  #define CYTHON_REFNANNY 0
-  // HPy does currently not support the fastcall/vectorcall protocol
-  #undef CYTHON_METH_FASTCALL
-  #define CYTHON_METH_FASTCALL 0
-  #undef CYTHON_USE_DICT_VERSIONS
-  #define CYTHON_USE_DICT_VERSIONS 0
-  #undef CYTHON_FAST_THREAD_STATE
-  #define CYTHON_FAST_THREAD_STATE 0
-  #undef CYTHON_USE_TYPE_SLOTS
-  #define CYTHON_USE_TYPE_SLOTS 0
 
+#if CYTHON_COMPILING_IN_HPY
 static CYTHON_INLINE HPy _HPy_GetModuleDict(HPyContext *ctx)
 {
     HPy h_sys_module;
@@ -587,12 +598,13 @@ static CYTHON_INLINE HPy _HPyDict_GetItem_s(HPyContext *ctx, HPy dict, const cha
     return h_result;
 }
 
-#endif /* HPY */
+#endif /* CYTHON_COMPILING_IN_HPY */
 
 /////////////// ApiBackendInitCode ///////////////
 //@substitute: naming
+//@requires: HPyInitCode
 
-#ifndef HPY
+#if !CYTHON_COMPILING_IN_HPY
 
 #define __PYX_OBJECT_CTYPE PyObject *
 #define __PYX_IS_NULL(x) !(x)
@@ -671,7 +683,7 @@ static CYTHON_INLINE HPy _HPyDict_GetItem_s(HPyContext *ctx, HPy dict, const cha
 #define __Pyx_PyDict_SetItem HPy_SetItem
 #define __Pyx_PyDict_Contains _HPy_Contains
 
-#endif /* HPY */
+#endif /* CYTHON_COMPILING_IN_HPY */
 
 /////////////// PythonCompatibility ///////////////
 
@@ -690,7 +702,7 @@ static CYTHON_INLINE HPy _HPyDict_GetItem_s(HPyContext *ctx, HPy dict, const cha
 #else
   #define __Pyx_BUILTIN_MODULE_NAME "builtins"
   #define __Pyx_DefaultClassType PyType_Type
-#ifdef HPY
+#if CYTHON_COMPILING_IN_HPY
     static CYTHON_INLINE HPy __Pyx_PyCode_New(HPyContext *ctx, int a, int p, int k, int l, int s, int f,
                                                     HPy code, HPy c, HPy n, HPy v,
                                                     HPy fv, HPy cell, HPy fn,
@@ -936,15 +948,15 @@ static CYTHON_INLINE void * PyThread_tss_get(Py_tss_t *key) {
 // PyThread_ReInitTLS() is a no-op
 #endif /* TSS (Thread Specific Storage) API */
 
-#ifndef HPY
+#if !CYTHON_COMPILING_IN_HPY
 #if CYTHON_COMPILING_IN_CPYTHON || defined(_PyDict_NewPresized)
 #define __Pyx_PyDict_NewPresized(n)  ((n <= 8) ? PyDict_New() : _PyDict_NewPresized(n))
 #else
 #define __Pyx_PyDict_NewPresized(n)  PyDict_New()
 #endif
-#else /* HPY */
+#else /* CYTHON_COMPILING_IN_HPY */
 #define __Pyx_PyDict_NewPresized(ctx, n)  HPyDict_New(ctx)
-#endif /* HPY */
+#endif /* CYTHON_COMPILING_IN_HPY */
 
 #if PY_MAJOR_VERSION >= 3 || CYTHON_FUTURE_DIVISION
   #define __Pyx_PyNumber_Divide(x,y)         PyNumber_TrueDivide(x,y)
@@ -967,7 +979,7 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStr(PyObject *dict, PyObject
 #define __Pyx_PyDict_GetItemStrWithError  PyDict_GetItemWithError
 #define __Pyx_PyDict_GetItemStr           PyDict_GetItem
 #else
-#ifndef HPY
+#if !CYTHON_COMPILING_IN_HPY
 static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict, PyObject *name) {
     // This is tricky - we should return a borrowed reference but not swallow non-KeyError exceptions. 8-|
     // But: this function is only used in Py2 and older PyPys,
@@ -993,7 +1005,7 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 #endif
 }
 #define __Pyx_PyDict_GetItemStr           PyDict_GetItem
-#else /* HPY */
+#else /* CYTHON_COMPILING_IN_HPY */
 static CYTHON_INLINE HPy __Pyx_PyDict_GetItemStrWithError(HPyContext *ctx, HPy dict, HPyField *name) {
     HPy result;
     HPy h_hame = HPyField_Load(ctx, ctx->h_None, *name);
@@ -1002,7 +1014,7 @@ static CYTHON_INLINE HPy __Pyx_PyDict_GetItemStrWithError(HPyContext *ctx, HPy d
     return result;
 }
 #define __Pyx_PyDict_GetItemStr           __Pyx_PyDict_GetItemStrWithError
-#endif /* HPY */
+#endif /* CYTHON_COMPILING_IN_HPY */
 #endif
 
 /* Type slots */
@@ -1463,13 +1475,13 @@ static CYTHON_INLINE float __PYX_NAN() {
 
 /////////////// UtilityFunctionPredeclarations.proto ///////////////
 
-#ifndef HPY
+#if !CYTHON_COMPILING_IN_HPY
 typedef struct {PyObject **p; const char *s; const Py_ssize_t n; const char* encoding;
                 const char is_unicode; const char is_str; const char intern; } __Pyx_StringTabEntry; /*proto*/
 #else
 typedef struct {HPyField *p; const char *s; const HPy_ssize_t n; const char* encoding;
                 const char is_unicode; const char is_str; const char intern; } __Pyx_StringTabEntry; /*proto*/
-#endif /* HPY */
+#endif /* CYTHON_COMPILING_IN_HPY */
 
 /////////////// ForceInitThreads.proto ///////////////
 //@proto_block: utility_code_proto_before_types
@@ -1795,19 +1807,19 @@ static CYTHON_INLINE int __Pyx_Is_Little_Endian(void)
   #define __Pyx_GIVEREF(r)
   #define __Pyx_XGOTREF(r)
   #define __Pyx_XGIVEREF(r)
-#ifndef HPY
+#if !CYTHON_COMPILING_IN_HPY
   #define __Pyx_INCREF(r) Py_INCREF(r)
   #define __Pyx_DECREF(r) Py_DECREF(r)
   #define __Pyx_XINCREF(r) Py_XINCREF(r)
   #define __Pyx_XDECREF(r) Py_XDECREF(r)
-#else /* HPY */
+#else /* CYTHON_COMPILING_IN_HPY */
   /* We intentionally do not define __Pyx_(X)INCREF since it's easily used in a wrong way. */
   #define __Pyx_DECREF(r) HPy_Close(__PYX_CONTEXT r)
   #define __Pyx_XDECREF(r) HPy_Close(__PYX_CONTEXT r)
-#endif /* HPY */
+#endif /* CYTHON_COMPILING_IN_HPY */
 #endif /* CYTHON_REFNANNY */
 
-#ifndef HPY
+#if !CYTHON_COMPILING_IN_HPY
 #define __Pyx_Py_XDECREF_SET(r, v) do {                         \
         PyObject *tmp = (PyObject *) r;                         \
         r = v; Py_XDECREF(tmp);                                 \
@@ -1823,7 +1835,7 @@ static CYTHON_INLINE int __Pyx_Is_Little_Endian(void)
 
 #define __Pyx_CLEAR(r)    do { PyObject* tmp = ((PyObject*)(r)); r = NULL; __Pyx_DECREF(tmp);} while(0)
 #define __Pyx_XCLEAR(r)   do { if((r) != NULL) {PyObject* tmp = ((PyObject*)(r)); r = NULL; __Pyx_DECREF(tmp);}} while(0)
-#else /* HPY */
+#else /* CYTHON_COMPILING_IN_HPY */
 #define __Pyx_Py_XDECREF_SET(r, v) do {                         \
         HPy tmp = r;                                            \
         r = v; HPy_Close(__PYX_CONTEXT tmp);                    \
@@ -1839,7 +1851,7 @@ static CYTHON_INLINE int __Pyx_Is_Little_Endian(void)
 
 #define __Pyx_CLEAR(r)    do { HPy tmp = (r); r = HPy_NULL; HPy_Close(__PYX_CONTEXT tmp);} while(0)
 #define __Pyx_XCLEAR(r)   do { if(!HPy_IsNull((r))) {HPy tmp = (r); r = HPy_NULL; HPy_Close(__PYX_CONTEXT tmp);}} while(0)
-#endif /* HPY */
+#endif /* CYTHON_COMPILING_IN_HPY */
 
 /////////////// Refnanny ///////////////
 
@@ -1879,7 +1891,7 @@ if (!__Pyx_RefNanny) {
 
 static void ${cleanup_cname}(__PYX_CONTEXT_DECL __PYX_OBJECT_CTYPE self); /*proto*/
 
-#if PY_MAJOR_VERSION < 3 || CYTHON_COMPILING_IN_PYPY || HPY
+#if PY_MAJOR_VERSION < 3 || CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_HPY
 static int __Pyx_RegisterCleanup(__PYX_CONTEXT_DECL __PYX_OBJECT_CTYPE module); /*proto*/
 #else
 #define __Pyx_RegisterCleanup(module) (0)
@@ -1889,8 +1901,8 @@ static int __Pyx_RegisterCleanup(__PYX_CONTEXT_DECL __PYX_OBJECT_CTYPE module); 
 //@substitute: naming
 //@requires: ApiBackendInitCode
 
-#if PY_MAJOR_VERSION < 3 || CYTHON_COMPILING_IN_PYPY || HPY
-#ifdef HPY
+#if PY_MAJOR_VERSION < 3 || CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_HPY
+#if CYTHON_COMPILING_IN_HPY
 
 typedef struct  {
     HPyField module;
@@ -1977,7 +1989,7 @@ bad:
     HPy_Close(ctx, res);
     return ret;
 }
-#else /* HPY */
+#else /* CYTHON_COMPILING_IN_HPY */
 static PyObject *${cleanup_cname}_atexit(PyObject *module, PyObject *unused) {
     CYTHON_UNUSED_VAR(unused);
     ${cleanup_cname}(module);
@@ -2048,7 +2060,7 @@ bad:
     Py_XDECREF(res);
     return ret;
 }
-#endif /* HPY */
+#endif /* CYTHON_COMPILING_IN_HPY */
 #endif
 
 /////////////// FastGil.init ///////////////

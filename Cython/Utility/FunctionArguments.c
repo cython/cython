@@ -101,7 +101,7 @@ static void __Pyx_RaiseDoubleKeywordsError(__PYX_CONTEXT_DECL
     const char* func_name,
     __PYX_OBJECT_CTYPE kw_name)
 {
-#ifndef HPY
+#if !CYTHON_COMPILING_IN_HPY
     PyErr_Format(PyExc_TypeError,
         #if PY_MAJOR_VERSION >= 3
         "%s() got multiple values for keyword argument '%U'", func_name, kw_name);
@@ -109,11 +109,11 @@ static void __Pyx_RaiseDoubleKeywordsError(__PYX_CONTEXT_DECL
         "%s() got multiple values for keyword argument '%s'", func_name,
         PyString_AsString(kw_name));
         #endif
-#else /* HPY */
+#else /* CYTHON_COMPILING_IN_HPY */
     /* TODO(fa): HPy does not have HPyErr_Format yet */
     HPyErr_SetString(__PYX_CONTEXT __Pyx_PyExc_TypeError,
         "got multiple values for keyword argument");
-#endif /* HPY */
+#endif /* CYTHON_COMPILING_IN_HPY */
 }
 
 
@@ -207,7 +207,7 @@ invalid_keyword:
 
 //////////////////// ParseKeywords.proto ////////////////////
 
-#ifndef HPY
+#if !CYTHON_COMPILING_IN_HPY
 static int __Pyx_ParseOptionalKeywords(PyObject *kwds, PyObject *const *kwvalues,
     PyObject **argnames[],
     PyObject *kwds2, PyObject *values[], Py_ssize_t num_pos_args,
@@ -217,7 +217,7 @@ static int __Pyx_ParseOptionalKeywords(HPyContext *ctx, HPy kwds, const HPy *kwv
     HPy argnames[],
     HPy kwds2, HPy values[], HPy_ssize_t num_pos_args,
     const char* function_name); /*proto*/
-#endif /* HPY */
+#endif /* CYTHON_COMPILING_IN_HPY */
 
 //////////////////// ParseKeywords ////////////////////
 //@requires: RaiseDoubleKeywords
@@ -239,7 +239,7 @@ static int __Pyx_ParseOptionalKeywords(HPyContext *ctx, HPy kwds, const HPy *kwv
 //
 //  This method does not check for required keyword arguments.
 
-#ifndef HPY
+#if !CYTHON_COMPILING_IN_HPY
 static int __Pyx_ParseOptionalKeywords(
     PyObject *kwds,
     PyObject *const *kwvalues,
@@ -371,7 +371,7 @@ static int __Pyx_ParseOptionalKeywords(HPyContext *ctx, HPy kwds, const HPy *kwv
     HPyErr_SetString(ctx, ctx->h_SystemError, "NOT IMPLEMENTED");
     return -1;
 }
-#endif /* HPY */
+#endif /* CYTHON_COMPILING_IN_HPY */
 
 
 //////////////////// MergeKeywords.proto ////////////////////
@@ -439,33 +439,33 @@ bad:
 // (because it's an old version of CPython or it's not CPython at all),
 // then the ..._FASTCALL macros simply alias ..._VARARGS
 
-#ifndef HPY
+#if !CYTHON_COMPILING_IN_HPY
 #define __Pyx_Arg_VARARGS(args, i) PyTuple_GET_ITEM(args, i)
 #define __Pyx_NumKwargs_VARARGS(kwds) PyDict_Size(kwds)
 #define __Pyx_KwValues_VARARGS(args, nargs) NULL
 #define __Pyx_GetKwValue_VARARGS(kw, kwvalues, s) __Pyx_PyDict_GetItemStrWithError(kw, s)
 #define __Pyx_KwargsAsDict_VARARGS(kw, kwvalues) PyDict_Copy(kw)
-#else /* HPY */
+#else /* CYTHON_COMPILING_IN_HPY */
 #define __Pyx_Arg_VARARGS(ctx, args, i) args[i]
 #define __Pyx_NumKwargs_VARARGS(ctx, kwds) HPy_Length(ctx, kwds)
 #define __Pyx_KwValues_VARARGS(ctx, args, nargs) NULL
 #define __Pyx_GetKwValue_VARARGS(ctx, kw, kwvalues, s) HPy_GetItem(ctx, kw, s)
 #define __Pyx_KwargsAsDict_VARARGS(ctx, kw, kwvalues) PyDict_Copy(kw) // TODO
-#endif /* HPY */
+#endif /* CYTHON_COMPILING_IN_HPY */
 #if CYTHON_METH_FASTCALL
-#ifndef HPY
+#if !CYTHON_COMPILING_IN_HPY
     #define __Pyx_Arg_FASTCALL(args, i) args[i]
     #define __Pyx_NumKwargs_FASTCALL(kwds) PyTuple_GET_SIZE(kwds)
     #define __Pyx_KwValues_FASTCALL(args, nargs) (&args[nargs])
     static CYTHON_INLINE PyObject * __Pyx_GetKwValue_FASTCALL(PyObject *kwnames, PyObject *const *kwvalues, PyObject *s);
     #define __Pyx_KwargsAsDict_FASTCALL(kw, kwvalues) _PyStack_AsDict(kwvalues, kw)
-#else /* HPY */
+#else /* CYTHON_COMPILING_IN_HPY */
     #define __Pyx_Arg_FASTCALL(ctx, args, i) args[i]
     #define __Pyx_NumKwargs_FASTCALL(ctx, kwds) HPy_Length(ctx, kwds)
     #define __Pyx_KwValues_FASTCALL(ctx, args, nargs) (&args[nargs])
     static CYTHON_INLINE HPy __Pyx_GetKwValue_FASTCALL(HPyContext *ctx, HPy kwnames, HPy const *kwvalues, HPy s);
     #define __Pyx_KwargsAsDict_FASTCALL(kw, kwvalues) _PyStack_AsDict(kwvalues, kw) // TODO
-#endif /* HPY */
+#endif /* CYTHON_COMPILING_IN_HPY */
 #else
     #define __Pyx_Arg_FASTCALL __Pyx_Arg_VARARGS
     #define __Pyx_NumKwargs_FASTCALL __Pyx_NumKwargs_VARARGS
@@ -492,7 +492,7 @@ bad:
 // kwnames: tuple with names of keyword arguments
 // kwvalues: C array with values of keyword arguments
 // s: str with the keyword name to look for
-#ifndef HPY
+#if !CYTHON_COMPILING_IN_HPY
 static CYTHON_INLINE PyObject * __Pyx_GetKwValue_FASTCALL(PyObject *kwnames, PyObject *const *kwvalues, PyObject *s)
 {
     // Search the kwnames array for s and return the corresponding value.
@@ -514,7 +514,7 @@ static CYTHON_INLINE PyObject * __Pyx_GetKwValue_FASTCALL(PyObject *kwnames, PyO
     }
     return NULL;  // not found (no exception set)
 }
-#else /* HPY */
+#else /* CYTHON_COMPILING_IN_HPY */
 static CYTHON_INLINE HPy __Pyx_GetKwValue_FASTCALL(HPyContext *ctx, HPy kwnames, HPy const *kwvalues, HPy needle)
 {
     HPy_ssize_t i, n = HPy_Length(ctx, kwnames);
@@ -532,5 +532,5 @@ static CYTHON_INLINE HPy __Pyx_GetKwValue_FASTCALL(HPyContext *ctx, HPy kwnames,
     }
     return HPy_NULL;  // not found (no exception set)
 }
-#endif /* HPY */
+#endif /* CYTHON_COMPILING_IN_HPY */
 #endif

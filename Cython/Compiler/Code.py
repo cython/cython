@@ -1567,7 +1567,7 @@ class GlobalState(object):
         if Options.generate_cleanup_code:
             cleanup = self.parts['cleanup_globals']
             # TODO(fa): add HPy support
-            cleanup.putln("#ifndef %s" % backend.hpy_guard)
+            cleanup.putln("#if !(%s)" % backend.hpy_guard)
             for cname in cnames:
                 cleanup.putln("Py_CLEAR(%s.method);" % cname)
             cleanup.putln("#endif /* %s */" % backend.hpy_guard)
@@ -2408,7 +2408,7 @@ class CCodeWriter(object):
         self.putln("static %s %s =" % (backend.pymoduledef_ctype, Naming.pymoduledef_cname))
         self.putln('#endif')
         self.putln('{')
-        self.putln("#ifndef %s" % backend.hpy_guard)
+        self.putln("#if !(%s)" % backend.hpy_guard)
         self.putln("  PyModuleDef_HEAD_INIT,")
         self.putln('  %s,' % env.module_name.as_c_string_literal())
         self.putln("  %s, /* m_doc */" % doc)

@@ -2,7 +2,7 @@ from . import Naming
 
 
 class APIBackend:
-    hpy_guard = "HPY"
+    hpy_guard = "CYTHON_COMPILING_IN_HPY"
     name = "NIL"
     pyobject_ctype = "NULL"
     pyobject_global_ctype = "NULL"
@@ -508,7 +508,7 @@ class CombinedBackend(APIBackend):
     @staticmethod
     def put_init_code(code):
         hpy_guard = CApiBackend.hpy_guard
-        code.putln("#ifndef " + hpy_guard)
+        code.putln("#if !" + hpy_guard)
         code.putln("#define __PYX_API_CALL0(fun) fun()")
         code.putln("#define __PYX_API_CALL(fun, ...) fun(__VA_ARGS__)")
         code.putln("#define __PYX_OBJECT_CTYPE_BP PyObject")
@@ -727,38 +727,38 @@ class CombinedBackend(APIBackend):
     def get_both(cpy_code, hpy_code):
         """
         Print code with structure:
-        #ifndef HPY_GUARD
+        #if !HPY_GUARD
         cpy_code
         #else /* HPY_GUARD */
         hpy_code
         #endif /* HPY_GUARD */
         """
         hpy_guard = CApiBackend.hpy_guard
-        return "#ifndef %s\n%s\n#else /* %s */\n%s\n#endif /* %s */" % (
+        return "#if !%s\n%s\n#else /* %s */\n%s\n#endif /* %s */" % (
             hpy_guard, cpy_code, hpy_guard, hpy_code, hpy_guard)
 
     @staticmethod
     def get_hpy(hpy_code):
         """
         Print code with structure:
-        #ifdef HPY_GUARD
+        #if HPY_GUARD
         hpy_code
         #endif /* HPY_GUARD */
         """
         hpy_guard = CApiBackend.hpy_guard
-        return "#ifdef %s\n%s\n#endif /* %s */" % (
+        return "#if %s\n%s\n#endif /* %s */" % (
             hpy_guard, hpy_code, hpy_guard)
 
     @staticmethod
     def get_cpy(cpy_code):
         """
         Print code with structure:
-        #ifndef HPY_GUARD
+        #if HPY_GUARD
         cpy_code
         #endif /* HPY_GUARD */
         """
         hpy_guard = CApiBackend.hpy_guard
-        return "#ifndef %s\n%s\n#endif /* %s */" % (
+        return "#if !%s\n%s\n#endif /* %s */" % (
             hpy_guard, cpy_code, hpy_guard)
 
     @staticmethod
@@ -773,14 +773,14 @@ class CombinedBackend(APIBackend):
     def put_both(code, cpy_code, hpy_code):
         """
         Print code with structure:
-        #ifndef HPY_GUARD
+        #if !HPY_GUARD
         cpy_code
         #else /* HPY_GUARD */
         hpy_code
         #endif /* HPY_GUARD */
         """
         hpy_guard = CApiBackend.hpy_guard
-        code.putln("#ifndef " + hpy_guard)
+        code.putln("#if !" + hpy_guard)
         code.putln(cpy_code)
         code.putln("#else /* %s */" % hpy_guard)
         code.putln(hpy_code)

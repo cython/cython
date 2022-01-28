@@ -43,7 +43,7 @@ static CYTHON_INLINE int __Pyx_ErrOccurredWithGIL(void) {
 #if CYTHON_FAST_THREAD_STATE
 #define __Pyx_PyErr_ExceptionMatches(err) __Pyx_PyErr_ExceptionMatchesInState($local_tstate_cname, err)
 static CYTHON_INLINE int __Pyx_PyErr_ExceptionMatchesInState(PyThreadState* tstate, PyObject* err);
-#elif defined(HPY)
+#elif CYTHON_COMPILING_IN_HPY
 #define __Pyx_PyErr_ExceptionMatches(ctx, err)  HPyErr_ExceptionMatches(ctx, err)
 #else
 #define __Pyx_PyErr_ExceptionMatches(err)  PyErr_ExceptionMatches(err)
@@ -97,7 +97,7 @@ static CYTHON_INLINE void __Pyx_ErrFetchInState(PyThreadState *tstate, PyObject 
 #endif
 
 #else
-#ifndef HPY
+#if !CYTHON_COMPILING_IN_HPY
 #define __Pyx_PyErr_Clear() PyErr_Clear()
 #define __Pyx_PyErr_SetNone(exc) PyErr_SetNone(exc)
 #define __Pyx_ErrRestoreWithState(type, value, tb)  PyErr_Restore(type, value, tb)
@@ -106,7 +106,7 @@ static CYTHON_INLINE void __Pyx_ErrFetchInState(PyThreadState *tstate, PyObject 
 #define __Pyx_ErrFetchInState(tstate, type, value, tb)  PyErr_Fetch(type, value, tb)
 #define __Pyx_ErrRestore(type, value, tb)  PyErr_Restore(type, value, tb)
 #define __Pyx_ErrFetch(type, value, tb)  PyErr_Fetch(type, value, tb)
-#else /* HPY */
+#else /* CYTHON_COMPILING_IN_HPY */
 #define __Pyx_PyErr_Clear(ctx) HPyErr_Clear(ctx)
 /* TODO(fa): implement */
 #define __Pyx_PyErr_SetNone
@@ -116,7 +116,7 @@ static CYTHON_INLINE void __Pyx_ErrFetchInState(PyThreadState *tstate, PyObject 
 #define __Pyx_ErrFetchInState
 #define __Pyx_ErrRestore
 #define __Pyx_ErrFetch
-#endif /* HPY */
+#endif /* CYTHON_COMPILING_IN_HPY */
 #endif
 
 /////////////// PyErrFetchRestore ///////////////
@@ -753,7 +753,7 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
     _PyTraceback_Add(funcname, filename, c_line ? -c_line : py_line);
 }
 #else
-#ifndef HPY
+#if !CYTHON_COMPILING_IN_HPY
 static PyCodeObject* __Pyx_CreateCodeObjectForTraceback(
             const char *funcname, int c_line,
             int py_line, const char *filename) {
@@ -840,10 +840,10 @@ bad:
     Py_XDECREF(py_code);
     Py_XDECREF(py_frame);
 }
-#else /* HPY */
+#else /* CYTHON_COMPILING_IN_HPY */
 static void __Pyx_AddTraceback(const char *funcname, int c_line,
                                int py_line, const char *filename) {
     /* TODO(fa): creating TB is not yet supported in HPy */
 }
-#endif /* HPY */
+#endif /* CYTHON_COMPILING_IN_HPY */
 #endif
