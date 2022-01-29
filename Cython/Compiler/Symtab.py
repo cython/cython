@@ -20,7 +20,7 @@ from . import PyrexTypes
 from .PyrexTypes import py_object_type, unspecified_type
 from .TypeSlots import (
     pyfunction_signature, pymethod_signature, richcmp_special_methods,
-    get_special_method_signature, get_property_accessor_signature)
+    get_slot_table, get_property_accessor_signature)
 from . import Future
 
 from . import Code
@@ -159,6 +159,9 @@ class Entry(object):
     #                              is a specialization
     # is_cgetter       boolean    Is a c-level getter function
     # is_cpp_optional  boolean    Entry should be declared as std::optional (cpp_locals directive)
+    # known_standard_library_import     Either None (default), an empty string (definitely can't be determined)
+    #                             or a string of "modulename.something.attribute"
+    #                             Used for identifying imports from typing/dataclasses etc
 
     # TODO: utility_code and utility_code_definition serves the same purpose...
 
@@ -166,6 +169,7 @@ class Entry(object):
     borrowed = 0
     init = ""
     annotation = None
+    pep563_annotation = None
     visibility = 'private'
     is_builtin = 0
     is_cglobal = 0
@@ -231,6 +235,7 @@ class Entry(object):
     outer_entry = None
     is_cgetter = False
     is_cpp_optional = False
+    known_standard_library_import = None
 
     def __init__(self, name, cname, type, pos = None, init = None):
         self.name = name
@@ -331,6 +336,7 @@ class Scope(object):
     # is_py_class_scope boolean            Is a Python class scope
     # is_c_class_scope  boolean            Is an extension type scope
     # is_closure_scope  boolean            Is a closure scope
+    # is_generator_expression_scope boolean   A subset of closure scope used for generator expressions
     # is_passthrough    boolean            Outer scope is passed directly
     # is_cpp_class_scope  boolean          Is a C++ class scope
     # is_property_scope boolean            Is a extension type property scope
@@ -351,6 +357,7 @@ class Scope(object):
     is_py_class_scope = 0
     is_c_class_scope = 0
     is_closure_scope = 0
+    is_generator_expression_scope = 0
     is_comprehension_scope = 0
     is_passthrough = 0
     is_cpp_class_scope = 0
@@ -492,7 +499,7 @@ class Scope(object):
             warning(pos, "'%s' is a reserved name in C." % cname, -1)
 
         entries = self.entries
-        if name and name in entries and not shadow:
+        if name and name in entries and not shadow and not self.is_builtin_scope:
             old_entry = entries[name]
 
             # Reject redeclared C++ functions only if they have the same type signature.
@@ -755,6 +762,11 @@ class Scope(object):
             entry.used = 1
         return entry
 
+    def declare_assignment_expression_target(self, name, type, pos):
+        # In most cases declares the variable as normal.
+        # For generator expressions and comprehensions the variable is declared in their parent
+        return self.declare_var(name, type, pos)
+
     def declare_builtin(self, name, pos):
         name = self.mangle_class_private_name(name)
         return self.outer_scope.declare_builtin(name, pos)
@@ -838,10 +850,10 @@ class Scope(object):
                 entry.type = entry.type.with_with_gil(type.with_gil)
             else:
                 if visibility == 'extern' and entry.visibility == 'extern':
-                    can_override = False
+                    can_override = self.is_builtin_scope
                     if self.is_cpp():
                         can_override = True
-                    elif cname:
+                    elif cname and not can_override:
                         # if all alternatives have different cnames,
                         # it's safe to allow signature overrides
                         for alt_entry in entry.all_alternatives():
@@ -981,6 +993,11 @@ class Scope(object):
     def lookup_here_unmangled(self, name):
         return self.entries.get(name, None)
 
+    def lookup_assignment_expression_target(self, name):
+        # For most cases behaves like "lookup_here".
+        # However, it does look outwards for comprehension and generator expression scopes
+        return self.lookup_here(name)
+
     def lookup_target(self, name):
         # Look up name in this scope only. Declare as Python
         # variable if not found.
@@ -993,13 +1010,27 @@ class Scope(object):
             entry = self.declare_var(name, py_object_type, None)
         return entry
 
-    def lookup_type(self, name):
-        entry = self.lookup(name)
+    def _type_or_specialized_type_from_entry(self, entry):
         if entry and entry.is_type:
             if entry.type.is_fused and self.fused_to_specific:
                 return entry.type.specialize(self.fused_to_specific)
             return entry.type
-        return None
+
+    def lookup_type(self, name):
+        entry = self.lookup(name)
+        # The logic here is:
+        #  1. if entry is a type then return it (and maybe specialize it)
+        #  2. if the entry comes from a known standard library import then follow that
+        #  3. repeat step 1 with the (possibly) updated entry
+
+        tp = self._type_or_specialized_type_from_entry(entry)
+        if tp:
+            return tp
+        # allow us to find types from the "typing" module and similar
+        if entry and entry.known_standard_library_import:
+            from .Builtin import get_known_standard_library_entry
+            entry = get_known_standard_library_entry(entry.known_standard_library_import)
+        return self._type_or_specialized_type_from_entry(entry)
 
     def lookup_operator(self, operator, operands):
         if operands[0].type.is_cpp_class:
@@ -1183,6 +1214,7 @@ class BuiltinScope(Scope):
     def builtin_scope(self):
         return self
 
+    # FIXME: remove redundancy with Builtin.builtin_types_table
     builtin_entries = {
 
         "type":   ["((PyObject*)&PyType_Type)", py_object_type],
@@ -1913,6 +1945,13 @@ class LocalScope(Scope):
             if entry is None or not entry.from_closure:
                 error(pos, "no binding for nonlocal '%s' found" % name)
 
+    def _create_inner_entry_for_closure(self, name, entry):
+        entry.in_closure = True
+        inner_entry = InnerEntry(entry, self)
+        inner_entry.is_variable = True
+        self.entries[name] = inner_entry
+        return inner_entry
+
     def lookup(self, name):
         # Look up name in this scope or an enclosing one.
         # Return None if not found.
@@ -1927,11 +1966,7 @@ class LocalScope(Scope):
                     raise InternalError("lookup() after scope class created.")
                 # The actual c fragment for the different scopes differs
                 # on the outside and inside, so we make a new entry
-                entry.in_closure = True
-                inner_entry = InnerEntry(entry, self)
-                inner_entry.is_variable = True
-                self.entries[name] = inner_entry
-                return inner_entry
+                return self._create_inner_entry_for_closure(name, entry)
         return entry
 
     def mangle_closure_cnames(self, outer_scope_cname):
@@ -2001,6 +2036,10 @@ class ComprehensionScope(Scope):
         self.entries[name] = entry
         return entry
 
+    def declare_assignment_expression_target(self, name, type, pos):
+        # should be declared in the parent scope instead
+        return self.parent_scope.declare_var(name, type, pos)
+
     def declare_pyfunction(self, name, pos, allow_redefine=False):
         return self.outer_scope.declare_pyfunction(
             name, pos, allow_redefine)
@@ -2010,6 +2049,12 @@ class ComprehensionScope(Scope):
 
     def add_lambda_def(self, def_node):
         return self.outer_scope.add_lambda_def(def_node)
+
+    def lookup_assignment_expression_target(self, name):
+        entry = self.lookup_here(name)
+        if not entry:
+            entry = self.parent_scope.lookup_assignment_expression_target(name)
+        return entry
 
 
 class ClosureScope(LocalScope):
@@ -2032,6 +2077,25 @@ class ClosureScope(LocalScope):
     def declare_pyfunction(self, name, pos, allow_redefine=False):
         return LocalScope.declare_pyfunction(self, name, pos, allow_redefine, visibility='private')
 
+    def declare_assignment_expression_target(self, name, type, pos):
+        return self.declare_var(name, type, pos)
+
+
+class GeneratorExpressionScope(ClosureScope):
+    is_generator_expression_scope = True
+
+    def declare_assignment_expression_target(self, name, type, pos):
+        entry = self.parent_scope.declare_var(name, type, pos)
+        return self._create_inner_entry_for_closure(name, entry)
+
+    def lookup_assignment_expression_target(self, name):
+        entry = self.lookup_here(name)
+        if not entry:
+            entry = self.parent_scope.lookup_assignment_expression_target(name)
+            if entry:
+                return self._create_inner_entry_for_closure(name, entry)
+        return entry
+
 
 class StructOrUnionScope(Scope):
     #  Namespace of a C struct or union.
@@ -2042,7 +2106,7 @@ class StructOrUnionScope(Scope):
     def declare_var(self, name, type, pos,
                     cname = None, visibility = 'private',
                     api = 0, in_pxd = 0, is_cdef = 0,
-                    allow_pyobject=False, allow_memoryview=False):
+                    allow_pyobject=False, allow_memoryview=False, allow_refcounted=False):
         # Add an entry for an attribute.
         if not cname:
             cname = name
@@ -2053,11 +2117,16 @@ class StructOrUnionScope(Scope):
         entry = self.declare(name, cname, type, pos, visibility)
         entry.is_variable = 1
         self.var_entries.append(entry)
-        if type.is_pyobject and not allow_pyobject:
-            error(pos, "C struct/union member cannot be a Python object")
-        elif type.is_memoryviewslice and not allow_memoryview:
-            # Memory views wrap their buffer owner as a Python object.
-            error(pos, "C struct/union member cannot be a memory view")
+        if type.is_pyobject:
+            if not allow_pyobject:
+                error(pos, "C struct/union member cannot be a Python object")
+        elif type.is_memoryviewslice:
+            if not allow_memoryview:
+                # Memory views wrap their buffer owner as a Python object.
+                error(pos, "C struct/union member cannot be a memory view")
+        elif type.needs_refcounting:
+            if not allow_refcounted:
+                error(pos, "C struct/union member cannot be reference-counted type '%s'" % type)
         if visibility != 'private':
             error(pos, "C struct/union member cannot be declared %s" % visibility)
         return entry
@@ -2257,13 +2326,23 @@ class CClassScope(ClassScope):
                     cname = None, visibility = 'private',
                     api = 0, in_pxd = 0, is_cdef = 0):
         name = self.mangle_class_private_name(name)
+
+        if type.python_type_constructor_name == "typing.ClassVar":
+            is_cdef = 0
+            type = type.resolve()
+
+        if (type.python_type_constructor_name == "dataclasses.InitVar" and
+                'dataclasses.dataclass' not in self.directives):
+            error(pos, "Use of cython.dataclasses.InitVar does not make sense outside a dataclass")
+
         if is_cdef:
             # Add an entry for an attribute.
             if self.defined:
                 error(pos,
                     "C attributes cannot be added in implementation part of"
                     " extension type defined in a pxd")
-            if not self.is_closure_class_scope and get_special_method_signature(name):
+            if (not self.is_closure_class_scope and
+                    get_slot_table(self.directives).get_special_method_signature(name)):
                 error(pos,
                     "The name '%s' is reserved for a special method."
                         % name)
@@ -2335,7 +2414,7 @@ class CClassScope(ClassScope):
                 "in a future version of Pyrex and Cython. Use __cinit__ instead.")
         entry = self.declare_var(name, py_object_type, pos,
                                  visibility='extern')
-        special_sig = get_special_method_signature(name)
+        special_sig = get_slot_table(self.directives).get_special_method_signature(name)
         if special_sig:
             # Special methods get put in the method table with a particular
             # signature declared in advance.
@@ -2367,7 +2446,8 @@ class CClassScope(ClassScope):
                           cname=None, visibility='private', api=0, in_pxd=0,
                           defining=0, modifiers=(), utility_code=None, overridable=False):
         name = self.mangle_class_private_name(name)
-        if get_special_method_signature(name) and not self.parent_type.is_builtin_type:
+        if (get_slot_table(self.directives).get_special_method_signature(name)
+                and not self.parent_type.is_builtin_type):
             error(pos, "Special methods must be declared with 'def', not 'cdef'")
         args = type.args
         if not type.is_static_method:
@@ -2501,6 +2581,7 @@ class CClassScope(ClassScope):
                 base_entry.name, adapt(base_entry.cname),
                 base_entry.type, None, 'private')
             entry.is_variable = 1
+            entry.annotation = base_entry.annotation
             self.inherited_var_entries.append(entry)
 
         # If the class defined in a pxd, specific entries have not been added.

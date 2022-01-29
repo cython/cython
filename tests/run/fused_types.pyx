@@ -156,7 +156,7 @@ def test_fused_pointer_except_null(value):
         test_str = cython.declare(string_t, value)
         print fused_pointer_except_null(&test_str)[0].decode('ascii')
 
-include "cythonarrayutil.pxi"
+include "../testsupport/cythonarrayutil.pxi"
 
 cpdef cython.integral test_fused_memoryviews(cython.integral[:, ::1] a):
     """

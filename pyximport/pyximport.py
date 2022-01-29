@@ -217,7 +217,8 @@ def load_module(name, pyxfilename, pyxbuild_dir=None, is_package=False,
         if is_package and not hasattr(mod, '__path__'):
             mod.__path__ = [os.path.dirname(so_path)]
         assert mod.__file__ == so_path, (mod.__file__, so_path)
-    except Exception:
+    except Exception as failure_exc:
+        _debug("Failed to load extension module: %r" % failure_exc)
         if pyxargs.load_py_module_on_import_failure and pyxfilename.endswith('.py'):
             # try to fall back to normal import
             mod = imp.load_source(name, pyxfilename)
@@ -351,11 +352,12 @@ class PyImporter(PyxImporter):
         self.uncompilable_modules = {}
         self.blocked_modules = ['Cython', 'pyxbuild', 'pyximport.pyxbuild',
                                 'distutils']
+        self.blocked_packages = ['Cython.', 'distutils.']
 
     def find_module(self, fullname, package_path=None):
         if fullname in sys.modules:
             return None
-        if fullname.startswith('Cython.'):
+        if any([fullname.startswith(pkg) for pkg in self.blocked_packages]):
             return None
         if fullname in self.blocked_modules:
             # prevent infinite recursion

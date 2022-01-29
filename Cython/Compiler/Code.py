@@ -437,7 +437,7 @@ class UtilityCodeBase(object):
         return "<%s(%s)>" % (type(self).__name__, self.name)
 
     def get_tree(self, **kwargs):
-        pass
+        return None
 
     def __deepcopy__(self, memodict=None):
         # No need to deep-copy utility code since it's essentially immutable.
@@ -501,9 +501,11 @@ class UtilityCode(UtilityCodeBase):
 
     def specialize(self, pyrex_type=None, **data):
         # Dicts aren't hashable...
+        name = self.name
         if pyrex_type is not None:
             data['type'] = pyrex_type.empty_declaration_code()
             data['type_name'] = pyrex_type.specialization_name()
+            name = "%s[%s]" % (name, data['type_name'])
         key = tuple(sorted(data.items()))
         try:
             return self._cache[key]
@@ -519,7 +521,9 @@ class UtilityCode(UtilityCodeBase):
                 self.none_or_sub(self.init, data),
                 self.none_or_sub(self.cleanup, data),
                 requires,
-                self.proto_block)
+                self.proto_block,
+                name,
+            )
 
             self.specialize_list.append(s)
             return s
@@ -1138,7 +1142,8 @@ class GlobalState(object):
         'pystring_table',
         'cached_builtins',
         'cached_constants',
-        'init_globals',
+        'init_constants',
+        'init_globals',  # (utility code called at init-time)
         'init_module',
         'cleanup_globals',
         'cleanup_module',
@@ -1208,6 +1213,11 @@ class GlobalState(object):
         w.enter_cfunc_scope()
         w.putln("")
         w.putln("static CYTHON_SMALL_CODE int __Pyx_InitGlobals(void) {")
+
+        w = self.parts['init_constants']
+        w.enter_cfunc_scope()
+        w.putln("")
+        w.putln("static CYTHON_SMALL_CODE int __Pyx_InitConstants(void) {")
 
         if not Options.generate_cleanup_code:
             del self.parts['cleanup_globals']
@@ -1284,13 +1294,14 @@ class GlobalState(object):
         w.putln("}")
         w.exit_cfunc_scope()
 
-        w = self.parts['init_globals']
-        w.putln("return 0;")
-        if w.label_used(w.error_label):
-            w.put_label(w.error_label)
-            w.putln("return -1;")
-        w.putln("}")
-        w.exit_cfunc_scope()
+        for part in ['init_globals', 'init_constants']:
+            w = self.parts[part]
+            w.putln("return 0;")
+            if w.label_used(w.error_label):
+                w.put_label(w.error_label)
+                w.putln("return -1;")
+            w.putln("}")
+            w.exit_cfunc_scope()
 
         if Options.generate_cleanup_code:
             w = self.parts['cleanup_globals']
@@ -1510,7 +1521,7 @@ class GlobalState(object):
             return
 
         decl = self.parts['decls']
-        init = self.parts['init_globals']
+        init = self.parts['init_constants']
         cnames = []
         for (type_cname, method_name), cname in sorted(self.cached_cmethods.items()):
             cnames.append(cname)
@@ -1560,7 +1571,7 @@ class GlobalState(object):
                 decls_writer.putln("static Py_UNICODE %s[] = { %s };" % (cname, utf16_array))
                 decls_writer.putln("#endif")
 
-        init_globals = self.parts['init_globals']
+        init_constants = self.parts['init_constants']
         if py_strings:
             self.use_utility_code(UtilityCode.load_cached("InitStrings", "StringTools.c"))
             py_strings.sort()
@@ -1575,9 +1586,9 @@ class GlobalState(object):
             decls_writer.putln("#if !CYTHON_USE_MODULE_STATE")
             not_limited_api_decls_writer = decls_writer.insertion_point()
             decls_writer.putln("#endif")
-            init_globals.putln("#if CYTHON_USE_MODULE_STATE")
-            init_globals_in_module_state = init_globals.insertion_point()
-            init_globals.putln("#endif")
+            init_constants.putln("#if CYTHON_USE_MODULE_STATE")
+            init_constants_in_module_state = init_constants.insertion_point()
+            init_constants.putln("#endif")
             for idx, py_string_args in enumerate(py_strings):
                 c_cname, _, py_string = py_string_args
                 if not py_string.is_str or not py_string.encoding or \
@@ -1627,20 +1638,20 @@ class GlobalState(object):
                     py_string.is_str,
                     py_string.intern
                     ))
-                init_globals_in_module_state.putln("if (__Pyx_InitString(%s[%d], &%s) < 0) %s;" % (
+                init_constants_in_module_state.putln("if (__Pyx_InitString(%s[%d], &%s) < 0) %s;" % (
                     Naming.stringtab_cname,
                     idx,
                     py_string.cname,
-                    init_globals.error_goto(self.module_pos)))
+                    init_constants.error_goto(self.module_pos)))
             w.putln("{0, 0, 0, 0, 0, 0, 0}")
             w.putln("};")
 
-            init_globals.putln("#if !CYTHON_USE_MODULE_STATE")
-            init_globals.putln(
+            init_constants.putln("#if !CYTHON_USE_MODULE_STATE")
+            init_constants.putln(
                 "if (__Pyx_InitStrings(%s) < 0) %s;" % (
                     Naming.stringtab_cname,
-                    init_globals.error_goto(self.module_pos)))
-            init_globals.putln("#endif")
+                    init_constants.error_goto(self.module_pos)))
+            init_constants.putln("#endif")
 
     def generate_num_constants(self):
         consts = [(c.py_type, c.value[0] == '-', len(c.value), c.value, c.value_code, c)
@@ -1648,7 +1659,7 @@ class GlobalState(object):
         consts.sort()
         decls_writer = self.parts['decls']
         decls_writer.putln("#if !CYTHON_USE_MODULE_STATE")
-        init_globals = self.parts['init_globals']
+        init_constants = self.parts['init_constants']
         for py_type, _, _, value, value_code, c in consts:
             cname = c.cname
             self.parts['module_state'].putln("PyObject *%s;" % cname)
@@ -1669,9 +1680,9 @@ class GlobalState(object):
                 function = "PyInt_FromLong(%sL)"
             else:
                 function = "PyInt_FromLong(%s)"
-            init_globals.putln('%s = %s; %s' % (
+            init_constants.putln('%s = %s; %s' % (
                 cname, function % value_code,
-                init_globals.error_goto_if_null(cname, self.module_pos)))
+                init_constants.error_goto_if_null(cname, self.module_pos)))
         decls_writer.putln("#endif")
 
     # The functions below are there in a transition phase only
@@ -2351,7 +2362,7 @@ class CCodeWriter(object):
         self.putln("__Pyx_PyGILState_Release(%s);" % variable)
         self.putln("#endif")
 
-    def put_acquire_gil(self, variable=None):
+    def put_acquire_gil(self, variable=None, unknown_gil_state=True):
         """
         Acquire the GIL. The thread's thread state must have been initialized
         by a previous `put_release_gil`
@@ -2361,15 +2372,26 @@ class CCodeWriter(object):
         self.putln("__Pyx_FastGIL_Forget();")
         if variable:
             self.putln('_save = %s;' % variable)
+        if unknown_gil_state:
+            self.putln("if (_save) {")
         self.putln("Py_BLOCK_THREADS")
+        if unknown_gil_state:
+            self.putln("}")
         self.putln("#endif")
 
-    def put_release_gil(self, variable=None):
+    def put_release_gil(self, variable=None, unknown_gil_state=True):
         "Release the GIL, corresponds to `put_acquire_gil`."
         self.use_fast_gil_utility_code()
         self.putln("#ifdef WITH_THREAD")
         self.putln("PyThreadState *_save;")
+        self.putln("_save = NULL;")
+        if unknown_gil_state:
+            # we don't *know* that we don't have the GIL (since we may be inside a nogil function,
+            # and Py_UNBLOCK_THREADS is unsafe without the GIL)
+            self.putln("if (PyGILState_Check()) {")
         self.putln("Py_UNBLOCK_THREADS")
+        if unknown_gil_state:
+            self.putln("}")
         if variable:
             self.putln('%s = _save;' % variable)
         self.putln("__Pyx_FastGIL_Remember();")
