@@ -170,7 +170,6 @@ except ImportError:
 
 import asyncio
 
-@asyncio.coroutine
 @types_coroutine
 def wait3():
     counter = 0
@@ -189,9 +188,8 @@ try:
 except ImportError:
     types_coroutine = lambda f:f
 
-from asyncio import coroutine, sleep
+from asyncio import sleep
 
-@coroutine
 @types_coroutine
 def wait3():
     counter = 0

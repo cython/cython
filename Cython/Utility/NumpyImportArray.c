@@ -8,7 +8,7 @@
  * add the line
  *   <void>numpy._import_array
  */
-#ifdef NPY_NDARRAYOBJECT_H /* numpy headers have been included */
+#ifdef NPY_FEATURE_VERSION /* This is a public define that makes us reasonably confident it's "real" Numpy */
 // NO_IMPORT_ARRAY is Numpy's mechanism for indicating that import_array is handled elsewhere
 #if !NO_IMPORT_ARRAY /* https://docs.scipy.org/doc/numpy-1.17.0/reference/c-api.array.html#c.NO_IMPORT_ARRAY  */
 if (unlikely(_import_array() == -1)) {
