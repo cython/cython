@@ -437,7 +437,7 @@ class UtilityCodeBase(object):
         return "<%s(%s)>" % (type(self).__name__, self.name)
 
     def get_tree(self, **kwargs):
-        pass
+        return None
 
     def __deepcopy__(self, memodict=None):
         # No need to deep-copy utility code since it's essentially immutable.
@@ -501,9 +501,11 @@ class UtilityCode(UtilityCodeBase):
 
     def specialize(self, pyrex_type=None, **data):
         # Dicts aren't hashable...
+        name = self.name
         if pyrex_type is not None:
             data['type'] = pyrex_type.empty_declaration_code()
             data['type_name'] = pyrex_type.specialization_name()
+            name = "%s[%s]" % (name, data['type_name'])
         key = tuple(sorted(data.items()))
         try:
             return self._cache[key]
@@ -519,7 +521,9 @@ class UtilityCode(UtilityCodeBase):
                 self.none_or_sub(self.init, data),
                 self.none_or_sub(self.cleanup, data),
                 requires,
-                self.proto_block)
+                self.proto_block,
+                name,
+            )
 
             self.specialize_list.append(s)
             return s
@@ -2358,7 +2362,7 @@ class CCodeWriter(object):
         self.putln("__Pyx_PyGILState_Release(%s);" % variable)
         self.putln("#endif")
 
-    def put_acquire_gil(self, variable=None):
+    def put_acquire_gil(self, variable=None, unknown_gil_state=True):
         """
         Acquire the GIL. The thread's thread state must have been initialized
         by a previous `put_release_gil`
@@ -2368,15 +2372,26 @@ class CCodeWriter(object):
         self.putln("__Pyx_FastGIL_Forget();")
         if variable:
             self.putln('_save = %s;' % variable)
+        if unknown_gil_state:
+            self.putln("if (_save) {")
         self.putln("Py_BLOCK_THREADS")
+        if unknown_gil_state:
+            self.putln("}")
         self.putln("#endif")
 
-    def put_release_gil(self, variable=None):
+    def put_release_gil(self, variable=None, unknown_gil_state=True):
         "Release the GIL, corresponds to `put_acquire_gil`."
         self.use_fast_gil_utility_code()
         self.putln("#ifdef WITH_THREAD")
         self.putln("PyThreadState *_save;")
+        self.putln("_save = NULL;")
+        if unknown_gil_state:
+            # we don't *know* that we don't have the GIL (since we may be inside a nogil function,
+            # and Py_UNBLOCK_THREADS is unsafe without the GIL)
+            self.putln("if (PyGILState_Check()) {")
         self.putln("Py_UNBLOCK_THREADS")
+        if unknown_gil_state:
+            self.putln("}")
         if variable:
             self.putln('%s = _save;' % variable)
         self.putln("__Pyx_FastGIL_Remember();")

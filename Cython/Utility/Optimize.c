@@ -1517,8 +1517,6 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, double floatv
                 CYTHON_FALLTHROUGH;
             {{endfor}}
             default:
-        #else
-        {
         #endif
         {{if op in ('Eq', 'Ne')}}
             return {{'' if ret_type.is_pyobject else '__Pyx_PyObject_IsTrueAndDecref'}}(
@@ -1532,7 +1530,9 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, double floatv
             #endif
             {{endif}}
         {{endif}}
+        #if CYTHON_USE_PYLONG_INTERNALS
         }
+        #endif
     } else {
         {{if op in ('Eq', 'Ne')}}
         return {{'' if ret_type.is_pyobject else '__Pyx_PyObject_IsTrueAndDecref'}}(

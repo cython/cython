@@ -77,6 +77,8 @@ define global C variables.
                 g: cython.int[42]
                 h: cython.p_float
 
+                i = j = 5
+
     .. group-tab:: Cython
 
         .. code-block:: cython
@@ -87,7 +89,46 @@ define global C variables.
                 cdef int i, j, k
                 cdef float f, g[42], *h
 
-Moreover, C :keyword:`struct`, :keyword:`union` and :keyword:`enum` are supported:
+                i = j = 5
+
+As known from C, declared global variables are automatically initialised to
+``0``, ``NULL`` or ``None``, depending on their type.  However, also as known
+from both Python and C, for a local variable, simply declaring it is not enough
+to initialise it.  If you use a local variable but did not assign a value, both
+Cython and the C compiler will issue a warning "local variable ... referenced
+before assignment".  You need to assign a value at some point before first
+using the variable, but you can also assign a value directly as part of
+the declaration in most cases:
+
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            a_global_variable = declare(cython.int, 42)
+
+            def func():
+                i: cython.int = 10
+                f: cython.float = 2.5
+                g: cython.int[4] = [1, 2, 3, 4]
+                h: cython.p_float = cython.address(f)
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef int a_global_variable
+
+            def func():
+                cdef int i = 10, j, k
+                cdef float f = 2.5
+                # cdef float g[4] = [1,2,3,4]  # currently not supported
+                cdef float *g = [1, 2, 3, 4]
+                cdef float *h = &f
+
+In addition to the basic types, C :keyword:`struct`, :keyword:`union` and :keyword:`enum`
+are supported:
 
 .. tabs::
 
@@ -477,13 +518,24 @@ as the name of a type, for example,
                 ...
 
 declares a parameter called ``int`` which is a Python object. You can also use
-object as the explicit return type of a function, e.g.::
+object as the explicit return type of a function, e.g.
 
-    cdef object ftang(object int):
-        ...
+.. tabs::
 
-.. note:: Currently, Cython contains a bug not allowing ``object`` as return annotation in
-    pure Python from a C function. (GitHub issue :issue:`2529`)
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.cfunc
+            def ftang(int: object) -> object:
+                ...
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef object ftang(object int):
+                ...
 
 In the interests of clarity, it is probably a good idea to always be explicit
 about object parameters in C functions.

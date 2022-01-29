@@ -278,6 +278,21 @@ def call_take_ptr():
     python_dict = {"abc": 123}
     take_ptr(cython.cast(cython.pointer(PyObject), python_dict))
 
+@cython.cclass
+class HasPtr:
+    """
+    >>> HasPtr()
+    HasPtr(1, 1)
+    """
+    a: cython.pointer(cython.int)
+    b: cython.int
+
+    def __init__(self):
+        self.b = 1
+        self.a = cython.address(self.b)
+    def __repr__(self):
+        return f"HasPtr({self.a[0]}, {self.b})"
+
 
 _WARNINGS = """
 9:32: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
