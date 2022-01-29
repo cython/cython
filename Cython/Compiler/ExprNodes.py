@@ -1183,6 +1183,15 @@ class ExprNode(Node):
                 kwargs[attr_name] = value
         return cls(node.pos, **kwargs)
 
+    def get_known_standard_library_import(self):
+        """
+        Gets the module.path that this node was imported from.
+
+        Many nodes do not have one, or it is ambiguous, in which case
+        this function returns a false value.
+        """
+        return None
+
 
 class AtomicExprNode(ExprNode):
     #  Abstract base class for expression nodes which have
@@ -2038,13 +2047,25 @@ class NameNode(AtomicExprNode):
                           "'%s' cannot be specialized since its type is not a fused argument to this function" %
                           self.name)
                     atype = error_type
+            visibility = 'private'
+            if 'dataclasses.dataclass' in env.directives:
+                # handle "frozen" directive - full inspection of the dataclass directives happens
+                # in Dataclass.py
+                frozen_directive = None
+                dataclass_directive = env.directives['dataclasses.dataclass']
+                if dataclass_directive:
+                    dataclass_directive_kwds = dataclass_directive[1]
+                    frozen_directive = dataclass_directive_kwds.get('frozen', None)
+                is_frozen = frozen_directive and frozen_directive.is_literal and frozen_directive.value
+                if atype.is_pyobject or atype.can_coerce_to_pyobject(env):
+                    visibility = 'readonly' if is_frozen else 'public'
+                    # If the object can't be coerced that's fine - we just don't create a property
             if as_target and env.is_c_class_scope and not (atype.is_pyobject or atype.is_error):
-                # TODO: this will need revising slightly if either cdef dataclasses or
-                # annotated cdef attributes are implemented
+                # TODO: this will need revising slightly if annotated cdef attributes are implemented
                 atype = py_object_type
                 warning(annotation.pos, "Annotation ignored since class-level attributes must be Python objects. "
                         "Were you trying to set up an instance attribute?", 2)
-            entry = self.entry = env.declare_var(name, atype, self.pos, is_cdef=not as_target)
+            entry = self.entry = env.declare_var(name, atype, self.pos, is_cdef=not as_target, visibility=visibility)
         # Even if the entry already exists, make sure we're supplying an annotation if we can.
         if annotation and not entry.annotation:
             entry.annotation = annotation
@@ -2057,6 +2078,10 @@ class NameNode(AtomicExprNode):
             entry = env.lookup(self.name)
         if entry and entry.as_module:
             return entry.as_module
+        if entry and entry.known_standard_library_import:
+            scope = Builtin.get_known_standard_library_module_scope(entry.known_standard_library_import)
+            if scope and scope.is_module_scope:
+                return scope
         return None
 
     def analyse_as_type(self, env):
@@ -2071,6 +2096,10 @@ class NameNode(AtomicExprNode):
             entry = env.lookup(self.name)
         if entry and entry.is_type:
             return entry.type
+        elif entry and entry.known_standard_library_import:
+            entry = Builtin.get_known_standard_library_entry(entry.known_standard_library_import)
+            if entry and entry.is_type:
+                return entry.type
         else:
             return None
 
@@ -2098,9 +2127,14 @@ class NameNode(AtomicExprNode):
                 self.entry = env.lookup_assignment_expression_target(self.name)
             else:
                 self.entry = env.lookup_here(self.name)
+        if self.entry:
+            self.entry.known_standard_library_import = ""  # already exists somewhere and so is now ambiguous
         if not self.entry and self.annotation is not None:
             # name : type = ...
-            self.declare_from_annotation(env, as_target=True)
+            is_dataclass = 'dataclasses.dataclass' in env.directives
+            # In a dataclass, an assignment should not prevent a name from becoming an instance attribute.
+            # Hence, "as_target = not is_dataclass".
+            self.declare_from_annotation(env, as_target=not is_dataclass)
         if not self.entry:
             if env.directives['warn.undeclared']:
                 warning(self.pos, "implicit declaration of '%s'" % self.name, 1)
@@ -2609,6 +2643,11 @@ class NameNode(AtomicExprNode):
                 style, text = 'c_call', 'c function (%s)'
             code.annotate(pos, AnnotationItem(style, text % self.type, size=len(self.name)))
 
+    def get_known_standard_library_import(self):
+        if self.entry:
+            return self.entry.known_standard_library_import
+        return None
+
 class BackquoteNode(ExprNode):
     #  `expr`
     #
@@ -2717,6 +2756,9 @@ class ImportNode(ExprNode):
             import_code,
             code.error_goto_if_null(self.result(), self.pos)))
         self.generate_gotref(code)
+
+    def get_known_standard_library_import(self):
+        return self.module_name.value
 
 
 class IteratorNode(ExprNode):
@@ -3630,9 +3672,9 @@ class IndexNode(_IndexingBaseNode):
 
     def analyse_as_type(self, env):
         base_type = self.base.analyse_as_type(env)
-        if base_type and not base_type.is_pyobject:
-            if base_type.is_cpp_class:
-                if isinstance(self.index, TupleNode):
+        if base_type and (not base_type.is_pyobject or base_type.python_type_constructor_name):
+            if base_type.is_cpp_class or base_type.python_type_constructor_name:
+                if self.index.is_sequence_constructor:
                     template_values = self.index.args
                 else:
                     template_values = [self.index]
@@ -7489,6 +7531,12 @@ class AttributeNode(ExprNode):
             style, text = 'c_attr', 'c attribute (%s)'
         code.annotate(self.pos, AnnotationItem(style, text % self.type, size=len(self.attribute)))
 
+    def get_known_standard_library_import(self):
+        module_name = self.obj.get_known_standard_library_import()
+        if module_name:
+            return StringEncoding.EncodedString("%s.%s" % (module_name, self.attribute))
+        return None
+
 
 #-------------------------------------------------------------------
 #
@@ -9029,6 +9077,11 @@ class DictNode(ExprNode):
         for item in self.key_value_pairs:
             item.annotate(code)
 
+    def as_python_dict(self):
+        # returns a dict with constant keys and Node values
+        # (only works on DictNodes where the keys are ConstNodes or PyConstNode)
+        return dict([(key.value, value) for key, value in self.key_value_pairs])
+
 
 class DictItemNode(ExprNode):
     # Represents a single item in a DictNode
@@ -9859,6 +9912,9 @@ class LambdaNode(InnerFunctionNode):
     name = StringEncoding.EncodedString('<lambda>')
 
     def analyse_declarations(self, env):
+        if hasattr(self, "lambda_name"):
+            # this if-statement makes it safe to run twice
+            return
         self.lambda_name = self.def_node.lambda_name = env.next_id('lambda')
         self.def_node.no_assignment_synthesis = True
         self.def_node.pymethdef_required = True
@@ -9888,6 +9944,9 @@ class GeneratorExpressionNode(LambdaNode):
     binding = False
 
     def analyse_declarations(self, env):
+        if hasattr(self, "genexpr_name"):
+            # this if-statement makes it safe to run twice
+            return
         self.genexpr_name = env.next_id('genexpr')
         super(GeneratorExpressionNode, self).analyse_declarations(env)
         # No pymethdef required

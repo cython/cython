@@ -159,6 +159,9 @@ class Entry(object):
     #                              is a specialization
     # is_cgetter       boolean    Is a c-level getter function
     # is_cpp_optional  boolean    Entry should be declared as std::optional (cpp_locals directive)
+    # known_standard_library_import     Either None (default), an empty string (definitely can't be determined)
+    #                             or a string of "modulename.something.attribute"
+    #                             Used for identifying imports from typing/dataclasses etc
 
     # TODO: utility_code and utility_code_definition serves the same purpose...
 
@@ -166,6 +169,7 @@ class Entry(object):
     borrowed = 0
     init = ""
     annotation = None
+    pep563_annotation = None
     visibility = 'private'
     is_builtin = 0
     is_cglobal = 0
@@ -231,6 +235,7 @@ class Entry(object):
     outer_entry = None
     is_cgetter = False
     is_cpp_optional = False
+    known_standard_library_import = None
 
     def __init__(self, name, cname, type, pos = None, init = None):
         self.name = name
@@ -998,13 +1003,27 @@ class Scope(object):
             entry = self.declare_var(name, py_object_type, None)
         return entry
 
-    def lookup_type(self, name):
-        entry = self.lookup(name)
+    def _type_or_specialized_type_from_entry(self, entry):
         if entry and entry.is_type:
             if entry.type.is_fused and self.fused_to_specific:
                 return entry.type.specialize(self.fused_to_specific)
             return entry.type
-        return None
+
+    def lookup_type(self, name):
+        entry = self.lookup(name)
+        # The logic here is:
+        #  1. if entry is a type then return it (and maybe specialize it)
+        #  2. if the entry comes from a known standard library import then follow that
+        #  3. repeat step 1 with the (possibly) updated entry
+
+        tp = self._type_or_specialized_type_from_entry(entry)
+        if tp:
+            return tp
+        # allow us to find types from the "typing" module and similar
+        if entry and entry.known_standard_library_import:
+            from .Builtin import get_known_standard_library_entry
+            entry = get_known_standard_library_entry(entry.known_standard_library_import)
+        return self._type_or_specialized_type_from_entry(entry)
 
     def lookup_operator(self, operator, operands):
         if operands[0].type.is_cpp_class:
@@ -2284,6 +2303,15 @@ class CClassScope(ClassScope):
                     cname = None, visibility = 'private',
                     api = 0, in_pxd = 0, is_cdef = 0):
         name = self.mangle_class_private_name(name)
+
+        if type.python_type_constructor_name == "typing.ClassVar":
+            is_cdef = 0
+            type = type.resolve()
+
+        if (type.python_type_constructor_name == "dataclasses.InitVar" and
+                'dataclasses.dataclass' not in self.directives):
+            error(pos, "Use of cython.dataclasses.InitVar does not make sense outside a dataclass")
+
         if is_cdef:
             # Add an entry for an attribute.
             if self.defined:
@@ -2530,6 +2558,7 @@ class CClassScope(ClassScope):
                 base_entry.name, adapt(base_entry.cname),
                 base_entry.type, None, 'private')
             entry.is_variable = 1
+            entry.annotation = base_entry.annotation
             self.inherited_var_entries.append(entry)
 
         # If the class defined in a pxd, specific entries have not been added.

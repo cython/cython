@@ -954,7 +954,6 @@ class InterpretCompilerDirectives(CythonTransform):
             for pos, name, as_name, kind in node.imported_names:
                 full_name = submodule + name
                 qualified_name = u"cython." + full_name
-
                 if self.is_parallel_directive(qualified_name, node.pos):
                     # from cython cimport parallel, or
                     # from cython.parallel cimport parallel, prange, ...
@@ -964,6 +963,10 @@ class InterpretCompilerDirectives(CythonTransform):
                     if kind is not None:
                         self.context.nonfatal_error(PostParseError(pos,
                             "Compiler directive imports must be plain imports"))
+                elif full_name in ['dataclasses', 'typing']:
+                    self.directive_names[as_name or name] = full_name
+                    # unlike many directives, still treat it as a regular module
+                    newimp.append((pos, name, as_name, kind))
                 else:
                     newimp.append((pos, name, as_name, kind))
 
@@ -1105,7 +1108,7 @@ class InterpretCompilerDirectives(CythonTransform):
                 if directivetype is bool:
                     arg = ExprNodes.BoolNode(node.pos, value=True)
                     return [self.try_to_parse_directive(optname, [arg], None, node.pos)]
-                elif directivetype is None:
+                elif directivetype is None or directivetype is Options.DEFER_ANALYSIS_OF_ARGUMENTS:
                     return [(optname, None)]
                 else:
                     raise PostParseError(
@@ -1160,7 +1163,7 @@ class InterpretCompilerDirectives(CythonTransform):
             if len(args) != 0:
                 raise PostParseError(pos,
                     'The %s directive takes no prepositional arguments' % optname)
-            return optname, dict([(key.value, value) for key, value in kwds.key_value_pairs])
+            return optname, kwds.as_python_dict()
         elif directivetype is list:
             if kwds and len(kwds.key_value_pairs) != 0:
                 raise PostParseError(pos,
@@ -1172,6 +1175,9 @@ class InterpretCompilerDirectives(CythonTransform):
                 raise PostParseError(pos,
                     'The %s directive takes one compile-time string argument' % optname)
             return (optname, directivetype(optname, str(args[0].value)))
+        elif directivetype is Options.DEFER_ANALYSIS_OF_ARGUMENTS:
+            # signal to pass things on without processing
+            return (optname, (args, kwds.as_python_dict()))
         else:
             assert False
 
@@ -1239,7 +1245,8 @@ class InterpretCompilerDirectives(CythonTransform):
                         name, value = directive
                         if self.directives.get(name, object()) != value:
                             directives.append(directive)
-                        if directive[0] == 'staticmethod':
+                        if (directive[0] == 'staticmethod' or
+                                (directive[0] == 'dataclasses.dataclass' and scope_name == 'class')):
                             both.append(dec)
                     # Adapt scope type based on decorators that change it.
                     if directive[0] == 'cclass' and scope_name == 'class':
@@ -1248,6 +1255,12 @@ class InterpretCompilerDirectives(CythonTransform):
                 realdecs.append(dec)
         if realdecs and (scope_name == 'cclass' or
                          isinstance(node, (Nodes.CClassDefNode, Nodes.CVarDefNode))):
+            for realdec in realdecs:
+                realdec = realdec.decorator
+                if ((realdec.is_name and realdec.name == "dataclass") or
+                        (realdec.is_attribute and realdec.attribute == "dataclass")):
+                    error(realdec.pos,
+                          "Use '@cython.dataclasses.dataclass' on cdef classes to create a dataclass")
             # Note - arbitrary C function decorators are caught later in DecoratorTransform
             raise PostParseError(realdecs[0].pos, "Cdef functions/classes cannot take arbitrary decorators.")
         node.decorators = realdecs[::-1] + both[::-1]
@@ -1906,6 +1919,9 @@ if VALUE is not None:
 
     def visit_CClassDefNode(self, node):
         node = self.visit_ClassDefNode(node)
+        if node.scope and 'dataclasses.dataclass' in node.scope.directives:
+            from .Dataclass import handle_cclass_dataclass
+            handle_cclass_dataclass(node, node.scope.directives['dataclasses.dataclass'], self)
         if node.scope and node.scope.implemented and node.body:
             stats = []
             for entry in node.scope.var_entries:
