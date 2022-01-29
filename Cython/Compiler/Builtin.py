@@ -459,33 +459,35 @@ init_builtins()
 _known_module_scopes = {}
 
 def get_known_standard_library_module_scope(module_name):
-    mod = _known_module_scopes.get(module_name, None)
-    if not mod:
-        if module_name == "typing":
-            mod = ModuleScope(module_name, None, None)
-            for name, tp in [
-                    ('Dict', dict_type),
-                    ('List', list_type),
-                    ('Tuple', tuple_type),
-                    ('Set', set_type),
-                    ('FrozenSet', frozenset_type),
-                    ]:
-                name = EncodedString(name)
-                if name == "Tuple":
-                    indexed_type = PyrexTypes.PythonTupleTypeConstructor(EncodedString("typing."+name), tp)
-                else:
-                    indexed_type = PyrexTypes.PythonTypeConstructor(EncodedString("typing."+name), tp)
-                entry = mod.declare_type(name, indexed_type, pos = None)
+    mod = _known_module_scopes.get(module_name)
+    if mod:
+        return mod
 
-            for name in ['ClassVar', 'Optional']:
-                indexed_type = PyrexTypes.SpecialPythonTypeConstructor(EncodedString("typing."+name))
-                entry = mod.declare_type(name, indexed_type, pos = None)
-            _known_module_scopes[module_name] = mod
-        elif module_name == "dataclasses":
-            mod = ModuleScope(module_name, None, None)
-            indexed_type = PyrexTypes.SpecialPythonTypeConstructor(EncodedString("dataclasses.InitVar"))
-            entry = mod.declare_type(EncodedString("InitVar"), indexed_type, pos = None)
-            _known_module_scopes[module_name] = mod
+    if module_name == "typing":
+        mod = ModuleScope(module_name, None, None)
+        for name, tp in [
+                ('Dict', dict_type),
+                ('List', list_type),
+                ('Tuple', tuple_type),
+                ('Set', set_type),
+                ('FrozenSet', frozenset_type),
+                ]:
+            name = EncodedString(name)
+            if name == "Tuple":
+                indexed_type = PyrexTypes.PythonTupleTypeConstructor(EncodedString("typing."+name), tp)
+            else:
+                indexed_type = PyrexTypes.PythonTypeConstructor(EncodedString("typing."+name), tp)
+            entry = mod.declare_type(name, indexed_type, pos = None)
+
+        for name in ['ClassVar', 'Optional']:
+            indexed_type = PyrexTypes.SpecialPythonTypeConstructor(EncodedString("typing."+name))
+            entry = mod.declare_type(name, indexed_type, pos = None)
+        _known_module_scopes[module_name] = mod
+    elif module_name == "dataclasses":
+        mod = ModuleScope(module_name, None, None)
+        indexed_type = PyrexTypes.SpecialPythonTypeConstructor(EncodedString("dataclasses.InitVar"))
+        entry = mod.declare_type(EncodedString("InitVar"), indexed_type, pos = None)
+        _known_module_scopes[module_name] = mod
     return mod
 
 
