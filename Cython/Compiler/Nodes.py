@@ -1194,6 +1194,7 @@ class TemplatedTypeNode(CBaseTypeNode):
                    "keyword_args", "dtype_node"]
 
     dtype_node = None
+    safe_annotation_mode = False
 
     name = None
 
@@ -1212,7 +1213,7 @@ class TemplatedTypeNode(CBaseTypeNode):
             else:
                 template_types = []
                 for template_node in self.positional_args:
-                    type = template_node.analyse_as_type(env)
+                    type = template_node.analyse_as_type(env, self.safe_annotation_mode)
                     if type is None and base_type.is_cpp_class:
                         error(template_node.pos, "unknown type in template argument")
                         type = error_type

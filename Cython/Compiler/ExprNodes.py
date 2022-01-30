@@ -700,7 +700,7 @@ class ExprNode(Node):
         # cimported module, return its scope, else None.
         return None
 
-    def analyse_as_type(self, env):
+    def analyse_as_type(self, env, safe_annotation_mode):
         # If this node can be interpreted as a reference to a
         # type, return that type, else None.
         return None
@@ -1573,7 +1573,7 @@ class BytesNode(ConstNode):
     def compile_time_value(self, denv):
         return self.value.byteencode()
 
-    def analyse_as_type(self, env):
+    def analyse_as_type(self, env, safe_annotation_mode):
         return _analyse_name_as_type(self.value.decode('ISO8859-1'), self.pos, env)
 
     def can_coerce_to_char_literal(self):
@@ -1656,7 +1656,7 @@ class UnicodeNode(ConstNode):
     def calculate_constant_result(self):
         self.constant_result = self.value
 
-    def analyse_as_type(self, env):
+    def analyse_as_type(self, env, safe_annotation_mode):
         return _analyse_name_as_type(self.value, self.pos, env)
 
     def as_sliced_node(self, start, stop, step=None):
@@ -1770,7 +1770,7 @@ class StringNode(PyConstNode):
             # only the Unicode value is portable across Py2/3
             self.constant_result = self.unicode_value
 
-    def analyse_as_type(self, env):
+    def analyse_as_type(self, env, safe_annotation_mode):
         return _analyse_name_as_type(self.unicode_value or self.value.decode('ISO8859-1'), self.pos, env)
 
     def as_sliced_node(self, start, stop, step=None):
@@ -2084,11 +2084,13 @@ class NameNode(AtomicExprNode):
                 return scope
         return None
 
-    def analyse_as_type(self, env):
+    def analyse_as_type(self, env, safe_annotation_mode):
         if self.cython_attribute:
             type = PyrexTypes.parse_basic_type(self.cython_attribute)
         else:
             type = PyrexTypes.parse_basic_type(self.name)
+            if safe_annotation_mode and self.name in ('int', 'long', 'float'):
+                return py_object_type
         if type:
             return type
         entry = self.entry
@@ -3670,8 +3672,12 @@ class IndexNode(_IndexingBaseNode):
     def analyse_target_declaration(self, env):
         pass
 
-    def analyse_as_type(self, env):
-        base_type = self.base.analyse_as_type(env)
+    def analyse_as_type(self, env, safe_annotation_mode):
+        base_type = self.base.analyse_as_type(
+            env,
+            # memoryviews are always analysed without safe_annotation_mode
+            False if (self.index.is_slice or self.index.is_sequence_constructor)
+            else safe_annotation_mode)
         if base_type and (not base_type.is_pyobject or base_type.python_type_constructor_name):
             if base_type.is_cpp_class or base_type.python_type_constructor_name:
                 if self.index.is_sequence_constructor:
@@ -3681,7 +3687,8 @@ class IndexNode(_IndexingBaseNode):
                 type_node = Nodes.TemplatedTypeNode(
                     pos=self.pos,
                     positional_args=template_values,
-                    keyword_args=None)
+                    keyword_args=None,
+                    safe_annotation_mode=safe_annotation_mode)
                 return type_node.analyse(env, base_type=base_type)
             elif self.index.is_slice or self.index.is_sequence_constructor:
                 # memory view
@@ -5158,7 +5165,8 @@ class SliceIndexNode(ExprNode):
         self.is_temp = 1
         return self
 
-    def analyse_as_type(self, env):
+    def analyse_as_type(self, env, safe_annotation_mode):
+        # memoryviews are always analysed without safe_annotation_mode
         base_type = self.base.analyse_as_type(env)
         if base_type and not base_type.is_pyobject:
             if not self.start and not self.stop:
@@ -5771,13 +5779,13 @@ class SimpleCallNode(CallNode):
         node = cls(pos, function=function, args=[obj])
         return node
 
-    def analyse_as_type(self, env):
+    def analyse_as_type(self, env, safe_annotation_mode):
         attr = self.function.as_cython_attribute()
         if attr == 'pointer':
             if len(self.args) != 1:
                 error(self.args.pos, "only one type allowed.")
             else:
-                type = self.args[0].analyse_as_type(env)
+                type = self.args[0].analyse_as_type(env, False)
                 if not type:
                     error(self.args[0].pos, "Unknown type")
                 else:
@@ -7144,7 +7152,7 @@ class AttributeNode(ExprNode):
         ubcm_entry.scope = entry.scope
         return ubcm_entry
 
-    def analyse_as_type(self, env):
+    def analyse_as_type(self, env, safe_annotation_mode):
         module_scope = self.obj.analyse_as_module(env)
         if module_scope:
             return module_scope.lookup_type(self.attribute)
@@ -8174,11 +8182,13 @@ class TupleNode(SequenceNode):
             node.is_partly_literal = True
         return node
 
-    def analyse_as_type(self, env):
+    def analyse_as_type(self, env, safe_annotation_mode):
         # ctuple type
+        # ctuples ignores "safe_annotation_mode" because it's already in
+        # Cython-specific syntax
         if not self.args:
             return None
-        item_types = [arg.analyse_as_type(env) for arg in self.args]
+        item_types = [arg.analyse_as_type(env, False) for arg in self.args]
         if any(t is None for t in item_types):
             return None
         entry = env.declare_tuple_type(self.pos, item_types)
@@ -11208,7 +11218,7 @@ class TypeofNode(ExprNode):
         self.literal = literal.coerce_to_pyobject(env)
         return self
 
-    def analyse_as_type(self, env):
+    def analyse_as_type(self, env, safe_annotation_mode):
         self.operand = self.operand.analyse_types(env)
         return self.operand.type
 
@@ -14006,7 +14016,7 @@ class AnnotationNode(ExprNode):
     def analyse_types(self, env):
         return self  # nothing needs doing
 
-    def analyse_as_type(self, env):
+    def analyse_as_type(self, env, safe_annotation_mode):
         # for compatibility when used as a return_type_node, have this interface too
         return self.analyse_type_annotation(env)[1]
 
@@ -14033,18 +14043,19 @@ class AnnotationNode(ExprNode):
                     annotation = value
             if explicit_pytype and explicit_ctype:
                 warning(annotation.pos, "Duplicate type declarations found in signature annotation", level=1)
-        arg_type = annotation.analyse_as_type(env)
-        if annotation.is_name and not annotation.cython_attribute and annotation.name in ('int', 'long', 'float'):
+        arg_type = annotation.analyse_as_type(env, True)
+        arg_type_unsafe = annotation.analyse_as_type(env, False)
+        if arg_type != arg_type_unsafe::
             # Map builtin numeric Python types to C types in safe cases.
             if assigned_value is not None and arg_type is not None and not arg_type.is_pyobject:
                 assigned_type = assigned_value.infer_type(env)
                 if assigned_type and assigned_type.is_pyobject:
                     # C type seems unsafe, e.g. due to 'None' default value  => ignore annotation type
                     is_ambiguous = True
-                    arg_type = None
+                    arg_type_unsafe = None
             # ignore 'int' and require 'cython.int' to avoid unsafe integer declarations
-            if arg_type in (PyrexTypes.c_long_type, PyrexTypes.c_int_type, PyrexTypes.c_float_type):
-                arg_type = PyrexTypes.c_double_type if annotation.name == 'float' else py_object_type
+            if arg_type_unsafe in (PyrexTypes.c_long_type, PyrexTypes.c_int_type, PyrexTypes.c_float_type):
+                arg_type = PyrexTypes.c_double_type if annotation.is_name and annotation.name == 'float' else py_object_type
         elif arg_type is not None and annotation.is_string_literal:
             warning(annotation.pos,
                     "Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.",
