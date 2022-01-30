@@ -3066,14 +3066,16 @@ class DefNode(FuncDefNode):
             if func.is_name:
                 self.is_classmethod |= func.name == 'classmethod'
                 self.is_staticmethod |= func.name == 'staticmethod'
-        cm_entry = env.lookup('classmethod')
-        if self.is_classmethod and (not cm_entry or cm_entry.cname != "__Pyx_Method_ClassMethod"):
-            # classmethod() was overridden - not much we can do here ...
-            self.is_classmethod = False
-        sm_entry = env.lookup('staticmethod')
-        if self.is_staticmethod and sm_entry and sm_entry.is_builtin:
-            # staticmethod() was overridden - not much we can do here ...
-            self.is_staticmethod = False
+        if self.is_classmethod:
+            cm_entry = env.lookup('classmethod')
+            if cm_entry and cm_entry.cname != "__Pyx_Method_ClassMethod":
+                # classmethod() was overridden - not much we can do here ...
+                self.is_classmethod = False
+        if self.is_staticmethod:
+            sm_entry = env.lookup('staticmethod')
+            if sm_entry and not sm_entry.is_builtin:
+                # staticmethod() was overridden - not much we can do here ...
+                self.is_staticmethod = False
         if self.is_transformed_to_property and env.lookup('property'):
             warning(self.pos, "Re-assignment of name 'property' was ignored when "
                     "function was transformed to property of cdef class", 1)
