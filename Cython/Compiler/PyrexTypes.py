@@ -4482,17 +4482,9 @@ class SpecialPythonTypeConstructor(PythonTypeConstructor):
         # return a copy of the template type with python_type_constructor_name as an attribute
         # so it can be identified, and a resolve function that gets back to
         # the original type (since types are usually tested with "is")
-        new_type = template_values[0]
-        if self.python_type_constructor_name == "typing.ClassVar":
-            # classvar must remain a py_object_type
-            new_type = py_object_type
-        if (self.python_type_constructor_name == "typing.Optional" and
-                not new_type.is_pyobject):
-            # optional must be a py_object, but can be a specialized py_object
-            new_type = py_object_type
         return SpecialPythonTypeConstructor(
             self.python_type_constructor_name,
-            template_type=new_type)
+            template_type=template_values[0])
 
     def __getattr__(self, name):
         if self.template_type:

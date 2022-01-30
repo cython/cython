@@ -969,10 +969,7 @@ class CArgDeclNode(Node):
         if arg_type and arg_type.python_type_constructor_name == "typing.Optional":
             # "x: Optional[...]"  =>  explicitly allow 'None'
             arg_type = arg_type.resolve()
-            if arg_type and not arg_type.is_pyobject:
-                error(annotation.pos, "Only Python type arguments can use typing.Optional[...]")
-            else:
-                self.or_none = True
+            self.or_none = True
         elif arg_type and arg_type.is_pyobject and self.default and self.default.is_none:
             # "x: ... = None"  =>  implicitly allow 'None'
             self.or_none = True
@@ -1225,6 +1222,16 @@ class TemplatedTypeNode(CBaseTypeNode):
                     if type is None and base_type.is_cpp_class:
                         error(template_node.pos, "unknown type in template argument")
                         type = error_type
+                    elif type and base_type.python_type_constructor_name and not (type.is_pyobject or type.is_memoryviewslice):
+                        if type.is_numeric and template_node.is_name and template_node.name in ('int', 'long', 'float', 'complex'):
+                            # int, long, float, complex  =>  make sure we use the Python types
+                            type = env.builtin_scope().lookup_here(template_node.name).type
+                        else:
+                            error(template_node.pos, "%s[...] cannot be applied to non-Python type %s" % (
+                                base_type.python_type_constructor_name,
+                                type,
+                            ))
+                            type = error_type
                     # for indexed_pytype we can be a bit more flexible and pass None
                     template_types.append(type)
                 self.type = base_type.specialize_here(self.pos, env, template_types)
@@ -3155,7 +3162,7 @@ class DefNode(FuncDefNode):
                 else:
                     # probably just a plain 'object'
                     arg.accept_none = True
-            else:
+            elif not arg.type.is_error:
                 arg.accept_none = True  # won't be used, but must be there
                 if arg.not_none:
                     error(arg.pos, "Only Python type arguments can have 'not None'")
