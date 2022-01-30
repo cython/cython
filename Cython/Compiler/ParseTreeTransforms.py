@@ -502,6 +502,104 @@ class _AssignmentExpressionChecker(TreeVisitor):
         self.visitchildren(node)
 
 
+class _ExpressionOrderCoerceToTempTransform(VisitorTransform):
+    """
+    Used by ExpressionOrderTransform
+    """
+    def __init__(self, may_modify_nonlocals, may_modify_entries, depends_on_entries_dict, current_env):
+        self.may_modify_nonlocals = may_modify_nonlocals
+        self.may_modify_entries = may_modify_entries
+        self.depends_on_entries_dict = depends_on_entries_dict
+        self.current_env = current_env
+        super(_ExpressionOrderCoerceToTempTransform, self).__init__()
+
+    def visit_ExprNode(self, node):
+        depends_on_entries = self.depends_on_entries_dict.get(node)
+        if not depends_on_entries:
+            return node
+        if depends_on_entries.intersection(self.may_modify_entries):
+            return node.coerce_to_temp(self.current_env)
+        for entry in depends_on_entries:
+            if self.may_modify_nonlocals and (
+                    entry.is_pyglobal or entry.is_cglobal or entry.in_closure):
+                return node.coerce_to_temp(self.current_env)
+        return node
+
+
+class ExpressionOrderTransform(EnvTransform, SkipDeclarations):
+    """
+    Identifies expressions that must be run in a specific order
+
+    because another expression could change their result, and coerces
+    to temp to enforce this
+    """
+
+    def __init__(self, *args, **kwds):
+        self.may_modify_nonlocals = False
+        self.may_modify_entries = set()
+        self.depends_on_entries_dict = {}
+        self.depends_on_entries = set()
+        super(ExpressionOrderTransform, self).__init__(*args, **kwds)
+
+    def visit_ExprNode(self, node):
+        may_modify_nonlocals, self.may_modify_nonlocals = self.may_modify_nonlocals, False
+        may_modify_entries, self.may_modify_entries = self.may_modify_entries, set()
+        depends_on_entries_dict, self.depends_on_entries_dict = self.depends_on_entries_dict, dict()
+        depends_on_entries, self.depends_on_entries = self.depends_on_entries, set()
+
+        self.visitchildren(node)
+
+        # depends_on_entries_dict contains lists of dependent entries for all the
+        # direct children of this node
+        if self.may_modify_nonlocals or self.may_modify_entries:
+            # no point in looking further if nothing is in danger of being
+            # modified
+            if len(self.depends_on_entries_dict) > 1:
+                # if there's only one direct child subexpression then it is not
+                # worth worrying about the evaluation order of the sub-expressions
+                transform = _ExpressionOrderCoerceToTempTransform(
+                    self.may_modify_nonlocals, self.may_modify_entries,
+                    self.depends_on_entries_dict,
+                    self.current_env())
+                transform.visitchildren(node)
+
+        if hasattr(node, "entry") and node.entry:
+            self.depends_on_entries.add(node.entry)
+        self.depends_on_entries_dict[node] = self.depends_on_entries
+
+        self.depends_on_entries_dict.update(depends_on_entries_dict)
+        self.depends_on_entries.update(depends_on_entries)
+        self.may_modify_entries = may_modify_entries
+        self.may_modify_nonlocals = may_modify_nonlocals
+
+        return node
+
+    def visit_AssignmentExpressionNode(self, node):
+        node = self.visit_ExprNode(node)
+        self.may_modify_entries.add(node.assignment.lhs.entry)
+        return node
+
+    def visit_CallNode(self, node):
+        node = self.visit_ExprNode(node)
+        self.may_modify_nonlocals = True
+        return node
+
+    def visit_Node(self, node):
+        # non-ExprNodes can occasional be in ExprNodes
+        # (for example assignment expressions, and UtilNodes temp expressions)
+        # For these cases set and restore the state on exit
+        may_modify_nonlocals, self.may_modify_nonlocals = self.may_modify_nonlocals, False
+        may_modify_entries, self.may_modify_entries = self.may_modify_entries, set()
+        depends_on_entries, self.depends_on_entries = self.depends_on_entries, set()
+        depends_on_entries_dict, self.depends_on_entries_dict = self.depends_on_entries_dict, dict()
+        self.visitchildren(node)
+        self.may_modify_nonlocals = may_modify_nonlocals
+        self.may_modify_entries = may_modify_entries
+        self.depends_on_entries = depends_on_entries
+        self.depends_on_entries_dict = depends_on_entries_dict
+        return node
+
+
 def eliminate_rhs_duplicates(expr_list_list, ref_node_sequence):
     """Replace rhs items by LetRefNodes if they appear more than once.
     Creates a sequence of LetRefNodes that set up the required temps
