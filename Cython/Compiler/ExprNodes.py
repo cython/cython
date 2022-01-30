@@ -14115,20 +14115,15 @@ class AssignmentExpressionNode(ExprNode):
 
         self.rhs = self.rhs.analyse_types(env)
         if not self.rhs.arg.is_temp:
-            if not self.rhs.arg.is_literal:
+            if self.rhs.arg.is_simple():
+                # For literals we can optimize by just using the literal twice
+                self.assignment.rhs = copy.copy(self.rhs.arg)
+            elif self.rhs.arg.is_simple():
+                pass
+            else:
                 # for anything but the simplest cases (where it can be used directly)
                 # we convert rhs to a temp, because CloneNode requires arg to be a temp
                 self.rhs.arg = self.rhs.arg.coerce_to_temp(env)
-            else:
-                # For literals we can optimize by just using the literal twice
-                #
-                # We aren't including `self.rhs.is_name` in this optimization
-                # because that goes wrong for assignment expressions run in
-                # parallel. e.g. `(a := b) + (b := a + c)`)
-                # This is a special case of https://github.com/cython/cython/issues/4146
-                # TODO - once that's fixed general revisit this code and possibly
-                # use coerce_to_simple
-                self.assignment.rhs = copy.copy(self.rhs)
 
         # TODO - there's a missed optimization in the code generation stage
         # for self.rhs.arg.is_temp: an incref/decref pair can be removed
@@ -14151,8 +14146,7 @@ class AssignmentExpressionNode(ExprNode):
                 # clean up the old coercion node that the assignment has likely generated
                 if (isinstance(self.assignment.rhs, CoercionNode)
                         and not isinstance(self.assignment.rhs, CloneNode)):
-                    self.assignment.rhs = self.assignment.rhs.arg
-                    self.assignment.rhs.type = self.assignment.rhs.arg.type
+                    self.assignment.rhs = CloneNode(self.rhs)
                 return self
         return super(AssignmentExpressionNode, self).coerce_to(dst_type, env)
 

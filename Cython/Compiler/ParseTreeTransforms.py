@@ -506,24 +506,37 @@ class _ExpressionOrderCoerceToTempTransform(VisitorTransform):
     """
     Used by ExpressionOrderTransform
     """
-    def __init__(self, may_modify_nonlocals, may_modify_entries, depends_on_entries_dict, current_env):
-        self.may_modify_nonlocals = may_modify_nonlocals
-        self.may_modify_entries = may_modify_entries
-        self.depends_on_entries_dict = depends_on_entries_dict
+    def __init__(self, node_record_dict, current_env):
+        self.node_record_dict = node_record_dict
         self.current_env = current_env
         super(_ExpressionOrderCoerceToTempTransform, self).__init__()
 
     def visit_ExprNode(self, node):
-        depends_on_entries = self.depends_on_entries_dict.get(node)
+        node_record = self.node_record_dict.get(node)
+        depends_on_entries = node_record.depends_on_entries
         if not depends_on_entries:
             return node
-        if depends_on_entries.intersection(self.may_modify_entries):
+        if node.is_target:
+            return node  # exclude targets of assignments, this would catch the
+                         # result of almost any function call
+
+        other_nodes = ExpressionOrderTransform.NodeRecord()
+        for k, v in self.node_record_dict.items():
+            if k is node:
+                continue
+            other_nodes.update(v)
+
+        if depends_on_entries.intersection(other_nodes.may_modify_entries):
             return node.coerce_to_temp(self.current_env)
         for entry in depends_on_entries:
-            if self.may_modify_nonlocals and (
+            if other_nodes.may_modify_nonlocals and (
                     entry.is_pyglobal or entry.is_cglobal or entry.in_closure):
                 return node.coerce_to_temp(self.current_env)
         return node
+
+    def visit_Node(self, node):
+        return node
+
 
 
 class ExpressionOrderTransform(EnvTransform, SkipDeclarations):
@@ -533,71 +546,93 @@ class ExpressionOrderTransform(EnvTransform, SkipDeclarations):
     because another expression could change their result, and coerces
     to temp to enforce this
     """
+    class NodeRecord:
+        def __init__(self):
+            self.may_modify_entries = set()
+            self.may_modify_nonlocals = False
+            self.depends_on_entries = set()
+
+        def combine(self, other):
+            # out of place update
+            ret = copy.copy(self)
+            ret.update(other)
+            return ret
+
+        def update(self, other):
+            self.may_modify_entries.update(other.may_modify_entries)
+            self.may_modify_nonlocals = self.may_modify_nonlocals or other.may_modify_nonlocals
+            self.depends_on_entries.update(other.depends_on_entries)
 
     def __init__(self, *args, **kwds):
-        self.may_modify_nonlocals = False
-        self.may_modify_entries = set()
-        self.depends_on_entries_dict = {}
-        self.depends_on_entries = set()
+        self.node_record = ExpressionOrderTransform.NodeRecord()
+        self.node_record_dict = {}
         super(ExpressionOrderTransform, self).__init__(*args, **kwds)
 
+    def setup_exprnode_call(self):
+        node_record, self.node_record = self.node_record, ExpressionOrderTransform.NodeRecord()
+        node_record_dict, self.node_record_dict = self.node_record_dict, dict()
+        return node_record, node_record_dict
+
+    def finish_exprnode_call(self, node, node_record, node_record_dict):
+        self.node_record_dict = node_record_dict
+        self.node_record_dict[node] = self.node_record
+        self.node_record = self.node_record.combine(node_record)
+
     def visit_ExprNode(self, node):
-        may_modify_nonlocals, self.may_modify_nonlocals = self.may_modify_nonlocals, False
-        may_modify_entries, self.may_modify_entries = self.may_modify_entries, set()
-        depends_on_entries_dict, self.depends_on_entries_dict = self.depends_on_entries_dict, dict()
-        depends_on_entries, self.depends_on_entries = self.depends_on_entries, set()
+        node_record, node_record_dict = self.setup_exprnode_call()
 
         self.visitchildren(node)
+        self.handle_ordering(node)
 
-        # depends_on_entries_dict contains lists of dependent entries for all the
-        # direct children of this node
-        if self.may_modify_nonlocals or self.may_modify_entries:
-            # no point in looking further if nothing is in danger of being
-            # modified
-            if len(self.depends_on_entries_dict) > 1:
-                # if there's only one direct child subexpression then it is not
-                # worth worrying about the evaluation order of the sub-expressions
-                transform = _ExpressionOrderCoerceToTempTransform(
-                    self.may_modify_nonlocals, self.may_modify_entries,
-                    self.depends_on_entries_dict,
-                    self.current_env())
-                transform.visitchildren(node)
-
-        if hasattr(node, "entry") and node.entry:
-            self.depends_on_entries.add(node.entry)
-        self.depends_on_entries_dict[node] = self.depends_on_entries
-
-        self.depends_on_entries_dict.update(depends_on_entries_dict)
-        self.depends_on_entries.update(depends_on_entries)
-        self.may_modify_entries = may_modify_entries
-        self.may_modify_nonlocals = may_modify_nonlocals
+        if hasattr(node, "entry") and node.entry and not node.is_target:
+            self.node_record.depends_on_entries.add(node.entry)
+        self.finish_exprnode_call(node, node_record, node_record_dict)
 
         return node
 
     def visit_AssignmentExpressionNode(self, node):
-        node = self.visit_ExprNode(node)
-        self.may_modify_entries.add(node.assignment.lhs.entry)
+        node_record, node_record_dict = self.setup_exprnode_call()
+        self.visitchildren(node)
+        self.handle_ordering(node)
+        self.node_record.may_modify_entries.add(node.assignment.lhs.entry)
+        self.finish_exprnode_call(node, node_record, node_record_dict)
         return node
 
     def visit_CallNode(self, node):
-        node = self.visit_ExprNode(node)
-        self.may_modify_nonlocals = True
+        node_record, node_record_dict = self.setup_exprnode_call()
+        self.visitchildren(node)
+        self.handle_ordering(node)
+        self.node_record.may_modify_nonlocals = True
+        self.finish_exprnode_call(node, node_record, node_record_dict)
         return node
 
     def visit_Node(self, node):
         # non-ExprNodes can occasional be in ExprNodes
         # (for example assignment expressions, and UtilNodes temp expressions)
         # For these cases set and restore the state on exit
-        may_modify_nonlocals, self.may_modify_nonlocals = self.may_modify_nonlocals, False
-        may_modify_entries, self.may_modify_entries = self.may_modify_entries, set()
-        depends_on_entries, self.depends_on_entries = self.depends_on_entries, set()
-        depends_on_entries_dict, self.depends_on_entries_dict = self.depends_on_entries_dict, dict()
+        node_record, self.node_record = self.node_record, ExpressionOrderTransform.NodeRecord()
+        node_record_dict, self.node_record_dict = self.node_record_dict, dict()
         self.visitchildren(node)
-        self.may_modify_nonlocals = may_modify_nonlocals
-        self.may_modify_entries = may_modify_entries
-        self.depends_on_entries = depends_on_entries
-        self.depends_on_entries_dict = depends_on_entries_dict
+        self.handle_ordering(node)
+        self.node_record = node_record
+        self.node_record_dict = node_record_dict
         return node
+
+    def handle_ordering(self, node):
+        # node_record_dict contains records of all the direct children of this node
+        #
+        for v in self.node_record_dict.values():
+            if v.may_modify_entries or v.may_modify_nonlocals:
+                break
+        else:
+            return  # shortcut - there's nothing to do for any child of this node
+        if len(self.node_record_dict) > 1:
+            # if there's only one direct child subexpression then it is not
+            # worth worrying about the evaluation order of the sub-expressions
+            transform = _ExpressionOrderCoerceToTempTransform(
+                self.node_record_dict,
+                self.current_env())
+            transform.visitchildren(node)
 
 
 def eliminate_rhs_duplicates(expr_list_list, ref_node_sequence):
