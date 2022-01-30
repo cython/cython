@@ -216,10 +216,13 @@ cdef class TestFrozen:
     """
     a: double = 2.0
 
+def get_dataclass_initvar():
+    return py_dataclasses.InitVar
+
 import sys
 if sys.version_info >= (3, 7):
     __doc__ = """
-    >>> from dataclasses import Field, is_dataclass, fields
+    >>> from dataclasses import Field, is_dataclass, fields, InitVar
 
     # It uses the types from the standard library where available
     >>> all(isinstance(v, Field) for v in BasicDataclass.__dataclass_fields__.values())
@@ -240,4 +243,6 @@ if sys.version_info >= (3, 7):
     ['a', 'b', 'c', 'd']
     >>> [ f.name for f in fields(InitClassVars)]
     ['a']
+    >>> get_dataclass_initvar() == InitVar
+    True
     """
