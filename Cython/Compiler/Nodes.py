@@ -1223,7 +1223,9 @@ class TemplatedTypeNode(CBaseTypeNode):
                         error(template_node.pos, "unknown type in template argument")
                         type = error_type
                     elif type and base_type.python_type_constructor_name and not (type.is_pyobject or type.is_memoryviewslice):
-                        if type.is_numeric and template_node.is_name and template_node.name in ('int', 'long', 'float', 'complex'):
+                        if base_type.python_type_constructor_name not in ('dataclasses.InitVar',):
+                            pass  # Allow any type (Python or C) for these.
+                        elif type.is_numeric and template_node.is_name and template_node.name in ('int', 'long', 'float', 'complex'):
                             # int, long, float, complex  =>  make sure we use the Python types
                             type = env.builtin_scope().lookup_here(template_node.name).type
                         else:
