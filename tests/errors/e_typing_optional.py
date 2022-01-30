@@ -8,10 +8,11 @@ except ImportError:
     pass
 
 
-# not OK
+def optional_pytypes(i: Optional[int], f: Optional[float]):
+    pass
 
-def optional_cython_types(i: Optional[cython.int], d: Optional[cython.double], f: Optional[cython.float],
-                          c: Optional[cython.complex], l: Optional[cython.long], ll: Optional[cython.longlong]):
+
+def optional_cython_types(i: Optional[cython.int], d: Optional[cython.double], f: Optional[cython.float]):
     pass
 
 
@@ -21,23 +22,13 @@ def optional_cstruct(x: Optional[MyStruct]):
     pass
 
 
-# OK
-
-def optional_pytypes(i: Optional[int], f: Optional[float], c: Optional[complex], l: Optional[long]):
-    pass
-
-
-def optional_memoryview(d: double[:], o: Optional[double[:]]):
-    pass
-
-
 _ERRORS = """
-13:44: typing.Optional[...] cannot be applied to non-Python type int
-13:69: typing.Optional[...] cannot be applied to non-Python type double
-13:97: typing.Optional[...] cannot be applied to non-Python type float
-14:44: typing.Optional[...] cannot be applied to non-Python type double complex
-14:73: typing.Optional[...] cannot be applied to non-Python type long
-14:100: typing.Optional[...] cannot be applied to non-Python type long long
+15:29: Only Python type arguments can use typing.Optional[...]
+15:54: Only Python type arguments can use typing.Optional[...]
+15:82: Only Python type arguments can use typing.Optional[...]
+21:24: Only Python type arguments can use typing.Optional[...]
 
-20:33: typing.Optional[...] cannot be applied to non-Python type MyStruct
+# FIXME: these should be allowed!
+11:24: Only Python type arguments can use typing.Optional[...]
+11:42: Only Python type arguments can use typing.Optional[...]
 """
