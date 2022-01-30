@@ -4458,7 +4458,7 @@ class SpecialPythonTypeConstructor(PythonTypeConstructor):
                 template_type = (builtin_scope.lookup_type(py_type_name)
                                         or py_object_type)
             else:
-                template_type = py_object_types
+                template_type = py_object_type
         self.template_type = template_type
 
     def __repr__(self):
@@ -4492,7 +4492,7 @@ class SpecialPythonTypeConstructor(PythonTypeConstructor):
             new_type = py_object_type
         return SpecialPythonTypeConstructor(
             self.python_type_constructor_name,
-            template_type = template_values[0])
+            template_type=new_type)
 
     def __getattr__(self, name):
         if self.template_type:
