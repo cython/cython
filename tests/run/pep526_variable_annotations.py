@@ -15,11 +15,11 @@ except ImportError:
 
 
 var = 1  # type: annotation
-var: int = 2
-fvar: float = 1.2
+var: cython.int = 2
+fvar: cython.float = 1.2
 some_number: cython.int    # variable without initial value
-some_list: List[int] = []  # variable with initial value
-t: Tuple[int, ...] = (1, 2, 3)
+some_list: List[cython.int] = []  # variable with initial value
+t: Tuple[cython.int, ...] = (1, 2, 3)
 body: Optional[List[str]]
 descr_only : "descriptions are allowed but ignored"
 
@@ -34,11 +34,11 @@ def f():
     (2, 1.5, [], (1, 2, 3))
     """
     var = 1  # type: annotation
-    var: int = 2
-    fvar: float = 1.5
+    var: cython.int = 2
+    fvar: cython.float = 1.5
     some_number: cython.int    # variable without initial value
-    some_list: List[int] = []  # variable with initial value
-    t: Tuple[int, ...] = (1, 2, 3)
+    some_list: List[cython.int] = []  # variable with initial value
+    t: Tuple[cython.int, ...] = (1, 2, 3)
     body: Optional[List[str]]
     descr_only: "descriptions are allowed but ignored"
 
@@ -59,7 +59,7 @@ class BasicStarship(object):
     """
     captain: str = 'Picard'               # instance variable with default
     damage: cython.int                    # instance variable without default
-    stats: ClassVar[Dict[str, int]] = {}  # class variable
+    stats: ClassVar[Dict[str, cython.int]] = {}  # class variable
     descr_only: "descriptions are allowed but ignored"
 
     def __init__(self, damage):
@@ -75,7 +75,7 @@ class BasicStarshipExt(object):
     """
     captain: str = 'Picard'               # instance variable with default
     damage: cython.int                    # instance variable without default
-    stats: ClassVar[Dict[str, int]] = {}  # class variable
+    stats: ClassVar[Dict[str, cython.int]] = {}  # class variable
     descr_only: "descriptions are allowed but ignored"
 
     def __init__(self, damage):
@@ -124,7 +124,7 @@ def iter_declared_dict(d):
 
     # specialized "compiled" test in module-level __doc__
     """
-    typed_dict : Dict[float, float] = d
+    typed_dict : Dict[cython.float, cython.float] = d
     s = 0.0
     for key in typed_dict:
         s += d[key]
@@ -135,7 +135,7 @@ def iter_declared_dict(d):
     "//WhileStatNode",
     "//WhileStatNode//DictIterationNextNode",
 )
-def iter_declared_dict_arg(d : Dict[float, float]):
+def iter_declared_dict_arg(d : Dict[cython.float, cython.float]):
     """
     >>> d = {1.1: 2.5, 3.3: 4.5}
     >>> iter_declared_dict_arg(d)
@@ -165,8 +165,8 @@ def test_subscripted_types():
     list object
     set object
     """
-    a: typing.Dict[int, float] = {}
-    b: List[int] = []
+    a: typing.Dict[cython.int, cython.float] = {}
+    b: List[cython.int] = []
     c: _SET_[object] = set()
 
     print(cython.typeof(a) + (" object" if not cython.compiled else ""))
@@ -174,22 +174,31 @@ def test_subscripted_types():
     print(cython.typeof(c) + (" object" if not cython.compiled else ""))
 
 # because tuple is specifically special cased to go to ctuple where possible
-def test_tuple(a: typing.Tuple[int, float], b: typing.Tuple[int, ...],
-               c: Tuple[int, object]  # cannot be a ctuple
+def test_tuple(a: typing.Tuple[cython.int, cython.float], b: typing.Tuple[cython.int, ...],
+               c: Tuple[cython.int, object]  # cannot be a ctuple
                ):
     """
     >>> test_tuple((1, 1.0), (1, 1.0), (1, 1.0))
     int
     int
+    double
+    double
+    tuple
+    tuple object
     tuple object
     tuple object
     """
-    x: typing.Tuple[int, float] = (a[0], a[1])
-    y: Tuple[int, ...] = (1,2.)
-    z = a[0]  # should infer to int
+    x: typing.Tuple[int, float] = (a[0], a[1])  # note: Python int/float, not cython.int/float
+    y: Tuple[cython.int, ...] = (1,2.)
+    z = a[0]  # should infer to C int
+    p = x[1]  # should infer to Python float -> C double
 
     print(cython.typeof(z))
     print(cython.typeof(x[0]))
+    print(cython.typeof(p))
+    print(cython.typeof(x[1]))
+    print(cython.typeof(a))
+    print(cython.typeof(x))
     print(cython.typeof(y) + (" object" if not cython.compiled else ""))
     print(cython.typeof(c) + (" object" if not cython.compiled else ""))
 
