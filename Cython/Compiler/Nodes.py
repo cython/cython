@@ -1066,9 +1066,9 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
             else:
                 type = py_object_type
         else:
+            scope = env
             if self.module_path:
                 # Maybe it's a nested C++ class.
-                scope = env
                 for item in self.module_path:
                     entry = scope.lookup(item)
                     if entry is not None and (
@@ -1089,8 +1089,6 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
                 if scope is None:
                     # Maybe it's a cimport.
                     scope = env.find_imported_module(self.module_path, self.pos)
-            else:
-                scope = env
 
             if scope:
                 if scope.is_c_class_scope:
@@ -1129,10 +1127,9 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
             type = PyrexTypes.c_double_complex_type
             type.create_declaration_utility_code(env)
             self.complex = True
-        if type:
-            return type
-        else:
-            return PyrexTypes.error_type
+        if not type:
+            type = PyrexTypes.error_type
+        return type
 
 class MemoryViewSliceTypeNode(CBaseTypeNode):
 
