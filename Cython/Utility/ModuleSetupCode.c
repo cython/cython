@@ -623,8 +623,8 @@ static CYTHON_INLINE void _HPyErr_WriteUnraisable(HPyContext *ctx, HPy h)
 #define __PYX_CONTEXT
 #define __PYX_CONTEXT0
 #define __PYX_NULL (0)
-#define __Pyx_NEWREF(x) __Pyx_INCREF(x)
-#define __Pyx_NEWREF_NO_REFNANNY(x) Py_INCREF(x)
+#define __Pyx_NEWREF(x) (__Pyx_INCREF(x), x)
+#define __Pyx_NEWREF_NO_REFNANNY(x) (Py_INCREF(x), x)
 #define __Pyx_DECREF_NO_REFNANNY(x) Py_DECREF(x)
 
 #define __Pyx_PyErr_SetString(err, msg) PyErr_SetString(err, msg)
