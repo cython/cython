@@ -33,8 +33,10 @@ class PyxImportMetaFinder(MetaPathFinder):
             if not os.path.exists(filename):
                 continue
 
-            return spec_from_file_location(fullname, filename, loader=PyxImportLoader(filename, self.pyxbuild_dir, self.inplace, self.language_level),
-                                           submodule_search_locations=submodule_locations)
+            return spec_from_file_location(
+                fullname, filename,
+                loader=PyxImportLoader(filename, self.pyxbuild_dir, self.inplace, self.language_level),
+                submodule_search_locations=submodule_locations)
 
         return None  # we don't know how to import this
 
@@ -76,8 +78,10 @@ class PyImportMetaFinder(MetaPathFinder):
                 if not os.path.exists(filename):
                     continue
 
-                return spec_from_file_location(fullname, filename, loader=PyxImportLoader(filename, self.pyxbuild_dir, self.inplace, self.language_level),
-                                               submodule_search_locations=submodule_locations)
+                return spec_from_file_location(
+                    fullname, filename,
+                    loader=PyxImportLoader(filename, self.pyxbuild_dir, self.inplace, self.language_level),
+                    submodule_search_locations=submodule_locations)
         finally:
             self.blocked_modules.pop()
 
@@ -94,7 +98,8 @@ class PyxImportLoader(ExtensionFileLoader):
         self._language_level = language_level
 
     def create_module(self, spec):
-        so_path = build_module(spec.name, pyxfilename=spec.origin, pyxbuild_dir=self._pyxbuild_dir, inplace=self._inplace, language_level=self._language_level)
+        so_path = build_module(spec.name, pyxfilename=spec.origin, pyxbuild_dir=self._pyxbuild_dir,
+                               inplace=self._inplace, language_level=self._language_level)
         self.path = so_path
         spec.origin = so_path
         return super().create_module(spec)
