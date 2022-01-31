@@ -3414,7 +3414,7 @@ class CFuncType(CType):
             arg_decl_list.append(self.op_arg_struct.declaration_code(Naming.optional_args_cname))
         if self.has_varargs:
             arg_decl_list.append("...")
-        arg_decl_code = ", ".join(arg_decl_list)
+        arg_decl_code = backend.get_arg_list(*arg_decl_list)
         if not arg_decl_code and not pyrex:
             arg_decl_code = "void"
         trailer = ""

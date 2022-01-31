@@ -2725,7 +2725,7 @@ class CFuncDefNode(FuncDefNode):
             arg_decls = ["void"]
         if cname is None:
             cname = self.entry.func_cname
-        entity = type.function_header_code(cname, ', '.join(arg_decls))
+        entity = type.function_header_code(cname, backend.get_arg_list(*arg_decls))
         if self.entry.visibility == 'private' and '::' not in cname:
             storage_class = "static "
         else:
