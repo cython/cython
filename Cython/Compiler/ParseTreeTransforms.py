@@ -598,13 +598,28 @@ class ExpressionOrderTransform(EnvTransform, SkipDeclarations):
         self.finish_exprnode_call(node, node_record, node_record_dict)
         return node
 
-    def visit_CallNode(self, node):
+    def handle_nontrivial_node(self, node):
         node_record, node_record_dict = self.setup_exprnode_call()
         self.visitchildren(node)
         self.handle_ordering(node)
         self.node_record.may_modify_nonlocals = True
         self.finish_exprnode_call(node, node_record, node_record_dict)
         return node
+
+    def visit_CallNode(self, node):
+        return self.handle_nontrivial_node(node)
+
+    def visit_AttributeNode(self, node):
+        if node.is_py_attr or not node.is_simple():
+            return self.handle_nontrivial_node(node)
+        else:
+            return self.visit_ExprNode(node)
+
+    def visit_BinopNode(self, node):
+        if node.is_py_operation() or node.is_cpp_operation():
+            return self.handle_nontrivial_node(node)
+        else:
+            return self.visit_ExprNode(node)
 
     def visit_Node(self, node):
         # non-ExprNodes can occasional be in ExprNodes
