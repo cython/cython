@@ -1479,6 +1479,11 @@ static CYTHON_INLINE PyObject* __Pyx_PyBoolOrNull_FromLong(long b) {
 /////////////// GetBuiltinName.proto ///////////////
 
 static __PYX_OBJECT_CTYPE __Pyx_GetBuiltinName(__PYX_CONTEXT_DECL __PYX_OBJECT_CTYPE name); /*proto*/
+#if !CYTHON_COMPILING_IN_HPY
+#define __Pyx_GetBuiltinNameFromGlobal __Pyx_GetBuiltinName
+#else /* !CYTHON_COMPILING_IN_HPY */
+static HPy __Pyx_GetBuiltinNameFromGlobal(HPyContext *ctx, HPyField naame); /*proto*/
+#endif /* !CYTHON_COMPILING_IN_HPY */
 
 /////////////// GetBuiltinName ///////////////
 //@requires: ModuleSetupCode.c::ApiBackendInitCode
@@ -1513,6 +1518,13 @@ static HPy __Pyx_GetBuiltinName(HPyContext *ctx, HPy h_name) {
     }
     HPy_Close(ctx, h_name);
     return result;
+}
+
+static HPy __Pyx_GetBuiltinNameFromGlobal(HPyContext *ctx, HPyField f_name) {
+    HPy h_name = HPyField_Load(ctx, ctx->h_None, f_name);
+    HPy h_result = __Pyx_GetBuiltinName(ctx, h_name);
+    HPy_Close(ctx, h_name);
+    return h_result;
 }
 #endif /* CYTHON_COMPILING_IN_HPY */
 

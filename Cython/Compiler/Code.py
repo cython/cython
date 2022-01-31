@@ -1517,7 +1517,7 @@ class GlobalState(object):
             UtilityCode.load_cached("GetBuiltinName", "ObjectHandling.c"))
         w.putln('%s = %s; if (!%s) %s' % (
             cname,
-            backend.get_call('__Pyx_GetBuiltinName', interned_cname),
+            backend.get_call('__Pyx_GetBuiltinNameFromGlobal', interned_cname),
             cname,
             w.error_goto(pos)))
 

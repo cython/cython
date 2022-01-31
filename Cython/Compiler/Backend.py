@@ -452,6 +452,7 @@ class CombinedBackend(APIBackend):
     pyobject_ctype_entity_part = ""
     # __PYX_NULL is defined in ModuleSetupCode::ApiBackendInitCode
     pyobject_init_value = "__PYX_NULL"
+    # __PYX_GLOBAL_OBJECT_CTYPE is defined in ModuleSetupCode::ApiBackendInitCode
     pyobject_global_ctype = "__PYX_GLOBAL_OBJECT_CTYPE"
     pyobject_global_ctype_base_part = "__PYX_GLOBAL_OBJECT_CTYPE_BP"
     pyobject_global_ctype_entity_part = ""
@@ -514,7 +515,6 @@ class CombinedBackend(APIBackend):
         code.putln("#define __PYX_API_CALL(fun, ...) fun(__VA_ARGS__)")
         code.putln("#define __PYX_OBJECT_CTYPE_BP PyObject")
         code.putln("#define __PYX_OBJECT_CTYPE_EP *")
-        code.putln("#define __PYX_GLOBAL_OBJECT_CTYPE PyObject *")
         code.putln("#define __PYX_GLOBAL_OBJECT_CTYPE_BP PyObject *")
         code.putln("#define __PYX_GLOBAL_TYPE_CTYPE PyTypeObject *")
         code.putln("#define __Pyx_CLEAR_GLOBAL(m, v) Py_CLEAR((v))")
@@ -556,7 +556,6 @@ class CombinedBackend(APIBackend):
         code.putln("#define __PYX_API_CALL(fun, ...) fun(%s, __VA_ARGS__)" % Naming.hpy_context_cname)
         code.putln("#define __PYX_OBJECT_CTYPE_BP HPy")
         code.putln("#define __PYX_OBJECT_CTYPE_EP ")
-        code.putln("#define __PYX_GLOBAL_OBJECT_CTYPE HPyField")
         code.putln("#define __PYX_GLOBAL_OBJECT_CTYPE_BP HPyField")
         code.putln("#define __PYX_GLOBAL_TYPE_CTYPE HPyField")
         code.putln("#define __Pyx_CLEAR_GLOBAL(m, v) HPyField_Store(%s, %s->h_None, &(v), HPy_NULL)" %

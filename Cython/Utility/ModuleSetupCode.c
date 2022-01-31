@@ -607,6 +607,7 @@ static CYTHON_INLINE HPy _HPyDict_GetItem_s(HPyContext *ctx, HPy dict, const cha
 #if !CYTHON_COMPILING_IN_HPY
 
 #define __PYX_OBJECT_CTYPE PyObject *
+#define __PYX_GLOBAL_OBJECT_CTYPE PyObject *
 #define __PYX_IS_NULL(x) !(x)
 #define __PYX_IS_NOT_NULL(x) (x)
 #define __PYX_GLOBAL_IS_NULL(x) !(x)
@@ -637,6 +638,7 @@ static CYTHON_INLINE HPy _HPyDict_GetItem_s(HPyContext *ctx, HPy dict, const cha
 #else
 
 #define __PYX_OBJECT_CTYPE HPy
+#define __PYX_GLOBAL_OBJECT_CTYPE HPyField
 #define __PYX_IS_NULL(x) HPy_IsNull(x)
 #define __PYX_IS_NOT_NULL(x) !HPy_IsNull(x)
 #define __PYX_GLOBAL_IS_NULL(x) HPyField_IsNull(x)
