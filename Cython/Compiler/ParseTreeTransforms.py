@@ -563,6 +563,10 @@ class ExpressionOrderTransform(EnvTransform, SkipDeclarations):
             self.may_modify_nonlocals = self.may_modify_nonlocals or other.may_modify_nonlocals
             self.depends_on_entries.update(other.depends_on_entries)
 
+        def __repr__(self):
+            return "NodeRecord(may_modify_entries=%s, may_modify_nonlocals=%s, depends_on_entries=%s" % (
+                self.may_modify_entries, self.may_modify_nonlocals, self.depends_on_entries)
+
     def __init__(self, *args, **kwds):
         self.node_record = ExpressionOrderTransform.NodeRecord()
         self.node_record_dict = {}
@@ -578,16 +582,35 @@ class ExpressionOrderTransform(EnvTransform, SkipDeclarations):
         self.node_record_dict[node] = self.node_record
         self.node_record = self.node_record.combine(node_record)
 
-    def visit_ExprNode(self, node):
+    def _visit_ExprNode(self, node, exclude_from_handle_ordering=None):
         node_record, node_record_dict = self.setup_exprnode_call()
 
         self.visitchildren(node)
-        self.handle_ordering(node)
+        self.handle_ordering(node, exclude=exclude_from_handle_ordering)
 
         if hasattr(node, "entry") and node.entry and not node.is_target:
             self.node_record.depends_on_entries.add(node.entry)
         self.finish_exprnode_call(node, node_record, node_record_dict)
 
+        return node
+
+    def visit_ExprNode(self, node):
+        return self._visit_ExprNode(node)
+
+    def visit_DictNode(self, node):
+        # key_value_pairs are required to be DictItemNode, and can't be coerced to
+        # temp because they don't have a type. They way the DictNode is evaluated
+        # probably means it doesn't need handling by this transform
+        return self._visit_ExprNode(node, exclude_from_handle_ordering="key_value_pairs")
+
+    def visit_ScopedExprNode(self, node):
+        # adapted from EnvTransform
+        if node.expr_scope:
+            self.enter_scope(node, node.expr_scope)
+            self._visit_ExprNode(node)
+            self.exit_scope()
+        else:
+            self._visit_ExprNode(node)
         return node
 
     def visit_AssignmentExpressionNode(self, node):
@@ -598,16 +621,19 @@ class ExpressionOrderTransform(EnvTransform, SkipDeclarations):
         self.finish_exprnode_call(node, node_record, node_record_dict)
         return node
 
-    def handle_nontrivial_node(self, node):
+    def handle_nontrivial_node(self, node, exclude_from_handle_ordering=None):
         node_record, node_record_dict = self.setup_exprnode_call()
         self.visitchildren(node)
-        self.handle_ordering(node)
+        self.handle_ordering(node, exclude=exclude_from_handle_ordering)
         self.node_record.may_modify_nonlocals = True
         self.finish_exprnode_call(node, node_record, node_record_dict)
         return node
 
     def visit_CallNode(self, node):
         return self.handle_nontrivial_node(node)
+
+    def visit_SimpleCallNode(self, node):
+        return self.handle_nontrivial_node(node, exclude_from_handle_ordering=("arg_tuple",))
 
     def visit_AttributeNode(self, node):
         if node.is_py_attr or not node.is_simple():
@@ -633,7 +659,7 @@ class ExpressionOrderTransform(EnvTransform, SkipDeclarations):
         self.node_record_dict = node_record_dict
         return node
 
-    def handle_ordering(self, node):
+    def handle_ordering(self, node, exclude=None):
         # node_record_dict contains records of all the direct children of this node
         #
         for v in self.node_record_dict.values():
@@ -647,7 +673,7 @@ class ExpressionOrderTransform(EnvTransform, SkipDeclarations):
             transform = _ExpressionOrderCoerceToTempTransform(
                 self.node_record_dict,
                 self.current_env())
-            transform.visitchildren(node)
+            transform.visitchildren(node, exclude=exclude)
 
 
 def eliminate_rhs_duplicates(expr_list_list, ref_node_sequence):
