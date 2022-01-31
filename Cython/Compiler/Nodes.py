@@ -1206,18 +1206,17 @@ class TemplatedTypeNode(CBaseTypeNode):
     name = None
 
     def _analyse_template_types(self, env, base_type):
-        was_in_c_type_context = env.in_c_type_context
         require_python_types = base_type.python_type_constructor_name in (
             'typing.Optional',
             'dataclasses.ClassVar',
         )
-        in_c_type_context = was_in_c_type_context and not require_python_types
+        in_c_type_context = env.in_c_type_context and not require_python_types
 
         template_types = []
         for template_node in self.positional_args:
             # CBaseTypeNode -> allow C type declarations in a 'cdef' context again
-            env.in_c_type_context = in_c_type_context or isinstance(template_node, CBaseTypeNode)
-            type = template_node.analyse_as_type(env)
+            with env.new_c_type_context(in_c_type_context or isinstance(template_node, CBaseTypeNode))
+                type = template_node.analyse_as_type(env)
             if type is None:
                 if base_type.is_cpp_class:
                     error(template_node.pos, "unknown type in template argument")
@@ -1234,7 +1233,6 @@ class TemplatedTypeNode(CBaseTypeNode):
                     type = error_type
             template_types.append(type)
 
-        env.in_c_type_context = was_in_c_type_context
         return template_types
 
     def analyse(self, env, could_be_name=False, base_type=None):

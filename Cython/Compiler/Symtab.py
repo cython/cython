@@ -13,6 +13,7 @@ try:
 except ImportError:  # Py3
     import builtins
 
+from ..Utils import try_finally_contextmanager
 from .Errors import warning, error, InternalError
 from .StringEncoding import EncodedString
 from . import Options, Naming
@@ -483,6 +484,14 @@ class Scope(object):
         if self.subscopes:
             for scope in sorted(self.subscopes, key=operator.attrgetter('scope_prefix')):
                 yield scope
+
+    @try_finally_contextmanager
+    def new_c_type_context(self, in_c_type_context=None):
+        old_c_type_context = self.in_c_type_context
+        if in_c_type_context is not None:
+            self.in_c_type_context = in_c_type_context
+        yield
+        self.in_c_type_context = old_c_type_context
 
     def declare(self, name, cname, type, pos, visibility, shadow = 0, is_type = 0, create_wrapper = 0):
         # Create new entry, and add to dictionary if

@@ -14044,10 +14044,8 @@ class AnnotationNode(ExprNode):
             if explicit_pytype and explicit_ctype:
                 warning(annotation.pos, "Duplicate type declarations found in signature annotation", level=1)
 
-        was_in_c_type_context = env.in_c_type_context
-        env.in_c_type_context = explicit_ctype
-        arg_type = annotation.analyse_as_type(env)
-        env.in_c_type_context = was_in_c_type_context
+        with env.new_c_type_context(in_c_type_context=explicit_ctype):
+            arg_type = annotation.analyse_as_type(env)
 
         if arg_type is not None and annotation.is_string_literal:
             warning(annotation.pos,
