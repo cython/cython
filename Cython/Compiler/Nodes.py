@@ -971,11 +971,10 @@ class CArgDeclNode(Node):
                 # "x: Optional[...]"  =>  explicitly allow 'None'
                 arg_type = arg_type.resolve()
                 self.or_none = True
-            elif self.default and self.default.is_none and (
-                    arg_type.is_pyobject or arg_type is PyrexTypes.c_double_type):
+            elif self.default and self.default.is_none and (arg_type.is_pyobject or arg_type.equivalent_type):
                 # "x: ... = None"  =>  implicitly allow 'None'
-                if arg_type is PyrexTypes.c_double_type:
-                    arg_type = Builtin.float_type
+                if not arg_type.is_pyobject:
+                    arg_type = arg_type.equivalent_type
                 if not self.or_none:
                     warning(self.pos, "PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.")
                     self.or_none = True
@@ -1225,8 +1224,8 @@ class TemplatedTypeNode(CBaseTypeNode):
                     type = error_type
                 # For Python generics we can be a bit more flexible and allow None.
             elif require_python_types and not type.is_pyobject:
-                if type is PyrexTypes.c_double_type and not template_node.as_cython_attribute():
-                    type = Builtin.float_type
+                if type.equivalent_type and not template_node.as_cython_attribute():
+                    type = type.equivalent_type
                 else:
                     error(template_node.pos, "%s[...] cannot be applied to non-Python type %s" % (
                         base_type.python_type_constructor_name,

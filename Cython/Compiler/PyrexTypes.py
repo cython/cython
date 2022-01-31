@@ -205,6 +205,7 @@ class PyrexType(BaseType):
     #  needs_cpp_construction  boolean     Needs C++ constructor and destructor when used in a cdef class
     #  needs_refcounting     boolean     Needs code to be generated similar to incref/gotref/decref.
     #                                    Largely used internally.
+    #  equivalent_type       type        A C or Python type that is equivalent to this Python or C type.
     #  default_value         string      Initial value that can be assigned before first user assignment.
     #  declaration_value     string      The value statically assigned on declaration (if any).
     #  entry                 Entry       The Entry for this type
@@ -277,6 +278,7 @@ class PyrexType(BaseType):
     has_attributes = 0
     needs_cpp_construction = 0
     needs_refcounting = 0
+    equivalent_type = None
     default_value = ""
     declaration_value = ""
 

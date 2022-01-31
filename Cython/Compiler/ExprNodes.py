@@ -2106,10 +2106,10 @@ class NameNode(AtomicExprNode):
         if entry and not entry.is_type and entry.known_standard_library_import:
             entry = Builtin.get_known_standard_library_entry(entry.known_standard_library_import)
         if entry and entry.is_type:
-            # Infer 'double' instead of Python 'float' when possible.
+            # Infer equivalent C types instead of Python types when possible.
             type = entry.type
-            if type.is_builtin_type and type.name == 'float':
-                type = PyrexTypes.c_double_type
+            if type.is_pyobject and type.equivalent_type:
+                type = type.equivalent_type
             return type
 
         return None
@@ -14057,7 +14057,7 @@ class AnnotationNode(ExprNode):
             # creating utility code needs to be special-cased for complex types
             arg_type.create_declaration_utility_code(env)
         if arg_type is not None:
-            if explicit_pytype and not explicit_ctype and not (arg_type.is_pyobject or arg_type is PyrexTypes.c_double_type):
+            if explicit_pytype and not explicit_ctype and not (arg_type.is_pyobject or arg_type.equivalent_type):
                 warning(annotation.pos,
                         "Python type declaration in signature annotation does not refer to a Python type")
             base_type = Nodes.CAnalysedBaseTypeNode(

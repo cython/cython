@@ -449,6 +449,16 @@ def init_builtins():
     bool_type  = builtin_scope.lookup('bool').type
     complex_type  = builtin_scope.lookup('complex').type
 
+    # Set up type inference links between equivalent Python/C types
+    bool_type.equivalent_type = PyrexTypes.c_bint_type
+    PyrexTypes.c_bint_type.equivalent_type = bool_type
+
+    float_type.equivalent_type = PyrexTypes.c_double_type
+    PyrexTypes.c_double_type.equivalent_type = float_type
+
+    complex_type.equivalent_type = PyrexTypes.c_double_complex_type
+    PyrexTypes.c_double_complex_type.equivalent_type = complex_type
+
 
 init_builtins()
 
