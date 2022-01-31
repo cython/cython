@@ -4481,6 +4481,7 @@ class SpecialPythonTypeConstructor(PythonTypeConstructor):
     def specialize_here(self, pos, env, template_values=None):
         if len(template_values) != 1:
             error(pos, "'%s' takes exactly one template argument." % self.name)
+            return error_type
         # return a copy of the template type with python_type_constructor_name as an attribute
         # so it can be identified, and a resolve function that gets back to
         # the original type (since types are usually tested with "is")
