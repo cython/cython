@@ -1110,18 +1110,23 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject els
 /////////////// PyIntBinop.proto ///////////////
 
 {{py: c_ret_type = 'PyObject*' if ret_type.is_pyobject else 'int'}}
-#if !CYTHON_COMPILING_IN_PYPY
+#if !CYTHON_COMPILING_IN_PYPY && !CYTHON_COMPILING_IN_HPY
 static {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(PyObject *op1, PyObject *op2, long intval, int inplace, int zerodivision_check); /*proto*/
-#else
+#elif CYTHON_COMPILING_IN_PYPY && !CYTHON_COMPILING_IN_HPY
 #define __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(op1, op2, intval, inplace, zerodivision_check) \
     {{if op in ('Eq', 'Ne')}}{{'' if ret_type.is_pyobject else '__Pyx_PyObject_IsTrueAndDecref'}}(PyObject_RichCompare(op1, op2, Py_{{op.upper()}}))
     {{else}}(inplace ? PyNumber_InPlace{{op}}(op1, op2) : PyNumber_{{op}}(op1, op2))
+    {{endif}}
+#else
+#define __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(ctx, op1, op2, intval, inplace, zerodivision_check) \
+    {{if op in ('Eq', 'Ne')}}{{'' if ret_type.is_pyobject else '__Pyx_PyObject_IsTrueAndDecref'}}(HPy_RichCompare(ctx, op1, op2, HPy_{{op.upper()}}))
+    {{else}}(inplace ? HPy_InPlace{{op}}(ctx, op1, op2) : HPy_{{op}}(ctx, op1, op2))
     {{endif}}
 #endif
 
 /////////////// PyIntBinop ///////////////
 
-#if !CYTHON_COMPILING_IN_PYPY
+#if !CYTHON_COMPILING_IN_PYPY && !CYTHON_COMPILING_IN_HPY
 {{py: from Cython.Utility import pylong_join }}
 {{py: pyval, ival = ('op2', 'b') if order == 'CObj' else ('op1', 'a') }}
 {{py: c_ret_type = 'PyObject*' if ret_type.is_pyobject else 'int'}}
