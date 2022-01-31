@@ -3177,10 +3177,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.put_trace_call(header3, self.pos, nogil=not code.funcstate.gil_owned)
             code.funcstate.can_trace = True
 
-        # TODO(fa): implement support
-        code.putln("#if !(%s)" % backend.hpy_guard)
         self.body.generate_execution_code(code)
-        code.putln("#endif /* %s */" % backend.hpy_guard)
 
         if profile or linetrace:
             code.funcstate.can_trace = False

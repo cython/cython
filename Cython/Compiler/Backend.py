@@ -57,6 +57,9 @@ class CApiBackend(APIBackend):
     # unicode
     unicode_from_string = "PyUnicode_FromString"
 
+    # dict
+    dict_set_item = "PyDict_SetItem"
+
     # type conversion functions
     pyfloat_fromdouble = 'PyFloat_FromDouble'
     pylong_fromstring = 'PyLong_FromString'
@@ -279,6 +282,9 @@ class HPyBackend(APIBackend):
     # unicode
     unicode_from_string = "HPyUnicode_FromString"
 
+    # dict
+    dict_set_item = "HPy_SetItem"
+
     # type conversion functions
     pyfloat_fromdouble = 'HPyFloat_FromDouble'
     pylong_fromstring = 'HPyLong_FromString'
@@ -484,6 +490,9 @@ class CombinedBackend(APIBackend):
     # unicode
     unicode_from_string = "__Pyx_API_PyUnicode_FromString"
 
+    # dict
+    dict_set_item = "__PYX_DICT_SETITEM"
+
     # type conversion functions
     pyfloat_fromdouble = "__PYX_FLOAT_FROM_DOUBLE"
     pylong_fromstring = "__PYX_LONG_FROM_STRING"
@@ -539,6 +548,7 @@ class CombinedBackend(APIBackend):
         code.putln("#define __PYX_LIST_BUILDER_BUILD %s" % CApiBackend.list_builder_build)
         code.putln("#define __Pyx_PyBytes_FromStringAndSize %s" % CApiBackend.bytes_from_string_and_size)
         code.putln("#define __Pyx_API_PyUnicode_FromString %s" % CApiBackend.unicode_from_string)
+        code.putln("#define __PYX_DICT_SETITEM %s" % CApiBackend.dict_set_item)
         code.putln("#define __PYX_ERR_OCCURRED() PyErr_Occurred()")
         code.putln("#define __PYX_FLOAT_FROM_DOUBLE %s" % CApiBackend.pyfloat_fromdouble)
         code.putln("#define __PYX_LONG_FROM_STRING %s" % CApiBackend.pylong_fromstring)
@@ -584,6 +594,7 @@ class CombinedBackend(APIBackend):
         code.putln("#define __PYX_LIST_BUILDER_BUILD %s" % HPyBackend.list_builder_build)
         code.putln("#define __Pyx_PyBytes_FromStringAndSize %s" % HPyBackend.bytes_from_string_and_size)
         code.putln("#define __Pyx_API_PyUnicode_FromString %s" % HPyBackend.unicode_from_string)
+        code.putln("#define __PYX_DICT_SETITEM %s" % HPyBackend.dict_set_item)
         code.putln("#define __PYX_ERR_OCCURRED() HPyErr_Occurred(%s)" % Naming.hpy_context_cname)
         code.putln("#define __PYX_FLOAT_FROM_DOUBLE %s" % HPyBackend.pyfloat_fromdouble)
         code.putln("#define __PYX_LONG_FROM_STRING %s" % HPyBackend.pylong_fromstring)

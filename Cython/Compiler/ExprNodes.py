@@ -2400,16 +2400,18 @@ class NameNode(AtomicExprNode):
         # We use this to access class->tp_dict if necessary.
         if entry.is_pyglobal:
             assert entry.type.is_pyobject, "Python global or builtin not a Python object"
-            interned_cname = code.intern_identifier(self.entry.name)
+            interned_cname = code.load_global(code.intern_identifier(self.entry.name), py_object_type)
             namespace = self.entry.scope.namespace_cname
+            is_namespace_global = False
             if entry.is_member:
                 # if the entry is a member we have to cheat: SetAttr does not work
                 # on types, so we create a descriptor which is then added to tp_dict
-                setter = 'PyDict_SetItem'
+                setter = backend.dict_set_item
                 namespace = '%s->tp_dict' % namespace
             elif entry.scope.is_module_scope:
-                setter = 'PyDict_SetItem'
+                setter = backend.dict_set_item
                 namespace = Naming.moddict_cname
+                is_namespace_global = True
             elif entry.is_pyclass_attr:
                 # Special-case setting __new__
                 n = "SetNewInClass" if self.name == "__new__" else "SetNameInClass"
@@ -2417,13 +2419,21 @@ class NameNode(AtomicExprNode):
                 setter = '__Pyx_' + n
             else:
                 assert False, repr(entry)
+
+            namespace_temp = code.load_global(namespace, py_object_type) if is_namespace_global else namespace
             code.put_error_if_neg(
                 self.pos,
-                '%s(%s, %s, %s)' % (
+                backend.get_call(
                     setter,
-                    namespace,
+                    namespace_temp,
                     interned_cname,
                     rhs.py_result()))
+
+            code.putln(backend.get_close_loaded_global(interned_cname))
+            code.funcstate.release_temp(interned_cname)
+            if is_namespace_global:
+                code.putln(backend.get_close_loaded_global(namespace_temp))
+                code.funcstate.release_temp(namespace_temp)
             if debug_disposal_code:
                 print("NameNode.generate_assignment_code:")
                 print("...generating disposal code for %s" % rhs)
