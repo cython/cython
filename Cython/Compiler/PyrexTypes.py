@@ -370,7 +370,7 @@ class PyrexType(BaseType):
     generate_incref = generate_xincref = generate_decref = generate_xdecref \
         = generate_decref_clear = generate_xdecref_clear \
         = generate_gotref = generate_xgotref = generate_giveref = generate_xgiveref \
-            = _generate_dummy_refcounting
+            = generate_newref = _generate_dummy_refcounting
 
     generate_decref_set = generate_xdecref_set = _generate_dummy_refcounting_assignment
 
@@ -1093,6 +1093,9 @@ class MemoryViewSliceType(PyrexType):
     def cast_code(self, expr_code):
         return expr_code
 
+    def generate_newref(self, code, target_cname, source_cname, nanny):
+        pass
+
     # When memoryviews are increfed currently seems heavily special-cased.
     # Therefore, use our own function for now
     def generate_incref(self, code, name, **kwds):
@@ -1366,6 +1369,9 @@ class PyObjectType(PyrexType):
     def check_for_null_code(self, cname):
         return cname
 
+    def generate_newref(self, code, target_cname, source_cname, nanny):
+        code.putln("%s = %s;" % (target_cname, backend.get_newref(source_cname, nanny)))
+
     def generate_incref(self, code, cname, nanny):
         # incref is mostly used to "receive" borrowed references. HPy does not have borrowed refs.
         if nanny:
@@ -1500,6 +1506,10 @@ class PyObjectGlobalType(PyObjectType):
 
     def check_for_null_code(self, cname):
         return cname
+
+    def generate_newref(self, code, target_cname, source_cname, nanny):
+        # TODO(fa)
+        assert False
 
     def generate_incref(self, code, cname, nanny):
         # TODO(fa)

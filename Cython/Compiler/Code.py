@@ -2212,6 +2212,9 @@ class CCodeWriter(object):
     def put_xgotref(self, cname, type):
         type.generate_xgotref(self, cname)
 
+    def put_newref(self, target_cname, source_cname, type, nanny=True):
+        type.generate_newref(self, target_cname, source_cname, nanny)
+
     def put_incref(self, cname, type, nanny=True):
         # Note: original put_Memslice_Incref/Decref also added in some utility code
         # this is unnecessary since the relevant utility code is loaded anyway if a memoryview is used

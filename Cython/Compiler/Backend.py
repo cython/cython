@@ -641,7 +641,8 @@ class CombinedBackend(APIBackend):
     @staticmethod
     def get_newref(var_cname, nanny=True):
         if nanny:
-            return "__Pyx_INCREF(%s)" % var_cname
+            # '__Pyx_NEWREF' is define in ModuleSetupCode::ApiBackendInitCode
+            return "__Pyx_NEWREF(%s)" % var_cname
         # '__Pyx_NEWREF_NO_REFNANNY' is define in ModuleSetupCode::ApiBackendInitCode
         return "__Pyx_NEWREF_NO_REFNANNY(%s)" % var_cname
 
