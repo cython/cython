@@ -1,9 +1,17 @@
 """
-Cython -- Things that don't belong
-          anywhere else in particular
+Cython -- Things that don't belong anywhere else in particular
 """
 
 from __future__ import absolute_import
+
+import cython
+
+cython.declare(
+    basestring=object,
+    os=object, sys=object, re=object, io=object, codecs=object, glob=object, shutil=object, tempfile=object,
+    cython_version=object,
+    _function_caches=list, _parse_file_version=object, _match_file_encoding=object,
+)
 
 try:
     from __builtin__ import basestring
@@ -23,7 +31,7 @@ import codecs
 import glob
 import shutil
 import tempfile
-from contextlib import contextmanager
+from functools import wraps
 
 from . import __version__ as cython_version
 
@@ -33,6 +41,31 @@ _build_cache_name = "__{0}_cache".format
 _CACHE_NAME_PATTERN = re.compile(r"^__(.+)_cache$")
 
 modification_time = os.path.getmtime
+
+
+class _TryFinallyGeneratorContextManager(object):
+    """
+    Fast, bare minimum @contextmanager, only for try-finally, not for exception handling.
+    """
+    def __init__(self, gen):
+        self._gen = gen
+
+    def __enter__(self):
+        return next(self._gen)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        try:
+            next(self._gen)
+        except (StopIteration, GeneratorExit):
+            pass
+
+
+def try_finally_contextmanager(gen_func):
+    @wraps(gen_func)
+    def make_gen(*args, **kwargs):
+        return _TryFinallyGeneratorContextManager(gen_func(*args, **kwargs))
+    return make_gen
+
 
 _function_caches = []
 
@@ -47,6 +80,7 @@ def cached_function(f):
     _function_caches.append(cache)
     uncomputed = object()
 
+    @wraps(f)
     def wrapper(*args):
         res = cache.get(args, uncomputed)
         if res is uncomputed:
@@ -443,7 +477,7 @@ def get_cython_cache_dir():
     return os.path.expanduser(os.path.join('~', '.cython'))
 
 
-@contextmanager
+@try_finally_contextmanager
 def captured_fd(stream=2, encoding=None):
     orig_stream = os.dup(stream)  # keep copy of original stream
     try:
@@ -455,15 +489,14 @@ def captured_fd(stream=2, encoding=None):
                 return _output[0]
 
             os.dup2(temp_file.fileno(), stream)  # replace stream by copy of pipe
-            try:
-                def get_output():
-                    result = read_output()
-                    return result.decode(encoding) if encoding else result
+            def get_output():
+                result = read_output()
+                return result.decode(encoding) if encoding else result
 
-                yield get_output
-            finally:
-                os.dup2(orig_stream, stream)  # restore original stream
-                read_output()  # keep the output in case it's used after closing the context manager
+            yield get_output
+            # note: @contextlib.contextmanager requires try-finally here
+            os.dup2(orig_stream, stream)  # restore original stream
+            read_output()  # keep the output in case it's used after closing the context manager
     finally:
         os.close(orig_stream)
 
@@ -512,23 +545,6 @@ def print_bytes(s, header_text=None, end=b'\n', file=sys.stdout, flush=True):
         out.write(end)
     if flush:
         out.flush()
-
-
-class LazyStr:
-    def __init__(self, callback):
-        self.callback = callback
-
-    def __str__(self):
-        return self.callback()
-
-    def __repr__(self):
-        return self.callback()
-
-    def __add__(self, right):
-        return self.callback() + right
-
-    def __radd__(self, left):
-        return left + self.callback()
 
 
 class OrderedSet(object):

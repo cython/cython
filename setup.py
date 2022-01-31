@@ -94,6 +94,7 @@ def compile_cython_modules(profile=False, coverage=False, compile_more=False, cy
         "Cython.Compiler.FusedNode",
         "Cython.Tempita._tempita",
         "Cython.StringIOTree",
+        "Cython.Utils",
     ]
     if compile_more:
         compiled_modules.extend([
