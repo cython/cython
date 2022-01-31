@@ -966,17 +966,21 @@ class CArgDeclNode(Node):
         if base_type is not None:
             self.base_type = base_type
 
-        if arg_type and arg_type.python_type_constructor_name == "typing.Optional":
-            # "x: Optional[...]"  =>  explicitly allow 'None'
-            arg_type = arg_type.resolve()
-            self.or_none = True
-        elif arg_type and arg_type.is_pyobject and self.default and self.default.is_none:
-            # "x: ... = None"  =>  implicitly allow 'None', but warn about it.
-            if not self.or_none:
-                warning(self.pos, "PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.")
+        if arg_type:
+            if arg_type.python_type_constructor_name == "typing.Optional":
+                # "x: Optional[...]"  =>  explicitly allow 'None'
+                arg_type = arg_type.resolve()
                 self.or_none = True
-        elif arg_type and arg_type.is_pyobject and not self.or_none:
-            self.not_none = True
+            elif self.default and self.default.is_none and (
+                    arg_type.is_pyobject or arg_type is PyrexTypes.c_double_type):
+                # "x: ... = None"  =>  implicitly allow 'None'
+                if arg_type is PyrexTypes.c_double_type:
+                    arg_type = Builtin.float_type
+                if not self.or_none:
+                    warning(self.pos, "PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.")
+                    self.or_none = True
+            elif arg_type.is_pyobject and not self.or_none:
+                self.not_none = True
 
         return arg_type
 
@@ -1202,6 +1206,38 @@ class TemplatedTypeNode(CBaseTypeNode):
 
     name = None
 
+    def _analyse_template_types(self, env, base_type):
+        was_in_c_type_context = env.in_c_type_context
+        require_python_types = base_type.python_type_constructor_name in (
+            'typing.Optional',
+            'dataclasses.ClassVar',
+        )
+        in_c_type_context = was_in_c_type_context and not require_python_types
+
+        template_types = []
+        for template_node in self.positional_args:
+            # CBaseTypeNode -> allow C type declarations in a 'cdef' context again
+            env.in_c_type_context = in_c_type_context or isinstance(template_node, CBaseTypeNode)
+            type = template_node.analyse_as_type(env)
+            if type is None:
+                if base_type.is_cpp_class:
+                    error(template_node.pos, "unknown type in template argument")
+                    type = error_type
+                # For Python generics we can be a bit more flexible and allow None.
+            elif require_python_types and not type.is_pyobject:
+                if type is PyrexTypes.c_double_type and not template_node.as_cython_attribute():
+                    type = Builtin.float_type
+                else:
+                    error(template_node.pos, "%s[...] cannot be applied to non-Python type %s" % (
+                        base_type.python_type_constructor_name,
+                        type,
+                    ))
+                    type = error_type
+            template_types.append(type)
+
+        env.in_c_type_context = was_in_c_type_context
+        return template_types
+
     def analyse(self, env, could_be_name=False, base_type=None):
         if base_type is None:
             base_type = self.base_type_node.analyse(env)
@@ -1209,33 +1245,15 @@ class TemplatedTypeNode(CBaseTypeNode):
 
         if ((base_type.is_cpp_class and base_type.is_template_type()) or
                 base_type.python_type_constructor_name):
-            # Templated class
+            # Templated class, Python generics, etc.
             if self.keyword_args and self.keyword_args.key_value_pairs:
                 tp = "c++ templates" if base_type.is_cpp_class else "indexed types"
                 error(self.pos, "%s cannot take keyword arguments" % tp)
                 self.type = PyrexTypes.error_type
-            else:
-                template_types = []
-                for template_node in self.positional_args:
-                    type = template_node.analyse_as_type(env)
-                    if type is None and base_type.is_cpp_class:
-                        error(template_node.pos, "unknown type in template argument")
-                        type = error_type
-                    elif type and base_type.python_type_constructor_name and not (type.is_pyobject or type.is_memoryviewslice):
-                        if base_type.python_type_constructor_name in ('dataclasses.InitVar',):
-                            pass  # Allow any type (Python or C) for these.
-                        elif type.is_numeric and template_node.is_name and template_node.name in ('int', 'long', 'float', 'complex'):
-                            # int, long, float, complex  =>  make sure we use the Python types
-                            type = env.builtin_scope().lookup_here(template_node.name).type
-                        else:
-                            error(template_node.pos, "%s[...] cannot be applied to non-Python type %s" % (
-                                base_type.python_type_constructor_name,
-                                type,
-                            ))
-                            type = error_type
-                    # for indexed_pytype we can be a bit more flexible and pass None
-                    template_types.append(type)
-                self.type = base_type.specialize_here(self.pos, env, template_types)
+                return self.type
+
+            template_types = self._analyse_template_types(env, base_type)
+            self.type = base_type.specialize_here(self.pos, env, template_types)
 
         elif base_type.is_pyobject:
             # Buffer

@@ -1530,14 +1530,18 @@ class FloatNode(ConstNode):
 
 
 def _analyse_name_as_type(name, pos, env):
-    type = PyrexTypes.parse_basic_type(name)
-    if type is not None:
-        return type
+    ctype = PyrexTypes.parse_basic_type(name)
+    if ctype is not None and env.in_c_type_context:
+        return ctype
 
     global_entry = env.global_scope().lookup(name)
-    if global_entry and global_entry.is_type and global_entry.type:
-        return global_entry.type
+    if global_entry and global_entry.is_type:
+        type = global_entry.type
+        if type and (type.is_pyobject or env.in_c_type_context):
+            return type
+        ctype = ctype or type
 
+    # This is fairly heavy, so it's worth trying some easier things above.
     from .TreeFragment import TreeFragment
     with local_errors(ignore=True):
         pos = (pos[0], pos[1], pos[2]-7)
@@ -1550,8 +1554,11 @@ def _analyse_name_as_type(name, pos, env):
             if isinstance(sizeof_node, SizeofTypeNode):
                 sizeof_node = sizeof_node.analyse_types(env)
                 if isinstance(sizeof_node, SizeofTypeNode):
-                    return sizeof_node.arg_type
-    return None
+                    type = sizeof_node.arg_type
+                    if type and (type.is_pyobject or env.in_c_type_context):
+                        return type
+                    ctype = ctype or type
+    return ctype
 
 
 class BytesNode(ConstNode):
@@ -2085,23 +2092,27 @@ class NameNode(AtomicExprNode):
         return None
 
     def analyse_as_type(self, env):
+        type = None
         if self.cython_attribute:
             type = PyrexTypes.parse_basic_type(self.cython_attribute)
-        else:
+        elif env.in_c_type_context:
             type = PyrexTypes.parse_basic_type(self.name)
         if type:
             return type
+
         entry = self.entry
         if not entry:
             entry = env.lookup(self.name)
-        if entry and entry.is_type:
-            return entry.type
-        elif entry and entry.known_standard_library_import:
+        if entry and not entry.is_type and entry.known_standard_library_import:
             entry = Builtin.get_known_standard_library_entry(entry.known_standard_library_import)
-            if entry and entry.is_type:
-                return entry.type
-        else:
-            return None
+        if entry and entry.is_type:
+            # Infer 'double' instead of Python 'float' when possible.
+            type = entry.type
+            if type.is_builtin_type and type.name == 'float':
+                type = PyrexTypes.c_double_type
+            return type
+
+        return None
 
     def analyse_as_extension_type(self, env):
         # Try to interpret this as a reference to an extension type.
@@ -14016,7 +14027,6 @@ class AnnotationNode(ExprNode):
             return None, None
         annotation = self.expr
         base_type = None
-        is_ambiguous = False
         explicit_pytype = explicit_ctype = False
         if annotation.is_dict_literal:
             warning(annotation.pos,
@@ -14033,19 +14043,13 @@ class AnnotationNode(ExprNode):
                     annotation = value
             if explicit_pytype and explicit_ctype:
                 warning(annotation.pos, "Duplicate type declarations found in signature annotation", level=1)
+
+        was_in_c_type_context = env.in_c_type_context
+        env.in_c_type_context = explicit_ctype
         arg_type = annotation.analyse_as_type(env)
-        if annotation.is_name and not annotation.cython_attribute and annotation.name in ('int', 'long', 'float'):
-            # Map builtin numeric Python types to C types in safe cases.
-            if assigned_value is not None and arg_type is not None and not arg_type.is_pyobject:
-                assigned_type = assigned_value.infer_type(env)
-                if assigned_type and assigned_type.is_pyobject:
-                    # C type seems unsafe, e.g. due to 'None' default value  => ignore annotation type
-                    is_ambiguous = True
-                    arg_type = None
-            # ignore 'int' and require 'cython.int' to avoid unsafe integer declarations
-            if arg_type in (PyrexTypes.c_long_type, PyrexTypes.c_int_type, PyrexTypes.c_float_type):
-                arg_type = PyrexTypes.c_double_type if annotation.name == 'float' else py_object_type
-        elif arg_type is not None and annotation.is_string_literal:
+        env.in_c_type_context = was_in_c_type_context
+
+        if arg_type is not None and annotation.is_string_literal:
             warning(annotation.pos,
                     "Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.",
                     level=1)
@@ -14053,13 +14057,11 @@ class AnnotationNode(ExprNode):
             # creating utility code needs to be special-cased for complex types
             arg_type.create_declaration_utility_code(env)
         if arg_type is not None:
-            if explicit_pytype and not explicit_ctype and not arg_type.is_pyobject:
+            if explicit_pytype and not explicit_ctype and not (arg_type.is_pyobject or arg_type is PyrexTypes.c_double_type):
                 warning(annotation.pos,
                         "Python type declaration in signature annotation does not refer to a Python type")
             base_type = Nodes.CAnalysedBaseTypeNode(
                 annotation.pos, type=arg_type, is_arg=True)
-        elif is_ambiguous:
-            warning(annotation.pos, "Ambiguous types in annotation, ignoring")
         else:
             warning(annotation.pos, "Unknown type declaration in annotation, ignoring")
         return base_type, arg_type

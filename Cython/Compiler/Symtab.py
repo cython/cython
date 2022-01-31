@@ -366,6 +366,8 @@ class Scope(object):
     nogil = 0
     fused_to_specific = None
     return_type = None
+    # Do ambiguous type names like 'int' and 'float' refer to the C types? (Otherwise, Python types.)
+    in_c_type_context = True
 
     def __init__(self, name, outer_scope, parent_scope):
         # The outer_scope is the next scope in the lookup chain.

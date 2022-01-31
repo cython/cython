@@ -11,14 +11,14 @@ except ImportError:
     pass
 
 
-def old_dict_syntax(a: list, b: "int" = 2, c: {'ctype': 'long int'} = 3, d: {'type': 'float'} = 4) -> list:
+def old_dict_syntax(a: list, b: "int" = 2, c: {'ctype': 'long int'} = 3, d: {'type': 'long int'} = 4) -> list:
     """
     >>> old_dict_syntax([1])
-    ('list object', 'int', 'long', 'float')
-    [1, 2, 3, 4.0]
+    ('list object', 'int object', 'long', 'long')
+    [1, 2, 3, 4]
     >>> old_dict_syntax([1], 3)
-    ('list object', 'int', 'long', 'float')
-    [1, 3, 3, 4.0]
+    ('list object', 'int object', 'long', 'long')
+    [1, 3, 3, 4]
     >>> old_dict_syntax(123)
     Traceback (most recent call last):
     TypeError: Argument 'a' has incorrect type (expected list, got int)
@@ -33,16 +33,16 @@ def old_dict_syntax(a: list, b: "int" = 2, c: {'ctype': 'long int'} = 3, d: {'ty
     return a
 
 
-def pytypes_def(a: list, b: int = 2, c: long = 3, d: float = 4, n: list = None, o: Optional[tuple] = ()) -> list:
+def pytypes_def(a: list, b: int = 2, c: long = 3, d: float = 4.0, n: list = None, o: Optional[tuple] = ()) -> list:
     """
     >>> pytypes_def([1])
-    ('list object', 'Python object', 'Python object', 'double', 'list object', 'tuple object')
+    ('list object', 'int object', 'long object', 'double', 'list object', 'tuple object')
     [1, 2, 3, 4.0, None, ()]
     >>> pytypes_def([1], 3)
-    ('list object', 'Python object', 'Python object', 'double', 'list object', 'tuple object')
+    ('list object', 'int object', 'long object', 'double', 'list object', 'tuple object')
     [1, 3, 3, 4.0, None, ()]
     >>> pytypes_def([1], 3, 2, 1, [], None)
-    ('list object', 'Python object', 'Python object', 'double', 'list object', 'tuple object')
+    ('list object', 'int object', 'long object', 'double', 'list object', 'tuple object')
     [1, 3, 2, 1.0, [], None]
     >>> pytypes_def(123)
     Traceback (most recent call last):
@@ -60,16 +60,16 @@ def pytypes_def(a: list, b: int = 2, c: long = 3, d: float = 4, n: list = None, 
     return a
 
 
-cpdef pytypes_cpdef(a: list, b: int = 2, c: long = 3, d: float = 4, n: list = None, o: Optional[tuple] = ()):
+cpdef pytypes_cpdef(a: list, b: int = 2, c: long = 3, d: float = 4.0, n: list = None, o: Optional[tuple] = ()):
     """
     >>> pytypes_cpdef([1])
-    ('list object', 'Python object', 'Python object', 'double', 'list object', 'tuple object')
+    ('list object', 'int object', 'long object', 'double', 'list object', 'tuple object')
     [1, 2, 3, 4.0, None, ()]
     >>> pytypes_cpdef([1], 3)
-    ('list object', 'Python object', 'Python object', 'double', 'list object', 'tuple object')
+    ('list object', 'int object', 'long object', 'double', 'list object', 'tuple object')
     [1, 3, 3, 4.0, None, ()]
     >>> pytypes_cpdef([1], 3, 2, 1, [], None)
-    ('list object', 'Python object', 'Python object', 'double', 'list object', 'tuple object')
+    ('list object', 'int object', 'long object', 'double', 'list object', 'tuple object')
     [1, 3, 2, 1.0, [], None]
     >>> pytypes_cpdef(123)
     Traceback (most recent call last):
@@ -87,7 +87,7 @@ cpdef pytypes_cpdef(a: list, b: int = 2, c: long = 3, d: float = 4, n: list = No
     return a
 
 
-cdef c_pytypes_cdef(a: list, b: int = 2, c: long = 3, d: float = 4, n: list = None):
+cdef c_pytypes_cdef(a: list, b: int = 2, c: long = 3, d: float = 4.0, n: list = None):
     print(typeof(a), typeof(b), typeof(c), typeof(d), typeof(n))
     a.append(b)
     a.append(c)
@@ -99,10 +99,10 @@ cdef c_pytypes_cdef(a: list, b: int = 2, c: long = 3, d: float = 4, n: list = No
 def pytypes_cdef(a, b=2, c=3, d=4):
     """
     >>> pytypes_cdef([1])
-    ('list object', 'Python object', 'Python object', 'double', 'list object')
+    ('list object', 'int object', 'long object', 'double', 'list object')
     [1, 2, 3, 4.0, None]
     >>> pytypes_cdef([1], 3)
-    ('list object', 'Python object', 'Python object', 'double', 'list object')
+    ('list object', 'int object', 'long object', 'double', 'list object')
     [1, 3, 3, 4.0, None]
     >>> pytypes_cdef(123)   # doctest: +ELLIPSIS
     Traceback (most recent call last):
@@ -284,18 +284,20 @@ def py_float_default(price : float=None, ndigits=4):
 
     >>> py_float_default()
     (None, 4)
-    >>> py_float_default(2)
-    (2, 4)
+    >>> py_float_default(2)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...float...
     >>> py_float_default(2.0)
     (2.0, 4)
-    >>> py_float_default(2, 3)
-    (2, 3)
+    >>> py_float_default(2, 3)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...float...
     """
     return price, ndigits
 
 
 cdef class ClassAttribute:
-    cls_attr : float = 1.
+    cls_attr : cython.float = 1.
 
 
 @cython.cfunc
@@ -336,8 +338,7 @@ _WARNINGS = """
 63:68: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
 90:68: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
 274:44: Unknown type declaration in annotation, ignoring
-281:29: Ambiguous types in annotation, ignoring
-298:15: Annotation ignored since class-level attributes must be Python objects. Were you trying to set up an instance attribute?
+300:15: Annotation ignored since class-level attributes must be Python objects. Were you trying to set up an instance attribute?
 # BUG:
 63:6: 'pytypes_cpdef' redeclared
 146:0: 'struct_io' redeclared
