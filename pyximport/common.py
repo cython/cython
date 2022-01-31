@@ -38,8 +38,12 @@ if sys.version_info.major == 2:
 else:
     def load_source(file_path):
         import importlib.util
-        spec = importlib.util.spec_from_file_location("XXXX", file_path)
-        return importlib.util.module_from_spec(spec)
+        from importlib.machinery import SourceFileLoader
+        spec = importlib.util.spec_from_file_location("XXXX", file_path, loader=SourceFileLoader("XXXX", file_path))
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
 
 def get_distutils_extension(modname, pyxfilename, language_level=None):
     extension_mod,setup_args = handle_special_build(modname, pyxfilename)
@@ -52,26 +56,23 @@ def get_distutils_extension(modname, pyxfilename, language_level=None):
         extension_mod = Extension(name=modname, sources=[pyxfilename])
         if language_level is not None:
             extension_mod.cython_directives = {'language_level': language_level}
-    return extension_mod,setup_args
+    return extension_mod, setup_args
 
 
 def handle_special_build(modname, pyxfilename):
     special_build = os.path.splitext(pyxfilename)[0] + PYXBLD_EXT
     ext = None
-    setup_args={}
+    setup_args = {}
     if os.path.exists(special_build):
-        # python3:
-        # spec = importlib.util.spec_from_file_location(module_name, file_path)
-        # module = importlib.util.module_from_spec(spec)
         mod = load_source(special_build)
-        make_ext = getattr(mod,'make_ext',None)
+        make_ext = getattr(mod, 'make_ext', None)
         if make_ext:
             ext = make_ext(modname, pyxfilename)
             assert ext and ext.sources, "make_ext in %s did not return Extension" % special_build
-        make_setup_args = getattr(mod, 'make_setup_args',None)
+        make_setup_args = getattr(mod, 'make_setup_args', None)
         if make_setup_args:
             setup_args = make_setup_args()
-            assert isinstance(setup_args,dict), ("make_setup_args in %s did not return a dict"
+            assert isinstance(setup_args, dict), ("make_setup_args in %s did not return a dict"
                                          % special_build)
         assert set or setup_args, ("neither make_ext nor make_setup_args %s"
                                          % special_build)
