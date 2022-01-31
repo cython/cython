@@ -19,12 +19,12 @@ TODO: Conditionally support 128-bit with intmax_t?
 
 /////////////// Common.proto ///////////////
 
-static int __Pyx_check_twos_complement(void) {
+static int __Pyx_check_twos_complement(__PYX_CONTEXT_DECL0) {
     if ((-1 != ~0)) {
-        PyErr_SetString(PyExc_RuntimeError, "Two's complement required for overflow checks.");
+        __Pyx_PyErr_SetString(__Pyx_PyExc_RuntimeError, "Two's complement required for overflow checks.");
         return 1;
     } else if ((sizeof(short) == sizeof(int))) {
-        PyErr_SetString(PyExc_RuntimeError, "sizeof(short) < sizeof(int) required for overflow checks.");
+        __Pyx_PyErr_SetString(__Pyx_PyExc_RuntimeError, "sizeof(short) < sizeof(int) required for overflow checks.");
         return 1;
     } else {
         return 0;
@@ -66,11 +66,20 @@ static int __Pyx_check_twos_complement(void) {
 
 /////////////// Common.init ///////////////
 //@substitute: naming
+//@requires: ModuleSetupCode.c::ApiBackendInitCode
 
 // FIXME: Propagate the error here instead of just printing it.
+#if !CYTHON_COMPILING_IN_HPY
 if (unlikely(__Pyx_check_twos_complement())) {
-    PyErr_WriteUnraisable($module_cname);
+    PyErr_WriteUnraisable(__PYX_CONTEXT $module_cname);
 }
+#else /* !CYTHON_COMPILING_IN_HPY */
+if (unlikely(__Pyx_check_twos_complement($hpy_context_cname))) {
+    HPy h_module = HPyField_Load($hpy_context_cname, $hpy_context_cname->h_None, $module_cname);
+    __Pyx_PyErr_WriteUnraisable($hpy_context_cname, h_module);
+    HPy_Close($hpy_context_cname, h_module);
+}
+#endif /* !CYTHON_COMPILING_IN_HPY */
 
 /////////////// BaseCaseUnsigned.proto ///////////////
 

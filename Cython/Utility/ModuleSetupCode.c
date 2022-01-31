@@ -487,6 +487,7 @@ static CYTHON_INLINE HPy _HPy_GetModuleDict(HPyContext *ctx);
 static CYTHON_INLINE int _HPy_Contains(HPyContext *ctx, HPy x, HPy y);
 static CYTHON_INLINE HPy _HPyImport_AddModule(HPyContext *ctx, const char *name);
 static CYTHON_INLINE HPy _HPyDict_GetItem_s(HPyContext *ctx, HPy dict, const char *name);
+static CYTHON_INLINE void _HPyErr_WriteUnraisable(HPyContext *ctx, HPy h);
 #endif /* CYTHON_COMPILING_IN_HPY */
 
 /////////////// HPyInitCode ///////////////
@@ -598,6 +599,11 @@ static CYTHON_INLINE HPy _HPyDict_GetItem_s(HPyContext *ctx, HPy dict, const cha
     return h_result;
 }
 
+static CYTHON_INLINE void _HPyErr_WriteUnraisable(HPyContext *ctx, HPy h)
+{
+    /* TODO(fa): implement */
+}
+
 #endif /* CYTHON_COMPILING_IN_HPY */
 
 /////////////// ApiBackendInitCode ///////////////
@@ -624,6 +630,7 @@ static CYTHON_INLINE HPy _HPyDict_GetItem_s(HPyContext *ctx, HPy dict, const cha
 #define __Pyx_PyErr_SetString(err, msg) PyErr_SetString(err, msg)
 #define __Pyx_PyErr_Format PyErr_Format
 #define __Pyx_PyExc_RuntimeError PyExc_RuntimeError
+#define __Pyx_PyErr_WriteUnraisable PyErr_WriteUnraisable
 
 #define __Pyx_PyModule_GetDict PyModule_GetDict
 #define __Pyx_PyImport_AddModule PyImport_AddModule
@@ -658,6 +665,7 @@ static CYTHON_INLINE HPy _HPyDict_GetItem_s(HPyContext *ctx, HPy dict, const cha
 #define __Pyx_PyErr_Format(ctx, err, msg, ...) HPyErr_SetString(ctx, err, msg)
 #define __Pyx_PyExc_RuntimeError (($hpy_context_cname)->h_RuntimeError)
 #define __Pyx_PyExc_TypeError (($hpy_context_cname)->h_RuntimeError)
+#define __Pyx_PyErr_WriteUnraisable(ctx, obj) _HPyErr_WriteUnraisable(ctx, obj)
 
 #define PyLong_AsLong HPyLong_AsLong
 #define PyLong_AsLongLong HPyLong_AsLongLong
