@@ -96,10 +96,15 @@ static CYTHON_INLINE {{type}} {{type_name}}_from_parts({{real_type}}, {{real_typ
 
 /////////////// FromPy.proto ///////////////
 
+#if !CYTHON_COMPILING_IN_HPY
 static {{type}} __Pyx_PyComplex_As_{{type_name}}(PyObject*);
+#else /* !CYTHON_COMPILING_IN_HPY */
+static {{type}} __Pyx_PyComplex_As_{{type_name}}(HPyContext *ctx, HPy o);
+#endif /* !CYTHON_COMPILING_IN_HPY */
 
 /////////////// FromPy ///////////////
 
+#if !CYTHON_COMPILING_IN_HPY
 static {{type}} __Pyx_PyComplex_As_{{type_name}}(PyObject* o) {
     Py_complex cval;
 #if !CYTHON_COMPILING_IN_PYPY
@@ -112,6 +117,33 @@ static {{type}} __Pyx_PyComplex_As_{{type_name}}(PyObject* o) {
                ({{real_type}})cval.real,
                ({{real_type}})cval.imag);
 }
+#else /* !CYTHON_COMPILING_IN_HPY */
+static {{type}} __Pyx_PyComplex_As_{{type_name}}(HPyContext *ctx, HPy o) {
+    Py_complex cval;
+    HPy h_real = HPy_NULL;
+    HPy h_imag = HPy_NULL;
+
+    /* TODO(fa): coercion using __complex__ */
+
+    h_real = HPy_GetAttr_s(ctx, o, "real");
+    if (!HPy_IsNull(h_real)) {
+        cval.real = HPyFloat_AsDouble(ctx, h_real);
+        HPy_Close(ctx, h_real);
+
+        if (!HPyErr_Occurred(ctx)) {
+            h_imag = HPy_GetAttr_s(ctx, o, "imag");
+            if (!HPy_IsNull(h_imag)) {
+                cval.imag = HPyFloat_AsDouble(ctx, h_imag);
+                HPy_Close(ctx, h_imag);
+            }
+        }
+    }
+
+    return {{type_name}}_from_parts(
+               ({{real_type}})cval.real,
+               ({{real_type}})cval.imag);
+}
+#endif /* !CYTHON_COMPILING_IN_HPY */
 
 
 /////////////// Arithmetic.proto ///////////////
