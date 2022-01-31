@@ -1,0 +1,7 @@
+sphinx
+sphinx-issues
+sphinx-tabs
+ipython # for ipythonconsole lexer
+sphinx-rtd-theme # readthedocs sphinx theme
+sphinx-autobuild # optional for easy auto-reload in browser
+sphinx-version-warning # for banner
