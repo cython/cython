@@ -3588,6 +3588,7 @@ class DefNodeWrapper(FuncDefNode):
 
     def generate_function_header(self, code, with_pymethdef, proto_only=0):
         arg_code_list = []
+        hpy_arg_code_list = []
         sig = self.signature
 
         if sig.has_dummy_arg or self.self_in_stararg:
@@ -3595,28 +3596,33 @@ class DefNodeWrapper(FuncDefNode):
             if not sig.has_dummy_arg:
                 arg_code = 'CYTHON_UNUSED ' + arg_code
             arg_code_list.append(arg_code)
+            hpy_arg_code_list.append(arg_code)
 
         for arg in self.args:
             if not arg.is_generic:
                 if arg.is_self_arg or arg.is_type_arg:
                     arg_code_list.append(backend.get_pyobject_var_decl(arg.hdr_cname))
+                    hpy_arg_code_list.append(backend.get_pyobject_var_decl(arg.hdr_cname))
                 else:
                     arg_code_list.append(
+                        arg.hdr_type.declaration_code(arg.hdr_cname))
+                    hpy_arg_code_list.append(
                         arg.hdr_type.declaration_code(arg.hdr_cname))
         entry = self.target.entry
         if not entry.is_special and sig.method_flags() == [TypeSlots.method_noargs]:
             arg_code_list.append("CYTHON_UNUSED " + backend.get_pyobject_var_decl("unused"))
         if entry.scope.is_c_class_scope and entry.name == "__ipow__":
             arg_code_list.append("CYTHON_UNUSED " + backend.get_pyobject_var_decl("unused"))
+            hpy_arg_code_list.append("CYTHON_UNUSED " + backend.get_pyobject_var_decl("unused"))
         if sig.has_generic_args:
-            varargs_args = "%s, %s" % (
-                backend.get_pyobject_var_decl(Naming.args_cname), backend.get_pyobject_var_decl(Naming.kwds_cname))
             if sig.use_fastcall:
-                arg_code_list.append(
-                    "\n#if CYTHON_METH_FASTCALL\n%s\n#else\n%s\n#endif\n" % (
-                        backend.get_arg_list_fastcall(), backend.get_arg_list_keywords()))
+                fastcall_sig = "\n#if CYTHON_METH_FASTCALL\n%s\n#else\n%s\n#endif\n" % (
+                    backend.get_arg_list_fastcall(), backend.get_arg_list_keywords())
+                arg_code_list.append(fastcall_sig)
+                hpy_arg_code_list.append(fastcall_sig)
             else:
                 arg_code_list.append(backend.get_arg_list_keywords())
+                hpy_arg_code_list.append(backend.get_arg_list_keywords())
 
         # Prevent warning: unused function '__pyx_pw_5numpy_7ndarray_1__getbuffer__'
         mf = ""
@@ -3626,8 +3632,14 @@ class DefNodeWrapper(FuncDefNode):
             with_pymethdef = False
 
         dc = self.return_type.declaration_code(entry.func_cname)
-        header = "static %s%s(%s)" % (mf, dc, backend.get_arg_list(*arg_code_list))
-        code.putln("%s; /*proto*/" % header)
+        if arg_code_list != hpy_arg_code_list:
+            cpy_header = "static %s%s(%s)" % (mf, dc, CApiBackend.get_arg_list(*arg_code_list))
+            hpy_header = "static %s%s(%s)" % (mf, dc, HPyBackend.get_arg_list(*hpy_arg_code_list))
+            header = backend.get_both(cpy_header, hpy_header)
+        else:
+            header = "static %s%s(%s)" % (mf, dc, backend.get_arg_list(*arg_code_list))
+        code.putln(header)
+        code.putln("; /*proto*/")
 
         if proto_only:
             if self.target.fused_py_func:
@@ -3661,7 +3673,8 @@ class DefNodeWrapper(FuncDefNode):
 
         if with_pymethdef or self.target.fused_py_func:
             code.put_pymethoddef(entry, allow_skip=False)
-        code.putln("%s {" % header)
+        code.putln(header)
+        code.putln("{")
 
     def generate_argument_declarations(self, env, code):
         for arg in self.args:
