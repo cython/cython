@@ -27,6 +27,7 @@
     ((__pyx_CyFunctionObject *) (f))->defaults_getter = (g)
 
 
+#if !CYTHON_COMPILING_IN_HPY
 typedef struct {
 #if PY_VERSION_HEX < 0x030900B1
     PyCFunctionObject func;
@@ -67,6 +68,13 @@ typedef struct {
     PyObject *func_is_coroutine;
 } __pyx_CyFunctionObject;
 
+#else /* !CYTHON_COMPILING_IN_HPY */
+
+/* TODO(fa): do proper type def */
+typedef int __pyx_CyFunctionObject;
+
+#endif /* !CYTHON_COMPILING_IN_HPY */
+
 #if !CYTHON_USE_MODULE_STATE
 static PyTypeObject *__pyx_CyFunctionType = 0;
 #endif
@@ -82,15 +90,15 @@ static PyObject *__Pyx_CyFunction_Init(__pyx_CyFunctionObject* op, PyMethodDef *
                                       PyObject* code);
 
 static CYTHON_INLINE void __Pyx__CyFunction_SetClassObj(__pyx_CyFunctionObject* f, PyObject* classobj);
-static CYTHON_INLINE void *__Pyx_CyFunction_InitDefaults(PyObject *m,
+static CYTHON_INLINE void *__Pyx_CyFunction_InitDefaults(__PYX_OBJECT_CTYPE m,
                                                          size_t size,
                                                          int pyobjects);
-static CYTHON_INLINE void __Pyx_CyFunction_SetDefaultsTuple(PyObject *m,
-                                                            PyObject *tuple);
-static CYTHON_INLINE void __Pyx_CyFunction_SetDefaultsKwDict(PyObject *m,
-                                                             PyObject *dict);
-static CYTHON_INLINE void __Pyx_CyFunction_SetAnnotationsDict(PyObject *m,
-                                                              PyObject *dict);
+static CYTHON_INLINE void __Pyx_CyFunction_SetDefaultsTuple(__PYX_CONTEXT_DECL __PYX_OBJECT_CTYPE m,
+                                                            __PYX_OBJECT_CTYPE tuple);
+static CYTHON_INLINE void __Pyx_CyFunction_SetDefaultsKwDict(__PYX_CONTEXT_DECL __PYX_OBJECT_CTYPE m,
+                                                             __PYX_OBJECT_CTYPE dict);
+static CYTHON_INLINE void __Pyx_CyFunction_SetAnnotationsDict(__PYX_CONTEXT_DECL __PYX_OBJECT_CTYPE m,
+                                                              __PYX_OBJECT_CTYPE dict);
 
 
 static int __pyx_CyFunction_init(PyObject *module);
@@ -109,6 +117,7 @@ static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS_METHOD(PyObject 
 
 //////////////////// CythonFunctionShared ////////////////////
 //@substitute: naming
+//@requires: ModuleSetupCode.c::ApiBackendInitCode
 //@requires: CommonStructures.c::FetchCommonType
 //@requires: ObjectHandling.c::PyMethodNew
 //@requires: ObjectHandling.c::PyVectorcallFastCallDict
@@ -1088,7 +1097,21 @@ static CYTHON_INLINE void __Pyx_CyFunction_SetAnnotationsDict(PyObject *func, Py
     Py_INCREF(dict);
 }
 
-#endif /* CythonFunctionShared; HPY */
+#else /* !CYTHON_COMPILING_IN_HPY */
+
+static CYTHON_INLINE void __Pyx_CyFunction_SetDefaultsTuple(HPyContext *ctx, HPy func, HPy tuple) {
+    /* TODO(fa): implement */
+}
+
+static CYTHON_INLINE void __Pyx_CyFunction_SetDefaultsKwDict(HPyContext *ctx, HPy func, HPy dict) {
+    /* TODO(fa): implement */
+}
+
+static CYTHON_INLINE void __Pyx_CyFunction_SetAnnotationsDict(HPyContext *ctx, HPy func, HPy dict) {
+    /* TODO(fa): implement */
+}
+
+#endif /* !CYTHON_COMPILING_IN_HPY */
 
 
 //////////////////// CythonFunction.proto ////////////////////
