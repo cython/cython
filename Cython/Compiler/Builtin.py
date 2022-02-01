@@ -481,21 +481,20 @@ def get_known_standard_library_module_scope(module_name):
                 ('Set', set_type),
                 ('FrozenSet', frozenset_type),
                 ]:
-            name = EncodedString(name)
             if name == "Tuple":
                 indexed_type = PyrexTypes.PythonTupleTypeConstructor(EncodedString("typing."+name), tp)
             else:
                 indexed_type = PyrexTypes.PythonTypeConstructor(EncodedString("typing."+name), tp)
-            entry = mod.declare_type(name, indexed_type, pos = None)
+            mod.declare_type(EncodedString(name), indexed_type, pos = None)
 
         for name in ['ClassVar', 'Optional']:
             indexed_type = PyrexTypes.SpecialPythonTypeConstructor(EncodedString("typing."+name))
-            entry = mod.declare_type(name, indexed_type, pos = None)
+            mod.declare_type(name, indexed_type, pos = None)
         _known_module_scopes[module_name] = mod
     elif module_name == "dataclasses":
         mod = ModuleScope(module_name, None, None)
         indexed_type = PyrexTypes.SpecialPythonTypeConstructor(EncodedString("dataclasses.InitVar"))
-        entry = mod.declare_type(EncodedString("InitVar"), indexed_type, pos = None)
+        mod.declare_type(EncodedString("InitVar"), indexed_type, pos = None)
         _known_module_scopes[module_name] = mod
     return mod
 
