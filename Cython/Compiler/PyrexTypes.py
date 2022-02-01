@@ -1209,95 +1209,6 @@ class BufferType(BaseType):
                 (not compare_base or self.base.same_as(other_type.base)))
 
 
-class HPyType(PyrexType):
-    #
-    #  Class for HPy handle type.
-    #
-
-    name = "hpy"
-    is_hpy = 1
-    default_value = "HPy_NULL"
-    declaration_value = "HPy_NULL"
-    buffer_defaults = None
-    is_extern = False
-    is_subclassed = False
-    is_gc_simple = False
-    builtin_trashcan = False  # builtin type using trashcan
-    needs_refcounting = True
-
-    def __str__(self):
-        return "HPy handle"
-
-    def __repr__(self):
-        return "<HPy>"
-
-    def can_coerce_to_pyobject(self, env):
-        return True
-
-    def can_coerce_from_pyobject(self, env):
-        return True
-
-    def default_coerced_ctype(self):
-        """The default C type that this Python type coerces to, or None."""
-        return None
-
-    def assignable_from(self, src_type):
-        # except for pointers, conversion will be attempted
-        return src_type.is_hpy
-
-    def declaration_code(self, entity_code,
-                         for_display = 0, dll_linkage = None, pyrex = 0):
-        if pyrex or for_display:
-            base_code = "object"
-        else:
-            base_code = public_decl("HPy", dll_linkage)
-            entity_code = "%s" % entity_code
-        return self.base_declaration_code(base_code, entity_code)
-
-    def as_pyobject(self, cname):
-        if (not self.is_complete()) or self.is_extension_type:
-            return "(PyObject *)" + cname
-        else:
-            return cname
-
-    def py_type_name(self):
-        return "hpy"
-
-    def __lt__(self, other):
-        """
-        Make sure we sort highest, as instance checking on py_type_name
-        ('object') is always true
-        """
-        return False
-
-    def global_init_code(self, entry, code):
-        code.put_init_var_to_py_none(entry, nanny=False)
-
-    def check_for_null_code(self, cname):
-        return cname
-
-    def generate_dup(self, code, hpy_ctx_cname, cname):
-        code.putln("HPy_Dup(%s, %s);" % (hpy_ctx_cname, cname))
-
-    def generate_close(self, code, hpy_ctx_cname, cname, have_gil):
-        # have_gil is for the benefit of memoryviewslice - it's ignored here
-        assert have_gil
-        self._generate_close(code, hpy_ctx_cname, cname)
-
-    def generate_close_clear(self, code, hpy_ctx_cname, cname, clear_before_decref, have_gil):
-        self._generate_close(code, hpy_ctx_cname, cname, clear_before_decref=clear_before_decref)
-
-    def _generate_close(self, code, hpy_ctx_cname, cname, clear_before_decref=False):
-        if clear_before_decref:
-            # TODO(fa): maybe introduce a macro
-            pass
-        code.putln("HPy_Close(%s, %s); %s = HPy_NULL;" % (
-            hpy_ctx_cname, cname, cname))
-
-    def nullcheck_string(self, cname):
-        return cname
-
-
 class PyObjectType(PyrexType):
     #
     #  Base class for all Python object types (reference-counted).
@@ -2568,14 +2479,6 @@ class CPySSizeTType(CIntType):
 
     def sign_and_name(self):
         return backend.pyssizet_ctype
-
-class CHPySSizeTType(CIntType):
-
-    to_py_function = "HPyLong_FromSsize_t"
-    from_py_function = "HPyLong_AsSsize_t"
-
-    def sign_and_name(self):
-        return "HPy_ssize_t"
 
 class CSSizeTType(CIntType):
 
@@ -4757,7 +4660,6 @@ if backend.pyobject_ctype != backend.list_builder_ctype:
     list_builder_type = ListBuilderType()
 else:
     list_builder_type = py_object_type
-hpy_type = HPyType()
 
 c_void_type =        CVoidType()
 
@@ -4794,7 +4696,6 @@ c_py_unicode_type =  CPyUnicodeIntType(RANK_INT-0.5, UNSIGNED)
 c_py_ucs4_type =     CPyUCS4IntType(RANK_LONG-0.5, UNSIGNED)
 c_py_hash_t_type =   CPyHashTType(RANK_LONG+0.5, SIGNED)
 c_py_ssize_t_type =  CPySSizeTType(RANK_LONG+0.5, SIGNED)
-c_hpy_ssize_t_type =  CHPySSizeTType(RANK_LONG+0.5, SIGNED)
 c_ssize_t_type =     CSSizeTType(RANK_LONG+0.5, SIGNED)
 c_size_t_type =      CSizeTType(RANK_LONG+0.5, UNSIGNED)
 c_ptrdiff_t_type =   CPtrdiffTType(RANK_LONG+0.75, SIGNED)
@@ -4813,7 +4714,6 @@ c_const_py_unicode_ptr_type = CPtrType(CConstType(c_py_unicode_type))
 c_py_ssize_t_ptr_type =  CPtrType(c_py_ssize_t_type)
 c_ssize_t_ptr_type =  CPtrType(c_ssize_t_type)
 c_size_t_ptr_type =  CPtrType(c_size_t_type)
-c_hpy_ptr_type =      CPtrType(hpy_type)
 
 # GIL state
 c_gilstate_type = CEnumType("PyGILState_STATE", "PyGILState_STATE", True)
@@ -4900,12 +4800,6 @@ modifiers_and_name_to_type = {
     (2,  0, "ptrdiff_t") : c_ptrdiff_t_type,
 
     (1,  0, "object"): py_object_type,
-}
-
-# CPy to HPy type translation table
-hpy_type_mapping = {
-    py_object_type: hpy_type,
-    c_py_ssize_t_type: c_hpy_ssize_t_type,
 }
 
 def is_promotion(src_type, dst_type):
