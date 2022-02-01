@@ -224,6 +224,7 @@ static CYTHON_INLINE HPy __Pyx_PyInt_FromSize_t(HPyContext *, size_t);
 static CYTHON_INLINE HPy_hash_t __Pyx_PyIndex_AsHash_t(HPyContext *, HPy);
 
 static CYTHON_INLINE HPy __Pyx_PyUnicode_FromString(HPyContext *ctx, const char* c_str);
+#define __Pyx_PyObject_IsTrue HPy_IsTrue
 static CYTHON_INLINE HPy __Pyx_PyNumber_IntOrLong(HPyContext *ctx, HPy x);
 
 #endif /* CYTHON_COMPILING_IN_HPY */

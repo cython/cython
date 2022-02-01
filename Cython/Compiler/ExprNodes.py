@@ -3182,7 +3182,7 @@ class WithExitCallNode(ExprNode):
 
         if self.result_is_used:
             self.allocate_temp_result(code)
-            code.putln("%s = __Pyx_PyObject_IsTrue(%s);" % (self.result(), result_var))
+            code.putln("%s = %s;" % (backend.get_call("__Pyx_PyObject_IsTrue", self.result(), result_var)))
         code.put_decref_clear(result_var, type=py_object_type)
         if self.result_is_used:
             code.put_error_if_neg(self.pos, self.result())
@@ -12240,9 +12240,9 @@ class BoolBinopNode(ExprNode):
             test_result = code.funcstate.allocate_temp(
                 PyrexTypes.c_bint_type, manage_ref=False)
             code.putln(
-                "%s = __Pyx_PyObject_IsTrue(%s); %s" % (
+                "%s = %s; %s" % (
                     test_result,
-                    self.operand1.py_result(),
+                    backend.get_call("__Pyx_PyObject_IsTrue", self.operand1.py_result()),
                     code.error_goto_if_neg(test_result, self.pos)))
         else:
             test_result = self.operand1.result()
@@ -12297,9 +12297,9 @@ class BoolBinopResultNode(ExprNode):
             test_result = code.funcstate.allocate_temp(
                 PyrexTypes.c_bint_type, manage_ref=False)
             code.putln(
-                "%s = __Pyx_PyObject_IsTrue(%s); %s" % (
+                "%s = %s; %s" % (
                     test_result,
-                    self.arg.py_result(),
+                    backend.get_call("__Pyx_PyObject_IsTrue", self.arg.py_result()),
                     code.error_goto_if_neg(test_result, self.pos)))
         else:
             test_result = self.arg.result()
@@ -13163,7 +13163,7 @@ class CascadedCmpNode(Node, CmpNode):
 
     def generate_evaluation_code(self, code, result, operand1, needs_evaluation=False):
         if self.type.is_pyobject:
-            code.putln("if (__Pyx_PyObject_IsTrue(%s)) {" % result)
+            code.putln("if (%s) {" % backend.get_call("__Pyx_PyObject_IsTrue", result))
             code.put_decref(result, self.type)
         else:
             code.putln("if (%s) {" % result)
@@ -13684,9 +13684,9 @@ class CoerceToBooleanNode(CoercionNode):
             code.putln("%s = %s;" % (self.result(), '&&'.join(checks)))
         else:
             code.putln(
-                "%s = __Pyx_PyObject_IsTrue(%s); %s" % (
+                "%s = %s; %s" % (
                     self.result(),
-                    self.arg.py_result(),
+                    backend.get_call("__Pyx_PyObject_IsTrue", self.arg.py_result()),
                     code.error_goto_if_neg(self.result(), self.pos)))
 
     def analyse_types(self, env):
