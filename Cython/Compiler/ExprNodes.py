@@ -3156,10 +3156,12 @@ class WithExitCallNode(ExprNode):
         code.mark_pos(self.pos)
         code.globalstate.use_utility_code(UtilityCode.load_cached(
             "PyObjectCall", "ObjectHandling.c"))
-        code.putln("%s = __Pyx_PyObject_Call(%s, %s, NULL);" % (
+        code.putln("%s = %s;" % (
             result_var,
-            self.with_stat.exit_var,
-            self.args.result()))
+            backend.get_call('__Pyx_PyObject_Call',
+                             self.with_stat.exit_var,
+                             self.args.result(),
+                             backend.pyobject_init_value)))
         code.put_decref_clear(self.with_stat.exit_var, type=py_object_type)
         self.args.generate_disposal_code(code)
         self.args.free_temps(code)
@@ -6113,10 +6115,12 @@ class SimpleCallNode(CallNode):
             code.globalstate.use_utility_code(UtilityCode.load_cached(
                 "PyObjectCall", "ObjectHandling.c"))
             code.putln(
-                "%s = __Pyx_PyObject_Call(%s, %s, NULL); %s" % (
+                "%s = %s; %s" % (
                     self.result(),
-                    self.function.py_result(),
-                    arg_code,
+                    backend.get_call('__Pyx_PyObject_Call',
+                                     self.function.py_result(),
+                                     arg_code,
+                                     backend.pyobject_init_value),
                     code.error_goto_if_null(self.result(), self.pos)))
             self.generate_gotref(code)
         elif func_type.is_cfunction:
@@ -6692,11 +6696,12 @@ class GeneralCallNode(CallNode):
         code.globalstate.use_utility_code(UtilityCode.load_cached(
             "PyObjectCall", "ObjectHandling.c"))
         code.putln(
-            "%s = __Pyx_PyObject_Call(%s, %s, %s); %s" % (
+            "%s = %s; %s" % (
                 self.result(),
-                self.function.py_result(),
-                self.positional_args.py_result(),
-                kwargs,
+                backend.get_call('__Pyx_PyObject_Call',
+                                 self.function.py_result(),
+                                 self.positional_args.py_result(),
+                                 kwargs),
                 code.error_goto_if_null(self.result(), self.pos)))
         self.generate_gotref(code)
 
