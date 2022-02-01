@@ -9582,7 +9582,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
     gil_message = "Constructing Python function"
 
     def closure_result_code(self):
-        return "NULL"
+        return backend.pyobject_init_value
 
     def generate_result_code(self, code):
         if self.binding:
@@ -9639,18 +9639,25 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         else:
             flags = '0'
 
+        qualname_temp = code.load_global(self.get_py_qualified_name(code), py_object_type, nanny=False)
+        modname_temp = code.load_global(self.get_py_mod_name(code), py_object_type, nanny=False)
+        moddict_temp = code.load_global(Naming.moddict_cname, py_object_type, nanny=False)
         code.putln(
-            '%s = %s(&%s, %s, %s, %s, %s, %s, %s); %s' % (
-                self.result(),
-                constructor,
-                self.pymethdef_cname,
-                flags,
-                self.get_py_qualified_name(code),
-                self.closure_result_code(),
-                self.get_py_mod_name(code),
-                Naming.moddict_cname,
-                code_object_result,
+            '%s = %s; %s' % (
+                self.result(), backend.get_call(
+                    constructor,
+                    "&" + self.pymethdef_cname,
+                    flags,
+                    qualname_temp,
+                    self.closure_result_code(),
+                    modname_temp,
+                    moddict_temp,
+                    code_object_result),
                 code.error_goto_if_null(self.result(), self.pos)))
+
+        for x in (qualname_temp, modname_temp, moddict_temp):
+            code.putln(backend.get_close_loaded_global(x))
+            code.funcstate.release_temp(x)
 
         self.generate_gotref(code)
 
