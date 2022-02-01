@@ -214,9 +214,14 @@ bad:
 
 #else /* CYTHON_COMPILING_IN_HPY */
 
+
 #define __Pyx_NewRef(ctx, obj) HPy_Dup(ctx, obj)
 #define __pyx_PyFloat_AsDouble(ctx, x) HPyFloat_AsDouble(ctx, x)
 #define __pyx_PyFloat_AsFloat(ctx, x) ((float) HPyFloat_AsDouble(ctx, x))
+
+static CYTHON_INLINE HPy_ssize_t __Pyx_PyIndex_AsSsize_t(HPyContext *, HPy);
+static CYTHON_INLINE HPy __Pyx_PyInt_FromSize_t(HPyContext *, size_t);
+static CYTHON_INLINE HPy_hash_t __Pyx_PyIndex_AsHash_t(HPyContext *, HPy);
 
 static CYTHON_INLINE HPy __Pyx_PyUnicode_FromString(HPyContext *ctx, const char* c_str);
 static CYTHON_INLINE HPy __Pyx_PyNumber_IntOrLong(HPyContext *ctx, HPy x);
@@ -486,6 +491,24 @@ static CYTHON_INLINE HPy __Pyx_PyUnicode_FromString(HPyContext *ctx, const char*
     return HPyUnicode_FromString(ctx, c_str);
 }
 
+static CYTHON_INLINE HPy __Pyx_PyInt_FromSize_t(HPyContext *ctx, size_t ival) {
+    return HPyLong_FromSize_t(ctx, ival);
+}
+
+static CYTHON_INLINE HPy_hash_t __Pyx_PyIndex_AsHash_t(HPyContext *ctx, HPy o) {
+  if (sizeof(HPy_hash_t) == sizeof(HPy_ssize_t)) {
+    return (HPy_hash_t) __Pyx_PyIndex_AsSsize_t(ctx, o);
+  } else {
+    HPy_ssize_t ival;
+    HPy x = HPy_Index(ctx, o);
+    if (HPy_IsNull(x)) return -1;
+    ival = HPyLong_AsLong(ctx, x);
+    HPy_Close(ctx, x);
+    return ival;
+  }
+}
+
+
 static HPy __Pyx_PyNumber_IntOrLongWrongResultType(HPyContext *ctx, HPy result, const char* type_name) {
 /* TODO(fa): implement
     __Pyx_TypeName result_type_name = __Pyx_PyType_GetName(Py_TYPE(result));
@@ -537,6 +560,20 @@ static CYTHON_INLINE HPy __Pyx_PyNumber_IntOrLong(HPyContext *ctx, HPy x) {
   }
   return res;
 }
+
+static CYTHON_INLINE HPy_ssize_t __Pyx_PyIndex_AsSsize_t(HPyContext *ctx, HPy b) {
+  HPy_ssize_t ival;
+  HPy x;
+  if (likely(HPy_Is(ctx, HPy_Type(ctx, b), ctx->h_LongType))) {
+    return HPyLong_AsSsize_t(ctx, b);
+  }
+  x = HPy_Index(ctx, b);
+  if (HPy_IsNull(x)) return -1;
+  ival = HPyLong_AsSsize_t(ctx, x);
+  HPy_Close(ctx, x);
+  return ival;
+}
+
 
 #endif /* CYTHON_COMPILING_IN_HPY */
 
