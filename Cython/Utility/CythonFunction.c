@@ -1093,15 +1093,24 @@ static CYTHON_INLINE void __Pyx_CyFunction_SetAnnotationsDict(PyObject *func, Py
 
 //////////////////// CythonFunction.proto ////////////////////
 
+#if !CYTHON_COMPILING_IN_HPY
 static PyObject *__Pyx_CyFunction_New(PyMethodDef *ml,
                                       int flags, PyObject* qualname,
                                       PyObject *closure,
                                       PyObject *module, PyObject *globals,
                                       PyObject* code);
+#else /* !CYTHON_COMPILING_IN_HPY */
+static HPy __Pyx_CyFunction_New(HPyContext *ctx, HPyDef *ml,
+                                      int flags, HPy qualname,
+                                      HPy closure,
+                                      HPy module, HPy globals,
+                                      HPy code);
+#endif /* !CYTHON_COMPILING_IN_HPY */
 
 //////////////////// CythonFunction ////////////////////
 //@requires: CythonFunctionShared
 
+#if !CYTHON_COMPILING_IN_HPY
 static PyObject *__Pyx_CyFunction_New(PyMethodDef *ml, int flags, PyObject* qualname,
                                       PyObject *closure, PyObject *module, PyObject* globals, PyObject* code) {
     PyObject *op = __Pyx_CyFunction_Init(
@@ -1113,6 +1122,13 @@ static PyObject *__Pyx_CyFunction_New(PyMethodDef *ml, int flags, PyObject* qual
     }
     return op;
 }
+#else /* !CYTHON_COMPILING_IN_HPY */
+static HPy __Pyx_CyFunction_New(HPyContext *ctx, HPyDef *ml, int flags, HPy qualname,
+                                      HPy closure, HPy module, HPy globals, HPy code) {
+    /* TODO(fa): implement */
+    return ctx->h_None;
+}
+#endif /* !CYTHON_COMPILING_IN_HPY */
 
 
 //////////////////// CyFunctionClassCell.proto ////////////////////
