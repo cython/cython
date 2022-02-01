@@ -2309,7 +2309,7 @@ class NameNode(AtomicExprNode):
             return  # Lookup already cached
         elif entry.is_pyclass_attr:
             assert entry.type.is_pyobject, "Python global or builtin not a Python object"
-            interned_cname = code.intern_identifier(self.entry.name)
+            globalname_temp = code.load_global(code.intern_identifier(self.entry.name), py_object_type, nanny=False)
             if entry.is_builtin:
                 namespace = Naming.builtins_cname
             else:  # entry.is_pyglobal
@@ -2318,13 +2318,15 @@ class NameNode(AtomicExprNode):
                 code.putln(
                     '%s = %s;' % (
                         backend.get_call('__Pyx_PyObject_GetItem', self.result(), namespace),
-                        interned_cname))
+                        globalname_temp))
                 code.putln('if (unlikely(%s)) {' % backend.get_is_null_cond(self.result()))
                 code.putln('PyErr_Clear();')
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("GetModuleGlobalName", "ObjectHandling.c"))
             code.putln(
-                backend.get_call('__Pyx_GetModuleGlobalName', self.result(), interned_cname))
+                backend.get_call('__Pyx_GetModuleGlobalName', self.result(), globalname_temp))
+            code.putln(backend.get_close_loaded_global(globalname_temp))
+            code.funcstate.release_temp(globalname_temp)
             if not self.cf_is_null:
                 code.putln("}")
             code.putln(code.error_goto_if_null(self.result(), self.pos))
@@ -2346,24 +2348,26 @@ class NameNode(AtomicExprNode):
         elif entry.is_pyglobal or (entry.is_builtin and entry.scope.is_module_scope):
             # name in class body, global name or unknown builtin
             assert entry.type.is_pyobject, "Python global or builtin not a Python object"
-            interned_cname = code.intern_identifier(self.entry.name)
+            globalname_temp = code.load_global(code.intern_identifier(self.entry.name), py_object_type, nanny=False)
             if entry.scope.is_module_scope:
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("GetModuleGlobalName", "ObjectHandling.c"))
                 code.putln('%s; %s' % (
-                    backend.get_call('__Pyx_GetModuleGlobalName', self.result(), interned_cname),
+                    backend.get_call('__Pyx_GetModuleGlobalName', self.result(), globalname_temp),
                     code.error_goto_if_null(self.result(), self.pos)))
             else:
                 # FIXME: is_pyglobal is also used for class namespace
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("GetNameInClass", "ObjectHandling.c"))
-                code.putln(
-                    '__Pyx_GetNameInClass(%s, %s, %s); %s' % (
-                        self.result(),
-                        entry.scope.namespace_cname,
-                        interned_cname,
+                code.putln('%s; %s' % (
+                        backend.get_call('__Pyx_GetNameInClass',
+                                         self.result(),
+                                         entry.scope.namespace_cname,
+                                         globalname_temp),
                         code.error_goto_if_null(self.result(), self.pos)))
             self.generate_gotref(code)
+            code.putln(backend.get_close_loaded_global(globalname_temp))
+            code.funcstate.release_temp(globalname_temp)
 
         elif entry.is_local or entry.in_closure or entry.from_closure or entry.type.is_memoryviewslice:
             # Raise UnboundLocalError for objects and memoryviewslices
