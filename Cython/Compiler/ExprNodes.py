@@ -9673,30 +9673,30 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
 
         if self.defaults:
             code.putln(
-                'if (!__Pyx_CyFunction_InitDefaults(%s, sizeof(%s), %d)) %s' % (
-                    self.result(), self.defaults_struct.name,
-                    self.defaults_pyobjects, code.error_goto(self.pos)))
-            defaults = '__Pyx_CyFunction_Defaults(%s, %s)' % (
+                'if (!%s) %s' % (backend.get_call('__Pyx_CyFunction_InitDefaults',
+                    self.result(), 'sizeof(%s)' % self.defaults_struct.name,
+                    self.defaults_pyobjects), code.error_goto(self.pos)))
+            defaults = backend.get_call('__Pyx_CyFunction_Defaults',
                 self.defaults_struct.name, self.result())
             for arg, entry in self.defaults:
                 arg.generate_assignment_code(code, target='%s->%s' % (
                     defaults, entry.cname))
 
         if self.defaults_tuple:
-            code.putln('__Pyx_CyFunction_SetDefaultsTuple(%s, %s);' % (
+            code.putln('%s;' % backend.get_call('__Pyx_CyFunction_SetDefaultsTuple',
                 self.result(), self.defaults_tuple.py_result()))
         if not self.specialized_cpdefs:
             # disable introspection functions for fused dispatcher function since the user never sees it
             # TODO: this is mostly disabled because the attributes end up pointing to ones belonging
             #  to the specializations - ideally this would be fixed instead
             if self.defaults_kwdict:
-                code.putln('__Pyx_CyFunction_SetDefaultsKwDict(%s, %s);' % (
+                code.putln('%s;' % backend.get_call('__Pyx_CyFunction_SetDefaultsKwDict',
                     self.result(), self.defaults_kwdict.py_result()))
             if def_node.defaults_getter:
-                code.putln('__Pyx_CyFunction_SetDefaultsGetter(%s, %s);' % (
+                code.putln('%s;' % backend.get_call('__Pyx_CyFunction_SetDefaultsGetter',
                     self.result(), def_node.defaults_getter.entry.pyfunc_cname))
             if self.annotations_dict:
-                code.putln('__Pyx_CyFunction_SetAnnotationsDict(%s, %s);' % (
+                code.putln('%s;' % backend.get_call('__Pyx_CyFunction_SetAnnotationsDict',
                     self.result(), self.annotations_dict.py_result()))
 
 

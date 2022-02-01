@@ -1,6 +1,7 @@
 # mode: run
 # ticket: t698
 # distutils: extra_compile_args=-fwrapv
+#tag: hpy
 
 cdef extern from *:
     int INT_MAX
