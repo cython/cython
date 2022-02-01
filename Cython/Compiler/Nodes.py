@@ -1216,7 +1216,7 @@ class TemplatedTypeNode(CBaseTypeNode):
         template_types = []
         for template_node in self.positional_args:
             # CBaseTypeNode -> allow C type declarations in a 'cdef' context again
-            with env.new_c_type_context(in_c_type_context or isinstance(template_node, CBaseTypeNode))
+            with env.new_c_type_context(in_c_type_context or isinstance(template_node, CBaseTypeNode)):
                 type = template_node.analyse_as_type(env)
             if type is None:
                 if base_type.is_cpp_class:
