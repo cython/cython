@@ -5,7 +5,10 @@ __Pyx_Coroutine_Set_Owned_Yield_From(__pyx_CoroutineObject *gen, PyObject *yf) {
     // NOTE: steals a reference to yf by transfering it to 'gen->yieldfrom' !
     assert (!gen->yieldfrom_am_send);
     assert (!gen->yieldfrom);
-    if (__Pyx_PyType_HasFeature(Py_TYPE(yf), Py_TPFLAGS_HAVE_AM_SEND)) {
+#if PY_VERSION_HEX < 0x030A00F0
+    if (__Pyx_PyType_HasFeature(Py_TYPE(yf), __Pyx_TPFLAGS_HAVE_AM_SEND))
+#endif
+    {
         __Pyx_PyAsyncMethodsStruct* am = __Pyx_PyType_AsAsync(yf);
         if (likely(am) && likely(am->am_send)) {
             gen->yieldfrom_am_send = am->am_send;
@@ -1751,7 +1754,7 @@ static PyTypeObject __pyx_CoroutineAwaitType_type = {
     0,                                  /*tp_getattro*/
     0,                                  /*tp_setattro*/
     0,                                  /*tp_as_buffer*/
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_AM_SEND, /*tp_flags*/
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | __Pyx_TPFLAGS_HAVE_AM_SEND, /*tp_flags*/
     PyDoc_STR("A wrapper object implementing __await__ for coroutines."), /*tp_doc*/
     (traverseproc) __Pyx_CoroutineAwait_traverse,   /*tp_traverse*/
     (inquiry) __Pyx_CoroutineAwait_clear,           /*tp_clear*/
@@ -1934,7 +1937,7 @@ static PyTypeObject __pyx_CoroutineType_type = {
     0,                                  /*tp_getattro*/
     0,                                  /*tp_setattro*/
     0,                                  /*tp_as_buffer*/
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_FINALIZE | Py_TPFLAGS_HAVE_AM_SEND, /*tp_flags*/
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_FINALIZE | __Pyx_TPFLAGS_HAVE_AM_SEND, /*tp_flags*/
     0,                                  /*tp_doc*/
     (traverseproc) __Pyx_Coroutine_traverse,   /*tp_traverse*/
     0,                                  /*tp_clear*/
@@ -2082,7 +2085,7 @@ static PyTypeObject __pyx_IterableCoroutineType_type = {
     0,                                  /*tp_getattro*/
     0,                                  /*tp_setattro*/
     0,                                  /*tp_as_buffer*/
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_FINALIZE | Py_TPFLAGS_HAVE_AM_SEND, /*tp_flags*/
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_FINALIZE | __Pyx_TPFLAGS_HAVE_AM_SEND, /*tp_flags*/
     0,                                  /*tp_doc*/
     (traverseproc) __Pyx_Coroutine_traverse,   /*tp_traverse*/
     0,                                  /*tp_clear*/
@@ -2240,7 +2243,7 @@ static PyTypeObject __pyx_GeneratorType_type = {
     0,                                  /*tp_getattro*/
     0,                                  /*tp_setattro*/
     0,                                  /*tp_as_buffer*/
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_FINALIZE | Py_TPFLAGS_HAVE_AM_SEND, /*tp_flags*/
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_FINALIZE | __Pyx_TPFLAGS_HAVE_AM_SEND, /*tp_flags*/
     0,                                  /*tp_doc*/
     (traverseproc) __Pyx_Coroutine_traverse,   /*tp_traverse*/
     0,                                  /*tp_clear*/

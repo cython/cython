@@ -1073,14 +1073,20 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #elif PY_VERSION_HEX >= 0x030500B1
       #define __Pyx_SlotTpAsAsync(s) ((PyAsyncMethods*)&(s))
       #define __Pyx_PyType_AsAsync(obj) ((__Pyx_PyAsyncMethodsStruct*) (Py_TYPE(obj)->tp_as_async))
+  #else
+      #define __Pyx_SlotTpAsAsync(s) ((PyAsyncMethods*)&(s))
+      #define __Pyx_PyType_AsAsync(obj) ((__Pyx_PyAsyncMethodsStruct*) (Py_TYPE(obj)->tp_reserved))
   #endif
 #else
     #define __Pyx_SlotTpAsAsync(s)  0
     #define __Pyx_PyType_AsAsync(obj) NULL
 #endif
 
-#ifndef Py_TPFLAGS_HAVE_AM_SEND
-    #define Py_TPFLAGS_HAVE_AM_SEND (1UL << 21)
+// Use a flag in Py < 3.10 to mark coroutines that have the "am_send" field.
+#if PY_VERSION_HEX < 0x030A00F0
+    #define __Pyx_TPFLAGS_HAVE_AM_SEND (1UL << 21)
+#else
+    #define __Pyx_TPFLAGS_HAVE_AM_SEND (0)
 #endif
 #ifndef __Pyx_PySendResult
     typedef enum {
@@ -1099,12 +1105,6 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
         unaryfunc am_anext;
         __Pyx_pyiter_sendfunc am_send;
     } __Pyx_PyAsyncMethodsStruct;
-#endif
-#ifndef __Pyx_SlotTpAsAsync
-    #define __Pyx_SlotTpAsAsync(s) ((PyAsyncMethods*)&(s))
-#endif
-#ifndef __Pyx_PyType_AsAsync
-    #define __Pyx_PyType_AsAsync(obj) ((__Pyx_PyAsyncMethodsStruct*) (Py_TYPE(obj)->tp_reserved))
 #endif
 
 
