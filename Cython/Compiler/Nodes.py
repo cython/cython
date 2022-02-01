@@ -962,9 +962,10 @@ class CArgDeclNode(Node):
         annotation = self.annotation
         if not annotation:
             return None
-        base_type, arg_type = annotation.analyse_type_annotation(env, assigned_value=self.default)
-        if base_type is not None:
-            self.base_type = base_type
+        modifiers, arg_type = annotation.analyse_type_annotation(env, assigned_value=self.default)
+        if arg_type is not None:
+            self.base_type = CAnalysedBaseTypeNode(
+                annotation.pos, type=arg_type, is_arg=True)
 
         if arg_type:
             if arg_type.python_type_constructor_name == "typing.Optional":

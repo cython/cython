@@ -2032,6 +2032,8 @@ class NameNode(AtomicExprNode):
             # annotations never create global cdef names
             if env.is_module_scope:
                 return
+
+            modifiers = ()
             if (
                 # name: "description" => not a type, but still a declared variable or attribute
                 annotation.expr.is_string_literal
@@ -2043,10 +2045,11 @@ class NameNode(AtomicExprNode):
                 # For Python class scopes every attribute is a Python object
                 atype = py_object_type
             else:
-                _, atype = annotation.analyse_type_annotation(env)
+                modifiers, atype = annotation.analyse_type_annotation(env)
+
             if atype is None:
                 atype = unspecified_type if as_target and env.directives['infer_types'] != False else py_object_type
-            if atype.is_fused and env.fused_to_specific:
+            elif atype.is_fused and env.fused_to_specific:
                 try:
                     atype = atype.specialize(env.fused_to_specific)
                 except CannotSpecialize:
@@ -2054,6 +2057,7 @@ class NameNode(AtomicExprNode):
                           "'%s' cannot be specialized since its type is not a fused argument to this function" %
                           self.name)
                     atype = error_type
+
             visibility = 'private'
             if 'dataclasses.dataclass' in env.directives:
                 # handle "frozen" directive - full inspection of the dataclass directives happens
@@ -2067,12 +2071,15 @@ class NameNode(AtomicExprNode):
                 if atype.is_pyobject or atype.can_coerce_to_pyobject(env):
                     visibility = 'readonly' if is_frozen else 'public'
                     # If the object can't be coerced that's fine - we just don't create a property
+
             if as_target and env.is_c_class_scope and not (atype.is_pyobject or atype.is_error):
                 # TODO: this will need revising slightly if annotated cdef attributes are implemented
                 atype = py_object_type
                 warning(annotation.pos, "Annotation ignored since class-level attributes must be Python objects. "
                         "Were you trying to set up an instance attribute?", 2)
+
             entry = self.entry = env.declare_var(name, atype, self.pos, is_cdef=not as_target, visibility=visibility)
+
         # Even if the entry already exists, make sure we're supplying an annotation if we can.
         if annotation and not entry.annotation:
             entry.annotation = annotation
@@ -14024,9 +14031,9 @@ class AnnotationNode(ExprNode):
     def analyse_type_annotation(self, env, assigned_value=None):
         if self.untyped:
             # Already applied as a fused type, not re-evaluating it here.
-            return None, None
+            return [], None
         annotation = self.expr
-        base_type = None
+        modifiers = []
         explicit_pytype = explicit_ctype = False
         if annotation.is_dict_literal:
             warning(annotation.pos,
@@ -14047,6 +14054,8 @@ class AnnotationNode(ExprNode):
         with env.new_c_type_context(in_c_type_context=explicit_ctype):
             arg_type = annotation.analyse_as_type(env)
 
+        # TODO: extract modifiers like "typing.Optional" and "dataclasses.InitVar"
+
         if arg_type is not None and annotation.is_string_literal:
             warning(annotation.pos,
                     "Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.",
@@ -14058,11 +14067,9 @@ class AnnotationNode(ExprNode):
             if explicit_pytype and not explicit_ctype and not (arg_type.is_pyobject or arg_type.equivalent_type):
                 warning(annotation.pos,
                         "Python type declaration in signature annotation does not refer to a Python type")
-            base_type = Nodes.CAnalysedBaseTypeNode(
-                annotation.pos, type=arg_type, is_arg=True)
         else:
             warning(annotation.pos, "Unknown type declaration in annotation, ignoring")
-        return base_type, arg_type
+        return modifiers, arg_type
 
 
 class AssignmentExpressionNode(ExprNode):
