@@ -529,6 +529,13 @@ class _ExpressionOrderCoerceToTempTransform(VisitorTransform):
         if depends_on_entries.intersection(other_nodes.may_modify_entries):
             return node.coerce_to_temp(self.current_env)
         for entry in depends_on_entries:
+            # Assume that known builtins/consts can't be modified
+            # OptimizeBuiltinCalls has a slightly more sophisticated way
+            # of checking for builtins (especially where they've been partially
+            # transformed). If this check isn't sufficient then it probably needs
+            # doing after OptimizeBuiltinCalls
+            if entry.is_builtin or entry.is_const:
+                continue
             if other_nodes.may_modify_nonlocals and (
                     entry.is_pyglobal or entry.is_cglobal or entry.in_closure):
                 return node.coerce_to_temp(self.current_env)
