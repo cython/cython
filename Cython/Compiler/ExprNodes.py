@@ -2078,7 +2078,9 @@ class NameNode(AtomicExprNode):
                 warning(annotation.pos, "Annotation ignored since class-level attributes must be Python objects. "
                         "Were you trying to set up an instance attribute?", 2)
 
-            entry = self.entry = env.declare_var(name, atype, self.pos, is_cdef=not as_target, visibility=visibility)
+            entry = self.entry = env.declare_var(
+                name, atype, self.pos, is_cdef=not as_target, visibility=visibility,
+                pytyping_modifiers=modifiers)
 
         # Even if the entry already exists, make sure we're supplying an annotation if we can.
         if annotation and not entry.annotation:
@@ -14054,21 +14056,29 @@ class AnnotationNode(ExprNode):
         with env.new_c_type_context(in_c_type_context=explicit_ctype):
             arg_type = annotation.analyse_as_type(env)
 
-        # TODO: extract modifiers like "typing.Optional" and "dataclasses.InitVar"
+        if arg_type is None:
+            warning(annotation.pos, "Unknown type declaration in annotation, ignoring")
+            return modifiers, arg_type
 
-        if arg_type is not None and annotation.is_string_literal:
+        if annotation.is_string_literal:
             warning(annotation.pos,
                     "Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.",
                     level=1)
-        elif arg_type is not None and arg_type.is_complex:
+        if explicit_pytype and not explicit_ctype and not (arg_type.is_pyobject or arg_type.equivalent_type):
+            warning(annotation.pos,
+                    "Python type declaration in signature annotation does not refer to a Python type")
+        if arg_type.is_complex:
             # creating utility code needs to be special-cased for complex types
             arg_type.create_declaration_utility_code(env)
-        if arg_type is not None:
-            if explicit_pytype and not explicit_ctype and not (arg_type.is_pyobject or arg_type.equivalent_type):
-                warning(annotation.pos,
-                        "Python type declaration in signature annotation does not refer to a Python type")
-        else:
-            warning(annotation.pos, "Unknown type declaration in annotation, ignoring")
+
+        # Check for declaration modifiers, e.g. "typing.Optional[...]" or "dataclasses.InitVar[...]"
+        modifier_node = annotation
+        while modifier_node.is_subscript:
+            modifier_type = modifier_node.base.analyse_as_type(env)
+            if modifier_type.python_type_constructor_name and modifier_type.modifier_name:
+                modifiers.append(modifier_type.modifier_name)
+            modifier_node = modifier_node.index
+
         return modifiers, arg_type
 
 

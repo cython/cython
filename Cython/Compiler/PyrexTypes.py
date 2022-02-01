@@ -4409,6 +4409,7 @@ class ErrorType(PyrexType):
 class PythonTypeConstructor(PyObjectType):
     """Used to help Cython interpret indexed types from the typing module (or similar)
     """
+    modifier_name = None
 
     def __init__(self, name, base_type=None):
         self.python_type_constructor_name = name
@@ -4443,56 +4444,28 @@ class PythonTupleTypeConstructor(PythonTypeConstructor):
 
 class SpecialPythonTypeConstructor(PythonTypeConstructor):
     """
-    For things like ClassVar, Optional, etc, which have extra features on top of being
-    a "templated" type.
+    For things like ClassVar, Optional, etc, which are not types and disappear during type analysis.
     """
 
-    def __init__(self, name, template_type=None):
-        super(SpecialPythonTypeConstructor, self).__init__(name, None)
-        if (name == "typing.ClassVar" and template_type
-                and not template_type.is_pyobject):
-            # because classvars end up essentially used as globals they have
-            # to be PyObjects. Try to find the nearest suitable type (although
-            # practically I doubt this matters).
-            py_type_name = template_type.py_type_name()
-            if py_type_name:
-                from .Builtin import builtin_scope
-                template_type = (builtin_scope.lookup_type(py_type_name)
-                                        or py_object_type)
-            else:
-                template_type = py_object_type
-        self.template_type = template_type
+    def __init__(self, name):
+        super(SpecialPythonTypeConstructor, self).__init__(name, base_type=None)
+        self.modifier_name = name
 
     def __repr__(self):
-        if self.template_type:
-            return "%s[%r]" % (self.name, self.template_type)
-        else:
-            return self.name
-
-    def is_template_type(self):
-        return self.template_type is None
+        return self.name
 
     def resolve(self):
-        if self.template_type:
-            return self.template_type.resolve()
-        else:
-            return self
+        return self
 
     def specialize_here(self, pos, env, template_values=None):
         if len(template_values) != 1:
             error(pos, "'%s' takes exactly one template argument." % self.name)
             return error_type
-        # return a copy of the template type with python_type_constructor_name as an attribute
-        # so it can be identified, and a resolve function that gets back to
-        # the original type (since types are usually tested with "is")
-        return SpecialPythonTypeConstructor(
-            self.python_type_constructor_name,
-            template_type=template_values[0])
-
-    def __getattr__(self, name):
-        if self.template_type:
-            return getattr(self.template_type, name)
-        return super(SpecialPythonTypeConstructor, self).__getattr__(name)
+        if template_values[0] is None:
+            # FIXME: allowing unknown types for now since we don't recognise all Python types.
+            return None
+        # Replace this type with the actual 'template' argument.
+        return template_values[0].resolve()
 
 
 rank_to_type_name = (

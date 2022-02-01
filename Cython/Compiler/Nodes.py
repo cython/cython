@@ -968,7 +968,7 @@ class CArgDeclNode(Node):
                 annotation.pos, type=arg_type, is_arg=True)
 
         if arg_type:
-            if arg_type.python_type_constructor_name == "typing.Optional":
+            if "typing.Optional" in modifiers:
                 # "x: Optional[...]"  =>  explicitly allow 'None'
                 arg_type = arg_type.resolve()
                 self.or_none = True
@@ -1217,22 +1217,22 @@ class TemplatedTypeNode(CBaseTypeNode):
         for template_node in self.positional_args:
             # CBaseTypeNode -> allow C type declarations in a 'cdef' context again
             with env.new_c_type_context(in_c_type_context or isinstance(template_node, CBaseTypeNode)):
-                type = template_node.analyse_as_type(env)
-            if type is None:
+                ttype = template_node.analyse_as_type(env)
+            if ttype is None:
                 if base_type.is_cpp_class:
                     error(template_node.pos, "unknown type in template argument")
-                    type = error_type
+                    ttype = error_type
                 # For Python generics we can be a bit more flexible and allow None.
-            elif require_python_types and not type.is_pyobject:
-                if type.equivalent_type and not template_node.as_cython_attribute():
-                    type = type.equivalent_type
+            elif require_python_types and not ttype.is_pyobject:
+                if ttype.equivalent_type and not template_node.as_cython_attribute():
+                    ttype = ttype.equivalent_type
                 else:
                     error(template_node.pos, "%s[...] cannot be applied to non-Python type %s" % (
                         base_type.python_type_constructor_name,
-                        type,
+                        ttype,
                     ))
-                    type = error_type
-            template_types.append(type)
+                    ttype = error_type
+            template_types.append(ttype)
 
         return template_types
 
@@ -1292,7 +1292,7 @@ class TemplatedTypeNode(CBaseTypeNode):
                     dimension=dimension)
                 self.type = self.array_declarator.analyse(base_type, env)[1]
 
-        if self.type.is_fused and env.fused_to_specific:
+        if self.type and self.type.is_fused and env.fused_to_specific:
             try:
                 self.type = self.type.specialize(env.fused_to_specific)
             except CannotSpecialize:
