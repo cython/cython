@@ -147,7 +147,11 @@ static CYTHON_INLINE void __Pyx_ErrFetchInState(PyThreadState *tstate, PyObject 
 
 /////////////// RaiseException.proto ///////////////
 
+#if !CYTHON_COMPILING_IN_HPY
 static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject *cause); /*proto*/
+#else /* !CYTHON_COMPILING_IN_HPY */
+static void __Pyx_Raise(HPyContext *ctx, HPy type, HPy value, HPy tb, HPy cause); /*proto*/
+#endif /* !CYTHON_COMPILING_IN_HPY */
 
 /////////////// RaiseException ///////////////
 //@requires: PyErrFetchRestore
@@ -157,6 +161,7 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject 
 // are separate versions for Python2 and Python3 as exception handling
 // has changed quite a lot between the two versions.
 
+#if !CYTHON_COMPILING_IN_HPY
 #if PY_MAJOR_VERSION < 3
 static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject *cause) {
     __Pyx_PyThreadState_declare
@@ -337,6 +342,137 @@ bad:
     return;
 }
 #endif
+
+#else /* !CYTHON_COMPILING_IN_HPY */
+
+static void __Pyx_Raise(HPyContext *ctx, HPy type, HPy value, HPy tb, HPy cause) {
+    HPy owned_instance = HPy_NULL;
+    if (HPy_Is(ctx, tb, ctx->h_None)) {
+        tb = HPy_NULL;
+    /* TODO(fa): traceback check
+    } else if (!HPy_IsNull(tb) && !PyTraceBack_Check(tb)) {
+        HPyErr_SetString(ctx->h_TypeError,
+            "raise: arg 3 must be a traceback or None");
+        return;
+    */
+    }
+    if (HPy_Is(ctx, value, ctx->h_None)) {
+        value = HPy_NULL;
+    }
+
+    if (HPy_TypeCheck(ctx, type, ctx->h_BaseException)) {
+        if (!HPy_IsNull(value)) {
+            HPyErr_SetString(ctx, ctx->h_TypeError,
+                "instance exception may not have a separate value");
+            HPy_Close(ctx, owned_instance);
+            return;
+        }
+        value = type;
+        type = HPy_Type(ctx, value);
+    } else if (_HPy_IsSubclass(ctx, type, ctx->h_BaseException)) {
+        // make sure value is an exception instance of type
+        HPy instance_class = HPy_NULL;
+        if (!HPy_IsNull(value) && HPy_TypeCheck(ctx, value, ctx->h_BaseException)) {
+            instance_class = HPy_Type(ctx, value);
+            if (!HPy_Is(ctx, instance_class, type)) {
+                int is_subclass = _HPy_IsSubclass(ctx, instance_class, type);
+                if (!is_subclass) {
+                    instance_class = HPy_NULL;
+                } else if (unlikely(is_subclass == -1)) {
+                    // error on subclass test
+                    HPy_Close(ctx, owned_instance);
+                    return;
+                } else {
+                    // believe the instance
+                    type = instance_class;
+                }
+            }
+        }
+        if (HPy_IsNull(instance_class)) {
+            // instantiate the type now (we don't know when and how it will be caught)
+            // assuming that 'value' is an argument to the type's constructor
+            // not using PyErr_NormalizeException() to avoid ref-counting problems
+            HPy args;
+            if (HPy_IsNull(value)) {
+                args = HPyTuple_FromArray(ctx, NULL, 0);
+            } else if (HPyTuple_Check(ctx, value)) {
+                args = HPy_Dup(ctx, value);
+            } else {
+                args = HPyTuple_Pack(ctx, 1, value);
+                if (HPy_IsNull(args)) {
+                    HPy_Close(ctx, owned_instance);
+                    return;
+                }
+            }
+            owned_instance = HPy_CallTupleDict(ctx, type, args, HPy_NULL);
+            HPy_Close(ctx, args);
+            if (HPy_IsNull(owned_instance)) {
+                HPy_Close(ctx, owned_instance);
+                return;
+            }
+            value = owned_instance;
+            if (!HPy_TypeCheck(ctx, value, ctx->h_BaseException)) {
+                /* TODO(fa): HPyErr_Format
+                HPyErr_Format(ctx, ctx->h_TypeError,
+                             "calling %R should have returned an instance of "
+                             "BaseException, not %R",
+                             type, Py_TYPE(value));
+                */
+                HPyErr_SetString(ctx, ctx->h_TypeError,
+                             "calling type constructor should have returned "
+                             "an instance of BaseException");
+                HPy_Close(ctx, owned_instance);
+                return;
+            }
+        }
+    } else {
+        HPyErr_SetString(ctx, ctx->h_TypeError,
+            "raise: exception class must be a subclass of BaseException");
+        HPy_Close(ctx, owned_instance);
+        return;
+    }
+
+    if (!HPy_IsNull(cause)) {
+        HPy fixed_cause;
+        if (HPy_Is(ctx, cause, ctx->h_None)) {
+            // raise ... from None
+            fixed_cause = HPy_NULL;
+        } else if (_HPy_IsSubclass(ctx, cause, ctx->h_BaseException)) {
+            fixed_cause = HPy_CallTupleDict(ctx, cause, HPy_NULL, HPy_NULL);
+            if (HPy_IsNull(fixed_cause)) {
+                HPy_Close(ctx, owned_instance);
+                return;
+            }
+        } else if (HPy_TypeCheck(ctx, cause, ctx->h_BaseException)) {
+            fixed_cause = HPy_Dup(ctx, cause);
+        } else {
+            HPyErr_SetString(ctx, ctx->h_TypeError,
+                            "exception causes must derive from "
+                            "BaseException");
+            HPy_Close(ctx, owned_instance);
+            return;
+        }
+        if (HPy_SetAttr_s(ctx, value, "__cause__", fixed_cause)) {
+            HPy_Close(ctx, fixed_cause);
+            HPy_Close(ctx, owned_instance);
+            return;
+        }
+    }
+
+    HPyErr_SetObject(ctx, type, value);
+
+    if (!HPy_IsNull(tb)) {
+        /* TODO(fa): support setting custom traceback
+        PyObject *tmp_type, *tmp_value, *tmp_tb;
+        PyErr_Fetch(&tmp_type, &tmp_value, &tmp_tb);
+        Py_INCREF(tb);
+        PyErr_Restore(tmp_type, tmp_value, tb);
+        Py_XDECREF(tmp_tb);
+        */
+    }
+}
+
+#endif /* !CYTHON_COMPILING_IN_HPY */
 
 
 /////////////// GetTopmostException.proto ///////////////

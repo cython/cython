@@ -6688,29 +6688,25 @@ class RaiseStatNode(StatNode):
             if self.exc_type.is_name:
                 code.globalstate.use_entry_utility_code(self.exc_type.entry)
         else:
-            type_code = "0"
+            type_code = backend.pyobject_init_value
         if self.exc_value:
             self.exc_value.generate_evaluation_code(code)
             value_code = self.exc_value.py_result()
         else:
-            value_code = "0"
+            value_code = backend.pyobject_init_value
         if self.exc_tb:
             self.exc_tb.generate_evaluation_code(code)
             tb_code = self.exc_tb.py_result()
         else:
-            tb_code = "0"
+            tb_code = backend.pyobject_init_value
         if self.cause:
             self.cause.generate_evaluation_code(code)
             cause_code = self.cause.py_result()
         else:
-            cause_code = "0"
+            cause_code = backend.pyobject_init_value
         code.globalstate.use_utility_code(raise_utility_code)
-        code.putln(
-            "__Pyx_Raise(%s, %s, %s, %s);" % (
-                type_code,
-                value_code,
-                tb_code,
-                cause_code))
+        code.putln(backend.get_call(
+            "__Pyx_Raise", type_code, value_code, tb_code, cause_code) + ";")
         for obj in (self.exc_type, self.exc_value, self.exc_tb, self.cause):
             if obj:
                 obj.generate_disposal_code(code)
