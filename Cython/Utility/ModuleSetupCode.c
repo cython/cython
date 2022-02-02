@@ -488,6 +488,7 @@ static CYTHON_INLINE int _HPy_Contains(HPyContext *ctx, HPy x, HPy y);
 static CYTHON_INLINE HPy _HPyImport_AddModule(HPyContext *ctx, const char *name);
 static CYTHON_INLINE HPy _HPyDict_GetItem_s(HPyContext *ctx, HPy dict, const char *name);
 static CYTHON_INLINE void _HPyErr_WriteUnraisable(HPyContext *ctx, HPy h);
+static CYTHON_INLINE int _HPy_IsSubclass(HPyContext *ctx, HPy derived, HPy cls);
 #endif /* CYTHON_COMPILING_IN_HPY */
 
 /////////////// HPyInitCode ///////////////
@@ -602,6 +603,49 @@ static CYTHON_INLINE HPy _HPyDict_GetItem_s(HPyContext *ctx, HPy dict, const cha
 static CYTHON_INLINE void _HPyErr_WriteUnraisable(HPyContext *ctx, HPy h)
 {
     /* TODO(fa): implement */
+}
+
+static CYTHON_INLINE int _HPy_IsSubclass(HPyContext *ctx, HPy derived, HPy cls)
+{
+    HPy h_builtins;
+    HPy h_issubclass;
+    HPy h_args;
+    HPy h_result;
+    int result;
+
+    h_builtins = HPyImport_ImportModule(ctx, "builtins");
+    if (HPy_IsNull(h_builtins)) {
+        return -1;
+    }
+
+    h_issubclass = HPy_GetAttr_s(ctx, h_builtins, "issubclass");
+    if (HPy_IsNull(h_issubclass)) {
+        HPy_Close(ctx, h_builtins);
+        return -1;
+    }
+
+    h_args = HPyTuple_Pack(ctx, 2, derived, cls);
+    if (HPy_IsNull(h_args)) {
+        HPy_Close(ctx, h_issubclass);
+        HPy_Close(ctx, h_builtins);
+        return -1;
+    }
+
+    h_result = HPy_CallTupleDict(ctx, h_issubclass, h_args, HPy_NULL);
+    if (HPy_IsNull(h_result)) {
+        HPy_Close(ctx, h_builtins);
+        HPy_Close(ctx, h_issubclass);
+        HPy_Close(ctx, h_builtins);
+        return -1;
+    }
+
+    result = HPy_IsTrue(ctx, h_result);
+    HPy_Close(ctx, h_result);
+    HPy_Close(ctx, h_builtins);
+    HPy_Close(ctx, h_issubclass);
+    HPy_Close(ctx, h_builtins);
+
+    return result;
 }
 
 #endif /* CYTHON_COMPILING_IN_HPY */
