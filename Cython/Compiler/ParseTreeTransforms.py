@@ -2101,6 +2101,8 @@ if VALUE is not None:
             lhs=ExprNodes.NameNode(def_node.pos, name=def_node.name),
             rhs=rhs)
         assmt.analyse_declarations(env)
+        if def_node.is_cyfunction:
+            return Nodes.CPPNode(def_node.pos, body=assmt, cond="!CYTHON_COMPILING_IN_HPY")
         return assmt
 
     def visit_ScopedExprNode(self, node):

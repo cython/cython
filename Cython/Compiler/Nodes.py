@@ -364,6 +364,32 @@ class CompilerDirectivesNode(Node):
         code.globalstate.directives = old
 
 
+class CPPNode(Node):
+    """
+    Encloses the child nodes with a C preprocessor condition. E.g.
+    #if <cond>
+    <body>
+    #endif
+    """
+    #  cond           {string:value}  The preprocessor condition.
+    #  body           Node
+    child_attrs = ["body"]
+
+    def analyse_expressions(self, env):
+        self.body = self.body.analyse_expressions(env)
+        return self
+
+    def generate_function_definitions(self, env, code):
+        code.putln("#if %s" % self.cond)
+        self.body.generate_function_definitions(env, code)
+        code.putln("#endif /* %s */ " % self.cond)
+
+    def generate_execution_code(self, code):
+        code.putln("#if %s" % self.cond)
+        self.body.generate_execution_code(code)
+        code.putln("#endif /* %s */ " % self.cond)
+
+
 class BlockNode(object):
     #  Mixin class for nodes representing a declaration block.
 
