@@ -184,7 +184,7 @@ html_context = {
     'css_files': ['_static/css/tabs.css'],
 }
 
-development = True if release.startswith('3.0') else False
+development = 'a' in release or 'b' in release
 
 html_context = {'development': development}
 
