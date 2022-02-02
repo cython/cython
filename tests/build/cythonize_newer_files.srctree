@@ -7,6 +7,7 @@ PYTHON test.py
 ######## test.py ########
 
 import os.path
+import time
 
 from Cython.Utils import GENERATED_BY_MARKER_BYTES, clear_function_caches, clear_method_caches
 from Cython.Build.Dependencies import cythonize, DependencyTree
@@ -85,3 +86,11 @@ with open("a.c", "rb") as f:
 # now up to date
 fresh_cythonize("*.pyx")
 assert mtime < new_mtime < other_cython_mtime <= latest_mtime == getmtime("a.c")
+
+# force regeneration with environment variable
+os.environ["CYTHON_FORCE_REGEN"] = "1"
+time.sleep(0.1)
+
+assert latest_mtime == getmtime("a.c")
+fresh_cythonize("*.pyx")
+assert latest_mtime < getmtime("a.c")

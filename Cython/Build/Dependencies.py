@@ -883,7 +883,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
 
 
 # This is the user-exposed entry point.
-def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, force=False, language=None,
+def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, force=None, language=None,
               exclude_failures=False, show_all_warnings=False, **options):
     """
     Compile a set of source modules into C/C++ files and return a list of distutils
@@ -975,6 +975,9 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
         pythran_options = CompilationOptions(**options)
         pythran_options.cplus = True
         pythran_options.np_pythran = True
+
+    if force is None:
+        force = os.environ.get("CYTHON_FORCE_REGEN") == "1"  # allow global overrides for build systems
 
     c_options = CompilationOptions(**options)
     cpp_options = CompilationOptions(**options); cpp_options.cplus = True
