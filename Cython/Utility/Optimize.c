@@ -1018,8 +1018,13 @@ fallback:
 
 /////////////// PyIntCompare.proto ///////////////
 
+#if !CYTHON_COMPILING_IN_HPY
 {{py: c_ret_type = 'PyObject*' if ret_type.is_pyobject else 'int'}}
 static CYTHON_INLINE {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(PyObject *op1, PyObject *op2, long intval, long inplace); /*proto*/
+#else /* !CYTHON_COMPILING_IN_HPY */
+{{py: c_ret_type = 'HPy' if ret_type.is_pyobject else 'int'}}
+static CYTHON_INLINE {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(HPyContext *ctx, HPy op1, HPy op2, long intval, long inplace); /*proto*/
+#endif /* !CYTHON_COMPILING_IN_HPY */
 
 /////////////// PyIntCompare ///////////////
 
@@ -1038,6 +1043,7 @@ return_compare = (
     )
 }}
 
+#if !CYTHON_COMPILING_IN_HPY
 static CYTHON_INLINE {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(PyObject *op1, PyObject *op2, long intval, long inplace) {
     CYTHON_MAYBE_UNUSED_VAR(intval);
     CYTHON_UNUSED_VAR(inplace);
@@ -1105,6 +1111,15 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject els
     return {{'' if ret_type.is_pyobject else '__Pyx_PyObject_IsTrueAndDecref'}}(
         PyObject_RichCompare(op1, op2, Py_{{op.upper()}}));
 }
+#else /* !CYTHON_COMPILING_IN_HPY */
+{{py: c_ret_type = 'HPy' if ret_type.is_pyobject else 'int'}}
+static CYTHON_INLINE {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(HPyContext *ctx, HPy op1, HPy op2, long intval, long inplace) {
+    CYTHON_MAYBE_UNUSED_VAR(intval);
+    CYTHON_UNUSED_VAR(inplace);
+    return {{'HPy_RichCompare' if ret_type.is_pyobject else 'HPy_RichCompareBool'}}(ctx, op1, op2, HPy_{{op.upper()}});
+}
+
+#endif /* !CYTHON_COMPILING_IN_HPY */
 
 
 /////////////// PyIntBinop.proto ///////////////
