@@ -2316,7 +2316,7 @@ class CCodeWriter(object):
         if entry.in_closure:
             self.put_giveref('Py_None')
 
-    def load_global(self, globalvar_cname, type, target=None, nanny=True, null_check=False):
+    def load_global(self, globalvar_cname, type, target=None, nanny=False, null_check=False):
         if not target:
             target = self.funcstate.allocate_temp(type, False)
         if null_check:
@@ -2328,7 +2328,7 @@ class CCodeWriter(object):
             self.putln("}")
         return target
 
-    def store_global(self, globalvar_cname, cexpr, type, nanny=True):
+    def store_global(self, globalvar_cname, cexpr, type, nanny=False):
         self.putln("%s;" % (backend.get_write_global(Naming.module_cname, globalvar_cname, cexpr)))
         if nanny:
             self.put_giveref(cexpr, type)
