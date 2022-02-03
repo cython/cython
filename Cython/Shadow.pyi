@@ -82,7 +82,13 @@ _TypeT = TypeVar('_TypeT', bound='Type')
 Decorator = Callable[[_C], _C]
 
 
-cfunc = compile = Decorator
+def _func_deco(func: _C, /) -> _C: ...
+
+cfunc = compile = _func_deco
+
+@cfunc
+def test():
+    ...
 
 def locals(**args: Any) -> Decorator: ...
 
