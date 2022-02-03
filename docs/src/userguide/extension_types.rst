@@ -291,19 +291,25 @@ extension type and its C-level attributes (stored in object’s C struct.) and
 Extension types and None
 =========================
 
-When you declare a parameter or C variable as being of an extension type,
-Cython will allow it to take on the value ``None`` as well as values of its
+Cython handles :keyword:`None` values differently in Cython language and when annotations are used.
+
+In the Cython language, when you declare a parameter or C variable as being of an extension type,
+Cython language will allow it to take on the value :keyword:`None` as well as values of its
 declared type. This is analogous to the way a C pointer can take on the value
 ``NULL``, and you need to exercise the same caution because of it. There is no
 problem as long as you are performing Python operations on it, because full
 dynamic type checking will be applied. However, when you access C attributes
 of an extension type (as in the widen_shrubbery function above), it's up to
-you to make sure the reference you're using is not ``None`` -- in the
+you to make sure the reference you're using is not :keyword:`None` -- in the
 interests of efficiency, Cython does not check this.
 
-You need to be particularly careful when exposing Python functions which take
-extension types as arguments. If we wanted to make :func:`widen_shrubbery` a
-Python function, for example, if we simply wrote
+When annotations are used, the behaviour is close to `PEP-484 <https://www.python.org/dev/peps/pep-0484/>`_.
+The value :keyword:`None` is not allowed when variable is annotated only by type. To allow also :keyword:`None` value,
+``typing.Optional`` must be used.
+
+In the Cython language, you need to be particularly careful when exposing Python functions which take
+on the other hand, annotations are safe since you need to explicitly enable :keyword:`None` value.
+extension types as arguments:
 
 .. tabs::
 
@@ -311,8 +317,10 @@ Python function, for example, if we simply wrote
 
         .. code-block:: python
 
-            def widen_shrubbery(sh: Shrubbery, extra_width): # This is
-                sh.width = sh.width + extra_width            # dangerous!
+            from typing import Optional
+
+            def widen_shrubbery(sh: Optional[Shrubbery], extra_width): # This is
+                sh.width = sh.width + extra_width                      # dangerous!
 
     .. group-tab:: Cython
 
@@ -321,10 +329,10 @@ Python function, for example, if we simply wrote
             def widen_shrubbery(Shrubbery sh, extra_width): # This is
                 sh.width = sh.width + extra_width           # dangerous!
 
-then users of our module could crash it by passing ``None`` for the ``sh``
+The users of our module could crash it by passing :keyword:`None` for the ``sh``
 parameter.
 
-One way to fix this would be
+In the Cython language, one way to fix this would be to check :keyword:`None` value:
 
 .. tabs::
 
@@ -332,7 +340,9 @@ One way to fix this would be
 
         .. code-block:: python
 
-            def widen_shrubbery(sh: Shrubbery, extra_width):
+            from typing import Optional
+
+            def widen_shrubbery(sh: Optional[Shrubbery], extra_width):
                 if sh is None:
                     raise TypeError
                 sh.width = sh.width + extra_width
@@ -346,31 +356,47 @@ One way to fix this would be
                     raise TypeError
                 sh.width = sh.width + extra_width
 
-but since this is anticipated to be such a frequent requirement, Cython
+but since this is anticipated to be such a frequent requirement, Cython language
 provides a more convenient way. Parameters of a Python function declared as an
-extension type can have a ``not None`` clause::
+extension type can have a ``not None`` clause:
 
-    def widen_shrubbery(Shrubbery sh not None, extra_width):
-        sh.width = sh.width + extra_width
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            def widen_shrubbery(sh: Shrubbery, extra_width):
+                sh.width = sh.width + extra_width
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            def widen_shrubbery(Shrubbery sh not None, extra_width):
+                sh.width = sh.width + extra_width
 
 Now the function will automatically check that ``sh`` is ``not None`` along
 with checking that it has the right type.
 
 .. note::
 
-    ``not None`` clause can only be used in Python functions (defined with
+    ``not None`` and ``typing.Annotation`` clause can only be used in Python functions (defined with
     :keyword:`def` and without ``@cython.cfunc`` decorator) and not C functions
     (defined with :keyword:`cdef` or decorated using ``@cython.cfunc``).  If
     you need to check whether a parameter to a C function is None, you will
     need to do it yourself.
+
+    On the other hand,  can be used also for C functions and methods
+    (decorated using ``@cython.cfunc``)
 
 .. note::
 
     Some more things:
 
     * The self parameter of a method of an extension type is guaranteed never to
-      be ``None``.
-    * When comparing a value with ``None``, keep in mind that, if ``x`` is a Python
+      be :keyword:`None`.
+    * When comparing a value with :keyword:`None`, keep in mind that, if ``x`` is a Python
       object, ``x is None`` and ``x is not None`` are very efficient because they
       translate directly to C pointer comparisons, whereas ``x == None`` and
       ``x != None``, or simply using ``x`` as a boolean value (as in ``if x: ...``)
