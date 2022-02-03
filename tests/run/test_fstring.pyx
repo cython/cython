@@ -1173,11 +1173,10 @@ non-important content
         self.assertEqual(f'{0!=1}', 'True')
         self.assertEqual(f'{0<=1}', 'True')
         self.assertEqual(f'{0>=1}', 'False')
-        # Walrus not implemented yet, skip
-        # self.assertEqual(f'{(x:="5")}', '5')
-        # self.assertEqual(x, '5')
-        # self.assertEqual(f'{(x:=5)}', '5')
-        # self.assertEqual(x, 5)
+        self.assertEqual(f'{(x:="5")}', '5')
+        self.assertEqual(x, '5')
+        self.assertEqual(f'{(x:=5)}', '5')
+        self.assertEqual(x, 5)
         self.assertEqual(f'{"="}', '=')
 
         x = 20
@@ -1239,13 +1238,9 @@ non-important content
         # spec of '=10'.
         self.assertEqual(f'{x:=10}', '        20')
 
-        # Note to anyone going to enable these: please have a look to the test
-        # above this one for more walrus cases to enable.
-        """
         # This is an assignment expression, which requires parens.
         self.assertEqual(f'{(x:=10)}', '10')
         self.assertEqual(x, 10)
-        """
 
     def test_invalid_syntax_error_message(self):
         # with self.assertRaisesRegex(SyntaxError, "f-string: invalid syntax"):

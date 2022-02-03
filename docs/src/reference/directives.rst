@@ -3,4 +3,4 @@
 Compiler Directives
 ===================
 
-See `Compilation <compilation.html#compiler-directives>`_.
+See :ref:`compiler-directives`.

@@ -1005,6 +1005,7 @@ class SlotTable(object):
             MethodSlot(unaryfunc, "am_await", "__await__", method_name_to_slot),
             MethodSlot(unaryfunc, "am_aiter", "__aiter__", method_name_to_slot),
             MethodSlot(unaryfunc, "am_anext", "__anext__", method_name_to_slot),
+            EmptySlot("am_send", ifdef="PY_VERSION_HEX >= 0x030A00A3"),
         )
 
         self.slot_table = (
@@ -1079,7 +1080,7 @@ class SlotTable(object):
             EmptySlot("tp_vectorcall", ifdef="PY_VERSION_HEX >= 0x030800b1 && (!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07030800)"),
             EmptySlot("tp_print", ifdef="PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000"),
             # PyPy specific extension - only here to avoid C compiler warnings.
-            EmptySlot("tp_pypy_flags", ifdef="CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX > 0x03080000"),
+            EmptySlot("tp_pypy_flags", ifdef="CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX >= 0x03090000"),
         )
 
         #------------------------------------------------------------------------------------------

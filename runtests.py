@@ -647,8 +647,8 @@ class Stats(object):
         self.test_times = defaultdict(float)
         self.top_tests = defaultdict(list)
 
-    def add_time(self, name, language, metric, t):
-        self.test_counts[metric] += 1
+    def add_time(self, name, language, metric, t, count=1):
+        self.test_counts[metric] += count
         self.test_times[metric] += t
         top = self.top_tests[metric]
         push = heapq.heappushpop if len(top) >= self.top_n else heapq.heappush
@@ -1943,16 +1943,18 @@ class EndToEndTest(unittest.TestCase):
                     p = subprocess.call(command, env=env)
                     _out, _err = b'', b''
                     res = p
-                cmd.append(command)
-                out.append(_out)
-                err.append(_err)
+            cmd.append(command)
+            out.append(_out)
+            err.append(_err)
+
             if res == 0 and b'REFNANNY: ' in _out:
                 res = -1
             if res != 0:
                 for c, o, e in zip(cmd, out, err):
                     sys.stderr.write("%s\n%s\n%s\n\n" % (
                         c, self._try_decode(o), self._try_decode(e)))
-            self.assertEqual(0, res, "non-zero exit status")
+                self.assertEqual(0, res, "non-zero exit status, last output was:\n%r\n-- stdout:%s\n-- stderr:%s\n" % (
+                    ' '.join(command), self._try_decode(out[-1]), self._try_decode(err[-1])))
         self.success = True
 
 
@@ -2396,16 +2398,23 @@ def main():
         # NOTE: create process pool before time stamper thread to avoid forking issues.
         total_time = time.time()
         stats = Stats()
+        merged_pipeline_stats = defaultdict(lambda: (0, 0))
         with time_stamper_thread(interval=keep_alive_interval):
-            for shard_num, shard_stats, return_code, failure_output in pool.imap_unordered(runtests_callback, tasks):
+            for shard_num, shard_stats, pipeline_stats, return_code, failure_output in pool.imap_unordered(runtests_callback, tasks):
                 if return_code != 0:
                     error_shards.append(shard_num)
                     failure_outputs.append(failure_output)
                     sys.stderr.write("FAILED (%s/%s)\n" % (shard_num, options.shard_count))
                 sys.stderr.write("ALL DONE (%s/%s)\n" % (shard_num, options.shard_count))
+
                 stats.update(shard_stats)
+                for stage_name, (stage_time, stage_count) in pipeline_stats.items():
+                    old_time, old_count = merged_pipeline_stats[stage_name]
+                    merged_pipeline_stats[stage_name] = (old_time + stage_time, old_count + stage_count)
+
         pool.close()
         pool.join()
+
         total_time = time.time() - total_time
         sys.stderr.write("Sharded tests run in %d seconds (%.1f minutes)\n" % (round(total_time), total_time / 60.))
         if error_shards:
@@ -2417,14 +2426,29 @@ def main():
             return_code = 0
     else:
         with time_stamper_thread(interval=keep_alive_interval):
-            _, stats, return_code, _ = runtests(options, cmd_args, coverage)
+            _, stats, merged_pipeline_stats, return_code, _ = runtests(options, cmd_args, coverage)
 
     if coverage:
         if options.shard_count > 1 and options.shard_num == -1:
             coverage.combine()
         coverage.stop()
 
+    def as_msecs(t, unit=1000000):
+        # pipeline times are in msecs
+        return t // unit + float(t % unit) / unit
+
+    pipeline_stats = [
+        (as_msecs(stage_time), as_msecs(stage_time) / stage_count, stage_count, stage_name)
+        for stage_name, (stage_time, stage_count) in merged_pipeline_stats.items()
+    ]
+    pipeline_stats.sort(reverse=True)
+    sys.stderr.write("Most expensive pipeline stages: %s\n" % ", ".join(
+        "%r: %.2f / %d (%.3f / run)" % (stage_name, total_stage_time, stage_count, stage_time)
+        for total_stage_time, stage_time, stage_count, stage_name in pipeline_stats[:10]
+    ))
+
     stats.print_stats(sys.stderr)
+
     if coverage:
         save_coverage(coverage, options)
 
@@ -2789,6 +2813,9 @@ def runtests(options, cmd_args, coverage=None):
     if common_utility_dir and options.shard_num < 0 and options.cleanup_workdir:
         shutil.rmtree(common_utility_dir)
 
+    from Cython.Compiler.Pipeline import get_timings
+    pipeline_stats = get_timings()
+
     if missing_dep_excluder.tests_missing_deps:
         sys.stderr.write("Following tests excluded because of missing dependencies on your system:\n")
         for test in missing_dep_excluder.tests_missing_deps:
@@ -2805,7 +2832,7 @@ def runtests(options, cmd_args, coverage=None):
     else:
         failure_output = "".join(collect_failure_output(result))
 
-    return options.shard_num, stats, result_code, failure_output
+    return options.shard_num, stats, pipeline_stats, result_code, failure_output
 
 
 def collect_failure_output(result):

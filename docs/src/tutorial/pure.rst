@@ -335,14 +335,26 @@ declare types of variables in a Python 3.6 compatible way as follows:
 
 There is currently no way to express the visibility of object attributes.
 
-Cython does not support the full range of annotations described by PEP-484.
-For example it does not currently understand features from the ``typing`` module
-such  as ``Optional[]`` or typed containers such as ``List[str]``. This is partly
-because some of these type hints are not relevant for the compilation to
+``typing`` Module
+^^^^^^^^^^^^^^^^^
+
+Support for the full range of annotations described by PEP-484 is not yet
+complete. Cython 3 currently understands the following features from the
+``typing`` module:
+
+* ``Optional[tp]``, which is interpreted as ``tp or None``;
+* typed containers such as ``List[str]``, which is interpreted as ``list``. The
+  hint that the elements are of type ``str`` is currently ignored;
+* ``Tuple[...]``, which is converted into a Cython C-tuple where possible
+  and a regular Python ``tuple`` otherwise.
+* ``ClassVar[...]``, which is understood in the context of
+  ``cdef class`` or ``@cython.cclass``.
+
+Some of the unsupported features are likely to remain
+unsupported since these type hints are not relevant for the compilation to
 efficient C code. In other cases, however, where the generated C code could
 benefit from these type hints but does not currently, help is welcome to
 improve the type analysis in Cython.
-
 
 Tips and Tricks
 ---------------
