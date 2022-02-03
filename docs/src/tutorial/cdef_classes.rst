@@ -12,8 +12,8 @@ Python classes exactly as in Python:
 
 Based on what Python calls a "built-in type", however, Cython supports
 a second kind of class: *extension types*, sometimes referred to as
-"cdef classes" due to the keywords used for their declaration.  They
-are somewhat restricted compared to Python classes, but are generally
+"cdef classes" due to the Cython language keywords used for their declaration.
+They are somewhat restricted compared to Python classes, but are generally
 more memory efficient and faster than generic Python classes.  The
 main difference is that they use a C struct to store their fields and methods
 instead of a Python dict.  This allows them to store arbitrary C types
@@ -42,8 +42,9 @@ integrates a single hard-coded function. In order to remedy this,
 with hardly sacrificing speed, we will use a cdef class to represent a
 function on floating point numbers:
 
-The directive cpdef makes two versions of the method available; one
-fast for use from Cython and one slower for use from Python. Then:
+The ``cpdef`` command (or ``@cython.ccall`` in Python syntax) makes two versions
+of the method available; one fast for use from Cython and one slower for use
+from Python.  Then:
 
 .. tabs::
     .. group-tab:: Pure Python
@@ -58,7 +59,7 @@ fast for use from Cython and one slower for use from Python. Then:
 
 This does slightly more than providing a python wrapper for a cdef
 method: unlike a cdef method, a cpdef method is fully overridable by
-methods and instance attributes in Python subclasses.  It adds a
+methods and instance attributes in Python subclasses.  This adds a
 little calling overhead compared to a cdef method.
 
 To make the class definitions visible to other modules, and thus allow for
