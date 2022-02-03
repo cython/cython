@@ -37,14 +37,14 @@ Cython code and pure Python code.
 
         .. literalinclude:: ../../examples/tutorial/cdef_classes/math_function_2.pyx
 
-So far our integration example has not been very useful as it only
-integrates a single hard-coded function. In order to remedy this,
-with hardly sacrificing speed, we will use a cdef class to represent a
-function on floating point numbers:
-
 The ``cpdef`` command (or ``@cython.ccall`` in Python syntax) makes two versions
 of the method available; one fast for use from Cython and one slower for use
-from Python.  Then:
+from Python.
+
+Now we can add subclasses of the ``Function`` class that implement different
+math functions in the same ``evaluate()`` method.
+
+Then:
 
 .. tabs::
     .. group-tab:: Pure Python
@@ -65,10 +65,15 @@ little calling overhead compared to a cdef method.
 To make the class definitions visible to other modules, and thus allow for
 efficient C-level usage and inheritance outside of the module that
 implements them, we define them in a ``.pxd`` file with the same name
-as the module:
+as the module.  Note that we are using Cython syntax here, not Python syntax.
 
 .. literalinclude:: ../../examples/tutorial/cdef_classes/sin_of_square.pxd
     :caption: sin_of_square.pxd
+
+With this way to implement different functions as subclasses with fast,
+Cython callable methods, we can now pass these ``Function`` objects into
+an algorithm for numeric integration, that evaluates an arbitrary user
+provided function over a value interval.
 
 Using this, we can now change our integration example:
 
@@ -83,9 +88,8 @@ Using this, we can now change our integration example:
         .. literalinclude:: ../../examples/tutorial/cdef_classes/integrate.pyx
             :caption: integrate.pyx
 
-This is almost as fast as the previous code, however it is much more flexible
-as the function to integrate can be changed. We can even pass in a new
-function defined in Python-space::
+We can even pass in a new ``Function`` defined in Python space, which overrides
+the Cython implemented method of the base class::
 
   >>> import integrate
   >>> class MyPolynomial(integrate.Function):
@@ -95,10 +99,11 @@ function defined in Python-space::
   >>> integrate(MyPolynomial(), 0, 1, 10000)
   -7.8335833300000077
 
-This is about 20 times slower, but still about 10 times faster than
-the original Python-only integration code.  This shows how large the
-speed-ups can easily be when whole loops are moved from Python code
-into a Cython module.
+Since ``evaluate()`` is a Python method here, which requires Python objects
+as input and output, this is several times slower than the straight C call
+to the Cython method, but still faster than a plain Python variant.
+This shows how large the speed-ups can easily be when whole computational
+loops are moved from Python code into a Cython module.
 
 Some notes on our new implementation of ``evaluate``:
 
