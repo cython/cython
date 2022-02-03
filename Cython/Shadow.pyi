@@ -139,13 +139,12 @@ binding = embedsignature = always_allow_keywords = unraisable_tracebacks = \
     iterable_coroutine = cpp_locals = _compiler_directive
 
 # overflowcheck() has to be specialized because there is also overflowcheck.fold
-class overflowcheck:
-    # Hack: define __new__() instead of __call__() so that we don't need to setup a
-    # singleton instance of it 
-    def __new__(cls, value: bool = ..., /) -> Decorator: ...
+class _OverflowcheckClass:
+    def __call__(self, value: bool = ..., /) -> Decorator: ...
 
-    @staticmethod
-    def fold(value: bool = ..., /) -> Decorator: ...
+    def fold(self, value: bool = ..., /) -> Decorator: ...
+
+overflowcheck = _OverflowcheckClass()
 
 class optimize:
     @staticmethod
