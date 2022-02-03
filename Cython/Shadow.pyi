@@ -3,35 +3,67 @@ from builtins import (int as py_int, float as py_float,
 from types import TracebackType
 from typing import (Any, Sequence, Optional, Type,
                     TypeVar, Generic, Callable, overload)
+# This is necessary so that type checkers don't ignore the 'dataclasses' import
+# or the 'final' import from typing.
+__all__ = (
+    'dataclasses', 'final',  # from imports above
+    'int', 'long', 'longlong', 'short', 'char', 'sint', 'slong', 'slonglong',
+    'sshort', 'schar', 'uint', 'ulong', 'ulonglong', 'ushort', 'uchar',
+    'size_t', 'Py_ssize_t',
+    'Py_UCS4', 'Py_UNICODE',
+    'float', 'double', 'longdouble',
+    'complex', 'floatcomplex', 'doublecomplex', 'longdoublecomplex',
+    'bint', 'void', 'basestring', 'unicode',
+    'gs', 'compiled',
+    'cfunc', 'compile', 'locals', 'returns',
+    'cclass', 'c_api_binop_methods', 'type_version_tag',
+    'boundscheck', 'wraparound', 'initializedcheck', 'nonecheck', 'cdivision', 'cdivision_warnings', 'profile',
+    'linetrace', 'infer_types', 'emit_code_comments',
+    'binding', 'embedsignature', 'always_allow_keywords', 'unraisable_tracebacks', 'iterable_coroutine', 'cpp_locals',
+    'overflowcheck', 'optimize', 'warn',
+    'inline', 'cdiv', 'cmod', 'cast', 'sizeof', 'typeof', 'address', 'declare',
+    'nogil', 'gil',
+    'CythonTypeObject', 'CythonType', 'PointerType', 'ArrayType',
+    'pointer', 'array', 'struct', 'union', 'typedef', 'fused_type'
+)
 
 __version__: str
+
+# Predefined types
 
 int = py_int
 long = py_int
 longlong = py_int
 short = py_int
 char = py_int
+
 sint = py_int
 slong = py_int
 slonglong = py_int
 sshort = py_int
 schar = py_int
+
 uint = py_int
 ulong = py_int
 ulonglong = py_int
 ushort = py_int
 uchar = py_int
+
 size_t = py_int
 Py_ssize_t = py_int
+
 Py_UCS4 = py_int | str
 Py_UNICODE = py_int | str
+
 float = py_float
 double = py_float
 longdouble = py_float
+
 complex = py_complex
 floatcomplex = py_complex
 doublecomplex = py_complex
 longdoublecomplex = py_complex
+
 bint = py_bool
 void = Type[None]
 basestring = py_str
