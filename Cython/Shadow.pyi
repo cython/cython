@@ -17,7 +17,7 @@ __all__ = (
     'complex', 'floatcomplex', 'doublecomplex', 'longdoublecomplex',
     'bint', 'void', 'basestring', 'unicode',
     'gs', 'compiled',
-    'cfunc', 'compile', 'locals', 'returns',
+    'cfunc', 'ccall', 'compile', 'locals', 'returns',
     'cclass', 'c_api_binop_methods', 'type_version_tag',
     'boundscheck', 'wraparound', 'initializedcheck', 'nonecheck', 'cdivision', 'cdivision_warnings', 'profile',
     'linetrace', 'infer_types', 'emit_code_comments',
@@ -84,7 +84,7 @@ Decorator = Callable[[_C], _C]
 
 def _func_deco(func: _C, /) -> _C: ...
 
-cfunc = compile = _func_deco
+cfunc = ccall = compile = _func_deco
 
 @cfunc
 def test():
