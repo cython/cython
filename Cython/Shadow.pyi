@@ -1,8 +1,10 @@
+import dataclasses
 from builtins import (int as py_int, float as py_float,
                       bool as py_bool, str as py_str, complex as py_complex)
 from types import TracebackType
-from typing import (Any, Sequence, Optional, Type,
-                    TypeVar, Generic, Callable, overload)
+from typing import (Any, ContextManager, Iterable, ParamSpec, Sequence, Optional, Type,
+                    TypeVar, Generic, Callable, final, overload)
+
 # This is necessary so that type checkers don't ignore the 'dataclasses' import
 # or the 'final' import from typing.
 __all__ = (
@@ -70,12 +72,163 @@ basestring = py_str
 unicode = py_str
 
 gs: dict[str, Any]  # Should match the return type of globals()
-
-_T = TypeVar('_T')
-
 compiled: bool
 
-class _ArrayType(object, Generic[_T]):
+
+_T = TypeVar('_T')
+_P = ParamSpec('_P')
+_C = TypeVar('_C', bound='Callable')
+_TypeT = TypeVar('_TypeT', bound='Type')
+Decorator = Callable[[_C], _C]
+
+
+cfunc = compile = Decorator
+
+def locals(**args: Any) -> Decorator: ...
+
+def _class_deco(cls: _TypeT, /) -> _TypeT: ...
+
+cclass = c_api_binop_methods = type_version_tag = _class_deco
+
+# May be a bit hard to read but essentially means:
+# > Returns a callable that takes another callable with these parameters and *some*
+# > return value, then returns another callable with the same parameters but the
+# > the return type is the previous 'type' parameter.
+def returns(type: _T, /) -> Callable[[Callable[_P, object]], Callable[_P, _T]]: ...
+
+class _EmptyDecoratorAndManager(object):
+    @overload
+    def __call__(self, value: bool, /) -> Decorator: ...
+
+    @overload
+    def __call__(self, func: _C, /) -> _C: ...
+
+    def __enter__(self) -> None: ...
+
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc: Optional[BaseException],
+        tb: Optional[TracebackType]
+    ) -> None: ...
+
+@overload
+def _compiler_directive(func: _C, /) -> _C: ...
+
+@overload
+def _compiler_directive(value: bool = ..., /) -> Decorator: ...
+
+# These all come from 'Compiler directives' on Source Files and Compilation.
+# The following directives are missing as they need to be global:
+# - annotation_typing
+# - c_string_type
+# - c_string_encoding
+# Note that c_api_binop_methods and type_version_tag is defined above.
+
+boundscheck = wraparound = initializedcheck = nonecheck = cdivision = \
+    cdivision_warnings = profile = linetrace = infer_types = \
+    emit_code_comments = _EmptyDecoratorAndManager()
+
+binding = embedsignature = always_allow_keywords = unraisable_tracebacks = \
+    iterable_coroutine = cpp_locals = _compiler_directive
+
+# overflowcheck() has to be specialized because there is also overflowcheck.fold
+class overflowcheck:
+    # Hack: define __new__() instead of __call__() so that we don't need to setup a
+    # singleton instance of it 
+    def __new__(cls, value: bool = ..., /) -> Decorator: ...
+
+    @staticmethod
+    def fold(value: bool = ..., /) -> Decorator: ...
+
+class optimize:
+    @staticmethod
+    def use_switch(value: bool = ..., /) -> Decorator: ...
+
+    @staticmethod
+    def unpack_method_calls(value: bool = ..., /) -> Decorator: ...
+
+class warn:
+    @staticmethod
+    def undeclared(value: bool = ..., /) -> Decorator: ...
+
+    @staticmethod
+    def unreachable(value: bool = ..., /) -> Decorator: ...
+
+    @staticmethod
+    def maybe_uninitialized(value: bool = ..., /) -> Decorator: ...
+
+    @staticmethod
+    def unused(value: bool = ..., /) -> Decorator: ...
+
+    @staticmethod
+    def unused_argument(value: bool = ..., /) -> Decorator: ...
+
+    @staticmethod
+    def multiple_declarators(value: bool = ..., /) -> Decorator: ...
+
+@overload
+def inline(func: _C, /) -> _C: ...
+
+@overload
+def inline(code: str, /, *, get_type: Callable[[object, object], str] = ..., lib_dir: str = ...,
+           cython_include_dirs: Iterable[str] = ..., cython_compiler_directives: Iterable[str] = ...,
+           force: bool = ..., quiet: bool = ..., locals: dict[str, str] = ..., globals: dict[str, str] = ...,
+           language_level: str = ...) -> Any: ...
+
+def cdiv(a: int, b: int, / ) -> int: ...
+
+def cmod(a: int, b: int, /) -> int: ...
+
+@overload
+def cast(t: _T, value: Any, /) -> _T: ...
+
+@overload
+def cast(t: Callable[_P, _T], /, *args: _P.args, **kwargs: _P.kwargs) -> _T: ...
+
+def sizeof(arg: object, /) -> int: ...
+
+def typeof(arg: object, /) -> str: ...
+
+def address(arg: object, /) -> PointerType: ...
+
+
+@overload
+def declare(
+    t: Optional[Callable[..., _T]] = ...,
+    value: Any = ...,
+    *,
+    visibility: str = ...
+) -> _T:
+    ...
+
+@overload
+def declare(**kwargs: type) -> None: ...
+
+
+class _nogil:
+    @overload
+    def __call__(self) -> ContextManager: ...
+
+    @overload
+    def __call__(self, value: bool, /) -> Decorator: ...
+
+    @overload
+    def __call__(self, func: _C, /) -> _C: ...
+
+    def __enter__(self) -> None: ...
+
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc: Optional[BaseException],
+        tb: Optional[TracebackType]
+    ) -> None: ...
+
+nogil = gil = _nogil
+
+
+class _ArrayType(Generic[_T]):
     is_array: bool
     subtypes: Sequence[str]
     dtype: _T
@@ -90,6 +243,7 @@ class _ArrayType(object, Generic[_T]):
                  is_f_contig: bool = ..., inner_contig: bool = ...,
                  broadcasting: Any = ...) -> None: ...
     def __repr__(self) -> str: ...
+
 
 class CythonTypeObject(object):
     ...
@@ -132,36 +286,4 @@ class typedef(CythonType, Generic[_T]):
 #class _FusedType(CythonType, Generic[_T]):
 #    def __init__(self) -> None: ...
 
-#def fused_type(*args: Tuple[_T]) -> Type[FusedType[_T]]: ...
-
-def typeof(arg: Any) -> str: ...
-
-_C = TypeVar('_C', bound='Callable')
-
-class _EmptyDecoratorAndManager(object):
-    def __call__(self, x: _C) -> _C: ...
-
-    def __enter__(self) -> None: ...
-
-    def __exit__(
-        self,
-        exc_type: Optional[Type[BaseException]],
-        exc: Optional[BaseException],
-        tb: Optional[TracebackType]
-    ) -> None: ...
-
-cclass = ccall = cfunc = inline = _EmptyDecoratorAndManager()
-
-def locals(**vars) -> Callable[[_C], _C]: ...
-
-@overload
-def declare(
-    t: Optional[Callable[..., _T]] = ...,
-    value: Any = ...,
-    *,
-    visibility: str = ...
-) -> _T:
-    ...
-
-@overload
-def declare(**kwargs: type) -> None: ...
+def fused_type(*args: Any) -> Any: ...

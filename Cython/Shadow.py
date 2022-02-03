@@ -164,13 +164,13 @@ def cmod(a, b):
 
 def cast(t, *args, **kwargs):
     kwargs.pop('typecheck', None)
-    assert not kwargs
 
     if isinstance(t, typedef):
-        return t(*args)
+        assert not kwargs
+        return t(*args, **kwargs)
     elif isinstance(t, type):  # Doesn't work with old-style classes of Python 2.x
         if len(args) != 1 or not (args[0] is None or isinstance(args[0], t)):
-            return t(*args)
+            return t(*args, **kwargs)
 
     return args[0]
 
