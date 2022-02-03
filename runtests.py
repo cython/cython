@@ -1617,9 +1617,8 @@ class PureDoctestTestCase(unittest.TestCase):
                     mypy_result = mypy_api.run([
                         self.module_path,
                         '--ignore-missing-imports',
-                        '--follow-imports',
-                        '--python-version 3.10',
-                        'skip',
+                        '--follow-imports', 'skip',
+                        '--python-version', '3.10',
                     ])
                 if mypy_result[2]:
                     self.fail(mypy_result[0])
