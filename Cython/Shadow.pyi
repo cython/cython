@@ -96,7 +96,8 @@ cclass = c_api_binop_methods = type_version_tag = no_gc_clear = no_gc = _class_d
 # > Returns a callable that takes another callable with these parameters and *some*
 # > return value, then returns another callable with the same parameters but the
 # > the return type is the previous 'type' parameter.
-def returns(__type: _T) -> Callable[[Callable[_P, object]], Callable[_P, _T]]: ...
+# On Python 3.5, the latest version of Mypy available is 0.910 which doesn't understand ParamSpec
+def returns(__type: _T) -> Callable[[Callable[_P, object]], Callable[_P, _T]]: ...  # type: ignore
 
 def exceptval(__val: Any, *, check: bool = False) -> Decorator: ...
 
@@ -186,8 +187,9 @@ def cmod(__a: int, __b: int) -> int: ...
 @overload
 def cast(__t: _T, __value: Any) -> _T: ...
 
+# On Python 3.5, the latest version of Mypy available is 0.910 which doesn't understand ParamSpec
 @overload
-def cast(__t: Callable[_P, _T], *args: _P.args, **kwargs: _P.kwargs) -> _T: ...
+def cast(__t: Callable[_P, _T], *args: _P.args, **kwargs: _P.kwargs) -> _T: ...  # type: ignore
 
 def sizeof(__obj: object) -> int: ...
 
