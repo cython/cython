@@ -2,7 +2,7 @@ import dataclasses
 from builtins import (int as py_int, float as py_float,
                       bool as py_bool, str as py_str, complex as py_complex)
 from types import TracebackType
-from typing import (Any, ContextManager, Iterable, ParamSpec, Sequence, Optional, Type,
+from typing import (Any, ContextManager, Iterable, Literal, ParamSpec, Sequence, Optional, Type,
                     TypeVar, Generic, Callable, final, overload)
 
 # This is necessary so that type checkers don't ignore the 'dataclasses' import
@@ -198,8 +198,15 @@ def address(__obj: object) -> PointerType: ...
 def declare(
     t: Optional[Callable[..., _T]] = ...,
     value: Any = ...,
+) -> _T:
+    ...
+
+# This one is for attributes, they cannot have initializers through cython.declare() currently.
+@overload
+def declare(
+    t: Callable[..., _T],
     *,
-    visibility: str = ...
+    visibility: Literal['public', 'readonly', 'private'] = ...,
 ) -> _T:
     ...
 
