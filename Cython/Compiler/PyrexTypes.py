@@ -1292,9 +1292,9 @@ class PyObjectType(PyrexType):
 
     def generate_xincref(self, code, cname, nanny):
         if nanny:
-            code.putln("__Pyx_XINCREF(%s);" % self.as_pyobject(cname))
+            backend.put_cpy(code, "__Pyx_XINCREF(%s);" % self.as_pyobject(cname))
         else:
-            code.putln("Py_XINCREF(%s);" % self.as_pyobject(cname))
+            backend.put_cpy(code, "Py_XINCREF(%s);" % self.as_pyobject(cname))
 
     def generate_decref(self, code, cname, nanny, have_gil):
         # have_gil is for the benefit of memoryviewslice - it's ignored here

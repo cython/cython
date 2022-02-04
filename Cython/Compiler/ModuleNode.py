@@ -3366,13 +3366,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("%s fq_module_name = %s;" % (
                    backend.pyobject_ctype,
                    backend.get_call("__Pyx_PyDict_GetItemString", "modules", fq_module_name_cstring)))
-        code.put_incref("fq_module_name", py_object_type, nanny=False)
+        # we need to do an XINCREF here because of the XDECREF later
+        code.put_xincref("fq_module_name", py_object_type, nanny=False)
         code.putln('if (%s) {' % backend.get_is_null_cond("fq_module_name"))
         code.putln(code.error_goto_if_neg(
             backend.get_call("__Pyx_PyDict_SetItemString", "modules", fq_module_name_cstring, env.module_cname),
             self.pos))
         code.putln("} else {")
-        code.put_decref_clear("fq_module_name", py_object_type, nanny=False)
+        # we need the XDECREF here, otherwise we would leak in HPy
+        code.put_xdecref_clear("fq_module_name", py_object_type, nanny=False)
         code.putln("}")
         code.put_decref_clear("modules", py_object_type, nanny=False)
         code.putln("}")
