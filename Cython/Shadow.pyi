@@ -17,8 +17,8 @@ __all__ = (
     'complex', 'floatcomplex', 'doublecomplex', 'longdoublecomplex',
     'bint', 'void', 'basestring', 'unicode',
     'gs', 'compiled',
-    'cfunc', 'ccall', 'compile', 'locals', 'returns',
     'cclass', 'c_api_binop_methods', 'type_version_tag',
+    'cfunc', 'ccall', 'compile', 'locals', 'returns', 'exceptval',
     'boundscheck', 'wraparound', 'initializedcheck', 'nonecheck', 'cdivision', 'cdivision_warnings', 'profile',
     'linetrace', 'infer_types', 'emit_code_comments',
     'binding', 'embedsignature', 'always_allow_keywords', 'unraisable_tracebacks', 'iterable_coroutine', 'cpp_locals',
@@ -97,6 +97,8 @@ cclass = c_api_binop_methods = type_version_tag = _class_deco
 # > return value, then returns another callable with the same parameters but the
 # > the return type is the previous 'type' parameter.
 def returns(__type: _T) -> Callable[[Callable[_P, object]], Callable[_P, _T]]: ...
+
+def exceptval(__val: Any, *, check: bool = False) -> Decorator: ...
 
 class _EmptyDecoratorAndManager(object):
     @overload
