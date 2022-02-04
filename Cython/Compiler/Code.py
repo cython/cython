@@ -2354,8 +2354,7 @@ class CCodeWriter(object):
         method_flags = entry.signature.method_flags()
         if not method_flags:
             return
-        func_ptr = wrapper_code_writer.put_pymethoddef_wrapper(entry) if wrapper_code_writer else entry.func_cname
-        meth_def = backend.get_method_definition(entry, func_ptr)
+        meth_def = backend.get_method_definition_entry(entry, wrapper_code_writer)
         if meth_def:
             self.putln(meth_def + term)
 
