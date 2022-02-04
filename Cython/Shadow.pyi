@@ -17,8 +17,8 @@ __all__ = (
     'complex', 'floatcomplex', 'doublecomplex', 'longdoublecomplex',
     'bint', 'void', 'basestring', 'unicode',
     'gs', 'compiled',
-    'cclass', 'c_api_binop_methods', 'type_version_tag',
     'cfunc', 'ccall', 'compile', 'locals', 'returns', 'exceptval',
+    'cclass', 'c_api_binop_methods', 'type_version_tag', 'no_gc_clear', 'no_gc',
     'boundscheck', 'wraparound', 'initializedcheck', 'nonecheck', 'cdivision', 'cdivision_warnings', 'profile',
     'linetrace', 'infer_types', 'emit_code_comments',
     'binding', 'embedsignature', 'always_allow_keywords', 'unraisable_tracebacks', 'iterable_coroutine', 'cpp_locals',
@@ -90,7 +90,7 @@ def locals(**kwargs: Any) -> Decorator: ...
 
 def _class_deco(__cls: _TypeT) -> _TypeT: ...
 
-cclass = c_api_binop_methods = type_version_tag = _class_deco
+cclass = c_api_binop_methods = type_version_tag = no_gc_clear = no_gc = _class_deco
 
 # May be a bit hard to read but essentially means:
 # > Returns a callable that takes another callable with these parameters and *some*
