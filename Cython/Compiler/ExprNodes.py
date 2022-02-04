@@ -7724,6 +7724,7 @@ class SequenceNode(ExprNode):
                 tmp_builder, backend.get_call(create_func, "%s%s" % (arg_count, size_factor))))
 
             if c_mult:
+                code.putln("{")
                 counter = code.funcstate.allocate_temp(mult_factor.type, manage_ref=False)
                 if arg_count == 1:
                     offset = counter
