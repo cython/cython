@@ -21,6 +21,11 @@ cdef class WrapperClass:
             free(self._ptr)
             self._ptr = NULL
 
+    def __init__(self):
+        # Prevent accidental instantiation from normal Python code
+        # since we cannot pass a struct pointer into a Python constructor.
+        raise TypeError("This class cannot be instantiated directly.")
+
     # Extension class properties
     @property
     def a(self):
@@ -39,7 +44,7 @@ cdef class WrapperClass:
         Setting ``owner`` flag to ``True`` causes
         the extension type to ``free`` the structure pointed to by ``_ptr``
         when the wrapper object is deallocated."""
-        # Call to __new__ bypasses __init__ constructor
+        # Fast call to __new__() that bypasses the __init__() constructor.
         cdef WrapperClass wrapper = WrapperClass.__new__(WrapperClass)
         wrapper._ptr = _ptr
         wrapper.ptr_owner = owner

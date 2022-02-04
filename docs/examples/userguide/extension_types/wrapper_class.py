@@ -4,7 +4,8 @@ from cython.cimports.libc.stdlib import malloc, free
 # Example C struct
 my_c_struct = cython.struct(
     a = cython.int,
-    b = cython.int)
+    b = cython.int,
+)
 
 @cython.cclass
 class WrapperClass:
@@ -20,6 +21,11 @@ class WrapperClass:
         if self._ptr is not cython.NULL and self.ptr_owner is True:
             free(self._ptr)
             self._ptr = cython.NULL
+
+    def __init__(self):
+        # Prevent accidental instantiation from normal Python code
+        # since we cannot pass a struct pointer into a Python constructor.
+        raise TypeError("This class cannot be instantiated directly.")
 
     # Extension class properties
     @property
@@ -39,7 +45,7 @@ class WrapperClass:
         Setting ``owner`` flag to ``True`` causes
         the extension type to ``free`` the structure pointed to by ``_ptr``
         when the wrapper object is deallocated."""
-        # Call to __new__ bypasses __init__ constructor
+        # Fast call to __new__() that bypasses the __init__() constructor.
         wrapper: WrapperClass  = WrapperClass.__new__(WrapperClass)
         wrapper._ptr = _ptr
         wrapper.ptr_owner = owner
