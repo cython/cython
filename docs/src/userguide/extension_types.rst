@@ -15,7 +15,7 @@ Introduction
 As well as creating normal user-defined classes with the Python class
 statement, Cython also lets you create new built-in Python types, known as
 :term:`extension types<Extension type>`. You define an extension type using the :keyword:`cdef` class
-statement or decorating the class with ``@cclass`` decorator.  Here's an example:
+statement or decorating the class with the ``@cclass`` decorator.  Here's an example:
 
 .. tabs::
 
@@ -36,7 +36,7 @@ The main difference is that you can define attributes using
 
 * the :keyword:`cdef` statement,
 * the :func:`cython.declare()` function or
-* the annotation of attribute.
+* the annotation of an attribute name.
 
 .. tabs::
 
@@ -207,8 +207,8 @@ The same consideration applies to local variables, for example:
 
 .. note::
 
-    We here *cimport* (using :keyword:`cimport` statement or importing from special
-    ``cython.cimports`` package) the class :class:`Shrubbery`, and this is necessary
+    Here, we *cimport* the class :class:`Shrubbery` (using the :keyword:`cimport` statement
+    or importing from special ``cython.cimports`` package) , and this is necessary
     to declare the type at compile time. To be able to cimport an extension type,
     we split the class definition into two parts, one in a definition file and
     the other in the corresponding implementation file. You should read
@@ -219,7 +219,7 @@ Type Testing and Casting
 ------------------------
 
 Suppose I have a method :meth:`quest` which returns an object of type :class:`Shrubbery`.
-To access it's width I could write
+To access its width I could write
 
 .. tabs::
 
@@ -283,7 +283,7 @@ For known builtin or extension types, Cython translates these into a
 fast and safe type check that ignores changes to
 the object's ``__class__`` attribute etc., so that after a successful
 :meth:`isinstance` test, code can rely on the expected C structure of the
-extension type and its C-level attributes (stored in object’s C struct.) and
+extension type and its C-level attributes (stored in the object’s C struct) and
 :keyword:`cdef`/``@cfunc`` methods.
 
 .. _extension_types_and_none:
@@ -291,10 +291,11 @@ extension type and its C-level attributes (stored in object’s C struct.) and
 Extension types and None
 =========================
 
-Cython handles :keyword:`None` values differently in Cython language and when annotations are used.
+Cython handles :keyword:`None` values differently in C-like type declarations and when Python annotations are used.
 
-In the Cython language, when you declare a parameter or C variable as being of an extension type,
-Cython language will allow it to take on the value :keyword:`None` as well as values of its
+In :keyword:`cdef` declarations and C-like function argument declarations (``func(list x)``),
+when you declare an argument or C variable as having an extension or Python builtin type,
+Cython will allow it to take on the value :keyword:`None` as well as values of its
 declared type. This is analogous to the way a C pointer can take on the value
 ``NULL``, and you need to exercise the same caution because of it. There is no
 problem as long as you are performing Python operations on it, because full
@@ -303,13 +304,17 @@ of an extension type (as in the widen_shrubbery function above), it's up to
 you to make sure the reference you're using is not :keyword:`None` -- in the
 interests of efficiency, Cython does not check this.
 
-When annotations are used, the behaviour is close to `PEP-484 <https://www.python.org/dev/peps/pep-0484/>`_.
-The value :keyword:`None` is not allowed when variable is annotated only by type. To allow also :keyword:`None` value,
-``typing.Optional`` must be used.
+When annotations are used, the behaviour follows the Python typing semantics of
+`PEP-484 <https://www.python.org/dev/peps/pep-0484/>`_ instead.
+The value :keyword:`None` is not allowed when a variable is annotated only with its plain type.
+To allow also :keyword:`None`, ``typing.Optional[ ]`` must be used explicitly.
+For function arguments, this is also automatically allowed when they have a
+default argument of :keyword:`None`, e.g. ``func(x: list = None)`` does not require ``typing.Optional``.
 
-In the Cython language, you need to be particularly careful when exposing Python functions which take
-on the other hand, annotations are safe since you need to explicitly enable :keyword:`None` value.
-extension types as arguments:
+The upside of using annotations here is that they are safe by default because
+you need to explicitly allow :keyword:`None` values for them.
+With the C-like declaration syntax, you need to be particularly careful when
+exposing Python functions which take extension types as arguments:
 
 .. tabs::
 
@@ -332,7 +337,8 @@ extension types as arguments:
 The users of our module could crash it by passing :keyword:`None` for the ``sh``
 parameter.
 
-In the Cython language, one way to fix this would be to check :keyword:`None` value:
+As in Python, whenever it is unclear whether a variable can be :keyword:`None`,
+but the code requires a non-None value, an explicit check can help:
 
 .. tabs::
 
@@ -381,7 +387,7 @@ with checking that it has the right type.
 
 .. note::
 
-    ``not None`` and ``typing.Annotation`` clause can only be used in Python functions (defined with
+    ``not None`` and ``typing.Optional`` can only be used in Python functions (defined with
     :keyword:`def` and without ``@cython.cfunc`` decorator) and not C functions
     (defined with :keyword:`cdef` or decorated using ``@cython.cfunc``).  If
     you need to check whether a parameter to a C function is None, you will
@@ -545,7 +551,7 @@ A complete definition of the base type must be available to Cython, so if the
 base type is a built-in type, it must have been previously declared as an
 extern extension type. If the base type is defined in another Cython module, it
 must either be declared as an extern extension type or imported using the
-:keyword:`cimport` statement or importing from special ``cython.cimports`` package.
+:keyword:`cimport` statement or importing from the special ``cython.cimports`` package.
 
 Multiple inheritance is supported, however the second and subsequent base 
 classes must be an ordinary Python class (not an extension type or a built-in
@@ -602,7 +608,7 @@ functions, C methods are declared using
 * :keyword:`cpdef` instead of :keyword:`def` or ``@ccall`` decorator for *hybrid methods*.
 
 C methods are "virtual", and may be overridden in derived
-extension types. In addition, :keyword:`cpdef`/``@ccall`` methods can even be overridden by python
+extension types. In addition, :keyword:`cpdef`/``@ccall`` methods can even be overridden by Python
 methods when called as C method. This adds a little to their calling overhead
 compared to a :keyword:`cdef`/``@cfunc`` method
 
@@ -698,7 +704,7 @@ types.
 The second performance improvement applies to types that are often created
 and deleted in a row, so that they can benefit from a freelist.  Cython
 provides the decorator ``@cython.freelist(N)`` for this, which creates a
-statically sized freelist of ``N`` instances for a given type.  Example
+statically sized freelist of ``N`` instances for a given type.  Example:
 
 .. tabs::
 
@@ -719,7 +725,7 @@ It is quite common to want to instantiate an extension class from an existing
 (pointer to a) data structure, often as returned by external C/C++ functions.
 
 As extension classes can only accept Python objects as arguments in their
-constructors, this necessitates the use of factory functions. For example, 
+constructors, this necessitates the use of factory functions or factory methods. For example, 
 
 .. tabs::
 
@@ -1019,7 +1025,8 @@ defined in a Cython module available to external C code.
 .. note::
 
     Cython currently does not support Extension types declared as extern or public
-    in Pure Python mode.
+    in Pure Python mode.  This is not considered an issue since public/extern extension
+    types are most commonly declared in `.pxd` files and not in `.py` files.
 
 
 .. _external_extension_types:
