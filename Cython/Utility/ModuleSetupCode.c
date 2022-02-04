@@ -670,6 +670,7 @@ static CYTHON_INLINE int _HPy_IsSubclass(HPyContext *ctx, HPy derived, HPy cls)
 #define __Pyx_NEWREF(x) (__Pyx_INCREF(x), x)
 #define __Pyx_NEWREF_NO_REFNANNY(x) (Py_INCREF(x), x)
 #define __Pyx_DECREF_NO_REFNANNY(x) Py_DECREF(x)
+#define __Pyx_XDECREF_NO_REFNANNY(x) Py_XDECREF(x)
 
 #define __Pyx_PyErr_SetString(err, msg) PyErr_SetString(err, msg)
 #define __Pyx_PyErr_Format PyErr_Format
@@ -702,6 +703,7 @@ static CYTHON_INLINE int _HPy_IsSubclass(HPyContext *ctx, HPy derived, HPy cls)
 #define __Pyx_NEWREF(x) HPy_Dup($hpy_context_cname, x)
 #define __Pyx_NEWREF_NO_REFNANNY(x) __Pyx_NEWREF(x)
 #define __Pyx_DECREF_NO_REFNANNY(x) HPy_Close($hpy_context_cname, x)
+#define __Pyx_XDECREF_NO_REFNANNY(x) HPy_Close($hpy_context_cname, x)
 /* HPy will soon have HPy_CLEAR */
 #define HPy_CLEAR(x) do { HPy tmp = (x); x = HPy_NULL; HPy_Close($hpy_context_cname, tmp);} while(0)
 
