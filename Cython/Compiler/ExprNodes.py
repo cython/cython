@@ -14083,14 +14083,7 @@ class AnnotationNode(ExprNode):
             arg_type.create_declaration_utility_code(env)
 
         # Check for declaration modifiers, e.g. "typing.Optional[...]" or "dataclasses.InitVar[...]"
-        # TODO: somehow bring this together with TemplatedTypeNode.analyse_pytyping_modifiers()
-        modifiers = []
-        modifier_node = annotation
-        while modifier_node.is_subscript:
-            modifier_type = modifier_node.base.analyse_as_type(env)
-            if modifier_type.python_type_constructor_name and modifier_type.modifier_name:
-                modifiers.append(modifier_type.modifier_name)
-            modifier_node = modifier_node.index
+        modifiers = annotation.analyse_pytyping_modifiers(env) if annotation.is_subscript else []
 
         return modifiers, arg_type
 
