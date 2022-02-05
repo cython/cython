@@ -120,7 +120,7 @@ You have two ways of avoiding this limitation, both add an overhead when
 a method is called from Python code. Especially when calling hybrid methods declared
 with :keyword:`cpdef` in .pyx files or with the ``@ccall`` decorator.
 
-The first approach is to create a Python subclass.:
+The first approach is to create a Python subclass:
 
 .. tabs::
 
@@ -132,7 +132,7 @@ The first approach is to create a Python subclass.:
 
         .. literalinclude:: ../../examples/userguide/extension_types/extendable_animal.pyx
 
-Declaring a ``__dict__`` attribute is the second way of enabling dynamic attributes.:
+Declaring a ``__dict__`` attribute is the second way of enabling dynamic attributes:
 
 .. tabs::
 
@@ -153,7 +153,7 @@ generic Python object. It knows this already in the case of the ``self``
 parameter of the methods of that type, but in other cases you will have to use
 a type declaration.
 
-For example, in the following function
+For example, in the following function:
 
 .. tabs::
 
@@ -219,7 +219,7 @@ Type Testing and Casting
 ------------------------
 
 Suppose I have a method :meth:`quest` which returns an object of type :class:`Shrubbery`.
-To access its width I could write
+To access its width I could write:
 
 .. tabs::
 
@@ -239,7 +239,7 @@ To access its width I could write
 
 which requires the use of a local variable and performs a type test on assignment.
 If you *know* the return value of :meth:`quest` will be of type :class:`Shrubbery`
-you can use a cast to write
+you can use a cast to write:
 
 .. tabs::
 
@@ -259,7 +259,7 @@ This may be dangerous if :meth:`quest()` is not actually a :class:`Shrubbery`, a
 will try to access width as a C struct member which may not exist. At the C level,
 rather than raising an :class:`AttributeError`, either an nonsensical result will be
 returned (interpreting whatever data is at that address as an int) or a segfault
-may result from trying to access invalid memory. Instead, one can write
+may result from trying to access invalid memory. Instead, one can write:
 
 .. tabs::
 
@@ -422,7 +422,7 @@ extension types.
 Properties
 ============
 
-You can declare properties in an extension class using the same syntax as in ordinary Python code
+You can declare properties in an extension class using the same syntax as in ordinary Python code:
 
 .. tabs::
 
@@ -494,7 +494,7 @@ corresponding operation is attempted.
 
 Here's a complete example. It defines a property which adds to a list each
 time it is written to, returns the list when it is read, and empties the list
-when it is deleted.
+when it is deleted:
 
 .. tabs::
 
@@ -520,7 +520,7 @@ Subclassing
 =============
 
 If an extension type inherits from other types, the first base class must be
-a built-in type or another extension type
+a built-in type or another extension type:
 
 .. tabs::
 
@@ -564,7 +564,7 @@ must be compatible).
 
 There is a way to prevent extension types from
 being subtyped in Python.  This is done via the ``final`` directive,
-usually set on an extension type using a decorator
+usually set on an extension type using a decorator:
 
 .. tabs::
 
@@ -610,7 +610,7 @@ functions, C methods are declared using
 C methods are "virtual", and may be overridden in derived
 extension types. In addition, :keyword:`cpdef`/``@ccall`` methods can even be overridden by Python
 methods when called as C method. This adds a little to their calling overhead
-compared to a :keyword:`cdef`/``@cfunc`` method
+compared to a :keyword:`cdef`/``@cfunc`` method:
 
 .. tabs::
 
@@ -638,7 +638,7 @@ method using the usual Python technique, i.e.::
 
 :keyword:`cdef`/``@ccall`` methods can be declared static by using the ``@staticmethod`` decorator.
 This can be especially useful for constructing classes that take non-Python
-compatible types.:
+compatible types:
 
 .. tabs::
 
@@ -677,7 +677,7 @@ Fast instantiation
 Cython provides two ways to speed up the instantiation of extension types.
 The first one is a direct call to the ``__new__()`` special static method,
 as known from Python.  For an extension type ``Penguin``, you could use
-the following code
+the following code:
 
 .. tabs::
 
@@ -720,7 +720,7 @@ It is quite common to want to instantiate an extension class from an existing
 (pointer to a) data structure, often as returned by external C/C++ functions.
 
 As extension classes can only accept Python objects as arguments in their
-constructors, this necessitates the use of factory functions or factory methods. For example, 
+constructors, this necessitates the use of factory functions or factory methods. For example:
 
 .. tabs::
 
@@ -772,7 +772,7 @@ Making extension types weak-referenceable
 
 By default, extension types do not support having weak references made to
 them. You can enable weak referencing by declaring a C attribute of type
-object called :attr:`__weakref__`. For example,
+object called :attr:`__weakref__`. For example:
 
 .. tabs::
 
@@ -873,7 +873,7 @@ CPython invented a mechanism for this called the *trashcan*. It limits the
 recursion depth of deallocations by delaying some deallocations.
 
 By default, Cython extension types do not use the trashcan but it can be
-enabled by setting the ``trashcan`` directive to ``True``. For example
+enabled by setting the ``trashcan`` directive to ``True``. For example:
 
 .. tabs::
 
@@ -918,7 +918,7 @@ have triggered a call to ``tp_clear`` to clear the object
 In that case, any object references have vanished when ``__dealloc__``
 is called. Now your cleanup code lost access to the objects it has to clean up.
 To fix this, you can disable clearing instances of a specific class by using
-the ``no_gc_clear`` directive
+the ``no_gc_clear`` directive:
 
 .. tabs::
 
@@ -965,7 +965,7 @@ but the compiler won't be able to prove this. This would be the case if
 the class can never reference itself, even indirectly.
 In that case, you can manually disable cycle collection by using the
 ``no_gc`` directive, but beware that doing so when in fact the extension type
-can participate in cycles could cause memory leaks
+can participate in cycles could cause memory leaks:
 
 .. tabs::
 
@@ -1040,7 +1040,7 @@ objects defined in the Python core or in a non-Cython extension module.
     :ref:`sharing-declarations`.
 
 Here is an example which will let you get at the C-level members of the
-built-in complex object.::
+built-in complex object::
 
     from __future__ import print_function
 
