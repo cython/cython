@@ -158,6 +158,7 @@ class Node(object):
     is_terminator = 0
     is_wrapper = False  # is a DefNode wrapper for a C function
     is_cproperty = False
+    is_templated_type_node = False
     temps = None
 
     # All descendants should set child_attrs to a list of the attributes
@@ -1202,8 +1203,8 @@ class TemplatedTypeNode(CBaseTypeNode):
     child_attrs = ["base_type_node", "positional_args",
                    "keyword_args", "dtype_node"]
 
+    is_templated_type_node = True
     dtype_node = None
-
     name = None
 
     def _analyse_template_types(self, env, base_type):
@@ -1301,6 +1302,19 @@ class TemplatedTypeNode(CBaseTypeNode):
                       self.name)
 
         return self.type
+
+    def analyse_pytyping_modifiers(self, env):
+        # Check for declaration modifiers, e.g. "typing.Optional[...]" or "dataclasses.InitVar[...]"
+        # TODO: somehow bring this together with IndexNode.analyse_pytyping_modifiers()
+        modifiers = []
+        modifier_node = self
+        while modifier_node.is_templated_type_node and modifier_node.base_type_node and len(modifier_node.positional_args) == 1:
+            modifier_type = self.base_type_node.analyse_as_type(env)
+            if modifier_type.python_type_constructor_name and modifier_type.modifier_name:
+                modifiers.append(modifier_type.modifier_name)
+            modifier_node = modifier_node.positional_args[0]
+
+        return modifiers
 
 
 class CComplexBaseTypeNode(CBaseTypeNode):
@@ -1429,6 +1443,11 @@ class CVarDefNode(StatNode):
 
         base_type = self.base_type.analyse(env)
 
+        # Check for declaration modifiers, e.g. "typing.Optional[...]" or "dataclasses.InitVar[...]"
+        modifiers = None
+        if self.base_type.is_templated_type_node:
+            modifiers = self.base_type.analyse_pytyping_modifiers(env)
+
         if base_type.is_fused and not self.in_pxd and (env.is_c_class_scope or
                                                        env.is_module_scope):
             error(self.pos, "Fused types not allowed here")
@@ -1492,7 +1511,7 @@ class CVarDefNode(StatNode):
                 self.entry = dest_scope.declare_var(
                     name, type, declarator.pos,
                     cname=cname, visibility=visibility, in_pxd=self.in_pxd,
-                    api=self.api, is_cdef=1)
+                    api=self.api, is_cdef=True, pytyping_modifiers=modifiers)
                 if Options.docstrings:
                     self.entry.doc = embed_position(self.pos, self.doc)
 

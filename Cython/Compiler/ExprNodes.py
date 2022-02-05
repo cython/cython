@@ -3722,6 +3722,18 @@ class IndexNode(_IndexingBaseNode):
                 error(self.pos, "Array size must be a compile time constant")
         return None
 
+    def analyse_pytyping_modifiers(self, env):
+        # Check for declaration modifiers, e.g. "typing.Optional[...]" or "dataclasses.InitVar[...]"
+        # TODO: somehow bring this together with TemplatedTypeNode.analyse_pytyping_modifiers()
+        modifiers = []
+        modifier_node = self
+        while modifier_node.is_subscript:
+            modifier_type = modifier_node.base.analyse_as_type(env)
+            if modifier_type.python_type_constructor_name and modifier_type.modifier_name:
+                modifiers.append(modifier_type.modifier_name)
+            modifier_node = modifier_node.index
+        return modifiers
+
     def type_dependencies(self, env):
         return self.base.type_dependencies(env) + self.index.type_dependencies(env)
 
@@ -14035,7 +14047,6 @@ class AnnotationNode(ExprNode):
             # Already applied as a fused type, not re-evaluating it here.
             return [], None
         annotation = self.expr
-        modifiers = []
         explicit_pytype = explicit_ctype = False
         if annotation.is_dict_literal:
             warning(annotation.pos,
@@ -14058,7 +14069,7 @@ class AnnotationNode(ExprNode):
 
         if arg_type is None:
             warning(annotation.pos, "Unknown type declaration in annotation, ignoring")
-            return modifiers, arg_type
+            return [], arg_type
 
         if annotation.is_string_literal:
             warning(annotation.pos,
@@ -14072,6 +14083,8 @@ class AnnotationNode(ExprNode):
             arg_type.create_declaration_utility_code(env)
 
         # Check for declaration modifiers, e.g. "typing.Optional[...]" or "dataclasses.InitVar[...]"
+        # TODO: somehow bring this together with TemplatedTypeNode.analyse_pytyping_modifiers()
+        modifiers = []
         modifier_node = annotation
         while modifier_node.is_subscript:
             modifier_type = modifier_node.base.analyse_as_type(env)
