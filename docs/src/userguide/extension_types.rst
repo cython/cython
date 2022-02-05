@@ -670,11 +670,6 @@ definition, for example,::
     cdef class A(B):
         # attributes and methods
 
-.. note::
-
-    Cython currently does not support Forward-declaring extension types
-    in Pure Python mode.
-
 
 Fast instantiation
 ===================
