@@ -28,8 +28,10 @@ cdef void misuse_classes():
     print(1 - no)
 
 _ERRORS = """
-23:10: Cannot assign type 'NoAddSub' to 'const HasOps'
-24:10: Cannot assign type 'long' to 'const HasOps'
-24:14: Cannot assign type 'NoAddSub' to 'int'
-25:10: Cannot assign type 'NoAddSub' to 'int'
+25:10: Cannot assign type 'NoAddSub' to 'const HasOps'
+26:10: Cannot assign type 'long' to 'const HasOps'
+26:14: Cannot assign type 'NoAddSub' to 'int'
+27:10: Cannot assign type 'NoAddSub' to 'int'
+27:15: Cannot assign type 'long' to 'const HasOps'
+28:14: Cannot assign type 'NoAddSub' to 'const HasOps'
 """

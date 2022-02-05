@@ -139,8 +139,8 @@ public:
   bool value;
 };
 
-#define NON_MEMBER_PREFIX(cls, op) const char* operator op(const cls&) { return ##cls" prefix "##op; }
-#define NON_MEMBER_POSTFIX(cls, op) const char* operator op(const cls&, int) { return ##cls" postfix "##op; }
+#define NON_MEMBER_PREFIX(cls, op) const char* operator op(const cls&) { return #cls" prefix "#op; }
+#define NON_MEMBER_POSTFIX(cls, op) const char* operator op(const cls&, int) { return #cls" postfix "#op; }
 
 /* a small number of extra non-member ops */
 class TestNonmemberOps1 {

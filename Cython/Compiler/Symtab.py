@@ -1027,46 +1027,33 @@ class Scope(object):
         return self._type_or_specialized_type_from_entry(entry)
 
     def lookup_operator(self, operator, operands):
-        if operands[0].type.is_cpp_class:
-            obj_type = operands[0].type
-            method = obj_type.scope.lookup("operator%s" % operator)
-            if method is not None:
-                arg_types = [arg.type for arg in operands[1:]]
-                res = PyrexTypes.best_match(arg_types, method.all_alternatives())
-                if res is not None:
-                    return res
-        function = self.lookup("operator%s" % operator)
-        function_alternatives = []
-        if function is not None:
-            function_alternatives = function.all_alternatives()
-        nonmember_alternatives = []
-        if self.is_cpp_class_scope and function and function.scope is self:
-            # for C++ classes we can have both member and non-member operators
-            # and we really want to consider both
-            global_scope = self.global_scope()
-            if global_scope:
-                global_func = global_scope.lookup_here("operator%s" % operator)
-                if global_func:
-                    nonmember_alternatives = global_func.all_alternatives()
+        scopes = [self]
+        for op in operands:
+            # calling resolve avoids duplicate entries for const arguments
+            op_type = op.type.resolve()
+            if op_type.is_cpp_class:
+                # for C++ classes we can have both member and non-member operators
+                # and we really want to consider both
+                scopes.append(op_type.scope)
+                global_scope = op_type.scope.global_scope()
+                if global_scope:
+                    scopes.append(global_scope)
+        scopes = list(set(scopes))
 
-        # look-up nonmember methods listed within a class
-        method_alternatives = []
-        if len(operands) == 2:  # binary operators only
-            for n in range(2):
-                if operands[n].type.is_cpp_class:
-                    obj_type = operands[n].type
-                    method = obj_type.scope.lookup("operator%s" % operator)
-                    if method is not None:
-                        method_alternatives += method.all_alternatives()
+        all_alternatives = []
+        for scope in scopes:
+            function = scope.lookup_here("operator%s" % operator)
+            if function is not None:
+                all_alternatives.extend(function.all_alternatives())
 
-        if (not method_alternatives) and (not function_alternatives):
+        if not all_alternatives:
             return None
 
         # select the unique alternatives
-        all_alternatives = list(set(method_alternatives + function_alternatives))
+        all_alternatives = list(set(all_alternatives))
 
-        return PyrexTypes.best_match([arg.type for arg in operands],
-                                     all_alternatives)
+        return PyrexTypes.best_match([arg.type for arg in operands[1:]],
+                                     all_alternatives, self_arg0_type=operands[0].type)
 
     def lookup_operator_for_types(self, pos, operator, types):
         from .Nodes import Node
@@ -1074,6 +1061,15 @@ class Scope(object):
             pass
         operands = [FakeOperand(pos, type=type) for type in types]
         return self.lookup_operator(operator, operands)
+
+    def find_cpp_operation_type(self, operator, types):
+        operator_entry = self.lookup_operator_for_types(None, operator, types)
+        if not operator_entry:
+            return None
+        func_type = operator_entry.type
+        if func_type.is_ptr:
+            func_type = func_type.base_type
+        return func_type.return_type
 
     def _emit_class_private_warning(self, pos, name):
         warning(pos, "Global name %s matched from within class scope "
@@ -2680,6 +2676,26 @@ class CppClassScope(Scope):
             entry.overloaded_alternatives = prev_entry.all_alternatives()
         entry.utility_code = utility_code
         type.entry = entry
+        is_member_function = True
+        if name.startswith("operator"):
+            rest_of_name = name[8:]
+            if rest_of_name == "()":
+                # function call operator - definitely a member function
+                pass
+            elif rest_of_name in ("~", "!" "*" "&") and len(type.args) >= 1:
+                # non-member unary operator declared inside the class in Cython
+                # note that we can't recognise non-member unary - and + declared inside the class
+                is_member_function = False
+            elif (rest_of_name in ("++", "--") and
+                    ((len(type.args) == 1 and not type.args[0].type.is_int) or len(type.args) >= 2)):
+                # non-member unary operator declared inside the class in Cython
+                is_member_function = False
+            elif len(type.args) >= 2:
+                # non-member binary operator declare inside the class in Cython
+                is_member_function = False
+        if is_member_function:
+            type.is_member_function = True
+
         return entry
 
     def declare_inherited_cpp_attributes(self, base_class):

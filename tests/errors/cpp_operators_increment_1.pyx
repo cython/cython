@@ -23,6 +23,5 @@ cdef void misuse_classes():
     cython.operator.preincrement(no)
 
 _ERRORS = """
-23:19: '++' operator not defined for NoIncrement (Cannot assign type 'NoIncrement' to 'OnlyPreNonMember')
 23:19: Invalid operand type for '++' (NoIncrement)
 """

@@ -2752,11 +2752,6 @@ class CPtrType(CPointerBaseType):
     def invalid_value(self):
         return "1"
 
-    def find_cpp_operation_type(self, operator, operand_type=None):
-        if self.base_type.is_cpp_class:
-            return self.base_type.find_cpp_operation_type(operator, operand_type)
-        return None
-
 
 class CNullPtrType(CPtrType):
 
@@ -2849,6 +2844,7 @@ class CFuncType(CType):
     #  is_const_method  boolean
     #  is_static_method boolean
     #  op_arg_struct    CPtrType   Pointer to optional argument struct
+    #  is_member_function  boolean  c++ member function
 
     is_cfunction = 1
     original_sig = None
@@ -2856,6 +2852,7 @@ class CFuncType(CType):
     from_fused = False
     is_const_method = False
     op_arg_struct = None
+    is_member_function = False
 
     subtypes = ['return_type', 'args']
 
@@ -4052,19 +4049,6 @@ class CppClassType(CType):
     def attributes_known(self):
         return self.scope is not None
 
-    def find_cpp_operation_type(self, operator, operand_type=None):
-        operands = [self]
-        if operand_type is not None:
-            operands.append(operand_type)
-        # pos == None => no errors
-        operator_entry = self.scope.lookup_operator_for_types(None, operator, operands)
-        if not operator_entry:
-            return None
-        func_type = operator_entry.type
-        if func_type.is_ptr:
-            func_type = func_type.base_type
-        return func_type.return_type
-
     def get_constructor(self, pos):
         constructor = self.scope.lookup('<init>')
         if constructor is not None:
@@ -4677,12 +4661,15 @@ def is_promotion(src_type, dst_type):
             return src_type.is_float and src_type.rank <= dst_type.rank
     return False
 
-def best_match(arg_types, functions, pos=None, env=None, args=None):
+def best_match(arg_types, functions, pos=None, env=None, args=None, self_arg0_type=None):
     """
     Given a list args of arguments and a list of functions, choose one
     to call which seems to be the "best" fit for this list of arguments.
     This function is used, e.g., when deciding which overloaded method
     to dispatch for C++ classes.
+
+    self_arg0 allows nonmember and member C++ operators to be compared.
+    Non-member functions have self_arg0 prepended to the args
 
     We first eliminate functions based on arity, and if only one
     function has the correct arity, we return it. Otherwise, we weight
@@ -4718,15 +4705,20 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
         # Check no. of args
         max_nargs = len(func_type.args)
         min_nargs = max_nargs - func_type.optional_arg_count
-        if actual_nargs < min_nargs or (not func_type.has_varargs and actual_nargs > max_nargs):
+        actual_nargs_self = actual_nargs
+        arg_types_self = arg_types
+        if not func_type.is_member_function and self_arg0_type:
+            actual_nargs_self += 1
+            arg_types_self = [self_arg0_type] + arg_types
+        if actual_nargs_self < min_nargs or (not func_type.has_varargs and actual_nargs_self > max_nargs):
             if max_nargs == min_nargs and not func_type.has_varargs:
                 expectation = max_nargs
-            elif actual_nargs < min_nargs:
+            elif actual_nargs_self < min_nargs:
                 expectation = "at least %s" % min_nargs
             else:
                 expectation = "at most %s" % max_nargs
             error_mesg = "Call with wrong number of arguments (expected %s, got %s)" \
-                         % (expectation, actual_nargs)
+                         % (expectation, actual_nargs_self)
             errors.append((func, error_mesg))
             continue
         if func_type.templates:
@@ -4734,12 +4726,12 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
             # use lvalue-reference-to-A for deduction in place of A when the
             # function call argument is an lvalue. See:
             # https://en.cppreference.com/w/cpp/language/template_argument_deduction#Deduction_from_a_function_call
-            arg_types_for_deduction = list(arg_types)
+            arg_types_for_deduction = list(arg_types_self)
             if func.type.is_cfunction and args:
                 for i, formal_arg in enumerate(func.type.args):
                     if formal_arg.is_forwarding_reference():
                         if args[i].is_lvalue():
-                            arg_types_for_deduction[i] = c_ref_type(arg_types[i])
+                            arg_types_for_deduction[i] = c_ref_type(arg_types_self[i])
             deductions = reduce(
                 merge_template_deductions,
                 [pattern.type.deduce_template_params(actual) for (pattern, actual) in zip(func_type.args, arg_types_for_deduction)],
@@ -4780,8 +4772,13 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
 
     for index, (func, func_type) in enumerate(candidates):
         score = [0,0,0,0,0,0,0]
-        for i in range(min(actual_nargs, len(func_type.args))):
-            src_type = arg_types[i]
+        arg_types_self = arg_types
+        actual_nargs_self = actual_nargs
+        if not func_type.is_member_function and self_arg0_type:
+            actual_nargs_self += 1
+            arg_types_self = [self_arg0_type] + arg_types
+        for i in range(min(actual_nargs_self, len(func_type.args))):
+            src_type = arg_types_self[i]
             dst_type = func_type.args[i].type
 
             assignable = dst_type.assignable_from(src_type)

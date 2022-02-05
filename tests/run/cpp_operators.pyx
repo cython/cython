@@ -142,14 +142,14 @@ cdef extern from "cpp_operators_helper.h" nogil:
         bool operator bool()
         bool value
 
-    cdef cppclass TestNonmembersOps1:
-        const_char* operator++(const TestNonmembersOps1&)
-        const char* operator++(const TestNonmembersOps1&, int)
+    cdef cppclass TestNonmemberOps1:
+        const_char* operator++(const TestNonmemberOps1&)
+        const char* operator++(const TestNonmemberOps1&, int)
 
-    cdef cppclass TestNonmembersOps2:
+    cdef cppclass TestNonmemberOps2:
         pass
-    const_char* operator++(const TestNonmembersOps2&)
-    const_char* operator++(const TestNonmembersOps2&, int)
+    const_char* operator++(const TestNonmemberOps2&)
+    const_char* operator++(const TestNonmemberOps2&, int)
 
 
 cdef cppclass TruthSubClass(TruthClass):
@@ -181,6 +181,10 @@ def test_incdec():
     unary -- [const_char *]
     post ++ [const_char *]
     post -- [const_char *]
+    TestNonmemberOps1 prefix ++ [const_char *]
+    TestNonmemberOps1 postfix ++ [const_char *]
+    TestNonmemberOps2 prefix ++ [const_char *]
+    TestNonmemberOps2 postfix ++ [const_char *]
     """
     cdef TestOps* t = new TestOps()
     a = cython.operator.preincrement(t[0])
@@ -193,15 +197,18 @@ def test_incdec():
     out(d, typeof(d))
     del t
 
-    cdef TestNonmembersOps1* t1 = new TestNonmembersOps1()
-    cdef TestNonmembersOps2* t2 = new TestNonmembersOps2()
+    cdef TestNonmemberOps1* t1 = new TestNonmemberOps1()
+    cdef TestNonmemberOps2* t2 = new TestNonmemberOps2()
     try:
+        # FIXME related to https://github.com/cython/cython/issues/4535
+        # global scope operator++ with different numbers of arguments don't get
+        # added as alteratives, but get rejected as redeclarations
         e = cython.operator.preincrement(t1[0])
         out(e, typeof(e))
         f = cython.operator.postincrement(t1[0])
         out(f, typeof(f))
         g = cython.operator.preincrement(t2[0])
-        out(h, typeof(h))
+        out(g, typeof(g))
         h = cython.operator.postincrement(t2[0])
         out(h, typeof(h))
     finally:
@@ -293,7 +300,6 @@ def test_nonmember_binop():
     out(1. << t[0], typeof(1. << t[0]))
     out(1. >> t[0], typeof(1. >> t[0]))
 
-    # for some reason we need a cdef here - not sure this is quite right
     y = cython.operator.comma(1., t[0])
     out(y, typeof(y))
     del t
