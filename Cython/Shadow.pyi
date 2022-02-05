@@ -2,7 +2,7 @@ import dataclasses
 from builtins import (int as py_int, float as py_float,
                       bool as py_bool, str as py_str, complex as py_complex)
 from types import TracebackType
-from typing import (Any, ContextManager, Iterable, Literal, ParamSpec, Sequence, Optional, Type,
+from typing import (Any, Iterable, Literal, ParamSpec, Sequence, Optional, Type,
                     TypeVar, Generic, Callable, final, overload)
 
 # This is necessary so that type checkers don't ignore the 'dataclasses' import
@@ -220,13 +220,13 @@ def declare(**kwargs: type) -> None: ...
 
 class _nogil:
     @overload
-    def __call__(self) -> ContextManager: ...
-
-    @overload
     def __call__(self, __val: bool) -> Decorator: ...
 
     @overload
     def __call__(self, __func: _C) -> _C: ...
+
+    @overload
+    def __call__(self) -> '_nogil': ...
 
     def __enter__(self) -> None: ...
 
