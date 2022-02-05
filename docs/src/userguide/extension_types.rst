@@ -393,9 +393,6 @@ with checking that it has the right type.
     you need to check whether a parameter to a C function is None, you will
     need to do it yourself.
 
-    On the other hand,  can be used also for C functions and methods
-    (decorated using ``@cython.cfunc``)
-
 .. note::
 
     Some more things:
