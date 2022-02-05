@@ -138,3 +138,16 @@ public:
   operator bool() { return value; }
   bool value;
 };
+
+#define NON_MEMBER_PREFIX(cls, op) const char* operator op(const cls&) { return ##cls" prefix "##op; }
+#define NON_MEMBER_POSTFIX(cls, op) const char* operator op(const cls&, int) { return ##cls" postfix "##op; }
+
+/* a small number of extra non-member ops */
+class TestNonmemberOps1 {
+};
+class TestNonmemberOps2 {
+};
+NON_MEMBER_PREFIX(TestNonmemberOps1, ++)
+NON_MEMBER_POSTFIX(TestNonmemberOps1, ++)
+NON_MEMBER_PREFIX(TestNonmemberOps2, ++)
+NON_MEMBER_POSTFIX(TestNonmemberOps2, ++)

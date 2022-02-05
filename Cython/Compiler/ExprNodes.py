@@ -10400,10 +10400,26 @@ class UnopNode(ExprNode):
 
     def analyse_cpp_operation(self, env, overload_check=True):
         entry = env.lookup_operator(self.operator, [self.operand])
+        errors = None
         if overload_check and not entry:
             self.type_error()
             return
         if entry:
+            # analyse it as a function call to get the benefit of the
+            # full type checking in function call node
+            func_args = []
+            if not entry.scope.is_cpp_class_scope:
+                # skip appending the operand for members
+                func_args.append(self.operand)
+            if not getattr(self, "is_prefix", True):
+                func_args.append(IntNode(self.pos, value='1'))
+            func_call = SimpleCallNode(
+                self.pos,
+                function=NameNode(self.pos, name=self.operator, entry=entry),
+                args=func_args)
+            with local_errors(ignore=True) as errors:
+                func_call.analyse_types(env)
+
             self.exception_check = entry.type.exception_check
             self.exception_value = entry.type.exception_value
             if self.exception_check == '+':
@@ -10414,9 +10430,14 @@ class UnopNode(ExprNode):
             self.exception_check = ''
             self.exception_value = ''
         cpp_type = self.operand.type.find_cpp_operation_type(self.operator)
+        if errors:
+            error(self.pos, "'%s' operator not defined for %s (%s)" % (
+                self.operator, self.operand.type, "; ".join(e.message_only for e in errors)))
+            self.type_error()
+            return
         if overload_check and cpp_type is None:
             error(self.pos, "'%s' operator not defined for %s" % (
-                self.operator, type))
+                self.operator, self.operand.type))
             self.type_error()
             return
         self.type = cpp_type

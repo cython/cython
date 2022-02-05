@@ -102,29 +102,29 @@ cdef extern from "cpp_operators_helper.h" nogil:
         int& operator--(int) except +
 
         int& operator+(int) except +
-        int& operator+(int,const TestOps&) except +
+        int& operator+(int,const RefTestOps&) except +
         int& operator-(int) except +
-        int& operator-(int,const TestOps&) except +
+        int& operator-(int,const RefTestOps&) except +
         int& operator*(int) except +
         # deliberately omitted operator* to test case where only defined outside class
         int& operator/(int) except +
-        int& operator/(int,const TestOps&) except +
+        int& operator/(int,const RefTestOps&) except +
         int& operator%(int) except +
-        int& operator%(int,const TestOps&) except +
+        int& operator%(int,const RefTestOps&) except +
 
         int& operator|(int) except +
-        int& operator|(int,const TestOps&) except +
+        int& operator|(int,const RefTestOps&) except +
         int& operator&(int) except +
-        int& operator&(int,const TestOps&) except +
+        int& operator&(int,const RefTestOps&) except +
         int& operator^(int) except +
-        int& operator^(int,const TestOps&) except +
+        int& operator^(int,const RefTestOps&) except +
         int& operator,(int) except +
-        int& operator,(int,const TestOps&) except +
+        int& operator,(int,const RefTestOps&) except +
 
         int& operator<<(int) except +
-        int& operator<<(int,const TestOps&) except +
+        int& operator<<(int,const RefTestOps&) except +
         int& operator>>(int) except +
-        int& operator>>(int,const TestOps&) except +
+        int& operator>>(int,const RefTestOps&) except +
 
         int& operator==(int) except +
         int& operator!=(int) except +
@@ -141,6 +141,15 @@ cdef extern from "cpp_operators_helper.h" nogil:
         TruthClass(bool)
         bool operator bool()
         bool value
+
+    cdef cppclass TestNonmembersOps1:
+        const_char* operator++(const TestNonmembersOps1&)
+        const char* operator++(const TestNonmembersOps1&, int)
+
+    cdef cppclass TestNonmembersOps2:
+        pass
+    const_char* operator++(const TestNonmembersOps2&)
+    const_char* operator++(const TestNonmembersOps2&, int)
 
 
 cdef cppclass TruthSubClass(TruthClass):
@@ -183,6 +192,21 @@ def test_incdec():
     d = cython.operator.postdecrement(t[0])
     out(d, typeof(d))
     del t
+
+    cdef TestNonmembersOps1* t1 = new TestNonmembersOps1()
+    cdef TestNonmembersOps2* t2 = new TestNonmembersOps2()
+    try:
+        e = cython.operator.preincrement(t1[0])
+        out(e, typeof(e))
+        f = cython.operator.postincrement(t1[0])
+        out(f, typeof(f))
+        g = cython.operator.preincrement(t2[0])
+        out(h, typeof(h))
+        h = cython.operator.postincrement(t2[0])
+        out(h, typeof(h))
+    finally:
+        del t1
+        del t2
 
 def test_binop():
     """

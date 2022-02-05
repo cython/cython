@@ -1039,6 +1039,15 @@ class Scope(object):
         function_alternatives = []
         if function is not None:
             function_alternatives = function.all_alternatives()
+        nonmember_alternatives = []
+        if self.is_cpp_class_scope and function and function.scope is self:
+            # for C++ classes we can have both member and non-member operators
+            # and we really want to consider both
+            global_scope = self.global_scope()
+            if global_scope:
+                global_func = global_scope.lookup_here("operator%s" % operator)
+                if global_func:
+                    nonmember_alternatives = global_func.all_alternatives()
 
         # look-up nonmember methods listed within a class
         method_alternatives = []
