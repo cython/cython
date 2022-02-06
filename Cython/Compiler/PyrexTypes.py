@@ -2860,7 +2860,7 @@ class CFuncType(CType):
             exception_value = None, exception_check = 0, calling_convention = "",
             nogil = 0, with_gil = 0, is_overridable = 0, optional_arg_count = 0,
             is_const_method = False, is_static_method=False,
-            templates = None, is_strict_signature = False):
+            templates = None, is_strict_signature = False, is_member_function=False):
         self.return_type = return_type
         self.args = args
         self.has_varargs = has_varargs
@@ -2875,6 +2875,8 @@ class CFuncType(CType):
         self.is_static_method = is_static_method
         self.templates = templates
         self.is_strict_signature = is_strict_signature
+        if is_member_function:
+            self.is_member_function = is_member_function
 
     def __repr__(self):
         arg_reprs = list(map(repr, self.args))
@@ -3158,7 +3160,8 @@ class CFuncType(CType):
                            optional_arg_count = self.optional_arg_count,
                            is_const_method = self.is_const_method,
                            is_static_method = self.is_static_method,
-                           templates = self.templates)
+                           templates = self.templates,
+                           is_member_function = self.is_member_function)
 
         result.from_fused = self.is_fused
         return result
@@ -4668,7 +4671,7 @@ def best_match(arg_types, functions, pos=None, env=None, args=None, self_arg0_ty
     This function is used, e.g., when deciding which overloaded method
     to dispatch for C++ classes.
 
-    self_arg0 allows nonmember and member C++ operators to be compared.
+    self_arg0_type allows nonmember and member C++ operators to be compared.
     Non-member functions have self_arg0 prepended to the args
 
     We first eliminate functions based on arity, and if only one
@@ -4688,6 +4691,10 @@ def best_match(arg_types, functions, pos=None, env=None, args=None, self_arg0_ty
     """
     # TODO: args should be a list of types, not a list of Nodes.
     actual_nargs = len(arg_types)
+
+    if args:
+        # this combination isn't implemented
+        assert not self_arg0_type
 
     candidates = []
     errors = []
