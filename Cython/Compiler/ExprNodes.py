@@ -12101,7 +12101,7 @@ class PowNode(NumBinopNode):
             error(self.pos, "got unexpected types for C power operator: %s, %s" %
                             (self.operand1.type, self.operand2.type))
 
-    def compute_c_result_type(self, type1, type2):
+    def compute_c_result_type(self, type1, type2, env):
         c_result_type = super(PowNode, self).compute_c_result_type(type1, type2, env)
         if isinstance(self.operand2.constant_result, _py_int_types) and self.operand2.constant_result < 0:
             c_result_type = PyrexTypes.widest_numeric_type(c_result_type, PyrexTypes.c_double_type)
