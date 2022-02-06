@@ -56,7 +56,8 @@ from lib.cy import WithoutC, WithCPDef, WithCDefWrapper
 def tryThis(obj):
     print("Pickling %s ..." % obj.__class__.__name__)
     try:
-        pkl.dump(obj, open("test.pkl", "wb"))
+        with open("test.pkl", "wb") as fid:
+            pkl.dump(obj, fid)
         print("\t... OK")
     except Exception as e:
         print("\t... KO: %s" % str(e))

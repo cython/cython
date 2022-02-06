@@ -1352,8 +1352,11 @@ class CythonCompileTestCase(unittest.TestCase):
                 self.run_cython(test_directory, module, module_path, workdir2, incdir, annotate)
                 diffs = []
                 for file in os.listdir(workdir2):
-                    if (open(os.path.join(workdir, file)).read()
-                        != open(os.path.join(workdir2, file)).read()):
+                    with open(os.path.join(workdir, file)) as fid:
+                        txt1 = fid.read()
+                    with open(os.path.join(workdir2, file)) as fid:
+                        txt2 = fid.read()
+                    if txt1 != txt2:
                         diffs.append(file)
                         os.system('diff -u %s/%s %s/%s > %s/%s.diff' % (
                             workdir, file,
