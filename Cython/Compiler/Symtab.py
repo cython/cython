@@ -1044,7 +1044,12 @@ class Scope(object):
         for scope in scopes:
             function = scope.lookup_here("operator%s" % operator)
             if function is not None:
-                all_alternatives.extend(function.all_alternatives())
+                if function.scope == operands[0].type.resolve().scope:
+                    all_alternatives.extend(function.all_alternatives())
+                else:
+                    # exclude member functions - they must come from the first operand
+                    all_alternatives.extend(
+                        [ a for a in function.all_alternatives() if not a.type.is_member_function])
 
         if not all_alternatives:
             return None
