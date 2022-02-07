@@ -353,7 +353,7 @@ static void __Pyx_Raise(HPyContext *ctx, HPy type, HPy value, HPy tb, HPy cause)
     } else if (!HPy_IsNull(tb) && !PyTraceBack_Check(tb)) {
         HPyErr_SetString(ctx->h_TypeError,
             "raise: arg 3 must be a traceback or None");
-        return;
+        goto cleanup;
     */
     }
     if (HPy_Is(ctx, value, ctx->h_None)) {
@@ -364,8 +364,7 @@ static void __Pyx_Raise(HPyContext *ctx, HPy type, HPy value, HPy tb, HPy cause)
         if (!HPy_IsNull(value)) {
             HPyErr_SetString(ctx, ctx->h_TypeError,
                 "instance exception may not have a separate value");
-            HPy_Close(ctx, owned_instance);
-            return;
+            goto cleanup;
         }
         value = type;
         type = HPy_Type(ctx, value);
@@ -380,8 +379,7 @@ static void __Pyx_Raise(HPyContext *ctx, HPy type, HPy value, HPy tb, HPy cause)
                     instance_class = HPy_NULL;
                 } else if (unlikely(is_subclass == -1)) {
                     // error on subclass test
-                    HPy_Close(ctx, owned_instance);
-                    return;
+                    goto cleanup;
                 } else {
                     // believe the instance
                     type = instance_class;
@@ -400,15 +398,13 @@ static void __Pyx_Raise(HPyContext *ctx, HPy type, HPy value, HPy tb, HPy cause)
             } else {
                 args = HPyTuple_Pack(ctx, 1, value);
                 if (HPy_IsNull(args)) {
-                    HPy_Close(ctx, owned_instance);
-                    return;
+                    goto cleanup;
                 }
             }
             owned_instance = HPy_CallTupleDict(ctx, type, args, HPy_NULL);
             HPy_Close(ctx, args);
             if (HPy_IsNull(owned_instance)) {
-                HPy_Close(ctx, owned_instance);
-                return;
+                goto cleanup;
             }
             value = owned_instance;
             if (!HPy_TypeCheck(ctx, value, ctx->h_BaseException)) {
@@ -421,27 +417,25 @@ static void __Pyx_Raise(HPyContext *ctx, HPy type, HPy value, HPy tb, HPy cause)
                 HPyErr_SetString(ctx, ctx->h_TypeError,
                              "calling type constructor should have returned "
                              "an instance of BaseException");
-                HPy_Close(ctx, owned_instance);
-                return;
+                goto cleanup;
             }
         }
     } else {
         HPyErr_SetString(ctx, ctx->h_TypeError,
             "raise: exception class must be a subclass of BaseException");
-        HPy_Close(ctx, owned_instance);
-        return;
+        goto cleanup;
     }
 
     if (!HPy_IsNull(cause)) {
         HPy fixed_cause;
+        int setattr_res = -1;
         if (HPy_Is(ctx, cause, ctx->h_None)) {
             // raise ... from None
             fixed_cause = HPy_NULL;
         } else if (_HPy_IsSubclass(ctx, cause, ctx->h_BaseException)) {
             fixed_cause = HPy_CallTupleDict(ctx, cause, HPy_NULL, HPy_NULL);
             if (HPy_IsNull(fixed_cause)) {
-                HPy_Close(ctx, owned_instance);
-                return;
+                goto cleanup;
             }
         } else if (HPy_TypeCheck(ctx, cause, ctx->h_BaseException)) {
             fixed_cause = HPy_Dup(ctx, cause);
@@ -449,13 +443,12 @@ static void __Pyx_Raise(HPyContext *ctx, HPy type, HPy value, HPy tb, HPy cause)
             HPyErr_SetString(ctx, ctx->h_TypeError,
                             "exception causes must derive from "
                             "BaseException");
-            HPy_Close(ctx, owned_instance);
-            return;
+            goto cleanup;
         }
-        if (HPy_SetAttr_s(ctx, value, "__cause__", fixed_cause)) {
-            HPy_Close(ctx, fixed_cause);
-            HPy_Close(ctx, owned_instance);
-            return;
+        setattr_res = HPy_SetAttr_s(ctx, value, "__cause__", fixed_cause);
+        HPy_Close(ctx, fixed_cause);
+        if (setattr_res) {
+            goto cleanup;
         }
     }
 
@@ -470,6 +463,9 @@ static void __Pyx_Raise(HPyContext *ctx, HPy type, HPy value, HPy tb, HPy cause)
         Py_XDECREF(tmp_tb);
         */
     }
+cleanup:
+    HPy_Close(ctx, owned_instance);
+    return;
 }
 
 #endif /* !CYTHON_COMPILING_IN_HPY */
