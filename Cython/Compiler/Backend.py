@@ -134,8 +134,8 @@ class CApiBackend(APIBackend):
     @staticmethod
     def get_newref(var_cname, nanny):
         if nanny:
-            return "__Pyx_INCREF(%s)" % var_cname
-        return "Py_INCREF(%s)" % var_cname
+            return "__Pyx_NEWREF(%s)" % var_cname
+        return "__Pyx_NEWREF_NO_REFNANNY(%s)" % var_cname
 
     @staticmethod
     def get_closeref(var_cname, nanny, null_check=False):
@@ -814,3 +814,6 @@ class CombinedBackend(APIBackend):
         code.putln("#else /* %s */" % hpy_guard)
         code.putln(hpy_code)
         code.putln("#endif /* %s */" % hpy_guard)
+
+
+backend = CApiBackend

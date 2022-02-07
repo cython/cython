@@ -365,14 +365,14 @@ class PyrexType(BaseType):
         if self.needs_refcounting:
             raise NotImplementedError("Ref-counting operation not yet implemented for type %s" %
                                       self)
-        code.putln("%s = %s" % (cname, rhs_cname))
+        code.putln("%s = %s;" % (cname, rhs_cname))
 
     generate_incref = generate_xincref = generate_decref = generate_xdecref \
         = generate_decref_clear = generate_xdecref_clear \
         = generate_gotref = generate_xgotref = generate_giveref = generate_xgiveref \
-            = generate_newref = _generate_dummy_refcounting
+            = _generate_dummy_refcounting
 
-    generate_decref_set = generate_xdecref_set = _generate_dummy_refcounting_assignment
+    generate_decref_set = generate_xdecref_set = generate_newref = _generate_dummy_refcounting_assignment
 
     def nullcheck_string(self, code, cname):
         if self.needs_refcounting:

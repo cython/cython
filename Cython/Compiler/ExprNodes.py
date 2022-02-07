@@ -811,8 +811,7 @@ class ExprNode(Node):
         If the result is in a temp, it is already a new reference.
         """
         if not self.result_in_temp():
-            code.put_newref(self.result(), self.result(), self.ctype())
-            #code.put_incref(self.result(), self.ctype())
+            code.put_incref(self.result(), self.ctype())
 
     def make_owned_memoryviewslice(self, code):
         """

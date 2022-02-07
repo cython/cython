@@ -6616,10 +6616,7 @@ class ReturnStatNode(StatNode):
                     value.py_result()))
                 value.generate_disposal_code(code)
             else:
-                value.make_owned_reference(code)
-                code.putln("%s = %s;" % (
-                    Naming.retval_cname,
-                    value.result_as(self.return_type)))
+                code.put_newref(Naming.retval_cname, value.result_as(self.return_type), self.return_type)
                 value.generate_post_assignment_code(code)
             value.free_temps(code)
         else:
