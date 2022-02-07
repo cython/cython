@@ -1516,7 +1516,6 @@ static HPy __Pyx_GetBuiltinName(HPyContext *ctx, HPy h_name) {
         HPy_Close(ctx, h_format);
         HPy_Close(ctx, h_formatted);
     }
-    HPy_Close(ctx, h_name);
     return result;
 }
 
