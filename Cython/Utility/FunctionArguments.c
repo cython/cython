@@ -110,7 +110,7 @@ static void __Pyx_RaiseDoubleKeywordsError(__PYX_CONTEXT_DECL
         PyString_AsString(kw_name));
         #endif
 #else /* CYTHON_COMPILING_IN_HPY */
-    /* TODO(fa): HPy does not have HPyErr_Format yet */
+    /* TODO(fa): HPy does not have HPyErr_Format yet ((https://github.com/hpyproject/hpy/issues/274) */
     HPyErr_SetString(__PYX_CONTEXT __Pyx_PyExc_TypeError,
         "got multiple values for keyword argument");
 #endif /* CYTHON_COMPILING_IN_HPY */

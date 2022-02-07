@@ -408,7 +408,7 @@ static void __Pyx_Raise(HPyContext *ctx, HPy type, HPy value, HPy tb, HPy cause)
             }
             value = owned_instance;
             if (!HPy_TypeCheck(ctx, value, ctx->h_BaseException)) {
-                /* TODO(fa): HPyErr_Format
+                /* TODO(fa): HPyErr_Format (https://github.com/hpyproject/hpy/issues/274)
                 HPyErr_Format(ctx, ctx->h_TypeError,
                              "calling %R should have returned an instance of "
                              "BaseException, not %R",
