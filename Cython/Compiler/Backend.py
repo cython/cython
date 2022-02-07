@@ -33,6 +33,9 @@ class CApiBackend(APIBackend):
     pyobject_global_init_value = "NULL"
     pyssizet_ctype = "Py_ssize_t"
 
+    # constants
+    pynone = "Py_None"
+
     # module
     pymoduledef_ctype = "PyModuleDef"
     module_create = "PyModule_Create"
@@ -154,7 +157,7 @@ class CApiBackend(APIBackend):
 
     @staticmethod
     def get_none():
-        return "Py_None"
+        return CApiBackend.pynone
 
     @staticmethod
     def get_method_definition(entry, wrapper_code_writer=None):
@@ -225,6 +228,10 @@ class CApiBackend(APIBackend):
     # Backend selection methods
 
     @staticmethod
+    def get_both(cpy_code, hpy_code):
+        return cpy_code
+
+    @staticmethod
     def get_hpy(hpy_code):
         return ""
 
@@ -257,6 +264,9 @@ class HPyBackend(APIBackend):
     pytype_global_ctype = "HPyField"
     pyobject_global_init_value = "HPyField_NULL"
     pyssizet_ctype = "HPy_ssize_t"
+
+    # constants
+    pynone = "%s->h_None" % Naming.hpy_context_cname
 
     # module
     pymoduledef_ctype = "HPyModuleDef"
@@ -373,7 +383,7 @@ class HPyBackend(APIBackend):
 
     @staticmethod
     def get_none():
-        return "%s->h_None" % Naming.hpy_context_cname
+        return "HPy_Dup(%s, %s->h_None)" % (Naming.hpy_context_cname, Naming.hpy_context_cname)
 
     @staticmethod
     def get_method_definition(entry, wrapper_code_writer):
@@ -431,6 +441,10 @@ class HPyBackend(APIBackend):
     # Backend selection methods
 
     @staticmethod
+    def get_both(cpy_code, hpy_code):
+        return hpy_code
+
+    @staticmethod
     def get_hpy(hpy_code):
         return hpy_code
 
@@ -465,6 +479,9 @@ class CombinedBackend(APIBackend):
     pytype_global_ctype = "__PYX_GLOBAL_TYPE_CTYPE"
     pyobject_global_init_value = "__PYX_GLOBAL_NULL"
     pyssizet_ctype = "__PYX_SSIZE_T"
+
+    # constants
+    pynone = "__PYX_NONE"
 
     # module
     pymoduledef_ctype = "__PYX_MODULEDEF_CTYPE"
@@ -555,7 +572,8 @@ class CombinedBackend(APIBackend):
         code.putln("#define __PYX_INT_FROM_STRING %s" % CApiBackend.pyint_fromstring)
         code.putln("#define __PYX_LONG_FROM_LONG %s" % CApiBackend.pylong_fromlong)
         code.putln("#define __PYX_INT_FROM_LONG %s" % CApiBackend.pyint_fromlong)
-        code.putln("#define __PYX_NONE %s" % CApiBackend.get_none())
+        code.putln("#define __PYX_NONE %s" % CApiBackend.pynone)
+        code.putln("#define __PYX_NONE_NEW %s" % CApiBackend.get_none())
         for k in CombinedBackend.hpy_functions:
             code.putln("#define %s %s" % (CombinedBackend.hpy_functions[k], CApiBackend.py_functions[k]))
         CApiBackend.put_init_code(code)
@@ -601,7 +619,8 @@ class CombinedBackend(APIBackend):
         code.putln("#define __PYX_INT_FROM_STRING %s" % HPyBackend.pyint_fromstring)
         code.putln("#define __PYX_LONG_FROM_LONG %s" % HPyBackend.pylong_fromlong)
         code.putln("#define __PYX_INT_FROM_LONG %s" % HPyBackend.pyint_fromlong)
-        code.putln("#define __PYX_NONE %s" % HPyBackend.get_none())
+        code.putln("#define __PYX_NONE %s" % HPyBackend.pynone)
+        code.putln("#define __PYX_NONE_NEW %s" % HPyBackend.get_none())
         for k in CombinedBackend.hpy_functions:
             code.putln("#define %s %s" % (CombinedBackend.hpy_functions[k], HPyBackend.hpy_functions[k]))
         code.putln("#endif /* %s */" % hpy_guard)
@@ -678,7 +697,7 @@ class CombinedBackend(APIBackend):
 
     @staticmethod
     def get_none():
-        return "__PYX_NONE"
+        return "__PYX_NONE_NEW"
 
     @staticmethod
     def get_method_definition(entry, wrapper_code_writer=None):

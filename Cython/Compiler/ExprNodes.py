@@ -1222,7 +1222,7 @@ class NoneNode(PyConstNode):
     #  The constant value None
 
     is_none = 1
-    value = "Py_None"
+    value = backend.get_none()
 
     constant_result = None
 
@@ -11451,7 +11451,7 @@ class BinopNode(ExprNode):
             function = self.py_operation_function(code)
             args = [self.operand1.py_result(), self.operand2.py_result()]
             if self.operator == '**':
-                args.append(backend.get_none())
+                args.append(backend.pynone)
             code.putln(
                 "%s = %s; %s" % (
                     self.result(),
