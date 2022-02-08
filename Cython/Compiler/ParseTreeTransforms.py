@@ -1113,7 +1113,7 @@ class InterpretCompilerDirectives(CythonTransform):
                     node.pos,
                     "Cdef functions can only take cython.locals(), "
                     "staticmethod, or final decorators, got %s." % name))
-        return self.visit_with_directives(node, directives, None)
+        return self.visit_with_directives(node, directives, contents_directives=None)
 
     def visit_CClassDefNode(self, node):
         directives, contents_directives = self._extract_directives(node, 'cclass')
@@ -1129,7 +1129,7 @@ class InterpretCompilerDirectives(CythonTransform):
 
     def _extract_directives(self, node, scope_name):
         """
-        Returns two lists - directives applied to this function/class
+        Returns two dicts - directives applied to this function/class
         and directives applied to its contents. They aren't always the
         same (since e.g. cfunc should not be applied to inner functions)
         """
@@ -1198,7 +1198,7 @@ class InterpretCompilerDirectives(CythonTransform):
                     if self.check_directive_scope(node.pos, name, 'with statement'):
                         directive_dict[name] = value
         if directive_dict:
-            return self.visit_with_directives(node.body, directive_dict, None)
+            return self.visit_with_directives(node.body, directive_dict, contents_directives=None)
         return self.visit_Node(node)
 
 
