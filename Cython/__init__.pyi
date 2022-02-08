@@ -1,7 +1,5 @@
 from typing import Any
 
-from .Shadow import __version__
-
 from .Shadow import *
 
 

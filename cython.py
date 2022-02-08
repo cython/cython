@@ -4,7 +4,12 @@
 #   Cython -- Main Program, generic
 #
 
-if __name__ == '__main__':
+try:
+    from typing import TYPE_CHECKING
+except ImportError:
+    TYPE_CHECKING = False
+
+if not TYPE_CHECKING and __name__ == '__main__':
 
     import os
     import sys

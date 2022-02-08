@@ -8,6 +8,7 @@ from typing import (Any, Iterable, Literal, ParamSpec, Sequence, Optional, Type,
 # This is necessary so that type checkers don't ignore the 'dataclasses' import
 # or the 'final' import from typing.
 __all__ = (
+    '__version__',
     'dataclasses', 'final',  # from imports above
     'int', 'long', 'longlong', 'short', 'char', 'sint', 'slong', 'slonglong',
     'sshort', 'schar', 'uint', 'ulong', 'ulonglong', 'ushort', 'uchar',
