@@ -54,7 +54,6 @@ setup_args['package_data'] = {
     'Cython.Runtime'  : ['*.pyx', '*.pxd'],
     'Cython.Utility'  : ['*.pyx', '*.pxd', '*.c', '*.h', '*.cpp'],
     'Cython'          : [ p[7:] for p in pxd_include_patterns ] + ['py.typed', '__init__.pyi', 'Shadow.pyi'],
-    ''                : ['cython.pyi'],
     'Cython.Debugger.Tests': ['codefile', 'cfuncs.c'],
 }
 
