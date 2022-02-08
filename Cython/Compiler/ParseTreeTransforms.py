@@ -183,6 +183,8 @@ class PostParse(ScopeTrackingTransform):
     Note: Currently Parsing.py does a lot of interpretation and
     reorganization that can be refactored into this transform
     if a more pure Abstract Syntax Tree is wanted.
+
+    - Some invalid uses of := assignment expressions are detected
     """
     def __init__(self, context):
         super(PostParse, self).__init__(context)
@@ -215,7 +217,9 @@ class PostParse(ScopeTrackingTransform):
         node.def_node = Nodes.DefNode(
             node.pos, name=node.name, doc=None,
             args=[], star_arg=None, starstar_arg=None,
-            body=node.loop, is_async_def=collector.has_await)
+            body=node.loop, is_async_def=collector.has_await,
+            is_generator_expression=True)
+        _AssignmentExpressionChecker.do_checks(node.loop, scope_is_class=self.scope_type in ("pyclass", "cclass"))
         self.visitchildren(node)
         return node
 
@@ -226,6 +230,7 @@ class PostParse(ScopeTrackingTransform):
             collector.visitchildren(node.loop)
             if collector.has_await:
                 node.has_local_scope = True
+        _AssignmentExpressionChecker.do_checks(node.loop, scope_is_class=self.scope_type in ("pyclass", "cclass"))
         self.visitchildren(node)
         return node
 
@@ -377,6 +382,124 @@ class PostParse(ScopeTrackingTransform):
             node.value = None
         self.visitchildren(node)
         return node
+
+class _AssignmentExpressionTargetNameFinder(TreeVisitor):
+    def __init__(self):
+        super(_AssignmentExpressionTargetNameFinder, self).__init__()
+        self.target_names = {}
+
+    def find_target_names(self, target):
+        if target.is_name:
+            return [target.name]
+        elif target.is_sequence_constructor:
+            names = []
+            for arg in target.args:
+                names.extend(self.find_target_names(arg))
+            return names
+        # other targets are possible, but it isn't necessary to investigate them here
+        return []
+
+    def visit_ForInStatNode(self, node):
+        self.target_names[node] = tuple(self.find_target_names(node.target))
+        self.visitchildren(node)
+
+    def visit_ComprehensionNode(self, node):
+        pass  # don't recurse into nested comprehensions
+
+    def visit_LambdaNode(self, node):
+        pass  # don't recurse into nested lambdas/generator expressions
+
+    def visit_Node(self, node):
+        self.visitchildren(node)
+
+
+class _AssignmentExpressionChecker(TreeVisitor):
+    """
+    Enforces rules on AssignmentExpressions within generator expressions and comprehensions
+    """
+    def __init__(self, loop_node, scope_is_class):
+        super(_AssignmentExpressionChecker, self).__init__()
+
+        target_name_finder = _AssignmentExpressionTargetNameFinder()
+        target_name_finder.visit(loop_node)
+        self.target_names_dict = target_name_finder.target_names
+        self.in_iterator = False
+        self.in_nested_generator = False
+        self.scope_is_class = scope_is_class
+        self.current_target_names = ()
+        self.all_target_names = set()
+        for names in self.target_names_dict.values():
+            self.all_target_names.update(names)
+
+    def _reset_state(self):
+        old_state = (self.in_iterator, self.in_nested_generator, self.scope_is_class, self.all_target_names, self.current_target_names)
+        # note: not resetting self.in_iterator here, see visit_LambdaNode() below
+        self.in_nested_generator = False
+        self.scope_is_class = False
+        self.current_target_names = ()
+        self.all_target_names = set()
+        return old_state
+
+    def _set_state(self, old_state):
+        self.in_iterator, self.in_nested_generator, self.scope_is_class, self.all_target_names, self.current_target_names = old_state
+
+    @classmethod
+    def do_checks(cls, loop_node, scope_is_class):
+        checker = cls(loop_node, scope_is_class)
+        checker.visit(loop_node)
+
+    def visit_ForInStatNode(self, node):
+        if self.in_nested_generator:
+            self.visitchildren(node)  # once nested, don't do anything special
+            return
+
+        current_target_names = self.current_target_names
+        target_name = self.target_names_dict.get(node, None)
+        if target_name:
+            self.current_target_names += target_name
+
+        self.in_iterator = True
+        self.visit(node.iterator)
+        self.in_iterator = False
+        self.visitchildren(node, exclude=("iterator",))
+
+        self.current_target_names = current_target_names
+
+    def visit_AssignmentExpressionNode(self, node):
+        if self.in_iterator:
+            error(node.pos, "assignment expression cannot be used in a comprehension iterable expression")
+        if self.scope_is_class:
+            error(node.pos, "assignment expression within a comprehension cannot be used in a class body")
+        if node.target_name in self.current_target_names:
+            error(node.pos, "assignment expression cannot rebind comprehension iteration variable '%s'" %
+                  node.target_name)
+        elif node.target_name in self.all_target_names:
+            error(node.pos, "comprehension inner loop cannot rebind assignment expression target '%s'" %
+                  node.target_name)
+
+    def visit_LambdaNode(self, node):
+        # Don't reset "in_iterator" - an assignment expression in a lambda in an
+        # iterator is explicitly tested by the Python testcases and banned.
+        old_state = self._reset_state()
+        # the lambda node's "def_node" is not set up at this point, so we need to recurse into it explicitly.
+        self.visit(node.result_expr)
+        self._set_state(old_state)
+
+    def visit_ComprehensionNode(self, node):
+        in_nested_generator = self.in_nested_generator
+        self.in_nested_generator = True
+        self.visitchildren(node)
+        self.in_nested_generator = in_nested_generator
+
+    def visit_GeneratorExpressionNode(self, node):
+        in_nested_generator = self.in_nested_generator
+        self.in_nested_generator = True
+        # def_node isn't set up yet, so we need to visit the loop directly.
+        self.visit(node.loop)
+        self.in_nested_generator = in_nested_generator
+
+    def visit_Node(self, node):
+        self.visitchildren(node)
 
 
 def eliminate_rhs_duplicates(expr_list_list, ref_node_sequence):
@@ -837,7 +960,6 @@ class InterpretCompilerDirectives(CythonTransform):
             for pos, name, as_name, kind in node.imported_names:
                 full_name = submodule + name
                 qualified_name = u"cython." + full_name
-
                 if self.is_parallel_directive(qualified_name, node.pos):
                     # from cython cimport parallel, or
                     # from cython.parallel cimport parallel, prange, ...
@@ -847,6 +969,10 @@ class InterpretCompilerDirectives(CythonTransform):
                     if kind is not None:
                         self.context.nonfatal_error(PostParseError(pos,
                             "Compiler directive imports must be plain imports"))
+                elif full_name in ['dataclasses', 'typing']:
+                    self.directive_names[as_name or name] = full_name
+                    # unlike many directives, still treat it as a regular module
+                    newimp.append((pos, name, as_name, kind))
                 else:
                     newimp.append((pos, name, as_name, kind))
 
@@ -988,7 +1114,7 @@ class InterpretCompilerDirectives(CythonTransform):
                 if directivetype is bool:
                     arg = ExprNodes.BoolNode(node.pos, value=True)
                     return [self.try_to_parse_directive(optname, [arg], None, node.pos)]
-                elif directivetype is None:
+                elif directivetype is None or directivetype is Options.DEFER_ANALYSIS_OF_ARGUMENTS:
                     return [(optname, None)]
                 else:
                     raise PostParseError(
@@ -1043,7 +1169,7 @@ class InterpretCompilerDirectives(CythonTransform):
             if len(args) != 0:
                 raise PostParseError(pos,
                     'The %s directive takes no prepositional arguments' % optname)
-            return optname, dict([(key.value, value) for key, value in kwds.key_value_pairs])
+            return optname, kwds.as_python_dict()
         elif directivetype is list:
             if kwds and len(kwds.key_value_pairs) != 0:
                 raise PostParseError(pos,
@@ -1055,6 +1181,9 @@ class InterpretCompilerDirectives(CythonTransform):
                 raise PostParseError(pos,
                     'The %s directive takes one compile-time string argument' % optname)
             return (optname, directivetype(optname, str(args[0].value)))
+        elif directivetype is Options.DEFER_ANALYSIS_OF_ARGUMENTS:
+            # signal to pass things on without processing
+            return (optname, (args, kwds.as_python_dict()))
         else:
             assert False
 
@@ -1148,7 +1277,8 @@ class InterpretCompilerDirectives(CythonTransform):
                         name, value = directive
                         if self.directives.get(name, object()) != value:
                             directives.append(directive)
-                        if directive[0] == 'staticmethod':
+                        if (directive[0] == 'staticmethod' or
+                                (directive[0] == 'dataclasses.dataclass' and scope_name == 'class')):
                             both.append(dec)
                     # Adapt scope type based on decorators that change it.
                     if directive[0] == 'cclass' and scope_name == 'class':
@@ -1157,6 +1287,12 @@ class InterpretCompilerDirectives(CythonTransform):
                 realdecs.append(dec)
         if realdecs and (scope_name == 'cclass' or
                          isinstance(node, (Nodes.CClassDefNode, Nodes.CVarDefNode))):
+            for realdec in realdecs:
+                realdec = realdec.decorator
+                if ((realdec.is_name and realdec.name == "dataclass") or
+                        (realdec.is_attribute and realdec.attribute == "dataclass")):
+                    error(realdec.pos,
+                          "Use '@cython.dataclasses.dataclass' on cdef classes to create a dataclass")
             # Note - arbitrary C function decorators are caught later in DecoratorTransform
             raise PostParseError(realdecs[0].pos, "Cdef functions/classes cannot take arbitrary decorators.")
         node.decorators = realdecs[::-1] + both[::-1]
@@ -1818,6 +1954,9 @@ if VALUE is not None:
 
     def visit_CClassDefNode(self, node):
         node = self.visit_ClassDefNode(node)
+        if node.scope and 'dataclasses.dataclass' in node.scope.directives:
+            from .Dataclass import handle_cclass_dataclass
+            handle_cclass_dataclass(node, node.scope.directives['dataclasses.dataclass'], self)
         if node.scope and node.scope.implemented and node.body:
             stats = []
             for entry in node.scope.var_entries:
@@ -2303,6 +2442,11 @@ if VALUE is not None:
         property.name = entry.name
         property.doc = entry.doc
         return property
+
+    def visit_AssignmentExpressionNode(self, node):
+        self.visitchildren(node)
+        node.analyse_declarations(self.current_env())
+        return node
 
 
 class CalculateQualifiedNamesTransform(EnvTransform):
@@ -2841,7 +2985,8 @@ class MarkClosureVisitor(CythonTransform):
             star_arg=node.star_arg, starstar_arg=node.starstar_arg,
             doc=node.doc, decorators=node.decorators,
             gbody=gbody, lambda_name=node.lambda_name,
-            return_type_annotation=node.return_type_annotation)
+            return_type_annotation=node.return_type_annotation,
+            is_generator_expression=node.is_generator_expression)
         return coroutine
 
     def visit_CFuncDefNode(self, node):
