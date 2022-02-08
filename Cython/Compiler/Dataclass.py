@@ -269,8 +269,10 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     # turn off annotation typing, so all arguments to __init__ are accepted as
     # generic objects and thus can accept _HAS_DEFAULT_FACTORY.
     # Type conversion comes later
+    new_directives = dict(node.scope.directives)
+    new_directives.update(annotation_typing=False)
     comp_directives = Nodes.CompilerDirectivesNode(node.pos,
-        directives=dict(**node.scope.directives, annotation_typing=False),
+        directives=new_directives,
         body=stats)
 
     comp_directives.analyse_declarations(node.scope)
