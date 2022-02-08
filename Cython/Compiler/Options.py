@@ -166,16 +166,6 @@ def get_directive_defaults():
                 _directive_defaults[old_option.directive_name] = value
     return _directive_defaults
 
-def copy_inherited_directives(outer_directives, **new_directives):
-    # A few directives are not copied downwards and this function removes them.
-    # For example, test_assert_path_exists and test_fail_if_path_exists should not be inherited
-    #  otherwise they can produce very misleading test failures
-    new_directives_out = dict(outer_directives)
-    for name in ('test_assert_path_exists', 'test_fail_if_path_exists'):
-        new_directives_out.pop(name, None)
-    new_directives_out.update(new_directives)
-    return new_directives_out
-
 # Declare compiler directives
 _directive_defaults = {
     'binding': True,  # was False before 3.0

@@ -1194,10 +1194,11 @@ class InterpretCompilerDirectives(CythonTransform):
             return self.visit_Node(node)
 
         old_directives = self.directives
-        new_directives = Options.copy_inherited_directives(old_directives, **directives)
+        new_directives = old_directives.copy()
+        new_directives.update(directives)
         if contents_directives is not None:
-            new_contents_directives = Options.copy_inherited_directives(
-                old_directives, **contents_directives)
+            new_contents_directives = old_directives.copy()
+            new_contents_directives.update(contents_directives)
         else:
             new_contents_directives = new_directives
 

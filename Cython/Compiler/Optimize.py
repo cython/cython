@@ -368,7 +368,7 @@ class IterationTransform(Visitor.EnvTransform):
         # analyse with boundscheck and wraparound
         # off (because we're confident we know the size)
         env = self.current_env()
-        new_directives = Options.copy_inherited_directives(env.directives, boundscheck=False, wraparound=False)
+        new_directives = dict(**env.directives, boundscheck=False, wraparound=False)
         target_assign = Nodes.CompilerDirectivesNode(
             target_assign.pos,
             directives=new_directives,

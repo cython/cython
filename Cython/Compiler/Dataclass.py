@@ -17,7 +17,6 @@ from .StringEncoding import BytesLiteral, EncodedString
 from .TreeFragment import TreeFragment
 from .ParseTreeTransforms import (NormalizeTree, SkipDeclarations, AnalyseDeclarationsTransform,
                                   MarkClosureVisitor)
-from .Options import copy_inherited_directives
 
 _dataclass_loader_utilitycode = None
 
@@ -271,7 +270,7 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     # generic objects and thus can accept _HAS_DEFAULT_FACTORY.
     # Type conversion comes later
     comp_directives = Nodes.CompilerDirectivesNode(node.pos,
-        directives=copy_inherited_directives(node.scope.directives, annotation_typing=False),
+        directives=dict(**node.scope.directives, annotation_typing=False),
         body=stats)
 
     comp_directives.analyse_declarations(node.scope)
