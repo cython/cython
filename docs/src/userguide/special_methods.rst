@@ -89,7 +89,7 @@ subclassing your extension type, you may find it useful to give the
 :meth:`__cinit__` method `*` and `**` arguments so that it can accept and
 ignore arbitrary extra arguments, since the arguments that are passed through
 the hierarchy during allocation cannot be changed by subclasses.
-Alternatively, as a convenience, if you declare your :meth:`__cinit__`` method
+Alternatively, as a convenience, if you declare your :meth:`__cinit__` method
 to take no arguments (other than self) it will simply ignore any extra arguments
 passed to the constructor without complaining about the signature mismatch.
 
