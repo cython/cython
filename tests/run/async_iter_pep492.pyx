@@ -4,25 +4,69 @@
 import sys
 
 if sys.version_info >= (3, 5, 0, 'beta'):
-    # pass Cython implemented AsyncIter() into a Python async-for loop
     __doc__ = u"""
->>> def test_py35(AsyncIterClass):
-...     buffer = []
-...     async def coro():
-...         async for i1, i2 in AsyncIterClass(1):
-...             buffer.append(i1 + i2)
-...     return coro, buffer
 
->>> testfunc, buffer = test_py35(AsyncIterOld if sys.version_info < (3, 5, 2) else AsyncIter)
->>> buffer
-[]
+    #### Pass Cython implemented AsyncIter() into a Python async-for loop:
 
->>> yielded, _ = run_async(testfunc(), check_type=False)
->>> yielded == [i * 100 for i in range(1, 11)] or yielded
-True
->>> buffer == [i*2 for i in range(1, 101)] or buffer
-True
-"""
+    >>> def test_py35(AsyncIterClass):
+    ...     buffer = []
+    ...     async def coro():
+    ...         async for i1, i2 in AsyncIterClass(1):
+    ...             buffer.append(i1 + i2)
+    ...     return coro, buffer
+
+    >>> testfunc, buffer = test_py35(AsyncIterOld if sys.version_info < (3, 5, 2) else AsyncIter)
+    >>> buffer
+    []
+
+    >>> yielded, _ = run_async(testfunc(), check_type=False)  # Python async loop + Cython AsyncIter()
+    >>> yielded == [i * 100 for i in range(1, 11)] or yielded
+    True
+    >>> buffer == [i*2 for i in range(1, 101)] or buffer
+    True
+
+    #### Pass Python implemented AsyncIter() into a Cython async-for loop:
+
+    >>> class PyAsyncIter:
+    ...     def __init__(self, max_iter_calls=1):
+    ...         self.i = 0
+    ...         self.aiter_calls = 0
+    ...         self.max_iter_calls = max_iter_calls
+    ...
+    ...     def __aiter__(self):
+    ...         self.aiter_calls += 1
+    ...         return self
+    ...
+    ...     async def __anext__(self):
+    ...         self.i += 1
+    ...         assert self.aiter_calls <= self.max_iter_calls
+    ...
+    ...         if not (self.i % 10):
+    ...             await AsyncYield(self.i * 10)
+    ...
+    ...         if self.i > 100:
+    ...             raise StopAsyncIteration
+    ...
+    ...         return self.i, self.i
+
+    >>> yielded, buffer = run_async(cy_async_for(PyAsyncIter(2)))  # Cython async loop + Python AsyncIter()
+    >>> yielded == [100, 200] or yielded
+    True
+    >>> buffer == [i for i in range(1, 21)] + ['end'] or buffer
+    True
+    """
+
+
+async def cy_async_for(it):
+    values = []
+    async for i in it:
+        values.append(i[0])
+        if i[0] == 20:
+            break
+    else:
+        values.append("what?")
+    values.append("end")
+    return values
 
 
 cdef class AsyncYieldFrom:

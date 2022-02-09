@@ -531,6 +531,7 @@ static CYTHON_INLINE PyObject *__Pyx_Generator_GetInlinedResult(PyObject *self);
 
 //////////////////// CoroutineBase ////////////////////
 //@substitute: naming
+//@requires: ReturnWithStopIteration
 //@requires: Exceptions.c::PyErrFetchRestore
 //@requires: Exceptions.c::PyThreadStateGet
 //@requires: Exceptions.c::SwapException
@@ -660,7 +661,7 @@ __Pyx_PySendResult __Pyx_Coroutine_status_from_result(PyObject **retval) {
     if (*retval) {
         return PYGEN_NEXT;
     } else if (likely(__Pyx_PyGen__FetchStopIterationValue(__Pyx_PyThreadState_Current, retval) == 0)) {
-        assert (*retval == Py_None);
+        //assert (*retval == Py_None);
         return PYGEN_RETURN;
     } else {
         return PYGEN_ERROR;
@@ -920,16 +921,11 @@ __Pyx__Coroutine_MethodReturnFromResult(PyObject* gen, __Pyx_PySendResult result
     CYTHON_MAYBE_UNUSED_VAR(gen);
     if (likely(result == PYGEN_RETURN)) {
         // return values pass through StopIteration or StopAsyncIteration
-        PyObject *exc = PyExc_StopIteration;
+        int is_async = 0;
         #ifdef __Pyx_AsyncGen_USED
-        if (__Pyx_AsyncGen_CheckExact(gen))
-            exc = __Pyx_PyExc_StopAsyncIteration;
+        is_async = __Pyx_AsyncGen_CheckExact(gen);
         #endif
-        if (unlikely(retval == Py_None)) {
-            Py_DECREF(retval);
-            retval = NULL;
-        }
-        PyErr_SetObject(exc, retval);
+        __Pyx_ReturnWithStopIteration(retval, is_async);
         Py_XDECREF(retval);
     }
     return NULL;
@@ -1137,7 +1133,10 @@ static PyObject *__Pyx_Coroutine_Close_Method(PyObject *self, PyObject *arg) {
     __Pyx_PySendResult result;
     CYTHON_UNUSED_VAR(arg);
     result = __Pyx_Coroutine_Close(self, &retval);
-    return __Pyx_Coroutine_MethodReturnFromResult(self, result, retval);
+    if (unlikely(result == PYGEN_ERROR))
+        return NULL;
+    Py_XDECREF(retval);
+    Py_RETURN_NONE;
 }
 
 static __Pyx_PySendResult
@@ -1664,7 +1663,10 @@ static PyObject *__Pyx_CoroutineAwait_Close_Method(__pyx_CoroutineAwaitObject *s
     __Pyx_PySendResult result;
     CYTHON_UNUSED_VAR(arg);
     result = __Pyx_Coroutine_Close(self->coroutine, &retval);
-    return __Pyx_Coroutine_MethodReturnFromResult(self->coroutine, result, retval);
+    if (unlikely(result == PYGEN_ERROR))
+        return NULL;
+    Py_XDECREF(retval);
+    Py_RETURN_NONE;
 }
 
 static PyObject *__Pyx_CoroutineAwait_self(PyObject *self) {
@@ -2346,9 +2348,8 @@ static PyObject *__Pyx_Generator_GetInlinedResult(PyObject *self) {
 
 /////////////// ReturnWithStopIteration.proto ///////////////
 
-#define __Pyx_ReturnWithStopIteration(value)  \
-    if (value == Py_None) PyErr_SetNone(PyExc_StopIteration); else __Pyx__ReturnWithStopIteration(value)
-static void __Pyx__ReturnWithStopIteration(PyObject* value); /*proto*/
+static CYTHON_INLINE void __Pyx_ReturnWithStopIteration(PyObject* value, int async); /*proto*/
+static void __Pyx__ReturnWithStopIteration(PyObject* value, int async); /*proto*/
 
 /////////////// ReturnWithStopIteration ///////////////
 //@requires: Exceptions.c::PyErrFetchRestore
@@ -2361,17 +2362,45 @@ static void __Pyx__ReturnWithStopIteration(PyObject* value); /*proto*/
 // 4) Passing an exception as value will interpret it as an exception on unpacking and raise it (or unpack its value).
 // 5) If there is currently an exception being handled, we need to chain it.
 
-static void __Pyx__ReturnWithStopIteration(PyObject* value) {
-    PyObject *exc, *args;
+static CYTHON_INLINE void __Pyx_ReturnWithStopIteration(PyObject* value, int async) {
+    if (value == Py_None) {
+        PyObject *exc_type = PyExc_StopIteration;
+        #ifdef __Pyx_StopAsyncIteration_USED
+        if (async) {
+            exc_type = __Pyx_PyExc_StopAsyncIteration;
+        }
+        #else
+        CYTHON_MAYBE_UNUSED_VAR(async);
+        assert(!async);
+        #endif
+        PyErr_SetNone(exc_type);
+        return;
+    }
+    return __Pyx__ReturnWithStopIteration(value, async);
+}
+
+static void __Pyx__ReturnWithStopIteration(PyObject* value, int async) {
 #if CYTHON_COMPILING_IN_CPYTHON
     __Pyx_PyThreadState_declare
+#endif
+    PyObject *exc, *args;
+    PyObject *exc_type = PyExc_StopIteration;
+    #ifdef __Pyx_StopAsyncIteration_USED
+    if (async) {
+        exc_type = __Pyx_PyExc_StopAsyncIteration;
+    }
+    #else
+    CYTHON_MAYBE_UNUSED_VAR(async);
+    assert(!async);
+    #endif
+#if CYTHON_COMPILING_IN_CPYTHON
     if (PY_VERSION_HEX >= 0x030C00A6
             || unlikely(PyTuple_Check(value) || PyExceptionInstance_Check(value))) {
         args = PyTuple_New(1);
         if (unlikely(!args)) return;
         Py_INCREF(value);
         PyTuple_SET_ITEM(args, 0, value);
-        exc = PyType_Type.tp_call(PyExc_StopIteration, args, NULL);
+        exc = PyType_Type.tp_call(exc_type, args, NULL);
         Py_DECREF(args);
         if (!exc) return;
     } else {
@@ -2388,19 +2417,19 @@ static void __Pyx__ReturnWithStopIteration(PyObject* value) {
     #endif
     {
         // no chaining needed => avoid the overhead in PyErr_SetObject()
-        Py_INCREF(PyExc_StopIteration);
-        __Pyx_ErrRestore(PyExc_StopIteration, exc, NULL);
+        Py_INCREF(exc_type);
+        __Pyx_ErrRestore(exc_type, exc, NULL);
         return;
     }
     #endif
 #else
     args = PyTuple_Pack(1, value);
     if (unlikely(!args)) return;
-    exc = PyObject_Call(PyExc_StopIteration, args, NULL);
+    exc = PyObject_Call(exc_type, args, NULL);
     Py_DECREF(args);
     if (unlikely(!exc)) return;
 #endif
-    PyErr_SetObject(PyExc_StopIteration, exc);
+    PyErr_SetObject(exc_type, exc);
     Py_DECREF(exc);
 }
 

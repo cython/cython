@@ -527,7 +527,7 @@ __Pyx_async_gen_unwrap_value(__pyx_PyAsyncGenObject *gen, PyObject *result)
 
     if (__pyx__PyAsyncGenWrappedValue_CheckExact(result)) {
         /* async yield */
-        __Pyx_ReturnWithStopIteration(((__pyx__PyAsyncGenWrappedValue*)result)->agw_val);
+        __Pyx_ReturnWithStopIteration(((__pyx__PyAsyncGenWrappedValue*)result)->agw_val, 0);
         Py_DECREF(result);
         gen->ag_running_async = 0;
         return NULL;
@@ -553,7 +553,7 @@ __Pyx_async_gen_unwrap_result(__pyx_PyAsyncGenObject *gen, __Pyx_PySendResult re
         return PYGEN_ERROR;
     }
 
-    if (__pyx__PyAsyncGenWrappedValue_CheckExact(retval)) {
+    if (__pyx__PyAsyncGenWrappedValue_CheckExact(*retval)) {
         /* async yield */
         PyObject *value = ((__pyx__PyAsyncGenWrappedValue*)*retval)->agw_val;
         Py_INCREF(value);
@@ -638,7 +638,7 @@ __Pyx_async_gen_asend_send(PyObject *g, PyObject *arg)
     PyObject *retval = NULL;
     __Pyx_PySendResult result = __Pyx_async_gen_asend_am_send(g, arg, &retval);
     if (result == PYGEN_RETURN) {
-        __Pyx_ReturnWithStopIteration(retval);
+        __Pyx_ReturnWithStopIteration(retval, 0);
         retval = NULL;
     }
     return retval;

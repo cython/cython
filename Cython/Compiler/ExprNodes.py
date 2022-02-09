@@ -10370,9 +10370,13 @@ class _YieldDelegationExprNode(YieldExprNode):
         else:
             code.put_decref_clear(Naming.retval_cname, py_object_type)
         code.putln("} else {")
+        self.propagate_exception(code)
+        code.putln("}")
+
+    def propagate_exception(self, code):
+        # YieldExprNode has allocated the result temp for us
         code.put_xgotref(Naming.retval_cname, py_object_type)
         code.putln(code.error_goto(self.pos))
-        code.putln("}")
 
     def fetch_iteration_result(self, code):
         # YieldExprNode has allocated the result temp for us
@@ -10381,14 +10385,6 @@ class _YieldDelegationExprNode(YieldExprNode):
             Naming.retval_cname,
             Naming.retval_cname,
         ))
-
-    def handle_iteration_exception(self, code):
-        code.putln("PyObject* exc_type = __Pyx_PyErr_CurrentExceptionType();")
-        code.putln("if (exc_type) {")
-        code.putln("if (likely(exc_type == PyExc_StopIteration || (exc_type != PyExc_GeneratorExit &&"
-                   " __Pyx_PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration)))) PyErr_Clear();")
-        code.putln("else %s" % code.error_goto(self.pos))
-        code.putln("}")
 
 
 class YieldFromExprNode(_YieldDelegationExprNode):
@@ -10441,14 +10437,9 @@ class AwaitIterNextExprNode(AwaitExprNode):
         code.putln("break;")
         code.putln("}")
 
-    def fetch_iteration_result(self, code):
-        assert code.break_label, "AwaitIterNextExprNode outside of 'async for' loop"
-        super(AwaitIterNextExprNode, self).fetch_iteration_result(code)
-        # FIXME: Don't actually know if this is really unreachable, but it's an error. Needs testing. And I like the macro.
-        # CPython simply has an assert() for this in gen_send_ex()
-        code.putln("if (unlikely(%s != Py_None)) Py_UNREACHABLE();" % self.result())
-        code.put_decref_clear(self.result(), py_object_type)
-        code.putln("break;")
+    def propagate_exception(self, code):
+        self._generate_break(code)
+        super(AwaitIterNextExprNode, self).propagate_exception(code)
 
     def generate_sent_value_handling_code(self, code, value_cname):
         assert code.break_label, "AwaitIterNextExprNode outside of 'async for' loop"
