@@ -10,7 +10,8 @@ __Pyx_Coroutine_Set_Owned_Yield_From(__pyx_CoroutineObject *gen, PyObject *yf) {
 #endif
     {
         __Pyx_PyAsyncMethodsStruct* am = __Pyx_PyType_AsAsync(yf);
-        if (likely(am) && likely(am->am_send)) {
+        if (likely(am)) {
+            // Keep a direct reference to am->am_send, if provided.
             gen->yieldfrom_am_send = am->am_send;
         }
     }
