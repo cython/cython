@@ -66,11 +66,11 @@ However, as in Python, it is the responsibility of the subclasses to call up the
 hierarchy and make sure that the :meth:`__init__` methods in the base class are
 called correctly.  If a subclass forgets (or refuses) to call the :meth:`__init__`
 method of one of its base classes, that method will not be called.
-Also, if the object gets created by calling directly its :meth:`__new__` method
+Also, if the object gets created by calling directly its :meth:`__new__` method [#]_
 (as opposed to calling the class itself), then none of the :meth:`__init__`
 methods will be called.
 
-The :meth:`__cinit__` method is where you should perform basic C-level
+The :meth:`__cinit__` method is where you should perform basic safety C-level
 initialisation of the object, possibly including allocation of any C data
 structures that your object will own.  In contrast to :meth:`__init__`,
 your :meth:`__cinit__` method is guaranteed to be called exactly once.
@@ -86,7 +86,7 @@ where the normal rules for calling inherited methods apply.
 Any arguments passed to the constructor will be passed to both the
 :meth:`__cinit__` method and the :meth:`__init__` method.  If you anticipate
 subclassing your extension type, you may find it useful to give the
-:meth:`__cinit__` method `*` and `**` arguments so that it can accept and
+:meth:`__cinit__` method ``*`` and ``**`` arguments so that it can accept and
 ignore arbitrary extra arguments, since the arguments that are passed through
 the hierarchy during allocation cannot be changed by subclasses.
 Alternatively, as a convenience, if you declare your :meth:`__cinit__` method
@@ -104,6 +104,11 @@ passed to the constructor without complaining about the signature mismatch.
     explicitly bypass the call to the :meth:`__init__` constructor.
 
     See :ref:`existing-pointers-instantiation` for an example.
+
+..  Note::
+
+    Implementing a :meth:`__cinit__` method currently excludes the type from
+    :ref:`auto-pickling <auto_pickle>`.
 
 .. [#] https://docs.python.org/reference/datamodel.html#object.__new__
 

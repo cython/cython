@@ -759,6 +759,8 @@ the above would be safe, and it may yield a significant speedup, depending on
 your usage pattern.
 
 
+.. _auto_pickle:
+
 Controlling pickling
 ====================
 
