@@ -478,8 +478,9 @@ Note that the path through ``__new__()`` will *not* call the type's
 ``__init__()`` method (again, as known from Python).  Thus, in the example
 above, the first instantiation will print ``eating!``, but the second will
 not.  This is only one of the reasons why the ``__cinit__()`` method is
-safer and preferable over the normal ``__init__()`` method for extension
-types.
+safer than the normal ``__init__()`` method for initialising extension types
+and bringing them into a correct and safe state.
+See section :ref:`_initialisation_methods` about the differences.
 
 The second performance improvement applies to types that are often created
 and deleted in a row, so that they can benefit from a freelist.  Cython
