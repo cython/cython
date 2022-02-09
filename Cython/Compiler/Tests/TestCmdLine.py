@@ -1,6 +1,7 @@
 import os
 import sys
 from unittest import TestCase
+from unittest.mock import patch, Mock
 try:
     from StringIO import StringIO
 except ImportError:
@@ -11,7 +12,14 @@ from ..CmdLine import parse_command_line
 
 from .Utils import backup_Options, restore_Options, check_global_options
 
+unpatched_exists = os.path.exists
 
+def patched_exists(path):
+    if path in ('source.pyx', 'file.pyx', 'file1.pyx', 'file2.pyx', 'file3.pyx'):
+        return True
+    return unpatched_exists(path)
+
+@patch('os.path.exists', new=Mock(side_effect=patched_exists))
 class CmdLineParserTest(TestCase):
     def setUp(self):
         self._options_backup = backup_Options()
