@@ -566,7 +566,7 @@ class UtilityCode(UtilityCodeBase):
             r'([a-zA-Z_]+),'      # type cname
             r'\s*"([^"]+)",'      # method name
             r'\s*([^),]+)'        # object cname
-            r'((?:,\s*[^),]+)*)'  # args*
+            r'((?:,[^),]+)*)'     # args*
             r'\)', externalise, impl)
         assert 'CALL_UNBOUND_METHOD(' not in impl
 
