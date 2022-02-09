@@ -47,9 +47,9 @@ def find_package_base(path):
 
 def cython_compile(path_pattern, options):
     all_paths = map(os.path.abspath, extended_iglob(path_pattern))
-    _cython_compile(all_paths, options)
+    _cython_compile_files(all_paths, options)
 
-def _cython_compile_paths(all_paths, options):
+def _cython_compile_files(all_paths, options):
     pool = None
     try:
         for path in all_paths:
@@ -232,7 +232,7 @@ def main(args=None):
             print("{}: No such file or directory: '{}'".format(sys.argv[0], path), file=sys.stderr)
             sys.exit(1)
         all_paths.extend(expanded_path)
-    _cython_compile_paths(all_paths, options)
+    _cython_compile_files(all_paths, options)
 
 
 if __name__ == '__main__':
