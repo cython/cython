@@ -387,7 +387,7 @@ directive_scopes = {  # defaults to available everywhere
 
 # a list of directives that (when used as a decorator) are only applied to
 # the object they decorate and not to its children.
-immediate_decorator_directives = (
+immediate_decorator_directives = {
     'cfunc', 'ccall', 'cclass',
     # function signature directives
     'inline', 'exceptval', 'returns',
@@ -396,7 +396,7 @@ immediate_decorator_directives = (
     'auto_pickle', 'internal',
     # testing directives
     'test_fail_if_path_exists', 'test_assert_path_exists',
-)
+}
 
 
 def parse_directive_value(name, value, relaxed_bool=False):

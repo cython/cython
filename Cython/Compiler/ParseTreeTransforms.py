@@ -1208,7 +1208,7 @@ class InterpretCompilerDirectives(CythonTransform):
         if (contents_directives is not None and
                 new_contents_directives != new_directives):
             # we need to wrap the node body in a compiler directives node
-            new_node_body = Nodes.StatListNode(
+            node.body = Nodes.StatListNode(
                 node.body.pos,
                 stats=[
                     Nodes.CompilerDirectivesNode(
@@ -1217,7 +1217,6 @@ class InterpretCompilerDirectives(CythonTransform):
                         body=node.body)
                 ]
             )
-            node.body = new_node_body
         retbody = self.visit_Node(node)
         self.directives = old_directives
 
@@ -1299,8 +1298,7 @@ class InterpretCompilerDirectives(CythonTransform):
         # merge or override repeated directives
         optdict = {}
         contents_optdict = {}
-        for directive in directives:
-            name, value = directive
+        for name, value in directives:
             if name in optdict:
                 old_value = optdict[name]
                 # keywords and arg lists can be merged, everything
