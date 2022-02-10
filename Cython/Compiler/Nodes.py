@@ -382,8 +382,8 @@ class StatListNode(Node):
     child_attrs = ["stats"]
 
     @staticmethod
-    def create_analysed(pos, env, *args, **kw):
-        node = StatListNode(pos, *args, **kw)
+    def create_analysed(pos, env, **kw):
+        node = StatListNode(pos, **kw)
         return node  # No node-specific analysis needed
 
     def analyse_declarations(self, env):
