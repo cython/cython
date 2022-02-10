@@ -4264,6 +4264,7 @@ class IndexNode(_IndexingBaseNode):
             return
 
         utility_code = None
+        error_value = None
         if self.type.is_pyobject:
             error_value = 'NULL'
             if self.index.type.is_int:
@@ -4299,8 +4300,8 @@ class IndexNode(_IndexingBaseNode):
             error_value = '-1'
             utility_code = UtilityCode.load_cached("GetItemIntByteArray", "StringTools.c")
         elif not (self.base.type.is_cpp_class and self.exception_check):
-            assert False, "unexpected type %s and base type %s for indexing" % (
-                self.type, self.base.type)
+            assert False, "unexpected type %s and base type %s for indexing (%s)" % (
+                self.type, self.base.type, self.pos)
 
         if utility_code is not None:
             code.globalstate.use_utility_code(utility_code)
