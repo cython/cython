@@ -179,14 +179,13 @@ html_favicon = "_static/favicon.ico"
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
-# Overwriting css from extensions
+
 html_context = {
+    # Overwriting css from extensions
     'css_files': ['_static/css/tabs.css'],
+    # "dev version" warning banner
+    'development': 'a' in release or 'b' in release,
 }
-
-development = 'a' in release or 'b' in release
-
-html_context = {'development': development}
 
 # If not '', a 'Last updated on:' timestamp is inserted at every page bottom,
 # using the given strftime format.
