@@ -2336,6 +2336,8 @@ class CClassScope(ClassScope):
         if pytyping_modifiers:
             if "typing.ClassVar" in pytyping_modifiers:
                 is_cdef = 0
+                if not type.is_pyobject:
+                    type = type.equivalent_type or py_object_type
             if  "dataclasses.InitVar" in pytyping_modifiers and 'dataclasses.dataclass' not in self.directives:
                 error(pos, "Use of cython.dataclasses.InitVar does not make sense outside a dataclass")
 
