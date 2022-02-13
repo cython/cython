@@ -304,86 +304,54 @@ of an extension type (as in the widen_shrubbery function above), it's up to
 you to make sure the reference you're using is not :keyword:`None` -- in the
 interests of efficiency, Cython does not check this.
 
-When annotations are used, the behaviour follows the Python typing semantics of
-`PEP-484 <https://www.python.org/dev/peps/pep-0484/>`_ instead.
-The value :keyword:`None` is not allowed when a variable is annotated only with its plain type.
-To allow also :keyword:`None`, ``typing.Optional[ ]`` must be used explicitly.
-For function arguments, this is also automatically allowed when they have a
-default argument of :keyword:`None`, e.g. ``func(x: list = None)`` does not require ``typing.Optional``.
-
-The upside of using annotations here is that they are safe by default because
-you need to explicitly allow :keyword:`None` values for them.
 With the C-like declaration syntax, you need to be particularly careful when
-exposing Python functions which take extension types as arguments:
+exposing Python functions which take extension types as arguments::
 
-.. tabs::
-
-    .. group-tab:: Pure Python
-
-        .. code-block:: python
-
-            from typing import Optional
-
-            def widen_shrubbery(sh: Optional[Shrubbery], extra_width): # This is
-                sh.width = sh.width + extra_width                      # dangerous!
-
-    .. group-tab:: Cython
-
-        .. code-block:: cython
-
-            def widen_shrubbery(Shrubbery sh, extra_width): # This is
-                sh.width = sh.width + extra_width           # dangerous!
+    def widen_shrubbery(Shrubbery sh, extra_width): # This is
+        sh.width = sh.width + extra_width           # dangerous!
 
 The users of our module could crash it by passing :keyword:`None` for the ``sh``
 parameter.
 
 As in Python, whenever it is unclear whether a variable can be :keyword:`None`,
-but the code requires a non-None value, an explicit check can help:
+but the code requires a non-None value, an explicit check can help::
 
-.. tabs::
-
-    .. group-tab:: Pure Python
-
-        .. code-block:: python
-
-            from typing import Optional
-
-            def widen_shrubbery(sh: Optional[Shrubbery], extra_width):
-                if sh is None:
-                    raise TypeError
-                sh.width = sh.width + extra_width
-
-    .. group-tab:: Cython
-
-        .. code-block:: cython
-
-            def widen_shrubbery(Shrubbery sh, extra_width):
-                if sh is None:
-                    raise TypeError
-                sh.width = sh.width + extra_width
+    def widen_shrubbery(Shrubbery sh, extra_width):
+        if sh is None:
+            raise TypeError
+        sh.width = sh.width + extra_width
 
 but since this is anticipated to be such a frequent requirement, Cython language
 provides a more convenient way. Parameters of a Python function declared as an
-extension type can have a ``not None`` clause:
+extension type can have a ``not None`` clause::
 
-.. tabs::
-
-    .. group-tab:: Pure Python
-
-        .. code-block:: python
-
-            def widen_shrubbery(sh: Shrubbery, extra_width):
-                sh.width = sh.width + extra_width
-
-    .. group-tab:: Cython
-
-        .. code-block:: cython
-
-            def widen_shrubbery(Shrubbery sh not None, extra_width):
-                sh.width = sh.width + extra_width
+    def widen_shrubbery(Shrubbery sh not None, extra_width):
+        sh.width = sh.width + extra_width
 
 Now the function will automatically check that ``sh`` is ``not None`` along
 with checking that it has the right type.
+
+When annotations are used, the behaviour follows the Python typing semantics of
+`PEP-484 <https://www.python.org/dev/peps/pep-0484/>`_ instead.
+The value :keyword:`None` is not allowed when a variable is annotated only with its plain type::
+
+    def widen_shrubbery(sh: Shrubbery, extra_width):  # TypeError is raised
+        sh.width = sh.width + extra_width             # when sh is None
+
+To allow also :keyword:`None`, ``typing.Optional[ ]`` must be used explicitly.
+For function arguments, this is also automatically allowed when they have a
+default argument of :keyword:`None`, e.g. ``func(x: list = None)`` does not require ``typing.Optional``::
+
+    import typing
+    def widen_shrubbery(sh: typing.Optional[Shrubbery], extra_width):
+        if sh is None:
+            # We want to raise custom exception in case of None value.
+            raise ValueError
+        sh.width = sh.width + extra_width
+
+The upside of using annotations here is that they are safe by default because
+you need to explicitly allow :keyword:`None` values for them.
+
 
 .. note::
 
