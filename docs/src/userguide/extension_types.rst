@@ -647,6 +647,10 @@ compatible types:
 
         .. literalinclude:: ../../examples/userguide/extension_types/owned_pointer.pyx
 
+.. note::
+
+    Cython currently does not support decorating :keyword:`cdef`/``@ccall`` methods with ``@classmethod`` decorator.
+
 .. _forward_declaring_extension_types:
 
 Forward-declaring extension types
