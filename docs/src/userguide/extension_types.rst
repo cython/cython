@@ -284,7 +284,7 @@ when it is deleted.::
 
         cdef object cheeses
 
-        def __cinit__(self):
+        def __init__(self):
             self.cheeses = []
 
         @property
