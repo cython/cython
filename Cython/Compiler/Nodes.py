@@ -13,7 +13,7 @@ cython.declare(sys=object, os=object, copy=object,
                CppClassScope=object, UtilityCode=object, EncodedString=object,
                error_type=object, _py_int_types=object)
 
-import sys, os, copy
+import sys, copy
 from itertools import chain
 
 from . import Builtin

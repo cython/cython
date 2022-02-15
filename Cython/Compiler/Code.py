@@ -28,7 +28,6 @@ from . import Naming
 from . import Options
 from . import DebugFlags
 from . import StringEncoding
-from . import Version
 from .. import Utils
 from .Scanning import SourceDescriptor
 from ..StringIOTree import StringIOTree

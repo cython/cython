@@ -19,7 +19,7 @@ from .Code import UtilityCode, LazyUtilityCode, TempitaUtilityCode
 from . import StringEncoding
 from . import Naming
 
-from .Errors import error, warning, CannotSpecialize
+from .Errors import error, CannotSpecialize
 
 
 class BaseType(object):
