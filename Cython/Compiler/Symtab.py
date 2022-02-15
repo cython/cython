@@ -25,13 +25,14 @@ from . import Future
 
 from . import Code
 
-iso_c99_keywords = set(
-['auto', 'break', 'case', 'char', 'const', 'continue', 'default', 'do',
+iso_c99_keywords = {
+    'auto', 'break', 'case', 'char', 'const', 'continue', 'default', 'do',
     'double', 'else', 'enum', 'extern', 'float', 'for', 'goto', 'if',
     'int', 'long', 'register', 'return', 'short', 'signed', 'sizeof',
     'static', 'struct', 'switch', 'typedef', 'union', 'unsigned', 'void',
     'volatile', 'while',
-    '_Bool', '_Complex'', _Imaginary', 'inline', 'restrict'])
+    '_Bool', '_Complex'', _Imaginary', 'inline', 'restrict',
+}
 
 
 def c_safe_identifier(cname):

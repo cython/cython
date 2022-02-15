@@ -965,11 +965,20 @@ class CArgDeclNode(Node):
         base_type, arg_type = annotation.analyse_type_annotation(env, assigned_value=self.default)
         if base_type is not None:
             self.base_type = base_type
+
         if arg_type and arg_type.python_type_constructor_name == "typing.Optional":
-            self.or_none = True
+            # "x: Optional[...]"  =>  explicitly allow 'None'
             arg_type = arg_type.resolve()
-        if arg_type and arg_type.is_pyobject and not self.or_none:
+            if arg_type and not arg_type.is_pyobject:
+                error(annotation.pos, "Only Python type arguments can use typing.Optional[...]")
+            else:
+                self.or_none = True
+        elif arg_type and arg_type.is_pyobject and self.default and self.default.is_none:
+            # "x: ... = None"  =>  implicitly allow 'None'
+            self.or_none = True
+        elif arg_type and arg_type.is_pyobject and not self.or_none:
             self.not_none = True
+
         return arg_type
 
     def calculate_default_value_code(self, code):
