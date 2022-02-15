@@ -29,9 +29,9 @@ from .Code import UtilityCode, TempitaUtilityCode
 from . import StringEncoding
 from . import Naming
 from . import Nodes
-from .Nodes import Node, utility_code_for_imports, SingleAssignmentNode, PassStatNode
+from .Nodes import Node, utility_code_for_imports, SingleAssignmentNode
 from . import PyrexTypes
-from .PyrexTypes import py_object_type, c_long_type, typecast, error_type, \
+from .PyrexTypes import py_object_type, typecast, error_type, \
     unspecified_type
 from . import TypeSlots
 from .Builtin import (
@@ -45,8 +45,8 @@ from .. import Utils
 from .Annotate import AnnotationItem
 from . import Future
 from ..Debugging import print_call_chain
-from .DebugFlags import debug_disposal_code, debug_temp_alloc, \
-    debug_coercion
+from .DebugFlags import debug_disposal_code, debug_coercion
+
 from .Pythran import (to_pythran, is_pythran_supported_type, is_pythran_supported_operation_type,
      is_pythran_expr, pythran_func_type, pythran_binop_type, pythran_unaryop_type, has_np_pythran,
      pythran_indexing_code, pythran_indexing_type, is_pythran_supported_node_or_none, pythran_type,
