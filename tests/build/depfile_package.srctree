@@ -1,16 +1,16 @@
-'''
+"""
 PYTHON -m Cython.Build.Cythonize -i pkg --depfile
 PYTHON package_test.py
-'''
+"""
 
 ######## package_test.py ########
 
-import os
+import os.path
 
 with open("pkg/test.c.dep", "r") as f:
-    contents = f.read().replace("\n", " ").replace("\\", "")
+    contents = f.read().replace("\\\n", " ").replace("\\\n", " ")
 
-assert sorted(contents.split()) == sorted(['test.c:', 'sub/incl.pxi', 'test.pxd', 'test.pyx']), contents
+assert sorted(contents.split()) == sorted(['test.c:', os.path.join('sub', 'incl.pxi'), 'test.pxd', 'test.pyx']), contents
 
 
 with open("pkg/sub/test.c.dep", "r") as f:
@@ -18,7 +18,7 @@ with open("pkg/sub/test.c.dep", "r") as f:
 
 contents = [os.path.relpath(entry, '.')
             if os.path.isabs(entry) else entry for entry in contents.split()]
-assert sorted(contents) == sorted(['test.c:', 'incl.pxi', 'test.pyx', '../test.pxd']), contents
+assert sorted(contents) == sorted(['test.c:', 'incl.pxi', 'test.pyx', os.path.join('..', 'test.pxd')]), contents
 
 
 ######## pkg/__init__.py ########
@@ -55,4 +55,3 @@ TEST = 'pkg.sub.test'
 ######## pkg/sub/incl.pxi ########
 
 pass
-

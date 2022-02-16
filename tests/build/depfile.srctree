@@ -1,5 +1,7 @@
+"""
 PYTHON -m Cython.Build.Cythonize -M foo.pyx
 PYTHON check.py
+"""
 
 ######## foo.pyx ########
 
@@ -25,9 +27,7 @@ cdef inline void empty():
 
 ######## check.py ########
 
-import os
-
 with open("foo.c.dep", "r") as f:
-    contents = f.read().replace("\n", " ").replace("\\", "")
+    contents = f.read().replace("\\\n", " ").replace("\n", " ")
 
 assert sorted(contents.split()) == ['bar.pxd', 'baz.pxi', 'foo.c:', 'foo.pyx'], contents
