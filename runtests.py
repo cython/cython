@@ -614,6 +614,7 @@ class TestBuilder(object):
         self.workdir = workdir
         self.selectors = selectors
         self.exclude_selectors = exclude_selectors
+        self.shard_num = options.shard_num
         self.annotate = options.annotate_source
         self.cleanup_workdir = options.cleanup_workdir
         self.cleanup_sharedlibs = options.cleanup_sharedlibs
@@ -690,7 +691,8 @@ class TestBuilder(object):
 
             if ext == '.srctree':
                 if 'cpp' not in tags['tag'] or 'cpp' in self.languages:
-                    suite.addTest(EndToEndTest(filepath, workdir, self.cleanup_workdir, stats=self.stats))
+                    suite.addTest(EndToEndTest(
+                        filepath, workdir, self.cleanup_workdir, stats=self.stats, shard_num=self.shard_num))
                 continue
 
             # Choose the test suite.
@@ -720,7 +722,8 @@ class TestBuilder(object):
                     if pyver
                 ]
                 if not min_py_ver or any(sys.version_info >= min_ver for min_ver in min_py_ver):
-                    suite.addTest(PureDoctestTestCase(module, os.path.join(path, filename), tags, stats=self.stats))
+                    suite.addTest(PureDoctestTestCase(
+                        module, os.path.join(path, filename), tags, stats=self.stats, shard_num=self.shard_num))
 
         return suite
 
@@ -781,6 +784,7 @@ class TestBuilder(object):
                           cleanup_failures=self.cleanup_failures,
                           cython_only=self.cython_only,
                           doctest_selector=self.doctest_selector,
+                          shard_num=self.shard_num,
                           fork=self.fork,
                           language_level=self.language_level,
                           warning_errors=warning_errors,
@@ -823,7 +827,7 @@ class CythonCompileTestCase(unittest.TestCase):
                  expect_errors=False, expect_warnings=False, annotate=False, cleanup_workdir=True,
                  cleanup_sharedlibs=True, cleanup_failures=True, cython_only=False, doctest_selector=None,
                  fork=True, language_level=2, warning_errors=False,
-                 test_determinism=False,
+                 test_determinism=False, shard_num=0,
                  common_utility_dir=None, pythran_dir=None, stats=None):
         self.test_directory = test_directory
         self.tags = tags
@@ -840,6 +844,7 @@ class CythonCompileTestCase(unittest.TestCase):
         self.cleanup_failures = cleanup_failures
         self.cython_only = cython_only
         self.doctest_selector = doctest_selector
+        self.shard_num = shard_num
         self.fork = fork
         self.language_level = language_level
         self.warning_errors = warning_errors
@@ -850,7 +855,8 @@ class CythonCompileTestCase(unittest.TestCase):
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
-        return "compiling (%s%s) %s" % (self.language, "/pythran" if self.pythran_dir is not None else "", self.name)
+        return "[%d] compiling (%s%s) %s" % (
+            self.shard_num, self.language, "/pythran" if self.pythran_dir is not None else "", self.name)
 
     def setUp(self):
         from Cython.Compiler import Options
@@ -1246,7 +1252,8 @@ class CythonRunTestCase(CythonCompileTestCase):
         if self.cython_only:
             return CythonCompileTestCase.shortDescription(self)
         else:
-            return "compiling (%s%s) and running %s" % (self.language, "/pythran" if self.pythran_dir is not None else "", self.name)
+            return "[%d] compiling (%s%s) and running %s" % (
+                self.shard_num, self.language, "/pythran" if self.pythran_dir is not None else "", self.name)
 
     def run(self, result=None):
         if result is None:
@@ -1371,15 +1378,17 @@ def run_forked_test(result, run_func, test_name, fork=True):
 
 
 class PureDoctestTestCase(unittest.TestCase):
-    def __init__(self, module_name, module_path, tags, stats=None):
+    def __init__(self, module_name, module_path, tags, stats=None, shard_num=0):
         self.tags = tags
         self.module_name = self.name = module_name
         self.module_path = module_path
         self.stats = stats
+        self.shard_num = shard_num
         unittest.TestCase.__init__(self, 'run')
 
     def shortDescription(self):
-        return "running pure doctests in %s" % self.module_name
+        return "[%d] running pure doctests in %s" % (
+            self.shard_num, self.module_name)
 
     def run(self, result=None):
         if result is None:
@@ -1484,7 +1493,8 @@ class PartialTestResult(TextTestResult):
 
 class CythonUnitTestCase(CythonRunTestCase):
     def shortDescription(self):
-        return "compiling (%s) tests in %s" % (self.language, self.name)
+        return "[%d] compiling (%s) tests in %s" % (
+            self.shard_num, self.language, self.name)
 
     def run_tests(self, result, ext_so_path):
         with self.stats.time(self.name, self.language, 'import'):
@@ -1680,12 +1690,13 @@ class EndToEndTest(unittest.TestCase):
     """
     cython_root = os.path.dirname(os.path.abspath(__file__))
 
-    def __init__(self, treefile, workdir, cleanup_workdir=True, stats=None):
+    def __init__(self, treefile, workdir, cleanup_workdir=True, stats=None, shard_num=0):
         self.name = os.path.splitext(os.path.basename(treefile))[0]
         self.treefile = treefile
         self.workdir = os.path.join(workdir, self.name)
         self.cleanup_workdir = cleanup_workdir
         self.stats = stats
+        self.shard_num = shard_num
         cython_syspath = [self.cython_root]
         for path in sys.path:
             if path.startswith(self.cython_root) and path not in cython_syspath:
@@ -1697,7 +1708,8 @@ class EndToEndTest(unittest.TestCase):
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
-        return "End-to-end %s" % self.name
+        return "[%d] End-to-end %s" % (
+            self.shard_num, self.name)
 
     def setUp(self):
         from Cython.TestUtils import unpack_source_tree
