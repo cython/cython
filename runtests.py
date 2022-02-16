@@ -2522,6 +2522,7 @@ def runtests(options, cmd_args, coverage=None):
             sys.stderr.write("Tests in shard %d crashed: %s" % (options.shard_num, exc))
         import traceback
         traceback.print_exc()
+        raise
     finally:
         if enable_faulthandler:
             faulthandler.disable()
