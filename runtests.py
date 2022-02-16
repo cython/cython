@@ -1767,8 +1767,8 @@ class EndToEndTest(unittest.TestCase):
                 res = -1
             if res != 0:
                 for c, o, e in zip(cmd, out, err):
-                    sys.stderr.write("%s\n%s\n%s\n\n" % (
-                        c, self._try_decode(o), self._try_decode(e)))
+                    sys.stderr.write("[%d] %s\n%s\n%s\n\n" % (
+                        self.shard_num, c, self._try_decode(o), self._try_decode(e)))
             self.assertEqual(0, res, "non-zero exit status")
         self.success = True
 
