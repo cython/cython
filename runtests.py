@@ -2514,21 +2514,18 @@ def runtests(options, cmd_args, coverage=None):
     # Run the collected tests.
     try:
         if options.shard_num > -1:
-            sys.stderr.write("Tests in shard %d starting" % options.shard_num)
+            sys.stderr.write("Tests in shard %d/%d starting\n" % (options.shard_num, options.shard_count))
         result = test_runner.run(test_suite)
     except Exception as exc:
         # Make sure we print exceptions also from shards.
         if options.shard_num > -1:
-            sys.stderr.write("Tests in shard %d crashed: %s" % (options.shard_num, exc))
+            sys.stderr.write("Tests in shard %d/%d crashed: %s\n" % (options.shard_num, options.shard_count, exc))
         import traceback
         traceback.print_exc()
         raise
     finally:
         if enable_faulthandler:
             faulthandler.disable()
-        if options.shard_num > -1:
-            sys.stderr.write("Tests in shard %d terminated (%s)" % (
-                options.shard_num, sys.exc_info()[1] or "no crash"))
 
     if common_utility_dir and options.shard_num < 0 and options.cleanup_workdir:
         shutil.rmtree(common_utility_dir)
