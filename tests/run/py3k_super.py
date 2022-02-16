@@ -1,5 +1,7 @@
 # mode: run
-# tag: py3k_super, gh3246
+# tag: py3k_super, gh3246, pure3.0
+
+import cython
 
 class A(object):
     def method(self):
@@ -109,12 +111,12 @@ class C(A):
     ['__class__', 'self']
     >>> obj.method_4()
     ['self']
-    >>> obj.method_5()
-    <class 'py3k_super.C'>
-    >>> obj.super_class()
-    <class 'py3k_super.A'>
+    >>> obj.method_5()  # doctest: +ELLIPSIS
+    <class '...py3k_super.C'>
+    >>> obj.super_class()  # doctest: +ELLIPSIS
+    <class '...py3k_super.A'>
     """
-    
+
     def method_1(self):
         return __class__.class_method()
 
@@ -217,7 +219,7 @@ def test_class_cell_empty():
     >>> test_class_cell_empty()
     Traceback (most recent call last):
     ...
-    SystemError: super(): empty __class__ cell
+    RuntimeError: super(): empty __class__ cell
     """
     class Base(type):
         def __new__(cls, name, bases, attrs):
@@ -228,7 +230,8 @@ def test_class_cell_empty():
             super()
 
 
-cdef class CClassBase(object):
+@cython.cclass
+class CClassBase(object):
     def method(self):
         return 'def'
 
@@ -239,7 +242,8 @@ cdef class CClassBase(object):
 #     def call_method_c(self):
 #         return self.method_c()
 
-cdef class CClassSub(CClassBase):
+@cython.cclass
+class CClassSub(CClassBase):
     """
     >>> CClassSub().method()
     'def'

@@ -3062,10 +3062,12 @@ class GilCheck(VisitorTransform):
 class TransformBuiltinMethods(EnvTransform):
     """
     Replace Cython's own cython.* builtins by the corresponding tree nodes.
+    Also handle some Python special builtin functions (e.g. super()/locals())
+    that require introspection by the compiler.
     """
     def __init__(self, *args, **kwds):
         super(TransformBuiltinMethods, self).__init__(*args, **kwds)
-        self.def_node_body_insertions = dict()
+        self.def_node_body_insertions = {}
 
     def visit_SingleAssignmentNode(self, node):
         if node.declaration_only:
@@ -3188,28 +3190,25 @@ class TransformBuiltinMethods(EnvTransform):
 
         if not isinstance(current_def_node, Nodes.FuncDefNode):
             return node
-        for n in range(len(self.env_stack[-1::-1]), 0, -1):
-            class_node, class_scope = self.env_stack[n-1]
-            if isinstance(class_node, Nodes.ClassDefNode):
+
+        # go up the stack, find the first class node and the first function
+        fdef_node = class_node = generator_node = None
+        for stack_node, stack_scope in reversed(self.env_stack):
+            if isinstance(stack_node, Nodes.ClassDefNode):
+                class_node = stack_node
+                class_scope = stack_scope
                 break
-        else:
-            # failed to find a suitable class node
+            elif isinstance(stack_node, Nodes.GeneratorDefNode):
+                generator_node = stack_node
+                fdef_node = stack_node.gbody
+                fdef_scope = stack_scope
+            elif isinstance(stack_node, Nodes.FuncDefNode):
+                fdef_node = stack_node
+                fdef_scope = stack_scope
+
+        if not fdef_node or not class_node:
+            # failed to find a class or function
             return node
-
-        is_generator = False
-        # Now go from the class_node and find the first FuncDefNode in the stack
-        for n in range(n, len(self.env_stack)):
-            fdef_node, fdef_scope = self.env_stack[n]
-            if isinstance(fdef_node, Nodes.GeneratorDefNode):
-                original_fdef_node = fdef_node
-                fdef_node = fdef_node.gbody
-                is_generator = True
-                break
-            elif isinstance(fdef_node, Nodes.FuncDefNode):
-                break
-
-        else:
-            return node  # no suitable def_node in the stack
 
         # now we arrange to inject:
         #  __class__ = ... at the start of the def_node body
@@ -3224,9 +3223,9 @@ class TransformBuiltinMethods(EnvTransform):
                             pos, name=class_node.scope.name,
                             entry=class_node.entry)
             elif class_scope.is_py_class_scope:
-                rhs = ExprNodes.ClassCellNode(pos, is_generator=is_generator)
-                if is_generator:
-                    original_fdef_node.requires_classobj = True
+                rhs = ExprNodes.ClassCellNode(pos, is_generator=generator_node is not None)
+                if generator_node:
+                    generator_node.requires_classobj = True
                 else:
                     fdef_node.requires_classobj = True
                 class_node.class_cell.is_active = True

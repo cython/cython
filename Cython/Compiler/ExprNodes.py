@@ -9311,7 +9311,7 @@ class ClassCellNode(ExprNode):
             code.putln('%s =  %s->classobj;' % (
                 self.result(), Naming.generator_cname))
         code.putln(
-            'if (!%s) { PyErr_SetString(PyExc_SystemError, '
+            'if (!%s) { PyErr_SetString(PyExc_RuntimeError, '
             '"super(): empty __class__ cell"); %s }' % (
                 self.result(),
                 code.error_goto(self.pos)))
