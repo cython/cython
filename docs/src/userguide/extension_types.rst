@@ -355,17 +355,17 @@ you need to explicitly allow :keyword:`None` values for them.
 
 .. note::
 
-    ``not None`` and ``typing.Optional`` can only be used in Python functions (defined with
+    The ``not None`` and ``typing.Optional`` can only be used in Python functions (defined with
     :keyword:`def` and without ``@cython.cfunc`` decorator) and not C functions
     (defined with :keyword:`cdef` or decorated using ``@cython.cfunc``).  If
-    you need to check whether a parameter to a C function is None, you will
+    you need to check whether a parameter to a C function is :keyword:`None`, you will
     need to do it yourself.
 
 .. note::
 
     Some more things:
 
-    * The self parameter of a method of an extension type is guaranteed never to
+    * The ``self`` parameter of a method of an extension type is guaranteed never to
       be :keyword:`None`.
     * When comparing a value with :keyword:`None`, keep in mind that, if ``x`` is a Python
       object, ``x is None`` and ``x is not None`` are very efficient because they
