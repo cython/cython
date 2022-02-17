@@ -355,10 +355,9 @@ you need to explicitly allow :keyword:`None` values for them.
 
 .. note::
 
-    ``not None`` clause can only be used in Python functions (defined with
-    :keyword:`def`) and not C functions (defined with :keyword:`cdef`).
-    Type annotations can be used in either Python functions and C functions,
-    but :keyword:`None` value is not checked when used in C functions. If
+    ``not None`` and ``typing.Optional`` can only be used in Python functions (defined with
+    :keyword:`def` and without ``@cython.cfunc`` decorator) and not C functions
+    (defined with :keyword:`cdef` or decorated using ``@cython.cfunc``).  If
     you need to check whether a parameter to a C function is None, you will
     need to do it yourself.
 
