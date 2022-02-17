@@ -1283,7 +1283,15 @@ can only be applied to extension types (types marked ``cdef`` or created with th
 ``cython.cclass`` decorator) and not to regular classes. If
 you need to define special properties on a field then use ``cython.dataclasses.field``
 
-.. literalinclude:: ../../examples/userguide/extension_types/dataclass.pyx    
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/extension_types/dataclass.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/extension_types/dataclass.pyx
 
 You may use C-level types such as structs, pointers, or C++ classes.
 However, you may find these types are not compatible with the auto-generated
