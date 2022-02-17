@@ -36,7 +36,7 @@ def testcase(func):
 
 
 include "../buffers/mockbuffers.pxi"
-include "cythonarrayutil.pxi"
+include "../testsupport/cythonarrayutil.pxi"
 
 def _print_attributes(memview):
     print "shape: " + " ".join(map(str, memview.shape))

@@ -7,7 +7,7 @@ from cython.view cimport array
 from cython cimport view as v
 cimport cython as cy
 
-include "cythonarrayutil.pxi"
+include "../testsupport/cythonarrayutil.pxi"
 
 
 def length(shape):
