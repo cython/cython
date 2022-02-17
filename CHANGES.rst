@@ -939,6 +939,23 @@ Other changes
 .. _`PEP-479`: https://www.python.org/dev/peps/pep-0479
 
 
+.. _0.29.28:
+
+0.29.28 (2022-02-17)
+====================
+
+Bugs fixed
+----------
+
+* Due to backwards incompatible changes in CPython 3.11a4, the feature flags
+  ``CYTHON_FAST_THREAD_STATE`` and ``CYTHON_USE_EXC_INFO_STACK`` are now disabled
+  in Python 3.11 and later.  They are enabled again in Cython 3.0.
+  Patch by David Woods.  (Github issue #4610)
+
+* A C compiler warning in older PyPy versions was resolved.
+  Patch by Matti Picus.  (Github issue #4236)
+
+
 .. _0.29.27:
 
 0.29.27 (2022-01-28)

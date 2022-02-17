@@ -19,7 +19,7 @@ from .Code import UtilityCode, LazyUtilityCode, TempitaUtilityCode
 from . import StringEncoding
 from . import Naming
 
-from .Errors import error, warning, CannotSpecialize
+from .Errors import error, CannotSpecialize
 
 
 class BaseType(object):
@@ -4511,10 +4511,9 @@ rank_to_type_name = (
     "long double",   # 7
 )
 
-_rank_to_type_name = list(rank_to_type_name)
-RANK_INT  = _rank_to_type_name.index('int')
-RANK_LONG = _rank_to_type_name.index('long')
-RANK_FLOAT = _rank_to_type_name.index('float')
+RANK_INT  = rank_to_type_name.index('int')
+RANK_LONG = rank_to_type_name.index('long')
+RANK_FLOAT = rank_to_type_name.index('float')
 UNSIGNED = 0
 SIGNED = 2
 

@@ -13,7 +13,7 @@ cython.declare(sys=object, os=object, copy=object,
                CppClassScope=object, UtilityCode=object, EncodedString=object,
                error_type=object, _py_int_types=object)
 
-import sys, os, copy
+import sys, copy
 from itertools import chain
 
 from . import Builtin
@@ -382,8 +382,8 @@ class StatListNode(Node):
     child_attrs = ["stats"]
 
     @staticmethod
-    def create_analysed(pos, env, *args, **kw):
-        node = StatListNode(pos, *args, **kw)
+    def create_analysed(pos, env, **kw):
+        node = StatListNode(pos, **kw)
         return node  # No node-specific analysis needed
 
     def analyse_declarations(self, env):
@@ -974,8 +974,10 @@ class CArgDeclNode(Node):
             else:
                 self.or_none = True
         elif arg_type and arg_type.is_pyobject and self.default and self.default.is_none:
-            # "x: ... = None"  =>  implicitly allow 'None'
-            self.or_none = True
+            # "x: ... = None"  =>  implicitly allow 'None', but warn about it.
+            if not self.or_none:
+                warning(self.pos, "PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.")
+                self.or_none = True
         elif arg_type and arg_type.is_pyobject and not self.or_none:
             self.not_none = True
 
