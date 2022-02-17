@@ -355,7 +355,7 @@ you need to explicitly allow :keyword:`None` values for them.
 
 .. note::
 
-    The ``not None`` clause can only be used in Python functions (defined with
+    ``not None`` clause can only be used in Python functions (defined with
     :keyword:`def`) and not C functions (defined with :keyword:`cdef`).
     Type annotations can be used in either Python functions and C functions,
     but :keyword:`None` value is not checked when used in C functions. If
