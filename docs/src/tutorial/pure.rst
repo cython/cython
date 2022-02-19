@@ -227,7 +227,7 @@ Managing the Global Interpreter Lock
     with cython.gil:
         # code block with GIL acquired
 
-  .. Note:: Cython currently does not support ``@cython.gil`` decorator. ``@cython.nogil(False)`` should be used instead.
+  .. Note:: Cython currently does not support the ``@cython.gil`` decorator. ``@cython.nogil(False)`` should be used instead.
 
 
 cimports
