@@ -779,7 +779,7 @@ class Scope(object):
             return
         for modifier in modifiers:
             if modifier not in allowed:
-                error(pos, "Modifier %r is not allowed here." % modifier)
+                error(pos, "Modifier '%s' is not allowed here." % modifier)
 
     def declare_assignment_expression_target(self, name, type, pos):
         # In most cases declares the variable as normal.
