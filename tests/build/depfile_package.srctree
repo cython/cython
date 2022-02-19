@@ -1,5 +1,5 @@
 """
-PYTHON -m Cython.Build.Cythonize -i pkg --depfile
+CYTHONIZE -i pkg --depfile
 PYTHON package_test.py
 """
 
