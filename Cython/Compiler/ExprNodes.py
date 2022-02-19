@@ -2120,6 +2120,9 @@ class NameNode(AtomicExprNode):
             if type.is_pyobject and type.equivalent_type:
                 type = type.equivalent_type
             return type
+        if self.name == 'object':
+            # This is normally parsed as "simple C type", but not if we don't parse C types.
+            return py_object_type
 
         return None
 
