@@ -200,7 +200,7 @@ cdef class TestVisibility:
     """
     cdef double a
     a = 1.0
-    b: double = 2.0
+    b: cython.double = 2.0
     cdef public double c
     c = 3.0
 
@@ -214,7 +214,7 @@ cdef class TestFrozen:
     Traceback (most recent call last):
     AttributeError: attribute 'a' of '...TestFrozen' objects is not writable
     """
-    a: double = 2.0
+    a: cython.double = 2.0
 
 import sys
 if sys.version_info >= (3, 7):
