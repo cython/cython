@@ -215,19 +215,36 @@ Managing the Global Interpreter Lock
 * ``cython.nogil`` can be used as a context manager or as a decorator to replace the :keyword:`nogil` keyword::
 
     with cython.nogil:
-        # code block with GIL released
+        # code block with the GIL released
 
     @cython.nogil
     @cython.cfunc
     def func_released_gil() -> cython.int:
-        # function with GIL released
+        # function with the GIL released
 
 * ``cython.gil`` can be used as a context manager to replace the :keyword:`gil` keyword::
 
     with cython.gil:
-        # code block with GIL acquired
+        # code block with the GIL acquired
 
-  .. Note:: Cython currently does not support the ``@cython.gil`` decorator. ``@cython.nogil(False)`` should be used instead.
+  .. Note:: Cython currently does not support the ``@cython.gil`` decorator.
+
+When either ``cython.nogil`` or ``cython.gil`` is used as a function, it accepts a parameter for conditional
+releasing or acquiring the GIL. The condition must be constant (at compile time)::
+
+  with cython.nogil(False):
+      # code block with the GIL not released
+
+  @cython.nogil(True)
+  @cython.cfunc
+  def func_released_gil() -> cython.int:
+      # function with the GIL released
+
+  with cython.gil(False):
+      # code block with the GIL not acquired
+
+  with cython.gil(True):
+      # code block with the GIL acquired
 
 
 cimports
