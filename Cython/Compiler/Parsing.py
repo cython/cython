@@ -3002,9 +3002,15 @@ def p_with_gil(s):
         return 0
 
 def p_exception_value_clause(s):
+    # the default behaviour is to always
+    # check for exceptions
+    exc_check = 1
     exc_val = None
-    exc_check = 0
-    if s.sy == 'except':
+    if s.sy == 'IDENT' and s.systring == 'noexcept':
+        s.next()
+        exc_val = None
+        exc_check = 0
+    elif s.sy == 'except':
         s.next()
         if s.sy == '*':
             exc_check = 1
