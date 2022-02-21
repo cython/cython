@@ -93,10 +93,11 @@ def compile_cython_modules(profile=False, coverage=False, compile_more=False, cy
         "Cython.Runtime.refnanny",
         "Cython.Compiler.FusedNode",
         "Cython.Tempita._tempita",
+        "Cython.StringIOTree",
+        "Cython.Utils",
     ]
     if compile_more:
         compiled_modules.extend([
-            "Cython.StringIOTree",
             "Cython.Compiler.Code",
             "Cython.Compiler.Lexicon",
             "Cython.Compiler.Parsing",
@@ -141,25 +142,25 @@ def compile_cython_modules(profile=False, coverage=False, compile_more=False, cy
     extensions = []
     for module in compiled_modules:
         source_file = os.path.join(source_root, *module.split('.'))
-        if os.path.exists(source_file + ".py"):
-            pyx_source_file = source_file + ".py"
-        else:
-            pyx_source_file = source_file + ".pyx"
+        pyx_source_file = source_file + ".py"
+        if not os.path.exists(pyx_source_file):
+            pyx_source_file += "x"  # .py -> .pyx
+
         dep_files = []
         if os.path.exists(source_file + '.pxd'):
             dep_files.append(source_file + '.pxd')
-        if '.refnanny' in module:
-            defines_for_module = []
-        else:
-            defines_for_module = defines
+
         extensions.append(Extension(
             module, sources=[pyx_source_file],
-            define_macros=defines_for_module,
+            define_macros=defines if '.refnanny' not in module else [],
             depends=dep_files))
         # XXX hack around setuptools quirk for '*.pyx' sources
         extensions[-1].sources[0] = pyx_source_file
 
-    from Cython.Distutils.build_ext import new_build_ext
+    # optimise build parallelism by starting with the largest modules
+    extensions.sort(key=lambda ext: os.path.getsize(ext.sources[0]), reverse=True)
+
+    from Cython.Distutils.build_ext import build_ext
     from Cython.Compiler.Options import get_directive_defaults
     get_directive_defaults().update(
         language_level=2,
@@ -175,7 +176,7 @@ def compile_cython_modules(profile=False, coverage=False, compile_more=False, cy
         sys.stderr.write("Enabled line tracing and profiling for the Cython binary modules\n")
 
     # not using cythonize() directly to let distutils decide whether building extensions was requested
-    add_command_class("build_ext", new_build_ext)
+    add_command_class("build_ext", build_ext)
     setup_args['ext_modules'] = extensions
 
 

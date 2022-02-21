@@ -1,3 +1,16 @@
+/////////////// FetchSharedCythonModule.proto ///////
+
+static PyObject *__Pyx_FetchSharedCythonABIModule(void);
+
+/////////////// FetchSharedCythonModule ////////////
+
+static PyObject *__Pyx_FetchSharedCythonABIModule(void) {
+    PyObject *abi_module = PyImport_AddModule((char*) __PYX_ABI_MODULE_NAME);
+    if (unlikely(!abi_module)) return NULL;
+    Py_INCREF(abi_module);
+    return abi_module;
+}
+
 /////////////// FetchCommonType.proto ///////////////
 
 #if !CYTHON_USE_TYPE_SPECS
@@ -8,14 +21,8 @@ static PyTypeObject* __Pyx_FetchCommonTypeFromSpec(PyObject *module, PyType_Spec
 
 /////////////// FetchCommonType ///////////////
 //@requires:ExtensionTypes.c::FixUpExtensionType
+//@requires: FetchSharedCythonModule
 //@requires:StringTools.c::IncludeStringH
-
-static PyObject *__Pyx_FetchSharedCythonABIModule(void) {
-    PyObject *abi_module = PyImport_AddModule((char*) __PYX_ABI_MODULE_NAME);
-    if (!abi_module) return NULL;
-    Py_INCREF(abi_module);
-    return abi_module;
-}
 
 static int __Pyx_VerifyCachedType(PyObject *cached_type,
                                const char *name,

@@ -72,10 +72,9 @@ static int __Pyx_IternextUnpackEndCheck(PyObject *retval, Py_ssize_t expected) {
         Py_DECREF(retval);
         __Pyx_RaiseTooManyValuesError(expected);
         return -1;
-    } else {
-        return __Pyx_IterFinish();
     }
-    return 0;
+
+    return __Pyx_IterFinish();
 }
 
 /////////////// UnpackTuple2.proto ///////////////

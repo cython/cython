@@ -28,9 +28,11 @@ try:
     import platform
     IS_PYPY = platform.python_implementation() == 'PyPy'
     IS_CPYTHON = platform.python_implementation() == 'CPython'
+    IS_GRAAL = platform.python_implementation() == 'GraalVM'
 except (ImportError, AttributeError):
     IS_CPYTHON = True
     IS_PYPY = False
+    IS_GRAAL = False
 
 IS_PY2 = sys.version_info[0] < 3
 CAN_SYMLINK = sys.platform != 'win32' and hasattr(os, 'symlink')
@@ -376,10 +378,9 @@ def get_cc_version(language):
     env['LC_MESSAGES'] = 'C'
     try:
         p = subprocess.Popen([cc, "-v"], stderr=subprocess.PIPE, env=env)
-    except EnvironmentError:
-        # Be compatible with Python 3
+    except EnvironmentError as exc:
         warnings.warn("Unable to find the %s compiler: %s: %s" %
-                      (language, os.strerror(sys.exc_info()[1].errno), cc))
+                      (language, os.strerror(exc.errno), cc))
         return ''
     _, output = p.communicate()
     return output.decode(locale.getpreferredencoding() or 'ASCII', 'replace')
@@ -475,6 +476,7 @@ VER_DEP_MODULES = {
                                           ]),
     (3,4): (operator.lt, lambda x: x in ['run.py34_signature',
                                          'run.test_unicode',  # taken from Py3.7, difficult to backport
+                                         'run.pep442_tp_finalize',
                                          ]),
     (3,4,999): (operator.gt, lambda x: x in ['run.initial_file_path',
                                              ]),
@@ -484,6 +486,8 @@ VER_DEP_MODULES = {
                                          'run.pep526_variable_annotations',  # typing module
                                          'run.test_exceptions',  # copied from Py3.7+
                                          'run.time_pxd',  # _PyTime_GetSystemClock doesn't exist in 3.4
+                                         'run.cpython_capi_py35',
+                                         'embedding.embedded',  # From the docs, needs Py_DecodeLocale
                                          ]),
     (3,7): (operator.lt, lambda x: x in ['run.pycontextvar',
                                          'run.pep557_dataclasses',  # dataclasses module
@@ -643,8 +647,8 @@ class Stats(object):
         self.test_times = defaultdict(float)
         self.top_tests = defaultdict(list)
 
-    def add_time(self, name, language, metric, t):
-        self.test_counts[metric] += 1
+    def add_time(self, name, language, metric, t, count=1):
+        self.test_counts[metric] += count
         self.test_times[metric] += t
         top = self.top_tests[metric]
         push = heapq.heappushpop if len(top) >= self.top_n else heapq.heappush
@@ -692,6 +696,7 @@ class TestBuilder(object):
         self.workdir = workdir
         self.selectors = selectors
         self.exclude_selectors = exclude_selectors
+        self.shard_num = options.shard_num
         self.annotate = options.annotate_source
         self.cleanup_workdir = options.cleanup_workdir
         self.cleanup_sharedlibs = options.cleanup_sharedlibs
@@ -777,7 +782,7 @@ class TestBuilder(object):
                 if 'cpp' not in tags['tag'] or 'cpp' in self.languages:
                     suite.addTest(EndToEndTest(filepath, workdir,
                              self.cleanup_workdir, stats=self.stats,
-                             capture=self.capture))
+                             capture=self.capture, shard_num=self.shard_num))
                 continue
 
             # Choose the test suite.
@@ -807,7 +812,8 @@ class TestBuilder(object):
                     if pyver
                 ]
                 if not min_py_ver or any(sys.version_info >= min_ver for min_ver in min_py_ver):
-                    suite.addTest(PureDoctestTestCase(module, filepath, tags, stats=self.stats))
+                    suite.addTest(PureDoctestTestCase(
+                        module, filepath, tags, stats=self.stats, shard_num=self.shard_num))
 
         return suite
 
@@ -888,6 +894,7 @@ class TestBuilder(object):
                           cleanup_failures=self.cleanup_failures,
                           cython_only=self.cython_only,
                           test_selector=self.test_selector,
+                          shard_num=self.shard_num,
                           fork=self.fork,
                           language_level=language_level or self.language_level,
                           warning_errors=warning_errors,
@@ -943,9 +950,11 @@ class CythonCompileTestCase(unittest.TestCase):
                  expect_errors=False, expect_warnings=False, annotate=False, cleanup_workdir=True,
                  cleanup_sharedlibs=True, cleanup_failures=True, cython_only=False, test_selector=None,
                  fork=True, language_level=2, warning_errors=False,
-                 test_determinism=False,
+                 test_determinism=False, shard_num=0,
                  common_utility_dir=None, pythran_dir=None, stats=None, add_cython_import=False,
-                 extra_directives={}):
+                 extra_directives=None):
+        if extra_directives is None:
+            extra_directives = {}
         self.test_directory = test_directory
         self.tags = tags
         self.workdir = workdir
@@ -962,6 +971,7 @@ class CythonCompileTestCase(unittest.TestCase):
         self.cleanup_failures = cleanup_failures
         self.cython_only = cython_only
         self.test_selector = test_selector
+        self.shard_num = shard_num
         self.fork = fork
         self.language_level = language_level
         self.warning_errors = warning_errors
@@ -974,7 +984,8 @@ class CythonCompileTestCase(unittest.TestCase):
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
-        return "compiling (%s%s%s) %s" % (
+        return "[%d] compiling (%s%s%s) %s" % (
+            self.shard_num,
             self.language,
             "/cy2" if self.language_level == 2 else "/cy3" if self.language_level == 3 else "",
             "/pythran" if self.pythran_dir is not None else "",
@@ -1346,8 +1357,11 @@ class CythonCompileTestCase(unittest.TestCase):
                 self.run_cython(test_directory, module, module_path, workdir2, incdir, annotate)
                 diffs = []
                 for file in os.listdir(workdir2):
-                    if (open(os.path.join(workdir, file)).read()
-                        != open(os.path.join(workdir2, file)).read()):
+                    with open(os.path.join(workdir, file)) as fid:
+                        txt1 = fid.read()
+                    with open(os.path.join(workdir2, file)) as fid:
+                        txt2 = fid.read()
+                    if txt1 != txt2:
                         diffs.append(file)
                         os.system('diff -u %s/%s %s/%s > %s/%s.diff' % (
                             workdir, file,
@@ -1560,15 +1574,17 @@ def run_forked_test(result, run_func, test_name, fork=True):
 
 
 class PureDoctestTestCase(unittest.TestCase):
-    def __init__(self, module_name, module_path, tags, stats=None):
+    def __init__(self, module_name, module_path, tags, stats=None, shard_num=0):
         self.tags = tags
         self.module_name = self.name = module_name
         self.module_path = module_path
         self.stats = stats
+        self.shard_num = shard_num
         unittest.TestCase.__init__(self, 'run')
 
     def shortDescription(self):
-        return "running pure doctests in %s" % self.module_name
+        return "[%d] running pure doctests in %s" % (
+            self.shard_num, self.module_name)
 
     def run(self, result=None):
         if result is None:
@@ -1670,7 +1686,8 @@ class PartialTestResult(TextTestResult):
 
 class CythonUnitTestCase(CythonRunTestCase):
     def shortDescription(self):
-        return "compiling (%s) tests in %s" % (self.language, self.description_name())
+        return "[%d] compiling (%s) tests in %s" % (
+            self.shard_num, self.language, self.description_name())
 
     def run_tests(self, result, ext_so_path):
         with self.stats.time(self.name, self.language, 'import'):
@@ -1870,13 +1887,14 @@ class EndToEndTest(unittest.TestCase):
     """
     cython_root = os.path.dirname(os.path.abspath(__file__))
 
-    def __init__(self, treefile, workdir, cleanup_workdir=True, stats=None, capture=True):
+    def __init__(self, treefile, workdir, cleanup_workdir=True, stats=None, capture=True, shard_num=0):
         self.name = os.path.splitext(os.path.basename(treefile))[0]
         self.treefile = treefile
         self.workdir = os.path.join(workdir, self.name)
         self.cleanup_workdir = cleanup_workdir
         self.stats = stats
         self.capture = capture
+        self.shard_num = shard_num
         cython_syspath = [self.cython_root]
         for path in sys.path:
             if path.startswith(self.cython_root) and path not in cython_syspath:
@@ -1888,7 +1906,8 @@ class EndToEndTest(unittest.TestCase):
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
-        return "End-to-end %s" % self.name
+        return "[%d] End-to-end %s" % (
+            self.shard_num, self.name)
 
     def setUp(self):
         from Cython.TestUtils import unpack_source_tree
@@ -1937,16 +1956,18 @@ class EndToEndTest(unittest.TestCase):
                     p = subprocess.call(command, env=env)
                     _out, _err = b'', b''
                     res = p
-                cmd.append(command)
-                out.append(_out)
-                err.append(_err)
+            cmd.append(command)
+            out.append(_out)
+            err.append(_err)
+
             if res == 0 and b'REFNANNY: ' in _out:
                 res = -1
             if res != 0:
                 for c, o, e in zip(cmd, out, err):
-                    sys.stderr.write("%s\n%s\n%s\n\n" % (
-                        c, self._try_decode(o), self._try_decode(e)))
-            self.assertEqual(0, res, "non-zero exit status")
+                    sys.stderr.write("[%d] %s\n%s\n%s\n\n" % (
+                        self.shard_num, c, self._try_decode(o), self._try_decode(e)))
+                self.assertEqual(0, res, "non-zero exit status, last output was:\n%r\n-- stdout:%s\n-- stderr:%s\n" % (
+                    ' '.join(command), self._try_decode(out[-1]), self._try_decode(err[-1])))
         self.success = True
 
 
@@ -2023,7 +2044,8 @@ class MissingDependencyExcluder(object):
         except AttributeError:
             stdlib_dir = os.path.dirname(shutil.__file__) + os.sep
             module_path = getattr(module, '__file__', stdlib_dir)  # no __file__? => builtin stdlib module
-            if module_path.startswith(stdlib_dir):
+            # GraalPython seems to return None for some unknown reason
+            if module_path and module_path.startswith(stdlib_dir):
                 # stdlib module
                 version = sys.version.partition(' ')[0]
             elif '.' in name:
@@ -2389,16 +2411,23 @@ def main():
         # NOTE: create process pool before time stamper thread to avoid forking issues.
         total_time = time.time()
         stats = Stats()
+        merged_pipeline_stats = defaultdict(lambda: (0, 0))
         with time_stamper_thread(interval=keep_alive_interval):
-            for shard_num, shard_stats, return_code, failure_output in pool.imap_unordered(runtests_callback, tasks):
+            for shard_num, shard_stats, pipeline_stats, return_code, failure_output in pool.imap_unordered(runtests_callback, tasks):
                 if return_code != 0:
                     error_shards.append(shard_num)
                     failure_outputs.append(failure_output)
                     sys.stderr.write("FAILED (%s/%s)\n" % (shard_num, options.shard_count))
                 sys.stderr.write("ALL DONE (%s/%s)\n" % (shard_num, options.shard_count))
+
                 stats.update(shard_stats)
+                for stage_name, (stage_time, stage_count) in pipeline_stats.items():
+                    old_time, old_count = merged_pipeline_stats[stage_name]
+                    merged_pipeline_stats[stage_name] = (old_time + stage_time, old_count + stage_count)
+
         pool.close()
         pool.join()
+
         total_time = time.time() - total_time
         sys.stderr.write("Sharded tests run in %d seconds (%.1f minutes)\n" % (round(total_time), total_time / 60.))
         if error_shards:
@@ -2410,14 +2439,29 @@ def main():
             return_code = 0
     else:
         with time_stamper_thread(interval=keep_alive_interval):
-            _, stats, return_code, _ = runtests(options, cmd_args, coverage)
+            _, stats, merged_pipeline_stats, return_code, _ = runtests(options, cmd_args, coverage)
 
     if coverage:
         if options.shard_count > 1 and options.shard_num == -1:
             coverage.combine()
         coverage.stop()
 
+    def as_msecs(t, unit=1000000):
+        # pipeline times are in msecs
+        return t // unit + float(t % unit) / unit
+
+    pipeline_stats = [
+        (as_msecs(stage_time), as_msecs(stage_time) / stage_count, stage_count, stage_name)
+        for stage_name, (stage_time, stage_count) in merged_pipeline_stats.items()
+    ]
+    pipeline_stats.sort(reverse=True)
+    sys.stderr.write("Most expensive pipeline stages: %s\n" % ", ".join(
+        "%r: %.2f / %d (%.3f / run)" % (stage_name, total_stage_time, stage_count, stage_time)
+        for total_stage_time, stage_time, stage_count, stage_name in pipeline_stats[:10]
+    ))
+
     stats.print_stats(sys.stderr)
+
     if coverage:
         save_coverage(coverage, options)
 
@@ -2655,6 +2699,7 @@ def runtests(options, cmd_args, coverage=None):
             ('pypy2_bugs.txt', IS_PYPY and IS_PY2),
             ('pypy_crash_bugs.txt', IS_PYPY),
             ('pypy_implementation_detail_bugs.txt', IS_PYPY),
+            ('graal_bugs.txt', IS_GRAAL),
             ('limited_api_bugs.txt', options.limited_api),
             ('windows_bugs.txt', sys.platform == 'win32'),
             ('cygwin_bugs.txt', sys.platform == 'cygwin')
@@ -2776,10 +2821,37 @@ def runtests(options, cmd_args, coverage=None):
     except AttributeError:
         pass  # not available on PyPy
 
-    result = test_runner.run(test_suite)
+    enable_faulthandler = False
+    try:
+        import faulthandler
+    except ImportError:
+        pass
+    else:
+        enable_faulthandler = not faulthandler.is_enabled()
+        if enable_faulthandler:
+            faulthandler.enable()
+
+    # Run the collected tests.
+    try:
+        if options.shard_num > -1:
+            sys.stderr.write("Tests in shard %d/%d starting\n" % (options.shard_num, options.shard_count))
+        result = test_runner.run(test_suite)
+    except Exception as exc:
+        # Make sure we print exceptions also from shards.
+        if options.shard_num > -1:
+            sys.stderr.write("Tests in shard %d/%d crashed: %s\n" % (options.shard_num, options.shard_count, exc))
+        import traceback
+        traceback.print_exc()
+        raise
+    finally:
+        if enable_faulthandler:
+            faulthandler.disable()
 
     if common_utility_dir and options.shard_num < 0 and options.cleanup_workdir:
         shutil.rmtree(common_utility_dir)
+
+    from Cython.Compiler.Pipeline import get_timings
+    pipeline_stats = get_timings()
 
     if missing_dep_excluder.tests_missing_deps:
         sys.stderr.write("Following tests excluded because of missing dependencies on your system:\n")
@@ -2797,7 +2869,7 @@ def runtests(options, cmd_args, coverage=None):
     else:
         failure_output = "".join(collect_failure_output(result))
 
-    return options.shard_num, stats, result_code, failure_output
+    return options.shard_num, stats, pipeline_stats, result_code, failure_output
 
 
 def collect_failure_output(result):
