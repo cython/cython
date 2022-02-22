@@ -227,7 +227,7 @@ Managing the Global Interpreter Lock
     with cython.gil:
         # code block with the GIL acquired
 
-  .. Note:: Cython currently does not support the ``@cython.gil`` decorator.
+  .. Note:: Cython currently does not support the ``@cython.with_gil`` decorator.
 
 Both directives accept an optional boolean parameter for conditionally
 releasing or acquiring the GIL. The condition must be constant (at compile time)::
