@@ -167,3 +167,19 @@ def test_nested_obj_to_struct(NestedStruct nested):
                                             nested.mystruct.s.decode('UTF-8'),
                                             nested.d)
 
+cdef struct OverriddenCname:
+    int x "not_x"
+
+def test_obj_to_struct_cnames(OverriddenCname s):
+    """
+    >>> test_obj_to_struct_cnames({ 'x': 1 })
+    1
+    """
+    print(s.x)
+
+def test_struct_to_obj_cnames():
+    """
+    >>> test_struct_to_obj_cnames()
+    {'x': 2}
+    """
+    return OverriddenCname(2)

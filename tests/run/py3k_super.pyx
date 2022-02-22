@@ -1,5 +1,5 @@
 # mode: run
-# tag: py3k_super
+# tag: py3k_super, gh3246
 
 class A(object):
     def method(self):
@@ -89,3 +89,21 @@ cdef class CClassSub(CClassBase):
 #         return super().method_cp()
 #     cdef method_c(self):
 #         return super().method_c()
+
+
+def freeing_class_cell_temp_gh3246():
+    # https://github.com/cython/cython/issues/3246
+    """
+    >>> abc = freeing_class_cell_temp_gh3246()
+    >>> abc().a
+    1
+    """
+    class SimpleBase(object):
+        def __init__(self):
+            self.a = 1
+
+    class ABC(SimpleBase):
+        def __init__(self):
+            super().__init__()
+
+    return ABC

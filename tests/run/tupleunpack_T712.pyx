@@ -1,5 +1,5 @@
 # mode: run
-# ticket: 712
+# ticket: t712
 
 def single_from_string():
     """

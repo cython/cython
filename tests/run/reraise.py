@@ -31,6 +31,6 @@ def test_reraise_error():
     ... else: print("FAILED")
     """
     import sys
-    if hasattr(sys, 'exc_clear'): # Py2
+    if hasattr(sys, 'exc_clear'):  # Py2
         sys.exc_clear()
     raise

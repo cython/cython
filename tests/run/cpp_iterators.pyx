@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, werror
+# tag: cpp, werror, no-cpp-locals
 
 from libcpp.deque cimport deque
 from libcpp.vector cimport vector
@@ -140,3 +140,40 @@ def test_iteration_in_generator_reassigned():
         if vint is not orig_vint:
             del vint
         del orig_vint
+
+cdef extern from *:
+    """
+    std::vector<int> make_vec1() {
+        std::vector<int> vint;
+        vint.push_back(1);
+        vint.push_back(2);
+        return vint;
+    }
+    """
+    cdef vector[int] make_vec1() except +
+
+cdef vector[int] make_vec2() except *:
+    return make_vec1()
+
+cdef vector[int] make_vec3():
+    try:
+        return make_vec1()
+    except:
+        pass
+
+def test_iteration_from_function_call():
+    """
+    >>> test_iteration_from_function_call()
+    1
+    2
+    1
+    2
+    1
+    2
+    """
+    for i in make_vec1():
+        print(i)
+    for i in make_vec2():
+        print(i)
+    for i in make_vec3():
+        print(i)

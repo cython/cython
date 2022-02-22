@@ -1,5 +1,4 @@
-
-from __future__ import absolute_import
+# cython: language_level=3
 
 cimport cython
 from ..StringIOTree cimport StringIOTree
@@ -48,6 +47,7 @@ cdef class FunctionState:
     cdef public list temps_allocated
     cdef public dict temps_free
     cdef public dict temps_used_type
+    cdef public set zombie_temps
     cdef public size_t temp_counter
     cdef public list collect_temps_stack
 

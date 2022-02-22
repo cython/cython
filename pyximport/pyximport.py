@@ -117,7 +117,8 @@ def handle_special_build(modname, pyxfilename):
         # locs = {}
         # execfile(special_build, globls, locs)
         # ext = locs["make_ext"](modname, pyxfilename)
-        mod = imp.load_source("XXXX", special_build, open(special_build))
+        with open(special_build) as fid:
+            mod = imp.load_source("XXXX", special_build, fid)
         make_ext = getattr(mod,'make_ext',None)
         if make_ext:
             ext = make_ext(modname, pyxfilename)
@@ -144,7 +145,8 @@ def handle_dependencies(pyxfilename):
     # but we know more about dependencies so force a rebuild if
     # some of the dependencies are newer than the pyxfile.
     if os.path.exists(dependfile):
-        depends = open(dependfile).readlines()
+        with open(dependfile) as fid:
+            depends = fid.readlines()
         depends = [depend.strip() for depend in depends]
 
         # gather dependencies in the "files" variable
@@ -191,7 +193,7 @@ def build_module(name, pyxfilename, pyxbuild_dir=None, inplace=False, language_l
                                   reload_support=pyxargs.reload_support)
     assert os.path.exists(so_path), "Cannot find: %s" % so_path
 
-    junkpath = os.path.join(os.path.dirname(so_path), name+"_*") #very dangerous with --inplace ? yes, indeed, trying to eat my files ;)
+    junkpath = os.path.join(os.path.dirname(so_path), name+"_*")  #very dangerous with --inplace ? yes, indeed, trying to eat my files ;)
     junkstuff = glob.glob(junkpath)
     for path in junkstuff:
         if path != so_path:
@@ -217,7 +219,8 @@ def load_module(name, pyxfilename, pyxbuild_dir=None, is_package=False,
         if is_package and not hasattr(mod, '__path__'):
             mod.__path__ = [os.path.dirname(so_path)]
         assert mod.__file__ == so_path, (mod.__file__, so_path)
-    except Exception:
+    except Exception as failure_exc:
+        _debug("Failed to load extension module: %r" % failure_exc)
         if pyxargs.load_py_module_on_import_failure and pyxfilename.endswith('.py'):
             # try to fall back to normal import
             mod = imp.load_source(name, pyxfilename)
@@ -269,7 +272,7 @@ class PyxImporter(object):
                                  pyxbuild_dir=self.pyxbuild_dir,
                                  inplace=self.inplace,
                                  language_level=self.language_level)
-            if ty != imp.C_EXTENSION: # only when an extension, check if we have a .pyx next!
+            if ty != imp.C_EXTENSION:  # only when an extension, check if we have a .pyx next!
                 return None
 
             # find .pyx fast, when .so/.pyd exist --inplace
@@ -351,11 +354,12 @@ class PyImporter(PyxImporter):
         self.uncompilable_modules = {}
         self.blocked_modules = ['Cython', 'pyxbuild', 'pyximport.pyxbuild',
                                 'distutils']
+        self.blocked_packages = ['Cython.', 'distutils.']
 
     def find_module(self, fullname, package_path=None):
         if fullname in sys.modules:
             return None
-        if fullname.startswith('Cython.'):
+        if any([fullname.startswith(pkg) for pkg in self.blocked_packages]):
             return None
         if fullname in self.blocked_modules:
             # prevent infinite recursion

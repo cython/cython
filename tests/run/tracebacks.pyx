@@ -1,4 +1,4 @@
-import traceback
+# tag: traceback
 
 def foo1():
   foo2()
@@ -21,6 +21,7 @@ def test_traceback(cline_in_traceback=None):
   try:
     foo1()
   except:
+    import traceback
     tb_string = traceback.format_exc()
     expected = (
       'tracebacks.pyx',

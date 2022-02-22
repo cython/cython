@@ -11,5 +11,6 @@ absolute_import = _get_feature("absolute_import")
 nested_scopes = _get_feature("nested_scopes")  # dummy
 generators = _get_feature("generators")  # dummy
 generator_stop = _get_feature("generator_stop")
+annotations = _get_feature("annotations")
 
 del _get_feature

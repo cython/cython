@@ -18,6 +18,65 @@ min_long = LONG_MIN
 
 
 @cython.test_fail_if_path_exists(
+    "//JoinedStrNode",
+)
+@cython.test_assert_path_exists(
+    "//AddNode",
+)
+def concat_strings(a, b):
+    """
+    >>> concat_strings("", "")
+    x
+    <BLANKLINE>
+    x
+    x
+    x
+    xx
+    >>> concat_strings("a", "")
+    ax
+    a
+    x
+    ax
+    ax
+    axx
+    >>> concat_strings("", "b")
+    x
+    b
+    xb
+    xb
+    xb
+    xxb
+    >>> concat_strings("a", "b")
+    ax
+    ab
+    xb
+    axb
+    axb
+    axxb
+    >>> concat_strings("".join(["a", "b"]), "")  # fresh temp string left
+    abx
+    ab
+    x
+    abx
+    abx
+    abxx
+    >>> concat_strings("", "".join(["a", "b"]))  # fresh temp string right
+    x
+    ab
+    xab
+    xab
+    xab
+    xxab
+    """
+    print(f"{a}x")
+    print(f"{a}{b}")
+    print(f"x{b}")
+    print(f"{a+'x'}{b}")      # fresh temp string left
+    print(f"{a}{'x'+b}")      # fresh temp string right
+    print(f"{a+'x'}{'x'+b}")  # fresh temp strings right and left
+
+
+@cython.test_fail_if_path_exists(
     "//FormattedValueNode",
     "//JoinedStrNode",
     "//AddNode",
@@ -474,31 +533,35 @@ def format_decoded_bytes(bytes value):
     "//FormattedValueNode",
     "//JoinedStrNode",
 )
-def generated_fstring(int i, unicode u not None, o):
+def generated_fstring(int i, float f, unicode u not None, o):
     """
-    >>> i, u, o = 11, u'xyz', [1]
+    >>> i, f, u, o = 11, 1.3125, u'xyz', [1]
     >>> print(((
-    ...     u"(i) %s-%.3s-%r-%.3r-%d-%3d-%o-%04o-%x-%4x-%X-%03X-%.1f-%04.2f %% "
-    ...     u"(u) %s-%.2s-%r-%.7r %% "
-    ...     u"(o) %s-%.2s-%r-%.2r"
+    ...     u"(i) %s-%.3s-%r-%.3r-%d-%3d-%-3d-%o-%04o-%x-%4x-%X-%03X-%.1f-%04.2f %% "
+    ...     u"(u) %s-%.2s-%r-%.7r-%05s-%-5s %% "
+    ...     u"(o) %s-%.2s-%r-%.2r %% "
+    ...     u"(f) %.2f-%d"
     ... ) % (
-    ...     i, i, i, i, i, i, i, i, i, i, i, i, i, i,
-    ...     u, u, u, u,
+    ...     i, i, i, i, i, i, i, i, i, i, i, i, i, i, i,
+    ...     u, u, u, u, u, u,
     ...     o, o, o, o,
+    ...     f, f,
     ... )).replace("-u'xyz'", "-'xyz'"))
-    (i) 11-11-11-11-11- 11-13-0013-b-   b-B-00B-11.0-11.00 % (u) xyz-xy-'xyz'-'xyz' % (o) [1]-[1-[1]-[1
+    (i) 11-11-11-11-11- 11-11 -13-0013-b-   b-B-00B-11.0-11.00 % (u) xyz-xy-'xyz'-'xyz'-  xyz-xyz   % (o) [1]-[1-[1]-[1 % (f) 1.31-1
 
-    >>> print(generated_fstring(i, u, o).replace("-u'xyz'", "-'xyz'"))
-    (i) 11-11-11-11-11- 11-13-0013-b-   b-B-00B-11.0-11.00 % (u) xyz-xy-'xyz'-'xyz' % (o) [1]-[1-[1]-[1
+    >>> print(generated_fstring(i, f, u, o).replace("-u'xyz'", "-'xyz'"))
+    (i) 11-11-11-11-11- 11-11 -13-0013-b-   b-B-00B-11.0-11.00 % (u) xyz-xy-'xyz'-'xyz'-  xyz-xyz   % (o) [1]-[1-[1]-[1 % (f) 1.31-1
     """
     return (
-        u"(i) %s-%.3s-%r-%.3r-%d-%3d-%o-%04o-%x-%4x-%X-%03X-%.1f-%04.2f %% "
-        u"(u) %s-%.2s-%r-%.7r %% "
-        u"(o) %s-%.2s-%r-%.2r"
+        u"(i) %s-%.3s-%r-%.3r-%d-%3d-%-3d-%o-%04o-%x-%4x-%X-%03X-%.1f-%04.2f %% "
+        u"(u) %s-%.2s-%r-%.7r-%05s-%-5s %% "
+        u"(o) %s-%.2s-%r-%.2r %% "
+        u"(f) %.2f-%d"
     ) % (
-        i, i, i, i, i, i, i, i, i, i, i, i, i, i,
-        u, u, u, u,
+        i, i, i, i, i, i, i, i, i, i, i, i, i, i, i,
+        u, u, u, u, u, u,
         o, o, o, o,
+        f, f,
     )
 
 
@@ -513,3 +576,42 @@ def percent_s_unicode(u, int i):
     x\u0194z-12
     """
     return u"%s-%d" % (u, i)
+
+
+@cython.test_assert_path_exists(
+    "//FormattedValueNode",
+)
+def sideeffect(l):
+    """
+    >>> class Listish(list):
+    ...     def __format__(self, format_spec):
+    ...         self.append("format called")
+    ...         return repr(self)
+    ...     def append(self, item):
+    ...         list.append(self, item)
+    ...         return self
+
+    >>> l = Listish()
+    >>> sideeffect(l)  if getattr(sys, 'pypy_version_info', ())[:2] != (7,3) else [123, 'format called']   # 7.3.4, 7.3.5
+    [123, 'format called']
+    """
+    f"{l.append(123)}"  # unused f-string !
+    return list(l)
+
+
+########################################
+# await inside f-string
+
+def test_await_inside_f_string():
+    """
+    >>> test_await_inside_f_string()
+    PARSED_SUCCESSFULLY
+    """
+
+    async def f():
+        return "some value"
+
+    async def main():
+        print(f"{await f()}")
+
+    print("PARSED_SUCCESSFULLY")

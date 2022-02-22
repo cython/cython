@@ -29,7 +29,7 @@ class NN(object):
 #    print 'class NN'
     def __init__(self, ni, nh, no):
         # number of input, hidden, and output nodes
-        self.ni = ni + 1 # +1 for bias node
+        self.ni = ni + 1  # +1 for bias node
         self.nh = nh
         self.no = no
 
@@ -67,7 +67,7 @@ class NN(object):
         for j in range(self.nh):
             sum = 0.0
             for i in range(self.ni):
-                 sum = sum + self.ai[i] * self.wi[i][j]
+                sum = sum + self.ai[i] * self.wi[i][j]
             self.ah[j] = 1.0/(1.0+math.exp(-sum))
 
         # output activations

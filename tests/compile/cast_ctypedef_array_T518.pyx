@@ -1,4 +1,4 @@
-# ticket: 518
+# ticket: t518
 # mode: compile
 
 cdef extern from "cast_ctypedef_array_T518_helper.h":

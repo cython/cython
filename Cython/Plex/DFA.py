@@ -1,3 +1,4 @@
+# cython: auto_cpdef=True
 """
 Python Lexical Analyser
 
@@ -95,14 +96,11 @@ class StateMap(object):
     Helper class used by nfa_to_dfa() to map back and forth between
     sets of states from the old machine and states of the new machine.
     """
-    new_machine = None      # Machine
-    old_to_new_dict = None  # {(old_state,...) : new_state}
-    new_to_old_dict = None  # {id(new_state) : old_state_set}
 
     def __init__(self, new_machine):
-        self.new_machine = new_machine
-        self.old_to_new_dict = {}
-        self.new_to_old_dict = {}
+        self.new_machine = new_machine  # Machine
+        self.old_to_new_dict = {}  # {(old_state,...) : new_state}
+        self.new_to_old_dict = {}  # {id(new_state) : old_state_set}
 
     def old_to_new(self, old_state_set):
         """
@@ -140,9 +138,7 @@ class StateMap(object):
         Convert a set of states into a uniquified
         sorted tuple suitable for use as a dictionary key.
         """
-        lst = list(state_set)
-        lst.sort()
-        return tuple(lst)
+        return tuple(sorted(state_set))
 
     def dump(self, file):
         from .Transitions import state_set_str

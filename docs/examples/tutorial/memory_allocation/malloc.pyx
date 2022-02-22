@@ -4,7 +4,8 @@ from libc.stdlib cimport malloc, free
 def random_noise(int number=1):
     cdef int i
     # allocate number * sizeof(double) bytes of memory
-    cdef double *my_array = <double *> malloc(number * sizeof(double))
+    cdef double *my_array = <double *> malloc(
+        number * sizeof(double))
     if not my_array:
         raise MemoryError()
 

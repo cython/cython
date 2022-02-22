@@ -1,6 +1,9 @@
 ########## TestClass ##########
 # These utilities are for testing purposes
 
+# The "cythonscope" test calls METH_O functions with their (self, arg) signature.
+# cython: always_allow_keywords=False
+
 from __future__ import print_function
 
 cdef extern from *:
@@ -14,7 +17,7 @@ cdef class TestClass(object):
         self.value = value
 
     def __str__(self):
-        return 'TestClass(%d)' % self.value
+        return f'TestClass({self.value})'
 
     cdef cdef_method(self, int value):
         print('Hello from cdef_method', value)

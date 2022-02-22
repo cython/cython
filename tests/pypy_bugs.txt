@@ -2,38 +2,62 @@
 # either in PyPy, PyPy's cpyext, or Cython under PyPy,
 # which will be skipped in the normal testing run.
 
-broken_exception
 bufaccess
-memoryview
-memslice
-sequential_parallel
+memoryview.memoryview$
 
-yield_from_pep380
-memoryview_inplace_division
+# looks like a doctest issue? It's failing to match output that looks
+# identical to my eye
+#run.unicodemethods
+# multiphase import not supported
+run.unicode_imports
+
+run.tp_new
+run.test_fstring
+run.test_exceptions
+run.test_dictviews
+run.str_subclass_kwargs
+run.special_method_docstrings
+run.slice_ptr
+compile.min_async
+run.cython_includes
+run.test_unicode
+run.__getattribute__
+run.__getattribute_subclasses__
+run.__debug__
+run.builtin_abs
+run.builtincomplex
+run.cdef_multiple_inheritance_errors
+run.cdivision_CEP_516
+run.cyfunction
+run.final_cdef_class
+run.index
+run.pyclass_special_methods
+run.reimport_from_package
+run.reimport_from_subinterpreter
+run.reimport_failure
+pkg.cimportfrom
+embedded
+TestCyCache
+run.ext_auto_richcmp
+run.coverage_cmd
+run.coverage_cmd_src_layout
+run.coverage_installed_pkg
+run.coverage_api
+run.coverage_nogil
+
+# very little coroutine-related seems to work
+run.test_asyncgen
+run.test_coroutines_pep492
+run.async_iter_pep492
+run.embedsignatures
+run.py35_asyncio_async_def
+run.asyncio_generators
+run.py35_pep492_interop
 
 # gc issue?
-memoryview_in_subclasses
 external_ref_reassignment
 run.exttype_dealloc
 
 # bugs in cpyext
 run.special_methods_T561
 run.special_methods_T561_py2
-
-# tests for things that don't exist in cpyext
-compile.pylong
-run.datetime_pxd
-run.datetime_cimport
-run.datetime_members
-run.extern_builtins_T258
-run.line_trace
-run.line_profile_test
-run.pstats_profile_test
-run.longintrepr
-
-# refcounting-specific tests
-double_dealloc_T796
-run.exceptionrefcount
-run.capiimpl
-run.refcount_in_meth
-

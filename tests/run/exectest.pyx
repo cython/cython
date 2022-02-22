@@ -145,3 +145,18 @@ def exec_invalid_type(x):
     TypeError: exec: arg 1 must be string, bytes or code object, got int
     """
     exec x in {}
+
+
+def exec_with_new_features(s, d):
+    """
+    >>> import sys
+    >>> pyversion = sys.version_info[:2]
+
+    >>> d = {}
+    >>> exec_with_new_features('print(123)', d)
+    123
+    >>> if pyversion == (2, 7): exec_with_new_features('exec "123"', d)
+    >>> if pyversion >= (3, 6): exec_with_new_features('f = f"abc"', d)
+    >>> if pyversion >= (3, 8): exec_with_new_features('a = (b := 1)', d)
+    """
+    exec s in d

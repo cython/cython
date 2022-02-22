@@ -6,7 +6,6 @@ initial_file_path
 package_compilation
 
 carray_coercion
-ctuple
 int_float_builtins_as_casts_T400
 int_float_builtins_as_casts_T400_long_double
 list_pop
@@ -29,3 +28,5 @@ lunch
 # "C linkage function cannot return C++ class" (uses public C++ cdef function)
 cpp_template_subclasses
 
+# MSVC lacks "complex.h"
+complex_numbers_cmath_T2891

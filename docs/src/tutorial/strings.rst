@@ -124,6 +124,9 @@ Python variable::
     from c_func cimport c_call_returning_a_c_string
 
     cdef char* c_string = c_call_returning_a_c_string()
+    if c_string is NULL:
+        ...  # handle error
+
     cdef bytes py_string = c_string
 
 A type cast to :obj:`object` or :obj:`bytes` will do the same thing::
@@ -220,14 +223,15 @@ object.  This can simply be done as follows:
 
 .. literalinclude:: ../../examples/tutorial/string/return_memview.pyx
 
-If the byte input is actually encoded text, and the further processing
-should happen at the Unicode level, then the right thing to do is to
-decode the input straight away.  This is almost only a problem in Python
-2.x, where Python code expects that it can pass a byte string (:obj:`str`)
-with encoded text into a text API.  Since this usually happens in more
-than one place in the module's API, a helper function is almost always the
-way to go, since it allows for easy adaptation of the input normalisation
-process later.
+For read-only buffers, like :obj:`bytes`, the memoryview item type should
+be declared as ``const`` (see :ref:`readonly_views`). If the byte input is
+actually encoded text, and the further processing should happen at the
+Unicode level, then the right thing to do is to decode the input straight
+away.  This is almost only a problem in Python 2.x, where Python code
+expects that it can pass a byte string (:obj:`str`) with encoded text into
+a text API.  Since this usually happens in more than one place in the
+module's API, a helper function is almost always the way to go, since it
+allows for easy adaptation of the input normalisation process later.
 
 This kind of input normalisation function will commonly look similar to
 the following:

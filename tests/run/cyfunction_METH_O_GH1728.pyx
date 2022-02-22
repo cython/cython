@@ -8,9 +8,9 @@ cdef class TestMethodOneArg:
 
 def call_meth(x):
     """
-    >>> call_meth(TestMethodOneArg())
+    >>> call_meth(TestMethodOneArg())  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    TypeError: meth() takes exactly one argument (0 given)
+    TypeError: meth() takes exactly ... argument (0 given)
     """
     return x.meth()

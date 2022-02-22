@@ -1,4 +1,5 @@
 # mode: run
+# ticket: t1772
 
 cimport cython
 from cython.view cimport array
@@ -20,6 +21,7 @@ ctypedef double *p_double
 ctypedef int *p_int
 fused_type3 = cython.fused_type(int, double)
 fused_composite = cython.fused_type(fused_type2, fused_type3)
+just_float = cython.fused_type(float)
 
 def test_pure():
     """
@@ -154,7 +156,7 @@ def test_fused_pointer_except_null(value):
         test_str = cython.declare(string_t, value)
         print fused_pointer_except_null(&test_str)[0].decode('ascii')
 
-include "cythonarrayutil.pxi"
+include "../testsupport/cythonarrayutil.pxi"
 
 cpdef cython.integral test_fused_memoryviews(cython.integral[:, ::1] a):
     """
@@ -326,6 +328,8 @@ def test_fused_memslice_dtype(cython.floating[:] array):
     cdef cython.floating[:] otherarray = array[0:100:1]
     print cython.typeof(array), cython.typeof(otherarray), \
           array[5], otherarray[6]
+    cdef cython.floating value;
+    cdef cython.floating[:] test_cast = <cython.floating[:1:1]>&value
 
 def test_fused_memslice_dtype_repeated(cython.floating[:] array1, cython.floating[:] array2):
     """
@@ -361,6 +365,22 @@ def test_fused_memslice_dtype_repeated_2(cython.floating[:] array1, cython.float
     """
     print cython.typeof(array1), cython.typeof(array2), cython.typeof(array3)
 
+def test_fused_const_memslice_dtype_repeated(const cython.floating[:] array1, cython.floating[:] array2):
+    """Test fused types memory view with one being const
+
+    >>> sorted(test_fused_const_memslice_dtype_repeated.__signatures__)
+    ['double', 'float']
+
+    >>> test_fused_const_memslice_dtype_repeated(get_array(8, 'd'), get_array(8, 'd'))
+    const double[:] double[:]
+    >>> test_fused_const_memslice_dtype_repeated(get_array(4, 'f'), get_array(4, 'f'))
+    const float[:] float[:]
+    >>> test_fused_const_memslice_dtype_repeated(get_array(8, 'd'), get_array(4, 'f'))
+    Traceback (most recent call last):
+    ValueError: Buffer dtype mismatch, expected 'double' but got 'float'
+    """
+    print cython.typeof(array1), cython.typeof(array2)
+
 def test_cython_numeric(cython.numeric arg):
     """
     Test to see whether complex numbers have their utility code declared
@@ -386,6 +406,18 @@ def test_index_fused_args(cython.floating f, ints_t i):
     """
     _test_index_fused_args[cython.floating, ints_t](f, i)
 
+cdef _test_index_const_fused_args(const cython.floating f, const ints_t i):
+    print(cython.typeof(f), cython.typeof(i))
+
+def test_index_const_fused_args(const cython.floating f, const ints_t i):
+    """Test indexing function implementation with const fused type args
+
+    >>> import cython
+    >>> test_index_const_fused_args[cython.double, cython.int](2.0, 3)
+    ('const double', 'const int')
+    """
+    _test_index_const_fused_args[cython.floating, ints_t](f, i)
+
 
 def test_composite(fused_composite x):
     """
@@ -400,3 +432,81 @@ def test_composite(fused_composite x):
         return x
     else:
         return 2 * x
+
+
+cdef cdef_func_const_fused_arg(const cython.floating val,
+                               const fused_type1 * ptr_to_const,
+                               const (cython.floating *) const_ptr):
+    print(val, cython.typeof(val))
+    print(ptr_to_const[0], cython.typeof(ptr_to_const[0]))
+    print(const_ptr[0], cython.typeof(const_ptr[0]))
+
+    ptr_to_const = NULL  # pointer is not const, value is const
+    const_ptr[0] = 0.0  # pointer is const, value is not const
+
+def test_cdef_func_with_const_fused_arg():
+    """Test cdef function with const fused type argument
+
+    >>> test_cdef_func_with_const_fused_arg()
+    (0.0, 'const float')
+    (1, 'const int')
+    (2.0, 'float')
+    """
+    cdef float arg0 = 0.0
+    cdef int arg1 = 1
+    cdef float arg2 = 2.0
+    cdef_func_const_fused_arg(arg0, &arg1, &arg2)
+
+
+cdef in_check_1(just_float x):
+    return just_float in floating
+
+cdef in_check_2(just_float x, floating y):
+    # the "floating" on the right-hand side of the in statement should not be specialized
+    # - the test should still work.
+    return just_float in floating
+
+cdef in_check_3(floating x):
+    # the floating on the left-hand side of the in statement should be specialized
+    # but the one of the right-hand side should not (so that the test can still work).
+    return floating in floating
+
+def test_fused_in_check():
+    """
+    It should be possible to use fused types on in "x in ...fused_type" statements
+    even if that type is specialized in the function.
+
+    >>> test_fused_in_check()
+    True
+    True
+    True
+    True
+    """
+    print(in_check_1(1.0))
+    print(in_check_2(1.0, 2.0))
+    print(in_check_2[float, double](1.0, 2.0))
+    print(in_check_3[float](1.0))
+
+
+### see GH3642 - presence of cdef inside "unrelated" caused a type to be incorrectly inferred
+cdef unrelated(cython.floating x):
+    cdef cython.floating t = 1
+    return t
+
+cdef handle_float(float* x): return 'float'
+
+cdef handle_double(double* x): return 'double'
+
+def convert_to_ptr(cython.floating x):
+    """
+    >>> convert_to_ptr(1.0)
+    'double'
+    >>> convert_to_ptr['double'](1.0)
+    'double'
+    >>> convert_to_ptr['float'](1.0)
+    'float'
+    """
+    if cython.floating is float:
+        return handle_float(&x)
+    elif cython.floating is double:
+        return handle_double(&x)

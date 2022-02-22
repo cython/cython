@@ -25,8 +25,7 @@ static PyObject *__Pyx__ImportDottedModule_Error(PyObject *name, PyObject *parts
     if (likely(PyTuple_GET_SIZE(parts_tuple) == count)) {
         partial_name = name;
     } else {
-        PyObject *sep;
-        PyObject *slice = PySequence_GetSlice(parts_tuple, 0, count);
+        slice = PySequence_GetSlice(parts_tuple, 0, count);
         if (unlikely(!slice))
             goto bad;
         sep = PyUnicode_FromStringAndSize(".", 1);
@@ -59,7 +58,7 @@ bad:
 #if PY_MAJOR_VERSION >= 3
 static PyObject *__Pyx__ImportDottedModule_Lookup(PyObject *name) {
     PyObject *imported_module;
-#if PY_VERSION_HEX < 0x030700A1
+#if PY_VERSION_HEX < 0x030700A1 || (CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM  < 0x07030400)
     PyObject *modules = PyImport_GetModuleDict();
     if (unlikely(!modules))
         return NULL;
@@ -72,9 +71,10 @@ static PyObject *__Pyx__ImportDottedModule_Lookup(PyObject *name) {
 }
 #endif
 
-static PyObject *__Pyx__ImportDottedModule(PyObject *name, CYTHON_UNUSED PyObject *parts_tuple) {
+static PyObject *__Pyx__ImportDottedModule(PyObject *name, PyObject *parts_tuple) {
 #if PY_MAJOR_VERSION < 3
     PyObject *module, *from_list, *star = PYIDENT("*");
+    CYTHON_UNUSED_VAR(parts_tuple);
     from_list = PyList_New(1);
     if (unlikely(!from_list))
         return NULL;
@@ -180,10 +180,16 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
     {
         #if PY_MAJOR_VERSION >= 3
         if (level == -1) {
-            if (strchr(__Pyx_MODULE_NAME, '.')) {
+            // Avoid C compiler warning if strchr() evaluates to false at compile time.
+            if ((1) && (strchr(__Pyx_MODULE_NAME, '.'))) {
                 /* try package relative import first */
+                #if CYTHON_COMPILING_IN_LIMITED_API
+                module = PyImport_ImportModuleLevelObject(
+                    name, empty_dict, empty_dict, from_list, 1);
+                #else
                 module = PyImport_ImportModuleLevelObject(
                     name, $moddict_cname, empty_dict, from_list, 1);
+                #endif
                 if (unlikely(!module)) {
                     if (unlikely(!PyErr_ExceptionMatches(PyExc_ImportError)))
                         goto bad;
@@ -202,8 +208,13 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
                 name, $moddict_cname, empty_dict, from_list, py_level, (PyObject *)NULL);
             Py_DECREF(py_level);
             #else
+            #if CYTHON_COMPILING_IN_LIMITED_API
+            module = PyImport_ImportModuleLevelObject(
+                name, empty_dict, empty_dict, from_list, level);
+            #else
             module = PyImport_ImportModuleLevelObject(
                 name, $moddict_cname, empty_dict, from_list, level);
+            #endif
             #endif
         }
     }
@@ -227,6 +238,39 @@ static PyObject* __Pyx_ImportFrom(PyObject* module, PyObject* name); /*proto*/
 static PyObject* __Pyx_ImportFrom(PyObject* module, PyObject* name) {
     PyObject* value = __Pyx_PyObject_GetAttrStr(module, name);
     if (unlikely(!value) && PyErr_ExceptionMatches(PyExc_AttributeError)) {
+        // 'name' may refer to a (sub-)module which has not finished initialization
+        // yet, and may not be assigned as an attribute to its parent, so try
+        // finding it by full name.
+        const char* module_name_str = 0;
+        PyObject* module_name = 0;
+        PyObject* module_dot = 0;
+        PyObject* full_name = 0;
+        PyErr_Clear();
+        module_name_str = PyModule_GetName(module);
+        if (unlikely(!module_name_str)) { goto modbad; }
+        module_name = PyUnicode_FromString(module_name_str);
+        if (unlikely(!module_name)) { goto modbad; }
+        module_dot = PyUnicode_Concat(module_name, PYUNICODE("."));
+        if (unlikely(!module_dot)) { goto modbad; }
+        full_name = PyUnicode_Concat(module_dot, name);
+        if (unlikely(!full_name)) { goto modbad; }
+        #if PY_VERSION_HEX < 0x030700A1 || (CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM  < 0x07030400)
+        {
+            PyObject *modules = PyImport_GetModuleDict();
+            if (unlikely(!modules))
+                goto modbad;
+            value = PyObject_GetItem(modules, full_name);
+        }
+        #else
+        value = PyImport_GetModule(full_name);
+        #endif
+
+      modbad:
+        Py_XDECREF(full_name);
+        Py_XDECREF(module_dot);
+        Py_XDECREF(module_name);
+    }
+    if (unlikely(!value)) {
         PyErr_Format(PyExc_ImportError,
         #if PY_MAJOR_VERSION < 3
             "cannot import name %.230s", PyString_AS_STRING(name));
@@ -285,11 +329,12 @@ __Pyx_import_all_from(PyObject *locals, PyObject *v)
         }
         if (skip_leading_underscores &&
 #if PY_MAJOR_VERSION < 3
-            PyString_Check(name) &&
+            likely(PyString_Check(name)) &&
             PyString_AS_STRING(name)[0] == '_')
 #else
-            PyUnicode_Check(name) &&
-            PyUnicode_AS_UNICODE(name)[0] == '_')
+            likely(PyUnicode_Check(name)) &&
+            likely(__Pyx_PyUnicode_GET_LENGTH(name)) &&
+            __Pyx_PyUnicode_READ_CHAR(name, 0) == '_')
 #endif
         {
             Py_DECREF(name);
@@ -465,7 +510,7 @@ static PyTypeObject *__Pyx_ImportType(PyObject *module, const char *module_name,
     PyObject *result = 0;
     char warning[200];
     Py_ssize_t basicsize;
-#ifdef Py_LIMITED_API
+#if CYTHON_COMPILING_IN_LIMITED_API
     PyObject *py_basicsize;
 #endif
 
@@ -478,7 +523,7 @@ static PyTypeObject *__Pyx_ImportType(PyObject *module, const char *module_name,
             module_name, class_name);
         goto bad;
     }
-#ifndef Py_LIMITED_API
+#if !CYTHON_COMPILING_IN_LIMITED_API
     basicsize = ((PyTypeObject *)result)->tp_basicsize;
 #else
     py_basicsize = PyObject_GetAttrString(result, "__basicsize__");
@@ -682,15 +727,19 @@ bad:
 
 /////////////// SetVTable.proto ///////////////
 
-static int __Pyx_SetVtable(PyObject *dict, void *vtable); /*proto*/
+static int __Pyx_SetVtable(PyTypeObject* typeptr , void* vtable); /*proto*/
 
 /////////////// SetVTable ///////////////
 
-static int __Pyx_SetVtable(PyObject *dict, void *vtable) {
+static int __Pyx_SetVtable(PyTypeObject *type, void *vtable) {
     PyObject *ob = PyCapsule_New(vtable, 0, 0);
-    if (!ob)
+    if (unlikely(!ob))
         goto bad;
-    if (PyDict_SetItem(dict, PYIDENT("__pyx_vtable__"), ob) < 0)
+#if CYTHON_COMPILING_IN_LIMITED_API
+    if (unlikely(PyObject_SetAttr((PyObject *) type, PYIDENT("__pyx_vtable__"), ob) < 0))
+#else
+    if (unlikely(PyDict_SetItem(type->tp_dict, PYIDENT("__pyx_vtable__"), ob) < 0))
+#endif
         goto bad;
     Py_DECREF(ob);
     return 0;
@@ -702,13 +751,17 @@ bad:
 
 /////////////// GetVTable.proto ///////////////
 
-static void* __Pyx_GetVtable(PyObject *dict); /*proto*/
+static void* __Pyx_GetVtable(PyTypeObject *type); /*proto*/
 
 /////////////// GetVTable ///////////////
 
-static void* __Pyx_GetVtable(PyObject *dict) {
+static void* __Pyx_GetVtable(PyTypeObject *type) {
     void* ptr;
-    PyObject *ob = PyObject_GetItem(dict, PYIDENT("__pyx_vtable__"));
+#if CYTHON_COMPILING_IN_LIMITED_API
+    PyObject *ob = PyObject_GetAttr((PyObject *)type, PYIDENT("__pyx_vtable__"));
+#else
+    PyObject *ob = PyObject_GetItem(type->tp_dict, PYIDENT("__pyx_vtable__"));
+#endif
     if (!ob)
         goto bad;
     ptr = PyCapsule_GetPointer(ob, 0);
@@ -725,13 +778,19 @@ bad:
 /////////////// MergeVTables.proto ///////////////
 //@requires: GetVTable
 
+// TODO: find a way to make this work with the Limited API!
+#if !CYTHON_COMPILING_IN_LIMITED_API
 static int __Pyx_MergeVtables(PyTypeObject *type); /*proto*/
+#endif
 
 /////////////// MergeVTables ///////////////
 
+#if !CYTHON_COMPILING_IN_LIMITED_API
 static int __Pyx_MergeVtables(PyTypeObject *type) {
     int i;
     void** base_vtables;
+    __Pyx_TypeName tp_base_name;
+    __Pyx_TypeName base_name;
     void* unknown = (void*)-1;
     PyObject* bases = type->tp_bases;
     int base_depth = 0;
@@ -742,7 +801,7 @@ static int __Pyx_MergeVtables(PyTypeObject *type) {
             base = base->tp_base;
         }
     }
-    base_vtables = (void**) malloc(sizeof(void*) * (base_depth + 1));
+    base_vtables = (void**) malloc(sizeof(void*) * (size_t)(base_depth + 1));
     base_vtables[0] = unknown;
     // Could do MRO resolution of individual methods in the future, assuming
     // compatible vtables, but for now simply require a common vtable base.
@@ -751,13 +810,13 @@ static int __Pyx_MergeVtables(PyTypeObject *type) {
     // instance struct is so extended.  (It would be good to also do this
     // check when a multiple-base class is created in pure Python as well.)
     for (i = 1; i < PyTuple_GET_SIZE(bases); i++) {
-        void* base_vtable = __Pyx_GetVtable(((PyTypeObject*)PyTuple_GET_ITEM(bases, i))->tp_dict);
+        void* base_vtable = __Pyx_GetVtable(((PyTypeObject*)PyTuple_GET_ITEM(bases, i)));
         if (base_vtable != NULL) {
             int j;
             PyTypeObject* base = type->tp_base;
             for (j = 0; j < base_depth; j++) {
                 if (base_vtables[j] == unknown) {
-                    base_vtables[j] = __Pyx_GetVtable(base->tp_dict);
+                    base_vtables[j] = __Pyx_GetVtable(base);
                     base_vtables[j + 1] = unknown;
                 }
                 if (base_vtables[j] == base_vtable) {
@@ -774,13 +833,16 @@ static int __Pyx_MergeVtables(PyTypeObject *type) {
     free(base_vtables);
     return 0;
 bad:
-    PyErr_Format(
-        PyExc_TypeError,
-        "multiple bases have vtable conflict: '%s' and '%s'",
-        type->tp_base->tp_name, ((PyTypeObject*)PyTuple_GET_ITEM(bases, i))->tp_name);
+    tp_base_name = __Pyx_PyType_GetName(type->tp_base);
+    base_name = __Pyx_PyType_GetName((PyTypeObject*)PyTuple_GET_ITEM(bases, i));
+    PyErr_Format(PyExc_TypeError,
+        "multiple bases have vtable conflict: '" __Pyx_FMT_TYPENAME "' and '" __Pyx_FMT_TYPENAME "'", tp_base_name, base_name);
+    __Pyx_DECREF_TypeName(tp_base_name);
+    __Pyx_DECREF_TypeName(base_name);
     free(base_vtables);
     return -1;
 }
+#endif
 
 
 /////////////// ImportNumPyArray.proto ///////////////

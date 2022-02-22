@@ -1,0 +1,36 @@
+CYTHONIZE -i -3 not_annotated.pyx
+PYTHON -c "import not_annotated; not_annotated.check()"
+CYTHONIZE -i -3 --annotate default_annotated.pyx
+PYTHON -c "import default_annotated; default_annotated.check()"
+CYTHONIZE -i -3 --annotate-fullc fullc_annotated.pyx
+PYTHON -c "import fullc_annotated; fullc_annotated.check()"
+
+######## not_annotated.pyx ########
+# check that html-file doesn't exist:
+def check():
+    import os.path as os_path
+    assert not os_path.isfile(__name__+'.html')
+
+
+
+######## default_annotated.pyx ########
+# load html-site and check that the marker isn't there:
+def check():
+    from codecs import open
+    with open(__name__+'.html', 'r', 'utf8') as html_file:
+        html = html_file.read()
+
+    from Cython.Compiler.Annotate import AnnotationCCodeWriter
+    assert (AnnotationCCodeWriter.COMPLETE_CODE_TITLE not in html) # per default no complete c code
+
+
+
+######## fullc_annotated.pyx ########
+# load html-site and check that the marker is there:
+def check():
+    from codecs import open
+    with open(__name__+'.html', 'r', 'utf8') as html_file:
+        html = html_file.read()
+
+    from Cython.Compiler.Annotate import AnnotationCCodeWriter
+    assert (AnnotationCCodeWriter.COMPLETE_CODE_TITLE in html)
