@@ -139,7 +139,7 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
     defines = []
     if cython_with_refnanny:
         defines.append(('CYTHON_REFNANNY', '1'))
-      if coverage:
+    if coverage:
         defines.append(('CYTHON_TRACE', '1'))
 
     extensions = []
