@@ -4,7 +4,9 @@ Glossary
 .. glossary::
 
    Extension type
-      "Extension type" can refer to either a Cython class defined with ``cdef class`` or more generally to any Python type that is ultimately implemented as a native C struct (including the built-in types like `int` or `dict`).
+      "Extension type" can refer to either a Cython class defined with ``cdef class`` or ``@cclass``,
+      or more generally to any Python type that is ultimately implemented as a
+      native C struct (including the built-in types like `int` or `dict`).
       
    Dynamic allocation or Heap allocation
       A C variable allocated with ``malloc`` (in C) or ``new`` (in C++) is
@@ -16,7 +18,8 @@ Glossary
       A **pointer** is a variable that stores the address of another variable
       (i.e. direct address of the memory location). They allow for
       dynamic memory allocation and deallocation. They can be used to build
-      dynamic data structures. `Read more <https://en.wikipedia.org/wiki/Pointer_(computer_programming)#C_pointers>`__.
+      dynamic data structures.
+      `Read more <https://en.wikipedia.org/wiki/Pointer_(computer_programming)#C_pointers>`__.
       
    Python object
       When using Python, the contents of every variable is a Python object
@@ -40,7 +43,8 @@ Glossary
       `buffer protocol`_ (typically "array" types, for example a Numpy array).
       The memoryview keeps a reference to that Python object alive
       and provides quick access to the memory without needing to go
-      through the Python API of the object and its ``__getitem__``/``__setitem__`` methods.
+      through the Python API of the object and its
+      :meth:`__getitem__` / :meth:`__setitem__` methods.
       For more information, see :ref:`memoryviews`.
 
 .. _buffer protocol: https://docs.python.org/3/c-api/buffer.html

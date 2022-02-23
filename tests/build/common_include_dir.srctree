@@ -26,7 +26,9 @@ osx_on_ci = (sys.platform == "darwin" and os.getenv("CI"))
 # Test concurrent safety if multiprocessing is available.
 # (In particular, CI providers like Travis and Github Actions do not support spawning processes from tests.)
 nthreads = 0
-if not (hasattr(sys, 'pypy_version_info') or osx_on_ci):
+if not (hasattr(sys, 'pypy_version_info') or 
+        (hasattr(sys, 'implementation') and sys.implementation.name == 'graalpython') or
+        osx_on_ci):
     try:
         import multiprocessing
         multiprocessing.Pool(2).close()
@@ -76,9 +78,10 @@ if sys.platform == 'win32':
     assert opt == '-c'
     count = 0
     regex = re.compile(pattern)
-    for line in open(file):
-        if regex.search(line):
-            count += 1
+    with open(file) as fid:
+        for line in fid:
+            if regex.search(line):
+                count += 1
     print(count)
     sys.exit(count == 0)
 else:
