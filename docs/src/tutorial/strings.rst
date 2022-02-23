@@ -546,7 +546,16 @@ and then copies its buffer into a new C++ string.
 For the other direction, efficient decoding support is available
 in Cython 0.17 and later:
 
-.. literalinclude:: ../../examples/tutorial/string/decode_cpp_string.pyx
+
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/string/decode_cpp_string.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/string/decode_cpp_string.pyx
+
 
 For C++ strings, decoding slices will always take the proper length
 of the string into account and apply Python slicing semantics (e.g.
