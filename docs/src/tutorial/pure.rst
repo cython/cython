@@ -246,7 +246,8 @@ releasing or acquiring the GIL. The condition must be constant (at compile time)
   with cython.gil(True):
       # code block with the GIL acquired
 
-The common use case of conditional acquiring and releasing of the GIL are fused types (see :ref:`gil_conditional`).
+A common use case for conditionally acquiring and releasing the GIL are fused types
+that allow different GIL handling depending on the specific type (see :ref:`gil_conditional`).
 
 cimports
 ^^^^^^^^
