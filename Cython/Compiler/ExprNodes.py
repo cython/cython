@@ -2124,6 +2124,10 @@ class NameNode(AtomicExprNode):
             # This is normally parsed as "simple C type", but not if we don't parse C types.
             return py_object_type
 
+        # Try to give a helpful warning when users write plain C type names.
+        if not env.in_c_type_context and PyrexTypes.parse_basic_type(self.name):
+            warning(self.pos, "Found C type '%s' in a Python annotation. Did you mean to use a Python type?" % self.name)
+
         return None
 
     def analyse_as_extension_type(self, env):
