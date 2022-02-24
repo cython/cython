@@ -127,8 +127,8 @@ cdef class ContainsNonPyFields:
     """
     mystruct: S = cython.dataclasses.field(compare=False)
     mystruct_ptr: S_ptr = field(init=False, repr=False, default_factory=malloc_a_struct)
-    memview: int[:, ::1] = field(default=create_array((3,1), "c"),  # mutable so not great but OK for a test
-                                 compare=False)
+    memview: cython.int[:, ::1] = field(default=create_array((3,1), "c"),  # mutable so not great but OK for a test
+                                        compare=False)
 
     def __dealloc__(self):
         free(self.mystruct_ptr)
@@ -154,8 +154,8 @@ cdef class InitClassVars:
     True
     """
     a: cython.int = 0
-    b1: InitVar[double] = 1.0
-    b2: py_dataclasses.InitVar[double] = 1.0
+    b1: InitVar[cython.double] = 1.0
+    b2: py_dataclasses.InitVar[cython.double] = 1.0
     c1: ClassVar[float] = 2.0
     c2: typing.ClassVar[float] = 2.0
     cdef InitVar[cython.int] d1
