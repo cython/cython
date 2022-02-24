@@ -8289,6 +8289,8 @@ class TryFinallyStatNode(StatNode):
     def generate_function_definitions(self, env, code):
         self.body.generate_function_definitions(env, code)
         self.finally_clause.generate_function_definitions(env, code)
+        if self.finally_except_clause:
+            self.finally_except_clause.generate_function_definitions(env, code)
 
     def put_error_catcher(self, code, temps_to_clean_up, exc_vars,
                           exc_lineno_cnames=None, exc_filename_cname=None):
