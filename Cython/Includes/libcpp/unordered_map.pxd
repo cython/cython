@@ -12,6 +12,7 @@ cdef extern from "<unordered_map>" namespace "std" nogil:
             bint operator==(const iterator&)
             bint operator!=(const iterator&)
         cppclass const_iterator:
+            const_iterator()
             const_iterator(iterator)
             const pair[T, U]& operator*()
             const_iterator& operator++()

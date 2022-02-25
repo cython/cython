@@ -16,6 +16,7 @@ cdef extern from "<set>" namespace "std" nogil:
             bint operator==(const reverse_iterator&)
             bint operator!=(const reverse_iterator&)
         cppclass const_iterator:
+            const_iterator()
             const_iterator(iterator)
             const T& operator*()
             const_iterator& operator++()
@@ -23,6 +24,7 @@ cdef extern from "<set>" namespace "std" nogil:
             bint operator==(const const_iterator&)
             bint operator!=(const const_iterator&)
         cppclass const_reverse_iterator:
+            const_reverse_iterator()
             const_reverse_iterator(reverse_iterator)
             const T& operator*()
             const_reverse_iterator& operator++()

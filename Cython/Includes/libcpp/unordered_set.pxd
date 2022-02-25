@@ -9,6 +9,7 @@ cdef extern from "<unordered_set>" namespace "std" nogil:
             bint operator==(const iterator&)
             bint operator!=(const iterator&)
         cppclass const_iterator:
+            const_iterator()
             const_iterator(iterator)
             const T& operator*()
             const_iterator& operator++()
