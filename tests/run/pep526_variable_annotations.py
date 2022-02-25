@@ -198,7 +198,7 @@ def test_tuple(a: typing.Tuple[cython.int, cython.float], b: typing.Tuple[cython
     print(cython.typeof(p))
     print(cython.typeof(x[1]))
     print(cython.typeof(a))
-    print(cython.typeof(x))
+    print(cython.typeof(x) + (" object" if not cython.compiled else ""))
     print(cython.typeof(y) + (" object" if not cython.compiled else ""))
     print(cython.typeof(c) + (" object" if not cython.compiled else ""))
 
