@@ -278,11 +278,13 @@ class LateClass(object):
     pass
 
 
-def py_float_default(price : float=None, ndigits=4):
+def py_float_default(price : Optional[float]=None, ndigits=4):
     """
     Python default arguments should prevent C type inference.
 
     >>> py_float_default()
+    (None, 4)
+    >>> py_float_default(None)
     (None, 4)
     >>> py_float_default(2)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
@@ -338,7 +340,7 @@ _WARNINGS = """
 63:70: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
 90:70: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
 274:44: Unknown type declaration in annotation, ignoring
-300:15: Annotation ignored since class-level attributes must be Python objects. Were you trying to set up an instance attribute?
+302:15: Annotation ignored since class-level attributes must be Python objects. Were you trying to set up an instance attribute?
 # BUG:
 63:6: 'pytypes_cpdef' redeclared
 146:0: 'struct_io' redeclared
