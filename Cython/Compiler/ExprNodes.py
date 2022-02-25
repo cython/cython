@@ -3899,12 +3899,13 @@ class IndexNode(_IndexingBaseNode):
             self.is_temp = 1
         elif self.index.type.is_int and base_type is not dict_type:
             if (getting
+                    and not env.directives['boundscheck']
                     and (base_type in (list_type, tuple_type, bytearray_type))
                     and (not self.index.type.signed
                          or not env.directives['wraparound']
                          or (isinstance(self.index, IntNode) and
                              self.index.has_constant_result() and self.index.constant_result >= 0))
-                    and not env.directives['boundscheck']):
+                    ):
                 self.is_temp = 0
             else:
                 self.is_temp = 1
