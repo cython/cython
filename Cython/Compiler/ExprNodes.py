@@ -2117,7 +2117,11 @@ class NameNode(AtomicExprNode):
         if entry and entry.is_type:
             # Infer equivalent C types instead of Python types when possible.
             type = entry.type
-            if type.is_pyobject and type.equivalent_type:
+            if not env.in_c_type_context and type is Builtin.long_type:
+                # Try to give a helpful warning when users write plain C type names.
+                warning(self.pos, "Found Python 2.x type 'long' in a Python annotation. Did you mean to use 'cython.long'?")
+                type = py_object_type
+            elif type.is_pyobject and type.equivalent_type:
                 type = type.equivalent_type
             return type
         if self.name == 'object':

@@ -36,13 +36,13 @@ def old_dict_syntax(a: list, b: "int" = 2, c: {'ctype': 'long int'} = 3, d: {'ty
 def pytypes_def(a: list, b: int = 2, c: long = 3, d: float = 4.0, n: list = None, o: Optional[tuple] = ()) -> list:
     """
     >>> pytypes_def([1])
-    ('list object', 'int object', 'long object', 'double', 'list object', 'tuple object')
+    ('list object', 'int object', 'Python object', 'double', 'list object', 'tuple object')
     [1, 2, 3, 4.0, None, ()]
     >>> pytypes_def([1], 3)
-    ('list object', 'int object', 'long object', 'double', 'list object', 'tuple object')
+    ('list object', 'int object', 'Python object', 'double', 'list object', 'tuple object')
     [1, 3, 3, 4.0, None, ()]
     >>> pytypes_def([1], 3, 2, 1, [], None)
-    ('list object', 'int object', 'long object', 'double', 'list object', 'tuple object')
+    ('list object', 'int object', 'Python object', 'double', 'list object', 'tuple object')
     [1, 3, 2, 1.0, [], None]
     >>> pytypes_def(123)
     Traceback (most recent call last):
@@ -63,13 +63,13 @@ def pytypes_def(a: list, b: int = 2, c: long = 3, d: float = 4.0, n: list = None
 cpdef pytypes_cpdef(a: list, b: int = 2, c: long = 3, d: float = 4.0, n: list = None, o: Optional[tuple] = ()):
     """
     >>> pytypes_cpdef([1])
-    ('list object', 'int object', 'long object', 'double', 'list object', 'tuple object')
+    ('list object', 'int object', 'Python object', 'double', 'list object', 'tuple object')
     [1, 2, 3, 4.0, None, ()]
     >>> pytypes_cpdef([1], 3)
-    ('list object', 'int object', 'long object', 'double', 'list object', 'tuple object')
+    ('list object', 'int object', 'Python object', 'double', 'list object', 'tuple object')
     [1, 3, 3, 4.0, None, ()]
     >>> pytypes_cpdef([1], 3, 2, 1, [], None)
-    ('list object', 'int object', 'long object', 'double', 'list object', 'tuple object')
+    ('list object', 'int object', 'Python object', 'double', 'list object', 'tuple object')
     [1, 3, 2, 1.0, [], None]
     >>> pytypes_cpdef(123)
     Traceback (most recent call last):
@@ -99,10 +99,10 @@ cdef c_pytypes_cdef(a: list, b: int = 2, c: long = 3, d: float = 4.0, n: list = 
 def pytypes_cdef(a, b=2, c=3, d=4):
     """
     >>> pytypes_cdef([1])
-    ('list object', 'int object', 'long object', 'double', 'list object')
+    ('list object', 'int object', 'Python object', 'double', 'list object')
     [1, 2, 3, 4.0, None]
     >>> pytypes_cdef([1], 3)
-    ('list object', 'int object', 'long object', 'double', 'list object')
+    ('list object', 'int object', 'Python object', 'double', 'list object')
     [1, 3, 3, 4.0, None]
     >>> pytypes_cdef(123)   # doctest: +ELLIPSIS
     Traceback (most recent call last):
@@ -336,11 +336,16 @@ _WARNINGS = """
 14:77: Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.
 14:85: Python type declaration in signature annotation does not refer to a Python type
 14:85: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
+36:40: Found Python 2.x type 'long' in a Python annotation. Did you mean to use 'cython.long'?
 36:66: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
+63:44: Found Python 2.x type 'long' in a Python annotation. Did you mean to use 'cython.long'?
 63:70: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
+90:44: Found Python 2.x type 'long' in a Python annotation. Did you mean to use 'cython.long'?
 90:70: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
 274:44: Unknown type declaration in annotation, ignoring
 302:15: Annotation ignored since class-level attributes must be Python objects. Were you trying to set up an instance attribute?
+# DUPLICATE:
+63:44: Found Python 2.x type 'long' in a Python annotation. Did you mean to use 'cython.long'?
 # BUG:
 63:6: 'pytypes_cpdef' redeclared
 146:0: 'struct_io' redeclared
