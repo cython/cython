@@ -1,5 +1,3 @@
-# distutils: extra_compile_args=-Werror
-
 from cython cimport typeof
 
 ctypedef bint mybool
