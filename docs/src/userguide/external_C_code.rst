@@ -189,8 +189,8 @@ same applies equally to union and enum declarations.
 +-------------------------+---------------------------------------------+-----------------------------------------------------------------------+
 | C code                  | Possibilities for corresponding Cython Code | Comments                                                              |
 +=========================+=============================================+=======================================================================+
-| .. code-block:: c       | ::                                          | Cython will refer to the as ``struct Foo`` in the generated C code.   |
-|                         |                                             |                                                                       |
+| .. code-block:: c       | ::                                          | Cython will refer to the type as ``struct Foo`` in                    |
+|                         |                                             | the generated C code.                                                 |
 |   struct Foo {          |   cdef struct Foo:                          |                                                                       |
 |     ...                 |     ...                                     |                                                                       |
 |   };                    |                                             |                                                                       |
