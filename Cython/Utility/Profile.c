@@ -37,6 +37,9 @@
 
   #include "compile.h"
   #include "frameobject.h"
+#if PY_VERSION_HEX >= 0x030b00a6
+  #include "internal/pycore_frame.h"
+#endif
   #include "traceback.h"
 
   #if CYTHON_PROFILE_REUSE_FRAME
