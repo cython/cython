@@ -50,10 +50,10 @@ def CondExprNode_to_bool(test):
 
     print(typeof(not mybul if test else mybul) == typeof(not bul if test else bul) == typeof(bul))
 
-    # test_bool would silently crash if one of the types is casted
+    # test_bool() would silently crash if one of the types is cast
     # to Python object and not just assigned.
-    # It happens when type is wrongly inferred to Python object
-    # and not bin or mybool.
+    # It happens when a type is wrongly inferred as Python object
+    # instead of bint or mybool.
     return test_bool(not mybul if test else mybul) + test_bool(not bul if test else bul)
 
 
