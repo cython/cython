@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 from cython cimport typeof
 
 ctypedef bint mybool
