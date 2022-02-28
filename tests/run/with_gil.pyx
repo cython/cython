@@ -259,7 +259,7 @@ cpdef test_cpdef():
 
 # Now test some cdef functions with different return types
 
-cdef void void_nogil_ignore_exception() nogil:
+cdef void void_nogil_ignore_exception() nogil noexcept:
     with gil:
         raise ExceptionWithMsg("This is swallowed")
 
@@ -267,7 +267,7 @@ cdef void void_nogil_ignore_exception() nogil:
     with gil:
         print "unreachable"
 
-cdef void void_nogil_nested_gil() nogil:
+cdef void void_nogil_nested_gil() nogil noexcept:
     with gil:
         with nogil:
             with gil:
