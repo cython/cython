@@ -525,6 +525,15 @@ class __Pyx_FakeReference {
   #define PyMem_RawFree(p)             PyMem_Free(p)
 #endif
 
+#if !CYTHON_COMPILING_IN_PYSTON && PY_VERSION_HEX >= 0x30B00A6
+   // Get PyFrameObject internal C API structure. For example,
+   // __Pyx_PyFrame_SetLineNumber() sets directly the the f_lineno field.
+#  ifndef Py_BUILD_CORE
+#    define Py_BUILD_CORE 1
+#  endif
+#  include "internal/pycore_frame.h"
+#endif
+
 #if CYTHON_COMPILING_IN_PYSTON
   // special C-API functions only in Pyston
   #define __Pyx_PyCode_HasFreeVars(co)  PyCode_HasFreeVars(co)
