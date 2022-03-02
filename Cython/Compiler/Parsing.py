@@ -3026,6 +3026,8 @@ def p_exception_value_clause(s):
         else:
             if s.sy == '?':
                 s.next()
+            else:
+                exc_check = 0
             exc_val = p_test(s)
     return exc_val, exc_check
 
