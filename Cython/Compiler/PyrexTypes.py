@@ -4930,11 +4930,11 @@ def independent_spanning_type(type1, type2):
         else:
             type2 = type2.ref_base_type
 
-    resolved_tp1 = type1.resolve()
-    resolved_tp2 = type2.resolve()
-    if resolved_tp1 == resolved_tp2:
+    resolved_type1 = type1.resolve()
+    resolved_type2 = type2.resolve()
+    if resolved_type1 == resolved_type2:
         return type1
-    elif ((resolved_tp1 is c_bint_type or resolved_tp2 is c_bint_type)
+    elif ((resolved_type1 is c_bint_type or resolved_type2 is c_bint_type)
             and (type1.is_numeric and type2.is_numeric)):
         # special case: if one of the results is a bint and the other
         # is another C integer, we must prevent returning a numeric
