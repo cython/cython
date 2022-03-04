@@ -9553,7 +9553,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
             for arg in nonliteral_other:
                 entry = scope.declare_var(arg.name, arg.type, None,
                                           Naming.arg_prefix + arg.name,
-                                          allow_pyobject=False, allow_memoryview=True)
+                                          is_cdef=True)
                 self.defaults.append((arg, entry))
             self.defaults_pyobjects = len(nonliteral_objects)
             for arg, entry in self.defaults:
