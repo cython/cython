@@ -4138,7 +4138,7 @@ class DefNodeWrapper(FuncDefNode):
             max_args, ','.join('0'*max_args)))
 
         if self.target.defaults_struct:
-            code.putln('%s *%s = __Pyx_CyFunction_Defaults(%s, %s);' % (
+            code.putln('struct %s *%s = __Pyx_CyFunction_Defaults(struct %s, %s);' % (
                 self.target.defaults_struct, Naming.dynamic_args_cname,
                 self.target.defaults_struct, Naming.self_cname))
 

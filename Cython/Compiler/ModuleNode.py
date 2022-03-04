@@ -1428,7 +1428,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         self.generate_descr_get_function(scope, code)
                     if scope.defines_any_special(["__set__", "__delete__"]):
                         self.generate_descr_set_function(scope, code)
-                    if not scope.is_closure_class_scope and scope.defines_any(["__dict__"]):
+                    if not (scope.is_closure_class_scope or scope.is_defaults_class_scope) and scope.defines_any(["__dict__"]):
                         self.generate_dict_getter_function(scope, code)
 
                     if scope.defines_any_special(TypeSlots.richcmp_special_methods):
@@ -1662,11 +1662,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         needs_gc = scope.needs_gc()
         needs_trashcan = scope.needs_trashcan()
 
-        weakref_slot = scope.lookup_here("__weakref__") if not scope.is_closure_class_scope else None
+        weakref_slot = scope.lookup_here("__weakref__") if not (scope.is_closure_class_scope or scope.is_defaults_class_scope) else None
         if weakref_slot not in scope.var_entries:
             weakref_slot = None
 
-        dict_slot = scope.lookup_here("__dict__") if not scope.is_closure_class_scope else None
+        dict_slot = scope.lookup_here("__dict__") if not (scope.is_closure_class_scope or scope.is_defaults_class_scope) else None
         if dict_slot not in scope.var_entries:
             dict_slot = None
 

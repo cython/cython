@@ -2230,6 +2230,7 @@ class CClassScope(ClassScope):
 
     is_c_class_scope = 1
     is_closure_class_scope = False
+    is_defaults_class_scope = False
 
     has_pyobject_attrs = False
     has_memoryview_attrs = False
