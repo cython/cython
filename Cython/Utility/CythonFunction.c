@@ -1227,7 +1227,7 @@ __pyx_FusedFunction_descr_get(PyObject *self, PyObject *obj, PyObject *type)
     if (unlikely(!meth))
         return NULL;
 
-    Py_XINCREF(func.defaults);
+    Py_XINCREF(func->func.defaults);
 
     __Pyx_CyFunction_SetClassObj(meth, __Pyx_CyFunction_GetClassObj(func));
 
