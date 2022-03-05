@@ -5934,6 +5934,7 @@ class SimpleCallNode(CallNode):
                         "descriptor '%s' requires a '%s' object but received a 'NoneType'",
                         format_args=[entry.name, formal_arg.type.name])
             if self.self:
+                self.self = ProxyNode(self.self)
                 if formal_arg.accept_builtin_subtypes:
                     arg = CMethodSelfCloneNode(self.self)
                 else:

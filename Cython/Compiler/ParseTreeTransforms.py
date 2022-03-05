@@ -511,8 +511,35 @@ class _ExpressionOrderCoerceToTempTransform(VisitorTransform):
         self.current_env = current_env
         super(_ExpressionOrderCoerceToTempTransform, self).__init__()
 
-    def visit_ExprNode(self, node):
+    def _entry_is_builtin(self, entry):
+        # OptimizeBuiltinCalls has a slightly more sophisticated way
+        # of checking for builtins (especially where they've been partially
+        # transformed). If this check isn't sufficient then it probably needs
+        # doing after OptimizeBuiltinCalls
+        return entry.is_builtin or (entry.as_variable and entry.as_variable.is_builtin) or entry.is_const
+
+    def visit_AttributeNode(self, node):
+        if node.entry and self._entry_is_builtin(node.entry) and node.entry.type.is_cfunction:
+            return node  # This attribute has been transformed to a builtin C function
+                # so skip coercion
+        else:
+            return self.visit_ExprNode(node)
+
+    def visit_CloneNode(self, node):
+        return node
+
+    def visit_ProxyNode(self, node):
+        # visit the proxy node's arg as if it were this one
         node_record = self.node_record_dict.get(node)
+        node.arg = self._visit_ExprNode(node.arg, node_record=node_record)
+        return node
+
+    def visit_ExprNode(self, node):
+        return self._visit_ExprNode(node)
+
+    def _visit_ExprNode(self, node, node_record=None):
+        if not node_record:
+            node_record = self.node_record_dict.get(node)
         depends_on_entries = node_record.depends_on_entries
         if not depends_on_entries:
             return node
@@ -526,16 +553,12 @@ class _ExpressionOrderCoerceToTempTransform(VisitorTransform):
                 continue
             other_nodes.update(v)
 
+        # Assume that known builtins/consts can't be modified
+        depends_on_entries = { entry for entry in depends_on_entries if not self._entry_is_builtin(entry) }
+
         if depends_on_entries.intersection(other_nodes.may_modify_entries):
             return node.coerce_to_temp(self.current_env)
         for entry in depends_on_entries:
-            # Assume that known builtins/consts can't be modified
-            # OptimizeBuiltinCalls has a slightly more sophisticated way
-            # of checking for builtins (especially where they've been partially
-            # transformed). If this check isn't sufficient then it probably needs
-            # doing after OptimizeBuiltinCalls
-            if entry.is_builtin or entry.is_const:
-                continue
             if other_nodes.may_modify_nonlocals and (
                     entry.is_pyglobal or entry.is_cglobal or entry.in_closure):
                 return node.coerce_to_temp(self.current_env)
