@@ -654,13 +654,22 @@ class ExpressionOrderTransform(EnvTransform, SkipDeclarations):
             return self.visit_ExprNode(node)
 
     def visit_Node(self, node):
+        return self._visit_Node(node)
+
+    def visit_AssignmentNode(self, node):
+        # exclude assignment nodes from the whole thing - their ordering is
+        # odd (and largely controlled by them alone)
+        self.visitchildren(node)
+        return node
+
+    def _visit_Node(self, node, exclude_from_handle_ordering=None):
         # non-ExprNodes can occasional be in ExprNodes
         # (for example assignment expressions, and UtilNodes temp expressions)
         # For these cases set and restore the state on exit
         node_record, self.node_record = self.node_record, ExpressionOrderTransform.NodeRecord()
         node_record_dict, self.node_record_dict = self.node_record_dict, dict()
         self.visitchildren(node)
-        self.handle_ordering(node)
+        self.handle_ordering(node, exclude=exclude_from_handle_ordering)
         self.node_record = node_record
         self.node_record_dict = node_record_dict
         return node
