@@ -552,7 +552,7 @@ class ExpressionOrderTransform(EnvTransform, SkipDeclarations):
     because another expression could change their result, and coerces
     to temp to enforce this
     """
-    class NodeRecord:
+    class NodeRecord(object):
         def __init__(self, may_modify_entries=None, may_modify_nonlocals=None, depends_on_entries=None):
             self.may_modify_entries = may_modify_entries or set()
             self.may_modify_nonlocals = may_modify_nonlocals or False
