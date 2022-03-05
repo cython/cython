@@ -531,8 +531,8 @@ class _ExpressionOrderCoerceToTempTransform(VisitorTransform):
         # for reasons I don't quite understand, it seems possible to get duplicate
         # entries for the same name in the same scope (mainly with comprehensions).
         # Therefore, also test (name, scope) tuple intersection
-        depends_on_entries_namescope = { (e.name, e.scope) for e in depends_on_entries }
-        other_may_modify_namescope = { (e.name, e.scope) for e in other_nodes.may_modify_entries }
+        depends_on_entries_namescope = { (e.name, e.scope) for e in depends_on_entries if hasattr(e, "scope") }
+        other_may_modify_namescope = { (e.name, e.scope) for e in other_nodes.may_modify_entries if hasattr(e, "scope") }
         if depends_on_entries_namescope.intersection(other_may_modify_namescope):
             return node.coerce_to_temp(self.current_env)
         for entry in depends_on_entries:
