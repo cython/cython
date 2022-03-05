@@ -545,7 +545,6 @@ class _ExpressionOrderCoerceToTempTransform(VisitorTransform):
         return node
 
 
-
 class ExpressionOrderTransform(EnvTransform, SkipDeclarations):
     """
     Identifies expressions that must be run in a specific order
@@ -561,7 +560,7 @@ class ExpressionOrderTransform(EnvTransform, SkipDeclarations):
 
         def combine(self, other):
             # out of place update
-            ret = copy.copy(self)
+            ret = copy.deepcopy(self)
             ret.update(other)
             return ret
 
