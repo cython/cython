@@ -2439,7 +2439,8 @@ class CClassScope(ClassScope):
             cname = punycodify_name(c_safe_identifier(name), Naming.unicode_vtabentry_prefix)
         if entry:
             if not entry.is_cfunction:
-                warning(pos, "'%s' redeclared  " % name, 0)
+                error(pos, "'%s' redeclared " % name)
+                entry.already_declared_here()
             else:
                 if defining and entry.func_cname:
                     error(pos, "'%s' already defined" % name)

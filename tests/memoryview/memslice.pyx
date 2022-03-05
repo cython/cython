@@ -2516,3 +2516,48 @@ def test_const_buffer(const int[:] a):
     cdef const int[:] c = a
     print(a[0])
     print(c[-1])
+
+@testcase
+def test_loop(int[:] a, throw_exception):
+    """
+    >>> A = IntMockBuffer("A", range(6), shape=(6,))
+    >>> test_loop(A, False)
+    acquired A
+    15
+    released A
+    >>> try:
+    ...     test_loop(A, True)
+    ... except ValueError:
+    ...     pass
+    acquired A
+    released A
+    """
+    cdef int sum = 0
+    for ai in a:
+        sum += ai
+    if throw_exception:
+        raise ValueError()
+    print(sum)
+
+@testcase
+def test_loop_reassign(int[:] a):
+    """
+    >>> A = IntMockBuffer("A", range(6), shape=(6,))
+    >>> test_loop_reassign(A)
+    acquired A
+    0
+    1
+    2
+    3
+    4
+    5
+    released A
+    15
+    """
+    cdef int sum = 0
+    for ai in a:
+        sum += ai
+        print(ai)
+        a = None  # this should not mess up the loop though!
+    # release happens here, when the loop temp is released
+    print(sum)
