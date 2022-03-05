@@ -528,13 +528,6 @@ class _ExpressionOrderCoerceToTempTransform(VisitorTransform):
 
         if depends_on_entries.intersection(other_nodes.may_modify_entries):
             return node.coerce_to_temp(self.current_env)
-        # for reasons I don't quite understand, it seems possible to get duplicate
-        # entries for the same name in the same scope (mainly with comprehensions).
-        # Therefore, also test (name, scope) tuple intersection
-        depends_on_entries_namescope = { (e.name, e.scope) for e in depends_on_entries if hasattr(e, "scope") }
-        other_may_modify_namescope = { (e.name, e.scope) for e in other_nodes.may_modify_entries if hasattr(e, "scope") }
-        if depends_on_entries_namescope.intersection(other_may_modify_namescope):
-            return node.coerce_to_temp(self.current_env)
         for entry in depends_on_entries:
             # Assume that known builtins/consts can't be modified
             # OptimizeBuiltinCalls has a slightly more sophisticated way
@@ -560,14 +553,18 @@ class ExpressionOrderTransform(EnvTransform, SkipDeclarations):
     to temp to enforce this
     """
     class NodeRecord:
-        def __init__(self):
-            self.may_modify_entries = set()
-            self.may_modify_nonlocals = False
-            self.depends_on_entries = set()
+        def __init__(self, may_modify_entries=None, may_modify_nonlocals=None, depends_on_entries=None):
+            self.may_modify_entries = may_modify_entries or set()
+            self.may_modify_nonlocals = may_modify_nonlocals or False
+            self.depends_on_entries = depends_on_entries or set()
 
         def combine(self, other):
             # out of place update
-            ret = copy.deepcopy(self)
+            # semi-deep copy - copy the sets fully
+            ret = type(self)(
+                may_modify_entries=set(self.may_modify_entries),
+                may_modify_nonlocals=self.may_modify_nonlocals,
+                depends_on_entries=set(self.depends_on_entries))
             ret.update(other)
             return ret
 
