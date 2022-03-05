@@ -528,6 +528,13 @@ class _ExpressionOrderCoerceToTempTransform(VisitorTransform):
 
         if depends_on_entries.intersection(other_nodes.may_modify_entries):
             return node.coerce_to_temp(self.current_env)
+        # for reasons I don't quite understand, it seems possible to get duplicate
+        # entries for the same name in the same scope (mainly with comprehensions).
+        # Therefore, also test (name, scope) tuple intersection
+        depends_on_entries_namescope = { (e.name, e.scope) for e in depends_on_entries }
+        other_may_modify_namescope = { (e.name, e.scope) for e in other_nodes.may_modify_entries }
+        if depends_on_entries_namescope.intersection(other_may_modify_namescope):
+            return node.coerce_to_temp(self.current_env)
         for entry in depends_on_entries:
             # Assume that known builtins/consts can't be modified
             # OptimizeBuiltinCalls has a slightly more sophisticated way
@@ -659,8 +666,7 @@ class ExpressionOrderTransform(EnvTransform, SkipDeclarations):
     def visit_AssignmentNode(self, node):
         # exclude assignment nodes from the whole thing - their ordering is
         # odd (and largely controlled by them alone)
-        self.visitchildren(node)
-        return node
+        return self._visit_Node(node, exclude_from_handle_ordering=node.child_attrs)
 
     def _visit_Node(self, node, exclude_from_handle_ordering=None):
         # non-ExprNodes can occasional be in ExprNodes
