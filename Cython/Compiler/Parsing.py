@@ -3008,12 +3008,10 @@ def p_exception_value_clause(s):
     exc_val = None
     if s.sy == 'IDENT' and s.systring == 'noexcept':
         s.next()
-        exc_val = None
         exc_check = 0
     elif s.sy == 'except':
         s.next()
         if s.sy == '*':
-            exc_check = 1
             s.next()
         elif s.sy == '+':
             exc_check = '+'
@@ -3027,7 +3025,6 @@ def p_exception_value_clause(s):
                 s.next()
         else:
             if s.sy == '?':
-                exc_check = 1
                 s.next()
             exc_val = p_test(s)
     return exc_val, exc_check
