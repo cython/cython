@@ -1228,6 +1228,7 @@ __pyx_FusedFunction_descr_get(PyObject *self, PyObject *obj, PyObject *type)
         return NULL;
 
     Py_XINCREF(func->func.defaults);
+    meth->func.defaults = func->func.defaults;
 
     __Pyx_CyFunction_SetClassObj(meth, __Pyx_CyFunction_GetClassObj(func));
 
