@@ -5804,7 +5804,7 @@ class SimpleCallNode(CallNode):
         if function.is_attribute and function.entry and function.entry.is_cmethod:
             # Take ownership of the object from which the attribute
             # was obtained, because we need to pass it as 'self'.
-            self.self = function.obj
+            self.self = ProxyNode(function.obj)
             function.obj = CloneNode(self.self)
 
         func_type = self.function_type()
@@ -5924,7 +5924,7 @@ class SimpleCallNode(CallNode):
             arg = args[0]
             if formal_arg.not_none:
                 if self.self:
-                    self.self = self.self.as_none_safe_node(
+                    self.self.arg = self.self.arg.as_none_safe_node(
                         "'NoneType' object has no attribute '%{0}s'".format('.30' if len(entry.name) <= 30 else ''),
                         error='PyExc_AttributeError',
                         format_args=[entry.name])
@@ -5934,7 +5934,6 @@ class SimpleCallNode(CallNode):
                         "descriptor '%s' requires a '%s' object but received a 'NoneType'",
                         format_args=[entry.name, formal_arg.type.name])
             if self.self:
-                self.self = ProxyNode(self.self)
                 if formal_arg.accept_builtin_subtypes:
                     arg = CMethodSelfCloneNode(self.self)
                 else:

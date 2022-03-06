@@ -240,6 +240,8 @@ class IterationTransform(Visitor.EnvTransform):
         # dict iteration?
         if function.is_attribute and not reversed and not arg_count:
             base_obj = iterable.self or function.obj
+            if isinstance(base_obj, ExprNodes.ProxyNode):
+                base_obj = base_obj.arg
             method = function.attribute
             # in Py3, items() is equivalent to Py2's iteritems()
             is_safe_iter = self.global_scope().context.language_level >= 3
