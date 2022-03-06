@@ -5924,10 +5924,15 @@ class SimpleCallNode(CallNode):
             arg = args[0]
             if formal_arg.not_none:
                 if self.self:
-                    self.self.arg = self.self.arg.as_none_safe_node(
+                    selfself = self.self.arg if isinstance(self.self, ProxyNode) else self.self
+                    selfself = selfself.as_none_safe_node(
                         "'NoneType' object has no attribute '%{0}s'".format('.30' if len(entry.name) <= 30 else ''),
                         error='PyExc_AttributeError',
                         format_args=[entry.name])
+                    if isinstance(self.self, ProxyNode):
+                        self.self.arg = selfself
+                    else:
+                        self.self = selfself
                 else:
                     # unbound method
                     arg = arg.as_none_safe_node(
