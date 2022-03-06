@@ -12,8 +12,8 @@ cimport cython
 # from cpython cimport ...
 cdef extern from "Python.h":
     ctypedef struct PyObject
-    int PyIndex_Check(object)
-    object PyLong_FromVoidPtr(void *)
+    int PyIndex_Check(object) noexcept
+    object PyLong_FromVoidPtr(void *) noexcept
     PyObject *PyExc_IndexError
     PyObject *PyExc_ValueError
     PyObject *PyExc_MemoryError
@@ -21,27 +21,27 @@ cdef extern from "Python.h":
 cdef extern from "pythread.h":
     ctypedef void *PyThread_type_lock
 
-    PyThread_type_lock PyThread_allocate_lock()
-    void PyThread_free_lock(PyThread_type_lock)
-    int PyThread_acquire_lock(PyThread_type_lock, int mode) nogil
-    void PyThread_release_lock(PyThread_type_lock) nogil
+    PyThread_type_lock PyThread_allocate_lock() noexcept
+    void PyThread_free_lock(PyThread_type_lock) noexcept
+    int PyThread_acquire_lock(PyThread_type_lock, int mode) nogil noexcept
+    void PyThread_release_lock(PyThread_type_lock)  nogil noexcept
 
 cdef extern from "<string.h>":
     void *memset(void *b, int c, size_t len)
 
 cdef extern from *:
     int __Pyx_GetBuffer(object, Py_buffer *, int) except -1
-    void __Pyx_ReleaseBuffer(Py_buffer *)
+    void __Pyx_ReleaseBuffer(Py_buffer *) noexcept
 
     ctypedef struct PyObject
     ctypedef Py_ssize_t Py_intptr_t
-    void Py_INCREF(PyObject *)
-    void Py_DECREF(PyObject *)
+    void Py_INCREF(PyObject *) noexcept
+    void Py_DECREF(PyObject *) noexcept
 
-    void* PyMem_Malloc(size_t n)
-    void PyMem_Free(void *p)
-    void* PyObject_Malloc(size_t n)
-    void PyObject_Free(void *p)
+    void* PyMem_Malloc(size_t n) noexcept
+    void PyMem_Free(void *p) noexcept
+    void* PyObject_Malloc(size_t n) noexcept
+    void PyObject_Free(void *p) noexcept
 
     cdef struct __pyx_memoryview "__pyx_memoryview_obj":
         Py_buffer view
@@ -55,8 +55,8 @@ cdef extern from *:
         Py_ssize_t strides[{{max_dims}}]
         Py_ssize_t suboffsets[{{max_dims}}]
 
-    void __PYX_INC_MEMVIEW({{memviewslice_name}} *memslice, int have_gil)
-    void __PYX_XCLEAR_MEMVIEW({{memviewslice_name}} *memslice, int have_gil)
+    void __PYX_INC_MEMVIEW({{memviewslice_name}} *memslice, int have_gil) noexcept
+    void __PYX_XCLEAR_MEMVIEW({{memviewslice_name}} *memslice, int have_gil) noexcept
 
     ctypedef struct __pyx_buffer "Py_buffer":
         PyObject *obj
@@ -97,9 +97,9 @@ cdef extern from *:
 
 
 cdef extern from "<stdlib.h>":
-    void *malloc(size_t) nogil
-    void free(void *) nogil
-    void *memcpy(void *dest, void *src, size_t n) nogil
+    void *malloc(size_t) nogil noexcept
+    void free(void *) nogil noexcept
+    void *memcpy(void *dest, void *src, size_t n) nogil noexcept
 
 #
 ### cython.array class
@@ -118,7 +118,7 @@ cdef class array:
         Py_ssize_t itemsize
         unicode mode  # FIXME: this should have been a simple 'char'
         bytes _format
-        void (*callback_free_data)(void *data)
+        void (*callback_free_data)(void *data) noexcept
         # cdef object _memview
         cdef bint free_data
         cdef bint dtype_is_object
@@ -1183,7 +1183,7 @@ cdef void copy_strided_to_strided({{memviewslice_name}} *src,
                              src.shape, dst.shape, ndim, itemsize)
 
 @cname('__pyx_memoryview_slice_get_size')
-cdef Py_ssize_t slice_get_size({{memviewslice_name}} *src, int ndim) nogil:
+cdef Py_ssize_t slice_get_size({{memviewslice_name}} *src, int ndim) nogil noexcept:
     "Return the size of the memory occupied by the slice in number of bytes"
     cdef Py_ssize_t shape, size = src.memview.view.itemsize
 
@@ -1376,12 +1376,12 @@ cdef void refcount_copying({{memviewslice_name}} *dst, bint dtype_is_object, int
 @cname('__pyx_memoryview_refcount_objects_in_slice_with_gil')
 cdef void refcount_objects_in_slice_with_gil(char *data, Py_ssize_t *shape,
                                              Py_ssize_t *strides, int ndim,
-                                             bint inc) with gil:
+                                             bint inc) noexcept with gil:
     refcount_objects_in_slice(data, shape, strides, ndim, inc)
 
 @cname('__pyx_memoryview_refcount_objects_in_slice')
 cdef void refcount_objects_in_slice(char *data, Py_ssize_t *shape,
-                                    Py_ssize_t *strides, int ndim, bint inc):
+                                    Py_ssize_t *strides, int ndim, bint inc) noexcept:
     cdef Py_ssize_t i
     cdef Py_ssize_t stride = strides[0]
 
