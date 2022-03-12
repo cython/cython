@@ -9530,36 +9530,27 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
 
         if nonliteral_objects or nonliteral_other:
             module_scope = env.global_scope()
-            cname = module_scope.next_id(Naming.defaults_struct_prefix)
-            cname = StringEncoding.EncodedString(cname)
-            entry = module_scope.declare_c_class(
-                cname, self.pos, defining=True, implementing=True,
-                objstruct_cname=cname)
-            module_scope.check_c_class(entry)
-            entry.type.is_final_type = True
-            scope = entry.type.scope
-            scope.is_internal = True
-            scope.is_defaults_class_scope = True
-            self.defaults = []
-            self.defaults_entry = entry
+            types = []
             for arg in nonliteral_objects:
                 type_ = arg.type
                 if type_.is_buffer:
                     type_ = type_.base
-                entry = scope.declare_var(arg.name, type_, None,
-                                          Naming.arg_prefix + arg.name,
-                                          is_cdef=True)
+                types.append(type_)
+            types += [ arg.type for arg in nonliteral_other ]
+            self.defaults_entry = module_scope.declare_defaults_c_class(self.pos, types)
+            defaults_class_scope = self.defaults_entry.type.scope
+
+            arg_entries = [ e for name, e in defaults_class_scope.entries.items() if name.startswith("arg") ]
+            self.defaults = []
+            for arg, entry in zip(nonliteral_objects + nonliteral_other, arg_entries):
+                arg.defaults_class_key = entry.cname
                 self.defaults.append((arg, entry))
-            for arg in nonliteral_other:
-                entry = scope.declare_var(arg.name, arg.type, None,
-                                          Naming.arg_prefix + arg.name,
-                                          is_cdef=True)
-                self.defaults.append((arg, entry))
+
             self.defaults_pyobjects = len(nonliteral_objects)
             for arg, entry in self.defaults:
                 arg.default_value = '%s->%s' % (
                     Naming.dynamic_args_cname, entry.cname)
-            self.def_node.defaults_struct = scope.name
+            self.def_node.defaults_struct = defaults_class_scope.name
 
         if default_args or default_kwargs:
             if self.defaults_entry is None:
@@ -9867,7 +9858,7 @@ class DefaultNonLiteralArgNode(ExprNode):
     def result(self):
         return '__Pyx_CyFunction_Defaults(struct %s, %s)->%s' % (
             self.defaults_struct.name, Naming.self_cname,
-            self.defaults_struct.lookup(self.arg.name).cname)
+            self.defaults_struct.lookup(self.arg.defaults_class_key).cname)
 
 
 class DefaultsTupleNode(TupleNode):

@@ -874,6 +874,7 @@ class CArgDeclNode(Node):
     #
     # name_cstring                         property that converts the name to a cstring taking care of unicode
     #                                      and quoting it
+    # defaults_class_key  None or string  Name used to lookup this arg in the defaults class
 
     child_attrs = ["base_type", "declarator", "default", "annotation"]
     outer_attrs = ["default", "annotation"]
@@ -890,6 +891,7 @@ class CArgDeclNode(Node):
     default_value = None
     annotation = None
     is_dynamic = 0
+    defaults_class_key = None
 
     def declared_name(self):
         return self.declarator.declared_name()
