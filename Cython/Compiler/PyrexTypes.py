@@ -3873,7 +3873,7 @@ class CppClassType(CType):
     def is_template_type(self):
         return self.templates is not None and self.template_type is None
 
-    def get_fused_types(self, result=None, seen=None):
+    def get_fused_types(self, result=None, seen=None, is_pointer=False):
         if result is None:
             result = []
             seen = set()
