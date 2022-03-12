@@ -510,3 +510,33 @@ def convert_to_ptr(cython.floating x):
         return handle_float(&x)
     elif cython.floating is double:
         return handle_double(&x)
+
+cdef double get_double():
+    return 1.0
+cdef float get_float():
+    return 0.0
+
+cdef call_func_pointer(cython.floating (*f)()):
+    return f()
+
+def test_fused_func_pointer():
+    """
+    >>> test_fused_func_pointer()
+    1.0
+    0.0
+    """
+    print(call_func_pointer(get_double))
+    print(call_func_pointer(get_float))
+
+cdef double get_double_from_int(int i):
+    return i
+
+cdef call_func_pointer_with_1(cython.floating (*f)(cython.integral)):
+    return f(1)
+
+def test_fused_func_pointer2():
+    """
+    >>> test_fused_func_pointer2()
+    1.0
+    """
+    print(call_func_pointer_with_1(get_double_from_int))
