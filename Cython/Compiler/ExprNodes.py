@@ -9540,7 +9540,9 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
             self.defaults_entry = module_scope.declare_defaults_c_class(self.pos, types)
             defaults_class_scope = self.defaults_entry.type.scope
 
-            arg_entries = [ e for name, e in defaults_class_scope.entries.items() if name.startswith("arg") ]
+            # sort by name
+            arg_entries = sorted(list(defaults_class_scope.entries.items()))
+            arg_entries = [ e for name, e in arg_entries if name.startswith("arg") ]
             self.defaults = []
             for arg, entry in zip(nonliteral_objects + nonliteral_other, arg_entries):
                 arg.defaults_class_key = entry.cname
