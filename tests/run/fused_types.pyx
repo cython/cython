@@ -540,3 +540,18 @@ def test_fused_func_pointer2():
     1.0
     """
     print(call_func_pointer_with_1(get_double_from_int))
+
+cdef call_function_that_calls_fused_pointer(object (*f)(cython.floating (*)(cython.integral))):
+    if cython.floating is double and cython.integral is int:
+        return 5*f(get_double_from_int)
+    else:
+        return None  # practically it's hard to make this kind of function useful...
+
+def test_fused_func_pointer_multilevel():
+    """
+    >>> test_fused_func_pointer_multilevel()
+    5.0
+    None
+    """
+    print(call_function_that_calls_fused_pointer(call_func_pointer_with_1[double, int]))
+    print(call_function_that_calls_fused_pointer(call_func_pointer_with_1[float, int]))
