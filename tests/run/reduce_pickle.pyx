@@ -62,6 +62,9 @@ cdef class B:
     def __reduce__(self):
         return makeObj, (type(self), {'x': self.x, 'y': self.y})
 
+    def __eq__(self, other):
+        return isinstance(other, B) and (<B>other).x == self.x and (<B>other).y == self.y
+
 def makeObj(obj_type, kwds):
     return obj_type(**kwds)
 
@@ -304,3 +307,24 @@ if sys.version_info[:2] >= (3, 5):
         """
         def my_method(self, x):
             return x
+
+
+# Pickled with Cython 0.29.28 (using MD5 for the checksum).
+OLD_MD5_PICKLE = b'''\
+\x80\x04\x95:\x00\x00\x00\x00\x00\x00\x00\x8c\rreduce_pickle\
+\x94\x8c\x07makeObj\x94\x93\x94h\x00\x8c\x01B\x94\x93\x94}\
+\x94(\x8c\x01x\x94K%\x8c\x01y\x94M\x85\x01u\x86\x94R\x94.\
+'''
+
+try:
+    from hashlib import md5
+except ImportError:
+    pass
+else:
+    def unpickle_old_0_29_28():
+        """
+        >>> import pickle
+        >>> b = pickle.loads(OLD_MD5_PICKLE)
+        >>> b == B(x=37, y=389) or b
+        True
+        """
