@@ -62,9 +62,6 @@ cdef class B:
     def __reduce__(self):
         return makeObj, (type(self), {'x': self.x, 'y': self.y})
 
-    def __eq__(self, other):
-        return isinstance(other, B) and (<B>other).x == self.x and (<B>other).y == self.y
-
 def makeObj(obj_type, kwds):
     return obj_type(**kwds)
 
@@ -118,6 +115,14 @@ cdef class DefaultReduceSubclass(DefaultReduce):
 
     def __repr__(self):
         return "DefaultReduceSubclass(i=%s, s=%r, x=%s)" % (self.i, self.s, self.x)
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, DefaultReduceSubclass) and
+            (<DefaultReduceSubclass>other).i == self.i and
+            (<DefaultReduceSubclass>other).s == self.s and
+            (<DefaultReduceSubclass>other).x == self.x
+        )
 
 
 cdef class result(DefaultReduceSubclass):
@@ -311,9 +316,10 @@ if sys.version_info[:2] >= (3, 5):
 
 # Pickled with Cython 0.29.28 (using MD5 for the checksum).
 OLD_MD5_PICKLE = b'''\
-\x80\x04\x95:\x00\x00\x00\x00\x00\x00\x00\x8c\rreduce_pickle\
-\x94\x8c\x07makeObj\x94\x93\x94h\x00\x8c\x01B\x94\x93\x94}\
-\x94(\x8c\x01x\x94K%\x8c\x01y\x94M\x85\x01u\x86\x94R\x94.\
+\x80\x04\x95t\x00\x00\x00\x00\x00\x00\x00\x8c\rreduce_pickle\
+\x94\x8c$__pyx_unpickle_DefaultReduceSubclass\x94\x93\x94h\x00\x8c\x15\
+DefaultReduceSubclass\x94\x93\x94J\x8eYi\x08N\x87\x94R\x94K\x0b\x8c\x03\
+abc\x94G?\xf8\x00\x00\x00\x00\x00\x00\x87\x94b.\
 '''
 
 try:
@@ -325,6 +331,6 @@ else:
         """
         >>> import pickle
         >>> b = pickle.loads(OLD_MD5_PICKLE)
-        >>> b == B(x=37, y=389) or b
+        >>> b == DefaultReduceSubclass(i=11, s='abc', x=1.5) or b
         True
         """
