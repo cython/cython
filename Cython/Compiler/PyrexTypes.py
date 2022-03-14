@@ -19,7 +19,7 @@ from .Code import UtilityCode, LazyUtilityCode, TempitaUtilityCode
 from . import StringEncoding
 from . import Naming
 
-from .Errors import error, warning, CannotSpecialize
+from .Errors import error, CannotSpecialize
 
 
 class BaseType(object):
@@ -4511,10 +4511,9 @@ rank_to_type_name = (
     "long double",   # 7
 )
 
-_rank_to_type_name = list(rank_to_type_name)
-RANK_INT  = _rank_to_type_name.index('int')
-RANK_LONG = _rank_to_type_name.index('long')
-RANK_FLOAT = _rank_to_type_name.index('float')
+RANK_INT  = rank_to_type_name.index('int')
+RANK_LONG = rank_to_type_name.index('long')
+RANK_FLOAT = rank_to_type_name.index('float')
 UNSIGNED = 0
 SIGNED = 2
 
@@ -4930,14 +4929,19 @@ def independent_spanning_type(type1, type2):
             type1 = type1.ref_base_type
         else:
             type2 = type2.ref_base_type
-    if type1 == type2:
+
+    resolved_type1 = type1.resolve()
+    resolved_type2 = type2.resolve()
+    if resolved_type1 == resolved_type2:
         return type1
-    elif (type1 is c_bint_type or type2 is c_bint_type) and (type1.is_numeric and type2.is_numeric):
+    elif ((resolved_type1 is c_bint_type or resolved_type2 is c_bint_type)
+            and (type1.is_numeric and type2.is_numeric)):
         # special case: if one of the results is a bint and the other
         # is another C integer, we must prevent returning a numeric
         # type so that we do not lose the ability to coerce to a
         # Python bool if we have to.
         return py_object_type
+
     span_type = _spanning_type(type1, type2)
     if span_type is None:
         return error_type

@@ -13,7 +13,7 @@ cython.declare(sys=object, os=object, copy=object,
                CppClassScope=object, UtilityCode=object, EncodedString=object,
                error_type=object, _py_int_types=object)
 
-import sys, os, copy
+import sys, copy
 from itertools import chain
 
 from . import Builtin
@@ -382,8 +382,8 @@ class StatListNode(Node):
     child_attrs = ["stats"]
 
     @staticmethod
-    def create_analysed(pos, env, *args, **kw):
-        node = StatListNode(pos, *args, **kw)
+    def create_analysed(pos, env, **kw):
+        node = StatListNode(pos, **kw)
         return node  # No node-specific analysis needed
 
     def analyse_declarations(self, env):
@@ -747,7 +747,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                             and not (exc_val_type == PyrexTypes.c_char_type
                                      and self.exception_value.value == '*')):
                         error(self.exception_value.pos,
-                              "Exception value must be a Python exception or cdef function with no arguments or *.")
+                              "Exception value must be a Python exception, or C++ function with no arguments, or *.")
                     exc_val = self.exception_value
                 else:
                     self.exception_value = self.exception_value.analyse_types(env).coerce_to(
@@ -965,11 +965,22 @@ class CArgDeclNode(Node):
         base_type, arg_type = annotation.analyse_type_annotation(env, assigned_value=self.default)
         if base_type is not None:
             self.base_type = base_type
+
         if arg_type and arg_type.python_type_constructor_name == "typing.Optional":
-            self.or_none = True
+            # "x: Optional[...]"  =>  explicitly allow 'None'
             arg_type = arg_type.resolve()
-        if arg_type and arg_type.is_pyobject and not self.or_none:
+            if arg_type and not arg_type.is_pyobject:
+                error(annotation.pos, "Only Python type arguments can use typing.Optional[...]")
+            else:
+                self.or_none = True
+        elif arg_type and arg_type.is_pyobject and self.default and self.default.is_none:
+            # "x: ... = None"  =>  implicitly allow 'None', but warn about it.
+            if not self.or_none:
+                warning(self.pos, "PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.")
+                self.or_none = True
+        elif arg_type and arg_type.is_pyobject and not self.or_none:
             self.not_none = True
+
         return arg_type
 
     def calculate_default_value_code(self, code):
@@ -8278,6 +8289,8 @@ class TryFinallyStatNode(StatNode):
     def generate_function_definitions(self, env, code):
         self.body.generate_function_definitions(env, code)
         self.finally_clause.generate_function_definitions(env, code)
+        if self.finally_except_clause:
+            self.finally_except_clause.generate_function_definitions(env, code)
 
     def put_error_catcher(self, code, temps_to_clean_up, exc_vars,
                           exc_lineno_cnames=None, exc_filename_cname=None):

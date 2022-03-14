@@ -121,6 +121,11 @@ jobs:
             backend: c
             env: { STACKLESS: true, PY: 3 }
             extra_hash: "-stackless"
+          - os: ubuntu-18.04
+            python-version: 3.8
+            backend: c
+            env: { STACKLESS: true, PY: 3 }
+            extra_hash: "-stackless"
           # Pypy
           - os: ubuntu-18.04
             python-version: pypy-2.7

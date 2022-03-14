@@ -7,16 +7,14 @@ import operator
 from . import ExprNodes
 from . import Nodes
 from . import PyrexTypes
-from . import UtilNodes
 from . import Builtin
 from . import Naming
 from .Errors import error, warning
 from .Code import UtilityCode, TempitaUtilityCode
 from .Visitor import VisitorTransform
-from .StringEncoding import BytesLiteral, EncodedString
+from .StringEncoding import EncodedString
 from .TreeFragment import TreeFragment
-from .ParseTreeTransforms import (NormalizeTree, SkipDeclarations, AnalyseDeclarationsTransform,
-                                  MarkClosureVisitor)
+from .ParseTreeTransforms import NormalizeTree, SkipDeclarations
 from .Options import copy_inherited_directives
 
 _dataclass_loader_utilitycode = None

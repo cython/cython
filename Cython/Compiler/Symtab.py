@@ -25,13 +25,14 @@ from . import Future
 
 from . import Code
 
-iso_c99_keywords = set(
-['auto', 'break', 'case', 'char', 'const', 'continue', 'default', 'do',
+iso_c99_keywords = {
+    'auto', 'break', 'case', 'char', 'const', 'continue', 'default', 'do',
     'double', 'else', 'enum', 'extern', 'float', 'for', 'goto', 'if',
     'int', 'long', 'register', 'return', 'short', 'signed', 'sizeof',
     'static', 'struct', 'switch', 'typedef', 'union', 'unsigned', 'void',
     'volatile', 'while',
-    '_Bool', '_Complex'', _Imaginary', 'inline', 'restrict'])
+    '_Bool', '_Complex'', _Imaginary', 'inline', 'restrict',
+}
 
 
 def c_safe_identifier(cname):
@@ -2461,7 +2462,8 @@ class CClassScope(ClassScope):
             cname = punycodify_name(c_safe_identifier(name), Naming.unicode_vtabentry_prefix)
         if entry:
             if not entry.is_cfunction:
-                warning(pos, "'%s' redeclared  " % name, 0)
+                error(pos, "'%s' redeclared " % name)
+                entry.already_declared_here()
             else:
                 if defining and entry.func_cname:
                     error(pos, "'%s' already defined" % name)
