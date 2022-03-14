@@ -1701,7 +1701,23 @@ if VALUE is not None:
                     e.type.create_to_py_utility_code(env)
                     e.type.create_from_py_utility_code(env)
             all_members_names = sorted([e.name for e in all_members])
-            checksum = '0x%s' % hashlib.md5(' '.join(all_members_names).encode('utf-8')).hexdigest()[:7]
+
+            # Cython 0.x used MD5 for the checksum, which a few Python installations remove for security reasons.
+            # SHA-256 should be ok for years to come, but early Cython 3.0 alpha releases used SHA-1,
+            # which may not be.
+            checksum_algos = []
+            try:
+                checksum_algos.append(hashlib.md5)
+            except AttributeError:
+                pass
+            checksum_algos.append(hashlib.sha256)
+            checksum_algos.append(hashlib.sha1)
+
+            member_names_string = ' '.join(all_members_names).encode('utf-8')
+            checksums = [
+                '0x' + mkchecksum(member_names_string).hexdigest()[:7]
+                for mkchecksum in checksum_algos
+            ]
             unpickle_func_name = '__pyx_unpickle_%s' % node.class_name
 
             # TODO(robertwb): Move the state into the third argument
@@ -1710,9 +1726,9 @@ if VALUE is not None:
                 def %(unpickle_func_name)s(__pyx_type, long __pyx_checksum, __pyx_state):
                     cdef object __pyx_PickleError
                     cdef object __pyx_result
-                    if __pyx_checksum != %(checksum)s:
+                    if __pyx_checksum not in %(checksums)s:
                         from pickle import PickleError as __pyx_PickleError
-                        raise __pyx_PickleError("Incompatible checksums (%%s vs %(checksum)s = (%(members)s))" %% __pyx_checksum)
+                        raise __pyx_PickleError("Incompatible checksums (%%s vs %(checksums)s = (%(members)s))" %% __pyx_checksum)
                     __pyx_result = %(class_name)s.__new__(__pyx_type)
                     if __pyx_state is not None:
                         %(unpickle_func_name)s__set_state(<%(class_name)s> __pyx_result, __pyx_state)
@@ -1724,7 +1740,7 @@ if VALUE is not None:
                         __pyx_result.__dict__.update(__pyx_state[%(num_members)d])
                 """ % {
                     'unpickle_func_name': unpickle_func_name,
-                    'checksum': checksum,
+                    'checksums': "(%s)" % ', '.join(checksums),
                     'members': ', '.join(all_members_names),
                     'class_name': node.class_name,
                     'assignments': '; '.join(
@@ -1757,7 +1773,7 @@ if VALUE is not None:
                     %(unpickle_func_name)s__set_state(self, __pyx_state)
                 """ % {
                     'unpickle_func_name': unpickle_func_name,
-                    'checksum': checksum,
+                    'checksum': checksums[0],
                     'members': ', '.join('self.%s' % v for v in all_members_names) + (',' if len(all_members_names) == 1 else ''),
                     # Even better, we could check PyType_IS_GC.
                     'any_notnone_members' : ' or '.join(['self.%s is not None' % e.name for e in all_members if e.type.is_pyobject] or ['False']),
