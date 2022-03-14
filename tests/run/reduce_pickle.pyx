@@ -116,14 +116,6 @@ cdef class DefaultReduceSubclass(DefaultReduce):
     def __repr__(self):
         return "DefaultReduceSubclass(i=%s, s=%r, x=%s)" % (self.i, self.s, self.x)
 
-    def __eq__(self, other):
-        return (
-            isinstance(other, DefaultReduceSubclass) and
-            (<DefaultReduceSubclass>other).i == self.i and
-            (<DefaultReduceSubclass>other).s == self.s and
-            (<DefaultReduceSubclass>other).x == self.x
-        )
-
 
 cdef class result(DefaultReduceSubclass):
     """
@@ -208,6 +200,16 @@ cdef class NoPyMembers(object):
 
     def __repr__(self):
         return "%s(ii=%s, x=%s)" % (type(self).__name__, self.ii, self.x)
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, NoPyMembers) and
+            (<NoPyMembers> other).ii[0] == self.ii[0] and
+            (<NoPyMembers> other).ii[1] == self.ii[1] and
+            (<NoPyMembers> other).ii[2] == self.ii[2] and
+            (<NoPyMembers> other).x == self.x
+        )
+
 
 class NoPyMembersPySubclass(NoPyMembers):
     """
@@ -316,10 +318,9 @@ if sys.version_info[:2] >= (3, 5):
 
 # Pickled with Cython 0.29.28 (using MD5 for the checksum).
 OLD_MD5_PICKLE = b'''\
-\x80\x04\x95t\x00\x00\x00\x00\x00\x00\x00\x8c\rreduce_pickle\
-\x94\x8c$__pyx_unpickle_DefaultReduceSubclass\x94\x93\x94h\x00\x8c\x15\
-DefaultReduceSubclass\x94\x93\x94J\x8eYi\x08N\x87\x94R\x94K\x0b\x8c\x03\
-abc\x94G?\xf8\x00\x00\x00\x00\x00\x00\x87\x94b.\
+creduce_pickle\n__pyx_unpickle_NoPyMembers\nq\x00\
+(creduce_pickle\nNoPyMembers\nq\x01J\xf2K_\n(]q\x02\
+(K\x0bKyM3\x05eG?\xf8\x00\x00\x00\x00\x00\x00tq\x03tq\x04Rq\x05.\
 '''
 
 try:
@@ -331,6 +332,6 @@ else:
         """
         >>> import pickle
         >>> b = pickle.loads(OLD_MD5_PICKLE)
-        >>> b == DefaultReduceSubclass(i=11, s='abc', x=1.5) or b
+        >>> b == NoPyMembers(i=11, x=1.5) or b
         True
         """
