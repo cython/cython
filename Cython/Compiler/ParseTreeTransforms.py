@@ -2061,7 +2061,7 @@ if VALUE is not None:
                     cdef object __pyx_result
                     if __pyx_checksum not in %(checksums)s:
                         from pickle import PickleError as __pyx_PickleError
-                        raise __pyx_PickleError, "Incompatible checksums (%%s vs %(checksums)s = (%(members)s))" %% __pyx_checksum
+                        raise __pyx_PickleError, "Incompatible checksums (0x%%x vs %(checksums)s = (%(members)s))" %% __pyx_checksum
                     __pyx_result = %(class_name)s.__new__(__pyx_type)
                     if __pyx_state is not None:
                         %(unpickle_func_name)s__set_state(<%(class_name)s> __pyx_result, __pyx_state)
