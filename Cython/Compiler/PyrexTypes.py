@@ -78,7 +78,7 @@ class BaseType(object):
         """
         return self
 
-    def get_fused_types(self, result=None, seen=None, subtypes=None):
+    def get_fused_types(self, result=None, seen=None, subtypes=None, include_function_return_type=False):
         subtypes = subtypes or self.subtypes
         if not subtypes:
             return None
@@ -91,10 +91,10 @@ class BaseType(object):
             list_or_subtype = getattr(self, attr)
             if list_or_subtype:
                 if isinstance(list_or_subtype, BaseType):
-                    list_or_subtype.get_fused_types(result, seen)
+                    list_or_subtype.get_fused_types(result, seen, include_function_return_type=include_function_return_type)
                 else:
                     for subtype in list_or_subtype:
-                        subtype.get_fused_types(result, seen)
+                        subtype.get_fused_types(result, seen, include_function_return_type=include_function_return_type)
 
         return result
 
@@ -1845,7 +1845,7 @@ class FusedType(CType):
         else:
             raise CannotSpecialize()
 
-    def get_fused_types(self, result=None, seen=None):
+    def get_fused_types(self, result=None, seen=None, include_function_return_type=False):
         if result is None:
             return [self]
 
@@ -2757,6 +2757,11 @@ class CPtrType(CPointerBaseType):
             return self.base_type.find_cpp_operation_type(operator, operand_type)
         return None
 
+    def get_fused_types(self, result=None, seen=None, include_function_return_type=False):
+        # For function pointers, include the return type - unlike for fused functions themselves,
+        # where the return type cannot be an independent fused type (i.e. is derived or non-fused).
+        return super(CPointerBaseType, self).get_fused_types(result, seen, include_function_return_type=True)
+
 
 class CNullPtrType(CPtrType):
 
@@ -3232,10 +3237,13 @@ class CFuncType(CType):
 
         return result
 
-    def get_fused_types(self, result=None, seen=None, subtypes=None):
+    def get_fused_types(self, result=None, seen=None, subtypes=None, include_function_return_type=False):
         """Return fused types in the order they appear as parameter types"""
-        return super(CFuncType, self).get_fused_types(result, seen,
-                                                      subtypes=['args'])
+        return super(CFuncType, self).get_fused_types(
+            result, seen,
+            # for function pointer types, we consider the result type; for plain function
+            # types we don't (because it must be derivable from the arguments)
+            subtypes=self.subtypes if include_function_return_type else ['args'])
 
     def specialize_entry(self, entry, cname):
         assert not self.is_fused
@@ -3865,7 +3873,7 @@ class CppClassType(CType):
     def is_template_type(self):
         return self.templates is not None and self.template_type is None
 
-    def get_fused_types(self, result=None, seen=None):
+    def get_fused_types(self, result=None, seen=None, include_function_return_type=False):
         if result is None:
             result = []
             seen = set()
