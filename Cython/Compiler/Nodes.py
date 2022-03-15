@@ -966,9 +966,6 @@ class CArgDeclNode(Node):
         if base_type is not None:
             self.base_type = base_type
 
-        if arg_type is py_object_type:
-            # exclude ": object" from the None check - None is an generic object
-            self.or_none = True
         if arg_type and arg_type.python_type_constructor_name == "typing.Optional":
             # "x: Optional[...]"  =>  explicitly allow 'None'
             arg_type = arg_type.resolve()
@@ -976,6 +973,9 @@ class CArgDeclNode(Node):
                 error(annotation.pos, "Only Python type arguments can use typing.Optional[...]")
             else:
                 self.or_none = True
+        elif arg_type is py_object_type:
+            # exclude ": object" from the None check - None is a generic object.
+            self.or_none = True
         elif arg_type and arg_type.is_pyobject and self.default and self.default.is_none:
             # "x: ... = None"  =>  implicitly allow 'None', but warn about it.
             if not self.or_none:
