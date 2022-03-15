@@ -3932,7 +3932,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             defcode.putln("}")
             defcode.putln("break;")
 
-        defcode.putln("default:");
+        defcode.putln("default:")
         # formatting of bytes key probably isn't perfect here
         defcode.putln('PyErr_Format(PyExc_ValueError, '
                       '"Could not match key \'%S\' when unpickling CyFunction", '
