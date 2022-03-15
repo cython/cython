@@ -2758,9 +2758,8 @@ class CPtrType(CPointerBaseType):
         return None
 
     def get_fused_types(self, result=None, seen=None, include_function_return_type=False):
-        # The include_function_return_type argument means that the return type in function pointers
-        # gets included (unlike for fused functions themselves, where the return type cannot
-        # be an independent fused type)
+        # For function pointers, include the return type - unlike for fused functions themselves,
+        # where the return type cannot be an independent fused type (i.e. is derived or non-fused).
         return super(CPointerBaseType, self).get_fused_types(result, seen, include_function_return_type=True)
 
 
