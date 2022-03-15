@@ -195,16 +195,6 @@ class IterationTransform(Visitor.EnvTransform):
             annotation = iterable.entry.annotation.expr
             if annotation.is_subscript:
                 annotation = annotation.base  # container base type
-            # FIXME: generalise annotation evaluation => maybe provide a "qualified name" also for imported names?
-            if annotation.is_name:
-                if annotation.entry and annotation.entry.qualified_name == 'typing.Dict':
-                    annotation_type = Builtin.dict_type
-                elif annotation.name == 'Dict':
-                    annotation_type = Builtin.dict_type
-                if annotation.entry and annotation.entry.qualified_name in ('typing.Set', 'typing.FrozenSet'):
-                    annotation_type = Builtin.set_type
-                elif annotation.name in ('Set', 'FrozenSet'):
-                    annotation_type = Builtin.set_type
 
         if Builtin.dict_type in (iterable.type, annotation_type):
             # like iterating over dict.keys()
@@ -291,7 +281,7 @@ class IterationTransform(Visitor.EnvTransform):
                 return self._transform_reversed_iteration(node, iterable)
 
         # range() iteration?
-        if Options.convert_range and arg_count >= 1 and (
+        if Options.convert_range and 1 <= arg_count <= 3 and (
                 iterable.self is None and
                 function.is_name and function.name in ('range', 'xrange') and
                 function.entry and function.entry.is_builtin):
@@ -1438,6 +1428,10 @@ class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
         args = node.operand2.args
         if len(args) == 0:
             # note: lhs may have side effects
+            return node
+
+        if any([arg.is_starred for arg in args]):
+            # Starred arguments do not directly translate to comparisons or "in" tests.
             return node
 
         lhs = UtilNodes.ResultRefNode(node.operand1)

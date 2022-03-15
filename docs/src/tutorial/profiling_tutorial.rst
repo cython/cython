@@ -6,6 +6,9 @@
 Profiling
 *********
 
+.. include::
+    ../two-syntax-variants-used
+
 This part describes the profiling abilities of Cython. If you are familiar
 with profiling pure Python code, you can only read the first section
 (:ref:`profiling_basics`). If you are not familiar with Python profiling you
@@ -46,7 +49,15 @@ you plan to inline them anyway or because you are sure that you can't make them
 any faster - you can use a special decorator to disable profiling for one
 function only (regardless of whether it is globally enabled or not):
 
-.. literalinclude:: ../../examples/tutorial/profiling_tutorial/often_called.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/profiling_tutorial/often_called.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/profiling_tutorial/often_called.pyx
 
 Enabling line tracing
 ---------------------
@@ -123,6 +134,7 @@ relation we want to use has been proven by Euler in 1735 and is known as the
 A simple Python code for evaluating the truncated sum looks like this:
 
 .. literalinclude:: ../../examples/tutorial/profiling_tutorial/calc_pi.py
+    :caption: calc_pi.py
 
 On my box, this needs approximately 4 seconds to run the function with the
 default n. The higher we choose n, the better will be the approximation for
@@ -134,6 +146,7 @@ code takes too much time are wrong. At least, mine are always wrong. So let's
 write a short script to profile our code:
 
 .. literalinclude:: ../../examples/tutorial/profiling_tutorial/profile.py
+    :caption: profile.py
 
 Running this on my box gives the following output:
 
@@ -146,8 +159,8 @@ Running this on my box gives the following output:
       Ordered by: internal time
 
       ncalls  tottime  percall  cumtime  percall filename:lineno(function)
-           1    3.243    3.243    6.211    6.211 calc_pi.py:7(approx_pi)
-    10000000    2.526    0.000    2.526    0.000 calc_pi.py:4(recip_square)
+           1    3.243    3.243    6.211    6.211 calc_pi.py:4(approx_pi)
+    10000000    2.526    0.000    2.526    0.000 calc_pi.py:1(recip_square)
            1    0.442    0.442    0.442    0.442 {range}
            1    0.000    0.000    6.211    6.211 <string>:1(<module>)
            1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
@@ -160,8 +173,8 @@ for the nitty gritty details. The most important columns here are totime (total
 time spent in this function **not** counting functions that were called by this
 function) and cumtime (total time spent in this function **also** counting the
 functions called by this function). Looking at the tottime column, we see that
-approximately half the time is spent in approx_pi and the other half is spent
-in recip_square. Also half a second is spent in range ... of course we should
+approximately half the time is spent in ``approx_pi()`` and the other half is spent
+in ``recip_square()``. Also half a second is spent in range ... of course we should
 have used xrange for such a big iteration. And in fact, just changing range to
 xrange makes the code run in 5.8 seconds.
 
@@ -169,7 +182,17 @@ We could optimize a lot in the pure Python version, but since we are interested
 in Cython, let's move forward and bring this module to Cython. We would do this
 anyway at some time to get the loop run faster. Here is our first Cython version:
 
-.. literalinclude:: ../../examples/tutorial/profiling_tutorial/calc_pi_2.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/profiling_tutorial/calc_pi_2.py
+            :caption: calc_pi.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/profiling_tutorial/calc_pi_2.pyx
+            :caption: calc_pi.pyx
 
 Note the first line: We have to tell Cython that profiling should be enabled.
 This makes the Cython code slightly slower, but without this we would not get
@@ -180,99 +203,183 @@ We also need to modify our profiling script to import the Cython module directly
 Here is the complete version adding the import of the :ref:`Pyximport<pyximport>` module:
 
 .. literalinclude:: ../../examples/tutorial/profiling_tutorial/profile_2.py
+    :caption: profile.py
 
 We only added two lines, the rest stays completely the same. Alternatively, we could also
 manually compile our code into an extension; we wouldn't need to change the
 profile script then at all. The script now outputs the following:
 
-.. code-block:: none
+.. tabs::
 
-   Sat Nov  7 18:02:33 2009    Profile.prof
+    .. group-tab:: Pure Python
 
-            10000004 function calls in 4.406 CPU seconds
+        .. code-block:: none
 
-      Ordered by: internal time
+           Sat Nov  7 18:02:33 2009    Profile.prof
 
-      ncalls  tottime  percall  cumtime  percall filename:lineno(function)
-           1    3.305    3.305    4.406    4.406 calc_pi.pyx:7(approx_pi)
-    10000000    1.101    0.000    1.101    0.000 calc_pi.pyx:4(recip_square)
-           1    0.000    0.000    4.406    4.406 {calc_pi.approx_pi}
-           1    0.000    0.000    4.406    4.406 <string>:1(<module>)
-           1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
+                    10000004 function calls in 4.406 CPU seconds
+
+              Ordered by: internal time
+
+              ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+                   1    3.305    3.305    4.406    4.406 calc_pi.py:6(approx_pi)
+            10000000    1.101    0.000    1.101    0.000 calc_pi.py:3(recip_square)
+                   1    0.000    0.000    4.406    4.406 {calc_pi.approx_pi}
+                   1    0.000    0.000    4.406    4.406 <string>:1(<module>)
+                   1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
+
+    .. group-tab:: Cython
+
+        .. code-block:: none
+
+           Sat Nov  7 18:02:33 2009    Profile.prof
+
+                    10000004 function calls in 4.406 CPU seconds
+
+              Ordered by: internal time
+
+              ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+                   1    3.305    3.305    4.406    4.406 calc_pi.pyx:6(approx_pi)
+            10000000    1.101    0.000    1.101    0.000 calc_pi.pyx:3(recip_square)
+                   1    0.000    0.000    4.406    4.406 {calc_pi.approx_pi}
+                   1    0.000    0.000    4.406    4.406 <string>:1(<module>)
+                   1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
 
 We gained 1.8 seconds.  Not too shabby.  Comparing the output to the previous, we
 see that the ``recip_square()`` function got faster while the ``approx_pi()``
-function has not changed a lot.  Let's concentrate on the recip_square function
+function has not changed a lot.  Let's concentrate on the ``recip_square()`` function
 a bit more.  First, note that this function is not to be called from code outside
 of our module; so it would be wise to turn it into a cdef to reduce call overhead.
-We should also get rid of the power operator: it is turned into a pow(i,2) function
-call by Cython, but we could instead just write i*i which could be faster.  The
+We should also get rid of the power operator: it is turned into a ``pow(i, 2)`` function
+call by Cython, but we could instead just write ``i * i`` which could be faster.  The
 whole function is also a good candidate for inlining.  Let's look at the
 necessary changes for these ideas:
 
-.. literalinclude:: ../../examples/tutorial/profiling_tutorial/calc_pi_3.pyx
+.. tabs::
 
-Note that the ``except`` declaration is needed in the signature of ``recip_square()``
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/profiling_tutorial/calc_pi_3.py
+            :caption: calc_pi.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/profiling_tutorial/calc_pi_3.pyx
+            :caption: calc_pi.pyx
+
+Note that the ``except``/``@exceptval`` declaration is needed in the signature of ``recip_square()``
 in order to propagate division by zero errors.
 
 Now running the profile script yields:
 
-.. code-block:: none
+.. tabs::
 
-   Sat Nov  7 18:10:11 2009    Profile.prof
+    .. group-tab:: Pure Python
 
-            10000004 function calls in 2.622 CPU seconds
+        .. code-block:: none
 
-      Ordered by: internal time
+           Sat Nov  7 18:10:11 2009    Profile.prof
 
-      ncalls  tottime  percall  cumtime  percall filename:lineno(function)
-           1    1.782    1.782    2.622    2.622 calc_pi.pyx:7(approx_pi)
-    10000000    0.840    0.000    0.840    0.000 calc_pi.pyx:4(recip_square)
-           1    0.000    0.000    2.622    2.622 {calc_pi.approx_pi}
-           1    0.000    0.000    2.622    2.622 <string>:1(<module>)
-           1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
+                    10000004 function calls in 2.622 CPU seconds
+
+              Ordered by: internal time
+
+              ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+                   1    1.782    1.782    2.622    2.622 calc_pi.py:9(approx_pi)
+            10000000    0.840    0.000    0.840    0.000 calc_pi.py:6(recip_square)
+                   1    0.000    0.000    2.622    2.622 {calc_pi.approx_pi}
+                   1    0.000    0.000    2.622    2.622 <string>:1(<module>)
+                   1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
+
+    .. group-tab:: Cython
+
+        .. code-block:: none
+
+           Sat Nov  7 18:10:11 2009    Profile.prof
+
+                    10000004 function calls in 2.622 CPU seconds
+
+              Ordered by: internal time
+
+              ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+                   1    1.782    1.782    2.622    2.622 calc_pi.pyx:9(approx_pi)
+            10000000    0.840    0.000    0.840    0.000 calc_pi.pyx:6(recip_square)
+                   1    0.000    0.000    2.622    2.622 {calc_pi.approx_pi}
+                   1    0.000    0.000    2.622    2.622 <string>:1(<module>)
+                   1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
 
 That bought us another 1.8 seconds. Not the dramatic change we could have
-expected. And why is recip_square still in this table; it is supposed to be
+expected. And why is ``recip_square()`` still in this table; it is supposed to be
 inlined, isn't it?  The reason for this is that Cython still generates profiling code
 even if the function call is eliminated. Let's tell it to not
-profile recip_square any more; we couldn't get the function to be much faster anyway:
+profile ``recip_square()`` any more; we couldn't get the function to be much faster anyway:
 
-.. literalinclude:: ../../examples/tutorial/profiling_tutorial/calc_pi_4.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/profiling_tutorial/calc_pi_4.py
+            :caption: calc_pi.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/profiling_tutorial/calc_pi_4.pyx
+            :caption: calc_pi.pyx
+
 
 Running this shows an interesting result:
 
-.. code-block:: none
+.. tabs::
 
-   Sat Nov  7 18:15:02 2009    Profile.prof
+    .. group-tab:: Pure Python
 
-            4 function calls in 0.089 CPU seconds
+        .. code-block:: none
 
-      Ordered by: internal time
+           Sat Nov  7 18:15:02 2009    Profile.prof
 
-      ncalls  tottime  percall  cumtime  percall filename:lineno(function)
-           1    0.089    0.089    0.089    0.089 calc_pi.pyx:10(approx_pi)
-           1    0.000    0.000    0.089    0.089 {calc_pi.approx_pi}
-           1    0.000    0.000    0.089    0.089 <string>:1(<module>)
-           1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
+                    4 function calls in 0.089 CPU seconds
+
+              Ordered by: internal time
+
+              ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+                   1    0.089    0.089    0.089    0.089 calc_pi.py:12(approx_pi)
+                   1    0.000    0.000    0.089    0.089 {calc_pi.approx_pi}
+                   1    0.000    0.000    0.089    0.089 <string>:1(<module>)
+                   1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
+
+    .. group-tab:: Cython
+
+        .. code-block:: none
+
+           Sat Nov  7 18:15:02 2009    Profile.prof
+
+                    4 function calls in 0.089 CPU seconds
+
+              Ordered by: internal time
+
+              ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+                   1    0.089    0.089    0.089    0.089 calc_pi.pyx:12(approx_pi)
+                   1    0.000    0.000    0.089    0.089 {calc_pi.approx_pi}
+                   1    0.000    0.000    0.089    0.089 <string>:1(<module>)
+                   1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
 
 First note the tremendous speed gain: this version only takes 1/50 of the time
-of our first Cython version.  Also note that recip_square has vanished from the
+of our first Cython version.  Also note that ``recip_square()`` has vanished from the
 table like we wanted.  But the most peculiar and important change is that
-approx_pi also got much faster.  This is a problem with all profiling: calling a
+``approx_pi()`` also got much faster.  This is a problem with all profiling: calling a
 function in a profile run adds a certain overhead to the function call.  This
 overhead is **not** added to the time spent in the called function, but to the
-time spent in the **calling** function.  In this example, approx_pi didn't need 2.622
-seconds in the last run; but it called recip_square 10000000 times, each time taking a
+time spent in the **calling** function.  In this example, ``approx_pi()`` didn't need 2.622
+seconds in the last run; but it called ``recip_square()`` 10000000 times, each time taking a
 little to set up profiling for it.  This adds up to the massive time loss of
 around 2.6 seconds.  Having disabled profiling for the often called function now
-reveals realistic timings for approx_pi; we could continue optimizing it now if
+reveals realistic timings for ``approx_pi()``; we could continue optimizing it now if
 needed.
 
 This concludes this profiling tutorial. There is still some room for
 improvement in this code. We could try to replace the power operator in
-approx_pi with a call to sqrt from the C stdlib; but this is not necessarily
-faster than calling pow(x,0.5).
+``approx_pi()`` with a call to sqrt from the C stdlib; but this is not necessarily
+faster than calling ``pow(x, 0.5)``.
 
 Even so, the result we achieved here is quite satisfactory: we came up with a
 solution that is much faster then our original Python version while retaining

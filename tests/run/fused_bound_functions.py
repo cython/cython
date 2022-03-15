@@ -36,6 +36,10 @@ def regular_func(x):
 def regular_func_0():
     return
 
+@classmethod
+def fused_classmethod_free(cls, x: IntOrFloat):
+    return (cls.__name__, type(x).__name__)
+
 @cython.cclass
 class Cdef:
     __doc__ = """
@@ -62,6 +66,20 @@ class Cdef:
     >>> c.regular_func_0()  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: regular_func_0() takes ... arguments ...1... given...
+
+    # Looking up a class attribute doesn't go through all of __get__
+    >>> Cdef.fused_in_class is Cdef.fused_in_class
+    True
+
+    # looking up a classmethod does go through __get__ though
+    >>> Cdef.fused_classmethod is Cdef.fused_classmethod
+    False
+    >>> Cdef.fused_classmethod_free is Cdef.fused_classmethod_free
+    False
+    >>> Cdef.fused_classmethod(1)
+    ('Cdef', 'int')
+    >>> Cdef.fused_classmethod_free(1)
+    ('Cdef', 'int')
     """.format(typeofCdef = 'Python object' if cython.compiled else 'Cdef')
 
     if cython.compiled:
@@ -78,17 +96,28 @@ class Cdef:
     >>> c.fused_func_0['float']()  # doctest: +IGNORE_EXCEPTION_DETAIL
     Traceback (most recent call last):
     TypeError: (Exception looks quite different in Python2 and 3 so no way to match both)
+
+    >>> Cdef.fused_classmethod['float'] is Cdef.fused_classmethod['float']
+    False
+    >>> Cdef.fused_classmethod_free['float'] is Cdef.fused_classmethod_free['float']
+    False
     """
     fused_func = fused_func
     fused_func_0 = fused_func_0
     regular_func = regular_func
     regular_func_0 = regular_func_0
 
+    fused_classmethod_free = fused_classmethod_free
+
     def fused_in_class(self, x: MyFusedClass):
         return (type(x).__name__, cython.typeof(x))
 
     def regular_in_class(self):
         return type(self).__name__
+
+    @classmethod
+    def fused_classmethod(cls, x: IntOrFloat):
+        return (cls.__name__, type(x).__name__)
 
 class Regular(object):
     __doc__ = """
@@ -111,6 +140,20 @@ class Regular(object):
     >>> c.regular_func_0()  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: regular_func_0() takes ... arguments ...1... given...
+
+    # Looking up a class attribute doesn't go through all of __get__
+    >>> Regular.fused_func is Regular.fused_func
+    True
+
+    # looking up a classmethod does go __get__ though
+    >>> Regular.fused_classmethod is Regular.fused_classmethod
+    False
+    >>> Regular.fused_classmethod_free is Regular.fused_classmethod_free
+    False
+    >>> Regular.fused_classmethod(1)
+    ('Regular', 'int')
+    >>> Regular.fused_classmethod_free(1)
+    ('Regular', 'int')
     """.format(typeofRegular = "Python object" if cython.compiled else 'Regular')
     if cython.compiled:
         __doc__ += """
@@ -125,12 +168,23 @@ class Regular(object):
     TypeError: (Exception looks quite different in Python2 and 3 so no way to match both)
     >>> Regular.fused_func_0['float']()
     ('float', 'float')
+
+    >>> Regular.fused_classmethod['float'] is Regular.fused_classmethod['float']
+    False
+    >>> Regular.fused_classmethod_free['float'] is Regular.fused_classmethod_free['float']
+    False
     """
 
     fused_func = fused_func
     fused_func_0 = fused_func_0
     regular_func = regular_func
     regular_func_0 = regular_func_0
+
+    fused_classmethod_free = fused_classmethod_free
+
+    @classmethod
+    def fused_classmethod(cls, x: IntOrFloat):
+        return (cls.__name__, type(x).__name__)
 
 import sys
 if sys.version_info[0] > 2:

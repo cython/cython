@@ -19,7 +19,7 @@ from .Code import UtilityCode, LazyUtilityCode, TempitaUtilityCode
 from . import StringEncoding
 from . import Naming
 
-from .Errors import error, warning, CannotSpecialize
+from .Errors import error, CannotSpecialize
 
 
 class BaseType(object):
@@ -194,6 +194,7 @@ class PyrexType(BaseType):
     #  is_string             boolean     Is a C char * type
     #  is_pyunicode_ptr      boolean     Is a C PyUNICODE * type
     #  is_cpp_string         boolean     Is a C++ std::string type
+    #  python_type_constructor_name     string or None     non-None if it is a Python type constructor that can be indexed/"templated"
     #  is_unicode_char       boolean     Is either Py_UCS4 or Py_UNICODE
     #  is_returncode         boolean     Is used only to signal exceptions
     #  is_error              boolean     Is the dummy error type
@@ -257,6 +258,7 @@ class PyrexType(BaseType):
     is_struct_or_union = 0
     is_cpp_class = 0
     is_optional_cpp_class = 0
+    python_type_constructor_name = None
     is_cpp_string = 0
     is_struct = 0
     is_enum = 0
@@ -1507,12 +1509,14 @@ class PyExtensionType(PyObjectType):
     #  early_init       boolean          Whether to initialize early (as opposed to during module execution).
     #  defered_declarations [thunk]      Used to declare class hierarchies in order
     #  check_size       'warn', 'error', 'ignore'    What to do if tp_basicsize does not match
+    #  dataclass_fields  OrderedDict nor None   Used for inheriting from dataclasses
 
     is_extension_type = 1
     has_attributes = 1
     early_init = 1
 
     objtypedef_cname = None
+    dataclass_fields = None
 
     def __init__(self, name, typedef_flag, base_type, is_external=0, check_size=None):
         self.name = name
@@ -3872,7 +3876,7 @@ class CppClassType(CType):
                 T.get_fused_types(result, seen)
         return result
 
-    def specialize_here(self, pos, template_values=None):
+    def specialize_here(self, pos, env, template_values=None):
         if not self.is_template_type():
             error(pos, "'%s' type is not a template" % self)
             return error_type
@@ -3897,10 +3901,12 @@ class CppClassType(CType):
             return error_type
         has_object_template_param = False
         for value in template_values:
-            if value.is_pyobject:
+            if value.is_pyobject or value.needs_refcounting:
                 has_object_template_param = True
+                type_description = "Python object" if value.is_pyobject else "Reference-counted"
                 error(pos,
-                      "Python object type '%s' cannot be used as a template argument" % value)
+                      "%s type '%s' cannot be used as a template argument" % (
+                          type_description, value))
         if has_object_template_param:
             return error_type
         return self.specialize(dict(zip(self.templates, template_values)))
@@ -4398,6 +4404,102 @@ class ErrorType(PyrexType):
         return "dummy"
 
 
+class PythonTypeConstructor(PyObjectType):
+    """Used to help Cython interpret indexed types from the typing module (or similar)
+    """
+
+    def __init__(self, name, base_type=None):
+        self.python_type_constructor_name = name
+        self.base_type = base_type
+
+    def specialize_here(self, pos, env, template_values=None):
+        if self.base_type:
+            # for a lot of the typing classes it doesn't really matter what the template is
+            # (i.e. typing.Dict[int] is really just a dict)
+            return self.base_type
+        return self
+
+    def __repr__(self):
+        if self.base_type:
+            return "%s[%r]" % (self.name, self.base_type)
+        else:
+            return self.name
+
+    def is_template_type(self):
+        return True
+
+
+class PythonTupleTypeConstructor(PythonTypeConstructor):
+    def specialize_here(self, pos, env, template_values=None):
+        if (template_values and None not in template_values and
+                not any(v.is_pyobject for v in template_values)):
+            entry = env.declare_tuple_type(pos, template_values)
+            if entry:
+                return entry.type
+        return super(PythonTupleTypeConstructor, self).specialize_here(pos, env, template_values)
+
+
+class SpecialPythonTypeConstructor(PythonTypeConstructor):
+    """
+    For things like ClassVar, Optional, etc, which have extra features on top of being
+    a "templated" type.
+    """
+
+    def __init__(self, name, template_type=None):
+        super(SpecialPythonTypeConstructor, self).__init__(name, None)
+        if (name == "typing.ClassVar" and template_type
+                and not template_type.is_pyobject):
+            # because classvars end up essentially used as globals they have
+            # to be PyObjects. Try to find the nearest suitable type (although
+            # practically I doubt this matters).
+            py_type_name = template_type.py_type_name()
+            if py_type_name:
+                from .Builtin import builtin_scope
+                template_type = (builtin_scope.lookup_type(py_type_name)
+                                        or py_object_type)
+            else:
+                template_type = py_object_types
+        self.template_type = template_type
+
+    def __repr__(self):
+        if self.template_type:
+            return "%s[%r]" % (self.name, self.template_type)
+        else:
+            return self.name
+
+    def is_template_type(self):
+        return self.template_type is None
+
+    def resolve(self):
+        if self.template_type:
+            return self.template_type.resolve()
+        else:
+            return self
+
+    def specialize_here(self, pos, env, template_values=None):
+        if len(template_values) != 1:
+            error(pos, "'%s' takes exactly one template argument." % self.name)
+        # return a copy of the template type with python_type_constructor_name as an attribute
+        # so it can be identified, and a resolve function that gets back to
+        # the original type (since types are usually tested with "is")
+        new_type = template_values[0]
+        if self.python_type_constructor_name == "typing.ClassVar":
+            # classvar must remain a py_object_type
+            new_type = py_object_type
+        if (self.python_type_constructor_name == "typing.Optional" and
+                not new_type.is_pyobject):
+            # optional must be a py_object, but can be a specialized py_object
+            new_type = py_object_type
+        return SpecialPythonTypeConstructor(
+            self.python_type_constructor_name,
+            template_type = template_values[0])
+
+    def __getattr__(self, name):
+        if self.template_type:
+            return getattr(self.template_type, name)
+        return super(SpecialPythonTypeConstructor, self).__getattr__(name)
+
+
 rank_to_type_name = (
     "char",          # 0
     "short",         # 1
@@ -4409,10 +4511,9 @@ rank_to_type_name = (
     "long double",   # 7
 )
 
-_rank_to_type_name = list(rank_to_type_name)
-RANK_INT  = _rank_to_type_name.index('int')
-RANK_LONG = _rank_to_type_name.index('long')
-RANK_FLOAT = _rank_to_type_name.index('float')
+RANK_INT  = rank_to_type_name.index('int')
+RANK_LONG = rank_to_type_name.index('long')
+RANK_FLOAT = rank_to_type_name.index('float')
 UNSIGNED = 0
 SIGNED = 2
 
@@ -4828,14 +4929,19 @@ def independent_spanning_type(type1, type2):
             type1 = type1.ref_base_type
         else:
             type2 = type2.ref_base_type
-    if type1 == type2:
+
+    resolved_type1 = type1.resolve()
+    resolved_type2 = type2.resolve()
+    if resolved_type1 == resolved_type2:
         return type1
-    elif (type1 is c_bint_type or type2 is c_bint_type) and (type1.is_numeric and type2.is_numeric):
+    elif ((resolved_type1 is c_bint_type or resolved_type2 is c_bint_type)
+            and (type1.is_numeric and type2.is_numeric)):
         # special case: if one of the results is a bint and the other
         # is another C integer, we must prevent returning a numeric
         # type so that we do not lose the ability to coerce to a
         # Python bool if we have to.
         return py_object_type
+
     span_type = _spanning_type(type1, type2)
     if span_type is None:
         return error_type

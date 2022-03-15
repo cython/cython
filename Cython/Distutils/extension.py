@@ -8,11 +8,6 @@ __revision__ = "$Id:$"
 import sys
 import distutils.extension as _Extension
 
-try:
-    import warnings
-except ImportError:
-    warnings = None
-
 
 class Extension(_Extension.Extension):
     # When adding arguments to this constructor, be sure to update
