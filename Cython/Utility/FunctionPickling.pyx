@@ -4,7 +4,7 @@
 cdef extern from *:
     void* PyLong_AsVoidPtr(object)
     # implementation function - implemented in C
-    object $cyfunction_unpickle_impl_cname(object, object, object, object)
+    object $cyfunction_unpickle_impl_cname(int, object, object, object, object)
 
 {{for cname in cnames}}
     void *{{cname}}  # tell Cython that all cnames are an extern void pointer
@@ -25,9 +25,23 @@ cdef str cyfunc_pickle_err = \
 Cython does not attempt to keep compatibility in these cases.
 """
 
+# Lots of string comparisons in $cyfunction_unpickle_impl_cname are probably slow because
+# it has to do a character-by-character comparison of "key" with many different string names.
+# I'm hoping that dict lookups of bytes objects are fairly optimized, and C switches
+# can be well optimized. Thus the lookup in two stages: dict lookup to index, index as
+# switch
+cdef dict lookup_table = {
+{{for cname in cnames}}
+    b"{{cname}}": {{cnames_to_index[cname]}},
+{{endfor}}
+}
+
 def $cyfunction_unpickle_name(key, reduced_closure, defaults_tuple, defaults_kwdict):
     try:
-        return $cyfunction_unpickle_impl_cname(key, reduced_closure, defaults_tuple, defaults_kwdict)
+        keyindex = lookup_table.get(key)
+        if keyindex is None:
+            raise ValueError(f"Could not match key \'{key.decode()}\' when unpickling CyFunction")
+        return $cyfunction_unpickle_impl_cname(<int>keyindex, key, reduced_closure, defaults_tuple, defaults_kwdict)
     except BaseException as e:
         try:
             from pickle import UnpicklingError

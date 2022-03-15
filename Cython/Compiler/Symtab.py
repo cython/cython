@@ -1239,6 +1239,7 @@ class ModuleScope(Scope):
     # is_package           boolean            Is this a package module? (__init__)
     # pickleable_functions [(cname, DefNode, LambdaNode or None)]
     #                                         list of functions with closures that require pickle support
+    # pickeable_cnames_to_indices   dict or None
 
     is_module_scope = 1
     has_import_star = 0
@@ -1283,6 +1284,7 @@ class ModuleScope(Scope):
             self.declare_var(EncodedString(var_name), py_object_type, None)
         self.process_include(Code.IncludeCode("Python.h", initial=True))
         self.pickleable_functions = []
+        self.pickeable_cnames_to_indices = None
 
     def qualifying_scope(self):
         return self.parent_module
@@ -1839,10 +1841,13 @@ class ModuleScope(Scope):
         if not self.pickleable_functions:
             return
         from .UtilityCode import CythonUtilityCode
-        pickleable_function_cnames, _, _ = zip(*self.pickleable_functions)
+        pickleable_function_cnames, a, b = zip(*self.pickleable_functions)
+        self.pickeable_cnames_to_indices = { i: n for n, i in enumerate(pickleable_function_cnames) }
+
         self.use_utility_code(CythonUtilityCode.load(
             "function_pickling", "FunctionPickling.pyx",
-            context = { "cnames": pickleable_function_cnames },
+            context = { "cnames": pickleable_function_cnames,
+                        "cnames_to_index": self.pickeable_cnames_to_indices },
             name = self.name,  # so that the qualname for the functions will be right
         ))
 

@@ -3820,15 +3820,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if not self.scope.pickleable_functions:
             return  # nothing to do
 
-        defcode.globalstate.use_utility_code(
-            UtilityCode.load_cached('CStringEquals', 'StringTools.c'))
-
         protocode.putln("/* generated unpickle function */")
-        protocode.putln("static PyObject* %s(PyObject *id, PyObject *reduced_closure, "
+        protocode.putln("static PyObject* %s(int id, PyObject *cname, PyObject *reduced_closure, "
                         "PyObject *defaults_tuple, PyObject *defaults_kwdict); /*proto*/" %
                         Naming.cyfunction_unpickle_impl_cname)
         defcode.putln("/* generated unpickle function */")
-        defcode.putln("static PyObject* %s(PyObject *id, PyObject *reduced_closure, "
+        defcode.putln("static PyObject* %s(int id, PyObject *cname, PyObject *reduced_closure, "
                         "PyObject *defaults_tuple, PyObject *defaults_kwdict) {" %
                         Naming.cyfunction_unpickle_impl_cname)
         defcode.enter_cfunc_scope()
@@ -3843,14 +3840,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         defcode.put_setup_refcount_context(
             EncodedString(Naming.cyfunction_unpickle_impl_cname))
 
-        defcode.putln("if (!PyBytes_Check(id)) {")
-        defcode.putln('PyErr_SetString(PyExc_TypeError, "First argument to unpickle should be a unicode string");')
-        defcode.putln('goto cleanup;')
-        defcode.putln('}')
-
-        defcode.putln("if ((0)) {")  # we occasionally generate this function unnecessarily
-            # with no valid nodes (mainly when they all have defaults or classobj - this
-            # dummy if statement just keeps the code valid
+        defcode.putln("switch (id) {")
 
         for n, (cname, node, lambda_node) in enumerate(self.scope.pickleable_functions):
             py_cfunc_node = lambda_node or node.py_cfunc_node
@@ -3862,8 +3852,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 if unpickle_func is None:
                     continue  # Most likely the contents of the closure were just not pickleable
 
-            defcode.putln('}  else if (__Pyx_StrEq(PyBytes_AS_STRING(id), "%s")) {' %
-                cname)
+            defcode.putln("case %s:" % self.scope.pickeable_cnames_to_indices[cname])
+            defcode.putln("{")
             pyobject_names = ["closure"]
             if node.needs_outer_scope:
                 pyobject_names += ["ignored0", "cl_tp_ignored", "cl_state1", "cl_state2"]
@@ -3909,15 +3899,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if node.needs_outer_scope:
                 for name in pyobject_names:
                     defcode.putln("Py_XDECREF(%s);" % name)
+            defcode.putln("}")
+            defcode.putln("break;")
 
-        defcode.putln('} else {')  # end of large stack of if-blocks
-
+        defcode.putln("default:");
+        # formatting of bytes key probably isn't perfect here
         defcode.putln('PyErr_Format(PyExc_ValueError, '
-                      '"Could not match key \'%s\' when unpickling CyFunction", '
-                      'PyBytes_AS_STRING(id));')
-        defcode.putln('}')
+                      '"Could not match key \'%S\' when unpickling CyFunction", '
+                      'cname);')
+        defcode.putln('}')  # end of switch
 
-        defcode.putln('cleanup:')
         defcode.putln('__Pyx_XGIVEREF(out);')
         defcode.put_finish_refcount_context()
         defcode.putln("return out;")
