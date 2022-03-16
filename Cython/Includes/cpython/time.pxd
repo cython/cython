@@ -30,14 +30,16 @@ cdef inline int _raise_from_errno() except -1 with gil:
     return <int> -1  # Let the C compiler know that this function always raises.
 
 
-cdef inline tm localtime() nogil except *:
+cdef inline tm localtime(time_t tic) nogil except *:
     """
     Analogue to the stdlib time.localtime.  The returned struct
     has some entries that the stdlib version does not: tm_gmtoff, tm_zone
     """
     cdef:
-        time_t tic = <time_t>time()
         tm* result
+
+    if tic is None:
+        tic = <time_t>time()
 
     result = libc_localtime(&tic)
     if result is NULL:
