@@ -2301,6 +2301,10 @@ def p_statement(s, ctx, first_statement = 0):
         #    error(s.position(), "'api' not allowed with 'ctypedef'")
         return p_ctypedef_statement(s, ctx)
     elif s.sy == 'DEF':
+        warning(s.position(),
+                "The 'DEF' statement is deprecated and will be removed in a future Cython version. "
+                "Consider using global variables, constants, and in-place literals instead. "
+                "See https://github.com/cython/cython/issues/4310", level=1)
         return p_DEF_statement(s)
     elif s.sy == 'IF':
         warning(s.position(),
