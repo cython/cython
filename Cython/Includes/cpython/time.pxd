@@ -34,12 +34,12 @@ cdef inline tm localtime(time_t tic) nogil except *:
     """
     Analogue to the stdlib time.localtime.  The returned struct
     has some entries that the stdlib version does not: tm_gmtoff, tm_zone
+
+    Unlike in the stdlib implementation, the 'tic' parameter is not optional.
+    To get the equivalent behavior, use `localtime(time())`.
     """
     cdef:
         tm* result
-
-    if tic is None:
-        tic = <time_t>time()
 
     result = libc_localtime(&tic)
     if result is NULL:
