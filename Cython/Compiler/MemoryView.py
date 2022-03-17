@@ -851,7 +851,8 @@ view_utility_code = load_memview_cy_utility(
                   memviewslice_init_code,
                   is_contig_utility,
                   overlapping_utility,
-                  copy_contents_new_utility],
+                  copy_contents_new_utility,
+                  ],
 )
 view_utility_allowlist = ('array', 'memoryview', 'array_cwrapper',
                           'generic', 'strided', 'indirect', 'contiguous',
