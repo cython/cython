@@ -76,7 +76,7 @@ cclass = internal = c_api_binop_methods = type_version_tag = no_gc_clear = no_gc
 
 # May be a bit hard to read but essentially means:
 # > Returns a callable that takes another callable with these parameters and *some*
-# > return value, then returns another callable with the same parameters but the
+# > return value, then returns another callable with the same parameters but
 # > the return type is the previous 'type' parameter.
 # On Python 3.5, the latest version of Mypy available is 0.910 which doesn't understand ParamSpec
 def returns(__type: _T) -> Callable[[Callable[_P, object]], Callable[_P, _T]]: ...  # type: ignore
