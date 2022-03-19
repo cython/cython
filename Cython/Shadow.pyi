@@ -2,11 +2,12 @@ import dataclasses as dataclasses
 from builtins import (int as py_int, float as py_float,
                       bool as py_bool, str as py_str, complex as py_complex)
 from types import TracebackType
-from typing import (Any, Iterable, Literal, ParamSpec, Sequence, Optional, Type,
-                    TypeVar, Generic, Callable, overload)
-from typing import final as final
+from typing import Any, Iterable, Sequence, Optional, Type, TypeVar, Generic, Callable, overload
 
-# Normally all imports are ignored in stub files but we can explicitly expose
+# Type checkers assume typing_extensions is always present
+from typing_extensions import Literal, ParamSpec, overload, final as final
+
+# Normally all imports aren't exported in stub files but we can explicitly expose
 # imports by using import ... as ... (with the same name) which was done for
 # dataclasses and the final decorator.
 
