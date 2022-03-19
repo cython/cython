@@ -1,34 +1,14 @@
-import dataclasses
+import dataclasses as dataclasses
 from builtins import (int as py_int, float as py_float,
                       bool as py_bool, str as py_str, complex as py_complex)
 from types import TracebackType
 from typing import (Any, Iterable, Literal, ParamSpec, Sequence, Optional, Type,
-                    TypeVar, Generic, Callable, final, overload)
+                    TypeVar, Generic, Callable, overload)
+from typing import final as final
 
-# This is necessary so that type checkers don't ignore the 'dataclasses' import
-# or the 'final' import from typing.
-__all__ = (
-    '__version__',
-    'dataclasses', 'final',  # from imports above
-    'int', 'long', 'longlong', 'short', 'char', 'sint', 'slong', 'slonglong',
-    'sshort', 'schar', 'uint', 'ulong', 'ulonglong', 'ushort', 'uchar',
-    'size_t', 'Py_ssize_t',
-    'Py_UCS4', 'Py_UNICODE',
-    'float', 'double', 'longdouble',
-    'complex', 'floatcomplex', 'doublecomplex', 'longdoublecomplex',
-    'bint', 'void', 'basestring', 'unicode',
-    'gs', 'compiled',
-    'cfunc', 'ccall', 'compile', 'locals', 'returns', 'exceptval',
-    'cclass', 'internal', 'c_api_binop_methods', 'type_version_tag', 'no_gc_clear', 'no_gc',
-    'boundscheck', 'wraparound', 'initializedcheck', 'nonecheck', 'cdivision', 'cdivision_warnings', 'profile',
-    'linetrace', 'infer_types', 'emit_code_comments',
-    'binding', 'embedsignature', 'always_allow_keywords', 'unraisable_tracebacks', 'iterable_coroutine', 'cpp_locals',
-    'overflowcheck', 'optimize', 'warn',
-    'inline', 'cdiv', 'cmod', 'cast', 'sizeof', 'typeof', 'address', 'declare',
-    'nogil', 'gil',
-    'CythonTypeObject', 'CythonType', 'PointerType', 'ArrayType',
-    'pointer', 'array', 'struct', 'union', 'typedef', 'fused_type'
-)
+# Normally all imports are ignored in stub files but we can explicitly expose
+# imports by using import ... as ... (with the same name) which was done for
+# dataclasses and the final decorator.
 
 __version__: str
 
