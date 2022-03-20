@@ -47,7 +47,7 @@ def test_localtime():
     True
     """
     ltp = time.localtime()
-    ltc = ctime.localtime(ctime.time())
+    ltc = ctime.localtime(<ctime.time_t>(ctime.time()))
 
     i = 0
     while ltp.tm_sec != ltc.tm_sec:
@@ -56,7 +56,7 @@ def test_localtime():
         #  re-call.  This should not occur twice in a row.
         time.sleep(0.1)
         ltp = time.localtime()
-        ltc = ctime.localtime(ctime.time())
+        ltc = ctime.localtime(<ctime.time_t>(ctime.time()))
         i += 1
         if i > 10:
             break
