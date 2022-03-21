@@ -730,8 +730,11 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                 # Even if it is not declared, we can use the default exception value of the return type,
                 # unless the function is some kind of external function that we do not control.
                 if return_type.exception_value is not None and (visibility != 'extern' and not in_pxd):
-                    # Extension types are more difficult because the signature must match the base type signature.
-                    if not env.is_c_class_scope:
+                    # - We skip this optimization for extension types; they are more difficult because
+                    #   the signature match the base type signature.
+                    # - Same for function pointers, as we want them to be able to match functions
+                    #   with any exception value.
+                    if not env.is_c_class_scope and not isinstance(self.base, CPtrDeclaratorNode):
                         from .ExprNodes import ConstNode
                         self.exception_value = ConstNode(
                             self.pos, value=return_type.exception_value, type=return_type)
