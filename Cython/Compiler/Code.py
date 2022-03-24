@@ -2083,7 +2083,7 @@ class CCodeWriter(object):
         self.funcstate.use_label(lbl)
         self.putln("goto %s;" % lbl)
 
-    def put_var_declaration(self, entry, storage_class="",
+    def put_var_declaration(self, entry, function_code, storage_class="",
                             dll_linkage=None, definition=True):
         #print "Code.put_var_declaration:", entry.name, "definition =", definition ###
         if entry.visibility == 'private' and not (definition or entry.defined_in_pxd):
@@ -2095,7 +2095,7 @@ class CCodeWriter(object):
         if storage_class:
             self.put("%s " % storage_class)
         if not entry.cf_used:
-            self.put('CYTHON_UNUSED ')
+            function_code.putln("CYTHON_UNUSED_VAR(%s);" % entry.cname)
         if entry.is_cpp_optional:
             self.put(entry.type.cpp_optional_declaration_code(
                 entry.cname, dll_linkage=dll_linkage))
@@ -2109,7 +2109,7 @@ class CCodeWriter(object):
         self.putln(";")
         self.funcstate.scope.use_entry_utility_code(entry)
 
-    def put_temp_declarations(self, func_context):
+    def put_temp_declarations(self, func_context, function_code):
         for name, type, manage_ref, static in func_context.temps_allocated:
             if type.is_cpp_class and not type.is_fake_reference and func_context.scope.directives['cpp_locals']:
                 decl = type.cpp_optional_declaration_code(name)
@@ -2123,14 +2123,14 @@ class CCodeWriter(object):
                 self.putln("%s%s;" % (static and "static " or "", decl))
 
         if func_context.should_declare_error_indicator:
-            if self.funcstate.uses_error_indicator:
-                unused = ''
-            else:
-                unused = 'CYTHON_UNUSED '
+            if not self.funcstate.uses_error_indicator:
+                function_code.putln("CYTHON_UNUSED_VAR(%s);" % Naming.lineno_cname)
+                function_code.putln("CYTHON_UNUSED_VAR(%s);" % Naming.filename_cname)
+                function_code.putln("CYTHON_UNUSED_VAR(%s);" % Naming.clineno_cname)
             # Initialize these variables to silence compiler warnings
-            self.putln("%sint %s = 0;" % (unused, Naming.lineno_cname))
-            self.putln("%sconst char *%s = NULL;" % (unused, Naming.filename_cname))
-            self.putln("%sint %s = 0;" % (unused, Naming.clineno_cname))
+            self.putln("int %s = 0;" % Naming.lineno_cname)
+            self.putln("const char *%s = NULL;" % Naming.filename_cname)
+            self.putln("int %s = 0;" % Naming.clineno_cname)
 
     def put_generated_by(self):
         self.putln(Utils.GENERATED_BY_MARKER)
@@ -2320,7 +2320,7 @@ class CCodeWriter(object):
             if method_noargs in method_flags:
                 # Special NOARGS methods really take no arguments besides 'self', but PyCFunction expects one.
                 func_cname = Naming.method_wrapper_prefix + func_cname
-                self.putln("static PyObject *%s(PyObject *self, CYTHON_UNUSED PyObject *arg) {return %s(self);}" % (
+                self.putln("static PyObject *%s(PyObject *self, PyObject *arg) {CYTHON_UNUSED_VAR(arg); return %s(self);}" % (
                     func_cname, entry.func_cname))
         return func_cname
 

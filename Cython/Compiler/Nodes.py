@@ -1934,11 +1934,15 @@ class FuncDefNode(StatNode, BlockNode):
                 code.putln(";")
             code.put(cenv.scope_class.type.declaration_code(Naming.outer_scope_cname))
             code.putln(";")
-        self.generate_argument_declarations(lenv, code)
+        tempvardecl_code = code.insertion_point()
+        tempvardecl_code.putln("")
+        function_code = code.insertion_point()
+        function_code.putln("")
+        self.generate_argument_declarations(lenv, tempvardecl_code, code)
 
         for entry in lenv.var_entries:
             if not (entry.in_closure or entry.is_arg):
-                code.put_var_declaration(entry)
+                tempvardecl_code.put_var_declaration(entry, code)
 
         # Initialize the return variable __pyx_r
         init = ""
@@ -1949,12 +1953,12 @@ class FuncDefNode(StatNode, BlockNode):
             elif return_type.is_memoryviewslice:
                 init = ' = ' + return_type.literal_code(return_type.default_value)
 
-            code.putln("%s%s;" % (
+            tempvardecl_code.putln("%s%s;" % (
                 return_type.declaration_code(Naming.retval_cname),
                 init))
 
-        tempvardecl_code = code.insertion_point()
         self.generate_keyword_list(code)
+        self.generate_ignore_unused_arg(code)
 
         # ----- GIL acquisition
         acquire_gil = self.acquire_gil
@@ -2333,7 +2337,7 @@ class FuncDefNode(StatNode, BlockNode):
             code.putln("#endif /*!(%s)*/" % preprocessor_guard)
 
         # ----- Go back and insert temp variable declarations
-        tempvardecl_code.put_temp_declarations(code.funcstate)
+        tempvardecl_code.put_temp_declarations(code.funcstate, function_code)
 
         # ----- Python version
         code.exit_cfunc_scope()
@@ -2743,16 +2747,11 @@ class CFuncDefNode(FuncDefNode):
         for arg in type.args[:len(type.args)-type.optional_arg_count]:
             arg_decl = arg.declaration_code()
             entry = scope.lookup(arg.name)
-            if not entry.cf_used:
-                arg_decl = 'CYTHON_UNUSED %s' % arg_decl
             arg_decls.append(arg_decl)
         if with_dispatch and self.overridable:
             dispatch_arg = PyrexTypes.c_int_type.declaration_code(
                 Naming.skip_dispatch_cname)
-            if self.override:
-                arg_decls.append(dispatch_arg)
-            else:
-                arg_decls.append('CYTHON_UNUSED %s' % dispatch_arg)
+            arg_decls.append(dispatch_arg)
         if type.optional_arg_count and with_opt_args:
             arg_decls.append(type.op_arg_struct.declaration_code(Naming.optional_args_cname))
         if type.has_varargs:
@@ -2781,14 +2780,24 @@ class CFuncDefNode(FuncDefNode):
                 "%s%s%s; /* proto*/" % (storage_class, modifiers, header))
         code.putln("%s%s%s {" % (storage_class, modifiers, header))
 
-    def generate_argument_declarations(self, env, code):
+    def generate_ignore_unused_arg(self, code, with_dispatch=1):
+        scope = self.local_scope
+        type = self.type
+        for arg in type.args[:len(type.args)-type.optional_arg_count]:
+            entry = scope.lookup(arg.name)
+            if not entry.cf_used:
+                code.putln("CYTHON_UNUSED_VAR(%s);" % arg.cname)
+        if with_dispatch and self.overridable and not self.override:
+            code.putln("CYTHON_UNUSED_VAR(%s);" % Naming.skip_dispatch_cname)
+
+    def generate_argument_declarations(self, env, vardecl_code, function_code):
         scope = self.local_scope
         for arg in self.args:
             if arg.default:
                 entry = scope.lookup(arg.name)
                 if self.override or entry.cf_used:
-                    result = arg.calculate_default_value_code(code)
-                    code.putln('%s = %s;' % (
+                    result = arg.calculate_default_value_code(vardecl_code)
+                    vardecl_code.putln('%s = %s;' % (
                         arg.type.declaration_code(arg.cname), result))
 
     def generate_keyword_list(self, code):
@@ -2874,6 +2883,7 @@ class CFuncDefNode(FuncDefNode):
                 with_dispatch=entry.type.is_overridable,
                 with_opt_args=entry.type.optional_arg_count,
                 cname=entry.func_cname)
+            self.generate_ignore_unused_arg(code, with_dispatch=entry.type.is_overridable)
             if not self.return_type.is_void:
                 code.put('return ')
             args = self.type.args
@@ -3406,8 +3416,6 @@ class DefNode(FuncDefNode):
         arg_code_list = []
         if self.entry.signature.has_dummy_arg:
             self_arg = 'PyObject *%s' % Naming.self_cname
-            if not self.needs_outer_scope:
-                self_arg = 'CYTHON_UNUSED ' + self_arg
             arg_code_list.append(self_arg)
 
         def arg_decl_code(arg):
@@ -3416,10 +3424,7 @@ class DefNode(FuncDefNode):
                 cname = entry.original_cname
             else:
                 cname = entry.cname
-            decl = entry.type.declaration_code(cname)
-            if not entry.cf_used:
-                decl = 'CYTHON_UNUSED ' + decl
-            return decl
+            return entry.type.declaration_code(cname)
 
         for arg in self.args:
             arg_code_list.append(arg_decl_code(arg))
@@ -3443,7 +3448,28 @@ class DefNode(FuncDefNode):
             decls_code.putln("#endif")
         code.putln("static %s(%s) {" % (dc, arg_code))
 
-    def generate_argument_declarations(self, env, code):
+    def generate_ignore_unused_arg(self, code):
+        if self.entry.signature.has_dummy_arg:
+            if not self.needs_outer_scope:
+                code.putln("CYTHON_UNUSED_VAR(%s);" % Naming.self_cname)
+
+        def arg_unused_code(arg):
+            entry = arg.entry
+            if entry.in_closure:
+                cname = entry.original_cname
+            else:
+                cname = entry.cname
+            if not entry.cf_used:
+                code.putln("CYTHON_UNUSED_VAR(%s);" % cname)
+
+        for arg in self.args:
+            arg_unused_code(arg)
+        if self.star_arg:
+            arg_unused_code(self.star_arg)
+        if self.starstar_arg:
+            arg_unused_code(self.starstar_arg)
+
+    def generate_argument_declarations(self, env, vardecl_code, function_code):
         pass
 
     def generate_keyword_list(self, code):
@@ -3574,8 +3600,11 @@ class DefNodeWrapper(FuncDefNode):
         with_pymethdef = (self.target.needs_assignment_synthesis(env, code) or
                           self.target.pymethdef_required)
         self.generate_function_header(code, with_pymethdef)
-        self.generate_argument_declarations(lenv, code)
         tempvardecl_code = code.insertion_point()
+        tempvardecl_code.putln("")
+        function_code = code.insertion_point()
+        function_code.putln("")
+        self.generate_argument_declarations(lenv, tempvardecl_code, code)
 
         if self.return_type.is_pyobject:
             retval_init = ' = 0'
@@ -3588,12 +3617,13 @@ class DefNodeWrapper(FuncDefNode):
         code.put_declare_refcount_context()
         code.put_setup_refcount_context(EncodedString('%s (wrapper)' % self.name))
 
+        self.generate_ignore_unused_arg(code)
         self.generate_argument_parsing_code(lenv, code)
         self.generate_argument_type_tests(code)
         self.generate_function_body(code)
 
         # ----- Go back and insert temp variable declarations
-        tempvardecl_code.put_temp_declarations(code.funcstate)
+        tempvardecl_code.put_temp_declarations(code.funcstate, function_code)
 
         code.mark_pos(self.pos)
         code.putln("")
@@ -3632,8 +3662,6 @@ class DefNodeWrapper(FuncDefNode):
 
         if sig.has_dummy_arg or self.self_in_stararg:
             arg_code = "PyObject *%s" % Naming.self_cname
-            if not sig.has_dummy_arg:
-                arg_code = 'CYTHON_UNUSED ' + arg_code
             arg_code_list.append(arg_code)
 
         for arg in self.args:
@@ -3645,9 +3673,9 @@ class DefNodeWrapper(FuncDefNode):
                         arg.hdr_type.declaration_code(arg.hdr_cname))
         entry = self.target.entry
         if not entry.is_special and sig.method_flags() == [TypeSlots.method_noargs]:
-            arg_code_list.append("CYTHON_UNUSED PyObject *unused")
+            arg_code_list.append("PyObject *unused")
         if entry.scope.is_c_class_scope and entry.name == "__ipow__":
-            arg_code_list.append("CYTHON_UNUSED PyObject *unused")
+            arg_code_list.append("PyObject *unused")
         if sig.has_generic_args:
             varargs_args = "PyObject *%s, PyObject *%s" % (
                     Naming.args_cname, Naming.kwds_cname)
@@ -3662,14 +3690,12 @@ class DefNodeWrapper(FuncDefNode):
         arg_code = ", ".join(arg_code_list)
 
         # Prevent warning: unused function '__pyx_pw_5numpy_7ndarray_1__getbuffer__'
-        mf = ""
         if (entry.name in ("__getbuffer__", "__releasebuffer__")
                 and entry.scope.is_c_class_scope):
-            mf = "CYTHON_UNUSED "
             with_pymethdef = False
 
         dc = self.return_type.declaration_code(entry.func_cname)
-        header = "static %s%s(%s)" % (mf, dc, arg_code)
+        header = "static %s(%s)" % (dc, arg_code)
         code.putln("%s; /*proto*/" % header)
 
         if proto_only:
@@ -3708,33 +3734,50 @@ class DefNodeWrapper(FuncDefNode):
             code.put_pymethoddef(self.target.entry, ";", allow_skip=False)
         code.putln("%s {" % header)
 
-    def generate_argument_declarations(self, env, code):
+    def generate_ignore_unused_arg(self, code):
+        sig = self.signature
+        if (sig.has_dummy_arg or self.self_in_stararg) and not sig.has_dummy_arg:
+            code.putln("CYTHON_UNUSED_VAR(%s);" % Naming.self_cname)
+
+        entry = self.target.entry
+        if not entry.is_special and sig.method_flags() == [TypeSlots.method_noargs]:
+            code.putln("CYTHON_UNUSED_VAR(unused);")
+        elif entry.scope.is_c_class_scope and entry.name == "__ipow__":
+            code.putln("CYTHON_UNUSED_VAR(unused);")
+
+        if self.signature_has_generic_args():
+            code.putln("CYTHON_UNUSED_VAR(%s);" % Naming.nargs_cname)
+        code.putln("CYTHON_UNUSED_VAR(%s);" % Naming.kwvalues_cname)
+
+    def generate_argument_declarations(self, env, vardecl_code, function_code):
         for arg in self.args:
             if arg.is_generic:
                 if arg.needs_conversion:
-                    code.putln("PyObject *%s = 0;" % arg.hdr_cname)
+                    vardecl_code.putln("PyObject *%s = 0;" % arg.hdr_cname)
                 else:
-                    code.put_var_declaration(arg.entry)
+                    vardecl_code.put_var_declaration(arg.entry, function_code)
         for entry in env.var_entries:
             if entry.is_arg:
-                code.put_var_declaration(entry)
+                vardecl_code.put_var_declaration(entry, function_code)
 
         # Assign nargs variable as len(args), but avoid an "unused" warning in the few cases where we don't need it.
         if self.signature_has_generic_args():
-            nargs_code = "CYTHON_UNUSED const Py_ssize_t %s = PyTuple_GET_SIZE(%s);" % (
-                        Naming.nargs_cname, Naming.args_cname)
             if self.signature.use_fastcall:
-                code.putln("#if !CYTHON_METH_FASTCALL")
-                code.putln(nargs_code)
-                code.putln("#endif")
-            else:
-                code.putln(nargs_code)
+                vardecl_code.putln("#if !CYTHON_METH_FASTCALL")
+                function_code.putln("#if !CYTHON_METH_FASTCALL")
+            vardecl_code.putln("const Py_ssize_t %s = PyTuple_GET_SIZE(%s);" % (
+                Naming.nargs_cname, Naming.args_cname))
+            function_code.putln("CYTHON_UNUSED_VAR(%s);" % Naming.nargs_cname)
+            if self.signature.use_fastcall:
+                vardecl_code.putln("#endif")
+                function_code.putln("#endif")
 
         # Array containing the values of keyword arguments when using METH_FASTCALL.
-        code.globalstate.use_utility_code(
+        vardecl_code.globalstate.use_utility_code(
             UtilityCode.load_cached("fastcall", "FunctionArguments.c"))
-        code.putln('CYTHON_UNUSED PyObject *const *%s = __Pyx_KwValues_%s(%s, %s);' % (
+        vardecl_code.putln('PyObject *const *%s = __Pyx_KwValues_%s(%s, %s);' % (
             Naming.kwvalues_cname, self.signature.fastvar, Naming.args_cname, Naming.nargs_cname))
+        function_code.putln("CYTHON_UNUSED_VAR(%s);" % Naming.kwvalues_cname)
 
     def generate_argument_parsing_code(self, env, code):
         # Generate fast equivalent of PyArg_ParseTuple call for
@@ -4543,7 +4586,7 @@ class GeneratorBodyDefNode(DefNode):
         self.declare_generator_body(env)
 
     def generate_function_header(self, code, proto=False):
-        header = "static PyObject *%s(__pyx_CoroutineObject *%s, CYTHON_UNUSED PyThreadState *%s, PyObject *%s)" % (
+        header = "static PyObject *%s(__pyx_CoroutineObject *%s, PyThreadState *%s, PyObject *%s)" % (
             self.entry.func_cname,
             Naming.generator_cname,
             Naming.local_tstate_cname,
@@ -4552,6 +4595,9 @@ class GeneratorBodyDefNode(DefNode):
             code.putln('%s; /* proto */' % header)
         else:
             code.putln('%s /* generator body */\n{' % header)
+
+    def generate_ignore_unused_arg(self, code):
+        code.putln("CYTHON_UNUSED_VAR(%s);" % Naming.local_tstate_cname)
 
     def generate_function_definitions(self, env, code):
         lenv = self.local_scope
@@ -4573,6 +4619,9 @@ class GeneratorBodyDefNode(DefNode):
         # ----- Local variables
         code.putln("PyObject *%s = NULL;" % Naming.retval_cname)
         tempvardecl_code = code.insertion_point()
+        tempvardecl_code.putln("")
+        function_code = code.insertion_point()
+        function_code.putln("")
         code.put_declare_refcount_context()
         code.put_setup_refcount_context(self.entry.name or self.entry.qualified_name)
         profile = code.globalstate.directives['profile']
@@ -4582,6 +4631,8 @@ class GeneratorBodyDefNode(DefNode):
             code.funcstate.can_trace = True
             code_object = self.code_object.calculate_result_code(code) if self.code_object else None
             code.put_trace_frame_init(code_object)
+
+        self.generate_ignore_unused_arg(code)
 
         # ----- Resume switch point.
         code.funcstate.init_closure_temps(lenv.scope_class.type.scope)
@@ -4671,7 +4722,7 @@ class GeneratorBodyDefNode(DefNode):
         code.putln("}")
 
         # ----- Go back and insert temp variable declarations
-        tempvardecl_code.put_temp_declarations(code.funcstate)
+        tempvardecl_code.put_temp_declarations(code.funcstate, function_code)
         # ----- Generator resume code
         if profile or linetrace:
             resume_code.put_trace_call(self.entry.qualified_name, self.pos,
@@ -10080,8 +10131,9 @@ static PyObject *__Pyx_GetExceptionTuple(PyThreadState *__pyx_tstate); /*proto*/
     # exception handlers later on from receiving it.
     # NOTE: "__pyx_tstate" may be used by __Pyx_GetException() macro
     impl = """
-static PyObject *__Pyx_GetExceptionTuple(CYTHON_UNUSED PyThreadState *__pyx_tstate) {
+static PyObject *__Pyx_GetExceptionTuple(PyThreadState *__pyx_tstate) {
     PyObject *type = NULL, *value = NULL, *tb = NULL;
+    CYTHON_MAYBE_UNUSED_VAR(__pyx_tstate);
     if (__Pyx_GetException(&type, &value, &tb) == 0) {
         PyObject* exc_info = PyTuple_New(3);
         if (exc_info) {
