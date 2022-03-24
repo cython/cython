@@ -117,7 +117,8 @@ def handle_special_build(modname, pyxfilename):
         # locs = {}
         # execfile(special_build, globls, locs)
         # ext = locs["make_ext"](modname, pyxfilename)
-        mod = imp.load_source("XXXX", special_build, open(special_build))
+        with open(special_build) as fid:
+            mod = imp.load_source("XXXX", special_build, fid)
         make_ext = getattr(mod,'make_ext',None)
         if make_ext:
             ext = make_ext(modname, pyxfilename)
@@ -144,7 +145,8 @@ def handle_dependencies(pyxfilename):
     # but we know more about dependencies so force a rebuild if
     # some of the dependencies are newer than the pyxfile.
     if os.path.exists(dependfile):
-        depends = open(dependfile).readlines()
+        with open(dependfile) as fid:
+            depends = fid.readlines()
         depends = [depend.strip() for depend in depends]
 
         # gather dependencies in the "files" variable
@@ -217,7 +219,8 @@ def load_module(name, pyxfilename, pyxbuild_dir=None, is_package=False,
         if is_package and not hasattr(mod, '__path__'):
             mod.__path__ = [os.path.dirname(so_path)]
         assert mod.__file__ == so_path, (mod.__file__, so_path)
-    except Exception:
+    except Exception as failure_exc:
+        _debug("Failed to load extension module: %r" % failure_exc)
         if pyxargs.load_py_module_on_import_failure and pyxfilename.endswith('.py'):
             # try to fall back to normal import
             mod = imp.load_source(name, pyxfilename)

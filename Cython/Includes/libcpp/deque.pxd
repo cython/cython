@@ -116,7 +116,7 @@ cdef extern from "<deque>" namespace "std" nogil:
         deque(deque&) except +
         deque(size_t) except +
         deque(size_t, T&) except +
-        #deque[input_iterator](input_iterator, input_iterator)
+        #deque[InputIt](InputIt, InputIt)
         T& operator[](size_t)
         #deque& operator=(deque&)
         bint operator==(deque&, deque&)
@@ -126,7 +126,7 @@ cdef extern from "<deque>" namespace "std" nogil:
         bint operator<=(deque&, deque&)
         bint operator>=(deque&, deque&)
         void assign(size_t, T&) except +
-        void assign(input_iterator, input_iterator) except +
+        void assign[InputIt](InputIt, InputIt) except +
         T& at(size_t) except +
         T& back()
         iterator begin()
@@ -140,7 +140,7 @@ cdef extern from "<deque>" namespace "std" nogil:
         T& front()
         iterator insert(iterator, T&) except +
         void insert(iterator, size_t, T&) except +
-        void insert(iterator, input_iterator, input_iterator) except +
+        void insert[InputIt](iterator, InputIt, InputIt) except +
         size_t max_size()
         void pop_back()
         void pop_front()

@@ -169,6 +169,10 @@
   #define CYTHON_COMPILING_IN_LIMITED_API 1
   #define CYTHON_COMPILING_IN_GRAAL 0
 
+  // CYTHON_CLINE_IN_TRACEBACK is currently disabled for the Limited API
+  #undef CYTHON_CLINE_IN_TRACEBACK
+  #define CYTHON_CLINE_IN_TRACEBACK 0
+
   #undef CYTHON_USE_TYPE_SLOTS
   #define CYTHON_USE_TYPE_SLOTS 0
   #undef CYTHON_USE_TYPE_SPECS
@@ -1281,7 +1285,9 @@ static CYTHON_INLINE int __Pyx_PyErr_GivenExceptionMatches2(PyObject *err, PyObj
 /////////////// MathInitCode ///////////////
 
 #if defined(_WIN32) || defined(WIN32) || defined(MS_WINDOWS)
-  #define _USE_MATH_DEFINES
+  #if !defined(_USE_MATH_DEFINES)
+    #define _USE_MATH_DEFINES
+  #endif
 #endif
 #include <math.h>
 

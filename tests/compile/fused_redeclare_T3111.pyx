@@ -25,11 +25,14 @@ _WARNINGS = """
 # cpdef redeclaration bug, from TestCythonScope.pyx
 25:10: 'cpdef_method' redeclared
 36:10: 'cpdef_cname_method' redeclared
+
 # from MemoryView.pyx
-987:29: Ambiguous exception value, same as default return value: 0
-987:29: Ambiguous exception value, same as default return value: 0
-1014:46: Ambiguous exception value, same as default return value: 0
-1014:46: Ambiguous exception value, same as default return value: 0
-1104:29: Ambiguous exception value, same as default return value: 0
-1104:29: Ambiguous exception value, same as default return value: 0
+323:0: The 'DEF' statement is deprecated and will be removed in a future Cython version. Consider using global variables, constants, and in-place literals instead. See https://github.com/cython/cython/issues/4310
+323:0: The 'DEF' statement is deprecated and will be removed in a future Cython version. Consider using global variables, constants, and in-place literals instead. See https://github.com/cython/cython/issues/4310
+979:29: Ambiguous exception value, same as default return value: 0
+979:29: Ambiguous exception value, same as default return value: 0
+1004:46: Ambiguous exception value, same as default return value: 0
+1004:46: Ambiguous exception value, same as default return value: 0
+1094:29: Ambiguous exception value, same as default return value: 0
+1094:29: Ambiguous exception value, same as default return value: 0
 """

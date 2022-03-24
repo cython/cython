@@ -4,11 +4,11 @@
 
 from __future__ import absolute_import
 
-from .Symtab import BuiltinScope, StructOrUnionScope
+from .StringEncoding import EncodedString
+from .Symtab import BuiltinScope, StructOrUnionScope, ModuleScope
 from .Code import UtilityCode
 from .TypeSlots import Signature
 from . import PyrexTypes
-from . import Options
 
 
 # C-level implementations of builtin types, functions and methods
@@ -451,3 +451,56 @@ def init_builtins():
 
 
 init_builtins()
+
+##############################
+# Support for a few standard library modules that Cython understands (currently typing and dataclasses)
+##############################
+_known_module_scopes = {}
+
+def get_known_standard_library_module_scope(module_name):
+    mod = _known_module_scopes.get(module_name)
+    if mod:
+        return mod
+
+    if module_name == "typing":
+        mod = ModuleScope(module_name, None, None)
+        for name, tp in [
+                ('Dict', dict_type),
+                ('List', list_type),
+                ('Tuple', tuple_type),
+                ('Set', set_type),
+                ('FrozenSet', frozenset_type),
+                ]:
+            name = EncodedString(name)
+            if name == "Tuple":
+                indexed_type = PyrexTypes.PythonTupleTypeConstructor(EncodedString("typing."+name), tp)
+            else:
+                indexed_type = PyrexTypes.PythonTypeConstructor(EncodedString("typing."+name), tp)
+            entry = mod.declare_type(name, indexed_type, pos = None)
+
+        for name in ['ClassVar', 'Optional']:
+            indexed_type = PyrexTypes.SpecialPythonTypeConstructor(EncodedString("typing."+name))
+            entry = mod.declare_type(name, indexed_type, pos = None)
+        _known_module_scopes[module_name] = mod
+    elif module_name == "dataclasses":
+        mod = ModuleScope(module_name, None, None)
+        indexed_type = PyrexTypes.SpecialPythonTypeConstructor(EncodedString("dataclasses.InitVar"))
+        entry = mod.declare_type(EncodedString("InitVar"), indexed_type, pos = None)
+        _known_module_scopes[module_name] = mod
+    return mod
+
+
+def get_known_standard_library_entry(qualified_name):
+    name_parts = qualified_name.split(".")
+    module_name = EncodedString(name_parts[0])
+    rest = name_parts[1:]
+
+    if len(rest) > 1:  # for now, we don't know how to deal with any nested modules
+        return None
+
+    mod = get_known_standard_library_module_scope(module_name)
+
+    # eventually handle more sophisticated multiple lookups if needed
+    if mod and rest:
+        return mod.lookup_here(rest[0])
+    return None
