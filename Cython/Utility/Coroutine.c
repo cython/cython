@@ -256,7 +256,7 @@ static PyObject *__Pyx_Coroutine_GetAsyncIter_Generic(PyObject *obj) {
     }
 #else
     // avoid C warning about 'unused function'
-    if ((0)) (void) __Pyx_PyObject_CallMethod0(obj, PYIDENT("__aiter__"));
+    (void) &__Pyx_PyObject_CallMethod0;
 #endif
 
     obj_type_name = __Pyx_PyType_GetName(Py_TYPE(obj));
@@ -1864,7 +1864,7 @@ static int __pyx_Coroutine_init(PyObject *module) {
 #if CYTHON_USE_TYPE_SPECS
     __pyx_CoroutineType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_CoroutineType_spec, NULL);
 #else
-    (void) module;
+    CYTHON_UNUSED_VAR(module);
     __pyx_CoroutineType_type.tp_getattro = __Pyx_PyObject_GenericGetAttrNoDict;
     __pyx_CoroutineType = __Pyx_FetchCommonType(&__pyx_CoroutineType_type);
 #endif
@@ -2014,7 +2014,7 @@ static int __pyx_IterableCoroutine_init(PyObject *module) {
 #if CYTHON_USE_TYPE_SPECS
     __pyx_IterableCoroutineType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_IterableCoroutineType_spec, NULL);
 #else
-    (void) module;
+    CYTHON_UNUSED_VAR(module);
     __pyx_IterableCoroutineType_type.tp_getattro = __Pyx_PyObject_GenericGetAttrNoDict;
     __pyx_IterableCoroutineType = __Pyx_FetchCommonType(&__pyx_IterableCoroutineType_type);
 #endif
@@ -2159,7 +2159,7 @@ static int __pyx_Generator_init(PyObject *module) {
 #if CYTHON_USE_TYPE_SPECS
     __pyx_GeneratorType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_GeneratorType_spec, NULL);
 #else
-    (void) module;
+    CYTHON_UNUSED_VAR(module);
     // on Windows, C-API functions can't be used in slots statically
     __pyx_GeneratorType_type.tp_getattro = __Pyx_PyObject_GenericGetAttrNoDict;
     __pyx_GeneratorType_type.tp_iter = PyObject_SelfIter;
@@ -2566,7 +2566,7 @@ static PyTypeObject __Pyx__PyExc_StopAsyncIteration_type = {
 
 static int __pyx_StopAsyncIteration_init(PyObject *module) {
 #if PY_VERSION_HEX >= 0x030500B1
-    (void) module;
+    CYTHON_UNUSED_VAR(module);
     __Pyx_PyExc_StopAsyncIteration = PyExc_StopAsyncIteration;
 #else
     PyObject *builtins = PyEval_GetBuiltins();
@@ -2584,7 +2584,7 @@ static int __pyx_StopAsyncIteration_init(PyObject *module) {
     __Pyx__PyExc_StopAsyncIteration_type.tp_dictoffset = ((PyTypeObject*)PyExc_BaseException)->tp_dictoffset;
     __Pyx__PyExc_StopAsyncIteration_type.tp_base = (PyTypeObject*)PyExc_Exception;
 
-    (void) module;
+    CYTHON_UNUSED_VAR(module);
     __Pyx_PyExc_StopAsyncIteration = (PyObject*) __Pyx_FetchCommonType(&__Pyx__PyExc_StopAsyncIteration_type);
     if (unlikely(!__Pyx_PyExc_StopAsyncIteration))
         return -1;

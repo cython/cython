@@ -5787,7 +5787,7 @@ class ExprStatNode(StatNode):
         if not self.expr.is_temp and self.expr.result():
             result = self.expr.result()
             if not self.expr.type.is_void:
-                result = "(void)(%s)" % result
+                result = "CYTHON_UNUSED_VAR(%s)" % result
             code.putln("%s;" % result)
         self.expr.generate_disposal_code(code)
         self.expr.free_temps(code)

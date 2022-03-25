@@ -789,13 +789,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self._put_setup_code(code, "PythonCompatibility")
         self._put_setup_code(code, "MathInitCode")
 
-        # Using "(void)cname" to prevent "unused" warnings.
         if options.c_line_in_traceback:
-            cinfo = "%s = %s; (void)%s; " % (Naming.clineno_cname, Naming.line_c_macro, Naming.clineno_cname)
+            cinfo = "%s = %s; CYTHON_UNUSED_VAR(%s); " % (Naming.clineno_cname, Naming.line_c_macro, Naming.clineno_cname)
         else:
             cinfo = ""
         code.putln("#define __PYX_MARK_ERR_POS(f_index, lineno) \\")
-        code.putln("    { %s = %s[f_index]; (void)%s; %s = lineno; (void)%s; %s}" % (
+        code.putln("    { %s = %s[f_index]; CYTHON_UNUSED_VAR(%s); %s = lineno; CYTHON_UNUSED_VAR(%s); %s}" % (
             Naming.filename_cname, Naming.filetable_cname, Naming.filename_cname,
             Naming.lineno_cname, Naming.lineno_cname,
             cinfo
@@ -853,7 +852,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         PyrexTypes.c_int_type.create_from_py_utility_code(env)
 
         code.put(Nodes.branch_prediction_macros)
-        code.putln('static CYTHON_INLINE void __Pyx_pretend_to_initialize(void* ptr) { (void)ptr; }')
+        code.putln('static CYTHON_INLINE void __Pyx_pretend_to_initialize(void* ptr) { CYTHON_UNUSED_VAR(ptr); }')
         code.putln('')
         code.putln('#if !CYTHON_USE_MODULE_STATE')
         code.putln('static PyObject *%s = NULL;' % env.module_cname)
