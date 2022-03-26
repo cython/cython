@@ -1,8 +1,10 @@
 ########################## function_pickling ############################
 #@substitute: naming
+#requires: TypeConversion.c::CFuncPtrFromPy
 
 cdef extern from *:
-    void* PyLong_AsVoidPtr(object)
+    ctypedef void (*__Pyx_generic_func_pointer)()
+    __Pyx_generic_func_pointer __Pyx_capsule_to_c_func_ptr(object, const char*) except NULL
     # implementation function - implemented in C
     object $cyfunction_unpickle_impl_cname(int, object, object, object, object)
 
@@ -11,9 +13,9 @@ cdef extern from *:
 {{endfor}}
 
 def $cyfunction_pickle_lookup_ptr(ptr_as_pyint):
-    cdef void *ptr = PyLong_AsVoidPtr(ptr_as_pyint)
+    cdef __Pyx_generic_func_pointer ptr = __Pyx_capsule_to_c_func_ptr(ptr_as_pyint, "CyFunc capsule")
 {{for cname in cnames}}
-    if ptr == {{cname}}:
+    if ptr == <__Pyx_generic_func_pointer>{{cname}}:
         return b"{{cname}}"
 {{endfor}}
     raise ValueError()  # __reduce__ ignores this anyway

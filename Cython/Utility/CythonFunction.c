@@ -115,6 +115,7 @@ static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS_METHOD(PyObject 
 //@requires: ObjectHandling.c::PyVectorcallFastCallDict
 //@requires: ModuleSetupCode.c::IncludeStructmemberH
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
+//@requires: TypeConversion.c::CFuncPtrToPy
 
 static CYTHON_INLINE void __Pyx__CyFunction_SetClassObj(__pyx_CyFunctionObject* f, PyObject* classobj) {
 #if PY_VERSION_HEX < 0x030900B1
@@ -514,7 +515,7 @@ static PyObject *
 __Pyx_CyFunction_reduce(__pyx_CyFunctionObject *m, PyObject *args)
 {
     PyCFunction cfunc;
-    PyObject *module_globals = NULL, *lookup_func = NULL, *cfunc_as_int = NULL;
+    PyObject *module_globals = NULL, *lookup_func = NULL, *cfunc_as_obj = NULL;
     PyObject *lookup_string = NULL, *reduced_closure = NULL;
     PyObject *args_tuple = NULL, *reverse_lookup_func = NULL, *output = NULL;
     PyObject *defaults_tuple = NULL, *defaults_kwdict = NULL;
@@ -573,11 +574,11 @@ __Pyx_CyFunction_reduce(__pyx_CyFunctionObject *m, PyObject *args)
     Py_INCREF(lookup_func);
     // this is a bit dubious because the C standard doesn't actually allow
     // function pointer->void* conversions.
-    cfunc_as_int = PyLong_FromVoidPtr((void*)cfunc);
-    if (!cfunc_as_int) {
+    cfunc_as_obj = __Pyx_c_func_ptr_to_capsule((void (*)(void))cfunc, "CyFunc capsule");
+    if (!cfunc_as_obj) {
         goto fail;
     }
-    lookup_string = PyObject_CallFunctionObjArgs(lookup_func, cfunc_as_int, NULL);
+    lookup_string = PyObject_CallFunctionObjArgs(lookup_func, cfunc_as_obj, NULL);
     if (!lookup_string) {
         additional_error_info = ": failed function pointer lookup";
         goto fail;
@@ -638,7 +639,7 @@ __Pyx_CyFunction_reduce(__pyx_CyFunctionObject *m, PyObject *args)
 #endif
     }
     Py_XDECREF(module_globals);
-    Py_XDECREF(cfunc_as_int);
+    Py_XDECREF(cfunc_as_obj);
     Py_XDECREF(lookup_string);
     Py_XDECREF(reduced_closure);
     Py_XDECREF(args_tuple);
