@@ -163,7 +163,7 @@ Bugs fixed
 
 * Some compatibility issues with PyPy were resolved.
   Patches by Max Bachmann, Matti Picus.
-  (Github issues :issue:`4454`, :issue:`4477`, :issue:`4478`, :issus:`4509`, :issue:`4517`)
+  (Github issues :issue:`4454`, :issue:`4477`, :issue:`4478`, :issue:`4509`, :issue:`4517`)
 
 * A compiler crash when running Cython thread-parallel from distutils was resolved.
   (Github issue :issue:`4503`)
