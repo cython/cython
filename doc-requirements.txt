@@ -1,4 +1,4 @@
-sphinx==3.5.3
+sphinx==4.4.0
 sphinx-issues==1.2.0
 sphinx-tabs==3.0.0
 jupyter
