@@ -1,8 +1,5 @@
 PYTHON setup.py build_ext --inplace
 PYTHON -c "import a"
-# Rebuild it with a flag to pretend we're on a platform where sizeof(function_ptr) != sizeof(void*)
-PYTHON setup_large_func_pointers.py build_ext --inplace --force
-PYTHON -c "import a"
 
 ######## setup.py ########
 
@@ -12,17 +9,6 @@ from distutils.core import setup
 
 setup(
   ext_modules = cythonize("*.pyx"),
-)
-
-######## setup_large_func_pointers.py ########
-
-
-from Cython.Build import cythonize
-from distutils.core import setup, Extension
-
-setup(
-  ext_modules = cythonize(Extension("*", ["*.pyx"],
-                                    extra_compile_args=["-DCYTHON_LARGE_FUNCTION_POINTERS=1"])),
 )
 
 ######## other.pxd ########
