@@ -34,3 +34,25 @@ def test_getitem_typed():
     for i in range(view.shape[0]):
         item = view[i]
         print item.dummy
+
+def test_setitem():
+    """
+    >>> test_setitem()
+    10
+    11
+    """
+    for i in range(view.shape[0]):
+        view[i] = ExtensionType(10+i)
+        print view[i].dummy
+
+def test_setitem_typed():
+    """
+    >>> test_setitem_typed()
+    20
+    21
+    """
+    cdef ExtensionType item
+    for i in range(view.shape[0]):
+        item = ExtensionType(20+i)
+        view[i] = item
+        print view[i].dummy
