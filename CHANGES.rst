@@ -163,7 +163,7 @@ Bugs fixed
 
 * Some compatibility issues with PyPy were resolved.
   Patches by Max Bachmann, Matti Picus.
-  (Github issues :issue:`4454`, :issue:`4477`, :issue:`4478`, :issus:`4509`, :issue:`4517`)
+  (Github issues :issue:`4454`, :issue:`4477`, :issue:`4478`, :issue:`4509`, :issue:`4517`)
 
 * A compiler crash when running Cython thread-parallel from distutils was resolved.
   (Github issue :issue:`4503`)
@@ -937,6 +937,23 @@ Other changes
 .. _`PEP-3131`: https://www.python.org/dev/peps/pep-3131
 .. _`PEP-563`: https://www.python.org/dev/peps/pep-0563
 .. _`PEP-479`: https://www.python.org/dev/peps/pep-0479
+
+
+.. _0.29.28:
+
+0.29.28 (2022-02-17)
+====================
+
+Bugs fixed
+----------
+
+* Due to backwards incompatible changes in CPython 3.11a4, the feature flags
+  ``CYTHON_FAST_THREAD_STATE`` and ``CYTHON_USE_EXC_INFO_STACK`` are now disabled
+  in Python 3.11 and later.  They are enabled again in Cython 3.0.
+  Patch by David Woods.  (Github issue #4610)
+
+* A C compiler warning in older PyPy versions was resolved.
+  Patch by Matti Picus.  (Github issue #4236)
 
 
 .. _0.29.27:

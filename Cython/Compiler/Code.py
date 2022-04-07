@@ -28,7 +28,6 @@ from . import Naming
 from . import Options
 from . import DebugFlags
 from . import StringEncoding
-from . import Version
 from .. import Utils
 from .Scanning import SourceDescriptor
 from ..StringIOTree import StringIOTree
@@ -566,7 +565,7 @@ class UtilityCode(UtilityCodeBase):
             r'([a-zA-Z_]+),'      # type cname
             r'\s*"([^"]+)",'      # method name
             r'\s*([^),]+)'        # object cname
-            r'((?:,\s*[^),]+)*)'  # args*
+            r'((?:,[^),]+)*)'     # args*
             r'\)', externalise, impl)
         assert 'CALL_UNBOUND_METHOD(' not in impl
 

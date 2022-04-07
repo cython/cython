@@ -332,6 +332,9 @@ _WARNINGS = """
 14:77: Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.
 14:85: Python type declaration in signature annotation does not refer to a Python type
 14:85: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
+36:64: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
+63:68: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
+90:68: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
 274:44: Unknown type declaration in annotation, ignoring
 281:29: Ambiguous types in annotation, ignoring
 298:15: Annotation ignored since class-level attributes must be Python objects. Were you trying to set up an instance attribute?
