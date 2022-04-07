@@ -719,7 +719,7 @@ def main(command_line = 0):
     if command_line:
         try:
             options, sources = parse_command_line(args)
-        except FileNotFoundError as e:
+        except IOError as e:
             print("{}: No such file or directory: '{}'".format(sys.argv[0], e.filename), file=sys.stderr)
             sys.exit(1)
     else:

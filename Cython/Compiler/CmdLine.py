@@ -4,9 +4,14 @@
 
 from __future__ import absolute_import
 
+import sys
 import os
 from argparse import ArgumentParser, Action, SUPPRESS
 from . import Options
+
+
+if sys.version_info[:2] < (3, 3):
+    FileNotFoundError = IOError
 
 
 class ParseDirectivesAction(Action):
