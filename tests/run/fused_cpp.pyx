@@ -2,6 +2,7 @@
 
 cimport cython
 from libcpp.vector cimport vector
+from libcpp.map cimport map
 from libcpp.typeinfo cimport type_info
 from cython.operator cimport typeid
 
@@ -41,3 +42,39 @@ def typeid_call2(cython.integral x):
     """
     cdef const type_info* a = &typeid(cython.integral)
     return a[0] == tidint[0]
+
+ctypedef fused nested_fused:
+    vector[cython.integral]
+
+cdef vec_of_fused(nested_fused v):
+    x = v[0]
+    return cython.typeof(x)
+
+def test_nested_fused():
+    """
+    >>> test_nested_fused()
+    int
+    long
+    """
+    cdef vector[int] vi = [0,1]
+    cdef vector[long] vl = [0,1]
+    print vec_of_fused(vi)
+    print vec_of_fused(vl)
+
+ctypedef fused nested_fused2:
+    map[cython.integral, cython.floating]
+
+cdef map_of_fused(nested_fused2 m):
+    for pair in m:
+        return cython.typeof(pair.first), cython.typeof(pair.second)
+
+def test_nested_fused2():
+    """
+    >>> test_nested_fused2()
+    ('int', 'float')
+    ('long', 'double')
+    """
+    cdef map[int, float] mif = { 0: 0.0 }
+    cdef map[long, double] mld = { 0: 0.0 }
+    print map_of_fused(mif)
+    print map_of_fused(mld)
