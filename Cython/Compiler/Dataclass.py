@@ -590,7 +590,7 @@ def get_field_type(pos, entry):
         # try to return PyType_Type. This case should only happen with
         # attributes defined with cdef so Cython is free to make it's own
         # decision
-        s = entry.type.declaration_code("", for_display=1)
+        s = EncodedString(entry.type.declaration_code("", for_display=1))
         return ExprNodes.StringNode(pos, value=s)
 
 
