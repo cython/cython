@@ -2444,6 +2444,12 @@ static PyObject *__Pyx_PyFunction_FastCallDict(PyObject *func, PyObject **args, 
 #if !CYTHON_VECTORCALL
 #if PY_VERSION_HEX >= 0x03080000
   #include "frameobject.h"
+#if PY_VERSION_HEX >= 0x030b00a6
+  #ifndef Py_BUILD_CORE
+    #define Py_BUILD_CORE 1
+  #endif
+  #include "internal/pycore_frame.h"
+#endif
   #define __Pxy_PyFrame_Initialize_Offsets()
   #define __Pyx_PyFrame_GetLocalsplus(frame)  ((frame)->f_localsplus)
 #else
@@ -3106,5 +3112,3 @@ static CYTHON_INLINE void __Pyx_RaiseCppAttributeError(const char *varname); /*p
 static CYTHON_INLINE void __Pyx_RaiseCppAttributeError(const char *varname) {
     PyErr_Format(PyExc_AttributeError, "C++ attribute '%s' is not initialized", varname);
 }
-
-

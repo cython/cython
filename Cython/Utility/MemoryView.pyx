@@ -78,10 +78,6 @@ cdef extern from *:
     ctypedef struct __Pyx_TypeInfo:
         pass
 
-    cdef object capsule "__pyx_capsule_create" (void *p, char *sig)
-    cdef int __pyx_array_getbuffer(PyObject *obj, Py_buffer view, int flags)
-    cdef int __pyx_memoryview_getbuffer(PyObject *obj, Py_buffer view, int flags)
-
 cdef extern from *:
     ctypedef int __pyx_atomic_int
     {{memviewslice_name}} slice_copy_contig "__pyx_memoryview_copy_new_contig"(
@@ -201,8 +197,6 @@ cdef class array:
         info.readonly = 0
         info.format = self.format if flags & PyBUF_FORMAT else NULL
         info.obj = self
-
-    __pyx_getbuffer = capsule(<void *> &__pyx_array_getbuffer, "getbuffer(obj, view, flags)")
 
     def __dealloc__(array self):
         if self.callback_free_data != NULL:
@@ -559,8 +553,6 @@ cdef class memoryview:
         info.len = self.view.len
         info.readonly = self.view.readonly
         info.obj = self
-
-    __pyx_getbuffer = capsule(<void *> &__pyx_memoryview_getbuffer, "getbuffer(obj, view, flags)")
 
     # Some properties that have the same semantics as in NumPy
     @property
@@ -1003,8 +995,6 @@ cdef class _memoryviewslice(memoryview):
 
     cdef _get_base(self):
         return self.from_object
-
-    __pyx_getbuffer = capsule(<void *> &__pyx_memoryview_getbuffer, "getbuffer(obj, view, flags)")
 
 
 @cname('__pyx_memoryview_fromslice')

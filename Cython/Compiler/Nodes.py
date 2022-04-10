@@ -750,7 +750,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                             and not (exc_val_type == PyrexTypes.c_char_type
                                      and self.exception_value.value == '*')):
                         error(self.exception_value.pos,
-                              "Exception value must be a Python exception or cdef function with no arguments or *.")
+                              "Exception value must be a Python exception, or C++ function with no arguments, or *.")
                     exc_val = self.exception_value
                 else:
                     self.exception_value = self.exception_value.analyse_types(env).coerce_to(
@@ -976,6 +976,9 @@ class CArgDeclNode(Node):
                 error(annotation.pos, "Only Python type arguments can use typing.Optional[...]")
             else:
                 self.or_none = True
+        elif arg_type is py_object_type:
+            # exclude ": object" from the None check - None is a generic object.
+            self.or_none = True
         elif arg_type and arg_type.is_pyobject and self.default and self.default.is_none:
             # "x: ... = None"  =>  implicitly allow 'None', but warn about it.
             if not self.or_none:
@@ -3697,7 +3700,7 @@ class DefNodeWrapper(FuncDefNode):
                     docstr.as_c_string_literal()))
 
             if entry.is_special:
-                code.putln('#if CYTHON_COMPILING_IN_CPYTHON')
+                code.putln('#if CYTHON_UPDATE_DESCRIPTOR_DOC')
                 code.putln(
                     "struct wrapperbase %s;" % entry.wrapperbase_cname)
                 code.putln('#endif')
@@ -5503,7 +5506,7 @@ class CClassDefNode(ClassDefNode):
                     preprocessor_guard = slot.preprocessor_guard_code() if slot else None
                     if preprocessor_guard:
                         code.putln(preprocessor_guard)
-                    code.putln('#if CYTHON_COMPILING_IN_CPYTHON')
+                    code.putln('#if CYTHON_UPDATE_DESCRIPTOR_DOC')
                     code.putln("{")
                     code.putln(
                         'PyObject *wrapper = PyObject_GetAttrString((PyObject *)%s, "%s"); %s' % (
