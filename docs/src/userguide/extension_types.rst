@@ -675,7 +675,7 @@ cannot be pickled) decorate the class with ``@cython.auto_pickle(True)``.
 One can also annotate with ``@cython.auto_pickle(False)`` to get the old
 behavior of not generating a ``__reduce__`` method in any case.
 
-Manually implementing a ``__reduce__`` or `__reduce_ex__`` method will also
+Manually implementing a ``__reduce__`` or ``__reduce_ex__`` method will also
 disable this auto-generation and can be used to support pickling of more
 complicated types.
 
