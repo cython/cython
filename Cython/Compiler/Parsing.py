@@ -2899,7 +2899,7 @@ def p_c_func_declarator(s, pos, ctx, base, cmethod_flag):
     ellipsis = p_optional_ellipsis(s)
     s.expect(')')
     nogil = p_nogil(s)
-    exc_val, exc_check = p_exception_value_clause(s)
+    exc_val, exc_check = p_exception_value_clause(s, ctx)
     with_gil = p_with_gil(s)
     return Nodes.CFuncDeclaratorNode(pos,
         base = base, args = args, has_varargs = ellipsis,
@@ -3009,17 +3009,20 @@ def p_with_gil(s):
     else:
         return 0
 
-def p_exception_value_clause(s):
-    # the default behaviour is to always
-    # check for exceptions
-    exc_check = 1
+def p_exception_value_clause(s, ctx):
     exc_val = None
+    if ctx.visibility  == 'extern':
+        exc_check = 0
+    else:
+        exc_check = 1
+
     if s.sy == 'IDENT' and s.systring == 'noexcept':
         s.next()
         exc_check = 0
     elif s.sy == 'except':
         s.next()
         if s.sy == '*':
+            exc_check = 1
             s.next()
         elif s.sy == '+':
             exc_check = '+'
@@ -3033,6 +3036,7 @@ def p_exception_value_clause(s):
                 s.next()
         else:
             if s.sy == '?':
+                exc_check = 1
                 s.next()
             else:
                 exc_check = 0
