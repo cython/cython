@@ -233,7 +233,7 @@ class PyxImportMetaFinder(MetaPathFinder):
         for entry in path:
             if os.path.isdir(os.path.join(entry, name)):
                 # this module has child modules
-                filename = os.path.join(entry, name, "__init__.py")     # FIXME: __init__.pyx ?
+                filename = os.path.join(entry, name, "__init__.py")
                 submodule_locations = [os.path.join(entry, name)]
             else:
                 filename = os.path.join(entry, name + self.extension)
