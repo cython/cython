@@ -51,7 +51,7 @@ def test_nogil_exception_propagation():
                 nogil_func()
 
 
-cdef int write_unraisable() nogil:
+cdef int write_unraisable() nogil noexcept:
     with gil:
         raise ValueError()
 
