@@ -114,7 +114,7 @@ cdef class array:
         Py_ssize_t itemsize
         unicode mode  # FIXME: this should have been a simple 'char'
         bytes _format
-        void (*callback_free_data)(void *data)
+        void (*callback_free_data)(void *data) noexcept
         # cdef object _memview
         cdef bint free_data
         cdef bint dtype_is_object
@@ -1173,7 +1173,7 @@ cdef void copy_strided_to_strided({{memviewslice_name}} *src,
                              src.shape, dst.shape, ndim, itemsize)
 
 @cname('__pyx_memoryview_slice_get_size')
-cdef Py_ssize_t slice_get_size({{memviewslice_name}} *src, int ndim) nogil:
+cdef Py_ssize_t slice_get_size({{memviewslice_name}} *src, int ndim) nogil noexcept: 
     "Return the size of the memory occupied by the slice in number of bytes"
     cdef Py_ssize_t shape, size = src.memview.view.itemsize
 
@@ -1371,7 +1371,7 @@ cdef void refcount_objects_in_slice_with_gil(char *data, Py_ssize_t *shape,
 
 @cname('__pyx_memoryview_refcount_objects_in_slice')
 cdef void refcount_objects_in_slice(char *data, Py_ssize_t *shape,
-                                    Py_ssize_t *strides, int ndim, bint inc):
+                                    Py_ssize_t *strides, int ndim, bint inc) noexcept:
     cdef Py_ssize_t i
     cdef Py_ssize_t stride = strides[0]
 
