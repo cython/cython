@@ -53,7 +53,7 @@ cdef extern from "<string>" namespace "std" nogil:
         const_iterator cend()
         reverse_iterator rbegin()
         const_reverse_iterator const_rbegin "rbegin"()
-        const_reverse_iterator cbegin()
+        const_reverse_iterator crbegin()
         reverse_iterator rend()
         const_reverse_iterator const_rend "rend"()
         const_reverse_iterator crend()
