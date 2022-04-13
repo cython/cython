@@ -537,7 +537,7 @@ def safe_c_functions():
     >>> safe_c_functions()
     """
     f = cfunc
-    assert typeof(f) == 'int (*)(int)', typeof(f)
+    assert typeof(f) == 'int (*)(int) except? -1', typeof(f)
     assert 2 == f(1)
 
 @infer_types(None)
