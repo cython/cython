@@ -79,6 +79,3 @@ def test_noexcept():
     >>> test_noexcept()
     """
     cdef_function_that_raises_noexcept()
-
-
-cdef int return_value
