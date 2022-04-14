@@ -224,7 +224,7 @@ class PyxImportMetaFinder(MetaPathFinder):
         self.extension = extension
 
     def find_spec(self, fullname, path, target=None):
-        if path is None or path == "":
+        if not path:
             path = [os.getcwd()]  # top level import --
         if "." in fullname:
             *parents, name = fullname.split(".")
@@ -233,7 +233,7 @@ class PyxImportMetaFinder(MetaPathFinder):
         for entry in path:
             if os.path.isdir(os.path.join(entry, name)):
                 # this module has child modules
-                filename = os.path.join(entry, name, "__init__.py")
+                filename = os.path.join(entry, name, "__init__" + self.extension)
                 submodule_locations = [os.path.join(entry, name)]
             else:
                 filename = os.path.join(entry, name + self.extension)
@@ -272,16 +272,16 @@ class PyImportMetaFinder(MetaPathFinder):
 
         self.blocked_modules.append(fullname)
         name = fullname
-        if path is None or path == "":
+        if not path:
             path = [os.getcwd()]  # top level import --
         try:
             for entry in path:
                 if os.path.isdir(os.path.join(entry, name)):
                     # this module has child modules
-                    filename = os.path.join(entry, name, "__init__.py")
+                    filename = os.path.join(entry, name, "__init__" + self.extension)
                     submodule_locations = [os.path.join(entry, name)]
                 else:
-                    filename = os.path.join(entry, name + PY_EXT)
+                    filename = os.path.join(entry, name + self.extension)
                     submodule_locations = None
                 if not os.path.exists(filename):
                     continue
