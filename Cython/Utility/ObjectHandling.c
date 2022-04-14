@@ -857,6 +857,9 @@ static CYTHON_INLINE PyObject* __Pyx_Py{{type}}_GetSlice(
             PyObject* src, Py_ssize_t start, Py_ssize_t stop) {
     Py_ssize_t length = Py{{type}}_GET_SIZE(src);
     __Pyx_crop_slice(&start, &stop, &length);
+    if (length == 0) {
+        return Py{{type}}_New(0);    
+    }
     return __Pyx_Py{{type}}_FromArray(((Py{{type}}Object*)src)->ob_item + start, length);
 }
 {{endfor}}
