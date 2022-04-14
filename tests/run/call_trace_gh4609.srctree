@@ -1,0 +1,44 @@
+PYTHON setup.py build_ext -i
+PYTHON run.py
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+from distutils.core import setup
+
+setup(
+  ext_modules = cythonize("*.pyx"),
+)
+
+####### call_func.pyx ##########
+
+import mod
+
+def cy_method(x):
+    return mod.function(x)
+    
+####### mod.py #################
+
+mod_global = "this is a mod global"
+
+def function(a, mod_global=None):
+    if mod_global is not None:
+        mod_global = a
+    
+    return
+    
+####### run.py #################
+
+from call_func import cy_method
+import mod
+import sys
+
+def trace(frame, event, arg):
+    assert(mod.mod_global == "this is a mod global")
+
+    return trace
+    
+sys.settrace(trace)
+
+cy_method("s")
+assert(mod.mod_global == "this is a mod global")
