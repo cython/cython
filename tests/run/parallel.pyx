@@ -32,7 +32,7 @@ def test_parallel():
 
     free(buf)
 
-cdef int get_num_threads() with gil:
+cdef int get_num_threads() with gil noexcept:
     print "get_num_threads called"
     return 3
 
