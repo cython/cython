@@ -4,8 +4,6 @@ cimport cython
 
 import sys
 
-PY_VERSION = sys.version_info
-
 text = u'ab jd  sdflk as sa  sadas asdas fsdf '
 sep = u'  '
 format1 = u'abc%sdef'
@@ -305,11 +303,11 @@ def startswith(unicode s, sub):
     >>> startswith(text, 'ab X')
     'NO MATCH'
 
-    >>> PY_VERSION < (2,5) or text.startswith(('ab', 'ab '))
+    >>> text.startswith(('ab', 'ab '))
     True
     >>> startswith(text, ('ab', 'ab '))
     'MATCH'
-    >>> PY_VERSION < (2,5) or not text.startswith((' ab', 'ab X'))
+    >>> not text.startswith((' ab', 'ab X'))
     True
     >>> startswith(text, (' ab', 'ab X'))
     'NO MATCH'
@@ -365,11 +363,11 @@ def endswith(unicode s, sub):
     >>> endswith(text, 'fsdf X')
     'NO MATCH'
 
-    >>> PY_VERSION < (2,5) or text.endswith(('fsdf', 'fsdf '))
+    >>> text.endswith(('fsdf', 'fsdf '))
     True
     >>> endswith(text, ('fsdf', 'fsdf '))
     'MATCH'
-    >>> PY_VERSION < (2,5) or not text.endswith(('fsdf', 'fsdf X'))
+    >>> not text.endswith(('fsdf', 'fsdf X'))
     True
     >>> endswith(text, ('fsdf', 'fsdf X'))
     'NO MATCH'
@@ -401,11 +399,11 @@ def endswith_start_end(unicode s, sub, start, end):
     >>> endswith_start_end(text, 'fsdf ', -1000, 5000)
     'MATCH'
 
-    >>> PY_VERSION < (2,5) or text.endswith(('fsd', 'fsdf'), 10, len(text)-1)
+    >>> text.endswith(('fsd', 'fsdf'), 10, len(text)-1)
     True
     >>> endswith_start_end(text, ('fsd', 'fsdf'), 10, len(text)-1)
     'MATCH'
-    >>> PY_VERSION < (2,5) or not text.endswith(('fsdf ', 'fsdf X'), 10, len(text)-1)
+    >>> not text.endswith(('fsdf ', 'fsdf X'), 10, len(text)-1)
     True
     >>> endswith_start_end(text, ('fsdf ', 'fsdf X'), 10, len(text)-1)
     'NO MATCH'
