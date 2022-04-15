@@ -192,7 +192,8 @@
   #ifndef CYTHON_FAST_PYCALL
     // Python 3.11 deleted localplus argument from frame object, which is used in our
     // fast_pycall code
-    #define CYTHON_FAST_PYCALL (PY_VERSION_HEX < 0x030B00A1)
+    // On Python 3.10 it causes issues when used while profiling/debugging
+    #define CYTHON_FAST_PYCALL (PY_VERSION_HEX < 0x030A0000)
   #endif
   #ifndef CYTHON_PEP489_MULTI_PHASE_INIT
     #define CYTHON_PEP489_MULTI_PHASE_INIT (PY_VERSION_HEX >= 0x03050000)
