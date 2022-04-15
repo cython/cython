@@ -86,16 +86,6 @@ def load_source(file_path):
     spec.loader.exec_module(module)
     return module
 
-# Performance problem: for every PYX file that is imported, we will
-# invoke the whole distutils infrastructure even if the module is
-# already built. It might be more efficient to only do it when the
-# mod time of the .pyx is newer than the mod time of the .so but
-# the question is how to get distutils to tell me the name of the .so
-# before it builds it. Maybe it is easy...but maybe the performance
-# issue isn't real.
-def _load_pyrex(name, filename):
-    "Load a pyrex file given a name and filename."
-
 
 def get_distutils_extension(modname, pyxfilename, language_level=None):
 #    try:
