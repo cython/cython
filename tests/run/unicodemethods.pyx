@@ -56,11 +56,11 @@ def split_sep(unicode s, sep):
     >>> print_all( text.split(sep) )
     ab jd
     sdflk as sa
-    sadas asdas fsdf 
+    sadas asdas fsdf\x20
     >>> print_all( split_sep(text, sep) )
     ab jd
     sdflk as sa
-    sadas asdas fsdf 
+    sadas asdas fsdf\x20
     """
     return s.split(sep)
 
@@ -74,10 +74,10 @@ def split_sep_max(unicode s, sep, max):
     """
     >>> print_all( text.split(sep, 1) )
     ab jd
-    sdflk as sa  sadas asdas fsdf 
+    sdflk as sa  sadas asdas fsdf\x20
     >>> print_all( split_sep_max(text, sep, 1) )
     ab jd
-    sdflk as sa  sadas asdas fsdf 
+    sdflk as sa  sadas asdas fsdf\x20
     """
     return s.split(sep, max)
 
@@ -90,10 +90,10 @@ def split_sep_max_int(unicode s, sep):
     """
     >>> print_all( text.split(sep, 1) )
     ab jd
-    sdflk as sa  sadas asdas fsdf 
+    sdflk as sa  sadas asdas fsdf\x20
     >>> print_all( split_sep_max_int(text, sep) )
     ab jd
-    sdflk as sa  sadas asdas fsdf 
+    sdflk as sa  sadas asdas fsdf\x20
     """
     return s.split(sep, 1)
 
@@ -109,13 +109,13 @@ def splitlines(unicode s):
     >>> print_all( multiline_text.splitlines() )
     ab jd
     sdflk as sa
-    sadas asdas fsdf 
+    sadas asdas fsdf\x20
     >>> len(splitlines(multiline_text))
     3
     >>> print_all( splitlines(multiline_text) )
     ab jd
     sdflk as sa
-    sadas asdas fsdf 
+    sadas asdas fsdf\x20
     """
     return s.splitlines()
 
@@ -130,7 +130,7 @@ def splitlines_keep(unicode s, keep):
     <BLANKLINE>
     sdflk as sa
     <BLANKLINE>
-    sadas asdas fsdf 
+    sadas asdas fsdf\x20
     >>> len(splitlines_keep(multiline_text, True))
     3
     >>> print_all( splitlines_keep(multiline_text, True) )
@@ -138,7 +138,7 @@ def splitlines_keep(unicode s, keep):
     <BLANKLINE>
     sdflk as sa
     <BLANKLINE>
-    sadas asdas fsdf 
+    sadas asdas fsdf\x20
     """
     return s.splitlines(keep)
 
@@ -156,11 +156,11 @@ def splitlines_keep_bint(unicode s):
     <BLANKLINE>
     sdflk as sa
     <BLANKLINE>
-    sadas asdas fsdf 
+    sadas asdas fsdf\x20
     >>> print_all( multiline_text.splitlines(False) )
     ab jd
     sdflk as sa
-    sadas asdas fsdf 
+    sadas asdas fsdf\x20
     >>> len(splitlines_keep_bint(multiline_text))
     7
     >>> print_all( splitlines_keep_bint(multiline_text) )
@@ -168,11 +168,11 @@ def splitlines_keep_bint(unicode s):
     <BLANKLINE>
     sdflk as sa
     <BLANKLINE>
-    sadas asdas fsdf 
+    sadas asdas fsdf\x20
     --
     ab jd
     sdflk as sa
-    sadas asdas fsdf 
+    sadas asdas fsdf\x20
     """
     return s.splitlines(True) + ['--'] + s.splitlines(False)
 
@@ -669,9 +669,9 @@ def count_start_end(unicode s, substring, start, end):
 def replace(unicode s, substring, repl):
     """
     >>> print( text.replace('sa', 'SA') )
-    ab jd  sdflk as SA  SAdas asdas fsdf 
+    ab jd  sdflk as SA  SAdas asdas fsdf\x20
     >>> print( replace(text, 'sa', 'SA') )
-    ab jd  sdflk as SA  SAdas asdas fsdf 
+    ab jd  sdflk as SA  SAdas asdas fsdf\x20
     """
     return s.replace(substring, repl)
 
@@ -683,8 +683,8 @@ def replace(unicode s, substring, repl):
 def replace_maxcount(unicode s, substring, repl, maxcount):
     """
     >>> print( text.replace('sa', 'SA', 1) )
-    ab jd  sdflk as SA  sadas asdas fsdf 
+    ab jd  sdflk as SA  sadas asdas fsdf\x20
     >>> print( replace_maxcount(text, 'sa', 'SA', 1) )
-    ab jd  sdflk as SA  sadas asdas fsdf 
+    ab jd  sdflk as SA  sadas asdas fsdf\x20
     """
     return s.replace(substring, repl, maxcount)
