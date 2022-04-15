@@ -374,6 +374,22 @@ def startswith_start_end(unicode s, sub, start, end):
     True
     >>> startswith_start_end(text, 'ab ', None, None)
     'MATCH'
+    >>> text.startswith('ab ', 1, None)
+    False
+    >>> startswith_start_end(text, 'ab ', 1, None)
+    'NO MATCH'
+    >>> text.startswith('b ', 1, None)
+    True
+    >>> startswith_start_end(text, 'b ', 1, None)
+    'MATCH'
+    >>> text.startswith('ab ', None, 3)
+    True
+    >>> startswith_start_end(text, 'ab ', None, 3)
+    'MATCH'
+    >>> text.startswith('ab ', None, 2)
+    False
+    >>> startswith_start_end(text, 'ab ', None, 2)
+    'NO MATCH'
     """
     if s.startswith(sub, start, end):
         return 'MATCH'
