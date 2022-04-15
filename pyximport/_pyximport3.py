@@ -337,6 +337,7 @@ class PyxImportLoader(ExtensionFileLoader):
                     module.__file__, traceback.format_exception_only(*sys.exc_info()[:2])))
 
 
+#install args
 class PyxArgs(object):
     build_dir=True
     build_in_temp=True
