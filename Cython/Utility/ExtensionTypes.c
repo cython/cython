@@ -217,6 +217,9 @@ static int __Pyx_setup_reduce(PyObject* type_obj) {
     getstate = _PyType_Lookup((PyTypeObject*)type_obj, PYIDENT("__getstate__"));
 #else
     getstate = __Pyx_PyObject_GetAttrStrNoError(type_obj, PYIDENT("__getstate__"));
+    if (!getstate && PyErr_Occurred()) {
+        goto __PYX_BAD;
+    }
 #endif
     if (getstate) {
         // Python 3.11 introduces object.__getstate__. Because it's version-specific failure to find it should not be an error
@@ -224,6 +227,9 @@ static int __Pyx_setup_reduce(PyObject* type_obj) {
         object_getstate = _PyType_Lookup(&PyBaseObject_Type, PYIDENT("__getstate__"));
 #else
         object_getstate = __Pyx_PyObject_GetAttrStrNoError((PyObject*)&PyBaseObject_Type, PYIDENT("__getstate__"));
+        if (!object_getstate && PyErr_Occurred()) {
+            goto __PYX_BAD;
+        }
 #endif
         if (object_getstate != getstate) {
             goto __PYX_GOOD;
