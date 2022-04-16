@@ -2407,8 +2407,8 @@ class CCodeWriter(object):
                 UtilityCode.load_cached("ForceInitThreads", "ModuleSetupCode.c"))
         self.putln('__Pyx_RefNannySetupContext("%s", %d);' % (name, acquire_gil and 1 or 0))
 
-    def put_finish_refcount_context(self, nogil=False):
-        self.putln("__Pyx_RefNannyFinishContextNogil()" if nogil else "__Pyx_RefNannyFinishContext();")
+    def put_finish_refcount_context(self):
+        self.putln("__Pyx_RefNannyFinishContext();")
 
     def put_add_traceback(self, qualified_name, include_cline=True):
         """

@@ -1859,6 +1859,19 @@ if VALUE is not None:
 
         return node
 
+    def _handle_nogil_cleanup(self, lenv, node):
+        "Handle cleanup for 'with gil' blocks in nogil functions."
+        if lenv.nogil and lenv.has_with_gil_block:
+            # Acquire the GIL for cleanup in 'nogil' functions, by wrapping
+            # the entire function body in try/finally.
+            # The corresponding release will be taken care of by
+            # Nodes.FuncDefNode.generate_function_definitions()
+            node.body = Nodes.NogilTryFinallyStatNode(
+                node.body.pos,
+                body=node.body,
+                finally_clause=Nodes.EnsureGILNode(node.body.pos),
+                finally_except_clause=Nodes.EnsureGILNode(node.body.pos))
+
     def _handle_fused(self, node):
         if node.is_generator and node.has_fused_arguments:
             node.has_fused_arguments = False
@@ -1899,6 +1912,7 @@ if VALUE is not None:
             node = self._create_fused_function(env, node)
         else:
             node.body.analyse_declarations(lenv)
+            self._handle_nogil_cleanup(lenv, node)
             self._super_visit_FuncDefNode(node)
 
         self.seen_vars_stack.pop()
