@@ -859,7 +859,8 @@ static CYTHON_INLINE PyObject* __Pyx_Py{{type}}_GetSlice(
     __Pyx_crop_slice(&start, &stop, &length);
 {{if type=='List'}}
     if (length == 0) {
-        return Py{{type}}_New(0);    
+        // Avoid undefined behaviour when accessing `ob_item` of an empty list.
+        return PyList_New(0);    
     }
 {{endif}}
     return __Pyx_Py{{type}}_FromArray(((Py{{type}}Object*)src)->ob_item + start, length);
