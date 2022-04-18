@@ -430,6 +430,14 @@ def endswith_start_end(unicode s, sub, start, end):
 
     >>> test_endswith_start_end(text, 'fsdf ', None, None)
     True
+    >>> test_endswith_start_end(text, 'fsdf ', 32, None)
+    True
+    >>> test_endswith_start_end(text, 'fsdf ', 33, None)
+    False
+    >>> test_endswith_start_end(text, 'fsdf ', None, 37)
+    True
+    >>> test_endswith_start_end(text, 'fsdf ', None, 36)
+    False
     """
     if s.endswith(sub, start, end):
         return True
@@ -609,6 +617,16 @@ def find_start_end(unicode s, substring, start, end):
     ...     return cy
     >>> test_find_start_end(text, 'sa', 17, 25)
     20
+    >>> test_find_start_end(text, 'sa', None, None)
+    16
+    >>> test_find_start_end(text, 'sa', 16, None)
+    16
+    >>> test_find_start_end(text, 'sa', 17, None)
+    20
+    >>> test_find_start_end(text, 'sa', None, 16)
+    -1
+    >>> test_find_start_end(text, 'sa', None, 19)
+    16
     """
     cdef Py_ssize_t pos = s.find(substring, start, end)
     return pos
@@ -648,6 +666,16 @@ def rfind_start_end(unicode s, substring, start, end):
     ...     assert py == cy, (py, cy)
     ...     return cy
     >>> test_rfind_start_end(text, 'sa', 14, 19)
+    16
+    >>> test_rfind_start_end(text, 'sa', None, None)
+    20
+    >>> test_rfind_start_end(text, 'sa', 16, None)
+    20
+    >>> test_rfind_start_end(text, 'sa', 21, None)
+    -1
+    >>> test_rfind_start_end(text, 'sa', None, 22)
+    20
+    >>> test_rfind_start_end(text, 'sa', None, 21)
     16
     """
     cdef Py_ssize_t pos = s.rfind(substring, start, end)
@@ -691,6 +719,16 @@ def count_start_end(unicode s, substring, start, end):
     1
     >>> test_count_start_end(text, 'sa', 14, 22)
     2
+    >>> test_count_start_end(text, 'sa', None, None)
+    2
+    >>> test_count_start_end(text, 'sa', 14, None)
+    2
+    >>> test_count_start_end(text, 'sa', 17, None)
+    1
+    >>> test_count_start_end(text, 'sa', None, 23)
+    2
+    >>> test_count_start_end(text, 'sa', None, 20)
+    1
     """
     cdef Py_ssize_t pos = s.count(substring, start, end)
     return pos
