@@ -59,6 +59,24 @@ def split_sep(unicode s, sep):
     ab jd
     sdflk as sa
     sadas asdas fsdf\x20
+    >>> print_all( text.split(None) )
+    ab
+    jd
+    sdflk
+    as
+    sa
+    sadas
+    asdas
+    fsdf
+    >>> print_all( split_sep(text, None) )
+    ab
+    jd
+    sdflk
+    as
+    sa
+    sadas
+    asdas
+    fsdf
     """
     return s.split(sep)
 
@@ -76,6 +94,14 @@ def split_sep_max(unicode s, sep, max):
     >>> print_all( split_sep_max(text, sep, 1) )
     ab jd
     sdflk as sa  sadas asdas fsdf\x20
+    >>> print_all( text.split(None, 2) )
+    ab
+    jd
+    sdflk as sa  sadas asdas fsdf\x20
+    >>> print_all( split_sep_max(text, None, 2) )
+    ab
+    jd
+    sdflk as sa  sadas asdas fsdf\x20
     """
     return s.split(sep, max)
 
@@ -92,6 +118,12 @@ def split_sep_max_int(unicode s, sep):
     >>> print_all( split_sep_max_int(text, sep) )
     ab jd
     sdflk as sa  sadas asdas fsdf\x20
+    >>> print_all( text.split(None, 1) )
+    ab
+    jd  sdflk as sa  sadas asdas fsdf\x20
+    >>> print_all( split_sep_max_int(text, None) )
+    ab
+    jd  sdflk as sa  sadas asdas fsdf\x20
     """
     return s.split(sep, 1)
 
@@ -337,6 +369,11 @@ def startswith_start_end(unicode s, sub, start, end):
     False
     >>> startswith_start_end(text, 'b X', 1, 5)
     'NO MATCH'
+
+    >>> text.startswith('ab ', None, None)
+    True
+    >>> startswith_start_end(text, 'ab ', None, None)
+    'MATCH'
     """
     if s.startswith(sub, start, end):
         return 'MATCH'
@@ -407,6 +444,11 @@ def endswith_start_end(unicode s, sub, start, end):
     True
     >>> endswith_start_end(text, ('fsdf ', 'fsdf X'), 10, len(text)-1)
     'NO MATCH'
+
+    >>> text.endswith('fsdf ', None, None)
+    True
+    >>> endswith_start_end(text, 'fsdf ', None, None)
+    'MATCH'
     """
     if s.endswith(sub, start, end):
         return 'MATCH'
