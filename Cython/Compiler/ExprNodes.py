@@ -13614,6 +13614,9 @@ class CoerceFromPyTypeNode(CoercionNode):
     #  This node is used to convert a Python object
     #  to a C data type.
 
+    # Allow 'None' to map to a difference C value independent of the coercion, e.g. to 'NULL' or '0'.
+    special_none_cvalue = None
+
     def __init__(self, result_type, arg, env):
         CoercionNode.__init__(self, arg)
         self.type = result_type
@@ -13643,7 +13646,10 @@ class CoerceFromPyTypeNode(CoercionNode):
                 NoneCheckNode.generate_if_needed(self.arg, code, "expected bytes, NoneType found")
 
         code.putln(self.type.from_py_call_code(
-            self.arg.py_result(), self.result(), self.pos, code, from_py_function=from_py_function))
+            self.arg.py_result(), self.result(), self.pos, code,
+            from_py_function=from_py_function,
+            special_none_cvalue=self.special_none_cvalue,
+        ))
         if self.type.is_pyobject:
             self.generate_gotref(code)
 

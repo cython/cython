@@ -131,11 +131,13 @@ cdef extern from "<vector>" namespace "std" nogil:
         T& back()
         iterator begin()
         const_iterator const_begin "begin"()
+        const_iterator cbegin()
         size_type capacity()
         void clear()
         bint empty()
         iterator end()
         const_iterator const_end "end"()
+        const_iterator cend()
         iterator erase(iterator)
         iterator erase(iterator, iterator)
         T& front()
@@ -146,9 +148,11 @@ cdef extern from "<vector>" namespace "std" nogil:
         void pop_back()
         void push_back(T&) except +
         reverse_iterator rbegin()
-        const_reverse_iterator const_rbegin "crbegin"()
+        const_reverse_iterator const_rbegin "rbegin"()
+        const_reverse_iterator crbegin()
         reverse_iterator rend()
-        const_reverse_iterator const_rend "crend"()
+        const_reverse_iterator const_rend "rend"()
+        const_reverse_iterator crend()
         void reserve(size_type) except +
         void resize(size_type) except +
         void resize(size_type, T&) except +

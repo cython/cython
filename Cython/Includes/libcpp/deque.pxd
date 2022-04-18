@@ -131,10 +131,12 @@ cdef extern from "<deque>" namespace "std" nogil:
         T& back()
         iterator begin()
         const_iterator const_begin "begin"()
+        const_iterator cbegin()
         void clear()
         bint empty()
         iterator end()
         const_iterator const_end "end"()
+        const_iterator cend()
         iterator erase(iterator) except +
         iterator erase(iterator, iterator) except +
         T& front()
@@ -148,8 +150,10 @@ cdef extern from "<deque>" namespace "std" nogil:
         void push_front(T&) except +
         reverse_iterator rbegin()
         #const_reverse_iterator rbegin()
+        const_reverse_iterator crbegin()
         reverse_iterator rend()
         #const_reverse_iterator rend()
+        const_reverse_iterator crend()
         void resize(size_t) except +
         void resize(size_t, T&) except +
         size_t size()
