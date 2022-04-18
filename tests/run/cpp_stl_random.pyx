@@ -33,14 +33,13 @@ def mt19937_min_max():
     return rd.min(), rd.max()
 
 
-def mt19937_discard():
+def mt19937_discard(z):
     """
-    >>> mt19937_discard()
+    >>> mt19937_discard(13)
     (1972458954, 1972458954)
     """
     cdef mt19937 rd = mt19937(42)
     # Throw away z random numbers.
-    z = 13
     rd.discard(z)
     a = rd()
 
