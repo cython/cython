@@ -94,6 +94,7 @@ cdef extern from "<set>" namespace "std" nogil:
         const_iterator const_find "find"(const T&)
         pair[iterator, bint] insert(const T&) except +
         iterator insert(iterator, const T&) except +
+        iterator insert(const_iterator, const T&) except +
         iterator const_insert "insert"(const_iterator, const T&) except +
         void insert[InputIt](InputIt, InputIt) except +
         #key_compare key_comp()
