@@ -260,7 +260,7 @@ def join_sep_genexpr(l):
     >>> l = text.split()
     >>> len(l)
     8
-    >>> print( '<<%s>>' % join_sep_genexpr(l) )
+    >>> print( '<<%s>>' % test_join_sep_genexpr(l) )
     <<ab |jd |sdflk |as |sa |sadas |asdas |fsdf >>
     """
     result = u'|'.join(s + u' ' for s in l)
