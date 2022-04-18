@@ -88,6 +88,14 @@ def split_sep_max(unicode s, sep, max):
     ab
     jd
     sdflk as sa  sadas asdas fsdf\x20
+    >>> print_all( text.split(None, 2) )
+    ab
+    jd
+    sdflk as sa  sadas asdas fsdf\x20
+    >>> print_all( split_sep_max(text, None, 2) )
+    ab
+    jd
+    sdflk as sa  sadas asdas fsdf\x20
     """
     return s.split(sep, max)
 

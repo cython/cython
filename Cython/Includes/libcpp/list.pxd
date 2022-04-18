@@ -43,10 +43,12 @@ cdef extern from "<list>" namespace "std" nogil:
         T& back()
         iterator begin()
         const_iterator const_begin "begin"()
+        const_iterator cbegin()
         void clear()
         bint empty()
         iterator end()
         const_iterator const_end "end"()
+        const_iterator cend()
         iterator erase(iterator)
         iterator erase(iterator, iterator)
         T& front()
@@ -61,10 +63,12 @@ cdef extern from "<list>" namespace "std" nogil:
         void push_front(T&) except +
         reverse_iterator rbegin()
         const_reverse_iterator const_rbegin "rbegin"()
+        const_reverse_iterator crbegin()
         void remove(T&) except +
         #void remove_if(UnPred)
         reverse_iterator rend()
         const_reverse_iterator const_rend "rend"()
+        const_reverse_iterator crend()
         void resize(size_t, T&) except +
         void reverse()
         size_t size()
