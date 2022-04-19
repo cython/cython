@@ -7,32 +7,72 @@ cdef extern from "<map>" namespace "std" nogil:
         ctypedef pair[const T, U] value_type
         ctypedef COMPARE key_compare
         ctypedef ALLOCATOR allocator_type
+
+        # these should really be allocator_type.size_type and
+        # allocator_type.difference_type to be true to the C++ definition
+        # but cython doesn't support deferred access on template arguments
+        ctypedef size_t size_type
+        ctypedef ptrdiff_t difference_type
+
+        cppclass const_iterator
         cppclass iterator:
+            iterator() except +
+            iterator(iterator&) except +
+            # correct would be value_type& but this does not work
+            # well with cython's code gen
             pair[T, U]& operator*()
-            iterator& operator++()
-            iterator& operator--()
-            bint operator==(const iterator&)
-            bint operator!=(const iterator&)
-        cppclass reverse_iterator:
-            pair[T, U]& operator*()
-            reverse_iterator& operator++()
-            reverse_iterator& operator--()
-            bint operator==(const reverse_iterator&)
-            bint operator!=(const reverse_iterator&)
+            iterator operator++()
+            iterator operator--()
+            iterator operator++(int)
+            iterator operator--(int)
+            bint operator==(iterator)
+            bint operator==(const_iterator)
+            bint operator!=(iterator)
+            bint operator!=(const_iterator)
         cppclass const_iterator:
-            const_iterator(iterator)
+            const_iterator() except +
+            const_iterator(iterator&) except +
+            const_iterator(const_iterator&) except +
+            operator=(iterator&) except +
+            # correct would be const value_type& but this does not work
+            # well with cython's code gen
             const pair[T, U]& operator*()
-            const_iterator& operator++()
-            const_iterator& operator--()
-            bint operator==(const const_iterator&)
-            bint operator!=(const const_iterator&)
+            const_iterator operator++()
+            const_iterator operator--()
+            const_iterator operator++(int)
+            const_iterator operator--(int)
+            bint operator==(iterator)
+            bint operator==(const_iterator)
+            bint operator!=(iterator)
+            bint operator!=(const_iterator)
+
+        cppclass const_reverse_iterator
+        cppclass reverse_iterator:
+            reverse_iterator() except +
+            reverse_iterator(reverse_iterator&) except +
+            value_type& operator*()
+            reverse_iterator operator++()
+            reverse_iterator operator--()
+            reverse_iterator operator++(int)
+            reverse_iterator operator--(int)
+            bint operator==(reverse_iterator)
+            bint operator==(const_reverse_iterator)
+            bint operator!=(reverse_iterator)
+            bint operator!=(const_reverse_iterator)
         cppclass const_reverse_iterator:
-            const_reverse_iterator(reverse_iterator)
-            const pair[T, U]& operator*()
-            const_reverse_iterator& operator++()
-            const_reverse_iterator& operator--()
-            bint operator==(const const_reverse_iterator&)
-            bint operator!=(const const_reverse_iterator&)
+            const_reverse_iterator() except +
+            const_reverse_iterator(reverse_iterator&) except +
+            operator=(reverse_iterator&) except +
+            const value_type& operator*()
+            const_reverse_iterator operator++()
+            const_reverse_iterator operator--()
+            const_reverse_iterator operator++(int)
+            const_reverse_iterator operator--(int)
+            bint operator==(reverse_iterator)
+            bint operator==(const_reverse_iterator)
+            bint operator!=(reverse_iterator)
+            bint operator!=(const_reverse_iterator)
+
         map() except +
         map(map&) except +
         #map(key_compare&)
@@ -88,32 +128,72 @@ cdef extern from "<map>" namespace "std" nogil:
         ctypedef pair[const T, U] value_type
         ctypedef COMPARE key_compare
         ctypedef ALLOCATOR allocator_type
+
+        # these should really be allocator_type.size_type and
+        # allocator_type.difference_type to be true to the C++ definition
+        # but cython doesn't support deferred access on template arguments
+        ctypedef size_t size_type
+        ctypedef ptrdiff_t difference_type
+
+        cppclass const_iterator
         cppclass iterator:
+            iterator() except +
+            iterator(iterator&) except +
+            # correct would be value_type& but this does not work
+            # well with cython's code gen
             pair[T, U]& operator*()
-            iterator& operator++()
-            iterator& operator--()
-            bint operator==(const iterator&)
-            bint operator!=(const iterator&)
-        cppclass reverse_iterator:
-            pair[T, U]& operator*()
-            reverse_iterator& operator++()
-            reverse_iterator& operator--()
-            bint operator==(const reverse_iterator&)
-            bint operator!=(const reverse_iterator&)
+            iterator operator++()
+            iterator operator--()
+            iterator operator++(int)
+            iterator operator--(int)
+            bint operator==(iterator)
+            bint operator==(const_iterator)
+            bint operator!=(iterator)
+            bint operator!=(const_iterator)
         cppclass const_iterator:
-            const_iterator(iterator)
+            const_iterator() except +
+            const_iterator(iterator&) except +
+            const_iterator(const_iterator&) except +
+            operator=(iterator&) except +
+            # correct would be const value_type& but this does not work
+            # well with cython's code gen
             const pair[T, U]& operator*()
-            const_iterator& operator++()
-            const_iterator& operator--()
-            bint operator==(const const_iterator&)
-            bint operator!=(const const_iterator&)
+            const_iterator operator++()
+            const_iterator operator--()
+            const_iterator operator++(int)
+            const_iterator operator--(int)
+            bint operator==(iterator)
+            bint operator==(const_iterator)
+            bint operator!=(iterator)
+            bint operator!=(const_iterator)
+
+        cppclass const_reverse_iterator
+        cppclass reverse_iterator:
+            reverse_iterator() except +
+            reverse_iterator(reverse_iterator&) except +
+            value_type& operator*()
+            reverse_iterator operator++()
+            reverse_iterator operator--()
+            reverse_iterator operator++(int)
+            reverse_iterator operator--(int)
+            bint operator==(reverse_iterator)
+            bint operator==(const_reverse_iterator)
+            bint operator!=(reverse_iterator)
+            bint operator!=(const_reverse_iterator)
         cppclass const_reverse_iterator:
-            const_reverse_iterator(reverse_iterator)
-            const pair[T, U]& operator*()
-            const_reverse_iterator& operator++()
-            const_reverse_iterator& operator--()
-            bint operator==(const const_reverse_iterator&)
-            bint operator!=(const const_reverse_iterator&)
+            const_reverse_iterator() except +
+            const_reverse_iterator(reverse_iterator&) except +
+            operator=(reverse_iterator&) except +
+            const value_type& operator*()
+            const_reverse_iterator operator++()
+            const_reverse_iterator operator--()
+            const_reverse_iterator operator++(int)
+            const_reverse_iterator operator--(int)
+            bint operator==(reverse_iterator)
+            bint operator==(const_reverse_iterator)
+            bint operator!=(reverse_iterator)
+            bint operator!=(const_reverse_iterator)
+
         multimap() except +
         multimap(const multimap&) except +
         #multimap(key_compare&)

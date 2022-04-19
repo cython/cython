@@ -159,3 +159,17 @@ def test_unordered_map_find_erase(vals, to_remove):
     it = um.find(to_remove)
     it = um.erase(it)
     return sorted([ item for item in um ])
+
+def test_iterator_stack_allocated():
+    """
+    https://github.com/cython/cython/issues/4657 - mainly a compile test showing
+    that const iterators can be stack allocated
+    >>> test_iterator_stack_allocated()
+    """
+    cdef map[int,int] mymap = map[int,int]()
+    cdef unordered_map[int,int] myumap = unordered_map[int,int]()
+    cdef int ckey = 5
+    it = mymap.const_find(ckey)
+    assert it == mymap.const_end()
+    uit = myumap.const_find(ckey)
+    assert uit == myumap.const_end()

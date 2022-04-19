@@ -6,17 +6,44 @@ cdef extern from "<unordered_map>" namespace "std" nogil:
         ctypedef U mapped_type
         ctypedef pair[const T, U] value_type
         ctypedef ALLOCATOR allocator_type
+
+        # these should really be allocator_type.size_type and
+        # allocator_type.difference_type to be true to the C++ definition
+        # but cython doesn't support deferred access on template arguments
+        ctypedef size_t size_type
+        ctypedef ptrdiff_t difference_type
+
+        cppclass iterator
         cppclass iterator:
+            iterator() except +
+            iterator(iterator&) except +
+            # correct would be value_type& but this does not work
+            # well with cython's code gen
             pair[T, U]& operator*()
-            iterator& operator++()
-            bint operator==(const iterator&)
-            bint operator!=(const iterator&)
+            iterator operator++()
+            iterator operator--()
+            iterator operator++(int)
+            iterator operator--(int)
+            bint operator==(iterator)
+            bint operator==(const_iterator)
+            bint operator!=(iterator)
+            bint operator!=(const_iterator)
         cppclass const_iterator:
-            const_iterator(iterator)
+            const_iterator() except +
+            const_iterator(iterator&) except +
+            operator=(iterator&) except +
+            # correct would be const value_type& but this does not work
+            # well with cython's code gen
             const pair[T, U]& operator*()
-            const_iterator& operator++()
-            bint operator==(const const_iterator&)
-            bint operator!=(const const_iterator&)
+            const_iterator operator++()
+            const_iterator operator--()
+            const_iterator operator++(int)
+            const_iterator operator--(int)
+            bint operator==(iterator)
+            bint operator==(const_iterator)
+            bint operator!=(iterator)
+            bint operator!=(const_iterator)
+
         unordered_map() except +
         unordered_map(unordered_map&) except +
         #unordered_map(key_compare&)
@@ -74,17 +101,40 @@ cdef extern from "<unordered_map>" namespace "std" nogil:
         ctypedef U mapped_type
         ctypedef pair[const T, U] value_type
         ctypedef ALLOCATOR allocator_type
+
+        # these should really be allocator_type.size_type and
+        # allocator_type.difference_type to be true to the C++ definition
+        # but cython doesn't support deferred access on template arguments
+        ctypedef size_t size_type
+        ctypedef ptrdiff_t difference_type
+
+        cppclass const_iterator
         cppclass iterator:
+            iterator() except +
+            iterator(iterator&) except +
+            # correct would be value_type& but this does not work
+            # well with cython's code gen
             pair[T, U]& operator*()
             iterator operator++()
+            iterator operator++(int)
             bint operator==(iterator)
+            bint operator==(const_iterator)
             bint operator!=(iterator)
+            bint operator!=(const_iterator)
         cppclass const_iterator:
-            const_iterator(iterator)
+            const_iterator() except +
+            const_iterator(iterator&) except +
+            operator=(iterator&) except +
+            # correct would be const value_type& but this does not work
+            # well with cython's code gen
             const pair[T, U]& operator*()
-            const_iterator& operator++()
-            bint operator==(const const_iterator&)
-            bint operator!=(const const_iterator&)
+            const_iterator operator++()
+            const_iterator operator++(int)
+            bint operator==(iterator)
+            bint operator==(const_iterator)
+            bint operator!=(iterator)
+            bint operator!=(const_iterator)
+
         unordered_multimap() except +
         unordered_multimap(const unordered_multimap&) except +
         #unordered_multimap(key_compare&)
