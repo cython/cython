@@ -10,10 +10,9 @@ from libcpp.vector cimport vector
 
 def sample_multiple(population_size, int sample_size):
     """
-    >>> sample_multiple(10, 3)
-    [3, 5, 6]
-    >>> sample_multiple(50, 7)
-    [6, 8, 10, 29, 38, 39, 42]
+    >>> sample = sample_multiple(10, 7)
+    >>> len(sample), len(set(sample))  # Check sampling without replacement.
+    (7, 7)
     """
     cdef:
         vector[int] x, y
@@ -22,13 +21,13 @@ def sample_multiple(population_size, int sample_size):
 
     [x.push_back(i) for i in range(population_size)]
     sample(x.begin(), x.end(), back_inserter(y), sample_size, move(rd))
-    print(y)
+    return y
 
 
 def sample_single(population_size):
     """
-    >>> sample_single(10)
-    5
+    >>> 0 <= sample_single(10) < 10
+    True
     """
     cdef:
         vector[int] x
@@ -37,4 +36,4 @@ def sample_single(population_size):
 
     [x.push_back(i) for i in range(population_size)]
     sample(x.begin(), x.end(), &i, 1, move(rd))
-    print(i)
+    return i
