@@ -814,6 +814,7 @@ context = {
     'max_dims': Options.buffer_max_dims,
     'memviewslice_name': memviewslice_cname,
     'memslice_init': PyrexTypes.MemoryViewSliceType.default_value,
+    'THREAD_LOCKS_PREALLOCATED': 8,
 }
 memviewslice_declare_code = load_memview_c_utility(
         "MemviewSliceStruct",
