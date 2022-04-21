@@ -731,7 +731,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                 # unless the function is some kind of external function that we do not control.
                 if return_type.exception_value is not None and (visibility != 'extern' and not in_pxd):
                     # - We skip this optimization for extension types; they are more difficult because
-                    #   the signature match the base type signature.
+                    #   the signature must match the base type signature.
                     # - Same for function pointers, as we want them to be able to match functions
                     #   with any exception value.
                     if not env.is_c_class_scope and not isinstance(self.base, CPtrDeclaratorNode):
