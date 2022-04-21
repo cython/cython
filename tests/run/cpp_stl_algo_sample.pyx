@@ -19,7 +19,8 @@ def sample_multiple(population_size, int sample_size):
         int i
         mt19937 rd = mt19937(1)
 
-    [x.push_back(i) for i in range(population_size)]
+    for i in range(population_size):
+        x.push_back(i)
     sample(x.begin(), x.end(), back_inserter(y), sample_size, move(rd))
     return y
 
@@ -34,6 +35,7 @@ def sample_single(population_size):
         int i
         mt19937 rd = mt19937(1)
 
-    [x.push_back(i) for i in range(population_size)]
+    for i in range(population_size):
+        x.push_back(i)
     sample(x.begin(), x.end(), &i, 1, move(rd))
     return i
