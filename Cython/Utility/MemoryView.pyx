@@ -1173,7 +1173,7 @@ cdef void copy_strided_to_strided({{memviewslice_name}} *src,
                              src.shape, dst.shape, ndim, itemsize)
 
 @cname('__pyx_memoryview_slice_get_size')
-cdef Py_ssize_t slice_get_size({{memviewslice_name}} *src, int ndim) nogil noexcept: 
+cdef Py_ssize_t slice_get_size({{memviewslice_name}} *src, int ndim) nogil noexcept:
     "Return the size of the memory occupied by the slice in number of bytes"
     cdef Py_ssize_t shape, size = src.memview.view.itemsize
 
