@@ -3012,17 +3012,17 @@ def p_with_gil(s):
 def p_exception_value_clause(s, ctx):
     exc_val = None
     if ctx.visibility  == 'extern':
-        exc_check = 0
+        exc_check = False
     else:
-        exc_check = 1
+        exc_check = True
 
     if s.sy == 'IDENT' and s.systring == 'noexcept':
         s.next()
-        exc_check = 0
+        exc_check = False
     elif s.sy == 'except':
         s.next()
         if s.sy == '*':
-            exc_check = 1
+            exc_check = True
             s.next()
         elif s.sy == '+':
             exc_check = '+'
@@ -3036,10 +3036,10 @@ def p_exception_value_clause(s, ctx):
                 s.next()
         else:
             if s.sy == '?':
-                exc_check = 1
+                exc_check = True
                 s.next()
             else:
-                exc_check = 0
+                exc_check = False
             exc_val = p_test(s)
     return exc_val, exc_check
 
