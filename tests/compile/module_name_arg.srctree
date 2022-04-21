@@ -3,7 +3,7 @@ CYTHON a.pyx
 CYTHON --module-name w b.pyx
 CYTHON --module-name my_module.submod.x c.pyx
 PYTHON setup.py build_ext --inplace
-PYTHON -c "import checks"
+PYTHON checks.py
 
 ######## checks.py ########
 
@@ -25,7 +25,7 @@ for module_name, should_import in (
         import_module(module_name)
     except exc:
         if should_import:
-            assert False, "Connot import module " + module_name
+            assert False, "Cannot import module " + module_name
     else:
         if not should_import:
             assert False, ("Can import module " + module_name +
