@@ -2283,7 +2283,8 @@ class CCodeWriter(object):
 
     def put_pymethoddef(self, entry, term, allow_skip=True, wrapper_code_writer=None):
         if entry.is_special or entry.name == '__getattribute__':
-            if entry.name not in special_py_methods:
+            from . import TypeSlots
+            if entry.name not in special_py_methods and not TypeSlots.is_reverse_number_slot(entry.name):
                 if entry.name == '__getattr__' and not self.globalstate.directives['fast_getattr']:
                     pass
                 # Python's typeobject.c will automatically fill in our slot
@@ -2295,8 +2296,7 @@ class CCodeWriter(object):
         method_flags = entry.signature.method_flags()
         if not method_flags:
             return
-        from . import TypeSlots
-        if entry.is_special or TypeSlots.is_reverse_number_slot(entry.name):
+        if entry.is_special:
             method_flags += [TypeSlots.method_coexist]
         func_ptr = wrapper_code_writer.put_pymethoddef_wrapper(entry) if wrapper_code_writer else entry.func_cname
         # Add required casts, but try not to shadow real warnings.
