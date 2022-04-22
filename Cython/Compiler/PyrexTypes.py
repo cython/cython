@@ -3113,7 +3113,9 @@ class CFuncType(CType):
             arg_decl_code = "void"
         trailer = ""
         if (pyrex or for_display) and not self.return_type.is_pyobject:
-            if self.exception_value and self.exception_check:
+            if not self.exception_check and not self.exception_value:
+                trailer = " noexcept"
+            elif self.exception_value and self.exception_check:
                 trailer = " except? %s" % self.exception_value
             elif self.exception_value:
                 trailer = " except %s" % self.exception_value
