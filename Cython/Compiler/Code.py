@@ -2282,8 +2282,10 @@ class CCodeWriter(object):
             self.put_giveref('Py_None')
 
     def put_pymethoddef(self, entry, term, allow_skip=True, wrapper_code_writer=None):
+        is_reverse_number_slot = False
         if entry.is_special or entry.name == '__getattribute__':
             from . import TypeSlots
+            is_reverse_number_slot = True
             if entry.name not in special_py_methods and not TypeSlots.is_reverse_number_slot(entry.name):
                 if entry.name == '__getattr__' and not self.globalstate.directives['fast_getattr']:
                     pass
@@ -2304,6 +2306,14 @@ class CCodeWriter(object):
         if cast != 'PyCFunction':
             func_ptr = '(void*)(%s)%s' % (cast, func_ptr)
         entry_name = entry.name.as_c_string_literal()
+        if is_reverse_number_slot:
+            # Unlike most special functions, reverse number operator slots are actually generated here
+            # (to ensure that they're looked up). However, they're sometimes guarded by the preprocessor
+            # so a bit of extra logic is needed
+            slot = TypeSlots.get_slot_table(self.globalstate.directives).get_slot_by_method_name(entry.name)
+            preproc_guard = slot.preprocessor_guard_code()
+            if preproc_guard:
+                self.putln(preproc_guard)
         self.putln(
             '{%s, (PyCFunction)%s, %s, %s}%s' % (
                 entry_name,
@@ -2311,6 +2321,8 @@ class CCodeWriter(object):
                 "|".join(method_flags),
                 entry.doc_cname if entry.doc else '0',
                 term))
+        if is_reverse_number_slot and preproc_guard:
+            self.putln("#endif")
 
     def put_pymethoddef_wrapper(self, entry):
         func_cname = entry.func_cname
