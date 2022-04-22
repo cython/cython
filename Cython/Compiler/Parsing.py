@@ -2900,6 +2900,7 @@ def p_c_func_declarator(s, pos, ctx, base, cmethod_flag):
     s.expect(')')
     nogil = p_nogil(s)
     exc_val, exc_check = p_exception_value_clause(s, ctx)
+    nogil = nogil or p_nogil(s)
     with_gil = p_with_gil(s)
     return Nodes.CFuncDeclaratorNode(pos,
         base = base, args = args, has_varargs = ellipsis,
