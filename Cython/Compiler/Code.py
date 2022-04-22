@@ -2308,7 +2308,7 @@ class CCodeWriter(object):
         entry_name = entry.name.as_c_string_literal()
         if is_reverse_number_slot:
             # Unlike most special functions, reverse number operator slots are actually generated here
-            # (to ensure that they're looked up). However, they're sometimes guarded by the preprocessor
+            # (to ensure that they can be looked up). However, they're sometimes guarded by the preprocessor
             # so a bit of extra logic is needed
             slot = TypeSlots.get_slot_table(self.globalstate.directives).get_slot_by_method_name(entry.name)
             preproc_guard = slot.preprocessor_guard_code()
