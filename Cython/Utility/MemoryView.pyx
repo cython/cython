@@ -320,17 +320,11 @@ cdef void *align_pointer(void *memory, size_t alignment) nogil:
 # pre-allocate thread locks for reuse
 ## note that this could be implemented in a more beautiful way in "normal" Cython,
 ## but this code gets merged into the user module and not everything works there.
-DEF THREAD_LOCKS_PREALLOCATED = 8
 cdef int __pyx_memoryview_thread_locks_used = 0
-cdef PyThread_type_lock[THREAD_LOCKS_PREALLOCATED] __pyx_memoryview_thread_locks = [
+cdef PyThread_type_lock[{{THREAD_LOCKS_PREALLOCATED}}] __pyx_memoryview_thread_locks = [
+{{for _ in range(THREAD_LOCKS_PREALLOCATED)}}
     PyThread_allocate_lock(),
-    PyThread_allocate_lock(),
-    PyThread_allocate_lock(),
-    PyThread_allocate_lock(),
-    PyThread_allocate_lock(),
-    PyThread_allocate_lock(),
-    PyThread_allocate_lock(),
-    PyThread_allocate_lock(),
+{{endfor}}
 ]
 
 
@@ -360,7 +354,7 @@ cdef class memoryview:
                 Py_INCREF(Py_None)
 
         global __pyx_memoryview_thread_locks_used
-        if __pyx_memoryview_thread_locks_used < THREAD_LOCKS_PREALLOCATED:
+        if __pyx_memoryview_thread_locks_used < {{THREAD_LOCKS_PREALLOCATED}}:
             self.lock = __pyx_memoryview_thread_locks[__pyx_memoryview_thread_locks_used]
             __pyx_memoryview_thread_locks_used += 1
         if self.lock is NULL:

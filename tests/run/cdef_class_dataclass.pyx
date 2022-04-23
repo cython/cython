@@ -197,12 +197,20 @@ cdef class TestVisibility:
     'double'
     >>> hasattr(inst, "c")
     True
+    >>> "d" in TestVisibility.__dataclass_fields__
+    True
+    >>> TestVisibility.__dataclass_fields__["d"].type
+    'object'
+    >>> hasattr(inst, "d")
+    True
     """
     cdef double a
     a = 1.0
     b: double = 2.0
     cdef public double c
     c = 3.0
+    cdef public object d
+    d = object()
 
 @dataclass(frozen=True)
 cdef class TestFrozen:
