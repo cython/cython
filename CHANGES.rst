@@ -18,7 +18,7 @@ Features added
 
 * Some C++ library declarations were extended and fixed.
   Patches by Max Bachmann, Till Hoffmann, Julien Jerphanion.
-  (Github issues :issue:`4530`, :issue:`4528`, :issue:`4710`, :issue:`4746`)
+  (Github issues :issue:`4530`, :issue:`4528`, :issue:`4710`, :issue:`4746`, :issue:`4751`)
 
 * The ``cythonize`` command has a new option ``-M`` to generate ``.dep`` dependency
   files for the compilation unit.  This can be used by external build tools to track
@@ -30,9 +30,6 @@ Features added
 
 * The environment variable ``CYTHON_FORCE_REGEN=1`` can be used to force ``cythonize``
   to regenerate the output files regardless of modification times and changes.
-
-* The generated C code failed to compile in CPython 3.11a4 and later.
-  (Github issue :issue:`4500`)
 
 * A new Cython build option ``--cython-compile-minimal`` was added to compile only a
   smaller set of Cython modules, which can be used to reduce the package and install size.
@@ -55,6 +52,9 @@ Bugs fixed
 * The return type of a fused function is no longer ignored for function pointers,
   since it is relevant when passing them e.g. as argument into other fused functions.
   Patch by David Woods.  (Github issue :issue:`4644`)
+
+* The generated C code failed to compile in CPython 3.11a4 and later.
+  (Github issue :issue:`4500`)
 
 * A case of undefined C behaviour was resolved in the list slicing code.
   Patch by Richard Barnes.  (Github issue :issue:`4734`)
