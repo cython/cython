@@ -1,4 +1,4 @@
-# ticket: 18
+# ticket: t18
 
 __doc__ = u"""
 >>> f = PyFoo()

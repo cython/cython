@@ -62,3 +62,25 @@ def test_zero_sized(array):
     """
     cdef double[::1] a = array
     return a
+
+def test_zero_sized_multidim_ccontig(array):
+    """
+    >>> contig = np.ascontiguousarray(np.zeros((4,4,4))[::2, 2:2, ::2])
+    >>> _ = test_zero_sized_multidim_ccontig(contig)
+
+    >>> a = np.zeros((4,4,4))[::2, 2:2, ::2]
+    >>> if NUMPY_HAS_RELAXED_STRIDES: _ = test_zero_sized_multidim_ccontig(a)
+    """
+    cdef double[:, :, ::1] a = array
+    return a
+
+def test_zero_sized_multidim_fcontig(array):
+    """
+    >>> contig = np.ascontiguousarray(np.zeros((4,4,4))[::2, 2:2, ::2])
+    >>> _ = test_zero_sized_multidim_fcontig(contig)
+
+    >>> a = np.zeros((4,4,4))[::2, 2:2, ::2]
+    >>> if NUMPY_HAS_RELAXED_STRIDES: _ = test_zero_sized_multidim_fcontig(a)
+    """
+    cdef double[::1, :, :] a = array
+    return a

@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, werror, cpp11
+# tag: cpp, werror, cpp11, no-cpp-locals
 
 import sys
 from libcpp.unordered_map cimport unordered_map
@@ -113,7 +113,7 @@ def test_unordered_set_functionality():
         unordered_set[int].iterator iterator = int_set.begin()
     int_set.insert(1)
     assert int_set.size() == 1
-    int_set.erase(int_set.begin(), int_set.end())
+    int_set.erase(unordered_set[int].const_iterator(int_set.begin()), unordered_set[int].const_iterator(int_set.end()))
     assert int_set.size() == 0
     int_set.insert(1)
     assert int_set.erase(1) == 1 # returns number of elements erased
@@ -137,7 +137,13 @@ def test_unordered_set_functionality():
     int_set.bucket_count()
     int_set.max_bucket_count()
     int_set.bucket(3)
+    assert int_set.load_factor() > 0
     return "pass"
+
+
+cdef extern from "cpp_unordered_map_helper.h":
+    cdef cppclass IntVectorHash:
+        pass
 
 
 def test_unordered_map_functionality():
@@ -153,6 +159,8 @@ def test_unordered_map_functionality():
         unordered_map[int, int] int_map2
         unordered_map[int, int*] intptr_map
         const int* intptr
+        unordered_map[vector[int], int, IntVectorHash] int_vector_map
+        vector[int] intvec
     assert int_map[1] == 2
     assert int_map.size() == 1
     assert int_map.erase(1) == 1 # returns number of elements erased
@@ -168,7 +176,7 @@ def test_unordered_map_functionality():
     int_map.clear()
     int_map.insert(int_map2.begin(), int_map2.end())
     assert int_map.size() == 2
-    assert int_map.erase(int_map.begin(), int_map.end()) == int_map.end()
+    assert int_map.erase(unordered_map[int,int].const_iterator(int_map.begin()), unordered_map[int,int].const_iterator(int_map.end())) == int_map.end()
 
     int_map.max_load_factor(0.5)
     assert int_map.max_load_factor() == 0.5
@@ -180,7 +188,16 @@ def test_unordered_map_functionality():
     int_map.bucket_count()
     int_map.max_bucket_count()
     int_map.bucket(3)
+    assert int_map.load_factor() > 0
 
     intptr_map[0] = NULL
     intptr = intptr_map.const_at(0)
+
+    intvec = [1, 2]
+    int_vector_map[intvec] = 3
+    intvec = [4, 5]
+    int_vector_map[intvec] = 6
+    assert int_vector_map[intvec] == 6
+    intvec = [1, 2]
+    assert int_vector_map[intvec] == 3
     return "pass"

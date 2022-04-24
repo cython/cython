@@ -1,9 +1,10 @@
-# tag: cpp
+# tag: cpp, no-cpp-locals
 
 import cython
 
 cimport libcpp
 
+# cimport libcpp.atomic
 cimport libcpp.deque
 cimport libcpp.list
 cimport libcpp.map
@@ -15,6 +16,7 @@ cimport libcpp.vector
 cimport libcpp.complex
 cimport libcpp.limits
 
+# from libcpp.atomic cimport *
 from libcpp.deque  cimport *
 from libcpp.list   cimport *
 from libcpp.map    cimport *
@@ -26,6 +28,7 @@ from libcpp.vector cimport *
 from libcpp.complex cimport *
 from libcpp.limits cimport *
 
+# cdef libcpp.atomic.atomc[int]  a1 = atomic[int]()
 cdef libcpp.deque.deque[int]   d1 = deque[int]()
 cdef libcpp.list.list[int]     l1 = list[int]()
 cdef libcpp.map.map[int,int]   m1 = map[int,int]()

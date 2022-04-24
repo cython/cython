@@ -18,4 +18,11 @@ def f(a, b, c, x):
         finally:
             i = 42
 
+def use_name_in_finally(name):
+    # GH3712
+    try:
+        []
+    finally:
+        name()
+
 

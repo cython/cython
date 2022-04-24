@@ -1,5 +1,13 @@
 cimport cython
 
+cdef extern from *:
+    cdef Py_ssize_t PY_SSIZE_T_MIN
+    cdef Py_ssize_t PY_SSIZE_T_MAX
+
+SSIZE_T_MAX = PY_SSIZE_T_MAX
+SSIZE_T_MIN = PY_SSIZE_T_MIN
+
+
 b_a = b'a'
 b_b = b'b'
 
@@ -113,6 +121,14 @@ def bytes_decode(bytes s, start=None, stop=None):
     >>> print(bytes_decode(s, -300, -6))
     <BLANKLINE>
     >>> print(bytes_decode(s, -300, -500))
+    <BLANKLINE>
+    >>> print(bytes_decode(s, SSIZE_T_MIN, SSIZE_T_MIN))
+    <BLANKLINE>
+    >>> print(bytes_decode(s, SSIZE_T_MIN, SSIZE_T_MAX))
+    abaab
+    >>> print(bytes_decode(s, SSIZE_T_MAX, SSIZE_T_MIN))
+    <BLANKLINE>
+    >>> print(bytes_decode(s, SSIZE_T_MAX, SSIZE_T_MAX))
     <BLANKLINE>
 
     >>> s[:'test']                       # doctest: +ELLIPSIS

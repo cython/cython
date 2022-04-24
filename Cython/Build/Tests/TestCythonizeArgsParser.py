@@ -27,14 +27,14 @@ class TestCythonizeArgsParser(TestCase):
         empty_containers = ['directives', 'compile_time_env', 'options', 'excludes']
         are_none = ['language_level', 'annotate', 'build', 'build_inplace', 'force', 'quiet', 'lenient', 'keep_going', 'no_docstrings']
         for opt_name in empty_containers:
-            if len(getattr(options, opt_name))!=0 and (not opt_name in skip):
+            if len(getattr(options, opt_name))!=0 and (opt_name not in skip):
                 self.assertEqual(opt_name,"", msg="For option "+opt_name)
                 return False
         for opt_name in are_none:
-            if (getattr(options, opt_name) is not None) and (not opt_name in skip):
+            if (getattr(options, opt_name) is not None) and (opt_name not in skip):
                 self.assertEqual(opt_name,"", msg="For option "+opt_name)
                 return False
-        if options.parallel!=parallel_compiles and (not 'parallel' in skip):
+        if options.parallel!=parallel_compiles and ('parallel' not in skip):
             return False
         return True
 
@@ -112,8 +112,8 @@ class TestCythonizeArgsParser(TestCase):
 
     def test_directives_wrong(self):
         directives = {
-                'auto_pickle': 42,       # for bool type
-                'auto_pickle': 'NONONO', # for bool type
+                'auto_pickle': 42,        # for bool type
+                'auto_pickle': 'NONONO',  # for bool type
                 'c_string_type': 'bites',
                 #'c_string_encoding' : 'a',
                 #'language_level' : 4,
@@ -167,14 +167,14 @@ class TestCythonizeArgsParser(TestCase):
         self.assertFalse(args)
         self.assertTrue(self.are_default(options, ['options']))
         self.assertEqual(options.options['docstrings'], True)
-        self.assertEqual(options.options['buffer_max_dims'], True) #  really?
+        self.assertEqual(options.options['buffer_max_dims'], True)  #  really?
 
     def test_option_multiple_v2(self):
         options, args =  self.parse_args(['-s', 'docstrings=True,buffer_max_dims=8'])
         self.assertFalse(args)
         self.assertTrue(self.are_default(options, ['options']))
         self.assertEqual(options.options['docstrings'], True)
-        self.assertEqual(options.options['buffer_max_dims'], True) #  really?
+        self.assertEqual(options.options['buffer_max_dims'], True)  #  really?
 
     def test_option_value_yes(self):
         options, args =  self.parse_args(['-s', 'docstrings=YeS'])

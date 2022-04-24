@@ -43,7 +43,7 @@ from __future__ import absolute_import
 import os
 import sys
 import time
-from unittest import TestResult, _TextTestResult, TextTestRunner
+from unittest import TestResult, TextTestResult, TextTestRunner
 import xml.dom.minidom
 try:
     from StringIO import StringIO
@@ -95,7 +95,7 @@ class _TestInfo(object):
             self.err, self.test_method)
 
 
-class _XMLTestResult(_TextTestResult):
+class _XMLTestResult(TextTestResult):
     """A test result class that can express test results in a XML report.
 
     Used by XMLTestRunner.
@@ -103,14 +103,13 @@ class _XMLTestResult(_TextTestResult):
     def __init__(self, stream=sys.stderr, descriptions=1, verbosity=1,
                  elapsed_times=True):
         "Create a new instance of _XMLTestResult."
-        _TextTestResult.__init__(self, stream, descriptions, verbosity)
+        TextTestResult.__init__(self, stream, descriptions, verbosity)
         self.successes = []
         self.callback = None
         self.elapsed_times = elapsed_times
         self.output_patched = False
 
-    def _prepare_callback(self, test_info, target_list, verbose_str,
-        short_str):
+    def _prepare_callback(self, test_info, target_list, verbose_str, short_str):
         """Append a _TestInfo to the given target list and sets a callback
         method to be called by stopTest method.
         """
@@ -125,7 +124,7 @@ class _XMLTestResult(_TextTestResult):
                 self.start_time = self.stop_time = 0
 
             if self.showAll:
-                self.stream.writeln('(%.3fs) %s' % \
+                self.stream.writeln('(%.3fs) %s' %
                     (test_info.get_elapsed_time(), verbose_str))
             elif self.dots:
                 self.stream.write(short_str)
@@ -159,7 +158,7 @@ class _XMLTestResult(_TextTestResult):
     def stopTest(self, test):
         "Called after execute each test method."
         self._restore_standard_output()
-        _TextTestResult.stopTest(self, test)
+        TextTestResult.stopTest(self, test)
         self.stop_time = time.time()
 
         if self.callback and callable(self.callback):
@@ -300,8 +299,7 @@ class _XMLTestResult(_TextTestResult):
         "Generates the XML reports to a given XMLTestRunner object."
         all_results = self._get_info_by_testcase()
 
-        if type(test_runner.output) == str and not \
-            os.path.exists(test_runner.output):
+        if isinstance(test_runner.output, str) and not os.path.exists(test_runner.output):
             os.makedirs(test_runner.output)
 
         for suite, tests in all_results.items():
@@ -321,7 +319,7 @@ class _XMLTestResult(_TextTestResult):
             xml_content = doc.toprettyxml(indent='\t')
 
             if type(test_runner.output) is str:
-                report_file = open('%s%sTEST-%s.xml' % \
+                report_file = open('%s%sTEST-%s.xml' %
                     (test_runner.output, os.sep, suite), 'w')
                 try:
                     report_file.write(xml_content)
@@ -348,7 +346,7 @@ class XMLTestRunner(TextTestRunner):
         """Create the TestResult object which will be used to store
         information about the executed tests.
         """
-        return _XMLTestResult(self.stream, self.descriptions, \
+        return _XMLTestResult(self.stream, self.descriptions,
             self.verbosity, self.elapsed_times)
 
     def run(self, test):

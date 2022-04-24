@@ -1,0 +1,8 @@
+.. warning::
+
+    The code provided above / on this page uses an external
+    native (non-Python) library through a ``cimport`` (``cython.cimports``).
+    Cython compilation enables this, but there is no support for this from
+    plain Python. Trying to run this code from Python (without compilation)
+    will fail when accessing the external library.
+    This is described in more detail in :ref:`calling-c-functions`.

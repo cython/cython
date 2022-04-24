@@ -4,11 +4,11 @@
 
 from __future__ import absolute_import
 
-from .Symtab import BuiltinScope, StructOrUnionScope
+from .StringEncoding import EncodedString
+from .Symtab import BuiltinScope, StructOrUnionScope, ModuleScope
 from .Code import UtilityCode
 from .TypeSlots import Signature
 from . import PyrexTypes
-from . import Options
 
 
 # C-level implementations of builtin types, functions and methods
@@ -56,7 +56,7 @@ class BuiltinAttribute(object):
     def __init__(self, py_name, cname=None, field_type=None, field_type_name=None):
         self.py_name = py_name
         self.cname = cname or py_name
-        self.field_type_name = field_type_name # can't do the lookup before the type is declared!
+        self.field_type_name = field_type_name  # can't do the lookup before the type is declared!
         self.field_type = field_type
 
     def declare_in_type(self, self_type):
@@ -205,13 +205,13 @@ builtin_function_table = [
     #('raw_input', "",     "",      ""),
     #('reduce',    "",     "",      ""),
     BuiltinFunction('reload',     "O",    "O",     "PyImport_ReloadModule"),
-    BuiltinFunction('repr',       "O",    "O",     "PyObject_Repr", builtin_return_type='str'),
+    BuiltinFunction('repr',       "O",    "O",     "PyObject_Repr"),  # , builtin_return_type='str'),  # add in Cython 3.1
     #('round',     "",     "",      ""),
     BuiltinFunction('setattr',    "OOO",  "r",     "PyObject_SetAttr"),
     #('sum',       "",     "",      ""),
     #('sorted',    "",     "",      ""),
     #('type',       "O",    "O",     "PyObject_Type"),
-    #('unichr',    "",     "",      ""),
+    BuiltinFunction('unichr',     "l",    "O",      "PyUnicode_FromOrdinal", builtin_return_type='unicode'),
     #('unicode',   "",     "",      ""),
     #('vars',      "",     "",      ""),
     #('zip',       "",     "",      ""),
@@ -346,15 +346,15 @@ builtin_types_table = [
 ]
 
 
-types_that_construct_their_instance = set([
+types_that_construct_their_instance = frozenset({
     # some builtin types do not always return an instance of
     # themselves - these do:
     'type', 'bool', 'long', 'float', 'complex',
     'bytes', 'unicode', 'bytearray',
-    'tuple', 'list', 'dict', 'set', 'frozenset'
+    'tuple', 'list', 'dict', 'set', 'frozenset',
     # 'str',             # only in Py3.x
     # 'file',            # only in Py2.x
-])
+})
 
 
 builtin_structs_table = [
@@ -420,6 +420,7 @@ def init_builtin_structs():
 
 
 def init_builtins():
+    #Errors.init_thread()  # hopefully not needed - we should not emit warnings ourselves
     init_builtin_structs()
     init_builtin_types()
     init_builtin_funcs()
@@ -430,7 +431,7 @@ def init_builtins():
 
     global list_type, tuple_type, dict_type, set_type, frozenset_type
     global bytes_type, str_type, unicode_type, basestring_type, slice_type
-    global float_type, bool_type, type_type, complex_type, bytearray_type
+    global float_type, long_type, bool_type, type_type, complex_type, bytearray_type
     type_type  = builtin_scope.lookup('type').type
     list_type  = builtin_scope.lookup('list').type
     tuple_type = builtin_scope.lookup('tuple').type
@@ -444,8 +445,62 @@ def init_builtins():
     basestring_type = builtin_scope.lookup('basestring').type
     bytearray_type = builtin_scope.lookup('bytearray').type
     float_type = builtin_scope.lookup('float').type
+    long_type = builtin_scope.lookup('long').type
     bool_type  = builtin_scope.lookup('bool').type
     complex_type  = builtin_scope.lookup('complex').type
 
 
 init_builtins()
+
+##############################
+# Support for a few standard library modules that Cython understands (currently typing and dataclasses)
+##############################
+_known_module_scopes = {}
+
+def get_known_standard_library_module_scope(module_name):
+    mod = _known_module_scopes.get(module_name)
+    if mod:
+        return mod
+
+    if module_name == "typing":
+        mod = ModuleScope(module_name, None, None)
+        for name, tp in [
+                ('Dict', dict_type),
+                ('List', list_type),
+                ('Tuple', tuple_type),
+                ('Set', set_type),
+                ('FrozenSet', frozenset_type),
+                ]:
+            name = EncodedString(name)
+            if name == "Tuple":
+                indexed_type = PyrexTypes.PythonTupleTypeConstructor(EncodedString("typing."+name), tp)
+            else:
+                indexed_type = PyrexTypes.PythonTypeConstructor(EncodedString("typing."+name), tp)
+            entry = mod.declare_type(name, indexed_type, pos = None)
+
+        for name in ['ClassVar', 'Optional']:
+            indexed_type = PyrexTypes.SpecialPythonTypeConstructor(EncodedString("typing."+name))
+            entry = mod.declare_type(name, indexed_type, pos = None)
+        _known_module_scopes[module_name] = mod
+    elif module_name == "dataclasses":
+        mod = ModuleScope(module_name, None, None)
+        indexed_type = PyrexTypes.SpecialPythonTypeConstructor(EncodedString("dataclasses.InitVar"))
+        entry = mod.declare_type(EncodedString("InitVar"), indexed_type, pos = None)
+        _known_module_scopes[module_name] = mod
+    return mod
+
+
+def get_known_standard_library_entry(qualified_name):
+    name_parts = qualified_name.split(".")
+    module_name = EncodedString(name_parts[0])
+    rest = name_parts[1:]
+
+    if len(rest) > 1:  # for now, we don't know how to deal with any nested modules
+        return None
+
+    mod = get_known_standard_library_module_scope(module_name)
+
+    # eventually handle more sophisticated multiple lookups if needed
+    if mod and rest:
+        return mod.lookup_here(rest[0])
+    return None

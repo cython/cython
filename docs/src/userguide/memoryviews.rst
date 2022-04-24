@@ -78,6 +78,12 @@ three dimensional buffer into a function that requires a two
 dimensional buffer will raise a ``ValueError``.
 
 
+To use a memory view on a numpy array with a custom dtype, you'll need to
+declare an equivalent packed struct that mimics the dtype:
+
+.. literalinclude:: ../../examples/userguide/memoryviews/custom_dtype.pyx
+
+
 Indexing
 --------
 
@@ -152,6 +158,9 @@ As for NumPy, new axes can be introduced by indexing an array with ``None`` ::
 
 One may mix new axis indexing with all other forms of indexing and slicing.
 See also an example_.
+
+
+.. _readonly_views:
 
 Read-only views
 ---------------
@@ -655,6 +664,16 @@ This way, you can call the C function similar to a normal Python function,
 and leave all the memory management and cleanup to NumPy arrays and Python's
 object handling. For the details of how to compile and
 call functions in C files, see :ref:`using_c_libraries`.
+
+
+Performance: Disabling initialization checks
+============================================
+
+Every time the memoryview is accessed, Cython adds a check to make sure that it has been initialized.
+
+If you are looking for performance, you can disable them by setting the
+``initializedcheck`` directive to ``False``.
+See: :ref:`compiler-directives` for more information about this directive.
 
 
 .. _GIL: https://docs.python.org/dev/glossary.html#term-global-interpreter-lock

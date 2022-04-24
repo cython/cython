@@ -55,7 +55,7 @@ class TestBufferOptions(CythonTest):
         root = self.fragment(s, pipeline=[NormalizeTree(self), PostParse(self)]).root
         if not expect_error:
             vardef = root.stats[0].body.stats[0]
-            assert isinstance(vardef, CVarDefNode) # use normal assert as this is to validate the test code
+            assert isinstance(vardef, CVarDefNode)  # use normal assert as this is to validate the test code
             buftype = vardef.base_type
             self.assertTrue(isinstance(buftype, TemplatedTypeNode))
             self.assertTrue(isinstance(buftype.base_type_node, CSimpleBaseTypeNode))
@@ -99,7 +99,7 @@ class TestBufferOptions(CythonTest):
 
     # add exotic and impossible combinations as they come along...
 
+
 if __name__ == '__main__':
     import unittest
     unittest.main()
-

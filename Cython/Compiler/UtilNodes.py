@@ -45,7 +45,7 @@ class TempRefNode(AtomicExprNode):
 
     def calculate_result_code(self):
         result = self.handle.temp
-        if result is None: result = "<error>" # might be called and overwritten
+        if result is None: result = "<error>"  # might be called and overwritten
         return result
 
     def generate_result_code(self, code):
@@ -122,8 +122,7 @@ class ResultRefNode(AtomicExprNode):
         self.may_hold_none = may_hold_none
         if expression is not None:
             self.pos = expression.pos
-            if hasattr(expression, "type"):
-                self.type = expression.type
+            self.type = getattr(expression, "type", None)
         if pos is not None:
             self.pos = pos
         if type is not None:
@@ -144,13 +143,14 @@ class ResultRefNode(AtomicExprNode):
 
     def update_expression(self, expression):
         self.expression = expression
-        if hasattr(expression, "type"):
-            self.type = expression.type
+        type = getattr(expression, "type", None)
+        if type:
+            self.type = type
 
     def analyse_types(self, env):
         if self.expression is not None:
             if not self.expression.type:
-              self.expression = self.expression.analyse_types(env)
+                self.expression = self.expression.analyse_types(env)
             self.type = self.expression.type
         return self
 
@@ -175,7 +175,7 @@ class ResultRefNode(AtomicExprNode):
             return self.expression.may_be_none()
         if self.type is not None:
             return self.type.is_pyobject
-        return True # play safe
+        return True  # play it safe
 
     def is_simple(self):
         return True
@@ -233,7 +233,10 @@ class LetNodeMixin:
         if self._result_in_temp:
             self.temp = self.temp_expression.result()
         else:
-            self.temp_expression.make_owned_reference(code)
+            if self.temp_type.is_memoryviewslice:
+                self.temp_expression.make_owned_memoryviewslice(code)
+            else:
+                self.temp_expression.make_owned_reference(code)
             self.temp = code.funcstate.allocate_temp(
                 self.temp_type, manage_ref=True)
             code.putln("%s = %s;" % (self.temp, self.temp_expression.result()))
@@ -246,7 +249,7 @@ class LetNodeMixin:
             self.temp_expression.generate_disposal_code(code)
             self.temp_expression.free_temps(code)
         else:
-            if self.temp_type.is_pyobject:
+            if self.temp_type.needs_refcounting:
                 code.put_decref_clear(self.temp, self.temp_type)
             code.funcstate.release_temp(self.temp)
 
@@ -360,3 +363,6 @@ class TempResultFromStatNode(ExprNodes.ExprNode):
     def generate_result_code(self, code):
         self.result_ref.result_code = self.result()
         self.body.generate_execution_code(code)
+
+    def generate_function_definitions(self, env, code):
+        self.body.generate_function_definitions(env, code)

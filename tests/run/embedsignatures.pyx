@@ -1,10 +1,16 @@
 #cython: embedsignature=True, annotation_typing=False
 
+# signatures here are a little fragile - when they are
+# generated during the build process gives slightly
+# different (but equivalent) forms - therefore tests
+# may need changing occasionally to reflect behaviour
+# and this isn't necessarily a bug
+
 import sys
 
 if sys.version_info >= (3, 4):
     def funcdoc(f):
-        if not f.__text_signature__:
+        if not getattr(f, "__text_signature__", None):
             return f.__doc__
         doc = '%s%s' % (f.__name__, f.__text_signature__)
         if f.__doc__:
@@ -447,16 +453,16 @@ Foo.m01(self, a: ...) -> Ellipsis
 Foo.m02(self, a: True, b: False) -> bool
 
 >>> print(Foo.m03.__doc__)
-Foo.m03(self, a: 42, b: 42, c: -42) -> int
+Foo.m03(self, a: 42, b: +42, c: -42) -> int
 
 >>> print(Foo.m04.__doc__)
-Foo.m04(self, a: 3.14, b: 3.14, c: -3.14) -> float
+Foo.m04(self, a: 3.14, b: +3.14, c: -3.14) -> float
 
 >>> print(Foo.m05.__doc__)
 Foo.m05(self, a: 1 + 2j, b: +2j, c: -2j) -> complex
 
 >>> print(Foo.m06.__doc__)
-Foo.m06(self, a: 'abc', b: b'abc', c: u'abc') -> (str, bytes, unicode)
+Foo.m06(self, a: 'abc', b: b'abc', c: 'abc') -> (str, bytes, unicode)
 
 >>> print(Foo.m07.__doc__)
 Foo.m07(self, a: [1, 2, 3], b: []) -> list
@@ -465,7 +471,7 @@ Foo.m07(self, a: [1, 2, 3], b: []) -> list
 Foo.m08(self, a: (1, 2, 3), b: ()) -> tuple
 
 >>> print(Foo.m09.__doc__)
-Foo.m09(self, a: {1, 2, 3}, b: set()) -> set
+Foo.m09(self, a: {1, 2, 3}, b: {i for i in ()}) -> set
 
 >>> print(Foo.m10.__doc__)
 Foo.m10(self, a: {1: 1, 2: 2, 3: 3}, b: {}) -> dict

@@ -27,6 +27,13 @@ cdef extern from "Python.h":
     # failure. This is the equivalent of the Python expression "o1 *
     # o2".
 
+    object PyNumber_MatrixMultiply(object o1, object o2)
+    # Return value: New reference.
+    # Returns the result of matrix multiplication on o1 and o2, or
+    # NULL on failure. This is the equivalent of the Python
+    # expression "o1 @ o2".
+    # New in version 3.5.
+
     object PyNumber_Divide(object o1, object o2)
     # Return value: New reference.
     # Returns the result of dividing o1 by o2, or NULL on
@@ -132,6 +139,13 @@ cdef extern from "Python.h":
     # Returns the result of multiplying o1 and o2, or NULL on
     # failure. The operation is done in-place when o1 supports
     # it. This is the equivalent of the Python statement "o1 *= o2".
+
+    object PyNumber_InPlaceMatrixMultiply(object o1, object o2)
+    # Return value: New reference.
+    # Returns the result of matrix multiplication on o1 and o2, or
+    # NULL on failure. The operation is done in-place when o1 supports
+    # it. This is the equivalent of the Python statement "o1 @= o2".
+    # New in version 3.5.
 
     object PyNumber_InPlaceDivide(object o1, object o2)
     # Return value: New reference.

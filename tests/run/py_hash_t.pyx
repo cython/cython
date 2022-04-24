@@ -25,7 +25,7 @@ def assign_py_hash_t(x):
     >>> assign_py_hash_t(IntLike(1.5))  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    TypeError: __index__ ... (type float)
+    TypeError: __index__ ... (type ...float...)
     """
     cdef Py_hash_t h = x
     return h
