@@ -1582,7 +1582,7 @@ class CppClassNode(CStructOrUnionDefNode, BlockNode):
                 elif isinstance(attr, CompilerDirectivesNode):
                     for sub_attr in func_attributes(attr.body.stats):
                         yield sub_attr
-                elif isinstance(attr, CppClassNode):
+                elif isinstance(attr, CppClassNode) and attr.attributes is not None:
                     for sub_attr in func_attributes(attr.attributes):
                         yield sub_attr
         if self.attributes is not None:
