@@ -307,6 +307,16 @@ def test_annotations(a: "test", b: "other" = 2, c: 123 = 4) -> "ret":
     return inner
 
 
+cpdef int test_cpdef_annotations(a: "test", b: "other" = 2, c: 123 = 4) -> "ret":
+    """
+    >>> isinstance(test_annotations.__annotations__, dict)
+    True
+    >>> sorted(test_annotations.__annotations__.items())
+    [('a', "'test'"), ('b', "'other'"), ('c', '123'), ('return', "'ret'")]
+    """
+    return 7
+
+
 def add_one(func):
     "Decorator to add 1 to the last argument of the function call"
     def inner(*args):

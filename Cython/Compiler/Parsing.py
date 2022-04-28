@@ -3448,13 +3448,10 @@ def p_c_func_or_var_declaration(s, pos, ctx):
     else:
         is_const_method = 0
     if s.sy == '->':
-        # Special enough to give a better error message and keep going.
-        s.error(
-            "Return type annotation is not allowed in cdef/cpdef signatures. "
-            "Please define it before the function name, as in C signatures.",
-            fatal=False)
         s.next()
-        p_test(s)  # Keep going, but ignore result.
+        return_type_annotation = p_annotation(s)
+    else:
+        return_type_annotation = None
     if s.sy == ':':
         if ctx.level not in ('module', 'c_class', 'module_pxd', 'c_class_pxd', 'cpp_class') and not ctx.templates:
             s.error("C function definition not allowed here")
@@ -3468,7 +3465,8 @@ def p_c_func_or_var_declaration(s, pos, ctx):
             modifiers = modifiers,
             api = ctx.api,
             overridable = ctx.overridable,
-            is_const_method = is_const_method)
+            is_const_method = is_const_method,
+            return_type_annotation=return_type_annotation)
     else:
         #if api:
         #    s.error("'api' not allowed with variable declaration")

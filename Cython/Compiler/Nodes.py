@@ -2693,7 +2693,8 @@ class CFuncDefNode(FuncDefNode):
                                doc=self.doc,
                                body=py_func_body,
                                decorators=decorators,
-                               is_wrapper=1)
+                               is_wrapper=1,
+                               return_type_annotation=self.return_type_annotation)
         self.py_func.is_module_scope = env.is_module_scope
         self.py_func.analyse_declarations(env)
         self.py_func.entry.is_overridable = True
