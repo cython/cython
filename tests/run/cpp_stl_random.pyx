@@ -3,7 +3,8 @@
 
 from libcpp.random cimport mt19937, random_device, uniform_int_distribution, \
     uniform_real_distribution, bernoulli_distribution, binomial_distribution, \
-    geometric_distribution, negative_binomial_distribution, poisson_distribution
+    geometric_distribution, negative_binomial_distribution, poisson_distribution, \
+    exponential_distribution
 
 
 def mt19937_seed_test():
@@ -65,6 +66,7 @@ ctypedef fused any_dist:
     geometric_distribution[int]
     negative_binomial_distribution[int]
     poisson_distribution[int]
+    exponential_distribution[double]
 
 
 cdef sample_or_range(any_dist dist, bint sample):
@@ -171,3 +173,18 @@ def poisson_distribution_test(rate, sample=True):
     """
     cdef poisson_distribution[int] dist = poisson_distribution[int](rate)
     return sample_or_range[poisson_distribution[int]](dist, sample)
+
+
+def exponential_distribution_test(rate, sample=True):
+    """
+    >>> exponential_distribution_test(0)
+    inf
+    >>> exponential_distribution_test(float("inf"))
+    0.0
+    >>> exponential_distribution_test(1000) < 0.1  # Passes with high probability.
+    True
+    >>> exponential_distribution_test(1, False)
+    (0.0, inf)
+    """
+    cdef exponential_distribution[double] dist = exponential_distribution[double](rate)
+    return sample_or_range[exponential_distribution[double]](dist, sample)
