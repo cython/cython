@@ -137,3 +137,11 @@ cdef extern from "<random>" namespace "std" nogil:
         result_type operator()[Generator](Generator&) except +
         result_type min() except +
         result_type max() except +
+
+    cdef cppclass fisher_f_distribution[T]:
+        ctypedef T result_type
+        fisher_f_distribution() except +
+        fisher_f_distribution(result_type, result_type) except +
+        result_type operator()[Generator](Generator&) except +
+        result_type min() except +
+        result_type max() except +
