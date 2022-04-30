@@ -7,6 +7,10 @@ from libcpp.random cimport mt19937, random_device, uniform_int_distribution, \
     exponential_distribution, gamma_distribution, weibull_distribution, \
     extreme_value_distribution, normal_distribution, lognormal_distribution, \
     chi_squared_distribution, cauchy_distribution, fisher_f_distribution, student_t_distribution
+from libc.float cimport DBL_MAX as DBL_MAX_
+
+
+DBL_MAX = DBL_MAX_
 
 
 def mt19937_seed_test():
@@ -164,8 +168,6 @@ def geometric_distribution_test(proba, sample=True):
 
 def negative_binomial_distribution_test(n, p, sample=True):
     """
-    >>> negative_binomial_distribution_test(5, 0)  # 2147483647 = 2 ** 32 - 1
-    2147483647
     >>> negative_binomial_distribution_test(5, 1)
     0
     >>> negative_binomial_distribution_test(10, 1e-5) > 100  # Passes with high probability.
@@ -199,8 +201,11 @@ def exponential_distribution_test(rate, sample=True):
     0.0
     >>> exponential_distribution_test(1000) < 0.1  # Passes with high probability.
     True
-    >>> exponential_distribution_test(1, False)
-    (0.0, inf)
+    >>> l, u = exponential_distribution_test(1, False)
+    >>> l
+    0.0
+    >>> u == DBL_MAX or u == float("inf")
+    True
     """
     cdef exponential_distribution[double] dist = exponential_distribution[double](rate)
     return sample_or_range[exponential_distribution[double]](dist, sample)
@@ -215,8 +220,11 @@ def gamma_distribution_test(shape, scale, sample=True):
     >>> x = gamma_distribution_test(1000, 1)
     >>> 900 < x and x < 1100  # Passes with high probability.
     True
-    >>> gamma_distribution_test(1, 1, False)
-    (0.0, inf)
+    >>> l, u = gamma_distribution_test(1, 1, False)
+    >>> l
+    0.0
+    >>> u == DBL_MAX or u == float("inf")
+    True
     """
     cdef gamma_distribution[double] dist = gamma_distribution[double](shape, scale)
     return sample_or_range[gamma_distribution[double]](dist, sample)
@@ -231,8 +239,11 @@ def weibull_distribution_test(shape, scale, sample=True):
     >>> x = weibull_distribution_test(100, 1)
     >>> 0.9 < x and x < 1.1  # Passes with high probability.
     True
-    >>> weibull_distribution_test(1, 1, False)
-    (0.0, inf)
+    >>> l, u = weibull_distribution_test(1, 1, False)
+    >>> l
+    0.0
+    >>> u == DBL_MAX or u == float("inf")
+    True
     """
     cdef weibull_distribution[double] dist = weibull_distribution[double](shape, scale)
     return sample_or_range[weibull_distribution[double]](dist, sample)
@@ -245,8 +256,11 @@ def extreme_value_distribution_test(shape, scale, sample=True):
     >>> x = extreme_value_distribution_test(3, 1e-3)
     >>> 2 < x and x < 4  # Passes with high probability.
     True
-    >>> extreme_value_distribution_test(1, 1, False)
-    (-inf, inf)
+    >>> l, u = extreme_value_distribution_test(1, 1, False)
+    >>> l == -DBL_MAX or l == -float("inf")
+    True
+    >>> u == DBL_MAX or u == float("inf")
+    True
     """
     cdef extreme_value_distribution[double] dist = extreme_value_distribution[double](shape, scale)
     return sample_or_range[extreme_value_distribution[double]](dist, sample)
@@ -259,8 +273,11 @@ def normal_distribution_test(loc, scale, sample=True):
     >>> x = normal_distribution_test(3, 1e-3)
     >>> 2 < x and x < 4  # Passes with high probability.
     True
-    >>> normal_distribution_test(1, 1, False)
-    (-inf, inf)
+    >>> l, u = normal_distribution_test(1, 1, False)
+    >>> l == -DBL_MAX or l == -float("inf")
+    True
+    >>> u == DBL_MAX or u == float("inf")
+    True
     """
     cdef normal_distribution[double] dist = normal_distribution[double](loc, scale)
     return sample_or_range[normal_distribution[double]](dist, sample)
@@ -274,8 +291,11 @@ def lognormal_distribution_test(loc, scale, sample=True):
     >>> x = log(lognormal_distribution_test(3, 1e-3))
     >>> 2 < x and x < 4  # Passes with high probability.
     True
-    >>> lognormal_distribution_test(1, 1, False)
-    (0.0, inf)
+    >>> l, u = lognormal_distribution_test(1, 1, False)
+    >>> l
+    0.0
+    >>> u == DBL_MAX or u == float("inf")
+    True
     """
     cdef lognormal_distribution[double] dist = lognormal_distribution[double](loc, scale)
     return sample_or_range[lognormal_distribution[double]](dist, sample)
@@ -286,8 +306,11 @@ def chi_squared_distribution_test(dof, sample=True):
     >>> x = chi_squared_distribution_test(1000)
     >>> 900 < x and x < 1100  # Passes with high probability.
     True
-    >>> chi_squared_distribution_test(5, False)
-    (0.0, inf)
+    >>> l, u = chi_squared_distribution_test(5, False)
+    >>> l
+    0.0
+    >>> u == DBL_MAX or u == float("inf")
+    True
     """
     cdef chi_squared_distribution[double] dist = chi_squared_distribution[double](dof)
     return sample_or_range[chi_squared_distribution[double]](dist, sample)
@@ -300,8 +323,11 @@ def cauchy_distribution_test(loc, scale, sample=True):
     >>> x = cauchy_distribution_test(3, 1e-3)
     >>> 2 < x and x < 4  # Passes with high probability.
     True
-    >>> cauchy_distribution_test(1, 1, False)
-    (-inf, inf)
+    >>> l, u = cauchy_distribution_test(1, 1, False)
+    >>> l == -DBL_MAX or l == -float("inf")
+    True
+    >>> u == DBL_MAX or u == float("inf")
+    True
     """
     cdef cauchy_distribution[double] dist = cauchy_distribution[double](loc, scale)
     return sample_or_range[cauchy_distribution[double]](dist, sample)
@@ -312,8 +338,11 @@ def fisher_f_distribution_test(m, n, sample=True):
     >>> x = fisher_f_distribution_test(10000, 10000)
     >>> 0.9 < x and x < 1.1  # Passes with high probability.
     True
-    >>> fisher_f_distribution_test(1, 1, False)
-    (0.0, inf)
+    >>> l, u = fisher_f_distribution_test(1, 1, False)
+    >>> l
+    0.0
+    >>> u == DBL_MAX or u == float("inf")
+    True
     """
     cdef fisher_f_distribution[double] dist = fisher_f_distribution[double](m, n)
     return sample_or_range[fisher_f_distribution[double]](dist, sample)
@@ -324,8 +353,11 @@ def student_t_distribution_test(dof, sample=True):
     >>> x = student_t_distribution_test(1000)
     >>> -5 < x and x < 5  # Passes with high probability.
     True
-    >>> student_t_distribution_test(1, False)
-    (-inf, inf)
+    >>> l, u = student_t_distribution_test(1, False)
+    >>> l == -DBL_MAX or l == -float("inf")
+    True
+    >>> u == DBL_MAX or u == float("inf")
+    True
     """
     cdef student_t_distribution[double] dist = student_t_distribution[double](dof)
     return sample_or_range[student_t_distribution[double]](dist, sample)
