@@ -81,6 +81,11 @@ ctypedef fused any_dist:
 
 
 cdef sample_or_range(any_dist dist, bint sample):
+    """
+    This helper function returns a sample if `sample` is truthy and the range of the distribution
+    if `sample` is falsy. We use a fused type to avoid duplicating the conditional statement in each
+    distribution test.
+    """
     cdef random_device rd
     if sample:
         return dist(mt19937(rd()))
