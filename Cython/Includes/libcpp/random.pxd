@@ -65,3 +65,11 @@ cdef extern from "<random>" namespace "std" nogil:
         result_type operator()[Generator](Generator&) except +
         result_type min() except +
         result_type max() except +
+
+    cdef cppclass poisson_distribution[T]:
+        ctypedef T result_type
+        poisson_distribution() except +
+        poisson_distribution(double) except +
+        result_type operator()[Generator](Generator&) except +
+        result_type min() except +
+        result_type max() except +
