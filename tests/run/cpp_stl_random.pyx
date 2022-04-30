@@ -4,7 +4,7 @@
 from libcpp.random cimport mt19937, random_device, uniform_int_distribution, \
     uniform_real_distribution, bernoulli_distribution, binomial_distribution, \
     geometric_distribution, negative_binomial_distribution, poisson_distribution, \
-    exponential_distribution, gamma_distribution
+    exponential_distribution, gamma_distribution, weibull_distribution
 
 
 def mt19937_seed_test():
@@ -68,6 +68,7 @@ ctypedef fused any_dist:
     poisson_distribution[int]
     exponential_distribution[double]
     gamma_distribution[double]
+    weibull_distribution[double]
 
 
 cdef sample_or_range(any_dist dist, bint sample):
@@ -205,3 +206,19 @@ def gamma_distribution_test(shape, scale, sample=True):
     """
     cdef gamma_distribution[double] dist = gamma_distribution[double](shape, scale)
     return sample_or_range[gamma_distribution[double]](dist, sample)
+
+
+def weibull_distribution_test(shape, scale, sample=True):
+    """
+    >>> weibull_distribution_test(3, float("inf"))
+    inf
+    >>> weibull_distribution_test(3, 0)
+    0.0
+    >>> x = weibull_distribution_test(100, 1)
+    >>> 0.9 < x and x < 1.1  # Passes with high probability.
+    True
+    >>> weibull_distribution_test(1, 1, False)
+    (0.0, inf)
+    """
+    cdef weibull_distribution[double] dist = weibull_distribution[double](shape, scale)
+    return sample_or_range[weibull_distribution[double]](dist, sample)
