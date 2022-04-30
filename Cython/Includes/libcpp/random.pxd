@@ -33,3 +33,10 @@ cdef extern from "<random>" namespace "std" nogil:
         bint operator()[Generator](Generator&) except +
         bint min() except +
         bint max() except +
+
+    cdef cppclass binomial_distribution[T]:
+        binomial_distribution() except +
+        binomial_distribution(T, double) except +
+        T operator()[Generator](Generator&) except +
+        bint min() except +
+        bint max() except +

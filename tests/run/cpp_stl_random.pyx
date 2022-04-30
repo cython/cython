@@ -2,7 +2,7 @@
 # tag: cpp, cpp11
 
 from libcpp.random cimport mt19937, uniform_int_distribution, uniform_real_distribution, \
-    bernoulli_distribution
+    bernoulli_distribution, binomial_distribution
 
 
 def mt19937_seed_test():
@@ -87,4 +87,18 @@ def bernoulli_distribution_sample(proba):
     True
     """
     cdef bernoulli_distribution dist = bernoulli_distribution(proba)
+    return dist(mt19937(42))
+
+
+def binomial_distribution_sample(n, proba):
+    """
+    >>> binomial_distribution_sample(10, 0)
+    0
+    >>> binomial_distribution_sample(10, 1)
+    10
+    >>> x = binomial_distribution_sample(100, 0.5)
+    >>> 0 < x and x < 100  # Passes with high probability.
+    True
+    """
+    cdef binomial_distribution[int] dist = binomial_distribution[int](n, proba)
     return dist(mt19937(42))
