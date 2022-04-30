@@ -6,7 +6,7 @@ from libcpp.random cimport mt19937, random_device, uniform_int_distribution, \
     geometric_distribution, negative_binomial_distribution, poisson_distribution, \
     exponential_distribution, gamma_distribution, weibull_distribution, \
     extreme_value_distribution, normal_distribution, lognormal_distribution, \
-    chi_squared_distribution, cauchy_distribution, fisher_f_distribution
+    chi_squared_distribution, cauchy_distribution, fisher_f_distribution, student_t_distribution
 
 
 def mt19937_seed_test():
@@ -77,6 +77,7 @@ ctypedef fused any_dist:
     chi_squared_distribution[double]
     cauchy_distribution[double]
     fisher_f_distribution[double]
+    student_t_distribution[double]
 
 
 cdef sample_or_range(any_dist dist, bint sample):
@@ -311,3 +312,15 @@ def fisher_f_distribution_test(m, n, sample=True):
     """
     cdef fisher_f_distribution[double] dist = fisher_f_distribution[double](m, n)
     return sample_or_range[fisher_f_distribution[double]](dist, sample)
+
+
+def student_t_distribution_test(dof, sample=True):
+    """
+    >>> x = student_t_distribution_test(1000)
+    >>> -5 < x and x < 5  # Passes with high probability.
+    True
+    >>> student_t_distribution_test(1, False)
+    (-inf, inf)
+    """
+    cdef student_t_distribution[double] dist = student_t_distribution[double](dof)
+    return sample_or_range[student_t_distribution[double]](dist, sample)

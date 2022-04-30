@@ -145,3 +145,11 @@ cdef extern from "<random>" namespace "std" nogil:
         result_type operator()[Generator](Generator&) except +
         result_type min() except +
         result_type max() except +
+
+    cdef cppclass student_t_distribution[T]:
+        ctypedef T result_type
+        student_t_distribution() except +
+        student_t_distribution(result_type) except +
+        result_type operator()[Generator](Generator&) except +
+        result_type min() except +
+        result_type max() except +
