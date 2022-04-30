@@ -1,7 +1,8 @@
 # mode: run
 # tag: cpp, cpp11
 
-from libcpp.random cimport mt19937, uniform_int_distribution, uniform_real_distribution
+from libcpp.random cimport mt19937, uniform_int_distribution, uniform_real_distribution, \
+    bernoulli_distribution
 
 
 def mt19937_seed_test():
@@ -75,4 +76,15 @@ def uniform_real_distribution_sample(a, b):
     True
     """
     cdef uniform_real_distribution[float] dist = uniform_real_distribution[float](a, b)
+    return dist(mt19937(42))
+
+
+def bernoulli_distribution_sample(proba):
+    """
+    >>> bernoulli_distribution_sample(0)
+    False
+    >>> bernoulli_distribution_sample(1)
+    True
+    """
+    cdef bernoulli_distribution dist = bernoulli_distribution(proba)
     return dist(mt19937(42))

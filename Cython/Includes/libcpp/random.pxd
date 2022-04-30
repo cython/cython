@@ -26,3 +26,10 @@ cdef extern from "<random>" namespace "std" nogil:
         T operator()[Generator](Generator&) except +
         T min() except +
         T max() except +
+
+    cdef cppclass bernoulli_distribution:
+        bernoulli_distribution() except +
+        bernoulli_distribution(double) except +
+        bint operator()[Generator](Generator&) except +
+        bint min() except +
+        bint max() except +
