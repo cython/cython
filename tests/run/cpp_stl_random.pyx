@@ -4,7 +4,7 @@
 from libcpp.random cimport mt19937, random_device, uniform_int_distribution, \
     uniform_real_distribution, bernoulli_distribution, binomial_distribution, \
     geometric_distribution, negative_binomial_distribution, poisson_distribution, \
-    exponential_distribution
+    exponential_distribution, gamma_distribution
 
 
 def mt19937_seed_test():
@@ -67,6 +67,7 @@ ctypedef fused any_dist:
     negative_binomial_distribution[int]
     poisson_distribution[int]
     exponential_distribution[double]
+    gamma_distribution[double]
 
 
 cdef sample_or_range(any_dist dist, bint sample):
@@ -188,3 +189,19 @@ def exponential_distribution_test(rate, sample=True):
     """
     cdef exponential_distribution[double] dist = exponential_distribution[double](rate)
     return sample_or_range[exponential_distribution[double]](dist, sample)
+
+
+def gamma_distribution_test(shape, scale, sample=True):
+    """
+    >>> gamma_distribution_test(3, float("inf"))
+    inf
+    >>> gamma_distribution_test(3, 0)
+    0.0
+    >>> x = gamma_distribution_test(1000, 1)
+    >>> 900 < x and x < 1100  # Passes with high probability.
+    True
+    >>> gamma_distribution_test(1, 1, False)
+    (0.0, inf)
+    """
+    cdef gamma_distribution[double] dist = gamma_distribution[double](shape, scale)
+    return sample_or_range[gamma_distribution[double]](dist, sample)
