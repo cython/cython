@@ -1,8 +1,8 @@
 # mode: run
 # tag: cpp, cpp11
 
-from libcpp.random cimport mt19937, uniform_int_distribution, uniform_real_distribution, \
-    bernoulli_distribution, binomial_distribution, geometric_distribution
+from libcpp.random cimport mt19937, random_device, uniform_int_distribution, \
+    uniform_real_distribution, bernoulli_distribution, binomial_distribution, geometric_distribution
 
 
 def mt19937_seed_test():
@@ -56,60 +56,86 @@ def mt19937_discard(z):
     return a, b
 
 
-def uniform_int_distribution_sample(a, b):
+ctypedef fused any_dist:
+    uniform_int_distribution[int]
+    uniform_real_distribution[double]
+    bernoulli_distribution
+    binomial_distribution[int]
+    geometric_distribution[int]
+
+
+cdef sample_or_range(any_dist dist, bint sample):
+    cdef random_device rd
+    if sample:
+        return dist(mt19937(rd()))
+    else:
+        return dist.min(), dist.max()
+
+
+def uniform_int_distribution_test(a, b, sample=True):
     """
-    >>> uniform_int_distribution_sample(0, 0)
+    >>> uniform_int_distribution_test(0, 0)
     0
-    >>> uniform_int_distribution_sample(0, 1) < 2
+    >>> uniform_int_distribution_test(0, 1) < 2
     True
+    >>> uniform_int_distribution_test(5, 9, False)
+    (5, 9)
     """
     cdef uniform_int_distribution[int] dist = uniform_int_distribution[int](a, b)
-    return dist(mt19937(42))
+    return sample_or_range[uniform_int_distribution[int]](dist, sample)
 
 
-def uniform_real_distribution_sample(a, b):
+def uniform_real_distribution_test(a, b, sample=True):
     """
-    >>> uniform_real_distribution_sample(0, 0)
+    >>> uniform_real_distribution_test(0, 0)
     0.0
-    >>> x = uniform_real_distribution_sample(0, 5)
+    >>> x = uniform_real_distribution_test(0, 5)
     >>> 0 < x and x < 5
     True
+    >>> uniform_real_distribution_test(3, 8, False)
+    (3.0, 8.0)
     """
-    cdef uniform_real_distribution[float] dist = uniform_real_distribution[float](a, b)
-    return dist(mt19937(42))
+    cdef uniform_real_distribution[double] dist = uniform_real_distribution[double](a, b)
+    return sample_or_range[uniform_real_distribution[double]](dist, sample)
 
 
-def bernoulli_distribution_sample(proba):
+def bernoulli_distribution_test(proba, sample=True):
     """
-    >>> bernoulli_distribution_sample(0)
+    >>> bernoulli_distribution_test(0)
     False
-    >>> bernoulli_distribution_sample(1)
+    >>> bernoulli_distribution_test(1)
     True
+    >>> bernoulli_distribution_test(0.7, False)
+    (False, True)
     """
     cdef bernoulli_distribution dist = bernoulli_distribution(proba)
-    return dist(mt19937(42))
+    return sample_or_range[bernoulli_distribution](dist, sample)
 
 
-def binomial_distribution_sample(n, proba):
+def binomial_distribution_test(n, proba, sample=True):
     """
-    >>> binomial_distribution_sample(10, 0)
+    >>> binomial_distribution_test(10, 0)
     0
-    >>> binomial_distribution_sample(10, 1)
+    >>> binomial_distribution_test(10, 1)
     10
-    >>> x = binomial_distribution_sample(100, 0.5)
+    >>> x = binomial_distribution_test(100, 0.5)
     >>> 0 < x and x < 100  # Passes with high probability.
     True
+    >>> binomial_distribution_test(75, 0.3, False)
+    (0, 75)
     """
     cdef binomial_distribution[int] dist = binomial_distribution[int](n, proba)
-    return dist(mt19937(42))
+    return sample_or_range[binomial_distribution[int]](dist, sample)
 
 
-def geometric_distribution_sample(proba):
+def geometric_distribution_test(proba, sample=True):
     """
-    >>> geometric_distribution_sample(1)
+    >>> geometric_distribution_test(1)
     0
-    >>> geometric_distribution_sample(1e-5) > 100  # Passes with high probability.
+    >>> geometric_distribution_test(1e-5) > 100  # Passes with high probability.
     True
+    >>> geometric_distribution_test(0.2, False)  # 2147483647 = 2 ** 32 - 1
+    (0, 2147483647)
     """
     cdef geometric_distribution[int] dist = geometric_distribution[int](proba)
-    return dist(mt19937(42))
+    return sample_or_range[geometric_distribution[int]](dist, sample)
