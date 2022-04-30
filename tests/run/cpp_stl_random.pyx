@@ -2,7 +2,8 @@
 # tag: cpp, cpp11
 
 from libcpp.random cimport mt19937, random_device, uniform_int_distribution, \
-    uniform_real_distribution, bernoulli_distribution, binomial_distribution, geometric_distribution
+    uniform_real_distribution, bernoulli_distribution, binomial_distribution, \
+    geometric_distribution, negative_binomial_distribution
 
 
 def mt19937_seed_test():
@@ -62,6 +63,7 @@ ctypedef fused any_dist:
     bernoulli_distribution
     binomial_distribution[int]
     geometric_distribution[int]
+    negative_binomial_distribution[int]
 
 
 cdef sample_or_range(any_dist dist, bint sample):
@@ -139,3 +141,18 @@ def geometric_distribution_test(proba, sample=True):
     """
     cdef geometric_distribution[int] dist = geometric_distribution[int](proba)
     return sample_or_range[geometric_distribution[int]](dist, sample)
+
+
+def negative_binomial_distribution_test(n, p, sample=True):
+    """
+    >>> negative_binomial_distribution_test(5, 0)  # 2147483647 = 2 ** 32 - 1
+    2147483647
+    >>> negative_binomial_distribution_test(5, 1)
+    0
+    >>> negative_binomial_distribution_test(10, 1e-5) > 100  # Passes with high probability.
+    True
+    >>> negative_binomial_distribution_test(10, 0.2, False)  # 2147483647 = 2 ** 32 - 1
+    (0, 2147483647)
+    """
+    cdef negative_binomial_distribution[int] dist = negative_binomial_distribution[int](n, p)
+    return sample_or_range[negative_binomial_distribution[int]](dist, sample)

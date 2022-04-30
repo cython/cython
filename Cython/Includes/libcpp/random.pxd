@@ -56,3 +56,12 @@ cdef extern from "<random>" namespace "std" nogil:
         result_type operator()[Generator](Generator&) except +
         result_type min() except +
         result_type max() except +
+
+
+    cdef cppclass negative_binomial_distribution[T]:
+        ctypedef T result_type
+        negative_binomial_distribution() except +
+        negative_binomial_distribution(T, double) except +
+        result_type operator()[Generator](Generator&) except +
+        result_type min() except +
+        result_type max() except +
