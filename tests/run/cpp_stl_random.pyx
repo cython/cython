@@ -5,7 +5,8 @@ from libcpp.random cimport mt19937, random_device, uniform_int_distribution, \
     uniform_real_distribution, bernoulli_distribution, binomial_distribution, \
     geometric_distribution, negative_binomial_distribution, poisson_distribution, \
     exponential_distribution, gamma_distribution, weibull_distribution, \
-    extreme_value_distribution, normal_distribution, lognormal_distribution
+    extreme_value_distribution, normal_distribution, lognormal_distribution, \
+    chi_squared_distribution
 
 
 def mt19937_seed_test():
@@ -73,6 +74,7 @@ ctypedef fused any_dist:
     extreme_value_distribution[double]
     normal_distribution[double]
     lognormal_distribution[double]
+    chi_squared_distribution[double]
 
 
 cdef sample_or_range(any_dist dist, bint sample):
@@ -269,3 +271,15 @@ def lognormal_distribution_test(loc, scale, sample=True):
     """
     cdef lognormal_distribution[double] dist = lognormal_distribution[double](loc, scale)
     return sample_or_range[lognormal_distribution[double]](dist, sample)
+
+
+def chi_squared_distribution_test(dof, sample=True):
+    """
+    >>> x = chi_squared_distribution_test(1000)
+    >>> 900 < x and x < 1100  # Passes with high probability.
+    True
+    >>> chi_squared_distribution_test(5, False)
+    (0.0, inf)
+    """
+    cdef chi_squared_distribution[double] dist = chi_squared_distribution[double](dof)
+    return sample_or_range[chi_squared_distribution[double]](dist, sample)
