@@ -113,3 +113,11 @@ cdef extern from "<random>" namespace "std" nogil:
         result_type operator()[Generator](Generator&) except +
         result_type min() except +
         result_type max() except +
+
+    cdef cppclass lognormal_distribution[T]:
+        ctypedef T result_type
+        lognormal_distribution() except +
+        lognormal_distribution(result_type, result_type) except +
+        result_type operator()[Generator](Generator&) except +
+        result_type min() except +
+        result_type max() except +
