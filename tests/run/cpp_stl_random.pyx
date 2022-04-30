@@ -4,7 +4,8 @@
 from libcpp.random cimport mt19937, random_device, uniform_int_distribution, \
     uniform_real_distribution, bernoulli_distribution, binomial_distribution, \
     geometric_distribution, negative_binomial_distribution, poisson_distribution, \
-    exponential_distribution, gamma_distribution, weibull_distribution, extreme_value_distribution
+    exponential_distribution, gamma_distribution, weibull_distribution, \
+    extreme_value_distribution, normal_distribution
 
 
 def mt19937_seed_test():
@@ -70,6 +71,7 @@ ctypedef fused any_dist:
     gamma_distribution[double]
     weibull_distribution[double]
     extreme_value_distribution[double]
+    normal_distribution[double]
 
 
 cdef sample_or_range(any_dist dist, bint sample):
@@ -237,3 +239,17 @@ def extreme_value_distribution_test(shape, scale, sample=True):
     """
     cdef extreme_value_distribution[double] dist = extreme_value_distribution[double](shape, scale)
     return sample_or_range[extreme_value_distribution[double]](dist, sample)
+
+
+def normal_distribution_test(loc, scale, sample=True):
+    """
+    >>> normal_distribution_test(3, 0)
+    3.0
+    >>> x = normal_distribution_test(3, 1e-3)
+    >>> 2 < x and x < 4  # Passes with high probability.
+    True
+    >>> normal_distribution_test(1, 1, False)
+    (-inf, inf)
+    """
+    cdef normal_distribution[double] dist = normal_distribution[double](loc, scale)
+    return sample_or_range[normal_distribution[double]](dist, sample)
