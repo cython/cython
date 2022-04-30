@@ -40,3 +40,10 @@ cdef extern from "<random>" namespace "std" nogil:
         T operator()[Generator](Generator&) except +
         bint min() except +
         bint max() except +
+
+    cdef cppclass geometric_distribution[T]:
+        geometric_distribution() except +
+        geometric_distribution(double) except +
+        T operator()[Generator](Generator&) except +
+        T min() except +
+        T max() except +

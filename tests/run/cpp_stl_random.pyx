@@ -2,7 +2,7 @@
 # tag: cpp, cpp11
 
 from libcpp.random cimport mt19937, uniform_int_distribution, uniform_real_distribution, \
-    bernoulli_distribution, binomial_distribution
+    bernoulli_distribution, binomial_distribution, geometric_distribution
 
 
 def mt19937_seed_test():
@@ -101,4 +101,15 @@ def binomial_distribution_sample(n, proba):
     True
     """
     cdef binomial_distribution[int] dist = binomial_distribution[int](n, proba)
+    return dist(mt19937(42))
+
+
+def geometric_distribution_sample(proba):
+    """
+    >>> geometric_distribution_sample(1)
+    0
+    >>> geometric_distribution_sample(1e-5) > 100  # Passes with high probability.
+    True
+    """
+    cdef geometric_distribution[int] dist = geometric_distribution[int](proba)
     return dist(mt19937(42))
