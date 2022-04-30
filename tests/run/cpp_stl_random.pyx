@@ -303,7 +303,7 @@ def cauchy_distribution_test(loc, scale, sample=True):
 
 def fisher_f_distribution_test(m, n, sample=True):
     """
-    >>> x = fisher_f_distribution_test(1000, 1000)
+    >>> x = fisher_f_distribution_test(10000, 10000)
     >>> 0.9 < x and x < 1.1  # Passes with high probability.
     True
     >>> fisher_f_distribution_test(1, 1, False)
