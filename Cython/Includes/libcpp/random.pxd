@@ -19,3 +19,10 @@ cdef extern from "<random>" namespace "std" nogil:
         T operator()[Generator](Generator&) except +
         T min() except +
         T max() except +
+
+    cdef cppclass uniform_real_distribution[T]:
+        uniform_real_distribution() except +
+        uniform_real_distribution(T, T) except +
+        T operator()[Generator](Generator&) except +
+        T min() except +
+        T max() except +

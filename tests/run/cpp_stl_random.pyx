@@ -1,7 +1,7 @@
 # mode: run
 # tag: cpp, cpp11
 
-from libcpp.random cimport mt19937, uniform_int_distribution
+from libcpp.random cimport mt19937, uniform_int_distribution, uniform_real_distribution
 
 
 def mt19937_seed_test():
@@ -63,4 +63,16 @@ def uniform_int_distribution_sample(a, b):
     True
     """
     cdef uniform_int_distribution[int] dist = uniform_int_distribution[int](a, b)
+    return dist(mt19937(42))
+
+
+def uniform_real_distribution_sample(a, b):
+    """
+    >>> uniform_real_distribution_sample(0, 0)
+    0.0
+    >>> x = uniform_real_distribution_sample(0, 5)
+    >>> 0 < x and x < 5
+    True
+    """
+    cdef uniform_real_distribution[float] dist = uniform_real_distribution[float](a, b)
     return dist(mt19937(42))
