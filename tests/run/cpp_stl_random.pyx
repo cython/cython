@@ -6,7 +6,7 @@ from libcpp.random cimport mt19937, random_device, uniform_int_distribution, \
     geometric_distribution, negative_binomial_distribution, poisson_distribution, \
     exponential_distribution, gamma_distribution, weibull_distribution, \
     extreme_value_distribution, normal_distribution, lognormal_distribution, \
-    chi_squared_distribution
+    chi_squared_distribution, cauchy_distribution
 
 
 def mt19937_seed_test():
@@ -75,6 +75,7 @@ ctypedef fused any_dist:
     normal_distribution[double]
     lognormal_distribution[double]
     chi_squared_distribution[double]
+    cauchy_distribution[double]
 
 
 cdef sample_or_range(any_dist dist, bint sample):
@@ -283,3 +284,17 @@ def chi_squared_distribution_test(dof, sample=True):
     """
     cdef chi_squared_distribution[double] dist = chi_squared_distribution[double](dof)
     return sample_or_range[chi_squared_distribution[double]](dist, sample)
+
+
+def cauchy_distribution_test(loc, scale, sample=True):
+    """
+    >>> cauchy_distribution_test(3, 0)
+    3.0
+    >>> x = cauchy_distribution_test(3, 1e-3)
+    >>> 2 < x and x < 4  # Passes with high probability.
+    True
+    >>> cauchy_distribution_test(1, 1, False)
+    (-inf, inf)
+    """
+    cdef cauchy_distribution[double] dist = cauchy_distribution[double](loc, scale)
+    return sample_or_range[cauchy_distribution[double]](dist, sample)
