@@ -271,6 +271,12 @@ Note that Cython comes with ready-to-use declarations of (almost) all C-API func
 in the cimportable ``cpython.*`` modules.  See the list in
 https://github.com/cython/cython/tree/master/Cython/Includes/cpython
 
+You should always use submodules (e.g. ``cpython.object``, ``cpython.list``) to
+access these functions. Historically Cython has made some of the C-API functions
+available under directly under the ``cpython`` module. However, this is
+deprecated, will be removed eventually, and any new additions will not be added
+there.
+
 Special Types
 --------------
 
