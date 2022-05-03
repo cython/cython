@@ -435,6 +435,7 @@ static int __Pyx_SetPackagePathFromImportLib(const char* parent_package_name, Py
 #else
     PyObject *loader;
     PyObject *path = NULL;
+    PyObject *module_name_no_dot = NULL;
     if (parent_package_name) {
         PyObject *package = PyImport_ImportModule(parent_package_name);
         if (unlikely(!package))
@@ -443,8 +444,15 @@ static int __Pyx_SetPackagePathFromImportLib(const char* parent_package_name, Py
         Py_DECREF(package);
         if (unlikely(!path) || unlikely(path == Py_None))
             goto bad;
+        // Trim the leading "." off module_name for find_loader (as opposed to find_spec above)
+        const char *u_module_name = PyUnicode_AsUTF8(module_name);
+        if (unlikely(u_module_name[0] != '.'))
+            goto bad;
+        module_name_no_dot = PyUnicodeFromString(u_module_name + 1);
     } else {
         path = Py_None; Py_INCREF(Py_None);
+        module_name_no_dot = module_name;
+        Py_INCREF(module_name_no_dot);
     }
     // package_path = [importlib.find_loader(module_name, path).path.rsplit(os.sep, 1)[0]]
     importlib = PyImport_ImportModule("importlib");
@@ -486,6 +494,7 @@ bad:
     PyErr_WriteUnraisable(module_name);
 #if PY_VERSION_HEX < 0x03040000
     Py_XDECREF(path);
+    Py_XDECREF(module_name_no_dot);
 #endif
     Py_XDECREF(file_path);
 
