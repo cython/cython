@@ -5,6 +5,14 @@ Cython Changelog
 0.29.29 (2022-??-??)
 ====================
 
+Features added
+--------------
+
+* Avoid acquiring the GIL at the end of nogil functions.
+  This change was backported in order to avoid generating wrong C code
+  that would trigger C compiler warnings with tracing support enabled.
+  Backport by Oleksandr Pavlyk.  (Github issue #4637)
+
 Bugs fixed
 ----------
 
@@ -16,6 +24,10 @@ Bugs fixed
 
 * Pickles can now be exchanged again with those generated from Cython 3.0 modules.
   (Github issue #4680)
+
+* Cython now correctly generates Python methods for both the provided regular and
+  reversed special numeric methods of extension types.
+  Patch by Jakub Kulík.  (Github issue #4750)
 
 * The C union type in pure Python mode mishandled some field names.
   Patch by Jordan Brière.  (Github issue #4727)
