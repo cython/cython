@@ -1,15 +1,8 @@
 # cython: linetrace=True
 
-cdef class MyError(Exception):
-    """
-    An  exception is raised when operation submission
-    or execution encounters an error.
-    """
-
-
 cdef void foo(int err) nogil except *:
     with gil:
-        raise MyError(err)
+        raise ValueError(err)
 
 
 # Test from gh-4637
@@ -20,7 +13,7 @@ def handler(int err):
     >>> handler(1)    # doctest: +ELLIPSIS
     Traceback (most recent call last):
         ...
-    trace_nogil.MyError: 1
+    ValueError: 1
     """
     if (err % 2):
         with nogil:
