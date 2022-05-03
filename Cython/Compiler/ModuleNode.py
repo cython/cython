@@ -3255,8 +3255,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             # out the module path at runtime by rerunning the import lookup
             code.putln("if (!CYTHON_PEP489_MULTI_PHASE_INIT) {")
             package_name, _ = self.full_module_name.rsplit('.', 1)
+            module_name = env.module_name
             if '.' in package_name:
                 parent_name = '"%s"' % (package_name.rsplit('.', 1)[0],)
+                module_name = '.' + module_name
             else:
                 parent_name = 'NULL'
             code.globalstate.use_utility_code(UtilityCode.load(
@@ -3265,7 +3267,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 '__Pyx_SetPackagePathFromImportLib(%s, %s)' % (
                     parent_name,
                     code.globalstate.get_py_string_const(
-                        EncodedString(env.module_name)).cname),
+                        EncodedString(module_name)).cname),
                 self.pos))
             code.putln("}")
 

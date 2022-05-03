@@ -417,31 +417,19 @@ static int __Pyx_SetPackagePathFromImportLib(const char* parent_package_name, Py
 // PY_VERSION_HEX >= 0x03030000
 #if PY_MAJOR_VERSION >= 3 && !CYTHON_PEP489_MULTI_PHASE_INIT
 static int __Pyx_SetPackagePathFromImportLib(const char* parent_package_name, PyObject *module_name) {
-    PyObject *importlib, *loader, *osmod, *ossep, *parts, *package_path;
-    PyObject *path = NULL, *file_path = NULL;
+    PyObject *importlib, *spec, *osmod, *ossep, *parts, *package_path;
+    PyObject *file_path = NULL;
     int result;
-    if (parent_package_name) {
-        PyObject *package = PyImport_ImportModule(parent_package_name);
-        if (unlikely(!package))
-            goto bad;
-        path = PyObject_GetAttrString(package, "__path__");
-        Py_DECREF(package);
-        if (unlikely(!path) || unlikely(path == Py_None))
-            goto bad;
-    } else {
-        path = Py_None; Py_INCREF(Py_None);
-    }
-    // package_path = [importlib.find_loader(module_name, path).path.rsplit(os.sep, 1)[0]]
-    importlib = PyImport_ImportModule("importlib");
+    // package_path = [importlib.util.find_spec(module_name, package).origin.rsplit(os.sep, 1)[0]]
+    importlib = PyImport_ImportModule("importlib.util");
     if (unlikely(!importlib))
         goto bad;
-    loader = PyObject_CallMethod(importlib, "find_loader", "(OO)", module_name, path);
+    spec = PyObject_CallMethod(importlib, "find_spec", "(Os)", module_name, parent_package_name);
     Py_DECREF(importlib);
-    Py_DECREF(path); path = NULL;
-    if (unlikely(!loader))
+    if (unlikely(!spec))
         goto bad;
-    file_path = PyObject_GetAttrString(loader, "path");
-    Py_DECREF(loader);
+    file_path = PyObject_GetAttrString(spec, "origin");
+    Py_DECREF(spec);
     if (unlikely(!file_path))
         goto bad;
 
@@ -468,7 +456,6 @@ static int __Pyx_SetPackagePathFromImportLib(const char* parent_package_name, Py
 
 bad:
     PyErr_WriteUnraisable(module_name);
-    Py_XDECREF(path);
     Py_XDECREF(file_path);
 
     // set an empty path list on failure
