@@ -3258,7 +3258,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             module_name = env.module_name
             if '.' in package_name:
                 parent_name = '"%s"' % (package_name.rsplit('.', 1)[0],)
-                module_name = '.' + module_name
+                if sys.version_info > (3, 4):
+                    module_name = '.' + module_name
             else:
                 parent_name = 'NULL'
             code.globalstate.use_utility_code(UtilityCode.load(
