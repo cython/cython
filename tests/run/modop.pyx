@@ -9,7 +9,7 @@ def modobj(obj2, obj3):
     '5'
     >>> modobj(1, 0)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    ZeroDivisionError: integer division...
+    ZeroDivisionError: integer ...
     """
     obj1 = obj2 % obj3
     return obj1
@@ -19,7 +19,7 @@ def mod_10_obj(int2):
     """
     >>> mod_10_obj(0)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    ZeroDivisionError: integer division...
+    ZeroDivisionError: integer ...
     >>> mod_10_obj(3)
     1
     """
