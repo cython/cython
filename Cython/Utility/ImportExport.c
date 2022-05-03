@@ -415,12 +415,12 @@ static int __Pyx_SetPackagePathFromImportLib(const char* parent_package_name, Py
 //@substitute: naming
 
 // PY_VERSION_HEX >= 0x03030000
-#if !CYTHON_PEP489_MULTI_PHASE_INIT
+#if PY_MAJOR_VERSION >= 3 && !CYTHON_PEP489_MULTI_PHASE_INIT
 static int __Pyx_SetPackagePathFromImportLib(const char* parent_package_name, PyObject *module_name) {
     PyObject *importlib, *osmod, *ossep, *parts, *package_path;
     PyObject *file_path = NULL;
     int result;
-#if PY_VERSION_HEX > 0x03040000
+#if PY_VERSION_HEX >= 0x03040000
     PyObject *spec;
     // package_path = [importlib.util.find_spec(module_name, package).origin.rsplit(os.sep, 1)[0]]
     importlib = PyImport_ImportModule("importlib.util");
@@ -484,7 +484,7 @@ static int __Pyx_SetPackagePathFromImportLib(const char* parent_package_name, Py
 
 bad:
     PyErr_WriteUnraisable(module_name);
-#if PY_VERSION_HEX <= 0x03040000
+#if PY_VERSION_HEX < 0x03040000
     Py_XDECREF(path);
 #endif
     Py_XDECREF(file_path);

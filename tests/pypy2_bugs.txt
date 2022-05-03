@@ -1,6 +1,5 @@
 # Specific bugs that only apply to pypy2
 
-build.cythonize_script
 run.initial_file_path
 run.reduce_pickle
 run.final_in_pxd
