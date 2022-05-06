@@ -1,0 +1,62 @@
+# Workflow to build wheels for upload to PyPI.
+name: Wheel Builder
+on:
+  schedule:
+  #        ┌───────────── minute (0 - 59)
+  #        │  ┌───────────── hour (0 - 23)
+  #        │  │ ┌───────────── day of the month (1 - 31)
+  #        │  │ │ ┌───────────── month (1 - 12 or JAN-DEC)
+  #        │  │ │ │ ┌───────────── day of the week (0 - 6 or SUN-SAT)
+  #        │  │ │ │ │
+  - cron: "42 1 * * 4"
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  build_wheels:
+    name: Build wheel for ${{ matrix.python }}-${{ matrix.buildplat[1] }}
+    runs-on: ${{ matrix.buildplat[0] }}
+    strategy:
+      # Ensure that a wheel builder finishes even if another fails
+      fail-fast: false
+      matrix:
+        # Github Actions doesn't support pairing matrix values together, let's improvise
+        # https://github.com/github/feedback/discussions/7835#discussioncomment-1769026
+        buildplat:
+        - [ubuntu-20.04, manylinux_x86_64]
+        - [ubuntu-20.04, musllinux_x86_64]
+        - [macos-10.15, macosx_*]
+        - [windows-2019, win_amd64]
+        - [windows-2019, win32]
+        python: ["cp36", "cp38", "cp39", "cp310", "pp38", "pp39"]
+        exclude:
+        # Don't build PyPy 32-bit windows
+        - buildplat: [windows-2019, win32]
+          python: "pp38"
+        - buildplat: [windows-2019, win32]
+          python: "pp39"
+    steps:
+      - name: Checkout Cython
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+          # versioneer.py requires the latest tag to be reachable. Here we
+          # fetch the complete history to get access to the tags.
+          # A shallow clone can work when the following issue is resolved:
+          # https://github.com/actions/checkout/issues/338
+          fetch-depth: 0
+            # Used to push the built wheels
+      
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.4.0
+        env:
+          CIBW_BUILD: ${{ matrix.python }}-${{ matrix.buildplat[1] }}
