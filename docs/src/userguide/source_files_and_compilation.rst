@@ -614,7 +614,7 @@ Compiling with ``cython.compile``
 =================================
 
 Cython supports transparent compiling of the cython code in a function using the
-``@cython.compile`` dedorator::
+``@cython.compile`` decorator::
 
     @cython.compile
     def plus(a, b):
