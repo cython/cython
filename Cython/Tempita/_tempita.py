@@ -926,7 +926,7 @@ def parse_for(tokens, name, context):
     tokens = tokens[1:]
     context = ('for',) + context
     content = []
-    assert first.startswith('for ')
+    assert first.startswith('for '), first
     if first.endswith(':'):
         first = first[:-1]
     first = first[3:].strip()

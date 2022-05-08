@@ -109,7 +109,7 @@ class CythonUtilityCode(Code.UtilityCodeBase):
     def __hash__(self):
         return hash(self.impl)
 
-    def get_tree(self, entries_only=False, cython_scope=None):
+    def get_tree(self, entries_only=False, cython_scope=None, modify_pipeline_callback=None):
         from .AnalysedTreeTransforms import AutoTestDictTransform
         # The AutoTestDictTransform creates the statement "__test__ = {}",
         # which when copied into the main ModuleNode overwrites
@@ -126,6 +126,9 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         tree = parse_from_strings(
             self.name, self.impl, context=context, allow_struct_enum_decorator=True)
         pipeline = Pipeline.create_pipeline(context, 'pyx', exclude_classes=excludes)
+
+        if modify_pipeline_callback:
+            modify_pipeline_callback(pipeline)
 
         if entries_only:
             p = []
