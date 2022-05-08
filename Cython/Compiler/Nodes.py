@@ -8549,10 +8549,8 @@ def cimport_numpy_check(node, code):
                 # warning is mainly for the sake of testing
                 warning(node.pos, "'numpy.import_array()' has been added automatically "
                         "since 'numpy' was cimported but 'numpy.import_array' was not called.", 0)
-                from .Code import TempitaUtilityCode
                 code.globalstate.use_utility_code(
-                         TempitaUtilityCode.load_cached("NumpyImportArray", "NumpyImportArray.c",
-                                            context = {'err_goto': code.error_goto(node.pos)})
+                         UtilityCode.load_cached("NumpyImportArray", "NumpyImportArray.c")
                     )
                 return  # no need to continue once the utility code is added
 
