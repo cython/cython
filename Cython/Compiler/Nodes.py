@@ -729,7 +729,8 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                 # Use an explicit exception return value to speed up exception checks.
                 # Even if it is not declared, we can use the default exception value of the return type,
                 # unless the function is some kind of external function that we do not control.
-                if return_type.exception_value is not None and (visibility != 'extern' and not in_pxd):
+                if (return_type.exception_value is not None and (visibility != 'extern' and not in_pxd)
+                        and not isinstance(self.base, CPtrDeclaratorNode)):
                     # Extension types are more difficult because the signature must match the base type signature.
                     if not env.is_c_class_scope:
                         from .ExprNodes import ConstNode
