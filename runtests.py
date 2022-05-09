@@ -537,8 +537,7 @@ def parse_tags(filepath):
                 if tag in ('coding', 'encoding'):
                     continue
                 if tag == 'tags':
-                    tag = 'tag'
-                    print("WARNING: test tags use the 'tag' directive, not 'tags' (%s)" % filepath)
+                    raise RuntimeError("test tags use the 'tag' directive, not 'tags' (%s)" % filepath)
                 if tag not in ('mode', 'tag', 'ticket', 'cython', 'distutils', 'preparse'):
                     print("WARNING: unknown test directive '%s' found (%s)" % (tag, filepath))
                 values = values.split(',')
