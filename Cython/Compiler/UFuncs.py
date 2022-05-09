@@ -47,12 +47,12 @@ def _get_out_type_info(node):
         return [ _get_type_constant(node.pos, node.return_type) ],  [ node.return_type ]
 
 class _UniquePyNameHandler(object):
-    def __init__(self, scope):
-        self.scope = scope
+    def __init__(self, existing_names):
+        self.existing_names = existing_names
         self.extra_names = set()
 
     def get_unique_py_name(self, name):
-        while name in self.scope.entries or name in self.extra_names:
+        while name in self.existing_names or name in self.extra_names:
             name += "_"
         self.extra_names.add(name)
         return name
@@ -69,32 +69,16 @@ class FindCFuncDefNode(TreeVisitor):
     def visit_CFuncDefNode(self, node):
         self.found_node = node
 
-class ReplaceCallEllipsisNode(VisitorTransform):
-    found_node = None
 
-    def __init__(self, replace_with):
-        super(ReplaceCallEllipsisNode, self).__init__()
-        self.replace_with = replace_with
+class NameFinderVisitor(TreeVisitor):
+    visit_Node = TreeVisitor.recurse_to_children
 
-    def visit_Node(self, node):
-        if self.found_node:
-            return node
-        else:
-            self.visitchildren(node)
-            return node
+    def __init__(self):
+        super(NameFinderVisitor, TreeVisitor).__init__()
+        self.names = set()
 
-    def visit_ExprStatNode(self, node):
-        old_expr = node.expr
-        self.visitchildren(node)
-        if old_expr is not node.expr:
-            # we've substituted the contents
-            return node.expr
-
-    def visit_CallNode(self, node):
-        if not self.found_node and node.function.is_literal and node.function.value == "Py_Ellipsis":
-            self.found_node = node
-            return self.replace_with
-        return node
+    def visit_NameNode(self, node):
+        self.names.add(node.name)
 
 
 class ReplaceReturnsTransform(VisitorTransform):
@@ -153,7 +137,9 @@ def convert_to_ufunc(node):
 
     cname = node.entry.cname
 
-    name_handler = _UniquePyNameHandler(node.local_scope)
+    name_finder = NameFinderVisitor()
+    name_finder(node.ufunc_body)
+    name_handler = _UniquePyNameHandler(set(node.local_scope.keys()) + name_finder.names)
 
     in_names = []
     arg_names = []
@@ -222,8 +208,7 @@ class AddImportUFuncNode(Nodes.Node):
 
     def generate_execution_code(self, code):
         code.globalstate.use_utility_code(
-                    TempitaUtilityCode.load_cached("NumpyImportUFunc", "NumpyImportArray.c",
-                                    context = {'err_goto': code.error_goto(self.pos)})
+                    UtilityCode.load_cached("NumpyImportUFunc", "NumpyImportArray.c")
             )
 
 def protect_node_body(node):
