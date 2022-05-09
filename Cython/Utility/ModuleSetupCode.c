@@ -1588,15 +1588,15 @@ static int __Pyx_check_binary_version(void);
 /////////////// CheckBinaryVersion ///////////////
 
 static int __Pyx_check_binary_version(void) {
-    char ctversion[4], rtversion[4];
-    PyOS_snprintf(ctversion, 4, "%d.%d", PY_MAJOR_VERSION, PY_MINOR_VERSION);
-    PyOS_snprintf(rtversion, 4, "%s", Py_GetVersion());
-    if (ctversion[0] != rtversion[0] || ctversion[2] != rtversion[2]) {
+    int ct_major_version = PY_MAJOR_VERSION, ct_minor_version = PY_MINOR_VERSION;
+    int rt_major_version, rt_minor_version;
+    sscanf(Py_GetVersion(), "%d.%d", &rt_major_version, &rt_minor_version);
+    if (ct_major_version != rt_major_version || ct_minor_version != rt_minor_version) {
         char message[200];
         PyOS_snprintf(message, sizeof(message),
-                      "compile time version %s of module '%.100s' "
-                      "does not match runtime version %s",
-                      ctversion, __Pyx_MODULE_NAME, rtversion);
+                      "compile time version %d.%d of module '%.100s' "
+                      "does not match runtime version %d.%d",
+                      ct_major_version, ct_minor_version, __Pyx_MODULE_NAME, rt_major_version, rt_minor_version);
         return PyErr_WarnEx(NULL, message, 1);
     }
     return 0;
