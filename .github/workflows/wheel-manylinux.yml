@@ -8,12 +8,12 @@ jobs:
   python:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: Set up Python
-      uses: actions/setup-python@v1
+      uses: actions/setup-python@v3
       with:
-        python-version: 3.8
+        python-version: "3.10"
 
     - name: Install build dependencies
       run: pip install -U "setuptools<60" pip wheel
@@ -30,14 +30,14 @@ jobs:
           dist/*-none-any.whl
 
     - name: Upload sdist
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: sdist
         path: dist/*.tar.gz
         if-no-files-found: ignore
 
     - name: Upload Python wheel
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: wheel-Python
         path: dist/*-none-any.whl
@@ -60,12 +60,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
-    - name: Set up Python 3.9
-      uses: actions/setup-python@v2
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v3
       with:
-        python-version: 3.9
+        python-version: "3.10"
 
     - name: Building wheel
       run: |
@@ -83,7 +83,7 @@ jobs:
           dist/*musllinux*.whl
 
     - name: Archive Wheels
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: ${{ matrix.image }}
         path: dist/*m[au][ns][yl]linux*.whl
