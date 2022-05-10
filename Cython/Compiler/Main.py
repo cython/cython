@@ -152,7 +152,7 @@ class Context(object):
             # If Last part is __init__, then it is omitted. Otherwise, we need to check whether we can find
             # __init__.pyx/__init__.py file to determine if last part is package or not.
             paths = self.find_file_with_suffix(qualified_name, suffix=('.pyx', '.py'))
-            is_package = self._is_init_file(paths[0]) if len(paths) > 0 else False
+            is_package = self._is_init_file(paths[0]) if paths else False
             qualified_name_parts = qualified_name_parts + [(last_part, is_package)]
         return qualified_name_parts
 
