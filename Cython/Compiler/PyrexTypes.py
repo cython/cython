@@ -341,7 +341,8 @@ class PyrexType(BaseType):
         return 0
 
     def _assign_from_py_code(self, source_code, result_code, error_pos, code,
-                             from_py_function=None, error_condition=None, extra_args=None):
+                             from_py_function=None, error_condition=None, extra_args=None,
+                             special_none_cvalue=None):
         args = ', ' + ', '.join('%s' % arg for arg in extra_args) if extra_args else ''
         convert_call = "%s(%s%s)" % (
             from_py_function or self.from_py_function,
@@ -350,6 +351,10 @@ class PyrexType(BaseType):
         )
         if self.is_enum:
             convert_call = typecast(self, c_long_type, convert_call)
+        if special_none_cvalue:
+            # NOTE: requires 'source_code' to be simple!
+            convert_call = "(__Pyx_Py_IsNone(%s) ? (%s) : (%s))" % (
+                source_code, special_none_cvalue, convert_call)
         return '%s = %s; %s' % (
             result_code,
             convert_call,
@@ -555,11 +560,13 @@ class CTypedefType(BaseType):
             source_code, result_code, result_type, to_py_function)
 
     def from_py_call_code(self, source_code, result_code, error_pos, code,
-                          from_py_function=None, error_condition=None):
+                          from_py_function=None, error_condition=None,
+                          special_none_cvalue=None):
         return self.typedef_base_type.from_py_call_code(
             source_code, result_code, error_pos, code,
             from_py_function or self.from_py_function,
-            error_condition or self.error_condition(result_code)
+            error_condition or self.error_condition(result_code),
+            special_none_cvalue=special_none_cvalue,
         )
 
     def overflow_check_binop(self, binop, env, const_rhs=False):
@@ -978,13 +985,16 @@ class MemoryViewSliceType(PyrexType):
         return True
 
     def from_py_call_code(self, source_code, result_code, error_pos, code,
-                          from_py_function=None, error_condition=None):
+                          from_py_function=None, error_condition=None,
+                          special_none_cvalue=None):
         # NOTE: auto-detection of readonly buffers is disabled:
         # writable = self.writable_needed or not self.dtype.is_const
         writable = not self.dtype.is_const
         return self._assign_from_py_code(
             source_code, result_code, error_pos, code, from_py_function, error_condition,
-            extra_args=['PyBUF_WRITABLE' if writable else '0'])
+            extra_args=['PyBUF_WRITABLE' if writable else '0'],
+            special_none_cvalue=special_none_cvalue,
+        )
 
     def create_to_py_utility_code(self, env):
         self._dtype_to_py_func, self._dtype_from_py_func = self.dtype_object_conversion_funcs(env)
@@ -1674,9 +1684,11 @@ class CType(PyrexType):
             source_code or 'NULL')
 
     def from_py_call_code(self, source_code, result_code, error_pos, code,
-                          from_py_function=None, error_condition=None):
+                          from_py_function=None, error_condition=None,
+                          special_none_cvalue=None):
         return self._assign_from_py_code(
-            source_code, result_code, error_pos, code, from_py_function, error_condition)
+            source_code, result_code, error_pos, code, from_py_function, error_condition,
+            special_none_cvalue=special_none_cvalue)
 
 
 
@@ -2675,8 +2687,10 @@ class CArrayType(CPointerBaseType):
         return True
 
     def from_py_call_code(self, source_code, result_code, error_pos, code,
-                          from_py_function=None, error_condition=None):
+                          from_py_function=None, error_condition=None,
+                          special_none_cvalue=None):
         assert not error_condition, '%s: %s' % (error_pos, error_condition)
+        assert not special_none_cvalue, '%s: %s' % (error_pos, special_none_cvalue)  # not currently supported
         call_code = "%s(%s, %s, %s)" % (
             from_py_function or self.from_py_function,
             source_code, result_code, self.size)
