@@ -785,6 +785,20 @@ def get_slot_code_by_name(scope, slot_name):
     slot = get_slot_by_name(slot_name, scope.directives)
     return slot.slot_code(scope)
 
+def is_reverse_number_slot(name):
+    """
+    Tries to identify __radd__ and friends (so the METH_COEXIST flag can be applied).
+
+    There's no great consequence if it inadvertently identifies a few other methods
+    so just use a simple rule rather than an exact list.
+    """
+    if name.startswith("__r") and name.endswith("__"):
+        forward_name = name.replace("r", "", 1)
+        for meth in PyNumberMethods:
+            if getattr(meth, "method_name", None) == forward_name:
+                return True
+    return False
+
 
 #------------------------------------------------------------------------------------------
 #
