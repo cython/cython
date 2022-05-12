@@ -235,7 +235,7 @@ class SlotDescriptor(object):
         self.is_binop = is_binop
 
     def slot_code(self, scope):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     def spec_value(self, scope):
         return self.slot_code(scope)
