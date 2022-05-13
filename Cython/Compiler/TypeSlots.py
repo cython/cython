@@ -794,8 +794,8 @@ def is_reverse_number_slot(name):
     """
     if name.startswith("__r") and name.endswith("__"):
         forward_name = name.replace("r", "", 1)
-        for meth in PyNumberMethods:
-            if getattr(meth, "method_name", None) == forward_name:
+        for meth in get_slot_table(None).PyNumberMethods:
+            if hasattr(meth, "right_slot"):
                 return True
     return False
 
