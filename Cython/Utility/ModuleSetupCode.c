@@ -928,7 +928,7 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   /* new Py3.3 unicode type (PEP 393) */
   #define CYTHON_PEP393_ENABLED 1
 
-  #if defined(PyUnicode_IS_READY)
+  #if defined(_PyUnicode_Ready)
   #define __Pyx_PyUnicode_READY(op)       (likely(PyUnicode_IS_READY(op)) ? \
                                               0 : _PyUnicode_Ready((PyObject *)(op)))
   #else
@@ -943,7 +943,7 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define __Pyx_PyUnicode_DATA(u)         PyUnicode_DATA(u)
   #define __Pyx_PyUnicode_READ(k, d, i)   PyUnicode_READ(k, d, i)
   #define __Pyx_PyUnicode_WRITE(k, d, i, ch)  PyUnicode_WRITE(k, d, i, ch)
-  #if defined(PyUnicode_IS_READY) && defined(PyUnicode_GET_SIZE)
+  #if defined(_PyUnicode_Ready) && defined(PyUnicode_GET_SIZE)
   #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x03090000
   // Avoid calling deprecated C-API functions in Py3.9+ that PEP-623 schedules for removal in Py3.12.
   // https://www.python.org/dev/peps/pep-0623/
