@@ -1004,7 +1004,7 @@ Bugs fixed
 
 * Cython now correctly generates Python methods for both the provided regular and
   reversed special numeric methods of extension types.
-  Patch by Jakub Kulík.  (Github issue :issue`4750`)
+  Patch by David Woods.  (Github issue :issue`4750`)
 
 * The C union type in pure Python mode mishandled some field names.
   Patch by Jordan Brière.  (Github issue :issue:`4727`)
