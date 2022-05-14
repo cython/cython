@@ -405,9 +405,9 @@ bad:
 
 // PY_VERSION_HEX >= 0x03030000
 #if PY_MAJOR_VERSION >= 3 && !CYTHON_PEP489_MULTI_PHASE_INIT
-static int __Pyx_SetPackagePathFromImportLib(const char* parent_package_name, PyObject *module_name);
+static int __Pyx_SetPackagePathFromImportLib(PyObject *module_name);
 #else
-#define __Pyx_SetPackagePathFromImportLib(a, b) 0
+#define __Pyx_SetPackagePathFromImportLib(a) 0
 #endif
 
 /////////////// SetPackagePathFromImportLib ///////////////
@@ -416,16 +416,16 @@ static int __Pyx_SetPackagePathFromImportLib(const char* parent_package_name, Py
 
 // PY_VERSION_HEX >= 0x03030000
 #if PY_MAJOR_VERSION >= 3 && !CYTHON_PEP489_MULTI_PHASE_INIT
-static int __Pyx_SetPackagePathFromImportLib(const char* parent_package_name, PyObject *module_name) {
+static int __Pyx_SetPackagePathFromImportLib(PyObject *module_name) {
     PyObject *importlib, *osmod, *ossep, *parts, *package_path;
     PyObject *file_path = NULL;
     int result;
     PyObject *spec;
-    // package_path = [importlib.util.find_spec(module_name, package).origin.rsplit(os.sep, 1)[0]]
+    // package_path = [importlib.util.find_spec(module_name).origin.rsplit(os.sep, 1)[0]]
     importlib = PyImport_ImportModule("importlib.util");
     if (unlikely(!importlib))
         goto bad;
-    spec = PyObject_CallMethod(importlib, "find_spec", "(Os)", module_name, parent_package_name);
+    spec = PyObject_CallMethod(importlib, "find_spec", "(O)", module_name);
     Py_DECREF(importlib);
     if (unlikely(!spec))
         goto bad;
