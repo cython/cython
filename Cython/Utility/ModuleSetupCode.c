@@ -1590,14 +1590,20 @@ static int __Pyx_check_binary_version(void);
 static int __Pyx_check_binary_version(void) {
     char ctversion[5], rtversion[5] = {'\0'};
     const char* rt_from_call = Py_GetVersion();
-    int same=1, i=0, found_dot=0;
+    int same, i, found_dot;
     PyOS_snprintf(ctversion, 5, "%d.%d", PY_MAJOR_VERSION, PY_MINOR_VERSION);
-    // slightly convoluted, but now we're into double digit version numbers we can no longer just rely on the length.
+    // slightly convoluted, but now that we're into double digit version numbers we can no longer just rely on the length.
     // Instead copy numbers and the first dot
-    for (; i<4 && ((*rt_from_call>='0' && *rt_from_call<='9') || (*rt_from_call=='.' && !found_dot)) ; ++i, ++rt_from_call) {
-        if (*rt_from_call=='.') found_dot = 1;
+    found_dot = 0;
+    for (i = 0; i < 4 && (*rt_from_call >= '0' && *rt_from_call <= '9') ; i++) {
+        if (*rt_from_call == '.') {
+            if (found_dot) break;
+            found_dot = 1;
+        }
         rtversion[i] = *rt_from_call;
+        ++rt_from_call;
     }
+    same = 1;
     for (i=0; i<4; ++i) {
         same = same && (rtversion[i] == ctversion[i]);
         if (!rtversion[i] || !ctversion[i] || !same) {
