@@ -363,9 +363,9 @@ cdef class TestUnboundMethodCdef:
     >>> C = TestUnboundMethodCdef
     >>> IS_PY2 or (C.meth is C.__dict__["meth"])
     True
-    >>> TestUnboundMethodCdef.meth()
+    >>> TestUnboundMethodCdef.meth()  # doctest:+ELLIPSIS
     Traceback (most recent call last):
-    TypeError: unbound method TestUnboundMethodCdef.meth() needs an argument
+    TypeError: ...
     """
     def meth(self): pass
 
@@ -375,9 +375,9 @@ class TestUnboundMethod:
     >>> C = TestUnboundMethod
     >>> IS_PY2 or (C.meth is C.__dict__["meth"])
     True
-    >>> TestUnboundMethod.meth()
+    >>> TestUnboundMethod.meth()  # doctest:+ELLIPSIS
     Traceback (most recent call last):
-    TypeError: meth() takes exactly one argument (0 given)
+    TypeError: ...
     """
     def meth(self): pass
 
