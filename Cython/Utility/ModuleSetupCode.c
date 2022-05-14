@@ -1595,10 +1595,12 @@ static int __Pyx_check_binary_version(void) {
     // slightly convoluted, but now that we're into double digit version numbers we can no longer just rely on the length.
     // Instead copy numbers and the first dot
     found_dot = 0;
-    for (i = 0; i < 4 && (*rt_from_call >= '0' && *rt_from_call <= '9') ; i++) {
+    for (i = 0; i < 4; i++) {
         if (*rt_from_call == '.') {
             if (found_dot) break;
             found_dot = 1;
+        } else if (*rt_from_call < '0' || *rt_from_call > '9') {
+            break;
         }
         rtversion[i] = *rt_from_call;
         ++rt_from_call;
