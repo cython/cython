@@ -661,8 +661,8 @@ static PyObject *__Pyx_CyFunction_CallAsMethod(PyObject *func, PyObject *args, P
         if (unlikely(!self)) {
             Py_DECREF(new_args);
             PyErr_Format(PyExc_TypeError,
-                         "unbound method %.200s() needs an argument",
-                         cyfunc->func.m_ml->ml_name);
+                         "unbound method %.200S() needs an argument",
+                         cyfunc->func_qualname);
             return NULL;
         }
 
