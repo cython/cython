@@ -206,7 +206,8 @@ def process_class_get_fields(node):
 def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     # default argument values from https://docs.python.org/3/library/dataclasses.html
     kwargs = dict(init=True, repr=True, eq=True,
-                  order=False, unsafe_hash=False, frozen=False)
+                  order=False, unsafe_hash=False,
+                  frozen=False, kw_only=False)
     if dataclass_args is not None:
         if dataclass_args[0]:
             error(node.pos, "cython.dataclasses.dataclass takes no positional arguments")
@@ -220,6 +221,8 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
             kwargs[k] = v
 
     fields = process_class_get_fields(node)
+
+    kw_only = kwargs.pop("kw_only")
 
     dataclass_module = make_dataclasses_module_callnode(node.pos)
 
@@ -250,7 +253,7 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     code_lines = []
     placeholders = {}
     extra_stats = []
-    for cl, ph, es in [ generate_init_code(kwargs['init'], node, fields),
+    for cl, ph, es in [ generate_init_code(kwargs['init'], node, fields, kw_only),
                         generate_repr_code(kwargs['repr'], node, fields),
                         generate_eq_code(kwargs['eq'], node, fields),
                         generate_order_code(kwargs['order'], node, fields),
@@ -281,7 +284,7 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     node.body.stats.append(comp_directives)
 
 
-def generate_init_code(init, node, fields):
+def generate_init_code(init, node, fields, kw_only):
     """
     All of these "generate_*_code" functions return a tuple of:
     - code string
@@ -306,6 +309,9 @@ def generate_init_code(init, node, fields):
     # selfname behaviour copied from the cpython module
     selfname = "__dataclass_self__" if "self" in fields else "self"
     args = [selfname]
+
+    if kw_only:
+        args.append("*")
 
     placeholders = {}
     placeholder_count = [0]
@@ -352,7 +358,7 @@ def generate_init_code(init, node, fields):
                 ph_name = get_placeholder_name()
                 placeholders[ph_name] = field.default  # should be a node
             assignment = u" = %s" % ph_name
-        elif seen_default:
+        elif seen_default and not kw_only:
             error(entry.pos, ("non-default argument '%s' follows default argument "
                               "in dataclass __init__") % name)
             return "", {}, []
