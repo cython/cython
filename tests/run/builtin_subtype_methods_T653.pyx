@@ -37,11 +37,7 @@ cdef class MyList(list):
         return list.__contains__(self, value)  # probably optimized
 
 cdef class MyDict(dict):
-    """
-    >>> MyDict(a=1).__contains__("a")
-    MyDict.__contains__
-    True
-    """
+    # tests for __contains__ are in the global __doc__ to version-check a PyPy bug
 
     @cython.test_assert_path_exists("//ComprehensionNode//AttributeNode",
                                     "//ComprehensionNode//AttributeNode[@attribute='items']")
@@ -67,6 +63,15 @@ cdef class MyDict(dict):
     def __contains__(self, key):
         print "MyDict.__contains__"
         return dict.__contains__(self, key)
+
+import sys
+sys_impl = getattr(sys, 'implementation')
+if not (sys_impl and sys_impl.name == 'pypy' and sys_impl.version < (7, 3, 10)):
+    __doc__ = """
+    >>> MyDict(a=1).__contains__("a")
+    MyDict.__contains__
+    True
+    """
 
 @cython.final
 cdef class MyDictFinal(dict):
