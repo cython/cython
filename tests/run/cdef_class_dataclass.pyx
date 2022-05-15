@@ -224,7 +224,7 @@ cdef class TestFrozen:
     """
     a: double = 2.0
 
-@dataclasses(kw_only=True)
+@dataclass(kw_only=True)
 cdef class TestKwOnly:
     """
     >>> inst = TestKwOnly(a=3, b=2)
