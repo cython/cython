@@ -23,7 +23,7 @@ cdef class NotADataclass:
         return "NADC"
 
     def __str__(self):
-        return "string of NotADataclass"  # should be called - repr is called!
+        return "string of NotADataclass"  # should not be called - repr is called instead!
 
     def __eq__(self, other):
         return type(self) == type(other)
