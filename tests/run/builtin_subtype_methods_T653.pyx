@@ -65,7 +65,7 @@ cdef class MyDict(dict):
         return dict.__contains__(self, key)
 
 import sys
-sys_impl = getattr(sys, 'implementation')
+sys_impl = getattr(sys, 'implementation', None)
 if not (sys_impl and sys_impl.name == 'pypy' and sys_impl.version < (7, 3, 10)):
     __doc__ = """
     >>> MyDict(a=1).__contains__("a")
