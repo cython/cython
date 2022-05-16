@@ -3254,13 +3254,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             # packages require __path__, so all we can do is try to figure
             # out the module path at runtime by rerunning the import lookup
             code.putln("if (!CYTHON_PEP489_MULTI_PHASE_INIT) {")
-            module_name = self.full_module_name
             code.globalstate.use_utility_code(UtilityCode.load(
                 "SetPackagePathFromImportLib", "ImportExport.c"))
             code.putln(code.error_goto_if_neg(
                 '__Pyx_SetPackagePathFromImportLib(%s)' % (
                     code.globalstate.get_py_string_const(
-                        EncodedString(module_name)).cname),
+                        self.full_module_name).cname),
                 self.pos))
             code.putln("}")
 
