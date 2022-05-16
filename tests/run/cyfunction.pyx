@@ -363,6 +363,9 @@ cdef class TestUnboundMethodCdef:
     >>> C = TestUnboundMethodCdef
     >>> IS_PY2 or (C.meth is C.__dict__["meth"])
     True
+    >>> TestUnboundMethodCdef.meth()  # doctest:+ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
     """
     def meth(self): pass
 
@@ -372,6 +375,9 @@ class TestUnboundMethod:
     >>> C = TestUnboundMethod
     >>> IS_PY2 or (C.meth is C.__dict__["meth"])
     True
+    >>> TestUnboundMethod.meth()  # doctest:+ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
     """
     def meth(self): pass
 
