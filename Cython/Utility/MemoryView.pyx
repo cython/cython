@@ -13,18 +13,14 @@ cimport cython
 cdef extern from "Python.h":
     ctypedef struct PyObject
     int PyIndex_Check(object)
-    object PyLong_FromVoidPtr(void *)
     PyObject *PyExc_IndexError
     PyObject *PyExc_ValueError
-    PyObject *PyExc_MemoryError
 
 cdef extern from "pythread.h":
     ctypedef void *PyThread_type_lock
 
     PyThread_type_lock PyThread_allocate_lock()
     void PyThread_free_lock(PyThread_type_lock)
-    int PyThread_acquire_lock(PyThread_type_lock, int mode) nogil
-    void PyThread_release_lock(PyThread_type_lock) nogil
 
 cdef extern from "<string.h>":
     void *memset(void *b, int c, size_t len)
@@ -785,22 +781,6 @@ cdef memoryview memview_slice(memoryview memview, object indices):
 #
 ### Slicing in a single dimension of a memoryviewslice
 #
-
-cdef extern from "<stdlib.h>":
-    void abort() nogil
-    void printf(char *s, ...) nogil
-
-cdef extern from "<stdio.h>":
-    ctypedef struct FILE
-    FILE *stderr
-    int fputs(char *s, FILE *stream)
-
-cdef extern from "pystate.h":
-    void PyThreadState_Get() nogil
-
-    # These are not actually nogil, but we check for the GIL before calling them
-    void PyErr_SetString(PyObject *type, char *msg) nogil
-    PyObject *PyErr_Format(PyObject *exc, char *msg, ...) nogil
 
 @cname('__pyx_memoryview_slice_memviewslice')
 cdef int slice_memviewslice(
