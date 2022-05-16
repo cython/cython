@@ -1,0 +1,297 @@
+name: CI
+
+on: [push, pull_request, workflow_dispatch]
+
+jobs:
+  ci:
+    strategy:
+      # Allows for matrix sub-jobs to fail without canceling the rest
+      fail-fast: false
+
+      # MATRIX:
+      # =======
+      # Required parameters:
+      #  os                  the os to run on
+      #  python-version      the python version to use
+      #  backend             the backend to use
+      #  env                 any additional env variables. Set to '{}' for none
+      # Optional parameters:
+      #  allowed_failure     whether the job is allowed to fail
+      #  extra_hash          extra hash str to differentiate from other caches with similar name (must always start with '-')
+      matrix:
+        # Tests [amd64]
+        #
+        # FIXME: 'cpp' tests seems to fail due to compilation errors (numpy_pythran_unit)
+        # in all python versions and test failures (builtin_float) in 3.5<
+        os: [ubuntu-18.04]
+        backend: [c, cpp]
+        python-version: ["2.7", "3.4", "3.5", "3.6", "3.7", "3.8", "3.9", "3.10", "3.11-dev"]
+        env: [{}]
+
+        include:
+          # Temporary - Allow failure on Python 3.11-dev jobs until they are considered stable
+          - python-version: 3.11-dev
+            allowed_failure: true
+
+          # Ubuntu sub-jobs:
+          # ================
+          # GCC 11
+          - os: ubuntu-18.04
+            python-version: 3.9
+            backend: c
+            env: { GCC_VERSION: 11 }
+            extra_hash: "-gcc11"
+          - os: ubuntu-18.04
+            python-version: 3.9
+            backend: cpp
+            env: { GCC_VERSION: 11 }
+            extra_hash: "-gcc11"
+          # compile all modules
+          - os: ubuntu-18.04
+            python-version: 2.7
+            backend: c
+            env: { CYTHON_COMPILE_ALL: 1 }
+            extra_hash: "-all"
+          - os: ubuntu-18.04
+            python-version: 2.7
+            backend: cpp
+            env: { CYTHON_COMPILE_ALL: 1 }
+            extra_hash: "-all"
+          - os: ubuntu-18.04
+            python-version: 3.9
+            backend: c
+            env: { CYTHON_COMPILE_ALL: 1 }
+            extra_hash: "-all"
+          - os: ubuntu-18.04
+            python-version: 3.9
+            backend: cpp
+            env: { CYTHON_COMPILE_ALL: 1 }
+            extra_hash: "-all"
+          # Linting
+          - os: ubuntu-18.04
+            python-version: 3.7
+            backend: "c,cpp"
+            env: { TEST_CODE_STYLE: 1, NO_CYTHON_COMPILE: 1 }
+            extra_hash: "-codestyle"
+          # Limited API
+          - os: ubuntu-18.04
+            python-version: 3.6
+            backend: "c,cpp"
+            env: { LIMITED_API: "--limited-api", EXCLUDE: "--no-file" }
+            extra_hash: "-limited_api"
+          - os: ubuntu-18.04
+            python-version: 3.7
+            backend: "c,cpp"
+            env: { LIMITED_API: "--limited-api", EXCLUDE: "--no-file" }
+            extra_hash: "-limited_api"
+          - os: ubuntu-18.04
+            python-version: 3.8
+            backend: "c,cpp"
+            env: { LIMITED_API: "--limited-api", EXCLUDE: "--no-file" }
+            extra_hash: "-limited_api"
+          # Type specs
+          - os: ubuntu-18.04
+            python-version: 3.9
+            backend: c
+            env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
+            extra_hash: "-typespecs"
+          - os: ubuntu-18.04
+            python-version: 3.8
+            backend: c
+            env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
+            extra_hash: "-typespecs"
+          - os: ubuntu-18.04
+            python-version: 3.7
+            backend: c
+            env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
+            extra_hash: "-typespecs"
+          - os: ubuntu-18.04
+            python-version: 3.6
+            backend: c
+            env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
+            extra_hash: "-typespecs"
+          # Stackless
+          - os: ubuntu-18.04
+            python-version: 2.7
+            backend: c
+            env: { STACKLESS: true, PY: 2 }
+            extra_hash: "-stackless"
+          - os: ubuntu-18.04
+            python-version: 3.6
+            backend: c
+            env: { STACKLESS: true, PY: 3 }
+            extra_hash: "-stackless"
+          - os: ubuntu-18.04
+            python-version: 3.8
+            backend: c
+            env: { STACKLESS: true, PY: 3 }
+            extra_hash: "-stackless"
+          # Pypy
+          - os: ubuntu-18.04
+            python-version: pypy-2.7
+            backend: c
+            env: { NO_CYTHON_COMPILE: 1 }
+          - os: ubuntu-18.04
+            python-version: pypy-3.7
+            backend: c
+            env: { NO_CYTHON_COMPILE: 1 }
+          # Coverage - Disabled due to taking too long to run
+          # - os: ubuntu-18.04
+          #   python-version: 3.7
+          #   backend: "c,cpp"
+          #   env: { COVERAGE: 1 }
+          #   extra_hash: '-coverage'
+
+          # MacOS sub-jobs
+          # ==============
+          # (C-only builds are used to create wheels)
+          - os: macos-10.15
+            python-version: 2.7
+            backend: c
+            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
+          - os: macos-10.15
+            python-version: 2.7
+            backend: cpp
+            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
+          - os: macos-10.15
+            python-version: 3.5
+            backend: c
+            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
+          - os: macos-10.15
+            python-version: 3.6
+            backend: c
+            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
+          - os: macos-10.15
+            python-version: 3.7
+            backend: c
+            env: { MACOSX_DEPLOYMENT_TARGET: 10.15 }
+          - os: macos-10.15
+            python-version: 3.8
+            backend: c
+            env: { MACOSX_DEPLOYMENT_TARGET: 10.15 }
+          - os: macos-10.15
+            python-version: 3.9
+            backend: c
+            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
+          - os: macos-10.15
+            python-version: 3.9
+            backend: cpp
+            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
+          - os: macos-10.15
+            python-version: "3.10"
+            backend: c
+            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
+          - os: macos-10.15
+            python-version: "3.10"
+            backend: cpp
+            env: { MACOSX_DEPLOYMENT_TARGET: 10.14 }
+
+    # This defaults to 360 minutes (6h) which is way too long and if a test gets stuck, it can block other pipelines.
+    # From testing, the runs tend to take ~20/~30 minutes, so a limit of 40 minutes should be enough. This can always be
+    # changed in the future if needed.
+    timeout-minutes: 40
+    runs-on: ${{ matrix.os }}
+
+    env:
+      BACKEND: ${{ matrix.backend }}
+      OS_NAME: ${{ matrix.os }}
+      PYTHON_VERSION: ${{ matrix.python-version }}
+      GCC_VERSION: 8
+      USE_CCACHE: 1
+      CCACHE_SLOPPINESS: "pch_defines,time_macros"
+      CCACHE_COMPRESS: 1
+      CCACHE_MAXSIZE: "200M"
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+
+      - name: Setup python
+        uses: actions/setup-python@v3
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache [ccache]
+        uses: pat-s/always-upload-cache@v3.0.1
+        if: startsWith(runner.os, 'Linux')
+        with:
+          path: ~/.ccache
+          key: ${{ runner.os }}-ccache${{ matrix.extra_hash }}-${{ matrix.python-version }}-${{ matrix.backend == 'c' || matrix.backend == 'c,cpp' }}-${{ contains(matrix.backend, 'cpp') }}-${{ hashFiles('**/test-requirements*.txt', '**/ci.yml', '**/ci-run.sh') }}
+
+      - name: Run CI
+        continue-on-error: ${{ matrix.allowed_failure || false }}
+        env: ${{ matrix.env }}
+        run: bash ./Tools/ci-run.sh
+
+      - name: Upload HTML docs
+        uses: actions/upload-artifact@v3
+        with:
+          name: htmldocs
+          path: docs/build/html
+          if-no-files-found: ignore
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v3
+        with:
+          name: wheels-${{ runner.os }}
+          path: dist/*.whl
+          if-no-files-found: ignore
+
+
+  pycoverage:
+    runs-on: ubuntu-18.04
+
+    env:
+      BACKEND: c,cpp
+      OS_NAME: ubuntu-18.04
+      PYTHON_VERSION: "3.10"
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Setup python
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.10"
+
+      - name: Run Coverage
+        env: { COVERAGE: 1, NO_CYTHON_COMPILE: 1 }
+        run: bash ./Tools/ci-run.sh
+
+      - name: Upload Coverage Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: pycoverage_html
+          path: coverage-report-html
+
+#  cycoverage:
+#    runs-on: ubuntu-18.04
+#
+#    env:
+#      BACKEND: c,cpp
+#      OS_NAME: ubuntu-18.04
+#      PYTHON_VERSION: 3.9
+#
+#    steps:
+#      - name: Checkout repo
+#        uses: actions/checkout@v2
+#        with:
+#          fetch-depth: 1
+#
+#      - name: Setup python
+#        uses: actions/setup-python@v2
+#        with:
+#          python-version: 3.9
+#
+#      - name: Run Coverage
+#        env: { COVERAGE: 1 }
+#        run: bash ./Tools/ci-run.sh
+#
+#      - name: Upload Coverage Report
+#        uses: actions/upload-artifact@v2
+#        with:
+#          name: cycoverage_html
+#          path: coverage-report-html

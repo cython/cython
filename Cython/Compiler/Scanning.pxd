@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+# cython: language_level=3
 
 import cython
 
@@ -34,10 +34,10 @@ cdef class PyrexScanner(Scanner):
     cdef public indentation_char
     cdef public int bracket_nesting_level
     cdef readonly bint async_enabled
-    cdef public sy
-    cdef public systring
+    cdef public unicode sy
+    cdef public systring  # EncodedString
 
-    cdef long current_level(self)
+    cdef Py_ssize_t current_level(self)
     #cpdef commentline(self, text)
     #cpdef open_bracket_action(self, text)
     #cpdef close_bracket_action(self, text)
@@ -45,7 +45,7 @@ cdef class PyrexScanner(Scanner):
     #cpdef begin_string_action(self, text)
     #cpdef end_string_action(self, text)
     #cpdef unclosed_string_action(self, text)
-    @cython.locals(current_level=cython.long, new_level=cython.long)
+    @cython.locals(current_level=Py_ssize_t, new_level=Py_ssize_t)
     cpdef indentation_action(self, text)
     #cpdef eof_action(self, text)
     ##cdef next(self)

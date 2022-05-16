@@ -6,13 +6,9 @@ Python Lexical Analyser
 Actions for use in token specifications
 """
 
-
 class Action(object):
     def perform(self, token_stream, text):
         pass  # abstract
-
-    def same_as(self, other):
-        return self is other
 
     def __copy__(self):
         return self  # immutable, no need to copy
@@ -33,9 +29,6 @@ class Return(Action):
     def perform(self, token_stream, text):
         return self.value
 
-    def same_as(self, other):
-        return isinstance(other, Return) and self.value == other.value
-
     def __repr__(self):
         return "Return(%r)" % self.value
 
@@ -53,9 +46,6 @@ class Call(Action):
 
     def __repr__(self):
         return "Call(%s)" % self.function.__name__
-
-    def same_as(self, other):
-        return isinstance(other, Call) and self.function is other.function
 
 
 class Method(Action):
@@ -79,9 +69,6 @@ class Method(Action):
             if self.kwargs is not None else '')
         return "Method(%s%s%s)" % (self.name, ', ' if kwargs else '', kwargs)
 
-    def same_as(self, other):
-        return isinstance(other, Method) and self.name == other.name and self.kwargs == other.kwargs
-
 
 class Begin(Action):
     """
@@ -98,9 +85,6 @@ class Begin(Action):
 
     def __repr__(self):
         return "Begin(%s)" % self.state_name
-
-    def same_as(self, other):
-        return isinstance(other, Begin) and self.state_name == other.state_name
 
 
 class Ignore(Action):

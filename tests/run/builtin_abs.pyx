@@ -1,5 +1,5 @@
 # mode: run
-# ticket: 698
+# ticket: t698
 # distutils: extra_compile_args=-fwrapv
 
 cdef extern from *:

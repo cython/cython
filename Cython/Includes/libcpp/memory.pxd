@@ -59,6 +59,7 @@ cdef extern from "<memory>" namespace "std" nogil:
         shared_ptr(shared_ptr[T]&, T*)
         shared_ptr(unique_ptr[T]&)
         #shared_ptr(weak_ptr[T]&) # Not Supported
+        shared_ptr[T]& operator=[Y](const shared_ptr[Y]& ptr)
 
         # Modifiers
         void reset()

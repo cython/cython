@@ -25,11 +25,12 @@ _WARNINGS = """
 # cpdef redeclaration bug, from TestCythonScope.pyx
 25:10: 'cpdef_method' redeclared
 36:10: 'cpdef_cname_method' redeclared
+
 # from MemoryView.pyx
-984:29: Ambiguous exception value, same as default return value: 0
-984:29: Ambiguous exception value, same as default return value: 0
-1011:46: Ambiguous exception value, same as default return value: 0
-1011:46: Ambiguous exception value, same as default return value: 0
-1101:29: Ambiguous exception value, same as default return value: 0
-1101:29: Ambiguous exception value, same as default return value: 0
+958:29: Ambiguous exception value, same as default return value: 0
+958:29: Ambiguous exception value, same as default return value: 0
+983:46: Ambiguous exception value, same as default return value: 0
+983:46: Ambiguous exception value, same as default return value: 0
+1073:29: Ambiguous exception value, same as default return value: 0
+1073:29: Ambiguous exception value, same as default return value: 0
 """

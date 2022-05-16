@@ -1,18 +1,28 @@
-/////////////// FetchCommonType.proto ///////////////
+/////////////// FetchSharedCythonModule.proto ///////
 
-static PyTypeObject* __Pyx_FetchCommonType(PyTypeObject* type);
-#if CYTHON_COMPILING_IN_LIMITED_API
-static PyTypeObject* __Pyx_FetchCommonTypeFromSpec(PyType_Spec *spec, PyObject *bases);
-#endif
+static PyObject *__Pyx_FetchSharedCythonABIModule(void);
 
-/////////////// FetchCommonType ///////////////
+/////////////// FetchSharedCythonModule ////////////
 
 static PyObject *__Pyx_FetchSharedCythonABIModule(void) {
     PyObject *abi_module = PyImport_AddModule((char*) __PYX_ABI_MODULE_NAME);
-    if (!abi_module) return NULL;
+    if (unlikely(!abi_module)) return NULL;
     Py_INCREF(abi_module);
     return abi_module;
 }
+
+/////////////// FetchCommonType.proto ///////////////
+
+#if !CYTHON_USE_TYPE_SPECS
+static PyTypeObject* __Pyx_FetchCommonType(PyTypeObject* type);
+#else
+static PyTypeObject* __Pyx_FetchCommonTypeFromSpec(PyObject *module, PyType_Spec *spec, PyObject *bases);
+#endif
+
+/////////////// FetchCommonType ///////////////
+//@requires:ExtensionTypes.c::FixUpExtensionType
+//@requires: FetchSharedCythonModule
+//@requires:StringTools.c::IncludeStringH
 
 static int __Pyx_VerifyCachedType(PyObject *cached_type,
                                const char *name,
@@ -32,17 +42,22 @@ static int __Pyx_VerifyCachedType(PyObject *cached_type,
     return 0;
 }
 
+#if !CYTHON_USE_TYPE_SPECS
 static PyTypeObject* __Pyx_FetchCommonType(PyTypeObject* type) {
     PyObject* abi_module;
+    const char* object_name;
     PyTypeObject *cached_type = NULL;
 
     abi_module = __Pyx_FetchSharedCythonABIModule();
     if (!abi_module) return NULL;
-    cached_type = (PyTypeObject*) PyObject_GetAttrString(abi_module, type->tp_name);
+    // get the final part of the object name (after the last dot)
+    object_name = strrchr(type->tp_name, '.');
+    object_name = object_name ? object_name+1 : type->tp_name;
+    cached_type = (PyTypeObject*) PyObject_GetAttrString(abi_module, object_name);
     if (cached_type) {
         if (__Pyx_VerifyCachedType(
               (PyObject *)cached_type,
-              type->tp_name,
+              object_name,
               cached_type->tp_basicsize,
               type->tp_basicsize) < 0) {
             goto bad;
@@ -53,7 +68,7 @@ static PyTypeObject* __Pyx_FetchCommonType(PyTypeObject* type) {
     if (!PyErr_ExceptionMatches(PyExc_AttributeError)) goto bad;
     PyErr_Clear();
     if (PyType_Ready(type) < 0) goto bad;
-    if (PyObject_SetAttrString(abi_module, type->tp_name, (PyObject *)type) < 0)
+    if (PyObject_SetAttrString(abi_module, object_name, (PyObject *)type) < 0)
         goto bad;
     Py_INCREF(type);
     cached_type = type;
@@ -68,25 +83,34 @@ bad:
     cached_type = NULL;
     goto done;
 }
+#else
 
-#if CYTHON_COMPILING_IN_LIMITED_API
-static PyTypeObject *__Pyx_FetchCommonTypeFromSpec(PyType_Spec *spec, PyObject *bases) {
-    PyObject *abi_module, *py_basicsize, *cached_type = NULL;
-    Py_ssize_t basicsize;
+static PyTypeObject *__Pyx_FetchCommonTypeFromSpec(PyObject *module, PyType_Spec *spec, PyObject *bases) {
+    PyObject *abi_module, *cached_type = NULL;
+    // get the final part of the object name (after the last dot)
+    const char* object_name = strrchr(spec->name, '.');
+    object_name = object_name ? object_name+1 : spec->name;
 
     abi_module = __Pyx_FetchSharedCythonABIModule();
     if (!abi_module) return NULL;
-    cached_type = PyObject_GetAttrString(abi_module, spec->name);
+
+    cached_type = PyObject_GetAttrString(abi_module, object_name);
     if (cached_type) {
+        Py_ssize_t basicsize;
+#if CYTHON_COMPILING_IN_LIMITED_API
+        PyObject *py_basicsize;
         py_basicsize = PyObject_GetAttrString(cached_type, "__basicsize__");
-        if (!py_basicsize) goto bad;
+        if (unlikely(!py_basicsize)) goto bad;
         basicsize = PyLong_AsSsize_t(py_basicsize);
         Py_DECREF(py_basicsize);
         py_basicsize = 0;
-        if (basicsize == (Py_ssize_t)-1 && PyErr_Occurred()) goto bad;
+        if (unlikely(basicsize == (Py_ssize_t)-1) && PyErr_Occurred()) goto bad;
+#else
+        basicsize = likely(PyType_Check(cached_type)) ? ((PyTypeObject*) cached_type)->tp_basicsize : -1;
+#endif
         if (__Pyx_VerifyCachedType(
               cached_type,
-              spec->name,
+              object_name,
               basicsize,
               spec->basicsize) < 0) {
             goto bad;
@@ -96,9 +120,12 @@ static PyTypeObject *__Pyx_FetchCommonTypeFromSpec(PyType_Spec *spec, PyObject *
 
     if (!PyErr_ExceptionMatches(PyExc_AttributeError)) goto bad;
     PyErr_Clear();
-    cached_type = PyType_FromSpecWithBases(spec, bases);
+    // We pass the ABI module reference to avoid keeping the user module alive by foreign type usages.
+    (void) module;
+    cached_type = __Pyx_PyType_FromModuleAndSpec(abi_module, spec, bases);
     if (unlikely(!cached_type)) goto bad;
-    if (PyObject_SetAttrString(abi_module, spec->name, cached_type) < 0) goto bad;
+    if (unlikely(__Pyx_fix_up_extension_type_from_spec(spec, (PyTypeObject *) cached_type) < 0)) goto bad;
+    if (PyObject_SetAttrString(abi_module, object_name, cached_type) < 0) goto bad;
 
 done:
     Py_DECREF(abi_module);
@@ -113,36 +140,3 @@ bad:
 }
 #endif
 
-
-/////////////// FetchCommonPointer.proto ///////////////
-
-static void* __Pyx_FetchCommonPointer(void* pointer, const char* name);
-
-/////////////// FetchCommonPointer ///////////////
-
-
-static void* __Pyx_FetchCommonPointer(void* pointer, const char* name) {
-    PyObject* abi_module = NULL;
-    PyObject* capsule = NULL;
-    void* value = NULL;
-
-    abi_module = PyImport_AddModule((char*) __PYX_ABI_MODULE_NAME);
-    if (!abi_module) return NULL;
-    Py_INCREF(abi_module);
-
-    capsule = PyObject_GetAttrString(abi_module, name);
-    if (!capsule) {
-        if (!PyErr_ExceptionMatches(PyExc_AttributeError)) goto bad;
-        PyErr_Clear();
-        capsule = PyCapsule_New(pointer, name, NULL);
-        if (!capsule) goto bad;
-        if (PyObject_SetAttrString(abi_module, name, capsule) < 0)
-            goto bad;
-    }
-    value = PyCapsule_GetPointer(capsule, name);
-
-bad:
-    Py_XDECREF(capsule);
-    Py_DECREF(abi_module);
-    return value;
-}

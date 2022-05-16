@@ -1,4 +1,4 @@
-# ticket: 491
+# ticket: t491
 
 def test_genexpr():
     """

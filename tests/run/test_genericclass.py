@@ -4,15 +4,170 @@
 
 # COPIED FROM CPython 3.7
 
+import contextlib
 import unittest
 import sys
+
+class TestMROEntry(unittest.TestCase):
+    def test_mro_entry_signature(self):
+        tested = []
+        class B: ...
+        class C:
+            def __mro_entries__(self, *args, **kwargs):
+                tested.extend([args, kwargs])
+                return (C,)
+        c = C()
+        self.assertEqual(tested, [])
+        class D(B, c): ...
+        self.assertEqual(tested[0], ((B, c),))
+        self.assertEqual(tested[1], {})
+
+    def test_mro_entry(self):
+        tested = []
+        class A: ...
+        class B: ...
+        class C:
+            def __mro_entries__(self, bases):
+                tested.append(bases)
+                return (self.__class__,)
+        c = C()
+        self.assertEqual(tested, [])
+        class D(A, c, B): ...
+        self.assertEqual(tested[-1], (A, c, B))
+        self.assertEqual(D.__bases__, (A, C, B))
+        self.assertEqual(D.__orig_bases__, (A, c, B))
+        self.assertEqual(D.__mro__, (D, A, C, B, object))
+        d = D()
+        class E(d): ...
+        self.assertEqual(tested[-1], (d,))
+        self.assertEqual(E.__bases__, (D,))
+
+    def test_mro_entry_none(self):
+        tested = []
+        class A: ...
+        class B: ...
+        class C:
+            def __mro_entries__(self, bases):
+                tested.append(bases)
+                return ()
+        c = C()
+        self.assertEqual(tested, [])
+        class D(A, c, B): ...
+        self.assertEqual(tested[-1], (A, c, B))
+        self.assertEqual(D.__bases__, (A, B))
+        self.assertEqual(D.__orig_bases__, (A, c, B))
+        self.assertEqual(D.__mro__, (D, A, B, object))
+        class E(c): ...
+        self.assertEqual(tested[-1], (c,))
+        if sys.version_info[0] > 2:
+            # not all of it works on Python 2
+            self.assertEqual(E.__bases__, (object,))
+        self.assertEqual(E.__orig_bases__, (c,))
+        if sys.version_info[0] > 2:
+            # not all of it works on Python 2
+            self.assertEqual(E.__mro__, (E, object))
+
+    def test_mro_entry_with_builtins(self):
+        tested = []
+        class A: ...
+        class C:
+            def __mro_entries__(self, bases):
+                tested.append(bases)
+                return (dict,)
+        c = C()
+        self.assertEqual(tested, [])
+        class D(A, c): ...
+        self.assertEqual(tested[-1], (A, c))
+        self.assertEqual(D.__bases__, (A, dict))
+        self.assertEqual(D.__orig_bases__, (A, c))
+        self.assertEqual(D.__mro__, (D, A, dict, object))
+
+    def test_mro_entry_with_builtins_2(self):
+        tested = []
+        class C:
+            def __mro_entries__(self, bases):
+                tested.append(bases)
+                return (C,)
+        c = C()
+        self.assertEqual(tested, [])
+        class D(c, dict): ...
+        self.assertEqual(tested[-1], (c, dict))
+        self.assertEqual(D.__bases__, (C, dict))
+        self.assertEqual(D.__orig_bases__, (c, dict))
+        self.assertEqual(D.__mro__, (D, C, dict, object))
+
+    def test_mro_entry_errors(self):
+        class C_too_many:
+            def __mro_entries__(self, bases, something, other):
+                return ()
+        c = C_too_many()
+        with self.assertRaises(TypeError):
+            class D(c): ...
+        class C_too_few:
+            def __mro_entries__(self):
+                return ()
+        d = C_too_few()
+        with self.assertRaises(TypeError):
+            class D(d): ...
+
+    def test_mro_entry_errors_2(self):
+        class C_not_callable:
+            __mro_entries__ = "Surprise!"
+        c = C_not_callable()
+        with self.assertRaises(TypeError):
+            class D(c): ...
+        class C_not_tuple:
+            def __mro_entries__(self):
+                return object
+        c = C_not_tuple()
+        with self.assertRaises(TypeError):
+            class D(c): ...
+
+    def test_mro_entry_metaclass(self):
+        meta_args = []
+        class Meta(type):
+            def __new__(mcls, name, bases, ns):
+                meta_args.extend([mcls, name, bases, ns])
+                return super().__new__(mcls, name, bases, ns)
+        class A: ...
+        class C:
+            def __mro_entries__(self, bases):
+                return (A,)
+        c = C()
+        class D(c, metaclass=Meta):
+            x = 1
+        self.assertEqual(meta_args[0], Meta)
+        self.assertEqual(meta_args[1], 'D')
+        self.assertEqual(meta_args[2], (A,))
+        self.assertEqual(meta_args[3]['x'], 1)
+        self.assertEqual(D.__bases__, (A,))
+        self.assertEqual(D.__orig_bases__, (c,))
+        self.assertEqual(D.__mro__, (D, A, object))
+        self.assertEqual(D.__class__, Meta)
+
+    @unittest.skipIf(sys.version_info < (3, 7), "'type' checks for __mro_entries__ not implemented")
+    def test_mro_entry_type_call(self):
+        # Substitution should _not_ happen in direct type call
+        class C:
+            def __mro_entries__(self, bases):
+                return ()
+        c = C()
+        with self.assertRaisesRegex(TypeError,
+                                    "MRO entry resolution; "
+                                    "use types.new_class()"):
+            type('Bad', (c,), {})
 
 
 class TestClassGetitem(unittest.TestCase):
     # BEGIN - Additional tests from cython
     def test_no_class_getitem(self):
         class C: ...
-        with self.assertRaises(TypeError):
+        # PyPy<7.3.8 raises AttributeError on __class_getitem__
+        if hasattr(sys, "pypy_version_info")  and sys.pypy_version_info < (7, 3, 8):
+            err = AttributeError
+        else:
+            err = TypeError
+        with self.assertRaises(err):
             C[int]
 
     # END - Additional tests from cython

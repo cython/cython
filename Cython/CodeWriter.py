@@ -1,7 +1,6 @@
 """
 Serializes a Cython code tree to Cython code. This is primarily useful for
 debugging and testing purposes.
-
 The output is in a strict format, no whitespace or comments from the input
 is preserved (and it could not be as it is not present in the code tree).
 """
@@ -10,6 +9,7 @@ from __future__ import absolute_import, print_function
 
 from .Compiler.Visitor import TreeVisitor
 from .Compiler.ExprNodes import *
+from .Compiler.Nodes import CSimpleBaseTypeNode
 
 
 class LinesResult(object):
@@ -80,6 +80,14 @@ class DeclarationWriter(TreeVisitor):
                     self.visit(item.default)
                 self.put(u", ")
             self.visit(items[-1])
+            if output_rhs and items[-1].default is not None:
+                self.put(u" = ")
+                self.visit(items[-1].default)
+
+    def _visit_indented(self, node):
+        self.indent()
+        self.visit(node)
+        self.dedent()
 
     def visit_Node(self, node):
         raise AssertionError("Node not handled by serializer: %r" % node)
@@ -96,9 +104,7 @@ class DeclarationWriter(TreeVisitor):
         else:
             file = u'"%s"' % node.include_file
         self.putline(u"cdef extern from %s:" % file)
-        self.indent()
-        self.visit(node.body)
-        self.dedent()
+        self._visit_indented(node.body)
 
     def visit_CPtrDeclaratorNode(self, node):
         self.put('*')
@@ -133,13 +139,12 @@ class DeclarationWriter(TreeVisitor):
                 self.put("short " * -node.longness)
             elif node.longness > 0:
                 self.put("long " * node.longness)
-        self.put(node.name)
+        if node.name is not None:
+            self.put(node.name)
 
     def visit_CComplexBaseTypeNode(self, node):
-        self.put(u'(')
         self.visit(node.base_type)
         self.visit(node.declarator)
-        self.put(u')')
 
     def visit_CNestedBaseTypeNode(self, node):
         self.visit(node.base_type)
@@ -159,7 +164,7 @@ class DeclarationWriter(TreeVisitor):
         self.comma_separated_list(node.declarators, output_rhs=True)
         self.endline()
 
-    def visit_container_node(self, node, decl, extras, attributes):
+    def _visit_container_node(self, node, decl, extras, attributes):
         # TODO: visibility
         self.startline(decl)
         if node.name:
@@ -188,7 +193,7 @@ class DeclarationWriter(TreeVisitor):
         if node.packed:
             decl += u'packed '
         decl += node.kind
-        self.visit_container_node(node, decl, None, node.attributes)
+        self._visit_container_node(node, decl, None, node.attributes)
 
     def visit_CppClassNode(self, node):
         extras = ""
@@ -196,10 +201,10 @@ class DeclarationWriter(TreeVisitor):
             extras = u"[%s]" % ", ".join(node.templates)
         if node.base_classes:
             extras += "(%s)" % ", ".join(node.base_classes)
-        self.visit_container_node(node, u"cdef cppclass", extras, node.attributes)
+        self._visit_container_node(node, u"cdef cppclass", extras, node.attributes)
 
     def visit_CEnumDefNode(self, node):
-        self.visit_container_node(node, u"cdef enum", None, node.items)
+        self._visit_container_node(node, u"cdef enum", None, node.items)
 
     def visit_CEnumDefItemNode(self, node):
         self.startline(node.name)
@@ -225,9 +230,7 @@ class DeclarationWriter(TreeVisitor):
             self.put(node.base_class_name)
             self.put(u")")
         self.endline(u":")
-        self.indent()
-        self.visit(node.body)
-        self.dedent()
+        self._visit_indented(node.body)
 
     def visit_CTypeDefNode(self, node):
         self.startline(u"ctypedef ")
@@ -241,14 +244,45 @@ class DeclarationWriter(TreeVisitor):
         self.startline(u"def %s(" % node.name)
         self.comma_separated_list(node.args)
         self.endline(u"):")
-        self.indent()
-        self.visit(node.body)
-        self.dedent()
+        self._visit_indented(node.body)
+
+    def visit_CFuncDefNode(self, node):
+        self.startline(u'cpdef ' if node.overridable else u'cdef ')
+        if node.modifiers:
+            self.put(' '.join(node.modifiers))
+            self.put(' ')
+        if node.visibility != 'private':
+            self.put(node.visibility)
+            self.put(u' ')
+        if node.api:
+            self.put(u'api ')
+
+        if node.base_type:
+            self.visit(node.base_type)
+            if node.base_type.name is not None:
+                self.put(u' ')
+
+        # visit the CFuncDeclaratorNode, but put a `:` at the end of line
+        self.visit(node.declarator.base)
+        self.put(u'(')
+        self.comma_separated_list(node.declarator.args)
+        self.endline(u'):')
+
+        self._visit_indented(node.body)
 
     def visit_CArgDeclNode(self, node):
-        if node.base_type.name is not None:
+        # For "CSimpleBaseTypeNode", the variable type may have been parsed as type.
+        # For other node types, the "name" is always None.
+        if not isinstance(node.base_type, CSimpleBaseTypeNode) or \
+                node.base_type.name is not None:
             self.visit(node.base_type)
-            self.put(u" ")
+
+            # If we printed something for "node.base_type", we may need to print an extra ' '.
+            #
+            # Special case: if "node.declarator" is a "CNameDeclaratorNode",
+            # its "name" might be an empty string, for example, for "cdef f(x)".
+            if node.declarator.declared_name():
+                self.put(u" ")
         self.visit(node.declarator)
         if node.default is not None:
             self.put(u" = ")
@@ -328,14 +362,10 @@ class StatementWriter(DeclarationWriter):
         self.put(u" in ")
         self.visit(node.iterator.sequence)
         self.endline(u":")
-        self.indent()
-        self.visit(node.body)
-        self.dedent()
+        self._visit_indented(node.body)
         if node.else_clause is not None:
             self.line(u"else:")
-            self.indent()
-            self.visit(node.else_clause)
-            self.dedent()
+            self._visit_indented(node.else_clause)
 
     def visit_IfStatNode(self, node):
         # The IfClauseNode is handled directly without a separate match
@@ -343,21 +373,30 @@ class StatementWriter(DeclarationWriter):
         self.startline(u"if ")
         self.visit(node.if_clauses[0].condition)
         self.endline(":")
-        self.indent()
-        self.visit(node.if_clauses[0].body)
-        self.dedent()
+        self._visit_indented(node.if_clauses[0].body)
         for clause in node.if_clauses[1:]:
             self.startline("elif ")
             self.visit(clause.condition)
             self.endline(":")
-            self.indent()
-            self.visit(clause.body)
-            self.dedent()
+            self._visit_indented(clause.body)
         if node.else_clause is not None:
             self.line("else:")
-            self.indent()
-            self.visit(node.else_clause)
-            self.dedent()
+            self._visit_indented(node.else_clause)
+
+    def visit_WhileStatNode(self, node):
+        self.startline(u"while ")
+        self.visit(node.condition)
+        self.endline(u":")
+        self._visit_indented(node.body)
+        if node.else_clause is not None:
+            self.line("else:")
+            self._visit_indented(node.else_clause)
+
+    def visit_ContinueStatNode(self, node):
+        self.line(u"continue")
+
+    def visit_BreakStatNode(self, node):
+        self.line(u"break")
 
     def visit_SequenceNode(self, node):
         self.comma_separated_list(node.args)  # Might need to discover whether we need () around tuples...hmm...
@@ -382,25 +421,17 @@ class StatementWriter(DeclarationWriter):
             self.put(u" as ")
             self.visit(node.target)
         self.endline(u":")
-        self.indent()
-        self.visit(node.body)
-        self.dedent()
+        self._visit_indented(node.body)
 
     def visit_TryFinallyStatNode(self, node):
         self.line(u"try:")
-        self.indent()
-        self.visit(node.body)
-        self.dedent()
+        self._visit_indented(node.body)
         self.line(u"finally:")
-        self.indent()
-        self.visit(node.finally_clause)
-        self.dedent()
+        self._visit_indented(node.finally_clause)
 
     def visit_TryExceptStatNode(self, node):
         self.line(u"try:")
-        self.indent()
-        self.visit(node.body)
-        self.dedent()
+        self._visit_indented(node.body)
         for x in node.except_clauses:
             self.visit(x)
         if node.else_clause is not None:
@@ -415,13 +446,13 @@ class StatementWriter(DeclarationWriter):
             self.put(u", ")
             self.visit(node.target)
         self.endline(":")
-        self.indent()
-        self.visit(node.body)
-        self.dedent()
+        self._visit_indented(node.body)
 
     def visit_ReturnStatNode(self, node):
-        self.startline("return ")
-        self.visit(node.value)
+        self.startline("return")
+        if node.value is not None:
+            self.put(u" ")
+            self.visit(node.value)
         self.endline()
 
     def visit_ReraiseStatNode(self, node):
@@ -480,11 +511,17 @@ class ExpressionWriter(TreeVisitor):
     def visit_Node(self, node):
         raise AssertionError("Node not handled by serializer: %r" % node)
 
-    def visit_NameNode(self, node):
-        self.put(node.name)
+    def visit_IntNode(self, node):
+        self.put(node.value)
+
+    def visit_FloatNode(self, node):
+        self.put(node.value)
 
     def visit_NoneNode(self, node):
         self.put(u"None")
+
+    def visit_NameNode(self, node):
+        self.put(node.name)
 
     def visit_EllipsisNode(self, node):
         self.put(u"...")
@@ -756,12 +793,13 @@ class PxdWriter(DeclarationWriter, ExpressionWriter):
         return node
 
     def visit_CFuncDefNode(self, node):
-        if 'inline' in node.modifiers:
-            return
         if node.overridable:
             self.startline(u'cpdef ')
         else:
             self.startline(u'cdef ')
+        if node.modifiers:
+            self.put(' '.join(node.modifiers))
+            self.put(' ')
         if node.visibility != 'private':
             self.put(node.visibility)
             self.put(u' ')

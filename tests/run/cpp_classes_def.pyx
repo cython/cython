@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, cpp11, warnings
+# tag: cpp, cpp11, warnings, no-cpp-locals
 # cython: experimental_cpp_class_def=True
 
 cdef double pi
@@ -9,6 +9,7 @@ from libcpp cimport bool
 from libcpp.memory cimport unique_ptr
 from libcpp.vector cimport vector
 from cython.operator cimport dereference as deref
+import cython
 
 cdef extern from "shapes.h" namespace "shapes":
     cdef cppclass Shape:
@@ -23,6 +24,11 @@ cdef cppclass RegularPolygon(Shape):
     float area() const:
         cdef double theta = pi / this.n
         return this.radius * this.radius * sin(theta) * cos(theta) * this.n
+    void do_with() except *:
+        # only a compile test - the file doesn't actually have to exist
+        # "with" was broken by https://github.com/cython/cython/issues/4212
+        with open("doesnt matter") as f:
+            return
 
 def test_Poly(int n, float radius=1):
     """
@@ -249,6 +255,20 @@ def test_uncopyable_constructor_argument():
     cdef UncopyableConstructorArgument *c = new UncopyableConstructorArgument(
         unique_ptr[vector[int]](new vector[int]()))
     del c
+
+cdef cppclass CppClassWithDocstring:
+    """
+    This is a docstring !
+    """
+
+def test_CppClassWithDocstring():
+    """
+    >>> test_CppClassWithDocstring()
+    OK
+    """
+    cdef CppClassWithDocstring *c = new CppClassWithDocstring()
+    del c
+    print "OK"
 
 _WARNINGS="""
 23:4: Unraisable exception in function 'RegularPolygon.area'.

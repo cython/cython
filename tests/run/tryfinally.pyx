@@ -549,3 +549,21 @@ def complex_finally_clause(x, obj):
             del l[0], lobj[0]
             assert all(i == 3 for i in l), l
     return 99
+
+def function_in_finally():
+    """
+    https://github.com/cython/cython/issues/4651 - function definitions in the
+    except copy of the finally clause weren't generated
+
+    >>> function_in_finally()
+    in try
+    in func()
+    finished
+    """
+    try:
+        print('in try')
+    finally:
+        def func():
+            print('in func()')
+        func()
+    print('finished')

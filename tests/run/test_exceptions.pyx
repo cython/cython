@@ -13,15 +13,20 @@ import pickle
 import weakref
 import errno
 
-from test.support import (TESTFN, captured_stderr, check_impl_detail,
-                          check_warnings, gc_collect,
+from test.support import (captured_stderr, check_impl_detail, gc_collect,
                           # no_tracing, cpython_only,
-                          unlink, import_module, script_helper,
-                          SuppressCrashReport)
+                          script_helper, SuppressCrashReport)
+try:
+    from test.support.os_helper import TESTFN, unlink
+    from test.support.warnings_helper import check_warnings
+    from test.support.import_helper import import_module
+except ImportError:
+    # Python 3.9 and older
+    from test.support import check_warnings, TESTFN, unlink, import_module
 
 no_tracing = unittest.skip("For nested functions, Cython generates a C call without recursion checks.")
 
-cpython_only = unittest.skip("Tests for _testcapi make no sense here.")
+cpython_only = unittest.skip("Tests for _testcapi or Python error messages make no sense here.")
 
 
 class NaiveException(Exception):
@@ -138,6 +143,7 @@ class ExceptionTests(unittest.TestCase):
 
         self.raise_catch(StopAsyncIteration, "StopAsyncIteration")
 
+    @cpython_only
     def testSyntaxErrorMessage(self):
         # make sure the right exception message is raised for each of
         # these code fragments
@@ -160,6 +166,7 @@ class ExceptionTests(unittest.TestCase):
         ckmsg(s, "'continue' not properly in loop")
         ckmsg("continue\n", "'continue' not properly in loop")
 
+    @cpython_only
     def testSyntaxErrorMissingParens(self):
         def ckmsg(src, msg, exception=SyntaxError):
             try:
@@ -188,6 +195,7 @@ class ExceptionTests(unittest.TestCase):
         s = '''if True:\n        print()\n\texec "mixed tabs and spaces"'''
         ckmsg(s, "inconsistent use of tabs and spaces in indentation", TabError)
 
+    @cpython_only
     def testSyntaxErrorOffset(self):
         def check(src, lineno, offset):
             with self.assertRaises(SyntaxError) as cm:

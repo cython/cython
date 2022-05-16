@@ -6,6 +6,9 @@
 Basic Tutorial
 **************
 
+.. include::
+    ../two-syntax-variants-used
+
 The Basics of Cython
 ====================
 
@@ -18,7 +21,7 @@ serve for now.) The Cython compiler will convert it into C code which makes
 equivalent calls to the Python/C API.
 
 But Cython is much more than that, because parameters and variables can be
-declared to have C data types. Code which manipulates Python values and C
+declared to have C data types. Code which manipulates :term:`Python values<Python object>` and C
 values can be freely intermixed, with conversions occurring automatically
 wherever possible. Reference count maintenance and error checking of Python
 operations is also automatic, and the full power of Python's exception
@@ -49,7 +52,7 @@ see :ref:`compilation`). Your :file:`setup.py` should look like::
 
 To use this to build your Cython file use the commandline options:
 
-.. sourcecode:: text
+.. code-block:: text
 
     $ python setup.py build_ext --inplace
 
@@ -103,13 +106,18 @@ Now following the steps for the Hello World example we first rename the file
 to have a `.pyx` extension, lets say :file:`fib.pyx`, then we create the
 :file:`setup.py` file. Using the file created for the Hello World example, all
 that you need to change is the name of the Cython filename, and the resulting
-module name, doing this we have:
+module name, doing this we have::
 
-.. literalinclude:: ../../examples/tutorial/cython_tutorial/setup.py
+    from setuptools import setup
+    from Cython.Build import cythonize
+
+    setup(
+        ext_modules=cythonize("fib.pyx"),
+    )
 
 Build the extension with the same command used for the helloworld.pyx:
 
-.. sourcecode:: text
+.. code-block:: text
 
     $ python setup.py build_ext --inplace
 
@@ -127,29 +135,59 @@ Primes
 Here's a small example showing some of what can be done. It's a routine for
 finding prime numbers. You tell it how many primes you want, and it returns
 them as a Python list.
+ 
+.. tabs::
+    .. group-tab:: Pure Python
 
-:file:`primes.pyx`:
+        .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.py
+            :linenos:
+            :caption: primes.py
 
-.. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.pyx
-    :linenos:
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.pyx
+            :linenos:
+            :caption: primes.pyx
 
 You'll see that it starts out just like a normal Python function definition,
-except that the parameter ``nb_primes`` is declared to be of type ``int`` . This
+except that the parameter ``nb_primes`` is declared to be of type ``int``. This
 means that the object passed will be converted to a C integer (or a
 ``TypeError.`` will be raised if it can't be).
 
-Now, let's dig into the core of the function::
+Now, let's dig into the core of the function:
 
-    cdef int n, i, len_p
-    cdef int p[1000]
+.. tabs::
+    .. group-tab:: Pure Python
 
-Lines 2 and 3 use the ``cdef`` statement to define some local C variables.
-The result is stored in the C array ``p`` during processing,
-and will be copied into a Python list at the end (line 22).
+        .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.py
+            :lines: 2,3
+            :dedent:
+            :lineno-start: 2
+
+        .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.py
+            :lines: 11,12
+            :dedent:
+            :lineno-start: 11
+        
+        Lines 2, 3, 11 and 12 use the variable annotations
+        to define some local C variables.
+        The result is stored in the C array ``p`` during processing,
+        and will be copied into a Python list at the end (line 26).
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.pyx
+            :lines: 2,3
+            :dedent:
+            :lineno-start: 2
+
+        Lines 2 and 3 use the ``cdef`` statement to define some local C variables.
+        The result is stored in the C array ``p`` during processing,
+        and will be copied into a Python list at the end (line 26).
 
 .. NOTE:: You cannot create very large arrays in this manner, because
-          they are allocated on the C function call stack, which is a
-          rather precious and scarce resource.
+          they are allocated on the C function call :term:`stack<Stack allocation>`,
+          which is a rather precious and scarce resource.
           To request larger arrays,
           or even arrays with a length only known at runtime,
           you can learn how to make efficient use of
@@ -157,61 +195,83 @@ and will be copied into a Python list at the end (line 22).
           :ref:`Python arrays <array-array>`
           or :ref:`NumPy arrays <memoryviews>` with Cython.
 
-::
-
-    if nb_primes > 1000:
-        nb_primes = 1000
+.. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.pyx
+    :lines: 5,6
+    :dedent:
+    :lineno-start: 5
 
 As in C, declaring a static array requires knowing the size at compile time.
 We make sure the user doesn't set a value above 1000 (or we would have a
-segmentation fault, just like in C).  ::
+segmentation fault, just like in C)
 
-    len_p = 0  # The number of elements in p
-    n = 2
-    while len_p < nb_primes:
+.. tabs::
+    .. group-tab:: Pure Python
 
-Lines 7-9 set up for a loop which will test candidate numbers for primeness
-until the required number of primes has been found. ::
+        .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.py
+            :lines: 8,9
+            :dedent:
+            :lineno-start: 8
 
-    # Is n prime?
-    for i in p[:len_p]:
-        if n % i == 0:
-            break
+        When we run this code from Python, we have to initialize the items in the array.
+        This is most easily done by filling it with zeros (as seen on line 8-9).
+        When we compile this with Cython, on the other hand, the array will
+        behave as in C.  It is allocated on the function call stack with a fixed
+        length of 1000 items that contain arbitrary data from the last time that
+        memory was used.  We will then overwrite those items in our calculation.
 
-Lines 11-12, which try dividing a candidate by all the primes found so far,
+        .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.py
+            :lines: 10-13
+            :dedent:
+            :lineno-start: 10
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.pyx
+            :lines: 10-13
+            :dedent:
+            :lineno-start: 10
+
+Lines 11-13 set up a while loop which will test numbers-candidates to primes
+until the required number of primes has been found.
+
+.. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.pyx
+    :lines: 14-17
+    :dedent:
+    :lineno-start: 14
+
+Lines 15-16, which try to divide a candidate by all the primes found so far,
 are of particular interest. Because no Python objects are referred to,
 the loop is translated entirely into C code, and thus runs very fast.
-You will notice the way we iterate over the ``p`` C array.  ::
+You will notice the way we iterate over the ``p`` C array.
 
-    for i in p[:len_p]:
+.. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.pyx
+    :lines: 15
+    :dedent:
+    :lineno-start: 15
 
 The loop gets translated into a fast C loop and works just like iterating
 over a Python list or NumPy array.  If you don't slice the C array with
 ``[:len_p]``, then Cython will loop over the 1000 elements of the array.
 
-::
-
-    # If no break occurred in the loop
-    else:
-        p[len_p] = n
-        len_p += 1
-    n += 1
+.. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.pyx
+    :lines: 19-23
+    :dedent:
+    :lineno-start: 19
 
 If no breaks occurred, it means that we found a prime, and the block of code
-after the ``else`` line 16 will be executed. We add the prime found to ``p``.
+after the ``else`` line 20 will be executed. We add the prime found to ``p``.
 If you find having an ``else`` after a for-loop strange, just know that it's a
 lesser known features of the Python language, and that Cython executes it at
 C speed for you.
 If the for-else syntax confuses you, see this excellent
 `blog post <https://shahriar.svbtle.com/pythons-else-clause-in-loops>`_.
 
-::
+.. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.pyx
+    :lines: 25-27
+    :dedent:
+    :lineno-start: 25
 
-    # Let's put the result in a python list:
-    result_as_list  = [prime for prime in p[:len_p]]
-    return result_as_list
-
-In line 22, before returning the result, we need to copy our C array into a
+In line 26, before returning the result, we need to copy our C array into a
 Python list, because Python can't read C arrays.  Cython can automatically
 convert many C types from and to Python types, as described in the
 documentation on :ref:`type conversion <type-conversion>`, so we can use
@@ -225,11 +285,20 @@ Because the variable ``result_as_list`` hasn't been explicitly declared with a t
 it is assumed to hold a Python object, and from the assignment, Cython also knows
 that the exact type is a Python list.
 
-Finally, at line 18, a normal
-Python return statement returns the result list.
+Finally, at line 27, a normal Python return statement returns the result list.
 
-Compiling primes.pyx with the Cython compiler produces an extension module
-which we can try out in the interactive interpreter as follows::
+.. tabs::
+    .. group-tab:: Pure Python
+
+        Compiling primes.py with the Cython compiler produces an extension module
+        which we can try out in the interactive interpreter as follows:
+
+    .. group-tab:: Cython
+
+        Compiling primes.pyx with the Cython compiler produces an extension module
+        which we can try out in the interactive interpreter as follows:
+
+.. code-block:: python
 
     >>> import primes
     >>> primes.primes(10)
@@ -238,12 +307,20 @@ which we can try out in the interactive interpreter as follows::
 See, it works! And if you're curious about how much work Cython has saved you,
 take a look at the C code generated for this module.
 
-
 Cython has a way to visualise where interaction with Python objects and
 Python's C-API is taking place. For this, pass the
 ``annotate=True`` parameter to ``cythonize()``. It produces a HTML file. Let's see:
 
-.. figure:: htmlreport.png
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. figure:: htmlreport_py.png
+            :scale: 90 %
+
+    .. group-tab:: Cython
+
+        .. figure:: htmlreport_pyx.png
+            :scale: 90 %
 
 If a line is white, it means that the code generated doesn't interact
 with Python, so will run as fast as normal C code.  The darker the yellow, the more
@@ -262,42 +339,64 @@ Python behavior, the language will perform division checks at runtime,
 just like Python does. You can deactivate those checks by using the
 :ref:`compiler directives<compiler-directives>`.
 
-Now let's see if, even if we have division checks, we obtained a boost in speed.
-Let's write the same program, but Python-style:
+Now let's see if we get a speed increase even if there is a division check.
+Let's write the same program, but in Python:
 
 .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes_python.py
+    :caption: primes_python.py / primes_python_compiled.py
 
-It is also possible to take a plain ``.py`` file and to compile it with Cython.
-Let's take ``primes_python``, change the function name to ``primes_python_compiled`` and
-compile it with Cython (without changing the code). We will also change the name of the
-file to ``example_py_cy.py`` to differentiate it from the others.
-Now the ``setup.py`` looks like this::
+It is possible to take a plain (unannotated) ``.py`` file and to compile it with Cython.
+Let's create a copy of ``primes_python`` and name it ``primes_python_compiled``
+to be able to compare it to the (non-compiled) Python module.
+Then we compile that file with Cython, without changing the code.
+Now the ``setup.py`` looks like this:
 
-    from setuptools import setup
-    from Cython.Build import cythonize
+.. tabs::
+    .. group-tab:: Pure Python
 
-    setup(
-        ext_modules=cythonize(['example.pyx',        # Cython code file with primes() function
-                               'example_py_cy.py'],  # Python code file with primes_python_compiled() function
-                              annotate=True),        # enables generation of the html annotation file
-    )
+        .. code-block:: python
+
+            from setuptools import setup
+            from Cython.Build import cythonize
+            
+            setup(
+                ext_modules=cythonize(
+                    ['primes.py',                   # Cython code file with primes() function
+                     'primes_python_compiled.py'],  # Python code file with primes() function
+                    annotate=True),                 # enables generation of the html annotation file
+            )
+
+    .. group-tab:: Cython
+
+        .. code-block:: python
+
+            from setuptools import setup
+            from Cython.Build import cythonize
+
+            setup(
+                ext_modules=cythonize(
+                    ['primes.pyx',                  # Cython code file with primes() function
+                     'primes_python_compiled.py'],  # Python code file with primes() function
+                    annotate=True),                 # enables generation of the html annotation file
+            )
 
 Now we can ensure that those two programs output the same values::
 
-    >>> primes_python(1000) == primes(1000)
+    >>> import primes, primes_python, primes_python_compiled
+    >>> primes_python.primes(1000) == primes.primes(1000)
     True
-    >>> primes_python_compiled(1000) == primes(1000)
+    >>> primes_python_compiled.primes(1000) == primes.primes(1000)
     True
 
 It's possible to compare the speed now::
 
-    python -m timeit -s 'from example_py import primes_python' 'primes_python(1000)'
+    python -m timeit -s 'from primes_python import primes' 'primes(1000)'
     10 loops, best of 3: 23 msec per loop
 
-    python -m timeit -s 'from example_py_cy import primes_python_compiled' 'primes_python_compiled(1000)'
+    python -m timeit -s 'from primes_python_compiled import primes' 'primes(1000)'
     100 loops, best of 3: 11.9 msec per loop
 
-    python -m timeit -s 'from example import primes' 'primes(1000)'
+    python -m timeit -s 'from primes import primes' 'primes(1000)'
     1000 loops, best of 3: 1.65 msec per loop
 
 The cythonize version of ``primes_python`` is 2 times faster than the Python one,
@@ -325,9 +424,9 @@ Primes with C++
 With Cython, it is also possible to take advantage of the C++ language, notably,
 part of the C++ standard library is directly importable from Cython code.
 
-Let's see what our :file:`primes.pyx` becomes when
-using `vector <https://en.cppreference.com/w/cpp/container/vector>`_ from the C++
-standard library.
+Let's see what our code becomes when using
+`vector <https://en.cppreference.com/w/cpp/container/vector>`_
+from the C++ standard library.
 
 .. note::
 
@@ -338,8 +437,19 @@ standard library.
     how many elements you are going to put in the vector. For more details
     see `this page from cppreference <https://en.cppreference.com/w/cpp/container/vector>`_.
 
-.. literalinclude:: ../../examples/tutorial/cython_tutorial/primes_cpp.pyx
-    :linenos:
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes_cpp.py
+            :linenos:
+
+        .. include::
+            ../cimport-warning
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes_cpp.pyx
+            :linenos:
 
 The first line is a compiler directive. It tells Cython to compile your code to C++.
 This will enable the use of C++ language features and the C++ standard library.
@@ -357,4 +467,3 @@ Language Details
 For more about the Cython language, see :ref:`language-basics`.
 To dive right in to using Cython in a numerical computation context,
 see :ref:`memoryviews`.
-

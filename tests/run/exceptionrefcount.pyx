@@ -1,4 +1,6 @@
-__doc__ = u"""
+# mode: run
+
+"""
 >>> class SampleException(Exception): pass
 
 >>> def assert_refcount(rc1, rc2, func):

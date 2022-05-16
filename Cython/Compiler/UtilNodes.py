@@ -233,7 +233,10 @@ class LetNodeMixin:
         if self._result_in_temp:
             self.temp = self.temp_expression.result()
         else:
-            self.temp_expression.make_owned_reference(code)
+            if self.temp_type.is_memoryviewslice:
+                self.temp_expression.make_owned_memoryviewslice(code)
+            else:
+                self.temp_expression.make_owned_reference(code)
             self.temp = code.funcstate.allocate_temp(
                 self.temp_type, manage_ref=True)
             code.putln("%s = %s;" % (self.temp, self.temp_expression.result()))
@@ -246,7 +249,7 @@ class LetNodeMixin:
             self.temp_expression.generate_disposal_code(code)
             self.temp_expression.free_temps(code)
         else:
-            if self.temp_type.is_pyobject:
+            if self.temp_type.needs_refcounting:
                 code.put_decref_clear(self.temp, self.temp_type)
             code.funcstate.release_temp(self.temp)
 
@@ -360,3 +363,6 @@ class TempResultFromStatNode(ExprNodes.ExprNode):
     def generate_result_code(self, code):
         self.result_ref.result_code = self.result()
         self.body.generate_execution_code(code)
+
+    def generate_function_definitions(self, env, code):
+        self.body.generate_function_definitions(env, code)

@@ -4,8 +4,9 @@
 from __future__ import absolute_import
 
 import cython
-cython.declare(PyrexTypes=object, ExprNodes=object, Nodes=object,
-               Builtin=object, InternalError=object, error=object, warning=object,
+cython.declare(PyrexTypes=object, ExprNodes=object, Nodes=object, Builtin=object,
+               Options=object, TreeVisitor=object, CythonTransform=object,
+               InternalError=object, error=object, warning=object,
                fake_rhs_expr=object, TypedExprNode=object)
 
 from . import Builtin
@@ -16,7 +17,6 @@ from . import PyrexTypes
 
 from .Visitor import TreeVisitor, CythonTransform
 from .Errors import error, warning, InternalError
-from .Optimize import ConstantFolding
 
 
 class TypedExprNode(ExprNodes.ExprNode):
@@ -52,7 +52,7 @@ class ControlBlock(object):
         stats = [Assignment(a), NameReference(a), NameReference(c),
                      Assignment(b)]
         gen = {Entry(a): Assignment(a), Entry(b): Assignment(b)}
-        bounded = set([Entry(a), Entry(c)])
+        bounded = {Entry(a), Entry(c)}
 
     """
 
@@ -160,7 +160,7 @@ class ControlFlow(object):
                 (entry.type.is_struct_or_union or
                  entry.type.is_complex or
                  entry.type.is_array or
-                 entry.type.is_cpp_class)):
+                 (entry.type.is_cpp_class and not entry.is_cpp_optional))):
             # stack allocated structured variable => never uninitialised
             return True
         return False
@@ -203,7 +203,7 @@ class ControlFlow(object):
 
     def normalize(self):
         """Delete unreachable and orphan blocks."""
-        queue = set([self.entry_point])
+        queue = {self.entry_point}
         visited = set()
         while queue:
             root = queue.pop()
@@ -590,7 +590,7 @@ def check_definitions(flow, compiler_directives):
             if (node.allow_null or entry.from_closure
                     or entry.is_pyclass_attr or entry.type.is_error):
                 pass  # Can be uninitialized here
-            elif node.cf_is_null:
+            elif node.cf_is_null and not entry.in_closure:
                 if entry.error_on_uninitialized or (
                         Options.error_on_uninitialized and (
                         entry.type.is_pyobject or entry.type.is_unspecified)):
@@ -604,10 +604,12 @@ def check_definitions(flow, compiler_directives):
                         "local variable '%s' referenced before assignment"
                         % entry.name)
             elif warn_maybe_uninitialized:
+                msg = "local variable '%s' might be referenced before assignment" % entry.name
+                if entry.in_closure:
+                    msg += " (maybe initialized inside a closure)"
                 messages.warning(
                     node.pos,
-                    "local variable '%s' might be referenced before assignment"
-                    % entry.name)
+                    msg)
         elif Unknown in node.cf_state:
             # TODO: better cross-closure analysis to know when inner functions
             #       are being called before a variable is being set, and when
@@ -661,7 +663,7 @@ class AssignmentCollector(TreeVisitor):
         self.assignments = []
 
     def visit_Node(self):
-        self._visitchildren(self, None)
+        self._visitchildren(self, None, None)
 
     def visit_SingleAssignmentNode(self, node):
         self.assignments.append((node.lhs, node.rhs))
@@ -676,6 +678,8 @@ class ControlFlowAnalysis(CythonTransform):
     def visit_ModuleNode(self, node):
         dot_output = self.current_directives['control_flow.dot_output']
         self.gv_ctx = GVContext() if dot_output else None
+
+        from .Optimize import ConstantFolding
         self.constant_folder = ConstantFolding()
 
         # Set of NameNode reductions
@@ -1220,6 +1224,7 @@ class ControlFlowAnalysis(CythonTransform):
         if self.flow.loops:
             self.flow.loops[-1].exceptions.append(descr)
         self.flow.block = body_block
+        body_block.add_child(entry_point)
         self.flow.nextblock()
         self._visit(node.body)
         self.flow.exceptions.pop()

@@ -5,6 +5,7 @@ import unittest
 import shlex
 import sys
 import tempfile
+import textwrap
 from io import open
 
 from .Compiler import Errors
@@ -50,13 +51,10 @@ def treetypes(root):
 class CythonTest(unittest.TestCase):
 
     def setUp(self):
-        self.listing_file = Errors.listing_file
-        self.echo_file = Errors.echo_file
-        Errors.listing_file = Errors.echo_file = None
+        Errors.init_thread()
 
     def tearDown(self):
-        Errors.listing_file = self.listing_file
-        Errors.echo_file = self.echo_file
+        Errors.init_thread()
 
     def assertLines(self, expected, result):
         "Checks that the given strings or lists of strings are equal line by line"
@@ -225,3 +223,52 @@ def unpack_source_tree(tree_file, workdir, cython_root):
             if cur_file is not None:
                 cur_file.close()
     return workdir, header
+
+
+def write_file(file_path, content, dedent=False, encoding=None):
+    r"""Write some content (text or bytes) to the file
+    at `file_path` without translating `'\n'` into `os.linesep`.
+
+    The default encoding is `'utf-8'`.
+    """
+    if isinstance(content, bytes):
+        mode = "wb"
+
+        # binary mode doesn't take an encoding and newline arguments
+        newline = None
+        default_encoding = None
+    else:
+        mode = "w"
+
+        # any "\n" characters written are not translated
+        # to the system default line separator, os.linesep
+        newline = "\n"
+        default_encoding = "utf-8"
+
+    if encoding is None:
+        encoding = default_encoding
+
+    if dedent:
+        content = textwrap.dedent(content)
+
+    with open(file_path, mode=mode, encoding=encoding, newline=newline) as f:
+        f.write(content)
+
+
+def write_newer_file(file_path, newer_than, content, dedent=False, encoding=None):
+    r"""
+    Write `content` to the file `file_path` without translating `'\n'`
+    into `os.linesep` and make sure it is newer than the file `newer_than`.
+
+    The default encoding is `'utf-8'` (same as for `write_file`).
+    """
+    write_file(file_path, content, dedent=dedent, encoding=encoding)
+
+    try:
+        other_time = os.path.getmtime(newer_than)
+    except OSError:
+        # Support writing a fresh file (which is always newer than a non-existant one)
+        other_time = None
+
+    while other_time is None or other_time >= os.path.getmtime(file_path):
+        write_file(file_path, content, dedent=dedent, encoding=encoding)
