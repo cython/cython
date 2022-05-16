@@ -29,6 +29,14 @@ Bugs fixed
   reversed special numeric methods of extension types.
   Patch by David Woods.  (Github issue #4750)
 
+* Calling unbound extension type methods without arguments could raise an
+  ``IndexError`` instead of a ``TypeError``.
+  Patch by David Woods.  (Github issue #4779)
+
+* Calling unbound ``.__contains__()`` super class methods on some builtin base
+  types could trigger an infinite recusion.
+  Patch by David Woods.  (Github issue #4785)
+
 * The C union type in pure Python mode mishandled some field names.
   Patch by Jordan Brière.  (Github issue #4727)
 
