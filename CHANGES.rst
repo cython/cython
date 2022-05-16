@@ -32,7 +32,8 @@ Features added
   to regenerate the output files regardless of modification times and changes.
 
 * A new Cython build option ``--cython-compile-minimal`` was added to compile only a
-  smaller set of Cython modules, which can be used to reduce the package and install size.
+  smaller set of Cython's own modules, which can be used to reduce the package
+  and install size.
 
 Bugs fixed
 ----------
