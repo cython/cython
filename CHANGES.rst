@@ -1011,7 +1011,7 @@ Bugs fixed
   Patch by David Woods.  (Github issue :issue`4779`)
 
 * Calling unbound ``.__contains__()`` super class methods on some builtin base
-  types could trigger an infinite recusion.
+  types could trigger an infinite recursion.
   Patch by David Woods.  (Github issue :issue`4785`)
 
 * The C union type in pure Python mode mishandled some field names.
