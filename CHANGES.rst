@@ -36,7 +36,7 @@ Bugs fixed
   Patch by Yuriy Chernyshov. (Github issue #4690)
 
 * Improved compatibility with CPython 3.10/11.
-  Patches by Thomas Caswell, David Woods.  (Github issues #4609, #4667, #4721, #4730)
+  Patches by Thomas Caswell, David Woods.  (Github issues #4609, #4667, #4721, #4730, #4777)
 
 * Docstrings of descriptors are now provided in PyPy 7.3.9.
   Patch by Matti Picus.  (Github issue #4701)
