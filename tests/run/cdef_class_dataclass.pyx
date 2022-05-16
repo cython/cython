@@ -241,7 +241,7 @@ cdef class TestKwOnly:
     """
 
     a: double = 2.0
-    b: long = 1
+    b: long
 
 import sys
 if sys.version_info >= (3, 7):
