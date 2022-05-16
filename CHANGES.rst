@@ -979,7 +979,7 @@ Other changes
 
 .. _0.29.29:
 
-0.29.29 (2022-??-??)
+0.29.29 (2022-05-16)
 ====================
 
 Features added
@@ -1006,6 +1006,14 @@ Bugs fixed
   reversed special numeric methods of extension types.
   Patch by David Woods.  (Github issue :issue`4750`)
 
+* Calling unbound extension type methods without arguments could raise an
+  ``IndexError`` instead of a ``TypeError``.
+  Patch by David Woods.  (Github issue :issue`4779`)
+
+* Calling unbound ``.__contains__()`` super class methods on some builtin base
+  types could trigger an infinite recusion.
+  Patch by David Woods.  (Github issue :issue`4785`)
+
 * The C union type in pure Python mode mishandled some field names.
   Patch by Jordan Brière.  (Github issue :issue:`4727`)
 
@@ -1014,7 +1022,7 @@ Bugs fixed
 
 * Improved compatibility with CPython 3.10/11.
   Patches by Thomas Caswell, David Woods.
-  (Github issues :issue:`4609`, :issue:`4667`, :issue:`4721`, :issue:`4730`)
+  (Github issues :issue:`4609`, :issue:`4667`, :issue:`4721`, :issue:`4730`, :issue:`4777`)
 
 * Docstrings of descriptors are now provided in PyPy 7.3.9.
   Patch by Matti Picus.  (Github issue :issue:`4701`)
