@@ -22,8 +22,7 @@ on:
   #        │  │ │ │ │
   - cron: "42 1 * * 4"
   pull_request:
-    branches:
-      - master
+      types: [labeled, opened, synchronize, reopened]
   workflow_dispatch:
 
 concurrency:
