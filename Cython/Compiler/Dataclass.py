@@ -220,6 +220,9 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
                       "Arguments passed to cython.dataclasses.dataclass must be True or False")
             kwargs[k] = v
 
+    # remove everything that does not belong into _DataclassParams()
+    kw_only = kwargs.pop("kw_only")
+
     fields = process_class_get_fields(node)
 
     dataclass_module = make_dataclasses_module_callnode(node.pos)
@@ -251,7 +254,7 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     code_lines = []
     placeholders = {}
     extra_stats = []
-    for cl, ph, es in [ generate_init_code(kwargs['init'], node, fields, kwargs['kw_only']),
+    for cl, ph, es in [ generate_init_code(kwargs['init'], node, fields, kw_only),
                         generate_repr_code(kwargs['repr'], node, fields),
                         generate_eq_code(kwargs['eq'], node, fields),
                         generate_order_code(kwargs['order'], node, fields),
