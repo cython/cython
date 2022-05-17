@@ -232,10 +232,18 @@ cdef class TestKwOnly:
     3.0
     >>> inst.b
     2
+    >>> inst = TestKwOnly(b=2)
+    >>> inst.a
+    2.0
+    >>> inst.b
+    2
     >>> fail = TestKwOnly(3, 2)
     Traceback (most recent call last):
     TypeError: __init__() takes exactly 0 positional arguments (2 given)
     >>> fail = TestKwOnly(a=3)
+    Traceback (most recent call last):
+    TypeError: __init__() needs keyword-only argument b
+    >>> fail = TestKwOnly()
     Traceback (most recent call last):
     TypeError: __init__() needs keyword-only argument b
     """
