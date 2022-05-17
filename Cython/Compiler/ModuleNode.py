@@ -3259,7 +3259,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(code.error_goto_if_neg(
                 '__Pyx_SetPackagePathFromImportLib(%s)' % (
                     code.globalstate.get_py_string_const(
-                        self.full_module_name).cname),
+                        EncodedString(self.full_module_name)).cname),
                 self.pos))
             code.putln("}")
 
