@@ -3,11 +3,14 @@
 # it will be used for Cython 3.1 after Python 2.7
 # support is dropped.
 #
-# In an attempt to save CI resources, 
+# In an attempt to save CI resources, wheel builds do
+# not run by default.
 # Wheel builds can be triggered from the Actions page
-# (if you have the perms)
-# The labels that trigger builds are:
+# (if you have the perms) on a commit to master.
 # 
+# Alternatively, if you would like to trigger wheel builds
+# on a pull request, the labels that trigger builds are:
+# - Build System
 name: Wheel Builder
 on:
   schedule:
@@ -18,9 +21,6 @@ on:
   #        │  │ │ │ ┌───────────── day of the week (0 - 6 or SUN-SAT)
   #        │  │ │ │ │
   - cron: "42 1 * * 4"
-  push:
-    branches:
-      - master
   pull_request:
     branches:
       - master
@@ -80,13 +80,6 @@ jobs:
     steps:
       - name: Checkout Cython
         uses: actions/checkout@v3
-        with:
-          submodules: true
-          # versioneer.py requires the latest tag to be reachable. Here we
-          # fetch the complete history to get access to the tags.
-          # A shallow clone can work when the following issue is resolved:
-          # https://github.com/actions/checkout/issues/338
-          fetch-depth: 0
       # Used to push the built wheels
       - uses: actions/setup-python@v3
         with:
