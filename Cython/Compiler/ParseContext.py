@@ -298,9 +298,9 @@ class Context(object):
         dep_path = Utils.replace_suffix(source_path, ".dep")
         if os.path.exists(dep_path):
             with open(dep_path, "rU") as f:
-                chunks = [ line.strip().split(" ", 1)
-                           for line in f
-                           if " " in line.strip() ]
+                chunks = [ line.split(" ", 1)
+                           for line in (l.strip() for l in f)
+                           if " " in line ]
             return chunks
         else:
             return ()
