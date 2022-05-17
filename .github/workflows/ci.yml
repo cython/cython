@@ -25,15 +25,25 @@ jobs:
         # in all python versions and test failures (builtin_float) in 3.5<
         os: [ubuntu-18.04]
         backend: [c, cpp]
-        python-version: ["2.7", "3.4", "3.5", "3.6", "3.7", "3.8", "3.9", "3.10", "3.11-dev", "3.12-dev"]
+        python-version:
+          - "2.7"
+          - "3.4"
+          - "3.5"
+          - "3.6"
+          - "3.7"
+          - "3.8"
+          - "3.9"
+          - "3.10"
+          - "3.11-dev"
+          # - "3.12-dev"
         env: [{}]
 
         include:
           # Temporary - Allow failure on Python 3.11-dev jobs until they are considered stable
           - python-version: 3.11-dev
             allowed_failure: true
-          - python-version: 3.12-dev
-            allowed_failure: true
+          #- python-version: 3.12-dev
+          #  allowed_failure: true
 
           # Ubuntu sub-jobs:
           # ================
