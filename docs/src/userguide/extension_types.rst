@@ -478,8 +478,9 @@ Note that the path through ``__new__()`` will *not* call the type's
 ``__init__()`` method (again, as known from Python).  Thus, in the example
 above, the first instantiation will print ``eating!``, but the second will
 not.  This is only one of the reasons why the ``__cinit__()`` method is
-safer and preferable over the normal ``__init__()`` method for extension
-types.
+safer than the normal ``__init__()`` method for initialising extension types
+and bringing them into a correct and safe state.
+See section :ref:`_initialisation_methods` about the differences.
 
 The second performance improvement applies to types that are often created
 and deleted in a row, so that they can benefit from a freelist.  Cython
@@ -758,6 +759,8 @@ the above would be safe, and it may yield a significant speedup, depending on
 your usage pattern.
 
 
+.. _auto_pickle:
+
 Controlling pickling
 ====================
 
@@ -769,7 +772,7 @@ cannot be pickled) decorate the class with ``@cython.auto_pickle(True)``.
 One can also annotate with ``@cython.auto_pickle(False)`` to get the old
 behavior of not generating a ``__reduce__`` method in any case.
 
-Manually implementing a ``__reduce__`` or `__reduce_ex__`` method will also
+Manually implementing a ``__reduce__`` or ``__reduce_ex__`` method will also
 disable this auto-generation and can be used to support pickling of more
 complicated types.
 
@@ -1051,5 +1054,29 @@ generated containing declarations for its object struct and type object. By
 including the ``.h`` file in external C code that you write, that code can
 access the attributes of the extension type.
 
+Dataclass extension types
+=========================
 
+Cython supports extension types that behave like the dataclasses defined in
+the Python 3.7+ standard library. The main benefit of using a dataclass is
+that it can auto-generate simple ``__init__``, ``__repr__`` and comparison
+functions. The Cython implementation behaves as much like the Python
+standard library implementation as possible and therefore the documentation
+here only briefly outlines the differences - if you plan on using them
+then please read `the documentation for the standard library module
+<https://docs.python.org/3/library/dataclasses.html>`_.
 
+Dataclasses can be declared using the ``@cython.dataclasses.dataclass`` 
+decorator on a Cython extension type. ``@cython.dataclasses.dataclass``
+can only be applied to extension types (types marked ``cdef`` or created with the 
+``cython.cclass`` decorator) and not to regular classes. If
+you need to define special properties on a field then use ``cython.dataclasses.field``
+
+.. literalinclude:: ../../examples/userguide/extension_types/dataclass.pyx    
+
+You may use C-level types such as structs, pointers, or C++ classes.
+However, you may find these types are not compatible with the auto-generated
+special methods - for example if they cannot be converted from a Python
+type they cannot be passed to a constructor, and so you must use a 
+``default_factory`` to initialize them. Like with the Python implementation, you can also control
+which special functions an attribute is used in using ``field()``.

@@ -435,7 +435,7 @@ def search_include_directories(dirs, qualified_name, suffix="", pos=None, includ
     for dirname in dirs:
         path = os.path.join(dirname, dotted_filename)
         if os.path.exists(path):
-            if '.' in qualified_name and '.' in os.path.splitext(dotted_filename)[0]:
+            if not include and '.' in qualified_name and '.' in os.path.splitext(dotted_filename)[0]:
                 warning(pos, "Dotted filenames ('%s') are deprecated."
                              " Please use the normal Python package directory layout." % dotted_filename, level=1)
             return path

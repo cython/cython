@@ -1,3 +1,5 @@
+# mode: run
+
 class Foo:
     @property
     def foo(self):
@@ -36,6 +38,6 @@ def wrap_hasattr(obj, name):
     >>> hasattr(Foo(), None)   #doctest: +ELLIPSIS
     Traceback (most recent call last):
        ...
-    TypeError: hasattr(): attribute name must be string
+    TypeError: ...attribute name must be string...
     """
     return hasattr(obj, name)
