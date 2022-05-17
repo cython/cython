@@ -65,7 +65,7 @@ Bugs fixed
 * A work-around for StacklessPython < 3.8 was disabled in Py3.8 and later.
   (Github issue :issue:4329)
 
-* Includes all bug-fixes from the :ref:`0.29.29` release.
+* Includes all bug-fixes from the :ref:`0.29.30` release.
 
 Other changes
 -------------
@@ -976,6 +976,19 @@ Other changes
 .. _`PEP-3131`: https://www.python.org/dev/peps/pep-3131
 .. _`PEP-563`: https://www.python.org/dev/peps/pep-0563
 .. _`PEP-479`: https://www.python.org/dev/peps/pep-0479
+
+
+.. _0.29.30:
+
+0.29.30 (2022-05-16)
+====================
+
+Bugs fixed
+----------
+
+* The GIL handling changes in 0.29.29 introduced a regression where
+  objects could be deallocated without holding the GIL.
+  (Github issue :issue`4796`)
 
 
 .. _0.29.29:
