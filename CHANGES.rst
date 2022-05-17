@@ -2,6 +2,17 @@
 Cython Changelog
 ================
 
+0.29.30 (2022-05-16)
+====================
+
+Bugs fixed
+----------
+
+* The GIL handling changes in 0.29.29 introduced a regression where
+  objects could be deallocated without holding the GIL.
+  (Github issue #4796)
+
+
 0.29.29 (2022-05-16)
 ====================
 
