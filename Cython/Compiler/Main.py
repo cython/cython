@@ -153,7 +153,7 @@ class Context(object):
             # __init__.pyx/__init__.py file to determine if last part is package or not.
             paths = self.find_file_with_suffix(qualified_name, suffix=('.pyx', '.py'))
             is_package = self._is_init_file(paths[0]) if paths else False
-            qualified_name_parts = qualified_name_parts + [(last_part, is_package)]
+            qualified_name_parts.append((last_part, is_package))
         return qualified_name_parts
 
     @staticmethod
