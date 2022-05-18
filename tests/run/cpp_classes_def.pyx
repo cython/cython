@@ -271,5 +271,5 @@ def test_CppClassWithDocstring():
     print "OK"
 
 _WARNINGS="""
-23:4: Unraisable exception in function 'RegularPolygon.area'.
+24:4: Unraisable exception in function 'RegularPolygon.area'.
 """
