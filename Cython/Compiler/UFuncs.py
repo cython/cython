@@ -71,14 +71,47 @@ class FindCFuncDefNode(TreeVisitor):
 
 
 class NameFinderVisitor(TreeVisitor):
-    visit_Node = TreeVisitor.recurse_to_children
-
     def __init__(self):
-        super(NameFinderVisitor, TreeVisitor).__init__()
+        super(NameFinderVisitor, self).__init__()
         self.names = set()
+
+    def visit_Node(self, node):
+        self.visitchildren(node)
 
     def visit_NameNode(self, node):
         self.names.add(node.name)
+
+
+class UFuncPyObjectTargetNode(ExprNodes.ExprNode):
+    """
+    Takes ownership of a pyobject and assigns it to the output
+    char* in a ufunc
+
+    target   NameNode
+    """
+    subexprs = ["target"]
+    is_temp = False
+
+    def analyse_target_declaration(self, env):
+        self.target.analyse_target_declaration(env)
+
+    def analyse_types(self, env):
+        assert False, "Should only be used as a target"
+        return self
+
+    def analyse_target_types(self, env):
+        self.target = self.target.analyse_types(env)
+        assert self.target.is_name
+        assert (self.target.type.is_ptr and self.target.type.base_type.is_int and
+                    self.target.type.base_type.rank == 0)
+        assert self.type.is_pyobject
+        return self
+
+    def generate_assignment_code(self, rhs, code, overloaded_assignment=False,
+                                 exception_check=None, exception_value=None):
+        code.putln("%s = (char*)%s;" % (self.target.result(), rhs.result()))
+        rhs.free_temps(code)
+
 
 
 class ReplaceReturnsTransform(VisitorTransform):
@@ -104,7 +137,7 @@ class ReplaceReturnsTransform(VisitorTransform):
                                                  index=ExprNodes.IntNode(node.pos, value="0"))
                 write_nodes.append(index_node)
             else:
-                cast_node = ExprNodes.TypecastNode(node.pos, operand=name_node, type=out_type)
+                cast_node = UFuncPyObjectTargetNode(node.pos, target=name_node, type=out_type)
                 write_nodes.append(cast_node)
         if (len(write_nodes) == 1 or not node.value.is_sequence_constructor or
                 node.value.mult_factor or len(node.value.args) != len(write_nodes)):
@@ -117,7 +150,7 @@ class ReplaceReturnsTransform(VisitorTransform):
         elif node.value:
             return Nodes.ParallelAssignmentNode(
                 node.pos,
-                assignments = [ Nodes.SingleAssignmentNode(
+                stats = [ Nodes.SingleAssignmentNode(
                     node.pos,
                     lhs=nn, rhs=arg) for nn, arg in zip(write_nodes, node.value.args) ])
 
@@ -138,8 +171,8 @@ def convert_to_ufunc(node):
     cname = node.entry.cname
 
     name_finder = NameFinderVisitor()
-    name_finder(node.ufunc_body)
-    name_handler = _UniquePyNameHandler(set(node.local_scope.keys()) + name_finder.names)
+    name_finder.visit(node.ufunc_body)
+    name_handler = _UniquePyNameHandler(set(node.local_scope.entries.keys()).union(name_finder.names))
 
     in_names = []
     arg_names = []
@@ -180,7 +213,7 @@ def convert_to_ufunc(node):
         # from the original function, this is the place to do it
     tree = code.get_tree(entries_only=True, modify_pipeline_callback=pipeline_modifier_function)
 
-    PrintTree()(tree)
+    #PrintTree()(tree)
 
     cfunc_finder = FindCFuncDefNode()
     cfunc_finder.visit(tree)
@@ -192,7 +225,7 @@ def convert_to_ufunc(node):
     node = cfunc_finder.found_node
 
     capi_func = initialize_constants(
-        original_node.pos, original_node.entry.name,
+        original_node.pos, original_node.entry.name, original_node.doc,
         global_scope, [node.entry.cname],
         in_type_constants, out_type_constants)
 
@@ -217,7 +250,7 @@ def protect_node_body(node):
     node.ufunc_body = node.body
     node.body = Nodes.StatListNode(node.body.pos, stats=[])
 
-def initialize_constants(pos, func_name, global_scope, func_cnames, in_type_constants, out_type_constants):
+def initialize_constants(pos, func_name, docstr, global_scope, func_cnames, in_type_constants, out_type_constants):
     ufunc_funcs = global_scope.next_id(Naming.pyrex_prefix + "funcs")
     ufunc_types = global_scope.next_id(Naming.pyrex_prefix + "types")
     ufunc_data = global_scope.next_id(Naming.pyrex_prefix + "data")
@@ -232,13 +265,13 @@ def initialize_constants(pos, func_name, global_scope, func_cnames, in_type_cons
         TempitaUtilityCode.load("UFuncConsts", "UFuncs_C.c",
                                        context=context))
 
-    args_to_func = '%s, %s, %s, 1, %s, %s, PyUFunc_None, "%s", NULL, 0' % (
+    args_to_func = '%s(), %s, %s(), 1, %s, %s, PyUFunc_None, "%s", %s, 0' % (
         ufunc_funcs,
         ufunc_data,
         ufunc_types,
         len(in_type_constants),
         len(out_type_constants),
-        func_name,)
+        func_name, docstr.as_c_string_literal() if docstr else "NULL")
 
     call_node = ExprNodes.PythonCapiCallNode(
         pos,

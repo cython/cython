@@ -2,7 +2,7 @@
 
 cdef extern from *:
     ctypedef int npy_intp
-    Py_INCREF(object o)
+    void Py_INCREF(object o)
 
 # variable names have to come from tempita to avoid duplication
 @cname("{{func_cname}}")
@@ -19,15 +19,15 @@ cdef void {{func_cname}}(char **{{args}}, const npy_intp *{{dimensions}}, const 
     cdef npy_intp {{step_name}} = {{steps}}[{{idx}}]
     {{endfor}}
     {{for arg_type, arg_name in zip(arg_types, arg_names)}}
-    cdef {{arg_type}} {{arg_name}}
+    cdef {{arg_type.declaration_code("", pyrex=True)}} {{arg_name}}
     {{endfor}}
 
     for {{i}} in range({{n}}):
         {{for arg_name, arg_type, in_name in zip(arg_names, arg_types, in_names)}}
         {{if arg_type.is_pyobject}}
-        {{arg_name}} = (<arg_type>{{in_name}})
+        {{arg_name}} = (<{{arg_type.declaration_code("", pyrex=True)}}>{{in_name}})
         {{else}}
-        {{arg_name}} = (<double *>{{in_name}})[0]
+        {{arg_name}} = (<{{arg_type.declaration_code("", pyrex=True)}}*>{{in_name}})[0]
         {{endif}}
         {{endfor}}
         {{for out_type, out_name in zip(out_types, out_names) }}
