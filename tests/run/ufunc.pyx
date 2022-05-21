@@ -85,3 +85,20 @@ def test_multiple_return_values():
     >>> multiple_return_values2(int_arr_1d)
     (array([ 0.,  6., 12., 18., 24.]), array([ 0,  8, 16, 24, 32]))
     """
+
+@cython.ufunc
+cdef cython.numeric plus_one(cython.numeric x):
+    return x+1
+
+def test_plus_one():
+    """
+    This generates all the fused combinations
+    >>> plus_one(int_arr_1d)
+    array([ 1,  5,  9, 13, 17])
+    >>> plus_one(double_arr_2d)
+    array([[57., 58.],
+           [67., 68.],
+           [77., 78.]])
+    >>> plus_one(1.j)
+    (1+1j)
+    """

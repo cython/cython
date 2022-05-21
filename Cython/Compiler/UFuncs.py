@@ -1,14 +1,10 @@
-from . import Nodes
-from . import ExprNodes
+from . import (Nodes, ExprNodes, FusedNode, TreeFragment, Pipeline,
+               ParseTreeTransforms, Naming)
 from .Errors import error
 from . import PyrexTypes
 from .UtilityCode import CythonUtilityCode
 from .Code import TempitaUtilityCode, UtilityCode
 from .Visitor import PrintTree, TreeVisitor, VisitorTransform
-from . import TreeFragment
-from . import Pipeline
-from . import ParseTreeTransforms
-from . import Naming
 
 numpy_int_types = ["NPY_BYTE", "NPY_INT8", "NPY_SHORT", "NPY_INT16", "NPY_INT",
                         "NPY_INT32", "NPY_LONG", "NPY_LONGLONG", "NPY_INT64"]
@@ -262,52 +258,6 @@ class UFuncConversion(object):
         tree = code.get_tree(entries_only=True, modify_pipeline_callback=pipeline_modifier_function)
         return tree
 
-    def generate_ufunc_initialization(self, func_cnames):
-        #def initialize_constants(pos, func_name, docstr, global_scope, func_cnames, in_type_constants, out_type_constants):
-        ufunc_funcs_name = self.global_scope.next_id(Naming.pyrex_prefix + "funcs")
-        ufunc_types_name = self.global_scope.next_id(Naming.pyrex_prefix + "types")
-        ufunc_data_name = self.global_scope.next_id(Naming.pyrex_prefix + "data")
-        in_type_constants = [ d.type_constant for d in self.in_definitions ]
-        out_type_constants = [ d.type_constant for d in self.out_definitions ]
-
-        context = dict(
-            ufunc_funcs_name = ufunc_funcs_name,
-            func_cnames = func_cnames,
-            ufunc_types_name = ufunc_types_name,
-            type_constants = in_type_constants+out_type_constants,
-            ufunc_data_name = ufunc_data_name,
-        )
-        self.global_scope.use_utility_code(
-            TempitaUtilityCode.load("UFuncConsts", "UFuncs_C.c",
-                                        context=context))
-
-        pos = self.node.pos
-        func_name = self.node.entry.name
-        docstr = self.node.doc
-        args_to_func = '%s(), %s, %s(), 1, %s, %s, PyUFunc_None, "%s", %s, 0' % (
-            ufunc_funcs_name,
-            ufunc_data_name,
-            ufunc_types_name,
-            len(in_type_constants),
-            len(out_type_constants),
-            func_name, docstr.as_c_string_literal() if docstr else "NULL")
-
-        call_node = ExprNodes.PythonCapiCallNode(
-            pos,
-            function_name="PyUFunc_FromFuncAndData",
-            # use a dummy type because it's honestly too fiddly
-            func_type=PyrexTypes.CFuncType(
-                PyrexTypes.py_object_type, [
-                    PyrexTypes.CFuncTypeArg("dummy", PyrexTypes.c_void_ptr_type, None)]),
-                args=[ExprNodes.ConstNode(pos, type=PyrexTypes.c_void_ptr_type, value=args_to_func)])
-        del self.global_scope.entries[func_name]  # because we've overridden it
-        lhs_entry = self.global_scope.declare_var(func_name, PyrexTypes.py_object_type, pos)
-        assgn_node = Nodes.SingleAssignmentNode(
-            pos,
-            lhs=ExprNodes.NameNode(pos, name=func_name, type=PyrexTypes.py_object_type, entry=lhs_entry),
-            rhs=call_node)
-        return assgn_node
-
     def use_generic_utility_code(self):
         # use the invariant C utility code
         self.global_scope.use_utility_code(
@@ -315,26 +265,109 @@ class UFuncConversion(object):
         self.global_scope.use_utility_code(
                     UtilityCode.load_cached("NumpyImportUFunc", "NumpyImportArray.c"))
 
-    def get_generated_stats(self):
-        tree = self.generate_cy_utility_code()
-        ufunc_node = FindCFuncDefNode()(tree)
-
-        capi_func = self.generate_ufunc_initialization([ufunc_node.entry.cname])
-
-        return [ufunc_node, capi_func]
-
 
 def convert_to_ufunc(node):
-    if not isinstance(node, Nodes.CFuncDefNode):
+    if isinstance(node, Nodes.CFuncDefNode):
+        if node.local_scope.parent_scope.is_c_class_scope:
+            error(node.pos, "Methods cannot currently be converted to a ufunc")
+            return node
+        converters = [UFuncConversion(node)]
+        original_node = node
+    elif isinstance(node, FusedNode.FusedCFuncDefNode) and isinstance(node.node, Nodes.CFuncDefNode):
+        if node.node.local_scope.parent_scope.is_c_class_scope:
+            error(node.pos, "Methods cannot currently be converted to a ufunc")
+            return node
+        converters = [ UFuncConversion(n) for n in node.nodes ]
+        original_node = node.node
+    else:
         error(node.pos, "Only C functions can be converted to a ufunc")
         return node
-    if node.local_scope.parent_scope.is_c_class_scope:
-        error(node.pos, "Methods cannot currently be converted to a ufunc")
-        return node
 
-    converter = UFuncConversion(node)
-    converter.use_generic_utility_code()
-    return converter.get_generated_stats()
+    if not converters:
+        return  # this path probably shouldn't happen
+
+    # the generic utility code is generic, so there's no reason to do
+    converters[0].use_generic_utility_code()
+    return _generate_stats_from_converters(converters, original_node)
+
+
+def generate_ufunc_initialization(converters, cfunc_nodes, original_node):
+    global_scope = converters[0].global_scope
+    ufunc_funcs_name = global_scope.next_id(Naming.pyrex_prefix + "funcs")
+    ufunc_types_name = global_scope.next_id(Naming.pyrex_prefix + "types")
+    ufunc_data_name = global_scope.next_id(Naming.pyrex_prefix + "data")
+    type_constants = []
+    narg_in = None
+    narg_out = None
+    for c in converters:
+        in_const = [ d.type_constant for d in c.in_definitions ]
+        if narg_in is not None:
+            assert(narg_in == len(in_const))
+        else:
+            narg_in = len(in_const)
+        type_constants.extend(in_const)
+        out_const = [ d.type_constant for d in c.out_definitions ]
+        if narg_out is not None:
+            assert(narg_out == len(out_const))
+        else:
+            narg_out = len(out_const)
+        type_constants.extend(out_const)
+
+    func_cnames = [ cfnode.entry.cname for cfnode in cfunc_nodes ]
+
+    context = dict(
+        ufunc_funcs_name = ufunc_funcs_name,
+        func_cnames = func_cnames,
+        ufunc_types_name = ufunc_types_name,
+        type_constants = type_constants,
+        ufunc_data_name = ufunc_data_name,
+    )
+    global_scope.use_utility_code(
+        TempitaUtilityCode.load("UFuncConsts", "UFuncs_C.c",
+                                    context=context))
+
+    pos = original_node.pos
+    func_name = original_node.entry.name
+    docstr = original_node.doc
+    args_to_func = '%s(), %s, %s(), %s, %s, %s, PyUFunc_None, "%s", %s, 0' % (
+        ufunc_funcs_name,
+        ufunc_data_name,
+        ufunc_types_name,
+        len(func_cnames),
+        narg_in,
+        narg_out,
+        func_name, docstr.as_c_string_literal() if docstr else "NULL")
+
+    call_node = ExprNodes.PythonCapiCallNode(
+        pos,
+        function_name="PyUFunc_FromFuncAndData",
+        # use a dummy type because it's honestly too fiddly
+        func_type=PyrexTypes.CFuncType(
+            PyrexTypes.py_object_type, [
+                PyrexTypes.CFuncTypeArg("dummy", PyrexTypes.c_void_ptr_type, None)]),
+            args=[ExprNodes.ConstNode(pos, type=PyrexTypes.c_void_ptr_type, value=args_to_func)])
+    del global_scope.entries[func_name]  # because we've overridden it
+    lhs_entry = global_scope.declare_var(func_name, PyrexTypes.py_object_type, pos)
+    assgn_node = Nodes.SingleAssignmentNode(
+        pos,
+        lhs=ExprNodes.NameNode(pos, name=func_name, type=PyrexTypes.py_object_type, entry=lhs_entry),
+        rhs=call_node)
+    return assgn_node
+
+
+def _generate_stats_from_converters(converters, node):
+    stats = []
+    for converter in converters:
+        tree = converter.generate_cy_utility_code()
+        ufunc_node = FindCFuncDefNode()(tree)
+        # merge in any utility code
+        converter.global_scope.utility_code_list.extend(tree.scope.utility_code_list)
+        stats.append(ufunc_node)
+
+    stats.append(generate_ufunc_initialization(converters, stats, node))
+    return stats
+
+
 
 
 def protect_node_body(node):
