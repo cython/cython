@@ -4,11 +4,14 @@
 #include <numpy/arrayobject.h>
 #include <numpy/ufuncobject.h>
 
-// account for change in type of arguments to PyUFuncGenericFunction
-#if NPY_API_VERSION >= 0x0000000d  // Numpy 1.19.x
-typedef const npy_intp __Pyx_const_npy_intp;
+// account for change in type of arguments to PyUFuncGenericFunction in Numpy 1.19.x
+// Unfortunately we can only test against Numpy version 1.20.x since it wasn't marked
+// as an API break. Therefore, I'm "solving" the issue by casting function pointer types
+// on lower Numpy versions.
+#if NPY_API_VERSION >= 0x0000000e // Numpy 1.20.x
+#define __PYX_PYUFUNCGENERICFUNCTION_CAST(x) x
 #else
-typedef npy_intp __Pyx_const_npy_intp;
+#define __PYX_PYUFUNCGENERICFUNCTION_CAST(x) (PyUFuncGenericFunction*)x
 #endif
 
 /////////////////////// UFuncConsts.proto ////////////////////
@@ -23,7 +26,7 @@ static void* {{ufunc_data_name}}[] = {NULL};  // always null
 static PyUFuncGenericFunction* {{ufunc_funcs_name}}(void) {
     static PyUFuncGenericFunction arr[] = {
         {{for loop, cname in looper(func_cnames)}}
-        &{{cname}}{{if not loop.last}},{{endif}}
+        __PYX_PYUFUNCGENERICFUNCTION_CAST(&{{cname}}){{if not loop.last}},{{endif}}
         {{endfor}}
     };
     return arr;
