@@ -63,7 +63,7 @@ Bugs fixed
 * Using the Limited API could report incorrect line numbers in tracebacks.
 
 * A work-around for StacklessPython < 3.8 was disabled in Py3.8 and later.
-  (Github issue :issue:4329)
+  (Github issue :issue:`4329`)
 
 * Includes all bug-fixes from the :ref:`0.29.30` release.
 
