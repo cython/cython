@@ -102,3 +102,42 @@ def test_plus_one():
     >>> plus_one(1.j)
     (1+1j)
     """
+
+###### Test flow-control ######
+# The transformation to a ufunc changes return statements to assignments and a break
+# These tests make sure that it's working correctly
+
+@cython.ufunc
+cdef double return_stops_execution(double x):
+    return x
+    print "This should not happen"
+
+@cython.ufunc
+cdef double return_in_if(double x):
+    if x<0:
+        return -x
+    return x
+
+@cython.ufunc
+cdef double nested_loops(double x):
+    cdef double counter=0
+    while x>counter:
+        counter+=10.
+        for i in range(100):
+            if i>x:
+                return i
+    return x-counter
+
+def test_flow_control():
+    """
+    >>> np.allclose(return_stops_execution(double_arr_1d), double_arr_1d)
+    True
+    >>> return_in_if(-1.)
+    1.0
+    >>> return_in_if(2.0)
+    2.0
+    >>> nested_loops(5.5)
+    6.0
+    >>> nested_loops(105.)
+    -5.0
+    """

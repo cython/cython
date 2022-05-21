@@ -1,5 +1,5 @@
 from . import (Nodes, ExprNodes, FusedNode, TreeFragment, Pipeline,
-               ParseTreeTransforms, Naming)
+               ParseTreeTransforms, Naming, UtilNodes)
 from .Errors import error
 from . import PyrexTypes
 from .UtilityCode import CythonUtilityCode
@@ -120,25 +120,31 @@ class UFuncPyObjectTargetNode(ExprNodes.ExprNode):
         rhs.free_temps(code)
 
 
-
 class ReplaceReturnsTransform(VisitorTransform):
     """
     Replace the return statement in a function with an assignment
 
     The user defines a Cython ufunc with a single short function. To convert it
     into a real ufunc Cython inserts that function into a loop, and the return
-    statement should be converted to an assignment
+    statement should be converted to an assignment.
+
+    It also needs to handle a bit of flow control to make sure that return actually
+    "returns"
     """
     def __init__(self, out_names, out_types):
         super(ReplaceReturnsTransform, self).__init__()
         self.out_names = out_names
         self.out_types = out_types
+        self.needs_finished_var = False
+        self.return_in_loop = False
+        self.finished_assignments = []
 
     def visit_Node(self, node):
         self.visitchildren(node)
         return node
 
-    def visit_ReturnStatNode(self, node):
+    def _visit_ReturnStatNode_impl(self, node):
+        self.return_in_loop = True
         if len(self.out_names) == 0:
             return None
         write_nodes = []
@@ -167,6 +173,71 @@ class ReplaceReturnsTransform(VisitorTransform):
                 stats = [ Nodes.SingleAssignmentNode(
                     node.pos,
                     lhs=nn, rhs=arg) for nn, arg in zip(write_nodes, node.value.args) ])
+
+    def visit_ReturnStatNode(self, node):
+        impl = self._visit_ReturnStatNode_impl(node)
+        impl = [ impl ] if impl else []
+        finished_assignment = Nodes.IndirectionNode(  # make it easy to remove
+            [ Nodes.SingleAssignmentNode(
+                node.pos,
+                lhs=self.finished_letref,
+                rhs=ExprNodes.IntNode(node.pos, value="1")) ])
+        self.finished_assignments.append(finished_assignment)
+        return impl + [ finished_assignment, Nodes.BreakStatNode(node.pos) ]
+
+    def visit_LoopNode(self, node):
+        return_in_loop, self.return_in_loop = self.return_in_loop, False
+        self.visitchildren(node)
+        if self.return_in_loop:
+            # we need to check to see if we returned inside the loop and break if we need
+            self.needs_finished_var = True
+            if_clause = Nodes.IfClauseNode(
+                node.pos,
+                condition=self.finished_letref,
+                body=Nodes.BreakStatNode(node.pos))
+            if_check = Nodes.IfStatNode(
+                node.pos,
+                if_clauses=[if_clause],
+                else_clause=None)
+            node = [node, if_check]
+        self.return_in_loop = return_in_loop or self.return_in_loop
+        return node
+
+    def __call__(self, tree, tree_directives):
+        self.finished_letref = UtilNodes.LetRefNode(
+            pos=tree.pos,
+            expression=ExprNodes.IntNode(tree.pos, value="0"))
+
+        tree = super(ReplaceReturnsTransform, self).__call__(tree)
+        tree = Nodes.CompilerDirectivesNode(
+            tree.pos,
+            directives = tree_directives,
+            body = tree)
+
+        if self.needs_finished_var:
+            tree = UtilNodes.LetNode(self.finished_letref, tree)
+        else:
+            for assignment in self.finished_assignments:
+                assignment.stats = []  # drop the assignments (since they're a waste of time)
+
+        # wrap the return value in a loop so we can use "break" to get out of it
+        # The loop only runs once and is broken out of
+        tree = Nodes.StatListNode(
+            tree.pos,
+            stats = [tree, Nodes.BreakStatNode(tree.pos)])
+        while_loop = Nodes.WhileStatNode(
+            tree.pos,
+            condition = ExprNodes.IntNode(tree.pos, value="1"),
+            body = tree,
+            else_clause = None)
+        # finally, wrap in a compiler directives node to ignore unreachable code,
+        # (because the escape mechanism generates a lot of unreachable break clauses)
+        new_directives = CythonUtilityCode.filter_inherited_directives(tree_directives)
+        new_directives['warn.unreachable'] = False
+        return Nodes.CompilerDirectivesNode(
+            tree.pos,
+            directives=new_directives,
+            body=while_loop)
 
 
 class _ArgumentInfo(object):
@@ -246,11 +317,11 @@ class UFuncConversion(object):
 
         original_body = self.node.ufunc_body
         return_replacer = ReplaceReturnsTransform(out_names, out_types)
-        original_body = return_replacer(original_body)
+        original_body = return_replacer(original_body, self.node.local_scope.directives)
 
         def pipeline_modifier_function(pipeline):
             subs_trans = lambda root: TreeFragment.TemplateTransform()(
-                root, {'UFUNC_BODY': original_body}, [], None)
+                root, {'UFUNC_BODY': original_body}, [], None, replace_pos=False)
             pipeline.insert(0, subs_trans)
             # TODO - if we need a bit of help to pick up @cython.locals or similar
             # from the original function, this is the place to do it

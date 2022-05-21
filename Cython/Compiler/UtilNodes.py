@@ -147,6 +147,9 @@ class ResultRefNode(AtomicExprNode):
         if type:
             self.type = type
 
+    def analyse_target_declaration(self, env):
+        pass  # OK - we can assign to this
+
     def analyse_types(self, env):
         if self.expression is not None:
             if not self.expression.type:
