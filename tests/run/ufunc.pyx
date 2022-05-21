@@ -33,14 +33,55 @@ def test_tripple_it():
 cdef double to_the_power(double x, double y):
     return x**y
 
+def test_to_the_power():
+    """
+    >>> np.allclose(to_the_power(double_arr_1d, 1.), double_arr_1d)
+    True
+    >>> np.allclose(to_the_power(1., double_arr_2d), np.ones_like(double_arr_2d))
+    True
+    """
+
 @cython.ufunc
 cdef object py_return_value(double x):
-    return x
+    if x >= 0:
+        return x
+    # else we forget to set it and trigger an error
+
+def test_py_return_value():
+    """
+    >>> py_return_value(5.)
+    5.0
+    >>> py_return_value(double_arr_1d).dtype
+    dtype('O')
+    >>> py_return_value(-1.)
+    Traceback (most recent call last):
+    ...
+    ValueError: Python object output was not set
+    """
 
 @cython.ufunc
 cdef double py_arg(object x):
-    return x
+    return float(x)
+
+def test_py_arg():
+    """
+    >>> py_arg(np.array([1, "2.0", 3.0], dtype=object))
+    array([1., 2., 3.])
+    """
 
 @cython.ufunc
-cdef (double, int) multiple_return_values(int x):
+cdef (double, long) multiple_return_values(long x):
     return x*1.5, x*2
+
+@cython.ufunc
+cdef (double, long) multiple_return_values2(long x):
+    inefficient_tuple_intermediate = (x*1.5, x*2)
+    return inefficient_tuple_intermediate
+
+def test_multiple_return_values():
+    """
+    >>> multiple_return_values(int_arr_1d)
+    (array([ 0.,  6., 12., 18., 24.]), array([ 0,  8, 16, 24, 32]))
+    >>> multiple_return_values2(int_arr_1d)
+    (array([ 0.,  6., 12., 18., 24.]), array([ 0,  8, 16, 24, 32]))
+    """

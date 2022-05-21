@@ -94,7 +94,8 @@ class NameFinderVisitor(TreeVisitor):
 class UFuncPyObjectTargetNode(ExprNodes.ExprNode):
     """
     Takes ownership of a pyobject and assigns it to the output
-    char* in a ufunc
+    char* in a ufunc. This node exists because it's quite difficult
+    to do the right casts in Cython
 
     target   NameNode
     """
@@ -118,7 +119,9 @@ class UFuncPyObjectTargetNode(ExprNodes.ExprNode):
 
     def generate_assignment_code(self, rhs, code, overloaded_assignment=False,
                                  exception_check=None, exception_value=None):
-        code.putln("%s = (char*)%s;" % (self.target.result(), rhs.result()))
+        code.putln("*((PyObject**)%s) = %s;" % (self.target.result(), rhs.result()))
+        code.put_giveref(rhs.result(), rhs.type)
+        code.putln("%s = 0;" % rhs.result())
         rhs.free_temps(code)
 
 
@@ -204,10 +207,6 @@ class UFuncConversion(object):
             self.name_handler.get_unique_py_name("step%s" % n)
             for n in range(len(self.in_definitions)+len(self.out_definitions))
         ]
-
-        # use the invariant C utility code
-        self.global_scope.use_utility_code(
-            UtilityCode.load_cached("UFuncsInit", "UFuncs_C.c"))
 
     def get_in_type_info(self):
         definitions = []
@@ -309,13 +308,20 @@ class UFuncConversion(object):
             rhs=call_node)
         return assgn_node
 
+    def use_generic_utility_code(self):
+        # use the invariant C utility code
+        self.global_scope.use_utility_code(
+            UtilityCode.load_cached("UFuncsInit", "UFuncs_C.c"))
+        self.global_scope.use_utility_code(
+                    UtilityCode.load_cached("NumpyImportUFunc", "NumpyImportArray.c"))
+
     def get_generated_stats(self):
         tree = self.generate_cy_utility_code()
         ufunc_node = FindCFuncDefNode()(tree)
 
         capi_func = self.generate_ufunc_initialization([ufunc_node.entry.cname])
 
-        return [ufunc_node, AddImportUFuncNode(self.node.pos), capi_func]
+        return [ufunc_node, capi_func]
 
 
 def convert_to_ufunc(node):
@@ -327,27 +333,12 @@ def convert_to_ufunc(node):
         return node
 
     converter = UFuncConversion(node)
+    converter.use_generic_utility_code()
     return converter.get_generated_stats()
 
-
-class AddImportUFuncNode(Nodes.Node):
-    child_attrs = []
-    def analyse_expressions(self, env):
-        return self
-
-    def generate_function_definitions(self, env, code):
-        return
-
-    def generate_execution_code(self, code):
-        code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("NumpyImportUFunc", "NumpyImportArray.c")
-            )
 
 def protect_node_body(node):
     # stash the body out of the way so that it doesn't get transformed
     # allowing us to use it "fresh" later
     node.ufunc_body = node.body
     node.body = Nodes.StatListNode(node.body.pos, stats=[])
-
-
-

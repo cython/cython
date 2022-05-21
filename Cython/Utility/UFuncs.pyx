@@ -2,7 +2,6 @@
 
 cdef extern from *:
     ctypedef int npy_intp
-    void Py_INCREF(object o)
 
 # variable names have to come from tempita to avoid duplication
 @cname("{{func_cname}}")
@@ -25,15 +24,16 @@ cdef void {{func_cname}}(char **{{args}}, const npy_intp *{{dimensions}}, const 
     for {{i}} in range({{n}}):
         {{for arg_name, arg_type, in_name in zip(arg_names, arg_types, in_names)}}
         {{if arg_type.is_pyobject}}
-        {{arg_name}} = (<{{arg_type.declaration_code("", pyrex=True)}}>{{in_name}})
+        {{arg_name}} = (<{{arg_type.declaration_code("", pyrex=True)}}>(<void**>{{in_name}})[0])
         {{else}}
         {{arg_name}} = (<{{arg_type.declaration_code("", pyrex=True)}}*>{{in_name}})[0]
         {{endif}}
         {{endfor}}
         {{for out_type, out_name in zip(out_types, out_names) }}
         {{if out_type.is_pyobject}}
-        # ensure PyObjects are nulled so we can raise an error if not
-        {{out_name}} = NULL
+        # ensure PyObjects are nulled so we can raise an error if not set
+        # (this may be unnecessary but better to be same)
+        (<void**>({{out_name}}))[0] = NULL
         {{endif}}
         {{endfor}}
 
@@ -41,9 +41,8 @@ cdef void {{func_cname}}(char **{{args}}, const npy_intp *{{dimensions}}, const 
 
         {{for out_type, out_name in zip(out_types, out_names)}}
         {{if out_type.is_pyobject}}
-        if {{out_name}} == NULL:
+        if (<void**>{{out_name}})[0] == NULL:
             raise ValueError("Python object output was not set")
-        Py_INCREF(<object>{{out_name}})
         {{endif}}
         {{endfor}}
         {{for name, step_name in zip(in_names+out_names, step_names)}}
