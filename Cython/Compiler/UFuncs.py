@@ -35,16 +35,8 @@ def _get_type_constant(pos, type_):
         return "NPY_OBJECT"
     # TODO possible NPY_BOOL to bint but it needs a cast?
     # TODO NPY_DATETIME, NPY_TIMEDELTA, NPY_STRING, NPY_UNICODE and maybe NPY_VOID might be handleable
+    import pdb; pdb.set_trace()
     error(pos, "Type '%s' cannot be used as a ufunc argument" % type_)
-
-def _get_in_type_constants(node):
-    return [ _get_type_constant(node.pos, arg.type) for arg in node.args ]
-
-def _get_out_type_info(node):
-    if node.return_type.is_ctuple:
-        return [ _get_type_constant(node.pos, c) for c in node.return_type.components ], node.return_type.components
-    else:
-        return [ _get_type_constant(node.pos, node.return_type) ],  [ node.return_type ]
 
 class _UniquePyNameHandler(object):
     def __init__(self, existing_names):
@@ -58,6 +50,11 @@ class _UniquePyNameHandler(object):
         return name
 
 class FindCFuncDefNode(TreeVisitor):
+    """
+    Finds the CFuncDefNode in the tree
+
+    The assumption is that there's only one CFuncDefNode
+    """
     found_node = None
 
     def visit_Node(self, node):
@@ -69,8 +66,16 @@ class FindCFuncDefNode(TreeVisitor):
     def visit_CFuncDefNode(self, node):
         self.found_node = node
 
+    def __call__(self, tree):
+        self.visit(tree)
+        return self.found_node
+
+
 
 class NameFinderVisitor(TreeVisitor):
+    """
+    Finds the names of all the NameNodes in the tree
+    """
     def __init__(self):
         super(NameFinderVisitor, self).__init__()
         self.names = set()
@@ -80,6 +85,10 @@ class NameFinderVisitor(TreeVisitor):
 
     def visit_NameNode(self, node):
         self.names.add(node.name)
+
+    def __call__(self, tree):
+        self.visit(tree)
+        return self.names
 
 
 class UFuncPyObjectTargetNode(ExprNodes.ExprNode):
@@ -115,6 +124,13 @@ class UFuncPyObjectTargetNode(ExprNodes.ExprNode):
 
 
 class ReplaceReturnsTransform(VisitorTransform):
+    """
+    Replace the return statement in a function with an assignment
+
+    The user defines a Cython ufunc with a single short function. To convert it
+    into a real ufunc Cython inserts that function into a loop, and the return
+    statement should be converted to an assignment
+    """
     def __init__(self, out_names, out_types):
         super(ReplaceReturnsTransform, self).__init__()
         self.out_names = out_names
@@ -155,6 +171,153 @@ class ReplaceReturnsTransform(VisitorTransform):
                     lhs=nn, rhs=arg) for nn, arg in zip(write_nodes, node.value.args) ])
 
 
+class _ArgumentInfo(object):
+    """
+    Everything related to defining an input/output argument for a ufunc
+
+    name  - str - name in the generated code
+    arg_name  - str or None - only defined for "in" arguments
+    type  - PyrexType
+    type_constant  - str such as "NPY_INT8" representing numpy dtype constants
+    """
+    def __init__(self, name, type, type_constant, arg_name=None):
+        self.name = name
+        self.arg_name = arg_name
+        self.type = type
+        self.type_constant = type_constant
+
+
+class UFuncConversion(object):
+    def __init__(self, node):
+        self.node = node
+        self.global_scope = node.local_scope.global_scope()
+
+        names = NameFinderVisitor()(node.ufunc_body)
+        self.name_handler = _UniquePyNameHandler(set(node.local_scope.entries.keys()).union(names))
+
+        self.in_definitions = self.get_in_type_info()
+        self.out_definitions = self.get_out_type_info()
+
+        cname = node.entry.cname
+
+        self.step_names = [
+            self.name_handler.get_unique_py_name("step%s" % n)
+            for n in range(len(self.in_definitions)+len(self.out_definitions))
+        ]
+
+        # use the invariant C utility code
+        self.global_scope.use_utility_code(
+            UtilityCode.load_cached("UFuncsInit", "UFuncs_C.c"))
+
+    def get_in_type_info(self):
+        definitions = []
+        for n, arg in enumerate(self.node.args):
+            in_name = self.name_handler.get_unique_py_name("in%s" % n)
+            type_const = _get_type_constant(self.node.pos, arg.type)
+            definitions.append(_ArgumentInfo(in_name, arg.type, type_const, arg.name))
+        return definitions
+
+    def get_out_type_info(self):
+        if self.node.return_type.is_ctuple:
+            components = self.node.return_type.components
+        else:
+            components = [ self.node.return_type ]
+        definitions = []
+        for n, type in enumerate(components):
+            out_name = self.name_handler.get_unique_py_name("out%s" % n)
+            definitions.append(_ArgumentInfo(out_name, type, _get_type_constant(self.node.pos, type)))
+        return definitions
+
+    def generate_cy_utility_code(self):
+        in_names, arg_types, arg_names = zip(*[
+            (a.name, a.type, a.arg_name) for a in self.in_definitions
+        ])
+        out_names, out_types = zip(*[
+            (a.name, a.type) for a in self.out_definitions
+        ])
+
+        context = dict(func_cname=self.node.entry.cname,
+                   args=self.name_handler.get_unique_py_name("args"),
+                   dimensions=self.name_handler.get_unique_py_name("dimensions"),
+                   steps=self.name_handler.get_unique_py_name("steps"),
+                   data=self.name_handler.get_unique_py_name("data"),
+                   i=self.name_handler.get_unique_py_name("i"),
+                   n=self.name_handler.get_unique_py_name("n"),
+                   in_names=in_names, step_names=self.step_names,
+                   arg_names=arg_names, arg_types=arg_types,
+                   out_names=out_names, out_types=out_types)
+
+        code = CythonUtilityCode.load("UFuncDefinition", "UFuncs.pyx", context=context,
+                                      outer_module_scope=self.global_scope)
+
+        original_body = self.node.ufunc_body
+        return_replacer = ReplaceReturnsTransform(out_names, out_types)
+        original_body = return_replacer(original_body)
+
+        def pipeline_modifier_function(pipeline):
+            subs_trans = lambda root: TreeFragment.TemplateTransform()(
+                root, {'UFUNC_BODY': original_body}, [], None)
+            pipeline.insert(0, subs_trans)
+            # TODO - if we need a bit of help to pick up @cython.locals or similar
+            # from the original function, this is the place to do it
+        tree = code.get_tree(entries_only=True, modify_pipeline_callback=pipeline_modifier_function)
+        return tree
+
+    def generate_ufunc_initialization(self, func_cnames):
+        #def initialize_constants(pos, func_name, docstr, global_scope, func_cnames, in_type_constants, out_type_constants):
+        ufunc_funcs_name = self.global_scope.next_id(Naming.pyrex_prefix + "funcs")
+        ufunc_types_name = self.global_scope.next_id(Naming.pyrex_prefix + "types")
+        ufunc_data_name = self.global_scope.next_id(Naming.pyrex_prefix + "data")
+        in_type_constants = [ d.type_constant for d in self.in_definitions ]
+        out_type_constants = [ d.type_constant for d in self.out_definitions ]
+
+        context = dict(
+            ufunc_funcs_name = ufunc_funcs_name,
+            func_cnames = func_cnames,
+            ufunc_types_name = ufunc_types_name,
+            type_constants = in_type_constants+out_type_constants,
+            ufunc_data_name = ufunc_data_name,
+        )
+        self.global_scope.use_utility_code(
+            TempitaUtilityCode.load("UFuncConsts", "UFuncs_C.c",
+                                        context=context))
+
+        pos = self.node.pos
+        func_name = self.node.entry.name
+        docstr = self.node.doc
+        args_to_func = '%s(), %s, %s(), 1, %s, %s, PyUFunc_None, "%s", %s, 0' % (
+            ufunc_funcs_name,
+            ufunc_data_name,
+            ufunc_types_name,
+            len(in_type_constants),
+            len(out_type_constants),
+            func_name, docstr.as_c_string_literal() if docstr else "NULL")
+
+        call_node = ExprNodes.PythonCapiCallNode(
+            pos,
+            function_name="PyUFunc_FromFuncAndData",
+            # use a dummy type because it's honestly too fiddly
+            func_type=PyrexTypes.CFuncType(
+                PyrexTypes.py_object_type, [
+                    PyrexTypes.CFuncTypeArg("dummy", PyrexTypes.c_void_ptr_type, None)]),
+                args=[ExprNodes.ConstNode(pos, type=PyrexTypes.c_void_ptr_type, value=args_to_func)])
+        del self.global_scope.entries[func_name]  # because we've overridden it
+        lhs_entry = self.global_scope.declare_var(func_name, PyrexTypes.py_object_type, pos)
+        assgn_node = Nodes.SingleAssignmentNode(
+            pos,
+            lhs=ExprNodes.NameNode(pos, name=func_name, type=PyrexTypes.py_object_type, entry=lhs_entry),
+            rhs=call_node)
+        return assgn_node
+
+    def get_generated_stats(self):
+        tree = self.generate_cy_utility_code()
+        ufunc_node = FindCFuncDefNode()(tree)
+
+        capi_func = self.generate_ufunc_initialization([ufunc_node.entry.cname])
+
+        return [ufunc_node, AddImportUFuncNode(self.node.pos), capi_func]
+
+
 def convert_to_ufunc(node):
     if not isinstance(node, Nodes.CFuncDefNode):
         error(node.pos, "Only C functions can be converted to a ufunc")
@@ -163,73 +326,9 @@ def convert_to_ufunc(node):
         error(node.pos, "Methods cannot currently be converted to a ufunc")
         return node
 
-    global_scope = node.local_scope.global_scope()
+    converter = UFuncConversion(node)
+    return converter.get_generated_stats()
 
-    in_type_constants = _get_in_type_constants(node)
-    out_type_constants, out_types = _get_out_type_info(node)
-
-    cname = node.entry.cname
-
-    name_finder = NameFinderVisitor()
-    name_finder.visit(node.ufunc_body)
-    name_handler = _UniquePyNameHandler(set(node.local_scope.entries.keys()).union(name_finder.names))
-
-    in_names = []
-    arg_names = []
-    arg_types = []
-    for n, arg in enumerate(node.args):
-        in_names.append(name_handler.get_unique_py_name("in%s" % n))
-        arg_names.append(arg.name)
-        arg_types.append(arg.type)
-    out_names = []
-    for n in range(len(out_types)):
-        out_names.append(name_handler.get_unique_py_name("out%s" % n))
-
-    step_names = [ name_handler.get_unique_py_name("step%s" % n)
-                   for n in range(len(in_type_constants)+len(out_type_constants)) ]
-
-    context = dict(func_cname=cname,
-                   args=name_handler.get_unique_py_name("args"),
-                   dimensions=name_handler.get_unique_py_name("dimensions"),
-                   steps=name_handler.get_unique_py_name("steps"),
-                   data=name_handler.get_unique_py_name("data"),
-                   i=name_handler.get_unique_py_name("i"),
-                   n=name_handler.get_unique_py_name("n"),
-                   in_names=in_names, step_names=step_names,
-                   arg_names=arg_names, arg_types=arg_types,
-                   out_names=out_names, out_types=out_types)
-
-    code = CythonUtilityCode.load("UFuncDefinition", "UFuncs.pyx", context=context,
-                                  outer_module_scope=global_scope)
-    original_body = node.ufunc_body
-    return_replacer = ReplaceReturnsTransform(out_names, out_types)
-    original_body = return_replacer(original_body)
-
-    def pipeline_modifier_function(pipeline):
-        subs_trans = lambda root: TreeFragment.TemplateTransform()(
-            root, {'UFUNC_BODY': original_body}, [], None)
-        pipeline.insert(0, subs_trans)
-        # TODO - if we need a bit of help to pick up @cython.locals or similar
-        # from the original function, this is the place to do it
-    tree = code.get_tree(entries_only=True, modify_pipeline_callback=pipeline_modifier_function)
-
-    #PrintTree()(tree)
-
-    cfunc_finder = FindCFuncDefNode()
-    cfunc_finder.visit(tree)
-
-    global_scope.use_utility_code(
-        UtilityCode.load_cached("UFuncsInit", "UFuncs_C.c"))
-
-    original_node = node
-    node = cfunc_finder.found_node
-
-    capi_func = initialize_constants(
-        original_node.pos, original_node.entry.name, original_node.doc,
-        global_scope, [node.entry.cname],
-        in_type_constants, out_type_constants)
-
-    return [node, AddImportUFuncNode(node.pos), capi_func]
 
 class AddImportUFuncNode(Nodes.Node):
     child_attrs = []
@@ -250,42 +349,5 @@ def protect_node_body(node):
     node.ufunc_body = node.body
     node.body = Nodes.StatListNode(node.body.pos, stats=[])
 
-def initialize_constants(pos, func_name, docstr, global_scope, func_cnames, in_type_constants, out_type_constants):
-    ufunc_funcs = global_scope.next_id(Naming.pyrex_prefix + "funcs")
-    ufunc_types = global_scope.next_id(Naming.pyrex_prefix + "types")
-    ufunc_data = global_scope.next_id(Naming.pyrex_prefix + "data")
-    context = dict(
-        ufunc_funcs_name = ufunc_funcs,
-        func_cnames = func_cnames,
-        ufunc_types_name = ufunc_types,
-        type_constants = in_type_constants+out_type_constants,
-        ufunc_data_name = ufunc_data,
-    )
-    global_scope.use_utility_code(
-        TempitaUtilityCode.load("UFuncConsts", "UFuncs_C.c",
-                                       context=context))
 
-    args_to_func = '%s(), %s, %s(), 1, %s, %s, PyUFunc_None, "%s", %s, 0' % (
-        ufunc_funcs,
-        ufunc_data,
-        ufunc_types,
-        len(in_type_constants),
-        len(out_type_constants),
-        func_name, docstr.as_c_string_literal() if docstr else "NULL")
-
-    call_node = ExprNodes.PythonCapiCallNode(
-        pos,
-        function_name="PyUFunc_FromFuncAndData",
-        # use a dummy type because it's honestly too fiddly
-        func_type=PyrexTypes.CFuncType(
-            PyrexTypes.py_object_type, [
-                PyrexTypes.CFuncTypeArg("dummy", PyrexTypes.c_void_ptr_type, None)]),
-            args=[ExprNodes.ConstNode(pos, type=PyrexTypes.c_void_ptr_type, value=args_to_func)])
-    del global_scope.entries[func_name]  # because we've overridden it
-    lhs_entry = global_scope.declare_var(func_name, PyrexTypes.py_object_type, pos)
-    assgn_node = Nodes.SingleAssignmentNode(
-        pos,
-        lhs=ExprNodes.NameNode(pos, name=func_name, type=PyrexTypes.py_object_type, entry=lhs_entry),
-        rhs=call_node)
-    return assgn_node
 
