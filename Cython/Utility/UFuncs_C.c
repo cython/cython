@@ -11,7 +11,7 @@
 #if NPY_API_VERSION >= 0x0000000e // Numpy 1.20.x
 #define __PYX_PYUFUNCGENERICFUNCTION_CAST(x) x
 #else
-#define __PYX_PYUFUNCGENERICFUNCTION_CAST(x) (PyUFuncGenericFunction*)x
+#define __PYX_PYUFUNCGENERICFUNCTION_CAST(x) (PyUFuncGenericFunction)x
 #endif
 
 /////////////////////// UFuncConsts.proto ////////////////////
