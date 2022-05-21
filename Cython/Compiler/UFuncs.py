@@ -31,7 +31,6 @@ def _get_type_constant(pos, type_):
         return "NPY_OBJECT"
     # TODO possible NPY_BOOL to bint but it needs a cast?
     # TODO NPY_DATETIME, NPY_TIMEDELTA, NPY_STRING, NPY_UNICODE and maybe NPY_VOID might be handleable
-    import pdb; pdb.set_trace()
     error(pos, "Type '%s' cannot be used as a ufunc argument" % type_)
 
 class _UniquePyNameHandler(object):
