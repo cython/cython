@@ -1,11 +1,12 @@
 ##################### UFuncDefinition ######################
 
 cdef extern from *:
-    ctypedef int npy_intp
+    ctypedef int npy_intp;
+    ctypedef int __Pyx_const_npy_intp
 
 # variable names have to come from tempita to avoid duplication
 @cname("{{func_cname}}")
-cdef void {{func_cname}}(char **{{args}}, const npy_intp *{{dimensions}}, const npy_intp* {{steps}}, void* {{data}}) except *:
+cdef void {{func_cname}}(char **{{args}}, __Pyx_const_npy_intp *{{dimensions}}, __Pyx_const_npy_intp* {{steps}}, void* {{data}}) except *:
     cdef npy_intp {{i}}
     cdef npy_intp {{n}} = {{dimensions}}[0]
     {{for idx, in_name in enumerate(in_names)}}
