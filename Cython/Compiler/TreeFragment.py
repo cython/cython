@@ -137,7 +137,7 @@ class TemplateTransform(VisitorTransform):
 
     temp_name_counter = 0
 
-    def __call__(self, node, substitutions, temps, pos, replace_pos=True):
+    def __call__(self, node, substitutions, temps, pos):
         self.substitutions = substitutions
         self.pos = pos
         tempmap = {}
@@ -148,7 +148,6 @@ class TemplateTransform(VisitorTransform):
             tempmap[temp] = handle
             temphandles.append(handle)
         self.tempmap = tempmap
-        self.copier_class = ApplyPositionAndCopy if replace_pos else lambda _: TreeCopier()
         result = super(TemplateTransform, self).__call__(node)
         if temps:
             result = UtilNodes.TempsBlockNode(self.get_pos(node),
@@ -177,7 +176,7 @@ class TemplateTransform(VisitorTransform):
         if sub is not None:
             pos = self.pos
             if pos is None: pos = node.pos
-            return self.copier_class(pos)(sub)
+            return ApplyPositionAndCopy(pos)(sub)
         else:
             return self.visit_Node(node)  # make copy as usual
 
