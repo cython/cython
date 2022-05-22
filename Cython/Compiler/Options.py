@@ -383,7 +383,7 @@ directive_scopes = {  # defaults to available everywhere
     'total_ordering': ('cclass', ),
     'dataclasses.dataclass' : ('class', 'cclass',),
     'cpp_locals': ('module', 'function', 'cclass'),  # I don't think they make sense in a with_statement
-    'ufunc': ('function'),
+    'ufunc': ('function',),
 }
 
 

@@ -148,7 +148,7 @@ class TemplateTransform(VisitorTransform):
             tempmap[temp] = handle
             temphandles.append(handle)
         self.tempmap = tempmap
-        self.copier_class = ApplyPositionAndCopy if replace_pos else lambda ignore: TreeCopier()
+        self.copier_class = ApplyPositionAndCopy if replace_pos else lambda _: TreeCopier()
         result = super(TemplateTransform, self).__call__(node)
         if temps:
             result = UtilNodes.TempsBlockNode(self.get_pos(node),

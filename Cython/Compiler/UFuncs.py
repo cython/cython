@@ -181,7 +181,7 @@ class ReplaceReturnsTransform(VisitorTransform):
             [ Nodes.SingleAssignmentNode(
                 node.pos,
                 lhs=self.finished_letref,
-                rhs=ExprNodes.IntNode(node.pos, value="1")) ])
+                rhs=ExprNodes.IntNode(node.pos, value="1", constant_result=1)) ])
         self.finished_assignments.append(finished_assignment)
         return impl + [ finished_assignment, Nodes.BreakStatNode(node.pos) ]
 
@@ -206,7 +206,7 @@ class ReplaceReturnsTransform(VisitorTransform):
     def __call__(self, tree, tree_directives):
         self.finished_letref = UtilNodes.LetRefNode(
             pos=tree.pos,
-            expression=ExprNodes.IntNode(tree.pos, value="0"))
+            expression=ExprNodes.IntNode(tree.pos, value="0", constant_result=0))
 
         tree = super(ReplaceReturnsTransform, self).__call__(tree)
         tree = Nodes.CompilerDirectivesNode(
@@ -227,7 +227,7 @@ class ReplaceReturnsTransform(VisitorTransform):
             stats = [tree, Nodes.BreakStatNode(tree.pos)])
         while_loop = Nodes.WhileStatNode(
             tree.pos,
-            condition = ExprNodes.IntNode(tree.pos, value="1"),
+            condition = ExprNodes.IntNode(tree.pos, value="1", constant_result=1),
             body = tree,
             else_clause = None)
         # finally, wrap in a compiler directives node to ignore unreachable code,
@@ -262,7 +262,8 @@ class UFuncConversion(object):
         self.global_scope = node.local_scope.global_scope()
 
         names = NameFinderVisitor()(node.ufunc_body)
-        self.name_handler = _UniquePyNameHandler(set(node.local_scope.entries.keys()).union(names))
+        names.update(node.local_scope.entries)
+        self.name_handler = _UniquePyNameHandler(names)
 
         self.in_definitions = self.get_in_type_info()
         self.out_definitions = self.get_out_type_info()
