@@ -15,15 +15,16 @@ numpy_numeric_types = numpy_int_types + numpy_uint_types + [
 ]
 
 def _get_type_constant(pos, type_):
-    # 'is' checks don't seem to work for complex types
-    if type_ == PyrexTypes.c_float_complex_type:
-        return "NPY_CFLOAT"
-    elif type_ == PyrexTypes.c_double_complex_type:
-        return "NPY_CDOUBLE"
-    elif type_ == PyrexTypes.c_longdouble_complex_type:
-        return "NPY_CLONGDOUBLE"
+    if type_.is_complex:
+        # 'is' checks don't seem to work for complex types
+        if type_ == PyrexTypes.c_float_complex_type:
+            return "NPY_CFLOAT"
+        elif type_ == PyrexTypes.c_double_complex_type:
+            return "NPY_CDOUBLE"
+        elif type_ == PyrexTypes.c_longdouble_complex_type:
+            return "NPY_CLONGDOUBLE"
     elif type_.is_numeric:
-        postfix = str(type_).upper().replace(" ", "")
+        postfix = type_.empty_declaration_code().upper().replace(" ", "")
         typename = "NPY_%s" % postfix
         if typename in numpy_numeric_types:
             return typename
@@ -33,18 +34,7 @@ def _get_type_constant(pos, type_):
     # TODO NPY_DATETIME, NPY_TIMEDELTA, NPY_STRING, NPY_UNICODE and maybe NPY_VOID might be handleable
     error(pos, "Type '%s' cannot be used as a ufunc argument" % type_)
 
-class _UniquePyNameHandler(object):
-    def __init__(self, existing_names):
-        self.existing_names = existing_names
-        self.extra_names = set()
-
-    def get_unique_py_name(self, name):
-        while name in self.existing_names or name in self.extra_names:
-            name += "_"
-        self.extra_names.add(name)
-        return name
-
-class FindCFuncDefNode(TreeVisitor):
+class _FindCFuncDefNode(TreeVisitor):
     """
     Finds the CFuncDefNode in the tree
 
@@ -66,192 +56,18 @@ class FindCFuncDefNode(TreeVisitor):
         return self.found_node
 
 
-
-class NameFinderVisitor(TreeVisitor):
-    """
-    Finds the names of all the NameNodes in the tree
-    """
-    def __init__(self):
-        super(NameFinderVisitor, self).__init__()
-        self.names = set()
-
-    def visit_Node(self, node):
-        self.visitchildren(node)
-
-    def visit_NameNode(self, node):
-        self.names.add(node.name)
-
-    def __call__(self, tree):
-        self.visit(tree)
-        return self.names
-
-
-class UFuncPyObjectTargetNode(ExprNodes.ExprNode):
-    """
-    Takes ownership of a pyobject and assigns it to the output
-    char* in a ufunc. This node exists because it's quite difficult
-    to do the right casts in Cython
-
-    target   NameNode
-    """
-    subexprs = ["target"]
-    is_temp = False
-
-    def analyse_target_declaration(self, env):
-        self.target.analyse_target_declaration(env)
-
-    def analyse_types(self, env):
-        assert False, "Should only be used as a target"
-        return self
-
-    def analyse_target_types(self, env):
-        self.target = self.target.analyse_types(env)
-        assert self.target.is_name
-        assert (self.target.type.is_ptr and self.target.type.base_type.is_int and
-                    self.target.type.base_type.rank == 0)
-        assert self.type.is_pyobject
-        return self
-
-    def generate_assignment_code(self, rhs, code, overloaded_assignment=False,
-                                 exception_check=None, exception_value=None):
-        code.putln("*((PyObject**)%s) = %s;" % (self.target.result(), rhs.result()))
-        code.put_giveref(rhs.result(), rhs.type)
-        code.putln("%s = 0;" % rhs.result())
-        rhs.free_temps(code)
-
-
-class ReplaceReturnsTransform(VisitorTransform):
-    """
-    Replace the return statement in a function with an assignment
-
-    The user defines a Cython ufunc with a single short function. To convert it
-    into a real ufunc Cython inserts that function into a loop, and the return
-    statement should be converted to an assignment.
-
-    It also needs to handle a bit of flow control to make sure that return actually
-    "returns"
-    """
-    def __init__(self, out_names, out_types):
-        super(ReplaceReturnsTransform, self).__init__()
-        self.out_names = out_names
-        self.out_types = out_types
-        self.needs_finished_var = False
-        self.return_in_loop = False
-        self.finished_assignments = []
-
-    def visit_Node(self, node):
-        self.visitchildren(node)
-        return node
-
-    def _visit_ReturnStatNode_impl(self, node):
-        self.return_in_loop = True
-        if len(self.out_names) == 0:
-            return None
-        write_nodes = []
-        for out_name, out_type in zip(self.out_names, self.out_types):
-            name_node = ExprNodes.NameNode(node.pos, name=out_name)
-            if not out_type.is_pyobject:
-                cast_node = ExprNodes.TypecastNode(node.pos, operand=name_node,
-                                                type=PyrexTypes.c_ptr_type(out_type))
-                index_node = ExprNodes.IndexNode(node.pos, base=cast_node,
-                                                 index=ExprNodes.IntNode(node.pos, value="0"))
-                write_nodes.append(index_node)
-            else:
-                cast_node = UFuncPyObjectTargetNode(node.pos, target=name_node, type=out_type)
-                write_nodes.append(cast_node)
-        if (len(write_nodes) == 1 or not node.value.is_sequence_constructor or
-                node.value.mult_factor or len(node.value.args) != len(write_nodes)):
-            lhs = write_nodes[0] if len(write_nodes)==1 else ExprNodes.TupleNode(
-                node.pos, args=write_nodes)
-            return Nodes.SingleAssignmentNode(
-                node.pos,
-                lhs=lhs,
-                rhs=node.value)
-        elif node.value:
-            return Nodes.ParallelAssignmentNode(
-                node.pos,
-                stats = [ Nodes.SingleAssignmentNode(
-                    node.pos,
-                    lhs=nn, rhs=arg) for nn, arg in zip(write_nodes, node.value.args) ])
-
-    def visit_ReturnStatNode(self, node):
-        impl = self._visit_ReturnStatNode_impl(node)
-        impl = [ impl ] if impl else []
-        finished_assignment = Nodes.IndirectionNode(  # make it easy to remove
-            [ Nodes.SingleAssignmentNode(
-                node.pos,
-                lhs=self.finished_letref,
-                rhs=ExprNodes.IntNode(node.pos, value="1", constant_result=1)) ])
-        self.finished_assignments.append(finished_assignment)
-        return impl + [ finished_assignment, Nodes.BreakStatNode(node.pos) ]
-
-    def visit_LoopNode(self, node):
-        return_in_loop, self.return_in_loop = self.return_in_loop, False
-        self.visitchildren(node)
-        if self.return_in_loop:
-            # we need to check to see if we returned inside the loop and break if we need
-            self.needs_finished_var = True
-            if_clause = Nodes.IfClauseNode(
-                node.pos,
-                condition=self.finished_letref,
-                body=Nodes.BreakStatNode(node.pos))
-            if_check = Nodes.IfStatNode(
-                node.pos,
-                if_clauses=[if_clause],
-                else_clause=None)
-            node = [node, if_check]
-        self.return_in_loop = return_in_loop or self.return_in_loop
-        return node
-
-    def __call__(self, tree, tree_directives):
-        self.finished_letref = UtilNodes.LetRefNode(
-            pos=tree.pos,
-            expression=ExprNodes.IntNode(tree.pos, value="0", constant_result=0))
-
-        tree = super(ReplaceReturnsTransform, self).__call__(tree)
-        tree = Nodes.CompilerDirectivesNode(
-            tree.pos,
-            directives = tree_directives,
-            body = tree)
-
-        if self.needs_finished_var:
-            tree = UtilNodes.LetNode(self.finished_letref, tree)
-        else:
-            for assignment in self.finished_assignments:
-                assignment.stats = []  # drop the assignments (since they're a waste of time)
-
-        # wrap the return value in a loop so we can use "break" to get out of it
-        # The loop only runs once and is broken out of
-        tree = Nodes.StatListNode(
-            tree.pos,
-            stats = [tree, Nodes.BreakStatNode(tree.pos)])
-        while_loop = Nodes.WhileStatNode(
-            tree.pos,
-            condition = ExprNodes.IntNode(tree.pos, value="1", constant_result=1),
-            body = tree,
-            else_clause = None)
-        # finally, wrap in a compiler directives node to ignore unreachable code,
-        # (because the escape mechanism generates a lot of unreachable break clauses)
-        new_directives = CythonUtilityCode.filter_inherited_directives(tree_directives)
-        new_directives['warn.unreachable'] = False
-        return Nodes.CompilerDirectivesNode(
-            tree.pos,
-            directives=new_directives,
-            body=while_loop)
+def get_cfunc_from_tree(tree):
+    return _FindCFuncDefNode()(tree)
 
 
 class _ArgumentInfo(object):
     """
     Everything related to defining an input/output argument for a ufunc
 
-    name  - str - name in the generated code
-    arg_name  - str or None - only defined for "in" arguments
     type  - PyrexType
     type_constant  - str such as "NPY_INT8" representing numpy dtype constants
     """
-    def __init__(self, name, type, type_constant, arg_name=None):
-        self.name = name
-        self.arg_name = arg_name
+    def __init__(self, type, type_constant):
         self.type = type
         self.type_constant = type_constant
 
@@ -261,26 +77,14 @@ class UFuncConversion(object):
         self.node = node
         self.global_scope = node.local_scope.global_scope()
 
-        names = NameFinderVisitor()(node.ufunc_body)
-        names.update(node.local_scope.entries)
-        self.name_handler = _UniquePyNameHandler(names)
-
         self.in_definitions = self.get_in_type_info()
         self.out_definitions = self.get_out_type_info()
-
-        cname = node.entry.cname
-
-        self.step_names = [
-            self.name_handler.get_unique_py_name("step%s" % n)
-            for n in range(len(self.in_definitions)+len(self.out_definitions))
-        ]
 
     def get_in_type_info(self):
         definitions = []
         for n, arg in enumerate(self.node.args):
-            in_name = self.name_handler.get_unique_py_name("in%s" % n)
             type_const = _get_type_constant(self.node.pos, arg.type)
-            definitions.append(_ArgumentInfo(in_name, arg.type, type_const, arg.name))
+            definitions.append(_ArgumentInfo(arg.type, type_const))
         return definitions
 
     def get_out_type_info(self):
@@ -290,43 +94,27 @@ class UFuncConversion(object):
             components = [ self.node.return_type ]
         definitions = []
         for n, type in enumerate(components):
-            out_name = self.name_handler.get_unique_py_name("out%s" % n)
-            definitions.append(_ArgumentInfo(out_name, type, _get_type_constant(self.node.pos, type)))
+            definitions.append(_ArgumentInfo(type, _get_type_constant(self.node.pos, type)))
         return definitions
 
     def generate_cy_utility_code(self):
-        in_names, arg_types, arg_names = zip(*[
-            (a.name, a.type, a.arg_name) for a in self.in_definitions
-        ])
-        out_names, out_types = zip(*[
-            (a.name, a.type) for a in self.out_definitions
-        ])
+        arg_types = [ a.type for a in self.in_definitions ]
+        out_types = [ a.type for a in self.out_definitions ]
+        inline_func_decl = self.node.entry.type.declaration_code(self.node.entry.cname, pyrex=True)
+        self.node.entry.used = True
 
-        context = dict(func_cname=self.node.entry.cname,
-                   args=self.name_handler.get_unique_py_name("args"),
-                   dimensions=self.name_handler.get_unique_py_name("dimensions"),
-                   steps=self.name_handler.get_unique_py_name("steps"),
-                   data=self.name_handler.get_unique_py_name("data"),
-                   i=self.name_handler.get_unique_py_name("i"),
-                   n=self.name_handler.get_unique_py_name("n"),
-                   in_names=in_names, step_names=self.step_names,
-                   arg_names=arg_names, arg_types=arg_types,
-                   out_names=out_names, out_types=out_types)
+        ufunc_cname = self.global_scope.next_id(self.node.entry.name+"_ufunc_def")
+
+        context = dict(func_cname=ufunc_cname,
+                       in_types=arg_types, out_types=out_types,
+                       inline_func_call=self.node.entry.cname,
+                       inline_func_declaration=inline_func_decl,
+                       nogil=self.node.entry.type.nogil)
 
         code = CythonUtilityCode.load("UFuncDefinition", "UFuncs.pyx", context=context,
                                       outer_module_scope=self.global_scope)
 
-        original_body = self.node.ufunc_body
-        return_replacer = ReplaceReturnsTransform(out_names, out_types)
-        original_body = return_replacer(original_body, self.node.local_scope.directives)
-
-        def pipeline_modifier_function(pipeline):
-            subs_trans = lambda root: TreeFragment.TemplateTransform()(
-                root, {'UFUNC_BODY': original_body}, [], None, replace_pos=False)
-            pipeline.insert(0, subs_trans)
-            # TODO - if we need a bit of help to pick up @cython.locals or similar
-            # from the original function, this is the place to do it
-        tree = code.get_tree(entries_only=True, modify_pipeline_callback=pipeline_modifier_function)
+        tree = code.get_tree(entries_only=True)
         return tree
 
     def use_generic_utility_code(self):
@@ -357,9 +145,10 @@ def convert_to_ufunc(node):
     if not converters:
         return  # this path probably shouldn't happen
 
-    # the generic utility code is generic, so there's no reason to do
+    del converters[0].global_scope.entries[original_node.entry.name]
+    # the generic utility code is generic, so there's no reason to do it multiple times
     converters[0].use_generic_utility_code()
-    return _generate_stats_from_converters(converters, original_node)
+    return [node] + _generate_stats_from_converters(converters, original_node)
 
 
 def generate_ufunc_initialization(converters, cfunc_nodes, original_node):
@@ -417,7 +206,6 @@ def generate_ufunc_initialization(converters, cfunc_nodes, original_node):
             PyrexTypes.py_object_type, [
                 PyrexTypes.CFuncTypeArg("dummy", PyrexTypes.c_void_ptr_type, None)]),
             args=[ExprNodes.ConstNode(pos, type=PyrexTypes.c_void_ptr_type, value=args_to_func)])
-    del global_scope.entries[func_name]  # because we've overridden it
     lhs_entry = global_scope.declare_var(func_name, PyrexTypes.py_object_type, pos)
     assgn_node = Nodes.SingleAssignmentNode(
         pos,
@@ -430,19 +218,10 @@ def _generate_stats_from_converters(converters, node):
     stats = []
     for converter in converters:
         tree = converter.generate_cy_utility_code()
-        ufunc_node = FindCFuncDefNode()(tree)
+        ufunc_node = get_cfunc_from_tree(tree)
         # merge in any utility code
         converter.global_scope.utility_code_list.extend(tree.scope.utility_code_list)
         stats.append(ufunc_node)
 
     stats.append(generate_ufunc_initialization(converters, stats, node))
     return stats
-
-
-
-
-def protect_node_body(node):
-    # stash the body out of the way so that it doesn't get transformed
-    # allowing us to use it "fresh" later
-    node.ufunc_body = node.body
-    node.body = Nodes.StatListNode(node.body.pos, stats=[])

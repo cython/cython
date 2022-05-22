@@ -11,8 +11,10 @@ int_arr_2d = np.arange(500, dtype=int).reshape((50, -1))[5:8, 6:8]
 double_arr_1d = int_arr_1d.astype(np.double)
 double_arr_2d = int_arr_2d.astype(np.double)
 
+# it's fairly hard to test that nogil results in the GIL actually
+# being released unfortunately
 @cython.ufunc
-cdef double tripple_it(long x):
+cdef double tripple_it(long x) nogil:
     """tripple_it doc"""
     return x*3.
 
@@ -45,7 +47,7 @@ def test_to_the_power():
 cdef object py_return_value(double x):
     if x >= 0:
         return x
-    # else we forget to set it and trigger an error
+    # default returns None
 
 def test_py_return_value():
     """
@@ -53,10 +55,7 @@ def test_py_return_value():
     5.0
     >>> py_return_value(double_arr_1d).dtype
     dtype('O')
-    >>> py_return_value(-1.)
-    Traceback (most recent call last):
-    ...
-    ValueError: Python object output was not set
+    >>> py_return_value(-1.)  # returns None
     """
 
 @cython.ufunc
@@ -104,8 +103,10 @@ def test_plus_one():
     """
 
 ###### Test flow-control ######
-# The transformation to a ufunc changes return statements to assignments and a break
-# These tests make sure that it's working correctly
+# An initial implementation of ufunc did some odd restructuring of the code to
+# bring the functions completely inline at the Cython level. These tests were to
+# test that "return" statements work. They're less needed now, but don't do any
+# harm
 
 @cython.ufunc
 cdef double return_stops_execution(double x):

@@ -1229,9 +1229,6 @@ class InterpretCompilerDirectives(CythonTransform):
     # Handle decorators
     def visit_FuncDefNode(self, node):
         directives, contents_directives = self._extract_directives(node, 'function')
-        if "ufunc" in directives:
-            from .UFuncs import protect_node_body
-            protect_node_body(node)
         return self.visit_with_directives(node, directives, contents_directives)
 
     def visit_CVarDefNode(self, node):

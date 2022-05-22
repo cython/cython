@@ -45,6 +45,11 @@ If you want to accept multiple different argument types then you can use :ref:`f
     @cython.ufunc
     cdef cython.numeric generic_add_one(cython.numeric x):
         return x+1
+        
+Finally, if you declare the ``cdef`` function as ``nogil`` then Cython will release the
+:term:`Global Interpreter Lock` once in the generated ufunc. This is a slight difference
+from the general behaviour of ``nogil`` functions (they generally do not automatically
+release the GIL, but instead can be run without the GIL).
 
 This feature relies on Numpy. Therefore if you create a ufunc in
 Cython, you must have the Numpy headers available when you build the generated C code, and 
