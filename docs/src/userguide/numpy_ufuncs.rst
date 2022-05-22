@@ -47,7 +47,7 @@ If you want to accept multiple different argument types then you can use :ref:`f
         return x+1
         
 Finally, if you declare the ``cdef`` function as ``nogil`` then Cython will release the
-:term:`Global Interpreter Lock` once in the generated ufunc. This is a slight difference
+:term:`GIL<Global Interpreter Lock or GIL>` once in the generated ufunc. This is a slight difference
 from the general behaviour of ``nogil`` functions (they generally do not automatically
 release the GIL, but instead can be run without the GIL).
 
