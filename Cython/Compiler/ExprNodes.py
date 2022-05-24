@@ -328,9 +328,6 @@ class ExprNode(Node):
     #  is_sequence_constructor
     #               boolean      Is a list or tuple constructor expression
     #  is_starred   boolean      Is a starred expression (e.g. '*a')
-    #  saved_subexpr_nodes
-    #               [ExprNode or [ExprNode or None] or None]
-    #                            Cached result of subexpr_nodes()
     #  use_managed_ref boolean   use ref-counted temps/assignments/etc.
     #  result_is_used  boolean   indicates that the result will be dropped and the
     #  is_numpy_attribute   boolean   Is a Numpy module attribute
@@ -473,7 +470,6 @@ class ExprNode(Node):
     is_memview_broadcast = False
     is_memview_copy_assignment = False
 
-    saved_subexpr_nodes = None
     is_temp = False
     has_temp_moved = False  # if True then attempting to do anything but free the temp is invalid
     is_target = False
